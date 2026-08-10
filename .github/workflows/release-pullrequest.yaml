@@ -16,8 +16,12 @@ jobs:
     with:
       modules: '[{"mod":"frontend","context":"ui"}]'
       push: false
+      # NOT github.ref_name: on a pull_request that is "<number>/merge" (the merge ref), and the
+      # Dockerfile runs `npm version $VERSION`, which rejects it — "Invalid version: 101/merge" — so
+      # every PR build failed. It works on a tag because there ref_name IS the semver.
+      # The image is never pushed here (push: false), so the value only has to be valid and unique.
       build_args: |
-        VERSION=${{ github.ref_name }}
+        VERSION=0.0.0-pr.${{ github.event.pull_request.number }}
         APP_BUILD=${{ github.sha }}
   crds:
     name: Generate crds
