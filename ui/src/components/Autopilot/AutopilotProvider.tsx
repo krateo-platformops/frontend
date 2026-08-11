@@ -476,8 +476,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         // out; the model must NEVER hand-write the multi-op payload (that is the stall we recover from).
         const pageSlug = isPageDraft(held.files) ? pageRootSlug(held.files) : null
         const scalarVerb = pageSlug
-          ? `{"verb":"publishPage","owner":"braghettos","repo":"krateo-portal-chart","base":"main","configurationRef":"github-blueprints-config","namespace":"krateo-system","title":"builder: page ${pageSlug}","body":"<one-line summary>"}`
-          : `{"verb":"publishBlueprint","owner":"braghettos","repo":"krateo-blueprints","base":"main","configurationRef":"github-blueprints-config","namespace":"krateo-system","title":"feat(${heldName}): add ${heldName} blueprint","body":"<one-line summary>"}`
+          ? `{"verb":"publishPage","owner":"krateo-platformops","repo":"krateo-portal-chart","base":"main","configurationRef":"github-blueprints-config","namespace":"krateo-system","title":"builder: page ${pageSlug}","body":"<one-line summary>"}`
+          : `{"verb":"publishBlueprint","owner":"krateo-blueprints","repo":"krateo-blueprints","base":"main","configurationRef":"github-blueprints-config","namespace":"krateo-system","title":"feat(${heldName}): add ${heldName} blueprint","body":"<one-line summary>"}`
         const fanout = pageSlug
           ? 'the gitrefs + per-file repocontents (widget CRs + the nav fragment) + pullrequests set from the held page'
           : 'the gitrefs/repocontents/pullrequests set from the held tree'

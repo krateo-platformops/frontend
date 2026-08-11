@@ -8,7 +8,7 @@ import { theme as antdAlgorithms, type ThemeConfig } from 'antd'
  * here: the antd `ThemeConfig` (`lightTheme` / `darkTheme`) and the `:root` CSS
  * custom properties (`cssVariables`) consumed by `*.module.css`.
  *
- * BRAND = "Krateo Brand Identity v2" (blue) — braghettos/krateo-frontend issue #49.
+ * BRAND = "Krateo Brand Identity v2" (blue) — krateo-platformops/frontend issue #49.
  * Interaction blue: Krateo Blue #11B2E2 (dark primary #2FBFE6) / Sovereign Blue #05629A
  * (light primary + nav surface). Status is a Tier-2-locked semantic set: green #00D690,
  * amber #FFAA00, red #F84C4C, info blue. Signal Yellow #E8FF00 is RESERVED for the

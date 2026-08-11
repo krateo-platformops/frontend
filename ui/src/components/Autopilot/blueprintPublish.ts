@@ -34,7 +34,7 @@ export const BLUEPRINTS_REPO_DEFAULTS = {
   base: 'main',
   configurationRef: 'github-blueprints-config',
   namespace: 'krateo-system',
-  owner: 'braghettos',
+  owner: 'krateo-blueprints',
   repo: 'krateo-blueprints',
 } as const
 

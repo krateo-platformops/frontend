@@ -1,7 +1,7 @@
 /**
  * FE-B1 + FE-B2 pure-logic coverage for blueprintDraft.ts:
  *   - the crdgen-defaults lint matrix (non-empty object/array defaults = the
- *     braghettos/krateo-core-provider#46 class → HARD ERROR; scalar/absent/empty
+ *     krateo-platformops/core-provider#46 class → HARD ERROR; scalar/absent/empty
  *     defaults pass; a property literally NAMED "default" is not a false positive),
  *     including the exact #46 ingress.hosts shape as a fixture;
  *   - the 512 KiB rawTemplates size cap (same discipline as the OAS attachment);
@@ -45,7 +45,7 @@ describe('stripCodeFence — de-fence a model-wrapped file body', () => {
   })
 })
 
-/** The EXACT braghettos/krateo-core-provider#46 class: a helm-scaffold ingress.hosts
+/** The EXACT krateo-platformops/core-provider#46 class: a helm-scaffold ingress.hosts
  * array default in values.schema.json → malformed +kubebuilder:default marker →
  * controller-gen parse failure → the CompositionDefinition wedges Ready=False. */
 const ISSUE_46_INGRESS_HOSTS_SCHEMA = JSON.stringify({

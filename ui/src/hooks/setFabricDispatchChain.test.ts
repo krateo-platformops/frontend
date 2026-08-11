@@ -1,11 +1,11 @@
 /**
- * Reproduction + regression guard for braghettos/krateo-frontend#42 (W3-2 `ops[]` dispatches
+ * Reproduction + regression guard for krateo-platformops/frontend#42 (W3-2 `ops[]` dispatches
  * SCALAR instead of the N-object set) — AND its sibling W3-1 `fanOutPath` (never confirmed
  * live either; same set-fabric family, so this pins BOTH).
  *
  * ROOT CAUSE of the live incident (investigated, not a frontend logic bug): the cluster ran
  * the UPSTREAM image `ghcr.io/krateoplatformops/frontend:1.3.19` (KrateoFrontend CR
- * `spec.image.repository` was overridden away from the fork `ghcr.io/braghettos/krateo-frontend`),
+ * `spec.image.repository` was overridden away from the fork `ghcr.io/krateo-platformops/frontend`),
  * whose 1.3.19 predates the ops feature → it takes the scalar path. Served-data + fork-source
  * were BOTH correct; the runtime was simply a DIFFERENT image (the version number 1.3.19
  * collided). This test is the CI guard that the fork's dispatch keeps working end-to-end, so a
