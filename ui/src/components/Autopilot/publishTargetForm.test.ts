@@ -17,7 +17,7 @@ describe('askPublishDestination — headless resolves the prefills, per kind', (
   it('resolves the default repo for each kind when the proposal omits coords', async () => {
     const targets = await Promise.all(kinds.map((kind) => askPublishDestination({}, kind, `default-${kind}-repo`)))
     kinds.forEach((kind, index) => {
-      expect(targets[index]).toEqual({ base: 'main', owner: 'braghettos', repo: `default-${kind}-repo` })
+      expect(targets[index]).toEqual({ base: 'main', owner: 'krateo-blueprints', repo: `default-${kind}-repo` })
     })
   })
 

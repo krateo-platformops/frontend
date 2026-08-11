@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Reproduction + regression tests for braghettos/krateo-frontend#33 (form-input-wipe half):
+ * Reproduction + regression tests for krateo-platformops/frontend#33 (form-input-wipe half):
  * while a user fills a Form widget, the widget's periodic/event-triggered refetch
  * (live-refresh SSE / event invalidation) must NOT wipe typed values or select choices
  * back to initialValues.

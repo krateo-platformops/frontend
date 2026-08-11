@@ -7,7 +7,7 @@
  *      non-empty path → string content, or null — the proposal is DENIED, never a crash.
  *   2. lintBlueprintDraft (FE-B2) — the crdgen-defaults lint, run BEFORE any render
  *      fetch. A values.schema.json carrying a NON-EMPTY object/array `default` (at ANY
- *      depth) is the braghettos/krateo-core-provider#46 class: at CD-create time crdgen
+ *      depth) is the krateo-platformops/core-provider#46 class: at CD-create time crdgen
  *      emits a malformed `+kubebuilder:default=` marker, controller-gen fails to parse
  *      it, and the CompositionDefinition wedges Ready=False. HARD ERROR — the drawer
  *      shows the verdicts and NOTHING is fetched or published. The 512 KiB total-bytes
@@ -109,7 +109,7 @@ const VALUE_KEYWORDS = new Set(['const', 'default', 'enum', 'examples'])
 
 const crdgenDefaultsProblem = (path: string, value: unknown): string => {
   const shape = Array.isArray(value) ? 'array' : 'object'
-  return `[CRDGEN-DEFAULTS] ${path}: non-empty ${shape} default — crdgen emits a malformed +kubebuilder:default marker and the CompositionDefinition wedges Ready=False (braghettos/krateo-core-provider#46). Move the structure into values.yaml; keep schema defaults scalar.`
+  return `[CRDGEN-DEFAULTS] ${path}: non-empty ${shape} default — crdgen emits a malformed +kubebuilder:default marker and the CompositionDefinition wedges Ready=False (krateo-platformops/core-provider#46). Move the structure into values.yaml; keep schema defaults scalar.`
 }
 
 /** Schema-aware walk: flags every non-empty object/array `default` at any depth. */
