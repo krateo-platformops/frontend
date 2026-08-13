@@ -1,0 +1,264 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: piecharts.widgets.templates.krateo.io
+spec:
+  group: widgets.templates.krateo.io
+  names:
+    categories:
+      - widgets
+      - krateo
+    kind: PieChart
+    listKind: PieChartList
+    plural: piecharts
+    singular: piechart
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .metadata.creationTimestamp
+          name: AGE
+          type: date
+      name: v1beta1
+      schema:
+        openAPIV3Schema:
+          properties:
+            apiVersion:
+              description: |-
+                APIVersion defines the versioned schema of this representation of an object.
+                Servers should convert recognized schemas to the latest internal value, and
+                may reject unrecognized values.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              type: string
+            kind:
+              description: |-
+                Kind is a string value representing the REST resource this object represents.
+                Servers may infer this from the endpoint the client submits requests to.
+                Cannot be updated.
+                In CamelCase.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              type: string
+            metadata:
+              type: object
+            spec:
+              properties:
+                apiRef:
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                    - name
+                    - namespace
+                  type: object
+                resourcesRefs:
+                  properties:
+                    items:
+                      items:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          slice:
+                            properties:
+                              continue:
+                                type: boolean
+                              offset:
+                                format: int32
+                                type: integer
+                              page:
+                                format: int32
+                                type: integer
+                              perPage:
+                                format: int32
+                                type: integer
+                            required:
+                              - perPage
+                            type: object
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        required:
+                          - id
+                        type: object
+                      type: array
+                    slice:
+                      properties:
+                        continue:
+                          type: boolean
+                        offset:
+                          format: int32
+                          type: integer
+                        page:
+                          format: int32
+                          type: integer
+                        perPage:
+                          format: int32
+                          type: integer
+                      required:
+                        - perPage
+                      type: object
+                  required:
+                    - items
+                  type: object
+                resourcesRefsTemplate:
+                  items:
+                    properties:
+                      iterator:
+                        type: string
+                      template:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        type: object
+                    type: object
+                  type: array
+                widgetData:
+                  description: '@ant-design/charts Pie config (AntV G2)'
+                  properties:
+                    angleField:
+                      description: field mapped to the slice value / angle (G2 `angleField`)
+                      type: string
+                    annotations:
+                      description: G2 annotations passed through (e.g. a donut center `text` annotation positioned at x/y 50%)
+                      items:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                      type: array
+                    colorField:
+                      description: field mapped to color / category (G2 `colorField`)
+                      type: string
+                    colorMap:
+                      description: map each colorField category to a Krateo palette color name (e.g. {"Healthy":"green","Failed":"red"}); sets the G2 color scale domain/range for semantic slice colors
+                      type: object
+                      additionalProperties:
+                        type: string
+                    data:
+                      description: chart data records (G2 `data`)
+                      items:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                      type: array
+                    height:
+                      description: fixed height in px (G2 `height`); omit to autofit
+                      format: int32
+                      type: integer
+                    innerRadius:
+                      description: donut hole as a percentage of the radius, 0-100 (maps to antd Pie `innerRadius` ÷ 100); omit for a full pie
+                      format: int32
+                      type: integer
+                    label:
+                      description: per-slice label config passed through to G2 (e.g. {"text":"count","position":"inside"}); omit for no slice labels
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    legend:
+                      description: show the legend; false hides it (G2 `legend`). When shown it is rendered centered, positioned per legendPosition (default below the chart).
+                      type: boolean
+                    legendPosition:
+                      description: where the legend sits relative to the chart (G2 legend position). Default bottom; right stacks it beside the donut (status-breakdown layout)
+                      enum:
+                        - bottom
+                        - right
+                        - top
+                        - left
+                      type: string
+                    title:
+                      description: chart title (G2 `title`)
+                      type: string
+                    watch:
+                      description: 'live-refresh watch: involvedObject(s) this widget is tied to (see src/schemas/watch.schema.json). A matching k8s event refetches the widget.'
+                      items:
+                        properties:
+                          apiVersion:
+                            description: group/version, e.g. composition.krateo.io/v1alpha1
+                            type: string
+                          kind:
+                            description: e.g. DemoClaim
+                            type: string
+                          name:
+                            description: a specific object; omit to match any object of this kind ("GVR-level")
+                            type: string
+                          namespace:
+                            description: scope to a namespace; omit to match any
+                            type: string
+                        required:
+                          - apiVersion
+                          - kind
+                        type: object
+                      type: array
+                  required:
+                    - angleField
+                    - colorField
+                    - data
+                  type: object
+                widgetDataTemplate:
+                  items:
+                    properties:
+                      expression:
+                        type: string
+                      forPath:
+                        type: string
+                    type: object
+                  type: array
+                identityContext:
+                  items:
+                    enum:
+                      - username
+                      - groups
+                    type: string
+                  type: array
+                keyExtras:
+                  description: 'F6 (snowplow#130): the request-extras keys (route params / URL query folded into ?extras=) whose values this widget''s resolution depends on. Only declared keys partition the widget cache cell. Absent/empty = the widget does not vary by any request extra (chrome/layout default).'
+                  items:
+                    type: string
+                  type: array
+                freshness:
+                  description: 'Opt-in staleness indicator: when true the widget shows the stale/refreshing dot overlay (exception states only). Absent/false = no badge ever (the default; healthy widgets stay unmarked).'
+                  type: boolean
+              required:
+                - widgetData
+              type: object
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}

@@ -1,0 +1,561 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: forms.widgets.templates.krateo.io
+spec:
+  group: widgets.templates.krateo.io
+  names:
+    categories:
+      - widgets
+      - krateo
+    kind: Form
+    listKind: FormList
+    plural: forms
+    singular: form
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .metadata.creationTimestamp
+          name: AGE
+          type: date
+      name: v1beta1
+      schema:
+        openAPIV3Schema:
+          properties:
+            apiVersion:
+              description: |-
+                APIVersion defines the versioned schema of this representation of an object.
+                Servers should convert recognized schemas to the latest internal value, and
+                may reject unrecognized values.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              type: string
+            kind:
+              description: |-
+                Kind is a string value representing the REST resource this object represents.
+                Servers may infer this from the endpoint the client submits requests to.
+                Cannot be updated.
+                In CamelCase.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              type: string
+            metadata:
+              type: object
+            spec:
+              properties:
+                apiRef:
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                    - name
+                    - namespace
+                  type: object
+                resourcesRefs:
+                  properties:
+                    items:
+                      items:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          slice:
+                            properties:
+                              continue:
+                                type: boolean
+                              offset:
+                                format: int32
+                                type: integer
+                              page:
+                                format: int32
+                                type: integer
+                              perPage:
+                                format: int32
+                                type: integer
+                            required:
+                              - perPage
+                            type: object
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        required:
+                          - id
+                        type: object
+                      type: array
+                    slice:
+                      properties:
+                        continue:
+                          type: boolean
+                        offset:
+                          format: int32
+                          type: integer
+                        page:
+                          format: int32
+                          type: integer
+                        perPage:
+                          format: int32
+                          type: integer
+                      required:
+                        - perPage
+                      type: object
+                  required:
+                    - items
+                  type: object
+                resourcesRefsTemplate:
+                  items:
+                    properties:
+                      iterator:
+                        type: string
+                      template:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        type: object
+                    type: object
+                  type: array
+                widgetData:
+                  description: the data that will be passed to the widget on the frontend
+                  properties:
+                    actions:
+                      description: the actions of the widget
+                      properties:
+                        navigate:
+                          description: client-side navigation actions
+                          items:
+                            properties:
+                              id:
+                                description: unique identifier for the action
+                                type: string
+                              loading:
+                                properties:
+                                  display:
+                                    type: boolean
+                                required:
+                                  - display
+                                type: object
+                              path:
+                                description: the identifier of the route to navigate to
+                                type: string
+                              requireConfirmation:
+                                description: whether user confirmation is required before navigating
+                                type: boolean
+                              resourceRefId:
+                                description: the identifier of the k8s custom resource that should be represented
+                                type: string
+                              type:
+                                description: type of navigation action
+                                enum:
+                                  - navigate
+                                type: string
+                            required:
+                              - id
+                              - type
+                            type: object
+                          type: array
+                        openDrawer:
+                          description: actions to open side drawer components
+                          items:
+                            properties:
+                              id:
+                                description: unique identifier for the drawer action
+                                type: string
+                              loading:
+                                properties:
+                                  display:
+                                    type: boolean
+                                required:
+                                  - display
+                                type: object
+                              requireConfirmation:
+                                description: whether user confirmation is required before opening
+                                type: boolean
+                              resourceRefId:
+                                description: the identifier of the k8s custom resource that should be represented
+                                type: string
+                              size:
+                                description: drawer size to be displayed
+                                enum:
+                                  - default
+                                  - large
+                                type: string
+                              title:
+                                description: title shown in the drawer header
+                                type: string
+                              type:
+                                description: type of drawer action
+                                enum:
+                                  - openDrawer
+                                type: string
+                            required:
+                              - id
+                              - resourceRefId
+                              - type
+                            type: object
+                          type: array
+                        openModal:
+                          description: actions to open modal dialog components
+                          items:
+                            properties:
+                              customWidth:
+                                description: the custom width of the value, which should be used by setting the 'custom' value inside the 'size' property
+                                type: string
+                              id:
+                                description: unique identifier for the modal action
+                                type: string
+                              loading:
+                                properties:
+                                  display:
+                                    type: boolean
+                                required:
+                                  - display
+                                type: object
+                              requireConfirmation:
+                                description: whether user confirmation is required before opening
+                                type: boolean
+                              resourceRefId:
+                                description: the identifier of the k8s custom resource that should be represented
+                                type: string
+                              size:
+                                description: sets the Modal size, 'default' is 520px, 'large' is 80% of the screen width, 'fullscreen' is 100% of the screen width, 'custom' should be used with the 'customWidth' property
+                                enum:
+                                  - default
+                                  - large
+                                  - fullscreen
+                                  - custom
+                                type: string
+                              title:
+                                description: title shown in the modal header
+                                type: string
+                              type:
+                                description: type of modal action
+                                enum:
+                                  - openModal
+                                type: string
+                            required:
+                              - id
+                              - resourceRefId
+                              - type
+                            type: object
+                          type: array
+                        rest:
+                          description: rest api call actions triggered by the widget
+                          items:
+                            properties:
+                              errorMessage:
+                                description: a message that will be displayed inside a toast in case of error
+                                type: string
+                              fanOutPath:
+                                description: 'name of an ARRAY field in the submitted values: the action fans out into ONE ordered write per element (for each write, that field is replaced by the single element before payload/payloadToOverride interpolation). The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics); onEventNavigateTo is not supported on a fan-out action'
+                                type: string
+                              headers:
+                                description: 'array of headers as strings, format ''key: value'''
+                                items:
+                                  type: string
+                                type: array
+                              id:
+                                description: unique identifier for the action
+                                type: string
+                              loading:
+                                properties:
+                                  display:
+                                    type: boolean
+                                required:
+                                  - display
+                                type: object
+                              onEventNavigateTo:
+                                description: conditional navigation triggered by a specific event
+                                properties:
+                                  eventReason:
+                                    description: identifier of the awaited event reason
+                                    type: string
+                                  loadingMessage:
+                                    description: message to display while waiting for the event
+                                    type: string
+                                  reloadRoutes:
+                                    type: boolean
+                                  timeout:
+                                    default: 50
+                                    description: the timeout in seconds to wait for the event
+                                    format: int32
+                                    type: integer
+                                  url:
+                                    description: url to navigate to when the event is received
+                                    type: string
+                                required:
+                                  - eventReason
+                                  - url
+                                type: object
+                              onSuccessNavigateTo:
+                                description: url to navigate to after successful execution
+                                type: string
+                              ops:
+                                description: 'ordered list of DISTINCT writes applied as ONE gated set (e.g. one Form submit creating a Role AND its RoleBinding): each op resolves its OWN resourceRefId (verb + path + payload base) and builds its OWN payload/payloadToOverride against the SAME submitted values. The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics). Mutually exclusive with fanOutPath; onEventNavigateTo is not supported on a multi-op action. The action''s own top-level payload/payloadToOverride are IGNORED when ops is present and its top-level resourceRefId is ignored for dispatch (it must still name a valid resource ref — point it at the first op''s)'
+                                items:
+                                  properties:
+                                    payload:
+                                      description: static payload sent with this op's request
+                                      type: object
+                                      x-kubernetes-preserve-unknown-fields: true
+                                    payloadToOverride:
+                                      description: list of this op's payload fields to override dynamically (values interpolate against the same submitted values as every other op)
+                                      items:
+                                        properties:
+                                          name:
+                                            description: name of the field to override
+                                            type: string
+                                          value:
+                                            description: value to use for overriding the field
+                                            type: string
+                                        required:
+                                          - name
+                                          - value
+                                        type: object
+                                      type: array
+                                    resourceRefId:
+                                      description: 'the identifier of the resource ref this op targets: its verb (must be mutating), path and payload base'
+                                      type: string
+                                  required:
+                                    - resourceRefId
+                                  type: object
+                                type: array
+                              payload:
+                                description: static payload sent with the request
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              payloadToOverride:
+                                description: list of payload fields to override dynamically
+                                items:
+                                  properties:
+                                    name:
+                                      description: name of the field to override
+                                      type: string
+                                    value:
+                                      description: value to use for overriding the field
+                                      type: string
+                                  required:
+                                    - name
+                                    - value
+                                  type: object
+                                type: array
+                              requireConfirmation:
+                                description: whether user confirmation is required before triggering the action
+                                type: boolean
+                              resourceRefId:
+                                description: the identifier of the k8s custom resource that should be represented
+                                type: string
+                              successMessage:
+                                description: a message that will be displayed inside a toast in case of success
+                                type: string
+                              type:
+                                description: type of action to execute
+                                enum:
+                                  - rest
+                                type: string
+                            required:
+                              - headers
+                              - id
+                              - resourceRefId
+                              - type
+                            type: object
+                          type: array
+                      type: object
+                    buttonConfig:
+                      description: custom labels and icons for form buttons
+                      properties:
+                        draft:
+                          description: draft button configuration — only rendered when widgetData.draftActionId is also set; clicking it persists the current (un-validated) field values via that action
+                          properties:
+                            icon:
+                              description: icon name for draft button
+                              type: string
+                            label:
+                              description: text label for draft button
+                              type: string
+                          type: object
+                        primary:
+                          description: primary button configuration
+                          properties:
+                            icon:
+                              description: icon name for primary button
+                              type: string
+                            label:
+                              description: text label for primary button
+                              type: string
+                          type: object
+                        review:
+                          description: Configure-step button label when reviewBeforeSubmit is set (the button that opens the in-place Review; default 'Review →')
+                          properties:
+                            label:
+                              description: text label for the Review button
+                              type: string
+                          type: object
+                        reviewBack:
+                          description: Review-step back button label when reviewBeforeSubmit is set (returns to editing; default '← Back to edit')
+                          properties:
+                            label:
+                              description: text label for the back-to-edit button
+                              type: string
+                          type: object
+                        secondary:
+                          description: secondary button configuration
+                          properties:
+                            icon:
+                              description: icon name for secondary button
+                              type: string
+                            label:
+                              description: text label for secondary button
+                              type: string
+                            navigateTo:
+                              description: when set, the secondary button is a Cancel that navigates to this route (SPA) instead of resetting the form
+                              type: string
+                          type: object
+                      type: object
+                    disabled:
+                      description: antd Form disabled (disables all fields)
+                      type: boolean
+                    draftActionId:
+                      description: optional id of an action fired by a 'Save draft' button that captures the CURRENT field values WITHOUT running form validation (so an incomplete form can be persisted). Pair with buttonConfig.draft to show the button.
+                      type: string
+                    initialValues:
+                      description: optional object with initial values for form fields. Keys should match form field names (supports nested objects). These values override schema defaults.
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    items:
+                      description: resourceRefIds of form-control widgets (Input, Select, Switch, …) to compose inside the Form. Composable mode — an alternative to the schema/stringSchema generator.
+                      items:
+                        properties:
+                          resourceRefId:
+                            description: the identifier of the form-control widget to render
+                            type: string
+                        required:
+                          - resourceRefId
+                        type: object
+                      type: array
+                    layout:
+                      description: antd Form layout
+                      enum:
+                        - horizontal
+                        - vertical
+                        - inline
+                      type: string
+                    propertiesToHide:
+                      description: top-level schema property names to omit from the schema-driven form
+                      items:
+                        type: string
+                      type: array
+                    reviewBeforeSubmit:
+                      description: when true (inline render only), the primary button validates and reveals an in-place read-only Review of the entered values before the real submit — the form stays mounted so 'Back to edit' preserves every value. Pair with buttonConfig.review / buttonConfig.reviewBack for custom labels.
+                      type: boolean
+                    schema:
+                      description: 'JSON schema (e.g. a blueprint CRD''s openAPIV3Schema spec) rendered as form fields — the schema-driven alternative to `items`. Usually populated server-side via a widgetDataTemplate jq expression that extracts the spec schema. Note: a schema sourced from a CRD''s openAPIV3Schema has its `properties` map serialized alphabetically (order lost); use `stringSchema` to preserve the source values.schema.json authoring order.'
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    size:
+                      description: antd Form size
+                      enum:
+                        - small
+                        - middle
+                        - large
+                      type: string
+                    stringSchema:
+                      description: 'Same JSON schema as `schema`, but as a raw JSON STRING. Preferred over `schema` when present: the client JSON.parses it, preserving key insertion order, so fields render in the source values.schema.json order rather than the alphabetized order a CRD-sourced object schema yields. Typically populated server-side from the blueprint''s per-version jsonschema ConfigMap (which keeps authoring order). Falls back to `schema` when absent or not valid JSON.'
+                      type: string
+                    submitActionId:
+                      description: the id of the action to be called when the form is submitted
+                      type: string
+                    submitActionSelector:
+                      description: 'optional field-conditional submit routing: when present, the submit action is chosen at submit time from the value of the named field. Routes one form to different create targets (e.g. a ''target cluster'' select where ''local'' posts the blueprint instance and a remote spoke posts a RemoteInstall). Falls back to `default` (or `submitActionId`) when the field value has no mapping.'
+                      properties:
+                        default:
+                          description: action id used when the field value is not present in `map`
+                          type: string
+                        field:
+                          description: form field whose current value selects the submit action
+                          type: string
+                        map:
+                          description: map of field-value → action id
+                          type: object
+                          additionalProperties:
+                            type: string
+                      required:
+                        - field
+                        - map
+                      type: object
+                    submitDisabledWhenPristine:
+                      description: when true, the primary (submit) button stays disabled until at least one field differs from its initial value (initialValues overlaid on schema defaults). Use for update forms where submitting an unchanged value is a no-op — e.g. a version picker pre-set to the currently-installed version.
+                      type: boolean
+                  required:
+                    - actions
+                    - submitActionId
+                  type: object
+                widgetDataTemplate:
+                  items:
+                    properties:
+                      expression:
+                        type: string
+                      forPath:
+                        type: string
+                    type: object
+                  type: array
+                identityContext:
+                  items:
+                    enum:
+                      - username
+                      - groups
+                    type: string
+                  type: array
+                keyExtras:
+                  description: 'F6 (snowplow#130): the request-extras keys (route params / URL query folded into ?extras=) whose values this widget''s resolution depends on. Only declared keys partition the widget cache cell. Absent/empty = the widget does not vary by any request extra (chrome/layout default).'
+                  items:
+                    type: string
+                  type: array
+                freshness:
+                  description: 'Opt-in staleness indicator: when true the widget shows the stale/refreshing dot overlay (exception states only). Absent/false = no badge ever (the default; healthy widgets stay unmarked).'
+                  type: boolean
+              required:
+                - widgetData
+              type: object
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}

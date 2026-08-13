@@ -1,0 +1,256 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: themes.widgets.templates.krateo.io
+spec:
+  group: widgets.templates.krateo.io
+  names:
+    categories:
+      - widgets
+      - krateo
+    kind: Theme
+    listKind: ThemeList
+    plural: themes
+    singular: theme
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .metadata.creationTimestamp
+          name: AGE
+          type: date
+      name: v1beta1
+      schema:
+        openAPIV3Schema:
+          properties:
+            apiVersion:
+              description: |-
+                APIVersion defines the versioned schema of this representation of an object.
+                Servers should convert recognized schemas to the latest internal value, and
+                may reject unrecognized values.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              type: string
+            kind:
+              description: |-
+                Kind is a string value representing the REST resource this object represents.
+                Servers may infer this from the endpoint the client submits requests to.
+                Cannot be updated.
+                In CamelCase.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              type: string
+            metadata:
+              type: object
+            spec:
+              properties:
+                apiRef:
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                    - name
+                    - namespace
+                  type: object
+                resourcesRefs:
+                  properties:
+                    items:
+                      items:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          slice:
+                            properties:
+                              continue:
+                                type: boolean
+                              offset:
+                                format: int32
+                                type: integer
+                              page:
+                                format: int32
+                                type: integer
+                              perPage:
+                                format: int32
+                                type: integer
+                            required:
+                              - perPage
+                            type: object
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        required:
+                          - id
+                        type: object
+                      type: array
+                    slice:
+                      properties:
+                        continue:
+                          type: boolean
+                        offset:
+                          format: int32
+                          type: integer
+                        page:
+                          format: int32
+                          type: integer
+                        perPage:
+                          format: int32
+                          type: integer
+                      required:
+                        - perPage
+                      type: object
+                  required:
+                    - items
+                  type: object
+                resourcesRefsTemplate:
+                  items:
+                    properties:
+                      iterator:
+                        type: string
+                      template:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        type: object
+                    type: object
+                  type: array
+                widgetData:
+                  description: 'Tenant Theme overrides (Brand v2, issue #49 §7). Every field is optional — a Theme overrides any SUBSET. Tier-2 tokens (status/agent/focus ring/chart palette) are intentionally NOT here: they are locked and cannot be overridden by a tenant.'
+                  properties:
+                    custom:
+                      description: non-token brand chrome overrides (sidebar + nav)
+                      properties:
+                        menu:
+                          description: sidebar nav-item colours (→ --menuitem-color / --menuitembg-color / --krateo-nav-item*)
+                          properties:
+                            itemColor:
+                              type: string
+                            itemHoverColor:
+                              type: string
+                            itemSelectedBg:
+                              type: string
+                            itemSelectedColor:
+                              type: string
+                          type: object
+                        sidebar:
+                          description: sidebar rail gradient stops (→ --krateo-nav-gradient-* / --menubgstart/end-color)
+                          properties:
+                            bgGradientEnd:
+                              type: string
+                            bgGradientStart:
+                              type: string
+                          type: object
+                      type: object
+                    logo:
+                      description: tenant brand logo (used on the login panel; sider brand is chart-driven)
+                      properties:
+                        alt:
+                          description: logo alt text
+                          type: string
+                        url:
+                          description: logo image URL
+                          type: string
+                      type: object
+                    mode:
+                      description: when set, PIN the color mode (overrides the user's light/dark toggle preference for this tenant)
+                      enum:
+                        - dark
+                        - light
+                      type: string
+                    token:
+                      description: overridable Tier-1 design tokens. Applied as CSS custom properties (--krateo-* / legacy --*-color) at runtime, so CSS-module and index.css styling re-tint. Only these named tokens are overridable.
+                      properties:
+                        colorBgContainer:
+                          description: card/panel surface → --panelbg-color + --krateo-color-background-surface
+                          type: string
+                        colorBgLayout:
+                          description: page background → --background-color + --krateo-color-background-base
+                          type: string
+                        colorBorder:
+                          description: hairline border → --border-color + --krateo-color-border-subtle
+                          type: string
+                        colorPrimary:
+                          description: brand/interaction colour → --primary-color + --krateo-color-action-primary
+                          type: string
+                        colorText:
+                          description: default text → --text-color + --krateo-color-text-default
+                          type: string
+                        fontFamily:
+                          description: UI font stack → --font-family + --krateo-font-ui
+                          type: string
+                        fontSize:
+                          description: base font size in px
+                          format: int32
+                          type: integer
+                      type: object
+                  type: object
+                widgetDataTemplate:
+                  items:
+                    properties:
+                      expression:
+                        type: string
+                      forPath:
+                        type: string
+                    type: object
+                  type: array
+                identityContext:
+                  items:
+                    enum:
+                      - username
+                      - groups
+                    type: string
+                  type: array
+                keyExtras:
+                  description: 'F6 (snowplow#130): the request-extras keys (route params / URL query folded into ?extras=) whose values this widget''s resolution depends on. Only declared keys partition the widget cache cell. Absent/empty = the widget does not vary by any request extra (chrome/layout default).'
+                  items:
+                    type: string
+                  type: array
+                freshness:
+                  description: 'Opt-in staleness indicator: when true the widget shows the stale/refreshing dot overlay (exception states only). Absent/false = no badge ever (the default; healthy widgets stay unmarked).'
+                  type: boolean
+              required:
+                - widgetData
+              type: object
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}

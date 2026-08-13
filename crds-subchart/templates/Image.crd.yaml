@@ -1,0 +1,261 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: images.widgets.templates.krateo.io
+spec:
+  group: widgets.templates.krateo.io
+  names:
+    categories:
+      - widgets
+      - krateo
+    kind: Image
+    listKind: ImageList
+    plural: images
+    singular: image
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .metadata.creationTimestamp
+          name: AGE
+          type: date
+      name: v1beta1
+      schema:
+        openAPIV3Schema:
+          properties:
+            apiVersion:
+              description: |-
+                APIVersion defines the versioned schema of this representation of an object.
+                Servers should convert recognized schemas to the latest internal value, and
+                may reject unrecognized values.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              type: string
+            kind:
+              description: |-
+                Kind is a string value representing the REST resource this object represents.
+                Servers may infer this from the endpoint the client submits requests to.
+                Cannot be updated.
+                In CamelCase.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              type: string
+            metadata:
+              type: object
+            spec:
+              properties:
+                apiRef:
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                    - name
+                    - namespace
+                  type: object
+                resourcesRefs:
+                  properties:
+                    items:
+                      items:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          slice:
+                            properties:
+                              continue:
+                                type: boolean
+                              offset:
+                                format: int32
+                                type: integer
+                              page:
+                                format: int32
+                                type: integer
+                              perPage:
+                                format: int32
+                                type: integer
+                            required:
+                              - perPage
+                            type: object
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        required:
+                          - id
+                        type: object
+                      type: array
+                    slice:
+                      properties:
+                        continue:
+                          type: boolean
+                        offset:
+                          format: int32
+                          type: integer
+                        page:
+                          format: int32
+                          type: integer
+                        perPage:
+                          format: int32
+                          type: integer
+                      required:
+                        - perPage
+                      type: object
+                  required:
+                    - items
+                  type: object
+                resourcesRefsTemplate:
+                  items:
+                    properties:
+                      iterator:
+                        type: string
+                      template:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        type: object
+                    type: object
+                  type: array
+                widgetData:
+                  properties:
+                    alt:
+                      description: alternative text (antd Image `alt`)
+                      type: string
+                    crossOrigin:
+                      description: CORS setting for the request (native img `crossOrigin`)
+                      enum:
+                        - anonymous
+                        - use-credentials
+                      type: string
+                    decoding:
+                      description: image decoding hint (native img `decoding`)
+                      enum:
+                        - async
+                        - auto
+                        - sync
+                      type: string
+                    draggable:
+                      description: whether the image is draggable (native img `draggable`)
+                      type: boolean
+                    fallback:
+                      description: image src to show if `src` fails to load (antd Image `fallback`)
+                      type: string
+                    height:
+                      description: image height in px (number) or any CSS length (string) — antd Image `height`
+                      x-kubernetes-int-or-string: true
+                    loading:
+                      description: native lazy/eager loading hint (antd Image `loading`)
+                      enum:
+                        - eager
+                        - lazy
+                      type: string
+                    placeholder:
+                      description: show the default blurred placeholder while loading (antd Image `placeholder`)
+                      type: boolean
+                    preview:
+                      description: whether clicking the image opens the zoom/preview overlay (antd Image `preview`); set false for decorative images such as logos
+                      type: boolean
+                    referrerPolicy:
+                      description: referrer policy for the request (native img `referrerPolicy`)
+                      enum:
+                        - ;no-referrer
+                        - no-referrer-when-downgrade
+                        - origin
+                        - origin-when-cross-origin
+                        - same-origin
+                        - strict-origin
+                        - strict-origin-when-cross-origin
+                        - unsafe-url
+                      type: string
+                    rootClassName:
+                      description: class name on the image wrapper (antd Image `rootClassName`)
+                      type: string
+                    sizes:
+                      description: responsive sizes hint (native img `sizes`)
+                      type: string
+                    src:
+                      description: the image source URL (antd Image `src`)
+                      type: string
+                    srcSet:
+                      description: responsive source set (native img `srcSet`)
+                      type: string
+                    title:
+                      description: native title tooltip (native img `title`)
+                      type: string
+                    useMap:
+                      description: name of an image map (native img `useMap`)
+                      type: string
+                    width:
+                      description: image width in px (number) or any CSS length (string) — antd Image `width`
+                      x-kubernetes-int-or-string: true
+                  required:
+                    - src
+                  type: object
+                widgetDataTemplate:
+                  items:
+                    properties:
+                      expression:
+                        type: string
+                      forPath:
+                        type: string
+                    type: object
+                  type: array
+                identityContext:
+                  items:
+                    enum:
+                      - username
+                      - groups
+                    type: string
+                  type: array
+                keyExtras:
+                  description: 'F6 (snowplow#130): the request-extras keys (route params / URL query folded into ?extras=) whose values this widget''s resolution depends on. Only declared keys partition the widget cache cell. Absent/empty = the widget does not vary by any request extra (chrome/layout default).'
+                  items:
+                    type: string
+                  type: array
+                freshness:
+                  description: 'Opt-in staleness indicator: when true the widget shows the stale/refreshing dot overlay (exception states only). Absent/false = no badge ever (the default; healthy widgets stay unmarked).'
+                  type: boolean
+              required:
+                - widgetData
+              type: object
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}

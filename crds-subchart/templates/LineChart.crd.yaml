@@ -1,0 +1,277 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: linecharts.widgets.templates.krateo.io
+spec:
+  group: widgets.templates.krateo.io
+  names:
+    categories:
+      - widgets
+      - krateo
+    kind: LineChart
+    listKind: LineChartList
+    plural: linecharts
+    singular: linechart
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .metadata.creationTimestamp
+          name: AGE
+          type: date
+      name: v1beta1
+      schema:
+        openAPIV3Schema:
+          properties:
+            apiVersion:
+              description: |-
+                APIVersion defines the versioned schema of this representation of an object.
+                Servers should convert recognized schemas to the latest internal value, and
+                may reject unrecognized values.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              type: string
+            kind:
+              description: |-
+                Kind is a string value representing the REST resource this object represents.
+                Servers may infer this from the endpoint the client submits requests to.
+                Cannot be updated.
+                In CamelCase.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              type: string
+            metadata:
+              type: object
+            spec:
+              properties:
+                apiRef:
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                    - name
+                    - namespace
+                  type: object
+                resourcesRefs:
+                  properties:
+                    items:
+                      items:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          slice:
+                            properties:
+                              continue:
+                                type: boolean
+                              offset:
+                                format: int32
+                                type: integer
+                              page:
+                                format: int32
+                                type: integer
+                              perPage:
+                                format: int32
+                                type: integer
+                            required:
+                              - perPage
+                            type: object
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        required:
+                          - id
+                        type: object
+                      type: array
+                    slice:
+                      properties:
+                        continue:
+                          type: boolean
+                        offset:
+                          format: int32
+                          type: integer
+                        page:
+                          format: int32
+                          type: integer
+                        perPage:
+                          format: int32
+                          type: integer
+                      required:
+                        - perPage
+                      type: object
+                  required:
+                    - items
+                  type: object
+                resourcesRefsTemplate:
+                  items:
+                    properties:
+                      iterator:
+                        type: string
+                      template:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        type: object
+                    type: object
+                  type: array
+                widgetData:
+                  description: '@ant-design/charts Line config (AntV G2)'
+                  properties:
+                    annotations:
+                      description: G2 annotation marks passed through (e.g. a peak `point` marker + a dashed `lineX` "now" line); usually computed server-side via a widgetDataTemplate
+                      items:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                      type: array
+                    area:
+                      description: render a gradient area fill under the line (G2 `area`); defaults to false
+                      type: boolean
+                    axis:
+                      description: G2 per-channel axis config (G2 `axis`), e.g. {"x":{"tickCount":6},"y":{"tickCount":4}}
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    colorField:
+                      description: field mapped to color / series (G2 `colorField`)
+                      type: string
+                    colorMap:
+                      description: map each colorField category to a Krateo palette colour name (e.g. {"Created":"cyan"}); sets the G2 color scale domain/range so the line + points render in the brand colour, not G2's default blue palette
+                      type: object
+                      additionalProperties:
+                        type: string
+                    data:
+                      description: chart data records (G2 `data`)
+                      items:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                      type: array
+                    height:
+                      description: fixed height in px (G2 `height`); omit to autofit
+                      format: int32
+                      type: integer
+                    legend:
+                      description: show the legend; false hides it (G2 `legend`)
+                      type: boolean
+                    point:
+                      description: render a default circle marker at each data point (G2 composed `point` mark). Improves legibility of sparse series.
+                      type: boolean
+                    scale:
+                      description: G2 per-channel scale config (G2 `scale`), e.g. {"y":{"zero":true,"nice":true,"domainMin":0,"domainMax":3,"tickCount":4}}. domainMax is a floor — data larger than it still wins, so dense data is never clipped.
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    shapeField:
+                      description: line shape, e.g. 'smooth' or 'line' (G2 `shapeField`)
+                      type: string
+                    stack:
+                      description: stack the series (G2 `stack`)
+                      type: boolean
+                    title:
+                      description: chart title (G2 `title`)
+                      type: string
+                    watch:
+                      description: 'live-refresh watch: involvedObject(s) this widget is tied to (see src/schemas/watch.schema.json). A matching k8s event refetches the widget.'
+                      items:
+                        properties:
+                          apiVersion:
+                            description: group/version, e.g. composition.krateo.io/v1alpha1
+                            type: string
+                          kind:
+                            description: e.g. DemoClaim
+                            type: string
+                          name:
+                            description: a specific object; omit to match any object of this kind ("GVR-level")
+                            type: string
+                          namespace:
+                            description: scope to a namespace; omit to match any
+                            type: string
+                        required:
+                          - apiVersion
+                          - kind
+                        type: object
+                      type: array
+                    xField:
+                      description: field mapped to the x position (G2 `xField`)
+                      type: string
+                    xTimeUnit:
+                      description: 'When set, `xField` values are treated as UNIX epoch SECONDS and formatted to a label in the BROWSER''s local timezone at render: ''hour'' -> ''HH:00'', ''day'' -> ''Mon D''. Use this instead of server-side strftime so a 21:00-Rome bucket reads 21:00 (not the server''s UTC 19:00). Annotations sharing `xField` are localized identically so peak/now marks stay aligned.'
+                      enum:
+                        - hour
+                        - day
+                      type: string
+                    yField:
+                      description: field mapped to the y position (G2 `yField`)
+                      type: string
+                  required:
+                    - data
+                    - xField
+                    - yField
+                  type: object
+                widgetDataTemplate:
+                  items:
+                    properties:
+                      expression:
+                        type: string
+                      forPath:
+                        type: string
+                    type: object
+                  type: array
+                identityContext:
+                  items:
+                    enum:
+                      - username
+                      - groups
+                    type: string
+                  type: array
+                keyExtras:
+                  description: 'F6 (snowplow#130): the request-extras keys (route params / URL query folded into ?extras=) whose values this widget''s resolution depends on. Only declared keys partition the widget cache cell. Absent/empty = the widget does not vary by any request extra (chrome/layout default).'
+                  items:
+                    type: string
+                  type: array
+                freshness:
+                  description: 'Opt-in staleness indicator: when true the widget shows the stale/refreshing dot overlay (exception states only). Absent/false = no badge ever (the default; healthy widgets stay unmarked).'
+                  type: boolean
+              required:
+                - widgetData
+              type: object
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
