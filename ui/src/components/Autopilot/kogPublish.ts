@@ -53,7 +53,7 @@ export const KOG_REPO_DEFAULTS = {
   base: 'main',
   configurationRef: 'github-blueprints-config',
   namespace: 'krateo-system',
-  owner: 'braghettos',
+  owner: 'krateo-blueprints',
   repo: 'krateo-oas',
 } as const
 

@@ -205,3 +205,17 @@ jobs:
               gh pr create --title "$PR_TITLE" --body "$PR_BODY" --head "$BRANCH" --base main --repo "$TARGET_REPO"
               ;;
           esac
+
+          # --- Supersede older CRD-sync PRs so stale krateoctl-* branches don't accumulate. ------
+          # Each release opens a fresh krateoctl-<tag> PR; older ones are obsolete (every PR is a
+          # FULL CRD snapshot, so the newest subsumes them). Close every OTHER open krateoctl-* PR
+          # and delete its head branch. Pairs with delete_branch_on_merge on the chart repo (which
+          # covers the merge path); this covers supersession, so branches no longer pile up.
+          gh pr list --repo "$TARGET_REPO" --state open --limit 200 --json number,headRefName \
+            --jq '.[] | select(.headRefName | startswith("krateoctl-")) | "\(.number) \(.headRefName)"' \
+          | while read -r PR_NUM PR_HEAD; do
+              { [ -n "$PR_NUM" ] && [ "$PR_HEAD" != "$BRANCH" ]; } || continue
+              echo "Superseding older CRD-sync PR #$PR_NUM ($PR_HEAD) — deleting its branch"
+              gh pr close "$PR_NUM" --repo "$TARGET_REPO" --delete-branch \
+                --comment "Superseded by the CRD sync for ${LATEST_TAG}; closing and deleting its branch." || true
+            done

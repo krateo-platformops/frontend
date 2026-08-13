@@ -4,7 +4,7 @@
  * WHY THIS EXISTS: the Portal Builder publish is the SAME heterogeneous multi-op git write that
  * FE-BP6 solved for blueprints — one `gitrefs` op to cut the builder branch, one `repocontents`
  * op PER page file (each carrying a `{"$fileContent": "<slug>"}` token), then one `pullrequests`
- * op — only the target repo (braghettos/krateo-portal-chart) and the file→path routing differ. So
+ * op — only the target repo (krateo-platformops/portal) and the file→path routing differ. So
  * it hits the exact same two failure modes: gemini-2.5-pro STALLS hand-writing the whole payload
  * (it narrates instead of emitting the fence → no blast-radius dialog → the publish silently dies)
  * and the ops it does emit are bare `{spec}` bodies the apiserver rejects ("Object 'Kind' is
@@ -40,7 +40,7 @@ export const PORTAL_CHART_REPO_DEFAULTS = {
   base: 'main',
   configurationRef: 'github-blueprints-config',
   namespace: 'krateo-system',
-  owner: 'braghettos',
+  owner: 'krateo-platformops',
   repo: 'krateo-portal-chart',
 } as const
 

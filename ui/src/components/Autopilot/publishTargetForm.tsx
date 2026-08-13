@@ -64,7 +64,7 @@ export const askPublishDestination = (
 ): Promise<PublishTarget | null> => requestPublishTarget({
   base: typeof proposal.base === 'string' && proposal.base ? proposal.base : 'main',
   kind,
-  owner: typeof proposal.owner === 'string' && proposal.owner ? proposal.owner : 'braghettos',
+  owner: typeof proposal.owner === 'string' && proposal.owner ? proposal.owner : 'krateo-blueprints',
   repo: typeof proposal.repo === 'string' && proposal.repo ? proposal.repo : defaultRepo,
 })
 
@@ -120,7 +120,7 @@ export const PublishTargetFormHost = () => {
         </Typography.Paragraph>
         <Form form={form} layout='vertical'>
           <Form.Item label='Repository owner' name='owner' rules={[{ message: 'the GitHub owner/org is required', required: true }]}>
-            <Input placeholder='braghettos' />
+            <Input placeholder='krateo-blueprints' />
           </Form.Item>
           <Form.Item label='Repository' name='repo' rules={[{ message: 'the repository is required', required: true }]}>
             <Input placeholder='krateo-portal-chart' />

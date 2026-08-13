@@ -16,8 +16,16 @@ jobs:
     with:
       modules: '[{"mod":"frontend","context":"ui"}]'
       push: false
+      # NOT github.ref_name: on a pull_request that is "<number>/merge" (the merge ref), and the
+      # Dockerfile runs `npm version $VERSION`, which rejects it — "Invalid version: 101/merge" — so
+      # every PR build failed. It works on a tag because there ref_name IS the semver.
+      #
+      # Plain X.Y.Z, matching the shape release-tag.yaml feeds in: the patch component is the PR
+      # number, so each PR build is still unique, and every build in this repo carries the same
+      # version shape. 0.0.x sorts below any real release. The image is never pushed here
+      # (push: false), so this only has to be a valid npm version.
       build_args: |
-        VERSION=${{ github.ref_name }}
+        VERSION=0.0.${{ github.event.pull_request.number }}
         APP_BUILD=${{ github.sha }}
   crds:
     name: Generate crds
@@ -35,20 +43,28 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Every step below runs in ui/: that is where package.json lives (there is no root one, so
+      # `npm run generate-crds` failed with 'Missing script'), and where scripts/gen-crds.ts and its
+      # krateoctl-output live. The job still assumed the pre-`ui/` layout the image build already moved
+      # past — its context is `ui`.
       - name: Install tsx, chalk
+        working-directory: ui
         run: |
           npm install tsx chalk
 
       - name: Generate crds
+        working-directory: ui
         run: |
           npm run generate-crds
 
-      - name: List files in /scripts/krateoctl-output
+      - name: List files in scripts/krateoctl-output
+        working-directory: ui
         run: |
           ls -la ./scripts/krateoctl-output
 
-      - name: Upload .yaml files from /scripts/krateoctl-output
+      # working-directory does not apply to `uses:` steps, so this path is spelled out.
+      - name: Upload .yaml files from scripts/krateoctl-output
         uses: actions/upload-artifact@v4
         with:
           name: frontend-crds-yaml-files
-          path: ${{ github.workspace }}/scripts/krateoctl-output/*.yaml
+          path: ${{ github.workspace }}/ui/scripts/krateoctl-output/*.yaml
