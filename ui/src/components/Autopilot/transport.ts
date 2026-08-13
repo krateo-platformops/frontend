@@ -229,54 +229,96 @@ const streamJsonRpc = (
 ): (() => void) => {
   const controller = new AbortController()
 
+  // #106: a turn that runs longer than an upstream idle timeout (~60s) has its SSE cut BEFORE the task
+  // completes, so the reply used to finalize empty. The task keeps running server-side, so on a premature
+  // close we re-attach to the SAME task via A2A `tasks/resubscribe` and keep pumping until a terminal
+  // frame arrives — recovering the answer with NO upstream change. Bounded so a dead/absent task still
+  // finalizes; a JSON-RPC error (e.g. resubscribe unsupported) stops the loop after surfacing once.
+  const MAX_RESUBSCRIBES = 30
+
   const run = async (): Promise<void> => {
-    let response: Response
-    try {
-      response = await fetch(buildA2aUrl(baseUrl), {
-        // kagent-ui A2A is open (no Bearer) and reflects CORS for the portal
-        // origin. Act-as-user auth is a Phase-3 concern (pending kagent auth).
-        body,
-        headers: {
-          Accept: 'text/event-stream',
-          'Content-Type': 'application/json',
-        },
-        method: 'POST',
-        signal: controller.signal,
-      })
-    } catch (error) {
-      handlers.onFrame({ kind: 'error', message: error instanceof Error ? error.message : 'network error' })
-      return
-    }
-
-    if (!response.ok || !response.body) {
-      handlers.onFrame({ kind: 'error', message: `Autopilot request failed (${response.status})` })
-      return
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-    try {
-      for (;;) {
-        // eslint-disable-next-line no-await-in-loop -- sequential stream reads are inherent to SSE
-        const { done, value } = await reader.read()
-        if (done) {
-          break
+    let payload = body
+    let sawError = false
+    // Observe frames so the reconnect logic can tell a JSON-RPC error (stop) from a bare stream drop
+    // (resume). Forwards every frame to the real handlers unchanged.
+    const observed: AutopilotStreamHandlers = {
+      ...handlers,
+      onFrame: (frame) => {
+        if (frame.kind === 'error') {
+          sawError = true
         }
-        buffer += decoder.decode(value, { stream: true })
-        const { events, rest } = drainSseEvents(buffer)
-        buffer = rest
-        events.forEach((event) => processSseEvent(event, handlers, state))
+        handlers.onFrame(frame)
+      },
+    }
+
+    for (let attempt = 0; ; attempt += 1) {
+      let response: Response
+      try {
+        // eslint-disable-next-line no-await-in-loop -- reconnect attempts are inherently sequential
+        response = await fetch(buildA2aUrl(baseUrl), {
+          // kagent-ui A2A is open (no Bearer) and reflects CORS for the portal origin.
+          body: payload,
+          headers: {
+            Accept: 'text/event-stream',
+            'Content-Type': 'application/json',
+          },
+          method: 'POST',
+          signal: controller.signal,
+        })
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return
+        }
+        observed.onFrame({ kind: 'error', message: error instanceof Error ? error.message : 'network error' })
+        return
       }
-      // Fallback `done` only if the stream closed WITHOUT a `completed`/`final` event
-      // (otherwise handleKagentPayload already emitted it — a second one re-finalizes).
-      if (!state.done) {
-        handlers.onFrame({ kind: 'done' })
+
+      if (!response.ok || !response.body) {
+        observed.onFrame({ kind: 'error', message: `Autopilot request failed (${response.status})` })
+        return
       }
-    } catch (error) {
-      if (!controller.signal.aborted) {
-        handlers.onFrame({ kind: 'error', message: error instanceof Error ? error.message : 'stream error' })
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      try {
+        for (;;) {
+          // eslint-disable-next-line no-await-in-loop -- sequential stream reads are inherent to SSE
+          const { done, value } = await reader.read()
+          if (done) {
+            break
+          }
+          buffer += decoder.decode(value, { stream: true })
+          const { events, rest } = drainSseEvents(buffer)
+          buffer = rest
+          events.forEach((event) => processSseEvent(event, observed, state))
+        }
+      } catch (error) {
+        // A mid-stream drop is exactly the #106 case → fall through to the reconnect decision rather than
+        // surfacing a transient error. A hard abort (unmount) ends here.
+        if (controller.signal.aborted) {
+          return
+        }
+        void error
       }
+
+      // Completed, aborted, or a real JSON-RPC error surfaced → stop (nothing to resume).
+      if (state.done || controller.signal.aborted) {
+        return
+      }
+      if (sawError) {
+        // Error already shown; finalize the bubble (matches the pre-#106 fallback) and stop reconnecting.
+        observed.onFrame({ kind: 'done' })
+        return
+      }
+      // Premature close before completion: resume the still-running task if we know its id.
+      if (state.taskId && attempt < MAX_RESUBSCRIBES) {
+        payload = JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tasks/resubscribe', params: { id: state.taskId } })
+        continue
+      }
+      // No task to resume (or reconnect budget spent): finalize with whatever text arrived.
+      observed.onFrame({ kind: 'done' })
+      return
     }
   }
 

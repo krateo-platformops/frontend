@@ -143,8 +143,15 @@ describe('sanitizeChatText — bare directive JSON', () => {
 })
 
 describe('sanitizeChatText — existing hardening still holds', () => {
-  it('still strips fenced code blocks', () => {
-    expect(sanitizeChatText('text\n```\nkubectl apply -f x.yaml\n```').trim()).toBe('text')
+  it('#103: PRESERVES a fenced code/YAML block the agent outputs', () => {
+    const out = sanitizeChatText('Here is the manifest:\n```yaml\napiVersion: v1\nkind: ConfigMap\n```')
+    expect(out).toContain('```yaml')
+    expect(out).toContain('apiVersion: v1')
+    expect(out).toContain('kind: ConfigMap')
+  })
+
+  it('#103: still HIDES a directive fence (portal-action) from the rendered text', () => {
+    expect(sanitizeChatText('Opening it.\n```portal-action\n{"verb":"navigate","route":"/x"}\n```').trim()).toBe('Opening it.')
   })
 
   it('still strips a bare kubectl line', () => {

@@ -221,21 +221,28 @@ export interface AutopilotDirectives {
  * "Malformed function call: print(default_api.fetch(...))"). These are backend artifacts, never meant
  * for the user. Applied to BOTH the streaming accumulator and the finalized text so they never flash.
  */
-export const sanitizeChatText = (text: string): string =>
-  text
+export const sanitizeChatText = (text: string): string => {
+  // #103 (EdmondDantes21): preserve the agent's fenced code/YAML output (it used to be stripped
+  // wholesale). Stash every non-directive fence so the un-fenced manifest/CLI strips below cannot reach
+  // INSIDE a ```yaml block, then restore verbatim at the end. Sentinel is plain ASCII, never in agent
+  // text. Only DIRECTIVE fences (portal-action/-suggest/-tour) below stay stripped.
+  const fences: string[] = []
+  const cleaned = text
     // 1. Fenced code blocks (kubectl/YAML manifests the model echoes at the create step). Autopilot
     //    drives the portal UI — it never needs to show code; the user provisions via the form's Create
     //    button. NOTE: affects only the RENDERED text — the raw buffer keeps the directive fences
     //    (```portal-action/-suggest/-tour```) so finalize still parses them.
-    .replace(/```[\s\S]*?```/g, '')
-    // an unclosed fence still streaming → strip to end (no mid-stream flash)
-    .replace(/```[\s\S]*$/g, '')
+    .replace(/```portal-(?:action|suggest|tour)\s*\n[\s\S]*?```/g, '')
+    // an unclosed DIRECTIVE fence still streaming -> strip to end (no mid-stream flash)
+    .replace(/```portal-(?:action|suggest|tour)[\s\S]*$/g, '')
+    // #103: stash every remaining (non-directive) fence; restored verbatim at the end.
+    .replace(/```[\s\S]*?```/g, (block) => `[[FENCE:${fences.push(block) - 1}]]`)
+    .replace(/```[\s\S]*$/g, (block) => `[[FENCE:${fences.push(block) - 1}]]`)
     // 2. Un-fenced manifests the model emits as PLAIN text (the variant the fence strip misses, seen
     //    live): a `cat <<EOF … EOF` heredoc (closed, then an unclosed one still streaming) and a bare
     //    `apiVersion:`-rooted YAML block up to the next blank line.
     .replace(/<<-?\s*['"]?EOF['"]?[\s\S]*?\n[ \t]*EOF\b/gi, '')
     .replace(/<<-?\s*['"]?EOF\b[\s\S]*$/gi, '')
-    .replace(/^[ \t]*apiVersion:[ \t]*\S[\s\S]*?(?=\n[ \t]*\n|(?![\s\S]))/gim, '')
     // 3. Bare CLI command lines — Autopilot has no terminal step; the Create button is the mechanism.
     .replace(/^[ \t]*(kubectl|helm|krateoctl)\b[^\n]*$/gim, '')
     // 4. Imperative lead-ins that send the user to a terminal (else stripping the command leaves a
@@ -254,6 +261,9 @@ export const sanitizeChatText = (text: string): string =>
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .replace(/^\n+/, '')
+  // #103: restore the preserved fenced blocks verbatim so the agent's code/YAML renders.
+  return cleaned.replace(/\[\[FENCE:(\d+)\]\]/g, (_match, index: string) => fences[Number(index)] ?? '')
+}
 
 export const parseAutopilotDirectives = (text: string): AutopilotDirectives => {
   const proposals: PortalActionProposal[] = []
