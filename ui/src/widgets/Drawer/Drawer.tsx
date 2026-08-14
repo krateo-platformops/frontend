@@ -1,5 +1,5 @@
 import { Drawer as AntdDrawer } from 'antd'
-import { useEffect, useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 
 import { DrawerHeader, drawerCloseProps } from '../../components/DrawerHeader/DrawerHeader'
 import WidgetRenderer from '../../components/WidgetRenderer'
@@ -12,37 +12,47 @@ interface DrawerProps {
   title?: string | undefined
 }
 
+// --- module-level open-state store (survives every React remount). #37 -----------------------------
+// The Drawer is mounted inside the ShellRoute subtree, which React unmounts+remounts whenever the
+// router version bumps (registerRoutes -> <RouterProvider key={routerVersion}>) or the server-driven
+// Layout refreshes. A React `useState` for isOpen would reset to false on any such remount, so an open
+// drawer (e.g. Deploy-to-fleet) would vanish under the user within ~30-90s. Keeping {isOpen, properties}
+// OUTSIDE the React tree means no remount at any level can close it — the component re-reads the live
+// store on mount. Mirrors the Notifications drawer store (NotificationsContext.tsx).
+interface DrawerState {
+  isOpen: boolean
+  properties: DrawerProps | null
+}
+
+let drawerState: DrawerState = { isOpen: false, properties: null }
+const listeners = new Set<() => void>()
+
+const store = {
+  getSnapshot: (): DrawerState => drawerState,
+  set: (next: DrawerState): void => {
+    drawerState = next
+    listeners.forEach((listener) => { listener() })
+  },
+  subscribe: (callback: () => void): (() => void) => {
+    listeners.add(callback)
+    return () => { listeners.delete(callback) }
+  },
+}
+// ---------------------------------------------------------------------------------------------------
+
 export const openDrawer = (properties: DrawerProps) => {
-  window.dispatchEvent(new CustomEvent('openDrawer', { detail: properties }))
+  store.set({ isOpen: true, properties })
 }
 
 export const closeDrawer = () => {
-  window.dispatchEvent(new CustomEvent('closeDrawer'))
+  // Keep the last properties (matches the pre-#37 behaviour: closing never cleared them) so the panel's
+  // close transition still renders; `destroyOnHidden` tears the content down, the next openDrawer replaces.
+  store.set({ isOpen: false, properties: drawerState.properties })
 }
 
 const Drawer = () => {
-  const [isOpen, setIsOpen] = useState(false)
-  const [properties, setProperties] = useState<DrawerProps | null>(null)
+  const { isOpen, properties } = useSyncExternalStore(store.subscribe, store.getSnapshot)
   const [drawerData, setDrawerData] = useState<{ title?: string; extra?: React.ReactNode }>({})
-
-  useEffect(() => {
-    const handleOpenDrawer = (event: CustomEvent<DrawerProps>) => {
-      setProperties(event.detail)
-      setIsOpen(true)
-    }
-
-    const handleCloseDrawer = () => {
-      setIsOpen(false)
-    }
-
-    window.addEventListener('openDrawer', handleOpenDrawer as EventListener)
-    window.addEventListener('closeDrawer', handleCloseDrawer)
-
-    return () => {
-      window.removeEventListener('openDrawer', handleOpenDrawer as EventListener)
-      window.removeEventListener('closeDrawer', handleCloseDrawer)
-    }
-  }, [])
 
   if (!properties) {
     return null
@@ -63,7 +73,7 @@ const Drawer = () => {
         isOpen ? 'open' : 'closed'
       }
       onClose={() => {
-        setIsOpen(false)
+        closeDrawer()
         setDrawerData({})
       }}
       open={isOpen}
