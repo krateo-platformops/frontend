@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
 
 import { useConfigContext } from '../context/ConfigContext'
+import { getAccessToken } from '../utils/getAccessToken'
 import type { SSEK8sEvent } from '../utils/types'
 
 import { subscribeSse } from './sseClient'
@@ -26,7 +27,11 @@ export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic
   const queryResult = useQuery({
     gcTime: Infinity,
     queryFn: async () => {
-      const res = await fetch(eventsUrl)
+      // sse-proxy verifies the caller's JWT (RS256/JWKS) on /events; forward it
+      // as a Bearer header exactly like every other backend call.
+      const res = await fetch(eventsUrl, {
+        headers: { Authorization: `Bearer ${getAccessToken()}` },
+      })
       const notifications = (await res.json()) as SSEK8sEvent[]
       return notifications
     },
@@ -58,9 +63,14 @@ export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic
       return
     }
 
+    // sse-proxy verifies the JWT on /notifications too. EventSource cannot set
+    // headers and we open the stream with withCredentials:false, so the token
+    // rides as ?access_token= — sse-proxy's documented EventSource fallback.
+    const streamUrl = `${notificationsUrl}?access_token=${encodeURIComponent(getAccessToken())}`
+
     // Subscribe through the shared SSE client so we don't open a second connection to
     // /notifications when other widgets (List/Listy) listen to the same stream.
-    return subscribeSse(notificationsUrl, topic, {
+    return subscribeSse(streamUrl, topic, {
       onError: () => { console.error('[SSE] Connection error') },
       onMessage: (raw) => {
         try {
