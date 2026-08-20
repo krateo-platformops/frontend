@@ -6,4 +6,4 @@ metadata:
 spec:
   chart:
     url: oci://ghcr.io/krateo-platformops/charts/frontend
-    version: "1.0.21"
+    version: "1.4.8"
