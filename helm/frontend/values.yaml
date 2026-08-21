@@ -117,14 +117,35 @@ tolerations: []
 
 affinity: {}
 
+# An agentgateway data plane in front of kagent (krateo-agentiko/agentgateway-policies) that
+# validates the caller's JWT and forwards it down. The portal always sends the logged-in user's
+# Bearer on its Autopilot A2A calls; when enabled, those calls go to the GATEWAY instead of to
+# kagent-ui, so the token is actually validated and the gateway's per-user agent/tool/delegation
+# RBAC applies. Off, they keep going to kagent-ui through the nginx `/autopilot/` proxy.
+#
+# `enabled` turns `config.AUTOPILOT_API_BASE_URL` from the gateway's ORIGIN into the full A2A URL
+# for this release's namespace — the installer supplies that origin the same way it supplies the
+# snowplow/authn/events ones (exposure model), so the browser calls the gateway directly, exactly
+# like every other Krateo backend. A relative value (the chart default `/autopilot`) is left alone,
+# so a not-yet-resolved origin degrades to the old path instead of rendering a broken URL.
+#
+# Needs `cors.enabled` on the gateway (the installer's features.agentGateway sets both): a
+# cross-origin browser call is preceded by an unauthenticated OPTIONS preflight that the gateway's
+# authorization policy would otherwise 403. And only meaningful when the kagent controller runs
+# with `controller.auth.mode=trusted-proxy`, or the identity in the token is ignored.
+# Off is byte-identical to a chart without this key.
+agentgateway:
+  enabled: false
+
 config:
   SNOWPLOW_API_BASE_URL: http://localhost:8081
   AUTHN_API_BASE_URL: http://localhost:8082
   EVENTS_PUSH_API_BASE_URL: http://localhost:8083
   EVENTS_API_BASE_URL: http://localhost:8083
-  # Autopilot copilot: same-origin path served by the nginx `location /autopilot/`
-  # reverse proxy to the kagent A2A endpoint (no cross-origin → no CORS). The rail
-  # renders only when this is set; requires kagent-ui in-cluster (see frontend nginx.conf).
+  # Autopilot copilot. Default: the same-origin path served by the nginx `location /autopilot/`
+  # reverse proxy to kagent-ui (no cross-origin → no CORS). The rail renders only when this is set.
+  # With `agentgateway.enabled` this is instead the agent gateway's ORIGIN (e.g.
+  # http://gateway.example.com:8080) and the chart appends the A2A path — so set the origin only.
   AUTOPILOT_API_BASE_URL: /autopilot
   # Autopilot availability. Controls CLICKABILITY of the header toggle, NOT its visibility (the
   # toggle stays visible whenever AUTOPILOT_API_BASE_URL is set, so the capability is discoverable).

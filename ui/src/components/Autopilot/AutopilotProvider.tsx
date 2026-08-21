@@ -38,7 +38,7 @@ import { buildKogPublishNudge, createPreviewGate, hydrateRestDefinitionOps } fro
 import { AutopilotPreviewDrawer } from './previewSurface'
 import { compileKogPublishOps, compilePublishOps, heldDraftIdentity, recordPagePreview, type PublishCompileResult } from './publishCompile'
 import { askPublishDestination, PublishTargetFormHost } from './publishTargetForm'
-import { createEchoTransport, createKagentTransport } from './transport'
+import { a2aAuthHeader, createEchoTransport, createKagentTransport } from './transport'
 import type { AutopilotActionChip, AutopilotFrame, AutopilotMessage, AutopilotTransport, PageContextEnvelope } from './types'
 import { buildContextDelta, useAutopilotContext } from './useAutopilotContext'
 
@@ -113,11 +113,13 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       return
     }
     const ctrl = new AbortController()
-    // GET the A2A base: a 5xx gateway error means the proxy could not reach the agent upstream
-    // (not deployed / down); any other response (200/404/405/…) means the backend answered.
+    // GET the A2A base, carrying the Bearer the real turns carry: a 5xx gateway error means the
+    // proxy could not reach the agent upstream (not deployed / down), and 401/403 mean this user
+    // cannot drive the agent at all (invalid session, or agentgateway RBAC denies them this
+    // agent) — both are a dead click. Any other response (200/404/405/…) means it answered.
     const probe = () => {
-      fetch(`${endpoint.replace(/\/$/, '')}/`, { method: 'GET', signal: ctrl.signal })
-        .then((res) => setProbeOk(res.status < 502 || res.status > 504))
+      fetch(`${endpoint.replace(/\/$/, '')}/`, { headers: a2aAuthHeader(), method: 'GET', signal: ctrl.signal })
+        .then((res) => setProbeOk(res.status !== 401 && res.status !== 403 && (res.status < 502 || res.status > 504)))
         .catch(() => {
           if (!ctrl.signal.aborted) {
             setProbeOk(false)

@@ -27,7 +27,8 @@ production image (`Dockerfile`) serves `/app` with the official nginx image, whi
 `try_files $uri /index.html` (`nginx.conf`) — the standard SPA fallback so client-side
 routes resolve. nginx also reverse-proxies `/autopilot/` to the kagent A2A endpoint on the
 same origin (`nginx.conf`, resolved at request time so the portal starts even when kagent
-is absent). Runtime config lives in a mounted `config/config.json` volume; the build stage
+is absent). That proxy is bypassed entirely when the chart's `agentgateway.enabled` points
+`AUTOPILOT_API_BASE_URL` at the agent gateway's own URL instead. Runtime config lives in a mounted `config/config.json` volume; the build stage
 deletes the baked-in `dist/config` so production reads the mounted file, not the
 build-time one.
 
