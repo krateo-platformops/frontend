@@ -14,6 +14,15 @@ data:
 {{- if .Values.previewSandbox.enabled -}}
 {{- $_ := set $config "PREVIEW_SANDBOX_NAMESPACE" .Values.previewSandbox.namespace -}}
 {{- end -}}
+{{- /* Agent gateway on: AUTOPILOT_API_BASE_URL arrives as the gateway's origin (installer
+       exposure model), and the A2A path for this namespace is appended here. Skipped for a
+       relative value, so an unresolved origin degrades to the kagent-ui proxy path. */ -}}
+{{- if .Values.agentgateway.enabled -}}
+{{- $gw := $config.AUTOPILOT_API_BASE_URL | default "" | toString -}}
+{{- if hasPrefix "http" $gw -}}
+{{- $_ := set $config "AUTOPILOT_API_BASE_URL" (printf "%s/api/a2a/%s/autopilot" (trimSuffix "/" $gw) .Release.Namespace) -}}
+{{- end -}}
+{{- end -}}
 {{- $local := dict "first" true -}}
 {{- range $k, $v := $config -}}
 {{- if not $local.first -}},{{- end -}}

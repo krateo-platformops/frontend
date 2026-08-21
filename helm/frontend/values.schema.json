@@ -570,6 +570,18 @@
         }
       }
     },
+    "agentgateway": {
+      "type": "object",
+      "title": "Agent gateway",
+      "additionalProperties": false,
+      "description": "An agentgateway data plane in front of kagent that validates and forwards the caller's JWT. The portal always sends the user's Bearer on its Autopilot A2A calls; when enabled it routes them THROUGH that gateway (AUTOPILOT_API_BASE_URL is forced to the same-origin /agent-gateway/ proxy, which reaches the kagent controller with kagent-ui out of the path), so the token is validated and per-user agent/tool/delegation RBAC applies. Needs the kagent controller in trusted-proxy mode; the Krateo installer wires both from its own agentgateway.enabled.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
     "config": {
       "type": "object",
       "title": "Frontend runtime config",

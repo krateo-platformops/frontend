@@ -19,6 +19,7 @@
  * itself mutates the cluster.
  */
 
+import { getAccessToken } from '../../utils/getAccessToken'
 import { randomId } from '../../utils/utils'
 
 import type { ApprovalDecision, ApprovalPause } from './approval'
@@ -30,14 +31,24 @@ import type { AutopilotSendRequest, AutopilotStreamHandlers, AutopilotTransport 
 // ────────────────────────────────────────────────────────────────────────────
 
 /**
- * The kagent A2A endpoint. `baseUrl` is the FULL agent A2A URL exposed by the
- * kagent-ui LoadBalancer, e.g.
- *   http://<kagent-ui>/api/a2a/<namespace>/<agent-name>
- * We POST a JSON-RPC `message/stream` to it (trailing slash). Verified live against
- * kagent (A2A protocol 0.3): the API is open (no Bearer) + reflects CORS for the
- * portal origin, and streams SSE of `status-update` results.
+ * The kagent A2A endpoint. `baseUrl` is the FULL agent A2A URL, same-origin via the
+ * nginx `/autopilot/` proxy, e.g.
+ *   /autopilot  ->  /api/a2a/<namespace>/<agent-name>
+ * We POST a JSON-RPC `message/stream` to it (trailing slash), and it streams SSE of
+ * `status-update` results (A2A protocol 0.3).
  */
 const buildA2aUrl = (baseUrl: string): string => `${baseUrl.replace(/\/$/, '')}/`
+
+/** The portal Bearer, as a header pair (empty when no session is stored — dev/echo).
+ * Mandatory in practice: the gateway validates it and applies per-user RBAC, and the
+ * kagent controller (`trusted-proxy`) 401s a request that carries no token. */
+export const a2aAuthHeader = (): Record<string, string> => {
+  try {
+    return { Authorization: `Bearer ${getAccessToken()}` }
+  } catch {
+    return {}
+  }
+}
 
 /**
  * JSON-RPC `message/stream` body. The redacted page-context fence rides ahead of
@@ -177,6 +188,17 @@ const handleKagentPayload = (
   }
 }
 
+/** Name the gateway's two auth statuses — otherwise they read as a broken agent. */
+const describeHttpFailure = (status: number): string => {
+  if (status === 401) {
+    return 'Autopilot rejected the request (401) — your session is not valid. Sign in again.'
+  }
+  if (status === 403) {
+    return 'Autopilot denied the request (403) — your user is not allowed to use this agent.'
+  }
+  return `Autopilot request failed (${status})`
+}
+
 /** Pull complete SSE events out of a rolling buffer, returning [events, remainder]. */
 const drainSseEvents = (buffer: string): { events: string[]; rest: string } => {
   const events: string[] = []
@@ -254,13 +276,14 @@ const streamJsonRpc = (
     for (let attempt = 0; ; attempt += 1) {
       let response: Response
       try {
+        // Header rebuilt per attempt so a resubscribe carries a refreshed token.
         // eslint-disable-next-line no-await-in-loop -- reconnect attempts are inherently sequential
         response = await fetch(buildA2aUrl(baseUrl), {
-          // kagent-ui A2A is open (no Bearer) and reflects CORS for the portal origin.
           body: payload,
           headers: {
             Accept: 'text/event-stream',
             'Content-Type': 'application/json',
+            ...a2aAuthHeader(),
           },
           method: 'POST',
           signal: controller.signal,
@@ -274,7 +297,7 @@ const streamJsonRpc = (
       }
 
       if (!response.ok || !response.body) {
-        observed.onFrame({ kind: 'error', message: `Autopilot request failed (${response.status})` })
+        observed.onFrame({ kind: 'error', message: describeHttpFailure(response.status) })
         return
       }
 
