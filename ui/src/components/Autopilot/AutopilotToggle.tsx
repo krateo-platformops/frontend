@@ -1,6 +1,7 @@
 /** Header entry point for the Autopilot rail. Renders whenever Autopilot is ENABLED (endpoint
  * configured / dev echo). When the agent is not REACHABLE (installer flag AUTOPILOT_AVAILABLE="false",
- * e.g. agents not deployed/licensed, or the runtime reachability probe fails) the toggle stays visible
+ * e.g. agents not deployed/licensed, or the runtime reachability probe fails — including a 401/403 from
+ * agentgateway, i.e. this user may not drive the agent) the toggle stays visible
  * but grayed-out and non-clickable, with a tooltip — so the capability is discoverable without being a
  * dead click that 502s. Sits in HeaderChrome's right slot. */
 
@@ -37,7 +38,7 @@ const AutopilotToggle = () => {
 
   // A disabled <button> swallows pointer events, so wrap it in a span the Tooltip can hover over.
   return (
-    <Tooltip title='Autopilot is unavailable — the agent is not deployed or not reachable'>
+    <Tooltip title='Autopilot is unavailable — the agent is not deployed, not reachable, or not permitted for your user'>
       <span className={styles.disabledWrap}>{button}</span>
     </Tooltip>
   )

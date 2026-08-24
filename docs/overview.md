@@ -76,6 +76,9 @@ widget's cluster schema and its renderer come from the same source tree — see
 - **eventrouter / sse** — the notifications bell list + SSE streams, also used by
   event-driven action completion.
 - **autopilot (kagent)** — optional copilot rail, reached through the same-origin
-  `/autopilot/` proxy; gated by `AUTOPILOT_API_BASE_URL` / `AUTOPILOT_AVAILABLE`.
+  `/autopilot/` proxy; gated by `AUTOPILOT_API_BASE_URL` / `AUTOPILOT_AVAILABLE`. Every
+  A2A request carries the user's portal Bearer, and `agentgateway.enabled` points those
+  calls at the agent gateway (a direct cross-origin call, like every other backend) so it
+  validates the token and enforces per-user RBAC.
 - **the Krateo installer** — deploys frontend + frontend-crds as pinned charts and owns
   the day-2 values (ports, base URLs) — see [usage](./usage.md).
