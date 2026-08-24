@@ -14,6 +14,11 @@
 .shellMain {
   flex: 1;
   min-width: 0;
+  /* The nested antd Layout's Sider has a fixed pixel width (an inline style, not CSS) that
+     can't shrink. When the rail is open on a narrow viewport there isn't enough room for
+     both, and without a clip here the overflow spills rightward, visually on top of the
+     rail instead of staying contained inside main. */
+  overflow: hidden;
 }
 
 /* The rail itself: flex:none, width animates 0 → 384 so main reflows smoothly. */
