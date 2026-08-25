@@ -88,6 +88,11 @@ const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
             return <a href={href} rel='noopener noreferrer' target='_blank'>{children}</a>
           },
           pre: ({ children }) => (
+            // Fenced code blocks WRAP instead of scrolling horizontally: in the narrow content
+            // column (and the docked Autopilot rail) a JSON payload or a shell command on one long
+            // line would hide behind a horizontal scrollbar. `pre-wrap` keeps the authored newlines
+            // + indentation but soft-wraps long lines; `overflowWrap: anywhere` breaks a single
+            // unbreakable token (a long ref/URL) so nothing ever needs a scrollbar to be read.
             <pre
               style={{
                 background: 'rgba(127,127,127,0.12)',
@@ -97,8 +102,9 @@ const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
                 fontFamily: 'var(--font-mono)',
                 fontSize: '13px',
                 margin: '8px 0',
-                overflowX: 'auto',
+                overflowWrap: 'anywhere',
                 padding: '8px 16px',
+                whiteSpace: 'pre-wrap',
               }}
             >
               {children}
