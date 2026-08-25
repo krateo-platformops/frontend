@@ -28,6 +28,7 @@ import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
 import { buildBlueprintPublishOps } from './blueprintPublish'
 import { autopilotConversationStore } from './conversationStore'
+import { recordToolFrame } from './evidence'
 import { REST_DEFINITION_GVR } from './kogMapping'
 import { buildKogPublishAsPrOps, resolveKogPublishDraft } from './kogPublish'
 import { createOasAttachmentStore, type OasAttachmentResult } from './oasAttachment'
@@ -39,7 +40,7 @@ import { AutopilotPreviewDrawer } from './previewSurface'
 import { compileKogPublishOps, compilePublishOps, heldDraftIdentity, recordPagePreview, type PublishCompileResult } from './publishCompile'
 import { askPublishDestination, PublishTargetFormHost } from './publishTargetForm'
 import { a2aAuthHeader, createEchoTransport, createKagentTransport } from './transport'
-import type { AutopilotActionChip, AutopilotFrame, AutopilotMessage, AutopilotTransport, PageContextEnvelope } from './types'
+import type { AutopilotActionChip, AutopilotFrame, AutopilotMessage, AutopilotTransport, EvidenceEntry, PageContextEnvelope } from './types'
 import { buildContextDelta, useAutopilotContext } from './useAutopilotContext'
 
 interface AutopilotContextValue {
@@ -198,6 +199,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // finalize (strip fenced proposals, auto-apply read-only actions) on `done`.
   const assistantTextRef = useRef<Map<string, string>>(new Map())
   const proposalsRef = useRef<Map<string, PortalActionProposal[]>>(new Map())
+  const evidenceRef = useRef<Map<string, EvidenceEntry[]>>(new Map())
   // Assistant turns already finalized, so a duplicate `done` frame can't re-run finalize
   // (which deletes the text buffer and would otherwise wipe the rendered answer).
   const finalizedRef = useRef<Set<string>>(new Set())
@@ -249,12 +251,14 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     const rawText = assistantTextRef.current.get(assistantId) ?? ''
     const { cleanedText, proposals: textProposals, suggestions, tour: proposedTour } = parseAutopilotDirectives(rawText)
     const toolProposals = proposalsRef.current.get(assistantId) ?? []
+    const evidence = evidenceRef.current.get(assistantId) ?? []
     assistantTextRef.current.delete(assistantId)
     proposalsRef.current.delete(assistantId)
+    evidenceRef.current.delete(assistantId)
 
     setMessages((prev) => prev.map((message) => (
       message.id === assistantId
-        ? { ...message, streaming: false, suggestions: suggestions.length ? suggestions : undefined, text: cleanedText }
+        ? { ...message, evidence, streaming: false, suggestions: suggestions.length ? suggestions : undefined, text: cleanedText }
         : message
     )))
     setStreaming(false)
@@ -533,14 +537,18 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         break
       case 'tool_call':
         if (frame.name === 'propose_portal_action' && frame.args && typeof frame.args === 'object') {
-          const list = proposalsRef.current.get(assistantId) ?? []
-          list.push(frame.args as PortalActionProposal)
-          proposalsRef.current.set(assistantId, list)
+          proposalsRef.current.set(assistantId, [...(proposalsRef.current.get(assistantId) ?? []), frame.args as PortalActionProposal])
+        } else {
+          evidenceRef.current.set(assistantId, recordToolFrame(evidenceRef.current.get(assistantId) ?? [], frame))
         }
+        break
+      case 'tool_result':
+        evidenceRef.current.set(assistantId, recordToolFrame(evidenceRef.current.get(assistantId) ?? [], frame))
         break
       case 'error':
         assistantTextRef.current.delete(assistantId)
         proposalsRef.current.delete(assistantId)
+        evidenceRef.current.delete(assistantId)
         setMessages((prev) => prev.map((message) => (
           message.id === assistantId
             ? { ...message, streaming: false, text: `${message.text}\n\n⚠ ${frame.message}`.trim() }
@@ -700,6 +708,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     recoveryCountRef.current = 0
     assistantTextRef.current.clear()
     proposalsRef.current.clear()
+    evidenceRef.current.clear()
     finalizedRef.current.clear()
     // Reset the durable conversation store in one shot: empty transcript, fresh session id,
     // cleared A2A contextId, cleared page-context delta base (so the first turn of the new

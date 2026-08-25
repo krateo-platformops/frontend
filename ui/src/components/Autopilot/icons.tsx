@@ -42,3 +42,10 @@ export const CheckIcon = ({ className, size = 15 }: IconProps) => (
     <path d='M20 6L9 17l-5-5' />
   </svg>
 )
+
+export const EvidenceIcon = ({ className, size = 12 }: IconProps) => stroke(size, className, (
+  <>
+    <circle cx='11' cy='11' r='7' />
+    <path d='M20 20l-4.6-4.6' />
+  </>
+))

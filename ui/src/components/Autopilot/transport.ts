@@ -24,6 +24,7 @@ import { randomId } from '../../utils/utils'
 
 import type { ApprovalDecision, ApprovalPause } from './approval'
 import { buildDecisionMessage, parseApprovalPause } from './approval'
+import { readToolPart } from './evidence'
 import type { AutopilotSendRequest, AutopilotStreamHandlers, AutopilotTransport } from './types'
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -84,12 +85,31 @@ interface KagentStreamState {
   taskId?: string
 }
 
+/** Forward one message's tool frames (DataParts — see evidence.ts) and return its text. */
+const emitParts = (parts: unknown[], handlers: AutopilotStreamHandlers): string => {
+  let text = ''
+  for (const part of parts) {
+    const tool = readToolPart(part)
+    if (tool?.type === 'call') {
+      handlers.onFrame({ args: tool.args, id: tool.id, kind: 'tool_call', name: tool.name })
+    } else if (tool?.type === 'result') {
+      handlers.onFrame({ id: tool.id, isError: tool.isError, kind: 'tool_result', name: tool.name, output: tool.output, sessionId: tool.sessionId })
+    } else {
+      const value = asRecord(part)?.text
+      if (typeof value === 'string') {
+        text += value
+      }
+    }
+  }
+  return text
+}
+
 /**
  * Translate one A2A JSON-RPC payload into 0..n normalized frames:
  *   - `result.contextId` → a one-time `session` frame (thread continuity)
  *   - `status.message` with `role: 'agent'` → text: `kagent_adk_partial: true`
  *     appends a streamed chunk; `false` REPLACES with the authoritative full text;
- *     `functionCall` parts surface as `tool_call` (intercepted in Phase 2)
+ *     tool DataParts surface as `tool_call`/`tool_result`
  *   - `result.final === true` / state `completed` → `done`
  *   - a top-level JSON-RPC `error` → `error`
  * User-role echoes and status-only updates produce nothing.
@@ -130,16 +150,7 @@ const handleKagentPayload = (
   const status = asRecord(result.status)
   const message = asRecord(status?.message)
   if (message && message.role === 'agent' && Array.isArray(message.parts)) {
-    let text = ''
-    for (const part of message.parts) {
-      const partRecord = asRecord(part)
-      const functionCall = asRecord(partRecord?.functionCall)
-      if (functionCall && typeof functionCall.name === 'string') {
-        handlers.onFrame({ args: functionCall.args, kind: 'tool_call', name: functionCall.name })
-      } else if (typeof partRecord?.text === 'string') {
-        text += partRecord.text
-      }
-    }
+    const text = emitParts(message.parts, handlers)
     if (text) {
       const partial = asRecord(message.metadata)?.kagent_adk_partial
       handlers.onFrame({ delta: text, kind: 'text', replace: partial === false })
@@ -152,19 +163,10 @@ const handleKagentPayload = (
   // renders an empty bubble (verified live: the answer was in `result.artifact`,
   // never in `status.message`). Treat it as the definitive text and REPLACE whatever
   // the status stream accumulated (identical when both fire; recovers the answer when
-  // the status stream was empty). `functionCall` parts still surface as tool_calls.
+  // the status stream was empty). Tool parts still surface as tool frames.
   const artifact = asRecord(result.artifact)
   if (artifact && Array.isArray(artifact.parts)) {
-    let artifactText = ''
-    for (const part of artifact.parts) {
-      const partRecord = asRecord(part)
-      const functionCall = asRecord(partRecord?.functionCall)
-      if (functionCall && typeof functionCall.name === 'string') {
-        handlers.onFrame({ args: functionCall.args, kind: 'tool_call', name: functionCall.name })
-      } else if (typeof partRecord?.text === 'string') {
-        artifactText += partRecord.text
-      }
-    }
+    const artifactText = emitParts(artifact.parts, handlers)
     if (artifactText) {
       handlers.onFrame({ delta: artifactText, kind: 'text', replace: true })
     }

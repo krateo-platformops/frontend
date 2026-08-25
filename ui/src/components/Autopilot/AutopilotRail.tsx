@@ -12,13 +12,97 @@ import { useEffect, useRef, useState } from 'react'
 import type { ClipboardEvent, KeyboardEvent } from 'react'
 import { default as ReactMarkdown } from 'react-markdown'
 
+import { useConfigContext } from '../../context/ConfigContext'
+
 import type { ApprovalPause } from './approval'
 import { useAutopilot } from './AutopilotProvider'
 import styles from './AutopilotRail.module.css'
 import AutopilotTour from './AutopilotTour'
-import { CheckIcon, CollapseIcon, EyeIcon, LinkIcon, PlusIcon, SendIcon, SparkIcon, StopIcon } from './icons'
+import { describeArgs, deriveSessionsBase, fetchDelegationEvidence, summarizeEvidence } from './evidence'
+import { CheckIcon, CollapseIcon, EvidenceIcon, EyeIcon, LinkIcon, PlusIcon, SendIcon, SparkIcon, StopIcon } from './icons'
 import { looksLikeOpenApiDocument } from './oasAttachment'
-import type { AutopilotMessage } from './types'
+import { a2aAuthHeader } from './transport'
+import type { AutopilotMessage, EvidenceEntry } from './types'
+
+/** What the agent looked up, never what it read back. */
+const EvidenceRow = ({ entry }: { entry: EvidenceEntry }) => {
+  const { source } = entry
+  const meta = source
+    ? `${source.org ? `${source.org}/` : ''}${source.repo}${source.ref ? ` @ ${source.ref}` : ''}`
+    : describeArgs(entry)
+  return (
+    <div className={styles.apEvRow}>
+      <span className={styles.apEvTool}>{entry.tool}</span>
+      <span className={styles.apEvMeta}>
+        {meta}{entry.note ? ` · ${entry.note}` : ''}{entry.failed ? ' · failed' : ''}
+      </span>
+      {source?.path ? (
+        <span>
+          {entry.url
+            ? <a className={styles.apEvLink} href={entry.url} rel='noreferrer' target='_blank'>{source.path}</a>
+            : source.path}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
+/** A delegated hop: the specialist's own calls are not on this stream, so they are fetched from
+ *  the session its response named. */
+const DelegationRow = ({ entry }: { entry: EvidenceEntry }) => {
+  const { config } = useConfigContext()
+  const [open, setOpen] = useState(false)
+  const [state, setState] = useState<{ children?: EvidenceEntry[]; error?: boolean; loading?: boolean }>({})
+  const expand = () => {
+    setOpen((prev) => !prev)
+    const base = config?.api.AUTOPILOT_API_BASE_URL
+    if (!base || !entry.sessionId || state.children || state.loading) {
+      return
+    }
+    setState({ loading: true })
+    fetchDelegationEvidence(deriveSessionsBase(base), entry, a2aAuthHeader())
+      .then((children) => setState({ children }))
+      .catch(() => setState({ error: true }))
+  }
+  return (
+    <div className={styles.apEvGroup}>
+      <button className={styles.apEvRow} onClick={expand} type='button'>
+        <span className={styles.apEvTool}>{open ? '▾' : '▸'} {entry.agent}</span>
+        <span className={styles.apEvMeta}>specialist{state.children ? ` · ${state.children.length} lookups` : ''}</span>
+      </button>
+      {open ? (
+        <div className={styles.apEvNested}>
+          {state.loading ? <div className={styles.apEvMeta}>loading…</div> : null}
+          {state.error ? <div className={styles.apEvMeta}>its activity is not readable from here</div> : null}
+          {state.children?.length === 0 ? <div className={styles.apEvMeta}>no tool calls recorded</div> : null}
+          {state.children?.map((child) => <EvidenceRow entry={child} key={child.id} />)}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/** The tool calls behind an answer, so it can be checked rather than trusted. A turn that used no
+ *  tools says so. */
+const EvidencePanel = ({ evidence }: { evidence: EvidenceEntry[] }) => {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button className={styles.apEvBtn} onClick={() => setOpen((prev) => !prev)} type='button'>
+        <EvidenceIcon />
+        Evidence{evidence.length ? ` · ${evidence.length}` : ''}
+      </button>
+      {open ? (
+        <div className={styles.apEv} data-testid='autopilot-evidence'>
+          <div className={styles.apEvHead}>{summarizeEvidence(evidence)}</div>
+          {evidence.map((entry) => (entry.agent
+            ? <DelegationRow entry={entry} key={entry.id} />
+            : <EvidenceRow entry={entry} key={entry.id} />))}
+        </div>
+      ) : null}
+    </>
+  )
+}
 
 const MessageBubble = ({ message }: { message: AutopilotMessage }) => {
   if (message.role === 'user') {
@@ -39,6 +123,7 @@ const MessageBubble = ({ message }: { message: AutopilotMessage }) => {
           {action.readOnly ? <span className={styles.apActRo}>read-only</span> : null}
         </div>
       ))}
+      {message.evidence && !message.streaming ? <EvidencePanel evidence={message.evidence} /> : null}
     </div>
   )
 }
