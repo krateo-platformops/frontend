@@ -555,3 +555,94 @@
   font-size: 9.5px;
   margin-bottom: 7px;
 }
+
+/* ── Evidence (per-answer source trace) ──
+   A quiet ghost affordance under the answer, opening a mono list of the tool calls behind it.
+   Deliberately colorless: it is a fact surface, not a CTA. */
+.apEvBtn {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--gray-color);
+  cursor: pointer;
+  display: flex;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  gap: 5px;
+  letter-spacing: 0.04em;
+  padding: 4px 0 0;
+  text-transform: uppercase;
+}
+
+.apEvBtn:hover {
+  color: var(--primary-color);
+}
+
+.apEv {
+  border-left: 2px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 5px;
+  padding-left: 8px;
+}
+
+.apEvHead {
+  color: var(--dark-color);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.apEvRow {
+  background: none;
+  border: none;
+  color: var(--gray-color);
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  gap: 1px;
+  line-height: 1.45;
+  padding: 0;
+  text-align: left;
+  word-break: break-all;
+}
+
+.apEvTool {
+  color: var(--dark-color);
+}
+
+.apEvMeta {
+  color: var(--gray-color);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.apEvLink {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.apEvLink:hover {
+  text-decoration: underline;
+}
+
+.apEvGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.apEvGroup > .apEvRow {
+  cursor: pointer;
+}
+
+.apEvNested {
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 4px;
+  padding-left: 8px;
+}

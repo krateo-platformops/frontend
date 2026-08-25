@@ -54,7 +54,7 @@ defaults:
 | `AUTHN_API_BASE_URL` | `http://localhost:8082` | Login strategies + token exchange. |
 | `EVENTS_API_BASE_URL` / `EVENTS_PUSH_API_BASE_URL` | `http://localhost:8083` | Events list (`/events`) / SSE stream (`/notifications`). |
 | `INIT` | `/call?resource=layouts&…&name=app-shell&namespace=krateo-system` | The bootstrap pointer to the app-shell `Layout` CR. There is no `ROUTES_LOADER` anymore — routing is data on the sidebar `Menu`. |
-| `AUTOPILOT_API_BASE_URL` | `/autopilot` | Same-origin path served by the nginx `/autopilot/` proxy to the kagent A2A endpoint (no CORS). The Autopilot rail renders only when set; the upstream it dials is `autopilot.upstream`. |
+| `AUTOPILOT_API_BASE_URL` | `/autopilot` | Same-origin path served by the nginx `/autopilot/` proxy to the kagent A2A endpoint (no CORS). The Autopilot rail renders only when set; the upstream it dials is `autopilot.upstream`. The Evidence panel's session-trace URL is derived from this value, not configured separately (see below). |
 | `AUTOPILOT_AVAILABLE` | `""` | Clickability (not visibility) of the Autopilot toggle: `"false"` (set by the installer when agents aren't deployed) grays it out; `""` defers to the runtime reachability probe, which also grays it out on a `401`/`403` (invalid session, or gateway RBAC denies this user the agent). |
 | `OTEL_COLLECTOR_URL` | `""` | Browser OTel traces endpoint; empty = the browser SDK stays off. |
 | `SNOWPLOW_IDENTITY_INJECTION` | `""` | String-typed rollout flag (installer plumbing emits strings only): `""` = legacy identity-extras behavior (safe hold-off); `"true"` = snowplow injects identity server-side. Never set `"false"` (JS truthiness trap — documented in `values.yaml`). |
@@ -101,6 +101,12 @@ The origin comes from the installer, resolved by the same exposure model that pr
 `SNOWPLOW_API_BASE_URL` and friends — so set `config.AUTOPILOT_API_BASE_URL` to the **origin
 only** when overriding it by hand. A *relative* value is left untouched, so an origin that
 has not resolved yet degrades to the kagent-ui proxy instead of rendering a broken URL.
+
+The **Evidence** panel's session read follows the same split, derived from the same value:
+`<origin>/api/sessions/<id>/tasks` through the gateway (allowed by `sessionTrace` on
+`agentgateway-policies`, `GET` only), or `/autopilot/sessions/<id>/tasks` through the nginx
+proxy. Nothing configures it separately, and a denied or unreachable read only costs the panel
+its delegated rows.
 
 The installer injects `true` from `features.agentGateway`, which also puts the kagent
 controller in `trusted-proxy` mode. That mode is why the flag matters twice over: a request

@@ -85,6 +85,12 @@ export default defineConfig({
     ...(autopilotProxyTarget
       ? {
         proxy: {
+          // Order matters: the sessions trace (Evidence panel) must not be rewritten to the A2A path.
+          '/autopilot/sessions': {
+            changeOrigin: true,
+            rewrite: (path: string) => path.replace(/^\/autopilot\/sessions/, '/api/sessions'),
+            target: autopilotProxyTarget,
+          },
           '/autopilot': {
             changeOrigin: true,
             rewrite: (path: string) => path.replace(/^\/autopilot/, '/api/a2a/krateo-system/autopilot'),

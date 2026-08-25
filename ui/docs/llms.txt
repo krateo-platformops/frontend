@@ -38,6 +38,7 @@ docs/guides/action-button/action-button.md: worked guide — openDrawer action, 
 
 docs/antd-migration-plan.md: the executed antd-fidelity migration decision record (status: diverged — see its implemented-reality note).
 docs/autocomplete-and-dependencies.md: removed-feature note (Form autocomplete/dependencies no longer exist).
+docs/evidence-org-guess.md: known gap — the Autopilot Evidence panel guesses a repo link's GitHub org from the repository name, and the two-line repo-mcp-server change that would remove the guess.
 
 ## Source of truth
 

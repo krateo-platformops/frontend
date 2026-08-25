@@ -69,7 +69,7 @@ const asRecord = (value: unknown): Record<string, unknown> | undefined =>
  * then `kagent_<key>` — mirroring kagent's `ReadMetadataValue`
  * (go/adk/pkg/a2a/consts.go) / `read_metadata_value` (kagent-core `_consts.py`).
  */
-const readPartMetadata = (metadata: Record<string, unknown> | undefined, key: string): unknown => {
+export const readPartMetadata = (metadata: Record<string, unknown> | undefined, key: string): unknown => {
   if (!metadata) {
     return undefined
   }

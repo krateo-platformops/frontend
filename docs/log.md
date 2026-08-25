@@ -4,7 +4,7 @@ title: frontend — log
 description: Curated chronological history — notable changes, decisions and incidents; release notes stay in GitHub Releases.
 resource: oci://ghcr.io/krateo-platformops/charts/frontend
 tags: [history]
-timestamp: 2026-08-21T00:00:00Z
+timestamp: 2026-08-25T00:00:00Z
 ---
 
 # Log
@@ -12,6 +12,37 @@ timestamp: 2026-08-21T00:00:00Z
 Curated history, newest first. Durable decision records and dated notes live with the
 code under [`ui/docs/`](../ui/docs/llms.txt) (e.g. the executed
 [antd-migration-plan](../ui/docs/antd-migration-plan.md)).
+
+## 2026-08-25 — Evidence: the sources behind an Autopilot answer
+
+An answer that lists a component's environment variables is unverifiable in prose: the reader
+cannot tell a file the agent read from a fact it recalled. Every assistant turn now carries an
+**Evidence** disclosure listing the tool calls behind it — the tool, its arguments, and for a
+repo read the repo, ref and path, linked to that file at that ref on GitHub. A turn that used no
+tools says so, which is the most useful thing it can report.
+
+- **Metadata only, never a result payload.** Result text is read for the provenance header
+  repo-mcp-server emits (`# <repo> @ <ref>`, `# <repo>/<path> — lines X-Y of Z`), a match count
+  and an error flag, then dropped. The agent's cluster RBAC is wider than the user's, and
+  retrieving the content is the user's own job — which is what makes this verification rather
+  than a second telling.
+- **Delegated turns too.** A specialist's own tool calls are not on the A2A stream: the agent-tool
+  response carries `subagent_session_id`, and its calls live in that kagent session, read on
+  expand from `GET <sessions>/<id>/tasks` (a specialist session outlives one delegation, so the
+  task is matched by its request text, not by being the newest).
+- The session-trace URL is **derived from `AUTOPILOT_API_BASE_URL`**, so there is no second
+  setting: `<gateway>/api/a2a/<ns>/autopilot` → `<gateway>/api/sessions`, and `/autopilot` →
+  `/autopilot/sessions`, a new nginx location alongside the A2A one. Through the gateway the read
+  needs `sessionTrace` on `agentgateway-policies` (on by default, `GET` only); with it off the
+  panel reports the specialist's activity as unreadable and shows everything else unchanged.
+
+One known gap, recorded in [evidence-org-guess](../ui/docs/evidence-org-guess.md): no tool reports
+the GitHub **org**, so a repo link derives it from the repository name. A wrong guess costs that
+row its link and nothing else, and two lines in repo-mcp-server would remove the guess.
+
+The transport also stopped dropping tool frames: it looked for a `functionCall` part, a shape the
+Go runtime never sends — tool calls arrive as DataParts with `adk_type`/`kagent_type` metadata,
+the same shape the HITL approval path already parsed.
 
 ## 2026-08-21 — forward the portal JWT to Autopilot, and call the gateway directly
 

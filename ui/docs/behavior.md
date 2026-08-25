@@ -55,7 +55,7 @@ image serve any cluster. The chart renders it from `.Values.config`
 | **snowplow** | `SNOWPLOW_API_BASE_URL` | `GET /call?resource=…&apiVersion=…&name=…&namespace=…` → a `Widget` JSON; SSE `/refreshes` when live refresh is on | `useWidgetQuery.ts:137`, `hooks/refreshSse.ts` |
 | **events (list)** | `EVENTS_API_BASE_URL` | `GET /events` → seeded event list | `useGetEvents.ts:18` |
 | **events (stream)** | `EVENTS_PUSH_API_BASE_URL` | SSE `GET /notifications` (bell + per-action event waits) | `useGetEvents.ts:21`, `useSseStream.ts`, `useHandleActions.ts:357` |
-| **autopilot (optional)** | `AUTOPILOT_API_BASE_URL` | the kagent A2A endpoint, same-origin via the nginx `/autopilot/` proxy; every request carries the portal Bearer (agentgateway validates it, and the kagent controller reads the caller from it) | `components/Autopilot/transport.ts`, `nginx.conf` |
+| **autopilot (optional)** | `AUTOPILOT_API_BASE_URL` | the kagent A2A endpoint, same-origin via the nginx `/autopilot/` proxy; every request carries the portal Bearer (agentgateway validates it, and the kagent controller reads the caller from it). The Evidence panel reads a delegation's stored activity from the sessions path derived off the same value | `components/Autopilot/transport.ts`, `components/Autopilot/evidence.ts`, `nginx.conf` |
 
 All widget content flows through snowplow's **`/call`** endpoint; the SPA never talks to
 the Kubernetes apiserver directly (portal writes also go through snowplow, against the

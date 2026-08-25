@@ -72,3 +72,6 @@ const deepRedact = (value: unknown): unknown => {
  */
 export const redactAutopilotContext = (envelope: PageContextEnvelope): PageContextEnvelope =>
   deepRedact(envelope) as PageContextEnvelope
+
+/** The same scrub for any value — the Evidence panel runs tool arguments through it. */
+export const redactValue = (value: unknown): unknown => deepRedact(value)

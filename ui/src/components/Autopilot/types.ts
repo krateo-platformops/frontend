@@ -30,7 +30,37 @@ export interface AutopilotMessage {
   actions?: AutopilotActionChip[]
   /** Context-derived quick-prompts surfaced under an assistant turn (Phase 2). */
   suggestions?: string[]
+  /** The turn's source trace. Empty array = the turn used no tools. */
+  evidence?: EvidenceEntry[]
   createdAt: number
+}
+
+export type EvidenceKind = 'repo' | 'cluster' | 'graph' | 'delegation' | 'tool'
+
+/** One tool call, as metadata only — never tool output (see evidence.ts). */
+export interface EvidenceEntry {
+  /** The function-call id, which the result frame is merged on. */
+  id: string
+  tool: string
+  kind: EvidenceKind
+  args?: Record<string, unknown>
+  source?: EvidenceSource
+  url?: string
+  /** Delegation only: the specialist, the session its own calls are in, and the request text
+   * that identifies its task there. */
+  agent?: string
+  sessionId?: string
+  request?: string
+  note?: string
+  failed?: boolean
+}
+
+export interface EvidenceSource {
+  org?: string
+  repo: string
+  path?: string
+  ref?: string
+  lines?: string
 }
 
 /** A read-only action chip rendered after it was auto-applied (component 7). */
@@ -187,7 +217,8 @@ export type AutopilotFrame =
   | { kind: 'text'; delta: string; replace?: boolean }
   // A2A conversation id, surfaced so the provider can continue the thread.
   | { kind: 'session'; contextId: string }
-  | { kind: 'tool_call'; name: string; args: unknown }
+  | { kind: 'tool_call'; name: string; args: unknown; id?: string }
+  | { kind: 'tool_result'; name: string; id?: string; output?: string; isError?: boolean; sessionId?: string }
   | { kind: 'require_approval'; pause: ApprovalPause }
   | { kind: 'done' }
   | { kind: 'error'; message: string }
