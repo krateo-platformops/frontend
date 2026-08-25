@@ -9,6 +9,7 @@
  */
 
 import { readPartMetadata } from './approval'
+import { redactValue } from './redact'
 import type { AutopilotFrame, EvidenceEntry, EvidenceKind, EvidenceSource } from './types'
 
 const asRecord = (value: unknown): Record<string, unknown> | undefined =>
@@ -240,20 +241,20 @@ const firstText = (message: unknown): string => {
 
 /**
  * A specialist's session outlives one delegation (kagent prunes `isolateSessions` below 0.10), and
- * a task's first history message is the request verbatim — so match on that, not on recency.
+ * a task's first history message is the request verbatim — so match on that. Nothing else
+ * correlates the two: kagent 0.9.12 gives the caller only `subagent_session_id`, and a sub-task
+ * carries no parent id. No match therefore means unknown, NOT the newest task — attributing
+ * another turn's calls to this answer is the one failure this panel must not have.
  */
 export const selectDelegationTask = (tasks: unknown[], request: string | undefined): Record<string, unknown> | undefined => {
-  const records = tasks.map(asRecord).filter(Boolean) as Record<string, unknown>[]
-  if (request) {
-    const matched = records.filter((task) => {
-      const history = Array.isArray(task.history) ? task.history : []
-      return firstText(history[0]).trim() === request.trim()
-    })
-    if (matched.length) {
-      return matched[matched.length - 1]
-    }
+  if (!request) {
+    return undefined
   }
-  return records[records.length - 1]
+  const matched = (tasks.map(asRecord).filter(Boolean) as Record<string, unknown>[]).filter((task) => {
+    const history = Array.isArray(task.history) ? task.history : []
+    return firstText(history[0]).trim() === request.trim()
+  })
+  return matched[matched.length - 1]
 }
 
 /** The specialist's own rows, from its session's stored tasks. */
@@ -272,7 +273,10 @@ export const fetchDelegationEvidence = async (
   const body = asRecord(await response.json())
   const tasks: unknown[] = Array.isArray(body?.data) ? body.data : []
   const task = selectDelegationTask(tasks, entry.request)
-  const history: unknown[] = Array.isArray(task?.history) ? task.history : []
+  if (!task) {
+    throw new Error('this delegation is not identifiable in the session')
+  }
+  const history: unknown[] = Array.isArray(task.history) ? task.history : []
   const parts: unknown[] = []
   for (const message of history) {
     const own = asRecord(message)?.parts
@@ -300,12 +304,24 @@ export const summarizeEvidence = (entries: EvidenceEntry[]): string => {
   return parts.join(' · ')
 }
 
-/** `key: value` list for a row with no richer shape. */
+const ARG_MAX = 120
+const ARGS_MAX = 300
+
+const clamp = (text: string, max: number): string =>
+  (text.length > max ? `${text.slice(0, max)}…` : text)
+
+/**
+ * `key: value` list for a row with no richer shape. Arguments go through the same redactor as the
+ * outbound context — a specialist's own trace can carry a write tool's manifest or helm values —
+ * and each value is clamped on its own so one long argument cannot crowd out the rest.
+ */
 export const describeArgs = (entry: EvidenceEntry): string => {
-  const args = entry.args ?? {}
-  return Object.entries(args)
+  const args = (redactValue(entry.args ?? {}) ?? {}) as Record<string, unknown>
+  const rendered = Object.entries(args)
     .filter(([key]) => key !== 'request')
-    .map(([key, value]) => `${key}: ${typeof value === 'string' ? value : JSON.stringify(value)}`)
-    .join(' · ')
-    .slice(0, 300)
+    .map(([key, value]) => {
+      const text = typeof value === 'string' ? value : JSON.stringify(value) ?? ''
+      return `${key}: ${clamp(text.replace(/\s+/g, ' ').trim(), ARG_MAX)}`
+    })
+  return clamp(rendered.join(' · '), ARGS_MAX)
 }

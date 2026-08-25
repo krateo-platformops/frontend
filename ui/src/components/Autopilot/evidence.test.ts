@@ -3,17 +3,20 @@
  * off `GET /api/sessions/<id>/tasks`. The metadata-only invariant is asserted by checking what a
  * row carries after a result whose body is a whole file.
  */
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   agentFromToolName,
+  describeArgs,
   deriveSessionsBase,
   evidenceFromParts,
+  fetchDelegationEvidence,
   orgOfRepo,
   readToolPart,
   selectDelegationTask,
   summarizeEvidence,
 } from './evidence'
+import type { EvidenceEntry } from './types'
 
 const call = (name: string, args: Record<string, unknown> | undefined, id: string, prefix = 'adk') => ({
   data: { args, id, name },
@@ -118,6 +121,15 @@ describe('rows built from a call/result pair', () => {
   })
 })
 
+const task = (text: string, id: string) => ({ history: [{ parts: [{ kind: 'text', text }], role: 'user' }], id })
+
+const TASKS = [task('an older delegation', 't1'), task('which env vars?', 't2'), task('a later, unrelated one', 't3')]
+
+const delegation = (request: string): EvidenceEntry =>
+  ({ agent: 'core-provider-agent', id: 'd1', kind: 'delegation', request, sessionId: 'sess-9', tool: 'krateo_system__NS__core_provider_agent' })
+
+afterEach(() => vi.unstubAllGlobals())
+
 describe('reaching the session trace', () => {
   it('derives the trace base from the configured A2A endpoint in both exposure modes', () => {
     expect(deriveSessionsBase('http://krateo.localhost:8084/api/a2a/krateo-system/autopilot'))
@@ -127,11 +139,32 @@ describe('reaching the session trace', () => {
   })
 
   it('identifies the delegation\'s own task by its request, not by being the newest', () => {
-    const task = (text: string, id: string) => ({ history: [{ parts: [{ kind: 'text', text }], role: 'user' }], id })
-    const tasks = [task('an older delegation', 't1'), task('which env vars?', 't2'), task('a later, unrelated one', 't3')]
-    expect(selectDelegationTask(tasks, 'which env vars?')?.id).toBe('t2')
-    // Nothing to match on → the newest task is the best guess available.
-    expect(selectDelegationTask(tasks, undefined)?.id).toBe('t3')
+    expect(selectDelegationTask(TASKS, 'which env vars?')?.id).toBe('t2')
+  })
+
+  it('reports unknown rather than guessing when no task matches', () => {
+    // Mislabelling another turn's calls as this answer's is the one failure this panel must not have.
+    expect(selectDelegationTask(TASKS, 'a request from some other thread')).toBeUndefined()
+    expect(selectDelegationTask(TASKS, undefined)).toBeUndefined()
+    expect(selectDelegationTask([], 'which env vars?')).toBeUndefined()
+  })
+
+  it('takes the most recent of identical requests', () => {
+    const repeated = [...TASKS, task('which env vars?', 't4')]
+    expect(selectDelegationTask(repeated, 'which env vars?')?.id).toBe('t4')
+  })
+
+  it('fetches a specialist\'s rows, and refuses to attribute the wrong task', async () => {
+    const tasks = [{ history: [{ parts: [{ kind: 'text', text: 'which env vars?' }], role: 'user' }, { parts: [call('read_repo_file', { path: 'main.go', repo: 'core-provider' }, 'x1')], role: 'agent' }], id: 't1' }]
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ data: tasks }), ok: true })))
+    const rows = await fetchDelegationEvidence('/autopilot/sessions', delegation('which env vars?'), {})
+    expect(rows.map((row) => row.tool)).toEqual(['read_repo_file'])
+    await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('a different request'), {})).rejects.toThrow()
+  })
+
+  it('surfaces an unreadable trace instead of an empty one', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({}), ok: false, status: 403 })))
+    await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {})).rejects.toThrow('403')
   })
 })
 
@@ -159,5 +192,35 @@ describe('panel headline and naming', () => {
   it('reads a specialist name out of the agent tool name', () => {
     expect(agentFromToolName('krateo_system__NS__core_provider_agent')).toBe('core-provider-agent')
     expect(agentFromToolName('read_repo_file')).toBeUndefined()
+  })
+})
+
+describe('arguments are metadata, but still scrubbed', () => {
+  const args = (value: Record<string, unknown>): EvidenceEntry => ({ args: value, id: 'a1', kind: 'tool', tool: 't' })
+  // Assembled at runtime: a JWT-shaped literal in the tree is itself a secret-scan finding.
+  const jwtShaped = ['eyJhbGciOiJSUzI1NiJ9', 'eyJzdWIiOiJhZG1pbiJ9', 'c2lnbmF0dXJl'].join('.')
+
+  it('redacts a credential-shaped argument through the shared denylist', () => {
+    const described = describeArgs(args({ password: 'hunter2', token: 'abc', values: `auth: ${jwtShaped}` }))
+    expect(described).toContain('[redacted]')
+    expect(described).not.toContain('hunter2')
+    expect(described).toContain('[redacted-jwt]')
+  })
+
+  it('clamps each argument on its own, so a manifest cannot crowd out the rest', () => {
+    const manifest = `apiVersion: v1\nkind: ConfigMap\n${'  greeting: hello there\n'.repeat(40)}`
+    const described = describeArgs(args({ manifest, namespace: 'krateo-system' }))
+    expect(described).toContain('apiVersion: v1 kind: ConfigMap')
+    expect(described).toContain('…')
+    // The clamped manifest cannot swallow the argument that identifies the target.
+    expect(described).toContain('namespace: krateo-system')
+  })
+
+  it('redacts a long base64 blob — a Secret payload — wherever it sits', () => {
+    expect(describeArgs(args({ manifest: `data:\n  key: ${'QUJD'.repeat(30)}` }))).toContain('[redacted]')
+  })
+
+  it('leaves the delegated request out — the specialist row already carries it', () => {
+    expect(describeArgs(args({ request: 'a long delegated question' }))).toBe('')
   })
 })
