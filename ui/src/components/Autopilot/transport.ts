@@ -85,8 +85,9 @@ interface KagentStreamState {
   taskId?: string
 }
 
-/** Forward one message's tool frames (DataParts — see evidence.ts) and return its text. */
-const emitParts = (parts: unknown[], handlers: AutopilotStreamHandlers): string => {
+/** Forward one message's tool frames (DataParts — see evidence.ts) and return its text.
+ *  Exported for unit tests (the live-stream glue that feeds the Evidence panel). */
+export const emitParts = (parts: unknown[], handlers: AutopilotStreamHandlers): string => {
   let text = ''
   for (const part of parts) {
     const tool = readToolPart(part)

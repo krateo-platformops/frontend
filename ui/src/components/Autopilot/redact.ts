@@ -72,3 +72,12 @@ const deepRedact = (value: unknown): unknown => {
  */
 export const redactAutopilotContext = (envelope: PageContextEnvelope): PageContextEnvelope =>
   deepRedact(envelope) as PageContextEnvelope
+
+/**
+ * Scrub an arbitrary value with the same rules as the context redactor: denylisted
+ * keys → "[redacted]", JWT-shaped strings and long base64 blobs masked. Pure. Used by
+ * the Evidence panel so a rendered tool-call ARGUMENT can never surface a token, a
+ * Secret body or a credential — the metadata-only boundary covers args too, not just
+ * results.
+ */
+export const redactValue = (value: unknown): unknown => deepRedact(value)

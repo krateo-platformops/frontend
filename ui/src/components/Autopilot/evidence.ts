@@ -9,6 +9,7 @@
  */
 
 import { readPartMetadata } from './approval'
+import { redactValue } from './redact'
 import type { AutopilotFrame, EvidenceEntry, EvidenceKind, EvidenceSource } from './types'
 
 const asRecord = (value: unknown): Record<string, unknown> | undefined =>
@@ -249,11 +250,14 @@ export const selectDelegationTask = (tasks: unknown[], request: string | undefin
       const history = Array.isArray(task.history) ? task.history : []
       return firstText(history[0]).trim() === request.trim()
     })
-    if (matched.length) {
-      return matched[matched.length - 1]
-    }
+    // A specialist session can hold tasks from several turns. If the request text pins one, use the
+    // newest match; if it pins NONE, return nothing rather than mislabel THIS answer with another
+    // turn's calls — the panel then honestly shows "no tool calls recorded" instead of a wrong guess.
+    return matched.length ? matched[matched.length - 1] : undefined
   }
-  return records[records.length - 1]
+  // No request to match on (e.g. an un-annotated delegation): only pin when the session holds a
+  // single task; with several, we cannot know which is this turn's, so guess nothing.
+  return records.length === 1 ? records[0] : undefined
 }
 
 /** The specialist's own rows, from its session's stored tasks. */
@@ -302,10 +306,18 @@ export const summarizeEvidence = (entries: EvidenceEntry[]): string => {
 
 /** `key: value` list for a row with no richer shape. */
 export const describeArgs = (entry: EvidenceEntry): string => {
-  const args = entry.args ?? {}
+  // The metadata-only boundary drops result payloads, but arguments are rendered — so scrub them
+  // through the same redactor the outbound context uses (denylisted keys / JWTs / long base64) so a
+  // tool arg can never surface a token, Secret body or credential in the panel.
+  const args = (redactValue(entry.args ?? {}) ?? {}) as Record<string, unknown>
   return Object.entries(args)
     .filter(([key]) => key !== 'request')
-    .map(([key, value]) => `${key}: ${typeof value === 'string' ? value : JSON.stringify(value)}`)
+    .map(([key, value]) => {
+      // Cap each VALUE (manifest-aware, like the approval card) so one big arg — a manifest body,
+      // a patch — is a snippet rather than crowding the whole line out before the overall cap.
+      const raw = typeof value === 'string' ? value : JSON.stringify(value)
+      return `${key}: ${raw.length > 120 ? `${raw.slice(0, 119)}…` : raw}`
+    })
     .join(' · ')
     .slice(0, 300)
 }

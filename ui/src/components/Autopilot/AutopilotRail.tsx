@@ -8,7 +8,7 @@
  * shell reflows (it never overlays). All driving/HITL surfaces are Phase 2/3.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { ClipboardEvent, KeyboardEvent } from 'react'
 import { default as ReactMarkdown } from 'react-markdown'
 
@@ -52,6 +52,7 @@ const EvidenceRow = ({ entry }: { entry: EvidenceEntry }) => {
 const DelegationRow = ({ entry }: { entry: EvidenceEntry }) => {
   const { config } = useConfigContext()
   const [open, setOpen] = useState(false)
+  const panelId = useId()
   const [state, setState] = useState<{ children?: EvidenceEntry[]; error?: boolean; loading?: boolean }>({})
   const expand = () => {
     setOpen((prev) => !prev)
@@ -66,12 +67,12 @@ const DelegationRow = ({ entry }: { entry: EvidenceEntry }) => {
   }
   return (
     <div className={styles.apEvGroup}>
-      <button className={styles.apEvRow} onClick={expand} type='button'>
+      <button aria-controls={panelId} aria-expanded={open} className={styles.apEvRow} onClick={expand} type='button'>
         <span className={styles.apEvTool}>{open ? '▾' : '▸'} {entry.agent}</span>
         <span className={styles.apEvMeta}>specialist{state.children ? ` · ${state.children.length} lookups` : ''}</span>
       </button>
       {open ? (
-        <div className={styles.apEvNested}>
+        <div className={styles.apEvNested} id={panelId}>
           {state.loading ? <div className={styles.apEvMeta}>loading…</div> : null}
           {state.error ? <div className={styles.apEvMeta}>its activity is not readable from here</div> : null}
           {state.children?.length === 0 ? <div className={styles.apEvMeta}>no tool calls recorded</div> : null}
@@ -86,14 +87,15 @@ const DelegationRow = ({ entry }: { entry: EvidenceEntry }) => {
  *  tools says so. */
 const EvidencePanel = ({ evidence }: { evidence: EvidenceEntry[] }) => {
   const [open, setOpen] = useState(false)
+  const panelId = useId()
   return (
     <>
-      <button className={styles.apEvBtn} onClick={() => setOpen((prev) => !prev)} type='button'>
+      <button aria-controls={panelId} aria-expanded={open} className={styles.apEvBtn} onClick={() => setOpen((prev) => !prev)} type='button'>
         <EvidenceIcon />
         Evidence{evidence.length ? ` · ${evidence.length}` : ''}
       </button>
       {open ? (
-        <div className={styles.apEv} data-testid='autopilot-evidence'>
+        <div className={styles.apEv} data-testid='autopilot-evidence' id={panelId}>
           <div className={styles.apEvHead}>{summarizeEvidence(evidence)}</div>
           {evidence.map((entry) => (entry.agent
             ? <DelegationRow entry={entry} key={entry.id} />

@@ -3,12 +3,14 @@
  * off `GET /api/sessions/<id>/tasks`. The metadata-only invariant is asserted by checking what a
  * row carries after a result whose body is a whole file.
  */
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   agentFromToolName,
   deriveSessionsBase,
+  describeArgs,
   evidenceFromParts,
+  fetchDelegationEvidence,
   orgOfRepo,
   readToolPart,
   selectDelegationTask,
@@ -130,8 +132,58 @@ describe('reaching the session trace', () => {
     const task = (text: string, id: string) => ({ history: [{ parts: [{ kind: 'text', text }], role: 'user' }], id })
     const tasks = [task('an older delegation', 't1'), task('which env vars?', 't2'), task('a later, unrelated one', 't3')]
     expect(selectDelegationTask(tasks, 'which env vars?')?.id).toBe('t2')
-    // Nothing to match on → the newest task is the best guess available.
-    expect(selectDelegationTask(tasks, undefined)?.id).toBe('t3')
+    // A request that matches no task → pin nothing rather than mislabel this answer with a
+    // different turn's calls (the panel then shows "no tool calls recorded").
+    expect(selectDelegationTask(tasks, 'a request no task carries')).toBeUndefined()
+    // Nothing to match on and several tasks → we cannot know which is this turn's; guess nothing.
+    expect(selectDelegationTask(tasks, undefined)).toBeUndefined()
+    // A single-task session with no request IS unambiguous → pin it.
+    expect(selectDelegationTask([task('only one', 't1')], undefined)?.id).toBe('t1')
+    // Two tasks in the same session share the request text (a re-delegated phrasing) → the newest
+    // matching task wins the tie (best-effort within an already-authorized session).
+    expect(selectDelegationTask([task('same ask', 'd1'), task('same ask', 'd2')], 'same ask')?.id).toBe('d2')
+  })
+})
+
+describe('the delegation trace fetch is read-only and fails closed', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  const entry = { id: 'x', kind: 'delegation', request: 'q', sessionId: 'sess-1' } as never
+
+  it('throws on a forbidden (non-ok) response — 403 surfaces as unreadable, not data', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 403 } as Response)))
+    await expect(fetchDelegationEvidence('/autopilot/sessions', entry, {})).rejects.toThrow('session trace unavailable (403)')
+  })
+
+  it('returns the specialist\'s metadata rows on a readable response', async () => {
+    const body = { data: [{ history: [
+      { parts: [{ kind: 'text', text: 'q' }], role: 'user' },
+      { parts: [{ data: { args: { repo: 'authn' }, id: 'k1', name: 'search_repo' }, kind: 'data', metadata: { adk_type: 'function_call' } }], role: 'agent' },
+    ],
+    id: 't1' }] }
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve(body), ok: true } as unknown as Response)))
+    const rows = await fetchDelegationEvidence('/autopilot/sessions', entry, {})
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ tool: 'search_repo' })
+  })
+})
+
+describe('rendered arguments are redacted', () => {
+  it('scrubs a credential-bearing tool argument, keeps benign ones', () => {
+    const line = describeArgs({ args: { name: 'demo', note: 'ok', token: 'sk-abcdef123456' }, kind: 'cluster', tool: 'k8s_apply_manifest' } as never)
+    expect(line).toContain('name: demo')
+    expect(line).toContain('token: [redacted]')
+    expect(line).not.toContain('sk-abcdef123456')
+  })
+
+  it('caps a large value (a manifest body) to a snippet', () => {
+    const manifest = 'kind: Deployment\nspec:\n  replicas: 3\n'.repeat(20)
+    const line = describeArgs({ args: { manifest }, kind: 'cluster', tool: 'k8s_apply_manifest' } as never)
+    expect(line).toContain('manifest: ')
+    expect(line).toContain('…')
+    expect(line.length).toBeLessThan(200)
   })
 })
 
