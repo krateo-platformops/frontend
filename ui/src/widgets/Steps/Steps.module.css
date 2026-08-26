@@ -19,16 +19,11 @@
   background: linear-gradient(90deg, var(--cyan-color), var(--primary-color)) !important;
 }
 
-/* Bezel strip frame — the stepper sits in a raised panel (mockup `.steps` bezel border+bg).
-   margin-top guarantees breathing room above the bezel when Steps is a Card's sole/first child
-   (e.g. an eyebrow-titled Card with an icon and no headerLeft description) — without it the
-   bezel sits flush under the header with nothing to clear the Card's floated corner icon.
-   Harmless elsewhere: inside a Tabs panel this just adds a touch more space under the tab bar. */
+/* Bezel strip frame — the stepper sits in a raised panel (mockup `.steps` bezel border+bg). */
 .steps {
   background: var(--panelbg-color);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  margin-top: var(--spacing-sm);
   padding: 14px 18px;
 }
 

@@ -205,7 +205,7 @@ const Card = ({ resourcesRefs, uid, widget, widgetData }: WidgetProps<CardWidget
       )}
       <div className={styles.content}>
         {headerLeft && panelHeader}
-        <div className={styles.body}>
+        <div className={`${styles.body} ${icon && !headerLeft ? styles.clearsIcon : ''}`}>
           {items
             .map(({ resourceRefId }, index) => {
               const endpoint = getEndpointUrl(resourceRefId, resourcesRefs)
