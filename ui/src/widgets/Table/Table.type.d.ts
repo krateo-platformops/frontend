@@ -126,6 +126,10 @@ export interface Table {
        */
       bordered?: boolean
       /**
+       * Fit columns to the container instead of horizontal-scrolling: a wide cell ellipsis-truncates (full text on hover) rather than pushing a scrollbar. Ignored for virtualized (very large) tables.
+       */
+      fitContent?: boolean
+      /**
        * antd Table size. Defaults to 'middle' when omitted (matching Button), so an unset value has a documented, Brand-consistent density rather than antd's raw default
        */
       size?: 'large' | 'middle' | 'small'

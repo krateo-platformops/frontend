@@ -20,7 +20,7 @@ import { getColumnSortProps } from './tableSorting'
 export type TableWidgetData = WidgetType['spec']['widgetData']
 
 const Table = ({ resourcesRefs, serverPagination, uid, widgetData }: WidgetProps<TableWidgetData>) => {
-  const { bordered, columns, dataSource, pagination, prefix, rowNavigateTo, size } = widgetData
+  const { bordered, columns, dataSource, fitContent, pagination, prefix, rowNavigateTo, size } = widgetData
   const data = dataSource ?? []
   const { getFilteredData } = useFilter()
   const navigate = useNavigate()
@@ -69,9 +69,11 @@ const Table = ({ resourcesRefs, serverPagination, uid, widgetData }: WidgetProps
   // dataSource size — the load-bearing fix for the 60K-row `/compositions` wedge.
   // antd requires a fixed numeric `scroll.y` for virtual mode.
   const virtual = shouldVirtualize(rowCount)
-  const scroll = virtual
-    ? { x: 'max-content' as const, y: VIRTUAL_SCROLL_Y }
-    : { x: 'max-content' as const }
+  // `fitContent`: shrink columns to the container instead of the default horizontal scroll — a wide
+  // cell then ellipsis-truncates (full text on hover) rather than pushing a scrollbar. Virtual tables
+  // need a fixed scroll viewport, so fitContent only takes effect in the non-virtual (small) case.
+  const horizontalScroll = fitContent ? undefined : { x: 'max-content' as const }
+  const scroll = virtual ? { x: 'max-content' as const, y: VIRTUAL_SCROLL_Y } : horizontalScroll
 
   // Pagination: controlled server-side classic pager when the widget opts in
   // (serverPagination), else the CR's own pagination config (or none). See
@@ -89,6 +91,9 @@ const Table = ({ resourcesRefs, serverPagination, uid, widgetData }: WidgetProps
         // default sortOrder: the server's jq order stays until a header click.
         ...getColumnSortProps(dataTable, valueKey),
         dataIndex: valueKey,
+        // With fitContent, truncate an overflowing cell (full text on hover) instead of widening the
+        // table — this is what lets the table fit the container without a horizontal scrollbar.
+        ellipsis: fitContent ? { showTitle: true } : undefined,
         key: `${uid}-col-${index}`,
         render: (_: unknown, row: NonNullable<TableWidgetData['dataSource']>[number]) => {
           const cell = row.find((cell) => cell.valueKey === valueKey)

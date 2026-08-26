@@ -10,6 +10,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import type { ClipboardEvent, KeyboardEvent } from 'react'
+import { CopyToClipboard } from 'react-copy-to-clipboard-ts'
 import { default as ReactMarkdown } from 'react-markdown'
 
 import { useConfigContext } from '../../context/ConfigContext'
@@ -18,8 +19,8 @@ import type { ApprovalPause } from './approval'
 import { useAutopilot } from './AutopilotProvider'
 import styles from './AutopilotRail.module.css'
 import AutopilotTour from './AutopilotTour'
-import { describeArgs, deriveSessionsBase, fetchDelegationEvidence, summarizeEvidence } from './evidence'
-import { CheckIcon, CollapseIcon, EvidenceIcon, EyeIcon, LinkIcon, PlusIcon, SendIcon, SparkIcon, StopIcon } from './icons'
+import { describeArgs, deriveSessionsBase, fetchDelegationEvidence, serializeEvidence, summarizeEvidence } from './evidence'
+import { CheckIcon, CollapseIcon, CopyIcon, EvidenceIcon, EyeIcon, LinkIcon, PlusIcon, SendIcon, SparkIcon, StopIcon } from './icons'
 import { looksLikeOpenApiDocument } from './oasAttachment'
 import { a2aAuthHeader } from './transport'
 import type { AutopilotMessage, EvidenceEntry } from './types'
@@ -88,6 +89,10 @@ const DelegationRow = ({ entry }: { entry: EvidenceEntry }) => {
 const EvidencePanel = ({ evidence }: { evidence: EvidenceEntry[] }) => {
   const panelId = useId()
   const [open, setOpen] = useState(false)
+  // Copied-feedback flash. `react-copy-to-clipboard-ts` uses document.execCommand under the hood, so
+  // it works over plain HTTP — unlike navigator.clipboard, which is undefined in a non-secure context
+  // (the portal is often served over http://<LB-IP>).
+  const [copied, setCopied] = useState(false)
   return (
     <>
       <button aria-controls={panelId} aria-expanded={open} className={styles.apEvBtn} onClick={() => setOpen((prev) => !prev)} type='button'>
@@ -96,7 +101,20 @@ const EvidencePanel = ({ evidence }: { evidence: EvidenceEntry[] }) => {
       </button>
       {open ? (
         <div className={styles.apEv} data-testid='autopilot-evidence' id={panelId}>
-          <div className={styles.apEvHead}>{summarizeEvidence(evidence)}</div>
+          <div className={styles.apEvHead}>
+            <span>{summarizeEvidence(evidence)}</span>
+            <CopyToClipboard
+              onCopy={() => {
+                setCopied(true)
+                setTimeout(() => setCopied(false), 2000)
+              }}
+              text={serializeEvidence(evidence)}
+            >
+              <button aria-label='Copy evidence to clipboard' className={styles.apEvCopy} title='Copy evidence to clipboard' type='button'>
+                {copied ? <CheckIcon size={11} /> : <CopyIcon />}{copied ? 'Copied' : 'Copy'}
+              </button>
+            </CopyToClipboard>
+          </div>
           {evidence.map((entry) => (entry.agent
             ? <DelegationRow entry={entry} key={entry.id} />
             : <EvidenceRow entry={entry} key={entry.id} />))}

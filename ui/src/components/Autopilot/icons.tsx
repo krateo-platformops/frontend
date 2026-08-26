@@ -37,6 +37,13 @@ export const LinkIcon = ({ className, size = 11 }: IconProps) => stroke(size, cl
   <path d='M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1' />
 ))
 
+export const CopyIcon = ({ className, size = 11 }: IconProps) => stroke(size, className, (
+  <>
+    <rect height='13' rx='2' width='13' x='9' y='9' />
+    <path d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1' />
+  </>
+))
+
 export const CheckIcon = ({ className, size = 15 }: IconProps) => (
   <svg className={className} fill='none' height={size} stroke='currentColor' strokeWidth={2.5} viewBox='0 0 24 24' width={size}>
     <path d='M20 6L9 17l-5-5' />
