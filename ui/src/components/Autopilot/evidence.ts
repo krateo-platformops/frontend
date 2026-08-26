@@ -325,3 +325,23 @@ export const describeArgs = (entry: EvidenceEntry): string => {
     })
   return clamp(rendered.join(' · '), ARGS_MAX)
 }
+
+/**
+ * Plain-text rendering of a turn's evidence — the summary line plus one line per tool call /
+ * delegated hop — for copy-to-clipboard. Mirrors exactly what EvidencePanel shows (metadata only,
+ * never tool output), so what's copied is what's on screen.
+ */
+export const serializeEvidence = (entries: EvidenceEntry[]): string => {
+  const lines = entries.map((entry) => {
+    if (entry.agent) {
+      return `- ${entry.agent} (specialist)`
+    }
+    const meta = entry.source
+      ? `${entry.source.org ? `${entry.source.org}/` : ''}${entry.source.repo}${entry.source.ref ? ` @ ${entry.source.ref}` : ''}`
+      : describeArgs(entry)
+    const tail = [entry.note, entry.failed ? 'failed' : ''].filter(Boolean).join(' · ')
+    const loc = entry.source?.path ? ` — ${entry.url ?? entry.source.path}` : ''
+    return `- ${entry.tool}: ${meta}${tail ? ` · ${tail}` : ''}${loc}`
+  })
+  return [summarizeEvidence(entries), ...lines].join('\n')
+}

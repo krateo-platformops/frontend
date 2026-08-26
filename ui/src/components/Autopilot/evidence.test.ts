@@ -14,6 +14,7 @@ import {
   orgOfRepo,
   readToolPart,
   selectDelegationTask,
+  serializeEvidence,
   summarizeEvidence,
 } from './evidence'
 import type { EvidenceEntry } from './types'
@@ -222,5 +223,28 @@ describe('arguments are metadata, but still scrubbed', () => {
 
   it('leaves the delegated request out — the specialist row already carries it', () => {
     expect(describeArgs(args({ request: 'a long delegated question' }))).toBe('')
+  })
+})
+
+describe('serializeEvidence — copy-to-clipboard text', () => {
+  it('summarizes then lists each row (tool + meta), never tool output', () => {
+    const evidence: EvidenceEntry[] = [
+      { id: '1', kind: 'repo', source: { org: 'krateo', path: 'main.go', ref: 'v1', repo: 'core' }, tool: 'get_file_content', url: 'https://x/main.go' },
+      { args: { resource: 'pods' }, id: '2', kind: 'cluster', tool: 'k8s_get' },
+    ]
+    const text = serializeEvidence(evidence)
+    expect(text.split('\n')[0]).toBe(summarizeEvidence(evidence))
+    expect(text).toContain('- get_file_content: krateo/core @ v1 — https://x/main.go')
+    expect(text).toContain('- k8s_get: resource: pods')
+  })
+
+  it('renders a delegated hop as a specialist line', () => {
+    const evidence: EvidenceEntry[] = [{ agent: 'k8s-agent', id: 'd', kind: 'delegation', tool: 'call' }]
+    expect(serializeEvidence(evidence)).toContain('- k8s-agent (specialist)')
+  })
+
+  it('flags a failed row', () => {
+    const evidence: EvidenceEntry[] = [{ args: {}, failed: true, id: 'f', kind: 'cluster', tool: 'k8s_get' }]
+    expect(serializeEvidence(evidence)).toContain('· failed')
   })
 })
