@@ -6,6 +6,7 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import Page404 from '../../pages/Page404'
 import PageSearch from '../PageSearch'
 import WidgetRenderer from '../WidgetRenderer'
+import { WidgetLoading } from '../WidgetStates'
 
 /** Exact routes that get a frontend-rendered page search bar (→ `?q=` → the page's
  * data-source RESTAction name/description filter). Frontend chrome, like the Shell search. */
@@ -45,7 +46,22 @@ export const WidgetPage = ({ defaultWidgetEndpoint }: { defaultWidgetEndpoint?: 
     },
   })
 
-  if (!widgetEndpoint && !isFetchingRoutes) {
+  if (!widgetEndpoint) {
+    // No content endpoint resolved for this path. Only a path that is genuinely
+    // unknown AFTER the route source has populated is a real 404 — surface it.
+    // Anything else is the loading race: the layouts/menus queries can settle
+    // (isFetchingRoutes === 0) a render BEFORE the sidebar Menu's effect runs
+    // updateMenuRoutes/registerRoutes (menuRoutes.length === 0), and `/` in
+    // particular is never a menu route — it waits for Menu.useEffect to redirect
+    // it to menuRoutes[0].path. Showing Page404 in either window is the post-login
+    // 404 flash. Guard both: keep showing the loading skeleton until routes exist
+    // (and always for `/`, the home-redirect target), so a truly-unknown path only
+    // 404s once routes ARE populated.
+    const routesPopulated = menuRoutes.length > 0
+    const isHomeRedirect = location.pathname === '/'
+    if (isFetchingRoutes || !routesPopulated || isHomeRedirect) {
+      return <WidgetLoading />
+    }
     return <Page404 />
   }
   const searchPlaceholder = PAGE_SEARCH[location.pathname]
