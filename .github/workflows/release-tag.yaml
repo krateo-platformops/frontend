@@ -70,7 +70,7 @@ jobs:
       # GATED on that secret: when it is absent (or empty/expired) we skip with a clear, actionable
       # log instead of hard-failing the release with a cryptic 401, and print the exact manual
       # command to run. When present, the CRD sync PR opens automatically.
-      - name: Push CRDs to krateo-platformops/frontend (crds-subchart) via PR
+      - name: Push CRDs to krateo-platformops/frontend (helm/frontend-crds) via PR
         env:
           GH_TOKEN: ${{ secrets.PAT }}
         run: |
@@ -97,7 +97,7 @@ jobs:
               echo '```'
               echo "cd ui && npm ci && npm run generate-crds   # regenerates ui/scripts/krateoctl-output/*.yaml for tag ${LATEST_TAG}"
               echo "# then copy ui/scripts/krateoctl-output/*.yaml into"
-              echo "# krateo-platformops/frontend:crds-subchart/templates/ and open a PR to main"
+              echo "# krateo-platformops/frontend:helm/frontend-crds/templates/ and open a PR to main"
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
 
@@ -132,38 +132,33 @@ jobs:
           git checkout main
           git pull origin main
 
-          # One-time migration: rename any legacy CRD sub-chart dir -> crds-subchart/.
-          if [ ! -d crds-subchart ]; then
-            if [ -d crds-chart ]; then
-              echo "Migrating crds-chart/ -> crds-subchart/"
-              git mv crds-chart crds-subchart
-            elif [ -d crd-chart ]; then
-              echo "Migrating crd-chart/ -> crds-subchart/"
-              git mv crd-chart crds-subchart
-            fi
-          fi
-          mkdir -p crds-subchart/templates
-
-          # Refresh the CRD templates: drop the previous set, copy the freshly generated ones.
-          rm -f crds-subchart/templates/*.yaml
-          cp "$GITHUB_WORKSPACE"/ui/scripts/krateoctl-output/*.yaml crds-subchart/templates/
+          # Publish target = the monorepo CRD chart helm/frontend-crds/templates/ (the chart the
+          # frontend-crd CompositionDefinition actually pulls). Retire any pre-monorepo orphan dir
+          # (crds-subchart/, or the even-older crd-chart/crds-chart) if a stale copy resurfaces —
+          # those are packaged by NOTHING post-migration, so a generated CRD landing there silently
+          # never reaches the deployed CRD (widgetData is strict → the missing field is pruned, no
+          # error). This is exactly the drift that stranded Table.fitContent before this fix.
+          mkdir -p helm/frontend-crds/templates
+          for legacy in crds-subchart crds-chart crd-chart; do
+            if [ -d "$legacy" ]; then echo "Removing orphan CRD dir: $legacy"; git rm -r "$legacy" >/dev/null; fi
+          done
 
           # Teardown-completeness: CRDs are published WITHOUT helm.sh/resource-policy: keep, so
-          # `helm uninstall` of the crds-subchart release deletes them and teardown reaches a clean
+          # `helm uninstall` of the frontend-crds release deletes them and teardown reaches a clean
           # slate (no orphan CRDs). Safe because each CRD has a single Helm owner — the dedicated
-          # crds-subchart; no parent chart templates it — and the cdc no longer empty-renders on a
-          # stale discovery cache (CRD-watch invalidation, cdc >= 1.0.3). Upgrades are unaffected:
+          # frontend-crds chart; no parent chart templates it — and the cdc no longer empty-renders
+          # on a stale discovery cache (CRD-watch invalidation, cdc >= 1.0.3). Upgrades are unaffected:
           # Helm only prunes resources that leave the chart, and the CRD never leaves it. Do NOT
           # re-add keep — it silently orphans every component CRD on teardown.
 
-          # Safety net: the old chart directories must not survive.
-          if [ -d crd-chart ]; then git rm -r crd-chart; fi
-          if [ -d crds-chart ]; then git rm -r crds-chart; fi
+          # Refresh the CRD templates: drop the previous set, copy the freshly generated ones.
+          rm -f helm/frontend-crds/templates/*.crd.yaml
+          cp "$GITHUB_WORKSPACE"/ui/scripts/krateoctl-output/*.yaml helm/frontend-crds/templates/
 
           git add -A
 
           if git diff --cached --quiet; then
-            echo "✅ crds-subchart already matches the generated CRDs — nothing to push."
+            echo "✅ helm/frontend-crds already matches the generated CRDs — nothing to push."
             exit 0
           fi
 
@@ -177,18 +172,18 @@ jobs:
           fi
           git checkout -b "$BRANCH"
 
-          git commit -m "Update widget CRDs (crds-subchart) from tag ${LATEST_TAG}
+          git commit -m "Update widget CRDs (helm/frontend-crds) from tag ${LATEST_TAG}
 
-          Regenerated from krateo-platformops/frontend @ ${LATEST_TAG} via krateoctl.
-          Migrates any legacy crd-chart/crds-chart -> crds-subchart (CRDs published
-          without resource-policy: keep so teardown deletes them). Chart name unchanged: frontend-crd.
+          Regenerated from krateo-platformops/frontend @ ${LATEST_TAG} via krateoctl, written to
+          helm/frontend-crds/templates/ (the published CRD chart the frontend-crd composition pulls).
+          Retires the pre-monorepo orphan crds-subchart/. Chart name unchanged: frontend-crd.
           Workflow run: ${GITHUB_RUN_ID}"
 
           git push origin "$BRANCH"
 
           # Open a PR against the chart repo, or update the existing one for this branch.
-          PR_TITLE="Update widget CRDs (crds-subchart) — ${LATEST_TAG}"
-          PR_BODY="Automated update of widget CRDs in \`crds-subchart/templates/\` from \`krateo-platformops/frontend\` @ \`${LATEST_TAG}\` (krateoctl). Migrates any legacy \`crd-chart\`/\`crds-chart\` → \`crds-subchart\` (CRDs published without \`resource-policy: keep\` so teardown deletes them). Helm chart name unchanged: \`frontend-crd\`.
+          PR_TITLE="Update widget CRDs (helm/frontend-crds) — ${LATEST_TAG}"
+          PR_BODY="Automated update of widget CRDs in \`helm/frontend-crds/templates/\` (the published CRD chart the frontend-crd composition pulls) from \`krateo-platformops/frontend\` @ \`${LATEST_TAG}\` (krateoctl). Retires the pre-monorepo orphan \`crds-subchart/\`. Helm chart name unchanged: \`frontend-crd\`.
 
           Workflow run: \`${GITHUB_RUN_ID}\`."
 
