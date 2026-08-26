@@ -9,7 +9,7 @@
  *   - runRest emits ONE record after the write resolves — success AND failure — through
  *     the same fetch shape (base URL + Bearer auth); a DECLINED confirm emits NOTHING;
  *   - runRestSet emits ONE record per SET (count = ops.length, summary lists the ops);
- *   - the PROVENANCE_ENABLED flag gates everything: OFF (the default) → zero emission.
+ *   - the PROVENANCE_ENABLED flag gates everything: OFF (opt-out; default is ON) → zero emission.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 

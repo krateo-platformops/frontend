@@ -40,8 +40,9 @@ export interface Config {
      * fire-and-forgets ONE immutable AuditRecord CR (audit.krateo.io/v1alpha1, namespaced —
      * the CRD ships separately in the portal chart) after the write resolves. STRICTLY
      * best-effort: a missing CRD (404), RBAC (403), or network failure is swallowed and
-     * never blocks/fails the primary write (see hooks/provenance.ts). **OFF by default** so
-     * clusters without the AuditRecord CRD see zero new traffic. */
+     * never blocks/fails the primary write (see hooks/provenance.ts). **ON by default** (the
+     * audit + remediation-outcome loop depends on it); set explicit `false`/`"false"` to opt out
+     * — absent/empty resolves ON. Safe on a CRD-less cluster because emission is best-effort. */
     PROVENANCE_ENABLED?: boolean | string
     /** Base URL of the Wave-4 helm-render dry-run service (`POST {chart, values}` to
      * `${RENDER_API_BASE_URL}/render` → rendered manifests, NO cluster write). Optional

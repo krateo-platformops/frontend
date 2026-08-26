@@ -638,7 +638,7 @@
         "PROVENANCE_ENABLED": {
           "type": "string",
           "title": "Provenance Enabled",
-          "default": ""
+          "default": "true"
         },
         "PREVIEW_SANDBOX_NAMESPACE": {
           "type": "string",
@@ -656,7 +656,7 @@
         "INIT": "/call?resource=layouts&apiVersion=widgets.templates.krateo.io/v1beta1&name=app-shell&namespace=krateo-system",
         "OTEL_COLLECTOR_URL": "",
         "SNOWPLOW_IDENTITY_INJECTION": "",
-        "PROVENANCE_ENABLED": "",
+        "PROVENANCE_ENABLED": "true",
         "PREVIEW_SANDBOX_NAMESPACE": ""
       }
     },
