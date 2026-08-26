@@ -723,12 +723,13 @@ export const useHandleAction = () => {
     notification,
     openDrawer,
     openModal,
-    // W0-3 provenance kill-switch: default OFF, so clusters without the AuditRecord CRD
-    // see zero new traffic. Arrives from config.json like the other flags — which the
-    // chart delivers as STRINGS (see PR #32: config values were re-typed to string for
-    // the values.schema; the installer's componentValues carry "true"/""), so accept the
-    // boolean AND the string form. Any other value (incl. "false") stays OFF.
-    provenanceEnabled: config?.api.PROVENANCE_ENABLED === true || config?.api.PROVENANCE_ENABLED === 'true',
+    // W0-3 provenance: default ON — every gated portal write fire-and-forgets ONE best-effort
+    // AuditRecord CR (the audit/remediation-outcome loop depends on it). Emission is strictly
+    // best-effort: a missing CRD (404)/RBAC (403)/network error is swallowed and never blocks the
+    // primary write (see hooks/provenance.ts), so on-by-default is safe even on a CRD-less cluster.
+    // Arrives from config.json as a STRING (installer componentValues carry "true"/"false"/""); the
+    // ONLY way to disable is an EXPLICIT false / "false" — absent/empty ("") resolves ON.
+    provenanceEnabled: config?.api.PROVENANCE_ENABLED !== false && config?.api.PROVENANCE_ENABLED !== 'false',
     registerCleanup: (cleanup: () => void) => { cleanupsRef.current.add(cleanup) },
     reloadRoutes,
     resolveJq,

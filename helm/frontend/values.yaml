@@ -172,9 +172,10 @@ config:
   # trap: JS !"false" is falsy, so "false" would mean inject OFF — never set it; use "" for hold-off.)
   # See snowplow docs/frontend-1.2.0-config-type-conflict-spec-2026-07-07.md + A6 §1.2/§4.1.
   SNOWPLOW_IDENTITY_INJECTION: ""
-  # W0-3 provenance: "true" emits one AuditRecord (audit.krateo.io) per gated portal
-  # write (human or agent). Default "" = OFF; needs the AuditRecord CRD (portal chart).
-  PROVENANCE_ENABLED: ""
+  # W0-3 provenance: emits one AuditRecord (audit.krateo.io) per gated portal write (human or
+  # agent) — the audit + remediation-outcome loop depends on it. Default ON (only explicit
+  # "false" disables; "" also resolves ON in the frontend). Needs the AuditRecord CRD (portal chart).
+  PROVENANCE_ENABLED: "true"
   # Portal-builder live preview (previewPage v2): the namespace the frontend applies
   # draft widget CRs into and renders them from through the real snowplow. Empty/absent
   # = feature OFF (v1 source-only preview drawer). Do NOT set this by hand when
