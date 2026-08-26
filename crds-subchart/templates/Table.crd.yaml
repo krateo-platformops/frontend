@@ -263,6 +263,9 @@ spec:
                           type: object
                         type: array
                       type: array
+                    fitContent:
+                      description: 'Fit columns to the container instead of horizontal-scrolling: a wide cell ellipsis-truncates (full text on hover) rather than pushing a scrollbar. Ignored for virtualized (very large) tables.'
+                      type: boolean
                     pagination:
                       description: antd Table pagination config (subproperties mirror antd).
                       properties:
