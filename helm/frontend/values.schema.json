@@ -644,6 +644,21 @@
           "type": "string",
           "title": "Preview Sandbox Namespace",
           "default": ""
+        },
+        "AUTOPILOT_KOG_BUILDER_REPO": {
+          "type": "string",
+          "title": "Autopilot Kog Builder Repo",
+          "default": "krateo-platformops/krateo-oas"
+        },
+        "AUTOPILOT_PAGE_BUILDER_REPO": {
+          "type": "string",
+          "title": "Autopilot Page Builder Repo",
+          "default": "krateo-platformops/krateo-portal-chart"
+        },
+        "AUTOPILOT_BLUEPRINT_BUILDER_REPO": {
+          "type": "string",
+          "title": "Autopilot Blueprint Builder Repo",
+          "default": "krateo-blueprints/krateo-blueprints"
         }
       },
       "default": {
@@ -657,7 +672,10 @@
         "OTEL_COLLECTOR_URL": "",
         "SNOWPLOW_IDENTITY_INJECTION": "",
         "PROVENANCE_ENABLED": "true",
-        "PREVIEW_SANDBOX_NAMESPACE": ""
+        "PREVIEW_SANDBOX_NAMESPACE": "",
+        "AUTOPILOT_KOG_BUILDER_REPO": "krateo-platformops/krateo-oas",
+        "AUTOPILOT_PAGE_BUILDER_REPO": "krateo-platformops/krateo-portal-chart",
+        "AUTOPILOT_BLUEPRINT_BUILDER_REPO": "krateo-blueprints/krateo-blueprints"
       }
     },
     "env": {
