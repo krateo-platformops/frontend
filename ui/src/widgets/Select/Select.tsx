@@ -1,5 +1,5 @@
 import { Button, Form, Select as AntdSelect } from 'antd'
-import type { ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 import { useSearchParams } from 'react-router'
 
 import type { WidgetProps } from '../../types/Widget'
@@ -22,6 +22,13 @@ export type SelectWidgetData = WidgetType['spec']['widgetData']
 const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
   const { allowClear, defaultValue, disabled, label, mode, name, options, placeholder, queryParam, required, size } = widgetData
   const [searchParams, setSearchParams] = useSearchParams()
+  // The multi-mode switcher popup owns its own open-state. Previously the panel relied on a bare
+  // click on "Apply"/"Clear" NATIVELY blurring the Select to close the popup — but rc-select's
+  // BaseSelect (antd 6 / rc-select 1.10.1) calls `triggerOpen(true)` on ANY mousedown INSIDE the
+  // popup (BaseSelect onRootMouseDown), so an in-popup click can never blur-close it. Result: the
+  // Apply button did nothing (bug: "clicco su Apply, non succede nulla"). Controlling `open` here
+  // lets Apply/Clear close (or keep) the popup deterministically instead of hoping for a blur.
+  const [open, setOpen] = useState(false)
 
   if (queryParam) {
     // `mode: multiple` (or `tags`) makes the URL-bound Select a MULTI-select: the value is a
@@ -115,11 +122,18 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
         <div className={styles.panelHr} />
         {menu}
         <div className={styles.panelApply}>
-          {/* Clear keeps the popup open (preventDefault) to reset to "all"; Apply intentionally
-              does NOT preventDefault, so the click blurs the select and closes the popup —
-              selection is already applied live, so Apply is just "done". */}
+          {/* Clear resets to "all" (commit([])) but keeps the popup OPEN so the user can keep
+              picking — preventDefault stops the mousedown from stealing focus mid-interaction.
+              Apply is "done": it closes the popup via the controlled `open` state (selection is
+              already applied live on each option toggle). It must NOT rely on a native blur to
+              close — in antd 6 an in-popup mousedown re-opens the popup (see the `open` state
+              above), which is why the old blur-only Apply silently did nothing. */}
           <Button onMouseDown={(event) => { event.preventDefault(); commit([]) }} size='small'>Clear</Button>
-          <Button size='small' type='primary'>
+          <Button
+            onMouseDown={(event) => { event.preventDefault(); setOpen(false) }}
+            size='small'
+            type='primary'
+          >
             {isAll ? 'Apply' : `Apply · ${multiSelected.length}`}
           </Button>
         </div>
@@ -137,6 +151,10 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
         maxTagPlaceholder={(omitted) => <span className={styles.pill}>+{omitted.length}</span>}
         mode={mode}
         onChange={onChange}
+        // Own the popup open-state so Apply/Clear can close/keep it deterministically instead of
+        // relying on a native blur that antd 6 no longer produces for an in-popup click.
+        onOpenChange={setOpen}
+        open={open}
         optionRender={renderCheckOption}
         options={options}
         placeholder={placeholder}
