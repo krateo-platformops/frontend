@@ -330,7 +330,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         const held = blueprintStore.get()
         const slug = held && isPageDraft(held.files) ? pageRootSlug(held.files) : null
         // The DESTINATION is user-owned: a proper form asks (fence coords are prefills); cancel → denied.
-        const pageTarget = await askPublishDestination(proposal, 'page', 'krateo-portal-chart')
+        const pageTarget = await askPublishDestination(proposal, 'page', 'krateo-portal-chart', 'krateo-platformops')
         const targetedPage = pageTarget ? { ...proposal, ...pageTarget } : proposal
         const built = pageTarget && held && slug ? buildPagePublishOps(targetedPage, held, slug) : null
         let compiled: PublishCompileResult
@@ -356,7 +356,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         const lastRestDef = previewGate.lastDraft()
         const resolution = resolveKogPublishDraft(lastRestDef, oasStore.get()?.text ?? null)
         // The DESTINATION is user-owned: a proper form asks (fence coords are prefills); cancel → denied.
-        const restDefTarget = await askPublishDestination(proposal, 'restdef', 'krateo-oas')
+        const restDefTarget = await askPublishDestination(proposal, 'restdef', 'krateo-oas', 'krateo-platformops')
         const targetedRestDef = restDefTarget ? { ...proposal, ...restDefTarget } : proposal
         const built = restDefTarget && resolution.held ? buildKogPublishAsPrOps(targetedRestDef, resolution.held) : null
         // Probe the KOG preview gate against the RESOLVED draft (the git-write ops write no

@@ -53,7 +53,13 @@ export const KOG_REPO_DEFAULTS = {
   base: 'main',
   configurationRef: 'github-blueprints-config',
   namespace: 'krateo-system',
-  owner: 'krateo-blueprints',
+  // The API-Builder registry lives at krateo-platformops/oas (the old braghettos/krateo-oas was
+  // transferred into the krateo-platformops org and renamed krateo-oas→oas). We keep repo `krateo-oas`
+  // because GitHub 301-redirects krateo-platformops/krateo-oas→oas AND the portal deliverables RA
+  // (restaction.kog-deliverables.yaml) discriminates KOG PRs on spec.repo == "krateo-oas". #105 flipped
+  // the owner to krateo-blueprints, but that org has no krateo-oas repo (hard 404) — the owner must be
+  // krateo-platformops.
+  owner: 'krateo-platformops',
   repo: 'krateo-oas',
 } as const
 

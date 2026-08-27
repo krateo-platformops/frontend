@@ -56,15 +56,19 @@ export const requestPublishTarget = async (req: PublishTargetRequest): Promise<P
 }
 
 /** Coerce a publish fence's coords into prefills and ask the human for the destination
- * (one-liner for the provider's publish branches; null = cancelled → deny the publish). */
+ * (one-liner for the provider's publish branches; null = cancelled → deny the publish). The
+ * owner default is per-builder (`defaultOwner`) because the builders live in different orgs —
+ * blueprints in krateo-blueprints, pages + the KOG/oas registry in krateo-platformops. It stays
+ * optional (defaulting to krateo-blueprints) so callers/tests that don't pass it are unchanged. */
 export const askPublishDestination = (
   proposal: { base?: string; owner?: string; repo?: string },
   kind: PublishTargetRequest['kind'],
   defaultRepo: string,
+  defaultOwner = 'krateo-blueprints',
 ): Promise<PublishTarget | null> => requestPublishTarget({
   base: typeof proposal.base === 'string' && proposal.base ? proposal.base : 'main',
   kind,
-  owner: typeof proposal.owner === 'string' && proposal.owner ? proposal.owner : 'krateo-blueprints',
+  owner: typeof proposal.owner === 'string' && proposal.owner ? proposal.owner : defaultOwner,
   repo: typeof proposal.repo === 'string' && proposal.repo ? proposal.repo : defaultRepo,
 })
 
