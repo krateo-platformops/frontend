@@ -19,7 +19,7 @@
  * teardown seam: the v2 flow best-effort-DELETEs its sandbox drafts when the drawer
  * closes (epoch-guarded upstream, so a stale close never touches a newer preview).
  */
-import { Alert, Collapse, Drawer, Empty, Tabs, Tag, Typography } from 'antd'
+import { Alert, Button, Collapse, Drawer, Empty, Input, Space, Tabs, Tag, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 import SyntaxHighlighter from 'react-syntax-highlighter'
 import atomOneDark from 'react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark.js'
@@ -30,7 +30,9 @@ import { DrawerHeader, drawerCloseProps } from '../DrawerHeader/DrawerHeader'
 import WidgetRenderer from '../WidgetRenderer'
 
 import { useAutopilot } from './AutopilotProvider'
+import { parseRestDefEdit } from './previewBridge'
 import { AUTOPILOT_PREVIEW_EVENT, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
+import { emitRestDefEdit } from './previewEditBus'
 import { PreviewFormSection } from './previewFormSection'
 import styles from './previewSurface.module.css'
 
@@ -46,15 +48,94 @@ const ObjectHeadline = ({ entry }: { entry: PreviewObjectEntry }) => (
   </span>
 )
 
+/** The re-validated view of the current (possibly edited) RestDefinition source: the verdicts the
+ * drawer renders. Seeded from the payload, replaced by each accepted/attempted edit. */
+interface RestDefVerdicts {
+  problems?: string[]
+  warnings?: string[]
+  summary?: string[]
+}
+
+/**
+ * FE-K(edit) — the EDITABLE RestDefinition source. The user edits the held draft's YAML in place;
+ * "Apply edits" re-validates client-side (parseRestDefEdit, the SAME pipeline the preview built) and:
+ *   - a parse/CRD error → the verdicts update to show the exact errors, the gate is NOT re-armed;
+ *   - a clean draft     → the edited draft is emitted on the edit bus (the provider re-arms the
+ *                         preview gate with the edited bytes), and a "held for publish" note shows.
+ * The held-bytes guarantee holds: the edit is a human action on the held YAML, never a model round-trip.
+ * `onVerdicts` lifts the current verdicts up so the shared Alert blocks reflect the LATEST edit.
+ */
+const RestDefEditSection = ({
+  initialYaml,
+  onVerdicts,
+  restDefKind,
+}: {
+  initialYaml: string
+  onVerdicts: (verdicts: RestDefVerdicts) => void
+  restDefKind: string
+}) => {
+  const { mode } = useThemeMode()
+  const [text, setText] = useState(initialYaml)
+  // The applied-edit signal: null before any apply, then the accepted verdict for the LAST apply.
+  const [applied, setApplied] = useState<{ ok: boolean } | null>(null)
+  const dirty = text !== initialYaml
+
+  const onApply = () => {
+    const result = parseRestDefEdit(text)
+    // Lift the fresh verdicts so the drawer's Alert blocks (problems/immutability/summary) update.
+    onVerdicts({ problems: result.problems, summary: result.summary, warnings: result.warnings })
+    setApplied({ ok: result.ok })
+    // Only a CLEAN edit re-arms the gate — an invalid edit arms nothing (deny-by-default, exactly
+    // as an invalid model draft never arms the gate). The provider re-validates once more before recording.
+    if (result.ok && result.draft) {
+      emitRestDefEdit(result.draft)
+    }
+  }
+
+  // The apply-status line: absent before any apply, a success/danger note after (no nested ternary).
+  let status: React.ReactNode = null
+  if (applied?.ok) {
+    status = <Typography.Text type='success'>Valid — held for publish</Typography.Text>
+  } else if (applied) {
+    status = <Typography.Text type='danger'>Fix the errors above, then apply again</Typography.Text>
+  }
+
+  return (
+    <div className={styles.edit}>
+      <div className={styles.editHead}>
+        <Typography.Text strong>Edit source</Typography.Text>
+        <Typography.Text type='secondary'>· {restDefKind} — edited here, held for publish (never retyped by the model)</Typography.Text>
+      </div>
+      <Input.TextArea
+        aria-label='RestDefinition source'
+        autoSize={{ maxRows: 28, minRows: 8 }}
+        className={mode === 'dark' ? styles.editAreaDark : undefined}
+        onChange={(event) => setText(event.target.value)}
+        spellCheck={false}
+        value={text}
+      />
+      <Space>
+        <Button disabled={!dirty} onClick={onApply} type='primary'>Apply edits</Button>
+        {status}
+      </Space>
+    </div>
+  )
+}
+
 export const AutopilotPreviewDrawer = () => {
   const { mode } = useThemeMode()
   const { open: railOpen } = useAutopilot()
   const [open, setOpen] = useState(false)
   const [payload, setPayload] = useState<AutopilotPreviewPayload | null>(null)
+  // FE-K(edit): the LIVE verdicts of the (possibly edited) RestDefinition source — null until the
+  // user applies an edit, then the re-validated verdicts REPLACE the payload's original ones so the
+  // problems/immutability/summary Alert blocks reflect the edit. Reset whenever a new payload arrives.
+  const [editVerdicts, setEditVerdicts] = useState<RestDefVerdicts | null>(null)
 
   useEffect(() => {
     const handleOpen = (event: CustomEvent<AutopilotPreviewPayload>) => {
       setPayload(event.detail)
+      setEditVerdicts(null)
       setOpen(true)
     }
     window.addEventListener(AUTOPILOT_PREVIEW_EVENT, handleOpen as EventListener)
@@ -64,6 +145,13 @@ export const AutopilotPreviewDrawer = () => {
   if (!payload) {
     return null
   }
+
+  // The verdicts to render: the live edit verdicts once the user applied an edit, else the payload's.
+  const problems = editVerdicts ? editVerdicts.problems : payload.problems
+  const warnings = editVerdicts ? editVerdicts.warnings : payload.warnings
+  const summary = editVerdicts ? editVerdicts.summary : payload.summary
+  // The editable RestDefinition source (single object). Only RestDefinition previews mark editRestDef.
+  const editableYaml = payload.editRestDef ? payload.objects?.[0]?.yaml : undefined
 
   const highlighterStyle = (mode === 'dark' ? atomOneDark : lightfair) as { [key: string]: React.CSSProperties }
   const items = (payload.objects ?? []).map((entry, index) => ({
@@ -97,7 +185,24 @@ export const AutopilotPreviewDrawer = () => {
   ) : null
 
   // The classic source view (error / verdicts / summary / per-object YAML). With a
-  // v2 `liveEndpoint` this becomes the "Source" tab next to the live render.
+  // v2 `liveEndpoint` this becomes the "Source" tab next to the live render. For a
+  // RestDefinition preview (editRestDef) the read-only Collapse is REPLACED by the
+  // editable source textarea — the verdicts above it re-validate on each applied edit.
+  // (Computed here to avoid a nested ternary in the JSX below.) `key` re-seeds the editor
+  // when a NEW preview of the SAME kind reopens (its own local text state would otherwise persist).
+  let sourceView: React.ReactNode = null
+  if (editableYaml !== undefined) {
+    sourceView = (
+      <RestDefEditSection
+        initialYaml={editableYaml}
+        key={payload.title}
+        onVerdicts={setEditVerdicts}
+        restDefKind={payload.restDefKind ?? 'RestDefinition'}
+      />
+    )
+  } else if (items.length) {
+    sourceView = <Collapse items={items} />
+  }
   const sourceBody = (
     <div className={styles.body}>
       {payload.error ? (
@@ -109,37 +214,39 @@ export const AutopilotPreviewDrawer = () => {
         />
       ) : null}
       {/* FE-K1: client-side validation of the previewed draft (vs the live CRD shape)
-          and the CEL-immutability warnings — the decide-before-publish surface. */}
-      {payload.problems?.length ? (
+          and the CEL-immutability warnings — the decide-before-publish surface. Once the
+          user edits the source, these reflect the re-validated EDITED draft (editVerdicts). */}
+      {problems?.length ? (
         <Alert
-          description={<ul className={styles.issueList}>{payload.problems.map((line, index) => <li key={`problem-${index}`}>{line}</li>)}</ul>}
+          description={<ul className={styles.issueList}>{problems.map((line, index) => <li key={`problem-${index}`}>{line}</li>)}</ul>}
           message='Validation errors — publishing this draft would be rejected'
           showIcon
           type='error'
         />
       ) : null}
-      {payload.warnings?.length ? (
+      {warnings?.length ? (
         <Alert
-          description={<ul className={styles.issueList}>{payload.warnings.map((line, index) => <li key={`warning-${index}`}>{line}</li>)}</ul>}
+          description={<ul className={styles.issueList}>{warnings.map((line, index) => <li key={`warning-${index}`}>{line}</li>)}</ul>}
           message='Immutable after generation'
           showIcon
           type='warning'
         />
       ) : null}
-      {payload.summary?.length ? (
+      {summary?.length ? (
         <ul className={styles.summary}>
-          {payload.summary.map((line, index) => (
+          {summary.map((line, index) => (
             <li key={`${index}-${line}`}>
               <Typography.Text code>{line}</Typography.Text>
             </li>
           ))}
         </ul>
       ) : null}
-      {items.length ? <Collapse items={items} /> : null}
+      {/* FE-K(edit): the editable RestDefinition source (or the read-only Collapse), computed above. */}
+      {sourceView}
       {/* FE-B1: the create-form half of a blueprint preview — the draft's
           values.schema.json mounted read-only through the production SchemaForm. */}
       {payload.formSchema ? <PreviewFormSection formSchema={payload.formSchema} /> : null}
-      {!items.length && !payload.error && !payload.summary?.length && !payload.formSchema && !payload.problems?.length
+      {!items.length && !payload.error && !summary?.length && !payload.formSchema && !problems?.length && editableYaml === undefined
         ? <Empty description='Nothing to preview' image={Empty.PRESENTED_IMAGE_SIMPLE} />
         : null}
     </div>

@@ -12,7 +12,7 @@
  * bad chart is data — the drawer shows the error string); an unreachable/failed
  * service is likewise surfaced as preview text, never a throw.
  */
-import { dump } from 'js-yaml'
+import { dump, load } from 'js-yaml'
 
 import { getAccessToken } from '../../utils/getAccessToken'
 
@@ -345,6 +345,12 @@ export const buildRestDefPreviewPayload = (restDefinition: Record<string, unknow
   const warnings = restDefImmutabilityWarnings(restDefinition)
   return {
     caption: REST_DEF_PREVIEW_CAPTION,
+    // FE-K(edit): the RestDefinition source is EDITABLE in the drawer. The user tweaks the held
+    // draft's YAML (a human action on the held bytes — never a model round-trip); an accepted edit
+    // re-validates against the live CRD shape and re-arms the preview gate so the subsequent publish
+    // commits the edited bytes. `restDefKind` names the edit target for the edit-bus subscriber.
+    editRestDef: true,
+    ...(typeof restDefinition.kind === 'string' && restDefinition.kind ? { restDefKind: restDefinition.kind } : { restDefKind: 'RestDefinition' }),
     objects: [{
       kind: typeof restDefinition.kind === 'string' && restDefinition.kind ? restDefinition.kind : 'RestDefinition',
       ...identity,
@@ -354,6 +360,57 @@ export const buildRestDefPreviewPayload = (restDefinition: Record<string, unknow
     summary: extractRestDefSummary(restDefinition),
     title: `RestDefinition preview${identity.name ? ` — ${identity.name}` : ''}`,
     ...(warnings.length ? { warnings } : {}),
+  }
+}
+
+/**
+ * The outcome of re-validating an EDITED RestDefinition source (drawer edit path). Pure — no
+ * network, no side effects: the same client-side pipeline `buildRestDefPreviewPayload` runs, so an
+ * accepted edit is byte-for-byte the draft the preview gate would arm and the publish would commit.
+ *   - a YAML parse failure → { ok:false, problems:['could not parse…'] } (bad edit is data, not a crash);
+ *   - a parseable-but-invalid draft → { ok:false, draft, problems, warnings, summary } (the drawer
+ *     shows the exact CRD errors; the gate is NOT armed — same posture as an invalid model draft);
+ *   - a clean draft → { ok:true, draft, problems:[], warnings, summary } (the caller re-arms the gate).
+ */
+export interface RestDefEditResult {
+  ok: boolean
+  /** The parsed draft object (present whenever the YAML parsed, even if invalid). */
+  draft: Record<string, unknown> | null
+  /** CRD-shape validation errors (empty iff ok). A parse failure is a single explanatory line. */
+  problems: string[]
+  /** The CEL-immutable-field warnings for the parsed draft (empty on a parse failure). */
+  warnings: string[]
+  /** The mapped verbs/paths summary for the parsed draft (empty on a parse failure). */
+  summary: string[]
+}
+
+/** The parse-failure copy shown in the drawer when an edit is not valid YAML/JSON. */
+export const REST_DEF_EDIT_PARSE_ERROR = 'the edited source is not valid YAML — fix the syntax and apply again'
+
+/**
+ * Re-validate an EDITED RestDefinition source string. Parses the YAML (js-yaml `load`, the same
+ * loader the publish path uses), then runs the EXACT client-side validation
+ * `buildRestDefPreviewPayload` runs. `ok` is true only when the draft parses AND has zero CRD-shape
+ * errors — the single condition under which the caller re-arms the preview gate with the edited bytes.
+ */
+export const parseRestDefEdit = (source: string): RestDefEditResult => {
+  let parsed: unknown
+  try {
+    parsed = load(source)
+  } catch {
+    return { draft: null, ok: false, problems: [REST_DEF_EDIT_PARSE_ERROR], summary: [], warnings: [] }
+  }
+  const draft = asRecord(parsed)
+  if (!draft) {
+    return { draft: null, ok: false, problems: [REST_DEF_EDIT_PARSE_ERROR], summary: [], warnings: [] }
+  }
+  const problems = validateRestDefinitionDraft(draft)
+  return {
+    draft,
+    ok: problems.length === 0,
+    problems,
+    summary: extractRestDefSummary(draft),
+    warnings: restDefImmutabilityWarnings(draft),
   }
 }
 

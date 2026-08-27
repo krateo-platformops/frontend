@@ -24,8 +24,10 @@ import {
   extractRestDefSummary,
   parseBlueprintPreviewArgs,
   parsePagePreviewArgs,
+  parseRestDefEdit,
   parseRestDefPreviewArgs,
   parseUpgradeImpactArgs,
+  REST_DEF_EDIT_PARSE_ERROR,
   toYamlString,
   type UpgradeImpactResult,
 } from './previewBridge'
@@ -345,6 +347,71 @@ describe('previewRestDef summary — mapped verbs/paths parsed client-side', () 
     const valid = JSON.parse(JSON.stringify(restDefFixture)) as typeof restDefFixture
     valid.spec.resource.verbsDescription[1].method = 'GET'
     expect(buildRestDefPreviewPayload(valid).problems).toBeUndefined()
+  })
+
+  it('FE-K(edit) wiring: the RestDefinition payload is marked editable with its kind', () => {
+    const payload = buildRestDefPreviewPayload(restDefFixture)
+    expect(payload.editRestDef).toBe(true)
+    expect(payload.restDefKind).toBe('RestDefinition')
+  })
+})
+
+describe('parseRestDefEdit — re-validate an EDITED RestDefinition source (drawer edit path)', () => {
+  const validYaml = toYamlString({
+    apiVersion: 'ogen.krateo.io/v1alpha1',
+    kind: 'RestDefinition',
+    metadata: { name: 'gh-repo', namespace: 'krateo-system' },
+    spec: {
+      oasPath: 'https://example.org/openapi.yaml',
+      resource: { identifiers: ['id'], kind: 'Repo', verbsDescription: [{ action: 'get', method: 'GET', path: '/repos' }] },
+      resourceGroup: 'github.ogen.krateo.io',
+    },
+  })
+
+  it('accepts a clean edit: ok=true, no problems, and re-derives warnings + summary', () => {
+    const result = parseRestDefEdit(validYaml)
+    expect(result.ok).toBe(true)
+    expect(result.problems).toEqual([])
+    expect(result.draft).toMatchObject({ kind: 'RestDefinition', metadata: { name: 'gh-repo' } })
+    expect(result.summary).toContain('get · GET /repos')
+    expect(result.warnings).toEqual(expect.arrayContaining([
+      expect.stringContaining('immutable once generated: resource.kind (Repo)'),
+    ]))
+  })
+
+  it('rejects a CRD-invalid edit: ok=false with the exact validation errors, draft still parsed', () => {
+    // lowercase method — a live-CRD enum violation (same class the FE-K1 fixture trips)
+    const broken = validYaml.replace('method: GET', 'method: get')
+    const result = parseRestDefEdit(broken)
+    expect(result.ok).toBe(false)
+    expect(result.problems).toEqual([expect.stringContaining('method must be one of GET|POST|PUT|DELETE|PATCH')])
+    // the draft parsed — the drawer keeps showing the (invalid) edited source
+    expect(result.draft).not.toBeNull()
+  })
+
+  it('rejects a required-field deletion (removing verbsDescription 422s at publish)', () => {
+    const result = parseRestDefEdit(toYamlString({
+      apiVersion: 'ogen.krateo.io/v1alpha1',
+      kind: 'RestDefinition',
+      metadata: { name: 'gh-repo', namespace: 'krateo-system' },
+      spec: { oasPath: 'https://example.org/openapi.yaml', resource: { kind: 'Repo' }, resourceGroup: 'github.ogen.krateo.io' },
+    }))
+    expect(result.ok).toBe(false)
+    expect(result.problems).toEqual(expect.arrayContaining([
+      expect.stringContaining('verbsDescription requires at least one'),
+    ]))
+  })
+
+  it('treats unparseable YAML as data, not a crash: ok=false, the parse-error line, null draft', () => {
+    const result = parseRestDefEdit('spec:\n  - : : bad')
+    expect(result.ok).toBe(false)
+    expect(result.problems).toEqual([REST_DEF_EDIT_PARSE_ERROR])
+    expect(result.draft).toBeNull()
+  })
+
+  it('treats a non-object document (a scalar / list) as a parse error, never a crash', () => {
+    expect(parseRestDefEdit('just a string').ok).toBe(false)
+    expect(parseRestDefEdit('- a\n- b').problems).toEqual([REST_DEF_EDIT_PARSE_ERROR])
   })
 })
 

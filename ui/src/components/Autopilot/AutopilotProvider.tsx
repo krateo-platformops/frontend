@@ -35,6 +35,7 @@ import { createOasAttachmentStore, type OasAttachmentResult } from './oasAttachm
 import { isPageDraft, pageRootSlug } from './pageDraft'
 import { buildPagePublishOps } from './pagePublish'
 import { PREVIEW_SELF_CORRECTION_NUDGE } from './previewBus'
+import { onRestDefEdit } from './previewEditBus'
 import { buildKogPublishNudge, createPreviewGate, hydrateRestDefinitionOps } from './previewGate'
 import { AutopilotPreviewDrawer } from './previewSurface'
 import { compileKogPublishOps, compilePublishOps, heldDraftIdentity, recordPagePreview, type PublishCompileResult } from './publishCompile'
@@ -675,9 +676,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   }, [applyFrame, collect, contextId, sessionId, setMessages, streaming, transport])
 
   // Keep the finalize-side recovery trampoline pointing at the CURRENT send closure.
-  useEffect(() => {
-    sendRef.current = send
-  }, [send])
+  useEffect(() => { sendRef.current = send }, [send])
 
   const stop = useCallback(() => {
     // Abort the in-flight stream but keep the thread: the partial assistant answer stays,
@@ -745,6 +744,14 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     oasStore.clear()
     setOasHeld(null)
   }, [oasStore])
+
+  // FE-K(edit): the preview drawer lets the user EDIT the previewed RestDefinition source and
+  // apply it. An accepted edit arrives here on the edit bus; recording it into the preview gate
+  // re-arms the gate with the edited draft and makes it the LAST draft — so the subsequent KOG
+  // publish (resolveKogPublishDraft(previewGate.lastDraft())) commits the EDITED bytes. recordPreview
+  // re-validates once more (deny-by-default: an invalid edit arms nothing), and the drawer only
+  // emits a clean edit anyway, so the held bytes are exactly the human-edited bytes.
+  useEffect(() => onRestDefEdit(({ draft }) => previewGate.recordPreview(draft)), [previewGate])
 
   const toggle = useCallback(() => setOpen((prev) => !prev), [])
   const closeTour = useCallback(() => setTourOpen(false), [])
