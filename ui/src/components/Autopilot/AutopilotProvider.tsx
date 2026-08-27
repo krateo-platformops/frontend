@@ -37,6 +37,7 @@ import { isPageDraft, pageRootSlug } from './pageDraft'
 import { buildPagePublishOps } from './pagePublish'
 import { PREVIEW_SELF_CORRECTION_NUDGE } from './previewBus'
 import { onRestDefEdit } from './previewEditBus'
+import { onFileEdit } from './previewFileEdit'
 import { buildKogPublishNudge, createPreviewGate, hydrateRestDefinitionOps } from './previewGate'
 import { AutopilotPreviewDrawer } from './previewSurface'
 import { compileKogPublishOps, compilePublishOps, heldDraftIdentity, recordPagePreview, type PublishCompileResult } from './publishCompile'
@@ -288,10 +289,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         if (compiled.denial !== null) {
           chips.push({ label: compiled.denial, readOnly: true, verb: 'applyResourceSet' })
         } else if (compiled.ops) {
-          const chip = await apply({ label, ops: compiled.ops, verb: 'applyResourceSet' }, origin)
-          if (chip) {
-            chips.push(chip)
-          }
+          pushChip(await apply({ label, ops: compiled.ops, verb: 'applyResourceSet' }, origin))
         }
       }
       if (proposal.verb === 'prefillForm') {
@@ -427,9 +425,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
             // gate for its Chart.yaml name. A remote-chart preview (no rawTemplates) holds
             // nothing — there is no authored tree to publish via git.
             const draft = blueprintStore.set(proposal.rawTemplates)
-            if (draft.ok) {
-              blueprintGate.recordPreview(draftDisplayName(draft.held.files))
-            }
+            if (draft.ok) { blueprintGate.recordPreview(draftDisplayName(draft.held.files)) }
           } else if (proposal.verb === 'previewPage') {
             // FE-P2: an APPLIED previewPage holds its widget CRs as a page draft + arms the shared
             // gate (recordPagePreview) — a page publish (RepoContent → krateo-portal-chart) is then
@@ -755,6 +751,15 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // re-validates once more (deny-by-default: an invalid edit arms nothing), and the drawer only
   // emits a clean edit anyway, so the held bytes are exactly the human-edited bytes.
   useEffect(() => onRestDefEdit(({ draft }) => previewGate.recordPreview(draft)), [previewGate])
+
+  // FE-K(edit), page/blueprint half: an accepted "Files"-tab per-file edit arrives on the file-edit bus.
+  // updateFile replaces that file's bytes in the held tree (deny-by-default: an over-cap / unknown-path
+  // edit is rejected and the held tree stays put); on success we re-arm the page/blueprint gate for the
+  // held draft's identity. The edited bytes then publish UNCHANGED via the $fileContent substitution —
+  // published == the human-edited bytes, never retyped by the model.
+  useEffect(() => onFileEdit(({ content, path }) => {
+    if (blueprintStore.updateFile(path, content).ok) { blueprintGate.recordPreview(heldDraftIdentity(blueprintStore.get())) }
+  }), [blueprintGate, blueprintStore])
 
   const toggle = useCallback(() => setOpen((prev) => !prev), [])
   const closeTour = useCallback(() => setTourOpen(false), [])

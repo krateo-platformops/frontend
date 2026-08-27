@@ -70,6 +70,14 @@
   opacity: 0.85;
 }
 
+/* FE-K(edit): the "Files"-tab per-file header — the destination path + the inline Edit affordance. */
+.fileHead {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
 /* The publish-target header line ("Publishes to <repo> · PR into <base>"). */
 .target {
   align-items: center;

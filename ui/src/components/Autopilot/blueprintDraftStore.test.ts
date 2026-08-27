@@ -93,6 +93,62 @@ describe('createBlueprintDraftStore — one held tree at a time', () => {
   })
 })
 
+describe('createBlueprintDraftStore.updateFile — FE-K(edit) in-place single-file edit', () => {
+  it('replaces one held file within the cap and re-measures the total UTF-8 bytes', () => {
+    const store = createBlueprintDraftStore()
+    store.set(CHART)
+    const before = store.get()?.bytes ?? 0
+    const next = 'kind: Deployment\nmetadata:\n  name: hello-edited\n'
+    const result = store.updateFile('templates/deployment.yaml', next)
+    expect(result.ok).toBe(true)
+    expect(store.get()?.files['templates/deployment.yaml']).toBe(next)
+    // the OTHER files are untouched; bytes re-measured across the whole tree
+    expect(store.get()?.files['Chart.yaml']).toBe(CHART['Chart.yaml'])
+    const expected = before - CHART['templates/deployment.yaml'].length + next.length
+    expect(result.bytes).toBe(expected)
+    expect(store.get()?.bytes).toBe(expected)
+  })
+
+  it('re-measures multibyte edits as encoded bytes, not JS chars', () => {
+    const store = createBlueprintDraftStore()
+    store.set({ 'NOTES.txt': 'ascii' })
+    // 'é' is 2 UTF-8 bytes (JS string length 1) — the re-measure must count encoded bytes.
+    const result = store.updateFile('NOTES.txt', 'café')
+    expect(result.ok).toBe(true)
+    expect(result.bytes).toBe('café'.length + 1)
+    expect(store.get()?.bytes).toBe('café'.length + 1)
+  })
+
+  it('rejects an edit that pushes the TOTAL tree over the cap — held tree UNMUTATED', () => {
+    const store = createBlueprintDraftStore()
+    store.set(CHART)
+    const before = store.get()
+    const result = store.updateFile('templates/deployment.yaml', 'a'.repeat(BLUEPRINT_DRAFT_MAX_BYTES + 1))
+    expect(result.ok).toBe(false)
+    expect(result.error).toContain('512 KiB')
+    // deny-by-default: nothing changed, the previously-held bytes stand
+    expect(store.get()).toEqual(before)
+    expect(result.bytes).toBe(before?.bytes)
+  })
+
+  it('rejects an edit to a path that is not a held file — held tree UNMUTATED', () => {
+    const store = createBlueprintDraftStore()
+    store.set(CHART)
+    const before = store.get()
+    const result = store.updateFile('templates/secret.yaml', 'kind: Secret\n')
+    expect(result.ok).toBe(false)
+    expect(result.error).toContain('templates/secret.yaml')
+    expect(store.get()).toEqual(before)
+  })
+
+  it('rejects an edit when nothing is held', () => {
+    const store = createBlueprintDraftStore()
+    const result = store.updateFile('Chart.yaml', 'name: x')
+    expect(result.ok).toBe(false)
+    expect(result.error).toContain('no draft')
+  })
+})
+
 describe('fileContentTokenPath — exact-token detection', () => {
   it('returns the path for exactly {"$fileContent":"<path>"}', () => {
     expect(fileContentTokenPath({ $fileContent: 'templates/deployment.yaml' })).toBe('templates/deployment.yaml')

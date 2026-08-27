@@ -47,6 +47,17 @@ export type BlueprintDraftResult =
   | { ok: false; error: string }
 
 /**
+ * The outcome of a single-file in-place edit (FE-K(edit) page/blueprint half). A success
+ * carries the re-measured total byte size of the held tree; a failure carries the reason
+ * and — the invariant — leaves the held tree UNMUTATED (deny-by-default on the held bytes).
+ */
+export interface FileUpdateResult {
+  ok: boolean
+  bytes: number
+  error?: string
+}
+
+/**
  * Validate + measure a parsed chart tree (the map `parseRawTemplates` already produced).
  * Over the 512 KiB TOTAL cap → not held, with a size hint. An empty map is refused (there
  * is nothing to publish).
@@ -70,11 +81,22 @@ export const createBlueprintDraft = (files: Record<string, string>): BlueprintDr
   return { held: { bytes, files: { ...files } }, ok: true }
 }
 
+/** Total UTF-8 byte size of a `{path: content}` tree (the held-tree cap is measured on this). */
+const measureTreeBytes = (files: Record<string, string>): number =>
+  Object.values(files).reduce((sum, text) => sum + utf8ByteLength(text), 0)
+
 /** The tiny holder the provider owns. One chart tree at a time (a new preview replaces it). */
 export interface BlueprintDraftStore {
   set: (files: Record<string, string>) => BlueprintDraftResult
   get: () => BlueprintDraftHeld | null
   clear: () => void
+  /**
+   * FE-K(edit), page/blueprint half — replace the bytes of ONE already-held file in place
+   * (a human edit on the held tree; the model never reproduces these bytes). Rejects — and
+   * leaves the held tree UNMUTATED — when the path is not a held file or the edit pushes the
+   * TOTAL tree over the 512 KiB cap. Returns the re-measured total byte size on success.
+   */
+  updateFile: (path: string, content: string) => FileUpdateResult
 }
 
 export const createBlueprintDraftStore = (): BlueprintDraftStore => {
@@ -90,6 +112,23 @@ export const createBlueprintDraftStore = (): BlueprintDraftStore => {
         held = result.held
       }
       return result
+    },
+    updateFile: (path, content) => {
+      if (!held) {
+        return { bytes: 0, error: 'no draft is held — preview a page or blueprint first', ok: false }
+      }
+      if (!(path in held.files)) {
+        return { bytes: held.bytes, error: `"${path}" is not a held file — only previewed files can be edited`, ok: false }
+      }
+      const nextFiles = { ...held.files, [path]: content }
+      const bytes = measureTreeBytes(nextFiles)
+      if (bytes > BLUEPRINT_DRAFT_MAX_BYTES) {
+        const kib = Math.ceil(bytes / 1024)
+        // Over-cap: the held tree is left EXACTLY as it was (the previously-held bytes stand).
+        return { bytes: held.bytes, error: `the edit brings the draft to ${kib} KiB — over the 512 KiB cap; trim the file`, ok: false }
+      }
+      held = { bytes, files: nextFiles }
+      return { bytes, ok: true }
     },
   }
 }
