@@ -22,7 +22,10 @@ import {
   callUpgradeImpactRA,
   chartDisplayName,
   extractRestDefSummary,
+  FILE_EDIT_PARSE_ERROR,
+  FILE_EDIT_SHAPE_ERROR,
   parseBlueprintPreviewArgs,
+  parseFileEdit,
   parsePagePreviewArgs,
   parseRestDefEdit,
   parseRestDefPreviewArgs,
@@ -412,6 +415,54 @@ describe('parseRestDefEdit — re-validate an EDITED RestDefinition source (draw
   it('treats a non-object document (a scalar / list) as a parse error, never a crash', () => {
     expect(parseRestDefEdit('just a string').ok).toBe(false)
     expect(parseRestDefEdit('- a\n- b').problems).toEqual([REST_DEF_EDIT_PARSE_ERROR])
+  })
+})
+
+describe('parseFileEdit — re-validate an EDITED "Files"-tab file (page/blueprint edit path)', () => {
+  const pageWidgetYaml = toYamlString({
+    apiVersion: 'widgets.templates.krateo.io/v1beta1',
+    kind: 'Flex',
+    metadata: { name: 'root', namespace: 'krateo-system' },
+    spec: { widgetData: {} },
+  })
+
+  it('a PAGE widget CR: accepts a clean edit and echoes the bytes verbatim (held == published)', () => {
+    const result = parseFileEdit(pageWidgetYaml, true)
+    expect(result.ok).toBe(true)
+    expect(result.problems).toEqual([])
+    expect(result.content).toBe(pageWidgetYaml)
+  })
+
+  it('a PAGE widget CR: rejects a document missing apiVersion/kind/metadata.name (CR-shape)', () => {
+    const noName = toYamlString({ apiVersion: 'v1', kind: 'Flex', metadata: {} })
+    const noKind = toYamlString({ apiVersion: 'v1', metadata: { name: 'root' } })
+    expect(parseFileEdit(noName, true).ok).toBe(false)
+    expect(parseFileEdit(noName, true).problems).toEqual([FILE_EDIT_SHAPE_ERROR])
+    expect(parseFileEdit(noKind, true).ok).toBe(false)
+  })
+
+  it('a PAGE widget CR: unparseable YAML / a non-object document is a parse error, not a crash', () => {
+    expect(parseFileEdit('spec:\n  - : : bad', true).problems).toEqual([FILE_EDIT_PARSE_ERROR])
+    expect(parseFileEdit('- a\n- b', true).problems).toEqual([FILE_EDIT_SHAPE_ERROR])
+    expect(parseFileEdit('just a string', true).problems).toEqual([FILE_EDIT_SHAPE_ERROR])
+  })
+
+  it('a BLUEPRINT chart template: YAML-parse-only — no CR-shape requirement', () => {
+    // A Helm template renders to objects server-side; it need not itself be a CR.
+    const template = 'apiVersion: v2\nname: hello\nversion: 0.1.0\n'
+    const result = parseFileEdit(template, false)
+    expect(result.ok).toBe(true)
+    expect(result.content).toBe(template)
+    // a Go-template fragment is still just text js-yaml parses as a scalar/string — accepted
+    expect(parseFileEdit('{{ .Values.replicas }}', false).ok).toBe(true)
+    // an empty file is a valid (publishable) template
+    expect(parseFileEdit('', false).ok).toBe(true)
+  })
+
+  it('a BLUEPRINT chart template: rejects genuinely unparseable YAML', () => {
+    const result = parseFileEdit('spec:\n  - : : bad', false)
+    expect(result.ok).toBe(false)
+    expect(result.problems).toEqual([FILE_EDIT_PARSE_ERROR])
   })
 })
 

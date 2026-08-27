@@ -30,11 +30,18 @@ import { DrawerHeader, drawerCloseProps } from '../DrawerHeader/DrawerHeader'
 import WidgetRenderer from '../WidgetRenderer'
 
 import { useAutopilot } from './AutopilotProvider'
-import { parseRestDefEdit } from './previewBridge'
+import { parseFileEdit, parseRestDefEdit } from './previewBridge'
 import { AUTOPILOT_PREVIEW_EVENT, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
 import { emitRestDefEdit } from './previewEditBus'
+import { emitFileEdit } from './previewFileEdit'
 import { PreviewFormSection } from './previewFormSection'
 import styles from './previewSurface.module.css'
+
+/** The blueprint "Files" tab is labelled "Chart files"; a page keeps the generic "Files". A
+ * blueprint's files are Helm chart TEMPLATES (YAML-parse-only on edit); a page's are widget CRs
+ * (which additionally require the apiVersion/kind/metadata.name shape). This is the one place the
+ * page/blueprint distinction is read on the edit path — the SAME discriminator the payload builders set. */
+const BLUEPRINT_FILES_LABEL = 'Chart files'
 
 /** The open Autopilot rail's fixed width (AutopilotRail.module.css `.apRail.open`). The preview
  * drawer offsets by this so it sits LEFT of the chat instead of covering it. */
@@ -122,6 +129,95 @@ const RestDefEditSection = ({
   )
 }
 
+/**
+ * FE-K(edit), page/blueprint half — ONE editable file in the "Files" tab. Read-only by default (the
+ * highlighted YAML + an "Edit" affordance); "Edit" swaps in an inline Input.TextArea for THAT file only.
+ * On "Apply edits": parseFileEdit re-validates client-side (YAML always; the widget-CR shape for a page
+ * file) and:
+ *   - a parse/shape error → an inline Alert (the SAME style #135's RestDefinition errors use), the held
+ *     content is UNCHANGED, nothing is emitted (deny-by-default: the previously-held bytes stand);
+ *   - a clean edit        → the accepted bytes are emitted on the previewFileEdit bus (the provider writes
+ *     them into the held tree + re-arms the page/blueprint gate) and the tab reflects the updated content.
+ * The held-bytes guarantee holds: the edit is a human action on the held file, never a model round-trip.
+ */
+const FileEditBlock = ({
+  content,
+  isPageWidget,
+  mode,
+  path,
+  style,
+}: {
+  content: string
+  isPageWidget: boolean
+  mode: 'dark' | 'light'
+  path: string
+  style: { [key: string]: React.CSSProperties }
+}) => {
+  // The CURRENT held content (seeded from the payload; replaced by each accepted edit).
+  const [current, setCurrent] = useState(content)
+  const [editing, setEditing] = useState(false)
+  const [text, setText] = useState(content)
+  const [error, setError] = useState<string | null>(null)
+
+  const beginEdit = () => {
+    setText(current)
+    setError(null)
+    setEditing(true)
+  }
+
+  const onApply = () => {
+    const result = parseFileEdit(text, isPageWidget)
+    if (!result.ok || result.content === undefined) {
+      // Deny-by-default: surface the error inline; the held bytes (current) are untouched, nothing emitted.
+      setError(result.problems[0] ?? 'the edit could not be applied')
+      return
+    }
+    setCurrent(result.content)
+    setError(null)
+    setEditing(false)
+    emitFileEdit({ content: result.content, path })
+  }
+
+  return (
+    <div className={styles.file}>
+      <div className={styles.fileHead}>
+        <div className={styles.filePath}><Typography.Text code>{path}</Typography.Text></div>
+        {editing ? null : <Button onClick={beginEdit} size='small' type='link'>Edit</Button>}
+      </div>
+      {error ? (
+        <Alert
+          description={<span className={styles.errorText}>{error}</span>}
+          message='This edit was not applied'
+          showIcon
+          type='error'
+        />
+      ) : null}
+      {editing ? (
+        <div className={styles.edit}>
+          <Input.TextArea
+            aria-label={`Edit ${path}`}
+            autoSize={{ maxRows: 28, minRows: 8 }}
+            className={mode === 'dark' ? styles.editAreaDark : undefined}
+            onChange={(event) => setText(event.target.value)}
+            spellCheck={false}
+            value={text}
+          />
+          <Space>
+            <Button disabled={text === current} onClick={onApply} type='primary'>Apply edits</Button>
+            <Button onClick={() => { setEditing(false); setError(null) }}>Cancel</Button>
+          </Space>
+        </div>
+      ) : (
+        <div className={styles.yaml}>
+          <SyntaxHighlighter language='yaml' showLineNumbers style={style} wrapLines wrapLongLines>
+            {current}
+          </SyntaxHighlighter>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export const AutopilotPreviewDrawer = () => {
   const { mode } = useThemeMode()
   const { open: railOpen } = useAutopilot()
@@ -168,18 +264,23 @@ export const AutopilotPreviewDrawer = () => {
 
   // The unified "Files" tab: the SOURCE tree a publish commits, each file headed by its repo-relative
   // destination path. Same shape for both builders (a page's widget CRs / a blueprint's chart tree) —
-  // it IS the write-set the blast-radius later confirms, shown up front.
+  // it IS the write-set the blast-radius later confirms, shown up front. FE-K(edit): each file is
+  // EDITABLE in place — an accepted edit rides the previewFileEdit bus into the held draft (the provider
+  // re-arms the gate; the $fileContent publish path then commits the edited bytes automatically).
+  // A page's files are widget CRs (require the apiVersion/kind/metadata.name shape); a blueprint's are
+  // Helm chart templates (YAML-parse-only) — distinguished by the payload's files label.
+  const isPageWidget = (payload.filesLabel ?? '') !== BLUEPRINT_FILES_LABEL
   const filesBody = payload.files?.length ? (
     <div className={styles.body}>
       {payload.files.map((file, index) => (
-        <div className={styles.file} key={`file-${index}-${file.path}`}>
-          <div className={styles.filePath}><Typography.Text code>{file.path}</Typography.Text></div>
-          <div className={styles.yaml}>
-            <SyntaxHighlighter language='yaml' showLineNumbers style={highlighterStyle} wrapLines wrapLongLines>
-              {file.content}
-            </SyntaxHighlighter>
-          </div>
-        </div>
+        <FileEditBlock
+          content={file.content}
+          isPageWidget={isPageWidget}
+          key={`file-${index}-${file.path}`}
+          mode={mode}
+          path={file.path}
+          style={highlighterStyle}
+        />
       ))}
     </div>
   ) : null
