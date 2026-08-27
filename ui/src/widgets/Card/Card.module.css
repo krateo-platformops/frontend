@@ -46,6 +46,16 @@
       flex-direction: column;
       gap: var(--spacing-sm);
       min-width: 0;
+
+      /* #128: with an eyebrow title + icon and no headerLeft description, the body's natural
+         top offset (head height + ant-card-body padding) lands almost exactly at the floated
+         icon's bottom edge (~1px clearance) — invisible when the first child is plain text/tab
+         labels, but glaring when it's a full-width bordered box (e.g. Steps' bezel), whose top
+         border then visually runs under the icon. Only applied when there's no headerLeft (that
+         description line already supplies its own clearance). */
+      &.clearsIcon {
+        padding-top: var(--spacing-md);
+      }
     }
 
     .bodyHeader {
