@@ -47,6 +47,13 @@ const BLUEPRINT_FILES_LABEL = 'Chart files'
  * drawer offsets by this so it sits LEFT of the chat instead of covering it. */
 const RAIL_WIDTH = 384
 
+/** Pin the preview Drawer at antd's default popup z-index (1000). Belt-and-suspenders for the
+ * "confirm opens BEHIND the preview" fix (Vincenzo item Q): the blast-radius confirm modal is
+ * raised to BLAST_RADIUS_CONFIRM_Z_INDEX (1100) so it always paints above this drawer. Setting
+ * the drawer explicitly keeps that ordering immune to any future `zIndexPopupBase` theme drift —
+ * the confirm's raised value stays the guarantee; this just makes the relationship explicit. */
+const PREVIEW_DRAWER_Z_INDEX = 1000
+
 const ObjectHeadline = ({ entry }: { entry: PreviewObjectEntry }) => (
   <span className={styles.headline}>
     <Tag>{entry.kind}</Tag>
@@ -385,6 +392,9 @@ export const AutopilotPreviewDrawer = () => {
       // #86 §0.10: title via the shared DrawerHeader (default 16px tier). payload.title stays a
       // string → previewBus/verbRegistry untouched.
       title={<DrawerHeader title={payload.title} />}
+      // Pin below the blast-radius confirm (1100) so a publish/apply gate is never trapped behind
+      // this drawer (Vincenzo item Q). The confirm's raised z-index is the guarantee; this is explicit.
+      zIndex={PREVIEW_DRAWER_Z_INDEX}
     >
       <div className={styles.body}>
         {payload.caption ? <Typography.Paragraph type='secondary'>{payload.caption}</Typography.Paragraph> : null}
