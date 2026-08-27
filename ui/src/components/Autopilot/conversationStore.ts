@@ -19,19 +19,38 @@
  * an empty `[]`, so the conversation persists across a routerVersion bump — WITHOUT
  * touching the `key={routerVersion}` reload the routes-as-data flow depends on.
  *
+ * SESSION HISTORY (Vincenzo item P): the singleton survives a REMOUNT but a true page
+ * RELOAD wipes module state, and `newThread()` used to DISCARD the current thread. This
+ * store is now backed by localStorage (sessionHistoryStore.ts): every write persists the
+ * CURRENT thread (rehydrated on load), and `archiveAndReset()` pushes the current thread
+ * onto a bounded archive list BEFORE resetting — so refresh keeps the conversation and a
+ * new thread no longer throws the old ones away. `loadThread()` switches the live view to
+ * an archived transcript. All persistence is best-effort (try/catch inside the history
+ * store): a quota error or disabled storage degrades to the previous in-memory behavior.
+ *
  * SCOPE (deliberately minimal): only THREAD-LIFETIME state lives here — the transcript,
  * the thread identity, and the page-context delta base (`lastEnvelope`, which must stay
  * consistent with `contextId` for the same reason; see its doc below). In-flight,
  * per-mount streaming machinery (abort handle, per-turn text/proposal buffers, approval
  * governors) stays as component refs — an in-flight stream is torn down on unmount anyway
  * (the provider's cleanup aborts it), so it must NOT be resurrected from a shared store.
- * `newThread()` resets this store (see reset()).
  *
  * No React imports here (pure store); the provider adapts it via useSyncExternalStore.
  */
 
 import { randomId } from '../../utils/utils'
 
+import {
+  archiveThread,
+  deriveThreadTitle,
+  isThreadWorthKeeping,
+  loadArchive,
+  loadCurrentThread,
+  saveCurrentThread,
+  summarize,
+  type PersistedThread,
+  type ThreadSummary,
+} from './sessionHistoryStore'
 import type { AutopilotMessage, PageContextEnvelope } from './types'
 
 /** A fresh frontend-owned session id (mirrors the provider's previous `newSessionId`). */
@@ -45,6 +64,14 @@ export interface ConversationState {
   sessionId: string
   /** A2A conversation id assigned by the server on the first turn (thread continuity). */
   contextId: string | undefined
+  /**
+   * True when the CURRENT thread was RESTORED from the archive (the user switched to a
+   * past session) — v1 loads its transcript for VIEWING. Live-resume of the exact server
+   * A2A session is phase-2: continuing a restored thread starts a fresh `contextId` on the
+   * next send (see loadThread + the rail's "viewing a past session" hint). Cleared once
+   * the user sends a new turn (setContextId) or starts/loads another thread.
+   */
+  restored: boolean
 }
 
 export interface ConversationStore {
@@ -72,8 +99,22 @@ export interface ConversationStore {
    */
   getLastEnvelope: () => PageContextEnvelope | undefined
   setLastEnvelope: (envelope: PageContextEnvelope | undefined) => void
-  /** Reset to a brand-new thread: empty transcript, fresh session id, no contextId, no delta base. */
+  /**
+   * Start a brand-new thread. If the current thread has at least one user turn it is first
+   * ARCHIVED (bounded localStorage list) so it stays browsable — otherwise reset() discards
+   * an empty thread. Then: empty transcript, fresh session id, no contextId, no delta base.
+   */
+  archiveAndReset: () => void
+  /** Reset to a brand-new thread WITHOUT archiving (empty/greeting thread). */
   reset: () => void
+  /**
+   * Switch the live view to a previously-archived thread (by sessionId): its transcript
+   * loads as the current thread, marked `restored`. The CURRENT thread is archived first
+   * (if worth keeping) so switching never loses it. Returns whether a thread was found.
+   */
+  loadThread: (sessionId: string) => boolean
+  /** The archived thread summaries (newest first) for the rail's history list. */
+  sessions: () => ThreadSummary[]
 }
 
 /**
@@ -81,7 +122,12 @@ export interface ConversationStore {
  * until the next write, so `useSyncExternalStore` re-renders only on real changes.
  */
 export const createConversationStore = (): ConversationStore => {
-  let state: ConversationState = { contextId: undefined, messages: [], sessionId: newSessionId() }
+  // Rehydrate the CURRENT thread from localStorage on construction (page reload); fall
+  // back to a fresh empty thread when nothing is persisted / storage is unavailable.
+  const rehydrated = loadCurrentThread()
+  let state: ConversationState = rehydrated
+    ? { contextId: rehydrated.contextId, messages: rehydrated.messages, restored: false, sessionId: rehydrated.sessionId }
+    : { contextId: undefined, messages: [], restored: false, sessionId: newSessionId() }
   // Outside `state` on purpose: the delta base is not rendered, so writing it must not emit.
   let lastEnvelope: PageContextEnvelope | undefined
   const listeners = new Set<() => void>()
@@ -92,21 +138,68 @@ export const createConversationStore = (): ConversationStore => {
     }
   }
 
+  /** Persist the current thread on every state change (best-effort; no-op when empty). */
+  const persistCurrent = (): void => {
+    saveCurrentThread(
+      isThreadWorthKeeping(state.messages)
+        ? { contextId: state.contextId, messages: state.messages, sessionId: state.sessionId, title: deriveThreadTitle(state.messages), updatedAt: Date.now() }
+        : null,
+    )
+  }
+
   const set = (next: ConversationState): void => {
     state = next
+    persistCurrent()
     emit()
   }
 
+  /** Snapshot the current thread as an archive entry (only when it has a user turn). */
+  const currentAsThread = (): PersistedThread | null => {
+    if (!isThreadWorthKeeping(state.messages)) {
+      return null
+    }
+    return { contextId: state.contextId, messages: state.messages, sessionId: state.sessionId, title: deriveThreadTitle(state.messages), updatedAt: Date.now() }
+  }
+
+  const freshState = (): ConversationState => ({ contextId: undefined, messages: [], restored: false, sessionId: newSessionId() })
+
   return {
+    archiveAndReset: () => {
+      const thread = currentAsThread()
+      if (thread) {
+        archiveThread(thread)
+      }
+      lastEnvelope = undefined
+      set(freshState())
+    },
     getLastEnvelope: () => lastEnvelope,
     getSnapshot: () => state,
+    loadThread: (sessionId) => {
+      const target = loadArchive().find((thread) => thread.sessionId === sessionId)
+      if (!target) {
+        return false
+      }
+      // Archive the CURRENT thread first so switching away never loses it.
+      const current = currentAsThread()
+      if (current && current.sessionId !== sessionId) {
+        archiveThread(current)
+      }
+      lastEnvelope = undefined
+      // Load the archived transcript for VIEWING. contextId is intentionally dropped — v1 does
+      // NOT resume the server A2A session (phase-2); the next send starts a fresh contextId.
+      set({ contextId: undefined, messages: target.messages, restored: true, sessionId: target.sessionId })
+      return true
+    },
     reset: () => {
       lastEnvelope = undefined
-      set({ contextId: undefined, messages: [], sessionId: newSessionId() })
+      set(freshState())
     },
+    sessions: () => summarize(loadArchive()),
     setContextId: (contextId) => {
-      if (contextId === state.contextId) { return }
-      set({ ...state, contextId })
+      if (contextId === state.contextId && !state.restored) { return }
+      // A server contextId assignment means a live turn is under way — the thread is no
+      // longer merely "restored for viewing", so clear the hint.
+      set({ ...state, contextId, restored: false })
     },
     setLastEnvelope: (envelope) => { lastEnvelope = envelope },
     setMessages: (update) => {

@@ -56,3 +56,12 @@ export const EvidenceIcon = ({ className, size = 12 }: IconProps) => stroke(size
     <path d='M20 20l-4.6-4.6' />
   </>
 ))
+
+// A clock-with-counterclockwise-arrow — the session-history affordance in the rail head.
+export const HistoryIcon = ({ className, size = 15 }: IconProps) => stroke(size, className, (
+  <>
+    <path d='M3 3v5h5' />
+    <path d='M3.05 13A9 9 0 1 0 6 5.3L3 8' />
+    <path d='M12 7v5l3 2' />
+  </>
+))
