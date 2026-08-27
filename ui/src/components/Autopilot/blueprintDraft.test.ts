@@ -78,7 +78,7 @@ describe('lintValuesSchemaDefaults — the FE-B2 crdgen-defaults matrix', () => 
     expect(problems[0]).toContain('[CRDGEN-DEFAULTS]')
     expect(problems[0]).toContain('properties.resources.default')
     expect(problems[0]).toContain('object default')
-    expect(problems[0]).toContain('krateo-core-provider#46')
+    expect(problems[0]).toContain('krateo-platformops/core-provider#46')
   })
 
   it('flags a non-empty ARRAY default as a hard error', () => {
