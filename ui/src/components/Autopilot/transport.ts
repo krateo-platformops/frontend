@@ -73,6 +73,39 @@ const buildRequestBody = (request: AutopilotSendRequest): string => {
 const asRecord = (value: unknown): Record<string, unknown> | undefined =>
   (value && typeof value === 'object' ? (value as Record<string, unknown>) : undefined)
 
+/**
+ * The friendly notice shown in place of a raw upstream rate-limit dump. The AI provider
+ * (Gemini/Vertex) intermittently 429s the whole orchestrator turn; kagent surfaces that as a
+ * JSON-RPC error (or an HTTP 429), whose message is the provider's raw JSON — e.g.
+ *   429 Too Many Requests. {'message':'{ "error": { "code": 429, "status": "RESOURCE_EXHAUSTED" … } }'}
+ * That is unreadable AND misleading (it reads like a broken agent). This is a transient quota
+ * limit, not an auth or config failure, so the honest, actionable message is "retry in a moment".
+ */
+export const RATE_LIMIT_NOTICE
+  = 'Krateo Autopilot is temporarily rate-limited by the AI provider. Please retry in a moment.'
+
+/**
+ * Detect a provider rate-limit / quota-exhausted signal in a raw error string, robustly across the
+ * shapes it arrives in (a JSON-RPC error message, an HTTP status line, or embedded provider JSON):
+ * an HTTP 429, a "Too Many Requests" reason phrase, or Google's `RESOURCE_EXHAUSTED` status. Returns
+ * the friendly notice when matched, else `null` so every OTHER error passes through untouched. Pure.
+ *
+ * The `429` match is anchored to a rate-limit-shaped context (a code/status field or the reason
+ * phrase) so a stray "429" inside unrelated prose (e.g. a resource named `svc-429`) is NOT swallowed.
+ */
+export const rateLimitNotice = (raw: string | undefined): string | null => {
+  if (!raw) {
+    return null
+  }
+  const hasResourceExhausted = /RESOURCE_EXHAUSTED/i.test(raw)
+  const hasTooManyRequests = /too\s+many\s+requests/i.test(raw)
+  // A 429 only counts as rate-limiting when it reads as a status/code (or sits beside the reason
+  // phrase), not as a bare number that happens to appear somewhere in the text.
+  const has429 = /(?:^|\b)429\b(?![.\d])/.test(raw)
+    && (/["']?(?:code|status)["']?\s*[:=]\s*["']?429\b/i.test(raw) || hasTooManyRequests)
+  return hasResourceExhausted || hasTooManyRequests || has429 ? RATE_LIMIT_NOTICE : null
+}
+
 /** Per-stream state carried across SSE events (so `session` fires once). */
 interface KagentStreamState {
   contextSent: boolean
@@ -125,7 +158,13 @@ const handleKagentPayload = (
   }
   const rpcError = asRecord(root.error)
   if (rpcError && typeof rpcError.message === 'string') {
-    handlers.onFrame({ kind: 'error', message: rpcError.message })
+    const friendly = rateLimitNotice(rpcError.message)
+    if (friendly) {
+      // Keep the raw provider dump in the console (the only raw-detail sink the transport has) so a
+      // support/debug session can still read it, but never render it in the chat bubble.
+      console.warn('[autopilot] provider rate-limited:', rpcError.message)
+    }
+    handlers.onFrame({ kind: 'error', message: friendly ?? rpcError.message })
     return
   }
   const result = asRecord(root.result)
@@ -197,6 +236,10 @@ const describeHttpFailure = (status: number): string => {
   }
   if (status === 403) {
     return 'Autopilot denied the request (403) — your user is not allowed to use this agent.'
+  }
+  // A rate-limit can also surface as an HTTP 429 at the gateway (not just an in-band JSON-RPC error).
+  if (status === 429) {
+    return RATE_LIMIT_NOTICE
   }
   return `Autopilot request failed (${status})`
 }
