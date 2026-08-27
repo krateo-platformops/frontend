@@ -38,7 +38,14 @@ jobs:
 
     steps:
       - name: Install krateoctl v0.8.9
-        run: curl -sL https://raw.githubusercontent.com/krateoplatformops/krateoctl/main/install.sh 0.8.9 | bash
+        # The version MUST be passed to the piped shell as `bash -s 0.8.9`, NOT as
+        # `install.sh 0.8.9 | bash`: in the latter the `0.8.9` is a positional arg to
+        # `curl` (silently ignored), so install.sh runs with no args and falls through to
+        # its "latest release" path — which today resolves to v1.3.0-rc1 (a non-prerelease
+        # tag). That krateoctl regresses on Theme.schema.json: `gen-widget` spins ~3min in
+        # controller-gen then exits 1 (empty output), red-lighting this whole job while the
+        # step still claims "v0.8.9". v0.8.9 generates every widget CRD (Theme included) fine.
+        run: curl -sL https://raw.githubusercontent.com/krateoplatformops/krateoctl/main/install.sh | bash -s 0.8.9
 
       - name: Checkout repository
         uses: actions/checkout@v4
