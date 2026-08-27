@@ -11,6 +11,7 @@ import type { ResourceRef, ResourcesRefs, Widget, WidgetAction } from '../types/
 import { getAccessToken } from '../utils/getAccessToken'
 import { useResolveJqExpression } from '../utils/jq-expression'
 import { navigateOrExternal } from '../utils/navigation'
+import { pruneEmptyObjects } from '../utils/pruneEmptyObjects'
 import type { Payload, RestApiResponse } from '../utils/types'
 import { getHeadersObject, getResourceRef } from '../utils/utils'
 import { closeDrawer, openDrawer } from '../widgets/Drawer/Drawer'
@@ -187,7 +188,13 @@ export const buildPayload = async (
     }
   }
 
-  return finalPayload
+  // 5. Drop empty-plain-object (`{}`) leaves. The schema-driven Form seeds `{}` for every
+  //    unfilled nested-object branch — for a k8s UNION field (probe handlers exec|httpGet|
+  //    tcpSocket|grpc are oneOf) that emits the unpopulated branches as `{}` next to the
+  //    populated one, which k8s rejects ("may not specify more than 1 handler type"). Pruning
+  //    keeps only the populated branch. Runs LAST so a payloadToOverride that set an object
+  //    value is still respected. See pruneEmptyObjects for the safety rationale.
+  return pruneEmptyObjects(finalPayload)
 }
 
 /** Per-invocation data for an action (the widget instance it fires from). */
