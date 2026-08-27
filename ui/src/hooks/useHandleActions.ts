@@ -1,10 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query'
 import useApp from 'antd/es/app/useApp'
 import { merge, set } from 'lodash'
-import { createElement, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
-import BlastRadiusConfirm from '../components/BlastRadius/BlastRadiusConfirm'
 import { buildBlastRadius, isMutatingVerb } from '../components/BlastRadius/buildBlastRadius'
 import { useConfigContext } from '../context/ConfigContext'
 import { useRoutesContext } from '../context/RoutesContext'
@@ -18,6 +17,7 @@ import { closeDrawer, openDrawer } from '../widgets/Drawer/Drawer'
 import { openModal } from '../widgets/Modal/Modal'
 
 import type { BlastRadius, BlastRadiusSet } from './blastRadius.types'
+import { buildConfirmModalProps } from './confirmModalProps'
 import { recordProvenance, type WriteOrigin } from './provenance'
 import { runRestFanOut } from './runRestFanOut'
 import { runRestOps } from './runRestOps'
@@ -691,26 +691,12 @@ export const useHandleAction = () => {
     // blast radius is supplied (every mutating write — W0-2), render the structured
     // BlastRadiusConfirm — the scalar verb+gvr+cluster/ns+object-count+diff shape, or the
     // aggregated ordered-op list for a W0-4 set — as the modal body and title the intent;
-    // otherwise keep the plain "Are you sure?" prompt (read-only opt-in). The Confirm button
-    // goes danger for anything irreversible (a DELETE, or a set containing one).
+    // otherwise keep the plain "Are you sure?" prompt (read-only opt-in). The props (incl.
+    // the raised zIndex that keeps this gate ABOVE the Autopilot preview Drawer) are built by
+    // the pure buildConfirmModalProps so the fix is unit-testable. The Confirm button goes
+    // danger for anything irreversible (a DELETE, or a set containing one).
     confirm: (radius?: BlastRadius | BlastRadiusSet) => new Promise<boolean>((resolve) => {
-      const isSet = radius !== undefined && 'ops' in radius
-      const irreversible = radius !== undefined
-        && (isSet ? radius.ops.some((op) => op.irreversible) : radius.verb === 'DELETE')
-      let title = radius ? 'Confirm write' : 'Are you sure?'
-      if (isSet) {
-        title = `Confirm ${radius.count} writes`
-      }
-      modal.confirm({
-        cancelText: 'Cancel',
-        content: radius ? createElement(BlastRadiusConfirm, { radius }) : undefined,
-        okButtonProps: irreversible ? { danger: true } : undefined,
-        okText: 'Confirm',
-        onCancel: () => resolve(false),
-        onOk: () => resolve(true),
-        title,
-        width: radius ? 560 : undefined,
-      })
+      modal.confirm(buildConfirmModalProps(radius, () => resolve(true), () => resolve(false)))
     }),
     eventsBaseUrl: config?.api.EVENTS_PUSH_API_BASE_URL ?? '',
     getAccessToken,
