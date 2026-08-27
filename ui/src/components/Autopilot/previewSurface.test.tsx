@@ -19,9 +19,10 @@ vi.mock('../WidgetRenderer', () => ({ default: () => null }))
 vi.mock('./AutopilotProvider', () => ({ useAutopilot: () => ({ open: false }) }))
 vi.mock('../../context/ThemeModeContext', () => ({ useThemeMode: () => ({ mode: 'light' }) }))
 
-import { buildRestDefPreviewPayload, toYamlString } from './previewBridge'
+import { buildPagePreviewPayload, buildRestDefPreviewPayload, toYamlString } from './previewBridge'
 import { openAutopilotPreview } from './previewBus'
 import { AUTOPILOT_PREVIEW_EDIT_EVENT, type RestDefEditDetail } from './previewEditBus'
+import { AUTOPILOT_PREVIEW_FILE_EDIT_EVENT, type FileEditDetail } from './previewFileEdit'
 import { AutopilotPreviewDrawer } from './previewSurface'
 
 beforeAll(() => {
@@ -43,7 +44,7 @@ beforeAll(() => {
     disconnect = noop
     observe = noop
     unobserve = noop
-  } as unknown as typeof ResizeObserver
+  }
 })
 
 // Each test mounts its OWN drawer; unmount between tests so a prior drawer's global
@@ -126,5 +127,65 @@ describe('AutopilotPreviewDrawer — editable RestDefinition source', () => {
     })
     await waitFor(() => expect(view.getByText('Page preview — 1 proposed widget')).toBeTruthy())
     expect(view.queryByLabelText('RestDefinition source')).toBeNull()
+  })
+})
+
+describe('AutopilotPreviewDrawer — editable page "Files" tab', () => {
+  /** A minimal page preview payload (one widget CR at chart/templates/flex.root.yaml). */
+  const pagePayload = () => buildPagePreviewPayload([{
+    apiVersion: 'widgets.templates.krateo.io/v1beta1',
+    kind: 'Flex',
+    metadata: { name: 'root' },
+    spec: { widgetData: {} },
+  }])
+
+  /** Capture the LAST per-file edit emitted on the bus (or null). Returns the un-listen fn. */
+  const captureFileEmits = (sink: { last: FileEditDetail | null }): (() => void) => {
+    const listener = (event: Event): void => { sink.last = (event as CustomEvent<FileEditDetail>).detail }
+    window.addEventListener(AUTOPILOT_PREVIEW_FILE_EDIT_EVENT, listener)
+    return () => window.removeEventListener(AUTOPILOT_PREVIEW_FILE_EDIT_EVENT, listener)
+  }
+
+  const openEditor = async (view: ReturnType<typeof render>): Promise<HTMLTextAreaElement> => {
+    fireEvent.click(view.getByRole('button', { name: 'Edit' }))
+    return waitFor(() => view.getByLabelText(/^Edit chart\/templates\/flex\.root\.yaml$/) as HTMLTextAreaElement)
+  }
+
+  it('a CLEAN page-file edit emits {path, content} on the file-edit bus', async () => {
+    const sink: { last: FileEditDetail | null } = { last: null }
+    const off = captureFileEmits(sink)
+    const view = render(<AutopilotPreviewDrawer />)
+    openAutopilotPreview(pagePayload())
+    await waitFor(() => expect(view.getByText('chart/templates/flex.root.yaml')).toBeTruthy())
+    const area = await openEditor(view)
+
+    // A human edit of the held widget CR (still a valid CR — apiVersion/kind/metadata.name intact).
+    const edited = toYamlString({ apiVersion: 'widgets.templates.krateo.io/v1beta1', kind: 'Flex', metadata: { name: 'root' }, spec: { widgetData: { direction: 'vertical' } } })
+    fireEvent.change(area, { target: { value: edited } })
+    fireEvent.click(view.getByRole('button', { name: 'Apply edits' }))
+
+    await waitFor(() => expect(sink.last).not.toBeNull())
+    expect(sink.last?.path).toBe('chart/templates/flex.root.yaml')
+    // byte-for-byte the human's edit (held == published)
+    expect(sink.last?.content).toBe(edited)
+    off()
+  })
+
+  it('an INVALID page-file edit shows the inline error and does NOT emit (prior bytes kept)', async () => {
+    const sink: { last: FileEditDetail | null } = { last: null }
+    const off = captureFileEmits(sink)
+    const view = render(<AutopilotPreviewDrawer />)
+    openAutopilotPreview(pagePayload())
+    await waitFor(() => expect(view.getByText('chart/templates/flex.root.yaml')).toBeTruthy())
+    const area = await openEditor(view)
+
+    // Strip the CR identity — a page widget file must keep apiVersion/kind/metadata.name.
+    fireEvent.change(area, { target: { value: 'spec:\n  widgetData: {}\n' } })
+    fireEvent.click(view.getByRole('button', { name: 'Apply edits' }))
+
+    await waitFor(() => expect(view.getByText('This edit was not applied')).toBeTruthy())
+    // Deny-by-default: nothing rode the bus, so the held bytes are unchanged.
+    expect(sink.last).toBeNull()
+    off()
   })
 })

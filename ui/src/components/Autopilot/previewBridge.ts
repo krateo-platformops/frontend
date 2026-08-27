@@ -414,6 +414,67 @@ export const parseRestDefEdit = (source: string): RestDefEditResult => {
   }
 }
 
+/**
+ * FE-K(edit), page/blueprint half — the outcome of re-validating an EDITED "Files"-tab file
+ * (drawer per-file edit path). Pure — no network, no side effects. Mirrors `parseRestDefEdit`:
+ *   - a YAML parse failure → { ok:false, problems:[…] } (a bad edit is data, not a crash);
+ *   - a PAGE widget CR missing apiVersion/kind/metadata.name → { ok:false, problems:[…] } (it
+ *     would be rejected / has no stable destination path — same posture as an invalid model draft);
+ *   - a BLUEPRINT chart template → YAML-parse-only (a Helm template is not a CR: any parseable
+ *     document is accepted — the render service is the correctness gate, not a CR-shape check);
+ *   - a clean edit → { ok:true, content } (the caller writes it into the held tree + re-arms the gate).
+ * `content` echoes the accepted source verbatim (the held-bytes invariant: what publishes == what
+ * the human approved), so the caller never re-serializes the parsed object.
+ */
+export interface FileEditResult {
+  ok: boolean
+  /** The accepted edited bytes, verbatim, present only on success (held == previewed == published). */
+  content?: string
+  /** Validation errors (empty iff ok): a parse failure OR the missing CR-shape fields (page only). */
+  problems: string[]
+}
+
+/** The parse-failure copy shown in the drawer when a per-file edit is not valid YAML. */
+export const FILE_EDIT_PARSE_ERROR = 'the edited file is not valid YAML — fix the syntax and apply again'
+
+/** The CR-shape failure copy for a PAGE widget file missing the required identity fields. */
+export const FILE_EDIT_SHAPE_ERROR
+  = 'a page widget CR needs apiVersion, kind and metadata.name — publishing this file would be rejected'
+
+/**
+ * Re-validate an EDITED "Files"-tab file. `requireCrShape` selects the two contexts:
+ *   - true  (a PAGE widget CR): the parsed document MUST be an object carrying apiVersion + kind +
+ *            metadata.name (the widget-CR identity — without it there is no stable destination path
+ *            and snowplow would reject it). This is a lightweight, dependency-free shape check; the
+ *            deeper live-CRD/ajv validation lives only in the v2 sandbox path (previewPageV2), which
+ *            applies drafts to a quarantined cluster and is not reusable from this pure edit seam.
+ *   - false (a BLUEPRINT chart template): YAML must PARSE, nothing more — a Helm template renders to
+ *            objects server-side (the render service is the correctness gate), so a CR-shape check
+ *            would be wrong here.
+ */
+export const parseFileEdit = (source: string, requireCrShape: boolean): FileEditResult => {
+  let parsed: unknown
+  try {
+    parsed = load(source)
+  } catch {
+    return { ok: false, problems: [FILE_EDIT_PARSE_ERROR] }
+  }
+  if (!requireCrShape) {
+    // A blueprint chart template: any parseable document is accepted (js-yaml `load` of an empty
+    // document yields undefined — a wholly-empty file is still a valid, publishable template).
+    return { content: source, ok: true, problems: [] }
+  }
+  const cr = asRecord(parsed)
+  const name = asRecord(cr?.metadata)?.name
+  if (!cr
+    || typeof cr.apiVersion !== 'string' || !cr.apiVersion.trim()
+    || typeof cr.kind !== 'string' || !cr.kind.trim()
+    || typeof name !== 'string' || !name.trim()) {
+    return { ok: false, problems: [FILE_EDIT_SHAPE_ERROR] }
+  }
+  return { content: source, ok: true, problems: [] }
+}
+
 /* ── explainUpgradeImpact (Wave 4) ───────────────────────────────────────────
  * A READ-ONLY dry-run of what a gated blueprint Update would change — reusing the
  * SAME server-side `upgrade-impact` RESTAction the on-page impact card uses
