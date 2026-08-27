@@ -104,6 +104,36 @@ describe('buildPayload', () => {
     expect(out).toEqual({ keep: 1 })
     expect(resolveJq).not.toHaveBeenCalled()
   })
+
+  it('prunes empty oneOf handler branches so a probe keeps only its populated handler', async () => {
+    // Live regression (krateo-057): editing the `frontend` composition and Saving emitted every
+    // probe handler variant, the unfilled ones as `{}`, alongside the populated httpGet — which
+    // k8s rejects ("may not specify more than 1 handler type" / "exec.command Required"), wedging
+    // the reconcile. The built payload must carry ONLY the populated handler.
+    const resourcePayload = {
+      spec: {
+        livenessProbe: { exec: {}, httpGet: { path: '/', port: 'http' }, tcpSocket: {} },
+        readinessProbe: { exec: {}, grpc: {}, httpGet: { path: '/', port: 'http' }, tcpSocket: {} },
+      },
+    }
+    const out = await buildPayload(restAction(), resourcePayload, undefined, makeResolveJq())
+    expect(out).toEqual({
+      spec: {
+        livenessProbe: { httpGet: { path: '/', port: 'http' } },
+        readinessProbe: { httpGet: { path: '/', port: 'http' } },
+      },
+    })
+  })
+
+  it('drops a probe that has ONLY empty handler branches (nothing filled) entirely', async () => {
+    const out = await buildPayload(
+      restAction(),
+      { spec: { livenessProbe: { exec: {}, httpGet: {}, tcpSocket: {} }, replicas: 2 } },
+      undefined,
+      makeResolveJq()
+    )
+    expect(out).toEqual({ spec: { replicas: 2 } })
+  })
 })
 
 describe('updateNameNamespace', () => {
