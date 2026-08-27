@@ -78,3 +78,29 @@
   gap: 6px;
   margin-bottom: 10px;
 }
+
+/* FE-K(edit): the editable RestDefinition source block (headline + textarea + apply row). */
+.edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editHead {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* The source editor: a monospaced code surface matching the read-only YAML view above.
+   The dark variant re-bases the antd TextArea onto the theme surface so the two modes cohere. */
+.edit :global(textarea) {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+}
+
+.editAreaDark {
+  background: var(--background-color) !important;
+  border-color: var(--border-color, rgba(230, 237, 243, 0.1)) !important;
+}

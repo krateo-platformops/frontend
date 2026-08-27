@@ -58,6 +58,13 @@ export interface AutopilotPreviewPayload {
   /** Invoked when the drawer CLOSES (the v2 teardown seam: best-effort sandbox
    * DELETEs, epoch-guarded upstream so a stale close is a no-op). Optional. */
   onClose?: () => void
+  /** FE-K(edit): this is a RestDefinition preview whose SOURCE is editable in the drawer. The user
+   * edits the held draft's YAML (a human action on the held bytes — not a model round-trip); an
+   * accepted edit re-validates client-side and re-arms the preview gate (via the edit bus) so the
+   * subsequent publish commits the edited bytes. Absent (blueprint/page/restdef-summary) = read-only. */
+  editRestDef?: boolean
+  /** The RestDefinition kind the editable source belongs to (headline for the edit section). */
+  restDefKind?: string
 }
 
 /** The LAST previewPage's validation verdicts — held here so the CONTEXT COLLECTOR can
