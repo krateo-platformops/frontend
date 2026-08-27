@@ -5,7 +5,7 @@ import { Outlet } from 'react-router'
 import { useConfigContext } from '../../context/ConfigContext'
 import Drawer from '../../widgets/Drawer'
 import Modal from '../../widgets/Modal'
-import { AutopilotProvider, AutopilotShell, AutopilotToggle } from '../Autopilot'
+import { AutopilotProvider, AutopilotShell, AutopilotToggle, KogBuilderTrigger } from '../Autopilot'
 import Breadcrumb from '../Breadcrumb'
 import CommandPalette from '../CommandPalette'
 import { NotificationsBell, NotificationsDrawer, NotificationsProvider } from '../Notifications'
@@ -33,7 +33,7 @@ const HeaderChrome = () => {
       </div>
       {/* Autopilot is a distinct surface, not a page utility — pull its toggle out of the
           search/notifications/theme cluster and set it beside the user menu, behind a divider. */}
-      <div className={styles.headerRight}><CommandPalette /><NotificationsBell /><ThemeToggle /><span className={styles.headerDivider} /><AutopilotToggle /><UserMenu /></div>
+      <div className={styles.headerRight}><CommandPalette /><KogBuilderTrigger /><NotificationsBell /><ThemeToggle /><span className={styles.headerDivider} /><AutopilotToggle /><UserMenu /></div>
     </>
   )
 }
