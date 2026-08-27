@@ -20,8 +20,9 @@ import { useAutopilot } from './AutopilotProvider'
 import styles from './AutopilotRail.module.css'
 import AutopilotTour from './AutopilotTour'
 import { describeArgs, deriveSessionsBase, fetchDelegationEvidence, serializeEvidence, summarizeEvidence } from './evidence'
-import { CheckIcon, CollapseIcon, CopyIcon, EvidenceIcon, EyeIcon, LinkIcon, PlusIcon, SendIcon, SparkIcon, StopIcon } from './icons'
+import { CheckIcon, CollapseIcon, CopyIcon, EvidenceIcon, EyeIcon, HistoryIcon, LinkIcon, PlusIcon, SendIcon, SparkIcon, StopIcon } from './icons'
 import { looksLikeOpenApiDocument } from './oasAttachment'
+import { relativeTime, type ThreadSummary } from './sessionHistoryStore'
 import { a2aAuthHeader } from './transport'
 import type { AutopilotMessage, EvidenceEntry } from './types'
 
@@ -191,8 +192,97 @@ const STARTER_PROMPTS = [
   "What's on this page?",
 ]
 
+/**
+ * Session history (Vincenzo item P). A rail-head affordance listing PAST (archived) threads
+ * so a new thread / a refresh never loses the old conversation. Opening it reads the archive
+ * lazily (localStorage-backed); picking a row switches the rail to that thread's transcript.
+ * Closes on outside-click, Escape, or a selection. Renders nothing while there is no history.
+ */
+const HistoryMenu = ({ currentSessionId, onSwitch, sessions }: {
+  currentSessionId: string
+  onSwitch: (sessionId: string) => void
+  sessions: () => ThreadSummary[]
+}) => {
+  const [open, setOpen] = useState(false)
+  // Snapshot the archive when the menu opens (a lazy localStorage read), so the list is stable
+  // while it is on screen and does not re-read per render.
+  const [rows, setRows] = useState<ThreadSummary[]>([])
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const panelId = useId()
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+    const onDocDown = (event: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    const onKey = (event: Event) => {
+      if ((event as globalThis.KeyboardEvent).key === 'Escape') {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDocDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDocDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const toggle = () => {
+    if (!open) {
+      setRows(sessions())
+    }
+    setOpen((prev) => !prev)
+  }
+
+  return (
+    <div className={styles.apHistoryWrap} ref={wrapRef}>
+      <button
+        aria-controls={panelId}
+        aria-expanded={open}
+        aria-label='Conversation history'
+        className={styles.apIc}
+        data-testid='autopilot-history-toggle'
+        onClick={toggle}
+        title='Conversation history'
+        type='button'
+      >
+        <HistoryIcon />
+      </button>
+      {open ? (
+        <div className={styles.apHistory} data-testid='autopilot-history-panel' id={panelId} role='menu'>
+          <div className={styles.apHistoryHead}>Conversations</div>
+          {rows.length === 0 ? (
+            <div className={styles.apHistoryEmpty}>No past conversations yet. Your threads are saved here when you start a new one.</div>
+          ) : (
+            rows.map((row) => (
+              <button
+                className={`${styles.apHistoryRow} ${row.sessionId === currentSessionId ? styles.apHistoryRowActive : ''}`}
+                key={row.sessionId}
+                onClick={() => {
+                  onSwitch(row.sessionId)
+                  setOpen(false)
+                }}
+                role='menuitem'
+                type='button'
+              >
+                <span className={styles.apHistoryTitle}>{row.title}</span>
+                <span className={styles.apHistoryMeta}>{relativeTime(row.updatedAt)} · {row.messageCount} msg{row.messageCount === 1 ? '' : 's'}</span>
+              </button>
+            ))
+          )}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 const AutopilotRail = () => {
-  const { approvePending, attachOasDocument, clearOasAttachment, collect, denyPending, enabled, messages, newThread, oasAttachment, open, pendingApproval, send, setOpen, stop, streaming } = useAutopilot()
+  const { approvePending, attachOasDocument, clearOasAttachment, collect, denyPending, enabled, messages, newThread, oasAttachment, open, pendingApproval, restored, send, sessionId, sessions, setOpen, stop, streaming, switchToThread } = useAutopilot()
   const [draft, setDraft] = useState('')
   // W4 KOG (FE-K2): the over-cap paste rejection note (cleared on the next successful attach).
   const [oasError, setOasError] = useState<string | null>(null)
@@ -268,6 +358,7 @@ const AutopilotRail = () => {
             <span className={styles.apLiveDot} />{streaming ? 'streaming' : 'live'}
           </span>
           <span className={styles.apSpacer} />
+          <HistoryMenu currentSessionId={sessionId} onSwitch={switchToThread} sessions={sessions} />
           <button aria-label='New thread' className={styles.apIc} onClick={newThread} title='New thread' type='button'>
             <PlusIcon />
           </button>
@@ -277,6 +368,11 @@ const AutopilotRail = () => {
         </div>
 
         <div className={styles.apBody} onScroll={onBodyScroll} ref={bodyRef}>
+          {restored ? (
+            <div className={styles.apRestored} data-testid='autopilot-restored-hint'>
+              Viewing a past conversation. You can read it here; sending a new message continues in a fresh session.
+            </div>
+          ) : null}
           {context ? (
             <div className={styles.apCtx}>
               <EyeIcon className={styles.apCtxIcon} />

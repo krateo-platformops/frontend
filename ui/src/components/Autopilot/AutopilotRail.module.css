@@ -130,6 +130,91 @@
   color: var(--dark-color);
 }
 
+/* ── session history (Vincenzo item P): a head popover listing past threads ── */
+.apHistoryWrap {
+  position: relative;
+}
+
+.apHistory {
+  background: var(--panelbg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--void-color, #000) 45%, transparent);
+  display: flex;
+  flex-direction: column;
+  max-height: 60vh;
+  overflow: auto;
+  padding: 5px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  width: 288px;
+  z-index: 40;
+}
+
+.apHistoryHead {
+  color: var(--gray-color);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  padding: 5px 8px 6px;
+  text-transform: uppercase;
+}
+
+.apHistoryEmpty {
+  color: var(--gray-color);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 4px 8px 8px;
+}
+
+.apHistoryRow {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.apHistoryRow:hover {
+  background: var(--light-color);
+  border-color: var(--border-color);
+}
+
+.apHistoryRowActive {
+  border-color: color-mix(in srgb, var(--cyan-color) 40%, transparent);
+}
+
+.apHistoryTitle {
+  color: var(--dark-color);
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apHistoryMeta {
+  color: var(--gray-color);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+/* "viewing a past session" hint (deferred live-resume is honest, not hidden). */
+.apRestored {
+  background: color-mix(in srgb, var(--cyan-color) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cyan-color) 30%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--gray-color);
+  font-size: 11.5px;
+  line-height: 1.5;
+  padding: 7px 10px;
+}
+
 /* ── body ── */
 .apBody {
   display: flex;

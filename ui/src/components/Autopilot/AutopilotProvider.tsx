@@ -42,6 +42,7 @@ import { buildKogPublishNudge, createPreviewGate, hydrateRestDefinitionOps } fro
 import { AutopilotPreviewDrawer } from './previewSurface'
 import { compileKogPublishOps, compilePublishOps, heldDraftIdentity, recordPagePreview, type PublishCompileResult } from './publishCompile'
 import { askPublishDestination, PublishTargetFormHost } from './publishTargetForm'
+import type { ThreadSummary } from './sessionHistoryStore'
 import { a2aAuthHeader, createEchoTransport, createKagentTransport } from './transport'
 import type { AutopilotActionChip, AutopilotFrame, AutopilotMessage, AutopilotTransport, EvidenceEntry, PageContextEnvelope } from './types'
 import { buildContextDelta, useAutopilotContext } from './useAutopilotContext'
@@ -68,8 +69,17 @@ interface AutopilotContextValue {
   send: (text: string) => void
   /** Abort the in-flight assistant turn, keeping the partial answer and thread intact. */
   stop: () => void
-  /** Reset the thread: abort, clear transcript, new session id. */
+  /** Start a new thread: abort, ARCHIVE the current thread (if it has a user turn), fresh session id. */
   newThread: () => void
+  /** Past (archived) thread summaries, newest first — the rail's browsable history list. */
+  sessions: () => ThreadSummary[]
+  /** Switch the live view to an archived thread's transcript (by sessionId). Marks it `restored`. */
+  switchToThread: (sessionId: string) => void
+  /** The current session's frontend-owned id — so the history list can mark the active thread. */
+  sessionId: string
+  /** True when viewing a RESTORED (past) thread. v1 does not live-resume the server A2A session —
+   *  the next send starts a fresh contextId (phase-2). */
+  restored: boolean
   /** The kagent HITL approval pause awaiting a decision (null when none). */
   pendingApproval: ApprovalPause | null
   /** Approve the pending tool call(s) and resume the paused task. */
@@ -155,7 +165,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // from the SURVIVING store on remount. The transcript is folded through the store's
   // `setMessages` (same value-or-updater setState contract), called directly as a stable
   // module member below — so it is NOT a hook dependency and the fold code is unchanged.
-  const { contextId, messages, sessionId } = useSyncExternalStore(
+  const { contextId, messages, restored, sessionId } = useSyncExternalStore(
     autopilotConversationStore.subscribe,
     autopilotConversationStore.getSnapshot,
   )
@@ -221,10 +231,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   const sendRef = useRef<((text: string, opts?: { recovery?: boolean }) => void) | undefined>(undefined)
   const recoveryCountRef = useRef(0)
 
-  const transport: AutopilotTransport = useMemo(
-    () => (endpoint && endpoint !== 'echo' ? createKagentTransport(endpoint) : createEchoTransport()),
-    [endpoint],
-  )
+  const transport: AutopilotTransport = useMemo(() => (endpoint && endpoint !== 'echo' ? createKagentTransport(endpoint) : createEchoTransport()), [endpoint])
 
   // Abort any in-flight stream when the provider unmounts; disarm (without deciding)
   // any pending approval governor so its timer can't fire into an unmounted tree.
@@ -591,14 +598,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     const assistantId = randomId()
     setMessages((prev) => [
       ...prev,
-      {
-        actions: [{ label: chipLabel, readOnly: decision.type === 'reject', verb: 'approval' }],
-        createdAt: Date.now(),
-        id: assistantId,
-        role: 'assistant',
-        streaming: true,
-        text: '',
-      },
+      { actions: [{ label: chipLabel, readOnly: decision.type === 'reject', verb: 'approval' }], createdAt: Date.now(), id: assistantId, role: 'assistant', streaming: true, text: '' },
     ])
     setStreaming(true)
     abortRef.current = transport.respondToApproval(decision, pause, { onFrame: (frame) => applyFrame(assistantId, frame) })
@@ -668,10 +668,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     ])
     setStreaming(true)
 
-    abortRef.current = transport.send(
-      { context: baseContext, contextId, sessionId, text: trimmed },
-      { onFrame: (frame) => applyFrame(assistantId, frame) },
-    )
+    abortRef.current = transport.send({ context: baseContext, contextId, sessionId, text: trimmed }, { onFrame: (frame) => applyFrame(assistantId, frame) })
   }, [applyFrame, collect, contextId, sessionId, setMessages, streaming, transport])
 
   // Keep the finalize-side recovery trampoline pointing at the CURRENT send closure.
@@ -687,7 +684,10 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     setMessages((prev) => prev.map((message) => (message.streaming ? { ...message, streaming: false } : message)))
   }, [setMessages])
 
-  const newThread = useCallback(() => {
+  // Tear down all PER-THREAD, in-flight machinery — shared by newThread (archive-then-reset)
+  // and switchToThread (load an archived transcript). Everything here is thread-scoped state
+  // that must NOT bleed across a thread boundary; the caller decides what the store does next.
+  const teardownThread = useCallback(() => {
     abortRef.current?.()
     abortRef.current = null
     // DENY-BY-DEFAULT on thread reset: a pending approval is rejected (fire-and-forget,
@@ -696,7 +696,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     const active = approvalRef.current
     if (active && active.governor.settle()) {
       transport.respondToApproval(
-        { reason: 'Denied: the user started a new thread (deny-by-default).', type: 'reject' },
+        { reason: 'Denied: the user started/switched threads (deny-by-default).', type: 'reject' },
         active.pause,
         { onFrame: () => undefined },
       )
@@ -708,10 +708,6 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     proposalsRef.current.clear()
     evidenceRef.current.clear()
     finalizedRef.current.clear()
-    // Reset the durable conversation store in one shot: empty transcript, fresh session id,
-    // cleared A2A contextId, cleared page-context delta base (so the first turn of the new
-    // thread sends the full envelope again, not an "Unchanged:" note against the old one).
-    autopilotConversationStore.reset()
     setStreaming(false)
     setTour(null)
     setTourOpen(false)
@@ -728,6 +724,26 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     blueprintStore.clear()
     setOasHeld(null)
   }, [blueprintGate, blueprintStore, oasStore, previewGate, transport])
+
+  const newThread = useCallback(() => {
+    teardownThread()
+    // Reset the durable conversation store in one shot: empty transcript, fresh session id,
+    // cleared A2A contextId, cleared page-context delta base (so the first turn of the new
+    // thread sends the full envelope again, not an "Unchanged:" note against the old one).
+    // ARCHIVE (not discard) the outgoing thread first when it has a user turn, so a new
+    // thread no longer loses the old one — it stays browsable in the rail's history list.
+    autopilotConversationStore.archiveAndReset()
+  }, [teardownThread])
+
+  // Session history (Vincenzo item P): switch the live view to a previously-archived thread. The
+  // store archives the CURRENT thread first (so switching never loses it), then loads the selected
+  // transcript for VIEWING (marked `restored`). v1 does NOT live-resume the server A2A session (the
+  // next send starts a fresh contextId); the rail's "viewing a past session" hint keeps that honest.
+  const switchToThread = useCallback((id: string) => {
+    if (id === sessionId) { return }
+    teardownThread()
+    autopilotConversationStore.loadThread(id)
+  }, [sessionId, teardownThread])
 
   // W4 KOG (FE-K2): hold / drop a pasted OpenAPI document. The text lives ONLY in the
   // provider's store (never in the page-context envelope), mirrored as a byte count.
@@ -771,9 +787,11 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     send(ask)
   }, [send]))
 
+  // `sessions` is a stable bound-free store method (closes over its own state, no `this`) — passed
+  // through directly; it reads the archive lazily each call, re-read on every provider re-render.
   const value = useMemo<AutopilotContextValue>(() => ({
-    approvePending, attachOasDocument, clearOasAttachment, closeTour, collect, denyPending, enabled, messages, newThread, oasAttachment: oasHeld, open, pendingApproval, reachable, send, setOpen, stop, streaming, toggle, tour, tourOpen,
-  }), [approvePending, attachOasDocument, clearOasAttachment, closeTour, collect, denyPending, enabled, messages, newThread, oasHeld, open, pendingApproval, reachable, send, stop, streaming, toggle, tour, tourOpen])
+    approvePending, attachOasDocument, clearOasAttachment, closeTour, collect, denyPending, enabled, messages, newThread, oasAttachment: oasHeld, open, pendingApproval, reachable, restored, send, sessionId, sessions: autopilotConversationStore.sessions, setOpen, stop, streaming, switchToThread, toggle, tour, tourOpen,
+  }), [approvePending, attachOasDocument, clearOasAttachment, closeTour, collect, denyPending, enabled, messages, newThread, oasHeld, open, pendingApproval, reachable, restored, send, sessionId, stop, streaming, switchToThread, toggle, tour, tourOpen])
 
   return (
     <AutopilotReactContext.Provider value={value}>
