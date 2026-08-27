@@ -30,4 +30,16 @@ describe('askPublishDestination — headless resolves the prefills, per kind', (
     const target = await askPublishDestination({}, 'restdef', 'krateo-oas')
     expect(target?.repo).toBe('krateo-oas')
   })
+
+  it('honors a per-builder default owner when the proposal omits one (KOG/oas → krateo-platformops)', async () => {
+    // Regression guard for the #105 mis-repoint: the KOG registry lives in krateo-platformops,
+    // NOT krateo-blueprints (which has no krateo-oas repo). The restdef/page callers pass this owner.
+    const target = await askPublishDestination({}, 'restdef', 'krateo-oas', 'krateo-platformops')
+    expect(target).toEqual({ base: 'main', owner: 'krateo-platformops', repo: 'krateo-oas' })
+  })
+
+  it('a proposal owner still wins over the per-builder default owner', async () => {
+    const target = await askPublishDestination({ owner: 'acme' }, 'restdef', 'krateo-oas', 'krateo-platformops')
+    expect(target?.owner).toBe('acme')
+  })
 })

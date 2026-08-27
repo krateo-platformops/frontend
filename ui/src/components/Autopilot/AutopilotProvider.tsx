@@ -27,6 +27,7 @@ import { draftDisplayName, lintBlueprintDraft } from './blueprintDraft'
 import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
 import { buildBlueprintPublishOps } from './blueprintPublish'
+import { useBuilderTargets } from './builderTargets'
 import { autopilotConversationStore } from './conversationStore'
 import { recordToolFrame } from './evidence'
 import { REST_DEFINITION_GVR } from './kogMapping'
@@ -108,6 +109,9 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // Echo/dev is always reachable. The probe re-runs when the endpoint changes and on window focus, so a
   // later-deployed or recovered agent flips the toggle live without a page reload.
   const flagAvailable = config?.api.AUTOPILOT_AVAILABLE !== 'false'
+  // Per-builder publish destinations, resolved from install config (owner/repo slug) → the built-in
+  // canonical fallback. Config-driven so an org/repo rename is a values change, not a rebuild.
+  const builderTargets = useBuilderTargets(config)
   const [probeOk, setProbeOk] = useState(true)
   useEffect(() => {
     if (!enabled || useEcho || !flagAvailable || !endpoint) {
@@ -128,11 +132,10 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         })
     }
     probe()
-    const onFocus = () => probe()
-    window.addEventListener('focus', onFocus)
+    window.addEventListener('focus', probe)
     return () => {
       ctrl.abort()
-      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('focus', probe)
     }
   }, [enabled, useEcho, flagAvailable, endpoint])
   const reachable = enabled && flagAvailable && (useEcho || probeOk)
@@ -307,7 +310,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         const held = blueprintStore.get()
         const chart = heldDraftIdentity(held)
         // The DESTINATION is user-owned: a proper form asks (fence coords are prefills); cancel → denied.
-        const blueprintTarget = await askPublishDestination(proposal, 'blueprint', 'krateo-blueprints')
+        const blueprintTarget = await askPublishDestination(proposal, 'blueprint', builderTargets.blueprint.repo, builderTargets.blueprint.owner)
         const targetedBlueprint = blueprintTarget ? { ...proposal, ...blueprintTarget } : proposal
         const built = blueprintTarget && held && chart ? buildBlueprintPublishOps(targetedBlueprint, held, chart) : null
         let compiled: PublishCompileResult
@@ -330,7 +333,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         const held = blueprintStore.get()
         const slug = held && isPageDraft(held.files) ? pageRootSlug(held.files) : null
         // The DESTINATION is user-owned: a proper form asks (fence coords are prefills); cancel → denied.
-        const pageTarget = await askPublishDestination(proposal, 'page', 'krateo-portal-chart')
+        const pageTarget = await askPublishDestination(proposal, 'page', builderTargets.page.repo, builderTargets.page.owner)
         const targetedPage = pageTarget ? { ...proposal, ...pageTarget } : proposal
         const built = pageTarget && held && slug ? buildPagePublishOps(targetedPage, held, slug) : null
         let compiled: PublishCompileResult
@@ -356,7 +359,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         const lastRestDef = previewGate.lastDraft()
         const resolution = resolveKogPublishDraft(lastRestDef, oasStore.get()?.text ?? null)
         // The DESTINATION is user-owned: a proper form asks (fence coords are prefills); cancel → denied.
-        const restDefTarget = await askPublishDestination(proposal, 'restdef', 'krateo-oas')
+        const restDefTarget = await askPublishDestination(proposal, 'restdef', builderTargets.kog.repo, builderTargets.kog.owner)
         const targetedRestDef = restDefTarget ? { ...proposal, ...restDefTarget } : proposal
         const built = restDefTarget && resolution.held ? buildKogPublishAsPrOps(targetedRestDef, resolution.held) : null
         // Probe the KOG preview gate against the RESOLVED draft (the git-write ops write no
@@ -482,8 +485,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         // out; the model must NEVER hand-write the multi-op payload (that is the stall we recover from).
         const pageSlug = isPageDraft(held.files) ? pageRootSlug(held.files) : null
         const scalarVerb = pageSlug
-          ? `{"verb":"publishPage","owner":"krateo-platformops","repo":"krateo-portal-chart","base":"main","configurationRef":"github-blueprints-config","namespace":"krateo-system","title":"builder: page ${pageSlug}","body":"<one-line summary>"}`
-          : `{"verb":"publishBlueprint","owner":"krateo-blueprints","repo":"krateo-blueprints","base":"main","configurationRef":"github-blueprints-config","namespace":"krateo-system","title":"feat(${heldName}): add ${heldName} blueprint","body":"<one-line summary>"}`
+          ? `{"verb":"publishPage","owner":"${builderTargets.page.owner}","repo":"${builderTargets.page.repo}","base":"main","configurationRef":"github-blueprints-config","namespace":"krateo-system","title":"builder: page ${pageSlug}","body":"<one-line summary>"}`
+          : `{"verb":"publishBlueprint","owner":"${builderTargets.blueprint.owner}","repo":"${builderTargets.blueprint.repo}","base":"main","configurationRef":"github-blueprints-config","namespace":"krateo-system","title":"feat(${heldName}): add ${heldName} blueprint","body":"<one-line summary>"}`
         const fanout = pageSlug
           ? 'the gitrefs + per-file repocontents (widget CRs + the nav fragment) + pullrequests set from the held page'
           : 'the gitrefs/repocontents/pullrequests set from the held tree'
@@ -500,7 +503,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       if (lastRestDef && approvedPublish) {
         recoveryCountRef.current += 1
         setMessages((prev) => prev.map((message) => (message.id === assistantId ? { ...message, text: '↻ One moment — opening the confirm…' } : message)))
-        setTimeout(() => sendRef.current?.(buildKogPublishNudge(lastRestDef, Boolean(oasStore.get())), { recovery: true }), 0)
+        setTimeout(() => sendRef.current?.(buildKogPublishNudge(lastRestDef, Boolean(oasStore.get()), builderTargets.kog), { recovery: true }), 0)
         return
       }
     }
@@ -516,7 +519,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       setTour(proposedTour)
       setTourOpen(true)
     }
-  }, [apply, blueprintGate, blueprintStore, oasStore, previewGate, sessionId, setMessages])
+  }, [apply, blueprintGate, blueprintStore, builderTargets, oasStore, previewGate, sessionId, setMessages])
 
   const applyFrame = useCallback((assistantId: string, frame: AutopilotFrame) => {
     switch (frame.kind) {

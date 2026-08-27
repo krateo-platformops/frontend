@@ -69,6 +69,16 @@ export interface Config {
      * end-to-end. The collector's OTLP/HTTP receiver must CORS-allow the portal
      * origin, and authn/snowplow must allow the `traceparent` request header. */
     OTEL_COLLECTOR_URL?: string
+    /** Autopilot builder publish DESTINATIONS — the `owner/repo` slug each authoring builder
+     * opens its PR against. Config-driven (not hardcoded) so an org/repo rename is an install-values
+     * change, never a frontend rebuild — the `braghettos`→`krateo-platformops` (+ `krateo-oas`→`oas`)
+     * migration is exactly why these exist. Absent/empty/malformed → the built-in canonical fallback
+     * (BUILDER_TARGET_FALLBACKS in components/Autopilot/builderTargets.ts). Consumed only as the
+     * publish-destination FORM prefill: the human still confirms every destination, and a model-emitted
+     * owner/repo still wins over the prefill. */
+    AUTOPILOT_KOG_BUILDER_REPO?: string
+    AUTOPILOT_PAGE_BUILDER_REPO?: string
+    AUTOPILOT_BLUEPRINT_BUILDER_REPO?: string
   }
   params: {
     FRONTEND_NAMESPACE: string
