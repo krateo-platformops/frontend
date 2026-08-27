@@ -5,7 +5,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createKagentTransport } from './transport'
+import { createKagentTransport, RATE_LIMIT_NOTICE, rateLimitNotice } from './transport'
 import type { AutopilotFrame } from './types'
 
 const sseBody = (events: unknown[]): string =>
@@ -89,5 +89,49 @@ describe('tool DataParts become tool frames', () => {
       { result: { final: true, kind: 'status-update', status: { state: 'completed' } } },
     ])
     expect(frames[0]).toEqual({ delta: 'The final answer.', kind: 'text', replace: true })
+  })
+})
+
+describe('graceful provider rate-limit (429) handling', () => {
+  // The verbatim raw dump kagent forwards when Gemini/Vertex 429s the turn (Vincenzo feedback item J).
+  const RAW_429 = '429 Too Many Requests. {\'message\': \'{\\n  "error": {\\n    "code": 429,\\n    "message": "Resource exhausted. Please try again later.",\\n    "status": "RESOURCE_EXHAUSTED"\\n  }\\n}\', \'status\': \'Too Many Requests\'}'
+
+  it('replaces a raw provider 429 JSON-RPC error with the friendly notice', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const frames = await collect([{ error: { code: -32000, message: RAW_429 } }])
+    expect(frames).toContainEqual({ kind: 'error', message: RATE_LIMIT_NOTICE })
+    // The raw dump must never reach the chat bubble …
+    expect(frames.some((frame) => frame.kind === 'error' && frame.message.includes('RESOURCE_EXHAUSTED'))).toBe(false)
+    // … but it is preserved in the console for debugging.
+    expect(warn).toHaveBeenCalledWith('[autopilot] provider rate-limited:', RAW_429)
+    warn.mockRestore()
+  })
+
+  it('passes a non-429 JSON-RPC error through UNCHANGED (no swallowing)', async () => {
+    const other = 'Tool \'read_repo_file\' failed: repository not found (404)'
+    const frames = await collect([{ error: { code: -32001, message: other } }])
+    expect(frames).toContainEqual({ kind: 'error', message: other })
+  })
+})
+
+describe('rateLimitNotice detection', () => {
+  it.each([
+    ['429 Too Many Requests. {\'status\': \'Too Many Requests\'}'],
+    ['{ "error": { "code": 429, "status": "RESOURCE_EXHAUSTED" } }'],
+    ['resource_exhausted: quota exceeded for the model'],
+    ['The service returned 429 Too Many Requests'],
+  ])('maps a rate-limit signal to the friendly notice: %s', (raw) => {
+    expect(rateLimitNotice(raw)).toBe(RATE_LIMIT_NOTICE)
+  })
+
+  it.each([
+    [undefined],
+    [''],
+    ['Tool \'read_repo_file\' failed: repository not found (404)'],
+    ['Autopilot denied the request (403) — your user is not allowed to use this agent.'],
+    // A bare 429 in unrelated prose (e.g. a resource name) must NOT be treated as rate-limiting.
+    ['the composition svc-429 is not Ready'],
+  ])('leaves a non-rate-limit error untouched: %s', (raw) => {
+    expect(rateLimitNotice(raw)).toBeNull()
   })
 })
