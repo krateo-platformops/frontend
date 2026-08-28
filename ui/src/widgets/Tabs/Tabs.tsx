@@ -40,11 +40,26 @@ const Tabs = ({ resourcesRefs, uid, widgetData }: WidgetProps<TabsWidgetData>) =
     }, [])
   }, [items, resourcesRefs, uid])
 
+  // Deep-linkable active tab: a `?tab=<label>` query param selects the initial tab (matched by
+  // label, case-insensitive). Lets hand-offs open a specific tab — e.g. the Observability page's
+  // service-log drill-down navigates to `/observability?svc=…&tab=Telemetry` so it lands on the
+  // logs instead of the default first tab. Uncontrolled (defaultActiveKey), so the user can still
+  // switch freely; when the param is absent or matches no label, antd falls back to the first tab
+  // (no behaviour change otherwise).
+  const defaultActiveKey = useMemo(() => {
+    if (typeof window === 'undefined') { return undefined }
+    const param = new URLSearchParams(window.location.search).get('tab')
+    const requested = param?.trim().toLowerCase()
+    if (!requested) { return undefined }
+    const index = items.findIndex(({ label }) => (label ?? '').trim().toLowerCase() === requested)
+    return index >= 0 ? `${uid}-${index}` : undefined
+  }, [items, uid])
+
   if (!items.length) {
     return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />
   }
 
-  return <AntdTabs centered={centered} className={styles.tabs} items={tabItems} key={uid} size={size} tabPlacement={tabPlacement} type={type} />
+  return <AntdTabs centered={centered} className={styles.tabs} defaultActiveKey={defaultActiveKey} items={tabItems} key={uid} size={size} tabPlacement={tabPlacement} type={type} />
 }
 
 export default Tabs
