@@ -27,11 +27,11 @@ import { draftDisplayName, lintBlueprintDraft } from './blueprintDraft'
 import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
 import { buildBlueprintPublishOps } from './blueprintPublish'
+import { buildClaimPublish } from './builderClaimPublish'
 import { useBuilderTargets } from './builderTargets'
 import { autopilotConversationStore } from './conversationStore'
 import { recordToolFrame } from './evidence'
-import { REST_DEFINITION_GVR } from './kogMapping'
-import { buildKogPublishAsPrOps, resolveKogPublishDraft } from './kogPublish'
+import { dispatchKogPublish } from './kogPublishDispatch'
 import { createOasAttachmentStore, type OasAttachmentResult } from './oasAttachment'
 import { isPageDraft, pageRootSlug } from './pageDraft'
 import { buildPagePublishOps } from './pagePublish'
@@ -40,7 +40,7 @@ import { onRestDefEdit } from './previewEditBus'
 import { onFileEdit } from './previewFileEdit'
 import { buildKogPublishNudge, createPreviewGate, hydrateRestDefinitionOps } from './previewGate'
 import { AutopilotPreviewDrawer } from './previewSurface'
-import { compileKogPublishOps, compilePublishOps, heldDraftIdentity, recordPagePreview, type PublishCompileResult } from './publishCompile'
+import { compilePublishOps, heldDraftIdentity, recordPagePreview, type PublishCompileResult } from './publishCompile'
 import { askPublishDestination, PublishTargetFormHost } from './publishTargetForm'
 import type { ThreadSummary } from './sessionHistoryStore'
 import { a2aAuthHeader, createEchoTransport, createKagentTransport } from './transport'
@@ -292,11 +292,20 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       const pushChip = (chip: AutopilotActionChip | null) => {
         if (chip) { chips.push(chip) }
       }
-      const pushPublishOutcome = async (compiled: PublishCompileResult, label: string | undefined) => {
+      // SCM-agnostic publishing: when set, the builders emit ONE BuilderPublish claim (git-provider
+      // LocalResources) instead of the github.krateo.io git-write set. Absent/anything-else → the
+      // legacy github path, so existing installs are byte-identical. Flip on once git-provider + the
+      // builder-publish composition are deployed.
+      const publishViaClaim = config?.api.AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER === 'true'
+      const pushPublishOutcome = async (compiled: PublishCompileResult, label: string | undefined, deepLink: string | null = null) => {
         if (compiled.denial !== null) {
           chips.push({ label: compiled.denial, readOnly: true, verb: 'applyResourceSet' })
         } else if (compiled.ops) {
           pushChip(await apply({ label, ops: compiled.ops, verb: 'applyResourceSet' }, origin))
+          if (deepLink) {
+            // Option A: the branch is pushed; the human opens the PR/MR in their own SCM.
+            chips.push({ label: 'Open pull/merge request', readOnly: true, url: deepLink, verb: 'openChangeRequest' })
+          }
         }
       }
       if (proposal.verb === 'prefillForm') {
@@ -305,87 +314,63 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         setAgentDraft(proposal.values ?? {})
         setDraftNonce((nonce) => nonce + 1)
         chips.push({ label: proposal.label ?? 'drafted the create form', readOnly: true, verb: 'prefillForm' })
-      } else if (proposal.verb === 'publishBlueprint') {
-        // FE-BP6 — frontend-constructs-ops. The model emits ONE scalar `publishBlueprint`
-        // verb (repo coords only); the HOST fans it out into the gitrefs + per-file
-        // repocontents + pullrequests set from the HELD previewed tree, because gemini-2.5-pro
-        // stalls hand-writing that heterogeneous multi-op payload (it narrates instead of
-        // emitting the fence). The built ops then flow through the SAME compilePublishOps
-        // pipeline ($fileContent → base64 + authorship) and the SAME blast-radius confirm as a
-        // model-emitted applyResourceSet — this branch only assembles the set.
+      } else if (proposal.verb === 'publishBlueprint' || proposal.verb === 'publishPage') {
+        // FE-BP6/BP7 — frontend-constructs-ops (blueprint + its near-identical PAGE variant, unified).
+        // The model emits ONE scalar verb (repo coords only); the HOST assembles the publish from the
+        // HELD previewed tree — either the github git-write set (gitrefs + per-file repocontents +
+        // pullrequests, via compilePublishOps' $fileContent→base64 + authorship) OR, when
+        // AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER is set, ONE BuilderPublish claim (git-provider
+        // LocalResources). Same destination form + blast-radius confirm either way; the shared
+        // blueprintGate identity (chart / page name) enforces preview-before-publish.
+        const isPage = proposal.verb === 'publishPage'
         const held = blueprintStore.get()
-        const chart = heldDraftIdentity(held)
-        // The DESTINATION is user-owned: a proper form asks (fence coords are prefills); cancel → denied.
-        const blueprintTarget = await askPublishDestination(proposal, 'blueprint', builderTargets.blueprint.repo, builderTargets.blueprint.owner)
-        const targetedBlueprint = blueprintTarget ? { ...proposal, ...blueprintTarget } : proposal
-        const built = blueprintTarget && held && chart ? buildBlueprintPublishOps(targetedBlueprint, held, chart) : null
+        const identity = heldDraftIdentity(held)
+        // The BRANCH slug: a page derives it from its page-<slug> root; a blueprint reuses the identity.
+        const pageSlug = held && isPageDraft(held.files) ? pageRootSlug(held.files) : null
+        const slug = isPage ? pageSlug : identity
+        const builder = isPage ? 'page' : 'blueprint'
+        const bt = isPage ? builderTargets.page : builderTargets.blueprint
+        const dest = await askPublishDestination(proposal, builder, bt.repo, bt.owner)
+        const targeted = dest ? { ...proposal, ...dest } : proposal
+        const origin = { prompt: lastUserTextRef.current, sessionId }
+        const overflow = isPage ? 'split the page across turns on the same branch' : 'trim the chart tree (large assets belong in a hosted values file)'
         let compiled: PublishCompileResult
-        if (!blueprintTarget) {
+        let deepLink: string | null = null
+        if (!dest) {
           compiled = { denial: 'publish cancelled — destination not confirmed', ops: null }
-        } else if (!held || !chart || built === null) {
-          compiled = { denial: 'denied — no previewed blueprint to publish (draft + preview a chart first)', ops: null }
-        } else if (built.length > MAX_APPLY_SET_OPS) {
-          compiled = { denial: `denied — "${chart}" has ${Object.keys(held.files).length} files; a single publish tops out at ${MAX_APPLY_SET_OPS - 2} — trim the chart tree (large assets belong in a hosted values file).`, ops: null }
+        } else if (!held || !slug || !identity) {
+          compiled = { denial: `denied — no previewed ${isPage ? 'portal page' : 'blueprint'} to publish (draft + preview a ${isPage ? 'page-<slug>' : 'chart'} first)`, ops: null }
+        } else if (publishViaClaim) {
+          const files = Object.entries(held.files).map(([path, content]) => ({ content, path }))
+          if (files.length > MAX_APPLY_SET_OPS) {
+            compiled = { denial: `denied — "${slug}" has ${files.length} files; a single publish tops out at ${MAX_APPLY_SET_OPS} — ${overflow}.`, ops: null }
+          } else {
+            const res = buildClaimPublish({ builder, config, dest, files, gate: (ops) => blueprintGate.evaluate(ops, identity), namespace: 'krateo-system', origin, slug })
+            compiled = res.compiled
+            deepLink = res.deepLink
+          }
         } else {
-          compiled = compilePublishOps(built, previewGate.evaluate(built), blueprintGate.evaluate(built, chart), oasStore.get(), held, { prompt: lastUserTextRef.current, sessionId })
+          const built = isPage ? buildPagePublishOps(targeted, held, slug) : buildBlueprintPublishOps(targeted, held, slug)
+          if (built.length > MAX_APPLY_SET_OPS) {
+            compiled = { denial: `denied — "${slug}" has ${Object.keys(held.files).length} files; a single publish tops out at ${MAX_APPLY_SET_OPS - 2} — ${overflow}.`, ops: null }
+          } else {
+            compiled = compilePublishOps(built, previewGate.evaluate(built), blueprintGate.evaluate(built, identity), oasStore.get(), held, origin)
+          }
         }
-        await pushPublishOutcome(compiled, proposal.label)
-      } else if (proposal.verb === 'publishPage') {
-        // FE-BP7 — frontend-constructs-ops, PAGE variant. The model emits ONE scalar `publishPage`
-        // verb; the HOST fans it out into gitrefs + per-file repocontents (widget CRs → chart/templates,
-        // the nav fragment → chart/files/nav-fragments) + pullrequests from the HELD previewed page —
-        // same rationale as publishBlueprint above. Routes through the SAME compilePublishOps and the
-        // SAME blast-radius confirm; the slug (branch/paths) derives from the page's page-<slug> root.
-        const held = blueprintStore.get()
-        const slug = held && isPageDraft(held.files) ? pageRootSlug(held.files) : null
-        // The DESTINATION is user-owned: a proper form asks (fence coords are prefills); cancel → denied.
-        const pageTarget = await askPublishDestination(proposal, 'page', builderTargets.page.repo, builderTargets.page.owner)
-        const targetedPage = pageTarget ? { ...proposal, ...pageTarget } : proposal
-        const built = pageTarget && held && slug ? buildPagePublishOps(targetedPage, held, slug) : null
-        let compiled: PublishCompileResult
-        if (!pageTarget) {
-          compiled = { denial: 'publish cancelled — destination not confirmed', ops: null }
-        } else if (!held || !slug || built === null) {
-          compiled = { denial: 'denied — no previewed portal page to publish (draft + preview a page-<slug> first)', ops: null }
-        } else if (built.length > MAX_APPLY_SET_OPS) {
-          compiled = { denial: `denied — "page-${slug}" has ${Object.keys(held.files).length} files; a single publish tops out at ${MAX_APPLY_SET_OPS - 2} — split the page across turns on the same branch.`, ops: null }
-        } else {
-          compiled = compilePublishOps(built, previewGate.evaluate(built), blueprintGate.evaluate(built, heldDraftIdentity(held)), oasStore.get(), held, { prompt: lastUserTextRef.current, sessionId })
-        }
-        await pushPublishOutcome(compiled, proposal.label)
+        await pushPublishOutcome(compiled, proposal.label, deepLink)
       } else if (proposal.verb === 'publishRestDef') {
-        // FE-KOG-PR (item #30) — the KOG builder now publishes via a git PR, like the blueprint/page
-        // builders, INSTEAD of the old direct 2-op cluster write. The model emits ONE scalar
-        // `publishRestDef` verb; the HOST fans it into gitrefs + repocontents (apis/<kind>/restdefinition.yaml,
-        // + configmaps/<kind>-oas.yaml in the paste case) + pullrequests from the LAST previewed
-        // RestDefinition (previewGate) and the HELD OAS document (oasStore). The kind no longer lands
-        // live on publish — it waits for the PR to merge + the KOG provider to reconcile (see the
-        // publishTargetForm blurb + demoImpact). Same destination form + blast-radius confirm as the
-        // other builders; the KOG preview gate (not the blueprint gate) enforces preview-before-publish.
-        const lastRestDef = previewGate.lastDraft()
-        const resolution = resolveKogPublishDraft(lastRestDef, oasStore.get()?.text ?? null)
-        // The DESTINATION is user-owned: a proper form asks (fence coords are prefills); cancel → denied.
-        const restDefTarget = await askPublishDestination(proposal, 'restdef', builderTargets.kog.repo, builderTargets.kog.owner)
-        const targetedRestDef = restDefTarget ? { ...proposal, ...restDefTarget } : proposal
-        const built = restDefTarget && resolution.held ? buildKogPublishAsPrOps(targetedRestDef, resolution.held) : null
-        // Probe the KOG preview gate against the RESOLVED draft (the git-write ops write no
-        // restdefinitions op, so the gate must see the draft directly via a synthetic probe op).
-        const gateProbe = resolution.held
-          ? [{ gvr: { ...REST_DEFINITION_GVR }, namespace: 'krateo-system', payload: resolution.held.draft, verb: 'POST' as const }]
-          : undefined
-        let compiled: PublishCompileResult
-        if (!restDefTarget) {
-          compiled = { denial: 'publish cancelled — destination not confirmed', ops: null }
-        } else if (resolution.missingOasDocument) {
-          compiled = { denial: 'denied — the previewed mapping uses a configmap:// oasPath but no OpenAPI document is attached; paste the document in the rail first (it is held client-side and committed at publish), or preview a URL oasPath.', ops: null }
-        } else if (!resolution.held || built === null) {
-          compiled = { denial: 'denied — no previewed RestDefinition to publish (previewRestDef a mapping first)', ops: null }
-        } else if (built.length > MAX_APPLY_SET_OPS) {
-          compiled = { denial: `denied — the KOG publish set has ${built.length} ops, over the ${MAX_APPLY_SET_OPS}-op cap.`, ops: null }
-        } else {
-          compiled = compileKogPublishOps(built, previewGate.evaluate(gateProbe), { prompt: lastUserTextRef.current, sessionId })
-        }
-        await pushPublishOutcome(compiled, proposal.label)
+        // FE-KOG-PR (item #30) — the controller builder publishes via a git PR (github) OR, when
+        // AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER is set, a BuilderPublish claim. The dispatch (destination
+        // form + KOG preview gate + compile) is factored into dispatchKogPublish.
+        const { compiled, deepLink } = await dispatchKogPublish(proposal, {
+          config,
+          kogTarget: builderTargets.kog,
+          oasText: oasStore.get()?.text ?? null,
+          origin: { prompt: lastUserTextRef.current, sessionId },
+          previewGate,
+          publishViaClaim,
+        })
+        await pushPublishOutcome(compiled, proposal.label, deepLink)
       } else if (proposal.verb === 'applyResourceSet') {
         // Publish path, enforced HERE (finalize is the single entry point for model
         // proposals). Host-side checks BEFORE the bridge ever dispatches — a denial is the
@@ -523,7 +508,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       setTour(proposedTour)
       setTourOpen(true)
     }
-  }, [apply, blueprintGate, blueprintStore, builderTargets, oasStore, previewGate, sessionId, setMessages])
+  }, [apply, blueprintGate, blueprintStore, builderTargets, config, oasStore, previewGate, sessionId, setMessages])
 
   const applyFrame = useCallback((assistantId: string, frame: AutopilotFrame) => {
     switch (frame.kind) {

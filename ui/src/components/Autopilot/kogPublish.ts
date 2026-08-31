@@ -156,6 +156,24 @@ const restDefinitionToCommit = (draft: KogPublishDraft, namespace: string): Reco
  * ride through compilePublishOps' authorship stamp (which stamps the CR ENVELOPES' metadata —
  * gitref/repocontent/pullrequest — exactly as the blueprint/page git-write ops do).
  */
+/**
+ * The controller (KOG) builder's committed file set for a held draft: the RestDefinition ALWAYS
+ * (apis/<kind>/restdefinition.yaml), plus the OAS ConfigMap (configmaps/<kind>-oas.yaml) in the
+ * paste case. `namespace` is the RUNTIME namespace stamped into the manifests (metadata.namespace /
+ * the configmap:// oasPath), not the git target. Shared by the github-PR op path AND the
+ * SCM-agnostic BuilderPublish claim path so both commit identical bytes.
+ */
+export const kogPublishFiles = (held: KogPublishDraft, namespace: string): { content: string; path: string }[] => {
+  const { kind, oasDocument } = held
+  const files: { content: string; path: string }[] = [
+    { content: toYaml(restDefinitionToCommit(held, namespace)), path: `apis/${kind}/restdefinition.yaml` },
+  ]
+  if (typeof oasDocument === 'string') {
+    files.push({ content: toYaml(buildOasConfigMapManifest(namespace, kind, oasDocument)), path: `configmaps/${kogOasConfigMapName(kind)}.yaml` })
+  }
+  return files
+}
+
 export const buildKogPublishAsPrOps = (
   req: KogPublishRequest,
   held: KogPublishDraft,
@@ -165,7 +183,7 @@ export const buildKogPublishAsPrOps = (
   const base = req.base ?? KOG_REPO_DEFAULTS.base
   const namespace = req.namespace ?? KOG_REPO_DEFAULTS.namespace
   const configurationRef = { name: req.configurationRef ?? KOG_REPO_DEFAULTS.configurationRef }
-  const { kind, oasDocument } = held
+  const { kind } = held
   const branch = `builder/${kind}`
   const apiVersion = `${GITHUB_KOG_GROUP}/${GITHUB_KOG_VERSION}`
   const gvr = (resource: string): ApplyResourceSetGvr => ({ group: GITHUB_KOG_GROUP, resource, version: GITHUB_KOG_VERSION })
@@ -177,17 +195,9 @@ export const buildKogPublishAsPrOps = (
     spec,
   })
 
-  // The file set: the RestDefinition ALWAYS; the OAS ConfigMap manifest only in the paste case.
-  // Insertion order (RestDefinition first, ConfigMap last) is stable — the paste case commits both.
-  const files: { path: string; content: string }[] = [
-    { content: toYaml(restDefinitionToCommit(held, namespace)), path: `apis/${kind}/restdefinition.yaml` },
-  ]
-  if (typeof oasDocument === 'string') {
-    files.push({
-      content: toYaml(buildOasConfigMapManifest(namespace, kind, oasDocument)),
-      path: `configmaps/${kogOasConfigMapName(kind)}.yaml`,
-    })
-  }
+  // The file set (RestDefinition ALWAYS; OAS ConfigMap only in the paste case) — shared with the
+  // SCM-agnostic claim path so both commit identical bytes.
+  const files = kogPublishFiles(held, namespace)
 
   const ops: ApplyResourceSetOp[] = [
     {

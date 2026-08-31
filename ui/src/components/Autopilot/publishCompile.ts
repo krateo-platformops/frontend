@@ -86,6 +86,25 @@ export const compileKogPublishOps = (
   return { denial: null, ops: stampAuthorship(ops, origin) }
 }
 
+/**
+ * The SCM-agnostic (AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER) publish-compile step. The op set is a SINGLE
+ * BuilderPublish claim carrying the held files verbatim — no $fileContent/$oasAttachment token to
+ * substitute (the composition splits each path into fileName + toRepo.path and git-provider commits
+ * the bytes). A preview gate still enforces preview-before-publish (blueprint/page: blueprintGate,
+ * which now arms on the claim's `builderpublishes` resource; controller: the KOG preview gate via a
+ * synthetic probe), then the authorship stamp lands on the claim envelope like the github paths.
+ */
+export const compileClaimPublish = (
+  ops: ApplyResourceSetOp[],
+  verdict: GateVerdict,
+  origin: AuthorshipOrigin,
+): PublishCompileResult => {
+  if (!verdict.allowed) {
+    return { denial: verdict.reason, ops: null }
+  }
+  return { denial: null, ops: stampAuthorship(ops, origin) }
+}
+
 /** The held draft's preview-gate identity: a page draft (no Chart.yaml) is keyed by its page slug,
  * a blueprint by its Chart.yaml name. One shared store+gate serve both (FE-P2 reuses FE-BP1/BP2). */
 export const heldDraftIdentity = (held: BlueprintDraftHeld | null): string | null => {

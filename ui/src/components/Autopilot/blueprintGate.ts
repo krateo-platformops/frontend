@@ -44,6 +44,9 @@ export const BLUEPRINT_PUBLISH_RESOURCES: readonly string[] = [
   'gitrefs',
   'repocontents',
   'pullrequests',
+  // The SCM-agnostic path (AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER): one BuilderPublish claim replaces
+  // the git-write set, so the gate must arm on it too — preview-before-publish holds either way.
+  'builderpublishes',
 ]
 
 /** True iff any op in the set writes a blueprint-publish resource (so the gate applies). */

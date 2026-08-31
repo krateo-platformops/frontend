@@ -167,7 +167,9 @@ const MessageBubble = ({ message }: { message: AutopilotMessage }) => {
       {message.actions?.map((action, index) => (
         <div className={styles.apAct} key={`act-${index}`}>
           <CheckIcon className={styles.apActCheck} />
-          <span>{action.label}</span>
+          {action.url
+            ? <a className={styles.apEvLink} href={action.url} rel='noreferrer' target='_blank'>{action.label}</a>
+            : <span>{action.label}</span>}
           {action.readOnly ? <span className={styles.apActRo}>read-only</span> : null}
         </div>
       ))}
