@@ -243,6 +243,33 @@ describe('serializeEvidence — copy-to-clipboard text', () => {
     expect(serializeEvidence(evidence)).toContain('- k8s-agent (specialist)')
   })
 
+  it('nests the specialist\'s own lookups under it when they are resolved (all evidence levels, not just the first)', () => {
+    const evidence: EvidenceEntry[] = [
+      { agent: 'clickstack-agent', id: 'd', kind: 'delegation', sessionId: 's-1', tool: 'call' },
+    ]
+    const childrenBySession = {
+      's-1': [
+        { args: { query: 'SELECT count() FROM otel_logs' }, id: 'c1', kind: 'cluster' as const, tool: 'run_select_query' },
+        { args: { query: 'SELECT now()' }, id: 'c2', kind: 'cluster' as const, tool: 'run_select_query' },
+      ],
+    }
+    const text = serializeEvidence(evidence, childrenBySession)
+    // Header carries the resolved child count; each child is indented under the specialist.
+    expect(text).toContain('- clickstack-agent (specialist · 2 lookups)')
+    expect(text).toContain('  - run_select_query: query: SELECT count() FROM otel_logs')
+    expect(text).toContain('  - run_select_query: query: SELECT now()')
+  })
+
+  it('falls back to the bare specialist line when a hop\'s children are unresolved', () => {
+    const evidence: EvidenceEntry[] = [
+      { agent: 'k8s-agent', id: 'd', kind: 'delegation', sessionId: 's-2', tool: 'call' },
+    ]
+    // sessionId present but not in the map (not fetched / unreadable) → no count, no nested rows.
+    const text = serializeEvidence(evidence, {})
+    expect(text).toContain('- k8s-agent (specialist)')
+    expect(text).not.toContain('lookups')
+  })
+
   it('flags a failed row', () => {
     const evidence: EvidenceEntry[] = [{ args: {}, failed: true, id: 'f', kind: 'cluster', tool: 'k8s_get' }]
     expect(serializeEvidence(evidence)).toContain('· failed')

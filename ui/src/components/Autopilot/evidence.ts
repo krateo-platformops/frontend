@@ -326,22 +326,38 @@ export const describeArgs = (entry: EvidenceEntry): string => {
   return clamp(rendered.join(' · '), ARGS_MAX)
 }
 
+/** One tool-call row — `- tool: meta · tail — loc` — indented for nesting under a specialist. */
+const serializeToolLine = (entry: EvidenceEntry, indent: string): string => {
+  const meta = entry.source
+    ? `${entry.source.org ? `${entry.source.org}/` : ''}${entry.source.repo}${entry.source.ref ? ` @ ${entry.source.ref}` : ''}`
+    : describeArgs(entry)
+  const tail = [entry.note, entry.failed ? 'failed' : ''].filter(Boolean).join(' · ')
+  const loc = entry.source?.path ? ` — ${entry.url ?? entry.source.path}` : ''
+  return `${indent}- ${entry.tool}: ${meta}${tail ? ` · ${tail}` : ''}${loc}`
+}
+
 /**
  * Plain-text rendering of a turn's evidence — the summary line plus one line per tool call /
  * delegated hop — for copy-to-clipboard. Mirrors exactly what EvidencePanel shows (metadata only,
  * never tool output), so what's copied is what's on screen.
+ *
+ * A delegated hop's own tool calls live on the specialist's session, not this stream, so they are
+ * resolved lazily and passed in via `childrenBySession` (keyed by `entry.sessionId`). When present
+ * they are nested — indented — under the specialist line, so Copy captures ALL evidence levels and
+ * not just the top one (the reported bug: "copies only the first levels"). A delegation with no
+ * resolved children (not yet fetched, empty, or unreadable) still emits its single specialist line.
  */
-export const serializeEvidence = (entries: EvidenceEntry[]): string => {
-  const lines = entries.map((entry) => {
+export const serializeEvidence = (
+  entries: EvidenceEntry[],
+  childrenBySession: Record<string, EvidenceEntry[]> = {},
+): string => {
+  const lines = entries.flatMap((entry) => {
     if (entry.agent) {
-      return `- ${entry.agent} (specialist)`
+      const children = entry.sessionId ? (childrenBySession[entry.sessionId] ?? []) : []
+      const head = `- ${entry.agent} (specialist${children.length ? ` · ${children.length} lookups` : ''})`
+      return [head, ...children.map((child) => serializeToolLine(child, '  '))]
     }
-    const meta = entry.source
-      ? `${entry.source.org ? `${entry.source.org}/` : ''}${entry.source.repo}${entry.source.ref ? ` @ ${entry.source.ref}` : ''}`
-      : describeArgs(entry)
-    const tail = [entry.note, entry.failed ? 'failed' : ''].filter(Boolean).join(' · ')
-    const loc = entry.source?.path ? ` — ${entry.url ?? entry.source.path}` : ''
-    return `- ${entry.tool}: ${meta}${tail ? ` · ${tail}` : ''}${loc}`
+    return [serializeToolLine(entry, '')]
   })
   return [summarizeEvidence(entries), ...lines].join('\n')
 }

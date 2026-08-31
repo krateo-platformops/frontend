@@ -49,36 +49,28 @@ const EvidenceRow = ({ entry }: { entry: EvidenceEntry }) => {
   )
 }
 
-/** A delegated hop: the specialist's own calls are not on this stream, so they are fetched from
- *  the session its response named. */
-const DelegationRow = ({ entry }: { entry: EvidenceEntry }) => {
-  const { config } = useConfigContext()
+/** The lazily-resolved sub-evidence of one delegated hop, keyed by the specialist's session. */
+type DelegationState = { children?: EvidenceEntry[]; error?: boolean; loading?: boolean }
+
+/** A delegated hop: the specialist's own calls are not on this stream, so they are resolved from the
+ *  session its response named. The fetch is lifted to EvidencePanel (which resolves every delegation
+ *  eagerly on open, so Copy captures the nested calls too); this row just renders the shared state. */
+const DelegationRow = ({ entry, state }: { entry: EvidenceEntry; state?: DelegationState }) => {
   const panelId = useId()
   const [open, setOpen] = useState(false)
-  const [state, setState] = useState<{ children?: EvidenceEntry[]; error?: boolean; loading?: boolean }>({})
-  const expand = () => {
-    setOpen((prev) => !prev)
-    const base = config?.api.AUTOPILOT_API_BASE_URL
-    if (!base || !entry.sessionId || state.children || state.loading) {
-      return
-    }
-    setState({ loading: true })
-    fetchDelegationEvidence(deriveSessionsBase(base), entry, a2aAuthHeader())
-      .then((children) => setState({ children }))
-      .catch(() => setState({ error: true }))
-  }
+  const children = state?.children
   return (
     <div className={styles.apEvGroup}>
-      <button aria-controls={panelId} aria-expanded={open} className={styles.apEvRow} onClick={expand} type='button'>
+      <button aria-controls={panelId} aria-expanded={open} className={styles.apEvRow} onClick={() => setOpen((prev) => !prev)} type='button'>
         <span className={styles.apEvTool}>{open ? '▾' : '▸'} {entry.agent}</span>
-        <span className={styles.apEvMeta}>specialist{state.children ? ` · ${state.children.length} lookups` : ''}</span>
+        <span className={styles.apEvMeta}>specialist{children ? ` · ${children.length} lookups` : ''}</span>
       </button>
       {open ? (
         <div className={styles.apEvNested} id={panelId}>
-          {state.loading ? <div className={styles.apEvMeta}>loading…</div> : null}
-          {state.error ? <div className={styles.apEvMeta}>its activity is not readable from here</div> : null}
-          {state.children?.length === 0 ? <div className={styles.apEvMeta}>no tool calls recorded</div> : null}
-          {state.children?.map((child) => <EvidenceRow entry={child} key={child.id} />)}
+          {state?.loading ? <div className={styles.apEvMeta}>loading…</div> : null}
+          {state?.error ? <div className={styles.apEvMeta}>its activity is not readable from here</div> : null}
+          {children?.length === 0 ? <div className={styles.apEvMeta}>no tool calls recorded</div> : null}
+          {children?.map((child) => <EvidenceRow entry={child} key={child.id} />)}
         </div>
       ) : null}
     </div>
@@ -88,12 +80,47 @@ const DelegationRow = ({ entry }: { entry: EvidenceEntry }) => {
 /** The tool calls behind an answer, so it can be checked rather than trusted. A turn that used no
  *  tools says so. */
 const EvidencePanel = ({ evidence }: { evidence: EvidenceEntry[] }) => {
+  const { config } = useConfigContext()
   const panelId = useId()
   const [open, setOpen] = useState(false)
   // Copied-feedback flash. `react-copy-to-clipboard-ts` uses document.execCommand under the hood, so
   // it works over plain HTTP — unlike navigator.clipboard, which is undefined in a non-secure context
   // (the portal is often served over http://<LB-IP>).
   const [copied, setCopied] = useState(false)
+  // Every delegation's sub-evidence, keyed by sessionId. Resolved EAGERLY when the panel opens (not
+  // per-row on expand) so the Copy button captures the specialists' nested tool calls, not just the
+  // top level — the reported bug. DelegationRow renders from this shared map (no per-row refetch),
+  // and serializeEvidence nests it under each specialist line.
+  const [delegations, setDelegations] = useState<Record<string, DelegationState>>({})
+  const base = config?.api.AUTOPILOT_API_BASE_URL
+  useEffect(() => {
+    if (!open || !base) {
+      return
+    }
+    const pending = evidence.filter((entry) => entry.agent && entry.sessionId && !delegations[entry.sessionId])
+    if (!pending.length) {
+      return
+    }
+    // Seed each pending session as in-flight in one update so the filter above stays idempotent on
+    // the effect's re-run (it depends on `delegations`), then resolve each once.
+    setDelegations((prev) => {
+      const next = { ...prev }
+      for (const entry of pending) {
+        next[entry.sessionId as string] = { loading: true }
+      }
+      return next
+    })
+    for (const entry of pending) {
+      const sid = entry.sessionId as string
+      fetchDelegationEvidence(deriveSessionsBase(base), entry, a2aAuthHeader())
+        .then((children) => setDelegations((prev) => ({ ...prev, [sid]: { children } })))
+        .catch(() => setDelegations((prev) => ({ ...prev, [sid]: { error: true } })))
+    }
+  }, [open, base, evidence, delegations])
+  // The resolved children only (loading/error hops fall back to their bare specialist line in copy).
+  const childrenBySession = Object.fromEntries(
+    Object.entries(delegations).flatMap(([sid, state]) => (state.children ? [[sid, state.children]] : [])),
+  )
   return (
     <>
       <button aria-controls={panelId} aria-expanded={open} className={styles.apEvBtn} onClick={() => setOpen((prev) => !prev)} type='button'>
@@ -109,7 +136,7 @@ const EvidencePanel = ({ evidence }: { evidence: EvidenceEntry[] }) => {
                 setCopied(true)
                 setTimeout(() => setCopied(false), 2000)
               }}
-              text={serializeEvidence(evidence)}
+              text={serializeEvidence(evidence, childrenBySession)}
             >
               <button aria-label='Copy evidence to clipboard' className={styles.apEvCopy} title='Copy evidence to clipboard' type='button'>
                 {copied ? <CheckIcon size={11} /> : <CopyIcon />}{copied ? 'Copied' : 'Copy'}
@@ -117,7 +144,7 @@ const EvidencePanel = ({ evidence }: { evidence: EvidenceEntry[] }) => {
             </CopyToClipboard>
           </div>
           {evidence.map((entry) => (entry.agent
-            ? <DelegationRow entry={entry} key={entry.id} />
+            ? <DelegationRow entry={entry} key={entry.id} state={entry.sessionId ? delegations[entry.sessionId] : undefined} />
             : <EvidenceRow entry={entry} key={entry.id} />))}
         </div>
       ) : null}
