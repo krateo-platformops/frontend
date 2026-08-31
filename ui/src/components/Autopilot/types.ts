@@ -71,6 +71,9 @@ export interface AutopilotActionChip {
   label: string
   /** Marks the chip as non-mutating / auto-applied. Always true for Phase 2. */
   readOnly: boolean
+  /** Optional external link — renders the label as an anchor (e.g. the "Open pull/merge request"
+   *  deep link after an SCM-agnostic publish, which the human opens in their own SCM). */
+  url?: string
 }
 
 // ────────────────────────────────────────────────────────────────────────────
