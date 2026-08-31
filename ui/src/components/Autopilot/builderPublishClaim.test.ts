@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import type { Config } from '../../context/ConfigContext'
 
 import {
+  BUILDER_PUBLISH_GVR,
   buildBuilderPublishClaim,
+  buildBuilderPublishOps,
   builderBranch,
   changeRequestDeepLink,
   resolveStructuredTarget,
@@ -71,6 +73,13 @@ describe('buildBuilderPublishClaim', () => {
 
   it('derives the builder branch from the slug', () => {
     expect(builderBranch('my-dashboard')).toBe('builder/my-dashboard')
+  })
+
+  it('emits ONE gated POST op for the claim (replacing the 3-op github set)', () => {
+    const claim = buildBuilderPublishClaim({ builder: 'page', files: [{ content: 'x', path: 'a.yaml' }], slug: 'p', target })
+    const ops = buildBuilderPublishOps(claim)
+    expect(ops).toHaveLength(1)
+    expect(ops[0]).toMatchObject({ gvr: BUILDER_PUBLISH_GVR, namespace: 'krateo-system', payload: claim, verb: 'POST' })
   })
 })
 

@@ -17,6 +17,7 @@
 
 import type { Config } from '../../context/ConfigContext'
 
+import type { ApplyResourceSetOp } from './applyResourceSet'
 import { BLUEPRINTS_REPO_DEFAULTS } from './blueprintPublish'
 import { KOG_REPO_DEFAULTS } from './kogPublish'
 import { PORTAL_CHART_REPO_DEFAULTS } from './pagePublish'
@@ -118,6 +119,20 @@ export const buildBuilderPublishClaim = (args: {
     },
   }
 }
+
+/** GVR of the BuilderPublish claim CRD — core-provider generates it from the builder-publish chart's
+ *  values.schema.json when the composition is registered. NOTE: confirm the plural against the live
+ *  CRD once C1 is deployed (kubebuilder pluralises "…publish" → "…publishes"). */
+export const BUILDER_PUBLISH_GVR = { group: 'apps.krateo.io', resource: 'builderpublishes', version: 'v1alpha1' } as const
+
+/**
+ * The single ordered write op that emits a BuilderPublish claim — the SCM-agnostic replacement for
+ * the github `GitRef → RepoContent → PullRequest` op-set. ONE `POST`; the composition renders the
+ * git-provider LocalResources. Deny-by-default: it rides the same gated `applyResourceSet` path.
+ */
+export const buildBuilderPublishOps = (claim: BuilderPublishClaim): ApplyResourceSetOp[] => [
+  { gvr: { ...BUILDER_PUBLISH_GVR }, namespace: claim.metadata.namespace, payload: claim, verb: 'POST' },
+]
 
 /**
  * Host-aware "Open pull/merge request" URL (Option A: the human opens it). Always an https web URL
