@@ -13,7 +13,7 @@
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { App as AntdApp } from 'antd'
-import { MemoryRouter } from 'react-router'
+import { MemoryRouter, useLocation } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import Select, { type SelectWidgetData } from './Select'
@@ -64,6 +64,19 @@ const renderSwitcher = (entry = '/alerts/new') => render(
   </MemoryRouter>,
 )
 
+// Reads the live URL query so a test can assert whether a click APPLIED (changed ?projects=) or
+// only staged (URL unchanged).
+const LocationProbe = () => <div data-testid='loc'>{useLocation().search}</div>
+const renderWithProbe = (entry: string) => render(
+  <MemoryRouter initialEntries={[entry]}>
+    <AntdApp>
+      <Select resourcesRefs={{ items: [] }} uid='sw' widgetData={widgetData} />
+      <LocationProbe />
+    </AntdApp>
+  </MemoryRouter>,
+)
+const search = () => screen.getByTestId('loc').textContent
+
 // Open by mousedown on the control's placeholder. (jsdom's zero-height virtual list only renders
 // the first couple of options, so assertions target `alpha`, which always renders.)
 const openPopup = () => fireEvent.mouseDown(screen.getAllByText('All projects')[0])
@@ -96,5 +109,22 @@ describe('project switcher (multi/queryParam) — Apply closes the popup', () =>
     fireEvent.mouseDown(clearBtn)
     // Still open — the user can keep choosing.
     expect(screen.queryByRole('option', { name: 'alpha' })).not.toBeNull()
+  })
+
+  it('staged, not live: Clear does NOT apply on its own — only Apply commits to the URL', () => {
+    // Start with a project already applied.
+    const { container } = renderWithProbe('/alerts/new?projects=alpha')
+    expect(search()).toContain('projects=alpha')
+    // With a selection applied the control shows the tag (not the "All projects" placeholder), so
+    // open via the control container rather than the placeholder text.
+    fireEvent.mouseDown(container.querySelector('.ant-select-content') ?? container.querySelector('.ant-select')!)
+
+    // Clear stages "all projects" but must NOT touch the URL yet (the old bug applied immediately).
+    fireEvent.mouseDown(screen.getByText('Clear').closest('button')!)
+    expect(search()).toContain('projects=alpha')
+
+    // Apply commits the staged selection — "all" clears the param.
+    fireEvent.mouseDown(screen.getByText(/^Apply/).closest('button')!)
+    expect(search()).not.toContain('projects=')
   })
 })
