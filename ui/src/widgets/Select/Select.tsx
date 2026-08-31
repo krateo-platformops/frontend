@@ -1,5 +1,5 @@
 import { Button, Form, Select as AntdSelect } from 'antd'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
 
 import type { WidgetProps } from '../../types/Widget'
@@ -30,6 +30,17 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
   // lets Apply/Clear close (or keep) the popup deterministically instead of hoping for a blur.
   const [open, setOpen] = useState(false)
 
+  // STAGED multi-select: toggles do NOT apply. `staged` is a working copy the user edits while the
+  // popup is open; Apply commits it to `?<queryParam>=`, closing without Apply discards it. While the
+  // popup is CLOSED, `staged` tracks the applied URL scope (the effect re-syncs it), so the trigger
+  // shows the applied projects. This is the fix for "picking a project applied+closed immediately
+  // instead of letting me select several, then Apply".
+  const [staged, setStaged] = useState<string[]>([])
+  const urlRaw = queryParam ? (searchParams.get(queryParam) ?? '') : ''
+  useEffect(() => {
+    if (!open) { setStaged(urlRaw ? urlRaw.split(',') : []) }
+  }, [urlRaw, open])
+
   if (queryParam) {
     // `mode: multiple` (or `tags`) makes the URL-bound Select a MULTI-select: the value is a
     // comma-joined list in `?<queryParam>=` (a data source reads it as an array). Single mode
@@ -37,12 +48,11 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
     const isMulti = mode === 'multiple' || mode === 'tags'
     const raw = searchParams.get(queryParam) ?? ''
     const optionValues = (options ?? []).map((option) => option.value).filter((entry): entry is string => typeof entry === 'string')
-    // Multi model mirrors the mockup's checkbox switcher: an EMPTY param means "All projects" —
-    // the master row is lit and individual boxes reflect the ACTUAL selection (none ticked at
-    // rest); a non-empty param ticks exactly those rows. (Single mode keeps the scalar value.)
-    const multiSelected = raw ? raw.split(',') : []
-    const value = isMulti ? multiSelected : (raw || undefined)
-    const isAll = multiSelected.length === 0
+    // Multi model mirrors the mockup's checkbox switcher: an EMPTY selection means "All projects" —
+    // the master row is lit and individual boxes reflect the STAGED (working) selection, applied to
+    // the URL only on Apply. (Single mode keeps the scalar value, applied immediately.)
+    const value = isMulti ? staged : (raw || undefined)
+    const isAll = staged.length === 0
     const commit = (selected: string[]) => {
       setSearchParams((prev) => {
         const params = new URLSearchParams(prev)
@@ -63,6 +73,21 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
       } else {
         commit(next ? [next] : [])
       }
+    }
+    // Multi-select: toggling a checkbox only STAGES it; nothing is applied until Apply commits the
+    // staged set. (Single mode keeps `onChange` above, which applies immediately.)
+    const onStage = (next?: string | string[]) => {
+      if (Array.isArray(next)) {
+        setStaged(next)
+
+        return
+      }
+      setStaged(next ? [next] : [])
+    }
+    // Apply: commit the staged selection to the URL and close the popup.
+    const apply = () => {
+      commit(staged)
+      setOpen(false)
     }
 
     if (!isMulti) {
@@ -94,9 +119,9 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
     const popupWidth = Math.min(460, Math.max(220, Math.ceil(longestLabelChars * 7.4) + 90))
 
     // each option → a checkbox row (left amber-fill box + mono name); antd's default right tick
-    // is suppressed by `.checkPopup`. `optionRender` reads the live `multiSelected` for on/off.
+    // is suppressed by `.checkPopup`. `optionRender` reads the live `staged` for on/off.
     const renderCheckOption = (option: { label?: ReactNode; value?: number | string }) => {
-      const checked = multiSelected.includes(String(option.value))
+      const checked = staged.includes(String(option.value))
       return (
         <span className={styles.checkOption}>
           <span className={`${styles.checkBox} ${checked ? styles.checkBoxOn : ''}`}>{checked ? '✓' : ''}</span>
@@ -112,7 +137,7 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
         <div className={styles.panelHead}>{label ?? placeholder ?? 'Projects'}</div>
         <button
           className={`${styles.masterRow} ${isAll ? styles.masterOn : ''}`}
-          onMouseDown={(event) => { event.preventDefault(); commit([]) }}
+          onMouseDown={(event) => { event.preventDefault(); setStaged([]) }}
           type='button'
         >
           <span className={`${styles.checkBox} ${isAll ? styles.checkBoxOn : ''}`}>{isAll ? '✓' : ''}</span>
@@ -122,19 +147,19 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
         <div className={styles.panelHr} />
         {menu}
         <div className={styles.panelApply}>
-          {/* Clear resets to "all" (commit([])) but keeps the popup OPEN so the user can keep
+          {/* Clear stages "all" (setStaged([])) but keeps the popup OPEN so the user can keep
               picking — preventDefault stops the mousedown from stealing focus mid-interaction.
-              Apply is "done": it closes the popup via the controlled `open` state (selection is
-              already applied live on each option toggle). It must NOT rely on a native blur to
-              close — in antd 6 an in-popup mousedown re-opens the popup (see the `open` state
-              above), which is why the old blur-only Apply silently did nothing. */}
-          <Button onMouseDown={(event) => { event.preventDefault(); commit([]) }} size='small'>Clear</Button>
+              Apply is "done": it COMMITS the staged selection to the URL and closes the popup via
+              the controlled `open` state. It must NOT rely on a native blur to close — in antd 6 an
+              in-popup mousedown re-opens the popup (see the `open` state above), which is why the
+              old blur-only Apply silently did nothing. */}
+          <Button onMouseDown={(event) => { event.preventDefault(); setStaged([]) }} size='small'>Clear</Button>
           <Button
-            onMouseDown={(event) => { event.preventDefault(); setOpen(false) }}
+            onMouseDown={(event) => { event.preventDefault(); apply() }}
             size='small'
             type='primary'
           >
-            {isAll ? 'Apply' : `Apply · ${multiSelected.length}`}
+            {isAll ? 'Apply' : `Apply · ${staged.length}`}
           </Button>
         </div>
         <div className={styles.panelFoot}>scope persists across pages via <b>?{queryParam}=</b></div>
@@ -150,7 +175,8 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
         maxTagCount='responsive'
         maxTagPlaceholder={(omitted) => <span className={styles.pill}>+{omitted.length}</span>}
         mode={mode}
-        onChange={onChange}
+        // Stage-only: a toggle updates `staged`, it does NOT touch the URL. Apply commits.
+        onChange={onStage}
         // Own the popup open-state so Apply/Clear can close/keep it deterministically instead of
         // relying on a native blur that antd 6 no longer produces for an in-popup click.
         onOpenChange={setOpen}
