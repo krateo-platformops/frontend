@@ -659,6 +659,21 @@
           "type": "string",
           "title": "Autopilot Blueprint Builder Repo",
           "default": "krateo-blueprints/krateo-blueprints"
+        },
+        "AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER": {
+          "type": "string",
+          "title": "Autopilot Publish Via Git Provider",
+          "default": "true"
+        },
+        "AUTOPILOT_GIT_SCM": {
+          "type": "string",
+          "title": "Autopilot Git Scm",
+          "default": "github"
+        },
+        "AUTOPILOT_GIT_HOST": {
+          "type": "string",
+          "title": "Autopilot Git Host",
+          "default": "github.com"
         }
       },
       "default": {
@@ -675,7 +690,10 @@
         "PREVIEW_SANDBOX_NAMESPACE": "",
         "AUTOPILOT_KOG_BUILDER_REPO": "krateo-platformops/krateo-oas",
         "AUTOPILOT_PAGE_BUILDER_REPO": "krateo-platformops/krateo-portal-chart",
-        "AUTOPILOT_BLUEPRINT_BUILDER_REPO": "krateo-blueprints/krateo-blueprints"
+        "AUTOPILOT_BLUEPRINT_BUILDER_REPO": "krateo-blueprints/krateo-blueprints",
+        "AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER": "true",
+        "AUTOPILOT_GIT_SCM": "github",
+        "AUTOPILOT_GIT_HOST": "github.com"
       }
     },
     "env": {

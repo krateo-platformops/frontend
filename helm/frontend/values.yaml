@@ -195,6 +195,17 @@ config:
   # NOTE: krateo-blueprints/krateo-blueprints is the current code default but does NOT resolve — set
   # this to the real blueprint-registry repo for your install (the blueprint builder is unverified).
   AUTOPILOT_BLUEPRINT_BUILDER_REPO: krateo-blueprints/krateo-blueprints
+  # SCM-agnostic publishing — ON by default. The builders publish via a BuilderPublish claim
+  # (git-provider LocalResources) instead of the github.krateo.io GitRef/RepoContent/PullRequest set:
+  # no PR is opened, the reviewer opens it via a host-aware deep link (Option A). REQUIRES, per
+  # install: git-provider (git.krateo.io, mandatory component), the builder-publish composition
+  # (ships with the portal chart), and a git-provider-credentials secret + git.host on the
+  # composition. Set "false" to fall back to the legacy GitHub PR path.
+  AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER: "true"
+  # SCM flavour + host — drive the "Open pull/merge request" deep link + the source-citation URL
+  # scheme (github | gitlab | bitbucket | ado). Default github.com; set for self-hosted / other SCMs.
+  AUTOPILOT_GIT_SCM: github
+  AUTOPILOT_GIT_HOST: github.com
 
 # ── Preview sandbox (portal-builder live preview; w4 spec Addendum A) ─────────
 # Provisions the quarantined namespace where the portal-builder applies DRAFT
