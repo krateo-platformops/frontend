@@ -79,6 +79,12 @@ export interface Config {
     AUTOPILOT_KOG_BUILDER_REPO?: string
     AUTOPILOT_PAGE_BUILDER_REPO?: string
     AUTOPILOT_BLUEPRINT_BUILDER_REPO?: string
+    /* SCM-agnostic publishing (git-provider LocalResource path). The builder publish targets are
+     * install config; these two say WHICH SCM flavour + host so the frontend builds the right
+     * change-request deep link + citation URLs (the write itself is scm-blind, done by git-provider).
+     * Absent → github / github.com, so existing installs are unchanged. */
+    AUTOPILOT_GIT_SCM?: string
+    AUTOPILOT_GIT_HOST?: string
   }
   params: {
     FRONTEND_NAMESPACE: string
