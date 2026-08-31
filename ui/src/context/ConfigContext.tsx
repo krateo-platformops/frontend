@@ -85,10 +85,13 @@ export interface Config {
      * Absent → github / github.com, so existing installs are unchanged. */
     AUTOPILOT_GIT_SCM?: string
     AUTOPILOT_GIT_HOST?: string
-    /* Publish mode. "true" routes the builders through the SCM-agnostic BuilderPublish claim
-     * (git-provider LocalResources) instead of the github.krateo.io GitRef/RepoContent/PullRequest
-     * set. Absent/anything-else → the legacy github path, so existing installs are byte-identical.
-     * Flip on once git-provider + the builder-publish composition are deployed. */
+    /* Publish mode. The frontend chart DEFAULTS this to "true" (values.schema.json), so a fresh
+     * install routes the builders through the SCM-agnostic BuilderPublish claim (git-provider
+     * LocalResources) — this assumes git-provider + the builder-publish composition + a
+     * git-provider-credentials secret are wired (git-provider is a mandatory install component).
+     * Set "false" to fall back to the legacy github.krateo.io GitRef/RepoContent/PullRequest path.
+     * Read below still keys on exactly "true" so an unset config (e.g. bare dev) stays on the safe
+     * github path — the chart, not the code, carries the on-by-default. */
     AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER?: string
   }
   params: {
