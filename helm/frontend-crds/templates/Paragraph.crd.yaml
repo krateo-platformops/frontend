@@ -85,6 +85,7 @@ spec:
                                 format: int32
                                 type: integer
                             required:
+                              - page
                               - perPage
                             type: object
                           verb:
@@ -113,6 +114,7 @@ spec:
                           format: int32
                           type: integer
                       required:
+                        - page
                         - perPage
                       type: object
                   required:
@@ -171,12 +173,7 @@ spec:
                       type: boolean
                     level:
                       description: when set, render as an antd Typography.Title heading of this level (h1-h5) instead of a body paragraph
-                      enum:
-                        - 1
-                        - 2
-                        - 3
-                        - 4
-                        - 5
+                      format: int32
                       type: integer
                     mark:
                       description: antd Typography mark (highlight)
