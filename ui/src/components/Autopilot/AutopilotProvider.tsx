@@ -345,7 +345,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
           if (files.length > MAX_APPLY_SET_OPS) {
             compiled = { denial: `denied — "${slug}" has ${files.length} files; a single publish tops out at ${MAX_APPLY_SET_OPS} — ${overflow}.`, ops: null }
           } else {
-            const res = buildClaimPublish({ builder, config, dest, files, gate: (ops) => blueprintGate.evaluate(ops, identity), namespace: 'krateo-system', origin, slug })
+            const res = await buildClaimPublish({ builder, config, dest, files, gate: (ops) => blueprintGate.evaluate(ops, identity), namespace: 'krateo-system', origin, slug })
             compiled = res.compiled
             deepLink = res.deepLink
           }
