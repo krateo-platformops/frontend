@@ -413,7 +413,7 @@ const runRest = async (
           // if it starts with ${ resolve via the JQ endpoint, otherwise use the legacy method
           if (onEventNavigateTo.url.startsWith('${')) {
             return ctx.resolveJq(onEventNavigateTo.url, {
-              event: eventData as unknown as Record<string, unknown>,
+              event: eventData,
               json: payload,
               response: jsonResponse,
             })
@@ -441,7 +441,7 @@ const runRest = async (
         if (successMessage) {
           successDescription = successMessage.startsWith('${')
             ? await ctx.resolveJq(successMessage, {
-              event: eventData as unknown as Record<string, unknown>,
+              event: eventData,
               json: payload,
               response: jsonResponse,
             })
