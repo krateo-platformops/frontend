@@ -413,7 +413,7 @@ const runRest = async (
           // if it starts with ${ resolve via the JQ endpoint, otherwise use the legacy method
           if (onEventNavigateTo.url.startsWith('${')) {
             return ctx.resolveJq(onEventNavigateTo.url, {
-              event: eventData as unknown as Record<string, unknown>,
+              event: eventData,
               json: payload,
               response: jsonResponse,
             })
@@ -441,7 +441,7 @@ const runRest = async (
         if (successMessage) {
           successDescription = successMessage.startsWith('${')
             ? await ctx.resolveJq(successMessage, {
-              event: eventData as unknown as Record<string, unknown>,
+              event: eventData,
               json: payload,
               response: jsonResponse,
             })
@@ -686,6 +686,10 @@ export const useHandleAction = () => {
   // Teardowns for in-flight actions (e.g. open SSE streams) — run on unmount so a
   // pending action doesn't leak its connection past the component's lifetime.
   const cleanupsRef = useRef<Set<() => void>>(new Set())
+
+  // Guards the single HITL confirm gate against re-entrancy: at most ONE confirm modal
+  // may be open at a time (see ctx.confirm below).
+  const confirmOpenRef = useRef<boolean>(false)
   useEffect(() => () => {
     cleanupsRef.current.forEach((cleanup) => { cleanup() })
     cleanupsRef.current.clear()
@@ -703,7 +707,22 @@ export const useHandleAction = () => {
     // the pure buildConfirmModalProps so the fix is unit-testable. The Confirm button goes
     // danger for anything irreversible (a DELETE, or a set containing one).
     confirm: (radius?: BlastRadius | BlastRadiusSet) => new Promise<boolean>((resolve) => {
-      modal.confirm(buildConfirmModalProps(radius, () => resolve(true), () => resolve(false)))
+      // Re-entrancy guard for the ONE HITL gate. A single user gesture could dispatch the
+      // action twice, stacking a second identical confirm that then lingered on screen after
+      // the first write had already run (and could double-submit if confirmed). While a
+      // confirm is open, suppress any further one — resolve it false so the duplicate dispatch
+      // is a no-op — and clear the flag when the gate settles either way.
+      if (confirmOpenRef.current) {
+        resolve(false)
+
+        return
+      }
+      confirmOpenRef.current = true
+      const settle = (value: boolean) => {
+        confirmOpenRef.current = false
+        resolve(value)
+      }
+      modal.confirm(buildConfirmModalProps(radius, () => settle(true), () => settle(false)))
     }),
     eventsBaseUrl: config?.api.EVENTS_PUSH_API_BASE_URL ?? '',
     getAccessToken,
