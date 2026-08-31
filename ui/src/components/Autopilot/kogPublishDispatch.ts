@@ -52,7 +52,7 @@ export const dispatchKogPublish = async (
   }
   if (ctx.publishViaClaim) {
     // SCM-agnostic: the same RestDefinition (+ OAS ConfigMap) file set → ONE BuilderPublish claim.
-    const res = buildClaimPublish({
+    const res = await buildClaimPublish({
       builder: 'controller',
       config: ctx.config,
       dest: restDefTarget,

@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import type { Config } from '../../context/ConfigContext'
 
 import {
-  BUILDER_PUBLISH_GVR,
   buildBuilderPublishClaim,
   buildBuilderPublishOps,
   builderBranch,
@@ -13,6 +12,11 @@ import {
 } from './builderPublishClaim'
 
 const cfg = (api: Partial<Config['api']>): Config => ({ api } as Config)
+
+// A resolved GVR stands in for the live CompositionDefinition lookup (composition.krateo.io /
+// chart-derived served version / builderpublishes) — see builderPublishGvr.test.ts for resolution.
+const GVR = { group: 'composition.krateo.io', resource: 'builderpublishes', version: 'v1-7-17' } as const
+const API_VERSION = 'composition.krateo.io/v1-7-17'
 
 describe('resolveStructuredTarget', () => {
   it('defaults to github / github.com with the builder canonical repo when config is empty', () => {
@@ -50,12 +54,13 @@ describe('buildBuilderPublishClaim', () => {
 
   it('builds a BuilderPublish claim with a derived branch + name and full-path files', () => {
     const claim = buildBuilderPublishClaim({
+      apiVersion: API_VERSION,
       builder: 'controller',
       files: [{ content: 'apiVersion: swaggergen.krateo.io/v1alpha1\n', path: 'apis/githubrepo/restdefinition.yaml' }],
       slug: 'githubrepo',
       target,
     })
-    expect(claim.apiVersion).toBe('apps.krateo.io/v1alpha1')
+    expect(claim.apiVersion).toBe('composition.krateo.io/v1-7-17')
     expect(claim.kind).toBe('BuilderPublish')
     expect(claim.metadata).toEqual({ name: 'publish-githubrepo', namespace: 'krateo-system' })
     expect(claim.spec).toMatchObject({
@@ -75,11 +80,13 @@ describe('buildBuilderPublishClaim', () => {
     expect(builderBranch('my-dashboard')).toBe('builder/my-dashboard')
   })
 
-  it('emits ONE gated POST op for the claim (replacing the 3-op github set)', () => {
-    const claim = buildBuilderPublishClaim({ builder: 'page', files: [{ content: 'x', path: 'a.yaml' }], slug: 'p', target })
-    const ops = buildBuilderPublishOps(claim)
+  it('emits ONE gated POST op for the claim (replacing the 3-op github set), at the resolved GVR', () => {
+    const claim = buildBuilderPublishClaim({ apiVersion: API_VERSION, builder: 'page', files: [{ content: 'x', path: 'a.yaml' }], slug: 'p', target })
+    const ops = buildBuilderPublishOps(claim, GVR)
     expect(ops).toHaveLength(1)
-    expect(ops[0]).toMatchObject({ gvr: BUILDER_PUBLISH_GVR, namespace: 'krateo-system', payload: claim, verb: 'POST' })
+    expect(ops[0]).toMatchObject({ gvr: GVR, namespace: 'krateo-system', payload: claim, verb: 'POST' })
+    // The op targets the live composition group + served version — NOT a hardcoded apps.krateo.io/v1alpha1.
+    expect(ops[0].gvr).toEqual({ group: 'composition.krateo.io', resource: 'builderpublishes', version: 'v1-7-17' })
   })
 })
 

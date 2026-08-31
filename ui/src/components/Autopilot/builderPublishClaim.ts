@@ -17,7 +17,7 @@
 
 import type { Config } from '../../context/ConfigContext'
 
-import type { ApplyResourceSetOp } from './applyResourceSet'
+import type { ApplyResourceSetGvr, ApplyResourceSetOp } from './applyResourceSet'
 import { BLUEPRINTS_REPO_DEFAULTS } from './blueprintPublish'
 import { KOG_REPO_DEFAULTS } from './kogPublish'
 import { PORTAL_CHART_REPO_DEFAULTS } from './pagePublish'
@@ -42,7 +42,8 @@ export interface BuilderPublishFile {
 }
 
 export interface BuilderPublishClaim {
-  apiVersion: 'apps.krateo.io/v1alpha1'
+  /** `composition.krateo.io/<served-version>` — resolved at runtime (see builderPublishGvr.ts). */
+  apiVersion: string
   kind: 'BuilderPublish'
   metadata: { name: string; namespace: string }
   spec: {
@@ -102,12 +103,14 @@ export const buildBuilderPublishClaim = (args: {
   slug: string
   files: BuilderPublishFile[]
   target: StructuredTarget
+  /** `group/version` for the CR body — the live value resolved from the CompositionDefinition. */
+  apiVersion: string
   namespace?: string
 }): BuilderPublishClaim => {
   const name = `publish-${args.slug}`
   const ns = args.namespace || 'krateo-system'
   return {
-    apiVersion: 'apps.krateo.io/v1alpha1',
+    apiVersion: args.apiVersion,
     kind: 'BuilderPublish',
     metadata: { name, namespace: ns },
     spec: {
@@ -120,18 +123,15 @@ export const buildBuilderPublishClaim = (args: {
   }
 }
 
-/** GVR of the BuilderPublish claim CRD — core-provider generates it from the builder-publish chart's
- *  values.schema.json when the composition is registered. NOTE: confirm the plural against the live
- *  CRD once C1 is deployed (kubebuilder pluralises "…publish" → "…publishes"). */
-export const BUILDER_PUBLISH_GVR = { group: 'apps.krateo.io', resource: 'builderpublishes', version: 'v1alpha1' } as const
-
 /**
  * The single ordered write op that emits a BuilderPublish claim — the SCM-agnostic replacement for
  * the github `GitRef → RepoContent → PullRequest` op-set. ONE `POST`; the composition renders the
  * git-provider LocalResources. Deny-by-default: it rides the same gated `applyResourceSet` path.
+ * `gvr` is the LIVE GVR resolved from the deployed CompositionDefinition (composition.krateo.io /
+ * chart-version-derived served version / builderpublishes) — never hardcoded (see builderPublishGvr.ts).
  */
-export const buildBuilderPublishOps = (claim: BuilderPublishClaim): ApplyResourceSetOp[] => [
-  { gvr: { ...BUILDER_PUBLISH_GVR }, namespace: claim.metadata.namespace, payload: claim, verb: 'POST' },
+export const buildBuilderPublishOps = (claim: BuilderPublishClaim, gvr: ApplyResourceSetGvr): ApplyResourceSetOp[] => [
+  { gvr: { ...gvr }, namespace: claim.metadata.namespace, payload: claim, verb: 'POST' },
 ]
 
 /**
