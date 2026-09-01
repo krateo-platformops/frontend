@@ -304,8 +304,14 @@ export const summarizeEvidence = (entries: EvidenceEntry[]): string => {
   return parts.join(' · ')
 }
 
-const ARG_MAX = 120
-const ARGS_MAX = 300
+// Per-argument and whole-line caps for the INLINE display. Sized so ordinary evidence — a
+// ClickHouse query, a kubectl command, a resource list — shows in FULL (the value IS the evidence,
+// so truncating it defeats the panel); the caps exist only to stop a pathological multi-KB blob
+// (a full manifest, base64 data) from dominating the rail and crowding out the args that identify
+// the target. `describeArgs(entry, { full: true })` skips the caps entirely — used for the hover
+// title so nothing is ever truly lost.
+const ARG_MAX = 600
+const ARGS_MAX = 1200
 
 const clamp = (text: string, max: number): string =>
   (text.length > max ? `${text.slice(0, max)}…` : text)
@@ -313,24 +319,28 @@ const clamp = (text: string, max: number): string =>
 /**
  * `key: value` list for a row with no richer shape. Arguments go through the same redactor as the
  * outbound context — a specialist's own trace can carry a write tool's manifest or helm values —
- * and each value is clamped on its own so one long argument cannot crowd out the rest.
+ * and each value is clamped on its own so one long argument cannot crowd out the rest. Pass
+ * `{ full: true }` to skip the length caps (redaction still applies) for a hover-title fallback.
  */
-export const describeArgs = (entry: EvidenceEntry): string => {
+export const describeArgs = (entry: EvidenceEntry, opts?: { full?: boolean }): string => {
   const args = (redactValue(entry.args ?? {}) ?? {}) as Record<string, unknown>
   const rendered = Object.entries(args)
     .filter(([key]) => key !== 'request')
     .map(([key, value]) => {
-      const text = typeof value === 'string' ? value : JSON.stringify(value) ?? ''
-      return `${key}: ${clamp(text.replace(/\s+/g, ' ').trim(), ARG_MAX)}`
+      const text = (typeof value === 'string' ? value : JSON.stringify(value) ?? '').replace(/\s+/g, ' ').trim()
+      return `${key}: ${opts?.full ? text : clamp(text, ARG_MAX)}`
     })
-  return clamp(rendered.join(' · '), ARGS_MAX)
+  const joined = rendered.join(' · ')
+  return opts?.full ? joined : clamp(joined, ARGS_MAX)
 }
 
-/** One tool-call row — `- tool: meta · tail — loc` — indented for nesting under a specialist. */
+/** One tool-call row — `- tool: meta · tail — loc` — indented for nesting under a specialist.
+ *  Args are rendered UNCLAMPED (`full: true`): copy is for pasting into a report/ticket, where the
+ *  whole query/command/manifest is the point — the length caps are an inline-display concern only. */
 const serializeToolLine = (entry: EvidenceEntry, indent: string): string => {
   const meta = entry.source
     ? `${entry.source.org ? `${entry.source.org}/` : ''}${entry.source.repo}${entry.source.ref ? ` @ ${entry.source.ref}` : ''}`
-    : describeArgs(entry)
+    : describeArgs(entry, { full: true })
   const tail = [entry.note, entry.failed ? 'failed' : ''].filter(Boolean).join(' · ')
   const loc = entry.source?.path ? ` — ${entry.url ?? entry.source.path}` : ''
   return `${indent}- ${entry.tool}: ${meta}${tail ? ` · ${tail}` : ''}${loc}`
@@ -338,8 +348,9 @@ const serializeToolLine = (entry: EvidenceEntry, indent: string): string => {
 
 /**
  * Plain-text rendering of a turn's evidence — the summary line plus one line per tool call /
- * delegated hop — for copy-to-clipboard. Mirrors exactly what EvidencePanel shows (metadata only,
- * never tool output), so what's copied is what's on screen.
+ * delegated hop — for copy-to-clipboard. Same metadata the EvidencePanel shows (never tool output),
+ * but with argument values UNCLAMPED: the inline rows cap a long value for compactness, whereas copy
+ * hands over the whole thing (the query/command/manifest is exactly what you paste elsewhere).
  *
  * A delegated hop's own tool calls live on the specialist's session, not this stream, so they are
  * resolved lazily and passed in via `childrenBySession` (keyed by `entry.sessionId`). When present

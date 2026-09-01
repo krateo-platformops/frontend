@@ -32,10 +32,13 @@ const EvidenceRow = ({ entry }: { entry: EvidenceEntry }) => {
   const meta = source
     ? `${source.org ? `${source.org}/` : ''}${source.repo}${source.ref ? ` @ ${source.ref}` : ''}`
     : describeArgs(entry)
+  // Full, uncapped args for the hover title, so a value clamped in the inline display is still
+  // fully readable on hover (redaction still applies). Only meaningful for the no-source shape.
+  const metaFull = source ? undefined : describeArgs(entry, { full: true })
   return (
     <div className={styles.apEvRow}>
       <span className={styles.apEvTool}>{entry.tool}</span>
-      <span className={styles.apEvMeta}>
+      <span className={styles.apEvMeta} title={metaFull && metaFull !== meta ? metaFull : undefined}>
         {meta}{entry.note ? ` · ${entry.note}` : ''}{entry.failed ? ' · failed' : ''}
       </span>
       {source?.path ? (

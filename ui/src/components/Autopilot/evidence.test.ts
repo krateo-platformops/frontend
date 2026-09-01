@@ -221,6 +221,20 @@ describe('arguments are metadata, but still scrubbed', () => {
     expect(describeArgs(args({ manifest: `data:\n  key: ${'QUJD'.repeat(30)}` }))).toContain('[redacted]')
   })
 
+  it('full: true skips the length caps (for the hover title) but still redacts', () => {
+    const query = `SELECT ServiceName, count() FROM otel_logs WHERE ${'Body ILIKE \'%err%\' OR '.repeat(60)}1 GROUP BY ServiceName`
+    const clamped = describeArgs(args({ query }))
+    const full = describeArgs(args({ query }), { full: true })
+    // the inline display still caps a pathological value
+    expect(clamped).toContain('…')
+    // the full form shows it whole
+    expect(full).not.toContain('…')
+    // including the tail the clamp dropped
+    expect(full).toContain('GROUP BY ServiceName')
+    // redaction is not bypassed by full
+    expect(describeArgs(args({ password: 'hunter2' }), { full: true })).not.toContain('hunter2')
+  })
+
   it('leaves the delegated request out — the specialist row already carries it', () => {
     expect(describeArgs(args({ request: 'a long delegated question' }))).toBe('')
   })
@@ -273,5 +287,17 @@ describe('serializeEvidence — copy-to-clipboard text', () => {
   it('flags a failed row', () => {
     const evidence: EvidenceEntry[] = [{ args: {}, failed: true, id: 'f', kind: 'cluster', tool: 'k8s_get' }]
     expect(serializeEvidence(evidence)).toContain('· failed')
+  })
+
+  it('copies the FULL unclamped argument — not the inline-clamped one', () => {
+    const query = `SELECT ServiceName FROM otel_logs WHERE ${'Body ILIKE \'%err%\' OR '.repeat(60)}1`
+    const evidence: EvidenceEntry[] = [{ args: { query }, id: 'q', kind: 'cluster', tool: 'run_select_query' }]
+    const text = serializeEvidence(evidence)
+    // the whole query is present in the copied text (no ellipsis truncation)
+    expect(text).toContain(query.replace(/\s+/g, ' ').trim())
+    expect(text).not.toContain('…')
+    // redaction still applies on the copy path
+    const secret: EvidenceEntry[] = [{ args: { password: 'hunter2' }, id: 's', kind: 'cluster', tool: 'x' }]
+    expect(serializeEvidence(secret)).not.toContain('hunter2')
   })
 })
