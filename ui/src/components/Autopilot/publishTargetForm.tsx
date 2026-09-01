@@ -123,7 +123,7 @@ export const PublishTargetFormHost = () => {
           {pending ? KIND_BLURB[pending.req.kind] : KIND_BLURB.page}
         </Typography.Paragraph>
         <Form form={form} layout='vertical'>
-          <Form.Item label='Repository owner' name='owner' rules={[{ message: 'the GitHub owner/org is required', required: true }]}>
+          <Form.Item label='Repository owner' name='owner' rules={[{ message: 'the owner/org (or GitLab group) is required', required: true }]}>
             <Input placeholder='krateo-blueprints' />
           </Form.Item>
           <Form.Item label='Repository' name='repo' rules={[{ message: 'the repository is required', required: true }]}>

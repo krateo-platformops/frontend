@@ -107,15 +107,36 @@ const humanizeOp = (op: BlastRadiusSetOp): string | null => {
     }
     case 'pullrequests': {
       const title = str(spec?.title)
-      return title ? `Open pull request — “${title}”` : 'Open a pull request'
+      return title ? `Open pull/merge request — “${title}”` : 'Open a pull/merge request'
     }
     case 'repocontents': {
       const path = str(spec?.path)
       return path ? `Create file ${path}` : 'Commit a file'
     }
+    case 'builderpublishes': {
+      // The SCM-agnostic claim (composition.krateo.io): ONE op that IS the whole change request —
+      // the composition pushes the held files to `branch` and the human opens a pull/merge request.
+      const branch = str(spec?.branch)
+      const target = rec(spec?.target)
+      const repo = [str(target?.namespace), str(target?.repo)].filter(Boolean).join('/')
+      const files = Array.isArray(spec?.files) ? spec.files.length : 0
+      const where = repo ? ` to ${repo}` : ''
+      const onBranch = branch ? ` on ${branch}` : ''
+      const count = files ? ` (${files} file${files === 1 ? '' : 's'})` : ''
+      return `Open a pull/merge request${where}${onBranch}${count}`
+    }
     default:
       return null
   }
+}
+
+/** Meta line for the SCM-agnostic claim card — file count → branch, read from the claim payload. */
+const claimPublishMeta = (op: BlastRadiusSetOp): string => {
+  const payload = (op.payloadPreview && typeof op.payloadPreview === 'object' ? op.payloadPreview as Record<string, unknown> : undefined)
+  const spec = (payload?.spec && typeof payload.spec === 'object' ? payload.spec as Record<string, unknown> : undefined)
+  const files = Array.isArray(spec?.files) ? spec.files.length : 0
+  const branch = typeof spec?.branch === 'string' ? spec.branch : ''
+  return [files ? `${files} file${files === 1 ? '' : 's'}` : '', branch ? `→ ${branch}` : ''].filter(Boolean).join(' ')
 }
 
 /** True when the radius is the aggregated W0-4 set shape (vs a scalar write). */
@@ -127,31 +148,38 @@ const isSetRadius = (radius: BlastRadius | BlastRadiusSet): radius is BlastRadiu
 const GIT_PUBLISH_KINDS = new Set(['gitrefs', 'repocontents', 'pullrequests'])
 
 /**
- * The W0-4 SET decision surface. For a git-publish set (the Portal/Blueprint builder's write path)
- * it reads as a PULL REQUEST: a plain "Open a pull request" summary (branch/files/PR counts) + one
- * plain-language line per op ("Create file …", "Open pull request — …"), with the raw GVR dropped —
- * the human decides on WHAT it does, not on kubernetes resource strings. Any other set keeps the
- * generic verb-chip + GVR + namespace op list. One confirm for the whole ordered set (stops at the
- * first failure).
+ * The W0-4 SET decision surface. A PUBLISH set — EITHER the legacy github.krateo.io write set
+ * (gitrefs/repocontents/pullrequests) OR the SCM-agnostic single `builderpublishes` claim (the
+ * default path) — reads as a CHANGE REQUEST: a plain "Open a pull/merge request" summary
+ * (branch/files counts) + one plain-language line per op ("Create file …", "Open a pull/merge
+ * request …"), with the raw GVR dropped — the human decides on WHAT it does, not on kubernetes
+ * resource strings. Copy is SCM-neutral because a publish may land as a GitHub PR, GitLab MR, etc.
+ * Any other set keeps the generic verb-chip + GVR + namespace op list. One confirm for the whole
+ * ordered set (stops at the first failure).
  */
 const SetView = ({ radius }: { radius: BlastRadiusSet }) => {
   const irreversibleCount = radius.ops.filter((op) => op.irreversible).length
   const isGitPublish = radius.ops.length > 0 && radius.ops.every((op) => GIT_PUBLISH_KINDS.has(op.gvr.resource))
+  // The SCM-agnostic path: ONE builderpublishes claim POST (composition.krateo.io) that the
+  // composition renders into git-provider LocalResources. It gets the SAME "change request" card as
+  // the legacy github set — the human decides on the change request, not on a raw `builderpublishes` GVR.
+  const claimOp = radius.ops.length === 1 && radius.ops[0].gvr.resource === 'builderpublishes' ? radius.ops[0] : null
+  const isPublish = isGitPublish || claimOp !== null
   const branches = radius.ops.filter((op) => op.gvr.resource === 'gitrefs').length
   const files = radius.ops.filter((op) => op.gvr.resource === 'repocontents').length
   const prs = radius.ops.filter((op) => op.gvr.resource === 'pullrequests').length
-  const gitMeta = [
+  const publishMeta = claimOp ? claimPublishMeta(claimOp) : [
     branches ? `${branches} branch` : '',
     files ? `${files} file${files === 1 ? '' : 's'}` : '',
-    prs ? `${prs} pull request` : '',
+    prs ? `${prs} pull/merge request` : '',
   ].filter(Boolean).join(' · ')
 
   return (
     <div className={styles.root} data-testid='blast-radius-confirm'>
-      {isGitPublish ? (
+      {isPublish ? (
         <div className={styles.gitCard}>
-          <div className={styles.gitHeadline}>Open a pull request</div>
-          <div className={styles.gitMeta}>{gitMeta} · nothing merges without your review</div>
+          <div className={styles.gitHeadline}>Open a pull/merge request</div>
+          <div className={styles.gitMeta}>{publishMeta}{publishMeta ? ' · ' : ''}nothing merges without your review</div>
         </div>
       ) : (
         <>
