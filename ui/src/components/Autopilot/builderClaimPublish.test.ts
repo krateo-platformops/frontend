@@ -50,7 +50,7 @@ describe('buildClaimPublish', () => {
   it('denies (no ops, no deep link) when the preview gate refuses', async () => {
     const res = await buildClaimPublish({
       builder: 'blueprint',
-      config: cfg({}),
+      config: cfg({ AUTOPILOT_BLUEPRINT_BUILDER_REPO: 'acme/bp' }),
       dest: null,
       files,
       gate: deny,
@@ -81,7 +81,7 @@ describe('buildClaimPublish', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }))
     const res = await buildClaimPublish({
       builder: 'page',
-      config: cfg({}),
+      config: cfg({ AUTOPILOT_PAGE_BUILDER_REPO: 'acme/pages' }),
       dest: null,
       files,
       gate: allow,
@@ -92,5 +92,38 @@ describe('buildClaimPublish', () => {
     expect(res.compiled.denial).toBe(BUILDER_PUBLISH_GVR_DENIAL)
     expect(res.compiled.ops).toBeNull()
     expect(res.deepLink).toBeNull()
+  })
+
+  it('DENIES with a "no publish destination" message when config has no repo and no dest is confirmed (#163)', async () => {
+    const res = await buildClaimPublish({
+      builder: 'blueprint',
+      config: cfg({}),               // no AUTOPILOT_BLUEPRINT_BUILDER_REPO
+      dest: null,                    // human confirmed nothing
+      files,
+      gate: allow,
+      namespace: 'krateo-system',
+      origin,
+      slug: 'foo',
+    })
+    expect(res.compiled.denial).toContain('no publish destination')
+    expect(res.compiled.denial).toContain('AUTOPILOT_BLUEPRINT_BUILDER_REPO')
+    expect(res.compiled.ops).toBeNull()
+    expect(res.deepLink).toBeNull()
+  })
+
+  it('per-artifact: a dest.repo (the artifact name) is honored even when config has none (#163)', async () => {
+    const res = await buildClaimPublish({
+      builder: 'blueprint',
+      config: cfg({}),                               // no config repo
+      dest: { owner: 'acme', repo: 'my-blueprint' }, // per-artifact repo from the form
+      files,
+      gate: allow,
+      namespace: 'krateo-system',
+      origin,
+      slug: 'my-blueprint',
+    })
+    expect(res.compiled.denial).toBeNull()
+    expect(res.compiled.ops?.[0].payload).toMatchObject({ spec: { target: { namespace: 'acme', repo: 'my-blueprint' } } })
+    expect(res.deepLink).toContain('https://github.com/acme/my-blueprint/compare/')
   })
 })

@@ -82,10 +82,10 @@ describe('buildPagePublishOps', () => {
     expect(spec.title).toContain('cost-report')
   })
 
-  it('defaults every repo coordinate to the portal chart when the verb omits them', () => {
+  it('emits EMPTY owner/repo when the verb omits them — no hardcoded fallback (#163)', () => {
     const spec = specOf(buildPagePublishOps({}, TREE, SLUG)[0])
-    expect(spec.owner).toBe(PORTAL_CHART_REPO_DEFAULTS.owner)
-    expect(spec.repo).toBe(PORTAL_CHART_REPO_DEFAULTS.repo)
+    expect(spec.owner).toBe('')
+    expect(spec.repo).toBe('')
   })
 
   it('honors overrides supplied by the verb', () => {

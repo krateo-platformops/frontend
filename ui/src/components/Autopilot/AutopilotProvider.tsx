@@ -330,7 +330,12 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         const slug = isPage ? pageSlug : identity
         const builder = isPage ? 'page' : 'blueprint'
         const bt = isPage ? builderTargets.page : builderTargets.blueprint
-        const dest = await askPublishDestination(proposal, builder, bt.repo, bt.owner)
+        // PER-ARTIFACT repos (#163): a portal PAGE publishes to the single configured chart repo
+        // (bt.repo), but each BLUEPRINT gets its OWN repo named for the chart — so the destination
+        // repo prefill is the artifact slug, with the OWNER coming from install config (bt.owner).
+        // The human still confirms/edits in the blast-radius dialog; a model-emitted repo still wins.
+        const destRepo = isPage ? bt.repo : (slug || bt.repo)
+        const dest = await askPublishDestination(proposal, builder, destRepo, bt.owner)
         const targeted = dest ? { ...proposal, ...dest } : proposal
         const origin = { prompt: lastUserTextRef.current, sessionId }
         const overflow = isPage ? 'split the page across turns on the same branch' : 'trim the chart tree (large assets belong in a hosted values file)'

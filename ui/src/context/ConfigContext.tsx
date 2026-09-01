@@ -70,12 +70,13 @@ export interface Config {
      * origin, and authn/snowplow must allow the `traceparent` request header. */
     OTEL_COLLECTOR_URL?: string
     /** Autopilot builder publish DESTINATIONS — the `owner/repo` slug each authoring builder
-     * opens its PR against. Config-driven (not hardcoded) so an org/repo rename is an install-values
-     * change, never a frontend rebuild — the `braghettos`→`krateo-platformops` (+ `krateo-oas`→`oas`)
-     * migration is exactly why these exist. Absent/empty/malformed → the built-in canonical fallback
-     * (BUILDER_TARGET_FALLBACKS in components/Autopilot/builderTargets.ts). Consumed only as the
-     * publish-destination FORM prefill: the human still confirms every destination, and a model-emitted
-     * owner/repo still wins over the prefill. */
+     * publishes against. Config-driven so an org/repo rename is an install-values change, never a
+     * frontend rebuild — the `braghettos`→`krateo-platformops` (+ `krateo-oas`→`oas`) migration is
+     * exactly why these exist. There is NO hardcoded fallback repo (#163): absent/empty/malformed →
+     * an EMPTY prefill and the human supplies the destination (or the publish is denied). PAGE is a
+     * single fixed repo; BLUEPRINT/KOG supply the OWNER while the repo is per-artifact (each blueprint
+     * / RestDefinition gets its own repo). Consumed as the publish-form prefill — the human confirms
+     * every destination, and a model-emitted owner/repo still wins over the prefill. */
     AUTOPILOT_KOG_BUILDER_REPO?: string
     AUTOPILOT_PAGE_BUILDER_REPO?: string
     AUTOPILOT_BLUEPRINT_BUILDER_REPO?: string

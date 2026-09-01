@@ -1,16 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { BUILDER_TARGET_FALLBACKS, resolveBuilderTarget } from './builderTargets'
+import { resolveBuilderTarget } from './builderTargets'
 
-const FB = { owner: 'fallback-owner', repo: 'fallback-repo' }
-
-describe('resolveBuilderTarget — owner/repo slug from install config', () => {
+describe('resolveBuilderTarget — owner/repo slug from install config (no hardcoded fallback, #163)', () => {
   it('parses a valid owner/repo slug', () => {
-    expect(resolveBuilderTarget('krateo-platformops/krateo-oas', FB)).toEqual({ owner: 'krateo-platformops', repo: 'krateo-oas' })
+    expect(resolveBuilderTarget('krateo-platformops/krateo-oas')).toEqual({ owner: 'krateo-platformops', repo: 'krateo-oas' })
   })
 
   it('trims surrounding whitespace', () => {
-    expect(resolveBuilderTarget('  acme/widgets  ', FB)).toEqual({ owner: 'acme', repo: 'widgets' })
+    expect(resolveBuilderTarget('  acme/widgets  ')).toEqual({ owner: 'acme', repo: 'widgets' })
   })
 
   it.each([
@@ -20,11 +18,7 @@ describe('resolveBuilderTarget — owner/repo slug from install config', () => {
     ['empty owner', '/krateo-oas'],
     ['empty repo', 'krateo-platformops/'],
     ['three segments', 'a/b/c'],
-  ])('falls back on a malformed value (%s)', (_label, value) => {
-    expect(resolveBuilderTarget(value, FB)).toBe(FB)
-  })
-
-  it('the KOG fallback is krateo-platformops (not the dead krateo-blueprints from #105)', () => {
-    expect(BUILDER_TARGET_FALLBACKS.kog).toEqual({ owner: 'krateo-platformops', repo: 'krateo-oas' })
+  ])('resolves to an EMPTY target on a malformed value (%s) — no baked-in repo; the human supplies it', (_label, value) => {
+    expect(resolveBuilderTarget(value)).toEqual({ owner: '', repo: '' })
   })
 })

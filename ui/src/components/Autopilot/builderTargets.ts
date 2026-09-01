@@ -2,53 +2,43 @@
  * Autopilot builder publish DESTINATIONS — resolved from install config, not hardcoded.
  *
  * WHY CONFIG-DRIVEN: each authoring builder (KOG/RestDef, portal page, blueprint) opens its PR
- * against a specific `owner/repo`. Those coordinates are an INSTALL concern, not a code constant:
+ * against a specific `owner/repo`. Those coordinates are an INSTALL concern, NEVER a code constant:
  * the krateo org migration (`braghettos` → `krateo-platformops`, and the `krateo-oas` → `oas`
  * rename) proved that baking an org name into the image turns a GitHub rename into a required
- * frontend rebuild. So the frontend chart passes each builder's destination as an `owner/repo`
- * slug env (`config.api.AUTOPILOT_*_BUILDER_REPO`); this module resolves that config — or the
- * built-in canonical fallback — into `{ owner, repo }` for the publish-destination form prefill.
- *
- * The FALLBACKS are derived from the per-builder `*_REPO_DEFAULTS` consts (single source of truth,
- * no duplicated literals) and exist only so a config-less install still works; the chart's
- * values.yaml ships the same coordinates as its shipped default.
+ * frontend rebuild — and a stale baked-in default silently points a publish at the wrong (or a
+ * 404) repo. So the frontend has NO hardcoded fallback repos: the destination comes ONLY from
+ * install config (`config.api.AUTOPILOT_*_BUILDER_REPO`, the chart's values.yaml) and the
+ * human-confirmed publish form. A config-less install resolves to an EMPTY target — the form
+ * prefills nothing and the human supplies the destination (or the publish is denied) — rather than
+ * defaulting to a guessed repo.
  */
 import { useMemo } from 'react'
 
 import type { Config } from '../../context/ConfigContext'
-
-import { BLUEPRINTS_REPO_DEFAULTS } from './blueprintPublish'
-import { KOG_REPO_DEFAULTS } from './kogPublish'
-import { PORTAL_CHART_REPO_DEFAULTS } from './pagePublish'
 
 export interface BuilderTarget {
   owner: string
   repo: string
 }
 
-/** The built-in per-builder fallback coordinates (used when the install ships no config value). */
-export const BUILDER_TARGET_FALLBACKS = {
-  blueprint: { owner: BLUEPRINTS_REPO_DEFAULTS.owner, repo: BLUEPRINTS_REPO_DEFAULTS.repo },
-  kog: { owner: KOG_REPO_DEFAULTS.owner, repo: KOG_REPO_DEFAULTS.repo },
-  page: { owner: PORTAL_CHART_REPO_DEFAULTS.owner, repo: PORTAL_CHART_REPO_DEFAULTS.repo },
-} as const satisfies Record<'blueprint' | 'kog' | 'page', BuilderTarget>
-
 /**
  * Parse an `owner/repo` slug (the config value) into a BuilderTarget. Anything malformed — not a
- * string, empty, no slash, an empty owner or repo segment, or extra path segments — falls back to
- * the built-in target rather than shipping half a destination. Never throws (config is untrusted).
+ * string, empty, no slash, an empty owner or repo segment, or extra path segments — resolves to an
+ * EMPTY target `{owner:'', repo:''}` (no hardcoded fallback); the human then supplies the missing
+ * coordinates at publish. Never throws (config is untrusted).
  */
-export const resolveBuilderTarget = (slug: string | undefined, fallback: BuilderTarget): BuilderTarget => {
+export const resolveBuilderTarget = (slug: string | undefined): BuilderTarget => {
+  const empty = { owner: '', repo: '' }
   if (typeof slug !== 'string') {
-    return fallback
+    return empty
   }
   const parts = slug.trim().split('/')
   if (parts.length !== 2) {
-    return fallback
+    return empty
   }
   const owner = parts[0].trim()
   const repo = parts[1].trim()
-  return owner && repo ? { owner, repo } : fallback
+  return owner && repo ? { owner, repo } : empty
 }
 
 export interface BuilderTargets {
@@ -63,8 +53,8 @@ export const useBuilderTargets = (config: Config | undefined): BuilderTargets =>
   const pageSlug = config?.api.AUTOPILOT_PAGE_BUILDER_REPO
   const blueprintSlug = config?.api.AUTOPILOT_BLUEPRINT_BUILDER_REPO
   return useMemo(() => ({
-    blueprint: resolveBuilderTarget(blueprintSlug, BUILDER_TARGET_FALLBACKS.blueprint),
-    kog: resolveBuilderTarget(kogSlug, BUILDER_TARGET_FALLBACKS.kog),
-    page: resolveBuilderTarget(pageSlug, BUILDER_TARGET_FALLBACKS.page),
+    blueprint: resolveBuilderTarget(blueprintSlug),
+    kog: resolveBuilderTarget(kogSlug),
+    page: resolveBuilderTarget(pageSlug),
   }), [blueprintSlug, kogSlug, pageSlug])
 }

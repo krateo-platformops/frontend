@@ -19,9 +19,9 @@ const GVR = { group: 'composition.krateo.io', resource: 'builderpublishes', vers
 const API_VERSION = 'composition.krateo.io/v1-7-17'
 
 describe('resolveStructuredTarget', () => {
-  it('defaults to github / github.com with the builder canonical repo when config is empty', () => {
+  it('defaults to github / github.com with EMPTY repo when config is empty — no hardcoded fallback (#163)', () => {
     const tgt = resolveStructuredTarget('page', cfg({}))
-    expect(tgt).toEqual({ base: 'main', host: 'github.com', namespace: 'krateo-platformops', repo: 'krateo-portal-chart', scm: 'github' })
+    expect(tgt).toEqual({ base: 'main', host: 'github.com', namespace: '', repo: '', scm: 'github' })
   })
 
   it('takes the per-builder repo slug from install config', () => {
@@ -43,9 +43,9 @@ describe('resolveStructuredTarget', () => {
     expect(tgt).toMatchObject({ namespace: 'group/sub', repo: 'pages' })
   })
 
-  it('falls back to the canonical owner/repo on a malformed slug', () => {
+  it('resolves to EMPTY namespace/repo on a malformed slug — the human supplies it (#163)', () => {
     const tgt = resolveStructuredTarget('controller', cfg({ AUTOPILOT_KOG_BUILDER_REPO: 'no-slash' }))
-    expect(tgt).toMatchObject({ namespace: 'krateo-platformops', repo: 'krateo-oas' })
+    expect(tgt).toMatchObject({ namespace: '', repo: '' })
   })
 })
 
