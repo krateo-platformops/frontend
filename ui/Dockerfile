@@ -1,4 +1,11 @@
-FROM node:24.2.0-alpine3.22 as react-build
+# Build the SPA on the BUILD platform (the runner's native arch), NOT the target arch. The `dist/`
+# output is static web assets — architecture-neutral — so there is no reason to run the JS toolchain
+# under QEMU emulation for linux/arm64. Doing so is what caused the intermittent multi-platform build
+# crash `qemu: uncaught target signal 4 (Illegal instruction) - core dumped` during `npm run build`
+# (esbuild/rollup native code illegal-instructions under QEMU). Pinning react-build to $BUILDPLATFORM
+# runs the build natively for every target platform — no emulation, and much faster. The final nginx
+# stage below stays per-TARGETPLATFORM (it pulls the correct-arch nginx and just copies the neutral dist).
+FROM --platform=$BUILDPLATFORM node:24.2.0-alpine3.22 as react-build
 LABEL maintainer "Krateo <contact@krateo.io>"
 
 ARG VERSION
