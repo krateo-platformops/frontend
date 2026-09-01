@@ -2,7 +2,7 @@
  * The SCM-agnostic publish orchestration (AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER) — the claim-path analog
  * of the buildXPublishOps + compilePublishOps flow in AutopilotProvider.finalize. Given a builder's
  * held files + the user-confirmed destination, it builds a gated BuilderPublish claim (one POST op)
- * and the host-aware "Open pull/merge request" deep link (Option A). Kept out of finalize so the
+ * and the host-aware "Open change request" deep link (Option A). Kept out of finalize so the
  * finalize edit is a thin flag-gated delegation and the logic stays unit-testable.
  */
 

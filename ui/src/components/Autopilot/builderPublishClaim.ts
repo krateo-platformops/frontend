@@ -135,7 +135,7 @@ export const buildBuilderPublishOps = (claim: BuilderPublishClaim, gvr: ApplyRes
 ]
 
 /**
- * Host-aware "Open pull/merge request" URL (Option A: the human opens it). Always an https web URL
+ * Host-aware "Open change request" URL (Option A: the human opens it). Always an https web URL
  * (the browser opens the SCM's UI, independent of the git push scheme). Branch names carry a slash,
  * so they are encoded in query params.
  */

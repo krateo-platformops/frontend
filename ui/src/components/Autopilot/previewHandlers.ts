@@ -109,7 +109,7 @@ export const previewBlueprintSpec: VerbSpec = {
     openAutopilotPreview({
       // Name the artifact: a blueprint IS a Helm chart, and this caption + the "Chart files"
       // tab are where the user learns that (the #1 what-am-I-publishing question).
-      caption: 'This blueprint is a Helm chart — Chart files is the tree the pull/merge request commits; Source is its helm-rendered objects (dry run, nothing applied to the cluster)',
+      caption: 'This blueprint is a Helm chart — Chart files is the tree the change request commits; Source is its helm-rendered objects (dry run, nothing applied to the cluster)',
       ...(rendered.error ? { error: rendered.error } : {}),
       // The authored chart tree IS the write-set a publishBlueprint commits — the unified files
       // tab (a catalog dry-run of an already-published chart has no rawTemplates, so no Files/target).

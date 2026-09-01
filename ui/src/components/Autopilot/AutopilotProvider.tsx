@@ -304,7 +304,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
           pushChip(await apply({ label, ops: compiled.ops, verb: 'applyResourceSet' }, origin))
           if (deepLink) {
             // Option A: the branch is pushed; the human opens the PR/MR in their own SCM.
-            chips.push({ label: 'Open pull/merge request', readOnly: true, url: deepLink, verb: 'openChangeRequest' })
+            chips.push({ label: 'Open change request', readOnly: true, url: deepLink, verb: 'openChangeRequest' })
           }
         }
       }

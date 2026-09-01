@@ -33,9 +33,9 @@ const KIND_NOUN: Record<PublishTargetRequest['kind'], string> = {
 
 /** The write-gate blurb for the artifact kind — what a publish of THIS kind actually commits. */
 const KIND_BLURB: Record<PublishTargetRequest['kind'], string> = {
-  blueprint: 'The Helm chart tree (Chart.yaml, values.schema.json, templates/) is pushed to a branch and opened as a pull/merge request into the base branch — once merged, CI publishes it as a versioned OCI chart. Nothing merges without your review.',
-  page: 'Autopilot pushes to a branch and opens a pull/merge request into the base branch — nothing merges without your review. Confirm the destination, or point it somewhere else.',
-  restdef: 'The RestDefinition (and, for a pasted spec, its OpenAPI ConfigMap) is pushed to a branch and opened as a pull/merge request into the base branch — once merged, the controller provider reconciles it and the new API kind becomes available. The kind no longer lands live on publish; it waits for the request to merge. Nothing merges without your review.',
+  blueprint: 'The Helm chart tree (Chart.yaml, values.schema.json, templates/) is pushed to a branch and opened as a change request into the base branch — once merged, CI publishes it as a versioned OCI chart. Nothing merges without your review.',
+  page: 'Autopilot pushes to a branch and opens a change request into the base branch — nothing merges without your review. Confirm the destination, or point it somewhere else.',
+  restdef: 'The RestDefinition (and, for a pasted spec, its OpenAPI ConfigMap) is pushed to a branch and opened as a change request into the base branch — once merged, the controller provider reconciles it and the new API kind becomes available. The kind no longer lands live on publish; it waits for the request to merge. Nothing merges without your review.',
 }
 
 type PendingResolve = (target: PublishTarget | null) => void

@@ -209,7 +209,7 @@
   padding-left: 28px;
 }
 
-/* Git-publish summary card — the SET reads as ONE pull request (cyan=create/POST), not N raw objects. */
+/* Git-publish summary card — the SET reads as ONE change request (cyan=create/POST), not N raw objects. */
 .gitCard {
   background: color-mix(in srgb, var(--cyan-color) 8%, transparent);
   border: 1px solid color-mix(in srgb, var(--cyan-color) 28%, transparent);
