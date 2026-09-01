@@ -237,7 +237,8 @@ export interface ActionContext {
   notification: ReturnType<typeof useApp>['notification']
   /** Register a teardown to run if the widget unmounts mid-action (e.g. close an SSE stream). */
   registerCleanup: (cleanup: () => void) => void
-  /** W0-3 provenance flag (config.json api.PROVENANCE_ENABLED, default OFF). When true, every
+  /** W0-3 provenance flag (config.json api.PROVENANCE_ENABLED, default ON; only an explicit
+   * "false" opts out). When enabled, every
    * resolved gated write fire-and-forgets ONE best-effort AuditRecord CR — see hooks/provenance.ts. */
   provenanceEnabled: boolean
 }
