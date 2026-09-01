@@ -182,19 +182,24 @@ config:
   # previewSandbox.enabled is true: the chart then overrides this key in the rendered
   # config.json with previewSandbox.namespace, so config and provisioning cannot drift.
   PREVIEW_SANDBOX_NAMESPACE: ""
-  # Autopilot builder publish DESTINATIONS — the "owner/repo" slug each authoring builder opens its
-  # PR against. Config-driven so an org/repo rename is an install-values change, NOT a frontend image
-  # rebuild: the krateo org migration (braghettos → krateo-platformops, and the krateo-oas → oas repo
-  # rename) is exactly why these are config. Empty/absent/malformed → the frontend's built-in canonical
-  # fallback (BUILDER_TARGET_FALLBACKS). Only used as the publish-destination FORM prefill — the human
-  # confirms every destination, and a model-emitted owner/repo still wins over the prefill.
-  #   KOG/RestDef: repo kept as krateo-oas (GitHub 301-redirects krateo-platformops/krateo-oas → oas,
-  #   and the portal deliverables RA discriminates KOG PRs on spec.repo == "krateo-oas").
+  # Autopilot builder publish DESTINATIONS — the "owner/repo" slug each authoring builder publishes
+  # against. Config-driven so an org/repo rename is an install-values change, NOT a frontend image
+  # rebuild (the krateo org migration braghettos → krateo-platformops proved that). The frontend has
+  # NO hardcoded fallback repo: these are the ONLY source of the default destination (plus the human's
+  # confirmation at publish). Absent/malformed → an empty prefill; the human supplies the destination.
+  # A model-emitted owner/repo still wins over the prefill.
+  #
+  # PAGE — a single fixed repo: all portal pages publish to the portal chart repo. Canonical is
+  #   krateo-platformops/portal (the old krateo-portal-chart only 301-redirects).
+  AUTOPILOT_PAGE_BUILDER_REPO: krateo-platformops/portal
+  # BLUEPRINT / KOG(controller) — PER-ARTIFACT repos (#163): each blueprint / RestDefinition gets its
+  #   OWN repo named for the artifact. Here the OWNER segment is what matters (the org new repos land
+  #   in); the REPO segment is only a placeholder prefill that the per-artifact name overrides. The
+  #   default SCM-agnostic path discriminates Portal-Builder listings by the krateo.io/builder LABEL,
+  #   not the repo, so per-artifact repos are safe. (KOG repo kept as krateo-oas for the legacy github
+  #   -PR path, where the portal deliverables RA still matches spec.repo == "krateo-oas".)
+  AUTOPILOT_BLUEPRINT_BUILDER_REPO: krateo-blueprints/blueprints
   AUTOPILOT_KOG_BUILDER_REPO: krateo-platformops/krateo-oas
-  AUTOPILOT_PAGE_BUILDER_REPO: krateo-platformops/krateo-portal-chart
-  # NOTE: krateo-blueprints/krateo-blueprints is the current code default but does NOT resolve — set
-  # this to the real blueprint-registry repo for your install (the blueprint builder is unverified).
-  AUTOPILOT_BLUEPRINT_BUILDER_REPO: krateo-blueprints/krateo-blueprints
   # SCM-agnostic publishing — ON by default. The builders publish via a BuilderPublish claim
   # (git-provider LocalResources) instead of the github.krateo.io GitRef/RepoContent/PullRequest set:
   # no PR is opened, the reviewer opens it via a host-aware deep link (Option A). REQUIRES, per

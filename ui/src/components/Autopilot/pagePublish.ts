@@ -36,12 +36,15 @@ import { pageNavFragmentPath, pageNavFragmentSlug } from './pageDraft'
  * robust even when the model drops a field. These mirror the constants baked into the PORTAL BUILDER
  * prompt — the single source stays the prompt/model, not this file.
  */
+// NON-repo install defaults for the legacy github git-write path (base branch, the git-provider
+// credentials Secret name, the CR namespace). The publish OWNER/REPO are NOT here — they are never
+// hardcoded in source; they come only from install config (AUTOPILOT_PAGE_BUILDER_REPO) or the
+// human-confirmed publish destination. A config-less install prefills nothing and the human supplies
+// the destination (or the publish is denied) — no baked-in repo can silently point at the wrong place.
 export const PORTAL_CHART_REPO_DEFAULTS = {
   base: 'main',
   configurationRef: 'github-blueprints-config',
   namespace: 'krateo-system',
-  owner: 'krateo-platformops',
-  repo: 'krateo-portal-chart',
 } as const
 
 /** The `publishPage` verb payload — repo coords only; the file set comes from the held page draft. */
@@ -78,8 +81,8 @@ export const buildPagePublishOps = (
   held: BlueprintDraftHeld,
   slug: string,
 ): ApplyResourceSetOp[] => {
-  const owner = req.owner ?? PORTAL_CHART_REPO_DEFAULTS.owner
-  const repo = req.repo ?? PORTAL_CHART_REPO_DEFAULTS.repo
+  const owner = req.owner ?? ''
+  const repo = req.repo ?? ''
   const base = req.base ?? PORTAL_CHART_REPO_DEFAULTS.base
   const namespace = req.namespace ?? PORTAL_CHART_REPO_DEFAULTS.namespace
   const configurationRef = { name: req.configurationRef ?? PORTAL_CHART_REPO_DEFAULTS.configurationRef }

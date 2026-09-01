@@ -34,7 +34,10 @@ export const dispatchKogPublish = async (
 ): Promise<{ compiled: PublishCompileResult; deepLink: string | null }> => {
   const resolution = resolveKogPublishDraft(ctx.previewGate.lastDraft(), ctx.oasText)
   // The DESTINATION is user-owned: a proper form asks (fence coords are prefills); cancel → denied.
-  const restDefTarget = await askPublishDestination(proposal, 'restdef', ctx.kogTarget.repo, ctx.kogTarget.owner)
+  // PER-ARTIFACT repos (#163): each controller/RestDefinition gets its OWN repo named for the kind —
+  // so the repo prefill is the resolved kind, with the OWNER from install config (ctx.kogTarget.owner).
+  const destRepo = resolution.held?.kind || ctx.kogTarget.repo
+  const restDefTarget = await askPublishDestination(proposal, 'restdef', destRepo, ctx.kogTarget.owner)
   const targeted = restDefTarget ? { ...proposal, ...restDefTarget } : proposal
   // Probe the KOG preview gate against the RESOLVED draft (neither the git-write ops nor the claim
   // writes a restdefinitions op, so the gate sees the draft via a synthetic probe op).

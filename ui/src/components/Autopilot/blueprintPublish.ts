@@ -30,12 +30,14 @@ export const GITHUB_KOG_VERSION = 'v1alpha1'
  * krateo-prompts-eng ConfigMap, krateo-autopilot >= 0.1.49) — the single source stays the
  * prompt/model, not this file, so change them there first.
  */
+// NON-repo install defaults for the legacy github git-write path only. The publish OWNER/REPO are
+// never hardcoded in source — owner comes from install config (AUTOPILOT_BLUEPRINT_BUILDER_REPO) and
+// the repo is PER-ARTIFACT (each blueprint gets its own repo named for the chart), both confirmed by
+// the human at publish. See builderTargets.ts / AutopilotProvider.finalize.
 export const BLUEPRINTS_REPO_DEFAULTS = {
   base: 'main',
   configurationRef: 'github-blueprints-config',
   namespace: 'krateo-system',
-  owner: 'krateo-blueprints',
-  repo: 'krateo-blueprints',
 } as const
 
 /** The `publishBlueprint` verb payload — repo coords only; the file set comes from the held draft. */
@@ -69,8 +71,8 @@ export const buildBlueprintPublishOps = (
   held: BlueprintDraftHeld,
   chart: string,
 ): ApplyResourceSetOp[] => {
-  const owner = req.owner ?? BLUEPRINTS_REPO_DEFAULTS.owner
-  const repo = req.repo ?? BLUEPRINTS_REPO_DEFAULTS.repo
+  const owner = req.owner ?? ''
+  const repo = req.repo ?? ''
   const base = req.base ?? BLUEPRINTS_REPO_DEFAULTS.base
   const namespace = req.namespace ?? BLUEPRINTS_REPO_DEFAULTS.namespace
   const configurationRef = { name: req.configurationRef ?? BLUEPRINTS_REPO_DEFAULTS.configurationRef }

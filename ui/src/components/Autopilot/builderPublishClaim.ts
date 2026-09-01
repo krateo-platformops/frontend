@@ -18,9 +18,6 @@
 import type { Config } from '../../context/ConfigContext'
 
 import type { ApplyResourceSetGvr, ApplyResourceSetOp } from './applyResourceSet'
-import { BLUEPRINTS_REPO_DEFAULTS } from './blueprintPublish'
-import { KOG_REPO_DEFAULTS } from './kogPublish'
-import { PORTAL_CHART_REPO_DEFAULTS } from './pagePublish'
 
 /** The three builders, by their user-facing names (kog is the internal/legacy name for controller). */
 export type BuilderKind = 'blueprint' | 'controller' | 'page'
@@ -57,33 +54,37 @@ export interface BuilderPublishClaim {
 
 type BuilderRepoKey = 'AUTOPILOT_BLUEPRINT_BUILDER_REPO' | 'AUTOPILOT_KOG_BUILDER_REPO' | 'AUTOPILOT_PAGE_BUILDER_REPO'
 
-const PER_BUILDER: Record<BuilderKind, { key: BuilderRepoKey; fallback: { owner: string; repo: string; base: string } }> = {
-  blueprint: { fallback: BLUEPRINTS_REPO_DEFAULTS, key: 'AUTOPILOT_BLUEPRINT_BUILDER_REPO' },
-  controller: { fallback: KOG_REPO_DEFAULTS, key: 'AUTOPILOT_KOG_BUILDER_REPO' },
-  page: { fallback: PORTAL_CHART_REPO_DEFAULTS, key: 'AUTOPILOT_PAGE_BUILDER_REPO' },
+const PER_BUILDER: Record<BuilderKind, BuilderRepoKey> = {
+  blueprint: 'AUTOPILOT_BLUEPRINT_BUILDER_REPO',
+  controller: 'AUTOPILOT_KOG_BUILDER_REPO',
+  page: 'AUTOPILOT_PAGE_BUILDER_REPO',
 }
 
 /** Parse an install-config `namespace/repo` slug (GitLab subgroups → a multi-segment namespace).
- *  Anything malformed falls back to the builder's canonical owner/repo. */
-const parseSlug = (slug: string | undefined, fallback: { owner: string; repo: string }): { namespace: string; repo: string } => {
+ *  NO hardcoded fallback: a missing/malformed slug yields EMPTY coords — the human supplies the
+ *  destination at publish (or the publish is denied). */
+const parseSlug = (slug: string | undefined): { namespace: string; repo: string } => {
   const parts = (typeof slug === 'string' ? slug : '').split('/').map((part) => part.trim()).filter(Boolean)
   if (parts.length < 2) {
-    return { namespace: fallback.owner, repo: fallback.repo }
+    return { namespace: '', repo: '' }
   }
   return { namespace: parts.slice(0, -1).join('/'), repo: parts[parts.length - 1] }
 }
 
+/** Base branch a builder branch is cut from — a neutral git default, not a repo source. */
+const DEFAULT_BASE = 'main'
+
 /**
- * Resolve a builder's full publish target from install config — the per-builder repo slug
- * (`AUTOPILOT_*_BUILDER_REPO`) plus the global SCM/host (`AUTOPILOT_GIT_SCM`/`_HOST`). Back-compat:
- * absent SCM/host → github / github.com, so existing installs are unchanged.
+ * Resolve a builder's full publish target from install config ONLY — the per-builder repo slug
+ * (`AUTOPILOT_*_BUILDER_REPO`) plus the global SCM/host (`AUTOPILOT_GIT_SCM`/`_HOST`). No hardcoded
+ * repo: an absent slug → empty namespace/repo (the human-confirmed publish form supplies them, and
+ * for blueprint/controller Autopilot emits a per-artifact repo). Absent SCM/host → github / github.com.
  */
 export const resolveStructuredTarget = (builder: BuilderKind, config: Config | undefined): StructuredTarget => {
   const api = config?.api
-  const { fallback, key } = PER_BUILDER[builder]
-  const { namespace, repo } = parseSlug(api?.[key], fallback)
+  const { namespace, repo } = parseSlug(api?.[PER_BUILDER[builder]])
   return {
-    base: fallback.base,
+    base: DEFAULT_BASE,
     host: api?.AUTOPILOT_GIT_HOST || 'github.com',
     namespace,
     repo,

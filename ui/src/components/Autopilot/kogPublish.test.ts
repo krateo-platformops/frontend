@@ -14,7 +14,6 @@ import { describe, expect, it } from 'vitest'
 import { isApplySetAllowed } from './applyResourceSet'
 import {
   buildKogPublishAsPrOps,
-  KOG_REPO_DEFAULTS,
   resolveKogPublishDraft,
 } from './kogPublish'
 
@@ -176,11 +175,10 @@ describe('buildKogPublishAsPrOps — paste case (RestDefinition + OAS ConfigMap 
 describe('buildKogPublishAsPrOps — repo coordinates', () => {
   const held = resolveKogPublishDraft(URL_DRAFT, null).held!
 
-  it('defaults every repo coordinate to the KOG-oas repo when the verb omits them', () => {
+  it('emits EMPTY owner/repo when the verb omits them — no hardcoded fallback (#163)', () => {
     const spec = specOf(buildKogPublishAsPrOps({}, held)[0])
-    expect(spec.owner).toBe(KOG_REPO_DEFAULTS.owner)
-    expect(spec.repo).toBe(KOG_REPO_DEFAULTS.repo)
-    expect(KOG_REPO_DEFAULTS.repo).toBe('krateo-oas')
+    expect(spec.owner).toBe('')
+    expect(spec.repo).toBe('')
   })
 
   it('honors overrides supplied by the verb', () => {

@@ -49,18 +49,19 @@ import { KOG_MANAGED_BY_LABEL, parseOasPath } from './kogMapping'
  * (blueprintPublish.ts) and PORTAL_CHART_REPO_DEFAULTS (pagePublish.ts) — the single source of the
  * coordinates stays the prompt/model, not this file.
  */
+// NON-repo install defaults for the legacy github git-write path only. The publish OWNER/REPO are
+// never hardcoded in source — owner comes from install config (AUTOPILOT_KOG_BUILDER_REPO) and the
+// repo is PER-ARTIFACT (each controller/RestDefinition gets its own repo named for the kind), both
+// confirmed by the human at publish.
+//
+// LEGACY-PATH NOTE: on the old github-PR path the portal deliverables RA
+// (restaction.kog-deliverables.yaml) discriminated controller PRs on spec.repo == "krateo-oas". With
+// per-artifact repos that match no longer holds — but the DEFAULT SCM-agnostic path discriminates on
+// the krateo.io/builder: controller LABEL, not the repo, so the Portal Builder listings are unaffected.
 export const KOG_REPO_DEFAULTS = {
   base: 'main',
   configurationRef: 'github-blueprints-config',
   namespace: 'krateo-system',
-  // The API-Builder registry lives at krateo-platformops/oas (the old braghettos/krateo-oas was
-  // transferred into the krateo-platformops org and renamed krateo-oas→oas). We keep repo `krateo-oas`
-  // because GitHub 301-redirects krateo-platformops/krateo-oas→oas AND the portal deliverables RA
-  // (restaction.kog-deliverables.yaml) discriminates KOG PRs on spec.repo == "krateo-oas". #105 flipped
-  // the owner to krateo-blueprints, but that org has no krateo-oas repo (hard 404) — the owner must be
-  // krateo-platformops.
-  owner: 'krateo-platformops',
-  repo: 'krateo-oas',
 } as const
 
 /** The `publishRestDef` verb payload — repo coords only; the RestDefinition + OAS come from the held draft. */
@@ -178,8 +179,8 @@ export const buildKogPublishAsPrOps = (
   req: KogPublishRequest,
   held: KogPublishDraft,
 ): ApplyResourceSetOp[] => {
-  const owner = req.owner ?? KOG_REPO_DEFAULTS.owner
-  const repo = req.repo ?? KOG_REPO_DEFAULTS.repo
+  const owner = req.owner ?? ''
+  const repo = req.repo ?? ''
   const base = req.base ?? KOG_REPO_DEFAULTS.base
   const namespace = req.namespace ?? KOG_REPO_DEFAULTS.namespace
   const configurationRef = { name: req.configurationRef ?? KOG_REPO_DEFAULTS.configurationRef }
