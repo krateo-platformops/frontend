@@ -18,8 +18,9 @@
  * the user path) and ANY failure (CRD absent → 404, RBAC 403, network error) is swallowed
  * with a single console.debug. It must NEVER block, meaningfully delay, or fail the
  * primary write. A declined confirm dispatches nothing, so it records nothing. The whole
- * path is behind the PROVENANCE_ENABLED config flag (default OFF), so clusters without the
- * CRD see zero new traffic.
+ * path is behind the PROVENANCE_ENABLED config flag (default ON; only an explicit "false"
+ * opts out). On clusters without the CRD each best-effort POST 404s and is swallowed, so
+ * nothing persists and nothing blocks.
  *
  * Like `runRestSet`, this module and `useHandleActions` reference each other at CALL TIME
  * only (fetchWithTimeout here; recordProvenance there), so the import cycle is inert under
