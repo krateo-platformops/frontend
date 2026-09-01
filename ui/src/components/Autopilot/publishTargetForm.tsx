@@ -33,9 +33,9 @@ const KIND_NOUN: Record<PublishTargetRequest['kind'], string> = {
 
 /** The write-gate blurb for the artifact kind — what a publish of THIS kind actually commits. */
 const KIND_BLURB: Record<PublishTargetRequest['kind'], string> = {
-  blueprint: 'The Helm chart tree (Chart.yaml, values.schema.json, templates/) is opened as a pull request into the base branch — merged, CI publishes it as a versioned OCI chart. Nothing merges without your review.',
-  page: 'Autopilot publishes as a pull request into the base branch — nothing merges without your review. Confirm the destination, or point it somewhere else.',
-  restdef: 'The RestDefinition (and, for a pasted spec, its OpenAPI ConfigMap) is opened as a pull request into the base branch — merged, the KOG provider reconciles it and the new API kind becomes available. The kind no longer lands live on publish; it waits for the PR to merge. Nothing merges without your review.',
+  blueprint: 'The Helm chart tree (Chart.yaml, values.schema.json, templates/) is pushed to a branch and opened as a pull/merge request into the base branch — once merged, CI publishes it as a versioned OCI chart. Nothing merges without your review.',
+  page: 'Autopilot pushes to a branch and opens a pull/merge request into the base branch — nothing merges without your review. Confirm the destination, or point it somewhere else.',
+  restdef: 'The RestDefinition (and, for a pasted spec, its OpenAPI ConfigMap) is pushed to a branch and opened as a pull/merge request into the base branch — once merged, the controller provider reconciles it and the new API kind becomes available. The kind no longer lands live on publish; it waits for the request to merge. Nothing merges without your review.',
 }
 
 type PendingResolve = (target: PublishTarget | null) => void
@@ -129,7 +129,7 @@ export const PublishTargetFormHost = () => {
           <Form.Item label='Repository' name='repo' rules={[{ message: 'the repository is required', required: true }]}>
             <Input placeholder='krateo-portal-chart' />
           </Form.Item>
-          <Form.Item label='Base branch (the PR target)' name='base' rules={[{ message: 'the base branch is required', required: true }]}>
+          <Form.Item label='Base branch (the change-request target)' name='base' rules={[{ message: 'the base branch is required', required: true }]}>
             <Input placeholder='main' />
           </Form.Item>
         </Form>

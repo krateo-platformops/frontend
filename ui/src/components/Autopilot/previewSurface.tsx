@@ -402,7 +402,7 @@ export const AutopilotPreviewDrawer = () => {
           <div className={styles.target}>
             <Tag color='geekblue'>Publishes to</Tag>
             <Typography.Text code>{payload.publishTarget.repo}</Typography.Text>
-            {payload.publishTarget.base ? <Typography.Text type='secondary'>· PR into {payload.publishTarget.base}</Typography.Text> : null}
+            {payload.publishTarget.base ? <Typography.Text type='secondary'>· pull/merge request into {payload.publishTarget.base}</Typography.Text> : null}
             {payload.publishTarget.note ? <Typography.Text type='secondary'>· {payload.publishTarget.note}</Typography.Text> : null}
             {/* The destination is user-owned: these are DEFAULTS — a proper form asks at publish. */}
             <Typography.Text type='secondary'>· you confirm the destination at publish</Typography.Text>

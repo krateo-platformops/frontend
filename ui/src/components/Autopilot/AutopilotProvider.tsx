@@ -465,10 +465,10 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       // blueprint draft is held, re-prompt ONCE to emit STEP A (emitting the fence IS the gate).
       const held = blueprintStore.get()
       const heldName = heldDraftIdentity(held)
-      const approvedPublish = /\b(publish|open the (?:pull request|pr)|go ahead|do it|approve|proceed|looks good|ship it)\b/i.test(lastUserTextRef.current)
+      const approvedPublish = /\b(publish|open the (?:pull request|pr|merge request|mr)|go ahead|do it|approve|proceed|looks good|ship it)\b/i.test(lastUserTextRef.current)
       if (held && heldName && approvedPublish) {
         recoveryCountRef.current += 1
-        setMessages((prev) => prev.map((message) => (message.id === assistantId ? { ...message, text: '↻ One moment — opening the pull request…' } : message)))
+        setMessages((prev) => prev.map((message) => (message.id === assistantId ? { ...message, text: '↻ One moment — preparing the change request…' } : message)))
         // Re-issue the scalar publish verb that matches the held draft: a page draft (no Chart.yaml)
         // → publishPage (FE-BP7), a blueprint chart → publishBlueprint (FE-BP6). The host fans either
         // out; the model must NEVER hand-write the multi-op payload (that is the stall we recover from).
