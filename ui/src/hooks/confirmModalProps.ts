@@ -16,7 +16,7 @@ import type { BlastRadius, BlastRadiusSet } from './blastRadius.types'
 /**
  * The blast-radius confirm modal's z-index. It MUST sit above the Autopilot preview
  * Drawer (previewSurface.tsx). Root cause of the "confirm opens BEHIND the preview"
- * bug (Vincenzo item Q): in antd 6 BOTH surfaces default to `token.zIndexPopupBase`
+ * bug (item Q): in antd 6 BOTH surfaces default to `token.zIndexPopupBase`
  * (1000) — the persistent, mask-less preview Drawer and the confirm Modal wrapper get
  * the SAME z-index, so DOM source order decides stacking and the always-mounted drawer
  * (rendered by AutopilotProvider) wins, trapping the confirm beneath the `size='large'`

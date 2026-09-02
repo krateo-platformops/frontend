@@ -225,7 +225,7 @@ const STARTER_PROMPTS = [
 ]
 
 /**
- * Session history (Vincenzo item P). A rail-head affordance listing PAST (archived) threads
+ * Session history (item P). A rail-head affordance listing PAST (archived) threads
  * so a new thread / a refresh never loses the old conversation. Opening it reads the archive
  * lazily (localStorage-backed); picking a row switches the rail to that thread's transcript.
  * Closes on outside-click, Escape, or a selection. Renders nothing while there is no history.

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Session-history persistence (Vincenzo item P) — the localStorage-backed archive layer.
+ * Session-history persistence (item P) — the localStorage-backed archive layer.
  * Pins:
  *   - title derivation (first user message, truncated) + isThreadWorthKeeping;
  *   - relativeTime buckets;

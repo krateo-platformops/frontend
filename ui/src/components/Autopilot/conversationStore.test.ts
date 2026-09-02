@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Conversation store — the localStorage-backed durable transcript (Vincenzo item P).
+ * Conversation store — the localStorage-backed durable transcript (item P).
  * Pins the session-history behaviors layered onto the remount-survival store:
  *   - a write PERSISTS the current thread; a FRESH store REHYDRATES it (page-reload sim);
  *   - archiveAndReset ARCHIVES the prior (non-empty) thread, then starts fresh;

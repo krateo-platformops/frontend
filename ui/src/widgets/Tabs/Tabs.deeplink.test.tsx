@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * S (Vincenzo feedback): a `?tab=<label>` query param selects the initial Tabs tab, so
+ * S (feedback): a `?tab=<label>` query param selects the initial Tabs tab, so
  * hand-offs like `/observability?svc=…&tab=Telemetry` land on the logs instead of the default
  * first tab. Absent / non-matching param → antd's default (first tab), i.e. no behaviour change.
  */
