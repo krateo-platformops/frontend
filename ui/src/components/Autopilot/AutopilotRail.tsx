@@ -5,7 +5,9 @@
  *   composer— textarea + send + the drive-via-real-controls trust note
  *
  * Renders nothing unless Autopilot is `enabled`. The width animates 0 → 384 so the
- * shell reflows (it never overlays). All driving/HITL surfaces are Phase 2/3.
+ * shell reflows (it never overlays); toggling session history (`.apMain`'s
+ * `HistoryColumn`) widens it further, 384 → 640, to dock the thread list beside the
+ * transcript instead of covering it. All driving/HITL surfaces are Phase 2/3.
  */
 
 import { useEffect, useId, useRef, useState } from 'react'
@@ -225,90 +227,56 @@ const STARTER_PROMPTS = [
 ]
 
 /**
- * Session history (Vincenzo item P). A rail-head affordance listing PAST (archived) threads
- * so a new thread / a refresh never loses the old conversation. Opening it reads the archive
- * lazily (localStorage-backed); picking a row switches the rail to that thread's transcript.
- * Closes on outside-click, Escape, or a selection. Renders nothing while there is no history.
+ * Session history (Vincenzo item P, split-view iteration). A persistent column docked beside
+ * the transcript — NOT a popover — so past threads stay browsable while the live conversation
+ * remains visible.
+ *
+ * ALWAYS mounted (same convention as the rail itself, which never unmounts and instead
+ * animates `.apRail`'s width 0→384): `open` drives a width-only CSS transition, 0→220,
+ * in sync with the rail's own 384→640 `.split` transition (same duration/easing). Mounting it
+ * only on `historyOpen` used to make it pop in at its full 220px width WHILE the rail was still
+ * narrow — an instant hard squeeze of the transcript before the rail's own width caught up a
+ * moment later. Animating both widths together keeps the transcript's width monotonic (it only
+ * grows when opening, only shrinks when closing) instead of squeeze-then-grow.
+ *
+ * Re-reads the archive when it opens, and again whenever the active thread changes (a switch or
+ * a new thread both change `currentSessionId`) — keeping the list in sync without a live
+ * localStorage subscription. `aria-hidden` while closed, matching its zero width.
  */
-const HistoryMenu = ({ currentSessionId, onSwitch, sessions }: {
+const HistoryColumn = ({ currentSessionId, onSwitch, open, sessions }: {
   currentSessionId: string
   onSwitch: (sessionId: string) => void
+  open: boolean
   sessions: () => ThreadSummary[]
 }) => {
-  const [open, setOpen] = useState(false)
-  // Snapshot the archive when the menu opens (a lazy localStorage read), so the list is stable
-  // while it is on screen and does not re-read per render.
   const [rows, setRows] = useState<ThreadSummary[]>([])
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const panelId = useId()
 
   useEffect(() => {
-    if (!open) {
-      return
-    }
-    const onDocDown = (event: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) {
-        setOpen(false)
-      }
-    }
-    const onKey = (event: Event) => {
-      if ((event as globalThis.KeyboardEvent).key === 'Escape') {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onDocDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDocDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
-
-  const toggle = () => {
-    if (!open) {
+    if (open) {
       setRows(sessions())
     }
-    setOpen((prev) => !prev)
-  }
+  }, [sessions, currentSessionId, open])
 
   return (
-    <div className={styles.apHistoryWrap} ref={wrapRef}>
-      <button
-        aria-controls={panelId}
-        aria-expanded={open}
-        aria-label='Conversation history'
-        className={styles.apIc}
-        data-testid='autopilot-history-toggle'
-        onClick={toggle}
-        title='Conversation history'
-        type='button'
-      >
-        <HistoryIcon />
-      </button>
-      {open ? (
-        <div className={styles.apHistory} data-testid='autopilot-history-panel' id={panelId} role='menu'>
-          <div className={styles.apHistoryHead}>Conversations</div>
-          {rows.length === 0 ? (
-            <div className={styles.apHistoryEmpty}>No past conversations yet. Your threads are saved here when you start a new one.</div>
-          ) : (
-            rows.map((row) => (
-              <button
-                className={`${styles.apHistoryRow} ${row.sessionId === currentSessionId ? styles.apHistoryRowActive : ''}`}
-                key={row.sessionId}
-                onClick={() => {
-                  onSwitch(row.sessionId)
-                  setOpen(false)
-                }}
-                role='menuitem'
-                type='button'
-              >
-                <span className={styles.apHistoryTitle}>{row.title}</span>
-                <span className={styles.apHistoryMeta}>{relativeTime(row.updatedAt)} · {row.messageCount} msg{row.messageCount === 1 ? '' : 's'}</span>
-              </button>
-            ))
-          )}
-        </div>
-      ) : null}
+    <div aria-hidden={!open} className={`${styles.apHistoryCol} ${open ? styles.apHistoryColOpen : ''}`} data-testid='autopilot-history-panel'>
+      <div className={styles.apHistoryHead}>Conversations</div>
+      <div className={styles.apHistoryList}>
+        {rows.length === 0 ? (
+          <div className={styles.apHistoryEmpty}>No past conversations yet. Your threads are saved here when you start a new one.</div>
+        ) : (
+          rows.map((row) => (
+            <button
+              className={`${styles.apHistoryRow} ${row.sessionId === currentSessionId ? styles.apHistoryRowActive : ''}`}
+              key={row.sessionId}
+              onClick={() => onSwitch(row.sessionId)}
+              type='button'
+            >
+              <span className={styles.apHistoryTitle}>{row.title}</span>
+              <span className={styles.apHistoryMeta}>{relativeTime(row.updatedAt)} · {row.messageCount} msg{row.messageCount === 1 ? '' : 's'}</span>
+            </button>
+          ))
+        )}
+      </div>
     </div>
   )
 }
@@ -316,6 +284,12 @@ const HistoryMenu = ({ currentSessionId, onSwitch, sessions }: {
 const AutopilotRail = () => {
   const { approvePending, attachOasDocument, clearOasAttachment, collect, denyPending, enabled, messages, newThread, oasAttachment, open, pendingApproval, restored, send, sessionId, sessions, setOpen, stop, streaming, switchToThread } = useAutopilot()
   const [draft, setDraft] = useState('')
+  // Session history (Vincenzo item P, split-view iteration): widens the rail to dock a thread
+  // list beside the transcript (see .apRail.split). Local to the rail — not lifted into the
+  // provider — because this component is also the SOLE owner of the `--autopilot-rail-width`
+  // CSS var below (body-portalled overlays like the Filters Drawer inset off it); keeping both
+  // in one place avoids two effects racing to set the same DOM property.
+  const [historyOpen, setHistoryOpen] = useState(false)
   // W4 KOG (FE-K2): the over-cap paste rejection note (cleared on the next successful attach).
   const [oasError, setOasError] = useState<string | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -330,6 +304,17 @@ const AutopilotRail = () => {
       el.scrollTop = el.scrollHeight
     }
   }, [messages, streaming, pendingApproval])
+
+  // Publish the rail's actual width as a :root CSS var so body-portalled overlays (the
+  // Filters Drawer) can inset their right edge and never sit over the rail — 0 when
+  // closed/disabled, 384px open, 640px when the history split view widens it further.
+  // Kept in sync with `.apRail.open` / `.apRail.open.split` in AutopilotRail.module.css.
+  useEffect(() => {
+    const openWidth = enabled && open ? '384px' : '0px'
+    const width = enabled && open && historyOpen ? '640px' : openWidth
+    document.documentElement.style.setProperty('--autopilot-rail-width', width)
+    return () => { document.documentElement.style.setProperty('--autopilot-rail-width', '0px') }
+  }, [enabled, open, historyOpen])
 
   if (!enabled) {
     return null
@@ -382,7 +367,7 @@ const AutopilotRail = () => {
   const lastSuggestions = messages.length ? messages[messages.length - 1].suggestions : undefined
 
   return (
-    <aside className={`${styles.apRail} ${open ? styles.open : ''}`}>
+    <aside className={`${styles.apRail} ${open ? styles.open : ''} ${open && historyOpen ? styles.split : ''}`}>
       <div className={styles.apRailInner}>
         <div className={styles.apHead}>
           <span className={styles.apTitle}><SparkIcon className={styles.apSpark} />Autopilot</span>
@@ -390,7 +375,17 @@ const AutopilotRail = () => {
             <span className={styles.apLiveDot} />{streaming ? 'streaming' : 'live'}
           </span>
           <span className={styles.apSpacer} />
-          <HistoryMenu currentSessionId={sessionId} onSwitch={switchToThread} sessions={sessions} />
+          <button
+            aria-label='Conversation history'
+            aria-pressed={historyOpen}
+            className={`${styles.apIc} ${historyOpen ? styles.apIcActive : ''}`}
+            data-testid='autopilot-history-toggle'
+            onClick={() => setHistoryOpen((prev) => !prev)}
+            title='Conversation history'
+            type='button'
+          >
+            <HistoryIcon />
+          </button>
           <button aria-label='New thread' className={styles.apIc} onClick={newThread} title='New thread' type='button'>
             <PlusIcon />
           </button>
@@ -399,93 +394,100 @@ const AutopilotRail = () => {
           </button>
         </div>
 
-        <div className={styles.apBody} onScroll={onBodyScroll} ref={bodyRef}>
-          {restored ? (
-            <div className={styles.apRestored} data-testid='autopilot-restored-hint'>
-              Viewing a past conversation. You can read it here; sending a new message continues in a fresh session.
-            </div>
-          ) : null}
-          {context ? (
-            <div className={styles.apCtx}>
-              <EyeIcon className={styles.apCtxIcon} />
-              seeing&nbsp;·&nbsp;<b>{context.focus}</b>&nbsp;· {context.widgets.length} widgets
-              {ctxStatus ? <>&nbsp;· {ctxStatus}</> : null}
-              {context.identity?.username ? <>&nbsp;· {context.identity.username}</> : null}
-            </div>
-          ) : null}
+        <div className={styles.apMain}>
+          <HistoryColumn currentSessionId={sessionId} onSwitch={switchToThread} open={historyOpen} sessions={sessions} />
+          {/* The chat column: transcript + composer share this width, so the composer never
+              spans under the history column when the split view is open. */}
+          <div className={styles.apChatCol}>
+            <div className={styles.apBody} onScroll={onBodyScroll} ref={bodyRef}>
+              {restored ? (
+                <div className={styles.apRestored} data-testid='autopilot-restored-hint'>
+                  Viewing a past conversation. You can read it here; sending a new message continues in a fresh session.
+                </div>
+              ) : null}
+              {context ? (
+                <div className={styles.apCtx}>
+                  <EyeIcon className={styles.apCtxIcon} />
+                  seeing&nbsp;·&nbsp;<b>{context.focus}</b>&nbsp;· {context.widgets.length} widgets
+                  {ctxStatus ? <>&nbsp;· {ctxStatus}</> : null}
+                  {context.identity?.username ? <>&nbsp;· {context.identity.username}</> : null}
+                </div>
+              ) : null}
 
-          {messages.length === 0 ? (
-            <div className={styles.apEmpty}>
-              <div className={styles.apEmptyTitle}>Ask Autopilot</div>
-              It can see what&apos;s on your screen and answer questions about your
-              compositions, blueprints, and platform — grounded on the live page.
-              <div className={styles.apSuggest}>
-                {STARTER_PROMPTS.map((prompt, index) => (
-                  <button className={styles.apSg} key={`starter-${index}`} onClick={() => send(prompt)} type='button'>
-                    {prompt}
+              {messages.length === 0 ? (
+                <div className={styles.apEmpty}>
+                  <div className={styles.apEmptyTitle}>Ask Autopilot</div>
+                  It can see what&apos;s on your screen and answer questions about your
+                  compositions, blueprints, and platform — grounded on the live page.
+                  <div className={styles.apSuggest}>
+                    {STARTER_PROMPTS.map((prompt, index) => (
+                      <button className={styles.apSg} key={`starter-${index}`} onClick={() => send(prompt)} type='button'>
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                messages.map((message) => <MessageBubble key={message.id} message={message} />)
+              )}
+
+              {pendingApproval ? (
+                <ApprovalCard onApprove={approvePending} onDeny={denyPending} pause={pendingApproval} />
+              ) : null}
+
+              {lastSuggestions?.length ? (
+                <div className={styles.apSuggest}>
+                  {lastSuggestions.map((suggestion, index) => (
+                    <button className={styles.apSg} key={`sg-${index}`} onClick={() => send(suggestion)} type='button'>
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <div className={styles.apComposer}>
+              {oasAttachment ? (
+                <div className={styles.apOas} data-testid='autopilot-oas-attachment'>
+                  <span>OpenAPI attached · {Math.max(1, Math.ceil(oasAttachment.bytes / 1024))} KiB — held in the portal, substituted at publish</span>
+                  <button
+                    aria-label='Remove the OpenAPI attachment'
+                    className={styles.apIc}
+                    onClick={() => {
+                      clearOasAttachment()
+                      setOasError(null)
+                    }}
+                    title='Remove the OpenAPI attachment'
+                    type='button'
+                  >×</button>
+                </div>
+              ) : null}
+              {oasError ? <div className={styles.apOasError}>{oasError}</div> : null}
+              <div className={styles.apInput}>
+                <textarea
+                  className={styles.apTextarea}
+                  onChange={(event) => setDraft(event.target.value)}
+                  onKeyDown={onKeyDown}
+                  onPaste={onPaste}
+                  placeholder='Ask Autopilot to do something…'
+                  rows={1}
+                  value={draft}
+                />
+                {streaming ? (
+                  <button aria-label='Stop' className={styles.apSend} onClick={stop} title='Stop generating' type='button'>
+                    <StopIcon />
                   </button>
-                ))}
+                ) : (
+                  <button aria-label='Send' className={styles.apSend} disabled={!draft.trim()} onClick={submit} type='button'>
+                    <SendIcon />
+                  </button>
+                )}
+              </div>
+              <div className={styles.apNote}>
+                <LinkIcon className={styles.apNoteIcon} />
+                Autopilot drives the portal — it never bypasses the UI. Docked &amp; collapsible, not an overlay.
               </div>
             </div>
-          ) : (
-            messages.map((message) => <MessageBubble key={message.id} message={message} />)
-          )}
-
-          {pendingApproval ? (
-            <ApprovalCard onApprove={approvePending} onDeny={denyPending} pause={pendingApproval} />
-          ) : null}
-
-          {lastSuggestions?.length ? (
-            <div className={styles.apSuggest}>
-              {lastSuggestions.map((suggestion, index) => (
-                <button className={styles.apSg} key={`sg-${index}`} onClick={() => send(suggestion)} type='button'>
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-
-        <div className={styles.apComposer}>
-          {oasAttachment ? (
-            <div className={styles.apOas} data-testid='autopilot-oas-attachment'>
-              <span>OpenAPI attached · {Math.max(1, Math.ceil(oasAttachment.bytes / 1024))} KiB — held in the portal, substituted at publish</span>
-              <button
-                aria-label='Remove the OpenAPI attachment'
-                className={styles.apIc}
-                onClick={() => {
-                  clearOasAttachment()
-                  setOasError(null)
-                }}
-                title='Remove the OpenAPI attachment'
-                type='button'
-              >×</button>
-            </div>
-          ) : null}
-          {oasError ? <div className={styles.apOasError}>{oasError}</div> : null}
-          <div className={styles.apInput}>
-            <textarea
-              className={styles.apTextarea}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={onKeyDown}
-              onPaste={onPaste}
-              placeholder='Ask Autopilot to do something…'
-              rows={1}
-              value={draft}
-            />
-            {streaming ? (
-              <button aria-label='Stop' className={styles.apSend} onClick={stop} title='Stop generating' type='button'>
-                <StopIcon />
-              </button>
-            ) : (
-              <button aria-label='Send' className={styles.apSend} disabled={!draft.trim()} onClick={submit} type='button'>
-                <SendIcon />
-              </button>
-            )}
-          </div>
-          <div className={styles.apNote}>
-            <LinkIcon className={styles.apNoteIcon} />
-            Autopilot drives the portal — it never bypasses the UI. Docked &amp; collapsible, not an overlay.
           </div>
         </div>
       </div>

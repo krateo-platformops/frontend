@@ -240,13 +240,10 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     approvalRef.current?.governor.dispose()
   }, [])
 
-  // Publish the docked rail's width as a :root CSS var so body-portalled overlays (the Filters
-  // Drawer) can inset their right edge and not cover the rail. 0 when the rail is closed/disabled.
-  // Kept in sync with `.apRail.open` width in AutopilotRail.module.css (384px).
-  useEffect(() => {
-    document.documentElement.style.setProperty('--autopilot-rail-width', enabled && open ? '384px' : '0px')
-    return () => { document.documentElement.style.setProperty('--autopilot-rail-width', '0px') }
-  }, [enabled, open])
+  // The docked rail's width as a :root CSS var (so body-portalled overlays like the Filters
+  // Drawer can inset their right edge and never cover the rail) is published by AutopilotRail
+  // itself, not here — it is the one place that also knows the session-history split-view width
+  // (384 vs 640px), and a single owner avoids two effects racing to set the same DOM property.
 
   // On stream end: strip fenced `portal-action` blocks from the assistant text, then
   // auto-apply the read-only proposals (from tool_call frames + fenced blocks) through

@@ -123,6 +123,37 @@ describe('loadThread — switch to an archived transcript', () => {
   })
 })
 
+describe('viewing a past thread does not bump its recency', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('leaves updatedAt and archive order untouched by a switch-in/switch-out with no new messages', () => {
+    let now = 1_000
+    vi.spyOn(Date, 'now').mockImplementation(() => now)
+    const store = createConversationStore()
+
+    store.setMessages([userMsg('thread A')])
+    store.archiveAndReset()
+
+    now = 2_000
+    store.setMessages([userMsg('thread B')])
+    const sidB = store.getSnapshot().sessionId
+    store.archiveAndReset()
+
+    const before = store.sessions()
+    const beforeOrder = before.map((entry) => entry.sessionId)
+    const beforeUpdatedAt = before.find((entry) => entry.sessionId === sidB)?.updatedAt
+
+    // Merely open thread B to read it, much later, then leave without sending anything.
+    now = 9_000
+    store.loadThread(sidB)
+    store.archiveAndReset()
+
+    const after = store.sessions()
+    expect(after.map((entry) => entry.sessionId)).toEqual(beforeOrder)
+    expect(after.find((entry) => entry.sessionId === sidB)?.updatedAt).toBe(beforeUpdatedAt)
+  })
+})
+
 describe('subscribe — emits on writes', () => {
   it('notifies subscribers on a message write', () => {
     const store = createConversationStore()

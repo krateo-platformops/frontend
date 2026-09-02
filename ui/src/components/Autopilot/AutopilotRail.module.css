@@ -21,7 +21,11 @@
   overflow: hidden;
 }
 
-/* The rail itself: flex:none, width animates 0 → 384 so main reflows smoothly. */
+/* The rail itself: flex:none, width animates 0 → 384 so main reflows smoothly.
+   Opening the session-history column (.split) widens it further, 384 → 640, so the
+   thread list docks beside the transcript instead of covering it — see .apMain below.
+   AutopilotProvider mirrors both widths in the `--autopilot-rail-width` CSS var (kept
+   in sync manually; see its comment) so body-portalled overlays inset correctly. */
 .apRail {
   flex: none;
   overflow: hidden;
@@ -33,6 +37,10 @@
   width: 384px;
 }
 
+.apRail.open.split {
+  width: 640px;
+}
+
 .apRailInner {
   background: var(--panelbg-color);
   border-left: 1px solid var(--border-color);
@@ -40,7 +48,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  width: 384px;
+  width: 100%;
 }
 
 /* ── head ── */
@@ -130,26 +138,64 @@
   color: var(--dark-color);
 }
 
-/* ── session history (Vincenzo item P): a head popover listing past threads ── */
-.apHistoryWrap {
-  position: relative;
+/* Toggled-on state for a header icon button (currently just the history toggle) —
+   mirrors the cyan "active" accent used for the current row in the history list below. */
+.apIcActive {
+  background: color-mix(in srgb, var(--cyan-color) 10%, transparent);
+  border-color: color-mix(in srgb, var(--cyan-color) 35%, transparent);
+  color: var(--cyan-color);
 }
 
-.apHistory {
-  background: var(--panelbg-color);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  box-shadow: 0 8px 28px color-mix(in srgb, var(--void-color, #000) 45%, transparent);
+.apIcActive:hover {
+  color: var(--cyan-color);
+}
+
+/* ── session history (Vincenzo item P, split view): a persistent column docked beside
+   the transcript — see .apMain below — not a popover. Rendered only while historyOpen;
+   the rail itself widens (.apRail.split) to make room, so the transcript is never
+   crushed for it. ── */
+.apMain {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The transcript + composer share this column, so the composer stays scoped to the
+   chat's own width instead of spanning under the history column too (.apRail.split). */
+.apChatCol {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Width-only transition, same duration/easing as .apRail's own — kept at 0 (not
+   conditionally mounted) so the two animate in sync instead of this column popping in at
+   full width while the rail is still catching up. border-color and padding fade with it so
+   nothing renders at width:0. overflow-x hidden guards mid-transition frames from spilling. */
+.apHistoryCol {
+  border-right: 1px solid transparent;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 10px 0;
+  transition: width var(--motion-mid, 0.2s) ease, padding var(--motion-mid, 0.2s) ease, border-color var(--motion-mid, 0.2s) ease;
+  width: 0;
+}
+
+.apHistoryColOpen {
+  border-right-color: var(--border-color);
+  padding: 10px 6px;
+  width: 220px;
+}
+
+.apHistoryList {
   display: flex;
   flex-direction: column;
-  max-height: 60vh;
-  overflow: auto;
-  padding: 5px;
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  width: 288px;
-  z-index: 40;
+  gap: 2px;
 }
 
 .apHistoryHead {
@@ -157,7 +203,7 @@
   font-family: var(--font-mono);
   font-size: 9.5px;
   letter-spacing: 0.06em;
-  padding: 5px 8px 6px;
+  padding: 2px 6px 8px;
   text-transform: uppercase;
 }
 
@@ -165,7 +211,7 @@
   color: var(--gray-color);
   font-size: 12px;
   line-height: 1.5;
-  padding: 4px 8px 8px;
+  padding: 4px 6px 8px;
 }
 
 .apHistoryRow {
