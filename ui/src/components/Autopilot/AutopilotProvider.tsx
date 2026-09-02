@@ -725,7 +725,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     autopilotConversationStore.archiveAndReset()
   }, [teardownThread])
 
-  // Session history (Vincenzo item P): switch the live view to a previously-archived thread. The
+  // Session history (item P): switch the live view to a previously-archived thread. The
   // store archives the CURRENT thread first (so switching never loses it), then loads the selected
   // transcript for VIEWING (marked `restored`). v1 does NOT live-resume the server A2A session (the
   // next send starts a fresh contextId); the rail's "viewing a past session" hint keeps that honest.

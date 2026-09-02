@@ -19,7 +19,7 @@
  * an empty `[]`, so the conversation persists across a routerVersion bump — WITHOUT
  * touching the `key={routerVersion}` reload the routes-as-data flow depends on.
  *
- * SESSION HISTORY (Vincenzo item P): the singleton survives a REMOUNT but a true page
+ * SESSION HISTORY (item P): the singleton survives a REMOUNT but a true page
  * RELOAD wipes module state, and `newThread()` used to DISCARD the current thread. This
  * store is now backed by localStorage (sessionHistoryStore.ts): every write persists the
  * CURRENT thread (rehydrated on load), and `archiveAndReset()` pushes the current thread

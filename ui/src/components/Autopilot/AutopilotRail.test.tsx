@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Autopilot rail — session-history UI (Vincenzo item P):
+ * Autopilot rail — session-history UI (item P):
  *   - the history toggle opens a panel listing PAST (archived) threads (title + relative time);
  *   - an empty history shows the honest "no past conversations yet" note;
  *   - picking a row calls switchToThread(sessionId);

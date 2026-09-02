@@ -130,7 +130,7 @@
   color: var(--dark-color);
 }
 
-/* ── session history (Vincenzo item P): a head popover listing past threads ── */
+/* ── session history (item P): a head popover listing past threads ── */
 .apHistoryWrap {
   position: relative;
 }

@@ -93,7 +93,7 @@ describe('tool DataParts become tool frames', () => {
 })
 
 describe('graceful provider rate-limit (429) handling', () => {
-  // The verbatim raw dump kagent forwards when Gemini/Vertex 429s the turn (Vincenzo feedback item J).
+  // The verbatim raw dump kagent forwards when Gemini/Vertex 429s the turn (feedback item J).
   const RAW_429 = '429 Too Many Requests. {\'message\': \'{\\n  "error": {\\n    "code": 429,\\n    "message": "Resource exhausted. Please try again later.",\\n    "status": "RESOURCE_EXHAUSTED"\\n  }\\n}\', \'status\': \'Too Many Requests\'}'
 
   it('replaces a raw provider 429 JSON-RPC error with the friendly notice', async () => {
