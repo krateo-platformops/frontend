@@ -7,7 +7,9 @@
  * Renders nothing unless Autopilot is `enabled`. The width animates 0 → 384 so the
  * shell reflows (it never overlays); toggling session history (`.apMain`'s
  * `HistoryColumn`) widens it further, 384 → 640, to dock the thread list beside the
- * transcript instead of covering it. All driving/HITL surfaces are Phase 2/3.
+ * transcript instead of covering it. A separate "full width" toggle takes it to 100%
+ * of the shell viewport instead — still a plain width reflow, not the browser
+ * Fullscreen API. All driving/HITL surfaces are Phase 2/3.
  */
 
 import { useEffect, useId, useRef, useState } from 'react'
@@ -22,7 +24,7 @@ import { useAutopilot } from './AutopilotProvider'
 import styles from './AutopilotRail.module.css'
 import AutopilotTour from './AutopilotTour'
 import { describeArgs, deriveSessionsBase, fetchDelegationEvidence, serializeEvidence, summarizeEvidence } from './evidence'
-import { CheckIcon, CollapseIcon, CopyIcon, EvidenceIcon, EyeIcon, HistoryIcon, LinkIcon, PlusIcon, SendIcon, SparkIcon, StopIcon } from './icons'
+import { CheckIcon, CollapseIcon, CopyIcon, EvidenceIcon, ExpandIcon, EyeIcon, HistoryIcon, LinkIcon, PlusIcon, SendIcon, ShrinkIcon, SparkIcon, StopIcon } from './icons'
 import { looksLikeOpenApiDocument } from './oasAttachment'
 import { relativeTime, type ThreadSummary } from './sessionHistoryStore'
 import { a2aAuthHeader } from './transport'
@@ -290,6 +292,10 @@ const AutopilotRail = () => {
   // CSS var below (body-portalled overlays like the Filters Drawer inset off it); keeping both
   // in one place avoids two effects racing to set the same DOM property.
   const [historyOpen, setHistoryOpen] = useState(false)
+  // Full-width mode: widens the rail to the whole shell viewport (NOT the browser Fullscreen
+  // API — no chrome takeover, just the same width-only reflow the rail already does at
+  // 384/640px, carried to 100%). Local to the rail for the same reason as `historyOpen`.
+  const [fullWidth, setFullWidth] = useState(false)
   // W4 KOG (FE-K2): the over-cap paste rejection note (cleared on the next successful attach).
   const [oasError, setOasError] = useState<string | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -311,10 +317,11 @@ const AutopilotRail = () => {
   // Kept in sync with `.apRail.open` / `.apRail.open.split` in AutopilotRail.module.css.
   useEffect(() => {
     const openWidth = enabled && open ? '384px' : '0px'
-    const width = enabled && open && historyOpen ? '640px' : openWidth
+    const splitWidth = enabled && open && historyOpen ? '640px' : openWidth
+    const width = enabled && open && fullWidth ? '100%' : splitWidth
     document.documentElement.style.setProperty('--autopilot-rail-width', width)
     return () => { document.documentElement.style.setProperty('--autopilot-rail-width', '0px') }
-  }, [enabled, open, historyOpen])
+  }, [enabled, open, historyOpen, fullWidth])
 
   if (!enabled) {
     return null
@@ -367,7 +374,7 @@ const AutopilotRail = () => {
   const lastSuggestions = messages.length ? messages[messages.length - 1].suggestions : undefined
 
   return (
-    <aside className={`${styles.apRail} ${open ? styles.open : ''} ${open && historyOpen ? styles.split : ''}`}>
+    <aside className={`${styles.apRail} ${open ? styles.open : ''} ${open && historyOpen ? styles.split : ''} ${open && fullWidth ? styles.full : ''}`}>
       <div className={styles.apRailInner}>
         <div className={styles.apHead}>
           <span className={styles.apTitle}><SparkIcon className={styles.apSpark} />Autopilot</span>
@@ -388,6 +395,17 @@ const AutopilotRail = () => {
           </button>
           <button aria-label='New thread' className={styles.apIc} onClick={newThread} title='New thread' type='button'>
             <PlusIcon />
+          </button>
+          <button
+            aria-label={fullWidth ? 'Restore width' : 'Expand to full width'}
+            aria-pressed={fullWidth}
+            className={`${styles.apIc} ${fullWidth ? styles.apIcActive : ''}`}
+            data-testid='autopilot-fullwidth-toggle'
+            onClick={() => setFullWidth((prev) => !prev)}
+            title={fullWidth ? 'Restore width' : 'Expand to full width'}
+            type='button'
+          >
+            {fullWidth ? <ShrinkIcon /> : <ExpandIcon />}
           </button>
           <button aria-label='Collapse rail' className={styles.apIc} onClick={() => setOpen(false)} title='Collapse rail' type='button'>
             <CollapseIcon />

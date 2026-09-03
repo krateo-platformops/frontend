@@ -65,3 +65,14 @@ export const HistoryIcon = ({ className, size = 15 }: IconProps) => stroke(size,
     <path d='M12 7v5l3 2' />
   </>
 ))
+
+// Four corners pointing outward — "expand to full width" (NOT the browser Fullscreen API,
+// just the rail's own width going to 100%, so the icon reads as "widen", not "go fullscreen").
+export const ExpandIcon = ({ className, size = 15 }: IconProps) => stroke(size, className, (
+  <path d='M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3' />
+))
+
+// The inverse of ExpandIcon — corners pointing inward — "restore width".
+export const ShrinkIcon = ({ className, size = 15 }: IconProps) => stroke(size, className, (
+  <path d='M9 3v4a2 2 0 0 1-2 2H3M21 9h-4a2 2 0 0 1-2-2V3M3 15h4a2 2 0 0 1 2 2v4M15 21v-4a2 2 0 0 1 2-2h4' />
+))

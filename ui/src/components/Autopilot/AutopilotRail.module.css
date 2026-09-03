@@ -41,6 +41,15 @@
   width: 640px;
 }
 
+/* Full-width mode: the rail reflows to take the whole shell viewport, same width-only
+   transition as .open/.split — NOT the browser Fullscreen API, so app chrome above/around
+   the shell (if any) is untouched and this is just another width the rail can reflow to.
+   Declared after .split so it wins when both classes are present (fullWidth doesn't clear
+   historyOpen — see AutopilotRail.tsx). */
+.apRail.open.full {
+  width: 100%;
+}
+
 .apRailInner {
   background: var(--panelbg-color);
   border-left: 1px solid var(--border-color);
@@ -589,8 +598,17 @@
 .apEmpty .apEmptyTitle {
   color: var(--dark-color);
   font-family: var(--font-display);
-  font-size: 15px;
-  margin-bottom: 6px;
+  font-size: 19px;
+  margin-bottom: 12px;
+}
+
+/* The starter-prompt row (unlike the per-turn .apSuggest, which follows a message and stays
+   left-aligned) sits under centered greeting text, so it needs to center itself too — otherwise
+   the wrapped button row reads as left-stuck against the centered title/paragraph above it,
+   an offset that only gets more obvious the wider the rail (e.g. full-width mode). */
+.apEmpty .apSuggest {
+  justify-content: center;
+  margin-top: 14px;
 }
 
 /* ── composer ── */
