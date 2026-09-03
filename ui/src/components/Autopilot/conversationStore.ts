@@ -72,6 +72,14 @@ export interface ConversationState {
    * the user sends a new turn (setContextId) or starts/loads another thread.
    */
   restored: boolean
+  /**
+   * ms epoch of this thread's last REAL activity (a message actually sent/received) —
+   * bumped only by setMessages, never by merely viewing/switching to a thread. Archiving
+   * (archiveAndReset / loadThread) must reuse this value rather than stamping Date.now(),
+   * or switching away from a thread you only read would bump it to "most recent" and
+   * reorder the history list out from under whatever you actually last wrote in.
+   */
+  updatedAt: number
 }
 
 export interface ConversationStore {
@@ -126,8 +134,8 @@ export const createConversationStore = (): ConversationStore => {
   // back to a fresh empty thread when nothing is persisted / storage is unavailable.
   const rehydrated = loadCurrentThread()
   let state: ConversationState = rehydrated
-    ? { contextId: rehydrated.contextId, messages: rehydrated.messages, restored: false, sessionId: rehydrated.sessionId }
-    : { contextId: undefined, messages: [], restored: false, sessionId: newSessionId() }
+    ? { contextId: rehydrated.contextId, messages: rehydrated.messages, restored: false, sessionId: rehydrated.sessionId, updatedAt: rehydrated.updatedAt }
+    : { contextId: undefined, messages: [], restored: false, sessionId: newSessionId(), updatedAt: Date.now() }
   // Outside `state` on purpose: the delta base is not rendered, so writing it must not emit.
   let lastEnvelope: PageContextEnvelope | undefined
   const listeners = new Set<() => void>()
@@ -142,7 +150,7 @@ export const createConversationStore = (): ConversationStore => {
   const persistCurrent = (): void => {
     saveCurrentThread(
       isThreadWorthKeeping(state.messages)
-        ? { contextId: state.contextId, messages: state.messages, sessionId: state.sessionId, title: deriveThreadTitle(state.messages), updatedAt: Date.now() }
+        ? { contextId: state.contextId, messages: state.messages, sessionId: state.sessionId, title: deriveThreadTitle(state.messages), updatedAt: state.updatedAt }
         : null,
     )
   }
@@ -153,15 +161,18 @@ export const createConversationStore = (): ConversationStore => {
     emit()
   }
 
-  /** Snapshot the current thread as an archive entry (only when it has a user turn). */
+  /** Snapshot the current thread as an archive entry (only when it has a user turn). Reuses
+   *  `state.updatedAt` (real last-activity time) rather than Date.now(), so archiving a
+   *  thread you only VIEWED — switching away without sending anything — does not bump it
+   *  to "most recent" and reorder the history list. */
   const currentAsThread = (): PersistedThread | null => {
     if (!isThreadWorthKeeping(state.messages)) {
       return null
     }
-    return { contextId: state.contextId, messages: state.messages, sessionId: state.sessionId, title: deriveThreadTitle(state.messages), updatedAt: Date.now() }
+    return { contextId: state.contextId, messages: state.messages, sessionId: state.sessionId, title: deriveThreadTitle(state.messages), updatedAt: state.updatedAt }
   }
 
-  const freshState = (): ConversationState => ({ contextId: undefined, messages: [], restored: false, sessionId: newSessionId() })
+  const freshState = (): ConversationState => ({ contextId: undefined, messages: [], restored: false, sessionId: newSessionId(), updatedAt: Date.now() })
 
   return {
     archiveAndReset: () => {
@@ -187,7 +198,9 @@ export const createConversationStore = (): ConversationStore => {
       lastEnvelope = undefined
       // Load the archived transcript for VIEWING. contextId is intentionally dropped — v1 does
       // NOT resume the server A2A session (phase-2); the next send starts a fresh contextId.
-      set({ contextId: undefined, messages: target.messages, restored: true, sessionId: target.sessionId })
+      // updatedAt carries over from the archive entry (not Date.now()) — merely opening a past
+      // thread to read it must not make it look freshly active.
+      set({ contextId: undefined, messages: target.messages, restored: true, sessionId: target.sessionId, updatedAt: target.updatedAt })
       return true
     },
     reset: () => {
@@ -205,7 +218,9 @@ export const createConversationStore = (): ConversationStore => {
     setMessages: (update) => {
       const next = typeof update === 'function' ? update(state.messages) : update
       if (next === state.messages) { return }
-      set({ ...state, messages: next })
+      // The one true source of "activity": a message was actually appended/edited, so this
+      // is the only setter that bumps updatedAt to now.
+      set({ ...state, messages: next, updatedAt: Date.now() })
     },
     subscribe: (listener) => {
       listeners.add(listener)
