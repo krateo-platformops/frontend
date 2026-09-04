@@ -11,6 +11,11 @@ import { useAutopilot } from './AutopilotProvider'
 import styles from './AutopilotToggle.module.css'
 import { SparkIcon } from './icons'
 
+// ⌘ on Mac, Ctrl elsewhere — for the visible hint only; AutopilotProvider's global handler
+// accepts both. Mirrors CommandPalette's own ⌘K hint.
+const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.userAgent)
+const shortcutHint = isMac ? '⌘G' : 'Ctrl G'
+
 const AutopilotToggle = () => {
   const { enabled, open, reachable, toggle } = useAutopilot()
 
@@ -29,6 +34,9 @@ const AutopilotToggle = () => {
     >
       <SparkIcon size={13} />
       Autopilot
+      {/* No point advertising the shortcut while it can't do anything — the global handler
+          itself is gated on the same `reachable` flag (AutopilotProvider.tsx). */}
+      {reachable ? <kbd className={styles.kbd}>{shortcutHint}</kbd> : null}
     </button>
   )
 

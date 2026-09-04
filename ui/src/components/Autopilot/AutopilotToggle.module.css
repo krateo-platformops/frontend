@@ -41,3 +41,16 @@
   display: inline-flex;
   cursor: not-allowed;
 }
+
+/* ⌘G / Ctrl G chip — mirrors CommandPalette's own kbd hint, tinted to the toggle's amber. */
+.kbd {
+  background: color-mix(in srgb, var(--primary-color) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary-color) 35%, transparent);
+  border-radius: var(--radius-sm);
+  color: inherit;
+  flex-shrink: 0;
+  font-family: inherit;
+  font-size: 9.5px;
+  line-height: 1.6;
+  padding: 0 5px;
+}

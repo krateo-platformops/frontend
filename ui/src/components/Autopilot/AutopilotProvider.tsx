@@ -31,6 +31,7 @@ import { buildClaimPublish } from './builderClaimPublish'
 import { useBuilderTargets } from './builderTargets'
 import { autopilotConversationStore } from './conversationStore'
 import { recordToolFrame } from './evidence'
+import { useAutopilotShortcut } from './keyboardShortcut'
 import { dispatchKogPublish } from './kogPublishDispatch'
 import { createOasAttachmentStore, type OasAttachmentResult } from './oasAttachment'
 import { isPageDraft, pageRootSlug } from './pageDraft'
@@ -766,6 +767,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
 
   const toggle = useCallback(() => setOpen((prev) => !prev), [])
   const closeTour = useCallback(() => setTourOpen(false), [])
+  useAutopilotShortcut(reachable, toggle)
 
   // The `?ask=` deep-link (Diagnose / Troubleshoot buttons): enabled → open the rail
   // and seed one turn; disabled → honest UX-19 notice. All in useAskDeepLink.
