@@ -4,16 +4,18 @@
  *   body    — context strip (what it SEES), transcript, per-turn suggestions
  *   composer— textarea + send + the drive-via-real-controls trust note
  *
- * Renders nothing unless Autopilot is `enabled`. The width animates 0 → 384 so the
- * shell reflows (it never overlays); toggling session history (`.apMain`'s
- * `HistoryColumn`) widens it further, 384 → 640, to dock the thread list beside the
- * transcript instead of covering it. A separate "full width" toggle takes it to 100%
- * of the shell viewport instead — still a plain width reflow, not the browser
- * Fullscreen API. All driving/HITL surfaces are Phase 2/3.
+ * Renders nothing unless Autopilot is `enabled`. The width animates 0 → `railWidth`
+ * (384 by default, drag-resizable from its left edge and persisted across sessions —
+ * see RAIL_DEFAULT_WIDTH/getStoredRailWidth) so the shell reflows (it never overlays);
+ * toggling session history (`.apMain`'s `HistoryColumn`) widens it further by a fixed
+ * HISTORY_EXTRA_WIDTH, to dock the thread list beside the transcript instead of
+ * covering it. A separate "full width" toggle takes it to 100% of the shell viewport
+ * instead — still a plain width reflow, not the browser Fullscreen API. All
+ * driving/HITL surfaces are Phase 2/3.
  */
 
 import { useEffect, useId, useRef, useState } from 'react'
-import type { ClipboardEvent, KeyboardEvent } from 'react'
+import type { ClipboardEvent, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { CopyToClipboard } from 'react-copy-to-clipboard-ts'
 import { default as ReactMarkdown } from 'react-markdown'
 
@@ -283,6 +285,25 @@ const HistoryColumn = ({ currentSessionId, onSwitch, open, sessions }: {
   )
 }
 
+// User-resizable base width (the docked width before the history split's fixed +256px extra —
+// see HISTORY_EXTRA_WIDTH below — or the full-width override). Persisted across sessions the same
+// way ThemeModeContext persists its mode: read once at mount, written on drag-end only (not on
+// every pointermove, to avoid hammering localStorage mid-drag).
+const RAIL_WIDTH_STORAGE_KEY = 'krateo-autopilot-rail-width'
+const RAIL_MIN_WIDTH = 320
+const RAIL_MAX_WIDTH = 720
+const RAIL_DEFAULT_WIDTH = 384
+// Kept equal to 640 - 384, the pre-resize .apRail.open.split delta, so a never-resized rail is
+// byte-identical to the old fixed-width behavior.
+const HISTORY_EXTRA_WIDTH = 256
+
+const clampRailWidth = (value: number) => Math.min(RAIL_MAX_WIDTH, Math.max(RAIL_MIN_WIDTH, value))
+
+const getStoredRailWidth = (): number => {
+  const stored = Number(localStorage.getItem(RAIL_WIDTH_STORAGE_KEY))
+  return Number.isFinite(stored) && stored > 0 ? clampRailWidth(stored) : RAIL_DEFAULT_WIDTH
+}
+
 const AutopilotRail = () => {
   const { approvePending, attachOasDocument, clearOasAttachment, collect, denyPending, enabled, messages, newThread, oasAttachment, open, pendingApproval, restored, send, sessionId, sessions, setOpen, stop, streaming, switchToThread } = useAutopilot()
   const [draft, setDraft] = useState('')
@@ -296,6 +317,12 @@ const AutopilotRail = () => {
   // API — no chrome takeover, just the same width-only reflow the rail already does at
   // 384/640px, carried to 100%). Local to the rail for the same reason as `historyOpen`.
   const [fullWidth, setFullWidth] = useState(false)
+  // Drag-to-resize: the user-chosen base width (see RAIL_DEFAULT_WIDTH/getStoredRailWidth above).
+  // `resizing` only disables the width transition for the drag's duration — dragging with the
+  // transition still on feels laggy (the rail visibly trails the cursor).
+  const [railWidth, setRailWidth] = useState(getStoredRailWidth)
+  const [resizing, setResizing] = useState(false)
+  const railElRef = useRef<HTMLElement>(null)
   // W4 KOG (FE-K2): the over-cap paste rejection note (cleared on the next successful attach).
   const [oasError, setOasError] = useState<string | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -313,15 +340,45 @@ const AutopilotRail = () => {
 
   // Publish the rail's actual width as a :root CSS var so body-portalled overlays (the
   // Filters Drawer) can inset their right edge and never sit over the rail — 0 when
-  // closed/disabled, 384px open, 640px when the history split view widens it further.
-  // Kept in sync with `.apRail.open` / `.apRail.open.split` in AutopilotRail.module.css.
+  // closed/disabled, `railWidth` (user-resizable, defaults 384) open, +HISTORY_EXTRA_WIDTH
+  // when the history split view widens it further, 100% in full-width mode.
   useEffect(() => {
-    const openWidth = enabled && open ? '384px' : '0px'
-    const splitWidth = enabled && open && historyOpen ? '640px' : openWidth
-    const width = enabled && open && fullWidth ? '100%' : splitWidth
+    const dockedWidth = enabled && open ? railWidth + (historyOpen ? HISTORY_EXTRA_WIDTH : 0) : 0
+    const width = enabled && open && fullWidth ? '100%' : `${dockedWidth}px`
     document.documentElement.style.setProperty('--autopilot-rail-width', width)
     return () => { document.documentElement.style.setProperty('--autopilot-rail-width', '0px') }
-  }, [enabled, open, historyOpen, fullWidth])
+  }, [enabled, open, historyOpen, fullWidth, railWidth])
+
+  // Drag-to-resize the rail from its left edge. The handle sits at x=0 inside `.apRail` (see
+  // .apResizeHandle), so the rail's right edge — captured once at drag start — stays fixed for
+  // the drag's duration and `anchorRight - clientX` is the new total width directly; the
+  // HISTORY_EXTRA_WIDTH the split view adds is subtracted back out so `railWidth` always holds
+  // just the resizable base (consistent with the CSS-var effect above and RAIL_DEFAULT_WIDTH).
+  const onResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    const anchorRight = railElRef.current?.getBoundingClientRect().right ?? window.innerWidth
+    const extra = historyOpen ? HISTORY_EXTRA_WIDTH : 0
+    setResizing(true)
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+
+    const onMove = (moveEvent: PointerEvent) => {
+      setRailWidth(clampRailWidth(anchorRight - moveEvent.clientX - extra))
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      setResizing(false)
+      setRailWidth((current) => {
+        localStorage.setItem(RAIL_WIDTH_STORAGE_KEY, String(current))
+        return current
+      })
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
 
   if (!enabled) {
     return null
@@ -373,8 +430,22 @@ const AutopilotRail = () => {
   const ctxStatus = context?.extras?.status
   const lastSuggestions = messages.length ? messages[messages.length - 1].suggestions : undefined
 
+  const dockedWidth = railWidth + (historyOpen ? HISTORY_EXTRA_WIDTH : 0)
+
   return (
-    <aside className={`${styles.apRail} ${open ? styles.open : ''} ${open && historyOpen ? styles.split : ''} ${open && fullWidth ? styles.full : ''}`}>
+    <aside
+      className={`${styles.apRail} ${open ? styles.open : ''} ${open && historyOpen ? styles.split : ''} ${open && fullWidth ? styles.full : ''} ${resizing ? styles.resizing : ''}`}
+      ref={railElRef}
+      style={open ? { width: fullWidth ? '100%' : `${dockedWidth}px` } : undefined}
+    >
+      {open && !fullWidth ? (
+        <div
+          aria-hidden='true'
+          className={styles.apResizeHandle}
+          data-testid='autopilot-resize-handle'
+          onPointerDown={onResizeStart}
+        />
+      ) : null}
       <div className={styles.apRailInner}>
         <div className={styles.apHead}>
           <span className={styles.apTitle}><SparkIcon className={styles.apSpark} />Autopilot</span>

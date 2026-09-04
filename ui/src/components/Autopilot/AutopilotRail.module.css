@@ -21,16 +21,46 @@
   overflow: hidden;
 }
 
-/* The rail itself: flex:none, width animates 0 → 384 so main reflows smoothly.
-   Opening the session-history column (.split) widens it further, 384 → 640, so the
-   thread list docks beside the transcript instead of covering it — see .apMain below.
-   AutopilotProvider mirrors both widths in the `--autopilot-rail-width` CSS var (kept
-   in sync manually; see its comment) so body-portalled overlays inset correctly. */
+/* The rail itself: flex:none, width animates 0 → its (drag-resizable) open width so main
+   reflows smoothly — see AutopilotRail.tsx's inline `style` and .apResizeHandle below.
+   Opening the session-history column (.split) widens it further by a fixed extra, so the
+   thread list docks beside the transcript instead of covering it — see .apMain below. The
+   .open/.split/.full rules below are the pre-resize fallback widths (still correct for a
+   never-resized/never-dragged rail); AutopilotRail.tsx's inline style is what actually wins
+   once open, and mirrors the live width into the `--autopilot-rail-width` CSS var so
+   body-portalled overlays inset correctly. */
 .apRail {
   flex: none;
   overflow: hidden;
+  position: relative;
   transition: width var(--motion-mid, 0.2s) ease;
   width: 0;
+}
+
+/* While the user is actively dragging .apResizeHandle, the width is driven inline (see
+   AutopilotRail.tsx) frame-by-frame — the transition above would make the rail visibly lag
+   behind the cursor, so it's suspended for the drag's duration. */
+.apRail.resizing {
+  transition: none;
+}
+
+/* Drag-to-resize handle, pinned to the rail's left edge. Kept fully inside the box (not
+   straddling x=0 with a negative offset) because `.apRail` clips with overflow:hidden, which
+   would otherwise cut off — and swallow pointer events on — the part hanging outside. */
+.apResizeHandle {
+  bottom: 0;
+  cursor: col-resize;
+  left: 0;
+  position: absolute;
+  top: 0;
+  touch-action: none;
+  width: 6px;
+  z-index: 1;
+}
+
+.apResizeHandle:hover,
+.apRail.resizing .apResizeHandle {
+  background: color-mix(in srgb, var(--primary-color) 45%, transparent);
 }
 
 .apRail.open {
