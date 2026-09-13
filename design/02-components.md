@@ -70,7 +70,28 @@ This is worth separating from a legitimate difference. Those two pages’ *bodie
 
 ### C6 — `TitleLine` — title and status tag on one baseline-centred row.
 
-**Status:** missing → **partly covered**
+**Status:** missing → **partly covered; 7 instances remain, named**
+
+`PageHeader` (C5) absorbed the page-header case — title, counter and tags on one baseline-centred
+row, on 25 pages. Four of the five original findings were there, and the detail-page migrations
+deleted the `*-title-line` Flexes outright (blueprint, cluster, component, composition).
+
+**Seven containers still hand-roll the pattern**, and they are the in-panel case the entry
+predicted would be left over:
+
+```
+flex.agent-detail-titleline      flex.alert-detail-titleline
+flex.delta-compositions          flex.delta-failed
+flex.delta-healthy               flex.delta-reconciles
+flex.incident-rootcause-meta
+```
+
+The two `*-titleline` Flexes are page headers on pages that were never migrated (`/agents/{ns}/{name}`,
+`/alerts/{ns}/{name}`); the four `delta-*` and the rootcause meta row are genuinely in-panel —
+a label with a status pill inside a card.
+
+So the remaining work is two migrations plus one small component, not a redesign. Lower urgency
+than it reads: every one of the seven renders correctly today.
 
 > `PageHeader` (C5) now carries the title/counter/tags row for PAGE headers, which is where four of the five original findings were. A standalone `TitleLine` is still missing for the same pattern inside a panel or card — lower urgency, same defect class.
 

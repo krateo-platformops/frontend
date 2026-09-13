@@ -89,7 +89,29 @@ Mechanical note: the `Tabs` enum carries `cols` but not `flexes`, so a section b
 
 ### P9 — Vertical rhythm between page sections keys off one spacing step.
 
-**Status:** open
+**Status:** open — **half of it is now fixed, and the other half is measured**
+
+`PageHeader` (C5) settled the header→content gap: 25 page headers now carry the same
+`margin-bottom: var(--spacing-lg)`, so the first gap on a page is identical everywhere. That was
+the half the original entry said was blocked on C5 existing.
+
+**The section-to-section rhythm is still ad hoc, and here is the shape of it.** Across 31 page
+roots in the portal chart:
+
+```
+middle   18 pages
+large    12 pages
+small     1 page   (dashboard)
+(none)    1 page   (search)
+```
+
+Three different section gaps and one page that declares nothing. Nothing distinguishes the pages
+that chose `middle` from the ones that chose `large` — `/blueprints` is `large` and `/compositions`
+is `middle`, and they are the same kind of page.
+
+**What closing it means, concretely:** pick one (the majority is `middle`, 18 of 31), set it on
+every page root, and give `search` an explicit value rather than a default. That is a 31-CR change
+and a visible one, so it wants a decision rather than a sweep.
 
 #54 §0.6 asked for a standard gap between major sections and a smaller one within a section. No shared page-rhythm convention exists, and with no `PageHeader` (C5) each page’s section gap stays ad hoc.
 

@@ -70,7 +70,21 @@ Combined with P16, the most-travelled error path in the product discards the rea
 
 ### X4 — The same authoring mistake produces the same visible result in every container.
 
-**Status:** gap
+**Status:** gap → **mitigated at authoring time; the render inconsistency stands**
+
+`dangling-ref` in `lint-portal-consistency.py` catches the mistake in CI, in both repos, before it
+can reach a cluster — so in practice an author no longer discovers this by wondering why a child
+vanished.
+
+**That is detection, not consistency.** The three containers still behave three different ways at
+render time, and a lint cannot change that: `Row`/`Col`/`Flex`/`Card` drop the child with a console
+message, `Table` renders a dash indistinguishable from an empty value, and `Tabs` shows a visible
+`Result`. Making them agree is a change across six widgets and a decision about WHICH behaviour is
+right — the visible error is the most honest, and also the most disruptive on a page where one
+tile of twenty is misconfigured.
+
+Worth keeping open rather than closing on the lint alone: the lint protects charts in these two
+repos. It does not protect a chart authored anywhere else.
 
 A `resourceRefId` with no matching `resourcesRefs` entry behaves **three different ways** depending only on which container it sits in:
 
