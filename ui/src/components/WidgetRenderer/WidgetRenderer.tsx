@@ -1,6 +1,7 @@
 import { Suspense, useEffect } from 'react'
 
 import { useConfigContext } from '../../context/ConfigContext'
+import { RenderChainProvider, inspectChain, useRenderChain } from '../../context/RenderChainContext'
 import { isWidgetArmed, isWidgetLiveRefreshEnabled } from '../../hooks/refreshSse'
 import useCatchError from '../../hooks/useCatchError'
 import { useWidgetQuery } from '../../hooks/useWidgetQuery'
@@ -103,6 +104,12 @@ const parseWidget = (
 }
 
 const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndpoint, wrapper }: WidgetRendererProps) => {
+  // X6: widgets render widgets, and nothing bounded that. A CR whose resourcesRefs points back at
+  // an ancestor — directly or through a cycle — recursed until the browser's stack gave out. The
+  // check runs BEFORE the fetch: a cycle should cost zero requests, not a request per turn of it.
+  const renderChain = useRenderChain()
+  const chainVerdict = inspectChain(renderChain, widgetEndpoint)
+
   const { isWidgetFilteredByProps } = useFilter()
   const { catchError } = useCatchError()
   const { config } = useConfigContext()
@@ -302,11 +309,21 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
     )
   }
 
-  if (wrapper) {
-    return <wrapper.component {...wrapper.props}>{withFreshness(renderedWidget)}</wrapper.component>
+  // A cycle names the two CRs involved, because that is the only thing the author can act on.
+  if (chainVerdict.verdict !== 'render') {
+    return invisible ? null : <WidgetError subtitle={chainVerdict.reason} />
   }
 
-  return withFreshness(renderedWidget)
+  // Every descendant sees this endpoint in its chain, so the check above fires one level down.
+  const withChain = (content: React.ReactNode) => (
+    <RenderChainProvider endpoint={widgetEndpoint}>{content}</RenderChainProvider>
+  )
+
+  if (wrapper) {
+    return <wrapper.component {...wrapper.props}>{withChain(withFreshness(renderedWidget))}</wrapper.component>
+  }
+
+  return withChain(withFreshness(renderedWidget))
 }
 
 export default WidgetRenderer

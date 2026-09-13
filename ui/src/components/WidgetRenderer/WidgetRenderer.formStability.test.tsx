@@ -145,7 +145,7 @@ const makeFormWidget = (opts: { clusterOptions?: string[]; freshness?: boolean; 
         submitActionId: 'submit-action',
       },
     },
-  } as unknown as Widget
+  }
 }
 
 const renderWidget = (ui?: React.ReactNode) => render(
@@ -208,7 +208,7 @@ beforeAll(() => {
     disconnect = noop
     observe = noop
     unobserve = noop
-  } as unknown as typeof ResizeObserver
+  }
 })
 
 beforeEach(async () => {
