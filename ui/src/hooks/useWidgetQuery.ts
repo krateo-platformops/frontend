@@ -122,9 +122,29 @@ export const buildExtrasParam = (
     if (value !== undefined) { extras[key] = value }
   }
   // Volunteer identity only when snowplow does NOT inject it server-side (capability flag).
+  //
+  // Identity still beats the QUERY string — a spoofed `?username=` can never override the
+  // authenticated value — but it must NOT beat a ROUTE param. Those are different inputs. A query
+  // key is anything the visitor cares to type; a route param exists only because the nav CR
+  // declared that path, and its value IS the page's subject.
+  //
+  // Overwriting both broke `/settings/access/{username}`, the one route in the nav whose param
+  // name collides with an identity key: every `/settings/access/<anyone>` URL rendered the logged
+  // -in user, because `extras.username` was replaced with the caller before it reached the
+  // access-grants RESTAction. The page title, the capability preview (a SubjectAccessReview on
+  // `.username`), the grant form and the Revoke button all resolved to the caller — so granting
+  // from alice's page wrote a grant for the admin, and Revoke deleted the admin's own, while the
+  // URL and the breadcrumb both said alice.
+  //
+  // This was never the authorization boundary: reads and writes run under the caller's own token,
+  // so whether the caller may see or change alice's grants is settled server-side.
+  //
+  // Written as a skip rather than a reorder so KEY ORDER is unchanged for every non-colliding
+  // input. The serialized string is the react-query key and the L1 cache cell key; reordering it
+  // would miss every warm cell in the fleet to fix one route.
   if (injectIdentity) {
-    if (displayName) { extras.displayName = displayName }
-    if (username) { extras.username = username }
+    if (displayName && routeParams.displayName === undefined) { extras.displayName = displayName }
+    if (username && routeParams.username === undefined) { extras.username = username }
   }
   return Object.keys(extras).length > 0 ? JSON.stringify(extras) : ''
 }
