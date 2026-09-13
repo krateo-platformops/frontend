@@ -383,8 +383,11 @@ const Form = ({ resourcesRefs, widget, widgetData }: WidgetProps<FormWidgetData>
 
     if (effectiveAction.type !== 'rest') {
       notification.error({
-        description: 'Submit action type is not "rest"',
-        message: 'Error while executing the action',
+        // P17: `type !== 'rest'` is a chart-authoring mistake, and the person looking at the form
+        // cannot fix it. Tell them the form cannot submit and who can; the detail stays in the
+        // console for whoever maintains the chart.
+        description: 'This form is not configured to submit. Ask whoever maintains this page.',
+        message: 'The form cannot be submitted',
         placement: 'bottomLeft',
       })
 

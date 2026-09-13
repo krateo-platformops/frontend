@@ -25,8 +25,9 @@ import type { BlastRadius, BlastRadiusDiff, BlastRadiusSet, BlastRadiusSetOp, Gv
 
 import styles from './BlastRadiusConfirm.module.css'
 
-/** Human phrasing per verb — the plain-language intent shown next to the raw verb tag. */
-const VERB_INTENT: Record<BlastRadius['verb'], string> = {
+/** Human phrasing per verb — the plain-language intent shown next to the raw verb tag, and the
+ * word the confirm BUTTON names (P18). Exported so the gate's okText cannot drift from the body. */
+export const VERB_INTENT: Record<BlastRadius['verb'], string> = {
   DELETE: 'delete',
   PATCH: 'update',
   POST: 'create',

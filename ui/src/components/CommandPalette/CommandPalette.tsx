@@ -137,7 +137,9 @@ const CommandPalette = () => {
                 type='button'
               >
                 <span className={styles.resultText}>
-                  <span className={styles.resultTitle}>{hit.title}</span>
+                  {/* P19: these names are arbitrary-length and the row truncates them. Six other
+                      surfaces in the app carry the full value on hover; this one did not. */}
+                  <span className={styles.resultTitle} title={hit.title}>{hit.title}</span>
                   {hit.subtitle && <span className={styles.resultSubtitle}>{hit.subtitle}</span>}
                 </span>
                 {hit.type && <span className={styles.resultType}>{hit.type}</span>}

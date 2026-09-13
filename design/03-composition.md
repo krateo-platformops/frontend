@@ -153,7 +153,9 @@ Show a marker for the state needing attention. The healthy default renders nothi
 
 ### P16 — An error says what failed and what to do next. It never apologises or fills space.
 
-**Status:** gap
+**Status:** gap → **fixed**
+
+`useCatchError`'s app-wide default no longer apologises. It read *"Ops! Something didn't work" / "Unable to complete the operation, please try later"* — apologetic, non-actionable, misspelled, and reached from every data-fetching widget plus Auth and Login, so it was the string users hit most. Now: *"The request did not complete" / "Try again. If it keeps happening, check your connection and permissions for this resource."*
 
 The house style is otherwise consistent and good — four widgets pair a title with a specific description, Login says *“Wrong username or password, try again with different credentials”*, the voice path names the provider and the retry window.
 
@@ -163,7 +165,9 @@ One string breaks it, and it is the one users hit most: `useCatchError` is the a
 
 ### P17 — User-facing copy never leaks implementation vocabulary.
 
-**Status:** gap
+**Status:** gap → **fixed**
+
+Two strings stopped using our vocabulary for the reader's situation. *"The widget does not exist"* → *"This part of the page could not be loaded"* — a reader is looking at a page missing a piece, not at a widget. And the Form's `Submit action type is not "rest"` → *"This form is not configured to submit. Ask whoever maintains this page."*, because `type !== 'rest'` is a chart-authoring mistake the person at the form cannot fix; the detail stays in the console for whoever can.
 
 Rendered to end users today: *“The widget does not exist”*, *“does not have a status specification”*, `Submit action type is not "rest"`, and raw `resourceRefId`s inside error descriptions. A reader manages alerts, not Alert CRs.
 
@@ -171,7 +175,9 @@ Rendered to end users today: *“The widget does not exist”*, *“does not hav
 
 ### P18 — A confirm button names the outcome it confirms.
 
-**Status:** gap
+**Status:** gap → **fixed**
+
+The one HITL gate every mutating write passes through now names its verb: *"Confirm delete"*, *"Confirm create"*, *"Confirm 4 writes"*. `VERB_INTENT` — the same map the modal body already renders — is exported from `BlastRadiusConfirm` and imported by `confirmModalProps` rather than restated, so the button and the body cannot drift.
 
 `confirmModalProps.ts` is documented as *“the ONE HITL gate every mutating write passes through”* — and hardcodes `okText: 'Confirm'`, even though `BlastRadiusConfirm`’s `VERB_INTENT` map already knows whether this is a create, update, replace or **delete**, and shows it in the body. The sibling publish gate does it correctly with *“Confirm destination”*.
 
@@ -181,7 +187,9 @@ On a platform whose whole premise is that blast radius is visible before you com
 
 ### P19 — Truncated text always carries its full value on hover.
 
-**Status:** gap
+**Status:** gap → **fixed**
+
+Both violators now carry their full value on hover: `CommandPalette` result titles and the Projects `Select` labels. The Select needed care — `label` is a `ReactNode`, so the title is set only when it is actually a string; `String()`-ing a node yields `[object Object]`, which is worse than no tooltip.
 
 Six compliant instances make this real house convention — Breadcrumb, Notifications, Table, Card, ListView, and the rail’s evidence rows. Two live violators: `CommandPalette` search results and the Projects `Select`, both truncating arbitrary-length names with no `title` or tooltip.
 
@@ -189,7 +197,9 @@ Six compliant instances make this real house convention — Breadcrumb, Notifica
 
 ### P20 — Error titles are sentence case.
 
-**Status:** minor
+**Status:** minor → **fixed**
+
+`'Internal Server Error'` → *"The server hit an unexpected error"*: sentence case like its siblings in the same function, and it says what happened rather than echoing an HTTP status name.
 
 `'Internal Server Error'` is the one Title-Case outlier, sitting in the same function as sentence-case siblings.
 
