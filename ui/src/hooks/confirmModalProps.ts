@@ -9,7 +9,7 @@
 import type { ModalFuncProps } from 'antd/es/modal/interface'
 import { createElement } from 'react'
 
-import BlastRadiusConfirm from '../components/BlastRadius/BlastRadiusConfirm'
+import BlastRadiusConfirm, { VERB_INTENT } from '../components/BlastRadius/BlastRadiusConfirm'
 
 import type { BlastRadius, BlastRadiusSet } from './blastRadius.types'
 
@@ -59,11 +59,23 @@ export const buildConfirmModalProps = (
     title = `Confirm ${radius.count} writes`
   }
 
+  // P18: the button names the outcome it confirms. This is the ONE gate every mutating write
+  // passes through, on a platform whose premise is that blast radius is visible BEFORE you commit
+  // — so a button reading "Confirm" makes the reader carry the verb in their head from the body
+  // to the button. VERB_INTENT is the same map the body renders, imported rather than restated so
+  // the two cannot drift: the body says "delete", the button says "Confirm delete".
+  let okText = 'Confirm'
+  if (isSet) {
+    okText = `Confirm ${radius.count} writes`
+  } else if (radius) {
+    okText = `Confirm ${VERB_INTENT[radius.verb]}`
+  }
+
   return {
     cancelText: 'Cancel',
     content: radius ? createElement(BlastRadiusConfirm, { radius }) : undefined,
     okButtonProps: irreversible ? { danger: true } : undefined,
-    okText: 'Confirm',
+    okText,
     onCancel,
     onOk,
     title,

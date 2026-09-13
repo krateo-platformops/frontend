@@ -125,7 +125,10 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
       return (
         <span className={styles.checkOption}>
           <span className={`${styles.checkBox} ${checked ? styles.checkBoxOn : ''}`}>{checked ? '✓' : ''}</span>
-          <span className={styles.checkOptionLabel}>{option.label ?? String(option.value)}</span>
+          {/* P19: project names are arbitrary-length and this label truncates. `label` is a
+              ReactNode, so it is only usable as a title attribute when it is actually a string —
+              String()-ing a node yields "[object Object]", which is worse than no tooltip. */}
+          <span className={styles.checkOptionLabel} title={typeof option.label === 'string' ? option.label : String(option.value)}>{option.label ?? String(option.value)}</span>
         </span>
       )
     }
@@ -141,7 +144,7 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
           type='button'
         >
           <span className={`${styles.checkBox} ${isAll ? styles.checkBoxOn : ''}`}>{isAll ? '✓' : ''}</span>
-          <span className={styles.checkOptionLabel}>{placeholder ?? 'All projects'}</span>
+          <span className={styles.checkOptionLabel} title={placeholder ?? 'All projects'}>{placeholder ?? 'All projects'}</span>
           <span className={styles.optionCount}>{optionValues.length} ns</span>
         </button>
         <div className={styles.panelHr} />

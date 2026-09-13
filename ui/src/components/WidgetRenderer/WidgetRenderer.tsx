@@ -175,7 +175,9 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
   }
 
   if (!widget) {
-    return invisible ? null : <WidgetError subtitle={'The widget does not exist'} />
+    // P17: "widget" is our word, not the reader's. They are looking at a page that is missing
+    // a piece; say that.
+    return invisible ? null : <WidgetError subtitle={'This part of the page could not be loaded'} />
   }
 
   const { code, kind, message, status } = widget

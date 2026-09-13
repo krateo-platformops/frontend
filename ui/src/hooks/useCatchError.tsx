@@ -17,8 +17,12 @@ const useCatchError = () => {
   const { notification } = App.useApp()
 
   const catchError = useCallback((error?: CatchError, type: 'result' | 'notification' = 'notification') => {
-    let message: string = error?.message || "Ops! Something didn't work"
-    let description: React.ReactNode = 'Unable to complete the operation, please try later'
+    // P16: this pair is the app-wide default for any unrecognised error — every data-fetching
+    // widget, Auth and Login reach it — so it is the string users hit most. It used to apologise
+    // ("Ops! Something didn't work" / "please try later"), which names nothing and asks the reader
+    // to wait for a condition nobody described. Say what failed and what they can do instead.
+    let message: string = error?.message || 'The request did not complete'
+    let description: React.ReactNode = 'Try again. If it keeps happening, check your connection and permissions for this resource.'
 
     if ((error?.status === 401 || error?.code === 401)) {
       // Session honesty: a 401 no longer hard-redirects to /login (which wiped all page/rail
@@ -30,7 +34,7 @@ const useCatchError = () => {
         return
       }
     } else if (error?.status === 500 || error?.code === 500) {
-      message = 'Internal Server Error'
+      message = 'The server hit an unexpected error'
       description = error?.data?.message || 'The server encountered an unexpected condition.'
     } else if ((/^4\d{2}$/).test(String(error?.status)) || (/^4\d{2}$/).test(String(error?.code))) {
       if (error?.data?.message) {
