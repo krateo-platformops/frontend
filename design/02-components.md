@@ -42,7 +42,11 @@ Worth stating because of what follows: the ring is **not** broken. It applies to
 
 ### C5 — `PageHeader` — eyebrow, title, counter, tags, actions, subtitle, in one place.
 
-**Status:** missing → **built, not yet adopted**
+**Status:** missing → **built and ADOPTED**
+
+Shipped in frontend 1.6.0 and adopted across **25 of the portal's 26 page headers** (the exception is `/settings/access/{username}`, left alone deliberately — its two Paragraphs read different RESTActions, so merging would drag the page H1 onto an 11-stage action for identical text). The chart went from 597 CR files to 533.
+
+Two follow-ups were forced by real use rather than foreseen: `allowedResources`/`items` became optional (a header with no CTA should not declare actions it does not have), and `counterLabel` was added (`/marketplace` counts "23 blueprints", where the noun tracks the active facet).
 
 > **Built** (#198). The widget ships with `pageheaders` in the Flex/Row/Col enums and its CRD generated. **Adoption is the remaining work**: 46 hand-rolled header CRs across ~12 chart pages collapse to about 14. That is gated on a frontend release — a chart CR referencing `kind: PageHeader` needs the CRD on the cluster first.
 
@@ -76,7 +80,9 @@ Re-filed on four pages across five findings. #86 §0.6 notes a shipped fix *targ
 
 ### C7 — `HeaderIconButton` — one fixed box for every header chrome control.
 
-**Status:** missing
+**Status:** missing → **built and in use**
+
+`components/HeaderIconButton` ships one fixed box for header chrome controls, with `ariaLabel` a REQUIRED prop rather than an optional courtesy. In use in 2 files.
 
 Today: a custom button, an antd circle button, and an antd circle button wrapped in a badge span — three implementations, three alignments.
 
@@ -140,7 +146,9 @@ The same field’s enum also unions two incompatible vocabularies — antd-nativ
 
 ### C13 — A `Tag` never renders a colour swatch with no label.
 
-**Status:** gap
+**Status:** gap → **fixed, and lint-enforced**
+
+`tag-colour-no-label` in `lint-portal-consistency.py` reports 0 violations against the portal chart and runs on every PR in both repos. The rule also survives in code: `StatusPill` draws its leading dot only when there is a LABEL, so a colour-only pill cannot be produced by the widget either.
 
 `showDot` has no guard on `label`. When a template resolves the label to empty, the widget renders a coloured dot in an otherwise-empty pill — meaning carried by colour alone, with nothing for a screen reader or a colourblind reader. Root cause of #82 §0.7.
 
@@ -178,7 +186,9 @@ Every widget with a `resourceRefId` mounts its own renderer and query, so a page
 
 ### C17 — The micro-label idiom is one shared style.
 
-**Status:** gap
+**Status:** gap → **fixed**
+
+The micro-label tier now exists as tokens — `text-label-sm` (11px) and `text-label-xs` (10px), the two steps below the scale's 12px floor that 52 hardcoded sizes were reaching for. In use across 14 CSS files.
 
 Twelve files combine uppercase with the mono face for column headers, card eyebrows and status captions. Each picks its own size — 9 to 12.5px — while **six or more independently converged on `letter-spacing: 0.08em`**. Convergence that strong is a token waiting to be named.
 

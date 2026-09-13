@@ -104,7 +104,11 @@ No nesting-depth or cycle guard exists anywhere in the render path. A self-refer
 
 ### X7 — A CRD-sourced form schema is passed as a string, so field order survives.
 
-**Status:** gap
+**Status:** gap → **partly adopted, and one live defect found by it**
+
+3 of the 10 `apiRef`-backed forms pass their schema as a string; the rest use `schema` and accept Go's map-sort order. Whether each of those seven NEEDS order preservation is a per-form question nobody has asked.
+
+Applying this rule found a real defect: `form.agents-policy-create` declared an `apiRef` and had **no `widgetDataTemplate` at all**, so the 10,349-character action that builds its field set was never consumed and `schema: {}` stayed empty — the page rendered an error state below a correct header. An audit of all 11 form CRs confirmed it was the only one.
 
 The mechanism ships and works: the Form prefers `stringSchema`, whose raw JSON preserves key order, over the parsed object. But it is **opt-in** — a Form given only `schema` alphabetises its fields silently, because CRD `openAPIV3Schema` properties arrive from a Go map. No error, just the wrong order.
 
@@ -149,3 +153,53 @@ Worth keeping as a rule for a second reason: **nothing demonstrated it.** No tes
 On `/compositions`, `listy.compositions-range-chips` and `rangepicker.comp-date-range` are referenced by nothing, and `flex.compositions-range-group` is marked *“SUPERSEDED / UNREFERENCED”* — yet `restaction.compositions-list` still filters on `.range`/`.from`/`.to`. **Autopilot can time-scope that list where a user cannot.** A dead control plus a live filter is a parity gap created by deletion.
 
 *Evidence: verified on the chart at origin/main*
+
+### X11 — A widget kind the frontend no longer resolves renders nothing at all.
+
+**Status:** enforced
+
+The antd-fidelity migration was a HARD BREAK with no aliases — `Panel`→`Card`, `DataGrid`→`Listy`,
+`Column`→`Col`, `TabList`→`Tabs`, `NavMenu`→`Menu` — and the routing kinds (`Page`, `Route`,
+`RoutesLoader`, `NavMenuItem`) were removed outright when routing became data. A CR on a dead kind
+renders nothing: `getWidgetModule(kind)` returns undefined.
+
+It matters most in the charts nobody opens, which is exactly where a dead kind survives longest.
+
+*Enforced by `dead-kind` in `lint-portal-consistency.py`.*
+
+### X12 — `resourcesRefs` is an object, and a chart using the bare-list form does not apply at all.
+
+**Status:** enforced
+
+The current CRD declares `resourcesRefs` an object (`{items, slice}`). A chart still using the
+legacy list form fails validation before a single widget renders — so unlike most rules here the
+failure is loud, but it is loud at DEPLOY time, in a chart that looked fine in review.
+
+*Enforced by `legacy-envelope` in `lint-portal-consistency.py`.*
+
+### X13 — A `resourcesRefs` entry naming a CR that does not exist is the deletion hazard.
+
+**Status:** enforced — and it found a shipped defect on its first run
+
+X1 checks the other direction: an `items[]` id with no `resourcesRefs` entry. Both are needed,
+because they fail differently. This one is what deleting a CR leaves behind: remove the CR, leave a
+reference to it somewhere else, and the parent renders **without that child** — `Row`/`Col`/`Flex`/
+`Card` drop it with only a console message. Nothing in the chart complains and the page just says
+less than it used to.
+
+It was written for the PageHeader migration, which deletes 3–6 CRs per page across 25 pages. On its
+first run against the portal chart it found a defect that had already shipped: #149 had committed
+the alert-detail pipeline walk's RESTAction and its page reference but not the `Card` and `Markdown`
+that render it, and the page had been showing nothing in that slot.
+
+Two things make it work where a naive version would not. Kind→plural comes from the real CRDs
+rather than a hardcoded table — a table would have gone stale the day `PageHeader` was added — and
+the primary check is plural-INDEPENDENT, so it still works in a repo with no CRD checkout and in CI
+with no cluster.
+
+**What it cannot see:** a reference and its target behind the SAME helm conditional. On
+`/observability` both the header's `items` entry and the Button's own CR sit behind
+`{{- if .Values.observabilityConsoleUrl }}`, so neither looks dangling to a static reader. That
+case is checked by rendering both branches, by hand.
+
+*Enforced by `missing-target` in `lint-portal-consistency.py`.*

@@ -51,7 +51,11 @@ A scale that ships with no consumers must be adopted or deleted. Leaving it live
 
 ### T4 — Spacing resolves to `var(--spacing-*)`; a raw value must equal one of 4 / 8 / 16 / 24 / 32.
 
-**Status:** severe
+**Status:** severe → **fixed, and now a plain gate**
+
+Swept to zero: `spacing` 106 → 0 and `gap` 22 → 0 across `ui/src`, one commit per file so any single rounding reverts alone. The rule applied throughout was *snap to the nearest step; where a value sits exactly between two steps, round up* — no value moved by more than 4px. `lint-css-tokens.py` now runs with an empty baseline for both rules, so this is enforced rather than tracked.
+
+Two exemptions were added along the way, both because the rule was asking the wrong question: a NEGATIVE margin is an offset, not spacing (the screen-reader-only idiom needs its `-1px`), and a value made only of `0`/`auto` is not a length at all (`margin: auto 0` was the last "violation" standing).
 
 **30 of 225** padding/margin declarations use the token; **35 of 104** `gap:` declarations do. So 195 and 69 respectively are hardcoded — 87% and 66%. And the raw values don’t cluster on the scale: the most common are 12, 10, 7, 6, 2, 5px.
 
@@ -71,7 +75,11 @@ The root cause [#86](https://github.com/krateo-platformops/frontend/issues/86) i
 
 ### T6 — Viewport breakpoints come from one shared token.
 
-**Status:** gap
+**Status:** gap → **corrected: this is a ratchet, not debt**
+
+The original entry read as work to be done. It is not, and the lint says so in its own docstring: **CSS custom properties are not permitted inside an `@media` condition**, so "use the token" is unimplementable here. What `rule_breakpoint` does instead is stop a SIXTH value appearing — the five that exist (1024/640, 1180/960, 768) sit in the baseline and a new one fails.
+
+Consolidating those five onto a scale remains a real improvement and a real design decision, because each one is a layout collapse point somebody chose. It is not token debt.
 
 No breakpoint token exists. Four components each invent their own — 1024/640, 1180/960, 768 — **no two sharing a value**, and nothing documenting which is the tablet or mobile line.
 
