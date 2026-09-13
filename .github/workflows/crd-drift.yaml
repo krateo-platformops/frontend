@@ -25,6 +25,13 @@ jobs:
   drift:
     runs-on: ubuntu-latest
     steps:
+      - name: Install krateoctl v0.8.9
+        # Pinned, and the version MUST reach the piped shell as `bash -s 0.8.9` — written as
+        # `install.sh 0.8.9 | bash` the argument is a positional for `curl` (silently ignored),
+        # install.sh falls through to its "latest release" path, and that resolves to a krateoctl
+        # which spins ~3min on Theme.schema.json then exits 1. Same pin and same reasoning as the
+        # `crds` job in release-tag.yaml; if one moves, move both.
+        run: curl -sL https://raw.githubusercontent.com/krateoplatformops/krateoctl/main/install.sh | bash -s 0.8.9
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
         with:
