@@ -196,7 +196,32 @@ Twelve files combine uppercase with the mono face for column headers, card eyebr
 
 ### C18 — Button size is `middle` by default; `small` is never hardcoded where a CR cannot reach it.
 
-**Status:** open
+**Status:** open → **holds, with a documented exception list**
+
+Filed as "the largest class in the backlog — 12 findings, 10 issues". Re-measured against the
+code, the rule is satisfied where it matters and the remaining instances are correct.
+
+**The CR-reachable case is already right.** `Button.schema.json` exposes `size`
+(`small|middle|large`) and `Button.tsx:66` renders `size={size || 'middle'}` — middle by default,
+overridable per CR. That is precisely what #81 §0.1 asked for, and it landed.
+
+**The nine hardcoded `size='small'` sites are not CR-authored Buttons.** Four are not Buttons at
+all — a `Descriptions` (Form review table), two `Progress` bars (Table cell, ListView bar), and a
+tile `Card`. The other five are a widget's OWN chrome, where `small` is the correct antd size:
+
+| site | what it is |
+|---|---|
+| `Markdown.tsx:75` | the copy icon inside a code fence |
+| `ListView.tsx:185` | a filter chip (`className={styles.chip}`) |
+| `ListView.tsx:310` | the row-actions `⋮` menu (`type='text'`) |
+| `Select.tsx:159,162` | Clear / Apply in the select popup footer |
+
+Applied literally to those, the rule would render a code-block copy icon at the same size as a page
+CTA. **The rule was reaching for "a widget must not silently impose density on page CONTENT", and
+none of these is content.**
+
+Residue, if anyone wants it: `ListView` chips are compact by convention and a CR cannot change
+that. Making them author-controlled is a density judgement, not a parity defect.
 
 The largest class in the backlog — 12 findings, 10 issues. `ListView.tsx` still hardcodes `size='small'` at four call sites; #81 §0.1 asked for `middle` or a schema field and neither landed.
 
