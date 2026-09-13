@@ -125,7 +125,10 @@ describe('useSearchTypeahead — debounce + fetch wiring', () => {
 
     // The one request targets the route-resolved listies endpoint with the term as extras.q
     // and the app's standard Bearer auth.
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    // `fetch`'s first arg is typed `URL | RequestInfo` and its second is optional, so the tuple
+    // does not overlap [string, RequestInit] directly. The call site always passes a string URL and
+    // an init — assert that through `unknown` rather than widening the assertions themselves.
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toContain('resource=listies')
     expect(url).toContain('name=search-results')
     expect(new URL(url).searchParams.get('extras')).toBe(JSON.stringify({ q: 'pa' }))

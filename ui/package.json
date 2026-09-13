@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "build": "vite build",
     "preview": "vite preview",
     "lint:css": "stylelint \"src/**/*.module.css\" --fix",

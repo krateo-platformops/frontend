@@ -46,7 +46,7 @@ const TWO_BLOCKS = [
 ].join('\n')
 
 const renderMd = (markdown: string, allowCopy = false) =>
-  render(<Markdown uid='t' widgetData={{ allowCopy, markdown } as never} />)
+  render(<Markdown resourcesRefs={{ items: [] }} uid='t' widgetData={{ allowCopy, markdown }} />)
 
 afterEach(() => {
   copied.length = 0

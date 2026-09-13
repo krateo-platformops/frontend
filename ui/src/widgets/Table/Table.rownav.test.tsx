@@ -37,17 +37,20 @@ vi.stubGlobal('matchMedia', (query: string) => ({
   removeListener: vi.fn(),
 }))
 
+// `as const` on each `kind` and `type`: the values are valid members of the column-kind union, but an
+// un-annotated helper widens them to `string`, which then does not assign. This is what the
+// removed `as never` was hiding — the DATA was always right, the inference was not.
 const row = (route: string) => [
   {
-    kind: 'jsonSchemaType',
+    kind: 'jsonSchemaType' as const,
     stringValue: 'payments-api',
-    type: 'string',
+    type: 'string' as const,
     valueKey: 'name',
   },
   {
-    kind: 'jsonSchemaType',
+    kind: 'jsonSchemaType' as const,
     stringValue: route,
-    type: 'string',
+    type: 'string' as const,
     valueKey: 'route',
   },
 ]
@@ -56,12 +59,14 @@ function renderTable(rowNavigateTo: string, routeValue: string) {
   return render(
     <MemoryRouter>
       <Table
+        resourcesRefs={{ items: [] }}
         uid='t'
         widgetData={{
+          allowedResources: [],
           columns: [{ title: 'Name', valueKey: 'name' }],
           dataSource: [row(routeValue)],
           rowNavigateTo,
-        } as never}
+        }}
       />
     </MemoryRouter>,
   )
