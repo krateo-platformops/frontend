@@ -12,7 +12,7 @@
  * bad chart is data — the drawer shows the error string); an unreachable/failed
  * service is likewise surfaced as preview text, never a throw.
  */
-import { dump, load } from 'js-yaml'
+import { dump, load, loadAll } from 'js-yaml'
 
 import { getAccessToken } from '../../utils/getAccessToken'
 
@@ -459,24 +459,37 @@ export const FILE_EDIT_SHAPE_ERROR
  *            would be wrong here.
  */
 export const parseFileEdit = (source: string, requireCrShape: boolean): FileEditResult => {
-  let parsed: unknown
+  // MULTI-DOCUMENT, because both kinds of file here routinely are one. This used js-yaml `load`,
+  // which throws `expected a single document in the stream` on any input containing a `---`
+  // separator — so a perfectly ordinary Helm chart template was rejected as "not valid YAML", and
+  // so was a widget-CR file holding more than one CR. The portal chart has seven such files; one
+  // of them holds fifteen documents.
+  let documents: unknown[]
   try {
-    parsed = load(source)
+    documents = loadAll(source)
   } catch {
     return { ok: false, problems: [FILE_EDIT_PARSE_ERROR] }
   }
   if (!requireCrShape) {
-    // A blueprint chart template: any parseable document is accepted (js-yaml `load` of an empty
-    // document yields undefined — a wholly-empty file is still a valid, publishable template).
+    // A blueprint chart template: any parseable document is accepted (an empty document yields
+    // undefined — a wholly-empty file is still a valid, publishable template).
     return { content: source, ok: true, problems: [] }
   }
-  const cr = asRecord(parsed)
-  const name = asRecord(cr?.metadata)?.name
-  if (!cr
-    || typeof cr.apiVersion !== 'string' || !cr.apiVersion.trim()
-    || typeof cr.kind !== 'string' || !cr.kind.trim()
-    || typeof name !== 'string' || !name.trim()) {
+  // A widget-CR file: EVERY non-empty document must carry the CR shape. Checking only the first
+  // is how a fifteen-document file gets classified by its first document.
+  const present = documents.filter((doc) => doc !== undefined && doc !== null)
+  if (present.length === 0) {
     return { ok: false, problems: [FILE_EDIT_SHAPE_ERROR] }
+  }
+  for (const doc of present) {
+    const cr = asRecord(doc)
+    const name = asRecord(cr?.metadata)?.name
+    if (!cr
+      || typeof cr.apiVersion !== 'string' || !cr.apiVersion.trim()
+      || typeof cr.kind !== 'string' || !cr.kind.trim()
+      || typeof name !== 'string' || !name.trim()) {
+      return { ok: false, problems: [FILE_EDIT_SHAPE_ERROR] }
+    }
   }
   return { content: source, ok: true, problems: [] }
 }

@@ -459,6 +459,24 @@ describe('parseFileEdit — re-validate an EDITED "Files"-tab file (page/bluepri
     expect(parseFileEdit('', false).ok).toBe(true)
   })
 
+  // A `---` separator is ordinary in both kinds of file, and js-yaml's single-document `load`
+  // throws on it. The portal chart has seven multi-document template files; one holds fifteen.
+  it('accepts a MULTI-DOCUMENT blueprint chart template', () => {
+    const multi = 'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: a\n---\napiVersion: v1\nkind: Secret\nmetadata:\n  name: b\n'
+    expect(parseFileEdit(multi, false).ok).toBe(true)
+  })
+
+  it('accepts a MULTI-DOCUMENT widget-CR file when every document carries the CR shape', () => {
+    const multi = 'apiVersion: widgets.templates.krateo.io/v1beta1\nkind: Flex\nmetadata:\n  name: a\n---\napiVersion: widgets.templates.krateo.io/v1beta1\nkind: Card\nmetadata:\n  name: b\n'
+    expect(parseFileEdit(multi, true).ok).toBe(true)
+  })
+
+  it('rejects a multi-document CR file when a LATER document is malformed — not just the first', () => {
+    const multi = 'apiVersion: widgets.templates.krateo.io/v1beta1\nkind: Flex\nmetadata:\n  name: a\n---\nkind: Card\nmetadata:\n  name: b\n'
+    expect(parseFileEdit(multi, true).ok).toBe(false)
+    expect(parseFileEdit(multi, true).problems).toEqual([FILE_EDIT_SHAPE_ERROR])
+  })
+
   it('a BLUEPRINT chart template: rejects genuinely unparseable YAML', () => {
     const result = parseFileEdit('spec:\n  - : : bad', false)
     expect(result.ok).toBe(false)
