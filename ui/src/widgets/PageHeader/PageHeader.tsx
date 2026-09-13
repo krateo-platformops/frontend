@@ -3,6 +3,7 @@ import { Flex, Typography } from 'antd'
 import StatusPill from '../../components/StatusPill'
 import WidgetRenderer from '../../components/WidgetRenderer'
 import type { WidgetProps } from '../../types/Widget'
+import { resolveLocalTokens } from '../../utils/localTokens'
 import { getEndpointUrl } from '../../utils/utils'
 
 import styles from './PageHeader.module.css'
@@ -34,12 +35,23 @@ export type PageHeaderWidgetData = NonNullable<WidgetType['spec']>['widgetData']
 const PageHeader = ({ resourcesRefs, uid, widgetData }: WidgetProps<PageHeaderWidgetData>) => {
   const { counter, counterLabel, items, subtitle, tags, title } = widgetData
 
+  // Resolve client-side tokens the same way Paragraph does. The chart emits `{localTimeOfDay}` and
+  // `{displayName}` LITERALLY and expects the browser to substitute them — server-side they would
+  // be wrong, because snowplow caches a no-apiRef widget's rendered output with `now` frozen and
+  // the frontend no longer volunteers identity in `?extras=`.
+  //
+  // This is not defensive: the dashboard greeting shipped through this widget reading
+  // "Good {localTimeOfDay}, {displayName}" on screen, because the migration assumed a PageHeader
+  // title rendered down the same path a Paragraph's text did. It did not.
+  const resolvedTitle = resolveLocalTokens(title)
+  const resolvedSubtitle = resolveLocalTokens(subtitle)
+
   return (
     <div className={styles.header} key={uid}>
       <Flex align='center' className={styles.top} gap='middle' justify='space-between' wrap>
         <Flex align='center' className={styles.titleLine} gap='small' wrap>
           <Typography.Title className={styles.title} level={1}>
-            {title}
+            {resolvedTitle}
             {counter !== undefined && (
               // Beside the title and on its type step — a count is part of the title, not a
               // separate fact competing with it.
@@ -78,7 +90,7 @@ const PageHeader = ({ resourcesRefs, uid, widgetData }: WidgetProps<PageHeaderWi
         )}
       </Flex>
 
-      {subtitle && <Typography.Paragraph className={styles.subtitle}>{subtitle}</Typography.Paragraph>}
+      {resolvedSubtitle && <Typography.Paragraph className={styles.subtitle}>{resolvedSubtitle}</Typography.Paragraph>}
     </div>
   )
 }
