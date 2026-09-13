@@ -441,6 +441,102 @@ def rule_containment(crs):
     return out
 
 
+def rule_page_header(crs):
+    """P25 — a page whose first child is not a `PageHeader`.
+
+    Every page in the portal names itself, in the same place, in the same type ramp. That is the
+    single most visible consistency rule the design system has, and until now the only thing
+    enforcing it was someone running a survey and counting.
+
+    Those surveys were wrong three times, each in a way the next survey inherited, because each
+    looked for the SHAPE a page header was expected to have instead of for the page:
+
+      by name       `pageheader.*` / `*-header-block` missed two detail pages that spell their
+                    parts `-titleline`, and missed a page whose header had no container at all.
+      by first doc  `marketplace-detail.yaml` holds fifteen documents and opens with a RESTAction,
+                    so a scanner reading one document per file never saw the header inside it.
+      by container  a page opening on a bare `Paragraph` matched no container pattern.
+
+    So this rule starts from the NAV, which is what actually makes something a page, and resolves
+    every route it declares. A page that exists but is unreachable is not this rule's business
+    (P10 covers dangling routes); a page that is reachable and does not name itself is.
+
+    The first child is resolved the same way the renderer resolves it — `widgetData.items[0]`'s
+    `resourceRefId` through the CR's own `resourcesRefs` — so the rule cannot go stale against a
+    naming convention.
+
+    OPT-OUT, because one page legitimately has no single header: annotate the page root with
+    `krateo.io/no-page-header: <reason>`. An exception that has to be written down and reviewed is
+    the point; a silent exclusion list inside the lint is what let the first three surveys drift."""
+    by_name = {}
+    for fname, doc in crs:
+        name = (doc.get('metadata') or {}).get('name')
+        if name:
+            by_name[name] = (fname, doc)
+
+    def first_child_kind(doc):
+        """(kind, child_name) of the page's first rendered child, or (None, reason)."""
+        spec = doc.get('spec') or {}
+        if spec.get('resourcesRefsTemplate') or 'items' in templated_paths(doc):
+            return None, 'templated'
+        items = widget_data(doc).get('items')
+        if not isinstance(items, list) or not items:
+            return None, 'no items'
+        first = items[0]
+        ref = first.get('resourceRefId') if isinstance(first, dict) else None
+        if not ref:
+            return None, 'no resourceRefId'
+        refs = spec.get('resourcesRefs')
+        refs = refs.get('items') if isinstance(refs, dict) else refs
+        for r in (refs or []):
+            if isinstance(r, dict) and r.get('id') == ref:
+                target = by_name.get(r.get('name'))
+                if not target:
+                    return None, f'unresolvable child `{r.get("name")}`'
+                return target[1].get('kind'), r.get('name')
+        return None, f'child `{ref}` has no resourcesRefs entry'
+
+    out = []
+    for fname, doc in crs:
+        if doc.get('kind') != 'Menu':
+            continue
+        spec = doc.get('spec') or {}
+        refs = spec.get('resourcesRefs')
+        refs = refs.get('items') if isinstance(refs, dict) else refs
+        by_id = {r['id']: r.get('name') for r in (refs or [])
+                 if isinstance(r, dict) and r.get('id')}
+        seen = set()
+        for path, value in walk_strings(widget_data(doc)):
+            leaf = path.rsplit('.', 1)[-1]
+            # `page: x` names `page-x` by convention; `resourceRefId` resolves through resourcesRefs.
+            if leaf == 'page':
+                root = f'page-{value}'
+            elif leaf == 'resourceRefId':
+                root = by_id.get(value, value)
+            else:
+                continue
+            if root in seen:
+                continue
+            seen.add(root)
+            target = by_name.get(root)
+            if not target:
+                continue          # P10's business, not this rule's
+            page_file, page_doc = target
+            if (page_doc.get('metadata') or {}).get('annotations', {}).get('krateo.io/no-page-header'):
+                continue
+            kind, detail = first_child_kind(page_doc)
+            if kind == 'PageHeader' or detail == 'templated':
+                continue
+            shown = f'a `{kind}`' if kind else detail
+            out.append((
+                page_file,
+                f'page `{root}` opens on {shown}, not a PageHeader — every page names itself in '
+                f'the same place and type ramp; annotate the root with `krateo.io/no-page-header` '
+                f'if this page genuinely has none',
+            ))
+    return out
+
+
 RULES = {
     'dead-kind': (rule_dead_kind, 'X11'),
     'missing-target': (rule_missing_target, 'X13'),
@@ -451,6 +547,7 @@ RULES = {
     'emoji': (rule_emoji, 'P15'),
     'tag-colour-no-label': (rule_tag_colour_without_label, 'C13'),
     'containment': (rule_containment, 'X5'),
+    'page-header': (rule_page_header, 'P25'),
 }
 
 
