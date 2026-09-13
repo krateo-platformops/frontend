@@ -38,7 +38,10 @@ Worth stating because of what follows: the ring is **not** broken. It applies to
 
 *Evidence: #174 — verified `ui/src/components/Autopilot/focusTrap.ts`*
 
-## Recommended, never built
+## Recommended
+
+<!-- This section was headed "Recommended, never built". C5 was built and adopted
+     while it sat here, which made the heading contradict the first line of its own first rule. -->
 
 ### C5 — `PageHeader` — eyebrow, title, counter, tags, actions, subtitle, in one place.
 
@@ -48,7 +51,10 @@ Shipped in frontend 1.6.0 and adopted across **25 of the portal's 26 page header
 
 Two follow-ups were forced by real use rather than foreseen: `allowedResources`/`items` became optional (a header with no CTA should not declare actions it does not have), and `counterLabel` was added (`/marketplace` counts "23 blueprints", where the noun tracks the active facet).
 
-> **Built** (#198). The widget ships with `pageheaders` in the Flex/Row/Col enums and its CRD generated. **Adoption is the remaining work**: 46 hand-rolled header CRs across ~12 chart pages collapse to about 14. That is gated on a frontend release — a chart CR referencing `kind: PageHeader` needs the CRD on the cluster first.
+> **Superseded by the status line above.** This blockquote is kept because it records what was true
+> when the widget landed, but every claim in it is now spent: the frontend release happened (1.6.0,
+> with the CRD), and adoption is done — the chart renders **28 `PageHeader` CRs** and the `page-header`
+> lint rule (P25) passes with exactly one annotated opt-out.
 
 Its absence is named as the reason a finding could not be fixed centrally: *“no dedicated page-header component exists to point to.”* Most of the Layer 3 page rules exist because this does not.
 
@@ -66,7 +72,7 @@ Three spellings of one concept, and one page reaching for a `Row` where the rest
 
 This is worth separating from a legitimate difference. Those two pages’ *bodies* are architecturally opposite — incident detail stacks eight cards, observability is three items wrapped around a single Tabs — and by P8 both are correct, because one is a single object’s narrative and the other is three datasets. **The body may differ; the chrome may not.** A `PageHeader` constrains neither.
 
-*Evidence: #72 §0.1 — verified absent · header CRs counted on the chart at origin/main*
+*Evidence: #72 §0.1 · 28 `PageHeader` CRs in the rendered chart, and P25 green with one documented opt-out*
 
 ### C6 — `TitleLine` — title and status tag on one baseline-centred row.
 
@@ -136,13 +142,17 @@ The header notification bell — present on every page — has no `aria-label`, 
 
 ### C12 — A status treatment covers the whole status palette, not the two values someone needed first.
 
-**Status:** gap
+**Status:** gap → **fixed**, for the treatment; the enum union still holds
 
-`Card.module.css` re-tints the badge variant for `warning` and `error` only. `success`, `processing` and `default` fall through to a hardcoded **cyan** — so `extraStatus: 'success'` never renders green, breaking “green means healthy” in this one pipeline. This is #78 §0.6’s root cause, still unfixed.
+> **Corrected.** This rule sat marked `gap` while the fix lived in the file it cites, starting two
+> lines after the cited range ended. Reading `Card.module.css:250-290` and stopping there is exactly
+> what the citation invited.
 
-The same field’s enum also unions two incompatible vocabularies — antd-native `success|processing|warning|error|default` with brand names `green|gold|red|blue|violet` — and nothing prevents pairing the wrong one with the wrong variant.
+`Card.module.css` re-tinted the badge variant for `warning` and `error` only, so `extraStatus: 'success'` fell through to a hardcoded **cyan** and never rendered green — #78 §0.6's root cause. It now carries `&:has(.ant-badge-status-success)`, tinting background, border, dot and text from `var(--green-color)`, and `&:has(.ant-badge-status-default)` for neutral grey. `processing` deliberately keeps cyan, which is the antd meaning of that value rather than an oversight.
 
-*Evidence: verified `Card.module.css:250-290` · `Card.type.d.ts:256`*
+**The second half of this rule still holds.** The same field's enum unions two incompatible vocabularies — antd-native `success|processing|warning|error|default` with brand names `green|gold|red|blue|violet` — and nothing prevents pairing the wrong one with the wrong variant.
+
+*Evidence: verified `Card.module.css` `&:has(:global(.ant-badge-status-success))` and the `-default` block below it · `Card.type.d.ts` `extraStatus`*
 
 ### C13 — A `Tag` never renders a colour swatch with no label.
 
@@ -223,9 +233,16 @@ none of these is content.**
 Residue, if anyone wants it: `ListView` chips are compact by convention and a CR cannot change
 that. Making them author-controlled is a density judgement, not a parity defect.
 
-The largest class in the backlog — 12 findings, 10 issues. `ListView.tsx` still hardcodes `size='small'` at four call sites; #81 §0.1 asked for `middle` or a schema field and neither landed.
+The largest class in the backlog — 12 findings, 10 issues.
 
-*Evidence: verified `ListView.tsx:153,213,278,302`*
+> **Corrected.** An earlier version of this rule said `ListView.tsx` "still hardcodes `size='small'`
+> at four call sites", and its evidence line cited four line numbers that today hold `{child}`, a
+> blank line, a `</div>` and a `},`. Both survived the correction that produced the current status
+> and contradicted it. The real sites are the two named in the table above — the filter chip and the
+> row-actions menu — and both are the documented exception, not the defect.
+
+*Evidence: verified `ListView.tsx` filter chip and row-actions menu, as cited in the table above ·
+`Button.tsx` renders `size={size || 'middle'}`*
 
 ### C19 — `FlowChart` — edges curve, and nodes get room not to collide.
 

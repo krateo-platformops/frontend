@@ -1,0 +1,10 @@
+/* The same shape done right: the canonical property, which tokens.ts emits. */
+.live {
+  font-size: var(--krateo-text-body);
+}
+
+/* A var() with a FALLBACK is fine whatever it names — it renders the fallback rather than
+   being dropped, so it declares a real size. */
+.guarded {
+  font-size: var(--not-a-token, 12px);
+}

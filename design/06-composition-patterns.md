@@ -57,11 +57,21 @@ The row grid’s advantage is density above the fold, and it is real — but it 
 
 **Status:** CR
 
-**31 of 32 Tables carry `rowNavigateTo`.** That is not a coincidence, it is what the widget is for in this portal: a columnar index whose rows lead somewhere.
+**16 of 39 Tables carry `rowNavigateTo`.**
 
-So a table without a destination is worth questioning — either its rows should lead somewhere and the route is missing, or the data is not an index and wants `Descriptions` or a card. And where a row does navigate, P10 applies: a placeholder that can resolve empty makes the row silently inert.
+> **Corrected, and the rule's premise with it.** This said "31 of 32 — that is not a coincidence, it
+> is what the widget is for in this portal". The real figure is 41%, not 97%. The original is
+> reproducible by the method that produced it: `ls templates | grep -c '^table\.'` counts 31 files,
+> and `grep -rl rowNavigateTo | wc -l` counts files, not CRs — so it compared a file count against a
+> file count and missed both the Tables that share a file with something else and the ones that
+> carry no navigation. Counting CRs in the rendered chart gives 39 and 16.
 
-*Evidence: measured: 31/32*
+So navigation is the *majority* use but not the defining one, and the rule has to be read the other
+way round: a table without a destination is common and often correct — a read-only matrix, an env
+list, an audit log. Ask what the rows ARE before asking where they go. Where a row does navigate,
+P10 still applies: a placeholder that can resolve empty makes the row silently inert.
+
+*Evidence: measured on the rendered chart — 16 of 39 Table CRs*
 
 ### G4 — Table for columns, Listy for tiles — and Listy is only half navigational.
 
@@ -165,6 +175,16 @@ And colour never carries meaning alone: a coloured dot with no label (C13) is in
 
 Almost nothing in this portal moves, and that is correct for a console someone watches during an incident. Motion earns its place only by reporting that something *changed* — a value updating, a write landing, a state transitioning — and then stopping.
 
-An animation that loops forever is reporting nothing; it is just movement in the corner of the eye of someone trying to read. The freshness pulse is the one infinite loop in the codebase and the one unguarded by `prefers-reduced-motion` (T9) — both facts point the same way.
+An animation that loops forever is reporting nothing; it is just movement in the corner of the eye of someone trying to read.
 
-*Evidence: judgement · T9*
+> **Corrected — both halves.** This said the freshness pulse "is the one infinite loop in the
+> codebase and the one unguarded by `prefers-reduced-motion` (T9)". There are six `infinite`
+> declarations across two files (the freshness badge and the Autopilot rail), and the freshness
+> badge now carries its own `@media (prefers-reduced-motion: reduce)` guard citing T9 — which is
+> marked fixed, with the `unguarded-animation` lint rule gating at 0. T9's own body already said
+> the opposite of this sentence.
+
+The judgement stands on its own without those two facts: a perpetual pulse reports nothing, and it
+should stop once it has said what changed.
+
+*Evidence: judgement · T9 · six `infinite` declarations across `FreshnessBadge.module.css` and `AutopilotRail.module.css`*

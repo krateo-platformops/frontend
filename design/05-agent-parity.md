@@ -92,7 +92,14 @@ On primacy: it is **not** special-cased. It takes `primary` under the same rule 
 
 **Status:** gap → **decided**
 
-> **Decided, and the underlying defect fixed** (#204). The stubs STAY declared: removing them changes nothing, because an unregistered verb returns null too — so the real defect was the silence, not the declaration. And they must NOT be implemented: the drawer capability is already reachable via `runAction` against a shipped Button, so a dedicated verb would let the agent open a drawer for a ref no button exposes — creating a Layer 5 gap rather than closing one. `refused()` in `actionBridge` now turns every null into a chip naming the verb, which covers unknown verbs, failed schemas and unmounted controls alike.
+> **Decided, and the underlying defect fixed** (#204). The stubs STAY declared: removing them changes nothing, because an unregistered verb returns null too — so the real defect was the silence, not the declaration. And they must NOT be implemented: the drawer capability is already reachable via `runAction` against a shipped Button, so a dedicated verb would let the agent open a drawer for a ref no button exposes — creating a Layer 5 gap rather than closing one. `refused()` in `actionBridge` turns a null into a chip naming the verb — for the **read-verb registry path**.
+
+> **Corrected.** This blockquote claimed `refused()` "covers unknown verbs, failed schemas and
+> unmounted controls alike". It does not cover the last one. The `refused()` fallback is applied
+> only on the `READONLY_VERB_REGISTRY` path; `runAction` is handled by an earlier branch that
+> returns a bare `null` when `lookupAction` finds nothing, and `runAction` is not a key of that
+> registry, so it never reaches the fallback. Exactly one refusal path is still silent, and it is
+> the one this sentence named as covered — see A18, which describes it as an open gap.
 
 `openDrawer` and `openModal` are registered as read verbs whose apply always resolves null. The UI supports both natively — this is the inverse gap, and it is worse than an absent verb, because the model is taught a capability that silently does nothing.
 
@@ -228,7 +235,17 @@ The unmounted-control case is the same silent-failure shape as P10’s inert row
 
 **Status:** partly
 
-**Page state: breached.** `setExtras` rebuilds the query string from its own proposal, discarding every URL param it did not set — see X9. That is the agent damaging state the page owns.
+**Page state: holds.**
+
+> **Corrected.** This read "**breached** — `setExtras` rebuilds the query string from its own
+> proposal, discarding every URL param it did not set — see X9", and cited X9 as its support. X9
+> says the opposite, in bold: *"Corrected — this was published as a defect and is not one."* The
+> code agrees with X9. `buildExtrasPath` does build a bare `pathname?whitelisted-only` URL, but
+> `setExtrasSpec.apply` dispatches it as a `navigate` action, and the navigate dispatcher seeds a
+> fresh `URLSearchParams(window.location.search)` and overlays only the keys the proposal set. The
+> params the agent did not touch survive. Two rules in the same design system asserting opposite
+> things about one function, one of them citing the other as evidence, is the failure worth
+> recording here.
 
 **Cluster debris: designed, with a known hole.** Preview drafts are swept on the next preview and torn down on drawer close, epoch-guarded so a stale close cannot delete a newer preview. But the contract is explicitly best-effort — “a failed delete is the janitor’s problem” — and teardown fires on *drawer close*, so a session that dies without one leaves its drafts until the next preview or an external janitor. Worth knowing rather than discovering.
 

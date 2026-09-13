@@ -353,7 +353,7 @@
 
 .apHistoryTitle {
   color: var(--dark-color);
-  font-size: var(--text-body-sm);
+  font-size: var(--krateo-text-body-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -371,7 +371,7 @@
   border: 1px solid color-mix(in srgb, var(--cyan-color) 30%, transparent);
   border-radius: var(--radius-md);
   color: var(--gray-color);
-  font-size: var(--text-caption);
+  font-size: var(--krateo-text-caption);
   line-height: 1.5;
   padding: var(--spacing-sm) var(--spacing-smd);
 }
@@ -413,7 +413,7 @@
 
 /* messages */
 .apMsg {
-  font-size: var(--text-body-sm);
+  font-size: var(--krateo-text-body-sm);
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
@@ -532,7 +532,7 @@
 
 .apActRo {
   color: var(--cyan-color);
-  font-size: var(--text-label-xs);
+  font-size: var(--krateo-text-label-xs);
   letter-spacing: 0.05em;
   margin-left: auto;
   text-transform: uppercase;
@@ -592,7 +592,7 @@
 .apApprovalToolName {
   color: var(--dark-color);
   font-family: var(--font-mono);
-  font-size: var(--text-caption);
+  font-size: var(--krateo-text-caption);
   font-weight: 600;
 }
 
@@ -694,7 +694,7 @@
 /* empty / greeting state */
 .apEmpty {
   color: var(--gray-color);
-  font-size: var(--text-body-sm);
+  font-size: var(--krateo-text-body-sm);
   line-height: 1.6;
   margin: auto 0;
   padding: var(--spacing-md) var(--spacing-sm);
@@ -704,7 +704,7 @@
 .apEmpty .apEmptyTitle {
   color: var(--dark-color);
   font-family: var(--font-display);
-  font-size: var(--text-body-lg);
+  font-size: var(--krateo-text-body-lg);
   margin-bottom: var(--spacing-smd);
 }
 
@@ -744,7 +744,7 @@
   color: var(--dark-color);
   flex: 1;
   font-family: var(--font-family);
-  font-size: var(--text-body-sm);
+  font-size: var(--krateo-text-body-sm);
   line-height: 1.5;
   max-height: 120px;
   outline: none;
