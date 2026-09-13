@@ -3,6 +3,7 @@ import { useState, useSyncExternalStore } from 'react'
 
 import { DrawerHeader, drawerCloseProps } from '../../components/DrawerHeader/DrawerHeader'
 import WidgetRenderer from '../../components/WidgetRenderer'
+import { LAYER } from '../../theme/layers'
 
 import { DrawerProvider } from './DrawerContext'
 
@@ -85,6 +86,9 @@ const Drawer = () => {
       // #86 §0.10: title via the shared DrawerHeader (default 16px tier) — consistent typography
       // across every drawer. The title string is unchanged (openDrawer dispatch untouched).
       title={<DrawerHeader title={drawerData.title || title} />}
+      // C23: page content, at antd's own base. Declared rather than inherited — this drawer and
+      // Notifications both used to land on zIndexPopupBase and let DOM order decide which won.
+      zIndex={LAYER.DRAWER}
     >
       <DrawerProvider setDrawerData={setDrawerData}>
         <WidgetRenderer key={'drawer'} widgetEndpoint={widgetEndpoint} />

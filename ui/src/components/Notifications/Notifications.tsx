@@ -4,6 +4,7 @@ import { Badge, Drawer, Empty, List, Skeleton, Tag, Tooltip, Typography } from '
 import { memo, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router'
 
+import { LAYER } from '../../theme/layers'
 import type { SSEK8sEvent } from '../../utils/types'
 import { DrawerHeader, drawerCloseProps } from '../DrawerHeader/DrawerHeader'
 import HeaderIconButton from '../HeaderIconButton'
@@ -255,6 +256,10 @@ export const NotificationsDrawer = () => {
       styles={{ header: { paddingBottom: 18, paddingTop: 18 } }}
       title={<DrawerHeader emphasis='prominent' icon={['fas', 'bell'] as IconProp} title='Notifications' />}
       width={550}
+      // C23: above the working surfaces on purpose — clicking the bell must always produce a
+      // drawer you can see, whatever else is open. Previously tied with the widget drawer at
+      // antd's base, so which one won was DOM order rather than a decision.
+      zIndex={LAYER.NOTIFICATIONS}
     >
       {open && renderBody()}
     </Drawer>
