@@ -43,3 +43,8 @@ scripts/krateoctl-output/*.yaml
 # committed by accident in the monorepo move and showed up as deletions on every generator run.
 ui/src/widgets/*/*.schema.crd.yaml
 ui/scripts/krateoctl-output/
+
+# Python bytecode from the design lints. It was tracked by accident and showed up as a
+# binary diff on every lint change.
+__pycache__/
+*.pyc

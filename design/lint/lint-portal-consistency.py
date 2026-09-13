@@ -388,6 +388,59 @@ def rule_missing_target(crs):
     return out
 
 
+def rule_containment(crs):
+    """X5 — a child whose kind is not in its container's declared `allowedResources`.
+
+    This is the ONLY enforcement there is. `allowedResources` is validated by nothing at runtime:
+    not by OpenAPI (the CRD types it `string[]` with no enum, deliberately — the per-widget enums
+    drifted and `Menu` carried two kinds removed in the routing refactor), not by a webhook, and
+    not by the renderer, which resolves a `resourceRefId` without ever consulting it.
+
+    So the field is a DECLARATION OF INTENT that nothing checks. A container that says it holds
+    `paragraphs` and is handed a `Table` renders the Table quite happily. The declaration is still
+    worth having — it is how an author says what a slot is for, and how the next reader knows
+    whether a new child belongs — but only if something reads it back.
+
+    Checked against the CHART, not against a frozen list: the child's real plural comes from its
+    own `resourcesRefs` entry, so this stays correct as widget kinds are added and cannot go stale
+    the way the enums did.
+
+    Deliberately NOT reported: a container with no `allowedResources` at all. Absent means
+    "unconstrained", which is a legitimate authoring choice; only a declaration that is CONTRADICTED
+    is a defect. And templated `items` are skipped — a resolve-time item list is not knowable here,
+    the same exclusion `dangling-ref` makes."""
+    out = []
+    for fname, doc in crs:
+        spec = doc.get('spec') or {}
+        wd = widget_data(doc)
+        allowed = wd.get('allowedResources')
+        if not isinstance(allowed, list) or not allowed:
+            continue
+        if spec.get('resourcesRefsTemplate') or 'items' in templated_paths(doc):
+            continue
+        allowed_set = {a for a in allowed if isinstance(a, str)}
+        # id -> the plural the CR itself declares for that child
+        refs = spec.get('resourcesRefs')
+        refs = refs.get('items') if isinstance(refs, dict) else refs
+        by_id = {}
+        if isinstance(refs, list):
+            for r in refs:
+                if isinstance(r, dict) and r.get('id') and r.get('resource'):
+                    by_id[r['id']] = r['resource']
+        for path, value in walk_strings(wd):
+            if not path.endswith('resourceRefId'):
+                continue
+            plural = by_id.get(value)
+            if plural and plural not in allowed_set:
+                out.append((
+                    fname,
+                    f'child `{value}` is a `{plural}`, which is not in this container\'s '
+                    f'allowedResources ({", ".join(sorted(allowed_set))}) — it will still render, '
+                    f'because nothing enforces the declaration at runtime',
+                ))
+    return out
+
+
 RULES = {
     'dead-kind': (rule_dead_kind, 'X11'),
     'missing-target': (rule_missing_target, 'X13'),
@@ -397,6 +450,7 @@ RULES = {
     'back-link': (rule_back_link, 'P1'),
     'emoji': (rule_emoji, 'P15'),
     'tag-colour-no-label': (rule_tag_colour_without_label, 'C13'),
+    'containment': (rule_containment, 'X5'),
 }
 
 

@@ -86,7 +86,25 @@ A `resourceRefId` with no matching `resourcesRefs` entry behaves **three differe
 
 ### X5 — Containment is checked by a chart lint, since nothing else can check it.
 
-**Status:** gap → **contract fixed; enforcement still to build**
+**Status:** gap → **enforced** — and it found a live defect on its first run
+
+The containment FIELD is a common contract maintained by the CRD generator
+(`normalizeAllowedResources`), and the DECLARATION is now checked by
+`containment` in `lint-portal-consistency.py`.
+
+**First run: 16 violations, all in one file.** `menu.sidebar-nav` declared
+`allowedResources: [navmenuitems, pages]` — both kinds removed in the routing refactor — while
+holding 14 page-root Flexes. It named two things that do not exist and excluded the one thing it
+contains, and it rendered correctly the whole time, because nothing enforces the declaration at
+runtime: not OpenAPI, not a webhook, not the renderer.
+
+The lint checks against the CHART, not a frozen list: a child's real plural comes from its own
+`resourcesRefs` entry, so this cannot go stale the way the per-widget enums did.
+
+Two deliberate non-reports. A container with NO `allowedResources` is unconstrained, which is a
+legitimate authoring choice — only a declaration that is CONTRADICTED is a defect. And templated
+`items` are skipped, since a resolve-time list is not knowable statically (the same exclusion
+`dangling-ref` makes).
 
 The containment FIELD is now a common contract, maintained by the CRD generator rather than
 per-widget by hand (`normalizeAllowedResources` in `gen-crds.ts`, alongside the existing
