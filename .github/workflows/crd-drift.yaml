@@ -11,6 +11,21 @@
 #
 # This job regenerates on every PR and fails if the committed chart differs. Schema change and CRD
 # change now land together or not at all.
+#
+# KNOWN GAP, and the gate is how it was found. The generator is pinned to krateoctl v0.8.9, and
+# that version DROPS an `enum` on an integer property: Paragraph.schema.json declares
+# `level: {type: integer, enum: [1,2,3,4,5]}` and 0.8.9 emits `format: int32`, so the live CRD
+# accepts `level: 9`. A newer krateoctl preserves the enum — which is exactly how this surfaced: a
+# hand-"fix" made with a locally-installed newer krateoctl was rejected here by the pinned one.
+#
+# The chart therefore tracks the PINNED generator, enum included in neither. Hand-editing the chart
+# to be stricter than the generator is the one thing this job must not permit, because a gate that
+# special-cases its most interesting file is not a gate. The real fix is a krateoctl bump, and that
+# is blocked on the Theme.schema.json regression documented in release-tag.yaml.
+#
+# Blast radius, measured rather than assumed: `level` is the ONLY integer enum across all 44 widget
+# schemas, and `Paragraph.type.d.ts` types it `1 | 2 | 3 | 4 | 5`, so authoring it wrong is caught
+# at compile time for anything built in this repo. Only a hand-written CR can slip past.
 name: crd-drift
 
 on:
