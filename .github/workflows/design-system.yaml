@@ -7,7 +7,8 @@
 # until this workflow existed the design system was an instance of its own diagnosis.
 #
 # It gates against a BASELINE (design/lint/css-baseline.json) rather than demanding a clean tree.
-# The repo carries ~314 pre-existing violations, so a plain gate would fail on its first run and be
+# The repo carried ~314 pre-existing violations when this gate was built; the sweep has taken that
+# to seven across five files. A plain gate would have failed on its first run and been
 # switched off within a day — which is how a previous composition lint died (23 false positives
 # against 1 real defect, then deleted). New code is held to the rule; the existing debt stays
 # counted and visible, and `--summary` shows it burning down.

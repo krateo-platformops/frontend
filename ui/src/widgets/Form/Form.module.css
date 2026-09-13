@@ -226,7 +226,7 @@
 
 .fieldDesc {
   color: var(--gray-color);
-  font-size: var(--text-caption);
+  font-size: var(--krateo-text-caption);
   font-weight: 400;
   line-height: 1.45;
   white-space: normal;

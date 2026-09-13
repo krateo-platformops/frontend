@@ -27,7 +27,7 @@
   justify-content: center;
   border: 1px solid var(--gray-color);
   border-radius: 3px;
-  font-size: var(--text-label-xs);
+  font-size: var(--krateo-text-label-xs);
   line-height: 1;
   color: var(--light-color);
 }
@@ -173,7 +173,7 @@
 .ptagClose {
   cursor: pointer;
   opacity: 0.7;
-  font-size: var(--text-label-xs);
+  font-size: var(--krateo-text-label-xs);
 }
 
 .ptagClose:hover {
@@ -183,7 +183,7 @@
 /* the "+N" overflow indicator → a solid amber pill (mockup .pill) */
 .pill {
   font-family: var(--font-mono);
-  font-size: var(--text-label-xs);
+  font-size: var(--krateo-text-label-xs);
   font-weight: 600;
   line-height: 1;
   color: var(--light-color);

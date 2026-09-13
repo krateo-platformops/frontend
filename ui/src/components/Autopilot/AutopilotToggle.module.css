@@ -10,7 +10,7 @@
   background: color-mix(in srgb, var(--primary-color) 12%, transparent);
   color: var(--primary-color);
   font-family: var(--font-mono);
-  font-size: var(--text-caption);
+  font-size: var(--krateo-text-caption);
   cursor: pointer;
   white-space: nowrap;
   transition: background var(--motion-fast, 0.1s) ease;

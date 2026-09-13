@@ -121,12 +121,19 @@ at all. The one non-type reference in the codebase is a comment in `PageSearch.t
 the component could not be used as a `Flex` child *because* `inputs` was missing from the enum —
 so the only measurable effect it ever had was blocking legitimate composition.
 
-**What this makes urgent:** removing the enum removes the only cluster-side containment check that
-existed. The lint is now the SOLE enforcement, and it does not exist yet. It can be better than
-what it replaces — it can check declarations against the real widget registry rather than a list
-frozen at schema-authoring time — but until it is built, containment is unchecked.
+**What this made urgent:** removing the enum removed the only cluster-side containment check that
+existed, leaving the lint as the SOLE enforcement. **That lint now exists** — `rule_containment` in
+`lint-portal-consistency.py`, registered as `containment`/X5, run against the rendered chart by the
+portal's `design-system` workflow and covered by the self-test's derived rule list. It is better
+than what it replaced, as predicted: it checks each declaration against the child's real plural as
+the chart itself declares it, rather than a list frozen at schema-authoring time.
 
-See the correction above. `allowedResources` is declared on seven containers and enforced by none of them — not by OpenAPI, not by a webhook, not by the renderer.
+> **This paragraph read "The lint is now the SOLE enforcement, and it does not exist yet" for
+> several releases after it was built** — inside a rule whose own status line two screens up already
+> said `enforced`. A rule that contradicts itself top to bottom is worse than one marked stale.
+
+`allowedResources` is enforced by nothing at runtime — not by OpenAPI, not by a webhook, not by the
+renderer. The lint is the only thing that reads it back.
 
 Two structural oddities the lint would also surface: four containers (`Card`, `Steps`, `Layout`, `Form`) resolve children just as dynamically and declare **no** `allowedResources` at all, with no principle separating them from the seven that do; and `Menu`’s enum names two kinds — `navmenuitems`, `pages` — that the registry documents as **removed** in a routing refactor. Dead values in a live enum.
 
@@ -236,7 +243,9 @@ failure is loud, but it is loud at DEPLOY time, in a chart that looked fine in r
 
 **Status:** enforced — and it found a shipped defect on its first run
 
-X1 checks the other direction: an `items[]` id with no `resourcesRefs` entry. Both are needed,
+X4 checks the other direction: an `items[]` id with no `resourcesRefs` entry. (This said "X1" for a
+long time; X1 is the render-time error-boundary rule, and the `dangling-ref` lint rule is mapped to
+X4.) Both are needed,
 because they fail differently. This one is what deleting a CR leaves behind: remove the CR, leave a
 reference to it somewhere else, and the parent renders **without that child** — `Row`/`Col`/`Flex`/
 `Card` drop it with only a console message. Nothing in the chart complains and the page just says

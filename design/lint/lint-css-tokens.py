@@ -2,7 +2,8 @@
 """
 lint-css-tokens — token-adoption checks for the Layer 1 rules in ../01-tokens.md.
 
-THE BASELINE IS THE POINT. This codebase carries ~300 pre-existing token violations, so a plain
+THE BASELINE IS THE POINT. This codebase carried ~300 pre-existing token violations when this gate
+was written (it is now seven, across five files), and a plain
 gate would fail CI on its first run and be switched off within a day — which is how the last
 composition lint died (23 false positives against 1 real defect, then deleted). Instead the
 current state is recorded in a baseline file: CI fails on anything NOT in it, so new code is held
@@ -62,6 +63,117 @@ def _scan(path, pattern, ok):
         yield line, re.sub(r'\s+', ' ', match.group(0)).strip()[:90]
 
 
+# ── Which custom properties actually EXIST ──────────────────────────────────────────────────────
+#
+# `var(...)` used to be a blanket exemption: any font-size naming any property passed. Twenty
+# declarations named `--text-body`, `--text-body-sm`, `--text-caption`, `--text-body-lg` and
+# `--text-label-xs` — none of which anything defines. The shipped names carry the canonical prefix
+# (`--krateo-text-body`), so every one of those declarations was invalid at computed-value time and
+# the element silently inherited its parent's size instead. A gate that accepts a reference without
+# checking the referent is not a gate.
+#
+# `--text-color` IS real and is not the same thing: it comes from the palette key `text` through
+# the `--${key}-color` alias emit. That near-collision is most of why this went unnoticed.
+
+def _object_keys(src, name):
+    """Top-level keys of `export const <name> = {...}`, or of a nested `<parent>.<name>: {...}`.
+
+    Depth-scanned rather than line-scanned: `spacing` is declared on ONE line, so a per-line parse
+    finds only its first key and every `--spacing-*` then looks undefined."""
+    leaf = name.split('.')[-1]
+    match = re.search(rf'(?:export\s+)?const\s+{re.escape(leaf)}\s*[:=][^={{]*=?\s*{{', src)
+    if not match:
+        match = re.search(rf'\b{re.escape(leaf)}\s*:\s*{{', src)
+    if not match:
+        return []
+    depth, close = 0, len(src)
+    for i in range(match.end() - 1, len(src)):
+        if src[i] == '{':
+            depth += 1
+        elif src[i] == '}':
+            depth -= 1
+            if depth == 0:
+                close = i
+                break
+    body = src[match.end():close]
+
+    keys, depth, buf = [], 0, ''
+    for ch in body:
+        if ch in '{[(':
+            depth += 1
+        elif ch in '}])':
+            depth -= 1
+        if depth == 0:
+            if ch == ':':
+                found = re.search(r"""['"]?([A-Za-z0-9_$-]+)['"]?\s*$""", buf)
+                if found:
+                    keys.append(found.group(1))
+                buf = ''
+            elif ch == ',':
+                buf = ''
+            else:
+                buf += ch
+    return keys
+
+
+def known_properties(root):
+    """Every custom property name this codebase defines — from CSS, and from `tokens.ts` emits."""
+    names = set()
+
+    for path in css_files(root):
+        text = open(path, encoding='utf-8').read()
+        names.update(re.findall(r'(--[a-z0-9-]+)\s*:', text, re.I))
+
+    tokens = os.path.join(root, 'theme', 'tokens.ts')
+    if not os.path.isfile(tokens):
+        return names, False
+    src = open(tokens, encoding='utf-8').read()
+
+    # `const palette = mode === 'dark' ? colorDark : color` — resolve the local alias to both sides.
+    alias = {}
+    for name, a, b in re.findall(r'const\s+(\w+)\s*=\s*mode === .dark. \? (\w+) : (\w+)', src):
+        alias[name] = [a, b]
+
+    # literal emits
+    names.update(re.findall(r"setProperty\(\s*'(--[a-z0-9-]+)'", src, re.I))
+
+    # templated emits: Object.entries(SOURCE)...setProperty(`--<prefix>${key}<suffix>`
+    for source, prefix, suffix in re.findall(
+            r'Object\.entries\(([\w.]+)\)[^\n]*?setProperty\(\s*`--([a-z0-9-]*)\$\{key\}([a-z0-9-]*)`', src, re.I):
+        for real in alias.get(source, [source]):
+            for key in _object_keys(src, real):
+                names.add(f'--{prefix}{key}{suffix}')
+    return names, True
+
+
+_KNOWN = set()
+_KNOWN_READY = False
+
+
+def prime_known_properties(root):
+    """Populate the defined-property set once per run, before any rule scans."""
+    global _KNOWN, _KNOWN_READY
+    _KNOWN, _KNOWN_READY = known_properties(root)
+
+
+def _var_ok(value):
+    """True when every `var()` in this value names a property something actually defines.
+
+    A `var(--x, 12px)` with a fallback is fine whatever `--x` is: it renders the fallback. A bare
+    `var(--x)` naming nothing is not a token reference, it is a dead one — the declaration is
+    dropped at computed-value time and the element silently inherits instead.
+
+    Degrades to the old blanket exemption when `tokens.ts` could not be read, because a gate that
+    starts reporting every token in the codebase the moment its resolver moves is worse than one
+    that under-reports."""
+    refs = re.findall(r'var\(\s*(--[a-z0-9-]+)\s*([,)])', value, re.I)
+    if not refs:
+        return False
+    if not _KNOWN_READY:
+        return True
+    return all(has_fallback == ',' or name in _KNOWN for name, has_fallback in refs)
+
+
 def rule_font_size(path):
     """T3 — every font-size resolves to a token, not a raw number.
 
@@ -75,7 +187,7 @@ def rule_font_size(path):
     number makes it harder to see, not more legitimate."""
     return _scan(
         path, r'font-size:\s*([^;]+);',
-        lambda v: 'var(' in v or IMPORTANT.sub('', v).strip() in ('1em', '100%', 'inherit'),
+        lambda v: _var_ok(v) or IMPORTANT.sub('', v).strip() in ('1em', '100%', 'inherit'),
     )
 
 
@@ -105,13 +217,13 @@ def rule_spacing(path):
     they are offsetting against, not to the spacing scale."""
     return _scan(
         path, r'(?:padding|margin)[a-z-]*:\s*([^;]+);',
-        lambda v: 'var(' in v or _not_a_size(v) or re.search(r'-\d', v) is not None,
+        lambda v: _var_ok(v) or _not_a_size(v) or re.search(r'-\d', v) is not None,
     )
 
 
 def rule_gap(path):
     """T4 — gap resolves to --spacing-*."""
-    return _scan(path, r'\bgap:\s*([^;]+);', lambda v: 'var(' in v or _not_a_size(v))
+    return _scan(path, r'\bgap:\s*([^;]+);', lambda v: _var_ok(v) or _not_a_size(v))
 
 
 def rule_hex_literal(path):
@@ -135,7 +247,7 @@ def rule_breakpoint(path):
     No breakpoint token exists yet, so this cannot say "use the token". What it CAN do is stop a
     sixth value appearing: four components already invent their own (1024/640, 1180/960, 768) and
     no two share one. Every existing value sits in the baseline; a new one fails."""
-    return _scan(path, r'@media[^{]*\((?:max|min)-width:\s*([^)]+)\)', lambda v: 'var(' in v)
+    return _scan(path, r'@media[^{]*\((?:max|min)-width:\s*([^)]+)\)', lambda v: _var_ok(v))
 
 
 def rule_unguarded_animation(path):
@@ -168,6 +280,7 @@ RULES = {
 def collect(root, selected):
     """{rule: {relative_path: count}} — counts, not line numbers, so the baseline survives edits
     elsewhere in a file. A file whose violations DROP is not a failure."""
+    prime_known_properties(root)
     out = {}
     for name in selected:
         fn, _ = RULES[name]
@@ -181,6 +294,7 @@ def collect(root, selected):
 
 
 def detail(root, name):
+    prime_known_properties(root)
     fn, _ = RULES[name]
     for path in css_files(root):
         for line, text in fn(path):

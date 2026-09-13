@@ -23,7 +23,7 @@ A hex literal hides which it is; a token cannot.
 
 Verified by sweep: all 168 files under `ui/src/widgets` contain exactly one hex literal, and it is inside a comment. Light/dark parity is enforced by the type system — `colorDark: Record<keyof typeof color, string>` rejects both missing and extra keys, so the two key-sets cannot drift.
 
-*Evidence: #49 · #52 · verified `tokens.ts:83`*
+*Evidence: #49 · #52 · verified `tokens.ts` `color.onmenubg` / `colorDark.onmenubg`*
 
 ### T2 — Density comes from the antd component overrides — for the 15 widget kinds those overrides actually cover.
 
@@ -37,17 +37,31 @@ Reworded from an earlier, over-confident version of this rule. `buildComponents`
 
 ### T3 — One type scale, and it must be the one that is used.
 
-**Status:** severe → **decided, not yet done**
+**Status:** severe → **swept, one raw value left**
 
-> **Decided.** The canonical `--krateo-text-*` scale is adopted and the legacy `--font-size-*` retired. It is the scale the Brand v2 work specified, and it has real role names (`text-h1`, `text-body`, `text-label`) rather than t-shirt sizes.
->
-> That makes the sweep ~140 declarations: the 95 hardcoded ones plus the 45 existing legacy uses. It should not start until a CSS lint exists to hold it — otherwise it is churn that re-drifts, which is the argument that made the chart lint worth building first.
+> **Corrected — the figures below were badly out of date, and in the direction that flatters
+> nobody: this rule described a sweep as un-started that had substantially happened.** It claimed
+> the canonical scale had "zero consumers anywhere" and that "95 of 140 declarations bypass both".
+> Measured today across `ui/src`: **140 `font-size` declarations, 91 on the canonical
+> `--krateo-text-*` scale, 43 on the legacy `--font-size-*`, and exactly one raw px value**
+> (`Paragraph.module.css`, `26px`, which is one of the two entries in `design/lint/css-baseline.json`).
 
-Two numerically incompatible scales ship side by side. The canonical 12-role scale from [#49](https://github.com/krateo-platformops/frontend/issues/49) — `text-display:64` … `text-body:15`, emitted as `--krateo-text-*` — has **zero consumers anywhere**. The legacy 6-step `--font-size-*` has 45. And **95 of 140 `font-size` declarations (68%) bypass both**, including values on neither scale: 9, 9.5, 10, 10.5, 11, 11.5, 12.5, 19, 26px.
+Two scales still ship side by side, and the legacy 6-step `--font-size-*` still has 43 consumers, so
+the retirement is unfinished. But the canonical 12-role scale from
+[#49](https://github.com/krateo-platformops/frontend/issues/49) — `text-display:64` … `text-body:15`,
+emitted as `--krateo-text-*` — is now the majority scale, and the lint holds the line at a baseline
+of 2.
 
-A scale that ships with no consumers must be adopted or deleted. Leaving it live is worse than not having it: it reads as governance that isn’t there.
+**Twenty of those 91 were dead until recently**, and are the reason this rule is worth re-reading
+rather than just re-counting. They named `--text-body`, `--text-body-sm`, `--text-caption`,
+`--text-body-lg` and `--text-label-xs` — the role names *without* the `--krateo-` prefix, which
+nothing defines. Each was dropped at computed-value time and the element silently inherited its
+parent's size. They passed the T3 gate because `var(` was a blanket exemption that never checked
+whether the referenced property exists. The gate now resolves every reference against the properties
+`tokens.ts` actually emits.
 
-*Evidence: verified `tokens.ts:154` (legacy) and `:190-198` (canonical) · `AutopilotRail.module.css` alone carries 41 hardcoded sizes · extends #54 §0.7*
+*Evidence: measured across `ui/src` · the legacy scale is emitted from `typography.size`, the
+canonical one from the `KRATEO_BASE` text roles, both in `tokens.ts` · extends #54 §0.7*
 
 ### T4 — Spacing resolves to `var(--spacing-*)`; a raw value must equal one of 4 / 8 / 16 / 24 / 32.
 
@@ -61,7 +75,7 @@ Two exemptions were added along the way, both because the rule was asking the wr
 
 > **Corrected.** An earlier version of this rule said `gap:` was "69 of 69 hardcoded — never used once". That was wrong: 35 declarations do use the token, including seven in `Card.module.css` alone. The adoption gap is real and large; it is not total, and overstating it made the rule easier to dismiss than the true figure deserves.
 
-*Evidence: verified `tokens.ts:123` · worst offenders `AutopilotRail.module.css` (59), `Form.module.css` (19), `Select.module.css` (10)*
+*Evidence: verified `tokens.ts` `export const spacing` · worst offenders `AutopilotRail.module.css` (59), `Form.module.css` (19), `Select.module.css` (10)*
 
 ### T5 — Line-height is a role scale, and cross-font baseline drift is corrected at the font metrics.
 
@@ -71,7 +85,7 @@ The `typography` export has `family`, `display`, `mono`, `size`, `weight` — an
 
 The root cause [#86](https://github.com/krateo-platformops/frontend/issues/86) identified — Barlow Condensed’s ascent/descent against Inter’s baseline — is untouched: `ascent-override`, `descent-override` and `@font-face` return **zero hits repo-wide**. Both visible symptoms were patched per-component instead; the mechanism that produced them is unchanged and will produce more.
 
-*Evidence: verified `tokens.ts:148-155` · `Paragraph.module.css` still carries a hand `line-height: 1.1` citing “#78 reiteration 4”*
+*Evidence: verified `tokens.ts` `export const typography` · `Paragraph.module.css` still carries a hand `line-height: 1.1` citing “#78 reiteration 4”*
 
 ### T6 — Viewport breakpoints come from one shared token.
 
@@ -134,7 +148,7 @@ Not absent — *inconsistent*. The voice UI guards both its animations correctly
 
 The main header and the docked rail previously shared a hardcoded `64px` that matched only by coincidence.
 
-*Evidence: #86 §0.10 — verified `tokens.ts:132`*
+*Evidence: #86 §0.10 — verified `tokens.ts` `export const layout`*
 
 ---
 
@@ -158,8 +172,10 @@ idiom: column headers, card eyebrows, status captions.
 
 Two things follow, and together they decide the approach:
 
-- The canonical scale's floor is `text-caption: 12px`, so **the product's densest typographic tier
-  has no token at all.** These values are not drift *from* the scale; they are below it.
+- The canonical scale's floor *was* `text-caption: 12px`, so the product's densest typographic tier
+  had no token at all. These values were not drift *from* the scale; they were below it.
+  **This has since been addressed**: `text-label-sm: 11px` and `text-label-xs: 10px` now exist in
+  `tokens.ts`, and the half-steps `xxs`/`xsm`/`smd` were added to `spacing`.
 - The four values span **1.5px**. That is not four deliberate tiers — it is one tier that drifted
   because nothing named it.
 
@@ -185,8 +201,10 @@ single-value replacements.
 
 ### Order of work
 
-1. **Add the tokens first** — ~2 label sizes, ~3 spacing steps. Nothing can be swept onto a scale
-   that does not exist yet, and choosing them is a design decision rather than a mechanical one.
+1. ~~**Add the tokens first** — ~2 label sizes, ~3 spacing steps.~~ **Done.** Both label sizes and
+   all three spacing half-steps are in `tokens.ts` and are consumed across the widget CSS. The
+   ordering argument still stands for any future sweep: nothing can be swept onto a scale that does
+   not exist yet.
 2. **Then the ~91 mechanical declarations**, file by file, against the lint's baseline so each file
    burns down visibly and nothing re-drifts behind you.
 3. **Then the shorthand and the one-offs**, which need eyes on each.

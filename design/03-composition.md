@@ -89,11 +89,20 @@ Mechanical note: the `Tabs` enum carries `cols` but not `flexes`, so a section b
 
 ### P9 — Vertical rhythm between page sections keys off one spacing step.
 
-**Status:** open
+**Status:** open — but its stated blocker is gone
 
-#54 §0.6 asked for a standard gap between major sections and a smaller one within a section. No shared page-rhythm convention exists, and with no `PageHeader` (C5) each page’s section gap stays ad hoc.
+#54 §0.6 asked for a standard gap between major sections and a smaller one within a section. No shared page-rhythm convention exists, so each page's section gap stays ad hoc.
 
-*Evidence: #54 §0.6 — confirmed still unresolved*
+> **Corrected.** This rule used to justify itself with "with no `PageHeader` (C5)". C5 has been
+> built and adopted for some time — the chart renders 28 `PageHeader` CRs — so as written the rule
+> told a reader that a component with 28 shipped instances was missing. The gap is real; that
+> particular reason for it is not, and a rule that argues from a false premise is easy to dismiss
+> for the wrong reason.
+
+The open decision is unchanged and is a single value: one gap step, applied between major sections,
+across the 31 page roots.
+
+*Evidence: #54 §0.6 — the rhythm convention is still unresolved; the C5 dependency is not*
 
 ### P25 — Every page the nav declares opens on a `PageHeader`.
 

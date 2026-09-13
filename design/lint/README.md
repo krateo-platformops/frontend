@@ -26,7 +26,8 @@ python3 lint-css-tokens.py ../../ui/src --update-baseline
 
 ### The baseline is the point
 
-This codebase carries **314 pre-existing violations**. A plain gate would fail CI on its first run
+This codebase carried **314 pre-existing violations** when the gate was built; the sweep has since
+taken that to **seven, across five files** (`css-baseline.json`). A plain gate would fail CI on its first run
 and be switched off within a day — which is exactly how the previous composition lint died. So the
 current state is recorded in `css-baseline.json`: **CI fails on anything not in it**, holding new
 code to the rule while the existing debt stays counted and visible.
@@ -36,10 +37,10 @@ and the file shrinks as the sweep proceeds:
 
 ```
 rule                   id      now  baseline   delta
-font-size              T3       95        95       +0
-spacing                T4      142       142       +0
-gap                    T4       68        68       +0
-hex-literal            T1        4         4       +0
+font-size              T3        2         2       +0
+spacing                T4        0         0       +0
+gap                    T4        0         0       +0
+hex-literal            T1        0         0       +0
 breakpoint             T6        5         5       +0
 unguarded-animation    T9        0         0       +0
 ```
@@ -91,6 +92,9 @@ Exit code is the number of violations, so CI fails on any.
 | `tag-colour-no-label` | C13 | A `Tag` with a colour and no label — meaning carried by colour alone. |
 | `dead-kind` | X11 | A widget kind the frontend no longer resolves — `Panel`, `DataGrid`, `Column`, `TabList`, `NavMenu`, or a removed routing kind. Renders nothing. |
 | `legacy-envelope` | X12 | `resourcesRefs` as a bare list instead of `{items: […]}`. The CR does not apply at all. |
+| `missing-target` | X13 | A `resourcesRefs` entry naming a widget CR that does not exist in the chart — the deletion hazard. Indexes widget CRs only, so a same-named RESTAction cannot vouch for a deleted Table. |
+| `containment` | X5 | A child whose kind is not in its container's declared `allowedResources`. The only enforcement there is: nothing checks the field at runtime. |
+| `page-header` | P25 | A page the nav declares that does not open on a `PageHeader`. Reads through a templated `items` rather than exempting it, and reports a page it cannot judge instead of passing it. |
 
 ## The scope discipline
 

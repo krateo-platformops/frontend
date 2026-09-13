@@ -1,13 +1,17 @@
 # Krateo Portal Design System
 
-103 rules across five enforcement layers, plus composition patterns. Each rule cites a `file:line`
-or an issue section, so a reader can check it rather than take it on faith.
+104 rules across five enforcement layers, plus composition patterns. Each rule cites a symbol, a
+`file:line` or an issue section, so a reader can check it rather than take it on faith.
+
+**Citations drift, and a stale one is worse than none** — it sends a reader to a line that now holds
+something unrelated and quietly spends their trust. Prefer citing a *symbol* (`tokens.ts`
+`export const spacing`) over a line number wherever the symbol is stable.
 
 | | | |
 |---|---|---|
 | [01-tokens.md](01-tokens.md) | **T1–T10** | Colour, spacing, type, density, breakpoints, contrast |
 | [02-components.md](02-components.md) | **C1–C24** | Shared components: what exists, what is missing, what each guarantees |
-| [03-composition.md](03-composition.md) | **P1–P24** | How a page is assembled from widget CRs |
+| [03-composition.md](03-composition.md) | **P1–P25** | How a page is assembled from widget CRs |
 | [04-silent-failures.md](04-silent-failures.md) | **X1–X13** | Renders clean, behaves wrong — passes the CRD, the dry-run and the eye |
 | [05-agent-parity.md](05-agent-parity.md) | **A1–A19** | What Autopilot may do, what a page owes it, what it owes back |
 | [06-composition-patterns.md](06-composition-patterns.md) | **G1–G13** | Page archetypes, widget selection, and a stated design position |
@@ -50,8 +54,9 @@ The same failure appears three times, one level up from any individual defect. A
 and then nothing consumed it:
 
 - **The type scale.** [#49](https://github.com/krateo-platformops/frontend/issues/49) shipped a
-  12-role scale as `--krateo-text-*`. Zero consumers across every CSS module. 68% of `font-size`
-  declarations bypass it and its predecessor both.
+  12-role scale as `--krateo-text-*`. *This entry used to read "zero consumers across every CSS
+  module" — it is now the majority scale: 91 of 140 `font-size` declarations, against 43 still on the
+  legacy `--font-size-*` and one raw px. See T3.*
 - **The spacing scale.** 30 of 225 padding/margin declarations use the tokens (87% hardcoded) and
   35 of 104 `gap:` declarations do (66% hardcoded). Adopted in places, ignored in most.
 - **The containment grammar.** `allowedResources` is declared on seven containers and enforced by
@@ -84,15 +89,22 @@ existence and count of resources outside a tenant's scope.
 
 ## What is enforced today
 
-Two lints run from [`lint/`](lint/), and between them they hold seven composition rules and six
-token rules. Everything else is a rule a human applies.
+Two lints run from [`lint/`](lint/), and between them they hold **ten composition rules and six
+token rules**. Everything else is a rule a human applies.
 
 - `lint-portal-consistency.py` — composition, run against a chart's widget CRs. **0 violations**
-  against the portal chart.
-- `lint-css-tokens.py` — token adoption in this repo's stylesheets. Gates on a **baseline** of 314
-  pre-existing violations, so new code is held to the rule while the debt burns down.
+  across all ten rules against the portal chart.
+- `lint-css-tokens.py` — token adoption in this repo's stylesheets. Gates on a **baseline** of seven
+  pre-existing violations across five files, so new code is held to the rule while the debt burns
+  down.
 
-Neither is wired into CI yet. Until they are, this document is still the thing it warns about.
+**Both are wired into CI**, and have been since they landed: `.github/workflows/design-system.yaml`
+here runs the CSS lint and both self-tests on every PR and push to `main`, and the portal repo's
+workflow of the same name runs the composition lint against its rendered chart.
+
+> This section said "Neither is wired into CI yet. Until they are, this document is still the thing
+> it warns about", and quoted a baseline of 314 when the file held seven. Both were wrong for
+> several releases — in the section of the design system specifically about what is verified.
 
 ## How rules are marked
 

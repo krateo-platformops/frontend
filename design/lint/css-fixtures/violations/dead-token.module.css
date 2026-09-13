@@ -1,0 +1,7 @@
+/* T3: a font-size naming a custom property that nothing defines. The shipped token is
+   `--krateo-text-body`; this names `--text-body`, so the declaration is dropped at
+   computed-value time and the element silently inherits its parent's size. Twenty real
+   declarations shipped in exactly this state because `var(` was a blanket exemption. */
+.dead {
+  font-size: var(--text-body);
+}

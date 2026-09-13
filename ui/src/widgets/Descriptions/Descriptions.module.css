@@ -46,7 +46,7 @@
 .fieldValue {
   color: var(--gray-color);
   font-family: var(--font-mono);
-  font-size: var(--text-body-sm);
+  font-size: var(--krateo-text-body-sm);
   line-height: 1.5;
   word-break: break-word;
 }
