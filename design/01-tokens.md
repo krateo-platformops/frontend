@@ -4,7 +4,22 @@ The values here are correct and the light/dark parity is structurally guaranteed
 
 ### T1 — Colour comes only from `color` / `colorDark`. Never a hex literal.
 
-**Status:** holds
+**Status:** holds — and now at zero across `ui/src`, not just `ui/src/widgets`.
+
+The four that remained outside the widget tree were both worth fixing on their own merits, which
+is the argument for the rule rather than an application of it:
+
+- `Login.module.css` set `color: #ffffff` three times on the marketing panel. White was *correct*
+  there — the login gradient is theme-INVARIANT (`menubgstart`/`menubgend` are identical in
+  `color` and `colorDark`), so a theme-aware text token would put dark text on a dark ground in
+  light mode. The fix was a token that is invariant for the same reason: `onmenubg`, measured at
+  7.15:1 and 14.05:1 against the two stops.
+- `Form.module.css` set `color: #ccc` on a non-interactive anchor label. That measures **1.61:1**
+  on a light ground — far below AA's 4.5 for body text, so the label was very nearly invisible in
+  light mode. `faint` is the de-emphasised-text token and is contrast-checked: 5.10:1 / 4.94:1.
+
+So one hex was a missing token and the other was an accessibility defect wearing the same clothes.
+A hex literal hides which it is; a token cannot.
 
 Verified by sweep: all 168 files under `ui/src/widgets` contain exactly one hex literal, and it is inside a comment. Light/dark parity is enforced by the type system — `colorDark: Record<keyof typeof color, string>` rejects both missing and extra keys, so the two key-sets cannot drift.
 
