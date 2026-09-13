@@ -116,7 +116,24 @@ Two structural oddities the lint would also surface: four containers (`Card`, `S
 
 ### X6 — Recursive rendering has a depth bound.
 
-**Status:** gap
+**Status:** gap → **fixed**
+
+`context/RenderChainContext` threads the chain of endpoints being rendered, and `WidgetRenderer`
+checks it BEFORE fetching — a cycle should cost zero requests, not one per turn of it.
+
+Two bounds, because they fail differently. A REPEATED endpoint is a cycle and can be named
+precisely: *"This widget and `card-a` reference each other, so rendering one renders the other
+forever"* — which is the only thing a chart author can act on. A merely very deep chain gets a cap
+(32) with a vaguer message.
+
+**The cap is calibrated, not guessed.** A DFS over all 511 CRs and 450 child edges in the portal
+chart finds zero cycles and a deepest real chain of NINE levels, so 32 leaves ~3.5x headroom over
+the deepest composition anyone has authored.
+
+Worth stating plainly, because it is what makes this class dangerous: **a cycle is two CRs each
+naming the other, in different files, each correct in isolation.** Nothing in the CRD, the server
+dry-run or the chart lint can see it — neither CR is wrong on its own. Before this, the render path
+found it by exhausting the browser's stack.
 
 No nesting-depth or cycle guard exists anywhere in the render path. A self-referencing or mutually-cyclic `resourceRefId` chain has nothing between it and a browser stack overflow.
 

@@ -131,7 +131,7 @@ beforeAll(() => {
     disconnect = noop
     observe = noop
     unobserve = noop
-  } as unknown as typeof ResizeObserver
+  }
 })
 
 beforeEach(async () => {
