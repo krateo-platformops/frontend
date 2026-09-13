@@ -111,9 +111,18 @@ each looked for the *shape a page header was expected to have* rather than for t
 | by name (`pageheader.*`, `*-header-block`) | `/agents/{ns}/{name}` and `/alerts/{ns}/{name}`, which spell their parts `-titleline` |
 | one document per file | `/marketplace/{name}` — `marketplace-detail.yaml` holds fifteen documents and opens with a RESTAction, so the file was classified as a RESTAction and its five-CR header never seen |
 | first child must be a container | `/builderdemo`, which opened on a bare `Paragraph` |
+| **this rule's own first draft** | every page whose `items` are assembled by a jq template — 5 of 31 routes. It returned a `templated` sentinel and the caller treated it as a PASS. Every detail page in this chart is authored that way, so the exemption landed exactly on the page class the rule existed for, including the same two `-titleline` pages the first survey missed |
 
 Each method also produced a *confident count*, which is what made the error durable: "25 of 26
-migrated" was reported three times, from three parsers that shared a blind spot.
+migrated" was reported three times, from three parsers that shared a blind spot — and then a fourth
+time by the lint written to end the counting, which reported `0 violations` while two pages had
+never been migrated at all.
+
+The fourth one is the instructive one, because it was written *in response* to the first three and
+still reproduced the family: it looked for the shape a page was expected to have (a static `items`
+list) and treated everything else as fine. **A rule that cannot read a case must say so, not pass
+it.** P25 now recovers the first child from the template's own first `resourceRefId` literal, and
+reports a page it genuinely cannot read as undetermined rather than clean.
 
 P25 therefore starts from the **nav**, which is what actually makes something a page, and resolves
 the first child the way the renderer does — `widgetData.items[0]`'s `resourceRefId` through the CR's
@@ -129,9 +138,17 @@ drifted.
 Pairs with [P10](#p10--a-declared-navigation-must-resolve--or-must-not-be-declared): P10 asks
 whether a declared route resolves at all, P25 asks whether what it resolves to names itself.
 
-*Evidence: the rule, run against the chart before the fix, independently reproduced all four gaps
-found by hand — `page-blueprint-install`, `page-clusters-register`, `page-marketplace-detail`,
-`page-access-detail` — and reduces to the one annotated exception after*
+Resolution is by **(plural, name)**, never by name alone — 28 names in this chart are shared across
+kinds, so a name-keyed index resolves to whichever document helm rendered last, which is decided by
+template filename order. The first draft of this rule keyed by name and got the right answer by
+luck. The plural is already in hand: it is the `resource` on the `resourcesRefs` entry being
+followed.
+
+*Evidence: run against the chart before the fix the rule reproduced all four gaps found by hand;
+after the templated-items defect was fixed it found two more that had never been migrated —
+`page-alert-detail` and `page-agent-detail`, the same two the very first hand survey missed. The
+violations fixture now carries a templated page, and reverting the rule to the old behaviour makes
+that fixture go silent (1 -> 0), which is the regression test the first draft lacked*
 
 ## Behaviour and honesty
 
