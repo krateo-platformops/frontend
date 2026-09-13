@@ -95,6 +95,44 @@ Mechanical note: the `Tabs` enum carries `cols` but not `flexes`, so a section b
 
 *Evidence: #54 §0.6 — confirmed still unresolved*
 
+### P25 — Every page the nav declares opens on a `PageHeader`.
+
+**Status:** gap → **fixed**
+
+A page names itself, in the same place, in the same type ramp. It is the most visible consistency
+rule here — and until the lint gained P25 the only thing enforcing it was someone running a survey
+and counting.
+
+Those surveys were wrong three times, and each new one inherited the previous blind spot, because
+each looked for the *shape a page header was expected to have* rather than for the page:
+
+| method | what it missed |
+|---|---|
+| by name (`pageheader.*`, `*-header-block`) | `/agents/{ns}/{name}` and `/alerts/{ns}/{name}`, which spell their parts `-titleline` |
+| one document per file | `/marketplace/{name}` — `marketplace-detail.yaml` holds fifteen documents and opens with a RESTAction, so the file was classified as a RESTAction and its five-CR header never seen |
+| first child must be a container | `/builderdemo`, which opened on a bare `Paragraph` |
+
+Each method also produced a *confident count*, which is what made the error durable: "25 of 26
+migrated" was reported three times, from three parsers that shared a blind spot.
+
+P25 therefore starts from the **nav**, which is what actually makes something a page, and resolves
+the first child the way the renderer does — `widgetData.items[0]`'s `resourceRefId` through the CR's
+own `resourcesRefs`. It cannot go stale against a naming convention, and a page added tomorrow is
+covered without anyone remembering to re-survey.
+
+The opt-out is an annotation on the page root, `krateo.io/no-page-header: <reason>`, so an exception
+has to be written down where reviewers see it. `page-access-detail` carries the only one: it
+resolves two apiRefs and assembles its title line from both, so a single `PageHeader` would have to
+pick one and drop the other. An exclusion list inside the lint is precisely how the hand surveys
+drifted.
+
+Pairs with [P10](#p10--a-declared-navigation-must-resolve--or-must-not-be-declared): P10 asks
+whether a declared route resolves at all, P25 asks whether what it resolves to names itself.
+
+*Evidence: the rule, run against the chart before the fix, independently reproduced all four gaps
+found by hand — `page-blueprint-install`, `page-clusters-register`, `page-marketplace-detail`,
+`page-access-detail` — and reduces to the one annotated exception after*
+
 ## Behaviour and honesty
 
 ### P10 — A declared navigation must resolve — or must not be declared.
