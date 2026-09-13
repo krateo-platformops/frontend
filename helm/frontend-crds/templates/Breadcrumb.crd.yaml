@@ -170,6 +170,11 @@ spec:
                     separator:
                       description: antd Breadcrumb `separator` (default "/")
                       type: string
+                    allowedResources:
+                      description: the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.
+                      items:
+                        type: string
+                      type: array
                   required:
                     - items
                   type: object

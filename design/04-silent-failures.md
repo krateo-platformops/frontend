@@ -86,7 +86,27 @@ A `resourceRefId` with no matching `resourcesRefs` entry behaves **three differe
 
 ### X5 — Containment is checked by a chart lint, since nothing else can check it.
 
-**Status:** gap
+**Status:** gap → **contract fixed; enforcement still to build**
+
+The containment FIELD is now a common contract, maintained by the CRD generator rather than
+per-widget by hand (`normalizeAllowedResources` in `gen-crds.ts`, alongside the existing
+`injectKeyExtras`/`injectFreshness` post-processors). Every container carries it — 14 of them,
+including the six that previously declared nothing (`Breadcrumb`, `Card`, `Descriptions`,
+`Filters`, `Form`, `Steps`) and `Table`, which resolves children through cells rather than `items`
+and so was missed by the first pass.
+
+**The per-widget enums are gone, and they had earned it.** `Flex` listed 28 kinds, `Col`/`Row` 23,
+`Table` 11, and `Menu` exactly two — `navmenuitems` and `pages` — BOTH removed in the routing
+refactor. Nothing distinguished design from drift, adding one widget kind meant editing six frozen
+lists by hand, and the enum enforced nothing at runtime: no runtime code reads `allowedResources`
+at all. The one non-type reference in the codebase is a comment in `PageSearch.tsx` recording that
+the component could not be used as a `Flex` child *because* `inputs` was missing from the enum —
+so the only measurable effect it ever had was blocking legitimate composition.
+
+**What this makes urgent:** removing the enum removes the only cluster-side containment check that
+existed. The lint is now the SOLE enforcement, and it does not exist yet. It can be better than
+what it replaces — it can check declarations against the real widget registry rather than a list
+frozen at schema-authoring time — but until it is built, containment is unchecked.
 
 See the correction above. `allowedResources` is declared on seven containers and enforced by none of them — not by OpenAPI, not by a webhook, not by the renderer.
 

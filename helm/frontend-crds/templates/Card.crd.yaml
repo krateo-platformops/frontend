@@ -537,6 +537,11 @@ spec:
                             type: object
                           type: array
                       type: object
+                    allowedResources:
+                      description: the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.
+                      items:
+                        type: string
+                      type: array
                   required:
                     - items
                   type: object
