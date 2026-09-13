@@ -70,3 +70,38 @@ spec:
         apiVersion: v1
         name: some-configmap
         resource: configmaps
+
+---
+# X5: the child's plural is declared. Also covers the two deliberate non-reports — a container
+# with NO allowedResources is unconstrained, not a defect.
+kind: Flex
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: x5-good
+spec:
+  widgetData:
+    allowedResources:
+    - tables
+    items:
+    - resourceRefId: a-table
+  resourcesRefs:
+    items:
+    - id: a-table
+      name: a-table
+      resource: tables
+      verb: GET
+---
+kind: Card
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: x5-unconstrained
+spec:
+  widgetData:
+    items:
+    - resourceRefId: a-table
+  resourcesRefs:
+    items:
+    - id: a-table
+      name: a-table
+      resource: tables
+      verb: GET
