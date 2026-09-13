@@ -2,8 +2,8 @@ import { Typography } from 'antd'
 import Linkify from 'linkify-react'
 
 import type { WidgetProps } from '../../types/Widget'
+import { resolveLocalTokens } from '../../utils/localTokens'
 
-import { resolveLocalTokens } from './localTokens'
 import styles from './Paragraph.module.css'
 import type { Paragraph as WidgetType } from './Paragraph.type'
 
@@ -13,7 +13,7 @@ const Paragraph = ({ uid, widgetData }: WidgetProps<ParagraphWidgetData>) => {
   const { code, copyable, delete: del, disabled, ellipsis, italic, level, mark, strong, text, type, underline, variant } = widgetData
 
   // Resolve client-side tokens (currently {localTimeOfDay}) in the browser so they reflect the
-  // viewer's local time regardless of snowplow's cached server `now`. See ./localTokens.
+  // viewer's local time regardless of snowplow's cached server `now`. See utils/localTokens.
   const resolvedText = resolveLocalTokens(text)
 
   const content = (

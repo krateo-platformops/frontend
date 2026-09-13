@@ -65,6 +65,27 @@ describe('PageHeader', () => {
     expect(screen.getByText('(7)')).toBeTruthy()
   })
 
+  /*
+   * The dashboard greeting shipped through this widget reading "Good {localTimeOfDay},
+   * {displayName}" LITERALLY on screen. The chart emits those tokens on purpose and expects the
+   * browser to substitute them — Paragraph did, PageHeader did not, and the migration assumed a
+   * title rendered down the same path a Paragraph's text did.
+   *
+   * Nothing could have caught it but looking: the CR is valid, the CRD accepts it, the string is
+   * present in the DOM, and only a human reading the page sees that it is the wrong string.
+   */
+  it('resolves client-side tokens in the title, the way Paragraph does', () => {
+    renderHeader({ title: 'Good {localTimeOfDay}, {displayName}' })
+    expect(screen.queryByText(/\{localTimeOfDay\}/)).toBeNull()
+    expect(screen.queryByText(/\{displayName\}/)).toBeNull()
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/^Good (morning|afternoon|evening), /)
+  })
+
+  it('resolves client-side tokens in the subtitle too', () => {
+    renderHeader({ subtitle: 'Hello {displayName}', title: 'X' })
+    expect(screen.queryByText(/\{displayName\}/)).toBeNull()
+  })
+
   it('places tags on the title line', () => {
     renderHeader({ tags: [{ color: 'green', label: 'Healthy' }] })
     expect(screen.getByText('Healthy')).toBeTruthy()

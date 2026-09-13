@@ -1,5 +1,12 @@
 /**
- * Client-side token resolution for the Paragraph widget. The chart greeting jq emits literal
+ * Client-side token resolution for widget TEXT — used by Paragraph and by PageHeader.
+ *
+ * It lived under widgets/Paragraph/ while Paragraph was the only caller. It moved here when the
+ * dashboard greeting migrated to PageHeader and shipped reading `Good {localTimeOfDay},
+ * {displayName}` LITERALLY on screen: the tokens are resolved by whichever widget renders the
+ * string, and the new one did not know to.
+ *
+ * The chart greeting jq emits literal
  * tokens ({localTimeOfDay}, {displayName}) instead of computing them server-side; the browser
  * resolves them on every render:
  *  - {localTimeOfDay}: snowplow caches a no-apiRef widget's RENDERED output with `now` FROZEN at
@@ -14,7 +21,7 @@
  *    identically. See snowplow docs/definitive-cache-identity-architecture-2026-07-07.md §1.2/§4.2.
  */
 
-import { getUserInfo } from '../../utils/getUserInfo'
+import { getUserInfo } from './getUserInfo'
 
 export const LOCAL_TIME_OF_DAY_TOKEN = '{localTimeOfDay}'
 export const DISPLAY_NAME_TOKEN = '{displayName}'
