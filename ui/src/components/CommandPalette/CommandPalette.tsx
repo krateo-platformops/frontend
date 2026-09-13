@@ -2,7 +2,7 @@ import type { IconProp } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Input, Modal } from 'antd'
 import type { InputRef } from 'antd'
-import type { KeyboardEvent } from 'react'
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
@@ -38,6 +38,9 @@ const CommandPalette = () => {
   // Global ⌘K / Ctrl+K toggles the palette from anywhere; preventDefault stops
   // the browser's own address-bar quick-search binding from stealing the combo.
   useEffect(() => {
+    // `KeyboardEvent` here is the DOM global, NOT React's synthetic one — this listener is
+    // registered on `window`, so React's type is the wrong shape and the overload never matched.
+    // React's is imported aliased as ReactKeyboardEvent for the handlers that genuinely take it.
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
@@ -79,7 +82,7 @@ const CommandPalette = () => {
     close()
   }
 
-  const onInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+  const onInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (hits.length === 0) { return }
     if (event.key === 'ArrowDown') {
       event.preventDefault()

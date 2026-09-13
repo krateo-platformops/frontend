@@ -1,0 +1,34 @@
+# Gates `tsc --noEmit` on the ui workspace.
+#
+# This could not be enabled before: the repo carried 5 typecheck errors on main, so the job would
+# have been red from its first run and switched off within a day. They are fixed now, main is at
+# zero, and this keeps it there.
+#
+# It runs `npm run typecheck` (an explicit `tsc --noEmit`), NOT `npm test`. That distinction is
+# load-bearing: ui/package.json defines `"test": "vitest"` with no `run` subcommand, so `npm test`
+# starts vitest in WATCH mode and a CI job invoking it would hang until the timeout rather than
+# fail. If someone later adds a test job here, it must call `vitest run`.
+name: typecheck
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install ui deps
+        working-directory: ui
+        run: npm ci --no-audit --no-fund
+      - name: tsc --noEmit
+        working-directory: ui
+        run: npm run typecheck
