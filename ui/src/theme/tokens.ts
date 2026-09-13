@@ -57,6 +57,11 @@ export const color = {
   // sidebar rail no longer uses these; it derives per-mode from colorPrimary (issue #52).
   menubgend: '#002F46',
   menubgstart: '#005D8B',
+  // Text ON the login gradient. Theme-INVARIANT on purpose, exactly like the two stops above:
+  // that gradient is the same in both palettes, so a theme-aware text token would put dark text
+  // on a dark ground in light mode. White measures 7.15:1 on menubgstart and 14.05:1 on
+  // menubgend, so it clears AA comfortably at both ends.
+  onmenubg: '#FFFFFF',
   menuitem: 'rgba(255,255,255,0.50)',
   menuitembg: 'rgba(17,178,226,0.40)',
   orange: '#8A5C00',
@@ -103,6 +108,11 @@ export const colorDark: Record<keyof typeof color, string> = {
   line: '#2A2A2A',
   menubgend: '#002F46',
   menubgstart: '#005D8B',
+  // Text ON the login gradient. Theme-INVARIANT on purpose, exactly like the two stops above:
+  // that gradient is the same in both palettes, so a theme-aware text token would put dark text
+  // on a dark ground in light mode. White measures 7.15:1 on menubgstart and 14.05:1 on
+  // menubgend, so it clears AA comfortably at both ends.
+  onmenubg: '#FFFFFF',
   menuitem: 'rgba(255,255,255,0.50)',
   menuitembg: 'rgba(17,178,226,0.40)',
   orange: '#FFAA00',

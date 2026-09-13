@@ -9,10 +9,7 @@
     "widgets/Paragraph/Paragraph.module.css": 1
   },
   "gap": {},
-  "hex-literal": {
-    "pages/Login/Login.module.css": 3,
-    "widgets/Form/Form.module.css": 1
-  },
+  "hex-literal": {},
   "spacing": {},
   "unguarded-animation": {}
 }

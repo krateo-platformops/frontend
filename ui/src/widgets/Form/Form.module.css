@@ -146,7 +146,10 @@
     }
 
     .anchorObjectLabel {
-      color: #ccc;
+      /* Was #ccc, which measures 1.61:1 on a light ground — far below AA's 4.5 for body text, so
+         this label was very nearly invisible in light mode. `faint` is the de-emphasised-text
+         token and is contrast-checked: 5.10:1 light, 4.94:1 dark. */
+      color: var(--faint-color);
       cursor: default;
       font-weight: 400;
     }
