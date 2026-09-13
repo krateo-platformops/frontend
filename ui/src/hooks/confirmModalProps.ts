@@ -10,6 +10,7 @@ import type { ModalFuncProps } from 'antd/es/modal/interface'
 import { createElement } from 'react'
 
 import BlastRadiusConfirm, { VERB_INTENT } from '../components/BlastRadius/BlastRadiusConfirm'
+import { LAYER } from '../theme/layers'
 
 import type { BlastRadius, BlastRadiusSet } from './blastRadius.types'
 
@@ -26,7 +27,7 @@ import type { BlastRadius, BlastRadiusSet } from './blastRadius.types'
  * — all of which route through the one `ctx.confirm` gate. Kept below the
  * SessionResumeModal's 2000 so nothing else is displaced.
  */
-export const ABOVE_PREVIEW_DRAWER_Z_INDEX = 1100
+export const ABOVE_PREVIEW_DRAWER_Z_INDEX = LAYER.CONFIRM
 
 /**
  * The blast-radius confirm's z-index, and an alias kept because this gate is not the only

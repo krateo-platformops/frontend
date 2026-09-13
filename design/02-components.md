@@ -272,7 +272,29 @@ Review heuristic: a child widget’s CSS naming a specific parent widget to just
 
 ### C23 — Drawer surfaces stack, and only one pair has ever agreed on an order.
 
-**Status:** open
+**Status:** open → **fixed — the stack is declared in one place and guarded by a test**
+
+`theme/layers.ts` now declares all four surfaces in order, and each imports its value:
+
+```
+DRAWER        1000   page content — antd's own base, now stated rather than inherited
+PREVIEW       1010   the mask-less side-by-side working surface
+NOTIFICATIONS 1050   transient chrome; the bell must always reach the front
+CONFIRM       1100   above every surface that can host a gated action
+```
+
+Two things were wrong beyond "some surfaces declare nothing". The two values that DID exist lived
+in different files, and the upper one was written as a bare `1100` rather than derived — so raising
+the preview could have silently overtaken the gate. And the widget drawer and Notifications both
+landed on `zIndexPopupBase`, which means their order was decided by DOM order, which is to say by
+nobody.
+
+**One behaviour change, deliberate:** Notifications now sits above the widget drawer and the
+preview. Clicking the bell must produce a drawer you can see, whatever else is open.
+
+A unit test asserts the confirm outranks everything and that no two surfaces share a value. The
+trapped-gate bug — a publish confirm opening behind the preview and becoming untouchable — is the
+reason this is a test rather than a comment.
 
 There are **three independent drawer surfaces**, each owning its own open state, with nothing coordinating them: the widget `Drawer` mounted once in the shell, the `Notifications` drawer, and the Autopilot `previewSurface`. Any of them can be open while another is.
 

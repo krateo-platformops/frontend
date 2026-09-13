@@ -26,6 +26,7 @@ import atomOneDark from 'react-syntax-highlighter/dist/esm/styles/hljs/atom-one-
 import lightfair from 'react-syntax-highlighter/dist/esm/styles/hljs/lightfair.js'
 
 import { useThemeMode } from '../../context/ThemeModeContext'
+import { LAYER } from '../../theme/layers'
 import { DrawerHeader, drawerCloseProps } from '../DrawerHeader/DrawerHeader'
 import WidgetRenderer from '../WidgetRenderer'
 
@@ -52,7 +53,7 @@ const RAIL_WIDTH = 384
  * raised to BLAST_RADIUS_CONFIRM_Z_INDEX (1100) so it always paints above this drawer. Setting
  * the drawer explicitly keeps that ordering immune to any future `zIndexPopupBase` theme drift —
  * the confirm's raised value stays the guarantee; this just makes the relationship explicit. */
-export const PREVIEW_DRAWER_Z_INDEX = 1000
+export const PREVIEW_DRAWER_Z_INDEX = LAYER.PREVIEW
 
 const ObjectHeadline = ({ entry }: { entry: PreviewObjectEntry }) => (
   <span className={styles.headline}>
