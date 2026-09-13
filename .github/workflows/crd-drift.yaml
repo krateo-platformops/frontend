@@ -1,0 +1,92 @@
+# Makes the CRD GENERATOR the source of truth for helm/frontend-crds/templates/.
+#
+# Widget CRDs are derived from each widget's *.schema.json by `npm run generate-crds`. The chart
+# copy was only ever refreshed at RELEASE time (the `crds` job in release-tag.yaml opens a sync PR
+# on a tag), so between releases `main` could carry a chart CRD that no longer matched its schema —
+# and nothing said so.
+#
+# It happened: Paragraph.crd.yaml sat at `format: int32` for `level` while the generator had moved
+# to `enum: [1,2,3,4,5]`. The LIVE CRD was looser than the schema, so a `level: 9` Paragraph would
+# have been accepted by the apiserver and rejected by nothing until it rendered.
+#
+# This job regenerates on every PR and fails if the committed chart differs. Schema change and CRD
+# change now land together or not at all.
+#
+# KNOWN GAP, and the gate is how it was found. The generator is pinned to krateoctl v0.8.9, and
+# that version DROPS an `enum` on an integer property: Paragraph.schema.json declares
+# `level: {type: integer, enum: [1,2,3,4,5]}` and 0.8.9 emits `format: int32`, so the live CRD
+# accepts `level: 9`. A newer krateoctl preserves the enum — which is exactly how this surfaced: a
+# hand-"fix" made with a locally-installed newer krateoctl was rejected here by the pinned one.
+#
+# The chart therefore tracks the PINNED generator, enum included in neither. Hand-editing the chart
+# to be stricter than the generator is the one thing this job must not permit, because a gate that
+# special-cases its most interesting file is not a gate. The real fix is a krateoctl bump, and that
+# is blocked on the Theme.schema.json regression documented in release-tag.yaml.
+#
+# Blast radius, measured rather than assumed: `level` is the ONLY integer enum across all 44 widget
+# schemas, and `Paragraph.type.d.ts` types it `1 | 2 | 3 | 4 | 5`, so authoring it wrong is caught
+# at compile time for anything built in this repo. Only a hand-written CR can slip past.
+name: crd-drift
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install krateoctl v0.8.9
+        # Pinned, and the version MUST reach the piped shell as `bash -s 0.8.9` — written as
+        # `install.sh 0.8.9 | bash` the argument is a positional for `curl` (silently ignored),
+        # install.sh falls through to its "latest release" path, and that resolves to a krateoctl
+        # which spins ~3min on Theme.schema.json then exits 1. Same pin and same reasoning as the
+        # `crds` job in release-tag.yaml; if one moves, move both.
+        run: curl -sL https://raw.githubusercontent.com/krateoplatformops/krateoctl/main/install.sh | bash -s 0.8.9
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install ui deps
+        working-directory: ui
+        run: npm ci --no-audit --no-fund
+      - name: Regenerate widget CRDs
+        working-directory: ui
+        run: npm run generate-crds
+      - name: Assert the chart matches the generator
+        run: |
+          # The generator writes to ui/scripts/krateoctl-output/ rather than into the chart, so the
+          # comparison is explicit. Both directions matter: a chart CRD the generator no longer
+          # produces is as wrong as one it produces differently.
+          fail=0
+          for f in ui/scripts/krateoctl-output/*.crd.yaml; do
+            b=$(basename "$f")
+            if [ ! -f "helm/frontend-crds/templates/$b" ]; then
+              echo "::error file=helm/frontend-crds/templates/$b::generated but missing from the chart"
+              fail=1
+            elif ! diff -u "helm/frontend-crds/templates/$b" "$f"; then
+              echo "::error file=helm/frontend-crds/templates/$b::drifted from the generator output"
+              fail=1
+            fi
+          done
+          for f in helm/frontend-crds/templates/*.crd.yaml; do
+            b=$(basename "$f")
+            [ -f "ui/scripts/krateoctl-output/$b" ] || {
+              echo "::error file=$f::in the chart but no longer produced by the generator"; fail=1; }
+          done
+          if [ "$fail" = "1" ]; then
+            echo "::error::widget CRDs drifted — run 'cd ui && npm run generate-crds', copy ui/scripts/krateoctl-output/*.crd.yaml over helm/frontend-crds/templates/, and commit"
+            exit 1
+          fi
+          echo "all widget CRDs match the generator"
+      - name: Assert the generator left no tracked file dirty
+        run: |
+          # krateoctl writes <Widget>.schema.crd.yaml next to each schema and gen-crds.ts moves it
+          # into the output dir. Those intermediates must not be committed — two were, and every
+          # generator run then showed them as deletions.
+          git diff --exit-code \
+            || { echo "::error::running the generator modified tracked files — a build intermediate is committed that should be gitignored"; exit 1; }

@@ -38,3 +38,8 @@ scripts/krateoctl-output/*.yaml
 
 .env
 .env.local
+# krateoctl writes <Widget>.schema.crd.yaml next to each schema and gen-crds.ts moves it to
+# scripts/krateoctl-output/. It is a build intermediate, never a source file — two of them were
+# committed by accident in the monorepo move and showed up as deletions on every generator run.
+ui/src/widgets/*/*.schema.crd.yaml
+ui/scripts/krateoctl-output/
