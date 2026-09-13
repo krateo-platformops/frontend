@@ -29,9 +29,28 @@ const Paragraph = ({ uid, widgetData }: WidgetProps<ParagraphWidgetData>) => {
 
   // Frontend-only cosmetic hide: the page-header eyebrow ("PLATFORM · TENANT …", "CATALOG ·
   // CURATED", …) is suppressed to drop the redundant third title — the eyebrow-styled breadcrumb
-  // now carries that context line above the H1. Canonical source is the chart's `*-eyebrow`
-  // Paragraph CRs; returning null here avoids touching the cluster. Delete this block (restoring
-  // the original `<div className=… eyebrow>{content}</div>`) to bring the eyebrows back.
+  // carries that context line above the H1 instead.
+  //
+  // THE CHART SIDE IS NOW DONE. Every `*-eyebrow` Paragraph CR has been deleted from the portal
+  // chart by the PageHeader migration — the widget has no eyebrow field and will not grow one, so
+  // the count there is zero and stays zero. This block is what is left.
+  //
+  // Removing it, and the `eyebrow` value from the variant enum with it, is a TWO-STEP change that
+  // must happen in this order:
+  //
+  //   1. the portal chart without eyebrow CRs is DEPLOYED  ← not yet; 057 still runs 1.8.8, which
+  //      has 18 of them live
+  //   2. THEN the enum value can go
+  //
+  // Doing step 2 first invalidates those 18 live CRs against the CRD. The chart and the CRD roll
+  // independently, so "the repo has none" is not the same as "the cluster has none" — check the
+  // cluster, not the chart:
+  //
+  //   kubectl get paragraphs.widgets.templates.krateo.io -A -o json \
+  //     | jq '[.items[] | select(.spec.widgetData.variant == "eyebrow")] | length'
+  //
+  // Until that returns 0, this block stays and is load-bearing: it is what keeps the deployed
+  // eyebrows invisible.
   if (variant === 'eyebrow') {
     return null
   }
