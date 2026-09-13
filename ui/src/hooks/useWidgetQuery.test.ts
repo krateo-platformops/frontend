@@ -446,6 +446,31 @@ describe('buildExtrasParam — request/user values forwarded into the RA jq dict
     expect(buildExtrasParam(sp('displayName=evil'), {}, 'Diego', 'diego.braga', false)).toBe('{"displayName":"evil"}')
   })
 
+  // A ROUTE param named `username` is the page's subject, not a spoof attempt. Identity must not
+  // clobber it — `/settings/access/{username}` is the one nav route where the names collide, and
+  // it rendered the logged-in user for every persona URL until this was fixed.
+  it('a route param beats identity — /settings/access/{username} resolves the SUBJECT, not the caller', () => {
+    // `displayName` is still the CALLER's — no route param collides with it, and nothing on this
+    // page reads it. Only the colliding key changes hands.
+    expect(buildExtrasParam(sp(''), { username: 'alice' }, 'Admin', 'admin'))
+      .toBe('{"username":"alice","displayName":"Admin"}')
+  })
+
+  it('a spoofed ?username= is STILL overridden by identity (the anti-spoof this protects)', () => {
+    expect(buildExtrasParam(sp('username=evil'), {}, 'Admin', 'admin'))
+      .toBe('{"username":"admin","displayName":"Admin"}')
+  })
+
+  it('route param wins over BOTH a spoofed query key and identity', () => {
+    expect(buildExtrasParam(sp('username=evil'), { username: 'alice' }, 'Admin', 'admin'))
+      .toBe('{"username":"alice","displayName":"Admin"}')
+  })
+
+  it('key ORDER is unchanged for non-colliding inputs (the string is the cache cell key)', () => {
+    expect(buildExtrasParam(sp('q=foo'), { namespace: 'demo' }, 'Diego', 'diego.braga'))
+      .toBe('{"q":"foo","namespace":"demo","displayName":"Diego","username":"diego.braga"}')
+  })
+
   it('flag ABSENT default is byte-identical to explicit injectIdentity=true (legacy protection)', () => {
     const legacyDefault = buildExtrasParam(sp('q=foo'), { namespace: 'demo' }, 'Diego', 'diego.braga')
     const explicitTrue = buildExtrasParam(sp('q=foo'), { namespace: 'demo' }, 'Diego', 'diego.braga', true)
