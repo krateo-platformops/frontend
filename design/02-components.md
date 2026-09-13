@@ -229,7 +229,29 @@ Generalises past this widget: a node size must fit its container — the old `[3
 
 ### C21 — A container with a header region exposes the shared header-action slot, not a bespoke one.
 
-**Status:** open
+**Status:** open → **deferred, with a named trigger** — the demand it predicted went somewhere else
+
+The rule expected the "no slot for a real header button" bug to recur on `Table`, `Tabs` or `List`.
+Measured, it has not, and the reason is that the demand moved rather than disappeared.
+
+The chart has had exactly ONE container faking a header-action row in its history:
+`flex.header-actions-flex` at 1.8.8, pairing the dashboard's range chips with the "New composition"
+Button. The `PageHeader` migration dissolved it — the CTA is now a header action, the chips a
+sibling filter bar. On `main` there are **zero** containers pairing a collection with buttons.
+
+So page-level actions found their home in `PageHeader` (25 pages), and section-level actions inside
+a `Table`/`Tabs`/`List` have not been wanted once. `Card.extraRefId` — the one slot that exists —
+is used by a single CR in the whole chart.
+
+Building the same field into three more widgets today would be three schema fields, three CRD
+changes and three implementations against a measured demand of zero.
+
+**The trigger, so this is a decision and not an oversight:** the next time a chart has to wrap a
+`Table`, `Tabs` or `List` in a Flex just to sit a Button beside its header, that container gets
+`extraRefId`, copied from `Card` — same name, same shape, a `resourceRefId` resolved through
+`getEndpointUrl` and rendered as a nested widget in the header's trailing edge. The X5 containment
+lint makes such a wrapper easy to spot, since the faked header is a container whose declared
+children are a collection *and* buttons.
 
 `Card` gained `extraRefId` — a real widget slot rather than a plain string — for #83 §0.8, and it is **the only widget that has one**. `Table`, `Tabs` and `List` have no equivalent, so the “no slot for a real header button” bug recurs the next time someone attaches an action to one of them.
 
