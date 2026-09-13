@@ -167,6 +167,11 @@ spec:
                     prefix:
                       description: the prefix used to share filter values with the widgets being filtered
                       type: string
+                    allowedResources:
+                      description: the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.
+                      items:
+                        type: string
+                      type: array
                   required:
                     - items
                     - prefix

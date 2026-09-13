@@ -196,6 +196,54 @@ async function injectFreshness(crdPath: string): Promise<void> {
   await fs.writeFile(crdPath, yaml.dump(doc, { lineWidth: -1, noRefs: true }))
 }
 
+/**
+ * Normalize `spec.widgetData.allowedResources` into the COMMON container contract.
+ *
+ * Every widget that resolves children declares this field, and it is typed `string[]` with NO
+ * enum. Both halves of that are deliberate.
+ *
+ * WHY IT IS ON EVERY CONTAINER: it was on seven kinds and absent from six others that resolve
+ * children just as dynamically (`Breadcrumb`, `Card`, `Descriptions`, `Filters`, `Form`, `Steps`),
+ * with no principle separating the two groups. A field that means something on `Flex` and nothing
+ * on `Card` is not a contract.
+ *
+ * WHY NO ENUM: the per-widget enums were hand-maintained and had drifted into nonsense. `Flex`
+ * listed 28 kinds, `Col` and `Row` 23, `Table` 11, and `Menu` named exactly two — `navmenuitems`
+ * and `pages` — BOTH of which the registry documents as removed in the routing refactor. Dead
+ * values in a live enum. Nothing could tell whether `Flex` permitting `images` while `Col` did not
+ * was design or drift, and adding one widget kind meant editing six frozen lists by hand (adding
+ * `pageheaders` did exactly that, and deliberately skipping `Tabs` is now indistinguishable from
+ * forgetting it).
+ *
+ * The enum also bought nothing: `allowedResources` is enforced by NOTHING at runtime — not by
+ * OpenAPI, not by a webhook, not by the renderer, which resolves `resourceRefId` without
+ * consulting it. So the enum was a maintenance burden pretending to be a constraint.
+ *
+ * Enforcement therefore lives in the chart lint (design rule X5), which can check declarations
+ * against the REAL widget registry instead of a list frozen at schema-authoring time.
+ */
+async function normalizeAllowedResources(crdPath: string): Promise<boolean> {
+  const doc = yaml.load(await fs.readFile(crdPath, 'utf8')) as {
+    spec?: { versions?: Array<{ schema?: { openAPIV3Schema?: { properties?: { spec?: { properties?: { widgetData?: { properties?: Record<string, unknown> } } } } } } }> }
+  }
+  const wd = doc.spec?.versions?.[0]?.schema?.openAPIV3Schema?.properties?.spec?.properties?.widgetData
+  // Only containers. Most declare children through `items`, but not all: `Table` resolves them
+  // through `columns`/`dataSource` cells (`kind: widget` + a `resourceRefId`) and has no `items`
+  // at all — so an `items`-only test silently skips it, which is how it kept its enum on the
+  // first pass. Already having the field is therefore also proof of containerhood.
+  const isContainer = !!wd?.properties && ('items' in wd.properties || 'allowedResources' in wd.properties)
+  if (!isContainer || !wd?.properties) { return false }
+  const before = JSON.stringify(wd.properties.allowedResources ?? null)
+  wd.properties.allowedResources = {
+    description: 'the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.',
+    items: { type: 'string' },
+    type: 'array',
+  }
+  if (JSON.stringify(wd.properties.allowedResources) === before) { return false }
+  await fs.writeFile(crdPath, yaml.dump(doc, { lineWidth: -1, noRefs: true }))
+  return true
+}
+
 async function runKrateoctl(schemaPath: string) {
   const schemaName = basename(schemaPath)
   const widgetDir = dirname(schemaPath)
@@ -229,8 +277,10 @@ async function runKrateoctl(schemaPath: string) {
     await injectKeyExtras(destinationPath)
     // Opt-in staleness badge: every widget CRD carries the `freshness` opt-in flag.
     await injectFreshness(destinationPath)
+    // X5: every CONTAINER carries `allowedResources`, typed string[] with no enum.
+    const containment = await normalizeAllowedResources(destinationPath)
 
-    console.log(`✅ ${chalk.green(finalName)} moved to ${chalk.gray(OUTPUT_DIR)}${normalized ? chalk.yellow(' (union → x-kubernetes-int-or-string)') : ''}${mapsFixed ? chalk.yellow(' (typed maps → additionalProperties)') : ''}`)
+    console.log(`✅ ${chalk.green(finalName)} moved to ${chalk.gray(OUTPUT_DIR)}${normalized ? chalk.yellow(' (union → x-kubernetes-int-or-string)') : ''}${mapsFixed ? chalk.yellow(' (typed maps → additionalProperties)') : ''}${containment ? chalk.yellow(' (allowedResources → common contract)') : ''}`)
     return true
   } catch (err) {
     console.error(`❌ Failed to generate CRD for ${chalk.red(schemaName)}:`)
