@@ -100,4 +100,32 @@ export default defineConfig({
       }
       : {}),
   },
+
+  /*
+   * Test timing. This block did not exist — the suite ran entirely on vitest defaults, which is
+   * how two of its budgets ended up being values nobody chose.
+   *
+   * MEASURED, not guessed. A full run of all 1315 tests on an 8-core box: p50 0ms, p95 316ms — and
+   * the slowest PASSING component test at 4850ms against the default 5000ms `testTimeout`. A 3%
+   * margin is not a margin; it is a coin flip that happens to be landing heads. The three failures
+   * in that run were 6301ms, 5259ms (both over the 5000ms test budget) and 1256ms (over Testing
+   * Library's separate 1000ms `waitFor`, with the test budget barely touched).
+   *
+   * 30000ms gives ~6x headroom over the slowest passing test. That is deliberately generous: these
+   * are jsdom + antd renders whose cost is dominated by style resolution, and the failure mode
+   * being prevented is a test dying because a neighbouring fork got the CPU — not a test that
+   * genuinely hangs, which still fails, just later.
+   *
+   * `setupFiles` carries the OTHER budget. Testing Library's async timeout is independent of
+   * vitest's, so raising `testTimeout` alone leaves the 1256ms failure exactly as it was.
+   *
+   * Worker count is deliberately left at the default. Capping it would reduce contention, but it
+   * treats the symptom and costs wall-clock on every run; timeouts sized from real measurements
+   * are the fix. If flakiness survives this, capping is the next lever, not the first.
+   */
+  test: {
+    hookTimeout: 30000,
+    setupFiles: ['./src/test/setup.ts'],
+    testTimeout: 30000,
+  },
 })
