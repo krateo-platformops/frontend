@@ -23,6 +23,7 @@ python3 lint-css-tokens.py ../../ui/src --update-baseline
 | `hex-literal` | T1 | a hardcoded colour — a hex inside a `var()` **fallback** is exempt |
 | `breakpoint` | T6 | a sixth breakpoint value; no token exists yet, so this stops divergence growing |
 | `unguarded-animation` | T9 | an `infinite` animation with no `prefers-reduced-motion` block in the same file |
+| `widget-theme-coverage` | T2 | a widget that **wraps an antd component** but has no `buildComponents` entry, so its density is unthemed. Repo-level, not per-stylesheet: it diffs the `ui/src/widgets` listing against the theme object. A widget is judged antd-backed by whether it *imports its own namesake* (`Alert as AntdAlert` in `widgets/Alert`) — so composites like `PageHeader`, which import `Flex`/`Typography` and no `PageHeader`, are silent by construction rather than by a hardcoded exemption list that would rot as antd grows |
 
 ### The baseline is the point
 
@@ -43,6 +44,7 @@ gap                    T4        0         0       +0
 hex-literal            T1        0         0       +0
 breakpoint             T6        5         5       +0
 unguarded-animation    T9        0         0       +0
+widget-theme-coverage  T2       19        19       +0
 ```
 
 It records per-file **counts**, not line numbers, so an edit elsewhere in a file does not
@@ -95,6 +97,8 @@ Exit code is the number of violations, so CI fails on any.
 | `missing-target` | X13 | A `resourcesRefs` entry naming a widget CR that does not exist in the chart — the deletion hazard. Indexes widget CRs only, so a same-named RESTAction cannot vouch for a deleted Table. |
 | `containment` | X5 | A child whose kind is not in its container's declared `allowedResources`. The only enforcement there is: nothing checks the field at runtime. |
 | `page-header` | P25 | A page the nav declares that does not open on a `PageHeader`. Reads through a templated `items` rather than exempting it, and reports a page it cannot judge instead of passing it. |
+| `section-rhythm` | P9 | a nav-declared page root whose section `gap` is not the one shared step (`middle`, **8px** — both themes apply antd's `compactAlgorithm`, so the label's px is half what antd documents). Judged on the ROOT only: rhythm BETWEEN sections is the page's business, within a section is that section's. A root declaring no `gap` is reported too — inheriting a default is not a decision. Shares `page_roots()` with P25, so the two cannot disagree about what a page is. Opt out with `krateo.io/no-section-rhythm` |
+| `root-coverage` | P9+P25 | a `page-*` CR the nav does not reach, so **neither page rule judged it**. Both start from the nav — correct, but it means a page the nav cannot reach is skipped in silence. Rendered with default values the agents pages are gated off, so the nav declares 26 roots while the chart ships 31 and both rules passed over 26 of them without saying so. A hit means the render omitted a values flag (under-covering) or the page is genuinely unreachable |
 
 ## The scope discipline
 

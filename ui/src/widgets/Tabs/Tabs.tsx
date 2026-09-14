@@ -1,36 +1,34 @@
 import type { TabsProps } from 'antd'
-import { Result, Tabs as AntdTabs } from 'antd'
+import { Tabs as AntdTabs } from 'antd'
 import { useMemo } from 'react'
 
-import WidgetRenderer from '../../components/WidgetRenderer'
+import RefChild from '../../components/RefChild'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import type { WidgetProps } from '../../types/Widget'
-import { getEndpointUrl } from '../../utils/utils'
 
 import styles from './Tabs.module.css'
 import type { Tabs as WidgetType } from './Tabs.type'
 
 export type TabsWidgetData = WidgetType['spec']['widgetData']
 
-const Tabs = ({ resourcesRefs, uid, widgetData }: WidgetProps<TabsWidgetData>) => {
+const Tabs = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<TabsWidgetData>) => {
   const { centered, items, size, tabPlacement, type } = widgetData
 
   const tabItems = useMemo(() => {
     return items.reduce<NonNullable<TabsProps['items']>>((acc, { label, resourceRefId, title }, index) => {
-      const endpoint = getEndpointUrl(resourceRefId, resourcesRefs)
-
       acc.push({
         children: (
           <div className={styles.container}>
             {title && <div className={styles.title}>{title}</div>}
-            {endpoint
-              ? <WidgetRenderer widgetEndpoint={endpoint} />
-              : <Result
-                status='error'
-                subTitle={`The tab references an invalid resource with resourceRefId: ${resourceRefId}`}
-                title={'Error while rendering tab'}
-              />
-            }
+            {/* X4: Tabs was the ONLY container that told the author what was wrong, so its
+                behaviour became the contract. It now uses the shared component rather than its own
+                copy — `label='tab'` reproduces the previous strings byte-for-byte. */}
+            <RefChild
+              deniedRefIds={deniedRefIds}
+              label='tab'
+              resourceRefId={resourceRefId}
+              resourcesRefs={resourcesRefs}
+            />
           </div>
         ),
         key: `${uid}-${index}`,
@@ -39,7 +37,7 @@ const Tabs = ({ resourcesRefs, uid, widgetData }: WidgetProps<TabsWidgetData>) =
 
       return acc
     }, [])
-  }, [items, resourcesRefs, uid])
+  }, [deniedRefIds, items, resourcesRefs, uid])
 
   // Deep-linkable active tab: a `?tab=<label>` query param selects the initial tab (matched by
   // label, case-insensitive). Lets hand-offs open a specific tab — e.g. the Observability page's

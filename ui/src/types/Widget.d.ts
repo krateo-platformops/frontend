@@ -79,6 +79,12 @@ export type ServerPagination = {
 }
 
 export type WidgetProps<T = unknown> = {
+  /**
+   * X4/X2 — ids the RBAC filter removed from `resourcesRefs.items`. A container uses this to tell
+   * a DENIED child (render nothing: a denial reads as absence) from a TYPO'D one (render a visible
+   * error). Without it the two are byte-identical once the filter has run.
+   */
+  deniedRefIds?: string[]
   resourcesRefs: ResourcesRefs
   serverPagination?: ServerPagination
   uid: string

@@ -351,8 +351,10 @@ export const parseAutopilotDirectives = (text: string): AutopilotDirectives => {
  * declined; naming the refused verb at least points them at the right question. Read-only, so it
  * reads as an outcome rather than an action taken.
  */
-const refused = (verb: string): AutopilotActionChip => ({
-  label: `${verb} — this portal did not run it`,
+export const refused = (verb: string, reason?: string): AutopilotActionChip => ({
+  label: reason
+    ? `${verb} — this portal did not run it (${reason})`
+    : `${verb} — this portal did not run it`,
   readOnly: true,
   verb,
 })
@@ -415,7 +417,12 @@ export const useAutopilotActionBridge = () => {
     if (proposal.verb === 'runAction') {
       const found = lookupAction(queryClient, proposal.widget, proposal.actionId)
       if (!found) {
-        return null
+        // A18: the unmounted-control case. lookupAction reports "no cached widget of that name
+        // carries that action id", so the reason is worded as "no such control on this page" —
+        // NOT "not mounted", which would claim knowledge of a lifecycle this lookup never sees.
+        // Returning null here was the last silent refusal in the bridge: the person asked for a
+        // specific control and got nothing back at all.
+        return refused('runAction', `no control ${proposal.actionId ?? '?'} on ${proposal.widget ?? 'this page'}`)
       }
       const verb = verbOf(found.action, found.resourcesRefs)
       const mutating = MUTATING_VERBS.has(verb)
@@ -435,9 +442,11 @@ export const useAutopilotActionBridge = () => {
     if (proposal.verb === 'patchField') {
       // Bind the agent origin into the dispatcher the branch uses (patchField itself stays
       // origin-agnostic): the resulting PATCH is audited as agent-originated (W0-3).
-      return applyPatchField(proposal as unknown as PatchFieldProposal, {
+      // A18: applyPatchField returns null ONLY on an isPatchAllowed reject — a denial with no
+      // human decision in it — so it is safe to name as a refusal.
+      return (await applyPatchField(proposal as unknown as PatchFieldProposal, {
         handleAction: (action, resourcesRefs) => handleAction(action, resourcesRefs, undefined, undefined, origin),
-      })
+      })) ?? refused('patchField')
     }
 
     // applyResourceSet: the P1 applySet MUTATING branch (builder/fleet). An ORDERED set of
@@ -447,6 +456,11 @@ export const useAutopilotActionBridge = () => {
     // error. applyResourceSet enforces the isApplySetAllowed scoping kernel (≤10 ops;
     // groups ending in .krateo.io, or core ConfigMaps only) and returns null on any reject
     // or on the human's decline — a denied set is a no-op, NEVER a bypass of the gate.
+    // A18 STOPS HERE, deliberately. applyResourceSet returns null for TWO different reasons —
+    // an isApplySetAllowed reject, and the human declining the W0-4 blast-radius confirm — and
+    // they are indistinguishable at this call site. A blanket refusal chip would accuse the portal
+    // of refusing a decision the user had just made themselves, which is a worse lie than silence.
+    // Splitting that null into denied-vs-declined is the remaining sliver of A18.
     if (proposal.verb === 'applyResourceSet') {
       // Same origin binding for the set fabric: the ONE per-set audit record (W0-3) carries
       // actor:'agent' + the session/prompt context. `sandboxNamespace` arms the A.3
@@ -465,14 +479,15 @@ export const useAutopilotActionBridge = () => {
     // widgetEndpoint → teardown on close. Absent config: falls through to the registry's
     // v1 zero-network source preview, byte-identical to before this branch existed.
     if (proposal.verb === 'previewPage' && sandboxNamespace) {
-      return applyPreviewPageV2(proposal, {
+      // A18: same treatment — a v2 preview that cannot run is a denial, not a user decision.
+      return (await applyPreviewPageV2(proposal, {
         handleActionSet: (ops, options) => handleActionSet(ops, origin, options),
         sandboxNamespace,
         session: previewPageSession,
         sessionId: origin?.agentSessionId ?? 'unattributed',
         // A.2.35 warm-up gate: hold the drawer until the root's serve resolves all children.
         ...(snowplowBaseUrl ? { snowplowBaseUrl } : {}),
-      })
+      })) ?? refused('previewPage')
     }
 
     // Deny-by-default via the DATA in READONLY_VERB_REGISTRY: a verb absent from the

@@ -89,7 +89,7 @@ Mechanical note: the `Tabs` enum carries `cols` but not `flexes`, so a section b
 
 ### P9 — Vertical rhythm between page sections keys off one spacing step.
 
-**Status:** open — but its stated blocker is gone
+**Status:** open → **closed** — one step, `middle` (8px), across all 31 roots, lint-enforced
 
 #54 §0.6 asked for a standard gap between major sections and a smaller one within a section. No shared page-rhythm convention exists, so each page's section gap stays ad hoc.
 
@@ -99,8 +99,58 @@ Mechanical note: the `Tabs` enum carries `cols` but not `flexes`, so a section b
 > particular reason for it is not, and a rule that argues from a false premise is easy to dismiss
 > for the wrong reason.
 
-The open decision is unchanged and is a single value: one gap step, applied between major sections,
-across the 31 page roots.
+> **Re-measured 2026-09-14.** This rule described the convention as non-existent after
+> [#192](https://github.com/krateo-platformops/portal/pull/192) had already chosen one. All 31 page
+> roots are vertical `Flex` CRs, enumerated by walking the nav the way the P25 lint resolver does —
+> 26 in `helm/portal`, 5 in `helm/portal-agents`. Distribution **today: `middle` 25, `large` 6**;
+> nothing else, no numeric gap, no `gutter`, no inline margin. Before #192 the same 31 split
+> `middle` 16 / `large` 13 / `small` 1 / unset 1.
+
+**The value in px, because the label misleads.** Both themes apply antd's `compactAlgorithm`, which
+halves the size ramp, so `middle` is **8px here, not the 16px antd documents** — `spacing.sm`,
+`--krateo-space-2`. `large` is 16px, `spacing.md`, `--krateo-space-4`. Both land exactly on scale;
+nothing measured is off-scale. Anyone reading "middle" against antd's own docs will reason from the
+wrong number, which is why the px belongs in the rule and not just the label.
+
+**The question this rule sat on, and what settled it.** `middle` is 8px while a card grid inside a
+section sits on `Row`'s hardcoded 16px gutter, so sections are *closer together* than the cards
+inside them. That looks like an inversion, and the obvious fix is to loosen the section gap to 24px.
+
+**[G10](06-composition-patterns.md) settles it the other way, and G10 wins:** *"Spend vertical space
+on rows; spend almost none on the frame around them. When a page feels cramped, the fix is nearly
+always removing chrome, not loosening data."* The gap between sections **is** frame. The 16px between
+cards is closer to data. So thin-frame-around-looser-data is not an inversion to fix — it is G10
+working as intended, and loosening the section gap would have spent the density budget in exactly
+the place G10 names as wrong.
+
+> This was nearly decided the other way from a generic layout principle (between-section should
+> exceed within-section) applied without checking whether this product had a stated position on
+> density. It does — G10, plus `flex.dashboard-flex.yaml`, which records the dashboard being
+> deliberately tightened "so the dashboard reads closer to the dense one-screen mockup". A design
+> system exists to answer this kind of question; the failure mode is not consulting it.
+
+**Landed:** the 6 remaining `large` roots moved to `middle`. Each had a local reason — `page-access-detail`
+cited #88 §0.6, "the Cards' own padding plus the larger inter-card gap give the visual separation" —
+and those reasons are exactly what one shared step overrides: the Cards' own padding carries the
+separation, and the gap between them is frame.
+
+**Enforced** by `lint-portal-consistency.py` rule `section-rhythm`, which reuses P25's nav-walk via
+the shared `page_roots()` resolver — the 6 stragglers are precisely the roots a name-shaped survey
+misses, and two rules re-deriving "what is a page root" independently is how that count went wrong
+four times. A root declaring no `gap` is reported too: inheriting a default is not a decision.
+
+The **within-section** step is `small`/4px, already used by 24 of the 56 non-root Flex CRs. P9 does
+not govern it — rhythm *between* sections is the page's business, *within* one is that section's.
+
+> **Coverage, and the rule that now guards it.** The agents pages are gated behind
+> `.Values.agents.enabled`, which defaults off — so a default-values render gives the nav 26 roots
+> while the chart ships 31, and P9 and P25 both *passed over 26 of them in silence*. That is the
+> failure this file exists to prevent, committed by its own newest rule.
+>
+> `root-coverage` closes it: every `page-*` CR must be nav-reachable. Zero are unreachable in a
+> correct render; a default render now reports the 5 agents pages by name and says which flag is
+> missing. Starting from the nav is still right — a lint that cannot see a case must **say so**
+> rather than count the blind spot as a pass.
 
 *Evidence: #54 §0.6 — the rhythm convention is still unresolved; the C5 dependency is not*
 

@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Card as AntdCard, Badge, Button, Tag, Tooltip } from 'antd'
 import useApp from 'antd/es/app/useApp'
 
+import RefChild from '../../components/RefChild'
 import WidgetRenderer from '../../components/WidgetRenderer'
 import { useHandleAction } from '../../hooks/useHandleActions'
 import { getColorCode, getTagStyle } from '../../theme/palette'
@@ -44,7 +45,7 @@ const FooterItem = ({ resourceRefId, resourcesRefs }: { resourceRefId: string; r
   )
 }
 
-const Card = ({ resourcesRefs, uid, widget, widgetData }: WidgetProps<CardWidgetData>) => {
+const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetProps<CardWidgetData>) => {
   const { notification } = useApp()
   const { handleAction, isActionLoading } = useHandleAction()
 
@@ -206,16 +207,15 @@ const Card = ({ resourcesRefs, uid, widget, widgetData }: WidgetProps<CardWidget
       <div className={styles.content}>
         {headerLeft && panelHeader}
         <div className={`${styles.body} ${icon && !headerLeft ? styles.clearsIcon : ''}`}>
-          {items
-            .map(({ resourceRefId }, index) => {
-              const endpoint = getEndpointUrl(resourceRefId, resourcesRefs)
-              if (!endpoint) {
-                return null
-              }
-
-              return <WidgetRenderer key={`${uid}-${index}`} widgetEndpoint={endpoint} />
-            })
-            .filter(Boolean)}
+          {items.map(({ resourceRefId }, index) => (
+            <RefChild
+              deniedRefIds={deniedRefIds}
+              key={`${uid}-${index}`}
+              label='card item'
+              resourceRefId={resourceRefId}
+              resourcesRefs={resourcesRefs}
+            />
+          ))}
         </div>
         {footer && panelFooter}
       </div>

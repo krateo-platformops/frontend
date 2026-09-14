@@ -58,7 +58,7 @@ On a platform where per-user RBAC scoping is a feature, a user with partial perm
 
 ### X3 — A failed fetch surfaces the backend’s own explanation.
 
-**Status:** gap → **fixed**
+**Status:** gap → **fixed** → **fixed**
 
 > **Resolved since this rule was written.** `WidgetFetchError` now carries a `detail` read best-effort from the failure body, and the renderer prefers it over the generic HTTP phrase. Landed in PR #196.
 
@@ -80,7 +80,62 @@ A `resourceRefId` with no matching `resourcesRefs` entry behaves **three differe
 | Table | renders an inline dash per cell | ambiguous — same as an empty value |
 | Tabs | a visible `Result status="error"` naming the bad ref | yes |
 
-`Tabs` is the only one that tells you. Its behaviour should be the contract.
+`Tabs` is the only one that tells you.
+
+> **Re-measured 2026-09-14, and the prescription below was unsafe as written.** This rule used to
+> end "its behaviour should be the contract" full stop. Adopting that literally would have broken
+> [X2](#x2), and the conflict is not visible from either rule on its own.
+
+**Why it cannot simply be lifted everywhere.** `WidgetRenderer.tsx` strips every `allowed: false`
+ref *before any container sees it*, so at the widget layer **an RBAC-denied child is byte-identical
+to a typo'd ref**. Making all containers loud would therefore announce denied resources on every
+partially-permitted page — which is exactly the leak X2 decided against, where a denial reading as
+absence is the deliberate position. Any fix has to distinguish the two *above* the container, or it
+trades a silent-failure bug for a disclosure bug.
+
+**The count is also wrong.** It is not three behaviours across 7 containers but **four across 13
+container call sites**, plus 2 non-container consumers. `PageHeader` is a fourth behaviour the table
+misses — `null` plus a bespoke named `console.error` carrying an explicit "loud rather than silent"
+comment, and the only test in the repo covering any of this. `Steps` degrades silently to plain
+text. `Menu`/`navModel` hides the entry *deliberately* for RBAC and must keep doing so. Six further
+silent call sites go unmentioned: `ButtonGroup`, `Filters`, `Form`, `Layout`, `List`, and two more
+inside `Card` itself (`FooterItem`, and the `cover`/`extraRefId` slots).
+
+**Shape of the fix, when it is taken.** A shared `RefChild` that resolves and renders the failure,
+so the 11 `getEndpointUrl` + `if (!endpoint) return null` + `.filter(Boolean)` sites collapse to one.
+It needs **two densities, not one**: a full `Result` is right for a tab or a page section and would
+destroy row height inside a `Table` cell, where the answer is a compact marker carrying the id in a
+tooltip — today a bad ref there renders the same `-` as a genuinely empty value, at five other call
+sites in the same file. And `getResourceRef`/`getEndpointUrl` themselves have **zero test coverage**,
+which is where any change should start.
+
+**Resolved, and the "blocker" was solvable.** The denied-vs-absent distinction already exists one
+layer up — it was simply being discarded. `WidgetRenderer` now passes the ids the RBAC filter
+removed (`deniedRefIds`) *alongside* the filtered list, so a container can tell the two apart
+without either becoming visible to the other's audience.
+
+The filter itself could **not** just be removed instead: `navModel.isNavEntryAllowed` decides nav
+visibility by presence in that filtered list, so un-filtering would have made every denied nav entry
+appear — a worse leak than the one being fixed. The change is additive for that reason.
+
+A shared `RefChild` now resolves and renders in one place, at two densities: the full `Result` for a
+tab, section or card body, and a compact tooltip-carrying marker for a `Table` cell, where a Result
+would destroy row height. `Tabs` uses it too — `label='tab'` reproduces its previous strings
+byte-for-byte, so the contract behaviour is now one implementation rather than the original plus a
+copy that could drift. Converted: `Flex`, `Col`, `Row`, `Card` (body), `Table` (widget cell), `Tabs`.
+
+`Row` keeps a special case worth knowing: a **dangling** ref keeps its `AntdColumn` so the grid does
+not reflow around the error, but a **denied** ref still drops the whole column exactly as before —
+an empty column of the same span would both look broken and hint that something was removed. That is
+what `refChildState` exists for.
+
+Covered by `RefChild.test.tsx`, including the two X2 assertions that matter: a denied ref renders
+nothing, and its id does not appear in the DOM in any form.
+
+**Not converted, deliberately:** `Menu`/`navModel` (hiding the entry IS the RBAC behaviour), and the
+`Card` `cover`/`extraRefId`/`FooterItem` slots plus `Steps`, `ButtonGroup`, `Filters`, `Form`,
+`Layout`, `List` — all still silent. They are the same class and the shared component is now there
+for them; they were left out of this pass rather than fixed and forgotten.
 
 *Evidence: verified `utils.ts:3-18`, `Row.tsx:38-41`, `Col.tsx:24-28`, `Flex.tsx:17-21`, `Card.tsx:210-218`, `Table.tsx:157-165`, `Tabs.tsx:18-32`*
 
