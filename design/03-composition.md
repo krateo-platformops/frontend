@@ -89,7 +89,7 @@ Mechanical note: the `Tabs` enum carries `cols` but not `flexes`, so a section b
 
 ### P9 — Vertical rhythm between page sections keys off one spacing step.
 
-**Status:** open → **largely landed; one design question left open below**
+**Status:** open → **closed** — one step, `middle` (8px), across all 31 roots, lint-enforced
 
 #54 §0.6 asked for a standard gap between major sections and a smaller one within a section. No shared page-rhythm convention exists, so each page's section gap stays ad hoc.
 
@@ -112,19 +112,39 @@ halves the size ramp, so `middle` is **8px here, not the 16px antd documents** �
 nothing measured is off-scale. Anyone reading "middle" against antd's own docs will reason from the
 wrong number, which is why the px belongs in the rule and not just the label.
 
-**The open question, and it is a real one.** `middle`/8px has 25 of 31 — but that plurality is
-partly manufactured, since #192 created it from a near-even split. And the surrounding geometry
-argues the other way: `Row.tsx` hardcodes `gutter={[16, 16]}`, `Col.module.css` sets
-`gap: var(--spacing-md)` (16px), and `WidgetPage.module.css` frames the page in 24px of vertical
-padding. At 8px, **the gap BETWEEN sections is smaller than the gap WITHIN them** — which inverts
-the relationship #54 §0.6 actually asked for. Finishing at `middle` costs 6 CR edits; switching to
-`large` costs 25. The cheaper option is not obviously the right one, and this is a judgement call
-rather than a measurement.
+**The question this rule sat on, and what settled it.** `middle` is 8px while a card grid inside a
+section sits on `Row`'s hardcoded 16px gutter, so sections are *closer together* than the cards
+inside them. That looks like an inversion, and the obvious fix is to loosen the section gap to 24px.
 
-Whichever is chosen, two things must ship with it or it drifts again: name the **within-section**
-step in the same rule (`small`/4px, already used by 24 of the 56 non-root Flex CRs), and add a P9
-lint rule reusing P25's nav-walk resolver — the 6 stragglers are precisely the roots a name-shaped
-survey misses.
+**[G10](06-composition-patterns.md) settles it the other way, and G10 wins:** *"Spend vertical space
+on rows; spend almost none on the frame around them. When a page feels cramped, the fix is nearly
+always removing chrome, not loosening data."* The gap between sections **is** frame. The 16px between
+cards is closer to data. So thin-frame-around-looser-data is not an inversion to fix — it is G10
+working as intended, and loosening the section gap would have spent the density budget in exactly
+the place G10 names as wrong.
+
+> This was nearly decided the other way from a generic layout principle (between-section should
+> exceed within-section) applied without checking whether this product had a stated position on
+> density. It does — G10, plus `flex.dashboard-flex.yaml`, which records the dashboard being
+> deliberately tightened "so the dashboard reads closer to the dense one-screen mockup". A design
+> system exists to answer this kind of question; the failure mode is not consulting it.
+
+**Landed:** the 6 remaining `large` roots moved to `middle`. Each had a local reason — `page-access-detail`
+cited #88 §0.6, "the Cards' own padding plus the larger inter-card gap give the visual separation" —
+and those reasons are exactly what one shared step overrides: the Cards' own padding carries the
+separation, and the gap between them is frame.
+
+**Enforced** by `lint-portal-consistency.py` rule `section-rhythm`, which reuses P25's nav-walk via
+the shared `page_roots()` resolver — the 6 stragglers are precisely the roots a name-shaped survey
+misses, and two rules re-deriving "what is a page root" independently is how that count went wrong
+four times. A root declaring no `gap` is reported too: inheriting a default is not a decision.
+
+The **within-section** step is `small`/4px, already used by 24 of the 56 non-root Flex CRs. P9 does
+not govern it — rhythm *between* sections is the page's business, *within* one is that section's.
+
+> Coverage caveat worth keeping: the agents pages are gated behind `.Values.agents.enabled`, which
+> defaults off. Rendered with defaults, the nav declares 26 roots and the lint silently judges 26 of
+> 31. Render with `--set agents.enabled=true` or the rule under-reports without saying so.
 
 *Evidence: #54 §0.6 — the rhythm convention is still unresolved; the C5 dependency is not*
 
