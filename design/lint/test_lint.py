@@ -62,6 +62,40 @@ def readme_drift():
             for name in sorted(set(RULES) - documented)]
 
 
+
+def status_body_drift():
+    """Rules whose Status line reads OPEN while their body claims the work is done.
+
+    Three real instances in one day — X3 (status doubled to `gap -> fixed -> fixed`), X4 (body
+    described the fix in full while the status still said `gap`), and T2 (body said "Now enforced"
+    and named the lint; status still said "the rule is not holding"). All three were written by the
+    person who wrote the rule about citations drifting, within hours of writing it.
+
+    Nobody READING those rules would have caught it: the body is long and persuasive and only a
+    one-line status contradicted it. That is precisely the class of error a human review misses and
+    a diff does not, so it belongs here rather than in anyone's attention.
+
+    A status carrying an arrow (`gap -> fixed`) has already been reconciled and is skipped.
+    """
+    import glob
+    resolved = re.compile(r'\b(now enforced|is now enforced|RESOLVED|resolved 20|SHIPPED|is enforced)', re.I)
+    openish = re.compile(r'^(gap|open|severe|missing|partial|unenforced|breached|defect|risk|inconsistent|ungoverned)', re.I)
+    out = []
+    for path in sorted(glob.glob(os.path.join(HERE, '..', '0*.md'))):
+        txt = open(path, encoding='utf-8').read()
+        for m in re.finditer(r'^### ([TCPXAG]\d+) —.*?(?=^### |\Z)', txt, re.M | re.S):
+            body, rule = m.group(0), m.group(1)
+            st = re.search(r'^\*\*Status:\*\*(.*)$', body, re.M)
+            if not st:
+                continue
+            status = re.sub(r'\*\*', '', st.group(1)).strip()
+            if '\u2192' in status or '->' in status or not openish.match(status):
+                continue
+            if resolved.search(body):
+                out.append(f'{rule}: status reads {status[:40]!r} but the body claims the work is done')
+    return out
+
+
 def main():
     global RULES
     RULES = _rules()
@@ -101,6 +135,8 @@ def main():
                             f'PALETTE_KEYS has {extra} not in tokens.ts')
     except Exception as exc:
         failures.append(f'palette drift check could not run: {exc}')
+
+    failures.extend(f'status/body drift: {d}' for d in status_body_drift())
 
     for line in failures:
         print(f'FAIL {line}')

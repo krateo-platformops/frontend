@@ -27,13 +27,13 @@ Verified by sweep: all 168 files under `ui/src/widgets` contain exactly one hex 
 
 ### T2 — Density comes from the antd component overrides — for the 15 widget kinds those overrides actually cover.
 
-**Status:** partial — **and the rule is not holding**
+**Status:** partial → **enforced** — the rule now has a lint; the 19 candidates remain as baselined debt
 
 Reworded from an earlier, over-confident version of this rule. `buildComponents` governs **15** antd
 kinds: `Button, Card, DatePicker, Drawer, Input, List, Menu, Modal, Progress, Select, Statistic,
 Steps, Table, Tabs, Tag`.
 
-> **Re-measured 2026-09-14: `ui/src/widgets` holds 46, not 43, so 31 self-style rather than 28.**
+> **Re-measured 2026-09-14 — this is the state BEFORE the lint landed, kept because why it drifted is the point.** `ui/src/widgets` holds 46, not 43, so 31 self-style rather than 28.
 > Three widgets have been added since this rule was written and none of them added a
 > `buildComponents` entry or documented an opt-out — which is the rule below, unenforced. Worth
 > stating plainly because it is this document's own thesis: *writing the rule down is necessary and
