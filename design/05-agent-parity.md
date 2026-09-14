@@ -213,19 +213,66 @@ This is the property that makes “what does this page say?” answerable rather
 
 ### A17 — An object the agent created is identifiable as such.
 
-**Status:** gap
+**Status:** gap → **fixed** ([#243](https://github.com/krateo-platformops/frontend/pull/243))
 
-`applyResourceSet` stamps nothing — no label, no annotation, no provenance marker. Nothing on the cluster distinguishes an object the agent wrote from one a person wrote.
+> **Corrected — this rule described as an open gap something that had already shipped.** It read
+> "`applyResourceSet` stamps nothing" after the stamp was merged, which is the same drift this
+> document warns about in its own preamble: a stale status is worse than none, because a reader
+> who checks one citation and finds it wrong discounts the rest.
+
+An agent-originated CREATE is now stamped `krateo.io/created-by: autopilot`
+(`provenance.ts` `AGENT_CREATED_LABEL`, applied in `useHandleActions.ts` via `stampAgentCreated`).
+
+Three properties of the fix are load-bearing and worth not regressing:
+
+- **CREATE only.** A `POST` brings an object into existence and the label describes that act. A
+  `PUT`/`PATCH` edits something that may well have been created by a human, and stamping there
+  would assert something false. An object *edited* by the agent is a different fact, and the
+  AuditRecord is where it belongs.
+- **Stamped BEFORE the HITL gate**, deliberately — so the blast-radius diff the human confirms
+  *shows* the label. An agent that added a field to the body after approval would be doing exactly
+  what the gate exists to prevent, even for a field this harmless.
+- **Never mutates the caller's payload**, and leaves a payload whose `metadata` or `labels` is not
+  an object exactly as it found it rather than corrupting a shape it does not understand.
+
+The original reasoning for the rule stands and explains why parity with an unmarked human click was
+never the right read: **the agent acts under the caller's identity**, so without the label the audit
+trail attributes its writes to the human. Attribution was not merely absent, it was misleading — and
+an agent can create ten objects in a turn the user approved as one aggregate.
 
 A human’s click is equally unmarked, so this could be read as parity. It is not, for one reason: **the agent acts under the caller’s identity**, so the audit trail attributes its writes to the human. Attribution is not merely absent, it is misleading — and an agent can create ten objects in a turn the user approved as a single aggregate. “Why does this object exist?” has no answer.
 
-*Evidence: verified `applyResourceSet.ts` — the only `label` there is the UI chip’s text*
+*Evidence: `provenance.ts` `stampAgentCreated` + `AGENT_CREATED_LABEL`; call site `useHandleActions.ts`; covered by `provenance.test.ts` — "A17: an agent-created object is identifiable without a join"*
 
 ### A18 — A verb that cannot act says so.
 
-**Status:** gap
+**Status:** gap → **fixed, with one sliver named below**
 
-Two silent no-ops reach the user as nothing at all: a dead declared verb (A6), and a `runAction` whose target control is not mounted — `lookupAction` returns undefined and the verb quietly does nothing. In both cases a person asked for something and received no signal that it was not done.
+Two silent no-ops reached the user as nothing at all: a dead declared verb (A6), and a `runAction`
+whose target control is not mounted. A6 was closed by #204's `refused()` helper; this rule was the
+remainder.
+
+**The fix reuses `refused()` rather than inventing a channel** — it is already the house answer for
+"a verb declined", already renders in the rail as a read-only line, and is already excluded from
+speech, so a refusal gains no voice-narration side effect. It now takes an optional reason, and the
+no-reason label is **byte-identical** to #204's wording so existing refusals are not silently
+reworded (locked by a test).
+
+Three branches stopped returning a bare `null`: `runAction` (the A18 case), `patchField` and
+`previewPage`. `lookupAction` returns null when no *cached widget of that name carries that action
+id*, so the reason is worded "no such control on this page" rather than "not mounted" — the lookup
+never observes a lifecycle and should not claim to.
+
+**The sliver, stated rather than quietly left:** `applyResourceSet` still returns a bare `null`,
+deliberately. Its null means *either* a scoping-kernel reject *or* the human declining the W0-4
+blast-radius confirm, and the two are indistinguishable at the call site. A blanket refusal chip
+there would accuse the portal of refusing a decision the user had just made — a worse answer than
+silence. Splitting that null into denied-vs-declined is what remains.
+
+> **Found while fixing this, and worse than the rule it sits under:** a `runAction` whose
+> confirmation the user *declines* still returns a **success** chip claiming the action ran
+> (`handleAction` returns void, so the decline is invisible to the bridge). A18 was about silence;
+> this is a false positive, and it is not fixed here.
 
 The unmounted-control case is the same silent-failure shape as P10’s inert row and A13’s renamed action id, and it is the one most likely to be read as the agent ignoring the request.
 

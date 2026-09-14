@@ -27,11 +27,43 @@ Verified by sweep: all 168 files under `ui/src/widgets` contain exactly one hex 
 
 ### T2 — Density comes from the antd component overrides — for the 15 widget kinds those overrides actually cover.
 
-**Status:** partial
+**Status:** partial — **and the rule is not holding**
 
-Reworded from an earlier, over-confident version of this rule. `buildComponents` governs 15 antd kinds; `ui/src/widgets` holds 43. The remaining 28 self-style in bespoke CSS — `Form`, the most CR-authoring-critical of them, hand-rolls 19 padding/margin and 5 font-size declarations with no theme backing.
+Reworded from an earlier, over-confident version of this rule. `buildComponents` governs **15** antd
+kinds: `Button, Card, DatePicker, Drawer, Input, List, Menu, Modal, Progress, Select, Statistic,
+Steps, Table, Tabs, Tag`.
+
+> **Re-measured 2026-09-14: `ui/src/widgets` holds 46, not 43, so 31 self-style rather than 28.**
+> Three widgets have been added since this rule was written and none of them added a
+> `buildComponents` entry or documented an opt-out — which is the rule below, unenforced. Worth
+> stating plainly because it is this document's own thesis: *writing the rule down is necessary and
+> not sufficient.* T2 has no lint behind it, and the drift is the predictable result.
+
+**The 31 are not one population, and the distinction is what makes this actionable.** 19 of them
+share a name with a real antd component and could take an override today:
+
+> `Alert, Badge, Breadcrumb, Checkbox, Col, Descriptions, Divider, Flex, Form, Image, InputNumber,
+> Layout, QRCode, Radio, Result, Row, Slider, Switch, Upload`
+
+The other 12 are charts, composites or have no antd counterpart at all, and are **legitimate
+opt-outs** rather than debt: `BarChart, ButtonGroup, Filters, FlowChart, LineChart, Markdown,
+PageHeader, Paragraph, PieChart, RangePicker, Theme, YamlViewer`.
+
+So the real figure is **19 candidates, not 31 defects** — and `Form` is the one to do first, both
+because it hand-rolls 19 padding/margin and 5 font-size declarations with no theme backing and
+because it is the most CR-authoring-critical widget in the set.
 
 **Rule:** a new widget either adds a `buildComponents` entry or documents why it opts out.
+
+**Now enforced** — `lint-css-tokens.py` rule `widget-theme-coverage` (T2) diffs the `ui/src/widgets`
+listing against the theme object and gates on a baseline of the 19, so a *new* antd-wrapping widget
+without an entry fails CI while the existing debt burns down. A widget counts as antd-backed only if
+it imports its own namesake (`Alert as AntdAlert` in `widgets/Alert`), which is what keeps the 12
+composites silent without a hardcoded exemption list that would rot as antd grows.
+
+The lint's 19 were derived independently of the hand count above — by import inspection rather than
+by matching names against a list of antd's exports — and agree exactly, which is the only reason to
+trust either number.
 
 *Evidence: verified `tokens.ts:363-410` vs the widget directory listing · this is why #54 §0.5 and #72/#76 had to be fixed as one-offs*
 

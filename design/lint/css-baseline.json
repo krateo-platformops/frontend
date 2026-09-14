@@ -11,5 +11,26 @@
   "gap": {},
   "hex-literal": {},
   "spacing": {},
-  "unguarded-animation": {}
+  "unguarded-animation": {},
+  "widget-theme-coverage": {
+    "widgets/Alert/Alert.tsx": 1,
+    "widgets/Badge/Badge.tsx": 1,
+    "widgets/Breadcrumb/Breadcrumb.tsx": 1,
+    "widgets/Checkbox/Checkbox.tsx": 1,
+    "widgets/Col/Col.tsx": 1,
+    "widgets/Descriptions/Descriptions.tsx": 1,
+    "widgets/Divider/Divider.tsx": 1,
+    "widgets/Flex/Flex.tsx": 1,
+    "widgets/Form/Form.tsx": 1,
+    "widgets/Image/Image.tsx": 1,
+    "widgets/InputNumber/InputNumber.tsx": 1,
+    "widgets/Layout/Layout.tsx": 1,
+    "widgets/QRCode/QRCode.tsx": 1,
+    "widgets/Radio/Radio.tsx": 1,
+    "widgets/Result/Result.tsx": 1,
+    "widgets/Row/Row.tsx": 1,
+    "widgets/Slider/Slider.tsx": 1,
+    "widgets/Switch/Switch.tsx": 1,
+    "widgets/Upload/Upload.tsx": 1
+  }
 }

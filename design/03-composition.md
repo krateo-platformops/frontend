@@ -89,7 +89,7 @@ Mechanical note: the `Tabs` enum carries `cols` but not `flexes`, so a section b
 
 ### P9 — Vertical rhythm between page sections keys off one spacing step.
 
-**Status:** open — but its stated blocker is gone
+**Status:** open → **largely landed; one design question left open below**
 
 #54 §0.6 asked for a standard gap between major sections and a smaller one within a section. No shared page-rhythm convention exists, so each page's section gap stays ad hoc.
 
@@ -99,8 +99,32 @@ Mechanical note: the `Tabs` enum carries `cols` but not `flexes`, so a section b
 > particular reason for it is not, and a rule that argues from a false premise is easy to dismiss
 > for the wrong reason.
 
-The open decision is unchanged and is a single value: one gap step, applied between major sections,
-across the 31 page roots.
+> **Re-measured 2026-09-14.** This rule described the convention as non-existent after
+> [#192](https://github.com/krateo-platformops/portal/pull/192) had already chosen one. All 31 page
+> roots are vertical `Flex` CRs, enumerated by walking the nav the way the P25 lint resolver does —
+> 26 in `helm/portal`, 5 in `helm/portal-agents`. Distribution **today: `middle` 25, `large` 6**;
+> nothing else, no numeric gap, no `gutter`, no inline margin. Before #192 the same 31 split
+> `middle` 16 / `large` 13 / `small` 1 / unset 1.
+
+**The value in px, because the label misleads.** Both themes apply antd's `compactAlgorithm`, which
+halves the size ramp, so `middle` is **8px here, not the 16px antd documents** — `spacing.sm`,
+`--krateo-space-2`. `large` is 16px, `spacing.md`, `--krateo-space-4`. Both land exactly on scale;
+nothing measured is off-scale. Anyone reading "middle" against antd's own docs will reason from the
+wrong number, which is why the px belongs in the rule and not just the label.
+
+**The open question, and it is a real one.** `middle`/8px has 25 of 31 — but that plurality is
+partly manufactured, since #192 created it from a near-even split. And the surrounding geometry
+argues the other way: `Row.tsx` hardcodes `gutter={[16, 16]}`, `Col.module.css` sets
+`gap: var(--spacing-md)` (16px), and `WidgetPage.module.css` frames the page in 24px of vertical
+padding. At 8px, **the gap BETWEEN sections is smaller than the gap WITHIN them** — which inverts
+the relationship #54 §0.6 actually asked for. Finishing at `middle` costs 6 CR edits; switching to
+`large` costs 25. The cheaper option is not obviously the right one, and this is a judgement call
+rather than a measurement.
+
+Whichever is chosen, two things must ship with it or it drifts again: name the **within-section**
+step in the same rule (`small`/4px, already used by 24 of the 56 non-root Flex CRs), and add a P9
+lint rule reusing P25's nav-walk resolver — the 6 stragglers are precisely the roots a name-shaped
+survey misses.
 
 *Evidence: #54 §0.6 — the rhythm convention is still unresolved; the C5 dependency is not*
 

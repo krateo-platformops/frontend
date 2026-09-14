@@ -89,7 +89,7 @@ existence and count of resources outside a tenant's scope.
 
 ## What is enforced today
 
-Two lints run from [`lint/`](lint/), and between them they hold **ten composition rules and six
+Two lints run from [`lint/`](lint/), and between them they hold **ten composition rules and seven
 token rules**. Everything else is a rule a human applies.
 
 - `lint-portal-consistency.py` — composition, run against a chart's widget CRs. **0 violations**

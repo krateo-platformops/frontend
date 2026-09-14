@@ -80,7 +80,37 @@ A `resourceRefId` with no matching `resourcesRefs` entry behaves **three differe
 | Table | renders an inline dash per cell | ambiguous — same as an empty value |
 | Tabs | a visible `Result status="error"` naming the bad ref | yes |
 
-`Tabs` is the only one that tells you. Its behaviour should be the contract.
+`Tabs` is the only one that tells you.
+
+> **Re-measured 2026-09-14, and the prescription below was unsafe as written.** This rule used to
+> end "its behaviour should be the contract" full stop. Adopting that literally would have broken
+> [X2](#x2), and the conflict is not visible from either rule on its own.
+
+**Why it cannot simply be lifted everywhere.** `WidgetRenderer.tsx` strips every `allowed: false`
+ref *before any container sees it*, so at the widget layer **an RBAC-denied child is byte-identical
+to a typo'd ref**. Making all containers loud would therefore announce denied resources on every
+partially-permitted page — which is exactly the leak X2 decided against, where a denial reading as
+absence is the deliberate position. Any fix has to distinguish the two *above* the container, or it
+trades a silent-failure bug for a disclosure bug.
+
+**The count is also wrong.** It is not three behaviours across 7 containers but **four across 13
+container call sites**, plus 2 non-container consumers. `PageHeader` is a fourth behaviour the table
+misses — `null` plus a bespoke named `console.error` carrying an explicit "loud rather than silent"
+comment, and the only test in the repo covering any of this. `Steps` degrades silently to plain
+text. `Menu`/`navModel` hides the entry *deliberately* for RBAC and must keep doing so. Six further
+silent call sites go unmentioned: `ButtonGroup`, `Filters`, `Form`, `Layout`, `List`, and two more
+inside `Card` itself (`FooterItem`, and the `cover`/`extraRefId` slots).
+
+**Shape of the fix, when it is taken.** A shared `RefChild` that resolves and renders the failure,
+so the 11 `getEndpointUrl` + `if (!endpoint) return null` + `.filter(Boolean)` sites collapse to one.
+It needs **two densities, not one**: a full `Result` is right for a tab or a page section and would
+destroy row height inside a `Table` cell, where the answer is a compact marker carrying the id in a
+tooltip — today a bad ref there renders the same `-` as a genuinely empty value, at five other call
+sites in the same file. And `getResourceRef`/`getEndpointUrl` themselves have **zero test coverage**,
+which is where any change should start.
+
+*Blocked on a decision, not on effort: how to separate a denied ref from an absent one before it
+reaches a container.*
 
 *Evidence: verified `utils.ts:3-18`, `Row.tsx:38-41`, `Col.tsx:24-28`, `Flex.tsx:17-21`, `Card.tsx:210-218`, `Table.tsx:157-165`, `Tabs.tsx:18-32`*
 

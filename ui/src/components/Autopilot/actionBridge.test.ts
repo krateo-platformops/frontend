@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 
 import { describe, expect, it } from 'vitest'
 
-import { parseAutopilotDirectives, sanitizeChatText } from './actionBridge'
+import { parseAutopilotDirectives, sanitizeChatText, refused } from './actionBridge'
 
 const railSource = (file: string): string =>
   readFileSync(new URL(`./${file}`, import.meta.url), 'utf-8')
@@ -156,5 +156,34 @@ describe('sanitizeChatText — existing hardening still holds', () => {
 
   it('still strips a bare kubectl line', () => {
     expect(sanitizeChatText('Run this:\nkubectl get pods')).not.toContain('kubectl get pods')
+  })
+})
+
+describe('refused — A18: a verb that cannot act says so', () => {
+  it('names the verb when there is no reason to give', () => {
+    expect(refused('navigate')).toEqual({
+      label: 'navigate — this portal did not run it',
+      readOnly: true,
+      verb: 'navigate',
+    })
+  })
+
+  it('keeps the no-reason label BYTE-IDENTICAL to the #204 wording', () => {
+    // A6 (#204) shipped this exact sentence and the design doc quotes it. Widening the helper for
+    // A18 must not silently reword every existing refusal — hence a literal, not a template.
+    expect(refused('patchField').label).toBe('patchField — this portal did not run it')
+  })
+
+  it('appends the reason in parentheses when one is given', () => {
+    expect(refused('runAction', 'no control sync on compositions-table').label)
+      .toBe('runAction — this portal did not run it (no control sync on compositions-table)')
+  })
+
+  it('stays read-only, so a refusal never reads as an action taken', () => {
+    expect(refused('runAction', 'no control x on y').readOnly).toBe(true)
+  })
+
+  it('carries the verb through unchanged so the rail can group it', () => {
+    expect(refused('previewPage').verb).toBe('previewPage')
   })
 })

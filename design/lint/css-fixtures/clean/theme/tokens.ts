@@ -19,3 +19,9 @@ export const cssVariables = (mode: ThemeMode = 'light') => {
   Object.entries(typography.weight).forEach(([key, value]) => root.style.setProperty(`--font-weight-${key}`, `${value}`))
   Object.entries(KRATEO_BASE).forEach(([key, value]) => root.style.setProperty(`--krateo-${key}`, value))
 }
+
+const buildComponents = (palette: Record<string, string>, mode: ThemeMode): ThemeConfig['components'] => ({
+  Alert: {
+    paddingContentVertical: 8,
+  },
+})

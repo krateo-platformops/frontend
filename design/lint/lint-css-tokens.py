@@ -267,6 +267,85 @@ def rule_unguarded_animation(path):
         yield line, re.sub(r'\s+', ' ', match.group(0)).strip()[:90]
 
 
+def _themed_kinds(src):
+    """Top-level component keys of `buildComponents`.
+
+    `_object_keys` cannot read this one: buildComponents is an arrow function returning an object
+    literal (`=> ({ ... })`), not `const x = {...}` or a nested `x: {...}`, so it returns [] and
+    every themed widget then looks unthemed. Brace-matched from the `({` rather than line-scanned,
+    because the entries nest several levels deep."""
+    match = re.search(r'const\s+buildComponents\b.*?=>\s*\(\s*\{', src)
+    if not match:
+        return set()
+    depth, close = 0, len(src)
+    for i in range(match.end() - 1, len(src)):
+        if src[i] == '{':
+            depth += 1
+        elif src[i] == '}':
+            depth -= 1
+            if depth == 0:
+                close = i
+                break
+    body = src[match.end():close]
+    kinds, depth = set(), 0
+    for line in body.split('\n'):
+        if depth == 0:
+            key = re.match(r'\s{2}([A-Z]\w*)\s*:', line)
+            if key:
+                kinds.add(key.group(1))
+        depth += line.count('{') - line.count('}')
+    return kinds
+
+
+WIDGET_ANTD_IMPORT = re.compile(r"import\s*\{([^}]*)\}\s*from\s*'antd'")
+
+
+def _imports_own_antd_kind(src, kind):
+    """True if the file imports antd's component of the SAME name, aliased or not.
+
+    `import { Alert as AntdAlert } from 'antd'` in widgets/Alert — that widget wraps antd's Alert
+    and therefore CAN be themed through `buildComponents`. A composite like PageHeader imports
+    `Flex, Typography` and no `PageHeader`, because antd has none; it self-styles legitimately.
+    This is what separates the two populations without hardcoding a list of antd's exports, which
+    would rot the moment antd adds a component."""
+    for match in WIDGET_ANTD_IMPORT.finditer(src):
+        for spec in match.group(1).split(','):
+            name = spec.strip().split(' as ')[0].strip()
+            if name == kind:
+                return True
+    return False
+
+
+def rule_widget_theme_coverage(root):
+    """T2 — a widget that wraps an antd component but has no `buildComponents` entry.
+
+    Yields (relative_path, line, text). Repo-level rather than per-CSS-file: the question is about
+    a directory listing against a TS object, and no stylesheet contains the answer.
+
+    Deliberately silent about widgets with no antd counterpart (charts, Markdown, YamlViewer,
+    PageHeader). Those are opt-outs by construction, not debt — flagging them would train readers
+    to ignore the rule."""
+    widgets_dir = os.path.join(root, 'widgets')
+    theme = os.path.join(root, 'theme', 'tokens.ts')
+    if not os.path.isdir(widgets_dir) or not os.path.exists(theme):
+        return
+    covered = _themed_kinds(_read(theme))
+    for kind in sorted(os.listdir(widgets_dir)):
+        entry = os.path.join(widgets_dir, kind, f'{kind}.tsx')
+        if not os.path.exists(entry) or kind in covered:
+            continue
+        src = _read(entry)
+        if not _imports_own_antd_kind(src, kind):
+            continue
+        line = 1
+        for i, text in enumerate(src.split('\n'), 1):
+            if "from 'antd'" in text:
+                line = i
+                break
+        yield (os.path.relpath(entry, root), line,
+               f'{kind} wraps antd {kind} but has no buildComponents entry — density is unthemed')
+
+
 RULES = {
     'font-size': (rule_font_size, 'T3'),
     'spacing': (rule_spacing, 'T4'),
@@ -274,7 +353,12 @@ RULES = {
     'hex-literal': (rule_hex_literal, 'T1'),
     'breakpoint': (rule_breakpoint, 'T6'),
     'unguarded-animation': (rule_unguarded_animation, 'T9'),
+    'widget-theme-coverage': (rule_widget_theme_coverage, 'T2'),
 }
+
+# Rules that answer a repo-level question (a directory listing, a TS object) rather than scanning
+# one stylesheet at a time. They take `root` and yield (relative_path, line, text) themselves.
+REPO_RULES = {'widget-theme-coverage'}
 
 
 def collect(root, selected):
@@ -285,10 +369,14 @@ def collect(root, selected):
     for name in selected:
         fn, _ = RULES[name]
         per_file = {}
-        for path in css_files(root):
-            hits = list(fn(path))
-            if hits:
-                per_file[os.path.relpath(path, root)] = len(hits)
+        if name in REPO_RULES:
+            for rel, _line, _text in fn(root):
+                per_file[rel] = per_file.get(rel, 0) + 1
+        else:
+            for path in css_files(root):
+                hits = list(fn(path))
+                if hits:
+                    per_file[os.path.relpath(path, root)] = len(hits)
         out[name] = per_file
     return out
 
@@ -296,6 +384,9 @@ def collect(root, selected):
 def detail(root, name):
     prime_known_properties(root)
     fn, _ = RULES[name]
+    if name in REPO_RULES:
+        yield from fn(root)
+        return
     for path in css_files(root):
         for line, text in fn(path):
             yield os.path.relpath(path, root), line, text
