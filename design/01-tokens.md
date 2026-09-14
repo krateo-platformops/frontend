@@ -171,7 +171,31 @@ It passes at large sizes, so the fix is either darkening the token or restrictin
 
 ### T8 — No two palette keys share a value without a documented reason.
 
-**Status:** ungoverned → **the silent half is now enforced; the `info` collision is still open**
+**Status:** ungoverned → **both halves closed** — the silent fallback is lint-enforced, and `info` is no longer the interaction blue
+
+> **The consequential half is fixed.** `info` was `#05629A` light / `#2FBFE6` dark — **identical to
+> `primary` in both modes** — so an informational Alert was pixel-identical to a primary Button and
+> colour alone could not separate "status" from "interactive". Users learn blue means clickable; an
+> info banner in the same blue teaches them to click something inert.
+>
+>     info   light  #05629A -> #5F7285      dark  #2FBFE6 -> #8496AD
+>
+> The interaction blues cluster at hue 193–203 (`#11B2E2`, `#2FBFE6`, `#05629A`) and `info` had to
+> leave it. It lands at hue ~210 but heavily desaturated, so it reads as blue-grey rather than as a
+> control — an info Alert is now visually SUBORDINATE to a CTA, the correct hierarchy for
+> information. Measured on the grounds it renders on: light 4.80 on the panel / **4.55 on the page
+> background**, dark 6.09 on the panel. All clear AA for body text; the 4.55 is the thinnest margin
+> and is **pinned by a test**. Two candidates were rejected on measurement, not taste: a new indigo
+> (5.72/7.02, but a new brand colour is a bigger ask than a key already owned) and `violet`, which
+> **fails AA at 3.87 on the dark panel**.
+>
+> The load-bearing assertions are not the contrast ones — they are `info !== primary` in both modes
+> and `info` matching none of the three interaction blues. Every contrast test would still pass if
+> someone pointed `info` back at `primary`.
+>
+> **Residue, stated rather than hidden:** `info` now equals `slate`, so the palette gains a synonym
+> pair — cosmetically what this rule complains about. Harmless: `slate` has zero consumers, and
+> `slate` is the colour's NAME while `info` is its ROLE. If they ever need to diverge, `info` moves.
 
 37 keys resolve to 25 distinct values in light mode. `warning = orange = amber = gold` is a four-way synonym; `success = green`, `error = red`, `accent2 = cyan = teal`.
 

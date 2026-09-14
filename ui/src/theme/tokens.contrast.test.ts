@@ -120,3 +120,47 @@ describe('Body text — WCAG AA contrast across every text/surface pair', () => 
       .toBeLessThan(contrastRatio(colorDark.gray, colorDark.background))
   })
 })
+
+/**
+ * T8 — `info` must be legible AND must not be the interaction blue.
+ *
+ * Before this, `info === primary` in both modes (#05629A / #2FBFE6), so an informational Alert was
+ * pixel-identical to a primary Button and colour alone could not separate "status" from
+ * "interactive". `info` now carries the desaturated blue-grey (#5F7285 / #8496AD): hue ~210 but low
+ * saturation, so it reads as a note rather than a control, and sits visually subordinate to a CTA —
+ * which is the correct hierarchy for information.
+ *
+ * The separation assertion is the load-bearing one. The contrast ones would still pass if someone
+ * pointed `info` back at `primary`.
+ */
+describe('Info status colour — distinct from the interaction blue (T8)', () => {
+  it('light info on the light panel passes AA ≥ 4.5:1', () => {
+    expect(contrastRatio(color.info, '#FBFBFB')).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('light info on the light page background passes AA ≥ 4.5:1', () => {
+    // The thinnest margin of the candidates considered (~4.55) — pinned so a future tweak that
+    // darkens the background or lightens `info` fails here rather than in someone's eyes.
+    expect(contrastRatio(color.info, color.background)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('dark info on the dark panel passes AA ≥ 4.5:1', () => {
+    expect(contrastRatio(colorDark.info, colorDark.panelbg)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('info is NOT the primary in either mode — the whole point of the rule', () => {
+    expect(color.info).not.toBe(color.primary)
+    expect(colorDark.info).not.toBe(colorDark.primary)
+  })
+
+  it('info is not any of the three interaction blues', () => {
+    const interaction = ['#11B2E2', '#2FBFE6', '#05629A']
+    expect(interaction).not.toContain(color.info)
+    expect(interaction).not.toContain(colorDark.info)
+  })
+
+  it('info follows the mode, unlike the darkBlue trap', () => {
+    expect(colorDark.info).not.toBe(color.info)
+    expect(relativeLuminance(colorDark.info)).toBeGreaterThan(relativeLuminance(color.info))
+  })
+})
