@@ -170,9 +170,14 @@ export const elevationDark = {
 
 export const typography = {
   family: 'Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif',
-  // Display = Barlow Condensed (H1 + big numerals); mono = JetBrains Mono (all data:
-  // ids/counts/durations/versions/namespaces). Loaded via the index.html font <link>.
-  display: '"Barlow Condensed", Inter, system-ui, sans-serif',
+  // T5: the display role is Inter, the same family as body. It was Barlow Condensed, whose
+  // ascent/descent against Inter's baseline is the cross-font drift #86 identified — patched
+  // per-component four times (see #78 'reiteration 4') and never at the cause. Retiring the
+  // second family removes the mechanism rather than correcting for it; display is now carried
+  // by size, weight and tracking. Mono stays JetBrains Mono for data (ids/counts/durations/
+  // versions/namespaces). Faces load from the @import at the top of ui/index.css — NOT from an
+  // index.html <link>, which is what this comment used to claim.
+  display: 'Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif',
   mono: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, "Courier New", monospace',
   size: { xxs: 12, xs: 14, sm: 16, md: 18, lg: 24, xl: 30 },
   weight: { lighter: 300, light: 400, medium: 500, bold: 600, bolder: 700 },
@@ -206,7 +211,7 @@ const KRATEO_BASE: Record<string, string> = {
   'motion-standard': '240ms',
   'motion-deliberate': '400ms',
   'motion-ease': 'cubic-bezier(0.16, 1, 0.3, 1)',
-  'font-display': '"Barlow Condensed", sans-serif',
+  'font-display': 'Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif',
   'font-ui': 'Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
   'font-mono': '"JetBrains Mono", "Courier New", monospace',
   'text-display': '64px',
