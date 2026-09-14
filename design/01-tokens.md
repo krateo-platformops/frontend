@@ -79,7 +79,26 @@ Two exemptions were added along the way, both because the rule was asking the wr
 
 ### T5 — Line-height is a role scale, and cross-font baseline drift is corrected at the font metrics.
 
-**Status:** gap
+**Status:** gap → **resolved by removing the mechanism**
+
+> **Decided (Diego): retire the second family.** The drift this rule is about is Barlow Condensed's
+> ascent/descent against Inter's baseline. Rather than correct for it with `ascent-override` /
+> `descent-override`, the display role now uses Inter — the same family as body — so there is no
+> second set of metrics to drift against. Display is carried by size, weight and tracking instead.
+>
+> The alternative considered and rejected was a fifth per-component patch. The symptom had already
+> been patched four times (`#78 reiteration 4` is written into `Paragraph.module.css`), which is
+> the signature of treating a symptom; each round cost a report-and-fix cycle and none of them
+> touched the cause.
+>
+> **One judgement call**, recorded because it is the only non-mechanical part: the title
+> `line-height` was `1.1`, chosen for Barlow Condensed's condensed line box. That is too tight for
+> Inter, so both title paths (`strong: true` and `level: N`) are now `1.2` — the standard heading
+> ratio for the family in use, and the same value on both paths so a title does not change height
+> depending on which path rendered it.
+>
+> Also removed: `Barlow+Condensed` from the Google Fonts `@import`, which is one fewer font file on
+> every page load.
 
 The `typography` export has `family`, `display`, `mono`, `size`, `weight` — and **no `lineHeight` keys at all**. 32 hardcoded `line-height` declarations exist across 10 distinct values.
 

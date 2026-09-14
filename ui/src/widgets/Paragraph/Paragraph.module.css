@@ -32,7 +32,9 @@
   text-transform: uppercase;
 }
 
-/* Page H1 → Petrol DISPLAY ramp (Space Grotesk via --font-display). Two render paths
+/* Page H1 → the DISPLAY ramp (Inter via --font-display; this comment said "Space Grotesk" long
+   after the face had changed, and the face has since changed again — T5 retired Barlow Condensed
+   so display and body are now one family). Two render paths
    reach a page title: `strong: true` (most pages → antd wraps content in a <strong>
    child) and `level: N` (detail header → antd Typography.Title hN). Both take the
    display face + tight tracking; the strong titles also take the mockup's display size
@@ -49,17 +51,26 @@ h5.paragraph {
   font-family: var(--font-display);
   letter-spacing: -0.01em;
 
-  /* #78 (reiteration 4, item 1): the level:N Title path (detail-header `<h2>` etc.) set NO
-     line-height, so it inherited antd's loose Title line-height (~1.35). Under the condensed
-     `--font-display` (Barlow Condensed) that tall line box left the caps floating high with dead
-     space below. Tighten to the display ramp's 1.1 so the glyphs sit on their own centreline — the
-     same value the `:has(strong)` titles already carry (it re-declares its own below; harmless). */
-  line-height: 1.1;
+  /* #78 (reiteration 4, item 1): the level:N Title path (detail-header `<h2>` etc.) sets NO
+     line-height, so it inherits antd's loose Title line-height (~1.35), which is too airy for a
+     page title.
+
+     THE VALUE CHANGED WITH THE FACE. It was 1.1, chosen because Barlow Condensed's tall line box
+     left the caps floating with dead space below. T5 retired that face; 1.1 is too tight for
+     Inter, whose line box is not condensed, so this is 1.2 — the standard heading ratio for the
+     family now in use. This is the one judgement call in T5: everything else was mechanical.
+     Four previous rounds patched the symptom per-component; retiring the second family removes
+     the mechanism that produced it. */
+  line-height: 1.2;
   margin: 0;
 }
 
 .paragraph:has(strong) {
   font-size: 26px;
   font-weight: var(--font-weight-bold, 600);
-  line-height: 1.1;
+  /* 1.2, matching the level:N path above — both were 1.1 for Barlow Condensed's condensed line
+     box, and T5 retired that face. Keeping the two paths on the same ratio is the point: a page
+     title should not change height depending on whether it arrived as `strong: true` or
+     `level: N`. */
+  line-height: 1.2;
 }
