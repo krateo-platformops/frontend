@@ -222,6 +222,34 @@ describe('the request (the portal origin, never Google)', () => {
     })
   })
 
+  // GEMINI-TTS. `model_name` selects the generative tier and `input.prompt` steers delivery —
+  // the only lever that can ask for Italian prose with English pronunciation of the jargon in
+  // it, which no locale-pinned voice can do (an en-US voice mangles the prose, an it-IT voice
+  // Italianises `Deployment`).
+  it('adds model_name and input.prompt when a Gemini-TTS model is configured', () => {
+    expect(buildSynthesizeBody('ciao', 'Kore', 'it-IT', 'gemini-2.5-flash-tts', 'Read in Italian; English terms in English.')).toMatchObject({
+      input: { prompt: 'Read in Italian; English terms in English.', text: 'ciao' },
+      voice: { languageCode: 'it-IT', model_name: 'gemini-2.5-flash-tts', name: 'Kore' },
+    })
+  })
+
+  // Inert until opted into: an install that names no model gets the byte-for-byte request it
+  // got before, so upgrading cannot change how anyone's speak-back sounds.
+  it('omits both fields entirely when no model is configured', () => {
+    const body = buildSynthesizeBody('ciao', 'en-US-Chirp3-HD-Achernar', 'en-US')
+    expect(body).toEqual({
+      audioConfig: { audioEncoding: 'MP3' },
+      input: { text: 'ciao' },
+      voice: { languageCode: 'en-US', name: 'en-US-Chirp3-HD-Achernar' },
+    })
+  })
+
+  // A prompt without a model would be a field the Chirp API does not expect.
+  it('ignores a style prompt when no model is named', () => {
+    const body = buildSynthesizeBody('ciao', 'en-US-Chirp3-HD-Achernar', 'en-US', undefined, 'some style') as { input: Record<string, unknown> }
+    expect(body.input).toEqual({ text: 'ciao' })
+  })
+
   it('plays the returned clip, and reports finished when it ends', async () => {
     const gateway = fakeGateway()
     const audio = audioProbe()

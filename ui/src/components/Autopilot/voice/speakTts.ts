@@ -89,6 +89,17 @@ export interface TtsDeps {
   url: string
   /** The Cloud TTS voice name, from `AUTOPILOT_VOICE_NAME`. */
   voiceName: string
+  /**
+   * Gemini-TTS model, from `AUTOPILOT_VOICE_TTS_MODEL`. Absent keeps the Chirp/standard
+   * request shape byte-for-byte, so an install that never sets it is unaffected.
+   */
+  modelName?: string
+  /**
+   * Gemini-TTS styling instruction, from `AUTOPILOT_VOICE_STYLE_PROMPT`. Only a Gemini-TTS
+   * model reads it; sending it without `modelName` would be a field the API does not expect,
+   * so the two travel together or not at all.
+   */
+  stylePrompt?: string
 }
 
 /** Read the real browser `Audio`, or null when there is none. The one place the real
@@ -125,11 +136,35 @@ export const ttsLanguageCode = (voiceName: string, language: string): string => 
  * of the real request — and, more to the point, that `input.text` is the string it was
  * handed, unaltered (FR 68).
  */
-export const buildSynthesizeBody = (text: string, voiceName: string, language: string): Record<string, unknown> => ({
-  audioConfig: { audioEncoding: AUDIO_ENCODING },
-  input: { text },
-  voice: { languageCode: ttsLanguageCode(voiceName, language), name: voiceName },
-})
+export const buildSynthesizeBody = (
+  text: string,
+  voiceName: string,
+  language: string,
+  modelName?: string,
+  stylePrompt?: string,
+): Record<string, unknown> => {
+  const voice: Record<string, unknown> = {
+    languageCode: ttsLanguageCode(voiceName, language),
+    name: voiceName,
+  }
+  const input: Record<string, unknown> = { text }
+  // GEMINI-TTS, and ONLY when a model is named. `model_name` selects the generative tier and
+  // `input.prompt` steers delivery in natural language — which is the only lever that reaches
+  // the problem a voice name cannot: an Italian answer carrying English technical jargon.
+  // A locale-pinned voice gets exactly one of the two right. `en-US-Chirp3-HD-Achernar` reads
+  // Italian prose with English phonetics (reported live); an it-IT voice fixes the prose and
+  // then Italianises `Deployment` and `namespace`. The prompt is where you ask for both.
+  //
+  // Both fields are omitted entirely when no model is configured, so the Chirp request stays
+  // byte-for-byte what it was and no install changes behaviour by upgrading.
+  if (modelName) {
+    voice.model_name = modelName
+    if (stylePrompt) {
+      input.prompt = stylePrompt
+    }
+  }
+  return { audioConfig: { audioEncoding: AUDIO_ENCODING }, input, voice }
+}
 
 /**
  * FR 78: the autoplay policy REFUSED to start audio for lack of a user activation. It is
@@ -284,7 +319,7 @@ export const createTtsSpeaker = (deps: TtsDeps): Speaker => {
 
       const request = async (): Promise<void> => {
         const response = await deps.fetchImpl(deps.url, {
-          body: JSON.stringify(buildSynthesizeBody(text, deps.voiceName, language)),
+          body: JSON.stringify(buildSynthesizeBody(text, deps.voiceName, language, deps.modelName, deps.stylePrompt)),
           credentials: 'omit',
           headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...deps.authHeader() },
           method: 'POST',
@@ -305,17 +340,19 @@ export const createTtsSpeaker = (deps: TtsDeps): Speaker => {
       }
 
       void request().catch(() => {
-        // EVERY failure ends the answer QUIETLY — an HTTP status, a dead network, an
-        // expired bearer, a body that is not the synthesize shape — exactly as the browser
-        // speaker ends its queue on any error that is not `not-allowed`. Speak-back is a
-        // courtesy laid over an answer that is already written in the chat, which is where
-        // it was always the authoritative copy (FR 68); an error banner because the
-        // courtesy failed would be noise about nothing the user asked for. What must NOT
-        // happen is `speaking` staying true, and that is what this settle guarantees.
+        // A FAILURE IS REPORTED AS A FAILURE. This used to call onFinished(), on the premise
+        // that speak-back is "a courtesy laid over an answer already written in the chat" —
+        // so an HTTP status, a dead network or an expired bearer simply ended the answer
+        // silently. That premise is wrong: speak-back is mandatory, and a caller that cannot
+        // distinguish a failed synthesize from a spoken one cannot fall back to the local
+        // voice. Silence is the one outcome this feature may not have.
+        //
+        // The store decides what to do with it; this only reports honestly. What must NOT
+        // happen either way is `speaking` staying true, which the settle still guarantees.
         if (isStale()) {
           return
         }
-        settle((active) => active.onFinished())
+        settle((active) => (active.onFailed ?? active.onFinished)())
       })
       return true
     },

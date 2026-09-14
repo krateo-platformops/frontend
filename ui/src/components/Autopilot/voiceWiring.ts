@@ -162,6 +162,11 @@ export const useVoiceWiring = (
   // is `a2aAuthHeader` and NOTHING else: the gateway route holds the GCP credential, and a
   // page that never has one cannot leak one.
   const ttsUrl = config?.api.AUTOPILOT_VOICE_TTS_URL
+  // Gemini-TTS. Absent leaves the Chirp request shape untouched, so this is inert until an
+  // install opts in. The style prompt is the reason to: it is the only field that can ask for
+  // Italian prose AND English pronunciation of the technical terms inside it.
+  const ttsModel = config?.api.AUTOPILOT_VOICE_TTS_MODEL
+  const stylePrompt = config?.api.AUTOPILOT_VOICE_STYLE_PROMPT
   const voiceName = config?.api.AUTOPILOT_VOICE_NAME
   useEffect(() => {
     if (!ttsUrl) {
@@ -174,8 +179,10 @@ export const useVoiceWiring = (
       fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
       url: ttsUrl,
       voiceName: voiceName || DEFAULT_TTS_VOICE,
+      modelName: ttsModel,
+      stylePrompt: stylePrompt,
     }))
-  }, [ttsUrl, voiceName])
+  }, [ttsUrl, voiceName, ttsModel, stylePrompt])
 
   // CONVERSATION MODE: the rail's submit reaches the store through a ref, NOT as an effect
   // dependency. `submitSpokenTurn` closes over live rail state and so is a new function on
