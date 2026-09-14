@@ -559,6 +559,104 @@ def rule_containment(crs):
     return out
 
 
+def ref_resolver(crs):
+    """(index, resolve) — how the RENDERER addresses a reference: by (plural, name).
+
+    One implementation, because P25 and P9 both need it and a second copy is how "what is a page
+    root" drifted four times.
+    """
+    index = {}
+    for fname, doc in widget_crs(crs):
+        name = ((doc.get('metadata') or {}).get('name') or '')
+        if name:
+            index[(doc.get('kind'), name)] = (fname, doc)
+    plurals = dict(learn_plurals(crs))
+    plurals.update(discover_plurals())
+    kind_of = {p: k for k, p in plurals.items()}
+
+    def resolve(name, plural):
+        kind = kind_of.get(plural)
+        if kind and (kind, name) in index:
+            return index[(kind, name)]
+        hits = [v for (k, n), v in index.items() if n == name]
+        return hits[0] if len(hits) == 1 else None
+
+    return index, resolve
+
+
+# The one section step every nav-declared page root puts between its major sections (P9).
+# The LABEL is antd's; the PX is not antd's documented value. Both themes apply
+# `compactAlgorithm`, which halves the size ramp, so here small/middle/large = 4/8/16px, not
+# 8/16/24. Anyone reasoning from antd's docs will pick the wrong one — hence the px in the name.
+SECTION_GAP = 'middle'
+SECTION_GAP_PX = 8
+
+
+def page_roots(crs):
+    """Yield (root_name, page_file, page_doc) for every page the NAV declares.
+
+    Extracted so P25 and P9 cannot disagree about what a page root is. Four hand surveys got that
+    count wrong, each inheriting the last one's blind spot, because each looked for the SHAPE a page
+    was expected to have rather than for what makes something a page — being reachable from the nav.
+    A second rule re-deriving it independently would be the fifth.
+    """
+    _index, resolve = ref_resolver(crs)
+
+    for fname, doc in crs:
+        if doc.get('kind') != 'Menu':
+            continue
+        nav_refs = {r['id']: r for r in refs_of(doc) if r.get('id')}
+        seen = set()
+        for path, value in walk_strings(widget_data(doc)):
+            leaf = path.rsplit('.', 1)[-1]
+            if leaf == 'page':
+                root, plural = f'page-{value}', None
+            elif leaf == 'resourceRefId':
+                ref = nav_refs.get(value)
+                if not ref:
+                    continue
+                root, plural = ref.get('name'), ref.get('resource')
+            else:
+                continue
+            if root in seen:
+                continue
+            seen.add(root)
+            target = resolve(root, plural)
+            if not target:
+                continue          # P10's business
+            yield root, target[0], target[1]
+
+
+def rule_section_rhythm(crs):
+    """P9 — a nav-declared page root whose section gap is not the one shared step.
+
+    #54 §0.6 asked for a standard gap between major sections and a smaller one within a section.
+    Without this rule the convention was re-decided per page: before it was first set, the 31 roots
+    split middle 16 / large 13 / small 1 / unset 1.
+
+    Judged only on the ROOT, which is what sets rhythm BETWEEN sections; the gap within a section is
+    that section's own business. A root that declares no gap is reported too — inheriting a default
+    is how the unset one got there, and an unstated value is not a decision.
+    """
+    out = []
+    for root, page_file, page_doc in page_roots(crs):
+        data = widget_data(page_doc)
+        if (page_doc.get('metadata') or {}).get('annotations', {}).get('krateo.io/no-section-rhythm'):
+            continue
+        gap = data.get('gap')
+        if gap == SECTION_GAP:
+            continue
+        if gap is None:
+            out.append((page_file, f'page root `{root}` declares no `gap`, so its section rhythm is '
+                                   f'whatever the renderer defaults to — set it to `{SECTION_GAP}` '
+                                   f'({SECTION_GAP_PX}px) so the value is a decision, not an inheritance'))
+        else:
+            out.append((page_file, f'page root `{root}` uses gap `{gap}`, not the one section step '
+                                   f'`{SECTION_GAP}` ({SECTION_GAP_PX}px) — annotate the root with '
+                                   f'`krateo.io/no-section-rhythm` if this page genuinely differs'))
+    return out
+
+
 def rule_page_header(crs):
     """P25 — a page whose first child is not a `PageHeader`.
 
@@ -600,23 +698,7 @@ def rule_page_header(crs):
     OPT-OUT, because one page legitimately has no single header: annotate the page root with
     `krateo.io/no-page-header: <reason>`. An exception that has to be written down and reviewed is
     the point; a silent exclusion list inside the lint is what let the hand surveys drift."""
-    index = {}
-    for fname, doc in widget_crs(crs):
-        name = ((doc.get('metadata') or {}).get('name') or '')
-        if name:
-            index[(doc.get('kind'), name)] = (fname, doc)
-    plurals = dict(learn_plurals(crs))
-    plurals.update(discover_plurals())
-    # plural -> kind, so a `resourcesRefs` entry can be resolved the way the renderer resolves it.
-    kind_of = {p: k for k, p in plurals.items()}
-
-    def resolve(name, plural):
-        """The CR a reference addresses, resolved by (plural, name) when the plural is known."""
-        kind = kind_of.get(plural)
-        if kind and (kind, name) in index:
-            return index[(kind, name)]
-        hits = [v for (k, n), v in index.items() if n == name]
-        return hits[0] if len(hits) == 1 else None
+    _index, resolve = ref_resolver(crs)
 
     def first_child(doc):
         """(kind, detail). kind is None when the page could not be judged — `detail` says why."""
@@ -655,44 +737,20 @@ def rule_page_header(crs):
         return target[1].get('kind'), ref.get('name')
 
     out = []
-    for fname, doc in crs:
-        if doc.get('kind') != 'Menu':
+    for root, page_file, page_doc in page_roots(crs):
+        if (page_doc.get('metadata') or {}).get('annotations', {}).get('krateo.io/no-page-header'):
             continue
-        spec = doc.get('spec') or {}
-        nav_refs = {r['id']: r for r in refs_of(doc) if r.get('id')}
-        seen = set()
-        for path, value in walk_strings(widget_data(doc)):
-            leaf = path.rsplit('.', 1)[-1]
-            # `page: x` names `page-x` by convention; `resourceRefId` goes through resourcesRefs.
-            if leaf == 'page':
-                root, plural = f'page-{value}', None
-            elif leaf == 'resourceRefId':
-                ref = nav_refs.get(value)
-                if not ref:
-                    continue          # P10's business
-                root, plural = ref.get('name'), ref.get('resource')
-            else:
-                continue
-            if root in seen:
-                continue
-            seen.add(root)
-            target = resolve(root, plural)
-            if not target:
-                continue              # P10's business, not this rule's
-            page_file, page_doc = target
-            if (page_doc.get('metadata') or {}).get('annotations', {}).get('krateo.io/no-page-header'):
-                continue
-            kind, detail = first_child(page_doc)
-            if kind == 'PageHeader':
-                continue
-            if kind:
-                out.append((page_file, f'page `{root}` opens on a `{kind}`, not a PageHeader — '
-                                       f'every page names itself in the same place and type ramp; '
-                                       f'annotate the root with `krateo.io/no-page-header` if this '
-                                       f'page genuinely has none'))
-            else:
-                out.append((page_file, f'page `{root}` could not be judged: {detail} — a page this '
-                                       f'rule cannot read is a gap in the rule, not a pass'))
+        kind, detail = first_child(page_doc)
+        if kind == 'PageHeader':
+            continue
+        if kind:
+            out.append((page_file, f'page `{root}` opens on a `{kind}`, not a PageHeader — '
+                                   f'every page names itself in the same place and type ramp; '
+                                   f'annotate the root with `krateo.io/no-page-header` if this '
+                                   f'page genuinely has none'))
+        else:
+            out.append((page_file, f'page `{root}` could not be judged: {detail} — a page this '
+                                   f'rule cannot read is a gap in the rule, not a pass'))
     return out
 
 
@@ -707,6 +765,7 @@ RULES = {
     'tag-colour-no-label': (rule_tag_colour_without_label, 'C13'),
     'containment': (rule_containment, 'X5'),
     'page-header': (rule_page_header, 'P25'),
+    'section-rhythm': (rule_section_rhythm, 'P9'),
 }
 
 

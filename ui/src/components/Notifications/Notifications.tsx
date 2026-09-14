@@ -4,7 +4,9 @@ import { Badge, Drawer, Empty, List, Skeleton, Tag, Tooltip, Typography } from '
 import { memo, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router'
 
+import { useConfigContext } from '../../context/ConfigContext'
 import { LAYER } from '../../theme/layers'
+import { getAccessToken } from '../../utils/getAccessToken'
 import type { SSEK8sEvent } from '../../utils/types'
 import { DrawerHeader, drawerCloseProps } from '../DrawerHeader/DrawerHeader'
 import HeaderIconButton from '../HeaderIconButton'
@@ -60,7 +62,48 @@ function dedupeEvents(events: SSEK8sEvent[]): DedupedEvent[] {
   })
 }
 
-function toResourceUrl(event: SSEK8sEvent): string | null {
+/**
+ * Resolved plurals, keyed `apiVersion/Kind`. Module-level so the lookup happens once per kind for
+ * the life of the tab — a busy cluster repeats the same handful of kinds across dozens of events.
+ */
+export const pluralCache = new Map<string, string>()
+
+/** The guess this code used to ship. Kept ONLY as the fallback when discovery is unavailable. */
+const naivePlural = (kind: string) => `${kind.toLowerCase()}s`
+
+/**
+ * The real plural for a kind, from snowplow's `/api-info/names`.
+ *
+ * This used to be `kind.toLowerCase() + 's'`, which is wrong for every kind that does not
+ * pluralise by appending s — `Repository` became `repositorys`, so the notification linked to a
+ * URL the apiserver has no route for and the page 404'd on an object that exists. On the 057
+ * cluster that guess is wrong for 45 CRD kinds: anything ending in y (Repository → repositories),
+ * in s/x/ch/sh (Checkbox → checkboxes, ComputeClass → computeclasses), and every kind whose name
+ * is ALREADY plural (AgentgatewayPolicies, ClusterRules), which must not be pluralised again.
+ *
+ * No rule reproduces that set, which is why this asks the apiserver rather than guessing better.
+ */
+export async function resolvePlural(baseUrl: string, apiVersion: string, kind: string): Promise<string> {
+  const key = `${apiVersion}/${kind}`
+  const cached = pluralCache.get(key)
+  if (cached) { return cached }
+
+  try {
+    const url = `${baseUrl}/api-info/names?apiVersion=${encodeURIComponent(apiVersion)}&kind=${encodeURIComponent(kind)}`
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${getAccessToken()}` } })
+    if (!res.ok) { return naivePlural(kind) }
+    const body = await res.json() as { plural?: string }
+    if (!body.plural) { return naivePlural(kind) }
+    pluralCache.set(key, body.plural)
+    return body.plural
+  } catch {
+    // Navigation is better than no navigation: fall back to the old guess rather than dropping the
+    // click. It is right for the majority of kinds and no worse than the previous behaviour.
+    return naivePlural(kind)
+  }
+}
+
+function toResourceUrl(event: SSEK8sEvent, plural: string): string | null {
   const obj = event.involvedObject
   if (!obj.kind || !obj.name) { return null }
   const ns = obj.namespace || 'cluster'
@@ -72,7 +115,6 @@ function toResourceUrl(event: SSEK8sEvent): string | null {
     group = apiVer.slice(0, idx)
     version = apiVer.slice(idx + 1)
   }
-  const plural = `${obj.kind.toLowerCase()}s`
   return `/resources/${ns}/${group}/${version}/${plural}/${obj.name}`
 }
 
@@ -83,7 +125,20 @@ const EventItem = memo(function EventItem({ deduped, onNavigate }: { deduped: De
   const ts = event.lastTimestamp ?? event.firstTimestamp ?? event.eventTime
   const isWarning = event.type === 'Warning'
   const objRef = [event.involvedObject.kind, event.involvedObject.name].filter(Boolean).join('/')
-  const resourceUrl = toResourceUrl(event)
+  const { config } = useConfigContext()
+  const obj = event.involvedObject
+  // Whether the row has a DESTINATION is decidable synchronously (kind + name); only the exact
+  // plural needs the apiserver. Keeping the two apart matters for a11y: the row's focusability and
+  // role must not wait on a fetch, or a keyboard user gets a tab stop that is briefly inert.
+  const hasDestination = Boolean(obj.kind && obj.name)
+
+  const go = useCallback(async () => {
+    if (!obj.kind || !obj.name) { return }
+    const base = config?.api?.SNOWPLOW_API_BASE_URL ?? ''
+    const plural = await resolvePlural(base, obj.apiVersion ?? 'v1', obj.kind)
+    const url = toResourceUrl(event, plural)
+    if (url) { onNavigate(url) }
+  }, [config?.api?.SNOWPLOW_API_BASE_URL, event, obj.apiVersion, obj.kind, obj.name, onNavigate])
 
   return (
     <List.Item
@@ -100,18 +155,18 @@ const EventItem = memo(function EventItem({ deduped, onNavigate }: { deduped: De
       // a List.Item is not focusable, is announced as nothing, and ignores Enter and Space. Same
       // standard Table documents (WCAG 2.1.1) and ListView now shares. A row with no destination
       // stays inert, so a keyboard user never lands on a tab stop that does nothing.
-      onClick={resourceUrl ? () => onNavigate(resourceUrl) : undefined}
-      onKeyDown={resourceUrl
-        ? (event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault()
-            onNavigate(resourceUrl)
+      onClick={hasDestination ? () => { void go() } : undefined}
+      onKeyDown={hasDestination
+        ? (keyEvent) => {
+          if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
+            keyEvent.preventDefault()
+            void go()
           }
         }
         : undefined}
-      role={resourceUrl ? 'button' : undefined}
-      style={resourceUrl ? { cursor: 'pointer' } : undefined}
-      tabIndex={resourceUrl ? 0 : undefined}
+      role={hasDestination ? 'button' : undefined}
+      style={hasDestination ? { cursor: 'pointer' } : undefined}
+      tabIndex={hasDestination ? 0 : undefined}
     >
       <List.Item.Meta
         avatar={

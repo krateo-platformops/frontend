@@ -137,6 +137,7 @@ metadata:
   name: p25-good
 spec:
   widgetData:
+    gap: middle
     allowedResources:
     - pageheaders
     items:
@@ -166,6 +167,7 @@ metadata:
     "krateo.io/no-page-header": "two apiRefs — the title line is assembled from both"
 spec:
   widgetData:
+    gap: middle
     allowedResources:
     - flexes
     items:
@@ -210,6 +212,7 @@ metadata:
   name: page-p25-templated-good
 spec:
   widgetData:
+    gap: middle
     allowedResources:
     - pageheaders
     - cards

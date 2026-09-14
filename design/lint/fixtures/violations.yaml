@@ -285,3 +285,47 @@ spec:
     title: Something
     tags:
     - color: red
+---
+# P9 — a nav-declared page root using a section step that is not the shared one.
+kind: Menu
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: p9-nav
+spec:
+  widgetData:
+    items:
+    - label: Wrong
+      path: /p9wrong
+      resourceRefId: p9-wrong-root
+  resourcesRefs:
+    items:
+    - id: p9-wrong-root
+      name: p9-wrong-gap
+      resource: flexes
+      verb: GET
+---
+kind: Flex
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: p9-wrong-gap
+spec:
+  widgetData:
+    gap: large
+    items:
+    - resourceRefId: p9-head
+  resourcesRefs:
+    items:
+    - id: p9-head
+      name: p9-header
+      resource: pageheaders
+      verb: GET
+---
+kind: PageHeader
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: p9-header
+spec:
+  widgetData:
+    title: P9
+  resourcesRefs:
+    items: []

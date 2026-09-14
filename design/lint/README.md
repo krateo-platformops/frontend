@@ -97,6 +97,7 @@ Exit code is the number of violations, so CI fails on any.
 | `missing-target` | X13 | A `resourcesRefs` entry naming a widget CR that does not exist in the chart — the deletion hazard. Indexes widget CRs only, so a same-named RESTAction cannot vouch for a deleted Table. |
 | `containment` | X5 | A child whose kind is not in its container's declared `allowedResources`. The only enforcement there is: nothing checks the field at runtime. |
 | `page-header` | P25 | A page the nav declares that does not open on a `PageHeader`. Reads through a templated `items` rather than exempting it, and reports a page it cannot judge instead of passing it. |
+| `section-rhythm` | P9 | a nav-declared page root whose section `gap` is not the one shared step (`middle`, **8px** — both themes apply antd's `compactAlgorithm`, so the label's px is half what antd documents). Judged on the ROOT only: rhythm BETWEEN sections is the page's business, within a section is that section's. A root declaring no `gap` is reported too — inheriting a default is not a decision. Shares `page_roots()` with P25, so the two cannot disagree about what a page is. Opt out with `krateo.io/no-section-rhythm` |
 
 ## The scope discipline
 
