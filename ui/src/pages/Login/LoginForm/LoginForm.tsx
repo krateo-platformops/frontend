@@ -1,5 +1,4 @@
 import { Button, Form, Input } from 'antd'
-import { Link } from 'react-router'
 
 import type { AuthModeType, LoginFormType } from '../Login.types'
 
@@ -37,12 +36,6 @@ const LoginForm = ({ isLoading, method, onSubmit }: LoginType) => {
         >
           <Input.Password size='large' />
         </Form.Item>
-
-        { method.kind === 'basic' && (
-          <div className={styles.link}>
-            <Link to='/forgotpassword'>Forgot password?</Link>
-          </div>
-        )}
 
         <Form.Item>
           { method.kind === 'basic'
