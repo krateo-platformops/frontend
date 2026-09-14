@@ -1,8 +1,7 @@
 import { Col as AntdColumn, Row as AntdRow } from 'antd'
 
-import WidgetRenderer from '../../components/WidgetRenderer'
+import RefChild, { refChildState } from '../../components/RefChild'
 import type { WidgetProps } from '../../types/Widget'
-import { getEndpointUrl } from '../../utils/utils'
 
 import styles from './Row.module.css'
 import type { Row as WidgetType } from './Row.type'
@@ -18,7 +17,7 @@ const justifyContentMap: Record<
   right: 'flex-end',
 }
 
-const Row = ({ resourcesRefs, uid, widgetData }: WidgetProps<RowWidgetData>) => {
+const Row = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<RowWidgetData>) => {
   const { alignment, items } = widgetData
 
   const defaultSize = Math.floor(24 / items.length) || 24
@@ -37,8 +36,9 @@ const Row = ({ resourcesRefs, uid, widgetData }: WidgetProps<RowWidgetData>) => 
       >
         {items
           .map(({ alignment, lg, md, resourceRefId, size, sm, xl, xs, xxl }, index) => {
-            const endpoint = getEndpointUrl(resourceRefId, resourcesRefs)
-            if (!endpoint) { return null }
+            // A DENIED ref drops the whole column, exactly as before this change — see
+            // refChildState. A dangling one keeps its column so the grid does not reflow.
+            if (refChildState(resourceRefId, resourcesRefs, deniedRefIds) === 'denied') { return null }
 
             return (
               // `size` is the base span; the optional xs/sm/md/lg/xl/xxl overrides let a row reflow
@@ -58,7 +58,13 @@ const Row = ({ resourcesRefs, uid, widgetData }: WidgetProps<RowWidgetData>) => 
                 xs={xs}
                 xxl={xxl}
               >
-                <WidgetRenderer key={`${uid}-${index}`} widgetEndpoint={endpoint} />
+                <RefChild
+                  deniedRefIds={deniedRefIds}
+                  key={`${uid}-${index}`}
+                  label='column'
+                  resourceRefId={resourceRefId}
+                  resourcesRefs={resourcesRefs}
+                />
               </AntdColumn>
             )
           })

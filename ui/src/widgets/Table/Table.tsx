@@ -6,12 +6,12 @@ import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router'
 
 import { useFilter } from '../../components/FiltesProvider/FiltersProvider'
-import WidgetRenderer from '../../components/WidgetRenderer'
+import RefChild from '../../components/RefChild'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { getColorCode, getTagStyle } from '../../theme/palette'
 import type { WidgetProps } from '../../types/Widget'
 import { navigateOrExternal } from '../../utils/navigation'
-import { formatISODate, formatRelativeTime, getEndpointUrl } from '../../utils/utils'
+import { formatISODate, formatRelativeTime } from '../../utils/utils'
 
 import styles from './Table.module.css'
 import type { Table as WidgetType } from './Table.type'
@@ -20,7 +20,7 @@ import { getColumnSortProps } from './tableSorting'
 
 export type TableWidgetData = WidgetType['spec']['widgetData']
 
-const Table = ({ resourcesRefs, serverPagination, uid, widgetData }: WidgetProps<TableWidgetData>) => {
+const Table = ({ deniedRefIds, resourcesRefs, serverPagination, uid, widgetData }: WidgetProps<TableWidgetData>) => {
   const { bordered, columns, dataSource, fitContent, pagination, prefix, rowNavigateTo, size } = widgetData
   const data = dataSource ?? []
   const { getFilteredData } = useFilter()
@@ -112,7 +112,6 @@ const Table = ({ resourcesRefs, serverPagination, uid, widgetData }: WidgetProps
           }
 
           const { arrayValue, booleanValue, color: cellColor, decimalValue, format, kind, numberValue, resourceRefId, stringValue, type } = cell
-          const endpoint = kind === 'widget' && resourceRefId && getEndpointUrl(resourceRefId, resourcesRefs)
 
           switch (kind) {
             case 'tag':
@@ -162,17 +161,24 @@ const Table = ({ resourcesRefs, serverPagination, uid, widgetData }: WidgetProps
               return <span>-</span>
 
             case 'widget':
+              // X4: these used to return the SAME `-` this file renders at five other call sites
+              // for a genuinely empty value, so a broken ref was indistinguishable from no data.
+              // RefChild's inline density is a compact marker carrying the id in a tooltip — a full
+              // Result here would destroy row height. Denied refs still render as nothing.
               if (!resourceRefId) {
                 console.error('Table rendering error: widget resourceRefId not found')
                 return <span>-</span>
               }
 
-              if (!endpoint) {
-                console.error('Table rendering error: widget resourceRefId endpoint not found')
-                return <span>-</span>
-              }
-
-              return <WidgetRenderer widgetEndpoint={endpoint} />
+              return (
+                <RefChild
+                  deniedRefIds={deniedRefIds}
+                  density='inline'
+                  label='cell'
+                  resourceRefId={resourceRefId}
+                  resourcesRefs={resourcesRefs}
+                />
+              )
 
             case 'jsonSchemaType':
               if (!type) {

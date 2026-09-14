@@ -64,6 +64,10 @@ const parseWidget = (
   } = widget
 
   const props = {
+    // X4/X2: the filter below is what `navModel.isNavEntryAllowed` keys on, so it stays. The ids it
+    // removes are carried alongside instead, so a container can tell a denied child from a typo'd
+    // one without either of them becoming visible to the other's audience.
+    deniedRefIds: resourcesRefs?.items?.filter(({ allowed }) => !allowed).map(({ id }) => id) ?? [],
     resourcesRefs: { ...resourcesRefs, items: resourcesRefs?.items?.filter(({ allowed }) => allowed) ?? [] },
     // Classic server-side pager controls, threaded down to widgets that opt into
     // bounded pagination (e.g. the compositions Table). Undefined for all others.
