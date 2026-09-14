@@ -118,6 +118,67 @@ interface KagentStreamState {
   taskId?: string
 }
 
+/**
+ * Shown when the stream ends before any answer arrived and the task could not be recovered. The
+ * turn usually IS still running server-side, so this must read as a lost connection, not as a
+ * failed agent — an empty bubble (the pre-fix behaviour) reads as "the agent had nothing to say".
+ */
+export const STREAM_LOST_NOTICE
+  = 'Lost the connection before Autopilot finished answering. The turn may still be running — ask again in a moment.'
+
+/** Text of a part list, ignoring tool DataParts. Used by the `tasks/get` recovery, which must not
+ *  re-emit tool frames the live stream already delivered. */
+const textFromParts = (parts: unknown[]): string => {
+  let text = ''
+  for (const part of parts) {
+    if (readToolPart(part)) {
+      continue
+    }
+    const value = asRecord(part)?.text
+    if (typeof value === 'string') {
+      text += value
+    }
+  }
+  return text
+}
+
+/**
+ * Last-resort recovery: fetch the task and read the answer out of it. A2A `tasks/get` returns the
+ * stored task, whose `artifacts` carry the authoritative output (the same content the
+ * `artifact-update` frames stream). Returns undefined when the task is unreachable or has not
+ * produced its answer yet, so the caller can say so instead of finalizing blank.
+ */
+const fetchTaskText = async (baseUrl: string, taskId: string, signal: AbortSignal): Promise<string | undefined> => {
+  try {
+    const response = await fetch(buildA2aUrl(baseUrl), {
+      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tasks/get', params: { id: taskId } }),
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...a2aAuthHeader() },
+      method: 'POST',
+      signal,
+    })
+    if (!response.ok) {
+      return undefined
+    }
+    const result = asRecord(asRecord(await response.json())?.result)
+    const artifacts = Array.isArray(result?.artifacts) ? result.artifacts : []
+    let text = ''
+    for (const artifact of artifacts) {
+      const parts = asRecord(artifact)?.parts
+      if (Array.isArray(parts)) {
+        text += textFromParts(parts)
+      }
+    }
+    if (text) {
+      return text
+    }
+    // Some turns put the answer in the terminal status message instead of an artifact.
+    const message = asRecord(asRecord(result?.status)?.message)
+    return Array.isArray(message?.parts) ? textFromParts(message.parts) || undefined : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /** Forward one message's tool frames (DataParts — see evidence.ts) and return its text. */
 const emitParts = (parts: unknown[], handlers: AutopilotStreamHandlers): string => {
   let text = ''
@@ -296,29 +357,42 @@ const streamJsonRpc = (
 ): (() => void) => {
   const controller = new AbortController()
 
-  // #106: a turn that runs longer than an upstream idle timeout (~60s) has its SSE cut BEFORE the task
-  // completes, so the reply used to finalize empty. The task keeps running server-side, so on a premature
-  // close we re-attach to the SAME task via A2A `tasks/resubscribe` and keep pumping until a terminal
-  // frame arrives — recovering the answer with NO upstream change. Bounded so a dead/absent task still
-  // finalizes; a JSON-RPC error (e.g. resubscribe unsupported) stops the loop after surfacing once.
+  // #106: a premature SSE close leaves the task running server-side, so re-attach to the SAME task
+  // via A2A `tasks/resubscribe` and keep pumping until a terminal frame arrives. Bounded so a
+  // dead/absent task still finalizes.
+  //
+  // Resubscribe is not universally available (some kagent builds answer it with a JSON-RPC error),
+  // so it is one of three recovery steps, not the only one: resubscribe -> `tasks/get` -> say the
+  // connection was lost. The turn must never finalize as a silent empty bubble, which reads as
+  // "the agent had nothing to say" when the real answer exists and simply could not be delivered.
   const MAX_RESUBSCRIBES = 30
 
   const run = async (): Promise<void> => {
     let payload = body
-    let sawError = false
+    let attempt = 0
+    let errorThisAttempt = false
+    let sawText = false
     // Observe frames so the reconnect logic can tell a JSON-RPC error (stop) from a bare stream drop
-    // (resume). Forwards every frame to the real handlers unchanged.
+    // (resume). An error raised by a RESUBSCRIBE is recorded but NOT forwarded: it describes our own
+    // recovery plumbing, not the user's turn, and the raw JSON-RPC dump is noise in a chat bubble.
     const observed: AutopilotStreamHandlers = {
       ...handlers,
       onFrame: (frame) => {
         if (frame.kind === 'error') {
-          sawError = true
+          errorThisAttempt = true
+          if (attempt > 0) {
+            return
+          }
+        }
+        if (frame.kind === 'text' && frame.delta) {
+          sawText = true
         }
         handlers.onFrame(frame)
       },
     }
 
-    for (let attempt = 0; ; attempt += 1) {
+    for (; ; attempt += 1) {
+      errorThisAttempt = false
       let response: Response
       try {
         // Header rebuilt per attempt so a resubscribe carries a refreshed token.
@@ -370,21 +444,38 @@ const streamJsonRpc = (
         void error
       }
 
-      // Completed, aborted, or a real JSON-RPC error surfaced → stop (nothing to resume).
+      // Completed or aborted → stop (nothing to resume).
       if (state.done || controller.signal.aborted) {
         return
       }
-      if (sawError) {
-        // Error already shown; finalize the bubble (matches the pre-#106 fallback) and stop reconnecting.
+      // An error on the FIRST attempt is the turn's own failure: already shown, nothing to recover.
+      if (errorThisAttempt && attempt === 0) {
         observed.onFrame({ kind: 'done' })
         return
       }
-      // Premature close before completion: resume the still-running task if we know its id.
-      if (state.taskId && attempt < MAX_RESUBSCRIBES) {
+      // Premature close before completion: resume the still-running task if we know its id. A
+      // resubscribe that errored is not retried — that method is unavailable here.
+      if (!errorThisAttempt && state.taskId && attempt < MAX_RESUBSCRIBES) {
         payload = JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tasks/resubscribe', params: { id: state.taskId } })
         continue
       }
-      // No task to resume (or reconnect budget spent): finalize with whatever text arrived.
+      // Streaming is exhausted. The task may have finished while we were disconnected, so ask for it.
+      if (state.taskId) {
+        // eslint-disable-next-line no-await-in-loop -- terminal recovery step, runs at most once
+        const recovered = await fetchTaskText(baseUrl, state.taskId, controller.signal)
+        if (controller.signal.aborted) {
+          return
+        }
+        if (recovered) {
+          observed.onFrame({ delta: recovered, kind: 'text', replace: true })
+          observed.onFrame({ kind: 'done' })
+          return
+        }
+      }
+      // Nothing arrived and nothing could be recovered: say so rather than finalizing blank.
+      if (!sawText) {
+        handlers.onFrame({ kind: 'error', message: STREAM_LOST_NOTICE })
+      }
       observed.onFrame({ kind: 'done' })
       return
     }

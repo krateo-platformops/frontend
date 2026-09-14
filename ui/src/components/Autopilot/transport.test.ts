@@ -5,7 +5,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createKagentTransport, RATE_LIMIT_NOTICE, rateLimitNotice } from './transport'
+import { createKagentTransport, RATE_LIMIT_NOTICE, rateLimitNotice, STREAM_LOST_NOTICE } from './transport'
 import type { AutopilotFrame } from './types'
 
 const sseBody = (events: unknown[]): string =>
@@ -133,5 +133,89 @@ describe('rateLimitNotice detection', () => {
     ['the composition svc-429 is not Ready'],
   ])('leaves a non-rate-limit error untouched: %s', (raw) => {
     expect(rateLimitNotice(raw)).toBeNull()
+  })
+})
+
+/**
+ * Recovery when the stream dies before the answer. Each entry answers ONE fetch in order: `sse`
+ * streams an SSE body, `json` resolves a JSON-RPC body (the `tasks/get` shape).
+ */
+const stubFetchSequence = (responses: { json?: unknown; ok?: boolean; sse?: unknown[] }[]) => {
+  let index = 0
+  vi.stubGlobal('fetch', vi.fn(() => {
+    const spec = responses[Math.min(index, responses.length - 1)]
+    index += 1
+    if (spec.json !== undefined) {
+      return Promise.resolve({ json: () => Promise.resolve(spec.json), ok: spec.ok ?? true })
+    }
+    const chunk = new TextEncoder().encode(sseBody(spec.sse ?? []))
+    let sent = false
+    const read = () => {
+      if (sent) {
+        return Promise.resolve({ done: true, value: undefined })
+      }
+      sent = true
+      return Promise.resolve({ done: false, value: chunk })
+    }
+    return Promise.resolve({ body: { getReader: () => ({ read }) }, ok: spec.ok ?? true })
+  }))
+}
+
+const collectSequence = async (responses: { json?: unknown; ok?: boolean; sse?: unknown[] }[]): Promise<AutopilotFrame[]> => {
+  stubFetchSequence(responses)
+  const frames: AutopilotFrame[] = []
+  createKagentTransport('/autopilot').send(
+    { context: '<page_context/>', sessionId: 's1', text: 'what happened?' },
+    { onFrame: (frame) => frames.push(frame) },
+  )
+  await vi.waitFor(() => expect(frames.some((frame) => frame.kind === 'done')).toBe(true))
+  return frames
+}
+
+/** A status-update that only carries the task id: sets the reconnect handle, emits no frame. */
+const taskIdOnly = { result: { kind: 'status-update', status: { state: 'working' }, taskId: 'task-1' } }
+
+describe('a stream that dies before the answer', () => {
+  it('recovers the answer over tasks/get when resubscribe is unavailable', async () => {
+    const frames = await collectSequence([
+      { sse: [taskIdOnly] },
+      // Some kagent builds answer tasks/resubscribe with a JSON-RPC error.
+      { sse: [{ error: { code: -32603, message: 'failed to parse SSE data: cannot unmarshal object' }, id: 1, jsonrpc: '2.0' }] },
+      { json: { result: { artifacts: [{ parts: [{ kind: 'text', text: 'the answer that outlived the stream' }] }] } } },
+    ])
+    expect(frames).toEqual([
+      { delta: 'the answer that outlived the stream', kind: 'text', replace: true },
+      { kind: 'done' },
+    ])
+  })
+
+  it('never shows the resubscribe plumbing error in the bubble', async () => {
+    const frames = await collectSequence([
+      { sse: [taskIdOnly] },
+      { sse: [{ error: { code: -32603, message: 'failed to parse SSE data: cannot unmarshal object' }, id: 1, jsonrpc: '2.0' }] },
+      { json: { result: { artifacts: [] } } },
+    ])
+    expect(frames.filter((frame) => frame.kind === 'error')).toEqual([
+      { kind: 'error', message: STREAM_LOST_NOTICE },
+    ])
+  })
+
+  it('says the connection was lost rather than finalizing an empty bubble', async () => {
+    // No task id ever arrived, so there is nothing to resubscribe to or fetch.
+    const frames = await collectSequence([{ sse: [] }])
+    expect(frames).toEqual([
+      { kind: 'error', message: STREAM_LOST_NOTICE },
+      { kind: 'done' },
+    ])
+  })
+
+  it('keeps a real first-attempt error, which is the turn failing rather than the stream', async () => {
+    const frames = await collectSequence([
+      { sse: [{ error: { code: -32000, message: 'Tool \'read_repo_file\' failed: repository not found (404)' }, id: 1, jsonrpc: '2.0' }] },
+    ])
+    expect(frames).toEqual([
+      { kind: 'error', message: 'Tool \'read_repo_file\' failed: repository not found (404)' },
+      { kind: 'done' },
+    ])
   })
 })
