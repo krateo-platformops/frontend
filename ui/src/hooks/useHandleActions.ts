@@ -19,7 +19,7 @@ import { openModal } from '../widgets/Modal/Modal'
 
 import type { BlastRadius, BlastRadiusSet } from './blastRadius.types'
 import { buildConfirmModalProps } from './confirmModalProps'
-import { recordProvenance, type WriteOrigin } from './provenance'
+import { recordProvenance, stampAgentCreated, type WriteOrigin } from './provenance'
 import { runRestFanOut } from './runRestFanOut'
 import { runRestOps } from './runRestOps'
 import { runRestSet, type SetDispatchOptions, type WriteOp, type WriteOpResult } from './runRestSet'
@@ -327,7 +327,11 @@ const runRest = async (
 
   // Build the request body BEFORE the gate so the blast-radius diff shows the real create /
   // update body the write will send (not the pre-override ref payload).
-  const payload = await buildPayload(action, resourceRef.payload, customPayload, ctx.resolveJq)
+  const builtPayload = await buildPayload(action, resourceRef.payload, customPayload, ctx.resolveJq)
+  // A17: an object the agent created is identifiable as such. Stamped HERE — before the gate —
+  // so the label appears in the blast-radius diff the human confirms, rather than being added to
+  // the body afterwards. No-op for human-originated writes and for every verb but POST.
+  const payload = stampAgentCreated(builtPayload, verb, runtime.origin) as typeof builtPayload
 
   // W0-2 HITL gate. Every MUTATING verb (POST/PUT/PATCH/DELETE) is ALWAYS gated — the human
   // must confirm the structured BlastRadius (verb+gvr+cluster/ns+object-count+diff) — regardless

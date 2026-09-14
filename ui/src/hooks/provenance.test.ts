@@ -16,8 +16,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ResourcesRefs, WidgetAction } from '../types/Widget'
 
 import type { BlastRadius } from './blastRadius.types'
-import type { AuditRecordBody, ProvenanceContext } from './provenance'
-import { actionTargetOf, buildAuditRecord, emitAuditRecord, recordProvenance } from './provenance'
+import type { AuditRecordBody, ProvenanceContext, WriteOrigin } from './provenance'
+import { AGENT_CREATED_LABEL, actionTargetOf, buildAuditRecord, emitAuditRecord, recordProvenance, stampAgentCreated } from './provenance'
 import { runRestSet, type RunRestSetContext, type WriteOp } from './runRestSet'
 import { dispatchAction, type ActionContext } from './useHandleActions'
 
@@ -370,5 +370,52 @@ describe('runRestSet — ONE audit record per SET', () => {
 
     await runRestSet(OPS, makeSetCtx({ confirm: vi.fn(() => Promise.resolve(false)) }))
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('stampAgentCreated — A17: an agent-created object is identifiable without a join', () => {
+  const agent: WriteOrigin = { actor: 'agent', agentSessionId: 's1', prompt: 'make me a thing' }
+  const body = { apiVersion: 'core.krateo.io/v1', kind: 'Composition', metadata: { name: 'x', namespace: 'demo' }, spec: {} }
+
+  it('stamps the label on an agent CREATE', () => {
+    const out = stampAgentCreated(body, 'POST', agent) as typeof body & { metadata: { labels: Record<string, string> } }
+    expect(out.metadata.labels[AGENT_CREATED_LABEL]).toBe('autopilot')
+    expect(out.metadata.name).toBe('x')
+  })
+
+  it('does NOT stamp a human create — the label means the agent decided it', () => {
+    expect(stampAgentCreated(body, 'POST', { actor: 'human' })).toBe(body)
+    expect(stampAgentCreated(body, 'POST', undefined)).toBe(body)
+  })
+
+  // A PUT/PATCH edits something that already exists; claiming the agent CREATED it would be false.
+  it('does NOT stamp an agent UPDATE or DELETE', () => {
+    for (const verb of ['PUT', 'PATCH', 'DELETE']) {
+      expect(stampAgentCreated(body, verb, agent)).toBe(body)
+    }
+  })
+
+  it('never mutates the caller’s payload', () => {
+    const original = JSON.parse(JSON.stringify(body)) as typeof body
+    stampAgentCreated(body, 'POST', agent)
+    expect(body).toEqual(original)
+  })
+
+  it('merges into existing labels rather than replacing them', () => {
+    const withLabels = { ...body, metadata: { ...body.metadata, labels: { keep: 'me' } } }
+    const out = stampAgentCreated(withLabels, 'POST', agent) as { metadata: { labels: Record<string, string> } }
+    expect(out.metadata.labels).toEqual({ keep: 'me', [AGENT_CREATED_LABEL]: 'autopilot' })
+  })
+
+  it('creates metadata when the payload has none', () => {
+    const out = stampAgentCreated({ spec: {} }, 'POST', agent) as { metadata: { labels: Record<string, string> } }
+    expect(out.metadata.labels[AGENT_CREATED_LABEL]).toBe('autopilot')
+  })
+
+  // Rather than corrupt a body shape it does not understand, it leaves it alone.
+  it('leaves a shape it does not understand exactly as it found it', () => {
+    for (const odd of ['a string', 42, null, ['an', 'array'], { metadata: 'not-an-object' }, { metadata: { labels: 'not-an-object' } }]) {
+      expect(stampAgentCreated(odd, 'POST', agent)).toBe(odd)
+    }
   })
 })
