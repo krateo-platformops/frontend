@@ -127,6 +127,14 @@ export interface SpeakerHandlers {
    * promptly and detectably — so it is a distinct, recoverable outcome, not a failure.
    */
   onRefused: () => void
+  /**
+   * The attempt FAILED — a synthesize status, a dead network, an expired bearer, a clip the
+   * decoder refused. Distinct from `onFinished` because speak-back is MANDATORY, not a
+   * courtesy: a caller that cannot tell a failure from a completed answer cannot fall back,
+   * and silence is the one outcome this feature may not have. Optional so an existing caller
+   * keeps compiling; the store treats its absence as `onFinished`.
+   */
+  onFailed?: () => void
 }
 
 /**

@@ -296,14 +296,43 @@ export const createSpeakBackStore = (initialDeps: SpeechDeps | null = browserSpe
     set({ announcement: '', refusedMessageId: null, speaking: false })
   }
 
-  const startSpeaking = (spoken: string, messageId: string): boolean => {
-    const speaker = activeSpeaker()
-    if (!speaker) {
-      return false
+  /**
+   * Speak with `speaker`, and on FAILURE fall through to the local browser voice once.
+   *
+   * Speak-back is mandatory, so a failed synthesize may not end in silence. Cloud TTS is the
+   * preferred voice and the local one is the safety net — worse, possibly the wrong accent,
+   * and audible, which beats nothing. Exactly ONE hop: the fallback speaks with `allowFallback`
+   * false, so a browser speaker that also fails ends the answer rather than looping.
+   *
+   * This is why the TTS client reports `onFailed` separately from `onFinished`. While every
+   * failure was reported as a finish, no fallback was expressible — the store could not tell
+   * a spoken answer from a dead bearer token.
+   */
+  const speakWith = (
+    speaker: Speaker,
+    spoken: string,
+    messageId: string,
+    allowFallback: boolean,
+    settled?: { done: boolean },
+  ): boolean => {
+    const mark = (): void => {
+      if (settled) {
+        settled.done = true
+      }
     }
-    const started = speaker.speak(spoken, uiLanguage(), {
-      onFinished: () => set({ speaking: false }),
+    const onFailed = (): void => {
+      mark()
+      const fallback = browserSpeaker
+      if (allowFallback && fallback && fallback !== speaker && speakWith(fallback, spoken, messageId, false)) {
+        return
+      }
+      set({ speaking: false })
+    }
+    return speaker.speak(spoken, uiLanguage(), {
+      onFailed,
+      onFinished: () => { mark(); set({ speaking: false }) },
       onRefused: () => {
+        mark()
         refusedSpoken = spoken
         // ANNOUNCE THE REFUSAL (FR 31/78). This is the one moment where a user who cannot see
         // the composer learns NOTHING otherwise: no audio plays, the answer bubble updates
@@ -313,6 +342,18 @@ export const createSpeakBackStore = (initialDeps: SpeechDeps | null = browserSpe
         set({ announcement: REFUSAL_ANNOUNCEMENT, refusedMessageId: messageId, speaking: false })
       },
     })
+  }
+
+  const startSpeaking = (spoken: string, messageId: string): boolean => {
+    const speaker = activeSpeaker()
+    if (!speaker) {
+      return false
+    }
+    // A speaker may settle SYNCHRONOUSLY (a fallback that immediately finds no voice, or a
+    // stub in a test). Without this the flow would be: handler sets speaking false, then the
+    // tail below sets it true, and nothing ever clears it — `speaking` stuck on forever.
+    const settled = { done: false }
+    const started = speakWith(speaker, spoken, messageId, true, settled)
     if (!started) {
       // The browser speaker says false when the inventory lost its last LOCAL voice between
       // the capability check and this call; the TTS one says it only when there is nothing
@@ -326,8 +367,14 @@ export const createSpeakBackStore = (initialDeps: SpeechDeps | null = browserSpe
     if (firstTime) {
       writeFlag(SPEAK_BACK_NOTICE_KEY, true)
     }
-    // The live region falls silent for the duration (FR 31).
-    set({ announcement: '', noticeVisible: firstTime || state.noticeVisible, refusedMessageId: null, speaking: true })
+    // The live region falls silent for the duration (FR 31). `speaking` only when the answer
+    // is genuinely still in flight — see the settled note above.
+    set({
+      announcement: settled.done ? state.announcement : '',
+      noticeVisible: firstTime || state.noticeVisible,
+      refusedMessageId: settled.done ? state.refusedMessageId : null,
+      speaking: !settled.done,
+    })
     return true
   }
 

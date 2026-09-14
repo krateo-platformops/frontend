@@ -121,6 +121,14 @@ export interface Config {
      * reaches the page. Independent of `AUTOPILOT_VOICE_SPEAK_BACK`, which stays the
      * operator kill-switch and still wins over this. */
     AUTOPILOT_VOICE_TTS_URL?: string
+    /** Gemini-TTS model (e.g. `gemini-2.5-flash-tts`). Absent = the Chirp/standard request
+     *  shape, unchanged. Naming one switches to the generative tier and enables
+     *  `AUTOPILOT_VOICE_STYLE_PROMPT`. */
+    AUTOPILOT_VOICE_TTS_MODEL?: string
+    /** Gemini-TTS styling instruction, sent as `input.prompt`. This is the field that can ask
+     *  for one language's prose with another language's pronunciation for the jargon inside
+     *  it — which no single locale-pinned voice can do. Read only when a model is named. */
+    AUTOPILOT_VOICE_STYLE_PROMPT?: string
     /** The Cloud TTS voice that reads answers, e.g. `en-US-Chirp3-HD-Achernar` (the
      * in-code default). Only consulted when `AUTOPILOT_VOICE_TTS_URL` is set. The NAME
      * carries the language — a voice serves one — so an install that wants answers read in

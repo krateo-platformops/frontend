@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createComposerDraftStore } from '../../composerDraftStore'
 
 import { createSpeakBackStore, REFUSAL_ANNOUNCEMENT, SPEAK_BACK_NOTICE_KEY, SPEAK_BACK_PREF_KEY } from './speakBackStore'
-import type { SpeechDeps, SpeechUtteranceLike, SpeechVoiceLike } from './speechEngine'
+import type { Speaker, SpeechDeps, SpeechUtteranceLike, SpeechVoiceLike } from './speechEngine'
 
 const LOCAL_EN: SpeechVoiceLike = { lang: 'en-US', localService: true, name: 'Samantha' }
 const LOCAL_IT: SpeechVoiceLike = { lang: 'it-IT', localService: true, name: 'Alice' }
@@ -365,5 +365,50 @@ describe('the FR 31 live region', () => {
     fake.finish()
     store.announce('Listening')
     expect(store.getSnapshot().announcement).toBe('Listening')
+  })
+})
+
+/**
+ * SPEAK-BACK IS MANDATORY, so a failed Cloud TTS answer may not end in silence. The TTS client
+ * reports `onFailed` separately from `onFinished` precisely so the store can tell a dead bearer
+ * from a spoken answer and fall through to the local voice — worse, possibly the wrong accent,
+ * and audible, which beats nothing.
+ */
+describe('a failed Cloud TTS answer falls back to the local voice', () => {
+  const failing = () => {
+    const calls = { n: 0 }
+    const speaker: Speaker = {
+      cancel: () => {},
+      speak: (_text, _language, handlers) => {
+        calls.n += 1
+        ;(handlers.onFailed ?? handlers.onFinished)()
+        return true
+      },
+    }
+    return { calls, speaker }
+  }
+
+  it('speaks through the local voice when the TTS request fails', () => {
+    const fake = fakeSynthesis([LOCAL_EN])
+    const store = createSpeakBackStore(fake.deps)
+    const tts = failing()
+    store.installSpeaker(tts.speaker)
+
+    expect(store.speakAnswer(VOICE_TURN)).toBe(true)
+    expect(tts.calls.n).toBe(1)
+    // The local synthesiser was handed the same answer.
+    expect(fake.spoken.length).toBeGreaterThan(0)
+    fake.finish()
+    expect(store.getSnapshot().speaking).toBe(false)
+  })
+
+  // Exactly ONE hop: a local voice that also fails ends the answer instead of looping.
+  it('does not loop when the fallback fails too', () => {
+    const store = createSpeakBackStore(fakeSynthesis([]).deps)
+    const tts = failing()
+    store.installSpeaker(tts.speaker)
+    store.speakAnswer(VOICE_TURN)
+    expect(tts.calls.n).toBe(1)
+    expect(store.getSnapshot().speaking).toBe(false)
   })
 })
