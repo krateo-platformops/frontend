@@ -38,6 +38,34 @@
 /* Wrap long code lines rather than hiding them behind a horizontal scrollbar in the narrow
    content column / docked rail — matches the inline <pre> style in Markdown.tsx. `overflow-wrap:
    anywhere` breaks a single unbreakable token (a long ref/URL) so nothing needs a scrollbar. */
+/* A MARKDOWN TABLE CANNOT WRAP THE WAY PROSE AND CODE DO, and `.markdown` is `overflow-x: hidden`
+   — so a table wider than the card was being CLIPPED, silently, with no scrollbar and no hint that
+   columns existed past the edge. Losing content without saying so is worse than a scrollbar.
+
+   The table gets its OWN scroll container rather than relaxing the container's overflow: the page
+   body must never scroll sideways, and only the table should. Cells wrap where they can, so the
+   scroll is the last resort rather than the first. */
+.markdown table {
+  border-collapse: collapse;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: normal;
+}
+
+.markdown th,
+.markdown td {
+  border-bottom: 1px solid var(--line-color, rgb(255 255 255 / 12%));
+  overflow-wrap: anywhere;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown th {
+  font-weight: var(--font-weight-bold, 600);
+}
+
 .markdown pre {
   background: var(--lightgray-color);
   border: 1px solid var(--border-color);
