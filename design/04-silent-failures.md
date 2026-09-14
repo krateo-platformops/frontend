@@ -58,7 +58,7 @@ On a platform where per-user RBAC scoping is a feature, a user with partial perm
 
 ### X3 — A failed fetch surfaces the backend’s own explanation.
 
-**Status:** gap → **fixed** → **fixed**
+**Status:** gap → **fixed**
 
 > **Resolved since this rule was written.** `WidgetFetchError` now carries a `detail` read best-effort from the failure body, and the renderer prefers it over the generic HTTP phrase. Landed in PR #196.
 
@@ -70,7 +70,7 @@ Combined with P16, the most-travelled error path in the product discards the rea
 
 ### X4 — The same authoring mistake produces the same visible result in every container.
 
-**Status:** gap
+**Status:** gap → **fixed**
 
 A `resourceRefId` with no matching `resourcesRefs` entry behaves **three different ways** depending only on which container it sits in:
 
