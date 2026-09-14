@@ -28,9 +28,9 @@ The first pass could only measure Autopilot's side. This one diffed it against *
 >
 > So the GAP stands for what is deployed, and there is a latent route behind a flag. Worth knowing before anyone builds a publish UI that already half-exists.
 
-### A1 — Every capability Autopilot can reach has a route a user can reach without it.
+### A1 — Every capability Autopilot can reach has a control a user can reach without it — and the agent presses that control.
 
-**Status:** breached
+**Status:** breached — **on both halves**
 
 Measured: the invariant holds for navigation, action-driving, form filling and both contested mutating verbs. It is breached for **publishing** — and breached structurally rather than by oversight. The three builder pages ship *zero* write widgets; their only call to action is a navigate into the rail. Autopilot is not a faster path to publishing, it is the only path.
 
@@ -39,6 +39,47 @@ The distinction the first audit drew still holds and is worth keeping: every ind
 > The **safety** invariant holds everywhere. The **capability** invariant is breached in exactly one place — and it is a whole product surface, not a verb.
 >
 > — *the measured result*
+
+## The second half, folded in 2026-09-14 (Diego)
+
+**Autopilot must drive actions THROUGH THE UI — never through direct calls, and never through tools
+that create or patch Kubernetes resources.** The agent's hands are the portal's own controls. Where a
+capability has no control, the answer is to BUILD THE CONTROL, not to hand the agent a tool that
+writes to the apiserver.
+
+This is strictly stronger than the sentence above. The original rule is satisfied by a UI that merely
+*exists* beside an agent tool; this one is not. The route is not an alternative path — it is the only
+path the agent may take.
+
+**Why, in the platform's own terms:** a control already carries the confirm gate, the blast-radius
+diff, the provenance stamp and the caller's RBAC. A compiled write op has to re-earn every one of
+those, and each re-implementation is somewhere they can silently diverge. Driving the control leaves
+exactly one write path to audit.
+
+**Measured against the shipped verbs:**
+
+    runAction          drives a control: YES   compiles its own ops: no
+    patchField         drives a control: no    compiles its own ops: YES
+    applyResourceSet   drives a control: no    compiles its own ops: YES
+    previewPage (v2)   drives a control: no    compiles its own ops: YES
+
+`runAction` is the compliant shape: `lookupAction` finds a REAL mounted control and dispatches it
+through the SAME `useHandleAction` the button uses — never a synthesized call.
+
+The other three are **honoured in safety but not in structure**. They are not bypassing anything —
+every op goes through `handleAction`/`handleActionSet` and hits the identical gate, diff, stamp and
+RBAC. But no control is being pressed, and that is the point of the rule: the guarantees are supposed
+to come from the control, not from three separate compilers each remembering to ask for them.
+
+**So the two halves share one fix.** Publishing has no control at all, which breaches the first half;
+`patchField` and `applyResourceSet` have controls they do not use, which breaches the second. A
+UI-native authoring surface closes both — it gives publishing a control, and it gives the compiling
+verbs one to drive. That is the decision taken 2026-09-14: build the authoring surfaces, with the
+authoring knowledge living in **widgets** rather than in frontend code.
+
+*Evidence for the second half: measured across `actionBridge.ts` (verb branches), `patchField.ts:198`
+and `applyResourceSet.ts:194` — both dispatch compiled ops via injected `handleAction`/
+`handleActionSet` callbacks rather than resolving a mounted control*
 
 *Evidence: census of 612 CRs: 22 mutating verbs across 20 files, none writing a publish artifact · 37 Buttons, 11 Forms, all examined*
 

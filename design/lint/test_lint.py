@@ -78,7 +78,16 @@ def status_body_drift():
     A status carrying an arrow (`gap -> fixed`) has already been reconciled and is skipped.
     """
     import glob
-    resolved = re.compile(r'\b(now enforced|is now enforced|RESOLVED|resolved 20|SHIPPED|is enforced)', re.I)
+    # Tightened after a false positive: the first draft matched the bare word "shipped", which fired
+    # on A1's "the shipped verbs" — ordinary prose describing what EXISTS, not a claim of completion.
+    # A lint that cries wolf gets switched off, so the markers here are deliberately strong: a bold
+    # status word, a DATED resolution, or the explicit "now enforced" that T2 used.
+    resolved = re.compile(
+        r'\*\*(RESOLVED|FIXED|SHIPPED|DONE)\*\*'
+        r'|\b(now enforced|is now enforced)\b'
+        r'|\b(RESOLVED|FIXED|SHIPPED)\s+20\d\d'
+        r'|\bhas shipped\b',
+        re.I)
     openish = re.compile(r'^(gap|open|severe|missing|partial|unenforced|breached|defect|risk|inconsistent|ungoverned)', re.I)
     out = []
     for path in sorted(glob.glob(os.path.join(HERE, '..', '0*.md'))):
