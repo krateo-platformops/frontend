@@ -357,3 +357,27 @@ spec:
     title: Orphan
   resourcesRefs:
     items: []
+---
+# T8 — a colour name outside the palette. getColorCode returns palette.dark (near-black), silently.
+kind: Tag
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: t8-bad-colour
+spec:
+  widgetData:
+    label: Nope
+    color: blu
+  resourcesRefs:
+    items: []
+---
+# T8 — a --*-color alias for a key that does not exist, so the variable is never emitted.
+kind: Statistic
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: t8-bad-alias
+spec:
+  widgetData:
+    title: Nope
+    color: var(--nope-color)
+  resourcesRefs:
+    items: []

@@ -784,6 +784,96 @@ def rule_root_coverage(crs):
     return out
 
 
+# The widget-CR colour vocabulary: every key of `color` in ui/src/theme/tokens.ts. A CR names a
+# colour by KEY — `color: red` — or through the legacy alias `var(--red-color)`, which
+# `cssVariables` emits as `--${key}-color` for every key, so both forms reduce to the same check.
+#
+# Embedded so the rule works when it runs from a CHART repo, where ui/src is not present.
+# discover_palette() prefers the real file when it is, and test_lint asserts the two agree — a key
+# added or renamed in tokens.ts without updating this list fails the frontend's own CI.
+PALETTE_KEYS = {
+    'accent2', 'accentSoft', 'amber', 'background', 'blue', 'border',
+    'cyan', 'dark', 'darkBlue', 'error', 'errorSoft', 'faint',
+    'gold', 'gray', 'green', 'info', 'light', 'lightgray',
+    'line', 'magenta', 'menubgend', 'menubgstart', 'olive', 'onmenubg',
+    'orange', 'panelbg', 'primary', 'red', 'slate', 'success',
+    'successSoft', 'teal', 'text', 'violet', 'warning', 'warningSoft',
+}
+
+CSS_VAR_COLOUR = re.compile(r'^var\(\s*--([A-Za-z0-9_]+)-color\s*\)$')
+
+
+def discover_palette():
+    """Palette keys from the real tokens.ts when it is reachable, else () so the caller falls back."""
+    for pattern in ('ui/src/theme/tokens.ts', '**/ui/src/theme/tokens.ts'):
+        for path in glob.glob(pattern, recursive=True)[:5]:
+            try:
+                src = open(path, encoding='utf-8').read()
+            except OSError:
+                continue
+            m = re.search(r'export const color\s*:?[^=]*=\s*\{', src)
+            if not m:
+                continue
+            depth, i = 0, m.end() - 1
+            while i < len(src):
+                if src[i] == '{':
+                    depth += 1
+                elif src[i] == '}':
+                    depth -= 1
+                    if depth == 0:
+                        break
+                i += 1
+            keys = set(re.findall(r"(\w+)\s*:\s*'#", src[m.end():i]))
+            if keys:
+                return keys
+    return set()
+
+
+def rule_colour_vocabulary(crs):
+    """T8 — a widget CR naming a colour that is not in the palette.
+
+    `getColorCode` resolves a CR's colour NAME against the palette and, on a miss, returns
+    `palette.dark` — near-black — with no error. So `color: blu`, a key someone renamed, or a key
+    someone deleted all render as almost-black text that reads as a styling choice. The palette is a
+    public API consumed by chart authors, and nothing checked it.
+
+    Both authoring forms are accepted because both are in live use and both resolve to a key:
+    the bare name (`color: red`) and the legacy alias (`color: var(--red-color)`), which
+    `cssVariables` emits for every key.
+
+    A `var(--x)` that is not a `--*-color` alias is left alone — that is ordinary CSS custom-property
+    use and none of this rule's business.
+    """
+    palette = discover_palette() or PALETTE_KEYS
+    out = []
+    for fname, doc in widget_crs(crs):
+        for path, value in walk_strings(widget_data(doc)):
+            if path.rsplit('.', 1)[-1] != 'color':
+                continue
+            value = value.strip()
+            if not value:
+                continue
+            alias = CSS_VAR_COLOUR.match(value)
+            if alias:
+                key = alias.group(1)
+                if key not in palette:
+                    out.append((fname, f'{path} -> `{value}` names `--{key}-color`, and `{key}` is '
+                                       f'not a palette key — cssVariables emits an alias per key, so '
+                                       f'this variable is never defined and the colour falls back'))
+                continue
+            if value.startswith('var(') or value.startswith('#'):
+                continue      # a non-colour custom property, or an explicit hex (that is T1's business)
+            if '{' in value:
+                # `{{ ... }}` is helm; `{readyColor}` is the widget's OWN itemTemplate placeholder,
+                # substituted per row from the RA's data. Neither is knowable here, and judging a
+                # placeholder as a literal is how a rule earns a false positive and gets switched off.
+                continue
+            if value not in palette:
+                out.append((fname, f'{path} -> `{value}` is not a palette key, so getColorCode '
+                                   f'returns palette.dark (near-black) with NO error'))
+    return out
+
+
 RULES = {
     'dead-kind': (rule_dead_kind, 'X11'),
     'missing-target': (rule_missing_target, 'X13'),
@@ -797,6 +887,7 @@ RULES = {
     'page-header': (rule_page_header, 'P25'),
     'section-rhythm': (rule_section_rhythm, 'P9'),
     'root-coverage': (rule_root_coverage, 'P9+P25'),
+    'colour-vocabulary': (rule_colour_vocabulary, 'T8'),
 }
 
 

@@ -311,3 +311,41 @@ spec:
     tags:
     - label: Healthy
       color: green
+---
+# T8 clean — a bare palette key.
+kind: Tag
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: t8-good-colour
+spec:
+  widgetData:
+    label: Fine
+    color: red
+  resourcesRefs:
+    items: []
+---
+# T8 clean — the legacy --*-color alias, which cssVariables emits for every palette key.
+kind: Statistic
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: t8-good-alias
+spec:
+  widgetData:
+    title: Fine
+    color: var(--green-color)
+  resourcesRefs:
+    items: []
+---
+# T8 clean — the widget's OWN itemTemplate placeholder, substituted per row from the RA's data.
+# The false positive that would get this rule switched off.
+kind: Listy
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: t8-good-placeholder
+spec:
+  widgetData:
+    itemTemplate:
+      status:
+        color: "{readyColor}"
+  resourcesRefs:
+    items: []
