@@ -378,3 +378,54 @@ read what the closest existing widget requires. `PageHeader` shipped with `allow
 `items` required because they were copied from a container schema; `Card`, the actual precedent,
 requires only `items`. That cost a release cycle to undo, on a widget whose entire purpose was to
 delete ceremony.
+
+
+### C25 — A widget wrapping antd uses antd's prop names verbatim. A widget wrapping nothing documents itself.
+
+**Status:** gap — the convention exists and is obeyed; the rule was never written, so its scope was undefined
+
+Two halves, and the second is the one nobody has been keeping.
+
+**Where a widget wraps an antd component, `widgetData` uses antd's prop names verbatim** — `Alert`
+takes `banner, closable, description, showIcon, title, type`; `Table` takes `bordered, columns,
+dataSource, pagination, size`. The payoff is documentation: **antd's own docs become the widget's
+docs**, and Krateo does not have to describe 2,317 properties it did not design.
+
+**Where there is no antd counterpart, the schema must carry its own descriptions** — because nothing
+else will. The convention says "read antd's docs", and for these there are none.
+
+**Measured today:** 44 schemas, 2,317 properties, **799 described (34%)**. 30 widgets are antd-backed
+(the widget imports its own namesake); **14 wrap nothing**. The gap lands exactly where predicted:
+
+    YamlViewer    2/36   5%      Markdown     5/39  12%      ButtonGroup  9/42  21%
+    Filters       3/32   9%      RangePicker  6/40  15%      Tag         10/44  22%
+
+Every one of those has no antd component behind it. A CR author writing a `Filters` widget has 3
+described properties out of 32 and no upstream documentation to fall back on.
+
+**The mirror is already not a mirror, and the rule should say so.** Every widget adds Krateo props
+antd has no concept of — `allowedResources`, `resourceRefId`, `widgetDataTemplate`, `fitContent`,
+`rowNavigateTo`, `watch`. So an author cannot rely on antd alone in any case; they need to know which
+props are antd's, which are Krateo's, and which antd props are unsupported. The schema is the real
+contract. antd's docs are a shortcut for the part of it antd already wrote.
+
+**The cost this rule accepts, stated rather than discovered.** Mirroring couples the CR vocabulary to
+antd's API, and a CR is *stored data*. antd 6 renamed `Progress`'s DOM nodes, `Select`'s content node
+and the notification title node, and each break landed here. When antd renames a **prop**, either
+stored CRs break or a translation layer makes the mirror a fiction. That is the price of the
+documentation leverage, and it is worth paying only where the leverage is real — which is the reason
+the rule stops at antd-backed widgets instead of being a house style.
+
+**Testable, and it should be tested.** A widget with no antd import of its own namesake and a
+description ratio below a floor is decidable from the schemas alone. It would flag the six above
+today, and stop the seventh being added.
+
+> **Why this was written down late.** The phrase "the antd-mirror rule" appears in two source
+> comments (`VoiceControl.tsx`, `SpeakBackControls.tsx`) as though it were established, and in this
+> document only once — in a subordinate clause inside a correction to a different rule. A convention
+> every widget obeys had no statement anywhere, so its SCOPE was undefined, and scope is exactly what
+> people then argued about: whether it reaches app chrome, shared primitives, or the Autopilot rail.
+> It reaches none of them. It binds a widget to the antd component that widget wraps, and nothing else.
+
+*Evidence: measured across 44 `ui/src/widgets/*/*.schema.json` (2,317 properties, 799 described) and
+the 44 widget `.tsx` files (30 import their own antd namesake, 14 do not)*
