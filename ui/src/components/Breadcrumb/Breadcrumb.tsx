@@ -43,7 +43,17 @@ const Breadcrumb = () => {
         // CSS truncates only past the cap; `title` is the tooltip.
         let to: string | undefined
         if (index === 0 && !isLast) {
-          to = `/${splitPath[0]}`
+          // ONLY if that list route actually exists. The section crumb used to link to
+          // `/<segment>` unconditionally, which is right for the nine prefixes that have a list
+          // page and wrong for `/resources`: the nav declares only the six-segment detail route
+          // (`/resources/{namespace}/{group}/{version}/{plural}/{name}`), so every generic
+          // resource page — a heavily used drill target from composition and incident tables —
+          // offered a first crumb that 404s. `menuRoutes` is the nav's own route list, so this
+          // asks the same source the label lookup above already uses, and a route added to the
+          // chart later starts linking without a code change.
+          to = menuRoutes.some((route) => route.path === `/${splitPath[0]}`)
+            ? `/${splitPath[0]}`
+            : undefined
         } else if (index === 1 && !isLast && splitPath[0] === 'compositions') {
           to = `/${splitPath[0]}/${splitPath[1]}`
         }
