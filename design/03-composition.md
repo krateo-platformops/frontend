@@ -142,9 +142,15 @@ four times. A root declaring no `gap` is reported too: inheriting a default is n
 The **within-section** step is `small`/4px, already used by 24 of the 56 non-root Flex CRs. P9 does
 not govern it — rhythm *between* sections is the page's business, *within* one is that section's.
 
-> Coverage caveat worth keeping: the agents pages are gated behind `.Values.agents.enabled`, which
-> defaults off. Rendered with defaults, the nav declares 26 roots and the lint silently judges 26 of
-> 31. Render with `--set agents.enabled=true` or the rule under-reports without saying so.
+> **Coverage, and the rule that now guards it.** The agents pages are gated behind
+> `.Values.agents.enabled`, which defaults off — so a default-values render gives the nav 26 roots
+> while the chart ships 31, and P9 and P25 both *passed over 26 of them in silence*. That is the
+> failure this file exists to prevent, committed by its own newest rule.
+>
+> `root-coverage` closes it: every `page-*` CR must be nav-reachable. Zero are unreachable in a
+> correct render; a default render now reports the 5 agents pages by name and says which flag is
+> missing. Starting from the nav is still right — a lint that cannot see a case must **say so**
+> rather than count the blind spot as a pass.
 
 *Evidence: #54 §0.6 — the rhythm convention is still unresolved; the C5 dependency is not*
 

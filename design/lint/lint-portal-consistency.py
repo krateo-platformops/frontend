@@ -754,6 +754,36 @@ def rule_page_header(crs):
     return out
 
 
+def rule_root_coverage(crs):
+    """P9+P25 coverage — a `page-*` CR the nav does not reach, so neither rule judged it.
+
+    Both page rules start from the NAV, which is what makes something a page. That is right, and it
+    has one failure mode: if the corpus contains a page the nav does not reach, both rules skip it
+    in silence and report a clean run over an incomplete set.
+
+    That is not hypothetical. The agents pages are gated behind `.Values.agents.enabled`, which
+    defaults to false. Rendered with default values, the nav declares 26 roots while the chart ships
+    31 pages — and P9 and P25 both passed, having judged 26 of 31 without saying so. A lint that
+    quietly covers less than it claims is the thing this whole file exists to prevent.
+
+    So: every CR named `page-*` must be reachable from the nav. In a correct render zero are not.
+    A hit means either the render omitted a values flag (the lint is under-covering — fix the render)
+    or the page is genuinely unreachable (a real defect — fix the nav). Both are worth a failure;
+    neither is worth silence.
+    """
+    reachable = {name for name, _f, _d in page_roots(crs)}
+    out = []
+    for fname, doc in widget_crs(crs):
+        name = ((doc.get('metadata') or {}).get('name') or '')
+        if not name.startswith('page-') or name in reachable:
+            continue
+        out.append((fname, f'`{name}` looks like a page root but no nav entry reaches it, so P9 and '
+                           f'P25 did NOT judge it — either this render omitted a values flag (e.g. '
+                           f'`--set agents.enabled=true`) and this lint is under-covering, or the '
+                           f'page is genuinely unreachable'))
+    return out
+
+
 RULES = {
     'dead-kind': (rule_dead_kind, 'X11'),
     'missing-target': (rule_missing_target, 'X13'),
@@ -766,6 +796,7 @@ RULES = {
     'containment': (rule_containment, 'X5'),
     'page-header': (rule_page_header, 'P25'),
     'section-rhythm': (rule_section_rhythm, 'P9'),
+    'root-coverage': (rule_root_coverage, 'P9+P25'),
 }
 
 
