@@ -38,6 +38,65 @@ export const AUDIT_API_VERSION = 'v1alpha1'
 export const AUTOPILOT_AGENT_ID = 'autopilot'
 
 /**
+ * A17 — the label that makes an agent-created object identifiable WITHOUT a join.
+ *
+ * The AuditRecord below already answers "who made this write", but only by querying
+ * audit.krateo.io and matching on (verb, gvr, name, namespace). That is the right record for an
+ * audit trail and the wrong one for the question a person actually asks, which is asked while
+ * looking at the object: "did a human decide this, or did the agent?" A label answers it on the
+ * object, is selectable (`-l krateo.io/created-by=autopilot`), and survives the round trips an
+ * annotation-free join does not.
+ *
+ * A LABEL, not an annotation, precisely because it is meant to be queryable — the whole point is
+ * being able to list what the agent made.
+ */
+export const AGENT_CREATED_LABEL = 'krateo.io/created-by'
+
+/**
+ * Stamp `krateo.io/created-by` onto an agent-originated CREATE.
+ *
+ * CREATE ONLY. A POST brings an object into existence and the label describes that act; a
+ * PUT/PATCH edits something that already exists, and stamping there would claim the agent
+ * created an object a human may well have. An object edited by the agent is a different fact, and
+ * the AuditRecord is where it belongs.
+ *
+ * Called BEFORE the HITL gate, deliberately: the blast-radius diff the human confirms therefore
+ * SHOWS this label. An agent that quietly adds a field to the body after the human approved it
+ * would be doing exactly what the gate exists to prevent, even for a field as harmless as this.
+ *
+ * Returns a new object; never mutates the caller's payload. Leaves a non-object payload, or one
+ * whose `metadata` is not an object, exactly as it found it rather than corrupting a shape it
+ * does not understand.
+ */
+export const stampAgentCreated = (
+  payload: unknown,
+  verb: string,
+  origin?: WriteOrigin,
+): unknown => {
+  if (origin?.actor !== 'agent' || verb !== 'POST') { return payload }
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) { return payload }
+
+  const body = payload as Record<string, unknown>
+  const metadata = body.metadata
+  if (metadata !== undefined && (typeof metadata !== 'object' || metadata === null || Array.isArray(metadata))) {
+    return payload
+  }
+  const meta = (metadata ?? {}) as Record<string, unknown>
+  const labels = meta.labels
+  if (labels !== undefined && (typeof labels !== 'object' || labels === null || Array.isArray(labels))) {
+    return payload
+  }
+
+  return {
+    ...body,
+    metadata: {
+      ...meta,
+      labels: { ...(labels as Record<string, unknown> | undefined), [AGENT_CREATED_LABEL]: AUTOPILOT_AGENT_ID },
+    },
+  }
+}
+
+/**
  * Who initiated a write. Threaded OPTIONALLY into runRest/runRestSet dispatch — absent
  * means a hand-clicked control, i.e. `{actor: 'human'}`. The Autopilot action bridge tags
  * its mutating dispatches (runAction / patchField / applyResourceSet) with `actor: 'agent'`
