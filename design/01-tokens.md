@@ -171,11 +171,29 @@ It passes at large sizes, so the fix is either darkening the token or restrictin
 
 ### T8 — No two palette keys share a value without a documented reason.
 
-**Status:** ungoverned
+**Status:** ungoverned → **the silent half is now enforced; the `info` collision is still open**
 
 37 keys resolve to 25 distinct values in light mode. `warning = orange = amber = gold` is a four-way synonym; `success = green`, `error = red`, `accent2 = cyan = teal`.
 
 Two consequences worth deciding on rather than inheriting:
+
+> **Re-measured 2026-09-14, and the first conclusion was wrong.** The synonym keys look dead —
+> nothing in `ui/src` imports `darkBlue`, `amber`, `cyan`, `red`, `green` — so deleting them read as
+> free cleanup. They are not dead. `getColorCode(colorName)` resolves a **string from a widget CR**
+> against the palette, so these are the CR-facing colour VOCABULARY, not internal constants. The
+> charts use `gray`×5, `cyan`×5, `red`×4, `orange`×3, `green`×2 — deleting four of them would have
+> turned 14 live CRs near-black.
+>
+> **Near-black, and silently:** `getColorCode` returns `palette.dark` on a miss, with no error. A
+> typo (`color: blu`), a renamed key, or a deleted one all render as almost-black text that reads
+> like a styling choice. That is the more serious half of T8 and it is now **enforced** by the
+> `colour-vocabulary` lint rule, which accepts both live authoring forms (`color: red` and the
+> legacy `var(--red-color)` alias) and ignores `{…}` itemTemplate placeholders. 0 violations across
+> both charts, so it lands as a ratchet rather than a debt baseline. The embedded key list is
+> asserted against the real `tokens.ts` by `test_lint`, so an upstream rename cannot make the rule
+> start rejecting valid CRs.
+
+**The collision that remains, and it needs a brand decision rather than work:**
 
 **`info === primary` in both modes** — so an informational status Tag is pixel-identical to a clickable primary. Colour alone cannot separate “status” from “interactive”.
 

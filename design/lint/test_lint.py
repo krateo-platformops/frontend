@@ -85,6 +85,23 @@ def main():
         elif code != 0:
             failures.append(f'{rule}: false positive on correct authoring\n{out}')
 
+    # T8's key list is embedded for chart-repo runs; from THIS repo the real tokens.ts is present,
+    # so assert they agree. A key added or renamed upstream without updating the lint would otherwise
+    # make `colour-vocabulary` reject valid CRs — a false positive is how a rule gets switched off.
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('lintmod', LINT)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        real = mod.discover_palette()
+        if real and real != mod.PALETTE_KEYS:
+            missing = sorted(real - mod.PALETTE_KEYS)
+            extra = sorted(mod.PALETTE_KEYS - real)
+            failures.append(f'palette drift: tokens.ts has {missing} not in PALETTE_KEYS; '
+                            f'PALETTE_KEYS has {extra} not in tokens.ts')
+    except Exception as exc:
+        failures.append(f'palette drift check could not run: {exc}')
+
     for line in failures:
         print(f'FAIL {line}')
     print(f'{len(RULES) - len({f.split(":")[0] for f in failures})}/{len(RULES)} rules pass both halves')
