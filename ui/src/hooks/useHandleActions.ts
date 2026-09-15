@@ -11,6 +11,16 @@ import type { ResourceRef, ResourcesRefs, Widget, WidgetAction } from '../types/
 import { getAccessToken } from '../utils/getAccessToken'
 import { useResolveJqExpression } from '../utils/jq-expression'
 import { navigateOrExternal } from '../utils/navigation'
+
+/**
+ * How long a blast-radius confirm may sit unanswered before it DENIES.
+ *
+ * Deliberately the same five minutes as the Autopilot approval governor
+ * (`components/Autopilot/approval.ts`), and deliberately duplicated rather than imported: this
+ * hook gates every portal write, human or agent, and must not take a dependency on the
+ * Autopilot component tree to do it. If one moves, move the other.
+ */
+const CONFIRM_TIMEOUT_MS = 5 * 60 * 1000
 import { pruneEmptyObjects } from '../utils/pruneEmptyObjects'
 import type { Payload, RestApiResponse } from '../utils/types'
 import { getHeadersObject, getResourceRef } from '../utils/utils'
@@ -18,7 +28,7 @@ import { closeDrawer, openDrawer } from '../widgets/Drawer/Drawer'
 import { openModal } from '../widgets/Modal/Modal'
 
 import type { BlastRadius, BlastRadiusSet } from './blastRadius.types'
-import { buildConfirmModalProps } from './confirmModalProps'
+import { buildConfirmModalProps, confirmWithTimeout } from './confirmModalProps'
 import { recordProvenance, stampAgentCreated, type WriteOrigin } from './provenance'
 import { runRestFanOut } from './runRestFanOut'
 import { runRestOps } from './runRestOps'
@@ -742,11 +752,16 @@ export const useHandleAction = () => {
         return
       }
       confirmOpenRef.current = true
-      const settle = (value: boolean) => {
-        confirmOpenRef.current = false
-        resolve(value)
-      }
-      modal.confirm(buildConfirmModalProps(radius, () => settle(true), () => settle(false)))
+      // DENY ON SILENCE. The promise settles only on a click, so an unanswered dialog hung
+      // forever — and because confirmOpenRef stays true while one is open, every LATER action
+      // resolved false at the guard above. Walking away from the screen therefore turned every
+      // subsequent action into a silent no-op. confirmWithTimeout denies after the window,
+      // destroys the dialog, and clears the flag through the same settle path as a click.
+      void confirmWithTimeout(
+        (onOk, onCancel) => modal.confirm(buildConfirmModalProps(radius, onOk, onCancel)),
+        CONFIRM_TIMEOUT_MS,
+        () => { confirmOpenRef.current = false },
+      ).then(resolve)
     }),
     eventsBaseUrl: config?.api.EVENTS_PUSH_API_BASE_URL ?? '',
     getAccessToken,

@@ -85,3 +85,53 @@ export const buildConfirmModalProps = (
     zIndex: BLAST_RADIUS_CONFIRM_Z_INDEX,
   }
 }
+
+/** The minimum an antd modal instance must expose for the timeout to clean up after itself. */
+export interface DismissableModal { destroy: () => void }
+
+/**
+ * Open a confirm dialog that DENIES if nobody answers.
+ *
+ * The confirm promise otherwise settles only on a click, so an unanswered dialog hung forever.
+ * That is worse than it sounds: the caller holds a re-entrancy flag while a confirm is open and
+ * resolves any LATER confirm false, so walking away from the screen silently turned every
+ * subsequent action into a no-op with no dialog on screen to explain why.
+ *
+ * On timeout it denies (never confirms), destroys the dialog so the screen matches the decision,
+ * and lets the caller clear its flag through the same settle path as a click.
+ *
+ * Extracted from the hook so it can be tested: inside the closure it needed a full render
+ * harness, and "deny on silence" is a safety property that should not rest on an untested
+ * setTimeout.
+ */
+export const confirmWithTimeout = (
+  open: (onOk: () => void, onCancel: () => void) => DismissableModal,
+  timeoutMs: number,
+  onSettled?: () => void,
+): Promise<boolean> => new Promise<boolean>((resolve) => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  // `settled` rather than relying on clearTimeout alone: `open` may invoke its callback
+  // SYNCHRONOUSLY (a test double does; a future modal could), in which case settle runs before
+  // `timer` is even assigned, nothing is cleared, and the timer later destroys a dialog that is
+  // already gone. Guarding the state rather than the timer makes the order irrelevant.
+  let settled = false
+  const settle = (value: boolean) => {
+    if (settled) {
+      return
+    }
+    settled = true
+    if (timer !== undefined) {
+      clearTimeout(timer)
+      timer = undefined
+    }
+    onSettled?.()
+    resolve(value)
+  }
+  const instance = open(() => { settle(true) }, () => { settle(false) })
+  if (!settled) {
+    timer = setTimeout(() => {
+      instance.destroy()
+      settle(false)
+    }, timeoutMs)
+  }
+})

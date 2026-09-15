@@ -37,7 +37,7 @@ const restAction = (over: Partial<RestAction> = {}): RestAction => ({
   resourceRefId: 'ref',
   type: 'rest',
   ...over,
-} as RestAction)
+})
 
 // resolveJq stub: by default echoes a marker so we can see if/when it was called.
 const makeResolveJq = (impl?: (expr: string, vals: Record<string, unknown>) => string) =>
@@ -262,7 +262,7 @@ describe('X2 — a denied action ref is not a broken widget definition', () => {
   it('reports a DENIED ref as not-permitted, not as a missing reference', async () => {
     const ctx = makeCtx()
     await dispatchAction(
-      { id: 'a', resourceRefId: 'hidden', type: 'openDrawer' } as WidgetAction,
+      { id: 'a', resourceRefId: 'hidden', type: 'openDrawer' },
       { deniedRefIds: ['hidden'], resourcesRefs: refs([]) }, ctx)
     expect(ctx.notification.warning).toHaveBeenCalledTimes(1)
     expect(ctx.notification.error).not.toHaveBeenCalled()
@@ -276,7 +276,7 @@ describe('X2 — a denied action ref is not a broken widget definition', () => {
   it('still reports a genuinely MISSING ref as a broken definition', async () => {
     const ctx = makeCtx()
     await dispatchAction(
-      { id: 'a', resourceRefId: 'typo', type: 'openDrawer' } as WidgetAction,
+      { id: 'a', resourceRefId: 'typo', type: 'openDrawer' },
       { deniedRefIds: [], resourcesRefs: refs([]) }, ctx)
     expect(ctx.notification.error).toHaveBeenCalledTimes(1)
     expect(ctx.notification.warning).not.toHaveBeenCalled()
@@ -286,7 +286,7 @@ describe('X2 — a denied action ref is not a broken widget definition', () => {
     // Back-compat: a call site that filters nothing behaves exactly as before.
     const ctx = makeCtx()
     await dispatchAction(
-      { id: 'a', resourceRefId: 'typo', type: 'openDrawer' } as WidgetAction,
+      { id: 'a', resourceRefId: 'typo', type: 'openDrawer' },
       { resourcesRefs: refs([]) }, ctx)
     expect(ctx.notification.error).toHaveBeenCalledTimes(1)
     expect(ctx.notification.warning).not.toHaveBeenCalled()
@@ -298,39 +298,39 @@ describe('dispatchAction — routing + non-SSE rest paths', () => {
 
   it('navigate: navigates to the literal path', async () => {
     const ctx = makeCtx()
-    await dispatchAction({ id: 'n', path: '/go', type: 'navigate' } as WidgetAction, { resourcesRefs: refs([]) }, ctx)
+    await dispatchAction({ id: 'n', path: '/go', type: 'navigate' }, { resourcesRefs: refs([]) }, ctx)
     expect(ctx.navigate).toHaveBeenCalledWith('/go')
   })
 
   it('navigate: a ${...} path is resolved via jq before navigating', async () => {
     const ctx = makeCtx({ resolveJq: vi.fn(() => Promise.resolve('/resolved')) })
-    await dispatchAction({ id: 'n', path: '${.widget}', type: 'navigate' } as WidgetAction, { resourcesRefs: refs([]) }, ctx)
+    await dispatchAction({ id: 'n', path: '${.widget}', type: 'navigate' }, { resourcesRefs: refs([]) }, ctx)
     expect(ctx.navigate).toHaveBeenCalledWith('/resolved')
   })
 
   it('navigate: errors when no path is given (no widgetEndpoint bypass)', async () => {
     const ctx = makeCtx()
-    await dispatchAction({ id: 'n', type: 'navigate' } as WidgetAction, { resourcesRefs: refs([]) }, ctx)
+    await dispatchAction({ id: 'n', type: 'navigate' }, { resourcesRefs: refs([]) }, ctx)
     expect(ctx.navigate).not.toHaveBeenCalled()
     expect(ctx.notification.error).toHaveBeenCalledTimes(1)
   })
 
   it('navigate: declined confirmation does not navigate', async () => {
     const ctx = makeCtx({ confirm: vi.fn(() => Promise.resolve(false)) })
-    await dispatchAction({ id: 'n', path: '/go', requireConfirmation: true, type: 'navigate' } as WidgetAction, { resourcesRefs: refs([]) }, ctx)
+    await dispatchAction({ id: 'n', path: '/go', requireConfirmation: true, type: 'navigate' }, { resourcesRefs: refs([]) }, ctx)
     expect(ctx.navigate).not.toHaveBeenCalled()
   })
 
   it('errors when the action references a resourceRef that is not present', async () => {
     const ctx = makeCtx()
-    await dispatchAction({ headers: [], id: 'a', resourceRefId: 'missing', type: 'rest' } as WidgetAction, { resourcesRefs: refs([]) }, ctx)
+    await dispatchAction({ headers: [], id: 'a', resourceRefId: 'missing', type: 'rest' }, { resourcesRefs: refs([]) }, ctx)
     expect(ctx.notification.error).toHaveBeenCalledTimes(1)
   })
 
   it('openDrawer: opens with the resource ref path as the widget endpoint', async () => {
     const ctx = makeCtx()
     await dispatchAction(
-      { id: 'd', resourceRefId: 'ref', type: 'openDrawer' } as WidgetAction,
+      { id: 'd', resourceRefId: 'ref', type: 'openDrawer' },
       { resourcesRefs: refs([{ allowed: true, id: 'ref', path: '/api/drawer', payload: {}, verb: 'GET' }]) },
       ctx
     )
@@ -341,7 +341,7 @@ describe('dispatchAction — routing + non-SSE rest paths', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, '{"metadata":{"name":"n","namespace":"ns"},"message":"ok"}'))))
     const ctx = makeCtx()
     await dispatchAction(
-      { headers: [], id: 'a', resourceRefId: 'ref', type: 'rest' } as WidgetAction,
+      { headers: [], id: 'a', resourceRefId: 'ref', type: 'rest' },
       { resourcesRefs: refs([postRef]) },
       ctx
     )
@@ -354,7 +354,7 @@ describe('dispatchAction — routing + non-SSE rest paths', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, ''))))
     const ctx = makeCtx()
     await dispatchAction(
-      { headers: [], id: 'a', resourceRefId: 'ref', type: 'rest' } as WidgetAction,
+      { headers: [], id: 'a', resourceRefId: 'ref', type: 'rest' },
       { resourcesRefs: refs([{ allowed: true, id: 'ref', path: '/api/x', payload: {}, verb: 'DELETE' }]) },
       ctx
     )
@@ -366,7 +366,7 @@ describe('dispatchAction — routing + non-SSE rest paths', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(false, '{"status":404,"reason":"NotFound","message":"nope"}'))))
     const ctx = makeCtx()
     await dispatchAction(
-      { headers: [], id: 'a', resourceRefId: 'ref', type: 'rest' } as WidgetAction,
+      { headers: [], id: 'a', resourceRefId: 'ref', type: 'rest' },
       { resourcesRefs: refs([postRef]) },
       ctx
     )
@@ -379,7 +379,7 @@ describe('dispatchAction — routing + non-SSE rest paths', () => {
     vi.stubGlobal('fetch', fetchMock)
     const ctx = makeCtx({ confirm: vi.fn(() => Promise.resolve(false)) })
     await dispatchAction(
-      { headers: [], id: 'a', requireConfirmation: true, resourceRefId: 'ref', type: 'rest' } as WidgetAction,
+      { headers: [], id: 'a', requireConfirmation: true, resourceRefId: 'ref', type: 'rest' },
       { resourcesRefs: refs([postRef]) },
       ctx
     )
@@ -391,7 +391,7 @@ describe('dispatchAction — routing + non-SSE rest paths', () => {
     const ctx = makeCtx({ getAccessToken: vi.fn(() => { throw new Error('boom') }) })
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, '{}'))))
     await dispatchAction(
-      { headers: [], id: 'a', resourceRefId: 'ref', type: 'rest' } as WidgetAction,
+      { headers: [], id: 'a', resourceRefId: 'ref', type: 'rest' },
       { resourcesRefs: refs([postRef]) },
       ctx
     )
@@ -418,7 +418,7 @@ const restOnEvent = (): WidgetAction => ({
   onEventNavigateTo: { eventReason: 'Ready', url: '/done' },
   resourceRefId: 'ref',
   type: 'rest',
-} as WidgetAction)
+})
 
 describe('dispatchAction — onEventNavigateTo (SSE) race + cleanup', () => {
   afterEach(() => {
@@ -487,7 +487,7 @@ describe('dispatchAction — W3-1 fanOutPath (one submit → N ordered writes vi
       { name: 'spec.deploy.targetRef.name', value: '${ .json.clusters }' },
     ],
     ...over,
-  } as Partial<RestAction>)
+  })
 
   // resolveJq stub implementing just the two expressions the action uses.
   const fanResolveJq = () => vi.fn((expr: string, vals: Record<string, unknown>): Promise<string> => {
@@ -558,7 +558,7 @@ describe('dispatchAction — W3-1 fanOutPath (one submit → N ordered writes vi
     const ctx = makeCtx({ resolveJq: fanResolveJq() })
 
     await dispatchAction(
-      fanAction({ onEventNavigateTo: { eventReason: 'X', url: '/y' }, onSuccessNavigateTo: undefined } as Partial<RestAction>),
+      fanAction({ onEventNavigateTo: { eventReason: 'X', url: '/y' }, onSuccessNavigateTo: undefined }),
       { customPayload: { clusters: ['spoke-a'], name: 'demo' }, resourcesRefs: refs([postRef]) },
       ctx
     )
