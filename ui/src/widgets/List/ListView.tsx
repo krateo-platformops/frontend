@@ -76,6 +76,8 @@ interface ListViewProps {
   actions?: WidgetActions
   /** The widget's resource refs, handed to useHandleAction when a row action fires. */
   resourcesRefs?: ResourcesRefs
+  /** X2 — refs RBAC removed, so a row action on a denied ref reads as a denial, not a typo. */
+  deniedRefIds?: string[]
   /** The full widget — jq context for action handling. */
   widget?: Widget
 }
@@ -87,7 +89,7 @@ interface ListViewProps {
  * `Notifications`.
  */
 export const ListView = ({
-  actions, bordered, footer, grid, header, hideWhenEmpty, itemLayout = 'horizontal', itemTemplate, items, loading, pagination, renderChild, resourcesRefs, rowKey, size, split, widget,
+  actions, bordered, deniedRefIds, footer, grid, header, hideWhenEmpty, itemLayout = 'horizontal', itemTemplate, items, loading, pagination, renderChild, resourcesRefs, rowKey, size, split, widget,
 }: ListViewProps) => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -110,7 +112,7 @@ export const ListView = ({
       })
       return
     }
-    await handleAction(action, resourcesRefs ?? { items: [] }, item as Record<string, unknown>, widget)
+    await handleAction(action, resourcesRefs ?? { items: [] }, item as Record<string, unknown>, widget, undefined, deniedRefIds)
   }
 
   // Chip mode (Marketplace facet chips) lays its items out as a wrapping pill row, not a

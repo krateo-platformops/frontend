@@ -74,7 +74,7 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
       return
     }
 
-    await handleAction(action, resourcesRefs, undefined, widget)
+    await handleAction(action, resourcesRefs, undefined, widget, undefined, deniedRefIds)
   }
 
   const handleClick = () => {
