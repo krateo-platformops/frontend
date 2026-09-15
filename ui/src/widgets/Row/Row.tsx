@@ -20,7 +20,23 @@ const justifyContentMap: Record<
 const Row = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<RowWidgetData>) => {
   const { alignment, items } = widgetData
 
-  const defaultSize = Math.floor(24 / items.length) || 24
+  // X8 — layout maths runs on the children that SURVIVE, not the ones declared. A denied ref
+  // drops its whole column below, so counting it left dead grid space: four items with one
+  // denial rendered three span-6 columns — 18 of 24 units — and a hole on the right, instead
+  // of three span-8 columns filling the row.
+  //
+  // A DANGLING ref still counts. X4 deliberately kept its column so the grid does not reflow
+  // around the visible error Result, so only denials are dropped here.
+  //
+  // The authored index is threaded through instead of using the filtered position, and that is
+  // load-bearing rather than style: the keys below are index-derived, so renumbering them when
+  // a denial appears would remount every surviving WidgetRenderer. A remount is a refetch, and
+  // for a Form child a refetch wipes the user's dirty state.
+  const visibleItems = items
+    .map((item, index) => ({ index, item }))
+    .filter(({ item }) => refChildState(item.resourceRefId, resourcesRefs, deniedRefIds) !== 'denied')
+
+  const defaultSize = Math.floor(24 / visibleItems.length) || 24
 
   return (
     <div className={styles.row}>
@@ -34,12 +50,8 @@ const Row = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<RowWi
         key={uid}
         wrap
       >
-        {items
-          .map(({ alignment, lg, md, resourceRefId, size, sm, xl, xs, xxl }, index) => {
-            // A DENIED ref drops the whole column, exactly as before this change — see
-            // refChildState. A dangling one keeps its column so the grid does not reflow.
-            if (refChildState(resourceRefId, resourcesRefs, deniedRefIds) === 'denied') { return null }
-
+        {visibleItems
+          .map(({ index, item: { alignment, lg, md, resourceRefId, size, sm, xl, xs, xxl } }) => {
             return (
               // `size` is the base span; the optional xs/sm/md/lg/xl/xxl overrides let a row reflow
               // responsively (e.g. when the Autopilot rail narrows the content column).
@@ -68,7 +80,6 @@ const Row = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<RowWi
               </AntdColumn>
             )
           })
-          .filter(Boolean)
         }
       </AntdRow>
     </div>

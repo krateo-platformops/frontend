@@ -243,11 +243,15 @@ The mechanism ships and works: the Form prefers `stringSchema`, whose raw JSON p
 
 ### X8 — Layout maths runs on the children that survive, not the ones declared.
 
-**Status:** narrow
+**Status:** narrow → **fixed**
 
-`Row` computes its default column span from the raw item count *before* unresolvable children are filtered out — so one broken child leaves dead grid space instead of the survivors redistributing to fill the row.
+> **Fixed** (frontend, `widgets/Row/Row.tsx`). The survivors are computed once, above the span maths, and the render maps that set — so the denominator counts the children that reach the DOM. Only DENIED children were ever affected: X4 deliberately keeps a *dangling* child's column so the grid does not reflow around the visible error, and that child therefore still counts. The authored index is threaded through the survivor list rather than using the filtered position, because the column keys are index-derived and renumbering them on a denial would remount every surviving `WidgetRenderer` — a remount is a refetch, and for a `Form` child a refetch is the dirty-state wipe. Pinned by `widgets/Row/Row.test.tsx`, which was confirmed to FAIL against the previous code.
 
-*Evidence: verified `Row.tsx:24` computed ahead of the filter at `:65`*
+`Row` computed its default column span from the raw item count *before* unresolvable children were filtered out — so one broken child left dead grid space instead of the survivors redistributing to fill the row. Four items with one denied ref rendered three `span=6` columns, 18 of 24 grid units, and a hole on the right.
+
+This one was invisible to review under full-admin RBAC: with nothing denied, the denominator is correct and the row looks perfect. It only appears for users who cannot see one of the children, which is why the pin is a test rather than a screenshot.
+
+*Evidence: verified `Row.tsx:23` computed ahead of the drop at `:41` and the compaction at `:71`. The original note gave `:24` and `:65`; all three coordinates are corrected here.*
 
 ## What this class demands of enforcement
 
