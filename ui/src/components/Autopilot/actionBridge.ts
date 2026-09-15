@@ -58,9 +58,6 @@ const unwrapWidget = (data: unknown): unknown => {
   return Array.isArray(pages) && pages.length ? pages[pages.length - 1] : data
 }
 
-/** Opt-in label a widget must carry before the agent may trigger its SUBMIT action. */
-export const AGENT_SUBMITTABLE_LABEL = 'krateo.io/agent-submittable'
-
 /**
  * May the agent trigger THIS action on THIS widget?
  *
@@ -68,18 +65,23 @@ export const AGENT_SUBMITTABLE_LABEL = 'krateo.io/agent-submittable'
  * mounted control is the "press the button for me" capability, it is already blast-radius gated,
  * and the button is one the user can see and press themselves.
  *
- * A form's SUBMIT is different, and it was reachable by accident. The submit action lives in
- * `widgetData.actions` — the same map this module scans — so `runAction` could dispatch it by id
- * and the portal's stated invariant, "Autopilot never submits", was already untrue. Submitting a
- * form is not pressing a button the user is looking at: it commits a whole authored body, and
- * after the UI-parity work it is the agent's main write path.
+ * A FORM'S SUBMIT IS NEVER ALLOWED. Not gated, not opt-in, not configurable — refused.
  *
- * So submits are DEFAULT-CLOSED and opt in per widget, by label. That keeps the agent's write
- * surface enumerable — `kubectl get <widget> -l krateo.io/agent-submittable=true` lists it — and
- * means the surface grows only when someone adds the label on purpose, rather than every time
- * the portal charts gain a form.
+ * Owner decision, 2026-09-15: "the agent must never submit anything". The agent fills a form and
+ * marks the fields it filled; a human presses the button. That is not a setting at its safest
+ * value, it is the absence of the capability, and the difference matters: a setting acquires an
+ * exception the first time someone is in a hurry.
  *
- * Exactly the string "true": a typo fails CLOSED, which is the correct direction to fail.
+ * This was reachable by accident before. The submit action lives in `widgetData.actions` — the
+ * same map this module scans — so `runAction` could dispatch it by id, and the portal's stated
+ * invariant "Autopilot never submits" held only because nothing had asked the model to try. It
+ * is enforced here now, and a companion lint in portal-kpo fails the build if any widget carries
+ * the `krateo.io/agent-submittable` label, so the door cannot be reopened by configuration.
+ *
+ * Both submit shapes are covered. `submitActionId` is the static one; `submitActionSelector`
+ * chooses the action at submit time from a field value (the "post locally or to a remote spoke"
+ * pattern). Refusing only the static id would leave every conditional submit reachable, which is
+ * the shape most worth refusing.
  */
 export const mayAgentDispatch = (root: Record<string, unknown> | undefined, actionId: string): boolean => {
   const widgetData = asRec(asRec(root?.status)?.widgetData) ?? asRec(asRec(root?.spec)?.widgetData)
@@ -100,12 +102,8 @@ export const mayAgentDispatch = (root: Record<string, unknown> | undefined, acti
       }
     }
   }
-  if (!submitIds.has(actionId)) {
-    return true
-  }
-  const labels = asRec(asRec(root?.metadata)?.labels)
 
-  return labels?.[AGENT_SUBMITTABLE_LABEL] === 'true'
+  return !submitIds.has(actionId)
 }
 
 /**
@@ -148,9 +146,9 @@ const lookupAction = (
       }
       const list: unknown[] = arr
       const match = list.find((entry) => asRec(entry)?.id === actionId)
-      // A form's submit needs the opt-in label; everything else is the ordinary
-      // press-the-button capability. Returning null here means the verb refuses exactly as it
-      // does for a hallucinated control — no synthesized call, no partial dispatch.
+      // A form's submit is refused outright; everything else is the ordinary press-the-button
+      // capability. Returning null means the verb refuses exactly as it does for a hallucinated
+      // control — no synthesized call, no partial dispatch, and the chip says it did not run.
       if (match && !mayAgentDispatch(root, actionId)) {
         return null
       }
