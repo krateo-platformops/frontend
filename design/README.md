@@ -1,6 +1,6 @@
 # Krateo Portal Design System
 
-104 rules across five enforcement layers, plus composition patterns. Each rule cites a symbol, a
+105 rules across five enforcement layers, plus composition patterns. Each rule cites a symbol, a
 `file:line` or an issue section, so a reader can check it rather than take it on faith.
 
 **Citations drift, and a stale one is worse than none** — it sends a reader to a line that now holds
@@ -10,7 +10,7 @@ something unrelated and quietly spends their trust. Prefer citing a *symbol* (`t
 | | | |
 |---|---|---|
 | [01-tokens.md](01-tokens.md) | **T1–T10** | Colour, spacing, type, density, breakpoints, contrast |
-| [02-components.md](02-components.md) | **C1–C24** | Shared components: what exists, what is missing, what each guarantees |
+| [02-components.md](02-components.md) | **C1–C25** | Shared components: what exists, what is missing, what each guarantees |
 | [03-composition.md](03-composition.md) | **P1–P25** | How a page is assembled from widget CRs |
 | [04-silent-failures.md](04-silent-failures.md) | **X1–X13** | Renders clean, behaves wrong — passes the CRD, the dry-run and the eye |
 | [05-agent-parity.md](05-agent-parity.md) | **A1–A19** | What Autopilot may do, what a page owes it, what it owes back |
