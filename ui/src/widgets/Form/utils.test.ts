@@ -1,7 +1,7 @@
 import type { JSONSchema4 } from 'json-schema'
 import { describe, expect, it } from 'vitest'
 
-import { getDefaultsFromSchema, getOptionsFromEnum } from './utils'
+import { getDefaultsFromSchema, getOptionsFromEnum, narrowAgentDraft } from './utils'
 
 describe('getDefaultsFromSchema', () => {
   it('collects scalar defaults and omits properties without one', () => {
@@ -74,5 +74,37 @@ describe('getOptionsFromEnum', () => {
 
   it('returns undefined when there is no enum', () => {
     expect(getOptionsFromEnum(undefined)).toBeUndefined()
+  })
+})
+
+describe('narrowAgentDraft — what the agent may fill', () => {
+  const schema = { name: {}, replicas: {}, token: {} }
+
+  it('keeps fields that are real and visible', () => {
+    expect(narrowAgentDraft({ name: 'db', replicas: 3 }, schema, [])).toEqual({ name: 'db', replicas: 3 })
+  })
+
+  it('drops a field the form HIDES — the human never sees it, so cannot review it', () => {
+    // The safety property. propertiesToHide removes the field from the rendered form, so a value
+    // written there would be approved on submit without ever having been shown.
+    expect(narrowAgentDraft({ name: 'db', token: 'secret' }, schema, ['token'])).toEqual({ name: 'db' })
+  })
+
+  it('drops a hidden field even when no schema is available', () => {
+    // Hiding is declared on the widget, not derived from the schema, so it must hold either way.
+    expect(narrowAgentDraft({ name: 'db', token: 'secret' }, undefined, ['token'])).toEqual({ name: 'db' })
+  })
+
+  it('drops an invented field so a draft cannot land nowhere', () => {
+    expect(narrowAgentDraft({ name: 'db', nmae: 'typo' }, schema, [])).toEqual({ name: 'db' })
+  })
+
+  it('passes everything through when there is no schema and nothing is hidden', () => {
+    expect(narrowAgentDraft({ anything: 1 }, undefined, undefined)).toEqual({ anything: 1 })
+  })
+
+  it('returns undefined for no draft, so the form keeps its own initial values', () => {
+    expect(narrowAgentDraft(null, schema, [])).toBeUndefined()
+    expect(narrowAgentDraft(undefined, schema, [])).toBeUndefined()
   })
 })

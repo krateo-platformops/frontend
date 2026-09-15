@@ -59,19 +59,87 @@ const unwrapWidget = (data: unknown): unknown => {
 }
 
 /**
+ * May the agent trigger THIS action on THIS widget?
+ *
+ * Everything except a form's submit is allowed: driving Sync, Pause, Update or Delete on a
+ * mounted control is the "press the button for me" capability, it is already blast-radius gated,
+ * and the button is one the user can see and press themselves.
+ *
+ * A FORM'S SUBMIT IS NEVER ALLOWED. Not gated, not opt-in, not configurable — refused.
+ *
+ * Owner decision, 2026-09-15: "the agent must never submit anything". The agent fills a form and
+ * marks the fields it filled; a human presses the button. That is not a setting at its safest
+ * value, it is the absence of the capability, and the difference matters: a setting acquires an
+ * exception the first time someone is in a hurry.
+ *
+ * This was reachable by accident before. The submit action lives in `widgetData.actions` — the
+ * same map this module scans — so `runAction` could dispatch it by id, and the portal's stated
+ * invariant "Autopilot never submits" held only because nothing had asked the model to try. It
+ * is enforced here now, and a companion lint in portal-kpo fails the build if any widget carries
+ * the `krateo.io/agent-submittable` label, so the door cannot be reopened by configuration.
+ *
+ * Both submit shapes are covered. `submitActionId` is the static one; `submitActionSelector`
+ * chooses the action at submit time from a field value (the "post locally or to a remote spoke"
+ * pattern). Refusing only the static id would leave every conditional submit reachable, which is
+ * the shape most worth refusing.
+ */
+export const mayAgentDispatch = (root: Record<string, unknown> | undefined, actionId: string): boolean => {
+  const widgetData = asRec(asRec(root?.status)?.widgetData) ?? asRec(asRec(root?.spec)?.widgetData)
+  const submitIds = new Set<string>()
+  const staticId = widgetData?.submitActionId
+  if (typeof staticId === 'string') {
+    submitIds.add(staticId)
+  }
+  const selector = asRec(widgetData?.submitActionSelector)
+  if (selector) {
+    const fallback = selector.default
+    if (typeof fallback === 'string') {
+      submitIds.add(fallback)
+    }
+    for (const mapped of Object.values(asRec(selector.map) ?? {})) {
+      if (typeof mapped === 'string') {
+        submitIds.add(mapped)
+      }
+    }
+  }
+
+  return !submitIds.has(actionId)
+}
+
+/**
  * Find a REAL on-screen action (+ its resolved refs) in the live widget cache, by
  * the widget's name and the action id. Returns null when absent — a hallucinated
  * control is therefore a no-op, never a synthesized call.
+ *
+ * ACTIVE QUERIES ONLY, and that word is load-bearing. `getQueriesData` without a filter reads
+ * the WHOLE react-query cache, which keeps unmounted entries for the gc window (5 minutes by
+ * default). "On-screen" was therefore a claim this function did not enforce: the agent could
+ * drive a control on a page the user had already navigated away from, or on a widget that had
+ * unmounted underneath it, and the user would see a write land on something they were no longer
+ * looking at. `type: 'active'` restricts the scan to queries with a live observer — i.e. a
+ * widget actually mounted right now — which is what the surrounding safety story has always
+ * assumed and what makes "the agent presses the control you can see" literally true.
  */
+/**
+ * A control WAS found but the agent may not drive it (it submits a form). Distinct from `null`,
+ * which means no mounted widget of that name carries that action id.
+ *
+ * They used to share `null`, so a refused submit was reported as "no control X on this page" — an
+ * assertion the reader can see is false, about a button plainly on screen. A18's contract is that
+ * a verb which cannot act says SO; saying something untrue instead is worse than silence, because
+ * it sends the person looking for a missing control rather than telling them the rule.
+ */
+export const SUBMIT_REFUSED = 'submit-refused'
+
 const lookupAction = (
   queryClient: ReturnType<typeof useQueryClient>,
   widgetName: string | undefined,
   actionId: string | undefined,
-): { action: WidgetAction; resourcesRefs: ResourcesRefs } | null => {
+): { action: WidgetAction; resourcesRefs: ResourcesRefs } | typeof SUBMIT_REFUSED | null => {
   if (!widgetName || !actionId) {
     return null
   }
-  const entries = queryClient.getQueriesData<unknown>({ queryKey: ['widgets'] })
+  const entries = queryClient.getQueriesData<unknown>({ queryKey: ['widgets'], type: 'active' })
   for (const [, data] of entries) {
     const root = asRec(unwrapWidget(data))
     if (asRec(root?.metadata)?.name !== widgetName) {
@@ -89,6 +157,13 @@ const lookupAction = (
       }
       const list: unknown[] = arr
       const match = list.find((entry) => asRec(entry)?.id === actionId)
+      // A form's submit is refused outright; everything else is the ordinary press-the-button
+      // capability. No synthesized call, no partial dispatch — but reported as a REFUSAL rather
+      // than as a missing control, so the chip states the rule instead of a falsehood about the
+      // page.
+      if (match && !mayAgentDispatch(root, actionId)) {
+        return SUBMIT_REFUSED
+      }
       if (match) {
         const refs = asRec(status?.resourcesRefs) ?? asRec(spec?.resourcesRefs)
         return { action: match as WidgetAction, resourcesRefs: (refs ?? { items: [] }) as ResourcesRefs }
@@ -416,6 +491,14 @@ export const useAutopilotActionBridge = () => {
     // dispatcher's own modal.confirm is the binding HITL gate; the user confirms.
     if (proposal.verb === 'runAction') {
       const found = lookupAction(queryClient, proposal.widget, proposal.actionId)
+      if (found === SUBMIT_REFUSED) {
+        // The control exists and is mounted; the agent simply may not press it. Say that, so the
+        // person is told the rule rather than sent hunting for a button that is on their screen.
+        return refused(
+          'runAction',
+          `${proposal.actionId ?? 'that control'} submits ${proposal.widget ?? 'this form'} — Autopilot never submits. The form is filled; press the button to submit it.`,
+        )
+      }
       if (!found) {
         // A18: the unmounted-control case. lookupAction reports "no cached widget of that name
         // carries that action id", so the reason is worded as "no such control on this page" —

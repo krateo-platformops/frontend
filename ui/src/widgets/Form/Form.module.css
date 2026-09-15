@@ -379,3 +379,13 @@
   flex: 1 1 auto;
   min-width: 0;
 }
+
+/* The "Autopilot" provenance tag in the review step. Sized down and nudged so it reads as a
+   mark ON the field label rather than a second label beside it — the field name must stay the
+   thing the eye lands on. */
+.agentTag {
+  margin-inline-start: var(--spacing-xsm);
+  font-size: var(--krateo-text-label-xs);
+  line-height: 16px;
+  vertical-align: middle;
+}

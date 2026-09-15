@@ -187,3 +187,26 @@ describe('refused — A18: a verb that cannot act says so', () => {
     expect(refused('previewPage').verb).toBe('previewPage')
   })
 })
+
+/**
+ * A tripwire, in this file's existing structural style, because `lookupAction` is module-private
+ * and there is no seam to call.
+ *
+ * `getQueriesData` without a filter reads the WHOLE react-query cache, including entries whose
+ * widget has unmounted and is merely sitting out its gc window. "Find a REAL on-screen action"
+ * was therefore a claim the code did not enforce: the agent could drive a control on a page the
+ * user had navigated away from, and the write would land on something they were no longer
+ * looking at. `type: 'active'` restricts the scan to queries with a live observer.
+ *
+ * If you deliberately widen this, update the tripwire in the same commit and say why — but be
+ * aware you are widening what "the agent presses the control you can see" means.
+ */
+describe('the agent can only drive a control that is actually mounted', () => {
+  it('scopes the widget-cache lookup to ACTIVE queries', () => {
+    const bridge = railSource('actionBridge.ts')
+    const call = /getQueriesData<unknown>\(\{[^}]*\}\)/.exec(bridge)
+    expect(call, 'lookupAction no longer calls getQueriesData — re-point this tripwire').toBeTruthy()
+    expect(call![0]).toContain("queryKey: ['widgets']")
+    expect(call![0]).toContain("type: 'active'")
+  })
+})

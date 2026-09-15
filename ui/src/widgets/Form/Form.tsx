@@ -1,6 +1,6 @@
 import type { IconProp } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { Button, Descriptions, Form as AntdForm, Result, Space, Spin } from 'antd'
+import { Button, Descriptions, Form as AntdForm, Result, Space, Spin, Tag } from 'antd'
 import useApp from 'antd/es/app/useApp'
 import dayjs from 'dayjs'
 import type { JSONSchema4 } from 'json-schema'
@@ -17,7 +17,7 @@ import { useDrawerContext } from '../Drawer/DrawerContext'
 import styles from './Form.module.css'
 import type { Form as WidgetType } from './Form.type'
 import { SchemaForm } from './SchemaFields'
-import { getDefaultsFromSchema } from './utils'
+import { getDefaultsFromSchema, narrowAgentDraft } from './utils'
 
 export type FormWidgetData = WidgetType['spec']['widgetData']
 
@@ -131,16 +131,61 @@ const reviewFieldOrder = (key: string): number => {
   return 2
 }
 
-const ReviewSummary = ({ schema, values }: { schema?: JSONSchema4; values: Record<string, unknown> }): React.ReactNode => {
+/**
+ * The review step, with the fields Autopilot authored marked as such.
+ *
+ * WHY THE MARK MATTERS. "The agent fills, the human submits" is only a safeguard if the human
+ * can tell WHICH values came from the agent. Without it the review reads as the user's own
+ * form, and an agent-authored value is approved on the strength of a glance — the reviewer has
+ * no way to know which lines deserve a second look. The tag is the difference between review
+ * and rubber-stamp.
+ *
+ * `agentKeys` carries only the keys, never the values: what the agent proposed is already the
+ * value on screen, and the mark is about PROVENANCE, not content.
+ */
+/**
+ * Which fields in the review still hold the value Autopilot wrote?
+ *
+ * Not simply "which keys did the agent touch". A field the human CORRECTED after the agent filled
+ * it is the human's own, and marking it would over-claim in the other direction — so the mark is
+ * granted only while the submitted value still equals what the agent wrote. Compared by JSON
+ * shape because form values are plain scalars, arrays and objects.
+ */
+export const agentAuthoredKeys = (
+  authored: Record<string, unknown>,
+  values: Record<string, unknown>,
+): string[] => Object.keys(authored).filter((key) => {
+  if (!(key in values)) {
+    return false
+  }
+  try {
+    return JSON.stringify(values[key]) === JSON.stringify(authored[key])
+  } catch {
+    // a circular/unserialisable value: do not claim it
+    return false
+  }
+})
+
+export const ReviewSummary = ({ agentKeys, schema, values }: {
+  agentKeys?: readonly string[]
+  schema?: JSONSchema4
+  values: Record<string, unknown>
+}): React.ReactNode => {
+  const authored = new Set(agentKeys ?? [])
   const items = Object.entries(values)
     .filter(([key]) => key !== '__owner')
     .filter(([, value]) => value !== undefined && value !== null && value !== '' && !(Array.isArray(value) && value.length === 0))
     .sort(([keyA], [keyB]) => reviewFieldOrder(keyA) - reviewFieldOrder(keyB))
     .map(([key, value]) => {
       const node = schema?.properties?.[key]
-      const label = (typeof node?.title === 'string' && node.title) || key
+      const base = (typeof node?.title === 'string' && node.title) || key
+      const label = authored.has(key)
+        ? <span>{base} <Tag className={styles.agentTag} color='processing'>Autopilot</Tag></span>
+        : base
+
       return { children: formatReviewValue(value), key, label }
     })
+  const authoredCount = items.filter((item) => authored.has(item.key)).length
 
   return (
     <Descriptions
@@ -148,7 +193,9 @@ const ReviewSummary = ({ schema, values }: { schema?: JSONSchema4; values: Recor
       column={1}
       items={items}
       size='small'
-      title='Review — these values will create the composition'
+      title={authoredCount
+        ? `Review — these values will create the composition · Autopilot drafted ${authoredCount} of ${items.length}`
+        : 'Review — these values will create the composition'}
     />
   )
 }
@@ -183,7 +230,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
       }
     }
 
-    return schema as JSONSchema4 | undefined
+    return schema
   }, [schema, stringSchema])
   const { insideDrawer, setDrawerData } = useDrawerContext()
   const alreadySetDrawerData = useRef(false)
@@ -228,22 +275,18 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   // is told to use exact field names, but an invented or "closest-match" key would otherwise be held in
   // the form store by setFieldsValue while the chip still claims "drafted the form" — a value landing
   // nowhere. Apply only keys that are actual fields, so the draft can't mis-fill or silently vanish.
-  const safeAgentDraft = useMemo<Record<string, unknown> | undefined>(() => {
-    if (!agentDraft) {
-      return undefined
-    }
-    const props = jsonSchema?.properties
-    if (!props) {
-      return agentDraft
-    }
-    const out: Record<string, unknown> = {}
-    for (const [key, val] of Object.entries(agentDraft)) {
-      if (Object.prototype.hasOwnProperty.call(props, key)) {
-        out[key] = val
-      }
-    }
-    return out
-  }, [agentDraft, jsonSchema])
+  //
+  // AND NEVER A HIDDEN FIELD. `propertiesToHide` removes a property from the rendered form
+  // (SchemaForm `hide`), so a value the agent writes there is one the human cannot see, cannot
+  // correct, and does not know it is approving when they press submit. The whole premise of
+  // agent-fills-human-submits is that the human reviews what was filled; a field they were never
+  // shown is outside that review by construction. Dropped silently rather than refused: the
+  // model is not told which fields are hidden, so writing one is a mistake to absorb, not an
+  // attack to report — and the remaining fields still fill correctly.
+  const safeAgentDraft = useMemo<Record<string, unknown> | undefined>(
+    () => narrowAgentDraft(agentDraft, jsonSchema?.properties, propertiesToHide),
+    [agentDraft, jsonSchema, propertiesToHide],
+  )
 
   // Effective initial values = schema defaults < explicit initialValues < the resumed localStorage
   // draft < the Autopilot draft — the SAME object handed to <AntdForm initialValues> below. Factored
@@ -270,6 +313,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   // edited since (issue #33). The nonce guard keeps a genuinely-new draft applying (even over
   // dirty fields — the user asked Autopilot to fill the form) while refetches are inert.
   const appliedDraftNonceRef = useRef<number | null>(null)
+  // key -> the value Autopilot last wrote there. Read at review time to decide which fields carry
+  // the "Autopilot" mark; see the accumulation in the apply effect below.
+  const agentAuthoredRef = useRef<Record<string, unknown>>({})
   useEffect(() => {
     if (!safeAgentDraft || Object.keys(safeAgentDraft).length === 0) {
       return
@@ -279,6 +325,15 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
     }
     appliedDraftNonceRef.current = draftNonce
     form.setFieldsValue(safeAgentDraft)
+    // ACCUMULATE what the agent has authored, across every prefill in the thread — the provider
+    // REPLACES `agentDraft` on each prefillForm while `setFieldsValue` MERGES into the store, so
+    // turn 1's values are still in the form but absent from the latest draft. Marking only the
+    // latest draft under-marked: fields the agent chose were presented as the human's own, and
+    // under-marking is the unsafe direction for a control whose job is to make the difference
+    // between review and rubber-stamp. Multi-turn incremental prefill is the designed usage
+    // (useAutopilotContext keeps a mounted form's field inventory in the envelope every turn
+    // precisely so the model can fill it as the user names things).
+    agentAuthoredRef.current = { ...agentAuthoredRef.current, ...safeAgentDraft }
   }, [safeAgentDraft, draftNonce, form])
 
   // Refetch-vs-dirty-form reconciliation (issue #33). A live-refresh/event-driven refetch
@@ -492,7 +547,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
         </AntdForm>
       </div>
 
-      {reviewing && reviewValues ? <ReviewSummary schema={jsonSchema} values={reviewValues} /> : null}
+      {reviewing && reviewValues ? <ReviewSummary agentKeys={agentAuthoredKeys(agentAuthoredRef.current, reviewValues)} schema={jsonSchema} values={reviewValues} /> : null}
 
       <div className={styles.extra}>{footer}</div>
     </div>
