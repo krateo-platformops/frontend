@@ -48,3 +48,8 @@ ui/scripts/krateoctl-output/
 # binary diff on every lint change.
 __pycache__/
 *.pyc
+
+# Local build artifact — a ~10 MB Go binary that lives in the working tree of anyone who has
+# built the voice bridge. It was committed twice by `git add -A` before this entry existed
+# (once caught and unstaged, once not), so the rule is written down rather than remembered.
+voice-bridge/voice-bridge
