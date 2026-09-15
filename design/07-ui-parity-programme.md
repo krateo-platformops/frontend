@@ -106,7 +106,7 @@ Ordered so that nothing is removed before its replacement exists.
 |---|---|---|
 | **B0** | ~~Thread `origin` through `Form.tsx:403`; extend `stampAgentCreated` to PUT/PATCH~~ — **corrected, see below**; the real content folds into B1 | — |
 | **B1** | ~~`submitForm` verb~~ **cancelled by owner decision (§3)** — the agent never submits. Its four surviving gates **shipped**: mounted-control only, visible-fields only, confirm denies on silence, drafted-field summary | the whole model |
-| **B2** | Validation-without-apply: a chart-gate / `validate_manifest` **read** tool for widget and RESTAction CRs. **Blocked here** — the MCP server chart is not checked out. Note the never-submit decision *reduces* its urgency: the agent no longer writes, so the apiserver validates at the human's submit. It remains worth building to avoid wasting that human's time on an invalid draft | `frontend-agent`, `snowplow-agent` removal |
+| **B2** | Validation-without-apply — **BUILT.** `validate_manifest` in `config-refs-mcp-server`: checks an authored CR against the cluster's published OpenAPI schema with a GET. Deliberately **not** a dry-run — a dry-run is authorized exactly like a real create, so that shape would need `create` on every group it validates. Read-only by construction; bound to `frontend-agent` and `snowplow-agent` | `frontend-agent`, `snowplow-agent` removal |
 | **B3** | Render-preview widget kind (helm-render `/diff`-style RESTAction + sandbox render) — also replaces the rail-only preview gate. **Not started**; B4 and B5 shipped without it, so it is no longer a blocker, only an improvement | B4 |
 | **B4** | **Blueprint authoring + publish UI — the largest item.** Needs a repeatable-row / multi-file control; `SchemaFields` has no `Form.List`, so this is a **new widget kind** → the 4-piece release (frontend image + portal template + CRD + installer pin). The publish half reuses the existing `BuilderPublish` claim | closes the one real A1 gap |
 | **B5** | Widget-CR authoring form — **shipped**. Publishes one widget CR through the existing `BuilderPublish` claim; `widgetData` is a JSON-object field emitted one top-level key per line | agent page authoring |
@@ -166,6 +166,26 @@ Ordered so that nothing is removed before its replacement exists.
 
 > **B9 resolved three ways, only one of which was a build. Verified 2026-09-15.**
 >
+> **B2 is built, and the removal no longer carries a deferred cost.** The
+> `k8s_apply_manifest` removals from `frontend-agent` / `snowplow-agent` were landed with a
+> stated regression: those agents stopped validating the CRs they author, so an invalid draft
+> cost a human a round-trip. `validate_manifest` closes it — and closes it in the shape the
+> owner asked for, an ad-hoc tool rather than a flag on a general-purpose one.
+>
+> **The design decision worth keeping:** it is *not* a server-side dry-run. A dry-run is
+> authorized **exactly like a real create**, so a dry-run-based validator would need `create` on
+> every group it validates — handing the fleet back the write grant the sweep removed, with the
+> safety resting on a flag the caller could omit. It reads the cluster's published OpenAPI schema
+> instead: no write RBAC, and a test asserts the module's source contains no
+> `POST`/`PUT`/`PATCH`/`DELETE`/`dryRun`. Read-only by construction, not by configuration.
+>
+> It catches what a structural schema enforces — unknown fields (the widget CRDs are strict),
+> missing required, wrong types, enums — and its description, README and return value all say
+> what it does **not** catch (webhooks, quota, uniqueness, immutability), so a pass is never read
+> as a promise that the apply will succeed. Verified against krateo-057's live schemas, where it
+> caught a real rejection from this session and surfaced that `spec.widgetData.items` is
+> CRD-required on a Card.
+
 > - **Krateo `User` — was a real gap, now built.** Settings → Users listed accounts but could
 >   not create one, so provisioning was a kubectl step. Now a form creating the
 >   `kubernetes.io/basic-auth` Secret and the `User` CR as one gated set, Secret first.
