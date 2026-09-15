@@ -106,11 +106,16 @@ const RECONNECT_BACKOFF_JITTER = 0.25
  */
 const MAX_INFLIGHT_REFETCH = 6
 /**
- * Window over which a reconnect's re-validation is spread. The cap above bounds
- * concurrency; this bounds the ARRIVAL RATE, so a fleet reconnecting together does
- * not deliver its whole re-validation in one instant. (Design §10 decision 4.)
+ * Ceiling on the window a reconnect's re-validation is spread over: W = min(this, N × 300 ms).
+ *
+ * The cap above bounds concurrency; this bounds the ARRIVAL RATE, so a fleet reconnecting
+ * together does not deliver its whole re-validation in one instant. 30 s, not the 10 s an
+ * earlier revision of the design named: at 10 s the constant binds from 34 widgets up, so the
+ * self-adapting N × 300 ms term would stop engaging on exactly the dense pages it exists for,
+ * and fleet arrival would rise roughly threefold. This value is part of the published contract
+ * (snowplow#209, integration doc §9) — change the doc and the code together, or neither.
  */
-const REVALIDATE_SPREAD_MS = 10000
+const REVALIDATE_SPREAD_MS = 30000
 
 // ────────────────────────────────────────────────────────────────────────────
 // Pure helpers (exported for unit testing)
@@ -525,10 +530,23 @@ export class RefreshManager {
       // An expired token is not a transport fault, and treating it as one is why the gateway saw
       // 553 edge rejections in a single window: every attempt re-presents the SAME dead token,
       // fails, and backs off to the 30 s ceiling — forever, with no path back to a live stream.
-      // Raise the in-place session-resume modal instead (same call useWidgetQuery.ts:243-251
-      // makes, and concurrent raises coalesce into one). Deliberately NO scheduleRetry: on a
-      // successful re-auth the widgets re-arm and that re-opens the stream with a fresh token.
-      void raiseSessionExpired()
+      // Raise the in-place session-resume modal instead (the same call useWidgetQuery.ts:243-251
+      // makes, and concurrent raises coalesce into one). No scheduleRetry: retrying IS the defect.
+      //
+      // AND RE-OPEN THE STREAM OURSELVES on success. An earlier version stopped here, assuming
+      // re-auth would re-arm the widgets and that the re-arm would reconnect. It does not: the
+      // resume flow invalidates the queries and the widgets refetch, but recordRefreshHeaders
+      // deliberately returns the SAME entry object when the key has not changed (:214, and
+      // useWidgetLiveRefresh's docstring states it), so the arm hook's effect dependencies never
+      // change, arm() never re-runs, and connect() is never called again. That turned L13 from
+      // "loops forever and never works" into "stops looping and never works" — quieter, equally
+      // dead. The reconnect has to be explicit.
+      //
+      // `logout` needs nothing: the session is gone, so getAccessToken() throws and connect()
+      // returns early rather than opening a stream that would only 401 again.
+      void raiseSessionExpired().then((outcome) => {
+        if (outcome === 'resumed') { this.scheduleReconnect() }
+      }, () => undefined)
       return
     }
     if (!response.ok || !response.body) {
@@ -583,9 +601,14 @@ export class RefreshManager {
     const ids = [...this.armed.keys()]
     if (ids.length === 0) { return }
     const spread = Math.min(REVALIDATE_SPREAD_MS, ids.length * 300)
-    const step = ids.length > 1 ? spread / (ids.length - 1) : 0
-    ids.forEach((widgetId, index) => {
-      this.revalidateTimers.push(setTimeout(() => { this.scheduleRefetch(widgetId, false) }, Math.round(step * index)))
+    // Jittered per widget, not an evenly-spaced ramp. A ramp de-phases widgets WITHIN a tab but
+    // leaves every tab firing on the same grid, so a fleet that reconnected together still
+    // arrives in synchronised pulses — the very thing the spread exists to prevent, at finer
+    // granularity. Each widget takes an independent offset in [0, spread).
+    ids.forEach((widgetId) => {
+      this.revalidateTimers.push(setTimeout(() => {
+        this.scheduleRefetch(widgetId, false)
+      }, Math.round(Math.random() * spread)))
     })
   }
 
