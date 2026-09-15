@@ -30,9 +30,39 @@ The first pass could only measure Autopilot's side. This one diffed it against *
 
 ### A1 — Every capability Autopilot can reach has a control a user can reach without it — and the agent presses that control.
 
-**Status:** breached — **on both halves**
+**Status:** breached — **on both halves**. STILL OPEN, deliberately not flipped.
 
 Measured: the invariant holds for navigation, action-driving, form filling and both contested mutating verbs. It is breached for **publishing** — and breached structurally rather than by oversight. The three builder pages ship *zero* write widgets; their only call to action is a navigate into the rail. Autopilot is not a faster path to publishing, it is the only path.
+
+> **Re-measured 2026-09-15, and the breach is wider than the paragraph above says.** There is no
+> human-pressable Publish control *anywhere in the product*, not merely none on the builder pages —
+> not in the rail either. `previewSurface.tsx` renders a "Publishes to `<repo>`" tag and a Files tab
+> with per-file human editing, but no publish button; `publishTargetForm.tsx` is a destination
+> picker that opens *after* the model has already emitted the verb. The publish trigger is
+> exclusively a model-emitted `publishBlueprint`/`publishPage`/`publishRestDef` fence. Verified on
+> portal `origin/main` (`0d309f1`): each builder root holds a header Flex, an "Ask Autopilot →"
+> Button whose only action is `navigate` to `?ask=`, and 1–2 read-only Tables — and
+> `allowedResources: [flexes, tables]` means a Form cannot be mounted there without a CRD edit.
+>
+> **The closure gate**, so this cannot be flipped by something that only makes the sentence true:
+> *can a user who never opens the rail author and publish a page?* Today: no. A Publish button
+> inside the rail, a Form over `BuilderPublish`, or another `?ask=` link each leave that answer
+> unchanged, and none of them closes A1.
+>
+> **What genuine closure needs**, scoped rather than started: the published bytes currently live in
+> `blueprintDraftStore` — provider-owned, conversation-scoped, cleared on `newThread` — so a page
+> widget has nothing to read. Half one therefore needs durable drafts plus a page-mounted publish
+> Form, across the frontend store, the portal chart and the widget CRD's `allowedResources`, and it
+> forces a decision on `AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER` (a UI control wants the single
+> `BuilderPublish` claim, not the 3-kind github op set, and flipping that changes the publish path
+> for every existing install). Half two — *the agent presses that control* — additionally needs a
+> primitive that can submit a Form, and today's safety story rests on Autopilot never submitting.
+> That is a policy change against the standing "Autopilot drives UI only" rule and is an owner's
+> call, not an implementer's.
+>
+> Recorded as open on purpose. The board has already been burned once by markers that said fixed
+> while the defect stood (portal#263, 15 of them); this rule is the most expensive place that could
+> happen again.
 
 The distinction the first audit drew still holds and is worth keeping: every individual Autopilot write routes through the identical confirm, blast-radius and provenance fabric a Button click uses.
 
@@ -61,12 +91,19 @@ exactly one write path to audit.
     runAction          drives a control: YES   compiles its own ops: no
     patchField         drives a control: no    compiles its own ops: YES
     applyResourceSet   drives a control: no    compiles its own ops: YES
-    previewPage (v2)   drives a control: no    compiles its own ops: YES
 
 `runAction` is the compliant shape: `lookupAction` finds a REAL mounted control and dispatches it
 through the SAME `useHandleAction` the button uses — never a synthesized call.
 
-The other three are **honoured in safety but not in structure**. They are not bypassing anything —
+> **`previewPage` (v2) is deliberately NOT in this table.** It compiles its own ops and drives no
+> control, but the top table files the preview family under *by design — tooling that grounds the
+> model's own generation*, and that classification is the right one: preview is the agent showing
+> its work on drafts it just generated, not a capability a user would reach independently. There is
+> nothing for it to drive. An earlier revision listed it here and called these "the other three",
+> which contradicted both `:21` and the prose below that has always said two. Half (b) is
+> `patchField` and `applyResourceSet`.
+
+The other two are **honoured in safety but not in structure**. They are not bypassing anything —
 every op goes through `handleAction`/`handleActionSet` and hits the identical gate, diff, stamp and
 RBAC. But no control is being pressed, and that is the point of the rule: the guarantees are supposed
 to come from the control, not from three separate compilers each remembering to ask for them.
