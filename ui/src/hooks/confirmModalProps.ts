@@ -127,7 +127,9 @@ export const confirmWithTimeout = (
     onSettled?.()
     resolve(value)
   }
-  const instance = open(() => { settle(true) }, () => { settle(false) })
+  const onOk = () => { settle(true) }
+  const onCancel = () => { settle(false) }
+  const instance = open(onOk, onCancel)
   if (!settled) {
     timer = setTimeout(() => {
       instance.destroy()
