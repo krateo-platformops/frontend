@@ -13,7 +13,7 @@ import { getUserInfo } from '../utils/getUserInfo'
 import { raiseSessionExpired } from '../utils/sessionResume'
 
 import type { WatchMatcher } from './liveRefresh'
-import { getRefreshEntry, isWidgetLiveRefreshEnabled, recordRefreshHeaders } from './refreshSse'
+import { getRefreshEntry, isWidgetLiveRefreshEnabled, recordRefreshHeaders, wasRefetchEventTriggered } from './refreshSse'
 import { useLiveWatch } from './useLiveRefresh'
 import { useWidgetLiveRefresh } from './useWidgetLiveRefresh'
 
@@ -77,10 +77,25 @@ export const MAX_WIDGET_FETCH_RETRIES = 3
  * keeps the skeleton up until the cache warms; a genuinely-missing widget still
  * surfaces the error once the retries are exhausted. The other 4xx (400 bad
  * request, 401 auth, 403 forbidden) stay permanent — retrying them never helps.
+ *
+ * `eventTriggered` (#256) is the ONE exception, and it inverts only the 404 case. When the
+ * refetch was triggered by a `refresh` frame, snowplow has just told us this object changed —
+ * and from snowplow 1.12.6 a DELETE-semantics eviction publishes such a frame. A 404 answering
+ * THAT is a confirmed delete, not a cold informer: the retries cannot discover anything new, and
+ * at MAX_WIDGET_FETCH_RETRIES=3 with 700/1400/2800 ms backoff they cost 4 requests and ~4.9 s per
+ * widget. On a bulk delete across a dense page that is a fourfold amplification of the very burst
+ * the server's token bucket exists to pace. The render state for it already exists
+ * (WidgetRenderer's WidgetNotFound), so failing fast shows the right thing sooner AND cheaper.
+ *
+ * The flag is read from the refresh transport through a single exported boolean
+ * (`wasRefetchEventTriggered`) so this predicate stays pure and knows nothing about the stream.
  */
-export const shouldRetryWidgetFetch = (failureCount: number, error: unknown): boolean => {
+export const shouldRetryWidgetFetch = (failureCount: number, error: unknown, eventTriggered = false): boolean => {
   const status = (error as { status?: number } | null)?.status
   if (typeof status === 'number' && status >= 400 && status < 500 && status !== 404) {
+    return false
+  }
+  if (status === 404 && eventTriggered) {
     return false
   }
   return failureCount < MAX_WIDGET_FETCH_RETRIES
@@ -278,7 +293,9 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
     // Override the global `retry: false` for widget data: a backend that is not
     // ready yet should keep showing a loading state and retry, not flash the
     // error "red cross" on first paint. See shouldRetryWidgetFetch.
-    retry: shouldRetryWidgetFetch,
+    // Evaluated at failure time, not render time: the flag is only true while a frame-triggered
+    // refetch is actually in flight, which is exactly the window this decision belongs to.
+    retry: (failureCount: number, error: unknown) => shouldRetryWidgetFetch(failureCount, error, wasRefetchEventTriggered(widgetId)),
     retryDelay: widgetFetchRetryDelay,
     initialPageParam: {
       page: initialPage,

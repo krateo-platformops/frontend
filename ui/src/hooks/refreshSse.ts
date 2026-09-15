@@ -32,14 +32,29 @@
  * incoming events by the `X-Snowplow-Refresh-Key` response header. Both resolve
  * to the same `l1Key`.
  *
- * Gated behind a config feature flag (default OFF): a snowplow that predates the
+ * Gated behind a config feature flag that is **ON by default**
+ * (`WIDGET_LIVE_REFRESH_ENABLED !== false`, see isWidgetLiveRefreshEnabled below):
+ * an install opts OUT, it does not opt in. A snowplow that predates the
  * `X-Snowplow-Refresh-Class` header (commit a945763) simply never stamps the
- * headers, so nothing arms — but we keep the flag off by default until the
- * deployed snowplow is confirmed to carry it.
+ * headers, so nothing arms and the stream idles harmlessly — but on every current
+ * install this path IS live, which is why the delivery defects it used to carry
+ * were live too. (This comment said "default OFF" until #256; it was stale against
+ * the flag's own doc and made the blast radius look smaller than it is.)
+ *
+ * ── Delivery hardening (#256, snowplow 1.12.6 item 7) ────────────────────────
+ * Snowplow now publishes a paced `refresh` frame on DELETE-semantics eviction, so
+ * the browser half has to hold up its end. Four things follow, and they are all in
+ * this file: a frame arriving inside the throttle window is DEFERRED rather than
+ * dropped (the last change used to be lost); every refetch — event-driven or
+ * re-validation — passes through ONE bounded queue, so no trigger can burst the
+ * tab; a 401 re-authenticates instead of retrying to the 30 s ceiling forever; and
+ * a reconnect re-validates the armed set, because frames published while we were
+ * disconnected are gone (snowplow deliberately offers no replay).
  */
 
 import type { Config } from '../context/ConfigContext'
 import { getAccessToken } from '../utils/getAccessToken'
+import { raiseSessionExpired } from '../utils/sessionResume'
 
 // ────────────────────────────────────────────────────────────────────────────
 // Protocol types
@@ -75,6 +90,27 @@ const RECONNECT_DEBOUNCE_MS = 200
 /** Capped exponential backoff between fetch-SSE reconnect attempts. */
 const RECONNECT_BACKOFF_BASE_MS = 1000
 const RECONNECT_BACKOFF_MAX_MS = 30000
+/**
+ * ±25 % jitter on that backoff. Without it a fleet of tabs that lost the stream
+ * together — a snowplow rollout, a gateway blip — retries in lockstep forever,
+ * turning one outage into a synchronised thundering herd on every subsequent
+ * attempt. (Design §10 decision 4.)
+ */
+const RECONNECT_BACKOFF_JITTER = 0.25
+/**
+ * Global cap on concurrent widget refetches for the whole tab. The browser gives
+ * none worth relying on: the transport is HTTP/2, which removes the old ~6
+ * connections-per-host limit, so an eviction burst or a reconnect re-validation on
+ * a dense page would otherwise fire as many parallel `/call`s as there are armed
+ * widgets. (Design §10 decision 2.)
+ */
+const MAX_INFLIGHT_REFETCH = 6
+/**
+ * Window over which a reconnect's re-validation is spread. The cap above bounds
+ * concurrency; this bounds the ARRIVAL RATE, so a fleet reconnecting together does
+ * not deliver its whole re-validation in one instant. (Design §10 decision 4.)
+ */
+const REVALIDATE_SPREAD_MS = 10000
 
 // ────────────────────────────────────────────────────────────────────────────
 // Pure helpers (exported for unit testing)
@@ -240,14 +276,36 @@ export class RefreshManager {
   private readonly armed = new Map<string, RefreshCoords>()
   private readonly keyToWidgets = new Map<string, Set<string>>()
   private readonly refetchById = new Map<string, Refetch>()
-  private readonly lastRefetch = new Map<string, number>()
+  /**
+   * Per-widget throttle window. `timer` runs for REFRESH_THROTTLE_MS after a leading-edge
+   * refetch; `pending` records that at least one frame arrived inside it. Replaces the old
+   * `lastRefetch` timestamp, which could only DROP a frame in the window — see scheduleRefetch.
+   */
+  private readonly throttle = new Map<string, { pending: boolean; timer: ReturnType<typeof setTimeout> | undefined }>()
+  /** FIFO of widgetIds waiting for a refetch slot, and the number currently in flight. */
+  private readonly queue: string[] = []
+  private inFlight = 0
+  /** Widgets whose CURRENT refetch was triggered by a `refresh` frame — see wasRefetchEventTriggered. */
+  private readonly eventTriggered = new Set<string>()
+  /** Timers for a reconnect's staggered re-validation, so reset()/a newer reconnect can cancel them. */
+  private revalidateTimers: ReturnType<typeof setTimeout>[] = []
   private baseUrl = ''
   private controller: AbortController | undefined
   private reconnectTimer: ReturnType<typeof setTimeout> | undefined
   private retryTimer: ReturnType<typeof setTimeout> | undefined
   private retryAttempt = 0
-
-  constructor(private readonly now: () => number = () => Date.now()) {}
+  /**
+   * Set ONLY by scheduleRetry — i.e. by a real transport loss or a server idle-close — and
+   * consumed by the next successful connect.
+   *
+   * NOT set by scheduleReconnect. That path fires on every arm/disarm, and arm/disarm abort and
+   * re-open the stream on every widget mount, so re-validating there would burst the armed set on
+   * every page navigation: the exact amplification this work exists to remove, triggered by
+   * routine use instead of by a fault. The distinction is cause, not "is this the first connect".
+   */
+  private revalidateOnConnect = false
+  /** One truncation warning per stream open, not one per armed widget. */
+  private warnedTruncation = false
 
   /** Point the manager at the snowplow base URL (idempotent; set on first arm). */
   configure(baseUrl: string): void { this.baseUrl = baseUrl }
@@ -274,9 +332,20 @@ export class RefreshManager {
   private disarm(widgetId: string): void {
     this.armed.delete(widgetId)
     this.refetchById.delete(widgetId)
-    this.lastRefetch.delete(widgetId)
+    this.clearThrottle(widgetId)
+    this.eventTriggered.delete(widgetId)
+    // A queued refetch for an unmounted widget must not run: pump() re-checks refetchById, but
+    // dropping it here keeps the queue from growing with dead ids on a page that churns widgets.
+    const queued = this.queue.indexOf(widgetId)
+    if (queued !== -1) { this.queue.splice(queued, 1) }
     this.removeFromKeyIndex(widgetId)
     this.scheduleReconnect()
+  }
+
+  private clearThrottle(widgetId: string): void {
+    const state = this.throttle.get(widgetId)
+    if (state?.timer) { clearTimeout(state.timer) }
+    this.throttle.delete(widgetId)
   }
 
   /**
@@ -296,18 +365,91 @@ export class RefreshManager {
     })
   }
 
-  /** Look up the widget(s) for an `l1Key` and refetch each, throttled per widget. */
+  /** Look up the widget(s) for an `l1Key` and refetch each, coalesced per widget. */
   dispatchRefresh(l1Key: string): void {
     const widgets = this.keyToWidgets.get(l1Key)
     if (!widgets) { return }
-    const now = this.now()
-    widgets.forEach((widgetId) => {
-      // Default to -Infinity (not 0) so a widget's FIRST refresh always fires the
-      // leading edge regardless of the clock's absolute value.
-      if (now - (this.lastRefetch.get(widgetId) ?? Number.NEGATIVE_INFINITY) < REFRESH_THROTTLE_MS) { return }
-      this.lastRefetch.set(widgetId, now)
-      this.refetchById.get(widgetId)?.()
-    })
+    widgets.forEach((widgetId) => { this.scheduleRefetch(widgetId, true) })
+  }
+
+  /**
+   * Leading-edge refetch, then one TRAILING catch-up if more frames arrive inside the window.
+   *
+   * The previous shape compared a timestamp and RETURNED on a frame inside the window — the
+   * change that frame announced was simply lost, and since snowplow offers no replay it was lost
+   * permanently. That is the wrong trade for a signal that means "the data you are showing is
+   * out of date": suppressing the REFETCH is right, suppressing the FACT is not. Same coalescing
+   * shape as liveRefresh.ts:92-109 one file over, which had it right all along.
+   *
+   * `fromFrame` distinguishes an event-driven refetch from a reconnect re-validation; only the
+   * former makes a 404 a confirmed delete (see wasRefetchEventTriggered).
+   */
+  private scheduleRefetch(widgetId: string, fromFrame: boolean): void {
+    const state = this.throttle.get(widgetId)
+    if (state?.timer) {
+      state.pending = true
+      return
+    }
+    this.enqueueRefetch(widgetId, fromFrame)
+    const entry: { pending: boolean; timer: ReturnType<typeof setTimeout> | undefined } = { pending: false, timer: undefined }
+    entry.timer = setTimeout(() => {
+      entry.timer = undefined
+      this.throttle.delete(widgetId)
+      // Re-enter rather than refetching inline: the trailing catch-up opens its own window, so a
+      // continuously-changing object settles at one refetch per window instead of two per window.
+      if (entry.pending) { this.scheduleRefetch(widgetId, fromFrame) }
+    }, REFRESH_THROTTLE_MS)
+    this.throttle.set(widgetId, entry)
+  }
+
+  /**
+   * THE one place a refetch is started. Both triggers — a `refresh` frame and a reconnect
+   * re-validation — go through this queue, so the MAX_INFLIGHT_REFETCH cap wraps them jointly.
+   * Two separate caps would not bound the sum, and a stagger beside an unbounded queue only
+   * spreads a burst rather than limiting it.
+   */
+  private enqueueRefetch(widgetId: string, fromFrame: boolean): void {
+    if (fromFrame) { this.eventTriggered.add(widgetId) }
+    if (!this.queue.includes(widgetId)) { this.queue.push(widgetId) }
+    this.pump()
+  }
+
+  private pump(): void {
+    while (this.inFlight < MAX_INFLIGHT_REFETCH && this.queue.length > 0) {
+      const widgetId = this.queue.shift()
+      if (widgetId === undefined) { return }
+      const refetch = this.refetchById.get(widgetId)
+      if (!refetch) {
+        // Disarmed while queued — drop it and take the next, without burning a slot.
+        this.eventTriggered.delete(widgetId)
+        continue
+      }
+      this.inFlight += 1
+      // Refetch returns `unknown` (react-query hands back a promise; a test may hand back
+      // nothing), so normalize before settling. A rejection is the query's business, not ours —
+      // we only need the slot back.
+      void Promise.resolve(refetch())
+        .catch(() => undefined)
+        .finally(() => {
+          this.inFlight -= 1
+          this.eventTriggered.delete(widgetId)
+          this.pump()
+        })
+    }
+  }
+
+  /**
+   * Whether `widgetId`'s in-flight refetch was triggered by a `refresh` frame.
+   *
+   * Read by the widget query's retry predicate, and deliberately the ONLY thing it needs to know
+   * about this manager. A 404 is normally transient — a cold informer right after page load
+   * answers 404 for a widget that does exist — so the query retries it. But a frame-triggered
+   * refetch is answering an eviction snowplow just published, and there a 404 is a CONFIRMED
+   * delete: retrying it three times costs four requests per widget and amplifies a bulk delete
+   * fourfold, to reach the same answer.
+   */
+  isEventTriggered(widgetId: string): boolean {
+    return this.eventTriggered.has(widgetId)
   }
 
   private scheduleReconnect(): void {
@@ -323,6 +465,7 @@ export class RefreshManager {
     this.controller?.abort()
     this.controller = undefined
     this.clearRetryTimer()
+    this.warnedTruncation = false
 
     const coords = this.subCoords()
     if (coords.length === 0 || !this.baseUrl) { return }
@@ -342,15 +485,27 @@ export class RefreshManager {
     void this.stream(`${this.baseUrl}/refreshes?sub=${sub}`, token, controller)
   }
 
-  /** The armed coords, capped to snowplow's limits (logging what was dropped). */
+  /** The armed coords, capped to snowplow's limits (warning about what was dropped). */
   private subCoords(): RefreshCoords[] {
     let coords = [...this.armed.values()]
     if (coords.length > MAX_WIDGETS) {
       console.warn(`[live-refresh] ${coords.length} widgets armed > ${MAX_WIDGETS} cap; dropping ${coords.length - MAX_WIDGETS} from the subscription`)
       coords = coords.slice(0, MAX_WIDGETS)
     }
+    // THE BYTE CAP BITES LONG BEFORE THE COUNT CAP, and it used to bite in silence. A coordinate
+    // is ~170-330 B depending on extras, so 16 KiB holds roughly 49-86 of them — far under
+    // MAX_WIDGETS=512. A page denser than that lost its TAIL widgets from the subscription with
+    // no warning: they render, they look live, and they never refresh. Nobody could tell whether
+    // this bound was being hit in the field, so say it out loud, with the count, once per stream
+    // open (not once per widget). Raising the constant or shrinking the payload is a separate
+    // change — this exists to find out whether either is needed.
+    const armedCount = coords.length
     while (coords.length > 1 && JSON.stringify(coords).length > MAX_SUB_BYTES) {
       coords.pop()
+    }
+    if (coords.length < armedCount && !this.warnedTruncation) {
+      this.warnedTruncation = true
+      console.warn(`[live-refresh] subscription truncated by the ${MAX_SUB_BYTES}-byte cap: ${coords.length} of ${armedCount} armed widgets are subscribed; the remaining ${armedCount - coords.length} will render but never live-refresh`)
     }
     return coords
   }
@@ -366,12 +521,28 @@ export class RefreshManager {
       this.scheduleRetry(controller)
       return
     }
+    if (response.status === 401) {
+      // An expired token is not a transport fault, and treating it as one is why the gateway saw
+      // 553 edge rejections in a single window: every attempt re-presents the SAME dead token,
+      // fails, and backs off to the 30 s ceiling — forever, with no path back to a live stream.
+      // Raise the in-place session-resume modal instead (same call useWidgetQuery.ts:243-251
+      // makes, and concurrent raises coalesce into one). Deliberately NO scheduleRetry: on a
+      // successful re-auth the widgets re-arm and that re-opens the stream with a fresh token.
+      void raiseSessionExpired()
+      return
+    }
     if (!response.ok || !response.body) {
       this.scheduleRetry(controller)
       return
     }
     // Connected cleanly — reset the reconnect backoff.
     this.retryAttempt = 0
+    // Frames published while we were disconnected are GONE: the server keeps no replay and the
+    // handler sends no ids, so nothing will re-deliver them. Re-validate what we had armed.
+    if (this.revalidateOnConnect) {
+      this.revalidateOnConnect = false
+      this.revalidateArmed()
+    }
 
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
@@ -394,11 +565,45 @@ export class RefreshManager {
     this.scheduleRetry(controller)
   }
 
+  /**
+   * Re-fetch every armed widget once, spread over W = min(30 s, N × 300 ms).
+   *
+   * The cap (MAX_INFLIGHT_REFETCH) bounds how many run AT ONCE; this bounds how fast they ARRIVE.
+   * Both are needed and they are not substitutes: without the spread a fleet that reconnects
+   * together delivers its whole re-validation in one instant, six-at-a-time per tab but all tabs
+   * at the same instant. Jitter on the backoff alone is a sub-second window and does not
+   * meaningfully de-phase that.
+   *
+   * These go through the SAME queue as frame-driven refetches, with fromFrame=false: a 404 during
+   * re-validation is not evidence of a delete (we may simply have reconnected mid-rollout), so it
+   * must stay retryable.
+   */
+  private revalidateArmed(): void {
+    this.clearRevalidateTimers()
+    const ids = [...this.armed.keys()]
+    if (ids.length === 0) { return }
+    const spread = Math.min(REVALIDATE_SPREAD_MS, ids.length * 300)
+    const step = ids.length > 1 ? spread / (ids.length - 1) : 0
+    ids.forEach((widgetId, index) => {
+      this.revalidateTimers.push(setTimeout(() => { this.scheduleRefetch(widgetId, false) }, Math.round(step * index)))
+    })
+  }
+
+  private clearRevalidateTimers(): void {
+    this.revalidateTimers.forEach((timer) => { clearTimeout(timer) })
+    this.revalidateTimers = []
+  }
+
   private scheduleRetry(controller: AbortController): void {
     // Only the current, non-aborted stream may schedule a reconnect.
     if (controller.signal.aborted || this.controller !== controller) { return }
     if (this.retryTimer) { return }
-    const delay = Math.min(RECONNECT_BACKOFF_BASE_MS * 2 ** this.retryAttempt, RECONNECT_BACKOFF_MAX_MS)
+    // A retry means the stream genuinely dropped (transport error or server idle-close), so the
+    // next connect owes the armed set a re-validation. Set here, NOT in scheduleReconnect.
+    this.revalidateOnConnect = true
+    const base = Math.min(RECONNECT_BACKOFF_BASE_MS * 2 ** this.retryAttempt, RECONNECT_BACKOFF_MAX_MS)
+    // ±25 % so a fleet that dropped together does not retry in lockstep.
+    const delay = Math.round(base * (1 - RECONNECT_BACKOFF_JITTER + Math.random() * 2 * RECONNECT_BACKOFF_JITTER))
     this.retryAttempt += 1
     this.retryTimer = setTimeout(() => {
       this.retryTimer = undefined
@@ -426,11 +631,20 @@ export class RefreshManager {
     this.controller = undefined
     this.clearReconnectTimer()
     this.clearRetryTimer()
+    this.clearRevalidateTimers()
+    this.throttle.forEach((state) => {
+      if (state.timer) { clearTimeout(state.timer) }
+    })
+    this.throttle.clear()
     this.armed.clear()
     this.keyToWidgets.clear()
     this.refetchById.clear()
-    this.lastRefetch.clear()
+    this.eventTriggered.clear()
+    this.queue.length = 0
+    this.inFlight = 0
     this.retryAttempt = 0
+    this.revalidateOnConnect = false
+    this.warnedTruncation = false
   }
 }
 
@@ -446,3 +660,14 @@ export const refreshManager = new RefreshManager()
  * is disabled, the response wasn't cache-keyed, or the widget hasn't armed yet.
  */
 export const isWidgetArmed = (widgetId: string): boolean => refreshManager.isArmed(widgetId)
+
+/**
+ * Whether this widget's in-flight refetch was triggered by a `refresh` frame rather than by a
+ * mount, a re-validation or a user action.
+ *
+ * This is the whole contract between the refresh transport and the widget query's retry policy —
+ * deliberately one boolean, so the retry predicate needs to know nothing about the manager's
+ * internals and a test can assert the single-request-on-eviction behaviour against it directly.
+ * See RefreshManager.isEventTriggered for why a 404 means different things on the two paths.
+ */
+export const wasRefetchEventTriggered = (widgetId: string): boolean => refreshManager.isEventTriggered(widgetId)
