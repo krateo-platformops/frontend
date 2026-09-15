@@ -775,6 +775,12 @@ def rule_root_coverage(crs):
     out = []
     for fname, doc in widget_crs(crs):
         name = ((doc.get('metadata') or {}).get('name') or '')
+        # The `page-` prefix alone is too loose a proxy: it fired on `page-compose` (a Form) and
+        # `page-compose-card` (a Card) — CRs that describe a page-composing FEATURE, not a page.
+        # Every one of the 31 real page roots is a vertical container, so require the kind too.
+        # A false positive is how a rule gets switched off, and this one found its own on first use.
+        if doc.get('kind') not in ('Flex', 'Col'):
+            continue
         if not name.startswith('page-') or name in reachable:
             continue
         out.append((fname, f'`{name}` looks like a page root but no nav entry reaches it, so P9 and '
