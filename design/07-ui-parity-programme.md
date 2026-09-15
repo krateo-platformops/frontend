@@ -135,15 +135,24 @@ Ordered so that nothing is removed before its replacement exists.
 >
 > **Sweep result — eight ungated write paths, not four.** Linting all of krateo-agentiko found:
 > `installer-agent` `helm_upgrade` + `helm_repo_add` + `helm_repo_update`; `frontend-agent` and
-> `snowplow-agent` `k8s_apply_manifest`; and three codegen agents holding `create_or_update_file`
-> **and `push_files`** against GitHub. The lint had never seen any of them — it globbed only
+> `snowplow-agent` `k8s_apply_manifest`; and three codegen agents (**parked**, see below) holding
+> `create_or_update_file` **and `push_files`** against GitHub. The lint had never seen any of them — it globbed only
 > `chart/templates/*.yaml`, so it covered the autopilot chart and nothing else. It now globs all
 > three fleet layouts and takes explicit roots: **45 templates clean**.
 >
-> **Every mutating Kubernetes and Helm tool is now gone from all six specialist agents.** The git
-> writes are **gated, not removed** — generating a project into a repository is what the codegen
-> agents are for, and git writes were never in the directive's scope. That they bypass the
-> change-request path the rest of the platform publishes through is a live scope question.
+> **Every mutating Kubernetes and Helm tool is now gone from all six specialist agents.**
+>
+> **The codegen agents are PARKED — owner decision, 2026-09-16.** They are not deployed on
+> krateo-057 (no `Agent` CR) and are **not among the installer's 46 components**, so they are not
+> part of this platform today and gating a chart nobody runs buys nothing. The gating commit
+> exists on a local branch in `krateo-agentiko/codegen-agents` and is deliberately **not** being
+> pushed or landed; the finding stands recorded here so it is not rediscovered.
+>
+> If they are ever adopted, two things come with them: `create_or_update_file` and `push_files`
+> commit **straight to a repository**, bypassing the change-request path the rest of the platform
+> publishes through, and the only restraint today is a sentence in each prompt. Gating them is the
+> floor; the real question is whether a codegen agent should write to git at all rather than open
+> a change request like every other publish path. **That question is deferred, not answered.**
 >
 > **Consequence — `hitlApproval` is now a dead knob (owner's observation, confirmed).** Grep finds
 > **zero template references** to it anywhere in the fleet: with no mutating tool left, there is
