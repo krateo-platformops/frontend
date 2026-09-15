@@ -200,6 +200,14 @@ export const buildPayload = async (
 /** Per-invocation data for an action (the widget instance it fires from). */
 export interface ActionRuntime {
   resourcesRefs: ResourcesRefs
+  /**
+   * X2 — ids the RBAC filter removed from `resourcesRefs.items`, exactly as
+   * `WidgetProps.deniedRefIds` carries them for rendering. Without it this path cannot tell a
+   * DENIED ref from a TYPO'D one: the filter has already made them byte-identical, both simply
+   * absent. WidgetRenderer got the distinction; the action path did not, so every denial was
+   * reported as a broken widget definition — blaming the author for the viewer's permissions.
+   */
+  deniedRefIds?: string[]
   customPayload?: Record<string, unknown>
   widget?: Widget
   /** W0-3 origin tag: who initiated the write. Absent = a hand-clicked control ({actor:'human'});
@@ -642,9 +650,20 @@ export const dispatchAction = async (action: WidgetAction, runtime: ActionRuntim
 
   if (!resourceRef) {
     ctx.message.destroy()
-    ctx.notification.error({
-      description: `The widget definition does not include a resource reference for resource (ID: ${action.resourceRefId})`,
-      message: 'Error while executing the action',
+    // X2 — a denial is not a defect. The ref may be absent because the author never declared it
+    // (a real authoring error, and the author's to fix) or because RBAC removed it for THIS viewer
+    // (nothing is wrong, and nothing the viewer can fix). Reporting the second as the first blames
+    // the author for the viewer's permissions and sends people hunting a typo that is not there.
+    //
+    // Deliberately says only that the action is not permitted, never which resource was withheld:
+    // naming it would leak the existence of something outside the viewer's scope, which is the
+    // same reason a denied child renders as absence rather than as an announcement.
+    const denied = !!action.resourceRefId && !!runtime.deniedRefIds?.includes(action.resourceRefId)
+    ctx.notification[denied ? 'warning' : 'error']({
+      description: denied
+        ? 'You do not have permission to perform this action.'
+        : `The widget definition does not include a resource reference for resource (ID: ${action.resourceRefId})`,
+      message: denied ? 'Action not permitted' : 'Error while executing the action',
       placement: 'bottomLeft',
     })
 
@@ -760,9 +779,13 @@ export const useHandleAction = () => {
     widget?: Widget,
     // W0-3 origin tag — omitted by every widget call site (default {actor:'human'});
     // only the Autopilot bridge passes an agent origin.
-    origin?: WriteOrigin
+    origin?: WriteOrigin,
+    // X2 — the caller's `deniedRefIds` prop. Optional so a call site that has none behaves exactly
+    // as before: an absent ref is still reported as a broken definition, which is correct when
+    // nothing was filtered.
+    deniedRefIds?: string[]
   ) => {
-    await dispatchAction(action, { customPayload, origin, resourcesRefs, widget }, buildCtx())
+    await dispatchAction(action, { customPayload, deniedRefIds, origin, resourcesRefs, widget }, buildCtx())
   }
 
   /**

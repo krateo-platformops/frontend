@@ -165,7 +165,7 @@ const ReviewSummary = ({ schema, values }: { schema?: JSONSchema4; values: Recor
  * stays mounted (hidden) so "Back to edit" keeps every value, and the final Review-step
  * button runs the same submit action. Default (flag off) is unchanged.
  */
-const Form = ({ resourcesRefs, widget, widgetData }: WidgetProps<FormWidgetData>) => {
+const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<FormWidgetData>) => {
   const { actions, buttonConfig, disabled, draftActionId, initialValues, items, layout, propertiesToHide, reviewBeforeSubmit, schema, size, stringSchema, submitActionId, submitActionSelector, submitDisabledWhenPristine } = widgetData
   // Prefer `stringSchema` (the schema as a raw JSON STRING) when present: `JSON.parse`
   // preserves the object's key insertion order, so a server that hands us the blueprint's
@@ -400,7 +400,7 @@ const Form = ({ resourcesRefs, widget, widgetData }: WidgetProps<FormWidgetData>
 
     const values = convertDayjsToISOString(formValues)
 
-    await handleAction(effectiveAction, resourcesRefs, values, widget)
+    await handleAction(effectiveAction, resourcesRefs, values, widget, undefined, deniedRefIds)
   }
 
   // On a validated submit: with review-before-submit on and still editing, capture the

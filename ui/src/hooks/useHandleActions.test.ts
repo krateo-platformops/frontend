@@ -234,7 +234,7 @@ const makeCtx = (over: Partial<ActionContext> = {}): ActionContext => ({
   invalidateQueries: vi.fn(() => Promise.resolve()),
   message: { destroy: vi.fn(), loading: vi.fn() } as unknown as ActionContext['message'],
   navigate: vi.fn(),
-  notification: { error: vi.fn(), success: vi.fn() } as unknown as ActionContext['notification'],
+  notification: { error: vi.fn(), success: vi.fn(), warning: vi.fn() } as unknown as ActionContext['notification'],
   openDrawer: vi.fn(),
   openModal: vi.fn(),
   provenanceEnabled: false,
@@ -249,6 +249,49 @@ const refs = (items: ResourcesRefs['items']): ResourcesRefs => ({ items })
 const postRef = { allowed: true, id: 'ref', path: '/api/x', payload: {}, verb: 'POST' as const }
 const fakeResponse = (ok: boolean, body: string): Response =>
   ({ ok, text: () => Promise.resolve(body) } as unknown as Response)
+
+describe('X2 — a denied action ref is not a broken widget definition', () => {
+  /**
+   * The rule is that "denied", "not found" and "broken" stay distinguishable. RBAC filters
+   * `resourcesRefs.items` BEFORE this path sees it, so a denied ref and a typo'd one are
+   * byte-identical here — both simply absent. WidgetRenderer was given `deniedRefIds` to tell
+   * them apart; this path was not, so every denial was reported as a broken widget definition:
+   * the author blamed for the viewer's permissions, and someone sent hunting a typo that is
+   * not there.
+   */
+  it('reports a DENIED ref as not-permitted, not as a missing reference', async () => {
+    const ctx = makeCtx()
+    await dispatchAction(
+      { id: 'a', resourceRefId: 'hidden', type: 'openDrawer' } as WidgetAction,
+      { deniedRefIds: ['hidden'], resourcesRefs: refs([]) }, ctx)
+    expect(ctx.notification.warning).toHaveBeenCalledTimes(1)
+    expect(ctx.notification.error).not.toHaveBeenCalled()
+    // And it must not name the withheld resource: saying which ref was denied leaks the
+    // existence of something outside the viewer's scope, which is why a denied child renders
+    // as absence rather than as an announcement.
+    const arg = (ctx.notification.warning as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    expect(JSON.stringify(arg)).not.toContain('hidden')
+  })
+
+  it('still reports a genuinely MISSING ref as a broken definition', async () => {
+    const ctx = makeCtx()
+    await dispatchAction(
+      { id: 'a', resourceRefId: 'typo', type: 'openDrawer' } as WidgetAction,
+      { deniedRefIds: [], resourcesRefs: refs([]) }, ctx)
+    expect(ctx.notification.error).toHaveBeenCalledTimes(1)
+    expect(ctx.notification.warning).not.toHaveBeenCalled()
+  })
+
+  it('defaults to the broken-definition reading when no deniedRefIds are supplied', async () => {
+    // Back-compat: a call site that filters nothing behaves exactly as before.
+    const ctx = makeCtx()
+    await dispatchAction(
+      { id: 'a', resourceRefId: 'typo', type: 'openDrawer' } as WidgetAction,
+      { resourcesRefs: refs([]) }, ctx)
+    expect(ctx.notification.error).toHaveBeenCalledTimes(1)
+    expect(ctx.notification.warning).not.toHaveBeenCalled()
+  })
+})
 
 describe('dispatchAction — routing + non-SSE rest paths', () => {
   afterEach(() => { vi.unstubAllGlobals() })

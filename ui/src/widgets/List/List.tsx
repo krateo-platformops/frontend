@@ -16,7 +16,7 @@ export type ListWidgetData = WidgetType['spec']['widgetData']
 const hasResourceRef = (item: unknown): item is { resourceRefId: string } =>
   !!item && typeof item === 'object' && typeof (item as { resourceRefId?: unknown }).resourceRefId === 'string'
 
-const List = ({ resourcesRefs, uid, widget, widgetData }: WidgetProps<ListWidgetData>) => {
+const List = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetProps<ListWidgetData>) => {
   const { actions, bordered, footer, grid, header, hideWhenEmpty, itemLayout, itemTemplate, loading, maxItems, pagination, prefix, size, split, sseEndpoint, sseTopic } = widgetData
 
   // `dataSource` is the antd-faithful field; `items` is accepted for back-compat with legacy DataGrid CRs.
@@ -59,6 +59,7 @@ const List = ({ resourcesRefs, uid, widget, widgetData }: WidgetProps<ListWidget
     <ListView
       actions={actions}
       bordered={bordered}
+      deniedRefIds={deniedRefIds}
       footer={footer}
       grid={grid}
       header={header}
