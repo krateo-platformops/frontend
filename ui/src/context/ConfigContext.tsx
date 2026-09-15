@@ -121,9 +121,18 @@ export interface Config {
      * reaches the page. Independent of `AUTOPILOT_VOICE_SPEAK_BACK`, which stays the
      * operator kill-switch and still wins over this. */
     AUTOPILOT_VOICE_TTS_URL?: string
-    /** Gemini-TTS model (e.g. `gemini-2.5-flash-tts`). Absent = the Chirp/standard request
-     *  shape, unchanged. Naming one switches to the generative tier and enables
-     *  `AUTOPILOT_VOICE_STYLE_PROMPT`. */
+    /** Gemini-TTS model. Absent = the Chirp/standard request shape, unchanged. Naming one
+     *  switches to the generative tier and enables `AUTOPILOT_VOICE_STYLE_PROMPT`.
+     *
+     *  CLOUD TTS NAMES ARE NOT GEMINI API NAMES — this is a trap worth stating, because the
+     *  obvious cross-check gives the wrong answer. This value goes to Cloud TTS
+     *  `text:synthesize`, whose Gemini models are `gemini-3.1-flash-tts-preview` (newest),
+     *  `gemini-2.5-flash-tts`, `gemini-2.5-flash-lite-preview-tts`, `gemini-2.5-pro-tts`. The
+     *  Gemini API's own list spells the 2.5 one `gemini-2.5-flash-preview-tts`, so reading THAT
+     *  list makes the value here look like a typo and invites a "fix" that would break a working
+     *  install. Check the Cloud TTS docs, not the Gemini API docs.
+     *
+     *  `gemini-3.1-flash-tts-preview` is the current choice for a new install. */
     AUTOPILOT_VOICE_TTS_MODEL?: string
     /** Gemini-TTS styling instruction, sent as `input.prompt`. This is the field that can ask
      *  for one language's prose with another language's pronunciation for the jargon inside

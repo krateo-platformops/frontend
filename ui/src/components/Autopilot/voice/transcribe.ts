@@ -58,7 +58,20 @@ import { recordingFilename } from './recorder'
 import { sanitizeTranscript } from './sanitizeTranscript'
 import { audioArrived, AUDIO_TOKENS_FLOOR, buildVoiceSystemPrompt, maxTokensForSeconds, NO_SPEECH_SENTINEL, TRANSCRIBE_USER_TEXT } from './voicePrompt'
 
-/** Default model when the operator has not named one. */
+/** Default model when the operator has not named one.
+ *
+ *  A GENERAL multimodal model, deliberately, not a dedicated speech-to-text one. Google now
+ *  publishes `gemini-3.5-transcribe` (and `-live`), which on paper suits dictation better —
+ *  utterance-level language detection and diarization, both relevant here since the prompt asks
+ *  for a reply in the speaker's own language.
+ *
+ *  It is NOT the default because this call is an OpenAI-compatible `/chat/completions` carrying
+ *  the clip as a `file` part (see the header note: an `input_audio` part is accepted and then
+ *  SILENTLY DISCARDED — measured, `prompt_tokens: 19`, identical to sending no audio). Whether a
+ *  dedicated transcription model is reachable in that shape through the gateway is unverified,
+ *  and the failure mode if it is not is the silent one this file already documents: a confident
+ *  transcript of nothing. Switching the default is a change to make against a configured gateway
+ *  with a real clip, not from the model list. */
 export const DEFAULT_VOICE_MODEL = 'gemini-3.8-flash'
 /** FR 27: the gateway's request buffer is 2 MiB and fails closed; stay well inside it. */
 export const MAX_BASE64_CHARS = 1_572_864
