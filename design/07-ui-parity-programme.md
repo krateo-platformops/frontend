@@ -113,7 +113,31 @@ Ordered so that nothing is removed before its replacement exists.
 | **B6** | Workloads day-2 pages: scale / rollout restart / delete, per namespace | `k8s-agent` removal |
 | **B7** | ~~Helm releases page: list, values diff, upgrade, rollback, uninstall~~ — **cancelled, see below**; the read half folds into B8 | `helm-agent` removal |
 | **B8** | Platform component versions — **read-only, shipped**; the pin-change form was specified but is the wrong instrument, see below | `installer-agent` removal |
-| **B9** | Scoped resource forms for the residual `applyResourceSet` reach: Krateo `User`, kubeconfig `Secret`, `CompositionDefinition` register | `core-provider-agent`, `authn-agent` |
+| **B9** | Scoped resource forms — **done**: Krateo `User` **built**; `CompositionDefinition` register **already existed**; kubeconfig `Secret` **declined on an existing design decision**, see below | `core-provider-agent`, `authn-agent` |
+
+> **B9 resolved three ways, only one of which was a build. Verified 2026-09-15.**
+>
+> - **Krateo `User` — was a real gap, now built.** Settings → Users listed accounts but could
+>   not create one, so provisioning was a kubectl step. Now a form creating the
+>   `kubernetes.io/basic-auth` Secret and the `User` CR as one gated set, Secret first.
+>   **The group field is an enum, and that is the substance of the change:**
+>   `ClusterRoleBinding/cluster-admin-binding-krateo-system` binds `Group/admins` — its only
+>   subject — to `ClusterRole/cluster-admin`, so an account built by copying the existing
+>   `admin` User's shape silently becomes a cluster administrator. Free text would put that a
+>   typo away. Confirmed by server dry-run that `groups: null` is *pruned*, so the default
+>   choice stores no `groups` key at all — exactly the least-privilege shape.
+> - **`CompositionDefinition` register — already exists.** `form.blueprint-install` POSTs a
+>   `CompositionDefinition` with a CRD-driven schema; that *is* the register flow, reached from
+>   a marketplace tile's Install. Nothing to build.
+> - **Kubeconfig `Secret` — declined, and the plan was wrong to ask for it.**
+>   `form.register-cluster` documents the opposite decision in its own header: *"we
+>   register-by-Secret-ref and never accept raw kubeconfig text in the browser (the credential
+>   should be ESO-synced; the ops step of creating that Secret is out of band)"* (§2.1).
+>   Building the form would reverse a deliberate security decision and route a cluster-admin
+>   credential through a browser field into the portal's audit trail. **The absence is the
+>   feature.** If it is ever revisited, that is a change to §2.1 made on its own merits — not a
+>   line item absorbed into a parity sweep.
+
 
 > **B7 and B8 were both specified as write surfaces. Measuring the cluster says otherwise.**
 > **Verified on krateo-057, 2026-09-15.**
