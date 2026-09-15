@@ -62,6 +62,15 @@ const unwrapWidget = (data: unknown): unknown => {
  * Find a REAL on-screen action (+ its resolved refs) in the live widget cache, by
  * the widget's name and the action id. Returns null when absent — a hallucinated
  * control is therefore a no-op, never a synthesized call.
+ *
+ * ACTIVE QUERIES ONLY, and that word is load-bearing. `getQueriesData` without a filter reads
+ * the WHOLE react-query cache, which keeps unmounted entries for the gc window (5 minutes by
+ * default). "On-screen" was therefore a claim this function did not enforce: the agent could
+ * drive a control on a page the user had already navigated away from, or on a widget that had
+ * unmounted underneath it, and the user would see a write land on something they were no longer
+ * looking at. `type: 'active'` restricts the scan to queries with a live observer — i.e. a
+ * widget actually mounted right now — which is what the surrounding safety story has always
+ * assumed and what makes "the agent presses the control you can see" literally true.
  */
 const lookupAction = (
   queryClient: ReturnType<typeof useQueryClient>,
@@ -71,7 +80,7 @@ const lookupAction = (
   if (!widgetName || !actionId) {
     return null
   }
-  const entries = queryClient.getQueriesData<unknown>({ queryKey: ['widgets'] })
+  const entries = queryClient.getQueriesData<unknown>({ queryKey: ['widgets'], type: 'active' })
   for (const [, data] of entries) {
     const root = asRec(unwrapWidget(data))
     if (asRec(root?.metadata)?.name !== widgetName) {

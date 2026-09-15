@@ -17,7 +17,7 @@ import { useDrawerContext } from '../Drawer/DrawerContext'
 import styles from './Form.module.css'
 import type { Form as WidgetType } from './Form.type'
 import { SchemaForm } from './SchemaFields'
-import { getDefaultsFromSchema } from './utils'
+import { getDefaultsFromSchema, narrowAgentDraft } from './utils'
 
 export type FormWidgetData = WidgetType['spec']['widgetData']
 
@@ -228,22 +228,18 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   // is told to use exact field names, but an invented or "closest-match" key would otherwise be held in
   // the form store by setFieldsValue while the chip still claims "drafted the form" — a value landing
   // nowhere. Apply only keys that are actual fields, so the draft can't mis-fill or silently vanish.
-  const safeAgentDraft = useMemo<Record<string, unknown> | undefined>(() => {
-    if (!agentDraft) {
-      return undefined
-    }
-    const props = jsonSchema?.properties
-    if (!props) {
-      return agentDraft
-    }
-    const out: Record<string, unknown> = {}
-    for (const [key, val] of Object.entries(agentDraft)) {
-      if (Object.prototype.hasOwnProperty.call(props, key)) {
-        out[key] = val
-      }
-    }
-    return out
-  }, [agentDraft, jsonSchema])
+  //
+  // AND NEVER A HIDDEN FIELD. `propertiesToHide` removes a property from the rendered form
+  // (SchemaForm `hide`), so a value the agent writes there is one the human cannot see, cannot
+  // correct, and does not know it is approving when they press submit. The whole premise of
+  // agent-fills-human-submits is that the human reviews what was filled; a field they were never
+  // shown is outside that review by construction. Dropped silently rather than refused: the
+  // model is not told which fields are hidden, so writing one is a mistake to absorb, not an
+  // attack to report — and the remaining fields still fill correctly.
+  const safeAgentDraft = useMemo<Record<string, unknown> | undefined>(
+    () => narrowAgentDraft(agentDraft, jsonSchema?.properties, propertiesToHide),
+    [agentDraft, jsonSchema, propertiesToHide],
+  )
 
   // Effective initial values = schema defaults < explicit initialValues < the resumed localStorage
   // draft < the Autopilot draft — the SAME object handed to <AntdForm initialValues> below. Factored
