@@ -106,10 +106,10 @@ Ordered so that nothing is removed before its replacement exists.
 |---|---|---|
 | **B0** | ~~Thread `origin` through `Form.tsx:403`; extend `stampAgentCreated` to PUT/PATCH~~ — **corrected, see below**; the real content folds into B1 | — |
 | **B1** | ~~`submitForm` verb~~ **cancelled by owner decision (§3)** — the agent never submits. Its four surviving gates **shipped**: mounted-control only, visible-fields only, confirm denies on silence, drafted-field summary | the whole model |
-| **B2** | Validation-without-apply: a chart-gate / `validate_manifest` **read** tool for widget and RESTAction CRs | `frontend-agent`, `snowplow-agent` removal |
-| **B3** | Render-preview widget kind (helm-render `/diff`-style RESTAction + sandbox render) — also replaces the rail-only preview gate | B4 |
+| **B2** | Validation-without-apply: a chart-gate / `validate_manifest` **read** tool for widget and RESTAction CRs. **Blocked here** — the MCP server chart is not checked out. Note the never-submit decision *reduces* its urgency: the agent no longer writes, so the apiserver validates at the human's submit. It remains worth building to avoid wasting that human's time on an invalid draft | `frontend-agent`, `snowplow-agent` removal |
+| **B3** | Render-preview widget kind (helm-render `/diff`-style RESTAction + sandbox render) — also replaces the rail-only preview gate. **Not started**; B4 and B5 shipped without it, so it is no longer a blocker, only an improvement | B4 |
 | **B4** | **Blueprint authoring + publish UI — the largest item.** Needs a repeatable-row / multi-file control; `SchemaFields` has no `Form.List`, so this is a **new widget kind** → the 4-piece release (frontend image + portal template + CRD + installer pin). The publish half reuses the existing `BuilderPublish` claim | closes the one real A1 gap |
-| **B5** | Widget-CR authoring form (`compose-page` can only *arrange* existing widgets) | agent page authoring |
+| **B5** | Widget-CR authoring form — **shipped**. Publishes one widget CR through the existing `BuilderPublish` claim; `widgetData` is a JSON-object field emitted one top-level key per line | agent page authoring |
 | **B6** | Workloads day-2 pages: scale / rollout restart / delete, per namespace | `k8s-agent` removal |
 | **B7** | ~~Helm releases page: list, values diff, upgrade, rollback, uninstall~~ — **cancelled, see below**; the read half folds into B8 | `helm-agent` removal |
 | **B8** | Platform component versions — **read-only, shipped**; the pin-change form was specified but is the wrong instrument, see below | `installer-agent` removal |
