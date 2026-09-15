@@ -58,6 +58,56 @@ const unwrapWidget = (data: unknown): unknown => {
   return Array.isArray(pages) && pages.length ? pages[pages.length - 1] : data
 }
 
+/** Opt-in label a widget must carry before the agent may trigger its SUBMIT action. */
+export const AGENT_SUBMITTABLE_LABEL = 'krateo.io/agent-submittable'
+
+/**
+ * May the agent trigger THIS action on THIS widget?
+ *
+ * Everything except a form's submit is allowed: driving Sync, Pause, Update or Delete on a
+ * mounted control is the "press the button for me" capability, it is already blast-radius gated,
+ * and the button is one the user can see and press themselves.
+ *
+ * A form's SUBMIT is different, and it was reachable by accident. The submit action lives in
+ * `widgetData.actions` — the same map this module scans — so `runAction` could dispatch it by id
+ * and the portal's stated invariant, "Autopilot never submits", was already untrue. Submitting a
+ * form is not pressing a button the user is looking at: it commits a whole authored body, and
+ * after the UI-parity work it is the agent's main write path.
+ *
+ * So submits are DEFAULT-CLOSED and opt in per widget, by label. That keeps the agent's write
+ * surface enumerable — `kubectl get <widget> -l krateo.io/agent-submittable=true` lists it — and
+ * means the surface grows only when someone adds the label on purpose, rather than every time
+ * the portal charts gain a form.
+ *
+ * Exactly the string "true": a typo fails CLOSED, which is the correct direction to fail.
+ */
+export const mayAgentDispatch = (root: Record<string, unknown> | undefined, actionId: string): boolean => {
+  const widgetData = asRec(asRec(root?.status)?.widgetData) ?? asRec(asRec(root?.spec)?.widgetData)
+  const submitIds = new Set<string>()
+  const staticId = widgetData?.submitActionId
+  if (typeof staticId === 'string') {
+    submitIds.add(staticId)
+  }
+  const selector = asRec(widgetData?.submitActionSelector)
+  if (selector) {
+    const fallback = selector.default
+    if (typeof fallback === 'string') {
+      submitIds.add(fallback)
+    }
+    for (const mapped of Object.values(asRec(selector.map) ?? {})) {
+      if (typeof mapped === 'string') {
+        submitIds.add(mapped)
+      }
+    }
+  }
+  if (!submitIds.has(actionId)) {
+    return true
+  }
+  const labels = asRec(asRec(root?.metadata)?.labels)
+
+  return labels?.[AGENT_SUBMITTABLE_LABEL] === 'true'
+}
+
 /**
  * Find a REAL on-screen action (+ its resolved refs) in the live widget cache, by
  * the widget's name and the action id. Returns null when absent — a hallucinated
@@ -98,6 +148,12 @@ const lookupAction = (
       }
       const list: unknown[] = arr
       const match = list.find((entry) => asRec(entry)?.id === actionId)
+      // A form's submit needs the opt-in label; everything else is the ordinary
+      // press-the-button capability. Returning null here means the verb refuses exactly as it
+      // does for a hallucinated control — no synthesized call, no partial dispatch.
+      if (match && !mayAgentDispatch(root, actionId)) {
+        return null
+      }
       if (match) {
         const refs = asRec(status?.resourcesRefs) ?? asRec(spec?.resourcesRefs)
         return { action: match as WidgetAction, resourcesRefs: (refs ?? { items: [] }) as ResourcesRefs }
