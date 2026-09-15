@@ -105,7 +105,7 @@ Ordered so that nothing is removed before its replacement exists.
 | # | Build | Unblocks |
 |---|---|---|
 | **B0** | ~~Thread `origin` through `Form.tsx:403`; extend `stampAgentCreated` to PUT/PATCH~~ — **corrected, see below**; the real content folds into B1 | — |
-| **B1** | `submitForm` verb + its gates (§3) | the whole model |
+| **B1** | ~~`submitForm` verb~~ **cancelled by owner decision (§3)** — the agent never submits. Its four surviving gates **shipped**: mounted-control only, visible-fields only, confirm denies on silence, drafted-field summary | the whole model |
 | **B2** | Validation-without-apply: a chart-gate / `validate_manifest` **read** tool for widget and RESTAction CRs | `frontend-agent`, `snowplow-agent` removal |
 | **B3** | Render-preview widget kind (helm-render `/diff`-style RESTAction + sandbox render) — also replaces the rail-only preview gate | B4 |
 | **B4** | **Blueprint authoring + publish UI — the largest item.** Needs a repeatable-row / multi-file control; `SchemaFields` has no `Form.List`, so this is a **new widget kind** → the 4-piece release (frontend image + portal template + CRD + installer pin). The publish half reuses the existing `BuilderPublish` claim | closes the one real A1 gap |
@@ -186,6 +186,52 @@ and define-controller cards. Only `/blueprint-builder` has no authoring control.
 
 ## 3. The submit problem
 
+> ## ⚠ Superseded by owner decision, 2026-09-15: **the agent must never submit anything.**
+>
+> Everything in this section below the line was written for a `submitForm` verb. **That verb is
+> cancelled.** The parity model is now:
+>
+> **The agent opens the right widget and fills it. A human presses the button.**
+>
+> This is a *stronger* guarantee than the five gates below, and it is simpler: there is no
+> allowlist to maintain, no opt-in label to audit, no question of which forms are submittable,
+> and the residual risk recorded further down — a mistaken model submitting a DELETE-verb form
+> one confirm away from irreversible — **does not exist**, because no agent-originated submit
+> reaches the dispatcher at all.
+>
+> **What shipped instead** (branch `fix/b1-agent-write-surface-gates`, 24 tests green):
+>
+> | Was going to be | Shipped as |
+> |---|---|
+> | 1. Opt-in `krateo.io/agent-submittable` label + CI lint | **dropped as moot** — `mayAgentDispatch` refuses every submit action unconditionally (`actionBridge.ts:86`, called at `:152`). An allowlist for something that never happens is dead configuration. The lint survives as a *surface enumerator*, not a gate |
+> | 2. Refuse submit unless the form is actively mounted | **shipped** — `getQueriesData({type:'active'})`; the agent may only drive a mounted control |
+> | 3. Refuse if the draft set a `propertiesToHide` key | **shipped** — `narrowAgentDraft` filters to fields that are both real *and* visible |
+> | 4. `APPROVAL_TIMEOUT_MS` on the confirm modal | **shipped** — `confirmWithTimeout`, 5 min, **denies on silence** rather than hanging open |
+> | 5. Field-level "the agent set these N fields" summary | **shipped** — `ReviewSummary` tags Autopilot-drafted fields in the review step |
+>
+> Gates 2–5 are **not** redundant under a never-submit rule. They bound what the agent may
+> *author and stage* for a human — which control it may drive, which fields it may fill, and
+> what the human sees before pressing the button. Gate 4 in particular now protects a human
+> decision rather than an agent one.
+>
+> **The one thing the decision costs:** an agent cannot complete a task end-to-end. Every write
+> ends with "…now press Publish". That is the intended shape — it is what "every action goes
+> through the UI" means — but it should be owned, not discovered when a demo stops halfway.
+>
+> **Confirm fatigue is reduced, not solved.** The volume of dialogs drops sharply, because the
+> agent no longer generates approval requests; a human pressing a button is already an
+> intentional act. What remains is the ordinary risk that a person clicks through their own
+> confirms.
+>
+> *The original analysis is kept below because its inventory of what each gate protects, and its
+> reasoning about the confirm being sole and load-bearing, is what made the never-submit decision
+> the obvious call.*
+
+---
+
+### Original analysis (superseded)
+
+
 `prefillForm` already authors form bodies. `runAction` already reaches a Form's submit action
 (with the *ref's* payload, not the user's). **Submit closes the loop** — and when it does,
 this must be said plainly:
@@ -197,7 +243,7 @@ Today's guarantees and their fate:
 | Guarantee | Survives? |
 |---|---|
 | Blast-radius confirm modal | **yes** — the chokepoint at `useHandleActions.ts:352` tests the *verb* and is blind to the caller |
-| *"Autopilot never submits"* | **no** — deleted by definition |
+| *"Autopilot never submits"* | ~~**no** — deleted by definition~~ → **yes, and now enforced.** It was already untrue before this programme (`runAction` could reach a submit action with the ref's payload); `mayAgentDispatch` makes it true |
 | `isApplySetAllowed` kernel | **no** — it guards the compile path, which goes away |
 | Preview / blueprint gates | **no** — rail-scoped, and the rail stops being the write path |
 | Provenance stamping | **not today** — `Form.tsx` passes `origin: undefined` (see B0) |
@@ -247,7 +293,9 @@ write — so this is measurable rather than a matter of opinion. **Escalating fr
 is the cheapest thing to add if that evidence appears: it targets fatigue directly, needs no cost
 model, and does not stop legitimate work.
 
-`submitForm` is unblocked by this decision. It ships on the five gates and the confirm alone.
+~~`submitForm` is unblocked by this decision. It ships on the five gates and the confirm alone.~~
+**Overtaken:** the owner decision above cancels the verb outright, which removes this entire
+residual-risk class rather than accepting it.
 
 ---
 
