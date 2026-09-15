@@ -24,6 +24,8 @@ const decodeB64Url = (value: string): string => {
   return new TextDecoder().decode(Uint8Array.from(atob(b64 + pad), (ch) => ch.charCodeAt(0)))
 }
 
+vi.mock('../utils/getAccessToken', () => ({ getAccessToken: () => 'test-token' }))
+
 afterEach(() => { __resetRefreshEntries() })
 
 describe('base64UrlEncode', () => {
@@ -158,7 +160,7 @@ describe('RefreshManager', () => {
     ({ class: 'widgets', group: 'g', version: 'v1', resource: 'r', namespace: 'ns', name })
 
   it('routes a refresh for an armed key to that widget refetch', () => {
-    const mgr = new RefreshManager(() => 0)
+    const mgr = new RefreshManager()
     const refetch = vi.fn()
     mgr.arm('w1', coords('a'), 'key-a', refetch)
     mgr.dispatchRefresh('key-a')
@@ -167,7 +169,7 @@ describe('RefreshManager', () => {
   })
 
   it('ignores a refresh for an unknown key', () => {
-    const mgr = new RefreshManager(() => 0)
+    const mgr = new RefreshManager()
     const refetch = vi.fn()
     mgr.arm('w1', coords('a'), 'key-a', refetch)
     mgr.dispatchRefresh('key-other')
@@ -175,27 +177,57 @@ describe('RefreshManager', () => {
     mgr.reset()
   })
 
-  it('throttles to ~1 refetch per 5s per widget', () => {
-    let clock = 0
-    const mgr = new RefreshManager(() => clock)
+  it('throttles to ~1 refetch per 5s per widget', async () => {
+    vi.useFakeTimers()
+    const mgr = new RefreshManager()
     const refetch = vi.fn()
     mgr.arm('w1', coords('a'), 'key-a', refetch)
 
-    // t=0 → fires the leading edge.
+    // Leading edge fires immediately.
     mgr.dispatchRefresh('key-a')
-    // t=4999, still inside the 5s window → suppressed.
-    clock = 4999
+    await vi.advanceTimersByTimeAsync(0)
+    expect(refetch).toHaveBeenCalledTimes(1)
+    // Still inside the 5s window → not refetched again yet.
+    await vi.advanceTimersByTimeAsync(4999)
+    expect(refetch).toHaveBeenCalledTimes(1)
+    mgr.reset()
+    vi.useRealTimers()
+  })
+
+  // #256 / loss mode L5. The old implementation compared a timestamp and RETURNED on a frame
+  // inside the window, so the change that frame announced was lost — permanently, since snowplow
+  // keeps no replay. Suppressing the refetch is right; suppressing the fact is not.
+  it('DEFERS a frame that arrives inside the throttle window instead of discarding it', async () => {
+    vi.useFakeTimers()
+    const mgr = new RefreshManager()
+    const refetch = vi.fn()
+    mgr.arm('w1', coords('a'), 'key-a', refetch)
+
+    // leading edge
+    mgr.dispatchRefresh('key-a')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(refetch).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(1000)
+    // inside the window — must be REMEMBERED
+    mgr.dispatchRefresh('key-a')
+    // and coalesced with any others
     mgr.dispatchRefresh('key-a')
     expect(refetch).toHaveBeenCalledTimes(1)
-    // t=5000, window elapsed → fires again.
-    clock = 5000
-    mgr.dispatchRefresh('key-a')
+
+    // window closes → one trailing catch-up
+    await vi.advanceTimersByTimeAsync(4100)
+    expect(refetch).toHaveBeenCalledTimes(2)
+
+    // ...and exactly one: the two frames inside the window coalesce, they do not queue up.
+    await vi.advanceTimersByTimeAsync(20000)
     expect(refetch).toHaveBeenCalledTimes(2)
     mgr.reset()
+    vi.useRealTimers()
   })
 
   it('fans one key out to every widget sharing it (shared-shell widgetContent)', () => {
-    const mgr = new RefreshManager(() => 0)
+    const mgr = new RefreshManager()
     const fnA = vi.fn()
     const fnB = vi.fn()
     mgr.arm('w1', coords('x'), 'shared', fnA)
@@ -207,7 +239,7 @@ describe('RefreshManager', () => {
   })
 
   it('stops routing to a widget after it disarms', () => {
-    const mgr = new RefreshManager(() => 0)
+    const mgr = new RefreshManager()
     const refetch = vi.fn()
     const disarm = mgr.arm('w1', coords('a'), 'key-a', refetch)
     disarm()
@@ -217,7 +249,7 @@ describe('RefreshManager', () => {
   })
 
   it('re-arming the same widget replaces its key (old key no longer routes)', () => {
-    const mgr = new RefreshManager(() => 0)
+    const mgr = new RefreshManager()
     const refetch = vi.fn()
     mgr.arm('w1', coords('a'), 'old-key', refetch)
     mgr.arm('w1', coords('a'), 'new-key', refetch)
@@ -229,7 +261,7 @@ describe('RefreshManager', () => {
   })
 
   it('isArmed reflects the armed set: false before arming, true while armed, false after disarm', () => {
-    const mgr = new RefreshManager(() => 0)
+    const mgr = new RefreshManager()
     const refetch = vi.fn()
     // Not armed yet.
     expect(mgr.isArmed('w1')).toBe(false)
@@ -245,7 +277,7 @@ describe('RefreshManager', () => {
   })
 
   it('isArmed is false for every widget after reset', () => {
-    const mgr = new RefreshManager(() => 0)
+    const mgr = new RefreshManager()
     mgr.arm('w1', coords('a'), 'key-a', vi.fn())
     expect(mgr.isArmed('w1')).toBe(true)
     mgr.reset()

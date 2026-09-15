@@ -324,6 +324,40 @@ describe('initial-render retry — transient failures retry, permanent ones do n
     expect(shouldRetryWidgetFetch(MAX_WIDGET_FETCH_RETRIES, new WidgetFetchError('nope', 404))).toBe(false)
   })
 
+  /**
+   * S11a — REQUIRED GREEN before and after #256. The cold-load 404 path must not regress: this is
+   * the "no error flash on first paint" behaviour, and it is why 404 is retryable at all.
+   */
+  it('S11a — a cold-load 404 (NOT frame-triggered) still retries, so first paint does not flash', () => {
+    expect(shouldRetryWidgetFetch(0, new WidgetFetchError('nope', 404), false)).toBe(true)
+    expect(shouldRetryWidgetFetch(1, new WidgetFetchError('nope', 404), false)).toBe(true)
+    expect(shouldRetryWidgetFetch(MAX_WIDGET_FETCH_RETRIES, new WidgetFetchError('nope', 404), false)).toBe(false)
+  })
+
+  /**
+   * S11 — the eviction path. Snowplow 1.12.6 publishes a refresh frame on a DELETE-semantics
+   * eviction; the refetch it triggers answers 404 because the object really is gone. Retrying
+   * cannot learn anything new, and at 3 retries with 700/1400/2800 ms backoff it costs FOUR
+   * requests and ~4.9 s per widget — a fourfold amplification of a bulk delete. One request.
+   */
+  it('S11 — a frame-triggered 404 is terminal: one request, not four', () => {
+    expect(shouldRetryWidgetFetch(0, new WidgetFetchError('gone', 404), true)).toBe(false)
+  })
+
+  it('S11 — frame-triggered only changes 404; every other status keeps its policy', () => {
+    // 5xx stays transient even on a frame-triggered refetch — the object may well still exist.
+    expect(shouldRetryWidgetFetch(0, new WidgetFetchError('boom', 503), true)).toBe(true)
+    // A network error (no status) likewise.
+    expect(shouldRetryWidgetFetch(0, new TypeError('Failed to fetch'), true)).toBe(true)
+    // Permanent 4xx were already terminal and stay so.
+    expect(shouldRetryWidgetFetch(0, new WidgetFetchError('nope', 403), true)).toBe(false)
+  })
+
+  it('defaults to the cold-load policy when the caller does not pass the flag', () => {
+    // Back-compat: the third argument is optional, and omitting it must mean "not frame-triggered".
+    expect(shouldRetryWidgetFetch(0, new WidgetFetchError('nope', 404))).toBe(true)
+  })
+
   it('never retries permanent 4xx (auth / forbidden / bad-request)', () => {
     for (const status of [400, 401, 403]) {
       expect(shouldRetryWidgetFetch(0, new WidgetFetchError('nope', status))).toBe(false)
