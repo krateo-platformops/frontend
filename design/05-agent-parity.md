@@ -125,13 +125,43 @@ Found independently by two audits. The in-rail caret correctly uses the reserved
 
 ### A9 — The rail’s hand-built primitives track the token set deliberately, because they inherit nothing.
 
-**Status:** risk
+**Status:** risk — **narrowed by measurement; the original claim was false**
 
-The rail imports zero antd components — every control is a raw element styled across 1176 lines of CSS off the same custom properties, by convention. This is intentional and documented, so the rail stays legible in both themes. The consequence is that every widget gets antd theme changes for free and the rail gets none: it is a second implementation of button and input primitives that must be kept in sync by hand.
+> **Re-measured 2026-09-14.** This rule read "the rail imports **zero** antd components — every
+> control is a raw element", citing "no antd import in `AutopilotRail.tsx` except `Tooltip`". That
+> is not true and may not have been true for some time. Of **11** non-test `.tsx` in the Autopilot
+> tree, **6 import antd**, using **14 distinct components**: `Typography`, `Tooltip`, `Form`,
+> `Input`, `Tour`, `Alert`, `Button`, `Collapse`, `Drawer`, `Empty`, `Space`, `Tabs`, `Tag`,
+> `Modal`. Most of the rail's surface already inherits antd theming.
+>
+> Scoping work against the old sentence would have sized a 1,176-line rewrite. The real residue is
+> **29 controls in 4 files**.
 
-Directly relevant to this layer: the surface Autopilot lives in does not share primitives with the surface it is meant to be at parity with.
+**What is actually true, measured:**
 
-*Evidence: verified: no antd import in `AutopilotRail.tsx` except `Tooltip` in the toggle*
+    AutopilotRail.tsx        16 raw <button>, 1 <input>, 1 <textarea>    antd Button imported: NO
+    SpeakBackControls.tsx     6 raw <button>                             antd Button imported: NO
+    VoiceControl.tsx          3 raw <button>                             antd Button imported: NO
+    AutopilotToggle.tsx       2 raw <button>                             antd Button imported: NO
+
+The duplication is **concentrated in the rail's own chrome** — the transcript controls, the voice
+and speak-back toggles, the rail toggle — and none of those four files imports antd's `Button` at
+all. Everything else (drawers, tabs, forms, alerts, tags) is already antd.
+
+**The CSS discipline is holding**, which is the part worth not panicking about: 639 declarations,
+317 on a token (49%), **zero raw hex**, and the file is already covered by `lint-css-tokens`
+(T1/T3/T4/T6/T9) with 0 violations. A colour cannot drift here without failing CI today.
+
+**So the residual risk is narrow and specific:** those 29 controls are a second implementation of
+`Button`/`Input` that antd theme changes do not reach. Not all are duplicates — an expandable
+evidence row (`apEvRow`) or a starter chip (`apSg`) is genuinely bespoke and a `Button` wearing a
+costume would be worse. The honest fix is to classify the 29, convert the true duplicates under a
+**rail-scoped antd `ConfigProvider`** carrying the glass treatment as a theme override, and leave
+the bespoke ones documented as bespoke. That answers the original justification — "stays legible in
+both themes" — rather than overriding it.
+
+*Evidence: measured across `ui/src/components/Autopilot/**/*.tsx` (11 non-test files) and
+`AutopilotRail.module.css` (1176 lines, 639 declarations)*
 
 ## What a page owes Autopilot
 
