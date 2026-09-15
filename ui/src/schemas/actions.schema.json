@@ -34,7 +34,7 @@
           },
           "ops": {
             "type": "array",
-            "description": "ordered list of DISTINCT writes applied as ONE gated set (e.g. one Form submit creating a Role AND its RoleBinding): each op resolves its OWN resourceRefId (verb + path + payload base) and builds its OWN payload/payloadToOverride against the SAME submitted values. The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics). Mutually exclusive with fanOutPath; onEventNavigateTo is not supported on a multi-op action. The action's own top-level payload/payloadToOverride are IGNORED when ops is present and its top-level resourceRefId is ignored for dispatch (it must still name a valid resource ref — point it at the first op's)",
+            "description": "ordered list of DISTINCT writes applied as ONE gated set (e.g. one Form submit creating a Role AND its RoleBinding): each op resolves its OWN resourceRefId (verb + path + payload base) and builds its OWN payload/payloadToOverride against the SAME submitted values. The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics). Mutually exclusive with fanOutPath; onEventNavigateTo is not supported on a multi-op action. The action's own top-level payload/payloadToOverride are IGNORED when ops is present and its top-level resourceRefId is ignored for dispatch (it must still name a valid resource ref \u2014 point it at the first op's)",
             "items": {
               "type": "object",
               "additionalProperties": false,
@@ -107,7 +107,8 @@
                 "default": 50
               },
               "reloadRoutes": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "Re-fetch the route table before navigating. Set it when the action creates its own destination \u2014 publishing a new page, for example \u2014 so the route exists by the time the navigation happens."
               },
               "loadingMessage": {
                 "type": "string",
@@ -161,13 +162,15 @@
             "type": "object",
             "properties": {
               "display": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "Show the in-flight indicator. Set false to run the action without one."
               }
             },
             "required": [
               "display"
             ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Whether this action shows an in-flight indicator while it runs."
           }
         },
         "required": [
@@ -193,13 +196,15 @@
             "type": "object",
             "properties": {
               "display": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "Show the in-flight indicator. Set false to run the action without one."
               }
             },
             "required": [
               "display"
             ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Whether this action shows an in-flight indicator while it runs."
           },
           "path": {
             "description": "the identifier of the route to navigate to",
@@ -269,13 +274,15 @@
             "type": "object",
             "properties": {
               "display": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "Show the in-flight indicator. Set false to run the action without one."
               }
             },
             "required": [
               "display"
             ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Whether this action shows an in-flight indicator while it runs."
           }
         },
         "required": [
@@ -319,13 +326,15 @@
             "type": "object",
             "properties": {
               "display": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "Show the in-flight indicator. Set false to run the action without one."
               }
             },
             "required": [
               "display"
             ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Whether this action shows an in-flight indicator while it runs."
           },
           "customWidth": {
             "description": "the custom width of the value, which should be used by setting the 'custom' value inside the 'size' property",

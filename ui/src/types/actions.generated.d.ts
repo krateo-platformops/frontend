@@ -78,6 +78,9 @@ export interface WidgetActions {
        * the timeout in seconds to wait for the event
        */
       timeout?: number
+      /**
+       * Re-fetch the route table before navigating. Set it when the action creates its own destination — publishing a new page, for example — so the route exists by the time the navigation happens.
+       */
       reloadRoutes?: boolean
       /**
        * message to display while waiting for the event
@@ -111,7 +114,13 @@ export interface WidgetActions {
        */
       value: string
     }[]
+    /**
+     * Whether this action shows an in-flight indicator while it runs.
+     */
     loading?: {
+      /**
+       * Show the in-flight indicator. Set false to run the action without one.
+       */
       display: boolean
     }
   }[]
@@ -123,7 +132,13 @@ export interface WidgetActions {
      * unique identifier for the action
      */
     id: string
+    /**
+     * Whether this action shows an in-flight indicator while it runs.
+     */
     loading?: {
+      /**
+       * Show the in-flight indicator. Set false to run the action without one.
+       */
       display: boolean
     }
     /**
@@ -171,7 +186,13 @@ export interface WidgetActions {
      * title shown in the drawer header
      */
     title?: string
+    /**
+     * Whether this action shows an in-flight indicator while it runs.
+     */
     loading?: {
+      /**
+       * Show the in-flight indicator. Set false to run the action without one.
+       */
       display: boolean
     }
   }[]
@@ -199,7 +220,13 @@ export interface WidgetActions {
      * title shown in the modal header
      */
     title?: string
+    /**
+     * Whether this action shows an in-flight indicator while it runs.
+     */
     loading?: {
+      /**
+       * Show the in-flight indicator. Set false to run the action without one.
+       */
       display: boolean
     }
     /**

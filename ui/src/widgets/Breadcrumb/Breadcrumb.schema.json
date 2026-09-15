@@ -4,7 +4,8 @@
   "properties": {
     "version": {
       "type": "string",
-      "default": "v1beta1"
+      "default": "v1beta1",
+      "description": "Widget API version."
     },
     "kind": {
       "default": "Breadcrumb",
@@ -13,13 +14,17 @@
     },
     "spec": {
       "type": "object",
-      "required": ["widgetData"],
+      "required": [
+        "widgetData"
+      ],
       "additionalProperties": false,
       "properties": {
         "widgetData": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["items"],
+          "required": [
+            "items"
+          ],
           "properties": {
             "items": {
               "type": "array",
@@ -27,10 +32,18 @@
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["title"],
+                "required": [
+                  "title"
+                ],
                 "properties": {
-                  "title": { "type": "string", "description": "crumb label (antd Breadcrumb ItemType.title)" },
-                  "href": { "type": "string", "description": "optional link target (antd Breadcrumb ItemType.href)" }
+                  "title": {
+                    "type": "string",
+                    "description": "crumb label (antd Breadcrumb ItemType.title)"
+                  },
+                  "href": {
+                    "type": "string",
+                    "description": "optional link target (antd Breadcrumb ItemType.href)"
+                  }
                 }
               }
             },
@@ -38,7 +51,8 @@
               "type": "string",
               "description": "antd Breadcrumb `separator` (default \"/\")"
             }
-          }
+          },
+          "description": "The properties Breadcrumb renders. Where Breadcrumb wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them."
         },
         "resourcesRefs": {
           "type": "object",
@@ -48,71 +62,29 @@
               "items": {
                 "type": "object",
                 "properties": {
-                  "allowed": { "type": "boolean" },
-                  "apiVersion": { "type": "string" },
-                  "id": { "type": "string" },
-                  "name": { "type": "string" },
-                  "namespace": { "type": "string" },
-                  "resource": { "type": "string" },
-                  "verb": {
-                    "type": "string",
-                    "enum": ["POST", "PUT", "PATCH", "DELETE", "GET"]
-                  }
-                },
-                "required": ["id"]
-              }
-            }
-          },
-          "required": ["items"]
-        },
-        "apiRef": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "namespace": { "type": "string" }
-          },
-          "required": ["name", "namespace"],
-          "additionalProperties": false
-        },
-        "widgetDataTemplate": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "forPath": { "type": "string" },
-              "expression": { "type": "string" }
-            },
-            "additionalProperties": false
-          }
-        },
-        "resourcesRefsTemplate": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "iterator": {
-                "type": "string"
-              },
-              "template": {
-                "type": "object",
-                "properties": {
+                  "allowed": {
+                    "type": "boolean",
+                    "description": "Set server-side: whether the caller may perform this verb. False entries are stripped before the widget renders and are never authored by hand."
+                  },
                   "apiVersion": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Group and version of the referenced resource, for example `widgets.templates.krateo.io/v1beta1`."
                   },
                   "id": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "The author-chosen handle this widget uses to reference the resource, matching a resourceRefId in widgetData."
                   },
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Name of the referenced resource."
                   },
                   "namespace": {
-                    "type": "string"
-                  },
-                  "payload": {
-                    "type": "object"
+                    "type": "string",
+                    "description": "Namespace of the referenced resource."
                   },
                   "resource": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Plural resource name, for example `paragraphs`."
                   },
                   "verb": {
                     "type": "string",
@@ -122,17 +94,122 @@
                       "PATCH",
                       "DELETE",
                       "GET"
-                    ]
+                    ],
+                    "description": "HTTP verb used to resolve the reference. GET for a read; a mutating verb makes this a write the widget can dispatch."
                   }
                 },
-                "additionalProperties": false
+                "required": [
+                  "id"
+                ]
+              },
+              "description": "One referenced resource. The widget addresses it by its `id`, never by name."
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "description": "The resources this widget references by id. Each entry is resolved server-side and its endpoint handed to the widget; entries the caller may not read are removed before the widget renders, so a denied reference reads as absence rather than as an error."
+        },
+        "apiRef": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Name of the RESTAction resource to call."
+            },
+            "namespace": {
+              "type": "string",
+              "description": "Namespace of the RESTAction resource."
+            }
+          },
+          "required": [
+            "name",
+            "namespace"
+          ],
+          "additionalProperties": false,
+          "description": "Binds this widget to a RESTAction whose response feeds the widgetDataTemplate and resourcesRefsTemplate expressions. Omit it for a widget whose data is entirely static."
+        },
+        "widgetDataTemplate": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "forPath": {
+                "type": "string",
+                "description": "Dot-path inside widgetData whose value this expression replaces, for example `items[0].title`."
+              },
+              "expression": {
+                "type": "string",
+                "description": "A jq expression evaluated server-side against the apiRef response. Its result replaces the value at forPath."
               }
             },
             "additionalProperties": false
-          }
+          },
+          "description": "Per-field overrides evaluated against the apiRef response, so one authored widget can render live cluster data. Each entry replaces one value inside widgetData."
+        },
+        "resourcesRefsTemplate": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "iterator": {
+                "type": "string",
+                "description": "A jq expression selecting the array in the apiRef response to iterate over."
+              },
+              "template": {
+                "type": "object",
+                "properties": {
+                  "apiVersion": {
+                    "type": "string",
+                    "description": "Group and version of the referenced resource, for example `widgets.templates.krateo.io/v1beta1`."
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "The author-chosen handle this widget uses to reference the resource, matching a resourceRefId in widgetData."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the referenced resource."
+                  },
+                  "namespace": {
+                    "type": "string",
+                    "description": "Namespace of the referenced resource."
+                  },
+                  "payload": {
+                    "type": "object",
+                    "description": "Body sent with a mutating verb. Ignored for a GET."
+                  },
+                  "resource": {
+                    "type": "string",
+                    "description": "Plural resource name, for example `paragraphs`."
+                  },
+                  "verb": {
+                    "type": "string",
+                    "enum": [
+                      "POST",
+                      "PUT",
+                      "PATCH",
+                      "DELETE",
+                      "GET"
+                    ],
+                    "description": "HTTP verb used to resolve the reference. GET for a read; a mutating verb makes this a write the widget can dispatch."
+                  }
+                },
+                "additionalProperties": false,
+                "description": "The resourcesRefs entry emitted for each iterated element; its fields may interpolate that element."
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "Generates resourcesRefs entries from the apiRef response \u2014 one per element the iterator yields \u2014 so a widget can reference a list whose length it does not know when authored."
         }
-      }
+      },
+      "description": "The widget's contract: its own data, an optional binding to a RESTAction, the resources it references, and any templated overrides."
     }
   },
-  "required": ["kind", "spec", "version"]
+  "required": [
+    "kind",
+    "spec",
+    "version"
+  ]
 }
