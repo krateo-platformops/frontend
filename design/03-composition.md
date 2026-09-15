@@ -89,7 +89,9 @@ Mechanical note: the `Tabs` enum carries `cols` but not `flexes`, so a section b
 
 ### P9 — Vertical rhythm between page sections keys off one spacing step.
 
-**Status:** open → **closed** — one step, `middle` (8px), across all 31 roots, lint-enforced
+**Status:** open → **closed** — one step, `middle` (8px), across all 31 roots, lint-enforced — **residual:** one grid still sets its own step
+
+> **2026-09-15 reconciliation.** The transition above is real but over-claimed: a live counterexample remains. `ui/src/widgets/Row/Row.module.css:40-42` — `.row .column { margin-bottom: var(--spacing-lg) }` (24px) against the roots' `middle` (8px). Verified by an adversarial pass whose brief was to refute the closure, not to confirm it — 15 of 18 markers examined failed that way, which is the direction that matters, since a rule marked fixed is a rule nobody re-checks.
 
 #54 §0.6 asked for a standard gap between major sections and a smaller one within a section. No shared page-rhythm convention exists, so each page's section gap stays ad hoc.
 
@@ -156,7 +158,9 @@ not govern it — rhythm *between* sections is the page's business, *within* one
 
 ### P25 — Every page the nav declares opens on a `PageHeader`.
 
-**Status:** gap → **fixed**
+**Status:** gap → **fixed** — **residual:** `/profile` is not a nav-declared page but opens bare
+
+> **2026-09-15 reconciliation.** The transition above is real but over-claimed: a live counterexample remains. `ui/src/pages/Profile/Profile.tsx:30-31` — a bare `<Card>`, no `PageHeader`, and the page names itself nowhere. Verified by an adversarial pass whose brief was to refute the closure, not to confirm it — 15 of 18 markers examined failed that way, which is the direction that matters, since a rule marked fixed is a rule nobody re-checks.
 
 A page names itself, in the same place, in the same type ramp. It is the most visible consistency
 rule here — and until the lint gained P25 the only thing enforcing it was someone running a survey
@@ -289,7 +293,9 @@ Rendered to end users today: *“The widget does not exist”*, *“does not hav
 
 ### P18 — A confirm button names the outcome it confirms.
 
-**Status:** gap → **fixed**
+**Status:** gap → **fixed** — **residual:** the HITL approval pair is exempt in practice
+
+> **2026-09-15 reconciliation.** The transition above is real but over-claimed: a live counterexample remains. `ui/src/components/Autopilot/AutopilotRail.tsx:223-224` — `Approve` / `Deny` name the act, not the outcome, on the live kagent gate. Verified by an adversarial pass whose brief was to refute the closure, not to confirm it — 15 of 18 markers examined failed that way, which is the direction that matters, since a rule marked fixed is a rule nobody re-checks.
 
 The one HITL gate every mutating write passes through now names its verb: *"Confirm delete"*, *"Confirm create"*, *"Confirm 4 writes"*. `VERB_INTENT` — the same map the modal body already renders — is exported from `BlastRadiusConfirm` and imported by `confirmModalProps` rather than restated, so the button and the body cannot drift.
 

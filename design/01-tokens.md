@@ -97,7 +97,9 @@ canonical one from the `KRATEO_BASE` text roles, both in `tokens.ts` · extends 
 
 ### T4 — Spacing resolves to `var(--spacing-*)`; a raw value must equal one of 4 / 8 / 16 / 24 / 32.
 
-**Status:** severe → **fixed, and now a plain gate**
+**Status:** severe → **fixed, and now a plain gate** — **residual:** the raw-value carve-out still leaks
+
+> **2026-09-15 reconciliation.** The transition above is real but over-claimed: a live counterexample remains. `ui/src/pages/Login/Login.module.css:22` — `padding: clamp(var(--spacing-xl), 6vw, 80px)` carries a raw `80px` outside the stated set, in a file the lint does scan. Verified by an adversarial pass whose brief was to refute the closure, not to confirm it — 15 of 18 markers examined failed that way, which is the direction that matters, since a rule marked fixed is a rule nobody re-checks.
 
 Swept to zero: `spacing` 106 → 0 and `gap` 22 → 0 across `ui/src`, one commit per file so any single rounding reverts alone. The rule applied throughout was *snap to the nearest step; where a value sits exactly between two steps, round up* — no value moved by more than 4px. `lint-css-tokens.py` now runs with an empty baseline for both rules, so this is enforced rather than tracked.
 

@@ -98,7 +98,9 @@ Today: a custom button, an antd circle button, and an antd circle button wrapped
 
 ### C8 — A clickable row is keyboard-operable: focusable, announced, and activated by Enter and Space.
 
-**Status:** gap → **fixed**
+**Status:** gap → **fixed** — **residual:** not on the card-tile row
+
+> **2026-09-15 reconciliation.** The transition above is real but over-claimed: a live counterexample remains. `ui/src/widgets/List/ListView.tsx:244` — the card tile spreads the row's `onKeyDown` onto the `<Card>` that contains the focusable, so the handler is on the wrong node. Verified by an adversarial pass whose brief was to refute the closure, not to confirm it — 15 of 18 markers examined failed that way, which is the direction that matters, since a rule marked fixed is a rule nobody re-checks.
 
 > **Fixed** (#200). One shared `rowNavProps` helper across the default row, tree row, card tile and rich row, plus the notification rows. A correction from doing it: the audit reported FIVE navigable shapes — the fifth is already an antd `Button` and carries this natively. Four were real.
 
@@ -130,7 +132,9 @@ The header notification bell — present on every page — has no `aria-label`, 
 
 ### C11 — Two colour vocabularies share value names, and neither schema said which it took.
 
-**Status:** gap → **corrected: not a defect**
+**Status:** gap → **corrected: not a defect** — **residual:** the schema text still does not say it
+
+> **2026-09-15 reconciliation.** The transition above is real but over-claimed: a live counterexample remains. `ui/src/widgets/Tag/Tag.schema.json:40` — `"the tag color (preset name or hex)"`, shipped identically to `helm/frontend-crds/templates/Tag.crd.yaml:157`. The vocabularies were reconciled; the schema still does not disambiguate them. Verified by an adversarial pass whose brief was to refute the closure, not to confirm it — 15 of 18 markers examined failed that way, which is the direction that matters, since a rule marked fixed is a rule nobody re-checks.
 
 > **Corrected.** This rule said `Button.color` wrongly bypasses `getColorCode` while `iconColor` beside it routes through. **They are two different vocabularies by design.** `Button.color` mirrors antd’s own 16-value preset list verbatim, per the authoring convention that `widgetData` copies antd’s enums exactly — and three of its values (`default`, `primary`, `danger`) are not colours at all. Routing it through the palette would break antd fidelity and mangle those three.
 >
@@ -156,7 +160,9 @@ The header notification bell — present on every page — has no `aria-label`, 
 
 ### C13 — A `Tag` never renders a colour swatch with no label.
 
-**Status:** gap → **fixed, and lint-enforced**
+**Status:** gap → **fixed, and lint-enforced** — **residual:** an empty-string value still renders a bare swatch
+
+> **2026-09-15 reconciliation.** The transition above is real but over-claimed: a live counterexample remains. `ui/src/widgets/Table/Table.tsx:121` — `{stringValue ?? '-'}` is nullish-only, so `""` renders a palette-tinted `Tag` with no text, which is precisely what the rule forbids. Verified by an adversarial pass whose brief was to refute the closure, not to confirm it — 15 of 18 markers examined failed that way, which is the direction that matters, since a rule marked fixed is a rule nobody re-checks.
 
 `tag-colour-no-label` in `lint-portal-consistency.py` reports 0 violations against the portal chart and runs on every PR in both repos. The rule also survives in code: `StatusPill` draws its leading dot only when there is a LABEL, so a colour-only pill cannot be produced by the widget either.
 
@@ -311,7 +317,9 @@ Review heuristic: a child widget’s CSS naming a specific parent widget to just
 
 ### C23 — Drawer surfaces stack, and only one pair has ever agreed on an order.
 
-**Status:** open → **fixed — the stack is declared in one place and guarded by a test**
+**Status:** open → **fixed — the stack is declared in one place and guarded by a test** — **residual:** the widget `Modal` surface never joined the stack
+
+> **2026-09-15 reconciliation.** The transition above is real but over-claimed: a live counterexample remains. `ui/src/widgets/Modal/Modal.tsx:69-85`, mounted at `ui/src/components/Shell/Shell.tsx:86` one line below `<Drawer />` — the declared stack covers Drawer, not this. Verified by an adversarial pass whose brief was to refute the closure, not to confirm it — 15 of 18 markers examined failed that way, which is the direction that matters, since a rule marked fixed is a rule nobody re-checks.
 
 `theme/layers.ts` now declares all four surfaces in order, and each imports its value:
 

@@ -131,7 +131,9 @@ On primacy: it is **not** special-cased. It takes `primary` under the same rule 
 
 ### A6 — A declared verb that always no-ops must be implemented or removed.
 
-**Status:** gap → **decided**
+**Status:** gap → **decided** — **residual:** refusal chips still render as successes
+
+> **2026-09-15 reconciliation.** The transition above is real but over-claimed: a live counterexample remains. `ui/src/components/Autopilot/AutopilotRail.tsx:183-190` — every action chip, refusals included, renders the cyan success checkmark. Verified by an adversarial pass whose brief was to refute the closure, not to confirm it — 15 of 18 markers examined failed that way, which is the direction that matters, since a rule marked fixed is a rule nobody re-checks.
 
 > **Decided, and the underlying defect fixed** (#204). The stubs STAY declared: removing them changes nothing, because an unregistered verb returns null too — so the real defect was the silence, not the declaration. And they must NOT be implemented: the drawer capability is already reachable via `runAction` against a shipped Button, so a dedicated verb would let the agent open a drawer for a ref no button exposes — creating a Layer 5 gap rather than closing one. `refused()` in `actionBridge` turns a null into a chip naming the verb — for the **read-verb registry path**.
 
@@ -156,7 +158,9 @@ It sits outside any page-content subtree, placed last behind a divider, in brand
 
 ### A8 — The agent’s activity state is visible wherever the agent is.
 
-**Status:** open → **fixed**
+**Status:** open → **fixed** — **residual:** the indicator clears before the action phase
+
+> **2026-09-15 reconciliation.** The transition above is real but over-claimed: a live counterexample remains. `ui/src/components/Autopilot/AutopilotToggle.tsx:28,50` — bound to provider `streaming`, which `AutopilotProvider.tsx:297` clears BEFORE the agent's action phase begins. Verified by an adversarial pass whose brief was to refute the closure, not to confirm it — 15 of 18 markers examined failed that way, which is the direction that matters, since a rule marked fixed is a rule nobody re-checks.
 
 > **Fixed** (#204). The header toggle consumes `streaming` and shows the reserved agent-signal token, with `aria-busy` for screen readers. STATIC, not blinking: the rail's caret blinks because it sits at the end of streaming text where motion reads as "more is coming", but a permanent blink in the page header is the looping animation G13 rules out.
 

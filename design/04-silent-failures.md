@@ -28,7 +28,9 @@ The second mechanism is strictness working against you. Widget CRDs are strongly
 
 ### X1 — A render-time throw must not be able to blank the page.
 
-**Status:** severe → **fixed**
+**Status:** severe → **fixed** — **residual:** one render-path dereference is still unguarded
+
+> **2026-09-15 reconciliation.** The transition above is real but over-claimed: a live counterexample remains. `ui/src/components/Notifications/Notifications.tsx:43-44` — `event.involvedObject.kind ?? ''` with no optional chaining, reached during render via an ungated `useMemo`. Verified by an adversarial pass whose brief was to refute the closure, not to confirm it — 15 of 18 markers examined failed that way, which is the direction that matters, since a rule marked fixed is a rule nobody re-checks.
 
 > **Resolved since this rule was written.** `WidgetErrorBoundary`, scoped per widget, with `resetKey={dataUpdatedAt}` so a refetch un-latches it. Landed in PR #196.
 
@@ -40,7 +42,9 @@ The existing error card only guards the fetch and HTTP paths. So malformed-but-s
 
 ### X2 — “Denied”, “not found” and “broken” must be distinguishable.
 
-**Status:** severe → **fixed**, residual **decided**
+**Status:** severe → **fixed** for the render path; the decided residual stands, and a **second, undecided** one: the ACTION path never received the fix
+
+> **2026-09-15 reconciliation.** The transition above is real but over-claimed: a live counterexample remains. `ui/src/hooks/useHandleActions.ts:641-652` — `deniedRefIds` landed in `WidgetRenderer` only, so an RBAC-denied action ref still reads as a broken widget definition. Same defect, second location. Verified by an adversarial pass whose brief was to refute the closure, not to confirm it — 15 of 18 markers examined failed that way, which is the direction that matters, since a rule marked fixed is a rule nobody re-checks.
 
 > **Resolved, and the residual is a decision rather than a gap.** 403 and 404 now render distinct calm states (#196).
 >
@@ -58,7 +62,9 @@ On a platform where per-user RBAC scoping is a feature, a user with partial perm
 
 ### X3 — A failed fetch surfaces the backend’s own explanation.
 
-**Status:** gap → **fixed**
+**Status:** gap → **fixed** — **residual:** the timeout branch returns before `detail` is read
+
+> **2026-09-15 reconciliation.** The transition above is real but over-claimed: a live counterexample remains. `ui/src/components/WidgetRenderer/WidgetRenderer.tsx:161-163` — `if (timedOut) return <WidgetTimeout …>` precedes every use of the backend's explanation. Verified by an adversarial pass whose brief was to refute the closure, not to confirm it — 15 of 18 markers examined failed that way, which is the direction that matters, since a rule marked fixed is a rule nobody re-checks.
 
 > **Resolved since this rule was written.** `WidgetFetchError` now carries a `detail` read best-effort from the failure body, and the renderer prefers it over the generic HTTP phrase. Landed in PR #196.
 
@@ -141,7 +147,9 @@ for them; they were left out of this pass rather than fixed and forgotten.
 
 ### X5 — Containment is checked by a chart lint, since nothing else can check it.
 
-**Status:** gap → **enforced** — and it found a live defect on its first run
+**Status:** gap → **enforced** — and it found a live defect on its first run — **residual:** one schema still carries the stale enum
+
+> **2026-09-15 reconciliation.** The transition above is real but over-claimed: a live counterexample remains. `ui/src/widgets/Menu/Menu.schema.json:23-30` — `allowedResources` still enumerates `[navmenuitems, pages]`, the exact drift the lint exists to catch. Verified by an adversarial pass whose brief was to refute the closure, not to confirm it — 15 of 18 markers examined failed that way, which is the direction that matters, since a rule marked fixed is a rule nobody re-checks.
 
 The containment FIELD is a common contract maintained by the CRD generator
 (`normalizeAllowedResources`), and the DECLARATION is now checked by
@@ -196,7 +204,9 @@ Two structural oddities the lint would also surface: four containers (`Card`, `S
 
 ### X6 — Recursive rendering has a depth bound.
 
-**Status:** gap → **fixed**
+**Status:** gap → **fixed** — **residual:** the depth bound does not gate the fetch
+
+> **2026-09-15 reconciliation.** The transition above is real but over-claimed: a live counterexample remains. `ui/src/components/WidgetRenderer/WidgetRenderer.tsx:131` — `useWidgetQuery(...)` runs unconditionally with no `enabled` gate, so a cycle still issues requests at every level. Verified by an adversarial pass whose brief was to refute the closure, not to confirm it — 15 of 18 markers examined failed that way, which is the direction that matters, since a rule marked fixed is a rule nobody re-checks.
 
 `context/RenderChainContext` threads the chain of endpoints being rendered, and `WidgetRenderer`
 checks it BEFORE fetching — a cycle should cost zero requests, not one per turn of it.
