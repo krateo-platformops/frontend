@@ -30,15 +30,44 @@ The first pass could only measure Autopilot's side. This one diffed it against *
 
 ### A1 — Every capability Autopilot can reach has a control a user can reach without it — and the agent presses that control.
 
-**Status:** breached — **on both halves**
+**Status:** ~~breached — **on both halves**~~ → **capability half CLOSED 2026-09-15**; the
+structural half stands (see below).
 
-Measured: the invariant holds for navigation, action-driving, form filling and both contested mutating verbs. It is breached for **publishing** — and breached structurally rather than by oversight. The three builder pages ship *zero* write widgets; their only call to action is a navigate into the rail. Autopilot is not a faster path to publishing, it is the only path.
+> ### ⚠ The measurement this section was built on was wrong. Corrected 2026-09-15.
+>
+> It said: *"The three builder pages ship zero write widgets; their only call to action is a
+> navigate into the rail."* **Two of the three already had authoring controls**, in the
+> then-deployed chart `1.8.23`:
+>
+> | Page | What it actually shipped |
+> |---|---|
+> | `/portal-builder` | a **Compose-a-page** form with a **Publish page** button and a full target section (org, repository, base branch, branch) |
+> | `/controller-builder` | paste-OAS and define-controller authoring cards |
+> | `/blueprint-builder` | **nothing** — the only page where the claim held |
+>
+> The error was reading the *rail-navigate CTA* on each page as the page's only call to action
+> without checking what else it mounted. The conclusion drawn from it — *"Autopilot is not a
+> faster path to publishing, it is the only path"* — was therefore true of one page, stated of
+> three.
+>
+> **The one real gap is now closed.** `/blueprint-builder` mounts an `author-blueprint` form
+> (B4) that publishes through the same `BuilderPublish` claim. All three builder pages now
+> carry a human-pressable authoring control: `compose-page-card`, `kog-author-paste` /
+> `kog-author-define`, `author-blueprint-card`.
+>
+> **What this does not excuse.** A published audit is load-bearing — the programme in
+> `07-ui-parity-programme.md` sized a 3–4 week "largest item" partly on this paragraph. The
+> lesson is the one already written down as [[verify-codebase-before-claims]]: *check what the
+> component actually mounts, not what its most visible control suggests.*
+
+Measured: the invariant holds for navigation, action-driving, form filling and both contested mutating verbs. It **was** breached for **publishing** — on one builder page, not three, and it is now closed.
 
 The distinction the first audit drew still holds and is worth keeping: every individual Autopilot write routes through the identical confirm, blast-radius and provenance fabric a Button click uses.
 
-> The **safety** invariant holds everywhere. The **capability** invariant is breached in exactly one place — and it is a whole product surface, not a verb.
+> The **safety** invariant holds everywhere. The **capability** invariant was breached on
+> exactly one page — `/blueprint-builder` — not on the whole builder surface, and it is closed.
 >
-> — *the measured result*
+> — *the corrected result*
 
 ## The second half, folded in 2026-09-14 (Diego)
 
