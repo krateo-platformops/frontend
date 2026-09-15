@@ -384,8 +384,8 @@
    mark ON the field label rather than a second label beside it — the field name must stay the
    thing the eye lands on. */
 .agentTag {
-  margin-inline-start: 6px;
-  font-size: 11px;
+  margin-inline-start: var(--spacing-xsm);
+  font-size: var(--krateo-text-label-xs);
   line-height: 16px;
   vertical-align: middle;
 }
