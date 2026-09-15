@@ -1,6 +1,6 @@
 import type { IconProp } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { Button, Descriptions, Form as AntdForm, Result, Space, Spin } from 'antd'
+import { Button, Descriptions, Form as AntdForm, Result, Space, Spin, Tag } from 'antd'
 import useApp from 'antd/es/app/useApp'
 import dayjs from 'dayjs'
 import type { JSONSchema4 } from 'json-schema'
@@ -131,16 +131,38 @@ const reviewFieldOrder = (key: string): number => {
   return 2
 }
 
-const ReviewSummary = ({ schema, values }: { schema?: JSONSchema4; values: Record<string, unknown> }): React.ReactNode => {
+/**
+ * The review step, with the fields Autopilot authored marked as such.
+ *
+ * WHY THE MARK MATTERS. "The agent fills, the human submits" is only a safeguard if the human
+ * can tell WHICH values came from the agent. Without it the review reads as the user's own
+ * form, and an agent-authored value is approved on the strength of a glance — the reviewer has
+ * no way to know which lines deserve a second look. The tag is the difference between review
+ * and rubber-stamp.
+ *
+ * `agentKeys` carries only the keys, never the values: what the agent proposed is already the
+ * value on screen, and the mark is about PROVENANCE, not content.
+ */
+export const ReviewSummary = ({ agentKeys, schema, values }: {
+  agentKeys?: readonly string[]
+  schema?: JSONSchema4
+  values: Record<string, unknown>
+}): React.ReactNode => {
+  const authored = new Set(agentKeys ?? [])
   const items = Object.entries(values)
     .filter(([key]) => key !== '__owner')
     .filter(([, value]) => value !== undefined && value !== null && value !== '' && !(Array.isArray(value) && value.length === 0))
     .sort(([keyA], [keyB]) => reviewFieldOrder(keyA) - reviewFieldOrder(keyB))
     .map(([key, value]) => {
       const node = schema?.properties?.[key]
-      const label = (typeof node?.title === 'string' && node.title) || key
+      const base = (typeof node?.title === 'string' && node.title) || key
+      const label = authored.has(key)
+        ? <span>{base} <Tag className={styles.agentTag} color='processing'>Autopilot</Tag></span>
+        : base
+
       return { children: formatReviewValue(value), key, label }
     })
+  const authoredCount = items.filter((item) => authored.has(item.key)).length
 
   return (
     <Descriptions
@@ -148,7 +170,9 @@ const ReviewSummary = ({ schema, values }: { schema?: JSONSchema4; values: Recor
       column={1}
       items={items}
       size='small'
-      title='Review — these values will create the composition'
+      title={authoredCount
+        ? `Review — these values will create the composition · Autopilot drafted ${authoredCount} of ${items.length}`
+        : 'Review — these values will create the composition'}
     />
   )
 }
@@ -488,7 +512,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
         </AntdForm>
       </div>
 
-      {reviewing && reviewValues ? <ReviewSummary schema={jsonSchema} values={reviewValues} /> : null}
+      {reviewing && reviewValues ? <ReviewSummary agentKeys={safeAgentDraft ? Object.keys(safeAgentDraft) : undefined} schema={jsonSchema} values={reviewValues} /> : null}
 
       <div className={styles.extra}>{footer}</div>
     </div>
