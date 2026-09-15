@@ -7,6 +7,7 @@ with it. The clean fixture encodes the specific cases that made earlier drafts n
 """
 import importlib.util
 import io
+import json
 import os
 import re
 import subprocess
@@ -61,6 +62,71 @@ def readme_drift():
     return [f'{name}: registered in RULES but absent from README.md\'s rule table'
             for name in sorted(set(RULES) - documented)]
 
+
+
+def enforced_count_drift():
+    """Every number the design README states about enforcement must match the tools.
+
+    This paragraph has now drifted three times: it claimed the lints were not wired into CI when
+    they were, quoted a CSS baseline of 314 when the file held seven, then said "ten composition
+    rules" after three were added and "seven" baseline violations after a rule landed that imported
+    nineteen. Each time it was the section specifically about what is verified — the one place a
+    reader goes to find out what they can trust.
+
+    A number a human retypes is a number that goes stale, so this stops asking. Every figure below
+    is derived from the thing it describes: the lint registries, the baseline file, and the rule
+    headings in the six documents. If someone adds a rule and not a sentence, this fails and names
+    both numbers."""
+    readme = os.path.join(HERE, os.pardir, 'README.md')
+    if not os.path.isfile(readme):
+        return []
+    text = io.open(readme, encoding='utf-8').read()
+    out = []
+
+    def claim(pattern, actual, label):
+        found = re.search(pattern, text)
+        if not found:
+            out.append(f'{label}: the README no longer states this figure (pattern {pattern!r}) — '
+                       f'it should say {actual}')
+        elif int(found.group(1)) != actual:
+            out.append(f'{label}: README says {found.group(1)}, tools say {actual}')
+
+    # Composition rules: this file's own registry.
+    composition = len(RULES)
+    # Token rules: the sibling lint's REGISTRY, imported the same way _rules() imports this one's.
+    # Counting `def rule_` would count an unregistered helper and miss a rule registered under an
+    # alias — the hand-maintained-list failure in a new costume, which is what _rules() exists to
+    # refuse.
+    css_spec = importlib.util.spec_from_file_location('csslintmod', os.path.join(HERE, 'lint-css-tokens.py'))
+    css_mod = importlib.util.module_from_spec(css_spec)
+    css_spec.loader.exec_module(css_mod)
+    token = len(css_mod.RULES)
+    # Total rules: the headings across the six design documents.
+    total = 0
+    for name in sorted(os.listdir(os.path.join(HERE, os.pardir))):
+        if re.match(r'^0\d-.*\.md$', name):
+            doc = io.open(os.path.join(HERE, os.pardir, name), encoding='utf-8').read()
+            total += len(re.findall(r'^\s*#{2,4}\s*[A-Z]\d+\b', doc, re.M))
+
+    claim(r'they hold \*\*(\d+) of the \d+ rules\*\*', composition + token, 'machine-held total')
+    claim(r'they hold \*\*\d+ of the (\d+) rules\*\*', total, 'total rule count')
+    claim(r'(\d+) composition rules and \d+ token rules', composition, 'composition rule count')
+    claim(r'\d+ composition rules and (\d+) token rules', token, 'token rule count')
+    claim(r'across all (\d+) rules against the portal chart', composition, 'portal-chart rule count')
+    claim(r'all (\d+) machine-held rules hold as of that commit', composition + token, 'machine-held total (CI sentence)')
+    claim(r'they cover the (\d+) rules no', total - composition - token, 'human-held remainder')
+
+    # The CSS baseline: total violations and the number of files they span.
+    baseline_path = os.path.join(HERE, 'css-baseline.json')
+    if os.path.isfile(baseline_path):
+        baseline = json.load(io.open(baseline_path, encoding='utf-8'))
+        files = {path for entries in baseline.values() for path in entries}
+        violations = sum(count for entries in baseline.values() for count in entries.values())
+        claim(r'\*\*baseline\*\* of (\d+)\s*\n?\s*pre-existing violations', violations, 'CSS baseline violations')
+        claim(r'pre-existing violations across (\d+) files', len(files), 'CSS baseline file count')
+        worst = max(baseline.items(), key=lambda kv: sum(kv[1].values()))
+        claim(r'(\d+) of those \d+ are', sum(worst[1].values()), f'largest baseline rule ({worst[0]})')
+    return out
 
 
 def status_body_drift():
@@ -146,6 +212,7 @@ def main():
         failures.append(f'palette drift check could not run: {exc}')
 
     failures.extend(f'status/body drift: {d}' for d in status_body_drift())
+    failures.extend(f'design README count drift: {d}' for d in enforced_count_drift())
 
     for line in failures:
         print(f'FAIL {line}')

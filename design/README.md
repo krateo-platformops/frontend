@@ -89,22 +89,36 @@ existence and count of resources outside a tenant's scope.
 
 ## What is enforced today
 
-Two lints run from [`lint/`](lint/), and between them they hold **ten composition rules and seven
-token rules**. Everything else is a rule a human applies.
+Two lints run from [`lint/`](lint/), and between them they hold **20 of the 105 rules** —
+13 composition rules and 7 token rules. Everything else is a rule a human applies.
 
 - `lint-portal-consistency.py` — composition, run against a chart's widget CRs. **0 violations**
-  across all ten rules against the portal chart.
-- `lint-css-tokens.py` — token adoption in this repo's stylesheets. Gates on a **baseline** of seven
-  pre-existing violations across five files, so new code is held to the rule while the debt burns
-  down.
+  across all 13 rules against the portal chart.
+- `lint-css-tokens.py` — token adoption in this repo's stylesheets. Gates on a **baseline** of 26
+  pre-existing violations across 24 files, so new code is held to the rule while the debt burns
+  down. 19 of those 26 are `widget-theme-coverage` (T2), which arrived with the rule itself:
+  adding a check to a codebase that predates it imports its existing debt in one step, and that is
+  the point of baselining rather than a reason to weaken the rule. The live counts are
+  `python3 design/lint/lint-css-tokens.py ui/src --summary`, which prints now-vs-baseline per rule
+  — read that rather than this sentence.
 
 **Both are wired into CI**, and have been since they landed: `.github/workflows/design-system.yaml`
 here runs the CSS lint and both self-tests on every PR and push to `main`, and the portal repo's
 workflow of the same name runs the composition lint against its rendered chart.
 
+**The CI check is the live status; this section is a claim about it.** To read the real state,
+look at the `design-system` check on any open PR in either repo — it fails on a violation, and a
+green one means all 20 machine-held rules hold as of that commit. The per-rule `Status:`
+markers in the six rule documents are the other half of the picture: they cover the 85 rules no
+lint can decide, and a human keeps them true. Prefer the check over both.
+
 > This section said "Neither is wired into CI yet. Until they are, this document is still the thing
 > it warns about", and quoted a baseline of 314 when the file held seven. Both were wrong for
-> several releases — in the section of the design system specifically about what is verified.
+> several releases — in the section of the design system specifically about what is verified. It
+> then said **ten** composition rules for several more, after three were added and this line was
+> not — and said a baseline of **seven** after a rule landed that imported nineteen. The same
+> failure, three times, in the paragraph about what is verified. Hence the pointers above: read the
+> CI check and `--summary`, not a number typed by hand.
 
 ## How rules are marked
 
