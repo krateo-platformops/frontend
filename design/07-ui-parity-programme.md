@@ -56,7 +56,7 @@ sourced from charts in `krateo-agentiko` plus pins in the installer.
 | `k8s-agent` | `k8s_apply_manifest`, `k8s_create_resource(_from_url)`, `k8s_patch_resource`, `k8s_delete_resource`, `k8s_rollout`, `k8s_scale`, `k8s_execute_command`, the four metadata verbs | ad-hoc restart/scale/patch on **raw workloads** (the portal is composition-only); **`k8s_execute_command` has no possible UI equivalent** |
 | `frontend-agent`, `snowplow-agent` | `k8s_apply_manifest` | server-side dry-run validation of authored widget / RESTAction CRs — drafts would publish unvalidated |
 | `core-provider-agent`, `authn-agent` | `k8s_apply_manifest`, `k8s_patch_resource` | Krateo `User` provisioning (already UI-less) |
-| `incident-agent`, `clickstack-agent` | `run_query` (keep `run_select_query`) | **nothing** — a free win that removes ungated `DROP`/`TRUNCATE` over the evidence base |
+| `incident-agent`, `clickstack-agent` | ~~`run_query` (keep `run_select_query`)~~ — **CANCELLED, the item was backwards**; see below | — |
 
 The `*-bench` tree is exempt; document it as such rather than silently skipping it.
 
@@ -114,6 +114,46 @@ Ordered so that nothing is removed before its replacement exists.
 | **B7** | ~~Helm releases page: list, values diff, upgrade, rollback, uninstall~~ — **cancelled, see below**; the read half folds into B8 | `helm-agent` removal |
 | **B8** | Platform component versions — **read-only, shipped**; the pin-change form was specified but is the wrong instrument, see below | `installer-agent` removal |
 | **B9** | Scoped resource forms — **done**: Krateo `User` **built**; `CompositionDefinition` register **already existed**; kubeconfig `Secret` **declined on an existing design decision**, see below | `core-provider-agent`, `authn-agent` |
+
+> **The `run_query` removal was the one item called a "free win". It would have broken telemetry
+> RCA. Verified 2026-09-16.**
+>
+> The premise was that `run_query` is unrestricted SQL and `run_select_query` its safe sibling.
+> Both halves are wrong:
+>
+> - **They are the same tool, renamed.** mcp-clickhouse ≤0.4 served `run_select_query`; **0.5.0
+>   serves `run_query`**. The charts list both only because kagent keeps the names the server
+>   actually serves. krateo-057 runs 0.5.0, pinned by digest — so **`run_select_query` does not
+>   exist there**. "Strip `run_query`, keep `run_select_query`" would have left both agents with
+>   *no query tool at all*.
+> - **It is not unrestricted.** Upstream 0.5.0 `run_query` calls `build_query_settings()`, which
+>   sends `readonly=1` unless `CLICKHOUSE_ALLOW_WRITE_ACCESS=true`. The chart does not expose that
+>   variable and the live Deployment does not set it. There is no ungated `DROP`/`TRUNCATE`.
+>
+> The lint's `READ_EXCEPTIONS` comment asserted the same error in writing (*"run_query
+> (unrestricted) is NOT exempt"*), which is how it would have survived review. Corrected there too.
+>
+> **Sweep result — eight ungated write paths, not four.** Linting all of krateo-agentiko found:
+> `installer-agent` `helm_upgrade` + `helm_repo_add` + `helm_repo_update`; `frontend-agent` and
+> `snowplow-agent` `k8s_apply_manifest`; and three codegen agents holding `create_or_update_file`
+> **and `push_files`** against GitHub. The lint had never seen any of them — it globbed only
+> `chart/templates/*.yaml`, so it covered the autopilot chart and nothing else. It now globs all
+> three fleet layouts and takes explicit roots: **45 templates clean**.
+>
+> **Every mutating Kubernetes and Helm tool is now gone from all six specialist agents.** The git
+> writes are **gated, not removed** — generating a project into a repository is what the codegen
+> agents are for, and git writes were never in the directive's scope. That they bypass the
+> change-request path the rest of the platform publishes through is a live scope question.
+>
+> **Consequence — `hitlApproval` is now a dead knob (owner's observation, confirmed).** Grep finds
+> **zero template references** to it anywhere in the fleet: with no mutating tool left, there is
+> nothing for an approval flag to gate. It is marked deprecated/inert rather than deleted, because
+> the installer injects the key into every agent component (`compositions.yaml`, `set $spec
+> "hitlApproval"`) and the agent schemas are `additionalProperties: false` — deleting the property
+> would make the installer's own render fail validation. **Retiring it is a coordinated installer +
+> chart change**, and it is the correct end state: the approval gate migrates from the agent's
+> tools to the human pressing the portal control.
+
 
 > **B9 resolved three ways, only one of which was a build. Verified 2026-09-15.**
 >
