@@ -65,18 +65,30 @@ export const buildSchema = (spec: WidgetSpec) => ({
     kind: { default: spec.kind, description: spec.description, type: 'string' },
     spec: {
       additionalProperties: false,
+      // C25: the envelope is described ONCE, here, rather than retyped in 44 schemas. These
+      // fields are identical in every widget and are emitted, not authored — describing them
+      // per-widget was 1,279 of the 1,518 undescribed properties and taught an author nothing.
+      description: "The widget's contract: its own data, an optional binding to a RESTAction, and any templated overrides applied to that data.",
       properties: {
         apiRef: {
           additionalProperties: false,
-          properties: { name: { type: 'string' }, namespace: { type: 'string' } },
+          description: 'Binds this widget to a RESTAction whose response feeds widgetDataTemplate expressions. Omit it for a widget whose data is entirely static.',
+          properties: {
+            name: { description: 'Name of the RESTAction resource to call.', type: 'string' },
+            namespace: { description: 'Namespace of the RESTAction resource.', type: 'string' },
+          },
           required: ['name', 'namespace'],
           type: 'object',
         },
         widgetData: widgetDataSchema(spec),
         widgetDataTemplate: {
+          description: 'Per-field overrides evaluated against the apiRef response, so one authored widget can render live cluster data. Each entry replaces one value inside widgetData.',
           items: {
             additionalProperties: false,
-            properties: { expression: { type: 'string' }, forPath: { type: 'string' } },
+            properties: {
+              expression: { description: 'A jq expression evaluated server-side against the apiRef response. Its result replaces the value at forPath.', type: 'string' },
+              forPath: { description: 'Dot-path inside widgetData whose value this expression replaces, for example `items[0].title`.', type: 'string' },
+            },
             type: 'object',
           },
           type: 'array',
@@ -85,7 +97,7 @@ export const buildSchema = (spec: WidgetSpec) => ({
       required: ['widgetData'],
       type: 'object',
     },
-    version: { default: 'v1beta1', type: 'string' },
+    version: { default: 'v1beta1', description: 'Widget API version. Defaults to v1beta1.', type: 'string' },
   },
   required: ['kind', 'spec', 'version'],
   type: 'object',

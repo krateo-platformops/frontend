@@ -78,7 +78,7 @@
                       },
                       "ops": {
                         "type": "array",
-                        "description": "ordered list of DISTINCT writes applied as ONE gated set (e.g. one Form submit creating a Role AND its RoleBinding): each op resolves its OWN resourceRefId (verb + path + payload base) and builds its OWN payload/payloadToOverride against the SAME submitted values. The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics). Mutually exclusive with fanOutPath; onEventNavigateTo is not supported on a multi-op action. The action's own top-level payload/payloadToOverride are IGNORED when ops is present and its top-level resourceRefId is ignored for dispatch (it must still name a valid resource ref — point it at the first op's)",
+                        "description": "ordered list of DISTINCT writes applied as ONE gated set (e.g. one Form submit creating a Role AND its RoleBinding): each op resolves its OWN resourceRefId (verb + path + payload base) and builds its OWN payload/payloadToOverride against the SAME submitted values. The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics). Mutually exclusive with fanOutPath; onEventNavigateTo is not supported on a multi-op action. The action's own top-level payload/payloadToOverride are IGNORED when ops is present and its top-level resourceRefId is ignored for dispatch (it must still name a valid resource ref \u2014 point it at the first op's)",
                         "items": {
                           "type": "object",
                           "additionalProperties": false,
@@ -151,7 +151,8 @@
                             "default": 50
                           },
                           "reloadRoutes": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "description": "Re-fetch the route table before navigating. Set it when the action creates its own destination \u2014 publishing a new page, for example \u2014 so the route exists by the time the navigation happens."
                           },
                           "loadingMessage": {
                             "type": "string",
@@ -205,13 +206,15 @@
                         "type": "object",
                         "properties": {
                           "display": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "description": "Show the in-flight indicator. Set false to run the action without one."
                           }
                         },
                         "required": [
                           "display"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "description": "Whether this action shows an in-flight indicator while it runs."
                       }
                     },
                     "required": [
@@ -237,13 +240,15 @@
                         "type": "object",
                         "properties": {
                           "display": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "description": "Show the in-flight indicator. Set false to run the action without one."
                           }
                         },
                         "required": [
                           "display"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "description": "Whether this action shows an in-flight indicator while it runs."
                       },
                       "path": {
                         "description": "the identifier of the route to navigate to",
@@ -313,13 +318,15 @@
                         "type": "object",
                         "properties": {
                           "display": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "description": "Show the in-flight indicator. Set false to run the action without one."
                           }
                         },
                         "required": [
                           "display"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "description": "Whether this action shows an in-flight indicator while it runs."
                       }
                     },
                     "required": [
@@ -363,13 +370,15 @@
                         "type": "object",
                         "properties": {
                           "display": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "description": "Show the in-flight indicator. Set false to run the action without one."
                           }
                         },
                         "required": [
                           "display"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "description": "Whether this action shows an in-flight indicator while it runs."
                       },
                       "customWidth": {
                         "description": "the custom width of the value, which should be used by setting the 'custom' value inside the 'size' property",
@@ -436,7 +445,7 @@
                 },
                 "draft": {
                   "type": "object",
-                  "description": "draft button configuration — only rendered when widgetData.draftActionId is also set; clicking it persists the current (un-validated) field values via that action",
+                  "description": "draft button configuration \u2014 only rendered when widgetData.draftActionId is also set; clicking it persists the current (un-validated) field values via that action",
                   "properties": {
                     "label": {
                       "type": "string",
@@ -451,7 +460,7 @@
                 },
                 "review": {
                   "type": "object",
-                  "description": "Configure-step button label when reviewBeforeSubmit is set (the button that opens the in-place Review; default 'Review →')",
+                  "description": "Configure-step button label when reviewBeforeSubmit is set (the button that opens the in-place Review; default 'Review \u2192')",
                   "properties": {
                     "label": {
                       "type": "string",
@@ -462,7 +471,7 @@
                 },
                 "reviewBack": {
                   "type": "object",
-                  "description": "Review-step back button label when reviewBeforeSubmit is set (returns to editing; default '← Back to edit')",
+                  "description": "Review-step back button label when reviewBeforeSubmit is set (returns to editing; default '\u2190 Back to edit')",
                   "properties": {
                     "label": {
                       "type": "string",
@@ -481,7 +490,7 @@
               "tsType": "Record<string, unknown>"
             },
             "items": {
-              "description": "resourceRefIds of form-control widgets (Input, Select, Switch, …) to compose inside the Form. Composable mode — an alternative to the schema/stringSchema generator.",
+              "description": "resourceRefIds of form-control widgets (Input, Select, Switch, \u2026) to compose inside the Form. Composable mode \u2014 an alternative to the schema/stringSchema generator.",
               "type": "array",
               "items": {
                 "type": "object",
@@ -498,7 +507,7 @@
               }
             },
             "schema": {
-              "description": "JSON schema (e.g. a blueprint CRD's openAPIV3Schema spec) rendered as form fields — the schema-driven alternative to `items`. Usually populated server-side via a widgetDataTemplate jq expression that extracts the spec schema. Note: a schema sourced from a CRD's openAPIV3Schema has its `properties` map serialized alphabetically (order lost); use `stringSchema` to preserve the source values.schema.json authoring order.",
+              "description": "JSON schema (e.g. a blueprint CRD's openAPIV3Schema spec) rendered as form fields \u2014 the schema-driven alternative to `items`. Usually populated server-side via a widgetDataTemplate jq expression that extracts the spec schema. Note: a schema sourced from a CRD's openAPIV3Schema has its `properties` map serialized alphabetically (order lost); use `stringSchema` to preserve the source values.schema.json authoring order.",
               "type": "object",
               "additionalProperties": true,
               "tsType": "Record<string, unknown>"
@@ -515,11 +524,11 @@
               }
             },
             "reviewBeforeSubmit": {
-              "description": "when true (inline render only), the primary button validates and reveals an in-place read-only Review of the entered values before the real submit — the form stays mounted so 'Back to edit' preserves every value. Pair with buttonConfig.review / buttonConfig.reviewBack for custom labels.",
+              "description": "when true (inline render only), the primary button validates and reveals an in-place read-only Review of the entered values before the real submit \u2014 the form stays mounted so 'Back to edit' preserves every value. Pair with buttonConfig.review / buttonConfig.reviewBack for custom labels.",
               "type": "boolean"
             },
             "submitDisabledWhenPristine": {
-              "description": "when true, the primary (submit) button stays disabled until at least one field differs from its initial value (initialValues overlaid on schema defaults). Use for update forms where submitting an unchanged value is a no-op — e.g. a version picker pre-set to the currently-installed version.",
+              "description": "when true, the primary (submit) button stays disabled until at least one field differs from its initial value (initialValues overlaid on schema defaults). Use for update forms where submitting an unchanged value is a no-op \u2014 e.g. a version picker pre-set to the currently-installed version.",
               "type": "boolean"
             },
             "submitActionId": {
@@ -539,16 +548,21 @@
                   "type": "string"
                 },
                 "map": {
-                  "description": "map of field-value → action id",
+                  "description": "map of field-value \u2192 action id",
                   "type": "object",
-                  "additionalProperties": { "type": "string" }
+                  "additionalProperties": {
+                    "type": "string"
+                  }
                 },
                 "default": {
                   "description": "action id used when the field value is not present in `map`",
                   "type": "string"
                 }
               },
-              "required": ["field", "map"],
+              "required": [
+                "field",
+                "map"
+              ],
               "additionalProperties": false
             }
           },
@@ -558,17 +572,20 @@
           "type": "object",
           "properties": {
             "name": {
-              "type": "string"
+              "type": "string",
+              "description": "Name of the RESTAction resource to call."
             },
             "namespace": {
-              "type": "string"
+              "type": "string",
+              "description": "Namespace of the RESTAction resource."
             }
           },
           "required": [
             "name",
             "namespace"
           ],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "description": "Binds this widget to a RESTAction whose response feeds the widgetDataTemplate and resourcesRefsTemplate expressions. Omit it for a widget whose data is entirely static."
         },
         "widgetDataTemplate": {
           "type": "array",
@@ -576,14 +593,17 @@
             "type": "object",
             "properties": {
               "forPath": {
-                "type": "string"
+                "type": "string",
+                "description": "Dot-path inside widgetData whose value this expression replaces, for example `items[0].title`."
               },
               "expression": {
-                "type": "string"
+                "type": "string",
+                "description": "A jq expression evaluated server-side against the apiRef response. Its result replaces the value at forPath."
               }
             },
             "additionalProperties": false
-          }
+          },
+          "description": "Per-field overrides evaluated against the apiRef response, so one authored widget can render live cluster data. Each entry replaces one value inside widgetData."
         },
         "resourcesRefs": {
           "type": "object",
@@ -594,25 +614,32 @@
                 "type": "object",
                 "properties": {
                   "allowed": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "description": "Set server-side: whether the caller may perform this verb. False entries are stripped before the widget renders and are never authored by hand."
                   },
                   "apiVersion": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Group and version of the referenced resource, for example `widgets.templates.krateo.io/v1beta1`."
                   },
                   "id": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "The author-chosen handle this widget uses to reference the resource, matching a resourceRefId in widgetData."
                   },
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Name of the referenced resource."
                   },
                   "namespace": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Namespace of the referenced resource."
                   },
                   "payload": {
-                    "type": "object"
+                    "type": "object",
+                    "description": "Body sent with a mutating verb. Ignored for a GET."
                   },
                   "resource": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Plural resource name, for example `paragraphs`."
                   },
                   "verb": {
                     "type": "string",
@@ -622,39 +649,47 @@
                       "PATCH",
                       "DELETE",
                       "GET"
-                    ]
+                    ],
+                    "description": "HTTP verb used to resolve the reference. GET for a read; a mutating verb makes this a write the widget can dispatch."
                   },
                   "slice": {
                     "type": "object",
                     "properties": {
                       "offset": {
-                        "type": "integer"
+                        "type": "integer",
+                        "description": "Number of items to skip before the returned page."
                       },
                       "page": {
-                        "type": "integer"
+                        "type": "integer",
+                        "description": "One-based page number to return."
                       },
                       "perPage": {
-                        "type": "integer"
+                        "type": "integer",
+                        "description": "Maximum items in the returned page."
                       },
                       "continue": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Opaque continuation token from a previous response, used to fetch the next page."
                       }
                     },
                     "required": [
                       "page",
                       "perPage"
-                    ]
+                    ],
+                    "description": "Server-side paging for this reference: the widget receives one page rather than the whole list."
                   }
                 },
                 "required": [
                   "id"
                 ]
-              }
+              },
+              "description": "One referenced resource. The widget addresses it by its `id`, never by name."
             }
           },
           "required": [
             "items"
-          ]
+          ],
+          "description": "The resources this widget references by id. Each entry is resolved server-side and its endpoint handed to the widget; entries the caller may not read are removed before the widget renders, so a denied reference reads as absence rather than as an error."
         },
         "resourcesRefsTemplate": {
           "type": "array",
@@ -662,28 +697,35 @@
             "type": "object",
             "properties": {
               "iterator": {
-                "type": "string"
+                "type": "string",
+                "description": "A jq expression selecting the array in the apiRef response to iterate over."
               },
               "template": {
                 "type": "object",
                 "properties": {
                   "apiVersion": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Group and version of the referenced resource, for example `widgets.templates.krateo.io/v1beta1`."
                   },
                   "id": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "The author-chosen handle this widget uses to reference the resource, matching a resourceRefId in widgetData."
                   },
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Name of the referenced resource."
                   },
                   "namespace": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Namespace of the referenced resource."
                   },
                   "payload": {
-                    "type": "object"
+                    "type": "object",
+                    "description": "Body sent with a mutating verb. Ignored for a GET."
                   },
                   "resource": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Plural resource name, for example `paragraphs`."
                   },
                   "verb": {
                     "type": "string",
@@ -693,20 +735,24 @@
                       "PATCH",
                       "DELETE",
                       "GET"
-                    ]
+                    ],
+                    "description": "HTTP verb used to resolve the reference. GET for a read; a mutating verb makes this a write the widget can dispatch."
                   }
                 },
-                "additionalProperties": false
+                "additionalProperties": false,
+                "description": "The resourcesRefs entry emitted for each iterated element; its fields may interpolate that element."
               }
             },
             "additionalProperties": false
-          }
+          },
+          "description": "Generates resourcesRefs entries from the apiRef response \u2014 one per element the iterator yields \u2014 so a widget can reference a list whose length it does not know when authored."
         }
       },
       "required": [
         "widgetData"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "The widget's contract: its own data, an optional binding to a RESTAction, the resources it references, and any templated overrides."
     }
   },
   "required": [
