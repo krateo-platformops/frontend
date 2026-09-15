@@ -390,7 +390,41 @@ delete ceremony.
 
 ### C25 — A widget wrapping antd uses antd's prop names verbatim. A widget wrapping nothing documents itself.
 
-**Status:** gap — the convention exists and is obeyed; the rule was never written, so its scope was undefined
+**Status:** gap → **fixed**
+
+> **Fixed.** Both halves. The rule is written down below, and schema coverage went from
+> **799/2,317 (34%) to 2,317/2,317 (100%)** — measured by the same walk, before and after.
+>
+> The second half was carrying a **measurement error, and the exhibits below were its symptom**.
+> 34% was arithmetically right and substantively wrong: **1,279 of the 1,518 undescribed properties
+> (84%) sat outside `spec.widgetData` entirely.** They are the shared CR envelope — `apiRef`,
+> `resourcesRefs`, `resourcesRefsTemplate`, `widgetDataTemplate`, `version`, `kind` — roughly the
+> same 29 paths emitted into all 44 schemas and counted 44 times. On the vocabulary a CR author
+> actually writes, coverage was **738/811 = 91%**, not 34%.
+>
+> So the exhibits were false in the way that matters. Their real `widgetData` coverage was
+> **YamlViewer 1/1, Filters 3/3, Markdown 4/4, RangePicker 5/5, Tag 9/9 — all 100%** — and
+> ButtonGroup 6/7. A `Filters` author writes `prefix` and `items[].resourceRefId`; all three were
+> described. The other 29 were envelope every widget shares. The struck table is kept below rather
+> than deleted, because a rule that was wrong once should show its own correction.
+>
+> **The genuine gap was 73 properties**, and it is now closed: List 36 (the `grid/*` block and
+> `itemTemplate/*`), Theme 6, `items[].resourceRefId` in four container widgets, and 9 action
+> properties — `loading`, `loading/display`, `onEventNavigateTo/reloadRoutes` — fixed once at their
+> source in `ui/src/schemas/actions.schema.json` and re-synced into Button, Card, Form and List.
+>
+> **The envelope is described once, not 44 times.** `buildSchema` in `ui/scripts/widget-codegen.ts`
+> now emits descriptions for the shared block, so newly scaffolded widgets inherit them; a one-off
+> migration filled the 44 existing schemas. Note that `gen-antd-widgets` *skips widgets that already
+> exist*, so the generator change alone would have reached none of them — that is why both were
+> needed. Property sets were verified byte-identical before and after; only `description` fields were
+> added, and `validate-schemas` passes.
+>
+> **List's `grid/*` mirror antd** (`grid.gutter`, `grid.column`, `grid.xs`…) even though `List.tsx`
+> imports no antd List, so they point at antd's docs rather than inventing prose — the two halves
+> meeting, which the rule had not addressed.
+
+The original status read: *gap — the convention exists and is obeyed; the rule was never written, so its scope was undefined*.
 
 Two halves, and the second is the one nobody has been keeping.
 
@@ -402,14 +436,21 @@ docs**, and Krateo does not have to describe 2,317 properties it did not design.
 **Where there is no antd counterpart, the schema must carry its own descriptions** — because nothing
 else will. The convention says "read antd's docs", and for these there are none.
 
-**Measured today:** 44 schemas, 2,317 properties, **799 described (34%)**. 30 widgets are antd-backed
-(the widget imports its own namesake); **14 wrap nothing**. The gap lands exactly where predicted:
+**Measured when this rule was written:** 44 schemas, 2,317 properties, **799 described (34%)**.
+30 widgets are antd-backed (the widget imports its own namesake); **14 wrap nothing**. The gap was
+reported as landing exactly where predicted:
 
-    YamlViewer    2/36   5%      Markdown     5/39  12%      ButtonGroup  9/42  21%
-    Filters       3/32   9%      RangePicker  6/40  15%      Tag         10/44  22%
+    ~~YamlViewer    2/36   5%      Markdown     5/39  12%      ButtonGroup  9/42  21%~~
+    ~~Filters       3/32   9%      RangePicker  6/40  15%      Tag         10/44  22%~~
 
-Every one of those has no antd component behind it. A CR author writing a `Filters` widget has 3
-described properties out of 32 and no upstream documentation to fall back on.
+**That table counted the wrong denominator and is retained only as the record of the error.** Each
+figure counts the shared CR envelope — the ~29 generated paths every widget carries — against a
+widget that never authored them. Measured on `spec.widgetData`, the vocabulary a CR author writes,
+every one of those widgets was at or near 100% before any of this work: YamlViewer 1/1, Filters 3/3,
+Markdown 4/4, RangePicker 5/5, Tag 9/9, ButtonGroup 6/7.
+
+The sentence that followed — *"a CR author writing a `Filters` widget has 3 described properties out
+of 32"* — was false. A `Filters` author writes three properties and all three were described.
 
 **The mirror is already not a mirror, and the rule should say so.** Every widget adds Krateo props
 antd has no concept of — `allowedResources`, `resourceRefId`, `widgetDataTemplate`, `fitContent`,

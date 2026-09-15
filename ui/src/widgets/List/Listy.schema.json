@@ -4,7 +4,8 @@
   "properties": {
     "version": {
       "type": "string",
-      "default": "v1beta1"
+      "default": "v1beta1",
+      "description": "Widget API version."
     },
     "kind": {
       "default": "Listy",
@@ -28,28 +29,36 @@
               "description": "antd List grid layout (ListGridType); presence enables grid mode",
               "properties": {
                 "gutter": {
-                  "type": "integer"
+                  "type": "integer",
+                  "description": "Spacing between grid columns, in pixels. Mirrors antd List `grid.gutter`."
                 },
                 "column": {
-                  "type": "integer"
+                  "type": "integer",
+                  "description": "Number of columns at the default breakpoint. Mirrors antd List `grid.column`."
                 },
                 "xs": {
-                  "type": "integer"
+                  "type": "integer",
+                  "description": "Number of columns at the extra-small breakpoint. Mirrors antd List `grid.xs`."
                 },
                 "sm": {
-                  "type": "integer"
+                  "type": "integer",
+                  "description": "Number of columns at the small breakpoint. Mirrors antd List `grid.sm`."
                 },
                 "md": {
-                  "type": "integer"
+                  "type": "integer",
+                  "description": "Number of columns at the medium breakpoint. Mirrors antd List `grid.md`."
                 },
                 "lg": {
-                  "type": "integer"
+                  "type": "integer",
+                  "description": "Number of columns at the large breakpoint. Mirrors antd List `grid.lg`."
                 },
                 "xl": {
-                  "type": "integer"
+                  "type": "integer",
+                  "description": "Number of columns at the extra-large breakpoint. Mirrors antd List `grid.xl`."
                 },
                 "xxl": {
-                  "type": "integer"
+                  "type": "integer",
+                  "description": "Number of columns at the extra-extra-large breakpoint. Mirrors antd List `grid.xxl`."
                 }
               }
             },
@@ -104,7 +113,7 @@
               "properties": {
                 "pageSize": {
                   "type": "integer",
-                  "description": "antd pagination.pageSize — items per page"
+                  "description": "antd pagination.pageSize \u2014 items per page"
                 },
                 "position": {
                   "type": "string",
@@ -131,16 +140,20 @@
               "description": "serializable substitute for antd renderItem: maps a data element's fields to row slots ({dot.path}; {a|b} first-non-empty)",
               "properties": {
                 "primaryText": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "{dot.path} to the row's main label."
                 },
                 "secondaryText": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "{dot.path} to the value shown opposite the primary text."
                 },
                 "subPrimaryText": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "{dot.path} to the line beneath the primary text."
                 },
                 "subSecondaryText": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "{dot.path} to the line beneath the secondary text."
                 },
                 "description": {
                   "type": "string",
@@ -151,7 +164,8 @@
                   "description": "card-footer call-to-action cue (e.g. \"Configure\") shown footer-left when a card rowVariant is clickable (navigateTo); rendered as mono amber text + a sliding arrow (a navigation hint, not a button)"
                 },
                 "icon": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "{dot.path} to an icon name, or a literal name, shown at the row leading edge."
                 },
                 "iconVariant": {
                   "type": "string",
@@ -170,7 +184,7 @@
                     "card",
                     "chip"
                   ],
-                  "description": "row layout: default (antd List.Item.Meta — avatar + stacked title/description) | tree (tight single-line mono Relations row: connector + status dot + primaryText + muted inline subPrimaryText + right-aligned colored secondaryText) | card (full antd Card tile — icon-tile + name + version badge (subPrimaryText) + category tag (secondaryText) + description + a footer of rowActions as visible buttons — the Marketplace catalog grid) | chip (compact navigable filter pill — primaryText label + optional count, solid/amber when the item's active flag is set — the data-driven Marketplace facet chips)"
+                  "description": "row layout: default (antd List.Item.Meta \u2014 avatar + stacked title/description) | tree (tight single-line mono Relations row: connector + status dot + primaryText + muted inline subPrimaryText + right-aligned colored secondaryText) | card (full antd Card tile \u2014 icon-tile + name + version badge (subPrimaryText) + category tag (secondaryText) + description + a footer of rowActions as visible buttons \u2014 the Marketplace catalog grid) | chip (compact navigable filter pill \u2014 primaryText label + optional count, solid/amber when the item's active flag is set \u2014 the data-driven Marketplace facet chips)"
                 },
                 "secondaryTextAsTag": {
                   "type": "boolean",
@@ -189,18 +203,22 @@
                   "additionalProperties": false,
                   "properties": {
                     "value": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "{dot.path} to the value the colour is chosen from."
                     },
                     "map": {
                       "type": "object",
                       "additionalProperties": {
                         "type": "string"
-                      }
+                      },
+                      "description": "Maps a resolved value to a colour token, for example `Ready` to green."
                     },
                     "default": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "Colour used when the resolved value is absent from the map."
                     }
-                  }
+                  },
+                  "description": "Resolves the row's accent colour per item, so colour carries meaning from the data rather than being fixed by the author."
                 },
                 "status": {
                   "type": "object",
@@ -235,18 +253,22 @@
                       "additionalProperties": false,
                       "properties": {
                         "value": {
-                          "type": "string"
+                          "type": "string",
+                          "description": "{dot.path} to the value the stroke colour is chosen from."
                         },
                         "map": {
                           "type": "object",
                           "additionalProperties": {
                             "type": "string"
-                          }
+                          },
+                          "description": "Maps a resolved value to a stroke colour token."
                         },
                         "default": {
-                          "type": "string"
+                          "type": "string",
+                          "description": "Stroke colour used when the resolved value is absent from the map."
                         }
-                      }
+                      },
+                      "description": "Resolves the bar's stroke colour per item."
                     },
                     "label": {
                       "type": "string",
@@ -257,7 +279,8 @@
                       "enum": [
                         "line",
                         "rail"
-                      ]
+                      ],
+                      "description": "Bar style: `line` for a standalone progress line, `rail` for the denser reconciliation-rail treatment."
                     }
                   }
                 },
@@ -271,7 +294,8 @@
                         "text",
                         "datetime",
                         "relative"
-                      ]
+                      ],
+                      "description": "How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago."
                     },
                     "secondaryText": {
                       "type": "string",
@@ -279,7 +303,8 @@
                         "text",
                         "datetime",
                         "relative"
-                      ]
+                      ],
+                      "description": "How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago."
                     },
                     "subPrimaryText": {
                       "type": "string",
@@ -287,7 +312,8 @@
                         "text",
                         "datetime",
                         "relative"
-                      ]
+                      ],
+                      "description": "How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago."
                     },
                     "subSecondaryText": {
                       "type": "string",
@@ -295,13 +321,15 @@
                         "text",
                         "datetime",
                         "relative"
-                      ]
+                      ],
+                      "description": "How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago."
                     }
-                  }
+                  },
+                  "description": "Per-field rendering applied after each {dot.path} resolves."
                 },
                 "rowActions": {
                   "type": "array",
-                  "description": "per-row action controls rendered as a kebab (⋯) menu on each row; each entry references an action id from widgetData.actions and is fired with the row's data as the action payload (customPayload). Distinct from navigateTo (whole-row click).",
+                  "description": "per-row action controls rendered as a kebab (\u22ef) menu on each row; each entry references an action id from widgetData.actions and is fired with the row's data as the action payload (customPayload). Distinct from navigateTo (whole-row click).",
                   "items": {
                     "type": "object",
                     "additionalProperties": false,
@@ -380,7 +408,7 @@
                       },
                       "ops": {
                         "type": "array",
-                        "description": "ordered list of DISTINCT writes applied as ONE gated set (e.g. one Form submit creating a Role AND its RoleBinding): each op resolves its OWN resourceRefId (verb + path + payload base) and builds its OWN payload/payloadToOverride against the SAME submitted values. The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics). Mutually exclusive with fanOutPath; onEventNavigateTo is not supported on a multi-op action. The action's own top-level payload/payloadToOverride are IGNORED when ops is present and its top-level resourceRefId is ignored for dispatch (it must still name a valid resource ref — point it at the first op's)",
+                        "description": "ordered list of DISTINCT writes applied as ONE gated set (e.g. one Form submit creating a Role AND its RoleBinding): each op resolves its OWN resourceRefId (verb + path + payload base) and builds its OWN payload/payloadToOverride against the SAME submitted values. The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics). Mutually exclusive with fanOutPath; onEventNavigateTo is not supported on a multi-op action. The action's own top-level payload/payloadToOverride are IGNORED when ops is present and its top-level resourceRefId is ignored for dispatch (it must still name a valid resource ref \u2014 point it at the first op's)",
                         "items": {
                           "type": "object",
                           "additionalProperties": false,
@@ -453,7 +481,8 @@
                             "default": 50
                           },
                           "reloadRoutes": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "description": "Re-fetch the route table before navigating. Set it when the action creates its own destination \u2014 publishing a new page, for example \u2014 so the route exists by the time the navigation happens."
                           },
                           "loadingMessage": {
                             "type": "string",
@@ -507,13 +536,15 @@
                         "type": "object",
                         "properties": {
                           "display": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "description": "Show the in-flight indicator. Set false to run the action without one."
                           }
                         },
                         "required": [
                           "display"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "description": "Whether this action shows an in-flight indicator while it runs."
                       }
                     },
                     "required": [
@@ -539,13 +570,15 @@
                         "type": "object",
                         "properties": {
                           "display": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "description": "Show the in-flight indicator. Set false to run the action without one."
                           }
                         },
                         "required": [
                           "display"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "description": "Whether this action shows an in-flight indicator while it runs."
                       },
                       "path": {
                         "description": "the identifier of the route to navigate to",
@@ -615,13 +648,15 @@
                         "type": "object",
                         "properties": {
                           "display": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "description": "Show the in-flight indicator. Set false to run the action without one."
                           }
                         },
                         "required": [
                           "display"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "description": "Whether this action shows an in-flight indicator while it runs."
                       }
                     },
                     "required": [
@@ -665,13 +700,15 @@
                         "type": "object",
                         "properties": {
                           "display": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "description": "Show the in-flight indicator. Set false to run the action without one."
                           }
                         },
                         "required": [
                           "display"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "description": "Whether this action shows an in-flight indicator while it runs."
                       },
                       "customWidth": {
                         "description": "the custom width of the value, which should be used by setting the 'custom' value inside the 'size' property",
@@ -728,7 +765,8 @@
                 }
               }
             }
-          }
+          },
+          "description": "The properties List renders. Where List wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them."
         },
         "resourcesRefs": {
           "type": "object",
@@ -739,22 +777,28 @@
                 "type": "object",
                 "properties": {
                   "allowed": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "description": "Set server-side: whether the caller may perform this verb. False entries are stripped before the widget renders and are never authored by hand."
                   },
                   "apiVersion": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Group and version of the referenced resource, for example `widgets.templates.krateo.io/v1beta1`."
                   },
                   "id": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "The author-chosen handle this widget uses to reference the resource, matching a resourceRefId in widgetData."
                   },
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Name of the referenced resource."
                   },
                   "namespace": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Namespace of the referenced resource."
                   },
                   "resource": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Plural resource name, for example `paragraphs`."
                   },
                   "verb": {
                     "type": "string",
@@ -764,34 +808,40 @@
                       "PATCH",
                       "DELETE",
                       "GET"
-                    ]
+                    ],
+                    "description": "HTTP verb used to resolve the reference. GET for a read; a mutating verb makes this a write the widget can dispatch."
                   }
                 },
                 "required": [
                   "id"
                 ]
-              }
+              },
+              "description": "One referenced resource. The widget addresses it by its `id`, never by name."
             }
           },
           "required": [
             "items"
-          ]
+          ],
+          "description": "The resources this widget references by id. Each entry is resolved server-side and its endpoint handed to the widget; entries the caller may not read are removed before the widget renders, so a denied reference reads as absence rather than as an error."
         },
         "apiRef": {
           "type": "object",
           "properties": {
             "name": {
-              "type": "string"
+              "type": "string",
+              "description": "Name of the RESTAction resource to call."
             },
             "namespace": {
-              "type": "string"
+              "type": "string",
+              "description": "Namespace of the RESTAction resource."
             }
           },
           "required": [
             "name",
             "namespace"
           ],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "description": "Binds this widget to a RESTAction whose response feeds the widgetDataTemplate and resourcesRefsTemplate expressions. Omit it for a widget whose data is entirely static."
         },
         "widgetDataTemplate": {
           "type": "array",
@@ -799,14 +849,17 @@
             "type": "object",
             "properties": {
               "forPath": {
-                "type": "string"
+                "type": "string",
+                "description": "Dot-path inside widgetData whose value this expression replaces, for example `items[0].title`."
               },
               "expression": {
-                "type": "string"
+                "type": "string",
+                "description": "A jq expression evaluated server-side against the apiRef response. Its result replaces the value at forPath."
               }
             },
             "additionalProperties": false
-          }
+          },
+          "description": "Per-field overrides evaluated against the apiRef response, so one authored widget can render live cluster data. Each entry replaces one value inside widgetData."
         },
         "resourcesRefsTemplate": {
           "type": "array",
@@ -814,28 +867,35 @@
             "type": "object",
             "properties": {
               "iterator": {
-                "type": "string"
+                "type": "string",
+                "description": "A jq expression selecting the array in the apiRef response to iterate over."
               },
               "template": {
                 "type": "object",
                 "properties": {
                   "apiVersion": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Group and version of the referenced resource, for example `widgets.templates.krateo.io/v1beta1`."
                   },
                   "id": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "The author-chosen handle this widget uses to reference the resource, matching a resourceRefId in widgetData."
                   },
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Name of the referenced resource."
                   },
                   "namespace": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Namespace of the referenced resource."
                   },
                   "payload": {
-                    "type": "object"
+                    "type": "object",
+                    "description": "Body sent with a mutating verb. Ignored for a GET."
                   },
                   "resource": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Plural resource name, for example `paragraphs`."
                   },
                   "verb": {
                     "type": "string",
@@ -845,16 +905,20 @@
                       "PATCH",
                       "DELETE",
                       "GET"
-                    ]
+                    ],
+                    "description": "HTTP verb used to resolve the reference. GET for a read; a mutating verb makes this a write the widget can dispatch."
                   }
                 },
-                "additionalProperties": false
+                "additionalProperties": false,
+                "description": "The resourcesRefs entry emitted for each iterated element; its fields may interpolate that element."
               }
             },
             "additionalProperties": false
-          }
+          },
+          "description": "Generates resourcesRefs entries from the apiRef response \u2014 one per element the iterator yields \u2014 so a widget can reference a list whose length it does not know when authored."
         }
-      }
+      },
+      "description": "The widget's contract: its own data, an optional binding to a RESTAction, the resources it references, and any templated overrides."
     }
   },
   "required": [

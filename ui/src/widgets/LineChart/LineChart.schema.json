@@ -4,7 +4,8 @@
   "properties": {
     "version": {
       "type": "string",
-      "default": "v1beta1"
+      "default": "v1beta1",
+      "description": "Widget API version."
     },
     "kind": {
       "default": "LineChart",
@@ -71,7 +72,10 @@
             "annotations": {
               "type": "array",
               "description": "G2 annotation marks passed through (e.g. a peak `point` marker + a dashed `lineX` \"now\" line); usually computed server-side via a widgetDataTemplate",
-              "items": { "type": "object", "additionalProperties": true }
+              "items": {
+                "type": "object",
+                "additionalProperties": true
+              }
             },
             "point": {
               "description": "render a default circle marker at each data point (G2 composed `point` mark). Improves legibility of sparse series.",
@@ -80,7 +84,7 @@
             "scale": {
               "type": "object",
               "additionalProperties": true,
-              "description": "G2 per-channel scale config (G2 `scale`), e.g. {\"y\":{\"zero\":true,\"nice\":true,\"domainMin\":0,\"domainMax\":3,\"tickCount\":4}}. domainMax is a floor — data larger than it still wins, so dense data is never clipped."
+              "description": "G2 per-channel scale config (G2 `scale`), e.g. {\"y\":{\"zero\":true,\"nice\":true,\"domainMin\":0,\"domainMax\":3,\"tickCount\":4}}. domainMax is a floor \u2014 data larger than it still wins, so dense data is never clipped."
             },
             "axis": {
               "type": "object",
@@ -89,12 +93,17 @@
             },
             "xTimeUnit": {
               "type": "string",
-              "enum": ["hour", "day"],
+              "enum": [
+                "hour",
+                "day"
+              ],
               "description": "When set, `xField` values are treated as UNIX epoch SECONDS and formatted to a label in the BROWSER's local timezone at render: 'hour' -> 'HH:00', 'day' -> 'Mon D'. Use this instead of server-side strftime so a 21:00-Rome bucket reads 21:00 (not the server's UTC 19:00). Annotations sharing `xField` are localized identically so peak/now marks stay aligned."
             },
             "colorMap": {
               "type": "object",
-              "additionalProperties": { "type": "string" },
+              "additionalProperties": {
+                "type": "string"
+              },
               "description": "map each colorField category to a Krateo palette colour name (e.g. {\"Created\":\"cyan\"}); sets the G2 color scale domain/range so the line + points render in the brand colour, not G2's default blue palette"
             },
             "watch": {
@@ -133,17 +142,20 @@
           "type": "object",
           "properties": {
             "name": {
-              "type": "string"
+              "type": "string",
+              "description": "Name of the RESTAction resource to call."
             },
             "namespace": {
-              "type": "string"
+              "type": "string",
+              "description": "Namespace of the RESTAction resource."
             }
           },
           "required": [
             "name",
             "namespace"
           ],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "description": "Binds this widget to a RESTAction whose response feeds the widgetDataTemplate and resourcesRefsTemplate expressions. Omit it for a widget whose data is entirely static."
         },
         "widgetDataTemplate": {
           "type": "array",
@@ -151,14 +163,17 @@
             "type": "object",
             "properties": {
               "forPath": {
-                "type": "string"
+                "type": "string",
+                "description": "Dot-path inside widgetData whose value this expression replaces, for example `items[0].title`."
               },
               "expression": {
-                "type": "string"
+                "type": "string",
+                "description": "A jq expression evaluated server-side against the apiRef response. Its result replaces the value at forPath."
               }
             },
             "additionalProperties": false
-          }
+          },
+          "description": "Per-field overrides evaluated against the apiRef response, so one authored widget can render live cluster data. Each entry replaces one value inside widgetData."
         },
         "resourcesRefs": {
           "type": "object",
@@ -169,25 +184,32 @@
                 "type": "object",
                 "properties": {
                   "allowed": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "description": "Set server-side: whether the caller may perform this verb. False entries are stripped before the widget renders and are never authored by hand."
                   },
                   "apiVersion": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Group and version of the referenced resource, for example `widgets.templates.krateo.io/v1beta1`."
                   },
                   "id": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "The author-chosen handle this widget uses to reference the resource, matching a resourceRefId in widgetData."
                   },
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Name of the referenced resource."
                   },
                   "namespace": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Namespace of the referenced resource."
                   },
                   "payload": {
-                    "type": "object"
+                    "type": "object",
+                    "description": "Body sent with a mutating verb. Ignored for a GET."
                   },
                   "resource": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Plural resource name, for example `paragraphs`."
                   },
                   "verb": {
                     "type": "string",
@@ -197,39 +219,47 @@
                       "PATCH",
                       "DELETE",
                       "GET"
-                    ]
+                    ],
+                    "description": "HTTP verb used to resolve the reference. GET for a read; a mutating verb makes this a write the widget can dispatch."
                   },
                   "slice": {
                     "type": "object",
                     "properties": {
                       "offset": {
-                        "type": "integer"
+                        "type": "integer",
+                        "description": "Number of items to skip before the returned page."
                       },
                       "page": {
-                        "type": "integer"
+                        "type": "integer",
+                        "description": "One-based page number to return."
                       },
                       "perPage": {
-                        "type": "integer"
+                        "type": "integer",
+                        "description": "Maximum items in the returned page."
                       },
                       "continue": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Opaque continuation token from a previous response, used to fetch the next page."
                       }
                     },
                     "required": [
                       "page",
                       "perPage"
-                    ]
+                    ],
+                    "description": "Server-side paging for this reference: the widget receives one page rather than the whole list."
                   }
                 },
                 "required": [
                   "id"
                 ]
-              }
+              },
+              "description": "One referenced resource. The widget addresses it by its `id`, never by name."
             }
           },
           "required": [
             "items"
-          ]
+          ],
+          "description": "The resources this widget references by id. Each entry is resolved server-side and its endpoint handed to the widget; entries the caller may not read are removed before the widget renders, so a denied reference reads as absence rather than as an error."
         },
         "resourcesRefsTemplate": {
           "type": "array",
@@ -237,28 +267,35 @@
             "type": "object",
             "properties": {
               "iterator": {
-                "type": "string"
+                "type": "string",
+                "description": "A jq expression selecting the array in the apiRef response to iterate over."
               },
               "template": {
                 "type": "object",
                 "properties": {
                   "apiVersion": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Group and version of the referenced resource, for example `widgets.templates.krateo.io/v1beta1`."
                   },
                   "id": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "The author-chosen handle this widget uses to reference the resource, matching a resourceRefId in widgetData."
                   },
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Name of the referenced resource."
                   },
                   "namespace": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Namespace of the referenced resource."
                   },
                   "payload": {
-                    "type": "object"
+                    "type": "object",
+                    "description": "Body sent with a mutating verb. Ignored for a GET."
                   },
                   "resource": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Plural resource name, for example `paragraphs`."
                   },
                   "verb": {
                     "type": "string",
@@ -268,20 +305,24 @@
                       "PATCH",
                       "DELETE",
                       "GET"
-                    ]
+                    ],
+                    "description": "HTTP verb used to resolve the reference. GET for a read; a mutating verb makes this a write the widget can dispatch."
                   }
                 },
-                "additionalProperties": false
+                "additionalProperties": false,
+                "description": "The resourcesRefs entry emitted for each iterated element; its fields may interpolate that element."
               }
             },
             "additionalProperties": false
-          }
+          },
+          "description": "Generates resourcesRefs entries from the apiRef response \u2014 one per element the iterator yields \u2014 so a widget can reference a list whose length it does not know when authored."
         }
       },
       "required": [
         "widgetData"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "The widget's contract: its own data, an optional binding to a RESTAction, the resources it references, and any templated overrides."
     }
   },
   "required": [
