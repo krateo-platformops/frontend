@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { mayAgentDispatch } from './actionBridge'
+import { SUBMIT_REFUSED, mayAgentDispatch } from './actionBridge'
 
 /**
  * "The agent must never submit anything" (owner, 2026-09-15).
@@ -44,5 +44,15 @@ describe('mayAgentDispatch — the agent never submits', () => {
   it('reads the RESOLVED status widgetData when present, like the renderer does', () => {
     const form = { metadata: { name: 'w' }, spec: { widgetData: {} }, status: { widgetData: { submitActionId: 'go' } } }
     expect(mayAgentDispatch(form, 'go')).toBe(false)
+  })
+})
+
+describe('a refused submit is reported as a REFUSAL, not as a missing control', () => {
+  it('SUBMIT_REFUSED is a distinct signal from null', () => {
+    // They shared `null`, so the bridge told the user "no control submit on create-form" about a
+    // button plainly on screen. A18: a verb that cannot act says so — saying something FALSE
+    // instead sends the person hunting for a control that is right in front of them.
+    expect(SUBMIT_REFUSED).not.toBeNull()
+    expect(typeof SUBMIT_REFUSED).toBe('string')
   })
 })

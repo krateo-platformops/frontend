@@ -143,6 +143,29 @@ const reviewFieldOrder = (key: string): number => {
  * `agentKeys` carries only the keys, never the values: what the agent proposed is already the
  * value on screen, and the mark is about PROVENANCE, not content.
  */
+/**
+ * Which fields in the review still hold the value Autopilot wrote?
+ *
+ * Not simply "which keys did the agent touch". A field the human CORRECTED after the agent filled
+ * it is the human's own, and marking it would over-claim in the other direction — so the mark is
+ * granted only while the submitted value still equals what the agent wrote. Compared by JSON
+ * shape because form values are plain scalars, arrays and objects.
+ */
+export const agentAuthoredKeys = (
+  authored: Record<string, unknown>,
+  values: Record<string, unknown>,
+): string[] => Object.keys(authored).filter((key) => {
+  if (!(key in values)) {
+    return false
+  }
+  try {
+    return JSON.stringify(values[key]) === JSON.stringify(authored[key])
+  } catch {
+    // a circular/unserialisable value: do not claim it
+    return false
+  }
+})
+
 export const ReviewSummary = ({ agentKeys, schema, values }: {
   agentKeys?: readonly string[]
   schema?: JSONSchema4
@@ -207,7 +230,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
       }
     }
 
-    return schema as JSONSchema4 | undefined
+    return schema
   }, [schema, stringSchema])
   const { insideDrawer, setDrawerData } = useDrawerContext()
   const alreadySetDrawerData = useRef(false)
@@ -290,6 +313,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   // edited since (issue #33). The nonce guard keeps a genuinely-new draft applying (even over
   // dirty fields — the user asked Autopilot to fill the form) while refetches are inert.
   const appliedDraftNonceRef = useRef<number | null>(null)
+  // key -> the value Autopilot last wrote there. Read at review time to decide which fields carry
+  // the "Autopilot" mark; see the accumulation in the apply effect below.
+  const agentAuthoredRef = useRef<Record<string, unknown>>({})
   useEffect(() => {
     if (!safeAgentDraft || Object.keys(safeAgentDraft).length === 0) {
       return
@@ -299,6 +325,15 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
     }
     appliedDraftNonceRef.current = draftNonce
     form.setFieldsValue(safeAgentDraft)
+    // ACCUMULATE what the agent has authored, across every prefill in the thread — the provider
+    // REPLACES `agentDraft` on each prefillForm while `setFieldsValue` MERGES into the store, so
+    // turn 1's values are still in the form but absent from the latest draft. Marking only the
+    // latest draft under-marked: fields the agent chose were presented as the human's own, and
+    // under-marking is the unsafe direction for a control whose job is to make the difference
+    // between review and rubber-stamp. Multi-turn incremental prefill is the designed usage
+    // (useAutopilotContext keeps a mounted form's field inventory in the envelope every turn
+    // precisely so the model can fill it as the user names things).
+    agentAuthoredRef.current = { ...agentAuthoredRef.current, ...safeAgentDraft }
   }, [safeAgentDraft, draftNonce, form])
 
   // Refetch-vs-dirty-form reconciliation (issue #33). A live-refresh/event-driven refetch
@@ -512,7 +547,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
         </AntdForm>
       </div>
 
-      {reviewing && reviewValues ? <ReviewSummary agentKeys={safeAgentDraft ? Object.keys(safeAgentDraft) : undefined} schema={jsonSchema} values={reviewValues} /> : null}
+      {reviewing && reviewValues ? <ReviewSummary agentKeys={agentAuthoredKeys(agentAuthoredRef.current, reviewValues)} schema={jsonSchema} values={reviewValues} /> : null}
 
       <div className={styles.extra}>{footer}</div>
     </div>

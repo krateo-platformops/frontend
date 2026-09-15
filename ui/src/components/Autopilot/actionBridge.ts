@@ -120,11 +120,22 @@ export const mayAgentDispatch = (root: Record<string, unknown> | undefined, acti
  * widget actually mounted right now — which is what the surrounding safety story has always
  * assumed and what makes "the agent presses the control you can see" literally true.
  */
+/**
+ * A control WAS found but the agent may not drive it (it submits a form). Distinct from `null`,
+ * which means no mounted widget of that name carries that action id.
+ *
+ * They used to share `null`, so a refused submit was reported as "no control X on this page" — an
+ * assertion the reader can see is false, about a button plainly on screen. A18's contract is that
+ * a verb which cannot act says SO; saying something untrue instead is worse than silence, because
+ * it sends the person looking for a missing control rather than telling them the rule.
+ */
+export const SUBMIT_REFUSED = 'submit-refused'
+
 const lookupAction = (
   queryClient: ReturnType<typeof useQueryClient>,
   widgetName: string | undefined,
   actionId: string | undefined,
-): { action: WidgetAction; resourcesRefs: ResourcesRefs } | null => {
+): { action: WidgetAction; resourcesRefs: ResourcesRefs } | typeof SUBMIT_REFUSED | null => {
   if (!widgetName || !actionId) {
     return null
   }
@@ -147,10 +158,11 @@ const lookupAction = (
       const list: unknown[] = arr
       const match = list.find((entry) => asRec(entry)?.id === actionId)
       // A form's submit is refused outright; everything else is the ordinary press-the-button
-      // capability. Returning null means the verb refuses exactly as it does for a hallucinated
-      // control — no synthesized call, no partial dispatch, and the chip says it did not run.
+      // capability. No synthesized call, no partial dispatch — but reported as a REFUSAL rather
+      // than as a missing control, so the chip states the rule instead of a falsehood about the
+      // page.
       if (match && !mayAgentDispatch(root, actionId)) {
-        return null
+        return SUBMIT_REFUSED
       }
       if (match) {
         const refs = asRec(status?.resourcesRefs) ?? asRec(spec?.resourcesRefs)
@@ -479,6 +491,14 @@ export const useAutopilotActionBridge = () => {
     // dispatcher's own modal.confirm is the binding HITL gate; the user confirms.
     if (proposal.verb === 'runAction') {
       const found = lookupAction(queryClient, proposal.widget, proposal.actionId)
+      if (found === SUBMIT_REFUSED) {
+        // The control exists and is mounted; the agent simply may not press it. Say that, so the
+        // person is told the rule rather than sent hunting for a button that is on their screen.
+        return refused(
+          'runAction',
+          `${proposal.actionId ?? 'that control'} submits ${proposal.widget ?? 'this form'} — Autopilot never submits. The form is filled; press the button to submit it.`,
+        )
+      }
       if (!found) {
         // A18: the unmounted-control case. lookupAction reports "no cached widget of that name
         // carries that action id", so the reason is worded as "no such control on this page" —
