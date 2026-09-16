@@ -7,6 +7,7 @@ import WidgetPage from '../components/WidgetPage'
 import Auth from '../pages/Auth/Auth'
 import Login from '../pages/Login'
 import Logout from '../pages/Logout'
+import PageComposer from '../pages/PageComposer'
 import Profile from '../pages/Profile'
 import type { ResourceRef } from '../types/Widget'
 
@@ -49,6 +50,13 @@ const defaultRoutes: RouteObject[] = [
   {
     children: [
       { element: <Profile />, path: '/profile' },
+      // The Portal Builder's authoring surface. A STATIC child of the shell, like /profile, rather
+      // than a CR-driven page: it renders the preview surface (live render + per-file editor +
+      // RestDefinition editor) that until now only Autopilot could open, and that is React, not
+      // widgetData. Making it a widget kind would have cost a 4-piece release — frontend image,
+      // portal template, generated CRD and installer pin — for no gain, since nothing about it is
+      // configurable from a CR. The `*` fallthrough below keeps every CR-driven page unaffected.
+      { element: <PageComposer />, path: '/portal-builder/compose' },
       { element: <WidgetPage />, path: '*' },
     ],
     element: <ShellRoute />,

@@ -65,7 +65,7 @@ const ObjectHeadline = ({ entry }: { entry: PreviewObjectEntry }) => (
 
 /** The re-validated view of the current (possibly edited) RestDefinition source: the verdicts the
  * drawer renders. Seeded from the payload, replaced by each accepted/attempted edit. */
-interface RestDefVerdicts {
+export interface RestDefVerdicts {
   problems?: string[]
   warnings?: string[]
   summary?: string[]
@@ -226,29 +226,30 @@ const FileEditBlock = ({
   )
 }
 
-export const AutopilotPreviewDrawer = () => {
+/**
+ * The payload-to-JSX half of the preview surface — the live render, the Files tab with its
+ * per-file editor, the RestDefinition editor, the verdict Alerts.
+ *
+ * SPLIT OUT so it can be mounted somewhere that is not a drawer. All of this was the body of
+ * `AutopilotPreviewDrawer`, which `AutopilotProvider` renders — so the whole authoring surface was
+ * reachable only inside the Autopilot rail, as something the AGENT opens. The Portal Builder could
+ * not use any of it and reimplemented a slice through Form widgets, which is why it can only emit a
+ * flat page of static widgets: a Form cannot express a tree, and SchemaFields has no repeatable-row
+ * control. Making this mountable is what lets a human start the same draft the agent proposes.
+ *
+ * Still read-only with respect to the cluster: it renders what it is handed and emits edits on the
+ * existing CustomEvent buses. No dispatcher, no fetch, no write path — unchanged.
+ *
+ * `onVerdicts` lifts re-validated verdicts to the owner so the Alert blocks reflect the latest edit;
+ * the drawer keeps that in its own state, a page may keep it in its own.
+ */
+export const PreviewContent = ({ editVerdicts, onVerdicts, payload }: {
+  editVerdicts: RestDefVerdicts | null
+  onVerdicts: (verdicts: RestDefVerdicts) => void
+  payload: AutopilotPreviewPayload
+}): React.ReactNode => {
   const { mode } = useThemeMode()
-  const { open: railOpen } = useAutopilot()
-  const [open, setOpen] = useState(false)
-  const [payload, setPayload] = useState<AutopilotPreviewPayload | null>(null)
-  // FE-K(edit): the LIVE verdicts of the (possibly edited) RestDefinition source — null until the
-  // user applies an edit, then the re-validated verdicts REPLACE the payload's original ones so the
-  // problems/immutability/summary Alert blocks reflect the edit. Reset whenever a new payload arrives.
-  const [editVerdicts, setEditVerdicts] = useState<RestDefVerdicts | null>(null)
-
-  useEffect(() => {
-    const handleOpen = (event: CustomEvent<AutopilotPreviewPayload>) => {
-      setPayload(event.detail)
-      setEditVerdicts(null)
-      setOpen(true)
-    }
-    window.addEventListener(AUTOPILOT_PREVIEW_EVENT, handleOpen as EventListener)
-    return () => window.removeEventListener(AUTOPILOT_PREVIEW_EVENT, handleOpen as EventListener)
-  }, [])
-
-  if (!payload) {
-    return null
-  }
+  const setEditVerdicts = onVerdicts
 
   // The verdicts to render: the live edit verdicts once the user applied an edit, else the payload's.
   const problems = editVerdicts ? editVerdicts.problems : payload.problems
@@ -374,6 +375,47 @@ export const AutopilotPreviewDrawer = () => {
   ]
 
   return (
+    <div className={styles.body}>
+      {payload.caption ? <Typography.Paragraph type='secondary'>{payload.caption}</Typography.Paragraph> : null}
+      {payload.publishTarget ? (
+        <div className={styles.target}>
+          <Tag color='geekblue'>Publishes to</Tag>
+          <Typography.Text code>{payload.publishTarget.repo}</Typography.Text>
+          {payload.publishTarget.base ? <Typography.Text type='secondary'>· change request into {payload.publishTarget.base}</Typography.Text> : null}
+          {payload.publishTarget.note ? <Typography.Text type='secondary'>· {payload.publishTarget.note}</Typography.Text> : null}
+          {/* The destination is user-owned: these are DEFAULTS — a proper form asks at publish. */}
+          <Typography.Text type='secondary'>· you confirm the destination at publish</Typography.Text>
+        </div>
+      ) : null}
+      <Tabs defaultActiveKey={tabs[0]?.key} items={tabs} />
+    </div>
+  )
+}
+
+export const AutopilotPreviewDrawer = () => {
+  const { open: railOpen } = useAutopilot()
+  const [open, setOpen] = useState(false)
+  const [payload, setPayload] = useState<AutopilotPreviewPayload | null>(null)
+  // FE-K(edit): the LIVE verdicts of the (possibly edited) RestDefinition source — null until the
+  // user applies an edit, then the re-validated verdicts REPLACE the payload's original ones so the
+  // problems/immutability/summary Alert blocks reflect the edit. Reset whenever a new payload arrives.
+  const [editVerdicts, setEditVerdicts] = useState<RestDefVerdicts | null>(null)
+
+  useEffect(() => {
+    const handleOpen = (event: CustomEvent<AutopilotPreviewPayload>) => {
+      setPayload(event.detail)
+      setEditVerdicts(null)
+      setOpen(true)
+    }
+    window.addEventListener(AUTOPILOT_PREVIEW_EVENT, handleOpen as EventListener)
+    return () => window.removeEventListener(AUTOPILOT_PREVIEW_EVENT, handleOpen as EventListener)
+  }, [])
+
+  if (!payload) {
+    return null
+  }
+
+  return (
     <Drawer
       // #86 §0.10: shared close placement (X at the END), from the one drawerCloseProps source.
       closable={drawerCloseProps.closable}
@@ -397,20 +439,7 @@ export const AutopilotPreviewDrawer = () => {
       // this drawer (Vincenzo item Q). The confirm's raised z-index is the guarantee; this is explicit.
       zIndex={PREVIEW_DRAWER_Z_INDEX}
     >
-      <div className={styles.body}>
-        {payload.caption ? <Typography.Paragraph type='secondary'>{payload.caption}</Typography.Paragraph> : null}
-        {payload.publishTarget ? (
-          <div className={styles.target}>
-            <Tag color='geekblue'>Publishes to</Tag>
-            <Typography.Text code>{payload.publishTarget.repo}</Typography.Text>
-            {payload.publishTarget.base ? <Typography.Text type='secondary'>· change request into {payload.publishTarget.base}</Typography.Text> : null}
-            {payload.publishTarget.note ? <Typography.Text type='secondary'>· {payload.publishTarget.note}</Typography.Text> : null}
-            {/* The destination is user-owned: these are DEFAULTS — a proper form asks at publish. */}
-            <Typography.Text type='secondary'>· you confirm the destination at publish</Typography.Text>
-          </div>
-        ) : null}
-        <Tabs defaultActiveKey={tabs[0]?.key} items={tabs} />
-      </div>
+      <PreviewContent editVerdicts={editVerdicts} onVerdicts={setEditVerdicts} payload={payload} />
     </Drawer>
   )
 }
