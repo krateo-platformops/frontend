@@ -76,6 +76,38 @@ describe('startDraft — the seed the cluster accepts', () => {
     // A seeded chart or table would look chosen when it was guessed.
     expect(seed()).toHaveLength(2)
   })
+
+  describe('nav discovery — the annotations that decide whether the page can be REACHED', () => {
+    const annotations = () =>
+      (seed()[0].metadata as { annotations: Record<string, string> }).annotations
+
+    it('gives the page root a nav-path — without it the Menu cannot find the page AT ALL', () => {
+      // restaction.sidebar-nav keeps only roots whose `krateo.io/nav-path` is set and non-empty
+      // (`select($a["krateo.io/nav-path"] != null and != "")`). There are no static menu entries to
+      // fall back on. A page missing this installs healthy, passes every check, and is unreachable —
+      // no link, no error, nothing to notice. #275 removed the nav FRAGMENT that used to carry this
+      // (portal#217 stopped globbing it); these annotations are what took its place.
+      expect(annotations()['krateo.io/nav-path']).toBe('/fleet-health')
+    })
+
+    it('labels the entry with the page TITLE, not the slug', () => {
+      expect(annotations()['krateo.io/nav-label']).toBe('Fleet Health')
+    })
+
+    it('writes the order out explicitly, at the RA default', () => {
+      // `("krateo.io/nav-order" // "100") | tonumber` — so 100 changes nothing, and that is the
+      // point: the knob is visible to whoever opens the CR instead of being an absent default.
+      expect(annotations()['krateo.io/nav-order']).toBe('100')
+    })
+
+    it('guesses NO icon and NO group — the RA omits what is absent', () => {
+      // Both are optional in the RA's jq. An invented icon or a section the page does not belong to
+      // is worse than an unadorned top-level entry.
+      expect(Object.keys(annotations()).sort()).toEqual([
+        'krateo.io/nav-label', 'krateo.io/nav-order', 'krateo.io/nav-path',
+      ])
+    })
+  })
 })
 
 describe('validateStartDraft', () => {

@@ -1,34 +1,30 @@
 /**
- * REGRESSION GUARD — the page-publish DESTINATION, asserted against the live portal chart layout.
+ * REGRESSION GUARD — the page-publish DESTINATION, and the agreement between the writers of it.
  *
  * WHY THIS FILE EXISTS: krateo-platformops/portal restructured `chart/` → `helm/portal/` on
  * 2026-08-03. The frontend kept writing pages into `chart/`, and for five weeks every page publish
- * SUCCEEDED and shipped nothing. Nothing could have caught it: the git-provider creates whatever path
- * it is handed, so the branch pushed, the change request opened green, the merge was clean, and the
- * only symptom was a page that never appeared in the portal. The repo RENAME was survivable —
- * GitHub 301-redirects a stale repo name — but a redirect only fixes which repository you land in; it
- * does nothing for a path inside it. That asymmetry is why the destination is worth its own test.
+ * SUCCEEDED and shipped nothing. Nothing could have caught it: the git-provider creates whatever
+ * path it is handed, so the branch pushed, the change request opened green, the merge was clean,
+ * and the only symptom was a page that never appeared. A repo RENAME is survivable — GitHub
+ * 301-redirects a stale repo name — but a redirect fixes which repository you land in and does
+ * nothing for a path inside it. That asymmetry is why the destination is worth its own test.
  *
- * The live facts these assertions encode (if the chart is ever restructured again, re-verify against
- * krateo-platformops/portal itself — not against this file):
- *   - `helm/portal/Chart.yaml` is the chart root, so `helm package` only sees files beneath it;
- *     anything outside is not in the published tgz and cannot render.
- *   - a page's widget CRs render from `helm/portal/templates/<kind-lower>.<name>.yaml`.
- *   - `helm/portal/templates/menu.sidebar-nav.yaml` appends each nav fragment via
- *     `.Files.Glob "files/nav-fragments/*.yaml"`, which is CHART-ROOT-relative and whose `*` does not
- *     cross a `/` — so the fragment must sit exactly one level in, at
- *     `helm/portal/files/nav-fragments/<slug>.yaml`, and must end in `.yaml`.
+ * WHAT CHANGED, and why this file still exists. A page set is now its own Helm chart rather than
+ * files posted into the portal's chart. Its held keys are already chart-relative — `Chart.yaml`,
+ * `templates/flex.page-<slug>.yaml` — exactly as a blueprint's always were, so the routing step
+ * this file used to guard is gone and `pagePublishPath` is the identity function.
  *
- * It guards all THREE writers, because the bug was really one of drift between them: the legacy
- * github git-write op set, the BuilderPublish claim (the path that actually runs on installs with
- * AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER=true), and the preview drawer's Files tab — which is the user's
- * only chance to notice a wrong destination before the merge.
+ * The DRIFT it guards is not gone. The bug was never really about one prefix; it was about three
+ * writers computing a destination independently — the legacy github git-write op set, the
+ * BuilderPublish claim (the path that runs when AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER=true), and the
+ * preview drawer's Files tab, which is the user's only chance to notice a wrong destination before
+ * the merge. Three computations can still disagree; now they must agree on doing nothing.
  */
 
 import { describe, expect, it } from 'vitest'
 
-import type { BlueprintDraftHeld } from './blueprintDraftStore'
-import { PORTAL_PAGE_CHART_ROOT, heldKeyForDisplayedPath, pagePublishFiles, pagePublishPath } from './pageDraft'
+import { heldPublishFiles, type BlueprintDraftHeld } from './blueprintDraftStore'
+import { heldKeyForDisplayedPath, pagePublishPath } from './pageDraft'
 import { buildPagePublishOps } from './pagePublish'
 import { buildPagePreviewPayload } from './previewBridge'
 
@@ -40,93 +36,80 @@ const WIDGETS = [
   { apiVersion: 'widgets.templates.krateo.io/v1beta1', kind: 'Flex', metadata: { name: `page-${SLUG}` }, spec: { widgetData: {} } },
   { apiVersion: 'widgets.templates.krateo.io/v1beta1', kind: 'Card', metadata: { name: 'cost-summary' }, spec: { widgetData: {} } },
 ]
-/** The same page as a held draft: widget CRs keyed <kind-lower>.<name>.yaml. */
+
+/** The same page as a held draft — a chart tree, keyed exactly as it is committed. */
 const HELD: BlueprintDraftHeld = {
-  kind: 'page' as const,
   bytes: 1,
   files: {
-    'card.cost-summary.yaml': 'kind: Card\n',
-    'flex.page-cost-report.yaml': 'kind: Flex\n',
+    'Chart.yaml': 'name: cost-report\n',
+    'templates/card.cost-summary.yaml': 'kind: Card\n',
+    'templates/flex.page-cost-report.yaml': 'kind: Flex\n',
+    'values.schema.json': '{}\n',
   },
+  kind: 'page',
 }
 
-/** Every repo path the legacy github git-write set commits. */
-const gitWritePaths = (): string[] => buildPagePublishOps({}, HELD, SLUG)
-  .filter((op) => op.gvr.resource === 'repocontents')
-  .map((op) => ((op.payload as { spec: { path: string } }).spec.path))
+const specOf = (op: { payload?: unknown }) => (op.payload as { spec: Record<string, string> }).spec
+const gitWritePaths = () => buildPagePublishOps({}, HELD, SLUG)
+  .filter((op) => op.gvr.resource === 'repocontents').map((op) => specOf(op).path)
+const claimPaths = () => heldPublishFiles(HELD.files).map((file) => file.path)
+const previewPaths = () => (buildPagePreviewPayload(WIDGETS).files ?? []).map((file) => file.path)
 
-/** Every repo path the BuilderPublish claim commits (the live path on the deployed default). */
-const claimPaths = (): string[] => pagePublishFiles(HELD.files).map((file) => file.path)
+describe('page publish destination — a page set is its own chart', () => {
+  it('the held key IS the committed path — there is no routing step left', () => {
+    // pagePublishPath prefixed `helm/portal/templates/` while a page's keys were bare tokens
+    // destined for the PORTAL's chart. Prefixing chart-relative keys would reintroduce the exact
+    // double-prefix this module used to warn about, with the sides swapped.
+    expect(pagePublishPath('templates/flex.page-cost-report.yaml')).toBe('templates/flex.page-cost-report.yaml')
+    expect(pagePublishPath('Chart.yaml')).toBe('Chart.yaml')
+  })
 
-/** Every repo path the preview drawer shows the user before they confirm. */
-const previewPaths = (): string[] => (buildPagePreviewPayload(WIDGETS)?.files ?? []).map((file) => file.path)
-
-describe('page publish destination — the live portal chart root', () => {
-  it('the chart root is helm/portal (the packaged chart dir), not the abandoned chart/', () => {
-    expect(PORTAL_PAGE_CHART_ROOT).toBe('helm/portal')
+  it('commits the chart files a CompositionDefinition needs, not only the templates', () => {
+    // Without Chart.yaml there is no chart; without values.schema.json core-provider cannot build
+    // the CRD, so the chart publishes, merges, releases and then wedges at Ready=False.
+    expect(claimPaths().sort()).toEqual([
+      'Chart.yaml',
+      'templates/card.cost-summary.yaml',
+      'templates/flex.page-cost-report.yaml',
+      'values.schema.json',
+    ])
   })
 
   it('NO writer emits the dead chart/ prefix — git-write, claim, and preview alike', () => {
     for (const path of [...gitWritePaths(), ...claimPaths(), ...previewPaths()]) {
       expect(path.startsWith(DEAD_PREFIX)).toBe(false)
-      expect(path.startsWith(`${PORTAL_PAGE_CHART_ROOT}/`)).toBe(true)
     }
-  })
-
-  it('the claim path prefixes page files instead of dropping them at the repo ROOT', () => {
-    // The claim commits `files[].path` verbatim (builder-publish only splits basename/dir), and page
-    // held keys are bare identity tokens — publishing them unrouted put every widget CR at the repo
-    // root, outside the chart. A path with no directory is the exact failure to catch.
-    for (const path of claimPaths()) {
-      expect(path).toContain('/')
-    }
-    expect(claimPaths().sort()).toEqual([
-      'helm/portal/templates/card.cost-summary.yaml',
-      'helm/portal/templates/flex.page-cost-report.yaml',
-    ])
   })
 
   it('all three writers agree on the destination for the SAME page (no preview/publish drift)', () => {
-    expect(claimPaths().sort()).toEqual(gitWritePaths().sort())
-    // Every held key is a widget CR now, so the three writers agree on the whole set rather than
-    // on a filtered subset — the nav fragment that used to need excluding here is gone.
-    expect(previewPaths().sort()).toEqual(gitWritePaths().sort())
+    // The preview is built from the CRs and so carries no Chart.yaml or values.schema.json; it must
+    // agree with the publish on exactly the files it does describe.
+    expect(previewPaths().sort()).toEqual(gitWritePaths().filter((path) => path.startsWith('templates/')).sort())
+    expect(claimPaths().filter((path) => path.startsWith('templates/')).sort()).toEqual(previewPaths().sort())
   })
 })
 
 describe('the round trip back from the drawer (heldKeyForDisplayedPath)', () => {
-  /**
-   * The drawer DISPLAYS a page file at its repo destination but the draft HOLDS it under a bare
-   * identity token. Without a resolver, updateFile's `path in held.files` check refuses every page
-   * edit — silently, because a refused edit just leaves the previous bytes standing. That is why
-   * per-file editing of a page has never worked, before the dead-path fix or after it.
-   */
-  it('resolves a displayed page path back to the key the draft holds', () => {
+  it('a page path resolves to itself, the way a blueprint path always did', () => {
+    // The inversion this used to perform is gone with the routing: the drawer now displays a page
+    // file at the key the draft holds it under, so an edit comes back addressed correctly.
     for (const key of Object.keys(HELD.files)) {
-      const displayed = pagePublishPath(key)
-      // It really is routed, and it really comes back.
-      expect(displayed).not.toBe(key)
-      expect(heldKeyForDisplayedPath(displayed, HELD)).toBe(key)
+      expect(heldKeyForDisplayedPath(key, HELD)).toBe(key)
     }
   })
 
   it('refuses a path that is not held, rather than inventing a key', () => {
-    expect(heldKeyForDisplayedPath('helm/portal/templates/flex.page-not-mine.yaml', HELD)).toBeNull()
+    expect(heldKeyForDisplayedPath('templates/flex.page-not-mine.yaml', HELD)).toBeNull()
     expect(heldKeyForDisplayedPath('', HELD)).toBeNull()
   })
 
-  it('never basenames a BLUEPRINT path — two templates could share a name in different directories', () => {
-    // A blueprint's held keys ARE repo paths (it carries a Chart.yaml), so they resolve to
-    // themselves. Basenaming here would collapse chart/templates/a.yaml and chart/files/a.yaml.
-    const blueprint = {
+  it('never basenames — two templates could share a name in different directories', () => {
+    const blueprint: BlueprintDraftHeld = {
       bytes: 3,
-      files: {
-        'Chart.yaml': 'name: x',
-        'chart/files/service.yaml': 'b',
-        'chart/templates/service.yaml': 'a',
-      },
-      kind: 'blueprint' as const,
+      files: { 'Chart.yaml': 'name: x', 'chart/files/service.yaml': 'b', 'chart/templates/service.yaml': 'a' },
+      kind: 'blueprint',
     }
+
     expect(heldKeyForDisplayedPath('chart/templates/service.yaml', blueprint)).toBe('chart/templates/service.yaml')
     expect(heldKeyForDisplayedPath('service.yaml', blueprint)).toBeNull()
   })

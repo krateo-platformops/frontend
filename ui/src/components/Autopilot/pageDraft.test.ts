@@ -14,8 +14,10 @@ const card = { apiVersion: 'widgets.templates.krateo.io/v1beta1', kind: 'Card', 
 
 describe('pageDraftSlug', () => {
   it('is <kind-lower>.<name>.yaml', () => {
-    expect(pageDraftSlug('Flex', 'page-postgres')).toBe('flex.page-postgres.yaml')
-    expect(pageDraftSlug('Card', 'pg-summary')).toBe('card.pg-summary.yaml')
+    // Chart-relative: a page set publishes as its own Helm chart, and a chart keeps its manifests
+    // in templates/. The key IS the path now — there is no routing step left to apply.
+    expect(pageDraftSlug('Flex', 'page-postgres')).toBe('templates/flex.page-postgres.yaml')
+    expect(pageDraftSlug('Card', 'pg-summary')).toBe('templates/card.pg-summary.yaml')
   })
 })
 
@@ -27,14 +29,103 @@ describe('pageDraftFiles', () => {
     expect(pageDraftFiles([{ metadata: { name: 'x' } }])).toBeNull()
     expect(pageDraftFiles([{ kind: '  ', metadata: { name: 'x' } }])).toBeNull()
   })
-})
 
-describe('nav fragment helpers (#106)', () => {
-  it('pageRootSlug extracts <slug> from the flex.page-<slug>.yaml key, else null', () => {
-    expect(pageRootSlug({ 'card.x.yaml': '...', 'flex.page-postgres.yaml': '...' })).toBe('postgres')
-    expect(pageRootSlug({ 'card.x.yaml': '...', 'table.y.yaml': '...' })).toBeNull()
+  describe('emits a CHART, not a bag of manifests', () => {
+    const chart = () => pageDraftFiles([flexRoot, card]) as Record<string, string>
+
+    it('ships Chart.yaml and values.schema.json beside the templates', () => {
+      // Chart.yaml or there is no chart. values.schema.json or core-provider cannot build the CRD,
+      // and the chart publishes, merges, releases, and then wedges the CompositionDefinition at
+      // Ready=False — several layers and one merge away from anything that names the cause.
+      expect(Object.keys(chart()).sort()).toEqual([
+        'Chart.yaml',
+        'templates/_tiers.tpl',
+        'templates/card.pg-summary.yaml',
+        'templates/flex.page-postgres.yaml',
+        'values.schema.json',
+        'values.yaml',
+      ])
+    })
+
+    it('leaves the chart version as the placeholder the release workflow stamps', () => {
+      // A real version here would mint a chart claiming a version nothing published.
+      expect(chart()['Chart.yaml']).toContain('version: CHART_VERSION')
+      expect(chart()['Chart.yaml']).toContain('name: postgres')
+    })
+
+    it('advertises ONLY the value its templates read', () => {
+      // tiers.common is referenced by every template; the portal's schema also offers admin and
+      // tenant, and copying those in would put two knobs in the install form that nothing reads.
+      const schema = JSON.parse(chart()['values.schema.json']) as { properties: { tiers: { properties: Record<string, unknown> } } }
+      expect(Object.keys(schema.properties.tiers.properties)).toEqual(['common'])
+    })
+
+    it('states the same defaults in values.yaml as in the schema', () => {
+      // Two files describing one fact drift; this is the cheapest place to notice.
+      const schema = JSON.parse(chart()['values.schema.json']) as { properties: { tiers: { properties: { common: { default: string } } } } }
+      expect(schema.properties.tiers.properties.common.default).toBe('')
+      expect(chart()['values.yaml']).toMatch(/^tiers:\n(?:.*\n)?\s+common: ""\n$/)
+    })
+
+    it('carries no subschema combinator — the class that cannot become a structural CRD', () => {
+      // An `anyOf` in builder-publish's values.schema.json stranded its served CRD a version behind
+      // and left the human blueprint-publish path non-functional for two releases.
+      expect(chart()['values.schema.json']).not.toMatch(/"(anyOf|oneOf|allOf|not)"/)
+    })
   })
 
+  describe('namespace is resolved at INSTALL time, not authoring time', () => {
+    const chart = () => pageDraftFiles([flexRoot, card]) as Record<string, string>
+
+    it('templates metadata.namespace through the tier helper', () => {
+      // Dumping the authoring namespace would pin every installation of this page set to whichever
+      // namespace the author happened to be working in.
+      expect(chart()['templates/flex.page-postgres.yaml'])
+        .toContain('namespace: \'{{ include "page.tierNamespace" (dict "ctx" . "tier" "common") }}\'')
+      expect(chart()['templates/flex.page-postgres.yaml']).not.toContain('namespace: krateo-system')
+    })
+
+    it('ships the helper it calls — `portal.tierNamespace` is NOT in scope in another chart', () => {
+      // A page set is a separate chart now. Calling the portal's helper renders
+      // "template not defined", which fails the install rather than failing quietly — but it fails.
+      expect(chart()['templates/_tiers.tpl']).toContain('define "page.tierNamespace"')
+      expect(chart()['templates/_tiers.tpl']).toContain('.ctx.Release.Namespace')
+    })
+
+    it('moves a SIBLING ref with it — a parent left behind renders an empty, healthy page', () => {
+      const parent = {
+        apiVersion: 'widgets.templates.krateo.io/v1beta1',
+        kind: 'Flex',
+        metadata: { name: 'page-postgres', namespace: 'krateo-system' },
+        spec: {
+          resourcesRefs: { items: [
+            { apiVersion: 'widgets.templates.krateo.io/v1beta1', id: 'pg-summary', name: 'pg-summary', namespace: 'krateo-system', resource: 'cards', verb: 'GET' },
+            { apiVersion: 'widgets.templates.krateo.io/v1beta1', id: 'fleet', name: 'fleet-elsewhere', namespace: 'other-ns', resource: 'tables', verb: 'GET' },
+          ] },
+          widgetData: { items: [{ resourceRefId: 'pg-summary' }] },
+        },
+      }
+      const files = pageDraftFiles([parent, card]) as Record<string, string>
+      const root = files['templates/flex.page-postgres.yaml']
+
+      // The sibling this chart ships moves to the tier…
+      expect(root).toMatch(/name: pg-summary\n\s+namespace: '\{\{ include "page\.tierNamespace"/)
+      // …and a widget placed from ELSEWHERE keeps its own namespace: this chart neither creates nor
+      // moves it, so retargeting it would point the page at a resource that is not there.
+      expect(root).toMatch(/name: fleet-elsewhere\n\s+namespace: other-ns/)
+    })
+
+    it('leaves a CR with no refs exactly as it was held', () => {
+      expect(chart()['templates/card.pg-summary.yaml']).not.toContain('resourcesRefs')
+    })
+  })
+})
+
+describe('page root + identity', () => {
+  it('pageRootSlug extracts <slug> from the flex.page-<slug>.yaml key, else null', () => {
+    expect(pageRootSlug({ 'templates/card.x.yaml': '...', 'templates/flex.page-postgres.yaml': '...' })).toBe('postgres')
+    expect(pageRootSlug({ 'templates/card.x.yaml': '...', 'templates/table.y.yaml': '...' })).toBeNull()
+  })
 })
 
 describe('isPageDraft', () => {
@@ -61,8 +152,12 @@ describe('pageDisplayName', () => {
     expect(pageDisplayName(pageDraftFiles([flexRoot, card])!)).toBe('page:flex.page-postgres')
   })
 
-  it('falls back to the first slug when there is no page-root flex', () => {
-    expect(pageDisplayName({ 'card.a.yaml': '...', 'table.b.yaml': '...' })).toBe('page:card.a')
+  it('says it does not know, rather than naming whichever file sorted first', () => {
+    // It used to fall back to `Object.keys(files)[0]`. Harmless while every key was a widget CR;
+    // a bug the moment a page carries a chart, because the first key sorts to `Chart.yaml` and the
+    // draft would identify itself as `page:Chart`. The publish gate matches on this string, so an
+    // identity naming the wrong file is worse than one that admits it does not know.
+    expect(pageDisplayName({ 'templates/card.a.yaml': '...', 'templates/table.b.yaml': '...' })).toBe('page:draft')
   })
 })
 

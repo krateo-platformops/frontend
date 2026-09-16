@@ -38,11 +38,10 @@ describe('generateBinding — the pair', () => {
   it('generates BOTH halves: a widget alone is inert, a RESTAction alone is invisible', () => {
     const { restAction, widget } = generated()
 
-    // HELD KEYS — bare identity tokens, no directory. `pagePublishPath` prefixes the chart root
-    // once, at publish; emitting a prefixed path here published to
-    // `helm/portal/templates/helm/portal/templates/…`.
-    expect(restAction.path).toBe('restaction.fleet-failing.yaml')
-    expect(widget.path).toBe('table.fleet-failing.yaml')
+    // CHART-RELATIVE keys, via pageDraftSlug — a page set publishes as its own Helm chart, and a
+    // chart keeps its manifests in templates/. The key IS the path; nothing routes it afterwards.
+    expect(restAction.path).toBe('templates/restaction.fleet-failing.yaml')
+    expect(widget.path).toBe('templates/table.fleet-failing.yaml')
   })
 
   it('sets apiRef.namespace, which the Table CRD requires and nothing defaults', () => {

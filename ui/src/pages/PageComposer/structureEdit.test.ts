@@ -229,12 +229,11 @@ describe('newContainerYaml / containerPath', () => {
     }
   })
 
-  it('names the file by identity alone — a HELD KEY, with no directory', () => {
-    // A page draft holds its files under bare tokens and `pagePublishPath` prefixes the chart root
-    // once, at publish. This used to take a directory and return a repo path, which then got
-    // prefixed a SECOND time: helm/portal/templates/helm/portal/templates/row.fleet-top.yaml.
-    expect(containerPath('Row', 'fleet-top')).toBe('row.fleet-top.yaml')
-    expect(containerPath('Card', 'x')).toBe('card.x.yaml')
+  it('names the file chart-relative, through the shared pageDraftSlug', () => {
+    // Chart-relative, and computed by the SAME pageDraftSlug a proposed CR goes through — one
+    // vocabulary for one object, which is what the old double-prefix bug came from lacking.
+    expect(containerPath('Row', 'fleet-top')).toBe('templates/row.fleet-top.yaml')
+    expect(containerPath('Card', 'x')).toBe('templates/card.x.yaml')
   })
 
   it('writes the namespace the CRDs require on a new container', () => {

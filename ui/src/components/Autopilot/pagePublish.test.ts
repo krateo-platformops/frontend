@@ -13,8 +13,8 @@ const SLUG = 'cost-report'
 // (root page flex first, then children). The auto-generated nav fragment that used to ride along
 // here is gone: the sidebar assembles itself from the page roots the cluster has (portal#217).
 const TREE = held({
-  'card.cost-summary.yaml': 'kind: Card\nmetadata:\n  name: cost-summary\n',
-  'flex.page-cost-report.yaml': 'kind: Flex\nmetadata:\n  name: page-cost-report\n',
+  'templates/card.cost-summary.yaml': 'kind: Card\nmetadata:\n  name: cost-summary\n',
+  'templates/flex.page-cost-report.yaml': 'kind: Flex\nmetadata:\n  name: page-cost-report\n',
 })
 
 describe('buildPagePublishOps', () => {
@@ -43,7 +43,9 @@ describe('buildPagePublishOps', () => {
     // RepoContent names are unique per file (page-slug-prefixed, DNS-1123 slug of the held key).
     const rcNames = ops.filter((op) => payloadOf(op).kind === 'RepoContent').map((op) => (payloadOf(op).metadata as { name: string }).name)
     expect(new Set(rcNames).size).toBe(rcNames.length)
-    expect(rcNames).toContain('page-cost-report-flex-page-cost-report-yaml')
+    // The key is chart-relative now, so the slug carries the `templates/` segment — the same shape a
+    // BLUEPRINT's RepoContent names have always had, since its keys were always chart-relative.
+    expect(rcNames).toContain('page-cost-report-templates-flex-page-cost-report-yaml')
   })
 
   it('creates the builder branch from the page slug and OMITS sha (provider auto-resolves)', () => {
@@ -53,11 +55,11 @@ describe('buildPagePublishOps', () => {
     expect(spec.configurationRef).toEqual({ name: PORTAL_CHART_REPO_DEFAULTS.configurationRef })
   })
 
-  it('routes every widget CR into the chart templates dir', () => {
+  it('commits every held key verbatim — the key IS the path', () => {
     const specs = buildPagePublishOps({}, TREE, SLUG).filter((op) => op.gvr.resource === 'repocontents').map(specOf)
     expect(specs.map((spec) => spec.path).sort()).toEqual([
-      'helm/portal/templates/card.cost-summary.yaml',
-      'helm/portal/templates/flex.page-cost-report.yaml',
+      'templates/card.cost-summary.yaml',
+      'templates/flex.page-cost-report.yaml',
     ])
     for (const spec of specs) {
       expect(spec.branch).toBe('builder/page-cost-report')
@@ -107,8 +109,8 @@ describe('buildPagePublishOps', () => {
   })
 
   it('a single-widget page still produces gitref + 1 repocontents + pullrequest', () => {
-    const ops = buildPagePublishOps({}, held({ 'flex.page-x.yaml': 'kind: Flex\n' }), 'x')
+    const ops = buildPagePublishOps({}, held({ 'templates/flex.page-x.yaml': 'kind: Flex\n' }), 'x')
     expect(ops.map((op) => op.gvr.resource)).toEqual(['gitrefs', 'repocontents', 'pullrequests'])
-    expect(specOf(ops[1]).path).toBe('helm/portal/templates/flex.page-x.yaml')
+    expect(specOf(ops[1]).path).toBe('templates/flex.page-x.yaml')
   })
 })

@@ -21,6 +21,8 @@
  */
 import { dump } from 'js-yaml'
 
+import { pageDraftSlug } from '../../components/Autopilot/pageDraft'
+
 export interface BindingInput {
   /** Base name for both objects — the RESTAction and the widget share it. */
   name: string
@@ -152,10 +154,9 @@ export const generateBinding = (input: BindingInput): BindingResult => {
         filter,
       },
     }, DUMP),
-    // A held KEY, not a repo path: the draft holds page files under bare identity tokens and
-    // `pagePublishPath` prefixes the chart root once, at publish. Emitting a prefixed path here
-    // published to `helm/portal/templates/helm/portal/templates/…`.
-    path: `restaction.${input.name}.yaml`,
+    // Through `pageDraftSlug`, so a generated pair is keyed exactly as a proposed CR of the same
+    // kind and name — one vocabulary, computed in one place.
+    path: pageDraftSlug('RESTAction', input.name),
   }
 
   const cells = keyed
@@ -181,7 +182,7 @@ export const generateBinding = (input: BindingInput): BindingResult => {
         widgetDataTemplate: [{ expression: `\${ [ .rows[] | [ ${cells} ] ] }`, forPath: 'dataSource' }],
       },
     }, DUMP),
-    path: `table.${input.name}.yaml`,
+    path: pageDraftSlug('Table', input.name),
   }
 
   return { name: input.name, ok: true, restAction, widget }
