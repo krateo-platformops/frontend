@@ -18,6 +18,7 @@
  * real singleton with fake capture and a fake `fetch`, because jsdom has neither.
  */
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
+import type { Mock } from 'vitest'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockConfig = vi.hoisted((): { api: Record<string, string> } => ({ api: {} }))
@@ -75,7 +76,10 @@ const setValue = (overrides: Partial<typeof baseValue> = {}) => {
 // ── the fake platform ────────────────────────────────────────────────────────────────
 let clock = 0
 let level = SPEECH_RMS_THRESHOLD * 5
-let fetchImpl: ReturnType<typeof vi.fn>
+// Typed to the signature it stands in for. `ReturnType<typeof vi.fn>` widened to
+// `Mock<Procedure | Constructable>` in vitest 5, which is assignable to nothing specific —
+// so every use as a `typeof fetch` became a type error the moment the dependency moved.
+let fetchImpl: Mock<typeof fetch>
 
 const stream: MediaStreamLike = { getTracks: () => [{ stop: () => undefined }] }
 
