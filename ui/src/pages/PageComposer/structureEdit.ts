@@ -9,10 +9,15 @@
  * `emitFileEdit` path with no new machinery, and the file-creating half is honestly a separate
  * piece of work rather than a half-built one hiding inside this.
  *
- * TWO PLACES, ALWAYS BOTH. A child is a reference in `spec.widgetData.items[].resourceRefId` AND an
- * entry in `spec.resourcesRefs.items[]` that resolves that id to a real CR. Writing one without the
- * other is the classic way to produce a page that renders an empty slot or a dangling ref, so every
- * function here edits the pair together and the tests assert the pair.
+ * THREE PLACES, ALWAYS ALL THREE. Placing a child writes:
+ *   1. `spec.widgetData.items[].resourceRefId` — the ordered reference,
+ *   2. `spec.resourcesRefs.items[]` — the entry resolving that id to a real CR,
+ *   3. `spec.widgetData.allowedResources[]` — the child's PLURAL, without which the container
+ *      refuses to render it.
+ *
+ * (3) was learned the hard way: it is required by the CRD on flexes, rows, cols, tabs and tables,
+ * and a container that does not list a plural will not render a child of that kind even though
+ * both the reference and the ref entry are correct — a page that validates and shows nothing.
  *
  * ROUND-TRIP HONESTLY. These parse with js-yaml and re-dump, so the file comes back canonically
  * formatted: key order normalises and comments do not survive. That is acceptable for draft files,
@@ -43,7 +48,7 @@ const DUMP = { lineWidth: -1, noRefs: true } as const
 
 interface Doc {
   spec?: {
-    widgetData?: { items?: { resourceRefId?: string }[] }
+    widgetData?: { items?: { resourceRefId?: string }[]; allowedResources?: string[] }
     resourcesRefs?: { items?: { id?: string }[] }
   }
 }
@@ -61,14 +66,19 @@ const parse = (yaml: string): { doc: Doc } | { error: string } => {
   return { doc: loaded }
 }
 
-/** Ensure spec.widgetData.items and spec.resourcesRefs.items exist, and hand both back. */
+/** Ensure the three lists a container edit touches exist, and hand them back. */
 const slots = (doc: Doc) => {
   doc.spec ??= {}
   doc.spec.widgetData ??= {}
   doc.spec.widgetData.items ??= []
+  doc.spec.widgetData.allowedResources ??= []
   doc.spec.resourcesRefs ??= {}
   doc.spec.resourcesRefs.items ??= []
-  return { items: doc.spec.widgetData.items, refs: doc.spec.resourcesRefs.items }
+  return {
+    allowed: doc.spec.widgetData.allowedResources,
+    items: doc.spec.widgetData.items,
+    refs: doc.spec.resourcesRefs.items,
+  }
 }
 
 /** Append a child to a container: the ordered reference AND the ref entry that resolves it. */
@@ -77,7 +87,13 @@ export const placeChild = (parentYaml: string, child: PlaceChild): StructureResu
   if ('error' in parsed) {
     return { error: parsed.error, ok: false }
   }
-  const { items, refs } = slots(parsed.doc)
+  const { allowed, items, refs } = slots(parsed.doc)
+
+  // (3) the container must declare the child's PLURAL or it will not render it. Idempotent: a
+  // second Table adds nothing.
+  if (!allowed.includes(child.resource)) {
+    allowed.push(child.resource)
+  }
 
   // Placing the same widget twice is legitimate — a divider between sections, say — but placing it
   // twice by accident is the more likely case, and a duplicate REF ENTRY (same id) is malformed
@@ -138,15 +154,17 @@ export type LayoutKind = keyof typeof LAYOUT_KINDS
  * guessing produces a file whose defaults look chosen. They can set them in the Files tab, or the
  * live render shows them what the bare default looks like first.
  *
- * `allowedResources` is deliberately absent rather than empty: the widget CRDs are STRICT, and an
- * empty list is a real value meaning "nothing may be placed here", which would make the container
- * refuse every child it is about to be given.
+ * `allowedResources` is present and EMPTY, which I got wrong first time and the cluster corrected:
+ * the CRD REQUIRES the field on flexes, rows, cols and tabs, so omitting it produces a container
+ * the apiserver rejects outright. Empty is right because `placeChild` appends each child's plural
+ * as it is placed — the list grows to exactly what the container actually holds, rather than being
+ * guessed up front.
  */
 export const newContainerYaml = (kind: LayoutKind, name: string, namespace?: string): string => dump({
   apiVersion: WIDGET_API_VERSION,
   kind,
   metadata: { name, namespace },
-  spec: { resourcesRefs: { items: [] }, widgetData: { items: [] } },
+  spec: { resourcesRefs: { items: [] }, widgetData: { allowedResources: [], items: [] } },
 }, DUMP)
 
 /**

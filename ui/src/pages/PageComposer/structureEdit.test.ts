@@ -87,6 +87,37 @@ describe('placeChild', () => {
   })
 })
 
+describe('placeChild — the THIRD place, allowedResources', () => {
+  it("declares the child's plural, without which the container will not render it", () => {
+    // The subtle failure this prevents: items and resourcesRefs are both correct, the CR applies
+    // cleanly, and the child still does not appear — because the container never declared its
+    // kind. A page that validates and shows nothing.
+    const out = load(ok(placeChild(newContainerYaml('Row', 'top'), { name: 'fleet', resource: 'tables' }))) as {
+      spec: { widgetData: { allowedResources: string[] } }
+    }
+
+    expect(out.spec.widgetData.allowedResources).toEqual(['tables'])
+  })
+
+  it('does not repeat a plural already declared', () => {
+    const once = ok(placeChild(newContainerYaml('Row', 'top'), { name: 'a', resource: 'tables' }))
+    const out = load(ok(placeChild(once, { name: 'b', resource: 'tables' }))) as {
+      spec: { widgetData: { allowedResources: string[] } }
+    }
+
+    expect(out.spec.widgetData.allowedResources).toEqual(['tables'])
+  })
+
+  it('accumulates distinct plurals', () => {
+    const first = ok(placeChild(newContainerYaml('Flex', 'p'), { name: 'a', resource: 'tables' }))
+    const out = load(ok(placeChild(first, { name: 'b', resource: 'paragraphs' }))) as {
+      spec: { widgetData: { allowedResources: string[] } }
+    }
+
+    expect(out.spec.widgetData.allowedResources.sort()).toEqual(['paragraphs', 'tables'])
+  })
+})
+
 describe('removeChild', () => {
   it('removes the reference and its entry together', () => {
     const out = read(ok(removeChild(parent(['a', 'b']), 'a')))
@@ -154,10 +185,17 @@ describe('newContainerYaml / containerPath', () => {
     expect(doc.spec.resourcesRefs.items).toEqual([])
   })
 
-  it('omits allowedResources rather than writing an empty one', () => {
-    // An empty allowedResources is a REAL value meaning "nothing may be placed here" — it would
-    // make the container refuse every child it is about to be given. Absent means unconstrained.
-    expect(newContainerYaml('Flex', 'x')).not.toContain('allowedResources')
+  it('WRITES an empty allowedResources, because the CRD requires the field', () => {
+    // I asserted the opposite first, reasoning that empty means "nothing may be placed here".
+    // A server dry-run corrected it: flexes, rows, cols, tabs and tables all REQUIRE the field —
+    // "spec.widgetData.allowedResources: Required value" — so omitting it produces a container the
+    // apiserver rejects outright. Empty is right because placeChild appends each child's plural as
+    // it is placed, so the list grows to exactly what the container holds.
+    const doc = load(newContainerYaml('Flex', 'x')) as {
+      spec: { widgetData: { allowedResources: string[] } }
+    }
+
+    expect(doc.spec.widgetData.allowedResources).toEqual([])
   })
 
   it('does not guess layout properties the author has not chosen', () => {

@@ -7,8 +7,8 @@
  * reachable ONLY through the Autopilot rail, as something the agent opens. What is asserted here is
  * that the same surface now renders outside the provider, from the same bus, with no rail present.
  */
-import { act, cleanup, render, screen, within } from '@testing-library/react'
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
@@ -22,6 +22,18 @@ afterEach(cleanup)
 // CommandPalette and WidgetRenderer suites install; without it the whole subtree fails to render
 // and every assertion below reads an empty container instead of a missing element.
 beforeAll(() => {
+  // antd's Modal reads matchMedia for its responsive width; jsdom has neither this nor
+  // ResizeObserver. Same shims the Tabs and Table suites install.
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    addEventListener: vi.fn(),
+    addListener: vi.fn(),
+    dispatchEvent: vi.fn(() => false),
+    matches: false,
+    media: query,
+    onchange: null,
+    removeEventListener: vi.fn(),
+    removeListener: vi.fn(),
+  }))
   globalThis.ResizeObserver = class {
     disconnect() { /* nothing to disconnect in jsdom */ }
     observe() { /* jsdom never resizes */ }
@@ -277,5 +289,65 @@ describe('PageComposer — adding a layout container', () => {
     // A Statistic has no items; offering "add" there would author a CR the strict CRDs reject.
     expect(screen.getByLabelText('Add inside page-x')).toBeTruthy()
     expect(screen.queryByLabelText('Add inside stat')).toBeNull()
+  })
+})
+
+describe('PageComposer — binding live data', () => {
+  const flexFile = {
+    content: [
+      'kind: Flex',
+      'apiVersion: widgets.templates.krateo.io/v1beta1',
+      'metadata:\n  name: page-x',
+      'spec:\n  widgetData:\n    allowedResources: []\n    items: []',
+      '  resourcesRefs:\n    items: []',
+    ].join('\n'),
+    path: 'helm/portal/templates/flex.page-x.yaml',
+  }
+
+  it('generates the RESTAction AND the widget, then places it — three emissions', () => {
+    const adds: { path: string; content: string }[] = []
+    const edits: { path: string }[] = []
+    const onAdd = (event: Event) => { adds.push((event as CustomEvent<{ path: string; content: string }>).detail) }
+    const onEdit = (event: Event) => { edits.push((event as CustomEvent<{ path: string }>).detail) }
+    window.addEventListener('autopilotPreviewFileAdded', onAdd)
+    window.addEventListener('autopilotPreviewFileEdited', onEdit)
+
+    mount()
+    emit({ files: [flexFile], title: 'x' })
+    act(() => { screen.getByLabelText('Bind data inside page-x').click() })
+
+    act(() => {
+      fireEvent.change(screen.getByPlaceholderText('fleet-failing'), { target: { value: 'fleet' } })
+      fireEvent.change(screen.getByPlaceholderText('/apis/…'), { target: { value: '/apis/x/v1/namespaces/n/things' } })
+      fireEvent.change(screen.getByPlaceholderText(/"Name"/), { target: { value: '{"Name": ".metadata.name"}' } })
+    })
+    act(() => { screen.getByText('Generate').click() })
+
+    window.removeEventListener('autopilotPreviewFileAdded', onAdd)
+    window.removeEventListener('autopilotPreviewFileEdited', onEdit)
+
+    // RESTAction first: the widget's apiRef names it, so the reverse order points at nothing.
+    expect(adds.map((file) => file.path)).toEqual([
+      'helm/portal/templates/restaction.fleet.yaml',
+      'helm/portal/templates/table.fleet.yaml',
+    ])
+    expect(adds[1].content).toContain('apiRef')
+    expect(edits[0].path).toBe('helm/portal/templates/flex.page-x.yaml')
+  })
+
+  it('refuses a field path that is not a path, rather than generating broken jq', () => {
+    mount()
+    emit({ files: [flexFile], title: 'x' })
+    act(() => { screen.getByLabelText('Bind data inside page-x').click() })
+
+    act(() => {
+      fireEvent.change(screen.getByPlaceholderText('fleet-failing'), { target: { value: 'fleet' } })
+      fireEvent.change(screen.getByPlaceholderText('/apis/…'), { target: { value: '/apis/x' } })
+      fireEvent.change(screen.getByPlaceholderText(/"Name"/), { target: { value: '{"Bad": ".a | halt"}' } })
+    })
+    act(() => { screen.getByText('Generate').click() })
+
+    // Named refusal at the form beats a syntax error inside generated code the author never wrote.
+    expect(screen.getByText(/not a supported field path/i)).toBeTruthy()
   })
 })

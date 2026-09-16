@@ -12,14 +12,16 @@
  * lets a person rewrite any file's YAML — a structure kept alongside would be stale the moment they
  * did, in a way nothing would report.
  */
-import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { ApiOutlined, ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import { App, Badge, Button, Dropdown, Empty, Space, Tag, Tooltip, Tree, Typography } from 'antd'
 import type { DataNode } from 'antd/es/tree'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
 import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
 
+import BindDataModal from './BindDataModal'
+import type { BindingResult } from './generateBinding'
 import { buildObjectTree, flattenTree } from './objectTree'
 import type { TreeNode } from './objectTree'
 import styles from './PageComposer.module.css'
@@ -37,8 +39,9 @@ const toDataNode = (
   key: string,
   mutate: (node: TreeNode, op: 'up' | 'down' | 'remove') => void,
   addLayout: (node: TreeNode, kind: LayoutKind) => void,
+  bindInto: (node: TreeNode) => void,
 ): DataNode => ({
-  children: node.children.map((child, index) => toDataNode(child, `${key}-${index}`, mutate, addLayout)),
+  children: node.children.map((child, index) => toDataNode(child, `${key}-${index}`, mutate, addLayout, bindInto)),
   key,
   title: (
     <span className={styles.node}>
@@ -75,6 +78,13 @@ const toDataNode = (
           </Dropdown>
         )
         : null}
+      {node.drafted && CONTAINERS.has(node.kind ?? '')
+        ? (
+          <Tooltip title='Add a table that reads live data from the cluster'>
+            <Button aria-label={`Bind data inside ${node.name}`} icon={<ApiOutlined />} onClick={(event) => { event.stopPropagation(); bindInto(node) }} size='small' type='text' />
+          </Tooltip>
+        )
+        : null}
       {/* Only a node with a parent can move or be removed: a child is a REFERENCE held by its
           parent, so both operations rewrite the parent's file. A root is placed by nothing. */}
       {node.parentPath
@@ -103,6 +113,8 @@ export const ObjectTreePanel = ({ directory, files, onSelect }: {
   onSelect?: (path: string) => void
 }) => {
   const { message } = App.useApp()
+  // Which container a generated binding will be placed into. Null closes the modal.
+  const [bindTarget, setBindTarget] = useState<TreeNode | null>(null)
   const tree = useMemo(() => buildObjectTree(files), [files])
   const flat = useMemo(() => flattenTree(tree), [tree])
 
@@ -172,7 +184,7 @@ export const ObjectTreePanel = ({ directory, files, onSelect }: {
   }
 
   const nodes = useMemo(
-    () => tree.map((node, index) => toDataNode(node, `${index}`, mutate, addLayout)),
+    () => tree.map((node, index) => toDataNode(node, `${index}`, mutate, addLayout, setBindTarget)),
     // `mutate` closes over `files` and is recreated each render; depending on it would defeat the
     // memo entirely. `tree` already changes whenever `files` does, which is the only time the
     // rendered nodes need rebuilding.
@@ -205,8 +217,42 @@ export const ObjectTreePanel = ({ directory, files, onSelect }: {
 
   const boundCount = flat.filter((node) => node.bound).length
 
+  /**
+   * A generated binding is THREE emissions, and the order matters for the same reason it does when
+   * adding a container: the parent's reference must resolve to files that already exist, or the
+   * draft briefly points at nothing. RESTAction first because the widget's apiRef names it.
+   */
+  const acceptBinding = (target: TreeNode, result: Extract<BindingResult, { ok: true }>) => {
+    const parentYaml = target.path ? files[target.path] : undefined
+    if (!target.path || parentYaml === undefined) {
+      message.error('that container is not part of the draft')
+      return
+    }
+    // `result.name`, not the filename parsed back out of a path: the generator already knows it,
+    // and re-deriving it would be a second place that has to agree about naming.
+    const placed = placeChild(parentYaml, { name: result.name, resource: 'tables' })
+    if (!placed.ok) {
+      message.warning(placed.error)
+      return
+    }
+    emitFileAdd({ content: result.restAction.content, path: result.restAction.path })
+    emitFileAdd({ content: result.widget.content, path: result.widget.path })
+    emitFileEdit({ content: placed.content, path: target.path })
+    setBindTarget(null)
+  }
+
   return (
     <div className={styles.tree}>
+      {bindTarget
+        ? (
+          <BindDataModal
+            directory={directory ?? DEFAULT_DIR}
+            onCancel={() => setBindTarget(null)}
+            onGenerate={(result) => acceptBinding(bindTarget, result)}
+            open
+          />
+        )
+        : null}
       <div className={styles.treeHead}>
         <Typography.Text strong>Objects</Typography.Text>
         <span className={styles.counts}>
