@@ -128,6 +128,7 @@ const toDataNode = (
 export const ObjectTreePanel = ({ files, onSelect }: {
   /** The held draft, keyed by HELD KEY — the same key a write is addressed by. */
   files: Record<string, string>
+  /** The selected object's held key, so the surface can reveal that file. */
   onSelect?: (path: string) => void
 }) => {
   const { message } = App.useApp()
@@ -352,6 +353,8 @@ export const ObjectTreePanel = ({ files, onSelect }: {
         defaultExpandAll
         onSelect={(keys) => {
           const node = byKey.get(String(keys[0]))
+          // `node.path` is null for a placed EXISTING widget — it has no file in this draft, so
+          // there is nothing to reveal and nothing is claimed.
           if (node?.path && onSelect) {
             onSelect(node.path)
           }

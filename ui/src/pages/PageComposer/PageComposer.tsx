@@ -65,6 +65,9 @@ const PageComposer = () => {
    */
   const [files, setFiles] = useState<Record<string, string>>({})
   const [starting, setStarting] = useState(false)
+  // The tree selection, reflected in the Files list. Without it the two halves of the page are
+  // unrelated views of the same draft.
+  const [focusPath, setFocusPath] = useState<string | null>(null)
   // Re-validated verdicts after an applied edit, so the Alert blocks reflect the latest draft
   // rather than the one that was first handed over. Same contract the drawer keeps.
   const [editVerdicts, setEditVerdicts] = useState<RestDefVerdicts | null>(null)
@@ -108,6 +111,7 @@ const PageComposer = () => {
     setPayload(null)
     setEditVerdicts(null)
     setFiles({})
+    setFocusPath(null)
   }
 
   return (
@@ -154,9 +158,9 @@ const PageComposer = () => {
           // render — see objectTree.ts for why it is never stored.
           <div className={styles.split}>
             <div className={styles.surface}>
-              <PreviewContent editVerdicts={editVerdicts} onVerdicts={setEditVerdicts} payload={payload} />
+              <PreviewContent editVerdicts={editVerdicts} focusPath={focusPath} onVerdicts={setEditVerdicts} payload={payload} />
             </div>
-            <ObjectTreePanel files={files} />
+            <ObjectTreePanel files={files} onSelect={setFocusPath} />
           </div>
         )
         : (

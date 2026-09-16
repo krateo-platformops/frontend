@@ -220,6 +220,45 @@ describe('PageComposer — a person starts the draft', () => {
   })
 })
 
+describe('PageComposer — the two halves are one view', () => {
+  it('reveals the selected object in the Files tab', () => {
+    mount()
+    emit({
+      files: [
+        { content: 'kind: Flex\n', path: 'helm/portal/templates/flex.page-fleet.yaml' },
+        { content: 'kind: Statistic\n', path: 'helm/portal/templates/statistic.stat-ready.yaml' },
+      ],
+      title: 'Fleet',
+    })
+    // The tree reads the HELD draft (bare keys); the Files tab shows routed repo destinations.
+    held({
+      'flex.page-fleet.yaml': widgetCr('Flex', 'page-fleet', ['stat-ready']),
+      'statistic.stat-ready.yaml': widgetCr('Statistic', 'stat-ready'),
+    })
+
+    const panel = screen.getByText('Objects').closest('div')?.parentElement as HTMLElement
+    act(() => { fireEvent.click(within(panel).getByText('stat-ready')) })
+
+    // Selecting a node switches to Files and reveals that file. Without it the tree says what is
+    // in the draft beside a list that will not show you the one you just clicked.
+    const files = document.querySelector('.ant-tabs-tab-active')?.textContent
+    expect(files).toBe('Files')
+    expect(document.getElementById('preview-file-helm-portal-templates-statistic-stat-ready-yaml')).toBeTruthy()
+  })
+
+  it('claims nothing for a placed existing widget, which has no file in this draft', () => {
+    mount()
+    emit({ files: [{ content: 'kind: Flex\n', path: 'helm/portal/templates/flex.page-x.yaml' }], title: 'x' })
+    held({ 'flex.page-x.yaml': widgetCr('Flex', 'page-x', ['already-there']) })
+
+    const panel = screen.getByText('Objects').closest('div')?.parentElement as HTMLElement
+    act(() => { fireEvent.click(within(panel).getByText('already-there')) })
+
+    // Nothing to reveal, so nothing is scrolled to — rather than jumping somewhere arbitrary.
+    expect(screen.getByText('placed')).toBeTruthy()
+  })
+})
+
 describe('PageComposer — one surface owns the draft', () => {
   it('claims the preview while mounted, so the drawer does not open over it', () => {
     expect(previewSurfaceClaimed()).toBe(false)
