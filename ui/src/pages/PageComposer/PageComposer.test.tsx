@@ -16,6 +16,8 @@ import type { AutopilotPreviewPayload } from '../../components/Autopilot/preview
 import { emitDraftChanged, previewSurfaceClaimed } from '../../components/Autopilot/previewDraftChanged'
 import { AUTOPILOT_DRAFT_START_EVENT } from '../../components/Autopilot/previewDraftStart'
 import type { DraftStartDetail } from '../../components/Autopilot/previewDraftStart'
+import { AUTOPILOT_PUBLISH_REQUEST_EVENT, emitPublishResult } from '../../components/Autopilot/previewPublishRequest'
+import type { PublishRequestDetail } from '../../components/Autopilot/previewPublishRequest'
 import { ThemeModeProvider } from '../../context/ThemeModeContext'
 
 import PageComposer from './PageComposer'
@@ -217,6 +219,74 @@ describe('PageComposer — a person starts the draft', () => {
     // Scoped to the Alert: the field's own help text also says "lower-case", and matching that
     // would pass whether or not the form actually refused anything.
     expect(screen.getByText(/the slug must be lower-case/i)).toBeTruthy()
+  })
+})
+
+describe('PageComposer — publishing without leaving the page', () => {
+  const openDraft = () => {
+    mount()
+    emit({ files: [{ content: widgetCr('Flex', 'page-x'), path: 'flex.page-x.yaml' }], title: 'x' })
+  }
+
+  it('asks the provider to publish, rather than sending the author to the chat rail', () => {
+    const seen: PublishRequestDetail[] = []
+    const listener = (event: Event) => { seen.push((event as CustomEvent<PublishRequestDetail>).detail) }
+    window.addEventListener(AUTOPILOT_PUBLISH_REQUEST_EVENT, listener)
+
+    openDraft()
+    act(() => { screen.getByText('Publish').click() })
+    window.removeEventListener(AUTOPILOT_PUBLISH_REQUEST_EVENT, listener)
+
+    // The provider runs the SAME runDraftPublish the agent's verb takes — one destination form,
+    // one gate, one cap. Until now the only way to ship a draft authored here was to ask the agent.
+    expect(seen).toHaveLength(1)
+    expect(seen[0].verb).toBe('publishPage')
+    expect(seen[0].id).toBeTruthy()
+  })
+
+  it('offers no Publish with no draft — there is nothing to ship', () => {
+    mount()
+
+    expect(screen.queryByText('Publish')).toBeNull()
+  })
+
+  it('shows the change request on its own page when the publish lands', () => {
+    let id = ''
+    const listener = (event: Event) => { id = (event as CustomEvent<PublishRequestDetail>).detail.id }
+    window.addEventListener(AUTOPILOT_PUBLISH_REQUEST_EVENT, listener)
+    openDraft()
+    act(() => { screen.getByText('Publish').click() })
+    window.removeEventListener(AUTOPILOT_PUBLISH_REQUEST_EVENT, listener)
+
+    act(() => { emitPublishResult({ deepLink: 'https://example.invalid/compare/x', denial: null, id }) })
+
+    expect(screen.getByText(/change request is open/i)).toBeTruthy()
+    expect(screen.getByText('Open change request').closest('a')?.href).toContain('example.invalid')
+  })
+
+  it('shows a refusal as a refusal, not as success', () => {
+    let id = ''
+    const listener = (event: Event) => { id = (event as CustomEvent<PublishRequestDetail>).detail.id }
+    window.addEventListener(AUTOPILOT_PUBLISH_REQUEST_EVENT, listener)
+    openDraft()
+    act(() => { screen.getByText('Publish').click() })
+    window.removeEventListener(AUTOPILOT_PUBLISH_REQUEST_EVENT, listener)
+
+    act(() => { emitPublishResult({ deepLink: null, denial: 'publish cancelled — destination not confirmed', id }) })
+
+    expect(screen.getByText(/destination not confirmed/i)).toBeTruthy()
+  })
+
+  it('ignores another surface’s publish result', () => {
+    openDraft()
+    act(() => { screen.getByText('Publish').click() })
+
+    act(() => { emitPublishResult({ deepLink: null, denial: 'not ours', id: 'someone-else' }) })
+
+    // Two surfaces can be open on one draft; answering to a correlation id is what keeps a drawer's
+    // outcome from being reported as this page's.
+    expect(screen.queryByText('not ours')).toBeNull()
+    expect(screen.getByText('Publishing…')).toBeTruthy()
   })
 })
 

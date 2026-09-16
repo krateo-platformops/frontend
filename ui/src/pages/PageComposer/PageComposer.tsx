@@ -25,13 +25,14 @@
  * start one. Publishing is unchanged and still ends at a form a person submits — the agent's
  * never-submit guarantee is not weakened by any of this.
  */
-import { Button, Empty, Popconfirm, Typography } from 'antd'
-import { useEffect, useState } from 'react'
+import { Alert, Button, Empty, Popconfirm, Space, Typography } from 'antd'
+import { useEffect, useRef, useState } from 'react'
 
 import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { claimPreviewSurface, onDraftChanged, requestDraftReplay } from '../../components/Autopilot/previewDraftChanged'
 import { emitDraftStart } from '../../components/Autopilot/previewDraftStart'
+import { emitPublishRequest, onPublishResult } from '../../components/Autopilot/previewPublishRequest'
 import { PreviewContent } from '../../components/Autopilot/previewSurface'
 import type { RestDefVerdicts } from '../../components/Autopilot/previewSurface'
 
@@ -68,6 +69,12 @@ const PageComposer = () => {
   // The tree selection, reflected in the Files list. Without it the two halves of the page are
   // unrelated views of the same draft.
   const [focusPath, setFocusPath] = useState<string | null>(null)
+  // The publish in flight, and its outcome. Held here rather than shown in the chat rail: the
+  // person who pressed the button is looking at this page, and sending them to the conversation to
+  // find out what happened is the coupling this whole surface exists to remove.
+  const [publishing, setPublishing] = useState(false)
+  const [outcome, setOutcome] = useState<{ denial: string | null; deepLink: string | null } | null>(null)
+  const publishId = useRef<string | null>(null)
   // Re-validated verdicts after an applied edit, so the Alert blocks reflect the latest draft
   // rather than the one that was first handed over. Same contract the drawer keeps.
   const [editVerdicts, setEditVerdicts] = useState<RestDefVerdicts | null>(null)
@@ -89,6 +96,16 @@ const PageComposer = () => {
     return () => window.removeEventListener(AUTOPILOT_PREVIEW_EVENT, onPreview as EventListener)
   }, [])
 
+  // The answer to OUR publish, ignoring any other surface's.
+  useEffect(() => onPublishResult(({ deepLink, denial, id }) => {
+    if (publishId.current !== id) {
+      return
+    }
+    publishId.current = null
+    setPublishing(false)
+    setOutcome({ deepLink, denial })
+  }), [])
+
   // The held draft, and a replay request for the case this page mounted after it was seeded —
   // navigate here with a draft already open and the tree would otherwise sit empty until the next
   // edit, describing a draft that exists as if it did not.
@@ -106,6 +123,21 @@ const PageComposer = () => {
    * never double-tears-down. Clearing local state after it is what returns the honest empty state
    * rather than leaving a dead endpoint mounted.
    */
+  /**
+   * Publish — the same `runDraftPublish` the agent's verb takes, asked for by a person.
+   *
+   * The destination form and the blast-radius confirm both still run, so this button PROPOSES the
+   * write; it does not perform one. What it removes is the detour: until now the only way to ship
+   * a draft you had authored here was to go and ask the agent to emit a publish directive.
+   */
+  const publish = () => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    publishId.current = id
+    setOutcome(null)
+    setPublishing(true)
+    emitPublishRequest({ id, verb: 'publishPage' })
+  }
+
   const closeDraft = () => {
     payload?.onClose?.()
     setPayload(null)
@@ -139,14 +171,33 @@ const PageComposer = () => {
             immediate, because the draft is not recoverable and nothing else in view says so. */}
         {payload
           ? (
-            <Popconfirm
-              cancelText='Keep editing'
-              okText='Discard'
-              onConfirm={closeDraft}
-              title='Discard this draft? The sandbox and its unpublished files are deleted.'
-            >
-              <Button className={styles.close}>Close draft</Button>
-            </Popconfirm>
+            <Space className={styles.actions}>
+              <Button loading={publishing} onClick={publish} type='primary'>
+                {publishing ? 'Publishing…' : 'Publish'}
+              </Button>
+              <Popconfirm
+                cancelText='Keep editing'
+                okText='Discard'
+                onConfirm={closeDraft}
+                title='Discard this draft? The sandbox and its unpublished files are deleted.'
+              >
+                <Button>Close draft</Button>
+              </Popconfirm>
+            </Space>
+          )
+          : null}
+        {outcome
+          ? (
+            <Alert
+              action={outcome.deepLink
+                ? <Button href={outcome.deepLink} rel='noreferrer' target='_blank' type='link'>Open change request</Button>
+                : null}
+              closable
+              onClose={() => setOutcome(null)}
+              showIcon
+              title={outcome.denial ?? 'Published — the change request is open for review.'}
+              type={outcome.denial ? 'warning' : 'success'}
+            />
           )
           : null}
       </header>
