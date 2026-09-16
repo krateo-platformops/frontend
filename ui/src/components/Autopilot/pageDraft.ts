@@ -16,6 +16,8 @@
 
 import { dump } from 'js-yaml'
 
+import type { BlueprintDraftHeld } from './blueprintDraftStore'
+
 /** The portal-chart file convention for a page's widget CRs: `<kind-lower>.<name>.yaml`. */
 export const pageDraftSlug = (kind: string, name: string): string => `${kind.toLowerCase()}.${name}.yaml`
 
@@ -110,11 +112,14 @@ export const pageDraftFiles = (widgets: readonly unknown[]): Record<string, stri
 }
 
 /**
- * True iff a held draft is a PAGE draft. Blueprint drafts ALWAYS carry a `Chart.yaml`
- * (createBlueprintDraft/previewBlueprint), a page draft never does — so its absence is the
- * discriminator the provider uses to pick the right identity function for the preview-gate.
+ * True iff a held draft was authored by the PAGE builder.
+ *
+ * Reads the kind the writer recorded rather than sniffing the file set. It used to be
+ * `!('Chart.yaml' in files)` — sound only while a page was a bag of widget CRs and could never
+ * carry a chart. A page that ships as its own chart inverts that test silently, so the fact is
+ * carried now instead of re-derived from a coincidence.
  */
-export const isPageDraft = (files: Record<string, string>): boolean => !('Chart.yaml' in files)
+export const isPageDraft = (held: Pick<BlueprintDraftHeld, 'kind'>): boolean => held.kind === 'page'
 
 /**
  * The inverse of `pagePublishPath`, for bytes coming BACK from the UI: given a path as the preview
@@ -128,11 +133,12 @@ export const isPageDraft = (files: Record<string, string>): boolean => !('Chart.
  * paths (`chart/templates/...`), so it matches on the first branch and is never basename-d, which
  * would collapse two templates of the same name in different directories onto each other.
  */
-export const heldKeyForDisplayedPath = (path: string, files: Record<string, string>): string | null => {
+export const heldKeyForDisplayedPath = (path: string, held: BlueprintDraftHeld): string | null => {
+  const { files } = held
   if (path in files) {
     return path
   }
-  if (!isPageDraft(files)) {
+  if (!isPageDraft(held)) {
     return null
   }
   // Invert by ROUTING each held key, not by taking a basename. The nav fragment is why: it is held

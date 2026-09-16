@@ -4,7 +4,7 @@ import { isApplySetAllowed } from './applyResourceSet'
 import { FILE_CONTENT_KEY, type BlueprintDraftHeld } from './blueprintDraftStore'
 import { buildPagePublishOps, PORTAL_CHART_REPO_DEFAULTS } from './pagePublish'
 
-const held = (files: Record<string, string>): BlueprintDraftHeld => ({ bytes: 1, files })
+const held = (files: Record<string, string>): BlueprintDraftHeld => ({ bytes: 1, files, kind: 'page' })
 const payloadOf = (op: { payload?: unknown }): Record<string, unknown> => op.payload as Record<string, unknown>
 const specOf = (op: { payload?: unknown }): Record<string, unknown> => payloadOf(op).spec as Record<string, unknown>
 

@@ -114,7 +114,7 @@ export const heldDraftIdentity = (held: BlueprintDraftHeld | null): string | nul
   if (!held) {
     return null
   }
-  return isPageDraft(held.files) ? pageDisplayName(held.files) : draftDisplayName(held.files)
+  return isPageDraft(held) ? pageDisplayName(held.files) : draftDisplayName(held.files)
 }
 
 /** FE-P2: hold an APPLIED previewPage's widget CRs as a {slug: yaml} page draft and arm the SHARED
@@ -132,7 +132,7 @@ export const recordPagePreview = (
   if (!pageFiles) {
     return
   }
-  const draft = store.set(pageFiles)
+  const draft = store.set(pageFiles, 'page')
   if (draft.ok) {
     gate.recordPreview(pageDisplayName(draft.held.files))
   }

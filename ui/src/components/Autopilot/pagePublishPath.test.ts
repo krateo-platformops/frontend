@@ -40,8 +40,9 @@ const WIDGETS = [
   { apiVersion: 'widgets.templates.krateo.io/v1beta1', kind: 'Flex', metadata: { name: `page-${SLUG}` }, spec: { widgetData: {} } },
   { apiVersion: 'widgets.templates.krateo.io/v1beta1', kind: 'Card', metadata: { name: 'cost-summary' }, spec: { widgetData: {} } },
 ]
-/** The same page as a held draft: widget CRs keyed <kind-lower>.<name>.yaml, then the nav fragment. */
+/** The same page as a held draft: widget CRs keyed <kind-lower>.<name>.yaml. */
 const HELD: BlueprintDraftHeld = {
+  kind: 'page' as const,
   bytes: 1,
   files: {
     'card.cost-summary.yaml': 'kind: Card\n',
@@ -101,28 +102,30 @@ describe('the round trip back from the drawer (heldKeyForDisplayedPath)', () => 
    * per-file editing of a page has never worked, before the dead-path fix or after it.
    */
   it('resolves a displayed page path back to the key the draft holds', () => {
-    const held = HELD.files
-    for (const key of Object.keys(held)) {
+    for (const key of Object.keys(HELD.files)) {
       const displayed = pagePublishPath(key)
       // It really is routed, and it really comes back.
       expect(displayed).not.toBe(key)
-      expect(heldKeyForDisplayedPath(displayed, held)).toBe(key)
+      expect(heldKeyForDisplayedPath(displayed, HELD)).toBe(key)
     }
   })
 
   it('refuses a path that is not held, rather than inventing a key', () => {
-    const held = HELD.files
-    expect(heldKeyForDisplayedPath('helm/portal/templates/flex.page-not-mine.yaml', held)).toBeNull()
-    expect(heldKeyForDisplayedPath('', held)).toBeNull()
+    expect(heldKeyForDisplayedPath('helm/portal/templates/flex.page-not-mine.yaml', HELD)).toBeNull()
+    expect(heldKeyForDisplayedPath('', HELD)).toBeNull()
   })
 
   it('never basenames a BLUEPRINT path — two templates could share a name in different directories', () => {
     // A blueprint's held keys ARE repo paths (it carries a Chart.yaml), so they resolve to
     // themselves. Basenaming here would collapse chart/templates/a.yaml and chart/files/a.yaml.
     const blueprint = {
-      'Chart.yaml': 'name: x',
-      'chart/files/service.yaml': 'b',
-      'chart/templates/service.yaml': 'a',
+      bytes: 3,
+      files: {
+        'Chart.yaml': 'name: x',
+        'chart/files/service.yaml': 'b',
+        'chart/templates/service.yaml': 'a',
+      },
+      kind: 'blueprint' as const,
     }
     expect(heldKeyForDisplayedPath('chart/templates/service.yaml', blueprint)).toBe('chart/templates/service.yaml')
     expect(heldKeyForDisplayedPath('service.yaml', blueprint)).toBeNull()
