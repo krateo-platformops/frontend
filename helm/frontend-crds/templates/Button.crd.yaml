@@ -152,6 +152,7 @@ spec:
                     type: object
                   type: array
                 widgetData:
+                  description: The properties Button renders. Where Button wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
                     actions:
                       description: the actions of the widget
@@ -164,8 +165,10 @@ spec:
                                 description: unique identifier for the action
                                 type: string
                               loading:
+                                description: Whether this action shows an in-flight indicator while it runs.
                                 properties:
                                   display:
+                                    description: Show the in-flight indicator. Set false to run the action without one.
                                     type: boolean
                                 required:
                                   - display
@@ -197,8 +200,10 @@ spec:
                                 description: unique identifier for the drawer action
                                 type: string
                               loading:
+                                description: Whether this action shows an in-flight indicator while it runs.
                                 properties:
                                   display:
+                                    description: Show the in-flight indicator. Set false to run the action without one.
                                     type: boolean
                                 required:
                                   - display
@@ -240,8 +245,10 @@ spec:
                                 description: unique identifier for the modal action
                                 type: string
                               loading:
+                                description: Whether this action shows an in-flight indicator while it runs.
                                 properties:
                                   display:
+                                    description: Show the in-flight indicator. Set false to run the action without one.
                                     type: boolean
                                 required:
                                   - display
@@ -293,8 +300,10 @@ spec:
                                 description: unique identifier for the action
                                 type: string
                               loading:
+                                description: Whether this action shows an in-flight indicator while it runs.
                                 properties:
                                   display:
+                                    description: Show the in-flight indicator. Set false to run the action without one.
                                     type: boolean
                                 required:
                                   - display
@@ -309,6 +318,7 @@ spec:
                                     description: message to display while waiting for the event
                                     type: string
                                   reloadRoutes:
+                                    description: Re-fetch the route table before navigating. Set it when the action creates its own destination — publishing a new page, for example — so the route exists by the time the navigation happens.
                                     type: boolean
                                   timeout:
                                     default: 50

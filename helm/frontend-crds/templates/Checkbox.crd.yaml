@@ -152,6 +152,7 @@ spec:
                     type: object
                   type: array
                 widgetData:
+                  description: The properties Checkbox renders. Where Checkbox wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
                     defaultValue:
                       description: initially-checked values — antd Form.Item `initialValue`

@@ -152,6 +152,7 @@ spec:
                     type: object
                   type: array
                 widgetData:
+                  description: The properties List renders. Where List wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
                     actions:
                       description: the actions of the widget (canonical map; see src/schemas/actions.schema.json). Referenced per-row by itemTemplate.rowActions.
@@ -164,8 +165,10 @@ spec:
                                 description: unique identifier for the action
                                 type: string
                               loading:
+                                description: Whether this action shows an in-flight indicator while it runs.
                                 properties:
                                   display:
+                                    description: Show the in-flight indicator. Set false to run the action without one.
                                     type: boolean
                                 required:
                                   - display
@@ -197,8 +200,10 @@ spec:
                                 description: unique identifier for the drawer action
                                 type: string
                               loading:
+                                description: Whether this action shows an in-flight indicator while it runs.
                                 properties:
                                   display:
+                                    description: Show the in-flight indicator. Set false to run the action without one.
                                     type: boolean
                                 required:
                                   - display
@@ -240,8 +245,10 @@ spec:
                                 description: unique identifier for the modal action
                                 type: string
                               loading:
+                                description: Whether this action shows an in-flight indicator while it runs.
                                 properties:
                                   display:
+                                    description: Show the in-flight indicator. Set false to run the action without one.
                                     type: boolean
                                 required:
                                   - display
@@ -293,8 +300,10 @@ spec:
                                 description: unique identifier for the action
                                 type: string
                               loading:
+                                description: Whether this action shows an in-flight indicator while it runs.
                                 properties:
                                   display:
+                                    description: Show the in-flight indicator. Set false to run the action without one.
                                     type: boolean
                                 required:
                                   - display
@@ -309,6 +318,7 @@ spec:
                                     description: message to display while waiting for the event
                                     type: string
                                   reloadRoutes:
+                                    description: Re-fetch the route table before navigating. Set it when the action creates its own destination — publishing a new page, for example — so the route exists by the time the navigation happens.
                                     type: boolean
                                   timeout:
                                     default: 50
@@ -412,27 +422,35 @@ spec:
                       description: antd List grid layout (ListGridType); presence enables grid mode
                       properties:
                         column:
+                          description: Number of columns at the default breakpoint. Mirrors antd List `grid.column`.
                           format: int32
                           type: integer
                         gutter:
+                          description: Spacing between grid columns, in pixels. Mirrors antd List `grid.gutter`.
                           format: int32
                           type: integer
                         lg:
+                          description: Number of columns at the large breakpoint. Mirrors antd List `grid.lg`.
                           format: int32
                           type: integer
                         md:
+                          description: Number of columns at the medium breakpoint. Mirrors antd List `grid.md`.
                           format: int32
                           type: integer
                         sm:
+                          description: Number of columns at the small breakpoint. Mirrors antd List `grid.sm`.
                           format: int32
                           type: integer
                         xl:
+                          description: Number of columns at the extra-large breakpoint. Mirrors antd List `grid.xl`.
                           format: int32
                           type: integer
                         xs:
+                          description: Number of columns at the extra-small breakpoint. Mirrors antd List `grid.xs`.
                           format: int32
                           type: integer
                         xxl:
+                          description: Number of columns at the extra-extra-large breakpoint. Mirrors antd List `grid.xxl`.
                           format: int32
                           type: integer
                       type: object
@@ -455,14 +473,18 @@ spec:
                           description: 'per-row horizontal Progress bar (the reconciliation-rail row): an antd Progress line whose percent + stroke colour are resolved per item'
                           properties:
                             color:
+                              description: Resolves the bar's stroke colour per item.
                               properties:
                                 default:
+                                  description: Stroke colour used when the resolved value is absent from the map.
                                   type: string
                                 map:
+                                  description: Maps a resolved value to a stroke colour token.
                                   type: object
                                   additionalProperties:
                                     type: string
                                 value:
+                                  description: '{dot.path} to the value the stroke colour is chosen from.'
                                   type: string
                               type: object
                             label:
@@ -472,6 +494,7 @@ spec:
                               description: '{dot.path} to a 0-100 number (e.g. {healthPercent})'
                               type: string
                             variant:
+                              description: 'Bar style: `line` for a standalone progress line, `rail` for the denser reconciliation-rail treatment.'
                               enum:
                                 - line
                                 - rail
@@ -481,40 +504,49 @@ spec:
                           description: card-footer call-to-action cue (e.g. "Configure") shown footer-left when a card rowVariant is clickable (navigateTo); rendered as mono amber text + a sliding arrow (a navigation hint, not a button)
                           type: string
                         color:
+                          description: Resolves the row's accent colour per item, so colour carries meaning from the data rather than being fixed by the author.
                           properties:
                             default:
+                              description: Colour used when the resolved value is absent from the map.
                               type: string
                             map:
+                              description: Maps a resolved value to a colour token, for example `Ready` to green.
                               type: object
                               additionalProperties:
                                 type: string
                             value:
+                              description: '{dot.path} to the value the colour is chosen from.'
                               type: string
                           type: object
                         description:
                           description: longer body line (2-line clamp); only rendered by the card rowVariant (e.g. a catalog tile description)
                           type: string
                         formats:
+                          description: Per-field rendering applied after each {dot.path} resolves.
                           properties:
                             primaryText:
+                              description: 'How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.'
                               enum:
                                 - text
                                 - datetime
                                 - relative
                               type: string
                             secondaryText:
+                              description: 'How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.'
                               enum:
                                 - text
                                 - datetime
                                 - relative
                               type: string
                             subPrimaryText:
+                              description: 'How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.'
                               enum:
                                 - text
                                 - datetime
                                 - relative
                               type: string
                             subSecondaryText:
+                              description: 'How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.'
                               enum:
                                 - text
                                 - datetime
@@ -522,6 +554,7 @@ spec:
                               type: string
                           type: object
                         icon:
+                          description: '{dot.path} to an icon name, or a literal name, shown at the row leading edge.'
                           type: string
                         iconVariant:
                           description: 'leading-indicator style: avatar (solid disc + glyph, default), tile (soft-tint rounded square + glyph), dot (small status dot + halo)'
@@ -534,6 +567,7 @@ spec:
                           description: per-item navigation target ({dot.path} template, e.g. {link}); when it resolves non-empty the row becomes clickable and navigates there (SPA route)
                           type: string
                         primaryText:
+                          description: '{dot.path} to the row''s main label.'
                           type: string
                         rowActions:
                           description: per-row action controls rendered as a kebab (⋯) menu on each row; each entry references an action id from widgetData.actions and is fired with the row's data as the action payload (customPayload). Distinct from navigateTo (whole-row click).
@@ -565,6 +599,7 @@ spec:
                             - chip
                           type: string
                         secondaryText:
+                          description: '{dot.path} to the value shown opposite the primary text.'
                           type: string
                         secondaryTextAsTag:
                           description: render secondaryText as a soft-tint Tag pill (e.g. a category) instead of plain text
@@ -583,11 +618,13 @@ spec:
                               type: string
                           type: object
                         subPrimaryText:
+                          description: '{dot.path} to the line beneath the primary text.'
                           type: string
                         subPrimaryTextMono:
                           description: render subPrimaryText as a small mono bordered pill (e.g. an event involvedObject Kind/name ref) instead of plain sub-text
                           type: boolean
                         subSecondaryText:
+                          description: '{dot.path} to the line beneath the secondary text.'
                           type: string
                       type: object
                     loading:

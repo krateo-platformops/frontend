@@ -152,6 +152,7 @@ spec:
                     type: object
                   type: array
                 widgetData:
+                  description: The properties Progress renders. Where Progress wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
                     description:
                       description: optional secondary readout (muted graphite) rendered under `label` (e.g. "all conditions True")

@@ -161,20 +161,26 @@ spec:
                           description: sidebar nav-item colours (→ --menuitem-color / --menuitembg-color / --krateo-nav-item*)
                           properties:
                             itemColor:
+                              description: Text colour of an idle menu item.
                               type: string
                             itemHoverColor:
+                              description: Text colour of a menu item under the pointer.
                               type: string
                             itemSelectedBg:
+                              description: Background of the selected menu item.
                               type: string
                             itemSelectedColor:
+                              description: Text colour of the selected menu item.
                               type: string
                           type: object
                         sidebar:
                           description: sidebar rail gradient stops (→ --krateo-nav-gradient-* / --menubgstart/end-color)
                           properties:
                             bgGradientEnd:
+                              description: End colour of the sidebar background gradient.
                               type: string
                             bgGradientStart:
+                              description: Start colour of the sidebar background gradient.
                               type: string
                           type: object
                       type: object

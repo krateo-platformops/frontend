@@ -152,6 +152,7 @@ spec:
                     type: object
                   type: array
                 widgetData:
+                  description: The properties Radio renders. Where Radio wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
                     buttonStyle:
                       description: antd Radio.Group `buttonStyle`

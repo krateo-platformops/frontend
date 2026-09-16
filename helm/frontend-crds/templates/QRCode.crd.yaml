@@ -152,6 +152,7 @@ spec:
                     type: object
                   type: array
                 widgetData:
+                  description: The properties QRCode renders. Where QRCode wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
                     bordered:
                       description: whether to draw a border

@@ -152,6 +152,7 @@ spec:
                     type: object
                   type: array
                 widgetData:
+                  description: The properties Switch renders. Where Switch wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
                     checkedChildren:
                       description: antd Switch `checkedChildren` (on-state label)

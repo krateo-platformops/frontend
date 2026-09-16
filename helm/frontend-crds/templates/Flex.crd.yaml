@@ -176,6 +176,7 @@ spec:
                       items:
                         properties:
                           resourceRefId:
+                            description: Handle of the child to render here, matching an `id` in spec.resourcesRefs.
                             type: string
                         required:
                           - resourceRefId

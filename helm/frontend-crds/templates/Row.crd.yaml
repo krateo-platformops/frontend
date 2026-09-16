@@ -191,6 +191,7 @@ spec:
                             minimum: 0
                             type: integer
                           resourceRefId:
+                            description: Handle of the child to render here, matching an `id` in spec.resourcesRefs.
                             type: string
                           size:
                             description: the number of cells that the item will occupy, from 0 (not displayed) to 24 (occupies all space)

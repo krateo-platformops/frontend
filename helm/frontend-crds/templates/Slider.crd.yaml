@@ -152,6 +152,7 @@ spec:
                     type: object
                   type: array
                 widgetData:
+                  description: The properties Slider renders. Where Slider wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
                     defaultValue:
                       description: antd Form.Item `initialValue`
