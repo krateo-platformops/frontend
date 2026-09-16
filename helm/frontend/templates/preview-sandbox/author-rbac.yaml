@@ -10,7 +10,7 @@ regardless.
 
 The Role grants the whole widgets.templates.krateo.io group via resource
 wildcard '*' (Roles support '*' within an apiGroup), so NEW widget kinds need
-no RBAC change — only a widgetPlurals append for quota+janitor coverage.
+no RBAC change — only a widgetPlurals append for quota coverage.
 patch is included because snowplow's write path forwards merge-patch, and
 draft iteration re-applies with latest-wins semantics.
 */ -}}

@@ -305,12 +305,10 @@ config:
 previewSandbox:
   enabled: false
   # The sandbox namespace: DURABLE chart-owned infra (quota + author RBAC +
-  # janitor live in it); only the draft CRs churn. Deliberately outside every
+  # live in it); only the draft CRs churn. Deliberately outside every
   # composition's render target, so drafts can never orphan a Helm release.
   namespace: krateo-preview
   # Draft time-to-live: stamped on the namespace as the krateo.io/ttl label and
-  # consumed by the janitor CronJob (<n>h, <n>m, <n>s, or plain seconds).
-  ttl: 24h
   # Per-kind object-count quota. Kubernetes has NO aggregate object count across
   # a CRD group, so one count/<plural>.<group> entry is generated per widget
   # plural listed below (modest defaults: runaway-agent bound, not capacity).
@@ -319,7 +317,7 @@ previewSandbox:
     restactions: 50
   # The widget plurals (group widgets.templates.krateo.io) — mirrors the 43 CRDs
   # in crds-subchart/templates. Drives the generated quota entries and the
-  # janitor sweep. A NEW widget kind => append its plural here (the author Role
+  # quota. A NEW widget kind => append its plural here (the author Role
   # needs no change: it grants the whole group via resource wildcard '*').
   widgetPlurals:
     - alerts
@@ -373,15 +371,3 @@ previewSandbox:
     - apiGroup: rbac.authorization.k8s.io
       kind: Group
       name: admins
-  # TTL janitor: hourly CronJob (namespace-local SA + Role) deleting draft CRs
-  # whose creationTimestamp is older than the TTL. The frontend's drawer-close
-  # delete is the fast path; this is the backstop for dead tabs.
-  janitor:
-    schedule: "0 * * * *"
-    # bitnami/kubectl is a Docker Hub short name (no dotted host) -> registry left empty
-    # so nothing is prepended by default; global.imageRegistry still relocates it for
-    # mirror / air-gapped installs.
-    image:
-      registry: ""
-      repository: bitnami/kubectl
-      tag: latest

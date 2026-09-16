@@ -48,7 +48,7 @@ const paragraph = (): Record<string, unknown> => ({
 })
 
 const proposalOf = (widgets: unknown[], label?: string): PortalActionProposal =>
-  ({ verb: 'previewPage', widgets, ...(label ? { label } : {}) } as PortalActionProposal)
+  ({ verb: 'previewPage', widgets, ...(label ? { label } : {}) })
 
 /** Deps with an all-OK dispatcher (per-op results mirror the ops passed). */
 const makeDeps = (results?: (ops: readonly WriteOp[]) => WriteOpResult[] | null): { deps: PreviewPageV2Deps; handleActionSet: ReturnType<typeof vi.fn> } => {
@@ -71,7 +71,7 @@ describe('previewPage v2 — deny + validation gates (nothing applied)', () => {
   it('a malformed proposal (no widgets / kind-less entry) is denied: null, no dispatch, no drawer', async () => {
     const { deps, handleActionSet } = makeDeps()
     expect(await applyPreviewPageV2(proposalOf([]), deps)).toBeNull()
-    expect(await applyPreviewPageV2({ verb: 'previewPage' } as PortalActionProposal, deps)).toBeNull()
+    expect(await applyPreviewPageV2({ verb: 'previewPage' }, deps)).toBeNull()
     expect(await applyPreviewPageV2(proposalOf([{ metadata: { name: 'x' } }]), deps)).toBeNull()
     expect(handleActionSet).not.toHaveBeenCalled()
     expect(openPreviewMock).not.toHaveBeenCalled()
@@ -104,14 +104,19 @@ describe('previewPage v2 — deny + validation gates (nothing applied)', () => {
 })
 
 describe('previewPage v2 — the happy path (apply → live drawer → teardown on close)', () => {
-  it('applies ONE silent, sandbox-confined POST set and opens the drawer on the ROOT endpoint', async () => {
+  it('SWEEPS the names it is about to write, then applies them — silent, sandbox-confined', async () => {
     const { deps, handleActionSet } = makeDeps()
 
     const chip = await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
 
-    // ONE dispatch (empty pre-sweep is skipped), silent + confirm-skip scoped to the sandbox.
-    expect(handleActionSet).toHaveBeenCalledTimes(1)
-    const [ops, options] = handleActionSet.mock.calls[0] as [WriteOp[], unknown]
+    // TWO dispatches now: the pre-sweep always fires, because it is derived from the targets this
+    // apply is about to create rather than from what this session remembers. That is what makes a
+    // re-used name idempotent after a crash — see the DELETE assertions below.
+    expect(handleActionSet).toHaveBeenCalledTimes(2)
+    const [sweepOps] = handleActionSet.mock.calls[0] as [WriteOp[], unknown]
+    expect(sweepOps.every((op) => op.verb === 'DELETE')).toBe(true)
+    expect(sweepOps).toHaveLength(2)
+    const [ops, options] = handleActionSet.mock.calls[1] as [WriteOp[], unknown]
     expect(options).toEqual({ silent: true, skipConfirmForSandbox: SANDBOX })
     expect(ops.map((op) => op.verb)).toEqual(['POST', 'POST'])
     expect(ops[0].path).toContain('resource=flexes')
@@ -142,15 +147,16 @@ describe('previewPage v2 — the happy path (apply → live drawer → teardown 
 
     payload.onClose?.()
 
-    expect(handleActionSet).toHaveBeenCalledTimes(2)
-    const [teardown, options] = handleActionSet.mock.calls[1] as [WriteOp[], unknown]
+    // sweep + apply + teardown
+    expect(handleActionSet).toHaveBeenCalledTimes(3)
+    const [teardown, options] = handleActionSet.mock.calls[2] as [WriteOp[], unknown]
     expect(teardown.map((op) => op.verb)).toEqual(['DELETE', 'DELETE'])
     expect(teardown[0].path).toContain('name=page-preview-draft')
     expect(teardown[1].path).toContain('name=preview-draft-title')
     expect(options).toEqual({ silent: true, skipConfirmForSandbox: SANDBOX })
 
     payload.onClose?.()
-    expect(handleActionSet).toHaveBeenCalledTimes(2)
+    expect(handleActionSet).toHaveBeenCalledTimes(3)
   })
 
   it('a FRESH preview sweeps the previous drafts first; the STALE drawer-close is a no-op', async () => {
@@ -160,18 +166,49 @@ describe('previewPage v2 — the happy path (apply → live drawer → teardown 
 
     await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
 
-    // apply #1, then sweep (DELETEs of preview #1) + apply #2.
-    expect(handleActionSet).toHaveBeenCalledTimes(3)
-    const [sweep] = handleActionSet.mock.calls[1] as [WriteOp[]]
+    // sweep+apply #1, then sweep+apply #2.
+    expect(handleActionSet).toHaveBeenCalledTimes(4)
+    const [sweep] = handleActionSet.mock.calls[2] as [WriteOp[]]
     expect(sweep.every((op) => op.verb === 'DELETE')).toBe(true)
 
     // The stale drawer's close must NOT delete the fresh preview's drafts.
     stalePayload.onClose?.()
-    expect(handleActionSet).toHaveBeenCalledTimes(3)
+    expect(handleActionSet).toHaveBeenCalledTimes(4)
 
     // The fresh drawer's close does.
     openedPayload(1).onClose?.()
-    expect(handleActionSet).toHaveBeenCalledTimes(4)
+    expect(handleActionSet).toHaveBeenCalledTimes(5)
+  })
+
+  it('ADOPTS a crashed session\'s orphans — re-used names are swept even with nothing recorded', async () => {
+    // THE BUG THIS EXISTS FOR. Teardown fires only on drawer-close, so a killed tab or a crashed
+    // rail never records it. Its drafts survive under deterministic names (page-<slug>,
+    // <name>-card...), the next preview POSTs the same names, the apiserver answers 409, and the
+    // drawer silently falls back to the source view — reported as "Applying the drafts to the
+    // preview sandbox failed" or mislabelled upstream as a validation error. A 144-minute-old orphan
+    // from a killed recorder blocked every live preview during the V4 demo.
+    //
+    // A FRESH deps is exactly that situation: session state empty, orphans on the cluster. The sweep
+    // must still cover the names about to be written, because it is derived from the apply targets
+    // rather than from what anyone remembers.
+    const { deps, handleActionSet } = makeDeps()
+    // nothing recorded — the post-crash state
+    expect(deps.session.take()).toHaveLength(0)
+
+    await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
+
+    const [sweep] = handleActionSet.mock.calls[0] as [WriteOp[]]
+    expect(sweep.every((op) => op.verb === 'DELETE')).toBe(true)
+    // The very names the apply is about to create — so the POST cannot collide with an orphan.
+    expect(sweep[0].path).toContain('name=page-preview-draft')
+    expect(sweep[1].path).toContain('name=preview-draft-title')
+
+    const [applyOps] = handleActionSet.mock.calls[1] as [WriteOp[]]
+    expect(applyOps.every((op) => op.verb === 'POST')).toBe(true)
+    // Every name POSTed was swept first. That equality IS the no-409 guarantee.
+    const swept = sweep.map((op) => new URL(op.path, 'https://x').searchParams.get('name')).sort()
+    const posted = applyOps.map((op) => (op.payload as { metadata: { name: string } }).metadata.name).sort()
+    expect(swept).toEqual(posted)
   })
 
   it('honors the proposal label on the chip', async () => {
@@ -188,7 +225,7 @@ describe('previewPage v2 — apply failure (graceful, rolled back, never a crash
     const chip = await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
 
     // Only the apply dispatch — nothing landed, so nothing to tear down.
-    expect(handleActionSet).toHaveBeenCalledTimes(1)
+    expect(handleActionSet).toHaveBeenCalledTimes(2)
     expect(chip?.label).toBe('preview apply failed — Flex/page-preview-draft: admission webhook denied')
     expect(chip?.readOnly).toBe(false)
     const payload = openedPayload()
@@ -207,8 +244,8 @@ describe('previewPage v2 — apply failure (graceful, rolled back, never a crash
 
     expect(chip?.label).toBe('preview apply failed — Paragraph/preview-draft-title: quota exceeded')
     // apply, then the rollback of the ONE landed draft.
-    expect(handleActionSet).toHaveBeenCalledTimes(2)
-    const [rollback] = handleActionSet.mock.calls[1] as [WriteOp[]]
+    expect(handleActionSet).toHaveBeenCalledTimes(3)
+    const [rollback] = handleActionSet.mock.calls[2] as [WriteOp[]]
     expect(rollback).toHaveLength(1)
     expect(rollback[0].verb).toBe('DELETE')
     expect(rollback[0].path).toContain('name=page-preview-draft')

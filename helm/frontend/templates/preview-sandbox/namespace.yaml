@@ -2,7 +2,7 @@
 Preview sandbox namespace (w4 portal-builder spec, Addendum A).
 
 DURABLE chart-owned infra: the namespace, its quota, the author RBAC and the TTL
-janitor live here; only the DRAFT widget/RESTAction CRs applied by the frontend
+quota live here; only the DRAFT widget/RESTAction CRs applied by the frontend
 (previewPage v2) churn inside it. No composition ever renders into this
 namespace, so drafts can never orphan a Helm release (the hand-applied-CRs
 hazard does not apply by construction).
@@ -10,9 +10,7 @@ hazard does not apply by construction).
 Labels:
 - krateo.io/purpose=preview-sandbox  — marks the namespace (and is the label the
   frontend stamps on every draft CR it applies here).
-- krateo.io/ttl                      — the advertised draft time-to-live; the
-  janitor CronJob receives the same value from .Values.previewSandbox.ttl, so
-  the label and the sweep cannot drift.
+
 */ -}}
 {{- if .Values.previewSandbox.enabled }}
 apiVersion: v1
@@ -21,6 +19,5 @@ metadata:
   name: {{ .Values.previewSandbox.namespace }}
   labels:
     krateo.io/purpose: preview-sandbox
-    krateo.io/ttl: {{ .Values.previewSandbox.ttl | quote }}
     {{- include "frontend.labels" . | nindent 4 }}
 {{- end }}

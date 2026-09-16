@@ -461,14 +461,8 @@
         "namespace": {
           "type": "string",
           "title": "Sandbox namespace",
-          "description": "Chart-owned durable namespace for draft CRs (quota, author RBAC and TTL janitor live in it). When enabled, the rendered config.json PREVIEW_SANDBOX_NAMESPACE is forced to this value.",
+          "description": "Chart-owned durable namespace for draft CRs (quota and author RBAC live in it). Drafts are KEPT, not swept \u2014 the Portal Builder lists in-flight previews so a person can resume one. When enabled, the rendered config.json PREVIEW_SANDBOX_NAMESPACE is forced to this value.",
           "default": "krateo-preview"
-        },
-        "ttl": {
-          "type": "string",
-          "title": "Draft TTL",
-          "description": "Draft time-to-live (<n>h, <n>m, <n>s or plain seconds). Stamped as the namespace krateo.io/ttl label and enforced by the janitor CronJob.",
-          "default": "24h"
         },
         "quota": {
           "type": "object",
@@ -491,7 +485,7 @@
         "widgetPlurals": {
           "type": "array",
           "title": "Widget plurals",
-          "description": "Plurals of the widgets.templates.krateo.io kinds (mirrors crds-subchart). Drives the generated quota entries and the janitor sweep; the author Role uses the group wildcard and needs no change for new kinds.",
+          "description": "Plurals of the widgets.templates.krateo.io kinds (mirrors crds-subchart). Drives the generated quota entries; the author Role uses the group wildcard and needs no change for new kinds.",
           "items": {
             "type": "string"
           }
@@ -530,42 +524,6 @@
               "kind",
               "name"
             ]
-          }
-        },
-        "janitor": {
-          "type": "object",
-          "title": "TTL janitor",
-          "additionalProperties": false,
-          "properties": {
-            "schedule": {
-              "type": "string",
-              "title": "Cron schedule",
-              "default": "0 * * * *"
-            },
-            "image": {
-              "type": "object",
-              "title": "Janitor image",
-              "description": "kubectl-capable image used by the sweep CronJob.",
-              "additionalProperties": false,
-              "properties": {
-                "registry": {
-                  "type": "string",
-                  "title": "Image registry",
-                  "description": "Registry host (empty for the Docker Hub short name). Overridden by global.imageRegistry when that is set.",
-                  "default": ""
-                },
-                "repository": {
-                  "type": "string",
-                  "title": "Image repository",
-                  "default": "bitnami/kubectl"
-                },
-                "tag": {
-                  "type": "string",
-                  "title": "Image tag",
-                  "default": "latest"
-                }
-              }
-            }
           }
         }
       }
