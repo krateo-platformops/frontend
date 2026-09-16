@@ -49,6 +49,15 @@ export interface BuilderPublishClaim {
     branch: string
     target: { namespace: string; repo: string; base: string }
     files: BuilderPublishFile[]
+    /**
+     * OPTIONAL template repo the destination is seeded from BEFORE the held files are committed —
+     * rendered by the composition as a git-provider `Repo` (`fromRepo` → `toRepo`).
+     *
+     * Omitted entirely when no template is configured. That is not the same as an empty url: the
+     * chart gates on a non-empty `source.url`, so omitting skips the seeding step, while an empty
+     * string would render a `Repo` that clones nothing.
+     */
+    source?: { url: string }
   }
 }
 
@@ -107,6 +116,8 @@ export const buildBuilderPublishClaim = (args: {
   /** `group/version` for the CR body — the live value resolved from the CompositionDefinition. */
   apiVersion: string
   namespace?: string
+  /** Clone URL of a template to seed a NEW destination repo from. Null/absent = no seeding. */
+  sourceUrl?: string | null
 }): BuilderPublishClaim => {
   const name = `publish-${args.slug}`
   const ns = args.namespace || 'krateo-system'
@@ -119,6 +130,9 @@ export const buildBuilderPublishClaim = (args: {
       builder: args.builder,
       files: args.files,
       name,
+      // Spread, so the key is ABSENT rather than present-and-undefined: the CRD is strict, and the
+      // chart decides whether to render the Repo by testing the url for emptiness.
+      ...(args.sourceUrl ? { source: { url: args.sourceUrl } } : {}),
       target: { base: args.target.base, namespace: args.target.namespace, repo: args.target.repo },
     },
   }

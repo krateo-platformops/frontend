@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { createBlueprintGate } from './blueprintGate'
 import {
   isPageDraft,
+  pageCompositionDefinition,
   pageDisplayName,
   pageDraftFiles,
   pageDraftSlug,
@@ -200,5 +201,32 @@ describe('page publish gate (safety)', () => {
     const otherRoot = { ...flexRoot, metadata: { name: 'page-redis', namespace: 'krateo-system' } }
     const otherName = pageDisplayName(pageDraftFiles([otherRoot])!)
     expect(gate.evaluate(pagePublishOps, otherName).allowed).toBe(false)
+  })
+})
+
+describe('pageCompositionDefinition — what actually REGISTERS a published page set', () => {
+  const cd = () => pageCompositionDefinition('fleet-health', 'acme')
+
+  it('points at the page set\'s OWN chart, under the destination owner', () => {
+    // The url is <owner>/charts/<chart name>. Getting either half wrong registers a chart that
+    // exists (someone else\'s) or none at all, and the failure surfaces as a wedged
+    // CompositionDefinition rather than anything naming the url.
+    expect(cd()).toContain('url: oci://ghcr.io/acme/charts/fleet-health')
+    expect(cd()).toContain('name: fleet-health')
+  })
+
+  it('leaves CHART_VERSION for the release workflow to stamp', () => {
+    // Registering a concrete version from the branch pins a chart version that was never published.
+    expect(cd()).toContain('version: CHART_VERSION')
+  })
+
+  it('tells the reader to apply the RELEASE copy, not this one', () => {
+    // The whole hazard of a placeholder in a file people kubectl apply by hand.
+    expect(cd()).toMatch(/STAMPED copy from the GitHub release/)
+  })
+
+  it('is a CompositionDefinition core-provider will accept', () => {
+    expect(cd()).toContain('apiVersion: core.krateo.io/v1alpha1')
+    expect(cd()).toContain('kind: CompositionDefinition')
   })
 })

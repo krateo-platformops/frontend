@@ -52,6 +52,30 @@ describe('resolveStructuredTarget', () => {
 describe('buildBuilderPublishClaim', () => {
   const target: StructuredTarget = { base: 'main', host: 'github.com', namespace: 'acme', repo: 'my-oas', scm: 'github' }
 
+  describe('source — seeding a NEW repo from a template', () => {
+    const claimWith = (sourceUrl?: string | null) => buildBuilderPublishClaim({
+      apiVersion: API_VERSION, builder: 'page', files: [{ content: 'name: fleet\n', path: 'Chart.yaml' }], slug: 'fleet', sourceUrl, target,
+    })
+
+    it('carries the template clone url when one is configured', () => {
+      expect(claimWith('https://github.com/krateo-blueprints/portal-builder.git').spec.source)
+        .toEqual({ url: 'https://github.com/krateo-blueprints/portal-builder.git' })
+    })
+
+    it.each([
+      ['null', null],
+      ['undefined', undefined],
+      ['empty', ''],
+    ])('OMITS the key entirely when the template is %s — absent, not present-and-undefined', (_label, value) => {
+      // The BuilderPublish CRD is strict, and the chart decides whether to render the git-provider
+      // Repo by testing source.url for emptiness. A key carrying undefined is a different thing to
+      // the apiserver than a key that is not there.
+      const claim = claimWith(value)
+      expect(claim.spec.source).toBeUndefined()
+      expect('source' in claim.spec).toBe(false)
+    })
+  })
+
   it('builds a BuilderPublish claim with a derived branch + name and full-path files', () => {
     const claim = buildBuilderPublishClaim({
       apiVersion: API_VERSION,
