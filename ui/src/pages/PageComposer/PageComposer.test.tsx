@@ -7,7 +7,7 @@
  * reachable ONLY through the Autopilot rail, as something the agent opens. What is asserted here is
  * that the same surface now renders outside the provider, from the same bus, with no rail present.
  */
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
@@ -100,5 +100,57 @@ describe('PageComposer — the preview surface, outside the rail', () => {
     // current one — the under-reporting shape that made the Autopilot review mark wrong.
     expect(screen.queryByText('first draft was broken')).toBeNull()
     expect(screen.getByText('second draft')).toBeTruthy()
+  })
+})
+
+describe('PageComposer — the draft as a tree', () => {
+  const cr = (kind: string, name: string, children: string[] = []) => [
+    `kind: ${kind}`,
+    'apiVersion: widgets.templates.krateo.io/v1beta1',
+    `metadata:\n  name: ${name}`,
+    'spec:\n  widgetData:',
+    children.length ? `    items:\n${children.map((ref) => `      - resourceRefId: ${ref}`).join('\n')}` : '    items: []',
+    '  resourcesRefs:',
+    children.length ? `    items:\n${children.map((ref) => `      - id: ${ref}\n        name: ${ref}\n        resource: widgets`).join('\n')}` : '    items: []',
+  ].join('\n')
+
+  it('shows nesting — the structure the old builder could not express', () => {
+    mount()
+    emit({
+      files: [
+        { content: cr('Flex', 'page-fleet', ['row-top']), path: 'a/flex.page-fleet.yaml' },
+        { content: cr('Row', 'row-top', ['stat-ready']), path: 'a/row.row-top.yaml' },
+        { content: cr('Statistic', 'stat-ready'), path: 'a/statistic.stat-ready.yaml' },
+      ],
+      title: 'Fleet',
+    })
+
+    // Scoped to the tree: each name ALSO appears in the Files tab (in the path and the YAML), and
+    // an unscoped query matches both, which is not what is being asserted here.
+    const panel = screen.getByText('Objects').closest('div')?.parentElement as HTMLElement
+    expect(within(panel).getByText('page-fleet')).toBeTruthy()
+    expect(within(panel).getByText('row-top')).toBeTruthy()
+    expect(within(panel).getByText('stat-ready')).toBeTruthy()
+  })
+
+  it('marks a placed widget that is not part of the draft', () => {
+    mount()
+    emit({
+      files: [{ content: cr('Flex', 'page-x', ['existing-table']), path: 'a/flex.page-x.yaml' }],
+      title: 'x',
+    })
+
+    // Referenced but not carried: it is not published, only pointed at. Hiding it would hide most
+    // of a page composed from widgets that already exist.
+    const panel = screen.getByText('Objects').closest('div')?.parentElement as HTMLElement
+    expect(within(panel).getByText('existing-table')).toBeTruthy()
+    expect(within(panel).getByText('placed')).toBeTruthy()
+  })
+
+  it('says so when the draft carries no objects', () => {
+    mount()
+    emit({ summary: ['nothing structural'], title: 'x' })
+
+    expect(screen.getByText(/Nothing in this draft yet/i)).toBeTruthy()
   })
 })

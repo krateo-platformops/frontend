@@ -33,6 +33,7 @@ import type { AutopilotPreviewPayload } from '../../components/Autopilot/preview
 import { PreviewContent } from '../../components/Autopilot/previewSurface'
 import type { RestDefVerdicts } from '../../components/Autopilot/previewSurface'
 
+import ObjectTreePanel from './ObjectTreePanel'
 import styles from './PageComposer.module.css'
 
 const PageComposer = () => {
@@ -65,7 +66,15 @@ const PageComposer = () => {
 
       {payload
         ? (
-          <PreviewContent editVerdicts={editVerdicts} onVerdicts={setEditVerdicts} payload={payload} />
+          // Two columns: the surface (live render + files + verdicts) beside the tree that says
+          // what the draft actually CONTAINS. The tree is derived from payload.files on every
+          // render — see objectTree.ts for why it is never stored.
+          <div className={styles.split}>
+            <div className={styles.surface}>
+              <PreviewContent editVerdicts={editVerdicts} onVerdicts={setEditVerdicts} payload={payload} />
+            </div>
+            <ObjectTreePanel files={Object.fromEntries((payload.files ?? []).map((file) => [file.path, file.content]))} />
+          </div>
         )
         : (
           // An honest empty state rather than a fake canvas: nothing is being authored yet, and
