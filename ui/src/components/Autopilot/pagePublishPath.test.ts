@@ -89,6 +89,30 @@ describe('page publish destination — a page set is its own chart', () => {
   })
 })
 
+describe('the preview names the destination the publish will actually use', () => {
+  it('derives the repo from the page root, never a constant', () => {
+    // It read `repo: 'portal'`, hardcoded — true only while every page was a file in the portal's
+    // one chart. Post-#277 a page set is its own chart in its own repo named for the slug, so the
+    // drawer was promising a destination the publish would not use. The drawer is the one place a
+    // person can catch a wrong destination before a merge, which is exactly what makes a stale
+    // constant here expensive.
+    expect(buildPagePreviewPayload(WIDGETS).publishTarget?.repo).toBe(SLUG)
+  })
+
+  it('OMITS the chip entirely when there is no page root, rather than guessing', () => {
+    // The surface renders on `payload.publishTarget ?`, so omitting hides the chip. A blank or
+    // invented repo would be worse than no claim at all.
+    const rootless = [{ apiVersion: 'widgets.templates.krateo.io/v1beta1', kind: 'Card', metadata: { name: 'lonely' }, spec: { widgetData: {} } }]
+    expect(buildPagePreviewPayload(rootless).publishTarget).toBeUndefined()
+  })
+
+  it('carries no hardcoded repo literal at all', () => {
+    // #163 and the braghettos -> krateo-platformops migration: a baked-in org or repo turns a
+    // rename into a required frontend rebuild, which is why builderTargets forbids one.
+    expect(JSON.stringify(buildPagePreviewPayload(WIDGETS))).not.toContain('"portal"')
+  })
+})
+
 describe('the round trip back from the drawer (heldKeyForDisplayedPath)', () => {
   it('a page path resolves to itself, the way a blueprint path always did', () => {
     // The inversion this used to perform is gone with the routing: the drawer now displays a page

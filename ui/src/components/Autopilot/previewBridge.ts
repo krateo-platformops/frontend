@@ -19,7 +19,7 @@ import { getAccessToken } from '../../utils/getAccessToken'
 import type { PortalActionProposal } from './actionBridge'
 import { parseRawTemplates } from './blueprintDraft'
 import { restDefImmutabilityWarnings, validateRestDefinitionDraft } from './kogMapping'
-import { pageDraftSlug, pagePublishPath } from './pageDraft'
+import { pageDraftFiles, pageDraftSlug, pagePublishPath, pageRootSlug } from './pageDraft'
 import { setPreviewProblems, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
 
 /** The chart coordinates previewBlueprint sends to the render service. */
@@ -270,29 +270,51 @@ export const callBlueprintRenderRA = async (
 export const PAGE_PREVIEW_CAPTION
   = 'Source preview — the proposed widget CRs exactly as they would be submitted. Nothing is applied; live in-page rendering of drafts is a follow-up.'
 
-export const buildPagePreviewPayload = (widgets: Record<string, unknown>[]): AutopilotPreviewPayload => ({
-  caption: PAGE_PREVIEW_CAPTION,
-  // The proposed widget CRs, each at the destination a publish ACTUALLY writes it to — routed
-  // through the same pagePublishPath the two publish paths use. Spelling the prefix here instead is
-  // how the drawer came to promise `chart/templates/...` long after the portal repo renamed that
-  // directory away: the preview looked right, the merge looked right, and the page never appeared.
-  //
-  // NOT the complete write-set, and the difference is worth stating: a publish also commits the
-  // generated nav fragment, which is derived at publish time from the held draft and so is not one
-  // of the `widgets` this builds from. The paths shown are exact; the LIST is the CRs only.
-  files: widgets.map((widget) => ({
-    content: toYamlString(widget),
-    path: pagePublishPath(pageDraftSlug(String(widget.kind), String(metadataOf(widget).name ?? ''))),
-  })),
-  objects: widgets.map((widget) => ({
-    kind: String(widget.kind),
-    ...metadataOf(widget),
-    ...(typeof widget.apiVersion === 'string' && widget.apiVersion ? { apiVersion: widget.apiVersion } : {}),
-    yaml: toYamlString(widget),
-  })),
-  publishTarget: { base: 'main', repo: 'portal' },
-  title: `Page preview — ${widgets.length} proposed widget${widgets.length === 1 ? '' : 's'}`,
-})
+export const buildPagePreviewPayload = (widgets: Record<string, unknown>[]): AutopilotPreviewPayload => {
+  // Derived once, the same way publishDraft derives it, so preview and publish cannot disagree.
+  const slug = pageRootSlug(pageDraftFiles(widgets) ?? {})
+
+  return {
+    caption: PAGE_PREVIEW_CAPTION,
+    // The proposed widget CRs, each at the destination a publish ACTUALLY writes it to — routed
+    // through the same pagePublishPath the two publish paths use. Spelling the prefix here instead is
+    // how the drawer came to promise `chart/templates/...` long after the portal repo renamed that
+    // directory away: the preview looked right, the merge looked right, and the page never appeared.
+    //
+    // NOT the complete write-set, and the difference is worth stating: a publish also commits the
+    // chart files (Chart.yaml, values.yaml, values.schema.json, templates/_tiers.tpl) and the
+    // compositiondefinition.yaml that registers the released chart, none of which are among the
+    // `widgets` this builds from. The paths shown are exact; the LIST is the CRs only.
+    files: widgets.map((widget) => ({
+      content: toYamlString(widget),
+      path: pagePublishPath(pageDraftSlug(String(widget.kind), String(metadataOf(widget).name ?? ''))),
+    })),
+    objects: widgets.map((widget) => ({
+      kind: String(widget.kind),
+      ...metadataOf(widget),
+      ...(typeof widget.apiVersion === 'string' && widget.apiVersion ? { apiVersion: widget.apiVersion } : {}),
+      yaml: toYamlString(widget),
+    })),
+    // WHERE THIS PAGE SET ACTUALLY LANDS — derived, never a constant.
+    //
+    // This read `repo: 'portal'`, hardcoded, which was true only while every page was a file inside
+    // the portal's one chart. Since #277 a page set is its own chart in its OWN repository named for
+    // the page slug, so the drawer was promising a destination the publish would not use — and the
+    // drawer is the one place a person can catch a wrong destination before a merge. That is the same
+    // failure the `files` comment above is about, one field lower: the preview looked right, the
+    // merge looked right, and the thing landed somewhere else.
+    //
+    // A literal here also broke the rule builderTargets states for every other destination: the
+    // frontend carries NO hardcoded repo, because baking an org or repo into the image turns a rename
+    // into a required rebuild (#163, and the braghettos -> krateo-platformops migration that proved
+    // it). The slug is derived from the page root the same way publishDraft derives it, so preview and
+    // publish cannot disagree; when there is no root yet, show nothing rather than a guess.
+    // Omitted entirely when there is no page root yet: the surface hides the chip rather than showing
+    // a blank or guessed destination, and a guess here is the thing being fixed.
+    ...(slug ? { publishTarget: { base: 'main', repo: slug } } : {}),
+    title: `Page preview — ${widgets.length} proposed widget${widgets.length === 1 ? '' : 's'}`,
+  }
+}
 
 /**
  * The mapped verbs/paths of a RestDefinition draft, extracted by PURE client-side
