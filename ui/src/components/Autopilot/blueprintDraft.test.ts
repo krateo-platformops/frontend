@@ -108,9 +108,28 @@ describe('lintValuesSchemaDefaults — the FE-B2 crdgen-defaults matrix', () => 
       type: 'object',
     })
     const problems = lintValuesSchemaDefaults(schema)
-    expect(problems).toHaveLength(2)
+    // THREE now: the two nested defaults, plus the `allOf` itself. A combinator is reported AND
+    // still walked into — skipping its branches would quietly drop exactly the nested-defaults
+    // coverage this case exists for, and those defaults do not vanish when the allOf is removed.
+    expect(problems).toHaveLength(3)
     expect(problems.join('\n')).toContain('allOf[0].properties.extra.default')
     expect(problems.join('\n')).toContain('properties.list.items.default')
+    expect(problems.join('\n')).toContain('[CRDGEN-COMBINATOR]')
+  })
+
+  it('flags a subschema combinator, which is valid JSON Schema and an ungenerable CRD', () => {
+    // Observed on builder-publish 1.8.24: `anyOf: [{required:[files]},{required:[filesBundle]}]`
+    // said "one or the other", and the apiserver rejected the generated CRD with
+    // "anyOf[0].type: Forbidden: must be empty to be structural". The chart sat Ready=False, the
+    // served CRD stayed a version behind, and a field the new schema added was pruned off every
+    // claim that sent it — so a human publish committed nothing and opened an empty change request.
+    const schema = JSON.stringify({
+      anyOf: [{ required: ['files'] }, { required: ['filesBundle'] }],
+      properties: { files: { type: 'array' }, filesBundle: { type: 'object' } },
+      type: 'object',
+    })
+
+    expect(lintValuesSchemaDefaults(schema).join('\n')).toContain('[CRDGEN-COMBINATOR] anyOf')
   })
 
   it('passes scalar defaults, absent defaults, and EMPTY object/array defaults', () => {
@@ -181,9 +200,24 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
     expect(lintBlueprintDraft(bad).join('\n')).toContain('[CRDGEN-DEFAULTS]')
   })
 
-  it('a draft WITHOUT values.schema.json passes the lint (the render decides)', () => {
+  it('REFUSES a draft without values.schema.json — it can be published and never installed', () => {
+    // This asserted the opposite and pinned the defect: the lint returned [] when the schema was
+    // absent, so the gate armed and the publish went through. core-provider then opens
+    // values.schema.json to build the CRD and hard-errors, so the CompositionDefinition wedges at
+    // Ready=False with "error getting spec schema" — several layers and one MERGE away from the
+    // cause. The builder was happily shipping charts that could never become a CRD.
     const noSchema = { 'Chart.yaml': cleanDraft['Chart.yaml'], 'templates/cm.yaml': 'kind: ConfigMap\n' }
-    expect(lintBlueprintDraft(noSchema)).toEqual([])
+
+    expect(lintBlueprintDraft(noSchema).join('\n')).toContain('values.schema.json is missing')
+  })
+
+  it('REFUSES a draft without Chart.yaml, rather than mistaking it for a page', () => {
+    // `isPageDraft` is literally `!('Chart.yaml' in files)`, so a blueprint missing one was
+    // reclassified as a portal PAGE and refused on an identity mismatch — a message about page
+    // slugs, for a missing chart file.
+    const noChart = { 'templates/cm.yaml': 'kind: ConfigMap\n', 'values.schema.json': '{"type":"object"}' }
+
+    expect(lintBlueprintDraft(noChart).join('\n')).toContain('Chart.yaml is missing')
   })
 
   it('rawTemplatesByteSize measures UTF-8 bytes of paths + contents', () => {

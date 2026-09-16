@@ -449,10 +449,16 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
           // parseable draft) arms the preview gate for that draft's kind+resourceGroup.
           if (proposal.verb === 'previewRestDef') {
             previewGate.recordPreview(proposal.restDefinition)
-          } else if (proposal.verb === 'previewBlueprint' && proposal.rawTemplates && lintBlueprintDraft(proposal.rawTemplates).length === 0) {
-            // FE-BP1/BP2: an APPLIED, lint-clean inline-draft previewBlueprint HOLDS the
-            // previewed tree (so publish substitutes the SAME bytes) and arms the blueprint
-            // gate for its Chart.yaml name. A remote-chart preview (no rawTemplates) holds
+          } else if (proposal.verb === 'previewBlueprint' && proposal.rawTemplates && !chip.previewFailed && lintBlueprintDraft(proposal.rawTemplates).length === 0) {
+            // FE-BP1/BP2: an APPLIED, lint-clean, SUCCESSFULLY RENDERED inline-draft
+            // previewBlueprint HOLDS the previewed tree (so publish substitutes the SAME bytes)
+            // and arms the blueprint gate for its Chart.yaml name.
+            //
+            // `!chip.previewFailed` because the lint alone was never enough: a chart that fails
+            // `helm template` is lint-clean, so the gate armed and the draft was publishable. The
+            // drawer showed the error the whole time and nothing acted on it.
+            //
+            // A remote-chart preview (no rawTemplates) holds
             // nothing — there is no authored tree to publish via git.
             const draft = blueprintStore.set(proposal.rawTemplates)
             if (draft.ok) { blueprintGate.recordPreview(draftDisplayName(draft.held.files)) }
