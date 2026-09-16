@@ -14,8 +14,10 @@ const card = { apiVersion: 'widgets.templates.krateo.io/v1beta1', kind: 'Card', 
 
 describe('pageDraftSlug', () => {
   it('is <kind-lower>.<name>.yaml', () => {
-    expect(pageDraftSlug('Flex', 'page-postgres')).toBe('flex.page-postgres.yaml')
-    expect(pageDraftSlug('Card', 'pg-summary')).toBe('card.pg-summary.yaml')
+    // Chart-relative: a page set publishes as its own Helm chart, and a chart keeps its manifests
+    // in templates/. The key IS the path now — there is no routing step left to apply.
+    expect(pageDraftSlug('Flex', 'page-postgres')).toBe('templates/flex.page-postgres.yaml')
+    expect(pageDraftSlug('Card', 'pg-summary')).toBe('templates/card.pg-summary.yaml')
   })
 })
 
@@ -29,10 +31,10 @@ describe('pageDraftFiles', () => {
   })
 })
 
-describe('nav fragment helpers (#106)', () => {
+describe('page root + identity', () => {
   it('pageRootSlug extracts <slug> from the flex.page-<slug>.yaml key, else null', () => {
-    expect(pageRootSlug({ 'card.x.yaml': '...', 'flex.page-postgres.yaml': '...' })).toBe('postgres')
-    expect(pageRootSlug({ 'card.x.yaml': '...', 'table.y.yaml': '...' })).toBeNull()
+    expect(pageRootSlug({ 'templates/card.x.yaml': '...', 'templates/flex.page-postgres.yaml': '...' })).toBe('postgres')
+    expect(pageRootSlug({ 'templates/card.x.yaml': '...', 'templates/table.y.yaml': '...' })).toBeNull()
   })
 
 })
@@ -61,8 +63,12 @@ describe('pageDisplayName', () => {
     expect(pageDisplayName(pageDraftFiles([flexRoot, card])!)).toBe('page:flex.page-postgres')
   })
 
-  it('falls back to the first slug when there is no page-root flex', () => {
-    expect(pageDisplayName({ 'card.a.yaml': '...', 'table.b.yaml': '...' })).toBe('page:card.a')
+  it('says it does not know, rather than naming whichever file sorted first', () => {
+    // It used to fall back to `Object.keys(files)[0]`. Harmless while every key was a widget CR;
+    // a bug the moment a page carries a chart, because the first key sorts to `Chart.yaml` and the
+    // draft would identify itself as `page:Chart`. The publish gate matches on this string, so an
+    // identity naming the wrong file is worse than one that admits it does not know.
+    expect(pageDisplayName({ 'templates/card.a.yaml': '...', 'templates/table.b.yaml': '...' })).toBe('page:draft')
   })
 })
 

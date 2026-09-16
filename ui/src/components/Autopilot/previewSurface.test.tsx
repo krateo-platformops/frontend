@@ -131,7 +131,7 @@ describe('AutopilotPreviewDrawer — editable RestDefinition source', () => {
 })
 
 describe('AutopilotPreviewDrawer — editable page "Files" tab', () => {
-  /** A minimal page preview payload (one widget CR at helm/portal/templates/flex.root.yaml). */
+  /** A minimal page preview payload (one widget CR at the chart-relative templates/flex.root.yaml). */
   const pagePayload = () => buildPagePreviewPayload([{
     apiVersion: 'widgets.templates.krateo.io/v1beta1',
     kind: 'Flex',
@@ -148,7 +148,7 @@ describe('AutopilotPreviewDrawer — editable page "Files" tab', () => {
 
   const openEditor = async (view: ReturnType<typeof render>): Promise<HTMLTextAreaElement> => {
     fireEvent.click(view.getByRole('button', { name: 'Edit' }))
-    return waitFor(() => view.getByLabelText(/^Edit helm\/portal\/templates\/flex\.root\.yaml$/) as HTMLTextAreaElement)
+    return waitFor(() => view.getByLabelText(/^Edit templates\/flex\.root\.yaml$/) as HTMLTextAreaElement)
   }
 
   it('a CLEAN page-file edit emits {path, content} on the file-edit bus', async () => {
@@ -156,7 +156,7 @@ describe('AutopilotPreviewDrawer — editable page "Files" tab', () => {
     const off = captureFileEmits(sink)
     const view = render(<AutopilotPreviewDrawer />)
     openAutopilotPreview(pagePayload())
-    await waitFor(() => expect(view.getByText('helm/portal/templates/flex.root.yaml')).toBeTruthy())
+    await waitFor(() => expect(view.getByText('templates/flex.root.yaml')).toBeTruthy())
     const area = await openEditor(view)
 
     // A human edit of the held widget CR (still a valid CR — apiVersion/kind/metadata.name intact).
@@ -165,7 +165,7 @@ describe('AutopilotPreviewDrawer — editable page "Files" tab', () => {
     fireEvent.click(view.getByRole('button', { name: 'Apply edits' }))
 
     await waitFor(() => expect(sink.last).not.toBeNull())
-    expect(sink.last?.path).toBe('helm/portal/templates/flex.root.yaml')
+    expect(sink.last?.path).toBe('templates/flex.root.yaml')
     // byte-for-byte the human's edit (held == published)
     expect(sink.last?.content).toBe(edited)
     off()
@@ -176,7 +176,7 @@ describe('AutopilotPreviewDrawer — editable page "Files" tab', () => {
     const off = captureFileEmits(sink)
     const view = render(<AutopilotPreviewDrawer />)
     openAutopilotPreview(pagePayload())
-    await waitFor(() => expect(view.getByText('helm/portal/templates/flex.root.yaml')).toBeTruthy())
+    await waitFor(() => expect(view.getByText('templates/flex.root.yaml')).toBeTruthy())
     const area = await openEditor(view)
 
     // Strip the CR identity — a page widget file must keep apiVersion/kind/metadata.name.

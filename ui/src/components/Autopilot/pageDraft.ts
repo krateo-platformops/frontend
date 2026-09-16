@@ -2,13 +2,21 @@
  * W4 PORTAL-BUILDER (FE-P2) — the authored-PAGE held-draft seam.
  *
  * The page analogue of blueprintDraftStore (FE-BP1). A `previewPage` whose widget CR objects
- * were accepted is HELD client-side as a `{slug: yaml}` file map — EXACTLY the shape
+ * were accepted is HELD client-side as a `{path: yaml}` file map — EXACTLY the shape
  * blueprintDraftStore already holds — so the SAME machinery publishes it: substituteFileContent
- * (base64) fills each `{"$fileContent":"<slug>"}` token from the held YAML at compile time, the
+ * (base64) fills each `{"$fileContent":"<path>"}` token from the held YAML at compile time, the
  * blueprint preview-GATE denies a publish unless the SAME page was previewed this thread, and
  * stampAuthorship marks the ops. The page's widget CRs therefore reach the cluster ONLY via a git
- * write (→ krateo-platformops/portal → merge → OCI → the Portal composition re-renders) —
- * NEVER hand-applied (applyResourceSet's isSandboxOnlyTarget guard already denies that).
+ * write (→ the page set's own repo → merge → OCI → its composition renders them) — NEVER
+ * hand-applied (applyResourceSet's isSandboxOnlyTarget guard already denies that).
+ *
+ * A PAGE SET IS ITS OWN CHART. It used to be a handful of loose widget CRs posted into the portal's
+ * one chart, which meant every page a person authored rode the portal's release cadence and grew
+ * the one Helm release record that is already at 94% of its 1 MiB Secret ceiling — a ceiling the
+ * portal has crossed once, after which Helm silently stopped recording releases. Emitting a chart
+ * per page set means the keys held here are chart-relative from the start (`Chart.yaml`,
+ * `values.schema.json`, `templates/…`), exactly as a blueprint's always were, and everything
+ * downstream commits them verbatim rather than routing them somewhere.
  *
  * Pure module (js-yaml + string helpers, no React/network/module-state). The provider owns the
  * shared held-draft store; the previewPage branch in finalize populates it via these helpers.
@@ -18,61 +26,81 @@ import { dump } from 'js-yaml'
 
 import type { BlueprintDraftHeld } from './blueprintDraftStore'
 
-/** The portal-chart file convention for a page's widget CRs: `<kind-lower>.<name>.yaml`. */
-export const pageDraftSlug = (kind: string, name: string): string => `${kind.toLowerCase()}.${name}.yaml`
+/** Where a page chart keeps its widget CRs — the same place any Helm chart keeps its templates. */
+export const PAGE_TEMPLATES_DIR = 'templates'
+
+/** The chart-relative key for one of a page's widget CRs: `templates/<kind-lower>.<name>.yaml`. */
+export const pageDraftSlug = (kind: string, name: string): string =>
+  `${PAGE_TEMPLATES_DIR}/${kind.toLowerCase()}.${name}.yaml`
+
+/** The page ENTRY, at its chart-relative key. previewPageV2 refuses a draft set without one. */
+const PAGE_ROOT_KEY = /^templates\/flex\.page-([a-z0-9-]+)\.yaml$/i
 
 /**
- * The Helm chart ROOT inside krateo-platformops/portal — every path a page publish writes hangs off
- * it. This is ONE constant, deliberately, because the last time it was three literals the repo moved
- * underneath them and nobody noticed for five weeks: `chart/` was renamed to `helm/portal/` on
- * 2026-08-03 and no longer exists.
+ * The chart metadata a page set ships with.
  *
- * A stale prefix is INVISIBLE at publish time. The git-provider writes any path you hand it, so the
- * branch pushes, the change request opens green and the merge is clean — and then nothing renders,
- * because a file outside the chart directory is not packaged by `helm package` and is not reachable
- * by the chart's own `.Files.Glob`. Note that GitHub's rename redirect does NOT save us here: it
- * resolves a stale REPO name, so `krateo-portal-chart` still lands in the right repository, and that
- * is exactly what makes a stale PATH so easy to miss — the publish looks addressed correctly right
- * up to the point where the page silently fails to exist.
+ * `version: CHART_VERSION` is the placeholder the org's release workflow substitutes from the git
+ * tag — the same convention portal-builder-template and every Krateo chart use. Writing a real
+ * version here would mint a chart claiming a version nothing published.
+ *
+ * The NAME becomes the generated CRD's Kind, so it is the page slug: a page set called
+ * `fleet-health` installs as `FleetHealth`. That is also why it must be a valid DNS name, which the
+ * slug already is.
  */
-export const PORTAL_PAGE_CHART_ROOT = 'helm/portal'
+export const pageChartYaml = (slug: string): string => dump({
+  apiVersion: 'v2',
+  appVersion: 'CHART_VERSION',
+  description: `Krateo Composable Portal pages — ${slug}.`,
+  name: slug,
+  type: 'application',
+  version: 'CHART_VERSION',
+}, { lineWidth: -1, noRefs: true, sortKeys: false })
 
 /**
- * The repo path for ONE held page file — the SINGLE router every WRITER shares (the legacy github
- * git-write set, the BuilderPublish claim, and the preview drawer's Files tab), so the destination
- * the user is SHOWN and the destination a publish COMMITS cannot drift apart again.
+ * The generated CRD's spec, which is what `values.schema.json` IS — core-provider reads this file
+ * and turns it into the CRD, so a chart without one can be published and can never be installed.
  *
- * It routes one way only, and that asymmetry is load-bearing: held keys are the identity the
- * preview gate and the `$fileContent` substitution match on, so a path that comes BACK from the UI
- * (an edited file) has to be resolved to its key first — see heldKeyForDisplayedPath.
- *
- * Held keys are bare identity tokens, not paths (the preview gate and the `$fileContent`
- * substitution match on them), so the destination is derived here instead of being baked into the
- * key.
- *
- * This used to route by key SHAPE, because a page draft carried two kinds of file: widget CRs and
- * a nav fragment bound for `files/nav-fragments/`. The fragment is gone — the sidebar now assembles
- * itself from the page roots the cluster has (portal#217), so nothing globs that directory and a
- * file written there would be bytes nobody reads. Every held key is now a widget CR.
+ * Deliberately closed (`additionalProperties: false`) and near-empty: the pages in this chart are
+ * static CRs with nothing to parameterise yet. `tiers` is the one thing a deployer genuinely needs,
+ * because it decides which namespace the pages land in and therefore who can see them.
  */
-export const pagePublishPath = (key: string): string => {
-  return `${PORTAL_PAGE_CHART_ROOT}/templates/${key}`
-}
+export const pageValuesSchema = (slug: string): string => `${JSON.stringify({
+  $schema: 'http://json-schema.org/draft-07/schema#',
+  additionalProperties: false,
+  description: `Krateo Composable Portal pages — ${slug}.`,
+  properties: {
+    tiers: {
+      additionalProperties: false,
+      description: 'Which namespace each page tier is created in. Empty = the release namespace.',
+      properties: {
+        admin: { default: '', title: 'Admin tier namespace', type: 'string' },
+        common: { default: '', title: 'Common tier namespace', type: 'string' },
+        tenant: { default: '', title: 'Tenant tier namespace', type: 'string' },
+      },
+      title: 'Namespace tiers',
+      type: 'object',
+    },
+  },
+  title: slug,
+  type: 'object',
+}, null, 2)}\n`
 
 /**
- * A held page draft → the `{path, content}` list a BuilderPublish claim commits. The claim path is
- * the one that runs on installs with AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER=true (the deployed default),
- * and it used to publish the held KEYS verbatim — dropping `flex.page-<slug>.yaml` at the REPO ROOT,
- * which renders exactly as nothing. Blueprints were unaffected because their held keys already are
- * chart-relative paths; a page's are not, so a page needs this routing applied explicitly.
+ * The repo path for ONE held page file — now the identity function, and kept only so the seam has
+ * a name while callers migrate.
+ *
+ * It used to prefix `helm/portal/templates/`, because a page's held keys were bare identity tokens
+ * and its files were destined for the PORTAL's chart. A page set is its own chart now: its keys are
+ * already chart-relative (`templates/flex.page-x.yaml`, `Chart.yaml`), exactly as a blueprint's
+ * always were, so there is nothing left to route. Prefixing them a second time is precisely the
+ * double-prefix bug this module used to warn about, with the sides swapped.
  */
-export const pagePublishFiles = (files: Record<string, string>): { content: string; path: string }[] =>
-  Object.entries(files).map(([key, content]) => ({ content, path: pagePublishPath(key) }))
+export const pagePublishPath = (key: string): string => key
 
 /** The page slug from its `flex.page-<slug>.yaml` root, else null (no root flex → no route → no nav). */
 export const pageRootSlug = (files: Record<string, string>): string | null => {
-  const root = Object.keys(files).find((slug) => /^flex\.page-[a-z0-9-]+\.yaml$/i.test(slug))
-  const matched = root?.match(/^flex\.page-([a-z0-9-]+)\.yaml$/i)
+  const root = Object.keys(files).find((key) => PAGE_ROOT_KEY.test(key))
+  const matched = root?.match(PAGE_ROOT_KEY)
   return matched ? matched[1].toLowerCase() : null
 }
 
@@ -108,6 +136,24 @@ export const pageDraftFiles = (widgets: readonly unknown[]): Record<string, stri
   if (!Object.keys(files).length) {
     return null
   }
+
+  // THE CHART, not just its templates. A page set publishes as its own Helm chart now, which is
+  // what lets it ship on its own cadence instead of forcing a portal release for every authored
+  // page — and what keeps it out of the portal's release record, which sits at 94% of the 1 MiB
+  // Secret cap that already forced one split.
+  //
+  // Both files are REQUIRED, for different reasons. Without Chart.yaml there is no chart at all.
+  // Without values.schema.json core-provider cannot build the CRD, so the chart publishes, merges,
+  // releases, and then wedges the CompositionDefinition at Ready=False — several layers and one
+  // merge away from the cause.
+  const slug = pageRootSlug(files)
+  if (!slug) {
+    // No `page-<slug>` root means no page ENTRY, and nothing to name the chart after. Refusing
+    // beats emitting a chart called after whichever file happened to sort first.
+    return null
+  }
+  files['Chart.yaml'] = pageChartYaml(slug)
+  files['values.schema.json'] = pageValuesSchema(slug)
   return files
 }
 
@@ -122,31 +168,16 @@ export const pageDraftFiles = (widgets: readonly unknown[]): Record<string, stri
 export const isPageDraft = (held: Pick<BlueprintDraftHeld, 'kind'>): boolean => held.kind === 'page'
 
 /**
- * The inverse of `pagePublishPath`, for bytes coming BACK from the UI: given a path as the preview
- * drawer DISPLAYS it, return the key that file is held under, or null if it is not a held file.
+ * The inverse of `pagePublishPath` — now trivial, and kept because `updateDisplayedFile` still
+ * calls it and blueprint drafts still need the `path in files` check.
  *
- * The drawer shows a page file at its repo destination (`helm/portal/templates/flex.page-x.yaml`)
- * while the draft holds it under a bare identity token (`flex.page-x.yaml`). Handing the displayed
- * path straight to `updateFile` therefore fails its `path in held.files` check and the edit is
- * silently refused — which is why per-file editing of a PAGE has never once worked, before this
- * change or after it. A blueprint is unaffected and must stay that way: its held keys ARE repo
- * paths (`chart/templates/...`), so it matches on the first branch and is never basename-d, which
- * would collapse two templates of the same name in different directories onto each other.
+ * A page's key used to differ from the path the drawer displayed, so an edit coming BACK from the
+ * UI had to be inverted before the store would accept it. Both are chart-relative now, so the
+ * first branch matches for a page exactly as it always did for a blueprint, and the page-specific
+ * inversion below is unreachable — left as an explicit null rather than silently falling through.
  */
-export const heldKeyForDisplayedPath = (path: string, held: BlueprintDraftHeld): string | null => {
-  const { files } = held
-  if (path in files) {
-    return path
-  }
-  if (!isPageDraft(held)) {
-    return null
-  }
-  // Invert by ROUTING each held key, not by taking a basename. The nav fragment is why: it is held
-  // as `nav-fragment.<slug>.yaml` but lands as `<slug>.yaml` in a different directory, so its
-  // filename is not its key and a basename resolves it to nothing. Routing forward and comparing
-  // is exact for every shape, and stays exact if the routing rules change.
-  return Object.keys(files).find((key) => pagePublishPath(key) === path) ?? null
-}
+export const heldKeyForDisplayedPath = (path: string, held: BlueprintDraftHeld): string | null =>
+  (path in held.files ? path : null)
 
 /**
  * The page's STABLE identity for the preview-gate (`page:<root-slug>`): the root page flex
@@ -156,8 +187,10 @@ export const heldKeyForDisplayedPath = (path: string, held: BlueprintDraftHeld):
  * from the gate's previewed set → DENIED (same invariant as the blueprint gate).
  */
 export const pageDisplayName = (files: Record<string, string>): string => {
-  const slugs = Object.keys(files)
-  const root = slugs.find((slug) => /^flex\.page-[a-z0-9-]+\.yaml$/i.test(slug))
-  const pick = root ?? slugs[0] ?? ''
-  return pick ? `page:${pick.replace(/\.yaml$/i, '')}` : 'page:draft'
+  const root = Object.keys(files).find((key) => PAGE_ROOT_KEY.test(key))
+  // The root, or nothing. It used to fall back to `slugs[0]`, which was harmless while every key
+  // was a widget CR and became a bug the moment a page carried a chart: the first key sorts to
+  // `Chart.yaml`, so a rootless draft identified itself as `page:Chart`. An identity that names the
+  // wrong file is worse than one that admits it does not know — the publish gate matches on it.
+  return root ? `page:${root.replace(/^templates\//, '').replace(/\.yaml$/i, '')}` : 'page:draft'
 }

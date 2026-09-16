@@ -35,7 +35,7 @@ describe('PageComposer — placing a widget that already exists', () => {
     })))
     const bus = capture()
     mountWithConfig()
-    emit({ files: [{ content: widgetCr('Flex', 'page-x'), path: 'flex.page-x.yaml' }], title: 'x' })
+    emit({ files: [{ content: widgetCr('Flex', 'page-x'), path: 'templates/flex.page-x.yaml' }], title: 'x' })
 
     act(() => { screen.getByLabelText('Place inside page-x').click() })
     // The modal mounts into a portal; wait for it before reaching into it.
@@ -57,7 +57,7 @@ describe('PageComposer — placing a widget that already exists', () => {
     bus.stop()
 
     expect(bus.log.map((entry) => entry.op)).toEqual(['edit'])
-    expect(bus.log[0].path).toBe('flex.page-x.yaml')
+    expect(bus.log[0].path).toBe('templates/flex.page-x.yaml')
     // All three places a child lives, or it does not render.
     expect(bus.log[0].content).toContain('resourceRefId: fleet-card')
     expect(bus.log[0].content).toContain('resource: cards')
@@ -68,8 +68,8 @@ describe('PageComposer — placing a widget that already exists', () => {
     mount()
     emit({
       files: [
-        { content: widgetCr('Flex', 'page-x', ['stat']), path: 'flex.page-x.yaml' },
-        { content: widgetCr('Statistic', 'stat'), path: 'statistic.stat.yaml' },
+        { content: widgetCr('Flex', 'page-x', ['stat']), path: 'templates/flex.page-x.yaml' },
+        { content: widgetCr('Statistic', 'stat'), path: 'templates/statistic.stat.yaml' },
       ],
       title: 'x',
     })
@@ -91,8 +91,8 @@ describe('PageComposer — the two halves are one view', () => {
     })
     // The tree reads the HELD draft (bare keys); the Files tab shows routed repo destinations.
     held({
-      'flex.page-fleet.yaml': widgetCr('Flex', 'page-fleet', ['stat-ready']),
-      'statistic.stat-ready.yaml': widgetCr('Statistic', 'stat-ready'),
+      'templates/flex.page-fleet.yaml': widgetCr('Flex', 'page-fleet', ['stat-ready']),
+      'templates/statistic.stat-ready.yaml': widgetCr('Statistic', 'stat-ready'),
     })
 
     const panel = screen.getByText('Objects').closest('div')?.parentElement as HTMLElement
@@ -108,7 +108,7 @@ describe('PageComposer — the two halves are one view', () => {
   it('claims nothing for a placed existing widget, which has no file in this draft', () => {
     mount()
     emit({ files: [{ content: 'kind: Flex\n', path: 'helm/portal/templates/flex.page-x.yaml' }], title: 'x' })
-    held({ 'flex.page-x.yaml': widgetCr('Flex', 'page-x', ['already-there']) })
+    held({ 'templates/flex.page-x.yaml': widgetCr('Flex', 'page-x', ['already-there']) })
 
     const panel = screen.getByText('Objects').closest('div')?.parentElement as HTMLElement
     act(() => { fireEvent.click(within(panel).getByText('already-there')) })
@@ -123,9 +123,9 @@ describe('PageComposer — the draft as a tree', () => {
     mount()
     emit({
       files: [
-        { content: widgetCr('Flex', 'page-fleet', ['row-top']), path: 'flex.page-fleet.yaml' },
-        { content: widgetCr('Row', 'row-top', ['stat-ready']), path: 'row.row-top.yaml' },
-        { content: widgetCr('Statistic', 'stat-ready'), path: 'statistic.stat-ready.yaml' },
+        { content: widgetCr('Flex', 'page-fleet', ['row-top']), path: 'templates/flex.page-fleet.yaml' },
+        { content: widgetCr('Row', 'row-top', ['stat-ready']), path: 'templates/row.row-top.yaml' },
+        { content: widgetCr('Statistic', 'stat-ready'), path: 'templates/statistic.stat-ready.yaml' },
       ],
       title: 'Fleet',
     })
@@ -141,7 +141,7 @@ describe('PageComposer — the draft as a tree', () => {
   it('marks a placed widget that is not part of the draft', () => {
     mount()
     emit({
-      files: [{ content: widgetCr('Flex', 'page-x', ['existing-table']), path: 'flex.page-x.yaml' }],
+      files: [{ content: widgetCr('Flex', 'page-x', ['existing-table']), path: 'templates/flex.page-x.yaml' }],
       title: 'x',
     })
 
@@ -164,7 +164,7 @@ describe('PageComposer — structural edits from the tree', () => {
   const openTwoChildDraft = () => {
     mount()
     emit({
-      files: [{ content: widgetCr('Flex', 'page-x', ['first', 'second']), path: 'flex.page-x.yaml' }],
+      files: [{ content: widgetCr('Flex', 'page-x', ['first', 'second']), path: 'templates/flex.page-x.yaml' }],
       title: 'x',
     })
   }
@@ -183,7 +183,7 @@ describe('PageComposer — structural edits from the tree', () => {
     // One bus, one place that re-checks the cap and re-arms the gate — rather than this panel
     // growing a second way to mutate a draft.
     expect(seen).toHaveLength(1)
-    expect(seen[0].path).toBe('flex.page-x.yaml')
+    expect(seen[0].path).toBe('templates/flex.page-x.yaml')
     expect(seen[0].content.indexOf('second')).toBeLessThan(seen[0].content.indexOf('first'))
   })
 
@@ -211,12 +211,12 @@ describe('PageComposer — structural edits from the tree', () => {
 
     mount()
     emit({
-      files: [{ content: widgetCr('Flex', 'page-x', ['first', 'second', 'third']), path: 'flex.page-x.yaml' }],
+      files: [{ content: widgetCr('Flex', 'page-x', ['first', 'second', 'third']), path: 'templates/flex.page-x.yaml' }],
       title: 'x',
     })
 
     act(() => { screen.getByLabelText('Move third up').click() })
-    held({ 'flex.page-x.yaml': seen[0].content })
+    held({ 'templates/flex.page-x.yaml': seen[0].content })
     act(() => { screen.getByLabelText('Move third up').click() })
     window.removeEventListener('autopilotPreviewFileEdited', listener)
 
@@ -250,7 +250,7 @@ describe('PageComposer — adding a layout container', () => {
   it('creates the container file AND places it — add before edit', () => {
     const bus = capture()
     mount()
-    emit({ files: [{ content: widgetCr('Flex', 'page-x'), path: 'flex.page-x.yaml' }], title: 'x' })
+    emit({ files: [{ content: widgetCr('Flex', 'page-x'), path: 'templates/flex.page-x.yaml' }], title: 'x' })
 
     act(() => { screen.getByLabelText('Add inside page-x').click() })
     act(() => { screen.getByText('Row').click() })
@@ -262,10 +262,10 @@ describe('PageComposer — adding a layout container', () => {
     expect(bus.log.map((entry) => entry.op)).toEqual(['add', 'edit'])
     // A bare held key. A repo path here would be prefixed a second time at publish, landing the
     // file at helm/portal/templates/helm/portal/templates/row.page-x-row.yaml.
-    expect(bus.log[0].path).toBe('row.page-x-row.yaml')
+    expect(bus.log[0].path).toBe('templates/row.page-x-row.yaml')
     expect(bus.log[0].content).toContain('kind: Row')
     expect(bus.log[0].content).toContain('namespace: krateo-system')
-    expect(bus.log[1].path).toBe('flex.page-x.yaml')
+    expect(bus.log[1].path).toBe('templates/flex.page-x.yaml')
     expect(bus.log[1].content).toContain('page-x-row')
   })
 
@@ -273,7 +273,7 @@ describe('PageComposer — adding a layout container', () => {
     const bus = capture()
     mount()
     emit({
-      files: [{ content: widgetCr('Flex', 'page-x', ['stat']), path: 'flex.page-x.yaml' }],
+      files: [{ content: widgetCr('Flex', 'page-x', ['stat']), path: 'templates/flex.page-x.yaml' }],
       title: 'x',
     })
 
@@ -283,7 +283,7 @@ describe('PageComposer — adding a layout container', () => {
 
     // Container first, then the parent that references it — the same ordering rule as every add.
     expect(bus.log.map((entry) => entry.op)).toEqual(['add', 'edit'])
-    expect(bus.log[0].path).toBe('row.stat-row.yaml')
+    expect(bus.log[0].path).toBe('templates/row.stat-row.yaml')
     // The child is INSIDE the new container...
     expect(bus.log[0].content).toContain('resourceRefId: stat')
     // ...and the parent now references the container in its place, not the child.
@@ -294,7 +294,7 @@ describe('PageComposer — adding a layout container', () => {
   it('does not offer wrap on a root, which no parent holds', () => {
     mount()
     emit({
-      files: [{ content: widgetCr('Flex', 'page-x', ['stat']), path: 'flex.page-x.yaml' }],
+      files: [{ content: widgetCr('Flex', 'page-x', ['stat']), path: 'templates/flex.page-x.yaml' }],
       title: 'x',
     })
 
@@ -306,8 +306,8 @@ describe('PageComposer — adding a layout container', () => {
     mount()
     emit({
       files: [
-        { content: widgetCr('Flex', 'page-x', ['shell']), path: 'flex.page-x.yaml' },
-        { content: widgetCr('Layout', 'shell'), path: 'layout.shell.yaml' },
+        { content: widgetCr('Flex', 'page-x', ['shell']), path: 'templates/flex.page-x.yaml' },
+        { content: widgetCr('Layout', 'shell'), path: 'templates/layout.shell.yaml' },
       ],
       title: 'x',
     })
@@ -323,10 +323,10 @@ describe('PageComposer — adding a layout container', () => {
     mount()
     emit({
       files: [
-        { content: widgetCr('Flex', 'page-x', ['stat']), path: 'flex.page-x.yaml' },
+        { content: widgetCr('Flex', 'page-x', ['stat']), path: 'templates/flex.page-x.yaml' },
         {
           content: 'kind: Statistic\napiVersion: widgets.templates.krateo.io/v1beta1\nmetadata:\n  name: stat\nspec:\n  widgetData: {}\n',
-          path: 'statistic.stat.yaml',
+          path: 'templates/statistic.stat.yaml',
         },
       ],
       title: 'x',
@@ -339,7 +339,7 @@ describe('PageComposer — adding a layout container', () => {
 })
 
 describe('PageComposer — binding live data', () => {
-  const flexFile = { content: widgetCr('Flex', 'page-x'), path: 'flex.page-x.yaml' }
+  const flexFile = { content: widgetCr('Flex', 'page-x'), path: 'templates/flex.page-x.yaml' }
 
   it('generates the RESTAction AND the widget, then places it — three emissions', () => {
     const adds: { path: string; content: string }[] = []
@@ -365,13 +365,13 @@ describe('PageComposer — binding live data', () => {
 
     // RESTAction first: the widget's apiRef names it, so the reverse order points at nothing.
     // Bare held keys — a repo path here is prefixed again at publish.
-    expect(adds.map((file) => file.path)).toEqual(['restaction.fleet.yaml', 'table.fleet.yaml'])
+    expect(adds.map((file) => file.path)).toEqual(['templates/restaction.fleet.yaml', 'templates/table.fleet.yaml'])
     expect(adds[1].content).toContain('apiRef')
     // The namespace is read from the DRAFT's own objects. Without it the Table is rejected at
     // apply, and the placed reference resolves against the empty namespace and renders nothing.
     expect(adds[1].content).toContain('namespace: krateo-system')
     expect(edits[0].content).toContain('namespace: krateo-system')
-    expect(edits[0].path).toBe('flex.page-x.yaml')
+    expect(edits[0].path).toBe('templates/flex.page-x.yaml')
   })
 
   it('refuses a name the draft already holds instead of half-applying the binding', () => {
@@ -387,7 +387,7 @@ describe('PageComposer — binding live data', () => {
     emit({
       files: [
         flexFile,
-        { content: widgetCr('Table', 'fleet'), path: 'table.fleet.yaml' },
+        { content: widgetCr('Table', 'fleet'), path: 'templates/table.fleet.yaml' },
       ],
       title: 'x',
     })

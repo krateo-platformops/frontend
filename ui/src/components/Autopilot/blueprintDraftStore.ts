@@ -52,6 +52,17 @@ export type FileContentEncoding = 'text' | 'base64'
 export type DraftKind = 'page' | 'blueprint'
 
 /** A held chart tree: the verbatim `{path: content}` map, its total UTF-8 byte size, and who wrote it. */
+/**
+ * A held draft → the `{path, content}` list a BuilderPublish claim commits.
+ *
+ * ONE mapping for BOTH builders, which is the whole point of holding chart-relative keys: a page set
+ * is its own chart now, so its keys carry their own location exactly as a blueprint's always did,
+ * and neither branch has to re-derive a destination. The page branch that used to sit beside this
+ * one is what let the legacy git-write path, the claim and the preview drawer drift apart.
+ */
+export const heldPublishFiles = (files: Record<string, string>): { content: string; path: string }[] =>
+  Object.entries(files).map(([path, content]) => ({ content, path }))
+
 export interface BlueprintDraftHeld {
   files: Record<string, string>
   bytes: number

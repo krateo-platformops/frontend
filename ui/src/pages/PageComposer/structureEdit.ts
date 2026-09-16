@@ -26,6 +26,8 @@
  */
 import { dump, load } from 'js-yaml'
 
+import { pageDraftSlug } from '../../components/Autopilot/pageDraft'
+
 export interface PlaceChild {
   /** metadata.name of the widget being placed — also used as the reference id. */
   name: string
@@ -222,17 +224,15 @@ export const newContainerYaml = (kind: LayoutKind, name: string, namespace: stri
 }, DUMP)
 
 /**
- * The HELD KEY a new container is added under — `<lowercase kind>.<name>.yaml`, a bare identity
- * token with no directory.
+ * The held key a new container is added under — `templates/<lowercase kind>.<name>.yaml`.
  *
- * Not a repo path, and the distinction is the bug this shape exists to prevent. A page draft holds
- * its files under bare tokens and `pagePublishPath` prefixes the chart root at publish; a surface
- * that handed a already-prefixed path to `addFile` got it prefixed a second time and published to
- * `helm/portal/templates/helm/portal/templates/…`. The key is what a WRITER uses; the repo path is
- * derived from it, in one place, at publish.
+ * Delegates to `pageDraftSlug` rather than building the string, so a container the composer
+ * inserts and a widget CR the agent proposed land under the same key for the same object. They
+ * were computed in two places once, and the double-prefix bug this comment used to describe came
+ * from exactly that: two vocabularies for one thing.
  */
 export const containerPath = (kind: LayoutKind, name: string): string =>
-  `${kind.toLowerCase()}.${name}.yaml`
+  pageDraftSlug(kind, name)
 
 /**
  * Move a child one place earlier or later. Order in `items` IS the rendered order, so this is how

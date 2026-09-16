@@ -22,13 +22,13 @@ import type { Config } from '../../context/ConfigContext'
 import type { PortalActionProposal } from './actionBridge'
 import { MAX_APPLY_SET_OPS } from './applyResourceSet'
 import type { AuthorshipOrigin } from './authorship'
-import type { BlueprintDraftStore } from './blueprintDraftStore'
+import { heldPublishFiles, type BlueprintDraftStore } from './blueprintDraftStore'
 import type { createBlueprintGate } from './blueprintGate'
 import { buildBlueprintPublishOps } from './blueprintPublish'
 import { buildClaimPublish } from './builderClaimPublish'
 import type { useBuilderTargets } from './builderTargets'
 import type { createOasAttachmentStore } from './oasAttachment'
-import { isPageDraft, pagePublishFiles, pageRootSlug } from './pageDraft'
+import { isPageDraft, pageRootSlug } from './pageDraft'
 import { buildPagePublishOps } from './pagePublish'
 import type { createPreviewGate } from './previewGate'
 import { compilePublishOps, heldDraftIdentity, type PublishCompileResult } from './publishCompile'
@@ -78,11 +78,13 @@ export const runDraftPublish = async (
   const slug = isPage ? pageSlug : identity
   const builder = isPage ? 'page' : 'blueprint'
   const bt = isPage ? builderTargets.page : builderTargets.blueprint
-  // PER-ARTIFACT repos (#163): a portal PAGE publishes to the single configured chart repo
-  // (bt.repo), but each BLUEPRINT gets its OWN repo named for the chart — so the destination repo
-  // prefill is the artifact slug, with the OWNER coming from install config (bt.owner). The human
-  // still confirms/edits in the blast-radius dialog; a model-emitted repo still wins.
-  const destRepo = isPage ? bt.repo : (slug || bt.repo)
+  // PER-ARTIFACT repos (#163), now for BOTH builders. It used to be blueprint-only: a blueprint got
+  // its own repo named for the chart, while every page went to the one configured portal-chart repo,
+  // because every page WAS a file in that one chart. A page set is its own chart now, so the same
+  // rule applies to it for the same reason — one chart, one repo, one release cadence. The install
+  // config still supplies the OWNER (bt.owner) and the fallback repo; the human confirms or edits in
+  // the blast-radius dialog, and a model-emitted repo still wins over this prefill.
+  const destRepo = slug || bt.repo
   const dest = await askPublishDestination(proposal, builder, destRepo, bt.owner)
   const targeted = dest ? { ...proposal, ...dest } : proposal
   const overflow = isPage
@@ -104,14 +106,13 @@ export const runDraftPublish = async (
 
   if (publishViaClaim) {
     // The claim commits each path VERBATIM (builder-publish only splits it into basename + dir), so
-    // the full repo path is this caller's job. A BLUEPRINT's held keys already ARE chart-relative
-    // paths and pass straight through; a PAGE's are bare identity tokens, and publishing those
-    // unrouted dropped every widget CR at the repo ROOT — outside the chart, packaged by nothing,
-    // merged green and rendered never. pagePublishFiles applies the same routing the legacy
-    // git-write path and the preview drawer use, so all three agree.
-    const files = isPage
-      ? pagePublishFiles(held.files)
-      : Object.entries(held.files).map(([path, content]) => ({ content, path }))
+    // the full repo path is this caller's job — and both builders now hand it chart-relative keys,
+    // so there is one mapping rather than a routed page branch beside a pass-through blueprint one.
+    // That branch existed because a page's keys were bare identity tokens; publishing those unrouted
+    // dropped every widget CR at the repo ROOT — outside the chart, packaged by nothing, merged
+    // green and rendered never. The keys carry their own location now, so nothing has to re-derive
+    // it and the three writers cannot disagree about it.
+    const files = heldPublishFiles(held.files)
     if (files.length > MAX_APPLY_SET_OPS) {
       return {
         compiled: { denial: `denied — "${slug}" has ${files.length} files; a single publish tops out at ${MAX_APPLY_SET_OPS} — ${overflow}.`, ops: null },
