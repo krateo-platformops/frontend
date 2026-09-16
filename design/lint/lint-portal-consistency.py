@@ -592,21 +592,56 @@ SECTION_GAP = 'middle'
 SECTION_GAP_PX = 8
 
 
+NAV_LABEL_ANNOTATION = 'krateo.io/nav-label'
+NAV_PATH_ANNOTATION = 'krateo.io/nav-path'
+
+
+def _annotated_page_roots(crs):
+    """Yield (root_name, file, doc) for page roots that DECLARE their own nav entry.
+
+    The second discovery source, for a menu assembled at RUNTIME from a cluster listing rather than
+    written out in the Menu CR. A page that declares `krateo.io/nav-label` (a visible entry) or
+    `krateo.io/nav-path` (a route-only one) is reachable from the nav by construction, so it is a
+    page for every rule's purposes — exactly as a nav-declared root is.
+    """
+    for fname, doc in crs:
+        meta = doc.get('metadata') or {}
+        ann = meta.get('annotations') or {}
+        if NAV_LABEL_ANNOTATION not in ann and NAV_PATH_ANNOTATION not in ann:
+            continue
+        name = meta.get('name')
+        if name:
+            yield name, fname, doc
+
+
 def page_roots(crs):
-    """Yield (root_name, page_file, page_doc) for every page the NAV declares.
+    """Yield (root_name, page_file, page_doc) for every page the nav declares — by EITHER route.
 
     Extracted so P25 and P9 cannot disagree about what a page root is. Four hand surveys got that
     count wrong, each inheriting the last one's blind spot, because each looked for the SHAPE a page
     was expected to have rather than for what makes something a page — being reachable from the nav.
     A second rule re-deriving it independently would be the fifth.
+
+    TWO SOURCES, DELIBERATELY. The original walk reads the Menu CR's `widgetData` for `page` /
+    `resourceRefId` leaves. That is a STATIC read, and the sidebar is moving to a Menu whose items
+    are computed server-side from a cluster listing — at which point the walk finds nothing and
+    every rule built on it judges ZERO pages and passes. A lint that silently stops checking is
+    worse than one that fails, so annotation-declared roots count too, and the union is what rules
+    see. During the transition both sources are populated and agree; afterwards only the second is.
     """
+    seen_roots = set()
+    for name, fname, doc in _annotated_page_roots(crs):
+        if name not in seen_roots:
+            seen_roots.add(name)
+            yield name, fname, doc
+
     _index, resolve = ref_resolver(crs)
 
     for fname, doc in crs:
         if doc.get('kind') != 'Menu':
             continue
         nav_refs = {r['id']: r for r in refs_of(doc) if r.get('id')}
-        seen = set()
+        seen = set(seen_roots)
         for path, value in walk_strings(widget_data(doc)):
             leaf = path.rsplit('.', 1)[-1]
             if leaf == 'page':
@@ -624,6 +659,7 @@ def page_roots(crs):
             target = resolve(root, plural)
             if not target:
                 continue          # P10's business
+            seen_roots.add(root)
             yield root, target[0], target[1]
 
 
@@ -880,7 +916,32 @@ def rule_colour_vocabulary(crs):
     return out
 
 
+def rule_page_discovery_alive(crs):
+    """P0 — the page-discovery walk found nothing, so every rule built on it is vacuous.
+
+    THE FAILURE THIS EXISTS TO MAKE IMPOSSIBLE. `page_roots` is the shared definition of "a page",
+    and P9, P25 and root-coverage are all built on it. It discovers roots by reading the Menu CR's
+    widgetData (static) or a page root's nav annotations. If the Menu's items move to a
+    `widgetDataTemplate` — computed server-side, which is where the sidebar is heading — the static
+    walk sees nothing. Nothing ERRORS: the loops simply have no rows, every rule reports clean, and
+    the suite goes green while checking exactly zero pages.
+
+    A lint that silently stops checking is worse than one that fails, so this asserts the walk is
+    still finding pages at all. It is deliberately dumb: no threshold to tune, no list to maintain.
+    """
+    if any(True for _ in page_roots(crs)):
+        return []
+    return [(
+        'menu.sidebar-nav.yaml',
+        'page discovery found ZERO page roots — every page rule below is vacuously passing. '
+        f'Either the Menu\'s items are no longer statically readable (they moved to '
+        f'widgetDataTemplate), or no page root carries {NAV_LABEL_ANNOTATION} / '
+        f'{NAV_PATH_ANNOTATION}. Fix discovery before trusting a green run.',
+    )]
+
+
 RULES = {
+    'page-discovery-alive': (rule_page_discovery_alive, 'P0'),
     'dead-kind': (rule_dead_kind, 'X11'),
     'missing-target': (rule_missing_target, 'X13'),
     'legacy-envelope': (rule_legacy_envelope, 'X12'),

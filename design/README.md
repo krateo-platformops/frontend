@@ -89,11 +89,11 @@ existence and count of resources outside a tenant's scope.
 
 ## What is enforced today
 
-Two lints run from [`lint/`](lint/), and between them they hold **20 of the 105 rules** —
-13 composition rules and 7 token rules. Everything else is a rule a human applies.
+Two lints run from [`lint/`](lint/), and between them they hold **21 of the 105 rules** —
+14 composition rules and 7 token rules. Everything else is a rule a human applies.
 
 - `lint-portal-consistency.py` — composition, run against a chart's widget CRs. **0 violations**
-  across all 13 rules against the portal chart.
+  across all 14 rules against the portal chart.
 - `lint-css-tokens.py` — token adoption in this repo's stylesheets. Gates on a **baseline** of 26
   pre-existing violations across 24 files, so new code is held to the rule while the debt burns
   down. 19 of those 26 are `widget-theme-coverage` (T2), which arrived with the rule itself:
@@ -108,8 +108,8 @@ workflow of the same name runs the composition lint against its rendered chart.
 
 **The CI check is the live status; this section is a claim about it.** To read the real state,
 look at the `design-system` check on any open PR in either repo — it fails on a violation, and a
-green one means all 20 machine-held rules hold as of that commit. The per-rule `Status:`
-markers in the six rule documents are the other half of the picture: they cover the 85 rules no
+green one means all 21 machine-held rules hold as of that commit. The per-rule `Status:`
+markers in the six rule documents are the other half of the picture: they cover the 84 rules no
 lint can decide, and a human keeps them true. Prefer the check over both.
 
 > This section said "Neither is wired into CI yet. Until they are, this document is still the thing

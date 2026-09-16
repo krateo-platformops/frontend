@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { ResourcesRefs } from '../../types/Widget'
 
-import { buildNavModel } from './navModel'
+import { buildNavModel, resolveContentEndpoint } from './navModel'
 
 const resourcesRefs: ResourcesRefs = {
   items: [
@@ -84,5 +84,49 @@ describe('Menu navModel', () => {
       'krateo-system',
     )
     expect(entries.map((entry) => entry.label)).toEqual(['Marketplace'])
+  })
+})
+
+describe('resolveContentEndpoint — a page that lives in another namespace', () => {
+  it('resolves the convention in the ITEM’s namespace when it declares one', () => {
+    // Without this, the convention resolves every page in the single configured
+    // FRONTEND_NAMESPACE — so a page shipped by another chart, or placed in a `tiers` namespace,
+    // is simply unreachable by a nav entry that has no resourceRefId.
+    const endpoint = resolveContentEndpoint(
+      { namespace: 'krateo-tenant', page: 'fleet-health', path: '/fleet-health' },
+      { items: [] },
+      'krateo-system',
+    )
+
+    expect(endpoint).toContain('namespace=krateo-tenant')
+    expect(endpoint).toContain('name=page-fleet-health')
+  })
+
+  it('falls back to the configured namespace when the item declares none', () => {
+    // Today's behaviour, unchanged — every existing item omits it.
+    const endpoint = resolveContentEndpoint({ page: 'dashboard', path: '/dashboard' }, { items: [] }, 'krateo-system')
+
+    expect(endpoint).toContain('namespace=krateo-system')
+  })
+
+  it('does NOT let the item namespace override an explicit resourceRefId path', () => {
+    // Precedence is unchanged: a structured ref already carries its own namespace, resolved by
+    // snowplow. The item namespace only feeds the convention fallback.
+    const endpoint = resolveContentEndpoint(
+      { namespace: 'ignored-ns', resourceRefId: 'dash' },
+      { items: [{ id: 'dash', path: '/call?resource=flexes&namespace=real-ns&name=dashboard-flex' }] } as never,
+      'krateo-system',
+    )
+
+    expect(endpoint).toContain('namespace=real-ns')
+  })
+
+  it('keeps an empty namespace rather than silently defaulting it', () => {
+    // `??` not `||`: an empty string is a misconfigured item, and letting it 404 is more honest
+    // than quietly resolving somewhere that happens to work.
+    const endpoint = resolveContentEndpoint({ namespace: '', page: 'x', path: '/x' }, { items: [] }, 'krateo-system')
+
+    // `namespace` is the last query param, so the empty value shows as a trailing `namespace=`.
+    expect(endpoint.endsWith('namespace=')).toBe(true)
   })
 })
