@@ -1,0 +1,86 @@
+/* Page Composer — the authoring surface as a page rather than a drawer.
+   Spacing follows the design-system tokens; no raw px, per design/lint/lint-css-tokens.py. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  min-height: 0;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xsm);
+}
+
+/* Close-draft sits under the description rather than beside the title: it is destructive, and the
+   head is a column, so aligning it to the start keeps it out of the heading's reading line. */
+.close {
+  align-self: flex-start;
+  margin-block-start: var(--spacing-xsm);
+}
+
+/* The one-line note under the disabled Start-a-page button in the empty state. */
+.hint {
+  margin-block-start: var(--spacing-sm);
+  margin-block-end: 0;
+}
+
+/* Surface on the left, the draft's structure on the right. The tree is the narrow column: it is a
+   map, not the work.
+
+   NO MEDIA QUERY, deliberately. `flex-wrap` collapses the two columns when there is no room for
+   them, which is the same outcome a breakpoint would give without inventing a sixth breakpoint
+   value — the thing design/lint T6 exists to prevent. It also reacts to the actual available
+   width rather than the viewport, so it behaves correctly with the Autopilot rail open. */
+.split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  align-items: flex-start;
+  min-height: 0;
+}
+
+/* Grows to fill, wraps the tree below it when the remainder drops under its basis. min-width:0 so a
+   wide code block inside the surface scrolls in its own container instead of pushing the layout. */
+.surface {
+  flex: 1 1 520px;
+  min-width: 0;
+}
+
+.tree {
+  flex: 1 1 320px;
+  border: 1px solid var(--border-color, rgb(0 0 0 / 10%));
+  border-radius: var(--border-radius, 8px);
+  padding: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xsm);
+}
+
+.treeHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-xsm);
+}
+
+.counts { display: inline-flex; align-items: center; gap: var(--spacing-xsm); }
+
+/* One row of the tree: name, kind, and the two badges that carry the meaning — `data` for an
+   apiRef-bound widget, `placed` for one that exists on the cluster and is only referenced. */
+.node { display: inline-flex; align-items: center; gap: var(--spacing-xsm); }
+
+.kindTag { opacity: .75; }
+
+/* The move/remove controls on a tree row. Held at low opacity until the row is hovered or focused:
+   three buttons per node at full strength turn the tree into a wall of icons and bury the names,
+   which are the thing being read. Focus-within keeps them reachable by keyboard. */
+.nodeActions { opacity: 0; transition: opacity .12s ease-in-out; }
+.node:hover .nodeActions,
+.node:focus-within .nodeActions { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nodeActions { transition: none; }
+}

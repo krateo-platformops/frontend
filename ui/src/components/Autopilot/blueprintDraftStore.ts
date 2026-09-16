@@ -87,6 +87,14 @@ const measureTreeBytes = (files: Record<string, string>): number =>
   Object.values(files).reduce((sum, text) => sum + utf8ByteLength(text), 0)
 
 /** The tiny holder the provider owns. One chart tree at a time (a new preview replaces it). */
+/**
+ * Notified after every mutation that CHANGED the held tree, with the tree as it now is (null once
+ * cleared). The store stays a plain data holder — the one subscriber is the provider, which turns
+ * this into the window broadcast that surfaces outside the provider tree listen on. Keeping the
+ * dispatch out here is what lets the store be tested without a DOM.
+ */
+export type DraftChangeListener = (held: BlueprintDraftHeld | null) => void
+
 export interface BlueprintDraftStore {
   set: (files: Record<string, string>) => BlueprintDraftResult
   get: () => BlueprintDraftHeld | null
@@ -105,19 +113,67 @@ export interface BlueprintDraftStore {
    * key, and for a page that key is a bare identity token, never the routed path the user saw.
    */
   updateDisplayedFile: (displayedPath: string, content: string) => FileUpdateResult
+  /**
+   * ADD a file the draft does not hold yet.
+   *
+   * Deliberately separate from `updateFile` rather than relaxing it. `updateFile` refuses an
+   * unknown path — "only previewed files can be edited" — and that refusal is load-bearing: it is
+   * what stops an edit inventing a path the preview never validated and smuggling it into the
+   * publish set. Making it upsert would delete that guarantee for every existing caller in order to
+   * serve one new one.
+   *
+   * So this is the explicit, narrow counterpart: the composer creating a container or a widget it
+   * has just authored. It refuses a path that ALREADY exists (that is an edit, and `updateFile` is
+   * where edits belong, with its own checks) and it applies the same 512 KiB cap, leaving the held
+   * tree untouched when it would be exceeded.
+   */
+  addFile: (path: string, content: string) => FileUpdateResult
 }
 
-export const createBlueprintDraftStore = (): BlueprintDraftStore => {
+export const createBlueprintDraftStore = (onChange?: DraftChangeListener): BlueprintDraftStore => {
   let held: BlueprintDraftHeld | null = null
+  /**
+   * Announce the held tree after a mutation that took.
+   *
+   * Only on SUCCESS. A refused write leaves the draft exactly as it was, and announcing it anyway
+   * would tell a surface to re-read bytes that did not move — harmless today, and precisely the
+   * kind of thing that later gets mistaken for "the edit landed".
+   */
+  const announce = () => onChange?.(held)
   const store: BlueprintDraftStore = {
+    addFile: (path, content) => {
+      if (!held) {
+        return { bytes: 0, error: 'no draft is held — start or preview a page first', ok: false }
+      }
+      if (!path) {
+        return { bytes: held.bytes, error: 'a new file needs a path', ok: false }
+      }
+      if (path in held.files) {
+        // An existing path is an EDIT, and edits go through updateFile so they get its checks.
+        // Silently overwriting here would make "add" a way to bypass them.
+        return { bytes: held.bytes, error: `"${path}" is already in the draft — edit it instead`, ok: false }
+      }
+      const nextFiles = { ...held.files, [path]: content }
+      const bytes = measureTreeBytes(nextFiles)
+      if (bytes > BLUEPRINT_DRAFT_MAX_BYTES) {
+        const kib = Math.ceil(bytes / 1024)
+        // Same contract as updateFile: over-cap leaves the held tree EXACTLY as it was.
+        return { bytes: held.bytes, error: `adding this file brings the draft to ${kib} KiB — over the 512 KiB cap`, ok: false }
+      }
+      held = { bytes, files: nextFiles }
+      announce()
+      return { bytes, ok: true }
+    },
     clear: () => {
       held = null
+      announce()
     },
     get: () => held,
     set: (files: Record<string, string>) => {
       const result = createBlueprintDraft(files)
       if (result.ok) {
         held = result.held
+        announce()
       }
       return result
     },
@@ -140,6 +196,7 @@ export const createBlueprintDraftStore = (): BlueprintDraftStore => {
         return { bytes: held.bytes, error: `the edit brings the draft to ${kib} KiB — over the 512 KiB cap; trim the file`, ok: false }
       }
       held = { bytes, files: nextFiles }
+      announce()
       return { bytes, ok: true }
     },
   }
