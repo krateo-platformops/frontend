@@ -28,7 +28,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { BlueprintDraftHeld } from './blueprintDraftStore'
-import { PORTAL_PAGE_CHART_ROOT, heldKeyForDisplayedPath, pageNavFragmentPath, pageNavFragmentSlug, pagePublishFiles, pagePublishPath } from './pageDraft'
+import { PORTAL_PAGE_CHART_ROOT, heldKeyForDisplayedPath, pagePublishFiles, pagePublishPath } from './pageDraft'
 import { buildPagePublishOps } from './pagePublish'
 import { buildPagePreviewPayload } from './previewBridge'
 
@@ -46,7 +46,6 @@ const HELD: BlueprintDraftHeld = {
   files: {
     'card.cost-summary.yaml': 'kind: Card\n',
     'flex.page-cost-report.yaml': 'kind: Flex\n',
-    [pageNavFragmentSlug(SLUG)]: 'item:\n  page: cost-report\n',
   },
 }
 
@@ -66,19 +65,6 @@ describe('page publish destination — the live portal chart root', () => {
     expect(PORTAL_PAGE_CHART_ROOT).toBe('helm/portal')
   })
 
-  it('routes a widget CR into the chart templates dir and a nav fragment into files/nav-fragments', () => {
-    expect(pagePublishPath('flex.page-cost-report.yaml')).toBe('helm/portal/templates/flex.page-cost-report.yaml')
-    expect(pagePublishPath(pageNavFragmentSlug(SLUG))).toBe('helm/portal/files/nav-fragments/cost-report.yaml')
-    expect(pageNavFragmentPath(SLUG)).toBe('helm/portal/files/nav-fragments/cost-report.yaml')
-  })
-
-  it('the nav fragment lands where the sidebar glob can actually see it', () => {
-    // `.Files.Glob "files/nav-fragments/*.yaml"` is chart-root-relative and `*` never crosses a `/`,
-    // so a fragment one directory too deep (or with a .yml extension) is silently skipped: no error,
-    // no sidebar entry. Assert the exact shape rather than a substring.
-    expect(pageNavFragmentPath(SLUG)).toBe(`${PORTAL_PAGE_CHART_ROOT}/files/nav-fragments/${SLUG}.yaml`)
-  })
-
   it('NO writer emits the dead chart/ prefix — git-write, claim, and preview alike', () => {
     for (const path of [...gitWritePaths(), ...claimPaths(), ...previewPaths()]) {
       expect(path.startsWith(DEAD_PREFIX)).toBe(false)
@@ -94,7 +80,6 @@ describe('page publish destination — the live portal chart root', () => {
       expect(path).toContain('/')
     }
     expect(claimPaths().sort()).toEqual([
-      'helm/portal/files/nav-fragments/cost-report.yaml',
       'helm/portal/templates/card.cost-summary.yaml',
       'helm/portal/templates/flex.page-cost-report.yaml',
     ])
@@ -102,9 +87,9 @@ describe('page publish destination — the live portal chart root', () => {
 
   it('all three writers agree on the destination for the SAME page (no preview/publish drift)', () => {
     expect(claimPaths().sort()).toEqual(gitWritePaths().sort())
-    // The preview shows the widget CRs only (the nav fragment is synthesized at draft time), so it
-    // must match the publish paths for exactly those files.
-    expect(previewPaths().sort()).toEqual(gitWritePaths().filter((path) => path.includes('/templates/')).sort())
+    // Every held key is a widget CR now, so the three writers agree on the whole set rather than
+    // on a filtered subset — the nav fragment that used to need excluding here is gone.
+    expect(previewPaths().sort()).toEqual(gitWritePaths().sort())
   })
 })
 

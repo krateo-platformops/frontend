@@ -17,7 +17,7 @@ import { substituteFileContent, type BlueprintDraftHeld, type BlueprintDraftStor
 import type { BlueprintGate } from './blueprintGate'
 import type { PublishStatusClaim } from './builderPublishStatus'
 import { substituteOasAttachment, type OasAttachment } from './oasAttachment'
-import { isPageDraft, pageDisplayName, pageDraftFiles, type NavHint } from './pageDraft'
+import { isPageDraft, pageDisplayName, pageDraftFiles } from './pageDraft'
 
 /** A preview-gate verdict shape (both the KOG and blueprint gates match this). */
 export type GateVerdict = { allowed: true } | { allowed: false; reason: string }
@@ -122,14 +122,13 @@ export const heldDraftIdentity = (held: BlueprintDraftHeld | null): string | nul
  * previewed this thread (published bytes == previewed bytes). No-op on CRs that can't be serialized. */
 export const recordPagePreview = (
   widgets: unknown[] | undefined,
-  nav: NavHint | undefined,
   store: BlueprintDraftStore,
   // Structurally narrowed to the ONE method this uses, so a caller holding a narrowed gate — the
   // draft-bus hook does, deliberately, so its tests need not build a whole gate — can seed a draft
   // through the same entry point a proposed page uses instead of reimplementing it.
   gate: Pick<BlueprintGate, 'recordPreview'>,
 ): void => {
-  const pageFiles = pageDraftFiles(widgets ?? [], nav)
+  const pageFiles = pageDraftFiles(widgets ?? [])
   if (!pageFiles) {
     return
   }

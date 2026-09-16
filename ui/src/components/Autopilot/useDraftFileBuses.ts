@@ -82,7 +82,7 @@ export const useDraftFileBuses = (
     if (store.get()) {
       return
     }
-    recordPagePreview(widgets, undefined, store, gate)
+    recordPagePreview(widgets, store, gate)
     openAutopilotPreview({ ...buildPagePreviewPayload(widgets), caption: undefined, title })
   }), [gate, store])
 }

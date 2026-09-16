@@ -19,16 +19,6 @@ import { dump } from 'js-yaml'
 /** The portal-chart file convention for a page's widget CRs: `<kind-lower>.<name>.yaml`. */
 export const pageDraftSlug = (kind: string, name: string): string => `${kind.toLowerCase()}.${name}.yaml`
 
-/** #106 — optional sidebar hint the model may pass on previewPage; every field defaults gracefully. */
-export interface NavHint {
-  label?: string
-  icon?: string
-  order?: number
-}
-
-/** The held-draft KEY (the `$fileContent` token) for a page's nav fragment. */
-export const pageNavFragmentSlug = (slug: string): string => `nav-fragment.${slug}.yaml`
-
 /**
  * The Helm chart ROOT inside krateo-platformops/portal — every path a page publish writes hangs off
  * it. This is ONE constant, deliberately, because the last time it was three literals the repo moved
@@ -45,9 +35,6 @@ export const pageNavFragmentSlug = (slug: string): string => `nav-fragment.${slu
  */
 export const PORTAL_PAGE_CHART_ROOT = 'helm/portal'
 
-/** The repo PATH the builder writes the nav fragment to (globbed by menu.sidebar-nav.yaml). */
-export const pageNavFragmentPath = (slug: string): string => `${PORTAL_PAGE_CHART_ROOT}/files/nav-fragments/${slug}.yaml`
-
 /**
  * The repo path for ONE held page file — the SINGLE router every WRITER shares (the legacy github
  * git-write set, the BuilderPublish claim, and the preview drawer's Files tab), so the destination
@@ -59,14 +46,15 @@ export const pageNavFragmentPath = (slug: string): string => `${PORTAL_PAGE_CHAR
  *
  * Held keys are bare identity tokens, not paths (the preview gate and the `$fileContent`
  * substitution match on them), so the destination is derived here instead of being baked into the
- * key. Routing is by key SHAPE and that is sound, not a guess: a nav fragment is
- * `nav-fragment.<slug>.yaml` (pageNavFragmentSlug) and a widget CR is `<kind-lower>.<name>.yaml`
- * where the first segment is a Kubernetes Kind — which cannot contain a hyphen — so only the
- * fragment can ever match. Everything else is a widget CR and belongs in the chart's templates/.
+ * key.
+ *
+ * This used to route by key SHAPE, because a page draft carried two kinds of file: widget CRs and
+ * a nav fragment bound for `files/nav-fragments/`. The fragment is gone — the sidebar now assembles
+ * itself from the page roots the cluster has (portal#217), so nothing globs that directory and a
+ * file written there would be bytes nobody reads. Every held key is now a widget CR.
  */
 export const pagePublishPath = (key: string): string => {
-  const fragment = key.match(/^nav-fragment\.([a-z0-9-]+)\.yaml$/i)
-  return fragment ? pageNavFragmentPath(fragment[1].toLowerCase()) : `${PORTAL_PAGE_CHART_ROOT}/templates/${key}`
+  return `${PORTAL_PAGE_CHART_ROOT}/templates/${key}`
 }
 
 /**
@@ -86,31 +74,6 @@ export const pageRootSlug = (files: Record<string, string>): string | null => {
   return matched ? matched[1].toLowerCase() : null
 }
 
-/** Title-case a kebab/snake slug for a default sidebar label ("cost-report" → "Cost Report"). */
-const titleCaseSlug = (slug: string): string =>
-  slug
-    .split(/[-_]+/)
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-
-/**
- * #106 — synthesize a page's nav fragment YAML: `item: { label, icon, order, path, page }`. Builder
- * pages use the `page:<slug>` convention (resolves `flexes/page-<slug>`), so a fragment needs ONLY
- * the `item` — no `resourcesRefs` entry. Label/icon/order come from the hint, else sensible defaults
- * (title-cased slug / `fa-file` / 950 so authored pages sort AFTER the built-in nav).
- */
-export const pageNavFragment = (slug: string, hint?: NavHint): string => {
-  const item = {
-    icon: hint?.icon?.trim() || 'fa-file',
-    label: hint?.label?.trim() || titleCaseSlug(slug),
-    order: typeof hint?.order === 'number' && Number.isFinite(hint.order) ? hint.order : 950,
-    page: slug,
-    path: `/${slug}`,
-  }
-  return dump({ item }, { lineWidth: -1, noRefs: true, sortKeys: false })
-}
-
 /**
  * A previewed page's widget CR objects → the `{slug: yaml}` file map the publish substitutes.
  * Refuses (null) a page whose any CR is missing `kind` or `metadata.name` — without both there
@@ -122,7 +85,7 @@ export const pageNavFragment = (slug: string, hint?: NavHint): string => {
  * menu edit). Derived from the SAME held files at record- and publish-time → part of the
  * previewed==published byte set the gate enforces.
  */
-export const pageDraftFiles = (widgets: readonly unknown[], nav?: NavHint): Record<string, string> | null => {
+export const pageDraftFiles = (widgets: readonly unknown[]): Record<string, string> | null => {
   if (!Array.isArray(widgets) || widgets.length === 0) {
     return null
   }
@@ -142,10 +105,6 @@ export const pageDraftFiles = (widgets: readonly unknown[], nav?: NavHint): Reco
   }
   if (!Object.keys(files).length) {
     return null
-  }
-  const slug = pageRootSlug(files)
-  if (slug) {
-    files[pageNavFragmentSlug(slug)] = pageNavFragment(slug, nav)
   }
   return files
 }

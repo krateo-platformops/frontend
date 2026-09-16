@@ -1,4 +1,3 @@
-import { load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
 import { createBlueprintGate } from './blueprintGate'
@@ -7,9 +6,6 @@ import {
   pageDisplayName,
   pageDraftFiles,
   pageDraftSlug,
-  pageNavFragment,
-  pageNavFragmentPath,
-  pageNavFragmentSlug,
   pageRootSlug,
 } from './pageDraft'
 
@@ -24,33 +20,6 @@ describe('pageDraftSlug', () => {
 })
 
 describe('pageDraftFiles', () => {
-  it('serializes each CR to YAML keyed by slug (round-trips) + emits a nav fragment for the page root', () => {
-    const files = pageDraftFiles([flexRoot, card])
-    expect(files).not.toBeNull()
-    // #106: a page with a page-<slug> root ALSO gets its nav fragment (keyed nav-fragment.<slug>.yaml).
-    expect(Object.keys(files!).sort()).toEqual(['card.pg-summary.yaml', 'flex.page-postgres.yaml', 'nav-fragment.postgres.yaml'])
-    // The held YAML is the verbatim CR — it must load back to the same object (published == previewed).
-    expect(load(files!['flex.page-postgres.yaml'])).toEqual(flexRoot)
-    expect(load(files!['card.pg-summary.yaml'])).toEqual(card)
-    // The nav fragment is { item: {label,icon,order,path,page} } with slug-derived defaults.
-    expect(load(files!['nav-fragment.postgres.yaml'])).toEqual({
-      item: { icon: 'fa-file', label: 'Postgres', order: 950, page: 'postgres', path: '/postgres' },
-    })
-  })
-
-  it('applies the optional nav hint (label/icon/order) to the fragment', () => {
-    const files = pageDraftFiles([flexRoot], { icon: 'fa-database', label: 'PG Health', order: 12 })!
-    expect(load(files['nav-fragment.postgres.yaml'])).toEqual({
-      item: { icon: 'fa-database', label: 'PG Health', order: 12, page: 'postgres', path: '/postgres' },
-    })
-  })
-
-  it('emits NO nav fragment for a page with no page-<slug> root flex', () => {
-    const files = pageDraftFiles([card])!
-    expect(Object.keys(files)).toEqual(['card.pg-summary.yaml'])
-    expect(Object.keys(files).some((key) => key.startsWith('nav-fragment.'))).toBe(false)
-  })
-
   it('refuses (null) an empty list, a non-object entry, or a CR missing kind/name', () => {
     expect(pageDraftFiles([])).toBeNull()
     expect(pageDraftFiles(['nope'])).toBeNull()
@@ -66,16 +35,6 @@ describe('nav fragment helpers (#106)', () => {
     expect(pageRootSlug({ 'card.x.yaml': '...', 'table.y.yaml': '...' })).toBeNull()
   })
 
-  it('slug + path conventions', () => {
-    expect(pageNavFragmentSlug('postgres')).toBe('nav-fragment.postgres.yaml')
-    expect(pageNavFragmentPath('postgres')).toBe('helm/portal/files/nav-fragments/postgres.yaml')
-  })
-
-  it('pageNavFragment title-cases a multi-word slug for the default label', () => {
-    expect(load(pageNavFragment('cost-report'))).toEqual({
-      item: { icon: 'fa-file', label: 'Cost Report', order: 950, page: 'cost-report', path: '/cost-report' },
-    })
-  })
 })
 
 describe('isPageDraft', () => {

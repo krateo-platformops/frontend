@@ -419,7 +419,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
             // gate (recordPagePreview) — a page publish (into krateo-platformops/portal) is then
             // allowed ONLY after the SAME page was previewed this thread. FE-P1's ajv verdicts
             // (drawer) + CHART-P2's PR CI are the correctness gates; this is the preview gate.
-            recordPagePreview(proposal.widgets, proposal.nav, blueprintStore, blueprintGate)
+            recordPagePreview(proposal.widgets, blueprintStore, blueprintGate)
           }
         }
       }

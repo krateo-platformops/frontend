@@ -10,17 +10,17 @@ const specOf = (op: { payload?: unknown }): Record<string, unknown> => payloadOf
 
 const SLUG = 'cost-report'
 // A page draft as recordPagePreview/pageDraftFiles holds it: widget CRs keyed <kind-lower>.<name>.yaml
-// (root page flex first, then children) and the auto-generated nav fragment keyed nav-fragment.<slug>.yaml.
+// (root page flex first, then children). The auto-generated nav fragment that used to ride along
+// here is gone: the sidebar assembles itself from the page roots the cluster has (portal#217).
 const TREE = held({
   'card.cost-summary.yaml': 'kind: Card\nmetadata:\n  name: cost-summary\n',
   'flex.page-cost-report.yaml': 'kind: Flex\nmetadata:\n  name: page-cost-report\n',
-  'nav-fragment.cost-report.yaml': 'item:\n  label: Cost Report\n  path: /cost-report\n  page: cost-report\n',
 })
 
 describe('buildPagePublishOps', () => {
   it('fans one publishPage verb into gitref → repocontents(per file) → pullrequest, in order', () => {
     const ops = buildPagePublishOps({}, TREE, SLUG)
-    expect(ops.map((op) => op.gvr.resource)).toEqual(['gitrefs', 'repocontents', 'repocontents', 'repocontents', 'pullrequests'])
+    expect(ops.map((op) => op.gvr.resource)).toEqual(['gitrefs', 'repocontents', 'repocontents', 'pullrequests'])
     expect(ops.every((op) => op.verb === 'POST')).toBe(true)
     expect(ops.every((op) => op.gvr.group === 'github.krateo.io' && op.gvr.version === 'v1alpha1')).toBe(true)
     expect(ops.every((op) => op.namespace === 'krateo-system')).toBe(true)
@@ -29,7 +29,7 @@ describe('buildPagePublishOps', () => {
   it('each op payload is a FULL CR object — apiVersion + kind + metadata.name + spec (no bare {spec})', () => {
     const ops = buildPagePublishOps({}, TREE, SLUG)
     const kinds = ops.map((op) => payloadOf(op).kind)
-    expect(kinds).toEqual(['GitRef', 'RepoContent', 'RepoContent', 'RepoContent', 'PullRequest'])
+    expect(kinds).toEqual(['GitRef', 'RepoContent', 'RepoContent', 'PullRequest'])
     for (const op of ops) {
       const pl = payloadOf(op)
       expect(pl.apiVersion).toBe('github.krateo.io/v1alpha1')
@@ -53,10 +53,9 @@ describe('buildPagePublishOps', () => {
     expect(spec.configurationRef).toEqual({ name: PORTAL_CHART_REPO_DEFAULTS.configurationRef })
   })
 
-  it('routes widget CRs to the chart templates dir and the nav fragment to its files/nav-fragments', () => {
+  it('routes every widget CR into the chart templates dir', () => {
     const specs = buildPagePublishOps({}, TREE, SLUG).filter((op) => op.gvr.resource === 'repocontents').map(specOf)
     expect(specs.map((spec) => spec.path).sort()).toEqual([
-      'helm/portal/files/nav-fragments/cost-report.yaml',
       'helm/portal/templates/card.cost-summary.yaml',
       'helm/portal/templates/flex.page-cost-report.yaml',
     ])
@@ -107,7 +106,7 @@ describe('buildPagePublishOps', () => {
     expect(isApplySetAllowed(buildPagePublishOps({}, TREE, SLUG))).toBe(true)
   })
 
-  it('a single-widget page (no nav fragment) still produces gitref + 1 repocontents + pullrequest', () => {
+  it('a single-widget page still produces gitref + 1 repocontents + pullrequest', () => {
     const ops = buildPagePublishOps({}, held({ 'flex.page-x.yaml': 'kind: Flex\n' }), 'x')
     expect(ops.map((op) => op.gvr.resource)).toEqual(['gitrefs', 'repocontents', 'pullrequests'])
     expect(specOf(ops[1]).path).toBe('helm/portal/templates/flex.page-x.yaml')
