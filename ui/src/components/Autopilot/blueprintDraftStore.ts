@@ -37,10 +37,25 @@ export const BLUEPRINT_DRAFT_MAX_BYTES = OAS_ATTACHMENT_MAX_BYTES
 /** How a substituted file's bytes are encoded into the op payload value. */
 export type FileContentEncoding = 'text' | 'base64'
 
-/** A held chart tree: the verbatim `{path: content}` map + its total UTF-8 byte size. */
+/**
+ * WHICH BUILDER AUTHORED THE HELD DRAFT.
+ *
+ * Carried explicitly because the alternative was a shape sniff — `isPageDraft` was literally
+ * `!('Chart.yaml' in files)`, resting on the observation that blueprint drafts always have one and
+ * page drafts never do. That held exactly as long as a page was a bag of widget CRs. The moment a
+ * page becomes a chart of its own, the sniff INVERTS: every caller silently reclassifies the page
+ * as a blueprint, identity flips to the chart name, the page slug goes null, and the publish builds
+ * blueprint ops under the wrong builder — none of it erroring, all of it wrong.
+ *
+ * A fact the writer knows should be recorded, not re-derived downstream from a coincidence.
+ */
+export type DraftKind = 'page' | 'blueprint'
+
+/** A held chart tree: the verbatim `{path: content}` map, its total UTF-8 byte size, and who wrote it. */
 export interface BlueprintDraftHeld {
   files: Record<string, string>
   bytes: number
+  kind: DraftKind
 }
 
 export type BlueprintDraftResult =
@@ -63,7 +78,7 @@ export interface FileUpdateResult {
  * Over the 512 KiB TOTAL cap → not held, with a size hint. An empty map is refused (there
  * is nothing to publish).
  */
-export const createBlueprintDraft = (files: Record<string, string>): BlueprintDraftResult => {
+export const createBlueprintDraft = (files: Record<string, string>, kind: DraftKind): BlueprintDraftResult => {
   const paths = Object.keys(files)
   if (paths.length === 0) {
     return { error: 'the blueprint draft is empty — draft the chart tree in the rail and preview it first', ok: false }
@@ -79,7 +94,7 @@ export const createBlueprintDraft = (files: Record<string, string>): BlueprintDr
       ok: false,
     }
   }
-  return { held: { bytes, files: { ...files } }, ok: true }
+  return { held: { bytes, files: { ...files }, kind }, ok: true }
 }
 
 /** Total UTF-8 byte size of a `{path: content}` tree (the held-tree cap is measured on this). */
@@ -96,7 +111,7 @@ const measureTreeBytes = (files: Record<string, string>): number =>
 export type DraftChangeListener = (held: BlueprintDraftHeld | null) => void
 
 export interface BlueprintDraftStore {
-  set: (files: Record<string, string>) => BlueprintDraftResult
+  set: (files: Record<string, string>, kind: DraftKind) => BlueprintDraftResult
   get: () => BlueprintDraftHeld | null
   clear: () => void
   /**
@@ -160,7 +175,8 @@ export const createBlueprintDraftStore = (onChange?: DraftChangeListener): Bluep
         // Same contract as updateFile: over-cap leaves the held tree EXACTLY as it was.
         return { bytes: held.bytes, error: `adding this file brings the draft to ${kib} KiB — over the 512 KiB cap`, ok: false }
       }
-      held = { bytes, files: nextFiles }
+      // `held.kind` carries forward: an add or an edit never changes WHO authored the draft.
+      held = { bytes, files: nextFiles, kind: held.kind }
       announce()
       return { bytes, ok: true }
     },
@@ -169,8 +185,8 @@ export const createBlueprintDraftStore = (onChange?: DraftChangeListener): Bluep
       announce()
     },
     get: () => held,
-    set: (files: Record<string, string>) => {
-      const result = createBlueprintDraft(files)
+    set: (files: Record<string, string>, kind: DraftKind) => {
+      const result = createBlueprintDraft(files, kind)
       if (result.ok) {
         held = result.held
         announce()
@@ -178,7 +194,7 @@ export const createBlueprintDraftStore = (onChange?: DraftChangeListener): Bluep
       return result
     },
     updateDisplayedFile: (displayedPath, content) => {
-      const key = held ? heldKeyForDisplayedPath(displayedPath, held.files) : null
+      const key = held ? heldKeyForDisplayedPath(displayedPath, held) : null
       return store.updateFile(key ?? displayedPath, content)
     },
     updateFile: (path, content) => {
@@ -195,7 +211,7 @@ export const createBlueprintDraftStore = (onChange?: DraftChangeListener): Bluep
         // Over-cap: the held tree is left EXACTLY as it was (the previously-held bytes stand).
         return { bytes: held.bytes, error: `the edit brings the draft to ${kib} KiB — over the 512 KiB cap; trim the file`, ok: false }
       }
-      held = { bytes, files: nextFiles }
+      held = { bytes, files: nextFiles, kind: held.kind }
       announce()
       return { bytes, ok: true }
     },

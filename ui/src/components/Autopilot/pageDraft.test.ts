@@ -38,9 +38,18 @@ describe('nav fragment helpers (#106)', () => {
 })
 
 describe('isPageDraft', () => {
-  it('is true for a page draft (no Chart.yaml) and false for a blueprint draft', () => {
-    expect(isPageDraft({ 'card.y.yaml': '...', 'flex.page-x.yaml': '...' })).toBe(true)
-    expect(isPageDraft({ 'Chart.yaml': 'name: x', 'values.yaml': '...' })).toBe(false)
+  it('reads the kind the writer recorded, not the shape of the file set', () => {
+    // It used to be `!('Chart.yaml' in files)` — sound only while a page could never carry a chart.
+    // A page that ships as its own chart inverts that test silently, so the fact is carried now.
+    expect(isPageDraft({ kind: 'page' })).toBe(true)
+    expect(isPageDraft({ kind: 'blueprint' })).toBe(false)
+  })
+
+  it('does not change its answer when a page draft gains a Chart.yaml', () => {
+    // The whole reason the shape sniff had to go: this is the case that used to flip.
+    const held = { bytes: 1, files: { 'Chart.yaml': 'name: my-page', 'templates/flex.page-x.yaml': '…' }, kind: 'page' as const }
+
+    expect(isPageDraft(held)).toBe(true)
   })
 })
 

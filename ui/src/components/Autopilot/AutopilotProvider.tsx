@@ -412,7 +412,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
             //
             // A remote-chart preview (no rawTemplates) holds
             // nothing — there is no authored tree to publish via git.
-            const draft = blueprintStore.set(proposal.rawTemplates)
+            const draft = blueprintStore.set(proposal.rawTemplates, 'blueprint')
             if (draft.ok) { blueprintGate.recordPreview(draftDisplayName(draft.held.files)) }
           } else if (proposal.verb === 'previewPage') {
             // FE-P2: an APPLIED previewPage holds its widget CRs as a page draft + arms the shared
@@ -468,7 +468,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         // Re-issue the scalar publish verb that matches the held draft: a page draft (no Chart.yaml)
         // → publishPage (FE-BP7), a blueprint chart → publishBlueprint (FE-BP6). The host fans either
         // out; the model must NEVER hand-write the multi-op payload (that is the stall we recover from).
-        const pageSlug = isPageDraft(held.files) ? pageRootSlug(held.files) : null
+        const pageSlug = isPageDraft(held) ? pageRootSlug(held.files) : null
         const scalarVerb = pageSlug
           ? `{"verb":"publishPage","owner":"${builderTargets.page.owner}","repo":"${builderTargets.page.repo}","base":"main","configurationRef":"github-blueprints-config","namespace":"krateo-system","title":"builder: page ${pageSlug}","body":"<one-line summary>"}`
           : `{"verb":"publishBlueprint","owner":"${builderTargets.blueprint.owner}","repo":"${builderTargets.blueprint.repo}","base":"main","configurationRef":"github-blueprints-config","namespace":"krateo-system","title":"feat(${heldName}): add ${heldName} blueprint","body":"<one-line summary>"}`

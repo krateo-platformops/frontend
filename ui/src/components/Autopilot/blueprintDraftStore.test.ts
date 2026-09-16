@@ -41,7 +41,7 @@ const publishOps: ApplyResourceSetOp[] = Object.keys(CHART).map((path) => ({
 
 describe('createBlueprintDraft — the 512 KiB total-tree cap', () => {
   it('holds a tree under the cap, measured in total UTF-8 bytes', () => {
-    const result = createBlueprintDraft(CHART)
+    const result = createBlueprintDraft(CHART, 'blueprint')
     expect(result.ok).toBe(true)
     if (!result.ok) {
       return
@@ -50,30 +50,30 @@ describe('createBlueprintDraft — the 512 KiB total-tree cap', () => {
     expect(result.held.bytes).toBe(total)
     expect(result.held.files).toEqual(CHART)
     // multibyte characters count as encoded bytes, not JS string length
-    const accented = createBlueprintDraft({ 'NOTES.txt': 'café' })
+    const accented = createBlueprintDraft({ 'NOTES.txt': 'café' }, 'blueprint')
     expect(accented.ok && accented.held.bytes).toBe('café'.length + 1)
   })
 
   it('refuses an empty tree', () => {
-    const result = createBlueprintDraft({})
+    const result = createBlueprintDraft({}, 'blueprint')
     expect(result.ok).toBe(false)
     expect(!result.ok && result.error).toContain('empty')
   })
 
   it('rejects an over-cap tree with a size hint — nothing is held', () => {
-    const result = createBlueprintDraft({ 'templates/big.yaml': 'a'.repeat(BLUEPRINT_DRAFT_MAX_BYTES + 1) })
+    const result = createBlueprintDraft({ 'templates/big.yaml': 'a'.repeat(BLUEPRINT_DRAFT_MAX_BYTES + 1) }, 'blueprint')
     expect(result.ok).toBe(false)
     expect(!result.ok && result.error).toContain('512 KiB')
   })
 
   it('accepts exactly the cap boundary (summed across files)', () => {
     const half = 'a'.repeat(BLUEPRINT_DRAFT_MAX_BYTES / 2)
-    expect(createBlueprintDraft({ 'a.txt': half, 'b.txt': half }).ok).toBe(true)
+    expect(createBlueprintDraft({ 'a.txt': half, 'b.txt': half }, 'blueprint').ok).toBe(true)
   })
 
   it('does not alias the caller map (defensive copy)', () => {
     const input: Record<string, string> = { 'Chart.yaml': 'name: x' }
-    const result = createBlueprintDraft(input)
+    const result = createBlueprintDraft(input, 'blueprint')
     input['Chart.yaml'] = 'name: MUTATED'
     expect(result.ok && result.held.files['Chart.yaml']).toBe('name: x')
   })
@@ -83,10 +83,10 @@ describe('createBlueprintDraftStore — one held tree at a time', () => {
   it('set/get/clear round-trip; a rejected set keeps the prior hold', () => {
     const store = createBlueprintDraftStore()
     expect(store.get()).toBeNull()
-    expect(store.set(CHART).ok).toBe(true)
+    expect(store.set(CHART, 'blueprint').ok).toBe(true)
     expect(store.get()?.files).toEqual(CHART)
     // over-cap replacement fails → the previous tree survives
-    expect(store.set({ 'big.yaml': 'b'.repeat(BLUEPRINT_DRAFT_MAX_BYTES + 1) }).ok).toBe(false)
+    expect(store.set({ 'big.yaml': 'b'.repeat(BLUEPRINT_DRAFT_MAX_BYTES + 1) }, 'blueprint').ok).toBe(false)
     expect(store.get()?.files).toEqual(CHART)
     store.clear()
     expect(store.get()).toBeNull()
@@ -96,7 +96,7 @@ describe('createBlueprintDraftStore — one held tree at a time', () => {
 describe('createBlueprintDraftStore.updateFile — FE-K(edit) in-place single-file edit', () => {
   it('replaces one held file within the cap and re-measures the total UTF-8 bytes', () => {
     const store = createBlueprintDraftStore()
-    store.set(CHART)
+    store.set(CHART, 'blueprint')
     const before = store.get()?.bytes ?? 0
     const next = 'kind: Deployment\nmetadata:\n  name: hello-edited\n'
     const result = store.updateFile('templates/deployment.yaml', next)
@@ -111,7 +111,7 @@ describe('createBlueprintDraftStore.updateFile — FE-K(edit) in-place single-fi
 
   it('re-measures multibyte edits as encoded bytes, not JS chars', () => {
     const store = createBlueprintDraftStore()
-    store.set({ 'NOTES.txt': 'ascii' })
+    store.set({ 'NOTES.txt': 'ascii' }, 'blueprint')
     // 'é' is 2 UTF-8 bytes (JS string length 1) — the re-measure must count encoded bytes.
     const result = store.updateFile('NOTES.txt', 'café')
     expect(result.ok).toBe(true)
@@ -121,7 +121,7 @@ describe('createBlueprintDraftStore.updateFile — FE-K(edit) in-place single-fi
 
   it('rejects an edit that pushes the TOTAL tree over the cap — held tree UNMUTATED', () => {
     const store = createBlueprintDraftStore()
-    store.set(CHART)
+    store.set(CHART, 'blueprint')
     const before = store.get()
     const result = store.updateFile('templates/deployment.yaml', 'a'.repeat(BLUEPRINT_DRAFT_MAX_BYTES + 1))
     expect(result.ok).toBe(false)
@@ -133,7 +133,7 @@ describe('createBlueprintDraftStore.updateFile — FE-K(edit) in-place single-fi
 
   it('rejects an edit to a path that is not a held file — held tree UNMUTATED', () => {
     const store = createBlueprintDraftStore()
-    store.set(CHART)
+    store.set(CHART, 'blueprint')
     const before = store.get()
     const result = store.updateFile('templates/secret.yaml', 'kind: Secret\n')
     expect(result.ok).toBe(false)
@@ -173,7 +173,7 @@ describe('opsCarryFileContentToken', () => {
 })
 
 describe('substituteFileContent — the publish-compile substitution', () => {
-  const held = { bytes: 0, files: CHART }
+  const held = { bytes: 0, files: CHART, kind: 'blueprint' as const }
 
   it('replaces each token with the held verbatim file (text mode) and only the token', () => {
     const result = substituteFileContent(publishOps, held)
@@ -238,7 +238,7 @@ describe('encodeUtf8Base64 — chunked, UTF-8 safe', () => {
 describe('addFile — the composer creating a file the draft does not hold', () => {
   const draft = () => {
     const store = createBlueprintDraftStore()
-    store.set({ 'Chart.yaml': 'name: x\n' })
+    store.set({ 'Chart.yaml': 'name: x\n' }, 'blueprint')
     return store
   }
 
@@ -296,14 +296,14 @@ describe('createBlueprintDraftStore — the change broadcast', () => {
 
   it('announces the whole tree after a set', () => {
     const { seen, store } = withListener()
-    store.set({ 'a.yaml': 'kind: Flex\n' })
+    store.set({ 'a.yaml': 'kind: Flex\n' }, 'blueprint')
 
     expect(seen).toEqual([{ 'a.yaml': 'kind: Flex\n' }])
   })
 
   it('announces the tree AS IT NOW IS after an edit, not the delta', () => {
     const { seen, store } = withListener()
-    store.set({ 'a.yaml': 'one\n', 'b.yaml': 'two\n' })
+    store.set({ 'a.yaml': 'one\n', 'b.yaml': 'two\n' }, 'blueprint')
     store.updateFile('a.yaml', 'edited\n')
 
     // The whole map: a subscriber re-reads rather than patching, so it cannot drift from the store.
@@ -312,7 +312,7 @@ describe('createBlueprintDraftStore — the change broadcast', () => {
 
   it('announces an add', () => {
     const { seen, store } = withListener()
-    store.set({ 'a.yaml': 'one\n' })
+    store.set({ 'a.yaml': 'one\n' }, 'blueprint')
     store.addFile('b.yaml', 'two\n')
 
     expect(seen[1]).toEqual({ 'a.yaml': 'one\n', 'b.yaml': 'two\n' })
@@ -320,7 +320,7 @@ describe('createBlueprintDraftStore — the change broadcast', () => {
 
   it('says NOTHING when a write is refused', () => {
     const { seen, store } = withListener()
-    store.set({ 'a.yaml': 'one\n' })
+    store.set({ 'a.yaml': 'one\n' }, 'blueprint')
     // Neither write can take: one path is not held, the other already is.
     store.updateFile('nope.yaml', 'x\n')
     store.addFile('a.yaml', 'x\n')
@@ -332,7 +332,7 @@ describe('createBlueprintDraftStore — the change broadcast', () => {
 
   it('announces the clear, so a surface stops showing a draft that is gone', () => {
     const { seen, store } = withListener()
-    store.set({ 'a.yaml': 'one\n' })
+    store.set({ 'a.yaml': 'one\n' }, 'blueprint')
     store.clear()
 
     expect(seen[1]).toBeNull()
@@ -341,6 +341,6 @@ describe('createBlueprintDraftStore — the change broadcast', () => {
   it('works with no listener at all — the store stays a plain data holder', () => {
     const store = createBlueprintDraftStore()
 
-    expect(store.set({ 'a.yaml': 'one\n' }).ok).toBe(true)
+    expect(store.set({ 'a.yaml': 'one\n' }, 'blueprint').ok).toBe(true)
   })
 })

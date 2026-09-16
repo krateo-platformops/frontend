@@ -74,7 +74,7 @@ export const runDraftPublish = async (
   const held = blueprintStore.get()
   const identity = heldDraftIdentity(held)
   // The BRANCH slug: a page derives it from its page-<slug> root; a blueprint reuses the identity.
-  const pageSlug = held && isPageDraft(held.files) ? pageRootSlug(held.files) : null
+  const pageSlug = held && isPageDraft(held) ? pageRootSlug(held.files) : null
   const slug = isPage ? pageSlug : identity
   const builder = isPage ? 'page' : 'blueprint'
   const bt = isPage ? builderTargets.page : builderTargets.blueprint
