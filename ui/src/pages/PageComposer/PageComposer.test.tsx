@@ -214,3 +214,68 @@ describe('PageComposer — structural edits from the tree', () => {
     expect(seen[0].content).toContain('second')
   })
 })
+
+describe('PageComposer — adding a layout container', () => {
+  const flex = (name: string, children: string[] = []) => [
+    'kind: Flex',
+    'apiVersion: widgets.templates.krateo.io/v1beta1',
+    `metadata:\n  name: ${name}`,
+    'spec:\n  widgetData:',
+    children.length ? `    items:\n${children.map((ref) => `      - resourceRefId: ${ref}`).join('\n')}` : '    items: []',
+    '  resourcesRefs:\n    items: []',
+  ].join('\n')
+
+  const capture = () => {
+    const adds: { path: string; content: string }[] = []
+    const edits: { path: string; content: string }[] = []
+    const onAdd = (event: Event) => { adds.push((event as CustomEvent<{ path: string; content: string }>).detail) }
+    const onEdit = (event: Event) => { edits.push((event as CustomEvent<{ path: string; content: string }>).detail) }
+    window.addEventListener('autopilotPreviewFileAdded', onAdd)
+    window.addEventListener('autopilotPreviewFileEdited', onEdit)
+    return {
+      adds,
+      edits,
+      stop: () => {
+        window.removeEventListener('autopilotPreviewFileAdded', onAdd)
+        window.removeEventListener('autopilotPreviewFileEdited', onEdit)
+      },
+    }
+  }
+
+  it('creates the container file AND places it — add before edit', () => {
+    const bus = capture()
+    mount()
+    emit({ files: [{ content: flex('page-x'), path: 'helm/portal/templates/flex.page-x.yaml' }], title: 'x' })
+
+    act(() => { screen.getByLabelText('Add inside page-x').click() })
+    act(() => { screen.getByText('Row').click() })
+    bus.stop()
+
+    // The add MUST precede the edit: the parent's new reference resolves to a file that has to
+    // exist, or the draft briefly points at nothing and the live render shows an empty slot.
+    expect(bus.adds).toHaveLength(1)
+    expect(bus.edits).toHaveLength(1)
+    expect(bus.adds[0].path).toBe('helm/portal/templates/row.page-x-row.yaml')
+    expect(bus.adds[0].content).toContain('kind: Row')
+    expect(bus.edits[0].path).toBe('helm/portal/templates/flex.page-x.yaml')
+    expect(bus.edits[0].content).toContain('page-x-row')
+  })
+
+  it('offers add on a container and not on a leaf', () => {
+    mount()
+    emit({
+      files: [
+        { content: flex('page-x', ['stat']), path: 'helm/portal/templates/flex.page-x.yaml' },
+        {
+          content: 'kind: Statistic\napiVersion: widgets.templates.krateo.io/v1beta1\nmetadata:\n  name: stat\nspec:\n  widgetData: {}\n',
+          path: 'helm/portal/templates/statistic.stat.yaml',
+        },
+      ],
+      title: 'x',
+    })
+
+    // A Statistic has no items; offering "add" there would author a CR the strict CRDs reject.
+    expect(screen.getByLabelText('Add inside page-x')).toBeTruthy()
+    expect(screen.queryByLabelText('Add inside stat')).toBeNull()
+  })
+})

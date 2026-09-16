@@ -234,3 +234,49 @@ describe('encodeUtf8Base64 — chunked, UTF-8 safe', () => {
     expect(new TextDecoder().decode(Uint8Array.from(atob(encodeUtf8Base64(big)), (ch) => ch.charCodeAt(0)))).toBe(big)
   })
 })
+
+describe('addFile — the composer creating a file the draft does not hold', () => {
+  const draft = () => {
+    const store = createBlueprintDraftStore()
+    store.set({ 'Chart.yaml': 'name: x\n' })
+    return store
+  }
+
+  it('adds a file the draft did not have', () => {
+    const store = draft()
+    const result = store.addFile('templates/row.top.yaml', 'kind: Row\n')
+
+    expect(result.ok).toBe(true)
+    expect(store.get()?.files['templates/row.top.yaml']).toBe('kind: Row\n')
+    expect(store.get()?.files['Chart.yaml']).toBe('name: x\n')
+  })
+
+  it('refuses a path that already exists rather than silently overwriting', () => {
+    // An existing path is an EDIT, and edits belong in updateFile where they get its checks.
+    // Overwriting here would make "add" a way around them.
+    const store = draft()
+    const result = store.addFile('Chart.yaml', 'name: clobbered\n')
+
+    expect(result.ok).toBe(false)
+    expect(store.get()?.files['Chart.yaml']).toBe('name: x\n')
+  })
+
+  it('refuses when no draft is held', () => {
+    expect(createBlueprintDraftStore().addFile('a.yaml', 'x').ok).toBe(false)
+  })
+
+  it('refuses an empty path', () => {
+    expect(draft().addFile('', 'x').ok).toBe(false)
+  })
+
+  it('leaves the held tree EXACTLY as it was when the add would exceed the cap', () => {
+    const store = draft()
+    const before = store.get()?.bytes
+
+    const result = store.addFile('huge.yaml', 'x'.repeat(600 * 1024))
+
+    expect(result.ok).toBe(false)
+    expect(store.get()?.bytes).toBe(before)
+    expect(store.get()?.files['huge.yaml']).toBeUndefined()
+  })
+})

@@ -38,7 +38,6 @@ import { isPageDraft, pagePublishFiles, pageRootSlug } from './pageDraft'
 import { buildPagePublishOps } from './pagePublish'
 import { PREVIEW_SELF_CORRECTION_NUDGE } from './previewBus'
 import { onRestDefEdit } from './previewEditBus'
-import { onFileEdit } from './previewFileEdit'
 import { buildKogPublishNudge, createPreviewGate, hydrateRestDefinitionOps } from './previewGate'
 import { AutopilotPreviewDrawer } from './previewSurface'
 import { compilePublishOps, heldDraftIdentity, recordPagePreview, type PublishCompileResult } from './publishCompile'
@@ -47,6 +46,7 @@ import type { ThreadSummary } from './sessionHistoryStore'
 import { a2aAuthHeader, createEchoTransport, createKagentTransport } from './transport'
 import type { AutopilotActionChip, AutopilotFrame, AutopilotMessage, AutopilotTransport, EvidenceEntry, PageContextEnvelope, TurnModality } from './types'
 import { buildContextDelta, useAutopilotContext } from './useAutopilotContext'
+import { useDraftFileBuses } from './useDraftFileBuses'
 import { autopilotSpeakBackStore } from './voice/speak/speakBackStore'
 import { stopVoice } from './voiceWiring'
 
@@ -816,17 +816,9 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // emits a clean edit anyway, so the held bytes are exactly the human-edited bytes.
   useEffect(() => onRestDefEdit(({ draft }) => previewGate.recordPreview(draft)), [previewGate])
 
-  // FE-K(edit), page/blueprint half: an accepted "Files"-tab per-file edit arrives on the file-edit bus.
-  // updateFile replaces that file's bytes in the held tree (deny-by-default: an over-cap / unknown-path
-  // edit is rejected and the held tree stays put); on success we re-arm the page/blueprint gate for the
-  // held draft's identity. The edited bytes then publish UNCHANGED via the $fileContent substitution —
-  // published == the human-edited bytes, never retyped by the model.
-  useEffect(() => onFileEdit(({ content, path }) => {
-    // updateDisplayedFile, not updateFile: the drawer shows a page at its repo DESTINATION while the
-    // draft holds it under a bare token, and updateFile matches on the held key — so the raw
-    // displayed path refuses every page edit, silently (a refused edit just leaves the bytes).
-    if (blueprintStore.updateDisplayedFile(path, content).ok) { blueprintGate.recordPreview(heldDraftIdentity(blueprintStore.get())) }
-  }), [blueprintGate, blueprintStore])
+  // Both held-draft write paths — the Files-tab edit and the composer's add — live in one hook.
+  // See useDraftFileBuses for why they are two buses and why `addFile` is separate from updateFile.
+  useDraftFileBuses(blueprintStore, blueprintGate, heldDraftIdentity)
 
   const toggle = useCallback(() => setOpen((prev) => !prev), [])
   const closeTour = useCallback(() => setTourOpen(false), [])

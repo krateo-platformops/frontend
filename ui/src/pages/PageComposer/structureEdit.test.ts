@@ -7,7 +7,7 @@
 import { load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
-import { moveChild, placeChild, removeChild } from './structureEdit'
+import { containerPath, moveChild, newContainerYaml, placeChild, removeChild } from './structureEdit'
 
 const parent = (children: string[] = []) => [
   'kind: Flex',
@@ -139,5 +139,50 @@ describe('moveChild', () => {
 
   it('refuses a child that is not placed', () => {
     expect(moveChild(parent(['a']), 'ghost', 'up').ok).toBe(false)
+  })
+})
+
+describe('newContainerYaml / containerPath', () => {
+  it('produces a container that parses and is empty', () => {
+    const doc = load(newContainerYaml('Row', 'fleet-top')) as {
+      kind: string
+      spec: { widgetData: { items: unknown[] }; resourcesRefs: { items: unknown[] } }
+    }
+
+    expect(doc.kind).toBe('Row')
+    expect(doc.spec.widgetData.items).toEqual([])
+    expect(doc.spec.resourcesRefs.items).toEqual([])
+  })
+
+  it('omits allowedResources rather than writing an empty one', () => {
+    // An empty allowedResources is a REAL value meaning "nothing may be placed here" — it would
+    // make the container refuse every child it is about to be given. Absent means unconstrained.
+    expect(newContainerYaml('Flex', 'x')).not.toContain('allowedResources')
+  })
+
+  it('does not guess layout properties the author has not chosen', () => {
+    const yaml = newContainerYaml('Row', 'x')
+
+    // gap/justify/vertical written now would look chosen when they were defaulted.
+    for (const guessed of ['gap:', 'justify:', 'vertical:']) {
+      expect(yaml).not.toContain(guessed)
+    }
+  })
+
+  it('names the file the way the chart does', () => {
+    expect(containerPath('Row', 'fleet-top', 'helm/portal/templates'))
+      .toBe('helm/portal/templates/row.fleet-top.yaml')
+  })
+
+  it('tolerates a directory given with a trailing slash', () => {
+    expect(containerPath('Card', 'x', 'helm/portal/templates/'))
+      .toBe('helm/portal/templates/card.x.yaml')
+  })
+
+  it('round-trips: a new container accepts a placed child', () => {
+    const container = newContainerYaml('Row', 'top')
+    const placed = placeChild(container, { name: 'stat', resource: 'statistics' })
+
+    expect(placed.ok).toBe(true)
   })
 })

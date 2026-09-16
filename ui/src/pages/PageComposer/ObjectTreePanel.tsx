@@ -12,17 +12,22 @@
  * lets a person rewrite any file's YAML — a structure kept alongside would be stale the moment they
  * did, in a way nothing would report.
  */
-import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined } from '@ant-design/icons'
-import { App, Badge, Button, Empty, Space, Tag, Tooltip, Tree, Typography } from 'antd'
+import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { App, Badge, Button, Dropdown, Empty, Space, Tag, Tooltip, Tree, Typography } from 'antd'
 import type { DataNode } from 'antd/es/tree'
 import { useMemo } from 'react'
 
+import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
 import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
 
 import { buildObjectTree, flattenTree } from './objectTree'
 import type { TreeNode } from './objectTree'
 import styles from './PageComposer.module.css'
-import { moveChild, removeChild } from './structureEdit'
+import { containerPath, LAYOUT_KINDS, moveChild, newContainerYaml, placeChild, removeChild } from './structureEdit'
+import type { LayoutKind } from './structureEdit'
+
+/** Where a new file is written when the caller does not say. Matches the portal chart's layout. */
+const DEFAULT_DIR = 'helm/portal/templates'
 
 /** Container kinds — the ones whose job is to hold other widgets. Worth a quieter label. */
 const CONTAINERS = new Set(['Flex', 'Row', 'Col', 'Tabs', 'Card', 'Layout'])
@@ -31,8 +36,9 @@ const toDataNode = (
   node: TreeNode,
   key: string,
   mutate: (node: TreeNode, op: 'up' | 'down' | 'remove') => void,
+  addLayout: (node: TreeNode, kind: LayoutKind) => void,
 ): DataNode => ({
-  children: node.children.map((child, index) => toDataNode(child, `${key}-${index}`, mutate)),
+  children: node.children.map((child, index) => toDataNode(child, `${key}-${index}`, mutate, addLayout)),
   key,
   title: (
     <span className={styles.node}>
@@ -52,6 +58,23 @@ const toDataNode = (
             <Tag>placed</Tag>
           </Tooltip>
         )}
+      {/* A container can take a child; a leaf cannot. Offering "add" on a Statistic would produce
+          a CR whose kind has no items, which the strict widget CRDs reject at apply. */}
+      {node.drafted && CONTAINERS.has(node.kind ?? '')
+        ? (
+          <Dropdown
+            menu={{
+              items: Object.keys(LAYOUT_KINDS).map((kind) => ({ key: kind, label: kind })),
+              onClick: ({ key }) => addLayout(node, key as LayoutKind),
+            }}
+            trigger={['click']}
+          >
+            <Tooltip title='Add a layout container inside this one'>
+              <Button aria-label={`Add inside ${node.name}`} icon={<PlusOutlined />} onClick={(event) => event.stopPropagation()} size='small' type='text' />
+            </Tooltip>
+          </Dropdown>
+        )
+        : null}
       {/* Only a node with a parent can move or be removed: a child is a REFERENCE held by its
           parent, so both operations rewrite the parent's file. A root is placed by nothing. */}
       {node.parentPath
@@ -73,7 +96,9 @@ const toDataNode = (
   ),
 })
 
-export const ObjectTreePanel = ({ files, onSelect }: {
+export const ObjectTreePanel = ({ directory, files, onSelect }: {
+  /** Repo directory new files are created under — where the chart keeps its widget templates. */
+  directory?: string
   files: Record<string, string>
   onSelect?: (path: string) => void
 }) => {
@@ -108,8 +133,46 @@ export const ObjectTreePanel = ({ files, onSelect }: {
     emitFileEdit({ content: result.content, path: node.parentPath })
   }
 
+  /**
+   * Insert an empty container inside `parent`: create its file, then place it.
+   *
+   * TWO EMISSIONS, IN THIS ORDER, and the order is the point. The add must land before the place,
+   * because the parent's new reference resolves to a file that has to exist — reversed, the draft
+   * briefly holds a page pointing at nothing, and the live render shows an empty slot for a widget
+   * nobody can find. Ordering them here rather than making a combined bus event keeps each bus
+   * doing one thing, and each is re-checked independently by the provider.
+   *
+   * Naming is derived, not asked for. A dialog per insert would make building a three-section page
+   * a five-prompt affair; the name is visible in the tree and editable in the Files tab.
+   */
+  const addLayout = (parent: TreeNode, kind: LayoutKind) => {
+    const parentYaml = parent.path ? files[parent.path] : undefined
+    if (!parent.path || parentYaml === undefined) {
+      message.error('that container is not part of the draft, so nothing can be added inside it')
+      return
+    }
+    const existing = new Set(Object.keys(files))
+    let name = `${parent.name}-${kind.toLowerCase()}`
+    let suffix = 2
+    while (existing.has(containerPath(kind, name, directory ?? DEFAULT_DIR))) {
+      name = `${parent.name}-${kind.toLowerCase()}-${suffix}`
+      suffix += 1
+    }
+    const path = containerPath(kind, name, directory ?? DEFAULT_DIR)
+
+    // Place FIRST in memory so a refusal costs nothing: if the parent will not take the child there
+    // is no orphan file to clean up, because nothing has been emitted yet.
+    const placed = placeChild(parentYaml, { name, resource: LAYOUT_KINDS[kind] })
+    if (!placed.ok) {
+      message.warning(placed.error)
+      return
+    }
+    emitFileAdd({ content: newContainerYaml(kind, name), path })
+    emitFileEdit({ content: placed.content, path: parent.path })
+  }
+
   const nodes = useMemo(
-    () => tree.map((node, index) => toDataNode(node, `${index}`, mutate)),
+    () => tree.map((node, index) => toDataNode(node, `${index}`, mutate, addLayout)),
     // `mutate` closes over `files` and is recreated each render; depending on it would defeat the
     // memo entirely. `tree` already changes whenever `files` does, which is the only time the
     // rendered nodes need rebuilding.

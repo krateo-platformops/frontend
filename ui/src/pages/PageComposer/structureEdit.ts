@@ -119,6 +119,43 @@ export const removeChild = (parentYaml: string, name: string): StructureResult =
   return { content: dump(parsed.doc, DUMP), ok: true }
 }
 
+/** The container kinds the composer can insert, with the CRD plural each publishes under. */
+export const LAYOUT_KINDS = {
+  Card: 'cards',
+  Col: 'cols',
+  Flex: 'flexes',
+  Row: 'rows',
+  Tabs: 'tabs',
+} as const
+
+export type LayoutKind = keyof typeof LAYOUT_KINDS
+
+/**
+ * The YAML for a new, empty container.
+ *
+ * Minimal on purpose: kind, name, empty items, empty refs. Everything else a container can carry —
+ * gap, justify, vertical, allowedResources — is a decision the author has not made yet, and
+ * guessing produces a file whose defaults look chosen. They can set them in the Files tab, or the
+ * live render shows them what the bare default looks like first.
+ *
+ * `allowedResources` is deliberately absent rather than empty: the widget CRDs are STRICT, and an
+ * empty list is a real value meaning "nothing may be placed here", which would make the container
+ * refuse every child it is about to be given.
+ */
+export const newContainerYaml = (kind: LayoutKind, name: string, namespace?: string): string => dump({
+  apiVersion: WIDGET_API_VERSION,
+  kind,
+  metadata: { name, namespace },
+  spec: { resourcesRefs: { items: [] }, widgetData: { items: [] } },
+}, DUMP)
+
+/**
+ * The repo path a container publishes under, matching the chart's own convention:
+ * `<lowercase kind>.<name>.yaml` under the portal templates directory.
+ */
+export const containerPath = (kind: LayoutKind, name: string, directory: string): string =>
+  `${directory.replace(/\/$/, '')}/${kind.toLowerCase()}.${name}.yaml`
+
 /**
  * Move a child one place earlier or later. Order in `items` IS the rendered order, so this is how
  * a person reorders a page without hand-editing YAML.

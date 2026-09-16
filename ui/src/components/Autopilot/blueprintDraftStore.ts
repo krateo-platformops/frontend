@@ -105,11 +105,48 @@ export interface BlueprintDraftStore {
    * key, and for a page that key is a bare identity token, never the routed path the user saw.
    */
   updateDisplayedFile: (displayedPath: string, content: string) => FileUpdateResult
+  /**
+   * ADD a file the draft does not hold yet.
+   *
+   * Deliberately separate from `updateFile` rather than relaxing it. `updateFile` refuses an
+   * unknown path — "only previewed files can be edited" — and that refusal is load-bearing: it is
+   * what stops an edit inventing a path the preview never validated and smuggling it into the
+   * publish set. Making it upsert would delete that guarantee for every existing caller in order to
+   * serve one new one.
+   *
+   * So this is the explicit, narrow counterpart: the composer creating a container or a widget it
+   * has just authored. It refuses a path that ALREADY exists (that is an edit, and `updateFile` is
+   * where edits belong, with its own checks) and it applies the same 512 KiB cap, leaving the held
+   * tree untouched when it would be exceeded.
+   */
+  addFile: (path: string, content: string) => FileUpdateResult
 }
 
 export const createBlueprintDraftStore = (): BlueprintDraftStore => {
   let held: BlueprintDraftHeld | null = null
   const store: BlueprintDraftStore = {
+    addFile: (path, content) => {
+      if (!held) {
+        return { bytes: 0, error: 'no draft is held — start or preview a page first', ok: false }
+      }
+      if (!path) {
+        return { bytes: held.bytes, error: 'a new file needs a path', ok: false }
+      }
+      if (path in held.files) {
+        // An existing path is an EDIT, and edits go through updateFile so they get its checks.
+        // Silently overwriting here would make "add" a way to bypass them.
+        return { bytes: held.bytes, error: `"${path}" is already in the draft — edit it instead`, ok: false }
+      }
+      const nextFiles = { ...held.files, [path]: content }
+      const bytes = measureTreeBytes(nextFiles)
+      if (bytes > BLUEPRINT_DRAFT_MAX_BYTES) {
+        const kib = Math.ceil(bytes / 1024)
+        // Same contract as updateFile: over-cap leaves the held tree EXACTLY as it was.
+        return { bytes: held.bytes, error: `adding this file brings the draft to ${kib} KiB — over the 512 KiB cap`, ok: false }
+      }
+      held = { bytes, files: nextFiles }
+      return { bytes, ok: true }
+    },
     clear: () => {
       held = null
     },
