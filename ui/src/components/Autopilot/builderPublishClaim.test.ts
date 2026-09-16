@@ -58,8 +58,18 @@ describe('buildBuilderPublishClaim', () => {
     })
 
     it('carries the template clone url when one is configured', () => {
-      expect(claimWith('https://github.com/krateo-blueprints/portal-builder.git').spec.source)
-        .toEqual({ url: 'https://github.com/krateo-blueprints/portal-builder.git' })
+      expect(claimWith('https://github.com/krateo-blueprints/portal-builder.git').spec.source?.url)
+        .toBe('https://github.com/krateo-blueprints/portal-builder.git')
+    })
+
+    it('names the ignore file EXPLICITLY — the provider default does not find it', () => {
+      // git-provider documents the default as "a file at /, the root of the repository", which reads
+      // like it locates a root .krateoignore unaided. It does not. Verified on a real publish: with
+      // the path unset, the template's ignore file was skipped entirely and its example chart was
+      // copied into the new repo — leaving TWO Chart.yaml files for a release workflow that packages
+      // every chart it finds, and an "Example" page in the sidebar of whoever installs the result.
+      expect(claimWith('https://github.com/krateo-blueprints/portal-builder.git').spec.source?.krateoIgnorePath)
+        .toBe('.krateoignore')
     })
 
     it.each([

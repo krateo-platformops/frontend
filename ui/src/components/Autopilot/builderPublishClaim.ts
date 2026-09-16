@@ -56,8 +56,14 @@ export interface BuilderPublishClaim {
      * Omitted entirely when no template is configured. That is not the same as an empty url: the
      * chart gates on a non-empty `source.url`, so omitting skips the seeding step, while an empty
      * string would render a `Repo` that clones nothing.
+     *
+     * `krateoIgnorePath` is sent EXPLICITLY. git-provider's documented default is to look for the
+     * ignore file "at `/`, the root of the repository", which reads like it finds a root
+     * `.krateoignore` on its own — it does not. Verified on a real publish: with the path unset the
+     * template's `.krateoignore` was ignored outright and its example chart was copied into the new
+     * repo, leaving TWO charts for a release workflow that packages every Chart.yaml it can find.
      */
-    source?: { url: string }
+    source?: { url: string; krateoIgnorePath: string }
   }
 }
 
@@ -79,6 +85,13 @@ const parseSlug = (slug: string | undefined): { namespace: string; repo: string 
   }
   return { namespace: parts.slice(0, -1).join('/'), repo: parts[parts.length - 1] }
 }
+
+/**
+ * Where the template keeps its ignore list. Sent on every seeded publish because git-provider does
+ * NOT pick up a root `.krateoignore` by itself, despite the default being documented as the repo
+ * root — a template without this copies wholesale, example chart included.
+ */
+const TEMPLATE_IGNORE_FILE = '.krateoignore'
 
 /** Base branch a builder branch is cut from — a neutral git default, not a repo source. */
 const DEFAULT_BASE = 'main'
@@ -132,7 +145,7 @@ export const buildBuilderPublishClaim = (args: {
       name,
       // Spread, so the key is ABSENT rather than present-and-undefined: the CRD is strict, and the
       // chart decides whether to render the Repo by testing the url for emptiness.
-      ...(args.sourceUrl ? { source: { url: args.sourceUrl } } : {}),
+      ...(args.sourceUrl ? { source: { krateoIgnorePath: TEMPLATE_IGNORE_FILE, url: args.sourceUrl } } : {}),
       target: { base: args.target.base, namespace: args.target.namespace, repo: args.target.repo },
     },
   }
