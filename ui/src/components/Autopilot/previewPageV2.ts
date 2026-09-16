@@ -10,8 +10,9 @@
  *      any failure → the v1 source drawer WITH the verdicts; garbage is never applied.
  *   2. REWRITE (A.2.2): namespace FORCED to the sandbox, preview labels stamped,
  *      in-set refs re-pointed (previewSandbox.rewriteDraftsForSandbox).
- *   3. SWEEP + APPLY (A.2.3): best-effort DELETE of the previous preview's drafts
- *      (latest wins, re-used names never 409), then ordered POST chunks (≤10 ops)
+ *   3. SWEEP + APPLY (A.2.3): best-effort DELETE of every name this apply is about to write
+ *      (latest wins, re-used names never 409 — including after a crash that left orphans under
+ *      those names), plus this tab's previous preview, then ordered POST chunks (≤10 ops)
  *      through the SAME runRestSet fabric — per-user identity, ONE AuditRecord per
  *      chunk, stop-on-error. The aggregated confirm is SKIPPED because every op is
  *      confined to the quarantined sandbox (verified per-op by the fabric itself —
@@ -177,7 +178,28 @@ export const applyPreviewPageV2 = async (
   if (!chunks.every((chunk) => isApplySetAllowed(chunk, deps.sandboxNamespace))) {
     return blockedChip('preview denied — drafts fall outside the sandbox write scope')
   }
-  await dispatchBestEffort(deps.session.take(), deps)
+  // THE SWEEP COVERS WHAT WE ARE ABOUT TO WRITE, not what this session happens to remember.
+  //
+  // The contract at the top of this file says "re-used names never 409" — and it was not true. The
+  // sweep used to be session.take() alone: the teardown ops recorded when THIS tab last previewed.
+  // A crashed or killed session never records them, so its drafts survive under deterministic names
+  // (page-<slug>, <name>-card...), the next preview POSTs the same names, the apiserver answers 409,
+  // and the drawer falls back to the source view — reported to the user as "Applying the drafts to
+  // the preview sandbox failed", or worse, mislabelled upstream as a validation problem. A 144-minute-old
+  // orphan from a killed recorder blocked every subsequent live preview during the V4 demo.
+  //
+  // Deriving the sweep from `targets` — the exact kinds and names this apply is about to create —
+  // makes re-use idempotent no matter who wrote them or whether anyone is left to remember. A
+  // crashed preview is therefore ADOPTED by the next one rather than blocking it: the drafts are
+  // state to resume, not garbage that happens to be in the way. Orphans of OTHER pages are left
+  // alone, because nothing about them is in the way.
+  //
+  // session.take() is still swept: it clears a previous preview of a DIFFERENT page in this tab,
+  // whose names this apply will not otherwise touch.
+  await dispatchBestEffort(
+    [...deps.session.take(), ...buildSandboxTeardownOps(targets, deps.sandboxNamespace)],
+    deps,
+  )
 
   const applied: DraftTarget[] = []
   let failure: string | null = null
