@@ -159,7 +159,10 @@ describe('previewBlueprint inline-draft mode (FE-B1)', () => {
     const payload = openedPayload()
     expect(payload.error).toContain('function "boom" not defined')
     expect(payload.formSchema).toBeUndefined()
-    expect(chip).toEqual({ label: 'preview pg-app (render failed)', readOnly: true, verb: 'previewBlueprint' })
+    // `previewFailed` is what stops the host arming the publish gate on a chart that does
+    // not render. Asserted here rather than only in the provider, because it is the chip's
+    // contract: the drawer showed this error all along and nothing acted on it.
+    expect(chip).toEqual({ label: 'preview pg-app (render failed)', previewFailed: true, readOnly: true, verb: 'previewBlueprint' })
   })
 
   it('remote-chart mode still works and now carries the RESPONSE valuesSchema as the form schema', async () => {

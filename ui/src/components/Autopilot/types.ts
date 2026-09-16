@@ -93,6 +93,14 @@ export interface AutopilotActionChip {
   /** Optional external link — renders the label as an anchor (e.g. the "Open change request"
    *  deep link after an SCM-agnostic publish, which the human opens in their own SCM). */
   url?: string
+  /**
+   * The preview ran but its subject did not survive it — a blueprint whose `helm template` failed.
+   *
+   * Structural rather than inferred from the label, because the host uses it to decide whether to
+   * ARM THE PUBLISH GATE, and a gate keyed on prose is a gate that opens when someone rewords a
+   * chip. Absent means "nothing went wrong", so every existing chip keeps its meaning.
+   */
+  previewFailed?: boolean
 }
 
 // ────────────────────────────────────────────────────────────────────────────

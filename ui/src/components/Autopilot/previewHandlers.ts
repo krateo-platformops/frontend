@@ -122,7 +122,14 @@ export const previewBlueprintSpec: VerbSpec = {
     const outcome = rendered.error
       ? 'render failed'
       : `${rendered.objects.length} object${rendered.objects.length === 1 ? '' : 's'}`
-    return { label: proposal.label ?? `preview ${name} (${outcome})`, readOnly: true, verb: 'previewBlueprint' }
+    return {
+      label: proposal.label ?? `preview ${name} (${outcome})`,
+      // Carried so the host does not arm the publish gate on a chart that failed to render. The
+      // drawer already SHOWS the error; nothing stopped the draft being held and published anyway.
+      ...(rendered.error ? { previewFailed: true } : {}),
+      readOnly: true,
+      verb: 'previewBlueprint',
+    }
   },
   argSchema: (proposal) => parseBlueprintPreviewArgs(proposal) !== null,
   name: 'previewBlueprint',

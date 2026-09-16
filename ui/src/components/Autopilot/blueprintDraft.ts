@@ -26,6 +26,10 @@ import { OAS_ATTACHMENT_MAX_BYTES, utf8ByteLength } from './oasAttachment'
 /** The draft file the lint and the form preview read. */
 export const VALUES_SCHEMA_PATH = 'values.schema.json'
 
+/** Required in every blueprint draft: it names the chart, and its ABSENCE is what `isPageDraft`
+ * keys on — so a blueprint without one is mistaken for a page rather than reported as broken. */
+export const CHART_YAML_PATH = 'Chart.yaml'
+
 /** Hard cap on the inline draft: 512 KiB of UTF-8 bytes (paths + contents) — the same
  * discipline as the OAS attachment, and well inside the render service's 2 MiB body cap. */
 export const RAW_TEMPLATES_MAX_BYTES = OAS_ATTACHMENT_MAX_BYTES
@@ -107,6 +111,26 @@ const NAME_MAP_KEYWORDS = new Set(['$defs', 'definitions', 'patternProperties', 
  * (`default` is checked, then skipped: keys inside a default value are not keywords). */
 const VALUE_KEYWORDS = new Set(['const', 'default', 'enum', 'examples'])
 
+/**
+ * Subschema combinators. VALID JSON Schema, and fatal to the generated CRD.
+ *
+ * core-provider copies `type` and `x-kubernetes-preserve-unknown-fields` into each branch, and
+ * Kubernetes forbids both inside a branch of a STRUCTURAL schema — so the apiserver rejects the
+ * generated CRD and the CompositionDefinition wedges. Observed on builder-publish 1.8.24, whose
+ * schema carried `anyOf: [{required:[files]},{required:[filesBundle]}]` to say "one or the other":
+ *
+ *   spec.validation.openAPIV3Schema.properties[spec].anyOf[0].type:
+ *     Forbidden: must be empty to be structural
+ *
+ * That chart sat Ready=False for as long as the pin named it, and — because the SERVED CRD stayed
+ * on the previous version — a field the new schema had added was silently pruned off every claim
+ * that sent it. Flagged here because the cost is invisible until a publish quietly commits nothing.
+ */
+const COMBINATOR_KEYWORDS = new Set(['allOf', 'anyOf', 'oneOf', 'not'])
+
+const combinatorProblem = (path: string, keyword: string): string =>
+  `[CRDGEN-COMBINATOR] ${path}: \`${keyword}\` is valid JSON Schema but breaks CRD generation — core-provider copies type/x-kubernetes-preserve-unknown-fields into each branch, which Kubernetes forbids in a structural schema, and the CompositionDefinition wedges Ready=False. Express the constraint in the chart templates (fail) instead; see builder-publish/_files.tpl.`
+
 const crdgenDefaultsProblem = (path: string, value: unknown): string => {
   const shape = Array.isArray(value) ? 'array' : 'object'
   return `[CRDGEN-DEFAULTS] ${path}: non-empty ${shape} default — crdgen emits a malformed +kubebuilder:default marker and the CompositionDefinition wedges Ready=False (krateo-platformops/core-provider#46). Move the structure into values.yaml; keep schema defaults scalar.`
@@ -126,6 +150,12 @@ const walkSchemaNode = (node: unknown, path: string, problems: string[]): void =
   }
   for (const [key, value] of Object.entries(record)) {
     const at = path ? `${path}.${key}` : key
+    if (COMBINATOR_KEYWORDS.has(key)) {
+      problems.push(combinatorProblem(at, key))
+      // Reported AND still walked. Skipping the branches looked tidier and silently dropped the
+      // nested-defaults coverage inside them — the branch contents do not disappear when the
+      // combinator is removed, they move, so their problems are still the author's to fix.
+    }
     if (VALUE_KEYWORDS.has(key)) {
       if (key === 'default' && isNonEmptyStructure(value)) {
         problems.push(crdgenDefaultsProblem(at, value))
@@ -175,8 +205,29 @@ export const lintBlueprintDraft = (rawTemplates: Record<string, string>): string
     const kib = Math.ceil(bytes / 1024)
     return [`the inline draft is ${kib} KiB — over the 512 KiB cap (same discipline as the OAS attachment). Trim the draft, or publish the chart and preview it by chart URL instead.`]
   }
+
+  const problems: string[] = []
+
+  // Chart.yaml is REQUIRED, and its absence used to fail in the least legible way available: it is
+  // the discriminator `isPageDraft` uses (`!('Chart.yaml' in files)`), so a blueprint without one
+  // was silently reclassified as a PAGE draft and the publish was refused on an identity mismatch
+  // — a message about page slugs, for a missing chart file.
+  if (rawTemplates[CHART_YAML_PATH] === undefined) {
+    problems.push(`${CHART_YAML_PATH} is missing — without it this is not a chart, and the publish gate reads the draft as a portal PAGE and refuses it for the wrong reason.`)
+  }
+
+  // values.schema.json is REQUIRED, and this is the expensive one to learn late. core-provider
+  // opens it to build the CRD and hard-errors when it is absent, so a draft without one publishes
+  // clean, merges, releases, and only then wedges the CompositionDefinition at Ready=False with
+  // "error getting spec schema" — several layers and one merge away from the cause.
   const schemaText = rawTemplates[VALUES_SCHEMA_PATH]
-  return schemaText === undefined ? [] : lintValuesSchemaDefaults(schemaText)
+  if (schemaText === undefined) {
+    problems.push(`${VALUES_SCHEMA_PATH} is missing — it IS the generated CRD's spec, so a chart without one can be published and can never be installed (core-provider fails with "error getting spec schema").`)
+  } else {
+    problems.push(...lintValuesSchemaDefaults(schemaText))
+  }
+
+  return problems
 }
 
 /** The draft chart's display name, from Chart.yaml's `name:` (fallback: 'draft chart'). */

@@ -126,7 +126,10 @@ describe('previewBlueprint', () => {
     const chip = await previewBlueprintSpec.apply(asProposal('previewBlueprint', { chart }), makeDeps('http://render.local'))
     expect(openPreviewMock).toHaveBeenCalledTimes(1)
     expect(openedPayload().error).toBe('template: vpc.yaml: required value missing')
-    expect(chip).toEqual({ label: 'preview aws-vpc (render failed)', readOnly: true, verb: 'previewBlueprint' })
+    // `previewFailed` is what stops the host arming the publish gate on a chart that does
+    // not render. Asserted here rather than only in the provider, because it is the chip's
+    // contract: the drawer showed this error all along and nothing acted on it.
+    expect(chip).toEqual({ label: 'preview aws-vpc (render failed)', previewFailed: true, readOnly: true, verb: 'previewBlueprint' })
   })
 
   it('honors the proposal label on the chip', async () => {
@@ -179,7 +182,10 @@ describe('previewBlueprint — server-side RESTAction transport (preferred)', ()
     vi.stubGlobal('fetch', raResponse({ error: 'chart: failed to pull oci://…:9.9.9: not found', objects: [] }))
     const chip = await previewBlueprintSpec.apply(asProposal('previewBlueprint', { chart }), makeRADeps())
     expect(openedPayload().error).toBe('chart: failed to pull oci://…:9.9.9: not found')
-    expect(chip).toEqual({ label: 'preview aws-vpc (render failed)', readOnly: true, verb: 'previewBlueprint' })
+    // `previewFailed` is what stops the host arming the publish gate on a chart that does
+    // not render. Asserted here rather than only in the provider, because it is the chip's
+    // contract: the drawer showed this error all along and nothing acted on it.
+    expect(chip).toEqual({ label: 'preview aws-vpc (render failed)', previewFailed: true, readOnly: true, verb: 'previewBlueprint' })
   })
 
   it('a non-2xx from snowplow (RA missing / RBAC) surfaces as content, never a throw', async () => {
