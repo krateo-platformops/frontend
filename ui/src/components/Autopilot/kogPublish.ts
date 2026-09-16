@@ -40,6 +40,14 @@ import { dump } from 'js-yaml'
 import type { ApplyResourceSetGvr, ApplyResourceSetOp } from './applyResourceSet'
 import { encodeUtf8Base64 } from './blueprintDraftStore'
 import { GITHUB_KOG_GROUP, GITHUB_KOG_VERSION } from './blueprintPublish'
+import {
+  KOG_RELEASE_NAMESPACE,
+  KOG_TEMPLATES_DIR,
+  kogChartYaml,
+  kogCompositionDefinition,
+  kogValuesSchema,
+  kogValuesYaml,
+} from './kogChart'
 import { KOG_MANAGED_BY_LABEL, parseOasPath } from './kogMapping'
 
 /**
@@ -160,17 +168,33 @@ const restDefinitionToCommit = (draft: KogPublishDraft, namespace: string): Reco
 /**
  * The controller (KOG) builder's committed file set for a held draft: the RestDefinition ALWAYS
  * (apis/<kind>/restdefinition.yaml), plus the OAS ConfigMap (configmaps/<kind>-oas.yaml) in the
- * paste case. `namespace` is the RUNTIME namespace stamped into the manifests (metadata.namespace /
- * the configmap:// oasPath), not the git target. Shared by the github-PR op path AND the
- * SCM-agnostic BuilderPublish claim path so both commit identical bytes.
+ * paste case. The runtime namespace is TEMPLATED (.Release.Namespace), not passed in: a chart that
+ * bakes the authoring namespace pins every installation of the controller to wherever the author
+ * happened to be working. Shared by the github-PR op path AND the SCM-agnostic BuilderPublish claim
+ * path so both commit identical bytes.
  */
-export const kogPublishFiles = (held: KogPublishDraft, namespace: string): { content: string; path: string }[] => {
+export const kogPublishFiles = (held: KogPublishDraft): { content: string; path: string }[] => {
   const { kind, oasDocument } = held
+  // A CONTROLLER IS ITS OWN CHART, in its own repository named for the kind — the same shape
+  // portal-builder and blueprint-builder already emit. It used to commit apis/<kind>/... into one
+  // shared registry repo whose root was a chart CDC rendered as a single composition; see
+  // kogChart.ts for why that was retired rather than repointed.
+  //
+  // `namespace` is IGNORED for the committed manifests on purpose. It is the authoring namespace,
+  // and baking it into a chart pins every installation of this controller to wherever the author
+  // happened to be working. The templates resolve .Release.Namespace instead, and the oasPath
+  // resolves with them so the merged manifest stays internally consistent.
   const files: { content: string; path: string }[] = [
-    { content: toYaml(restDefinitionToCommit(held, namespace)), path: `apis/${kind}/restdefinition.yaml` },
+    { content: kogChartYaml(kind), path: 'Chart.yaml' },
+    { content: kogValuesYaml(), path: 'values.yaml' },
+    { content: kogValuesSchema(kind), path: 'values.schema.json' },
+    { content: toYaml(restDefinitionToCommit(held, KOG_RELEASE_NAMESPACE)), path: `${KOG_TEMPLATES_DIR}/restdefinition.yaml` },
   ]
   if (typeof oasDocument === 'string') {
-    files.push({ content: toYaml(buildOasConfigMapManifest(namespace, kind, oasDocument)), path: `configmaps/${kogOasConfigMapName(kind)}.yaml` })
+    files.push({
+      content: toYaml(buildOasConfigMapManifest(KOG_RELEASE_NAMESPACE, kind, oasDocument)),
+      path: `${KOG_TEMPLATES_DIR}/configmap-oas.yaml`,
+    })
   }
   return files
 }
@@ -196,9 +220,14 @@ export const buildKogPublishAsPrOps = (
     spec,
   })
 
-  // The file set (RestDefinition ALWAYS; OAS ConfigMap only in the paste case) — shared with the
-  // SCM-agnostic claim path so both commit identical bytes.
-  const files = kogPublishFiles(held, namespace)
+  // The file set (the chart, plus the OAS ConfigMap only in the paste case) — shared with the
+  // SCM-agnostic claim path so both commit identical bytes, and carrying the SAME registration file
+  // that path appends. Two writers of one destination is exactly how the page preview came to
+  // promise a directory the publish had stopped using; they agree here by construction.
+  const files = [
+    ...kogPublishFiles(held),
+    ...(owner ? [{ content: kogCompositionDefinition(held.kind, owner), path: 'compositiondefinition.yaml' }] : []),
+  ]
 
   const ops: ApplyResourceSetOp[] = [
     {

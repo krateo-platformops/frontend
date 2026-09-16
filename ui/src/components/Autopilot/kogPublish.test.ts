@@ -14,6 +14,7 @@ import { describe, expect, it } from 'vitest'
 import { isApplySetAllowed } from './applyResourceSet'
 import {
   buildKogPublishAsPrOps,
+  kogPublishFiles,
   resolveKogPublishDraft,
 } from './kogPublish'
 
@@ -88,15 +89,21 @@ describe('buildKogPublishAsPrOps — URL case (RestDefinition only)', () => {
   const held = resolveKogPublishDraft(URL_DRAFT, null).held!
   const ops = buildKogPublishAsPrOps({}, held)
 
-  it('fans into gitref → ONE repocontents (restdefinition.yaml) → pullrequest, all POST github.krateo.io', () => {
-    expect(ops.map((op) => op.gvr.resource)).toEqual(['gitrefs', 'repocontents', 'pullrequests'])
+  it('fans into gitref → one repocontents PER CHART FILE → pullrequest, all POST github.krateo.io', () => {
+    // A controller is its own chart now, so the URL case commits four files, not one: Chart.yaml,
+    // values.yaml, values.schema.json and templates/restdefinition.yaml. Without Chart.yaml there is
+    // no chart; without values.schema.json core-provider cannot build the CRD and the
+    // CompositionDefinition wedges at Ready=False several layers from the cause.
+    expect(ops.map((op) => op.gvr.resource)).toEqual(['gitrefs', 'repocontents', 'repocontents', 'repocontents', 'repocontents', 'pullrequests'])
     expect(ops.every((op) => op.verb === 'POST')).toBe(true)
     expect(ops.every((op) => op.gvr.group === 'github.krateo.io' && op.gvr.version === 'v1alpha1')).toBe(true)
     expect(ops.every((op) => op.namespace === 'krateo-system')).toBe(true)
   })
 
   it('each op payload is a FULL CR (apiVersion + kind + metadata.name + spec)', () => {
-    expect(ops.map((op) => payloadOf(op).kind)).toEqual(['GitRef', 'RepoContent', 'PullRequest'])
+    expect(ops.map((op) => payloadOf(op).kind)).toEqual([
+      'GitRef', 'RepoContent', 'RepoContent', 'RepoContent', 'RepoContent', 'PullRequest',
+    ])
     for (const op of ops) {
       const pl = payloadOf(op)
       expect(pl.apiVersion).toBe('github.krateo.io/v1alpha1')
@@ -112,10 +119,12 @@ describe('buildKogPublishAsPrOps — URL case (RestDefinition only)', () => {
     expect(spec).not.toHaveProperty('sha')
   })
 
-  it('commits the RestDefinition YAML at apis/<kind>/restdefinition.yaml (URL oasPath unchanged)', () => {
-    const [, rc] = ops
+  it('commits the RestDefinition as a chart TEMPLATE (URL oasPath unchanged)', () => {
+    // Addressed by PATH, not position: a chart commits several files and the order of the
+    // repocontents ops is not the contract.
+    const rc = ops.find((op) => specOf(op).path === 'templates/restdefinition.yaml')!
     const spec = specOf(rc)
-    expect(spec.path).toBe('apis/mlflow-experiments/restdefinition.yaml')
+    expect(spec.path).toBe('templates/restdefinition.yaml')
     expect(spec.branch).toBe('builder/mlflow-experiments')
     const committed = load(decodeB64(spec.content as string)) as Record<string, unknown>
     expect(committed.kind).toBe('RestDefinition')
@@ -138,13 +147,16 @@ describe('buildKogPublishAsPrOps — paste case (RestDefinition + OAS ConfigMap 
   const ops = buildKogPublishAsPrOps({}, held)
 
   it('fans into gitref → TWO repocontents (restdefinition + oas configmap) → pullrequest', () => {
-    expect(ops.map((op) => op.gvr.resource)).toEqual(['gitrefs', 'repocontents', 'repocontents', 'pullrequests'])
+    expect(ops.map((op) => op.gvr.resource)).toEqual(['gitrefs', 'repocontents', 'repocontents', 'repocontents', 'repocontents', 'repocontents', 'pullrequests'])
     const paths = ops.filter((op) => op.gvr.resource === 'repocontents').map((op) => specOf(op).path)
-    expect(paths).toEqual(['apis/repo/restdefinition.yaml', 'configmaps/repo-oas.yaml'])
+    expect(paths.sort()).toEqual([
+      'Chart.yaml', 'templates/configmap-oas.yaml', 'templates/restdefinition.yaml',
+      'values.schema.json', 'values.yaml',
+    ])
   })
 
   it('embeds the OAS document VERBATIM in the committed ConfigMap manifest (held-in-portal guarantee)', () => {
-    const cmOp = ops.find((op) => specOf(op).path === 'configmaps/repo-oas.yaml')!
+    const cmOp = ops.find((op) => specOf(op).path === 'templates/configmap-oas.yaml')!
     const manifest = load(decodeB64(specOf(cmOp).content as string)) as Record<string, unknown>
     expect(manifest.kind).toBe('ConfigMap')
     expect((manifest.metadata as Record<string, unknown>).name).toBe('repo-oas')
@@ -153,10 +165,23 @@ describe('buildKogPublishAsPrOps — paste case (RestDefinition + OAS ConfigMap 
     expect((manifest.data as Record<string, unknown>)['openapi.yaml']).toBe(OAS_DOC)
   })
 
-  it('rewrites the committed RestDefinition oasPath to the git-shipped ConfigMap (internally consistent)', () => {
-    const rdOp = ops.find((op) => specOf(op).path === 'apis/repo/restdefinition.yaml')!
+  it('rewrites the committed oasPath to the git-shipped ConfigMap, in the SAME namespace it lands in', () => {
+    const rdOp = ops.find((op) => specOf(op).path === 'templates/restdefinition.yaml')!
+    const cmOp = ops.find((op) => specOf(op).path === 'templates/configmap-oas.yaml')!
     const committed = load(decodeB64(specOf(rdOp).content as string)) as Record<string, unknown>
-    expect((committed.spec as Record<string, unknown>).oasPath).toBe('configmap://krateo-system/repo-oas/openapi.yaml')
+    const cm = load(decodeB64(specOf(cmOp).content as string)) as Record<string, unknown>
+    const oasPath = String((committed.spec as Record<string, unknown>).oasPath)
+    const cmNs = String((cm.metadata as Record<string, unknown>).namespace)
+
+    // THE INVARIANT, not a literal. The RestDefinition resolves its document out of the ConfigMap
+    // the same chart ships, so the namespace in the oasPath and the namespace the ConfigMap is
+    // created in must be the same string — whatever that string is. Asserting the old baked
+    // 'krateo-system' would have passed while pinning every installation of this controller to the
+    // namespace its author happened to be working in.
+    expect(oasPath).toBe(`configmap://${cmNs}/repo-oas/openapi.yaml`)
+
+    // And that string is TEMPLATED, so the chart installs wherever its release lands.
+    expect(cmNs).toBe('{{ .Release.Namespace }}')
   })
 
   it('unique RepoContent metadata.names per file + passes the safety kernel', () => {
@@ -193,5 +218,48 @@ describe('buildKogPublishAsPrOps — repo coordinates', () => {
     expect(prSpec.title).toBe('t')
     expect(prSpec.body).toBe('b')
     expect(ops.every((op) => op.namespace === 'kr')).toBe(true)
+  })
+})
+
+describe('the registration file — what makes a published controller chart installable', () => {
+  const held = resolveKogPublishDraft(
+    { apiVersion: 'ogen.krateo.io/v1alpha1', kind: 'RestDefinition', metadata: { name: 'pet' }, spec: { oasPath: 'https://example.test/openapi.yaml' } },
+    null,
+  ).held!
+
+  it('commits compositiondefinition.yaml when the destination owner is known', () => {
+    // Without it the chart releases to OCI and nothing installs it: core-provider builds the CRD
+    // from values.schema.json and serves it, and only then can a claim create the RestDefinition
+    // that makes oasgen materialise the real kind. The chart alone is inert.
+    const ops = buildKogPublishAsPrOps({ owner: 'acme', repo: 'pet' }, held)
+    const paths = ops.filter((op) => op.gvr.resource === 'repocontents').map((op) => specOf(op).path)
+    expect(paths).toContain('compositiondefinition.yaml')
+
+    const cd = ops.find((op) => specOf(op).path === 'compositiondefinition.yaml')!
+    const body = decodeB64(specOf(cd).content as string)
+    // The OCI url is <owner>/charts/<kind> — the owner half is exactly why this file cannot be
+    // built into the held draft and has to wait for the confirmed destination.
+    expect(body).toContain('url: oci://ghcr.io/acme/charts/pet')
+    expect(body).toContain('version: CHART_VERSION')
+  })
+
+  it('OMITS it when no owner was confirmed, rather than guessing one', () => {
+    // #163: the frontend carries no hardcoded owner. An invented one here would publish a
+    // CompositionDefinition pointing at someone else's registry.
+    const ops = buildKogPublishAsPrOps({ repo: 'pet' }, held)
+    const paths = ops.filter((op) => op.gvr.resource === 'repocontents').map((op) => specOf(op).path)
+    expect(paths).not.toContain('compositiondefinition.yaml')
+  })
+
+  it('both writers commit the SAME set — the git-write path and the claim path cannot drift', () => {
+    // kogPublishFiles is the shared half; the registration file is appended identically by each.
+    // Two writers computing one destination independently is how the page preview came to promise a
+    // directory the publish had stopped using.
+    const gitWrite = buildKogPublishAsPrOps({ owner: 'acme', repo: 'pet' }, held)
+      .filter((op) => op.gvr.resource === 'repocontents')
+      .map((op) => specOf(op).path)
+      .sort()
+    const claimSide = [...kogPublishFiles(held).map((file) => file.path), 'compositiondefinition.yaml'].sort()
+    expect(gitWrite).toEqual(claimSide)
   })
 })
