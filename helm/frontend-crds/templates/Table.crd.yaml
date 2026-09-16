@@ -152,6 +152,7 @@ spec:
                     type: object
                   type: array
                 widgetData:
+                  description: The properties Table renders. Where Table wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
                     allowedResources:
                       description: the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.

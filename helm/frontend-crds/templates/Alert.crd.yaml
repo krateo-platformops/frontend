@@ -152,6 +152,7 @@ spec:
                     type: object
                   type: array
                 widgetData:
+                  description: The properties Alert renders. Where Alert wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
                     banner:
                       description: render as a full-width banner

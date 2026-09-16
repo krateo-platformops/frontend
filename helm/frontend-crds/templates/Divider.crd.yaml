@@ -152,6 +152,7 @@ spec:
                     type: object
                   type: array
                 widgetData:
+                  description: The properties Divider renders. Where Divider wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
                     dashed:
                       description: render a dashed line

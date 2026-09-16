@@ -152,6 +152,7 @@ spec:
                     type: object
                   type: array
                 widgetData:
+                  description: The properties Upload renders. Where Upload wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
                     accept:
                       description: 'the accepted file types (the input `accept` attribute, eg: `.json,.yaml`)'

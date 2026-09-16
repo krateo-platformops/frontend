@@ -152,6 +152,7 @@ spec:
                     type: object
                   type: array
                 widgetData:
+                  description: The properties DatePicker renders. Where DatePicker wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
                     defaultValue:
                       description: initial date as an ISO string (parsed via Day.js into Form.Item `initialValue`)

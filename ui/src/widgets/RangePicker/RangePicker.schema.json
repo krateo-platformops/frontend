@@ -2,7 +2,11 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "version": { "type": "string", "default": "v1beta1" },
+    "version": {
+      "type": "string",
+      "default": "v1beta1",
+      "description": "Widget API version."
+    },
     "kind": {
       "default": "RangePicker",
       "description": "RangePicker wraps Ant Design DatePicker.RangePicker as a standalone URL-bound filter (NOT a Form control). The selected [start, end] window is written to the `from`/`to` query params (epoch seconds) plus `range=custom`, so a data source can time-window server-side via request extras. Clearing removes those params.",
@@ -10,7 +14,9 @@
     },
     "spec": {
       "type": "object",
-      "required": ["widgetData"],
+      "required": [
+        "widgetData"
+      ],
       "additionalProperties": false,
       "properties": {
         "widgetData": {
@@ -19,34 +25,71 @@
           "properties": {
             "placeholder": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "antd RangePicker `placeholder` ([start, end])"
             },
-            "format": { "type": "string", "description": "antd RangePicker `format` (display format)" },
-            "size": { "type": "string", "enum": ["small", "middle", "large"], "description": "antd RangePicker `size`" },
-            "allowClear": { "type": "boolean", "description": "antd RangePicker `allowClear`" },
-            "disabled": { "type": "boolean", "description": "antd RangePicker `disabled`" }
-          }
+            "format": {
+              "type": "string",
+              "description": "antd RangePicker `format` (display format)"
+            },
+            "size": {
+              "type": "string",
+              "enum": [
+                "small",
+                "middle",
+                "large"
+              ],
+              "description": "antd RangePicker `size`"
+            },
+            "allowClear": {
+              "type": "boolean",
+              "description": "antd RangePicker `allowClear`"
+            },
+            "disabled": {
+              "type": "boolean",
+              "description": "antd RangePicker `disabled`"
+            }
+          },
+          "description": "The properties RangePicker renders. Where RangePicker wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them."
         },
         "apiRef": {
           "type": "object",
           "properties": {
-            "name": { "type": "string" },
-            "namespace": { "type": "string" }
+            "name": {
+              "type": "string",
+              "description": "Name of the RESTAction resource to call."
+            },
+            "namespace": {
+              "type": "string",
+              "description": "Namespace of the RESTAction resource."
+            }
           },
-          "required": ["name", "namespace"],
-          "additionalProperties": false
+          "required": [
+            "name",
+            "namespace"
+          ],
+          "additionalProperties": false,
+          "description": "Binds this widget to a RESTAction whose response feeds the widgetDataTemplate and resourcesRefsTemplate expressions. Omit it for a widget whose data is entirely static."
         },
         "widgetDataTemplate": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "forPath": { "type": "string" },
-              "expression": { "type": "string" }
+              "forPath": {
+                "type": "string",
+                "description": "Dot-path inside widgetData whose value this expression replaces, for example `items[0].title`."
+              },
+              "expression": {
+                "type": "string",
+                "description": "A jq expression evaluated server-side against the apiRef response. Its result replaces the value at forPath."
+              }
             },
             "additionalProperties": false
-          }
+          },
+          "description": "Per-field overrides evaluated against the apiRef response, so one authored widget can render live cluster data. Each entry replaces one value inside widgetData."
         },
         "resourcesRefs": {
           "type": "object",
@@ -56,62 +99,147 @@
               "items": {
                 "type": "object",
                 "properties": {
-                  "allowed": { "type": "boolean" },
-                  "apiVersion": { "type": "string" },
-                  "id": { "type": "string" },
-                  "name": { "type": "string" },
-                  "namespace": { "type": "string" },
-                  "payload": { "type": "object" },
-                  "resource": { "type": "string" },
+                  "allowed": {
+                    "type": "boolean",
+                    "description": "Set server-side: whether the caller may perform this verb. False entries are stripped before the widget renders and are never authored by hand."
+                  },
+                  "apiVersion": {
+                    "type": "string",
+                    "description": "Group and version of the referenced resource, for example `widgets.templates.krateo.io/v1beta1`."
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "The author-chosen handle this widget uses to reference the resource, matching a resourceRefId in widgetData."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the referenced resource."
+                  },
+                  "namespace": {
+                    "type": "string",
+                    "description": "Namespace of the referenced resource."
+                  },
+                  "payload": {
+                    "type": "object",
+                    "description": "Body sent with a mutating verb. Ignored for a GET."
+                  },
+                  "resource": {
+                    "type": "string",
+                    "description": "Plural resource name, for example `paragraphs`."
+                  },
                   "verb": {
                     "type": "string",
-                    "enum": ["POST", "PUT", "PATCH", "DELETE", "GET"]
+                    "enum": [
+                      "POST",
+                      "PUT",
+                      "PATCH",
+                      "DELETE",
+                      "GET"
+                    ],
+                    "description": "HTTP verb used to resolve the reference. GET for a read; a mutating verb makes this a write the widget can dispatch."
                   },
                   "slice": {
                     "type": "object",
                     "properties": {
-                      "offset": { "type": "integer" },
-                      "page": { "type": "integer" },
-                      "perPage": { "type": "integer" },
-                      "continue": { "type": "boolean" }
+                      "offset": {
+                        "type": "integer",
+                        "description": "Number of items to skip before the returned page."
+                      },
+                      "page": {
+                        "type": "integer",
+                        "description": "One-based page number to return."
+                      },
+                      "perPage": {
+                        "type": "integer",
+                        "description": "Maximum items in the returned page."
+                      },
+                      "continue": {
+                        "type": "boolean",
+                        "description": "Opaque continuation token from a previous response, used to fetch the next page."
+                      }
                     },
-                    "required": ["page", "perPage"]
+                    "required": [
+                      "page",
+                      "perPage"
+                    ],
+                    "description": "Server-side paging for this reference: the widget receives one page rather than the whole list."
                   }
                 },
-                "required": ["id"]
-              }
+                "required": [
+                  "id"
+                ]
+              },
+              "description": "One referenced resource. The widget addresses it by its `id`, never by name."
             }
           },
-          "required": ["items"]
+          "required": [
+            "items"
+          ],
+          "description": "The resources this widget references by id. Each entry is resolved server-side and its endpoint handed to the widget; entries the caller may not read are removed before the widget renders, so a denied reference reads as absence rather than as an error."
         },
         "resourcesRefsTemplate": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "iterator": { "type": "string" },
+              "iterator": {
+                "type": "string",
+                "description": "A jq expression selecting the array in the apiRef response to iterate over."
+              },
               "template": {
                 "type": "object",
                 "properties": {
-                  "apiVersion": { "type": "string" },
-                  "id": { "type": "string" },
-                  "name": { "type": "string" },
-                  "namespace": { "type": "string" },
-                  "payload": { "type": "object" },
-                  "resource": { "type": "string" },
+                  "apiVersion": {
+                    "type": "string",
+                    "description": "Group and version of the referenced resource, for example `widgets.templates.krateo.io/v1beta1`."
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "The author-chosen handle this widget uses to reference the resource, matching a resourceRefId in widgetData."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the referenced resource."
+                  },
+                  "namespace": {
+                    "type": "string",
+                    "description": "Namespace of the referenced resource."
+                  },
+                  "payload": {
+                    "type": "object",
+                    "description": "Body sent with a mutating verb. Ignored for a GET."
+                  },
+                  "resource": {
+                    "type": "string",
+                    "description": "Plural resource name, for example `paragraphs`."
+                  },
                   "verb": {
                     "type": "string",
-                    "enum": ["POST", "PUT", "PATCH", "DELETE", "GET"]
+                    "enum": [
+                      "POST",
+                      "PUT",
+                      "PATCH",
+                      "DELETE",
+                      "GET"
+                    ],
+                    "description": "HTTP verb used to resolve the reference. GET for a read; a mutating verb makes this a write the widget can dispatch."
                   }
                 },
-                "additionalProperties": false
+                "additionalProperties": false,
+                "description": "The resourcesRefs entry emitted for each iterated element; its fields may interpolate that element."
               }
             },
             "additionalProperties": false
-          }
+          },
+          "description": "Generates resourcesRefs entries from the apiRef response \u2014 one per element the iterator yields \u2014 so a widget can reference a list whose length it does not know when authored."
         }
-      }
+      },
+      "description": "The widget's contract: its own data, an optional binding to a RESTAction, the resources it references, and any templated overrides."
     }
   },
-  "required": ["kind", "spec", "version"]
+  "required": [
+    "kind",
+    "spec",
+    "version"
+  ]
 }

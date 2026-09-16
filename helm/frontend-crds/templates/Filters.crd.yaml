@@ -152,6 +152,7 @@ spec:
                     type: object
                   type: array
                 widgetData:
+                  description: The properties Filters renders. Where Filters wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
                     items:
                       description: resourceRefIds of form-control widgets (Input/Select/Switch/DatePicker/…) composed as filter fields. Each control's `name` is the dotted data path it filters; the match strategy is inferred from the value type.
