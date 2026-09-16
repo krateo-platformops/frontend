@@ -30,8 +30,8 @@ The first pass could only measure Autopilot's side. This one diffed it against *
 
 ### A1 — Every capability Autopilot can reach has a control a user can reach without it — and the agent presses that control.
 
-**Status:** ~~breached — **on both halves**~~ → **capability half CLOSED 2026-09-16**; the
-structural half stands (see below).
+**Status:** ~~breached — **on both halves**~~ → **capability half CLOSED 2026-09-16**
+(capability and discoverability both); the structural half stands (see below).
 
 > **Two records from 2026-09-15 disagreed, and this resolves them.** One marked the capability half
 > closed because all three builder pages carry an authoring control; the other marked it open
@@ -47,11 +47,16 @@ structural half stands (see below).
 > as a page, seeds its own draft, and carries a Publish button that runs the same `runDraftPublish`
 > the agent's verb runs — same destination form, same gate, same blast-radius confirm.
 >
-> **The closure gate, answered honestly.** *Can a user who never opens the rail author and publish
-> a page?* In capability, yes. In practice, **not yet discoverable**: nothing links to
-> `/portal-builder/compose` — not the sidebar, not the `/portal-builder` page — so it is reachable
-> only by typing the URL. That is a card in the portal chart, not a frontend change, and until it
-> lands the honest answer is "a user who knows the URL".
+> **The closure gate, answered.** *Can a user who never opens the rail author and publish a page?*
+> **Yes** — `/portal-builder` carries a "Compose a page in the UI" card that opens the composer
+> (portal#216), placed above the two forms because it is the only one of the three that can build a
+> page with nesting, layout and a table bound to live data.
+>
+> This was open for one day longer than the capability was, and the reason is worth keeping: the
+> composer is a frontend ROUTE, not a widget CR, so nothing in the chart referenced it and nothing
+> in the sidebar reached it. It worked and no one could find it. A capability nobody can find is not
+> a capability, which is the distinction this rule exists to hold — and the one a status marker is
+> most likely to paper over.
 
 > ### ⚠ The measurement this section was built on was wrong. Corrected 2026-09-15.
 >
