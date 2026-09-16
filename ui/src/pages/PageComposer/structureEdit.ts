@@ -56,10 +56,19 @@ const WIDGET_API_VERSION = 'widgets.templates.krateo.io/v1beta1'
 // and a folded jq filter is both unreadable in the Files tab and a diff that looks like a rewrite.
 const DUMP = { lineWidth: -1, noRefs: true } as const
 
+interface RefEntry {
+  id?: string
+  name?: string
+  namespace?: string
+  resource?: string
+  apiVersion?: string
+  verb?: string
+}
+
 interface Doc {
   spec?: {
     widgetData?: { items?: { resourceRefId?: string }[]; allowedResources?: string[] }
-    resourcesRefs?: { items?: { id?: string }[] }
+    resourcesRefs?: { items?: RefEntry[] }
   }
 }
 
@@ -117,7 +126,7 @@ export const placeChild = (parentYaml: string, child: PlaceChild): StructureResu
       namespace: child.namespace,
       resource: child.resource,
       verb: 'GET',
-    } as { id?: string })
+    })
   }
   return { content: dump(parsed.doc, DUMP), ok: true }
 }
@@ -249,4 +258,81 @@ export const moveChild = (parentYaml: string, child: ChildAt, direction: 'up' | 
   const [moved] = items.splice(index, 1)
   items.splice(target, 0, moved)
   return { content: dump(parsed.doc, DUMP), ok: true }
+}
+
+/**
+ * Wrap an existing child in a NEW container, in place — the operation that actually creates nesting.
+ *
+ * WHY THIS AND NOT "INSERT AN EMPTY ROW". Inserting an empty container beside a child gives you a
+ * container and a child that are siblings; arranging them then means a move for every object you
+ * wanted inside. The design names the real operation — *"Layout inserts a Row, Col, Tabs or Card
+ * and RE-PARENTS the selection into it — this is what unlocks nesting"* — and re-parenting is what
+ * this does: the child leaves its parent's items, the new container takes its exact slot, and the
+ * child becomes the container's only member.
+ *
+ * TWO DOCUMENTS COME BACK, and both must be written for either to be valid. The parent now
+ * references a container that has to exist, and the container references a child it has to
+ * resolve. The caller emits the container FIRST — same ordering rule as every other add, for the
+ * same reason: a draft that briefly points at nothing renders an empty slot.
+ *
+ * THE CHILD'S REF ENTRY MOVES WITH IT. Its resource plural, namespace and apiVersion are read off
+ * the parent's existing entry rather than re-derived, because those are the only record of where
+ * the child actually lives — re-deriving them is how a placed EXISTING widget (which may live in
+ * another namespace entirely) silently stops resolving.
+ */
+export const wrapChild = (
+  parentYaml: string,
+  child: ChildAt,
+  wrapper: { kind: LayoutKind; name: string; namespace: string },
+): { ok: true; parent: string; container: string } | { ok: false; error: string } => {
+  const parsed = parse(parentYaml)
+  if ('error' in parsed) {
+    return { error: parsed.error, ok: false }
+  }
+  const { allowed, items, refs } = slots(parsed.doc)
+  const stale = at(items, child)
+  if (stale) {
+    return { error: stale, ok: false }
+  }
+  const entry = refs.find((ref) => ref.id === child.refId)
+  if (!entry?.name || !entry.resource) {
+    // Without the resolved name and plural there is nothing to place in the container, and
+    // inventing either would produce a container referencing a widget that does not resolve.
+    return { error: `"${child.refId}" has no resourcesRefs entry to move`, ok: false }
+  }
+
+  // The container, holding the child. Built through placeChild so the three places a child lives
+  // are written by the same code here as everywhere else.
+  const seeded = placeChild(newContainerYaml(wrapper.kind, wrapper.name, wrapper.namespace), {
+    apiVersion: entry.apiVersion,
+    name: entry.name,
+    namespace: entry.namespace ?? wrapper.namespace,
+    resource: entry.resource,
+  })
+  if (!seeded.ok) {
+    return { error: seeded.error, ok: false }
+  }
+
+  // The parent: the container takes the child's EXACT slot, so the page's reading order survives.
+  items[child.index] = { resourceRefId: wrapper.name }
+  if (!allowed.includes(LAYOUT_KINDS[wrapper.kind])) {
+    allowed.push(LAYOUT_KINDS[wrapper.kind])
+  }
+  if (!refs.some((ref) => ref.id === wrapper.name)) {
+    refs.push({
+      apiVersion: WIDGET_API_VERSION,
+      id: wrapper.name,
+      name: wrapper.name,
+      namespace: wrapper.namespace,
+      resource: LAYOUT_KINDS[wrapper.kind],
+      verb: 'GET',
+    })
+  }
+  // The child's entry goes only if nothing in THIS parent still references it — a widget placed
+  // twice and wrapped once keeps resolving for the placement that stayed put.
+  if (parsed.doc.spec?.resourcesRefs && !items.some((item) => item.resourceRefId === child.refId)) {
+    parsed.doc.spec.resourcesRefs.items = refs.filter((ref) => ref.id !== child.refId)
+  }
+
+  return { container: seeded.content, ok: true, parent: dump(parsed.doc, DUMP) }
 }

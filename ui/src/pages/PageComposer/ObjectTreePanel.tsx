@@ -12,7 +12,7 @@
  * lets a person rewrite any file's YAML — a structure kept alongside would be stale the moment they
  * did, in a way nothing would report.
  */
-import { ApiOutlined, ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { ApiOutlined, ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, GroupOutlined, PlusOutlined } from '@ant-design/icons'
 import { App, Badge, Button, Dropdown, Empty, Space, Tag, Tooltip, Tree, Typography } from 'antd'
 import type { DataNode } from 'antd/es/tree'
 import { useMemo, useState } from 'react'
@@ -25,7 +25,7 @@ import type { BindingResult } from './generateBinding'
 import { buildObjectTree, draftNamespace, flattenTree } from './objectTree'
 import type { TreeNode } from './objectTree'
 import styles from './PageComposer.module.css'
-import { containerPath, LAYOUT_KINDS, moveChild, newContainerYaml, placeChild, removeChild } from './structureEdit'
+import { containerPath, LAYOUT_KINDS, moveChild, newContainerYaml, placeChild, removeChild, wrapChild } from './structureEdit'
 import type { LayoutKind } from './structureEdit'
 
 /**
@@ -44,8 +44,9 @@ const toDataNode = (
   mutate: (node: TreeNode, op: 'up' | 'down' | 'remove') => void,
   addLayout: (node: TreeNode, kind: LayoutKind) => void,
   bindInto: (node: TreeNode) => void,
+  wrapIn: (node: TreeNode, kind: LayoutKind) => void,
 ): DataNode => ({
-  children: node.children.map((child, index) => toDataNode(child, `${key}-${index}`, mutate, addLayout, bindInto)),
+  children: node.children.map((child, index) => toDataNode(child, `${key}-${index}`, mutate, addLayout, bindInto, wrapIn)),
   key,
   title: (
     <span className={styles.node}>
@@ -94,6 +95,20 @@ const toDataNode = (
       {node.parentPath
         ? (
           <Space className={styles.nodeActions} size={0}>
+            {/* Wrap: the operation that actually creates nesting. Inserting an empty container
+                beside this node would leave the two as siblings and every object you wanted
+                inside as a separate move. */}
+            <Dropdown
+              menu={{
+                items: Object.keys(LAYOUT_KINDS).map((kind) => ({ key: kind, label: `Wrap in ${kind}` })),
+                onClick: ({ key: kind }) => wrapIn(node, kind as LayoutKind),
+              }}
+              trigger={['click']}
+            >
+              <Tooltip title='Put this inside a new layout container'>
+                <Button aria-label={`Wrap ${node.name}`} icon={<GroupOutlined />} onClick={(event) => event.stopPropagation()} size='small' type='text' />
+              </Tooltip>
+            </Dropdown>
             <Tooltip title='Move earlier'>
               <Button aria-label={`Move ${node.name} up`} icon={<ArrowUpOutlined />} onClick={(event) => { event.stopPropagation(); mutate(node, 'up') }} size='small' type='text' />
             </Tooltip>
@@ -205,8 +220,42 @@ export const ObjectTreePanel = ({ files, onSelect }: {
     emitFileEdit({ content: placed.content, path: parent.path })
   }
 
+  /**
+   * Wrap this node in a new container — re-parenting, not insertion.
+   *
+   * Two emissions, container BEFORE parent, for the same reason every other add is ordered that
+   * way: the parent's new reference must resolve to a file that already exists. `wrapChild`
+   * computes both documents from the parent's CURRENT bytes, so a refusal costs nothing — neither
+   * has been emitted yet.
+   */
+  const wrapIn = (node: TreeNode, kind: LayoutKind) => {
+    const parentYaml = node.parentPath ? files[node.parentPath] : undefined
+    if (!node.parentPath || parentYaml === undefined || !node.refId || node.position === null) {
+      message.error('that object has no parent to rewrite')
+      return
+    }
+    if (!namespace) {
+      message.error('this draft declares no namespace, so a new container cannot be created in one')
+      return
+    }
+    const existing = new Set(Object.keys(files))
+    let name = `${node.name}-${kind.toLowerCase()}`
+    let suffix = 2
+    while (existing.has(containerPath(kind, name))) {
+      name = `${node.name}-${kind.toLowerCase()}-${suffix}`
+      suffix += 1
+    }
+    const result = wrapChild(parentYaml, { index: node.position, refId: node.refId }, { kind, name, namespace })
+    if (!result.ok) {
+      message.warning(result.error)
+      return
+    }
+    emitFileAdd({ content: result.container, path: containerPath(kind, name) })
+    emitFileEdit({ content: result.parent, path: node.parentPath })
+  }
+
   const nodes = useMemo(
-    () => tree.map((node, index) => toDataNode(node, `${index}`, mutate, addLayout, setBindTarget)),
+    () => tree.map((node, index) => toDataNode(node, `${index}`, mutate, addLayout, setBindTarget, wrapIn)),
     // `mutate` closes over `files` and is recreated each render; depending on it would defeat the
     // memo entirely. `tree` already changes whenever `files` does, which is the only time the
     // rendered nodes need rebuilding.

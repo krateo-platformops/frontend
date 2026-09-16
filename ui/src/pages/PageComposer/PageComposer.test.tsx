@@ -419,6 +419,39 @@ describe('PageComposer — adding a layout container', () => {
     expect(bus.log[1].content).toContain('page-x-row')
   })
 
+  it('wraps a child in a new container — re-parenting, not a sibling insert', () => {
+    const bus = capture()
+    mount()
+    emit({
+      files: [{ content: widgetCr('Flex', 'page-x', ['stat']), path: 'flex.page-x.yaml' }],
+      title: 'x',
+    })
+
+    act(() => { screen.getByLabelText('Wrap stat').click() })
+    act(() => { screen.getByText('Wrap in Row').click() })
+    bus.stop()
+
+    // Container first, then the parent that references it — the same ordering rule as every add.
+    expect(bus.log.map((entry) => entry.op)).toEqual(['add', 'edit'])
+    expect(bus.log[0].path).toBe('row.stat-row.yaml')
+    // The child is INSIDE the new container...
+    expect(bus.log[0].content).toContain('resourceRefId: stat')
+    // ...and the parent now references the container in its place, not the child.
+    expect(bus.log[1].content).toContain('resourceRefId: stat-row')
+    expect(bus.log[1].content).not.toContain('resourceRefId: stat\n')
+  })
+
+  it('does not offer wrap on a root, which no parent holds', () => {
+    mount()
+    emit({
+      files: [{ content: widgetCr('Flex', 'page-x', ['stat']), path: 'flex.page-x.yaml' }],
+      title: 'x',
+    })
+
+    expect(screen.getByLabelText('Wrap stat')).toBeTruthy()
+    expect(screen.queryByLabelText('Wrap page-x')).toBeNull()
+  })
+
   it('does not offer add inside a Layout, whose CRD has no items to add to', () => {
     mount()
     emit({
