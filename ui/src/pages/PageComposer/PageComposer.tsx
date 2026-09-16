@@ -31,11 +31,22 @@ import { useEffect, useState } from 'react'
 import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { claimPreviewSurface, onDraftChanged, requestDraftReplay } from '../../components/Autopilot/previewDraftChanged'
+import { emitDraftStart } from '../../components/Autopilot/previewDraftStart'
 import { PreviewContent } from '../../components/Autopilot/previewSurface'
 import type { RestDefVerdicts } from '../../components/Autopilot/previewSurface'
 
 import ObjectTreePanel from './ObjectTreePanel'
 import styles from './PageComposer.module.css'
+import StartDraftModal from './StartDraftModal'
+
+/**
+ * Where a newly started page is created.
+ *
+ * The portal's own release namespace is the honest answer and the frontend does not know it, so
+ * this matches `PORTAL_CHART_REPO_DEFAULTS` — the same default every other builder path assumes.
+ * It is visible and editable in the Files tab before anything is published, which is the backstop.
+ */
+const NEW_DRAFT_NAMESPACE = 'krateo-system'
 
 const PageComposer = () => {
   const [payload, setPayload] = useState<AutopilotPreviewPayload | null>(null)
@@ -53,6 +64,7 @@ const PageComposer = () => {
    * the routed path is a path that gets routed twice.
    */
   const [files, setFiles] = useState<Record<string, string>>({})
+  const [starting, setStarting] = useState(false)
   // Re-validated verdicts after an applied edit, so the Alert blocks reflect the latest draft
   // rather than the one that was first handed over. Same contract the drawer keeps.
   const [editVerdicts, setEditVerdicts] = useState<RestDefVerdicts | null>(null)
@@ -100,6 +112,18 @@ const PageComposer = () => {
 
   return (
     <div className={styles.page}>
+      {/* NEW_DRAFT_NAMESPACE, not a namespace read from the draft: there IS no draft yet, which is
+          the whole point of this control. It matches what every Autopilot-published page already
+          carries, so starting one here and asking the agent for one produce the same bytes. */}
+      <StartDraftModal
+        namespace={NEW_DRAFT_NAMESPACE}
+        onCancel={() => setStarting(false)}
+        onStart={(result) => {
+          setStarting(false)
+          emitDraftStart({ title: 'Page draft', widgets: result.widgets })
+        }}
+        open={starting}
+      />
       <header className={styles.head}>
         <Typography.Title level={2} style={{ margin: 0 }}>Page composer</Typography.Title>
         <Typography.Paragraph style={{ margin: 0 }} type='secondary'>
@@ -147,9 +171,10 @@ const PageComposer = () => {
             }
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           >
-            <Button disabled type='primary'>Start a page</Button>
+            <Button onClick={() => setStarting(true)} type='primary'>Start a page</Button>
             <Typography.Paragraph className={styles.hint} type='secondary'>
-              Start-a-page lands next: it seeds an empty draft with a root Flex and a page header.
+              Or ask Autopilot — either way the draft lands here and nothing is published until
+              you submit the change request yourself.
             </Typography.Paragraph>
           </Empty>
         )}

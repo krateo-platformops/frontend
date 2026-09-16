@@ -14,6 +14,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { emitDraftChanged, previewSurfaceClaimed } from '../../components/Autopilot/previewDraftChanged'
+import { AUTOPILOT_DRAFT_START_EVENT } from '../../components/Autopilot/previewDraftStart'
+import type { DraftStartDetail } from '../../components/Autopilot/previewDraftStart'
 import { ThemeModeProvider } from '../../context/ThemeModeContext'
 
 import PageComposer from './PageComposer'
@@ -161,6 +163,60 @@ describe('PageComposer — the preview surface, outside the rail', () => {
     // current one — the under-reporting shape that made the Autopilot review mark wrong.
     expect(screen.queryByText('first draft was broken')).toBeNull()
     expect(screen.getByText('second draft')).toBeTruthy()
+  })
+})
+
+describe('PageComposer — a person starts the draft', () => {
+  it('offers Start a page rather than only waiting for the agent', () => {
+    mount()
+
+    // The button shipped DISABLED, with a note saying start-a-page landed next. Until it did, the
+    // surface built to let a human author a page could only ever receive Autopilot's — which
+    // inverts the parity rule it was built to satisfy.
+    const button = screen.getByText('Start a page').closest('button')
+    expect(button).toBeTruthy()
+    expect(button?.disabled).toBe(false)
+  })
+
+  it('emits the seed on the start bus, root first', () => {
+    const seen: DraftStartDetail[] = []
+    const listener = (event: Event) => { seen.push((event as CustomEvent<DraftStartDetail>).detail) }
+    window.addEventListener(AUTOPILOT_DRAFT_START_EVENT, listener)
+
+    mount()
+    act(() => { screen.getByText('Start a page').click() })
+    act(() => {
+      fireEvent.change(screen.getByPlaceholderText('fleet-health'), { target: { value: 'fleet-health' } })
+    })
+    act(() => { screen.getByText('Start').click() })
+    window.removeEventListener(AUTOPILOT_DRAFT_START_EVENT, listener)
+
+    // Raw CRs, not YAML: the provider routes them through `recordPagePreview`, the SAME entry an
+    // agent-proposed page takes, so the two are indistinguishable downstream.
+    expect(seen).toHaveLength(1)
+    const [root, header] = seen[0].widgets as { kind: string; metadata: { name: string } }[]
+    expect(root.kind).toBe('Flex')
+    expect(root.metadata.name).toBe('page-fleet-health')
+    expect(header.kind).toBe('PageHeader')
+  })
+
+  it('refuses a bad slug in the form rather than seeding an unpublishable draft', () => {
+    const seen: unknown[] = []
+    const listener = (event: Event) => { seen.push(event) }
+    window.addEventListener(AUTOPILOT_DRAFT_START_EVENT, listener)
+
+    mount()
+    act(() => { screen.getByText('Start a page').click() })
+    act(() => {
+      fireEvent.change(screen.getByPlaceholderText('fleet-health'), { target: { value: 'Fleet Health' } })
+    })
+    act(() => { screen.getByText('Start').click() })
+    window.removeEventListener(AUTOPILOT_DRAFT_START_EVENT, listener)
+
+    expect(seen).toHaveLength(0)
+    // Scoped to the Alert: the field's own help text also says "lower-case", and matching that
+    // would pass whether or not the form actually refused anything.
+    expect(screen.getByText(/the slug must be lower-case/i)).toBeTruthy()
   })
 })
 

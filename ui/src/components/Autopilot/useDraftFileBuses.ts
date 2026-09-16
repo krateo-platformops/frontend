@@ -23,13 +23,20 @@
 import { useEffect } from 'react'
 
 import type { BlueprintDraftStore } from './blueprintDraftStore'
+import { buildPagePreviewPayload } from './previewBridge'
+import { openAutopilotPreview } from './previewBus'
 import { emitDraftChanged, onDraftReplayRequest } from './previewDraftChanged'
+import { onDraftStart } from './previewDraftStart'
 import { onFileAdd } from './previewFileAdd'
 import { onFileEdit } from './previewFileEdit'
+import { recordPagePreview } from './publishCompile'
 
 /** The slice of the preview gate this hook needs — narrowed so tests need not build a whole gate. */
 interface PreviewGateLike {
-  recordPreview: (identity: string | null) => void
+  // Matches BlueprintGate exactly, `undefined` included. A narrower parameter type is NOT a
+  // narrower function: one accepting only `string | null` cannot stand in where the real gate is
+  // expected, which is how this drifted into rejecting the very gate it describes.
+  recordPreview: (identity: string | null | undefined) => void
 }
 
 export const useDraftFileBuses = (
@@ -61,4 +68,21 @@ export const useDraftFileBuses = (
   useEffect(() => onDraftReplayRequest(() => {
     emitDraftChanged({ files: store.get()?.files ?? {} })
   }), [store])
+
+  // START: a person creating a draft, rather than an agent proposing one.
+  //
+  // Through `recordPagePreview` — the SAME entry point a proposed page takes — so the two are
+  // indistinguishable downstream and the publish rules cannot come to disagree about which is
+  // which. It serializes the CRs into the held map and arms the gate; the preview event then makes
+  // every surface show it exactly as it shows a proposal.
+  //
+  // REFUSED while a draft is held. Seeding over one would discard unpublished work with no way
+  // back, and the surfaces already offer a close that tears the current draft down deliberately.
+  useEffect(() => onDraftStart(({ title, widgets }) => {
+    if (store.get()) {
+      return
+    }
+    recordPagePreview(widgets, undefined, store, gate)
+    openAutopilotPreview({ ...buildPagePreviewPayload(widgets), caption: undefined, title })
+  }), [gate, store])
 }
