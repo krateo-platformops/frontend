@@ -1,5 +1,5 @@
 /**
- * Autopilot SESSION-HISTORY persistence (Vincenzo item P).
+ * Autopilot SESSION-HISTORY persistence (item P).
  *
  * WHY THIS EXISTS: the conversation store (conversationStore.ts) is a module-level
  * singleton — it survives a provider REMOUNT, but a true page RELOAD wipes it (module

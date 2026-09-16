@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Autopilot rail — session-history UI (Vincenzo item P, split-view iteration):
+ * Autopilot rail — session-history UI (item P, split-view iteration):
  *   - the history toggle (provider-owned `historyOpen`/`toggleHistory`) shows a persistent
  *     column listing PAST (archived) threads (title + relative time), docked beside the
  *     transcript rather than a popover — it stays open across a thread switch;

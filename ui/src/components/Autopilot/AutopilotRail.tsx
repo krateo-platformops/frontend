@@ -238,7 +238,7 @@ const STARTER_PROMPTS = [
 ]
 
 /**
- * Session history (Vincenzo item P, split-view iteration). A persistent column docked beside
+ * Session history (item P, split-view iteration). A persistent column docked beside
  * the transcript — NOT a popover — so past threads stay browsable while the live conversation
  * remains visible.
  *
@@ -366,7 +366,7 @@ const AutopilotRail = () => {
   const { text: draft } = useSyncExternalStore(autopilotComposerDraftStore.subscribe, autopilotComposerDraftStore.getSnapshot)
   // FR 25: Send (and the microphone) are held while a transcription is in flight.
   const voiceBusy = useVoiceBusy()
-  // Session history (Vincenzo item P, split-view iteration): widens the rail to dock a thread
+  // Session history (item P, split-view iteration): widens the rail to dock a thread
   // list beside the transcript (see .apRail.split). Local to the rail — not lifted into the
   // provider — because this component is also the SOLE owner of the `--autopilot-rail-width`
   // CSS var below (body-portalled overlays like the Filters Drawer inset off it); keeping both
