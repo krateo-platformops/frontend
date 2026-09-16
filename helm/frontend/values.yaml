@@ -204,8 +204,14 @@ config:
   #   OWN repo named for the artifact. Here the OWNER segment is what matters (the org new repos land
   #   in); the REPO segment is only a placeholder prefill that the per-artifact name overrides. The
   #   default SCM-agnostic path discriminates Portal-Builder listings by the krateo.io/builder LABEL,
-  #   not the repo, so per-artifact repos are safe. (KOG repo kept as krateo-oas for the legacy github
-  #   -PR path, where the portal deliverables RA still matches spec.repo == "krateo-oas".)
+  #   not the repo, so per-artifact repos are safe.
+  #
+  #   KOG: krateo-oas was RENAMED to oas. The old name kept working in a browser — GitHub 301s the
+  #   redirect silently — and killed github-provider-kog, which does not follow a redirect on a
+  #   write: "update failed: unexpected status: 307". publish-pet has been wedged on exactly that
+  #   since 2026-09-10. The portal chart's kog-deliverables RA discriminates KOG change requests by
+  #   this repo's basename, so the two MUST agree; portal#220 makes that side derive from a single
+  #   kogBuilder.repo value, and this is the other half. Roll them together.
   # EMPTY ON PURPOSE. This shipped as `krateo-blueprints/blueprints`, which does not exist — the org
   # has 35 repositories and none by that name. The page and KOG defaults above/below are real; this
   # one was the outlier, so every install that did not override it had blueprint publishing that
@@ -216,7 +222,7 @@ config:
   # does not even read as a wrong address. Set it to a real owner/repo that already EXISTS: a
   # publish pushes a branch to an existing repository, it never creates one.
   AUTOPILOT_BLUEPRINT_BUILDER_REPO: ""
-  AUTOPILOT_KOG_BUILDER_REPO: krateo-platformops/krateo-oas
+  AUTOPILOT_KOG_BUILDER_REPO: krateo-platformops/oas
   # SCM-agnostic publishing — ON by default. The builders publish via a BuilderPublish claim: the
   # held files are committed by git-provider LocalResources, replacing the github.krateo.io GitRef
   # and RepoContent kinds. PullRequest and Repository are NOT replaced — the composition still

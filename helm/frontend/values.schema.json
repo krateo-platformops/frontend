@@ -663,7 +663,7 @@
         "AUTOPILOT_KOG_BUILDER_REPO": {
           "type": "string",
           "title": "Autopilot Kog Builder Repo",
-          "default": "krateo-platformops/krateo-oas"
+          "default": "krateo-platformops/oas"
         },
         "AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER": {
           "type": "string",
@@ -721,7 +721,7 @@
         "AUTOPILOT_PAGE_BUILDER_REPO": "krateo-platformops/portal",
         "AUTOPILOT_PAGE_BUILDER_TEMPLATE": "krateo-blueprints/portal-builder",
         "AUTOPILOT_BLUEPRINT_BUILDER_REPO": "",
-        "AUTOPILOT_KOG_BUILDER_REPO": "krateo-platformops/krateo-oas",
+        "AUTOPILOT_KOG_BUILDER_REPO": "krateo-platformops/oas",
         "AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER": "true",
         "AUTOPILOT_GIT_SCM": "github",
         "AUTOPILOT_GIT_HOST": "github.com",
