@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { buildObjectTree, flattenTree } from './objectTree'
+import { buildObjectTree, draftNamespace, flattenTree } from './objectTree'
 
 const cr = (kind: string, name: string, opts: {
   apiRef?: boolean
@@ -96,14 +96,48 @@ describe('buildObjectTree', () => {
   })
 
   it('survives a cycle a hand-edit can create', () => {
+    // The cycle must be REACHABLE FROM A ROOT or the guard is never reached. The earlier version
+    // of this test was a bare a↔b pair: both are referenced, so neither is a root, the forest came
+    // back empty without `toNode` ever being called, and the recursion guard it was named after
+    // went untested. `page-x` is the root that actually walks into the loop.
     const tree = buildObjectTree({
       'a.yaml': cr('Flex', 'a', { children: [['b', 'b']] }),
       'b.yaml': cr('Flex', 'b', { children: [['a', 'a']] }),
+      'p.yaml': cr('Flex', 'page-x', { children: [['a', 'a']] }),
     })
 
-    // Both are referenced, so neither is a root and the forest is empty — but critically the
-    // build TERMINATED. A cycle used to be the one input that could freeze the panel.
-    expect(tree).toEqual([])
+    // Terminated, and stopped at the repeat rather than dropping the branch: page-x → a → b → a,
+    // where the second `a` is rendered as a leaf. A cycle used to be the one input that could
+    // freeze the panel.
+    expect(tree.map((node) => node.name)).toEqual(['page-x'])
+    const [first] = tree[0].children
+    expect(first.name).toBe('a')
+    expect(first.children.map((node) => node.name)).toEqual(['b'])
+    expect(first.children[0].children.map((node) => node.name)).toEqual(['a'])
+    expect(first.children[0].children[0].children).toEqual([])
+  })
+
+  it('carries the refId the parent addresses a child by, not just the resolved name', () => {
+    // resourcesRefs maps an id to a CR name and nothing requires them to match. A structural edit
+    // matched on the NAME refused every edit on a page that names them apart.
+    const tree = buildObjectTree({
+      'p.yaml': cr('Flex', 'page-x', { children: [['slot-1', 'fleet-table']] }),
+      't.yaml': cr('Table', 'fleet-table'),
+    })
+    const [child] = tree[0].children
+
+    expect(child.name).toBe('fleet-table')
+    expect(child.refId).toBe('slot-1')
+    expect(child.position).toBe(0)
+  })
+
+  it('gives each placement its own position, so a repeated widget is addressable', () => {
+    const tree = buildObjectTree({
+      'p.yaml': cr('Flex', 'page-x', { children: [['a', 'divider'], ['b', 'divider']] }),
+    })
+
+    expect(tree[0].children.map((child) => child.position)).toEqual([0, 1])
+    expect(tree[0].children.map((child) => child.refId)).toEqual(['a', 'b'])
   })
 
   it('surfaces an orphan rather than hiding it', () => {
@@ -160,5 +194,31 @@ describe('parentPath — the file a move or remove has to rewrite', () => {
     })
 
     expect(tree[0].children[0]).toMatchObject({ drafted: false, parentPath: 'a/flex.page-x.yaml' })
+  })
+})
+
+describe('draftNamespace', () => {
+  const inNs = (name: string, namespace?: string) => [
+    'kind: Flex',
+    'apiVersion: widgets.templates.krateo.io/v1beta1',
+    `metadata:\n  name: ${name}${namespace ? `\n  namespace: ${namespace}` : ''}`,
+    'spec:\n  widgetData:\n    items: []',
+  ].join('\n')
+
+  it('reads the namespace new objects must join from the draft itself', () => {
+    expect(draftNamespace({ 'a.yaml': inNs('a', 'krateo-system') })).toBe('krateo-system')
+  })
+
+  it('takes the majority, so one stray object cannot move where new ones are created', () => {
+    expect(draftNamespace({
+      'a.yaml': inNs('a', 'krateo-system'),
+      'b.yaml': inNs('b', 'krateo-system'),
+      'c.yaml': inNs('c', 'somewhere-else'),
+    })).toBe('krateo-system')
+  })
+
+  it('returns null when the draft declares none, so the caller refuses rather than guessing', () => {
+    // A guessed namespace publishes clean and renders nothing — the most expensive failure here.
+    expect(draftNamespace({ 'a.yaml': inNs('a') })).toBeNull()
   })
 })

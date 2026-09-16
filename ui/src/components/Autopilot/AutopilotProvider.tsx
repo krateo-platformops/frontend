@@ -37,6 +37,7 @@ import { createOasAttachmentStore, type OasAttachmentResult } from './oasAttachm
 import { isPageDraft, pagePublishFiles, pageRootSlug } from './pageDraft'
 import { buildPagePublishOps } from './pagePublish'
 import { PREVIEW_SELF_CORRECTION_NUDGE } from './previewBus'
+import { emitDraftChanged } from './previewDraftChanged'
 import { onRestDefEdit } from './previewEditBus'
 import { buildKogPublishNudge, createPreviewGate, hydrateRestDefinitionOps } from './previewGate'
 import { AutopilotPreviewDrawer } from './previewSurface'
@@ -202,7 +203,9 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // oasStore — its bytes fill $fileContent tokens at publish-compile so published bytes ==
   // previewed bytes. Both reset on newThread.
   const [blueprintGate] = useState(createBlueprintGate)
-  const [blueprintStore] = useState(createBlueprintDraftStore)
+  // The held draft + its broadcast: a surface that EDITS it lives outside this provider's tree (the
+  // composer is a route), so it re-reads from the broadcast rather than computing against stale bytes.
+  const [blueprintStore] = useState(() => createBlueprintDraftStore((held) => emitDraftChanged({ files: held?.files ?? {} })))
 
   const abortRef = useRef<(() => void) | null>(null)
   const approvalRef = useRef<{ governor: ApprovalGovernor; pause: ApprovalPause } | null>(null)

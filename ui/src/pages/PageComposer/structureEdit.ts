@@ -31,9 +31,19 @@ export interface PlaceChild {
   name: string
   /** The CRD plural: tables, cards, paragraphs… */
   resource: string
+  /**
+   * REQUIRED, not optional.
+   *
+   * snowplow's resourcesRefs resolver has no defaulting — it puts this straight into the /call
+   * query as `namespace=<value>` — so an entry without one resolves against the empty namespace and
+   * the child never renders. It is not an apply-time error either: the page publishes clean and
+   * comes up with a hole in it, which is the worst failure available here. Optional-with-a-default
+   * was the original shape and it produced exactly that, because js-yaml omits an undefined key
+   * entirely rather than writing a null someone might notice.
+   */
+  namespace: string
   /** Defaults to the widgets group/version every portal widget uses. */
   apiVersion?: string
-  namespace?: string
 }
 
 export type StructureResult =
@@ -112,25 +122,60 @@ export const placeChild = (parentYaml: string, child: PlaceChild): StructureResu
   return { content: dump(parsed.doc, DUMP), ok: true }
 }
 
-/** Remove every placement of a child, and its ref entry. */
-export const removeChild = (parentYaml: string, name: string): StructureResult => {
+/**
+ * Which placement an edit acts on.
+ *
+ * A POSITION, not just an id, and that distinction is load-bearing. `placeChild` deliberately lets
+ * the same widget be placed twice — a divider between sections is the obvious case — so an id alone
+ * does not name one row. Addressed by id, "remove" deleted BOTH dividers and "move" always moved
+ * the first one, whichever the author clicked.
+ *
+ * `refId` is still carried, as a check rather than a lookup: the tree is derived from bytes that a
+ * Files-tab edit can change underneath it, and acting on position alone would then rewrite whatever
+ * row had drifted into that slot. When the two disagree the edit is refused, not guessed.
+ *
+ * `refId` is the id the PARENT holds in `widgetData.items[].resourceRefId` — NOT the child's
+ * metadata.name. The two usually coincide and nothing requires them to.
+ */
+export interface ChildAt {
+  /** Index within the parent's `widgetData.items` — which placement, not which widget. */
+  index: number
+  /** The id expected at that index. A mismatch means the draft moved; the edit is refused. */
+  refId: string
+}
+
+/** Resolve a position against the current items, refusing a stale one. */
+const at = (items: { resourceRefId?: string }[], child: ChildAt): string | null => {
+  const item = items[child.index]
+  if (!item) {
+    return `"${child.refId}" is no longer placed on this container`
+  }
+  if (item.resourceRefId !== child.refId) {
+    return `this container changed under the tree — reopen it and try again`
+  }
+  return null
+}
+
+/**
+ * Remove ONE placement of a child, and its ref entry once no placement is left.
+ *
+ * One, not all: see ChildAt. A widget placed twice and removed once must keep BOTH its surviving
+ * reference and the entry that resolves it, or the survivor renders an empty slot.
+ */
+export const removeChild = (parentYaml: string, child: ChildAt): StructureResult => {
   const parsed = parse(parentYaml)
   if ('error' in parsed) {
     return { error: parsed.error, ok: false }
   }
   const { items, refs } = slots(parsed.doc)
-  const before = items.length
-  const kept = items.filter((item) => item.resourceRefId !== name)
-  if (kept.length === before) {
-    return { error: `"${name}" is not placed on this container`, ok: false }
+  const stale = at(items, child)
+  if (stale) {
+    return { error: stale, ok: false }
   }
-  if (parsed.doc.spec?.widgetData) {
-    parsed.doc.spec.widgetData.items = kept
-  }
-  // The ref entry goes only when NOTHING references it any more — a widget placed twice and
-  // removed once must keep resolving, or the surviving placement renders an empty slot.
-  if (parsed.doc.spec?.resourcesRefs && !kept.some((item) => item.resourceRefId === name)) {
-    parsed.doc.spec.resourcesRefs.items = refs.filter((ref) => ref.id !== name)
+  items.splice(child.index, 1)
+  // The ref entry goes only when NOTHING references it any more.
+  if (parsed.doc.spec?.resourcesRefs && !items.some((item) => item.resourceRefId === child.refId)) {
+    parsed.doc.spec.resourcesRefs.items = refs.filter((ref) => ref.id !== child.refId)
   }
   return { content: dump(parsed.doc, DUMP), ok: true }
 }
@@ -160,7 +205,7 @@ export type LayoutKind = keyof typeof LAYOUT_KINDS
  * as it is placed — the list grows to exactly what the container actually holds, rather than being
  * guessed up front.
  */
-export const newContainerYaml = (kind: LayoutKind, name: string, namespace?: string): string => dump({
+export const newContainerYaml = (kind: LayoutKind, name: string, namespace: string): string => dump({
   apiVersion: WIDGET_API_VERSION,
   kind,
   metadata: { name, namespace },
@@ -168,31 +213,38 @@ export const newContainerYaml = (kind: LayoutKind, name: string, namespace?: str
 }, DUMP)
 
 /**
- * The repo path a container publishes under, matching the chart's own convention:
- * `<lowercase kind>.<name>.yaml` under the portal templates directory.
+ * The HELD KEY a new container is added under — `<lowercase kind>.<name>.yaml`, a bare identity
+ * token with no directory.
+ *
+ * Not a repo path, and the distinction is the bug this shape exists to prevent. A page draft holds
+ * its files under bare tokens and `pagePublishPath` prefixes the chart root at publish; a surface
+ * that handed a already-prefixed path to `addFile` got it prefixed a second time and published to
+ * `helm/portal/templates/helm/portal/templates/…`. The key is what a WRITER uses; the repo path is
+ * derived from it, in one place, at publish.
  */
-export const containerPath = (kind: LayoutKind, name: string, directory: string): string =>
-  `${directory.replace(/\/$/, '')}/${kind.toLowerCase()}.${name}.yaml`
+export const containerPath = (kind: LayoutKind, name: string): string =>
+  `${kind.toLowerCase()}.${name}.yaml`
 
 /**
  * Move a child one place earlier or later. Order in `items` IS the rendered order, so this is how
  * a person reorders a page without hand-editing YAML.
  */
-export const moveChild = (parentYaml: string, name: string, direction: 'up' | 'down'): StructureResult => {
+export const moveChild = (parentYaml: string, child: ChildAt, direction: 'up' | 'down'): StructureResult => {
   const parsed = parse(parentYaml)
   if ('error' in parsed) {
     return { error: parsed.error, ok: false }
   }
   const { items } = slots(parsed.doc)
-  const index = items.findIndex((item) => item.resourceRefId === name)
-  if (index < 0) {
-    return { error: `"${name}" is not placed on this container`, ok: false }
+  const stale = at(items, child)
+  if (stale) {
+    return { error: stale, ok: false }
   }
+  const { index } = child
   const target = direction === 'up' ? index - 1 : index + 1
   if (target < 0 || target >= items.length) {
     // Already at the end it is being moved toward. Refused rather than silently doing nothing, so
     // the caller can leave the control disabled instead of offering a no-op.
-    return { error: `"${name}" is already ${direction === 'up' ? 'first' : 'last'}`, ok: false }
+    return { error: `"${child.refId}" is already ${direction === 'up' ? 'first' : 'last'}`, ok: false }
   }
   const [moved] = items.splice(index, 1)
   items.splice(target, 0, moved)

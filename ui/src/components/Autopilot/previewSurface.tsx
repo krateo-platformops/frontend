@@ -33,6 +33,7 @@ import WidgetRenderer from '../WidgetRenderer'
 import { useAutopilot } from './AutopilotProvider'
 import { parseFileEdit, parseRestDefEdit } from './previewBridge'
 import { AUTOPILOT_PREVIEW_EVENT, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
+import { previewSurfaceClaimed } from './previewDraftChanged'
 import { emitRestDefEdit } from './previewEditBus'
 import { emitFileEdit } from './previewFileEdit'
 import { PreviewFormSection } from './previewFormSection'
@@ -403,6 +404,12 @@ export const AutopilotPreviewDrawer = () => {
 
   useEffect(() => {
     const handleOpen = (event: CustomEvent<AutopilotPreviewPayload>) => {
+      // Defer to a mounted page composer: it is already showing this draft, it owns the close, and
+      // opening over it would put two live sandbox renders on one endpoint — where closing THIS
+      // one fires the teardown that deletes the draft CRs the composer is still rendering.
+      if (previewSurfaceClaimed()) {
+        return
+      }
       setPayload(event.detail)
       setEditVerdicts(null)
       setOpen(true)

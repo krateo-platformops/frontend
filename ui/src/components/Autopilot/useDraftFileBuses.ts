@@ -23,6 +23,7 @@
 import { useEffect } from 'react'
 
 import type { BlueprintDraftStore } from './blueprintDraftStore'
+import { emitDraftChanged, onDraftReplayRequest } from './previewDraftChanged'
 import { onFileAdd } from './previewFileAdd'
 import { onFileEdit } from './previewFileEdit'
 
@@ -53,4 +54,11 @@ export const useDraftFileBuses = (
       gate.recordPreview(identityOf(store.get()))
     }
   }), [gate, identityOf, store])
+
+  // REPLAY: a surface that mounted AFTER the draft was seeded missed the store's broadcast, so it
+  // asks and we answer on the same bus. Answering with an empty map when nothing is held is
+  // deliberate — "no draft" is an answer, and silence leaves that surface waiting forever.
+  useEffect(() => onDraftReplayRequest(() => {
+    emitDraftChanged({ files: store.get()?.files ?? {} })
+  }), [store])
 }

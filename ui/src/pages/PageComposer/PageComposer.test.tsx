@@ -8,10 +8,12 @@
  * that the same surface now renders outside the provider, from the same bus, with no rail present.
  */
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { load } from 'js-yaml'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
+import { emitDraftChanged, previewSurfaceClaimed } from '../../components/Autopilot/previewDraftChanged'
 import { ThemeModeProvider } from '../../context/ThemeModeContext'
 
 import PageComposer from './PageComposer'
@@ -51,14 +53,58 @@ beforeAll(() => {
  */
 const mount = () => render(<ThemeModeProvider><PageComposer /></ThemeModeProvider>)
 
-// act(): the component updates state from a DOM event listener, so without it React has not
-// flushed the re-render by the time the assertion runs and every check reads the empty state.
+/**
+ * One widget-CR fixture for every suite below — there were three near-identical copies, and the
+ * namespace is why that mattered: adding it to one copy would have left the others generating the
+ * objects the cluster rejects, which is the exact bug these are meant to catch.
+ *
+ * `namespace` is present by default because the widget CRDs require it and default it nowhere.
+ */
+const widgetCr = (
+  kind: string,
+  name: string,
+  children: string[] = [],
+  namespace: string | null = 'krateo-system',
+) => [
+  `kind: ${kind}`,
+  'apiVersion: widgets.templates.krateo.io/v1beta1',
+  `metadata:\n  name: ${name}${namespace ? `\n  namespace: ${namespace}` : ''}`,
+  'spec:\n  widgetData:',
+  '    allowedResources: []',
+  children.length ? `    items:\n${children.map((ref) => `      - resourceRefId: ${ref}`).join('\n')}` : '    items: []',
+  '  resourcesRefs:',
+  children.length
+    ? `    items:\n${children.map((ref) => `      - id: ${ref}\n        name: ${ref}\n        resource: widgets\n        namespace: krateo-system`).join('\n')}`
+    : '    items: []',
+].join('\n')
+
+/**
+ * Open a draft: the preview payload, and the held draft the tree reads.
+ *
+ * TWO BUSES, DELIBERATELY. The payload is what the SURFACE renders (the Files tab, the verdicts);
+ * the held draft is what the TREE edits against. They were the same object once — the tree read
+ * `payload.files` — and that was the bug: the payload is emitted once and never re-emitted, so
+ * every structural edit was computed against the bytes as they were when the draft was first
+ * previewed, and consecutive edits to one parent silently reverted each other. In the app the
+ * provider broadcasts the held draft after each accepted write; here the test plays that part.
+ *
+ * act(): the component updates state from a DOM event listener, so without it React has not
+ * flushed the re-render by the time the assertion runs and every check reads the empty state.
+ */
 const emit = (payload: Partial<AutopilotPreviewPayload>) => {
   act(() => {
     window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, {
       detail: { title: 'Draft', ...payload },
     }))
+    emitDraftChanged({
+      files: Object.fromEntries((payload.files ?? []).map((file) => [file.path, file.content])),
+    })
   })
+}
+
+/** Re-broadcast the held draft alone — the provider's answer to an accepted edit. */
+const held = (files: Record<string, string>) => {
+  act(() => emitDraftChanged({ files }))
 }
 
 describe('PageComposer — the preview surface, outside the rail', () => {
@@ -87,6 +133,9 @@ describe('PageComposer — the preview surface, outside the rail', () => {
 
   it('shows the files a publish would commit, each under its repo path', () => {
     mount()
+    // The SURFACE renders the payload, which carries repo DESTINATIONS — that is what a reviewer
+    // needs to see before approving a change request. The tree, below, speaks held keys instead;
+    // the two vocabularies are separate on purpose and `updateDisplayedFile` bridges them.
     emit({
       files: [{ content: 'kind: Flex\n', path: 'helm/portal/templates/flex.page-x.yaml' }],
       title: 'x',
@@ -115,24 +164,40 @@ describe('PageComposer — the preview surface, outside the rail', () => {
   })
 })
 
-describe('PageComposer — the draft as a tree', () => {
-  const cr = (kind: string, name: string, children: string[] = []) => [
-    `kind: ${kind}`,
-    'apiVersion: widgets.templates.krateo.io/v1beta1',
-    `metadata:\n  name: ${name}`,
-    'spec:\n  widgetData:',
-    children.length ? `    items:\n${children.map((ref) => `      - resourceRefId: ${ref}`).join('\n')}` : '    items: []',
-    '  resourcesRefs:',
-    children.length ? `    items:\n${children.map((ref) => `      - id: ${ref}\n        name: ${ref}\n        resource: widgets`).join('\n')}` : '    items: []',
-  ].join('\n')
+describe('PageComposer — one surface owns the draft', () => {
+  it('claims the preview while mounted, so the drawer does not open over it', () => {
+    expect(previewSurfaceClaimed()).toBe(false)
+    const view = mount()
 
+    // Both listen on the same bus. Two surfaces on one draft is not merely redundant: the drawer's
+    // close fires the sandbox teardown, which DELETEs the draft CRs this page is still rendering.
+    expect(previewSurfaceClaimed()).toBe(true)
+    view.unmount()
+    expect(previewSurfaceClaimed()).toBe(false)
+  })
+
+  it('fires the sandbox teardown on close — the lifecycle the drawer used to own', () => {
+    const onClose = vi.fn()
+    mount()
+    emit({ files: [{ content: widgetCr('Flex', 'page-x'), path: 'flex.page-x.yaml' }], onClose, title: 'x' })
+
+    act(() => { screen.getByText('Close draft').click() })
+    act(() => { screen.getByText('Discard').click() })
+
+    // Without this the sandbox CRs outlive every surface that could render them.
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(screen.getByText(/No draft open/i)).toBeTruthy()
+  })
+})
+
+describe('PageComposer — the draft as a tree', () => {
   it('shows nesting — the structure the old builder could not express', () => {
     mount()
     emit({
       files: [
-        { content: cr('Flex', 'page-fleet', ['row-top']), path: 'a/flex.page-fleet.yaml' },
-        { content: cr('Row', 'row-top', ['stat-ready']), path: 'a/row.row-top.yaml' },
-        { content: cr('Statistic', 'stat-ready'), path: 'a/statistic.stat-ready.yaml' },
+        { content: widgetCr('Flex', 'page-fleet', ['row-top']), path: 'flex.page-fleet.yaml' },
+        { content: widgetCr('Row', 'row-top', ['stat-ready']), path: 'row.row-top.yaml' },
+        { content: widgetCr('Statistic', 'stat-ready'), path: 'statistic.stat-ready.yaml' },
       ],
       title: 'Fleet',
     })
@@ -148,7 +213,7 @@ describe('PageComposer — the draft as a tree', () => {
   it('marks a placed widget that is not part of the draft', () => {
     mount()
     emit({
-      files: [{ content: cr('Flex', 'page-x', ['existing-table']), path: 'a/flex.page-x.yaml' }],
+      files: [{ content: widgetCr('Flex', 'page-x', ['existing-table']), path: 'flex.page-x.yaml' }],
       title: 'x',
     })
 
@@ -168,20 +233,10 @@ describe('PageComposer — the draft as a tree', () => {
 })
 
 describe('PageComposer — structural edits from the tree', () => {
-  const crWith = (kind: string, name: string, children: string[] = []) => [
-    `kind: ${kind}`,
-    'apiVersion: widgets.templates.krateo.io/v1beta1',
-    `metadata:\n  name: ${name}`,
-    'spec:\n  widgetData:',
-    children.length ? `    items:\n${children.map((ref) => `      - resourceRefId: ${ref}`).join('\n')}` : '    items: []',
-    '  resourcesRefs:',
-    children.length ? `    items:\n${children.map((ref) => `      - id: ${ref}\n        name: ${ref}\n        resource: widgets`).join('\n')}` : '    items: []',
-  ].join('\n')
-
   const openTwoChildDraft = () => {
     mount()
     emit({
-      files: [{ content: crWith('Flex', 'page-x', ['first', 'second']), path: 'a/flex.page-x.yaml' }],
+      files: [{ content: widgetCr('Flex', 'page-x', ['first', 'second']), path: 'flex.page-x.yaml' }],
       title: 'x',
     })
   }
@@ -200,7 +255,7 @@ describe('PageComposer — structural edits from the tree', () => {
     // One bus, one place that re-checks the cap and re-arms the gate — rather than this panel
     // growing a second way to mutate a draft.
     expect(seen).toHaveLength(1)
-    expect(seen[0].path).toBe('a/flex.page-x.yaml')
+    expect(seen[0].path).toBe('flex.page-x.yaml')
     expect(seen[0].content.indexOf('second')).toBeLessThan(seen[0].content.indexOf('first'))
   })
 
@@ -209,6 +264,42 @@ describe('PageComposer — structural edits from the tree', () => {
 
     expect(screen.queryByLabelText('Move page-x up')).toBeNull()
     expect(screen.getByLabelText('Move first down')).toBeTruthy()
+  })
+
+  it('computes the SECOND edit from the first, not from the bytes it opened with', () => {
+    // THE REGRESSION. The tree used to read its file bytes from `payload.files`, which is emitted
+    // once and never re-emitted — so every structural edit was derived from the draft as it was
+    // when first previewed. Two moves in a row and the second silently reverted the first: both
+    // started from the same original, and the tree never redrew to show it.
+    //
+    // Here the test plays the provider: it applies the emitted edit to the held draft and
+    // re-broadcasts, exactly as `useDraftFileBuses` does after an accepted write. If the tree were
+    // still reading frozen bytes, the second move would re-emit the FIRST move's result.
+    const seen: { path: string; content: string }[] = []
+    const listener = (event: Event) => {
+      seen.push((event as CustomEvent<{ path: string; content: string }>).detail)
+    }
+    window.addEventListener('autopilotPreviewFileEdited', listener)
+
+    mount()
+    emit({
+      files: [{ content: widgetCr('Flex', 'page-x', ['first', 'second', 'third']), path: 'flex.page-x.yaml' }],
+      title: 'x',
+    })
+
+    act(() => { screen.getByLabelText('Move third up').click() })
+    held({ 'flex.page-x.yaml': seen[0].content })
+    act(() => { screen.getByLabelText('Move third up').click() })
+    window.removeEventListener('autopilotPreviewFileEdited', listener)
+
+    const order = (yaml: string) => (load(yaml) as {
+      spec: { widgetData: { items: { resourceRefId: string }[] } }
+    }).spec.widgetData.items.map((item) => item.resourceRefId)
+
+    expect(order(seen[0].content)).toEqual(['first', 'third', 'second'])
+    // Frozen bytes would repeat ['first', 'third', 'second'] here — one move's worth of progress
+    // from two moves, with no error anywhere to say why.
+    expect(order(seen[1].content)).toEqual(['third', 'first', 'second'])
   })
 
   it('removing emits a parent without that child', () => {
@@ -228,25 +319,21 @@ describe('PageComposer — structural edits from the tree', () => {
 })
 
 describe('PageComposer — adding a layout container', () => {
-  const flex = (name: string, children: string[] = []) => [
-    'kind: Flex',
-    'apiVersion: widgets.templates.krateo.io/v1beta1',
-    `metadata:\n  name: ${name}`,
-    'spec:\n  widgetData:',
-    children.length ? `    items:\n${children.map((ref) => `      - resourceRefId: ${ref}`).join('\n')}` : '    items: []',
-    '  resourcesRefs:\n    items: []',
-  ].join('\n')
-
+  /**
+   * ONE ordered log across both buses, not one array per bus.
+   *
+   * Two separate arrays cannot express "the add came first" — which is the property this suite
+   * exists to assert, and which the previous version of it did not check: it compared each array's
+   * LENGTH and each entry's path, both of which hold just as well when the emissions are reversed.
+   */
   const capture = () => {
-    const adds: { path: string; content: string }[] = []
-    const edits: { path: string; content: string }[] = []
-    const onAdd = (event: Event) => { adds.push((event as CustomEvent<{ path: string; content: string }>).detail) }
-    const onEdit = (event: Event) => { edits.push((event as CustomEvent<{ path: string; content: string }>).detail) }
+    const log: { op: 'add' | 'edit'; path: string; content: string }[] = []
+    const onAdd = (event: Event) => { log.push({ op: 'add', ...(event as CustomEvent<{ path: string; content: string }>).detail }) }
+    const onEdit = (event: Event) => { log.push({ op: 'edit', ...(event as CustomEvent<{ path: string; content: string }>).detail }) }
     window.addEventListener('autopilotPreviewFileAdded', onAdd)
     window.addEventListener('autopilotPreviewFileEdited', onEdit)
     return {
-      adds,
-      edits,
+      log,
       stop: () => {
         window.removeEventListener('autopilotPreviewFileAdded', onAdd)
         window.removeEventListener('autopilotPreviewFileEdited', onEdit)
@@ -257,7 +344,7 @@ describe('PageComposer — adding a layout container', () => {
   it('creates the container file AND places it — add before edit', () => {
     const bus = capture()
     mount()
-    emit({ files: [{ content: flex('page-x'), path: 'helm/portal/templates/flex.page-x.yaml' }], title: 'x' })
+    emit({ files: [{ content: widgetCr('Flex', 'page-x'), path: 'flex.page-x.yaml' }], title: 'x' })
 
     act(() => { screen.getByLabelText('Add inside page-x').click() })
     act(() => { screen.getByText('Row').click() })
@@ -265,22 +352,42 @@ describe('PageComposer — adding a layout container', () => {
 
     // The add MUST precede the edit: the parent's new reference resolves to a file that has to
     // exist, or the draft briefly points at nothing and the live render shows an empty slot.
-    expect(bus.adds).toHaveLength(1)
-    expect(bus.edits).toHaveLength(1)
-    expect(bus.adds[0].path).toBe('helm/portal/templates/row.page-x-row.yaml')
-    expect(bus.adds[0].content).toContain('kind: Row')
-    expect(bus.edits[0].path).toBe('helm/portal/templates/flex.page-x.yaml')
-    expect(bus.edits[0].content).toContain('page-x-row')
+    // Asserted as ORDER, which is the claim — lengths and paths hold equally if it is reversed.
+    expect(bus.log.map((entry) => entry.op)).toEqual(['add', 'edit'])
+    // A bare held key. A repo path here would be prefixed a second time at publish, landing the
+    // file at helm/portal/templates/helm/portal/templates/row.page-x-row.yaml.
+    expect(bus.log[0].path).toBe('row.page-x-row.yaml')
+    expect(bus.log[0].content).toContain('kind: Row')
+    expect(bus.log[0].content).toContain('namespace: krateo-system')
+    expect(bus.log[1].path).toBe('flex.page-x.yaml')
+    expect(bus.log[1].content).toContain('page-x-row')
+  })
+
+  it('does not offer add inside a Layout, whose CRD has no items to add to', () => {
+    mount()
+    emit({
+      files: [
+        { content: widgetCr('Flex', 'page-x', ['shell']), path: 'flex.page-x.yaml' },
+        { content: widgetCr('Layout', 'shell'), path: 'layout.shell.yaml' },
+      ],
+      title: 'x',
+    })
+
+    // The container list had drifted from the insertable list and carried `Layout`, which has
+    // neither `widgetData.items` nor `allowedResources`. The widget CRDs are strict, so every use
+    // of that affordance authored a parent the apiserver rejects outright.
+    expect(screen.getByLabelText('Add inside page-x')).toBeTruthy()
+    expect(screen.queryByLabelText('Add inside shell')).toBeNull()
   })
 
   it('offers add on a container and not on a leaf', () => {
     mount()
     emit({
       files: [
-        { content: flex('page-x', ['stat']), path: 'helm/portal/templates/flex.page-x.yaml' },
+        { content: widgetCr('Flex', 'page-x', ['stat']), path: 'flex.page-x.yaml' },
         {
           content: 'kind: Statistic\napiVersion: widgets.templates.krateo.io/v1beta1\nmetadata:\n  name: stat\nspec:\n  widgetData: {}\n',
-          path: 'helm/portal/templates/statistic.stat.yaml',
+          path: 'statistic.stat.yaml',
         },
       ],
       title: 'x',
@@ -293,22 +400,13 @@ describe('PageComposer — adding a layout container', () => {
 })
 
 describe('PageComposer — binding live data', () => {
-  const flexFile = {
-    content: [
-      'kind: Flex',
-      'apiVersion: widgets.templates.krateo.io/v1beta1',
-      'metadata:\n  name: page-x',
-      'spec:\n  widgetData:\n    allowedResources: []\n    items: []',
-      '  resourcesRefs:\n    items: []',
-    ].join('\n'),
-    path: 'helm/portal/templates/flex.page-x.yaml',
-  }
+  const flexFile = { content: widgetCr('Flex', 'page-x'), path: 'flex.page-x.yaml' }
 
   it('generates the RESTAction AND the widget, then places it — three emissions', () => {
     const adds: { path: string; content: string }[] = []
-    const edits: { path: string }[] = []
+    const edits: { path: string; content: string }[] = []
     const onAdd = (event: Event) => { adds.push((event as CustomEvent<{ path: string; content: string }>).detail) }
-    const onEdit = (event: Event) => { edits.push((event as CustomEvent<{ path: string }>).detail) }
+    const onEdit = (event: Event) => { edits.push((event as CustomEvent<{ path: string; content: string }>).detail) }
     window.addEventListener('autopilotPreviewFileAdded', onAdd)
     window.addEventListener('autopilotPreviewFileEdited', onEdit)
 
@@ -327,12 +425,49 @@ describe('PageComposer — binding live data', () => {
     window.removeEventListener('autopilotPreviewFileEdited', onEdit)
 
     // RESTAction first: the widget's apiRef names it, so the reverse order points at nothing.
-    expect(adds.map((file) => file.path)).toEqual([
-      'helm/portal/templates/restaction.fleet.yaml',
-      'helm/portal/templates/table.fleet.yaml',
-    ])
+    // Bare held keys — a repo path here is prefixed again at publish.
+    expect(adds.map((file) => file.path)).toEqual(['restaction.fleet.yaml', 'table.fleet.yaml'])
     expect(adds[1].content).toContain('apiRef')
-    expect(edits[0].path).toBe('helm/portal/templates/flex.page-x.yaml')
+    // The namespace is read from the DRAFT's own objects. Without it the Table is rejected at
+    // apply, and the placed reference resolves against the empty namespace and renders nothing.
+    expect(adds[1].content).toContain('namespace: krateo-system')
+    expect(edits[0].content).toContain('namespace: krateo-system')
+    expect(edits[0].path).toBe('flex.page-x.yaml')
+  })
+
+  it('refuses a name the draft already holds instead of half-applying the binding', () => {
+    const adds: unknown[] = []
+    const edits: unknown[] = []
+    const onAdd = (event: Event) => { adds.push(event) }
+    const onEdit = (event: Event) => { edits.push(event) }
+    window.addEventListener('autopilotPreviewFileAdded', onAdd)
+    window.addEventListener('autopilotPreviewFileEdited', onEdit)
+
+    mount()
+    // The draft already holds a table called `fleet`.
+    emit({
+      files: [
+        flexFile,
+        { content: widgetCr('Table', 'fleet'), path: 'table.fleet.yaml' },
+      ],
+      title: 'x',
+    })
+    act(() => { screen.getByLabelText('Bind data inside page-x').click() })
+    act(() => {
+      fireEvent.change(screen.getByPlaceholderText('fleet-failing'), { target: { value: 'fleet' } })
+      fireEvent.change(screen.getByPlaceholderText('/apis/…'), { target: { value: '/apis/x/v1/things' } })
+      fireEvent.change(screen.getByPlaceholderText(/"Name"/), { target: { value: '{"Name": ".metadata.name"}' } })
+    })
+    act(() => { screen.getByText('Generate').click() })
+
+    window.removeEventListener('autopilotPreviewFileAdded', onAdd)
+    window.removeEventListener('autopilotPreviewFileEdited', onEdit)
+
+    // `addFile` refuses an existing path, but it refuses SILENTLY from here — so this used to drop
+    // both generated files on the floor while the place still went through, leaving the parent
+    // referencing the OLD table twice. Nothing must be emitted at all.
+    expect(adds).toHaveLength(0)
+    expect(edits).toHaveLength(0)
   })
 
   it('refuses a field path that is not a path, rather than generating broken jq', () => {

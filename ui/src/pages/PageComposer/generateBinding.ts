@@ -30,9 +30,16 @@ export interface BindingInput {
   itemsAt: string
   /** Column title -> field path within one item, in the order the columns should appear. */
   columns: Record<string, string>
-  /** Repo directory both files are written to. */
-  directory: string
-  namespace?: string
+  /**
+   * The namespace both objects are created in, and the one the widget's `apiRef` points at.
+   *
+   * REQUIRED. The Table CRD requires `spec.apiRef.namespace` and there is no server-side default,
+   * so a generated widget without one is rejected outright — "spec.apiRef.namespace: Required
+   * value" — and js-yaml omits an undefined key rather than writing anything a reader would spot.
+   * It was optional here first, the caller never passed it, and every generated Table was
+   * unpublishable.
+   */
+  namespace: string
 }
 
 export interface GeneratedFile {
@@ -55,8 +62,12 @@ const DUMP = { lineWidth: -1, noRefs: true } as const
  *
  * Narrow on purpose. Everything this rejects is something the author would have to debug inside
  * generated code they did not write; a named refusal at the form is a better failure.
+ *
+ * The quoted-key form excludes a BACKSLASH as well as a quote. `.["a\\"]` passes a quote-only
+ * check — the backslash is an ordinary character to the regex — and then escapes the closing quote
+ * inside the generated program, so jq fails to compile on a filter the author cannot see.
  */
-const FIELD_PATH = /^\.(?:[A-Za-z_][A-Za-z0-9_]*|\["[^"\]]*"\]|\[\d+\])(?:\.[A-Za-z_][A-Za-z0-9_]*|\["[^"\]]*"\]|\[\d+\])*$/
+const FIELD_PATH = /^\.(?:[A-Za-z_][A-Za-z0-9_]*|\["[^"\\\]]*"\]|\[\d+\])(?:\.[A-Za-z_][A-Za-z0-9_]*|\["[^"\\\]]*"\]|\[\d+\])*$/
 
 /** `.items`, `.` (the response IS the array), or a nested path to one. */
 const isItemsPath = (value: string): boolean => value === '.' || FIELD_PATH.test(value)
@@ -66,6 +77,11 @@ const DNS_1123 = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/
 export const validateBinding = (input: BindingInput): string | null => {
   if (!DNS_1123.test(input.name)) {
     return 'name must be lower-case letters, digits and dashes (it becomes two resource names)'
+  }
+  if (!DNS_1123.test(input.namespace)) {
+    // Refused rather than defaulted. A wrong guess here publishes cleanly and renders nothing,
+    // which costs far more to find than being told now that the draft declares no namespace.
+    return 'the draft has no namespace to create these in — open a page draft first'
   }
   if (!input.apiPath.startsWith('/')) {
     return 'the API path must start with "/" — it is an apiserver path, not a URL'
@@ -105,16 +121,23 @@ export const generateBinding = (input: BindingInput): BindingResult => {
     return { error, ok: false }
   }
 
-  const dir = input.directory.replace(/\/$/, '')
   const entries = Object.entries(input.columns)
   const keyed = entries.map(([title, path], index) => ({ key: `c${index + 1}`, path, title }))
 
-  // `// empty` on each field: a row missing one value yields an absent cell rather than failing
-  // the whole filter, which is how one malformed object would otherwise blank the entire table.
-  // `tostring` because a cell is rendered as a string and a raw number would fail the widget's
-  // strict stringValue typing.
+  // Each cell: never throw, never vanish, always a string.
+  //
+  // This was `(<path> // empty) | tostring`, which does the OPPOSITE of what its comment claimed.
+  // In jq an object-construction value that evaluates to `empty` yields no object at all, so a row
+  // missing one field is dropped WHOLE — measured against a real list, three items in, one row out.
+  // `//` also swallows `false`, so a boolean column silently deleted every row that was false. And
+  // a field whose parent is a scalar ("Cannot index string with string") aborts the entire filter,
+  // blanking the table outright — the failure the comment promised could not happen.
+  //
+  // `try … catch null` turns an indexing error into a null instead of an abort; the explicit
+  // `== null` test distinguishes absent from false, which `//` cannot. `tostring` last, because a
+  // cell renders as a string and a raw number fails the widget's strict stringValue typing.
   const projection = keyed
-    .map(({ key, path }) => `${key}: ((${path} // empty) | tostring)`)
+    .map(({ key, path }) => `${key}: ((try (${path}) catch null) | if . == null then "" else tostring end)`)
     .join(', ')
   const source = input.itemsAt === '.' ? '.src' : `.src${input.itemsAt}`
   const filter = `{ rows: [ (${source} // [])[]? | { ${projection} } ] }`
@@ -129,7 +152,10 @@ export const generateBinding = (input: BindingInput): BindingResult => {
         filter,
       },
     }, DUMP),
-    path: `${dir}/restaction.${input.name}.yaml`,
+    // A held KEY, not a repo path: the draft holds page files under bare identity tokens and
+    // `pagePublishPath` prefixes the chart root once, at publish. Emitting a prefixed path here
+    // published to `helm/portal/templates/helm/portal/templates/…`.
+    path: `restaction.${input.name}.yaml`,
   }
 
   const cells = keyed
@@ -155,7 +181,7 @@ export const generateBinding = (input: BindingInput): BindingResult => {
         widgetDataTemplate: [{ expression: `\${ [ .rows[] | [ ${cells} ] ] }`, forPath: 'dataSource' }],
       },
     }, DUMP),
-    path: `${dir}/table.${input.name}.yaml`,
+    path: `table.${input.name}.yaml`,
   }
 
   return { name: input.name, ok: true, restAction, widget }

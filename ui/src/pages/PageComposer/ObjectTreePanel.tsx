@@ -22,17 +22,21 @@ import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
 
 import BindDataModal from './BindDataModal'
 import type { BindingResult } from './generateBinding'
-import { buildObjectTree, flattenTree } from './objectTree'
+import { buildObjectTree, draftNamespace, flattenTree } from './objectTree'
 import type { TreeNode } from './objectTree'
 import styles from './PageComposer.module.css'
 import { containerPath, LAYOUT_KINDS, moveChild, newContainerYaml, placeChild, removeChild } from './structureEdit'
 import type { LayoutKind } from './structureEdit'
 
-/** Where a new file is written when the caller does not say. Matches the portal chart's layout. */
-const DEFAULT_DIR = 'helm/portal/templates'
-
-/** Container kinds — the ones whose job is to hold other widgets. Worth a quieter label. */
-const CONTAINERS = new Set(['Flex', 'Row', 'Col', 'Tabs', 'Card', 'Layout'])
+/**
+ * Kinds that can HOLD another widget — exactly the kinds this panel can insert.
+ *
+ * Derived from LAYOUT_KINDS rather than listed again, because the two had already drifted: this set
+ * also carried `Layout`, whose CRD has neither `widgetData.items` nor `allowedResources`. The
+ * widget CRDs are strict, so an "add inside" on a Layout produced a parent the apiserver rejects
+ * outright — an affordance that could only ever fail. One list, and the drift cannot recur.
+ */
+const CONTAINERS = new Set<string>(Object.keys(LAYOUT_KINDS))
 
 const toDataNode = (
   node: TreeNode,
@@ -106,9 +110,8 @@ const toDataNode = (
   ),
 })
 
-export const ObjectTreePanel = ({ directory, files, onSelect }: {
-  /** Repo directory new files are created under — where the chart keeps its widget templates. */
-  directory?: string
+export const ObjectTreePanel = ({ files, onSelect }: {
+  /** The held draft, keyed by HELD KEY — the same key a write is addressed by. */
   files: Record<string, string>
   onSelect?: (path: string) => void
 }) => {
@@ -117,6 +120,9 @@ export const ObjectTreePanel = ({ directory, files, onSelect }: {
   const [bindTarget, setBindTarget] = useState<TreeNode | null>(null)
   const tree = useMemo(() => buildObjectTree(files), [files])
   const flat = useMemo(() => flattenTree(tree), [tree])
+  // Where anything new is created. Read from the draft's own objects because the widget CRDs
+  // require a namespace on both `apiRef` and every `resourcesRefs` entry and default neither.
+  const namespace = useMemo(() => draftNamespace(files), [files])
 
   /**
    * Apply a structural edit and hand the result to the SAME bus the Files-tab editor uses.
@@ -135,9 +141,21 @@ export const ObjectTreePanel = ({ directory, files, onSelect }: {
       message.error('that object has no parent to edit')
       return
     }
+    // Addressed by POSITION, carrying the refId as a check.
+    //
+    // `refId` and not `name`, because the parent holds an id in
+    // `widgetData.items[].resourceRefId` which `resourcesRefs` maps to the CR name, and nothing
+    // requires the two to be equal — matching on the name refused every edit where they differ.
+    // Position and not id alone, because the same widget may be placed twice: by id, "remove"
+    // deleted both copies and "move" always moved the first, whichever one was clicked.
+    if (!node.refId || node.position === null) {
+      message.error('that object carries no reference id, so its parent cannot address it')
+      return
+    }
+    const child = { index: node.position, refId: node.refId }
     const result = op === 'remove'
-      ? removeChild(parentYaml, node.name)
-      : moveChild(parentYaml, node.name, op)
+      ? removeChild(parentYaml, child)
+      : moveChild(parentYaml, child, op)
     if (!result.ok) {
       message.warning(result.error)
       return
@@ -163,23 +181,27 @@ export const ObjectTreePanel = ({ directory, files, onSelect }: {
       message.error('that container is not part of the draft, so nothing can be added inside it')
       return
     }
+    if (!namespace) {
+      message.error('this draft declares no namespace, so a new container cannot be created in one')
+      return
+    }
     const existing = new Set(Object.keys(files))
     let name = `${parent.name}-${kind.toLowerCase()}`
     let suffix = 2
-    while (existing.has(containerPath(kind, name, directory ?? DEFAULT_DIR))) {
+    while (existing.has(containerPath(kind, name))) {
       name = `${parent.name}-${kind.toLowerCase()}-${suffix}`
       suffix += 1
     }
-    const path = containerPath(kind, name, directory ?? DEFAULT_DIR)
+    const path = containerPath(kind, name)
 
     // Place FIRST in memory so a refusal costs nothing: if the parent will not take the child there
     // is no orphan file to clean up, because nothing has been emitted yet.
-    const placed = placeChild(parentYaml, { name, resource: LAYOUT_KINDS[kind] })
+    const placed = placeChild(parentYaml, { name, namespace, resource: LAYOUT_KINDS[kind] })
     if (!placed.ok) {
       message.warning(placed.error)
       return
     }
-    emitFileAdd({ content: newContainerYaml(kind, name), path })
+    emitFileAdd({ content: newContainerYaml(kind, name, namespace), path })
     emitFileEdit({ content: placed.content, path: parent.path })
   }
 
@@ -228,9 +250,24 @@ export const ObjectTreePanel = ({ directory, files, onSelect }: {
       message.error('that container is not part of the draft')
       return
     }
+    if (!namespace) {
+      message.error('this draft declares no namespace, so the query and table cannot be created in one')
+      return
+    }
+    // Refuse a name the draft already holds, BEFORE anything is emitted.
+    //
+    // `addFile` refuses an existing path, but it refuses it silently from here — so re-binding
+    // under a name already in the draft dropped both generated files on the floor while the place
+    // still went through, leaving the parent referencing the OLD table twice. Checking first makes
+    // the collision the author's to resolve, which is the only party that can.
+    const clash = [result.restAction.path, result.widget.path].filter((path) => path in files)
+    if (clash.length) {
+      message.warning(`"${result.name}" is already in this draft — pick another name, or edit ${clash[0]} in Files`)
+      return
+    }
     // `result.name`, not the filename parsed back out of a path: the generator already knows it,
     // and re-deriving it would be a second place that has to agree about naming.
-    const placed = placeChild(parentYaml, { name: result.name, resource: 'tables' })
+    const placed = placeChild(parentYaml, { name: result.name, namespace, resource: 'tables' })
     if (!placed.ok) {
       message.warning(placed.error)
       return
@@ -246,7 +283,7 @@ export const ObjectTreePanel = ({ directory, files, onSelect }: {
       {bindTarget
         ? (
           <BindDataModal
-            directory={directory ?? DEFAULT_DIR}
+            namespace={namespace}
             onCancel={() => setBindTarget(null)}
             onGenerate={(result) => acceptBinding(bindTarget, result)}
             open

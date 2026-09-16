@@ -26,9 +26,16 @@ const PLACEHOLDER = `{
   "Status": ".status.conditions[0].type"
 }`
 
-export const BindDataModal = ({ directory, namespace, onCancel, onGenerate, open }: {
-  directory: string
-  namespace?: string
+export const BindDataModal = ({ namespace, onCancel, onGenerate, open }: {
+  /**
+   * The namespace both generated objects are created in, read from the draft by the caller.
+   *
+   * Null when the draft declares none, and then this refuses to generate rather than emitting a
+   * pair without one: `spec.apiRef.namespace` is required by the Table CRD with no default, so a
+   * namespace-less widget is rejected at apply — and js-yaml drops the undefined key silently, so
+   * nothing between here and the cluster would have said a word.
+   */
+  namespace: string | null
   onCancel: () => void
   onGenerate: (result: Extract<BindingResult, { ok: true }>) => void
   open: boolean
@@ -55,7 +62,11 @@ export const BindDataModal = ({ directory, namespace, onCancel, onGenerate, open
       return
     }
 
-    const input = { apiPath, columns, directory, itemsAt, name, namespace }
+    if (!namespace) {
+      setError('this draft declares no namespace — open a page draft before binding data')
+      return
+    }
+    const input = { apiPath, columns, itemsAt, name, namespace }
     const invalid = validateBinding(input)
     if (invalid) {
       setError(invalid)
@@ -110,7 +121,7 @@ export const BindDataModal = ({ directory, namespace, onCancel, onGenerate, open
             value={columnsText}
           />
         </Form.Item>
-        {error ? <Alert message={error} showIcon type='error' /> : null}
+        {error ? <Alert showIcon title={error} type='error' /> : null}
       </Form>
     </Modal>
   )

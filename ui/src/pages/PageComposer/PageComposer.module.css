@@ -14,6 +14,13 @@
   gap: var(--spacing-xsm);
 }
 
+/* Close-draft sits under the description rather than beside the title: it is destructive, and the
+   head is a column, so aligning it to the start keeps it out of the heading's reading line. */
+.close {
+  align-self: flex-start;
+  margin-block-start: var(--spacing-xsm);
+}
+
 /* The one-line note under the disabled Start-a-page button in the empty state. */
 .hint {
   margin-block-start: var(--spacing-sm);

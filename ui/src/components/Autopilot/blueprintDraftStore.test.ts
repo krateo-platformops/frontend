@@ -280,3 +280,67 @@ describe('addFile — the composer creating a file the draft does not hold', () 
     expect(store.get()?.files['huge.yaml']).toBeUndefined()
   })
 })
+
+describe('createBlueprintDraftStore — the change broadcast', () => {
+  /**
+   * A surface that EDITS the draft lives outside the provider's React tree (the page composer is a
+   * route), so it cannot hold the store. It re-reads from this notification instead — and the bug
+   * that made it necessary was a tree computing every structural edit against the bytes it was
+   * first handed, silently reverting each previous edit.
+   */
+  const withListener = () => {
+    const seen: (Record<string, string> | null)[] = []
+    const store = createBlueprintDraftStore((held) => seen.push(held ? { ...held.files } : null))
+    return { seen, store }
+  }
+
+  it('announces the whole tree after a set', () => {
+    const { seen, store } = withListener()
+    store.set({ 'a.yaml': 'kind: Flex\n' })
+
+    expect(seen).toEqual([{ 'a.yaml': 'kind: Flex\n' }])
+  })
+
+  it('announces the tree AS IT NOW IS after an edit, not the delta', () => {
+    const { seen, store } = withListener()
+    store.set({ 'a.yaml': 'one\n', 'b.yaml': 'two\n' })
+    store.updateFile('a.yaml', 'edited\n')
+
+    // The whole map: a subscriber re-reads rather than patching, so it cannot drift from the store.
+    expect(seen[1]).toEqual({ 'a.yaml': 'edited\n', 'b.yaml': 'two\n' })
+  })
+
+  it('announces an add', () => {
+    const { seen, store } = withListener()
+    store.set({ 'a.yaml': 'one\n' })
+    store.addFile('b.yaml', 'two\n')
+
+    expect(seen[1]).toEqual({ 'a.yaml': 'one\n', 'b.yaml': 'two\n' })
+  })
+
+  it('says NOTHING when a write is refused', () => {
+    const { seen, store } = withListener()
+    store.set({ 'a.yaml': 'one\n' })
+    // Neither write can take: one path is not held, the other already is.
+    store.updateFile('nope.yaml', 'x\n')
+    store.addFile('a.yaml', 'x\n')
+
+    // A refused write leaves the draft exactly as it was. Announcing anyway would tell a surface
+    // to re-read bytes that did not move — which is how "the edit landed" gets believed wrongly.
+    expect(seen).toHaveLength(1)
+  })
+
+  it('announces the clear, so a surface stops showing a draft that is gone', () => {
+    const { seen, store } = withListener()
+    store.set({ 'a.yaml': 'one\n' })
+    store.clear()
+
+    expect(seen[1]).toBeNull()
+  })
+
+  it('works with no listener at all — the store stays a plain data holder', () => {
+    const store = createBlueprintDraftStore()
+
+    expect(store.set({ 'a.yaml': 'one\n' }).ok).toBe(true)
+  })
+})

@@ -87,6 +87,14 @@ const measureTreeBytes = (files: Record<string, string>): number =>
   Object.values(files).reduce((sum, text) => sum + utf8ByteLength(text), 0)
 
 /** The tiny holder the provider owns. One chart tree at a time (a new preview replaces it). */
+/**
+ * Notified after every mutation that CHANGED the held tree, with the tree as it now is (null once
+ * cleared). The store stays a plain data holder — the one subscriber is the provider, which turns
+ * this into the window broadcast that surfaces outside the provider tree listen on. Keeping the
+ * dispatch out here is what lets the store be tested without a DOM.
+ */
+export type DraftChangeListener = (held: BlueprintDraftHeld | null) => void
+
 export interface BlueprintDraftStore {
   set: (files: Record<string, string>) => BlueprintDraftResult
   get: () => BlueprintDraftHeld | null
@@ -122,8 +130,16 @@ export interface BlueprintDraftStore {
   addFile: (path: string, content: string) => FileUpdateResult
 }
 
-export const createBlueprintDraftStore = (): BlueprintDraftStore => {
+export const createBlueprintDraftStore = (onChange?: DraftChangeListener): BlueprintDraftStore => {
   let held: BlueprintDraftHeld | null = null
+  /**
+   * Announce the held tree after a mutation that took.
+   *
+   * Only on SUCCESS. A refused write leaves the draft exactly as it was, and announcing it anyway
+   * would tell a surface to re-read bytes that did not move — harmless today, and precisely the
+   * kind of thing that later gets mistaken for "the edit landed".
+   */
+  const announce = () => onChange?.(held)
   const store: BlueprintDraftStore = {
     addFile: (path, content) => {
       if (!held) {
@@ -145,16 +161,19 @@ export const createBlueprintDraftStore = (): BlueprintDraftStore => {
         return { bytes: held.bytes, error: `adding this file brings the draft to ${kib} KiB — over the 512 KiB cap`, ok: false }
       }
       held = { bytes, files: nextFiles }
+      announce()
       return { bytes, ok: true }
     },
     clear: () => {
       held = null
+      announce()
     },
     get: () => held,
     set: (files: Record<string, string>) => {
       const result = createBlueprintDraft(files)
       if (result.ok) {
         held = result.held
+        announce()
       }
       return result
     },
@@ -177,6 +196,7 @@ export const createBlueprintDraftStore = (): BlueprintDraftStore => {
         return { bytes: held.bytes, error: `the edit brings the draft to ${kib} KiB — over the 512 KiB cap; trim the file`, ok: false }
       }
       held = { bytes, files: nextFiles }
+      announce()
       return { bytes, ok: true }
     },
   }
