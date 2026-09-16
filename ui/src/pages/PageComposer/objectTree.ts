@@ -31,6 +31,11 @@ export interface TreeNode {
   drafted: boolean
   /** True when the CR reads its data from a RESTAction (`spec.apiRef`) — the data-bound half. */
   bound: boolean
+  /**
+   * Path of the file that PLACES this node — the one a move/remove rewrites, since a child is a
+   * reference held by its parent, not a property of itself. Null for a root, which nothing places.
+   */
+  parentPath: string | null
   children: TreeNode[]
 }
 
@@ -124,29 +129,30 @@ export const buildObjectTree = (files: Record<string, string>): TreeNode[] => {
   // `seen` is per-branch, not global: the same existing widget may legitimately be placed in two
   // sections, and both placements should render. It exists only to stop a cycle — which a
   // hand-edit can create — from recursing forever and freezing the panel.
-  const toNode = (name: string, seen: ReadonlySet<string>): TreeNode => {
+  const toNode = (name: string, seen: ReadonlySet<string>, parentPath: string | null): TreeNode => {
     const object = objects.get(name)
     if (!object) {
       // Referenced but not in the draft: an existing cluster widget being placed.
-      return { bound: false, children: [], drafted: false, kind: null, name, path: null }
+      return { bound: false, children: [], drafted: false, kind: null, name, parentPath, path: null }
     }
     if (seen.has(name)) {
-      return { bound: object.bound, children: [], drafted: true, kind: object.kind, name, path: object.path }
+      return { bound: object.bound, children: [], drafted: true, kind: object.kind, name, parentPath, path: object.path }
     }
     const nextSeen = new Set(seen).add(name)
     return {
       bound: object.bound,
-      children: object.childNames.map((child) => toNode(child, nextSeen)),
+      children: object.childNames.map((child) => toNode(child, nextSeen, object.path)),
       drafted: true,
       kind: object.kind,
       name,
+      parentPath,
       path: object.path,
     }
   }
 
   return [...objects.values()]
     .filter((object) => !referenced.has(object.name))
-    .map((object) => toNode(object.name, new Set()))
+    .map((object) => toNode(object.name, new Set(), null))
 }
 
 /** Every node, depth-first — for counting, searching, and scrolling the Files tab to a selection. */

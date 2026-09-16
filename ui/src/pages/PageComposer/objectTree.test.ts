@@ -138,3 +138,27 @@ describe('buildObjectTree', () => {
     expect(buildObjectTree({})).toEqual([])
   })
 })
+
+describe('parentPath — the file a move or remove has to rewrite', () => {
+  it('points a child at the file that PLACES it, not its own', () => {
+    // A child is a reference held by its parent, so reordering or removing it rewrites the PARENT.
+    // Using the child's own path would edit the wrong file and leave the placement untouched.
+    const tree = buildObjectTree({
+      'a/flex.page-x.yaml': cr('Flex', 'page-x', { children: [['r', 'row-top']] }),
+      'a/row.row-top.yaml': cr('Row', 'row-top', { children: [['s', 'stat']] }),
+      'a/statistic.stat.yaml': cr('Statistic', 'stat'),
+    })
+
+    expect(tree[0].parentPath).toBeNull()
+    expect(tree[0].children[0].parentPath).toBe('a/flex.page-x.yaml')
+    expect(tree[0].children[0].children[0].parentPath).toBe('a/row.row-top.yaml')
+  })
+
+  it('gives a placed (undrafted) child a parent too, so it can still be removed', () => {
+    const tree = buildObjectTree({
+      'a/flex.page-x.yaml': cr('Flex', 'page-x', { children: [['t', 'existing']] }),
+    })
+
+    expect(tree[0].children[0]).toMatchObject({ drafted: false, parentPath: 'a/flex.page-x.yaml' })
+  })
+})

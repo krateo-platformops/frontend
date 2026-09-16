@@ -154,3 +154,63 @@ describe('PageComposer — the draft as a tree', () => {
     expect(screen.getByText(/Nothing in this draft yet/i)).toBeTruthy()
   })
 })
+
+describe('PageComposer — structural edits from the tree', () => {
+  const crWith = (kind: string, name: string, children: string[] = []) => [
+    `kind: ${kind}`,
+    'apiVersion: widgets.templates.krateo.io/v1beta1',
+    `metadata:\n  name: ${name}`,
+    'spec:\n  widgetData:',
+    children.length ? `    items:\n${children.map((ref) => `      - resourceRefId: ${ref}`).join('\n')}` : '    items: []',
+    '  resourcesRefs:',
+    children.length ? `    items:\n${children.map((ref) => `      - id: ${ref}\n        name: ${ref}\n        resource: widgets`).join('\n')}` : '    items: []',
+  ].join('\n')
+
+  const openTwoChildDraft = () => {
+    mount()
+    emit({
+      files: [{ content: crWith('Flex', 'page-x', ['first', 'second']), path: 'a/flex.page-x.yaml' }],
+      title: 'x',
+    })
+  }
+
+  it('emits the reordered PARENT on the same bus the Files editor uses', () => {
+    const seen: { path: string; content: string }[] = []
+    const listener = (event: Event) => {
+      seen.push((event as CustomEvent<{ path: string; content: string }>).detail)
+    }
+    window.addEventListener('autopilotPreviewFileEdited', listener)
+    openTwoChildDraft()
+
+    act(() => { screen.getByLabelText('Move second up').click() })
+    window.removeEventListener('autopilotPreviewFileEdited', listener)
+
+    // One bus, one place that re-checks the cap and re-arms the gate — rather than this panel
+    // growing a second way to mutate a draft.
+    expect(seen).toHaveLength(1)
+    expect(seen[0].path).toBe('a/flex.page-x.yaml')
+    expect(seen[0].content.indexOf('second')).toBeLessThan(seen[0].content.indexOf('first'))
+  })
+
+  it('does not offer move/remove on a root, which nothing places', () => {
+    openTwoChildDraft()
+
+    expect(screen.queryByLabelText('Move page-x up')).toBeNull()
+    expect(screen.getByLabelText('Move first down')).toBeTruthy()
+  })
+
+  it('removing emits a parent without that child', () => {
+    const seen: { content: string }[] = []
+    const listener = (event: Event) => {
+      seen.push((event as CustomEvent<{ content: string }>).detail)
+    }
+    window.addEventListener('autopilotPreviewFileEdited', listener)
+    openTwoChildDraft()
+
+    act(() => { screen.getByLabelText('Remove first').click() })
+    window.removeEventListener('autopilotPreviewFileEdited', listener)
+
+    expect(seen[0].content).not.toContain('first')
+    expect(seen[0].content).toContain('second')
+  })
+})

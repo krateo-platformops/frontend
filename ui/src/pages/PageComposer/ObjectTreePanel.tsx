@@ -12,19 +12,27 @@
  * lets a person rewrite any file's YAML — a structure kept alongside would be stale the moment they
  * did, in a way nothing would report.
  */
-import { Badge, Empty, Tag, Tooltip, Tree, Typography } from 'antd'
+import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined } from '@ant-design/icons'
+import { App, Badge, Button, Empty, Space, Tag, Tooltip, Tree, Typography } from 'antd'
 import type { DataNode } from 'antd/es/tree'
 import { useMemo } from 'react'
+
+import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
 
 import { buildObjectTree, flattenTree } from './objectTree'
 import type { TreeNode } from './objectTree'
 import styles from './PageComposer.module.css'
+import { moveChild, removeChild } from './structureEdit'
 
 /** Container kinds — the ones whose job is to hold other widgets. Worth a quieter label. */
 const CONTAINERS = new Set(['Flex', 'Row', 'Col', 'Tabs', 'Card', 'Layout'])
 
-const toDataNode = (node: TreeNode, key: string): DataNode => ({
-  children: node.children.map((child, index) => toDataNode(child, `${key}-${index}`)),
+const toDataNode = (
+  node: TreeNode,
+  key: string,
+  mutate: (node: TreeNode, op: 'up' | 'down' | 'remove') => void,
+): DataNode => ({
+  children: node.children.map((child, index) => toDataNode(child, `${key}-${index}`, mutate)),
   key,
   title: (
     <span className={styles.node}>
@@ -44,6 +52,23 @@ const toDataNode = (node: TreeNode, key: string): DataNode => ({
             <Tag>placed</Tag>
           </Tooltip>
         )}
+      {/* Only a node with a parent can move or be removed: a child is a REFERENCE held by its
+          parent, so both operations rewrite the parent's file. A root is placed by nothing. */}
+      {node.parentPath
+        ? (
+          <Space className={styles.nodeActions} size={0}>
+            <Tooltip title='Move earlier'>
+              <Button aria-label={`Move ${node.name} up`} icon={<ArrowUpOutlined />} onClick={(event) => { event.stopPropagation(); mutate(node, 'up') }} size='small' type='text' />
+            </Tooltip>
+            <Tooltip title='Move later'>
+              <Button aria-label={`Move ${node.name} down`} icon={<ArrowDownOutlined />} onClick={(event) => { event.stopPropagation(); mutate(node, 'down') }} size='small' type='text' />
+            </Tooltip>
+            <Tooltip title='Remove from this page'>
+              <Button aria-label={`Remove ${node.name}`} icon={<DeleteOutlined />} onClick={(event) => { event.stopPropagation(); mutate(node, 'remove') }} size='small' type='text' />
+            </Tooltip>
+          </Space>
+        )
+        : null}
     </span>
   ),
 })
@@ -52,9 +77,45 @@ export const ObjectTreePanel = ({ files, onSelect }: {
   files: Record<string, string>
   onSelect?: (path: string) => void
 }) => {
+  const { message } = App.useApp()
   const tree = useMemo(() => buildObjectTree(files), [files])
   const flat = useMemo(() => flattenTree(tree), [tree])
-  const nodes = useMemo(() => tree.map((node, index) => toDataNode(node, `${index}`)), [tree])
+
+  /**
+   * Apply a structural edit and hand the result to the SAME bus the Files-tab editor uses.
+   *
+   * The provider owns the held draft and the preview gate; this panel owns neither, exactly as the
+   * preview drawer owns neither. Emitting on `previewFileEdit` means a structural edit and a
+   * hand-typed YAML edit travel the identical path — one place re-checks the cap, one place
+   * re-arms the gate — instead of this panel growing a second way to mutate a draft.
+   *
+   * A refusal is SHOWN. Moving the first child up is a real refusal, not a no-op, and saying so
+   * beats a button that appears to do nothing.
+   */
+  const mutate = (node: TreeNode, op: 'up' | 'down' | 'remove') => {
+    const parentYaml = node.parentPath ? files[node.parentPath] : undefined
+    if (!node.parentPath || parentYaml === undefined) {
+      message.error('that object has no parent to edit')
+      return
+    }
+    const result = op === 'remove'
+      ? removeChild(parentYaml, node.name)
+      : moveChild(parentYaml, node.name, op)
+    if (!result.ok) {
+      message.warning(result.error)
+      return
+    }
+    emitFileEdit({ content: result.content, path: node.parentPath })
+  }
+
+  const nodes = useMemo(
+    () => tree.map((node, index) => toDataNode(node, `${index}`, mutate)),
+    // `mutate` closes over `files` and is recreated each render; depending on it would defeat the
+    // memo entirely. `tree` already changes whenever `files` does, which is the only time the
+    // rendered nodes need rebuilding.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tree],
+  )
 
   // Index by the same key the DataNode carries, so a click resolves back to the file it came from
   // without threading the path through antd's node type.

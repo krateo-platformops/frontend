@@ -66,3 +66,14 @@
 .node { display: inline-flex; align-items: center; gap: var(--spacing-xsm); }
 
 .kindTag { opacity: .75; }
+
+/* The move/remove controls on a tree row. Held at low opacity until the row is hovered or focused:
+   three buttons per node at full strength turn the tree into a wall of icons and bury the names,
+   which are the thing being read. Focus-within keeps them reachable by keyboard. */
+.nodeActions { opacity: 0; transition: opacity .12s ease-in-out; }
+.node:hover .nodeActions,
+.node:focus-within .nodeActions { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nodeActions { transition: none; }
+}
