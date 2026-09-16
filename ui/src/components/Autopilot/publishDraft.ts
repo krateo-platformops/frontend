@@ -26,9 +26,9 @@ import { heldPublishFiles, type BlueprintDraftStore } from './blueprintDraftStor
 import type { createBlueprintGate } from './blueprintGate'
 import { buildBlueprintPublishOps } from './blueprintPublish'
 import { buildClaimPublish } from './builderClaimPublish'
-import type { useBuilderTargets } from './builderTargets'
+import { builderTemplateUrl, type useBuilderTargets } from './builderTargets'
 import type { createOasAttachmentStore } from './oasAttachment'
-import { isPageDraft, pageRootSlug } from './pageDraft'
+import { isPageDraft, pageCompositionDefinition, pageRootSlug } from './pageDraft'
 import { buildPagePublishOps } from './pagePublish'
 import type { createPreviewGate } from './previewGate'
 import { compilePublishOps, heldDraftIdentity, type PublishCompileResult } from './publishCompile'
@@ -104,6 +104,17 @@ export const runDraftPublish = async (
     }
   }
 
+  // THE REGISTRATION FILE, written at publish time because it is the one file that depends on the
+  // destination: its OCI url is `<owner>/charts/<chart name>`, and the owner is only settled once
+  // the human confirms it. Without it the page set releases to OCI and nothing installs it — the
+  // chart is inert until a CompositionDefinition registers it. It also overwrites the copy a
+  // template scaffold brings in, which still names the template's own chart.
+  const owner = dest.owner || bt.owner
+  const publishFiles = isPage && owner
+    ? { ...held.files, 'compositiondefinition.yaml': pageCompositionDefinition(slug, owner) }
+    : held.files
+  const publishHeld = { ...held, files: publishFiles }
+
   if (publishViaClaim) {
     // The claim commits each path VERBATIM (builder-publish only splits it into basename + dir), so
     // the full repo path is this caller's job — and both builders now hand it chart-relative keys,
@@ -112,7 +123,7 @@ export const runDraftPublish = async (
     // dropped every widget CR at the repo ROOT — outside the chart, packaged by nothing, merged
     // green and rendered never. The keys carry their own location now, so nothing has to re-derive
     // it and the three writers cannot disagree about it.
-    const files = heldPublishFiles(held.files)
+    const files = heldPublishFiles(publishFiles)
     if (files.length > MAX_APPLY_SET_OPS) {
       return {
         compiled: { denial: `denied — "${slug}" has ${files.length} files; a single publish tops out at ${MAX_APPLY_SET_OPS} — ${overflow}.`, ops: null },
@@ -128,11 +139,19 @@ export const runDraftPublish = async (
       namespace: 'krateo-system',
       origin,
       slug,
+      // SEED a new page-set repo from the configured template, so what the claim creates is not a
+      // bare repo holding an unreleasable chart. Null when no template is configured — the claim
+      // then omits `source` and behaves exactly as before. Pages only: the blueprint builder has
+      // the same gap and no template key yet.
+      sourceUrl: isPage ? builderTemplateUrl(builderTargets.pageTemplate, config?.api.AUTOPILOT_GIT_HOST) : null,
     })
     return { compiled: res.compiled, deepLink: res.deepLink }
   }
 
-  const built = isPage ? buildPagePublishOps(targeted, held, slug) : buildBlueprintPublishOps(targeted, held, slug)
+  // The legacy github path commits the same file set, registration file included — but it has no
+  // seeding step (that is the composition's `Repo`, which only the claim path renders), so a page
+  // set published this way still needs the release workflow copied in by hand.
+  const built = isPage ? buildPagePublishOps(targeted, publishHeld, slug) : buildBlueprintPublishOps(targeted, held, slug)
   if (built.length > MAX_APPLY_SET_OPS) {
     return {
       compiled: { denial: `denied — "${slug}" has ${Object.keys(held.files).length} files; a single publish tops out at ${MAX_APPLY_SET_OPS - 2} — ${overflow}.`, ops: null },

@@ -73,13 +73,25 @@ export interface Config {
      * publishes against. Config-driven so an org/repo rename is an install-values change, never a
      * frontend rebuild — the `braghettos`→`krateo-platformops` (+ `krateo-oas`→`oas`) migration is
      * exactly why these exist. There is NO hardcoded fallback repo (#163): absent/empty/malformed →
-     * an EMPTY prefill and the human supplies the destination (or the publish is denied). PAGE is a
-     * single fixed repo; BLUEPRINT/KOG supply the OWNER while the repo is per-artifact (each blueprint
-     * / RestDefinition gets its own repo). Consumed as the publish-form prefill — the human confirms
-     * every destination, and a model-emitted owner/repo still wins over the prefill. */
+     * an EMPTY prefill and the human supplies the destination (or the publish is denied). All three
+     * supply the OWNER while the repo is per-artifact — each blueprint, RestDefinition and page set
+     * gets its own repo, since a page set became its own chart (#277). Consumed as the publish-form
+     * prefill — the human confirms every destination, and a model-emitted owner/repo still wins. */
     AUTOPILOT_KOG_BUILDER_REPO?: string
     AUTOPILOT_PAGE_BUILDER_REPO?: string
     AUTOPILOT_BLUEPRINT_BUILDER_REPO?: string
+    /** Template repo a NEW page-set repository is seeded from, as an `owner/repo` slug.
+     *
+     * `builder-publish` creates the destination repo and auto-inits it, so without this a composed
+     * page set lands in a bare repo: a valid chart with no release workflow and no
+     * CompositionDefinition, and therefore no way to release or register itself. Setting this makes
+     * the claim render a git-provider `Repo` (`fromRepo` → `toRepo`) that copies the template in
+     * first; the template's `.krateoignore` keeps its example chart out, so what arrives is the
+     * scaffolding only and the composed chart is the repo's one chart.
+     *
+     * Config-driven and with NO hardcoded fallback, for the same reason as the destinations above.
+     * Absent/empty/malformed → no seeding, which is exactly the previous behaviour. */
+    AUTOPILOT_PAGE_BUILDER_TEMPLATE?: string
     /* SCM-agnostic publishing (git-provider LocalResource path). The builder publish targets are
      * install config; these two say WHICH SCM flavour + host so the frontend builds the right
      * change-request deep link + citation URLs (the write itself is scm-blind, done by git-provider).

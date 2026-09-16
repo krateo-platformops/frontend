@@ -189,9 +189,17 @@ config:
   # confirmation at publish). Absent/malformed → an empty prefill; the human supplies the destination.
   # A model-emitted owner/repo still wins over the prefill.
   #
-  # PAGE — a single fixed repo: all portal pages publish to the portal chart repo. Canonical is
-  #   krateo-platformops/portal (the old krateo-portal-chart only 301-redirects).
+  # PAGE — PER-ARTIFACT since #277: a page set is its own chart, so each one gets its OWN repo named
+  #   for the page slug. The OWNER segment is what matters (the org new page-set repos land in); the
+  #   REPO segment is only a placeholder prefill the page slug overrides.
   AUTOPILOT_PAGE_BUILDER_REPO: krateo-platformops/portal
+  # PAGE TEMPLATE — the repo a NEW page-set repository is SEEDED from, before the composed chart is
+  #   committed into it. builder-publish creates the destination repo and auto-inits it, so without
+  #   this a composed page set lands in a bare repo: a valid chart with no release workflow and no
+  #   compositiondefinition.yaml, and therefore no way to release or register itself. The template's
+  #   .krateoignore keeps its own example chart out of the copy, so the composed chart is the only
+  #   chart in the new repo. Empty = no seeding (the pre-#277 behaviour).
+  AUTOPILOT_PAGE_BUILDER_TEMPLATE: krateo-blueprints/portal-builder
   # BLUEPRINT / KOG(controller) — PER-ARTIFACT repos (#163): each blueprint / RestDefinition gets its
   #   OWN repo named for the artifact. Here the OWNER segment is what matters (the org new repos land
   #   in); the REPO segment is only a placeholder prefill that the per-artifact name overrides. The

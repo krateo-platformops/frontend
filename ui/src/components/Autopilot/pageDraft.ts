@@ -150,6 +150,40 @@ export const pageRootSlug = (files: Record<string, string>): string | null => {
  * menu edit). Derived from the SAME held files at record- and publish-time → part of the
  * previewed==published byte set the gate enforces.
  */
+/**
+ * The `CompositionDefinition` that REGISTERS a published page set, written at the repo root.
+ *
+ * Without one, a page set releases to OCI and nothing ever installs it: core-provider generates the
+ * CRD from `values.schema.json` and serves it as `composition.krateo.io/v<version>/<plural>`, and
+ * only then can a claim of that Kind put the pages on the cluster. The chart alone is inert.
+ *
+ * It is written at PUBLISH time rather than into the held draft because it is the one file that
+ * depends on the DESTINATION — the OCI url is `<owner>/charts/<chart name>`, and the owner is not
+ * known until the human confirms it. That also means it overwrites the copy a template scaffold
+ * brings in, which still names the template's own chart.
+ *
+ * `CHART_VERSION` is the placeholder the release workflow stamps, and the stamped copy is attached
+ * to the GitHub release — so this file is applied FROM THE RELEASE, never from the branch. Writing
+ * a real version here would register a chart version that does not exist yet.
+ */
+export const pageCompositionDefinition = (slug: string, owner: string): string => `# REGISTERS this page set as installable. Apply the STAMPED copy from the GitHub release, not this
+# one: the branch carries the CHART_VERSION placeholder, and registering that pins a chart version
+# that was never published.
+#
+#   kubectl apply -f https://github.com/${owner}/${slug}/releases/download/<tag>/compositiondefinition.yaml
+#
+# Install it WHERE THE PORTAL IS — the pages must land in namespaces the portal's RBAC covers.
+apiVersion: core.krateo.io/v1alpha1
+kind: CompositionDefinition
+metadata:
+  name: ${slug}
+  namespace: krateo-system
+spec:
+  chart:
+    url: oci://ghcr.io/${owner}/charts/${slug}
+    version: CHART_VERSION
+`
+
 /** The namespace every CR this chart ships is created in — resolved at install time, not authoring. */
 const TIER_NAMESPACE = `{{ include "page.tierNamespace" (dict "ctx" . "tier" "${PAGE_TIER}") }}`
 

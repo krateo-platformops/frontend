@@ -45,16 +45,40 @@ export interface BuilderTargets {
   blueprint: BuilderTarget
   kog: BuilderTarget
   page: BuilderTarget
+  /**
+   * Template repo a NEW page-set repository is SEEDED from — a destination's starting content, not
+   * a destination. Empty (the default) means no seeding: the previous behaviour, a bare auto-init'd
+   * repo holding only the composed chart.
+   */
+  pageTemplate: BuilderTarget
 }
 
-/** Resolve all three builders' publish destinations from install config, memoized on the slugs. */
+/** Resolve the builders' publish destinations from install config, memoized on the slugs. */
 export const useBuilderTargets = (config: Config | undefined): BuilderTargets => {
   const kogSlug = config?.api.AUTOPILOT_KOG_BUILDER_REPO
   const pageSlug = config?.api.AUTOPILOT_PAGE_BUILDER_REPO
   const blueprintSlug = config?.api.AUTOPILOT_BLUEPRINT_BUILDER_REPO
+  const pageTemplateSlug = config?.api.AUTOPILOT_PAGE_BUILDER_TEMPLATE
   return useMemo(() => ({
     blueprint: resolveBuilderTarget(blueprintSlug),
     kog: resolveBuilderTarget(kogSlug),
     page: resolveBuilderTarget(pageSlug),
-  }), [blueprintSlug, kogSlug, pageSlug])
+    pageTemplate: resolveBuilderTarget(pageTemplateSlug),
+  }), [blueprintSlug, kogSlug, pageSlug, pageTemplateSlug])
+}
+
+/**
+ * The clone URL a `Repo.spec.fromRepo` seeds from, or `null` when no template is configured.
+ *
+ * Built from the same `AUTOPILOT_GIT_HOST` the publish deep links use, so a self-hosted SCM seeds
+ * from its own server rather than github.com. `null` — not an empty string — because the claim must
+ * OMIT `source` entirely when unset: an empty url renders a `Repo` that clones nothing and fails
+ * the publish, where omitting it simply skips the seeding step.
+ */
+export const builderTemplateUrl = (template: BuilderTarget, host: string | undefined): string | null => {
+  if (!template.owner || !template.repo) {
+    return null
+  }
+  const gitHost = (typeof host === 'string' && host.trim()) || 'github.com'
+  return `https://${gitHost}/${template.owner}/${template.repo}.git`
 }

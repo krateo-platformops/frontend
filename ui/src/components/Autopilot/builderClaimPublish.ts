@@ -49,6 +49,8 @@ export const buildClaimPublish = async (args: {
   config: Config | undefined
   gate: (ops: ApplyResourceSetOp[]) => GateVerdict
   origin: AuthorshipOrigin
+  /** Clone URL of a template to seed a NEW destination repo from. Null/absent = no seeding. */
+  sourceUrl?: string | null
 }): Promise<ClaimPublishResult> => {
   const resolved = resolveStructuredTarget(args.builder, args.config)
   const target = {
@@ -74,7 +76,7 @@ export const buildClaimPublish = async (args: {
   if (!gvr) {
     return { branch: `builder/${args.slug}`, compiled: { denial: BUILDER_PUBLISH_GVR_DENIAL, ops: null }, deepLink: null }
   }
-  const claim = buildBuilderPublishClaim({ apiVersion: gvr.apiVersion, builder: args.builder, files: args.files, namespace: args.namespace, slug: args.slug, target })
+  const claim = buildBuilderPublishClaim({ apiVersion: gvr.apiVersion, builder: args.builder, files: args.files, namespace: args.namespace, slug: args.slug, sourceUrl: args.sourceUrl, target })
   const ops = buildBuilderPublishOps(claim, gvr.gvr)
   const compiled = compileClaimPublish(ops, args.gate(ops), args.origin)
   if (compiled.denial === null) {
