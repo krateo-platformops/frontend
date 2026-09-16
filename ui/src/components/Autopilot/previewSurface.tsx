@@ -244,13 +244,34 @@ const FileEditBlock = ({
  * `onVerdicts` lifts re-validated verdicts to the owner so the Alert blocks reflect the latest edit;
  * the drawer keeps that in its own state, a page may keep it in its own.
  */
-export const PreviewContent = ({ editVerdicts, onVerdicts, payload }: {
+/**
+ * A DOM id for one file block. Non-alphanumerics collapse to `-` so a repo path is a valid id.
+ * Derived on both sides from the displayed path, so the reveal cannot drift from what it targets.
+ */
+const fileAnchorId = (path: string): string => `preview-file-${path.replace(/[^a-zA-Z0-9]+/g, '-')}`
+
+export const PreviewContent = ({ editVerdicts, focusPath, onVerdicts, payload }: {
   editVerdicts: RestDefVerdicts | null
+  /**
+   * The draft file to reveal in the Files tab — the composer's tree selection.
+   *
+   * A HELD KEY (`statistic.stat-ready.yaml`), matched as a SUFFIX of each file's displayed path.
+   * The two vocabularies differ — a page's files are shown at their routed repo destination while
+   * the draft holds them under bare tokens — and a suffix match is the one comparison that works
+   * for both without this component having to know which kind of draft it is showing.
+   *
+   * Without it the two halves of the composer are unrelated views: a tree that says what is in the
+   * draft, beside a list that will not show you the one you just clicked. Optional — the drawer
+   * has no tree, and passes nothing.
+   */
+  focusPath?: string | null
   onVerdicts: (verdicts: RestDefVerdicts) => void
   payload: AutopilotPreviewPayload
 }): React.ReactNode => {
   const { mode } = useThemeMode()
   const setEditVerdicts = onVerdicts
+  // Controlled so a tree selection can switch to Files; `onChange` keeps manual switching working.
+  const [activeTab, setActiveTab] = useState<string | undefined>(undefined)
 
   // The verdicts to render: the live edit verdicts once the user applied an edit, else the payload's.
   const problems = editVerdicts ? editVerdicts.problems : payload.problems
@@ -283,14 +304,15 @@ export const PreviewContent = ({ editVerdicts, onVerdicts, payload }: {
   const filesBody = payload.files?.length ? (
     <div className={styles.body}>
       {payload.files.map((file, index) => (
-        <FileEditBlock
-          content={file.content}
-          isPageWidget={isPageWidget}
-          key={`file-${index}-${file.path}`}
-          mode={mode}
-          path={file.path}
-          style={highlighterStyle}
-        />
+        <div id={fileAnchorId(file.path)} key={`file-${index}-${file.path}`}>
+          <FileEditBlock
+            content={file.content}
+            isPageWidget={isPageWidget}
+            mode={mode}
+            path={file.path}
+            style={highlighterStyle}
+          />
+        </div>
       ))}
     </div>
   ) : null
@@ -365,6 +387,27 @@ export const PreviewContent = ({ editVerdicts, onVerdicts, payload }: {
 
   // The unified tab set — the same shape for BOTH builders: [Rendered (live) if a sandbox endpoint] →
   // [Files: the committed source tree with paths] → [Source: rendered output / CRs + validation].
+  // Reveal the selected file: switch to Files and scroll it into view.
+  //
+  // Suffix match, because the tree speaks HELD KEYS and this list shows routed repo destinations.
+  // A node with no file of its own — a placed EXISTING widget — matches nothing and is left alone
+  // rather than scrolling somewhere arbitrary.
+  const focusedFile = focusPath
+    ? payload.files?.find((file) => file.path === focusPath || file.path.endsWith(`/${focusPath}`))
+    : undefined
+  useEffect(() => {
+    if (!focusedFile) {
+      return
+    }
+    setActiveTab('files')
+    // Next frame: the Files tab may have just been mounted by the line above, and an unmounted
+    // node has nothing to scroll to.
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(fileAnchorId(focusedFile.path))?.scrollIntoView({ block: 'nearest' })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [focusedFile])
+
   const tabs = [
     ...(payload.liveEndpoint
       // The REAL renderer on the REAL served endpoint: snowplow resolves the sandbox drafts
@@ -388,7 +431,7 @@ export const PreviewContent = ({ editVerdicts, onVerdicts, payload }: {
           <Typography.Text type='secondary'>· you confirm the destination at publish</Typography.Text>
         </div>
       ) : null}
-      <Tabs defaultActiveKey={tabs[0]?.key} items={tabs} />
+      <Tabs activeKey={activeTab ?? tabs[0]?.key} items={tabs} onChange={setActiveTab} />
     </div>
   )
 }

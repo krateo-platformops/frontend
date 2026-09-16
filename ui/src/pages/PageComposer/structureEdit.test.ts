@@ -7,7 +7,7 @@
 import { load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
-import { containerPath, moveChild, newContainerYaml, placeChild, removeChild } from './structureEdit'
+import { containerPath, moveChild, newContainerYaml, placeChild, removeChild, wrapChild } from './structureEdit'
 
 const parent = (children: string[] = []) => [
   'kind: Flex',
@@ -259,5 +259,92 @@ describe('newContainerYaml / containerPath', () => {
     }))) as { spec: { resourcesRefs: { items: { namespace: string }[] } } }
 
     expect(doc.spec.resourcesRefs.items[0].namespace).toBe('krateo-system')
+  })
+})
+
+describe('wrapChild — re-parenting, the operation that actually creates nesting', () => {
+  const read2 = (yaml: string) => {
+    const doc = load(yaml) as {
+      spec: {
+        widgetData: { items: { resourceRefId: string }[]; allowedResources: string[] }
+        resourcesRefs: { items: { id: string; name: string; namespace?: string; resource: string }[] }
+      }
+    }
+    return {
+      allowed: doc.spec.widgetData.allowedResources,
+      ids: doc.spec.widgetData.items.map((item) => item.resourceRefId),
+      refs: doc.spec.resourcesRefs.items,
+    }
+  }
+  const wrapped = (parentYaml: string, child: { index: number; refId: string }) => {
+    const result = wrapChild(parentYaml, child, { kind: 'Row', name: 'wrap-1', namespace: 'krateo-system' })
+    if (!result.ok) {
+      throw new Error(`expected success, got: ${result.error}`)
+    }
+    return result
+  }
+
+  it('puts the container in the child’s EXACT slot, so reading order survives', () => {
+    const out = read2(wrapped(parent(['a', 'b', 'c']), { index: 1, refId: 'b' }).parent)
+
+    expect(out.ids).toEqual(['a', 'wrap-1', 'c'])
+  })
+
+  it('moves the child INTO the container — it is not left a sibling', () => {
+    // Inserting an empty container beside the child is the thing this replaces: it leaves you
+    // arranging by hand, one move per object you wanted inside.
+    const out = read2(wrapped(parent(['a']), { index: 0, refId: 'a' }).container)
+
+    expect(out.ids).toEqual(['a'])
+    expect(out.allowed).toEqual(['tables'])
+  })
+
+  it('carries the child’s resource and namespace across rather than re-deriving them', () => {
+    // A placed EXISTING widget may live in another namespace entirely; re-deriving is how it
+    // silently stops resolving after a re-parent.
+    const seeded = ok(placeChild(parent(), { name: 'far', namespace: 'other-ns', resource: 'cards' }))
+    const out = read2(wrapped(seeded, { index: 0, refId: 'far' }).container)
+
+    expect(out.refs[0]).toMatchObject({ name: 'far', namespace: 'other-ns', resource: 'cards' })
+  })
+
+  it('declares the container’s plural on the parent, without which it will not render', () => {
+    const out = read2(wrapped(parent(['a']), { index: 0, refId: 'a' }).parent)
+
+    expect(out.allowed).toContain('rows')
+  })
+
+  it('drops the child’s ref entry from the parent, which no longer holds it', () => {
+    const out = read2(wrapped(parent(['a']), { index: 0, refId: 'a' }).parent)
+
+    expect(out.refs.map((ref) => ref.id)).toEqual(['wrap-1'])
+  })
+
+  it('KEEPS the child’s entry when another placement in the same parent survives', () => {
+    // Built through placeChild, not the fixture: a real parent holds ONE ref entry for a widget
+    // placed twice — "the reference may repeat; the resourcesRefs entry must not" — and a fixture
+    // with two entries tests a document the code refuses to produce.
+    const twice = ok(placeChild(parent(['dup']), { name: 'dup', namespace: 'krateo-system', resource: 'tables' }))
+    const out = read2(wrapped(twice, { index: 0, refId: 'dup' }).parent)
+
+    // The placement that stayed put still needs something to resolve it.
+    expect(out.ids).toEqual(['wrap-1', 'dup'])
+    expect(out.refs.map((ref) => ref.id).sort()).toEqual(['dup', 'wrap-1'])
+  })
+
+  it('refuses a child with no ref entry rather than wrapping a dangling reference', () => {
+    const orphan = ok(removeChild(parent(['a', 'b']), { index: 0, refId: 'a' }))
+    // `orphan` now has items [b] and refs [b]; ask for a slot that no entry resolves.
+    const result = wrapChild(orphan.replace('- id: b', '- id: ghost'), { index: 0, refId: 'b' },
+      { kind: 'Row', name: 'w', namespace: 'krateo-system' })
+
+    expect(result.ok).toBe(false)
+  })
+
+  it('refuses when the draft moved under the tree', () => {
+    const result = wrapChild(parent(['a', 'b']), { index: 0, refId: 'b' },
+      { kind: 'Row', name: 'w', namespace: 'krateo-system' })
+
+    expect(result.ok).toBe(false)
   })
 })

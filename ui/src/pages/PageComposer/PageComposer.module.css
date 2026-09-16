@@ -14,9 +14,9 @@
   gap: var(--spacing-xsm);
 }
 
-/* Close-draft sits under the description rather than beside the title: it is destructive, and the
-   head is a column, so aligning it to the start keeps it out of the heading's reading line. */
-.close {
+/* Publish and Close sit under the description rather than beside the title: the head is a column,
+   and aligning them to the start keeps them out of the heading's reading line. */
+.actions {
   align-self: flex-start;
   margin-block-start: var(--spacing-xsm);
 }

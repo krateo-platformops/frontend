@@ -25,19 +25,36 @@
  * start one. Publishing is unchanged and still ends at a form a person submits — the agent's
  * never-submit guarantee is not weakened by any of this.
  */
-import { Button, Empty, Popconfirm, Typography } from 'antd'
-import { useEffect, useState } from 'react'
+import { Alert, Button, Empty, Popconfirm, Space, Typography } from 'antd'
+import { useContext, useEffect, useRef, useState } from 'react'
 
 import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { claimPreviewSurface, onDraftChanged, requestDraftReplay } from '../../components/Autopilot/previewDraftChanged'
+import { emitDraftStart } from '../../components/Autopilot/previewDraftStart'
+import { emitPublishRequest, onPublishResult } from '../../components/Autopilot/previewPublishRequest'
 import { PreviewContent } from '../../components/Autopilot/previewSurface'
 import type { RestDefVerdicts } from '../../components/Autopilot/previewSurface'
+import { ConfigContext } from '../../context/ConfigContext'
 
 import ObjectTreePanel from './ObjectTreePanel'
 import styles from './PageComposer.module.css'
+import StartDraftModal from './StartDraftModal'
+
+/**
+ * Where a newly started page is created.
+ *
+ * The portal's own release namespace is the honest answer and the frontend does not know it, so
+ * this matches `PORTAL_CHART_REPO_DEFAULTS` — the same default every other builder path assumes.
+ * It is visible and editable in the Files tab before anything is published, which is the backstop.
+ */
+const NEW_DRAFT_NAMESPACE = 'krateo-system'
 
 const PageComposer = () => {
+  // `useContext`, not `useConfigContext`: the hook throws with no provider above it, and this page
+  // only DEGRADES without config — the widget picker reports that it cannot reach the list. Taking
+  // the whole route down for that would be worse, and the page is asserted to mount bare.
+  const snowplowBaseUrl = useContext(ConfigContext)?.config?.api?.SNOWPLOW_API_BASE_URL ?? ''
   const [payload, setPayload] = useState<AutopilotPreviewPayload | null>(null)
   /**
    * The draft AS IT IS NOW, keyed by held key — not `payload.files`.
@@ -53,6 +70,16 @@ const PageComposer = () => {
    * the routed path is a path that gets routed twice.
    */
   const [files, setFiles] = useState<Record<string, string>>({})
+  const [starting, setStarting] = useState(false)
+  // The tree selection, reflected in the Files list. Without it the two halves of the page are
+  // unrelated views of the same draft.
+  const [focusPath, setFocusPath] = useState<string | null>(null)
+  // The publish in flight, and its outcome. Held here rather than shown in the chat rail: the
+  // person who pressed the button is looking at this page, and sending them to the conversation to
+  // find out what happened is the coupling this whole surface exists to remove.
+  const [publishing, setPublishing] = useState(false)
+  const [outcome, setOutcome] = useState<{ denial: string | null; deepLink: string | null } | null>(null)
+  const publishId = useRef<string | null>(null)
   // Re-validated verdicts after an applied edit, so the Alert blocks reflect the latest draft
   // rather than the one that was first handed over. Same contract the drawer keeps.
   const [editVerdicts, setEditVerdicts] = useState<RestDefVerdicts | null>(null)
@@ -74,6 +101,16 @@ const PageComposer = () => {
     return () => window.removeEventListener(AUTOPILOT_PREVIEW_EVENT, onPreview as EventListener)
   }, [])
 
+  // The answer to OUR publish, ignoring any other surface's.
+  useEffect(() => onPublishResult(({ deepLink, denial, id }) => {
+    if (publishId.current !== id) {
+      return
+    }
+    publishId.current = null
+    setPublishing(false)
+    setOutcome({ deepLink, denial })
+  }), [])
+
   // The held draft, and a replay request for the case this page mounted after it was seeded —
   // navigate here with a draft already open and the tree would otherwise sit empty until the next
   // edit, describing a draft that exists as if it did not.
@@ -91,15 +128,43 @@ const PageComposer = () => {
    * never double-tears-down. Clearing local state after it is what returns the honest empty state
    * rather than leaving a dead endpoint mounted.
    */
+  /**
+   * Publish — the same `runDraftPublish` the agent's verb takes, asked for by a person.
+   *
+   * The destination form and the blast-radius confirm both still run, so this button PROPOSES the
+   * write; it does not perform one. What it removes is the detour: until now the only way to ship
+   * a draft you had authored here was to go and ask the agent to emit a publish directive.
+   */
+  const publish = () => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    publishId.current = id
+    setOutcome(null)
+    setPublishing(true)
+    emitPublishRequest({ id, verb: 'publishPage' })
+  }
+
   const closeDraft = () => {
     payload?.onClose?.()
     setPayload(null)
     setEditVerdicts(null)
     setFiles({})
+    setFocusPath(null)
   }
 
   return (
     <div className={styles.page}>
+      {/* NEW_DRAFT_NAMESPACE, not a namespace read from the draft: there IS no draft yet, which is
+          the whole point of this control. It matches what every Autopilot-published page already
+          carries, so starting one here and asking the agent for one produce the same bytes. */}
+      <StartDraftModal
+        namespace={NEW_DRAFT_NAMESPACE}
+        onCancel={() => setStarting(false)}
+        onStart={(result) => {
+          setStarting(false)
+          emitDraftStart({ title: 'Page draft', widgets: result.widgets })
+        }}
+        open={starting}
+      />
       <header className={styles.head}>
         <Typography.Title level={2} style={{ margin: 0 }}>Page composer</Typography.Title>
         <Typography.Paragraph style={{ margin: 0 }} type='secondary'>
@@ -111,14 +176,33 @@ const PageComposer = () => {
             immediate, because the draft is not recoverable and nothing else in view says so. */}
         {payload
           ? (
-            <Popconfirm
-              cancelText='Keep editing'
-              okText='Discard'
-              onConfirm={closeDraft}
-              title='Discard this draft? The sandbox and its unpublished files are deleted.'
-            >
-              <Button className={styles.close}>Close draft</Button>
-            </Popconfirm>
+            <Space className={styles.actions}>
+              <Button loading={publishing} onClick={publish} type='primary'>
+                {publishing ? 'Publishing…' : 'Publish'}
+              </Button>
+              <Popconfirm
+                cancelText='Keep editing'
+                okText='Discard'
+                onConfirm={closeDraft}
+                title='Discard this draft? The sandbox and its unpublished files are deleted.'
+              >
+                <Button>Close draft</Button>
+              </Popconfirm>
+            </Space>
+          )
+          : null}
+        {outcome
+          ? (
+            <Alert
+              action={outcome.deepLink
+                ? <Button href={outcome.deepLink} rel='noreferrer' target='_blank' type='link'>Open change request</Button>
+                : null}
+              closable
+              onClose={() => setOutcome(null)}
+              showIcon
+              title={outcome.denial ?? 'Published — the change request is open for review.'}
+              type={outcome.denial ? 'warning' : 'success'}
+            />
           )
           : null}
       </header>
@@ -130,9 +214,9 @@ const PageComposer = () => {
           // render — see objectTree.ts for why it is never stored.
           <div className={styles.split}>
             <div className={styles.surface}>
-              <PreviewContent editVerdicts={editVerdicts} onVerdicts={setEditVerdicts} payload={payload} />
+              <PreviewContent editVerdicts={editVerdicts} focusPath={focusPath} onVerdicts={setEditVerdicts} payload={payload} />
             </div>
-            <ObjectTreePanel files={files} />
+            <ObjectTreePanel files={files} onSelect={setFocusPath} snowplowBaseUrl={snowplowBaseUrl} />
           </div>
         )
         : (
@@ -147,9 +231,10 @@ const PageComposer = () => {
             }
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           >
-            <Button disabled type='primary'>Start a page</Button>
+            <Button onClick={() => setStarting(true)} type='primary'>Start a page</Button>
             <Typography.Paragraph className={styles.hint} type='secondary'>
-              Start-a-page lands next: it seeds an empty draft with a root Flex and a page header.
+              Or ask Autopilot — either way the draft lands here and nothing is published until
+              you submit the change request yourself.
             </Typography.Paragraph>
           </Empty>
         )}

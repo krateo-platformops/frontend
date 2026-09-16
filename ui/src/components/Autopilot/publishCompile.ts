@@ -124,7 +124,10 @@ export const recordPagePreview = (
   widgets: unknown[] | undefined,
   nav: NavHint | undefined,
   store: BlueprintDraftStore,
-  gate: BlueprintGate,
+  // Structurally narrowed to the ONE method this uses, so a caller holding a narrowed gate — the
+  // draft-bus hook does, deliberately, so its tests need not build a whole gate — can seed a draft
+  // through the same entry point a proposed page uses instead of reimplementing it.
+  gate: Pick<BlueprintGate, 'recordPreview'>,
 ): void => {
   const pageFiles = pageDraftFiles(widgets ?? [], nav)
   if (!pageFiles) {

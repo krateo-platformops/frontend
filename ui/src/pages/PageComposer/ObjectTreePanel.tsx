@@ -12,7 +12,7 @@
  * lets a person rewrite any file's YAML — a structure kept alongside would be stale the moment they
  * did, in a way nothing would report.
  */
-import { ApiOutlined, ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { ApiOutlined, ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, GroupOutlined, ImportOutlined, PlusOutlined } from '@ant-design/icons'
 import { App, Badge, Button, Dropdown, Empty, Space, Tag, Tooltip, Tree, Typography } from 'antd'
 import type { DataNode } from 'antd/es/tree'
 import { useMemo, useState } from 'react'
@@ -25,7 +25,9 @@ import type { BindingResult } from './generateBinding'
 import { buildObjectTree, draftNamespace, flattenTree } from './objectTree'
 import type { TreeNode } from './objectTree'
 import styles from './PageComposer.module.css'
-import { containerPath, LAYOUT_KINDS, moveChild, newContainerYaml, placeChild, removeChild } from './structureEdit'
+import type { PlaceableWidget } from './placeableWidgets'
+import PlaceWidgetModal from './PlaceWidgetModal'
+import { containerPath, LAYOUT_KINDS, moveChild, newContainerYaml, placeChild, removeChild, wrapChild } from './structureEdit'
 import type { LayoutKind } from './structureEdit'
 
 /**
@@ -38,14 +40,19 @@ import type { LayoutKind } from './structureEdit'
  */
 const CONTAINERS = new Set<string>(Object.keys(LAYOUT_KINDS))
 
+/** Where `page-composable` lists from when the draft itself declares no namespace. */
+const PORTAL_NAMESPACE = 'krateo-system'
+
 const toDataNode = (
   node: TreeNode,
   key: string,
   mutate: (node: TreeNode, op: 'up' | 'down' | 'remove') => void,
   addLayout: (node: TreeNode, kind: LayoutKind) => void,
   bindInto: (node: TreeNode) => void,
+  wrapIn: (node: TreeNode, kind: LayoutKind) => void,
+  placeInto: (node: TreeNode) => void,
 ): DataNode => ({
-  children: node.children.map((child, index) => toDataNode(child, `${key}-${index}`, mutate, addLayout, bindInto)),
+  children: node.children.map((child, index) => toDataNode(child, `${key}-${index}`, mutate, addLayout, bindInto, wrapIn, placeInto)),
   key,
   title: (
     <span className={styles.node}>
@@ -84,6 +91,13 @@ const toDataNode = (
         : null}
       {node.drafted && CONTAINERS.has(node.kind ?? '')
         ? (
+          <Tooltip title='Place a widget that already exists on the cluster'>
+            <Button aria-label={`Place inside ${node.name}`} icon={<ImportOutlined />} onClick={(event) => { event.stopPropagation(); placeInto(node) }} size='small' type='text' />
+          </Tooltip>
+        )
+        : null}
+      {node.drafted && CONTAINERS.has(node.kind ?? '')
+        ? (
           <Tooltip title='Add a table that reads live data from the cluster'>
             <Button aria-label={`Bind data inside ${node.name}`} icon={<ApiOutlined />} onClick={(event) => { event.stopPropagation(); bindInto(node) }} size='small' type='text' />
           </Tooltip>
@@ -94,6 +108,20 @@ const toDataNode = (
       {node.parentPath
         ? (
           <Space className={styles.nodeActions} size={0}>
+            {/* Wrap: the operation that actually creates nesting. Inserting an empty container
+                beside this node would leave the two as siblings and every object you wanted
+                inside as a separate move. */}
+            <Dropdown
+              menu={{
+                items: Object.keys(LAYOUT_KINDS).map((kind) => ({ key: kind, label: `Wrap in ${kind}` })),
+                onClick: ({ key: kind }) => wrapIn(node, kind as LayoutKind),
+              }}
+              trigger={['click']}
+            >
+              <Tooltip title='Put this inside a new layout container'>
+                <Button aria-label={`Wrap ${node.name}`} icon={<GroupOutlined />} onClick={(event) => event.stopPropagation()} size='small' type='text' />
+              </Tooltip>
+            </Dropdown>
             <Tooltip title='Move earlier'>
               <Button aria-label={`Move ${node.name} up`} icon={<ArrowUpOutlined />} onClick={(event) => { event.stopPropagation(); mutate(node, 'up') }} size='small' type='text' />
             </Tooltip>
@@ -110,19 +138,27 @@ const toDataNode = (
   ),
 })
 
-export const ObjectTreePanel = ({ files, onSelect }: {
+export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
   /** The held draft, keyed by HELD KEY — the same key a write is addressed by. */
   files: Record<string, string>
+  /** The selected object's held key, so the surface can reveal that file. */
   onSelect?: (path: string) => void
+  /** Base URL for the `page-composable` RESTAction that lists placeable widgets. */
+  snowplowBaseUrl: string
 }) => {
   const { message } = App.useApp()
   // Which container a generated binding will be placed into. Null closes the modal.
   const [bindTarget, setBindTarget] = useState<TreeNode | null>(null)
+  // Which container a placed EXISTING widget lands in. Null closes the modal.
+  const [placeTarget, setPlaceTarget] = useState<TreeNode | null>(null)
   const tree = useMemo(() => buildObjectTree(files), [files])
   const flat = useMemo(() => flattenTree(tree), [tree])
   // Where anything new is created. Read from the draft's own objects because the widget CRDs
   // require a namespace on both `apiRef` and every `resourcesRefs` entry and default neither.
   const namespace = useMemo(() => draftNamespace(files), [files])
+  // Where EXISTING widgets are listed from and placed from. The draft's namespace when it has one
+  // — a page and the widgets it places normally live together — falling back to the portal's own.
+  const placeNamespace = namespace ?? PORTAL_NAMESPACE
 
   /**
    * Apply a structural edit and hand the result to the SAME bus the Files-tab editor uses.
@@ -205,8 +241,42 @@ export const ObjectTreePanel = ({ files, onSelect }: {
     emitFileEdit({ content: placed.content, path: parent.path })
   }
 
+  /**
+   * Wrap this node in a new container — re-parenting, not insertion.
+   *
+   * Two emissions, container BEFORE parent, for the same reason every other add is ordered that
+   * way: the parent's new reference must resolve to a file that already exists. `wrapChild`
+   * computes both documents from the parent's CURRENT bytes, so a refusal costs nothing — neither
+   * has been emitted yet.
+   */
+  const wrapIn = (node: TreeNode, kind: LayoutKind) => {
+    const parentYaml = node.parentPath ? files[node.parentPath] : undefined
+    if (!node.parentPath || parentYaml === undefined || !node.refId || node.position === null) {
+      message.error('that object has no parent to rewrite')
+      return
+    }
+    if (!namespace) {
+      message.error('this draft declares no namespace, so a new container cannot be created in one')
+      return
+    }
+    const existing = new Set(Object.keys(files))
+    let name = `${node.name}-${kind.toLowerCase()}`
+    let suffix = 2
+    while (existing.has(containerPath(kind, name))) {
+      name = `${node.name}-${kind.toLowerCase()}-${suffix}`
+      suffix += 1
+    }
+    const result = wrapChild(parentYaml, { index: node.position, refId: node.refId }, { kind, name, namespace })
+    if (!result.ok) {
+      message.warning(result.error)
+      return
+    }
+    emitFileAdd({ content: result.container, path: containerPath(kind, name) })
+    emitFileEdit({ content: result.parent, path: node.parentPath })
+  }
+
   const nodes = useMemo(
-    () => tree.map((node, index) => toDataNode(node, `${index}`, mutate, addLayout, setBindTarget)),
+    () => tree.map((node, index) => toDataNode(node, `${index}`, mutate, addLayout, setBindTarget, wrapIn, setPlaceTarget)),
     // `mutate` closes over `files` and is recreated each render; depending on it would defeat the
     // memo entirely. `tree` already changes whenever `files` does, which is the only time the
     // rendered nodes need rebuilding.
@@ -278,8 +348,46 @@ export const ObjectTreePanel = ({ files, onSelect }: {
     setBindTarget(null)
   }
 
+  /**
+   * Place an EXISTING cluster widget into a container.
+   *
+   * One emission, not two: the widget is already on the cluster, so nothing is added to the draft —
+   * only the parent changes. The ref entry carries the namespace the LISTING reported, not the
+   * draft's, because that is where the widget actually lives and snowplow resolves it there.
+   */
+  const acceptPlacement = (target: TreeNode, widget: PlaceableWidget) => {
+    const parentYaml = target.path ? files[target.path] : undefined
+    if (!target.path || parentYaml === undefined) {
+      message.error('that container is not part of the draft')
+      return
+    }
+    const placed = placeChild(parentYaml, {
+      name: widget.name,
+      namespace: placeNamespace,
+      resource: widget.resource,
+    })
+    if (!placed.ok) {
+      message.warning(placed.error)
+      return
+    }
+    emitFileEdit({ content: placed.content, path: target.path })
+    setPlaceTarget(null)
+  }
+
   return (
     <div className={styles.tree}>
+      {placeTarget
+        ? (
+          <PlaceWidgetModal
+            into={placeTarget.name}
+            namespace={placeNamespace}
+            onCancel={() => setPlaceTarget(null)}
+            onPlace={(widget) => acceptPlacement(placeTarget, widget)}
+            open
+            snowplowBaseUrl={snowplowBaseUrl}
+          />
+        )
+        : null}
       {bindTarget
         ? (
           <BindDataModal
@@ -303,6 +411,8 @@ export const ObjectTreePanel = ({ files, onSelect }: {
         defaultExpandAll
         onSelect={(keys) => {
           const node = byKey.get(String(keys[0]))
+          // `node.path` is null for a placed EXISTING widget — it has no file in this draft, so
+          // there is nothing to reveal and nothing is claimed.
           if (node?.path && onSelect) {
             onSelect(node.path)
           }

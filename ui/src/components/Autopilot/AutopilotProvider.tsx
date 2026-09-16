@@ -19,30 +19,29 @@ import { randomId } from '../../utils/utils'
 import type { PortalActionProposal, PortalTour } from './actionBridge'
 import { parseAutopilotDirectives, sanitizeChatText, useAutopilotActionBridge } from './actionBridge'
 import { AgentDraftProvider } from './agentDraft'
-import { MAX_APPLY_SET_OPS } from './applyResourceSet'
 import type { ApprovalDecision, ApprovalGovernor, ApprovalPause } from './approval'
 import { createApprovalGovernor, summarizeApprovalTools } from './approval'
 import { useAskDeepLink } from './askDeepLink'
 import { draftDisplayName, lintBlueprintDraft } from './blueprintDraft'
 import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
-import { buildBlueprintPublishOps } from './blueprintPublish'
-import { buildClaimPublish, trackPublishStatus } from './builderClaimPublish'
+import { trackPublishStatus } from './builderClaimPublish'
 import { useBuilderTargets } from './builderTargets'
 import { autopilotConversationStore } from './conversationStore'
 import { recordToolFrame } from './evidence'
 import { useAutopilotShortcut } from './keyboardShortcut'
 import { dispatchKogPublish } from './kogPublishDispatch'
 import { createOasAttachmentStore, type OasAttachmentResult } from './oasAttachment'
-import { isPageDraft, pagePublishFiles, pageRootSlug } from './pageDraft'
-import { buildPagePublishOps } from './pagePublish'
+import { isPageDraft, pageRootSlug } from './pageDraft'
 import { PREVIEW_SELF_CORRECTION_NUDGE } from './previewBus'
 import { emitDraftChanged } from './previewDraftChanged'
 import { onRestDefEdit } from './previewEditBus'
 import { buildKogPublishNudge, createPreviewGate, hydrateRestDefinitionOps } from './previewGate'
+import { emitPublishResult, onPublishRequest } from './previewPublishRequest'
 import { AutopilotPreviewDrawer } from './previewSurface'
 import { compilePublishOps, heldDraftIdentity, recordPagePreview, type PublishCompileResult } from './publishCompile'
-import { askPublishDestination, PublishTargetFormHost } from './publishTargetForm'
+import { runDraftPublish } from './publishDraft'
+import { PublishTargetFormHost } from './publishTargetForm'
 import type { ThreadSummary } from './sessionHistoryStore'
 import { a2aAuthHeader, createEchoTransport, createKagentTransport } from './transport'
 import type { AutopilotActionChip, AutopilotFrame, AutopilotMessage, AutopilotTransport, EvidenceEntry, PageContextEnvelope, TurnModality } from './types'
@@ -342,59 +341,12 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         setDraftNonce((nonce) => nonce + 1)
         chips.push({ label: proposal.label ?? 'drafted the create form', readOnly: true, verb: 'prefillForm' })
       } else if (proposal.verb === 'publishBlueprint' || proposal.verb === 'publishPage') {
-        // FE-BP6/BP7 — frontend-constructs-ops (blueprint + its near-identical PAGE variant, unified).
-        // The model emits ONE scalar verb (repo coords only); the HOST assembles the publish from the
-        // HELD previewed tree — either the github git-write set (gitrefs + per-file repocontents +
-        // pullrequests, via compilePublishOps' $fileContent→base64 + authorship) OR, when
-        // AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER is set, ONE BuilderPublish claim (git-provider
-        // LocalResources). Same destination form + blast-radius confirm either way; the shared
-        // blueprintGate identity (chart / page name) enforces preview-before-publish.
-        const isPage = proposal.verb === 'publishPage'
-        const held = blueprintStore.get()
-        const identity = heldDraftIdentity(held)
-        // The BRANCH slug: a page derives it from its page-<slug> root; a blueprint reuses the identity.
-        const pageSlug = held && isPageDraft(held.files) ? pageRootSlug(held.files) : null
-        const slug = isPage ? pageSlug : identity
-        const builder = isPage ? 'page' : 'blueprint'
-        const bt = isPage ? builderTargets.page : builderTargets.blueprint
-        // PER-ARTIFACT repos (#163): a portal PAGE publishes to the single configured chart repo
-        // (bt.repo), but each BLUEPRINT gets its OWN repo named for the chart — so the destination
-        // repo prefill is the artifact slug, with the OWNER coming from install config (bt.owner).
-        // The human still confirms/edits in the blast-radius dialog; a model-emitted repo still wins.
-        const destRepo = isPage ? bt.repo : (slug || bt.repo)
-        const dest = await askPublishDestination(proposal, builder, destRepo, bt.owner)
-        const targeted = dest ? { ...proposal, ...dest } : proposal
-        const origin = { prompt: lastUserTextRef.current, sessionId }
-        const overflow = isPage ? 'split the page across turns on the same branch' : 'trim the chart tree (large assets belong in a hosted values file)'
-        let compiled: PublishCompileResult
-        let deepLink: string | null = null
-        if (!dest) {
-          compiled = { denial: 'publish cancelled — destination not confirmed', ops: null }
-        } else if (!held || !slug || !identity) {
-          compiled = { denial: `denied — no previewed ${isPage ? 'portal page' : 'blueprint'} to publish (draft + preview a ${isPage ? 'page-<slug>' : 'chart'} first)`, ops: null }
-        } else if (publishViaClaim) {
-          // The claim commits each path VERBATIM (builder-publish only splits it into basename + dir),
-          // so the full repo path is this caller's job. A BLUEPRINT's held keys already ARE
-          // chart-relative paths and pass straight through; a PAGE's are bare identity tokens, and
-          // publishing those unrouted dropped every widget CR at the repo ROOT — outside the chart,
-          // packaged by nothing, merged green and rendered never. pagePublishFiles applies the same
-          // routing the legacy git-write path and the preview drawer use, so all three agree.
-          const files = isPage ? pagePublishFiles(held.files) : Object.entries(held.files).map(([path, content]) => ({ content, path }))
-          if (files.length > MAX_APPLY_SET_OPS) {
-            compiled = { denial: `denied — "${slug}" has ${files.length} files; a single publish tops out at ${MAX_APPLY_SET_OPS} — ${overflow}.`, ops: null }
-          } else {
-            const res = await buildClaimPublish({ builder, config, dest, files, gate: (ops) => blueprintGate.evaluate(ops, identity), namespace: 'krateo-system', origin, slug })
-            compiled = res.compiled
-            deepLink = res.deepLink
-          }
-        } else {
-          const built = isPage ? buildPagePublishOps(targeted, held, slug) : buildBlueprintPublishOps(targeted, held, slug)
-          if (built.length > MAX_APPLY_SET_OPS) {
-            compiled = { denial: `denied — "${slug}" has ${Object.keys(held.files).length} files; a single publish tops out at ${MAX_APPLY_SET_OPS - 2} — ${overflow}.`, ops: null }
-          } else {
-            compiled = compilePublishOps(built, previewGate.evaluate(built), blueprintGate.evaluate(built, identity), oasStore.get(), held, origin)
-          }
-        }
+        // The publish itself lives in publishDraft.runDraftPublish, so the agent's verb and the
+        // composer's Publish button take the SAME path — one destination form, one gate, one cap.
+        const { compiled, deepLink } = await runDraftPublish(
+          { blueprintGate, blueprintStore, builderTargets, config, oasStore, origin, previewGate, publishViaClaim },
+          proposal,
+        )
         await pushPublishOutcome(compiled, proposal.label, deepLink)
       } else if (proposal.verb === 'publishRestDef') {
         // FE-KOG-PR (item #30) — the controller builder publishes via a git PR (github) OR, when
@@ -828,6 +780,43 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // Both held-draft write paths — the Files-tab edit and the composer's add — live in one hook.
   // See useDraftFileBuses for why they are two buses and why `addFile` is separate from updateFile.
   useDraftFileBuses(blueprintStore, blueprintGate, heldDraftIdentity)
+
+  /**
+   * PUBLISH, asked for by a person rather than proposed by the model.
+   *
+   * The same `runDraftPublish` the verb branch calls, so there is exactly one destination form,
+   * one gate evaluation and one file cap — a UI publish that took a shortcut past the gate would
+   * be a way to ship un-previewed bytes. `apply` still raises the blast-radius confirm, so this
+   * button proposes a write; it does not perform one.
+   *
+   * The AUTHORSHIP origin is empty and the PROVENANCE actor is `human` — two different records,
+   * both honest. No agent session id and no prompt are stamped on the objects, because no model
+   * turn produced them; `apply` separately records that a person, not the agent, asked.
+   */
+  useEffect(() => onPublishRequest(({ id, verb }) => {
+    // The bus handler is sync (a listener's return value is ignored); the publish itself is async
+    // and self-contained — it ends by emitting its own result rather than resolving to a caller.
+    void (async () => {
+      const { compiled, deepLink } = await runDraftPublish(
+        {
+          blueprintGate,
+          blueprintStore,
+          builderTargets,
+          config,
+          oasStore,
+          origin: { prompt: null, sessionId: null },
+          previewGate,
+          publishViaClaim: config?.api.AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER === 'true',
+        },
+        { label: 'Publish', verb },
+      )
+      if (compiled.denial === null && compiled.ops) {
+        await apply({ label: 'Publish', ops: compiled.ops, verb: 'applyResourceSet' }, { actor: 'human' })
+        if (compiled.claim) { trackPublishStatus(config, compiled.claim, setMessages, randomId) }
+      }
+      emitPublishResult({ deepLink, denial: compiled.denial, id })
+    })()
+  }), [apply, blueprintGate, blueprintStore, builderTargets, config, oasStore, previewGate, setMessages])
 
   const toggle = useCallback(() => setOpen((prev) => !prev), [])
   const closeTour = useCallback(() => setTourOpen(false), [])
