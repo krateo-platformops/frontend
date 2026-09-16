@@ -57,12 +57,49 @@ export const pageChartYaml = (slug: string): string => dump({
 }, { lineWidth: -1, noRefs: true, sortKeys: false })
 
 /**
+ * The tier the CRs in a page chart are placed in.
+ *
+ * ONE tier per page set, because that is the granularity the composer can honestly express: a page
+ * set is one chart with one audience. `common` is the portal's own name for "every authenticated
+ * user sees it", which is what a newly authored page is until someone decides otherwise. A deployer
+ * remaps it to any namespace through `values.tiers.common`; splitting a single page set across
+ * tiers means splitting it into two charts.
+ */
+const PAGE_TIER = 'common'
+
+/**
+ * The chart's own copy of the portal's `tierNamespace` helper.
+ *
+ * Copied rather than referenced: a page set is a SEPARATE chart now, so `portal.tierNamespace` is
+ * not in scope at render time and a template calling it fails with "template not defined". Renamed
+ * to `page.*` for the same reason — these are two charts with two helper namespaces, and a name
+ * borrowed from the other one would only look shared.
+ *
+ * Empty tier → `.Release.Namespace`, which is the whole default: install the chart and its pages
+ * land beside it, with RBAC tiering opt-in exactly as it is in the portal.
+ */
+const pageTiersPartial = (): string => `{{/*
+page.tierNamespace — resolve a widget tier to a namespace.
+Call: {{ include "page.tierNamespace" (dict "ctx" . "tier" "common") }}
+Returns .Values.tiers.<tier> if non-empty, else .Release.Namespace.
+*/}}
+{{- define "page.tierNamespace" -}}
+{{- $ns := index (default (dict) .ctx.Values.tiers) .tier -}}
+{{- if $ns -}}{{ $ns }}{{- else -}}{{ .ctx.Release.Namespace }}{{- end -}}
+{{- end -}}
+`
+
+/**
  * The generated CRD's spec, which is what `values.schema.json` IS — core-provider reads this file
  * and turns it into the CRD, so a chart without one can be published and can never be installed.
  *
  * Deliberately closed (`additionalProperties: false`) and near-empty: the pages in this chart are
- * static CRs with nothing to parameterise yet. `tiers` is the one thing a deployer genuinely needs,
- * because it decides which namespace the pages land in and therefore who can see them.
+ * static CRs with nothing to parameterise yet. `tiers.common` is the one thing a deployer genuinely
+ * needs, because it decides which namespace the pages land in and therefore who can see them.
+ *
+ * It lists ONLY the tier the templates actually reference. The portal's own schema offers admin and
+ * tenant beside common, and mirroring all three here would have put two knobs in the install form
+ * that no template reads — a setting that silently does nothing is worse than one that isn't there.
  */
 export const pageValuesSchema = (slug: string): string => `${JSON.stringify({
   $schema: 'http://json-schema.org/draft-07/schema#',
@@ -71,11 +108,9 @@ export const pageValuesSchema = (slug: string): string => `${JSON.stringify({
   properties: {
     tiers: {
       additionalProperties: false,
-      description: 'Which namespace each page tier is created in. Empty = the release namespace.',
+      description: 'Which namespace this page set is created in. Empty = the release namespace.',
       properties: {
-        admin: { default: '', title: 'Admin tier namespace', type: 'string' },
-        common: { default: '', title: 'Common tier namespace', type: 'string' },
-        tenant: { default: '', title: 'Tenant tier namespace', type: 'string' },
+        common: { default: '', title: 'Namespace', type: 'string' },
       },
       title: 'Namespace tiers',
       type: 'object',
@@ -115,10 +150,39 @@ export const pageRootSlug = (files: Record<string, string>): string | null => {
  * menu edit). Derived from the SAME held files at record- and publish-time → part of the
  * previewed==published byte set the gate enforces.
  */
+/** The namespace every CR this chart ships is created in — resolved at install time, not authoring. */
+const TIER_NAMESPACE = `{{ include "page.tierNamespace" (dict "ctx" . "tier" "${PAGE_TIER}") }}`
+
+/**
+ * `spec.resourcesRefs.items[]` with sibling refs pointed at the tier instead of the authoring
+ * namespace. Returns a partial spread — `{}` when there is nothing to retarget — so a CR with no
+ * refs, or only external ones, is dumped exactly as it was held.
+ */
+const retargetRefs = (cr: Record<string, unknown>, shipped: ReadonlySet<string>): Record<string, unknown> => {
+  const spec = cr.spec && typeof cr.spec === 'object' ? cr.spec as Record<string, unknown> : null
+  const refs = spec?.resourcesRefs && typeof spec.resourcesRefs === 'object' ? spec.resourcesRefs as Record<string, unknown> : null
+  if (!Array.isArray(refs?.items)) {
+    return {}
+  }
+  const items: unknown[] = (refs.items as unknown[]).map((item) => {
+    const ref = item && typeof item === 'object' ? item as Record<string, unknown> : null
+    return ref && typeof ref.name === 'string' && shipped.has(ref.name) ? { ...ref, namespace: TIER_NAMESPACE } : item
+  })
+  return { spec: { ...spec, resourcesRefs: { ...refs, items } } }
+}
+
 export const pageDraftFiles = (widgets: readonly unknown[]): Record<string, string> | null => {
   if (!Array.isArray(widgets) || widgets.length === 0) {
     return null
   }
+  // Which CRs this chart SHIPS, by name. A parent declares each child with an explicit namespace,
+  // and only the refs pointing at a sibling in this chart may be re-templated: a widget put on the
+  // page by "Place existing" lives in a namespace of its own that this chart neither creates nor
+  // moves, so rewriting its ref would point the page at a resource that isn't there.
+  const shipped = new Set(
+    widgets.map((entry) => (entry as { metadata?: { name?: unknown } })?.metadata?.name)
+      .filter((name): name is string => typeof name === 'string' && name.length > 0),
+  )
   const files: Record<string, string> = {}
   for (const entry of widgets) {
     const cr = entry && typeof entry === 'object' && !Array.isArray(entry) ? (entry as Record<string, unknown>) : null
@@ -131,7 +195,19 @@ export const pageDraftFiles = (widgets: readonly unknown[]): Record<string, stri
     if (!kind || !name) {
       return null
     }
-    files[pageDraftSlug(kind, name)] = dump(cr, { lineWidth: -1, noRefs: true, sortKeys: false })
+    // TEMPLATED namespace, on the way OUT only. The draft objects keep the real namespace they
+    // were authored in, because that is what the preview sandbox rewrites and renders; the CHART
+    // must not hardcode it, or every installation of this page set lands in whichever namespace the
+    // author happened to be working in. Writing the include here rather than into the held object
+    // keeps those two readers from having to share one value that cannot suit both.
+    //
+    // Both namespaces move together or the page breaks in a way nothing reports: the CRs install
+    // into the tier, but a parent still naming the authoring namespace resolves its children
+    // somewhere else — a page that renders empty, with every resource present and healthy.
+    files[pageDraftSlug(kind, name)] = dump(
+      { ...cr, metadata: { ...metadata, namespace: TIER_NAMESPACE }, ...retargetRefs(cr, shipped) },
+      { lineWidth: -1, noRefs: true, sortKeys: false },
+    )
   }
   if (!Object.keys(files).length) {
     return null
@@ -154,6 +230,13 @@ export const pageDraftFiles = (widgets: readonly unknown[]): Record<string, stri
   }
   files['Chart.yaml'] = pageChartYaml(slug)
   files['values.schema.json'] = pageValuesSchema(slug)
+  // A partial (leading `_`), so Helm defines it and renders nothing from it.
+  files[`${PAGE_TEMPLATES_DIR}/_tiers.tpl`] = pageTiersPartial()
+  // The defaults the schema already declares, written out as values.yaml too. Helm does not require
+  // it (the tier helper defaults a missing `tiers` to an empty dict), but a chart whose values are
+  // only discoverable by reading a JSON Schema is a chart nobody reads the values of — and `helm
+  // lint` says so. Keep it in step with pageValuesSchema; they describe the same two facts.
+  files['values.yaml'] = 'tiers:\n  # Namespace this page set is created in. Empty = the release namespace.\n  common: ""\n'
   return files
 }
 

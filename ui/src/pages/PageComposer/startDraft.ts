@@ -89,7 +89,23 @@ export const startDraft = (input: StartDraftInput): StartDraftResult => {
     kind: 'Flex',
     // `page-<slug>` EXACTLY: previewPageV2 refuses a draft set with no `page-<slug>` root ("the
     // page ENTRY is undefined") and pageRootSlug reads the nav fragment's slug back out of it.
-    metadata: { name: `page-${slug}`, namespace },
+    metadata: {
+      // NAV DISCOVERY. The sidebar Menu has no static entries: restaction.sidebar-nav lists page
+      // roots and keeps only those whose `krateo.io/nav-path` is set and non-empty, so a page root
+      // without this annotation installs correctly and is unreachable — nothing links to it, and
+      // nothing reports that. #275 removed the nav FRAGMENT a page used to emit (portal#217 stopped
+      // globbing it); these annotations are what replaced it, and seeding them is what makes an
+      // authored page appear. `nav-order` is the RA's own default, written out so the knob is
+      // visible to anyone editing the CR; icon and group are deliberately unset — the RA omits them
+      // and the page sits ungrouped rather than guessing at an icon or a section it doesn't belong to.
+      annotations: {
+        'krateo.io/nav-label': title,
+        'krateo.io/nav-order': '100',
+        'krateo.io/nav-path': `/${slug}`,
+      },
+      name: `page-${slug}`,
+      namespace,
+    },
     spec: {
       resourcesRefs: {
         items: [{
