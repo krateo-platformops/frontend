@@ -230,7 +230,7 @@
   color: var(--cyan-color);
 }
 
-/* ── session history (Vincenzo item P, split view): a persistent column docked beside
+/* ── session history (item P, split view): a persistent column docked beside
    the transcript — see .apMain below — not a popover. Rendered only while historyOpen;
    the rail itself widens (.apRail.split) to make room, so the transcript is never
    crushed for it. ── */
