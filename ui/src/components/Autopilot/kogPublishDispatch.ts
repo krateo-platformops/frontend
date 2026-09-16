@@ -13,6 +13,7 @@ import { MAX_APPLY_SET_OPS, type ApplyResourceSetOp } from './applyResourceSet'
 import type { AuthorshipOrigin } from './authorship'
 import { buildClaimPublish } from './builderClaimPublish'
 import { REST_DEFINITION_GVR } from './kogMapping'
+import { kogCompositionDefinition } from './kogChart'
 import { buildKogPublishAsPrOps, kogPublishFiles, resolveKogPublishDraft } from './kogPublish'
 import type { PreviewGate } from './previewGate'
 import { compileKogPublishOps, type PublishCompileResult } from './publishCompile'
@@ -53,13 +54,26 @@ export const dispatchKogPublish = async (
   if (!resolution.held) {
     return { compiled: { denial: 'denied — no previewed RestDefinition to publish (previewRestDef a mapping first)', ops: null }, deepLink: null }
   }
+
+  // THE REGISTRATION FILE, written at publish time because it is the one file that depends on the
+  // DESTINATION: its OCI url is `<owner>/charts/<kind>`, and the owner is only settled once the
+  // human confirms it in the blast-radius dialog. Without it the controller chart releases to OCI
+  // and nothing installs it — core-provider generates the CRD from values.schema.json and serves it,
+  // and only then can a claim create the RestDefinition that makes oasgen materialise the real kind.
+  const kogOwner = restDefTarget.owner || ctx.kogTarget.owner
+  const publishFiles = kogOwner
+    ? [
+      ...kogPublishFiles(resolution.held),
+      { content: kogCompositionDefinition(resolution.held.kind, kogOwner), path: 'compositiondefinition.yaml' },
+    ]
+    : kogPublishFiles(resolution.held)
   if (ctx.publishViaClaim) {
     // SCM-agnostic: the same RestDefinition (+ OAS ConfigMap) file set → ONE BuilderPublish claim.
     const res = await buildClaimPublish({
       builder: 'controller',
       config: ctx.config,
       dest: restDefTarget,
-      files: kogPublishFiles(resolution.held, 'krateo-system'),
+      files: publishFiles,
       gate: () => ctx.previewGate.evaluate(gateProbe),
       namespace: 'krateo-system',
       origin: ctx.origin,
