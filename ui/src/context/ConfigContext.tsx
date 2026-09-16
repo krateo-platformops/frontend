@@ -175,7 +175,15 @@ interface ConfigContextType {
   refetch: UseQueryResult<Config, Error>['refetch']
 }
 
-const ConfigContext = createContext<ConfigContextType | null>(null)
+/**
+ * Exported so a surface can read the config WITHOUT the throwing hook.
+ *
+ * `useConfigContext` throws when no provider is above it, which is right for a component that
+ * cannot work without config. A route that merely degrades — the page composer loses its
+ * widget-picker list and says so — must not take the whole page down instead, and must stay
+ * mountable bare in tests, which is a property those tests deliberately assert.
+ */
+export const ConfigContext = createContext<ConfigContextType | null>(null)
 
 async function fetchConfig(): Promise<Config> {
   let configPath = '/config/config.json'

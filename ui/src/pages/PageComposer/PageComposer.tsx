@@ -26,7 +26,7 @@
  * never-submit guarantee is not weakened by any of this.
  */
 import { Alert, Button, Empty, Popconfirm, Space, Typography } from 'antd'
-import { useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 
 import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
@@ -35,6 +35,7 @@ import { emitDraftStart } from '../../components/Autopilot/previewDraftStart'
 import { emitPublishRequest, onPublishResult } from '../../components/Autopilot/previewPublishRequest'
 import { PreviewContent } from '../../components/Autopilot/previewSurface'
 import type { RestDefVerdicts } from '../../components/Autopilot/previewSurface'
+import { ConfigContext } from '../../context/ConfigContext'
 
 import ObjectTreePanel from './ObjectTreePanel'
 import styles from './PageComposer.module.css'
@@ -50,6 +51,10 @@ import StartDraftModal from './StartDraftModal'
 const NEW_DRAFT_NAMESPACE = 'krateo-system'
 
 const PageComposer = () => {
+  // `useContext`, not `useConfigContext`: the hook throws with no provider above it, and this page
+  // only DEGRADES without config — the widget picker reports that it cannot reach the list. Taking
+  // the whole route down for that would be worse, and the page is asserted to mount bare.
+  const snowplowBaseUrl = useContext(ConfigContext)?.config?.api?.SNOWPLOW_API_BASE_URL ?? ''
   const [payload, setPayload] = useState<AutopilotPreviewPayload | null>(null)
   /**
    * The draft AS IT IS NOW, keyed by held key — not `payload.files`.
@@ -211,7 +216,7 @@ const PageComposer = () => {
             <div className={styles.surface}>
               <PreviewContent editVerdicts={editVerdicts} focusPath={focusPath} onVerdicts={setEditVerdicts} payload={payload} />
             </div>
-            <ObjectTreePanel files={files} onSelect={setFocusPath} />
+            <ObjectTreePanel files={files} onSelect={setFocusPath} snowplowBaseUrl={snowplowBaseUrl} />
           </div>
         )
         : (

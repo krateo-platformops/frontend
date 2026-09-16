@@ -12,7 +12,7 @@
  * lets a person rewrite any file's YAML — a structure kept alongside would be stale the moment they
  * did, in a way nothing would report.
  */
-import { ApiOutlined, ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, GroupOutlined, PlusOutlined } from '@ant-design/icons'
+import { ApiOutlined, ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, GroupOutlined, ImportOutlined, PlusOutlined } from '@ant-design/icons'
 import { App, Badge, Button, Dropdown, Empty, Space, Tag, Tooltip, Tree, Typography } from 'antd'
 import type { DataNode } from 'antd/es/tree'
 import { useMemo, useState } from 'react'
@@ -25,6 +25,8 @@ import type { BindingResult } from './generateBinding'
 import { buildObjectTree, draftNamespace, flattenTree } from './objectTree'
 import type { TreeNode } from './objectTree'
 import styles from './PageComposer.module.css'
+import type { PlaceableWidget } from './placeableWidgets'
+import PlaceWidgetModal from './PlaceWidgetModal'
 import { containerPath, LAYOUT_KINDS, moveChild, newContainerYaml, placeChild, removeChild, wrapChild } from './structureEdit'
 import type { LayoutKind } from './structureEdit'
 
@@ -38,6 +40,9 @@ import type { LayoutKind } from './structureEdit'
  */
 const CONTAINERS = new Set<string>(Object.keys(LAYOUT_KINDS))
 
+/** Where `page-composable` lists from when the draft itself declares no namespace. */
+const PORTAL_NAMESPACE = 'krateo-system'
+
 const toDataNode = (
   node: TreeNode,
   key: string,
@@ -45,8 +50,9 @@ const toDataNode = (
   addLayout: (node: TreeNode, kind: LayoutKind) => void,
   bindInto: (node: TreeNode) => void,
   wrapIn: (node: TreeNode, kind: LayoutKind) => void,
+  placeInto: (node: TreeNode) => void,
 ): DataNode => ({
-  children: node.children.map((child, index) => toDataNode(child, `${key}-${index}`, mutate, addLayout, bindInto, wrapIn)),
+  children: node.children.map((child, index) => toDataNode(child, `${key}-${index}`, mutate, addLayout, bindInto, wrapIn, placeInto)),
   key,
   title: (
     <span className={styles.node}>
@@ -81,6 +87,13 @@ const toDataNode = (
               <Button aria-label={`Add inside ${node.name}`} icon={<PlusOutlined />} onClick={(event) => event.stopPropagation()} size='small' type='text' />
             </Tooltip>
           </Dropdown>
+        )
+        : null}
+      {node.drafted && CONTAINERS.has(node.kind ?? '')
+        ? (
+          <Tooltip title='Place a widget that already exists on the cluster'>
+            <Button aria-label={`Place inside ${node.name}`} icon={<ImportOutlined />} onClick={(event) => { event.stopPropagation(); placeInto(node) }} size='small' type='text' />
+          </Tooltip>
         )
         : null}
       {node.drafted && CONTAINERS.has(node.kind ?? '')
@@ -125,20 +138,27 @@ const toDataNode = (
   ),
 })
 
-export const ObjectTreePanel = ({ files, onSelect }: {
+export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
   /** The held draft, keyed by HELD KEY — the same key a write is addressed by. */
   files: Record<string, string>
   /** The selected object's held key, so the surface can reveal that file. */
   onSelect?: (path: string) => void
+  /** Base URL for the `page-composable` RESTAction that lists placeable widgets. */
+  snowplowBaseUrl: string
 }) => {
   const { message } = App.useApp()
   // Which container a generated binding will be placed into. Null closes the modal.
   const [bindTarget, setBindTarget] = useState<TreeNode | null>(null)
+  // Which container a placed EXISTING widget lands in. Null closes the modal.
+  const [placeTarget, setPlaceTarget] = useState<TreeNode | null>(null)
   const tree = useMemo(() => buildObjectTree(files), [files])
   const flat = useMemo(() => flattenTree(tree), [tree])
   // Where anything new is created. Read from the draft's own objects because the widget CRDs
   // require a namespace on both `apiRef` and every `resourcesRefs` entry and default neither.
   const namespace = useMemo(() => draftNamespace(files), [files])
+  // Where EXISTING widgets are listed from and placed from. The draft's namespace when it has one
+  // — a page and the widgets it places normally live together — falling back to the portal's own.
+  const placeNamespace = namespace ?? PORTAL_NAMESPACE
 
   /**
    * Apply a structural edit and hand the result to the SAME bus the Files-tab editor uses.
@@ -256,7 +276,7 @@ export const ObjectTreePanel = ({ files, onSelect }: {
   }
 
   const nodes = useMemo(
-    () => tree.map((node, index) => toDataNode(node, `${index}`, mutate, addLayout, setBindTarget, wrapIn)),
+    () => tree.map((node, index) => toDataNode(node, `${index}`, mutate, addLayout, setBindTarget, wrapIn, setPlaceTarget)),
     // `mutate` closes over `files` and is recreated each render; depending on it would defeat the
     // memo entirely. `tree` already changes whenever `files` does, which is the only time the
     // rendered nodes need rebuilding.
@@ -328,8 +348,46 @@ export const ObjectTreePanel = ({ files, onSelect }: {
     setBindTarget(null)
   }
 
+  /**
+   * Place an EXISTING cluster widget into a container.
+   *
+   * One emission, not two: the widget is already on the cluster, so nothing is added to the draft —
+   * only the parent changes. The ref entry carries the namespace the LISTING reported, not the
+   * draft's, because that is where the widget actually lives and snowplow resolves it there.
+   */
+  const acceptPlacement = (target: TreeNode, widget: PlaceableWidget) => {
+    const parentYaml = target.path ? files[target.path] : undefined
+    if (!target.path || parentYaml === undefined) {
+      message.error('that container is not part of the draft')
+      return
+    }
+    const placed = placeChild(parentYaml, {
+      name: widget.name,
+      namespace: placeNamespace,
+      resource: widget.resource,
+    })
+    if (!placed.ok) {
+      message.warning(placed.error)
+      return
+    }
+    emitFileEdit({ content: placed.content, path: target.path })
+    setPlaceTarget(null)
+  }
+
   return (
     <div className={styles.tree}>
+      {placeTarget
+        ? (
+          <PlaceWidgetModal
+            into={placeTarget.name}
+            namespace={placeNamespace}
+            onCancel={() => setPlaceTarget(null)}
+            onPlace={(widget) => acceptPlacement(placeTarget, widget)}
+            open
+            snowplowBaseUrl={snowplowBaseUrl}
+          />
+        )
+        : null}
       {bindTarget
         ? (
           <BindDataModal
