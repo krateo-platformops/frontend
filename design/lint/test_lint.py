@@ -171,11 +171,78 @@ def status_body_drift():
     return out
 
 
+# Rules whose violation is a property of the CORPUS, not of any one document, so the
+# one-fixture-fires / one-fixture-silent harness cannot express them. Each must instead have a
+# dedicated check below — an exemption with no test is how a rule stops being tested at all.
+CORPUS_RULES = {
+    # P0 fires when page discovery finds NOTHING, so it is silent on any fixture that contains a
+    # page and fires on any that does not — the exact inverse of every other rule. Covered by
+    # check_page_discovery_guard().
+    'page-discovery-alive',
+}
+
+
+def check_page_discovery_guard():
+    """P0 must fire when the Menu stops being statically readable, and stop when annotations return.
+
+    Both directions, because this rule exists to prevent a SILENT pass: if it only fired, a future
+    change that made it fire always would be indistinguishable from working. The two fixtures are
+    built inline rather than committed, so they cannot drift from the rule they describe.
+    """
+    out = []
+    page = (
+        'kind: Flex\n'
+        'apiVersion: widgets.templates.krateo.io/v1beta1\n'
+        'metadata:\n  name: page-thing\n{ann}'
+        'spec:\n  widgetData:\n    allowedResources: []\n    items: []\n'
+        '  resourcesRefs:\n    items: []\n'
+    )
+    menu_static = (
+        '---\nkind: Menu\napiVersion: widgets.templates.krateo.io/v1beta1\n'
+        'metadata:\n  name: sidebar-nav\n'
+        'spec:\n  widgetData:\n    allowedResources: [flexes]\n'
+        '    items:\n    - {label: Thing, path: /thing, page: thing}\n'
+        '  resourcesRefs:\n    items: []\n'
+    )
+    menu_templated = (
+        '---\nkind: Menu\napiVersion: widgets.templates.krateo.io/v1beta1\n'
+        'metadata:\n  name: sidebar-nav\n'
+        'spec:\n  widgetData:\n    allowedResources: [flexes]\n    items: []\n'
+        '  widgetDataTemplate:\n  - forPath: items\n    expression: \'${ .pages }\'\n'
+        '  resourcesRefs:\n    items: []\n'
+    )
+    annotation = '  annotations:\n    krateo.io/nav-label: "Thing"\n'
+
+    cases = [
+        ('static menu, no annotations', page.format(ann='') + menu_static, False),
+        ('TEMPLATED menu, no annotations', page.format(ann='') + menu_templated, True),
+        ('templated menu, ANNOTATED root', page.format(ann=annotation) + menu_templated, False),
+    ]
+    for label, body, should_fire in cases:
+        # `run` resolves a target under fixtures/, so the temp file must live there.
+        tmp = os.path.join(HERE, 'fixtures', '.p0-fixture.yaml')
+        with open(tmp, 'w') as handle:
+            handle.write(body)
+        try:
+            code, _stdout, err = run('.p0-fixture.yaml', 'page-discovery-alive')
+        finally:
+            os.unlink(tmp)
+        if 'Traceback' in err:
+            out.append(f'page-discovery-alive: CRASHED on {label}')
+        elif bool(code >= 1) != should_fire:
+            verb = 'did not fire' if should_fire else 'fired'
+            out.append(f'page-discovery-alive: {verb} on "{label}"')
+    return out
+
+
 def main():
     global RULES
     RULES = _rules()
     failures = []
+    failures += check_page_discovery_guard()
     for rule in RULES:
+        if rule in CORPUS_RULES:
+            continue
         code, out, err = run('violations.yaml', rule)
         # A CRASH IS NOT A PASS. This used to read `if code < 1`, so a rule that raised — exiting 1
         # with a traceback — was indistinguishable from one that reported a violation. X13 had been

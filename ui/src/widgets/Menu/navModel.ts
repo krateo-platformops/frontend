@@ -14,6 +14,20 @@ export interface InlineNavItem {
   page?: string
   /** Set to 'divider' to render a visual separator at this order position. */
   type?: 'divider'
+  /**
+   * The namespace the page CR lives in, when it is NOT the portal's own.
+   *
+   * WHY IT EXISTS. The convention below resolves `page-<slug>` in ONE namespace — the frontend's
+   * `FRONTEND_NAMESPACE` — so a page installed anywhere else is unreachable by it. That was
+   * invisible while every page shipped in the portal chart, and becomes load-bearing the moment
+   * pages arrive from other charts or from the `tiers` split (portal.tierNamespace admin/tenant),
+   * where the nav entries that reach them today do so only via `resourceRefId` + a ref carrying an
+   * explicit namespace. A menu assembled from a cluster listing has no such refs, so the namespace
+   * has to travel on the item.
+   *
+   * Optional, and omitting it keeps today's behaviour exactly: fall back to the configured one.
+   */
+  namespace?: string
 }
 
 /** Antd Menu entry data (icon resolved to JSX by the component). */
@@ -36,7 +50,8 @@ const routeSlug = (path: string): string =>
  *  1. `resourceRefId` → the Menu's own `resourcesRefs` (structured + RBAC-resolved
  *     by snowplow; the existing nav form);
  *  2. convention — a `flexes/page-<slug>` widget derived from `path` (`page:`
- *     overrides the slug; required for templated paths to avoid list-vs-detail collisions).
+ *     overrides the slug; required for templated paths to avoid list-vs-detail collisions),
+ *     in the item's own `namespace` when it declares one, else the configured default.
  * Both avoid hardcoding a raw /call URL (no `endpoint` escape hatch).
  */
 export const resolveContentEndpoint = (
@@ -49,7 +64,15 @@ export const resolveContentEndpoint = (
     if (ref?.path) { return ref.path }
   }
   const slug = item.page ?? routeSlug(item.path ?? '')
-  return getResourceEndpoint({ apiVersion: PAGE_API_VERSION, name: `page-${slug}`, namespace, resource: PAGE_RESOURCE })
+  // The item's namespace wins, so a page from another chart or another tier resolves where it
+  // actually lives. `??` and not `||`: an empty string is a real (if useless) value and silently
+  // swapping it for the default would hide a misconfigured item rather than letting it 404.
+  return getResourceEndpoint({
+    apiVersion: PAGE_API_VERSION,
+    name: `page-${slug}`,
+    namespace: item.namespace ?? namespace,
+    resource: PAGE_RESOURCE,
+  })
 }
 
 /**
