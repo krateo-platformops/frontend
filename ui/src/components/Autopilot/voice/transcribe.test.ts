@@ -12,6 +12,7 @@
  * jsdom is required for `Blob` and `FileReader`; `fetch` is a fake throughout, so no test
  * here touches a network.
  */
+import type { Mock } from 'vitest'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { VoiceError } from './errors'
@@ -62,8 +63,10 @@ const jsonResponse = (body: unknown, status = 200): Response =>
     text: () => Promise.resolve(typeof body === 'string' ? body : JSON.stringify(body)),
   }) as unknown as Response
 
-let fetchImpl: ReturnType<typeof vi.fn>
-let raiseSessionExpired: ReturnType<typeof vi.fn>
+// Typed to the signatures they stand in for — see dictation.test.tsx for why a bare
+// `ReturnType<typeof vi.fn>` stopped being assignable in vitest 5.
+let fetchImpl: Mock<typeof fetch>
+let raiseSessionExpired: Mock<() => Promise<'logout' | 'resumed'>>
 let warn: ReturnType<typeof vi.spyOn>
 
 const deps = (overrides: Partial<TranscribeDeps> = {}): TranscribeDeps => ({
@@ -244,12 +247,15 @@ describe('response validation (FR 51)', () => {
   })
 
   it('treats an unparseable body as engine, not as a transcript (FR 49)', async () => {
+    // `as unknown as Response`, exactly as `jsonResponse` above does: a test double carries the
+    // three members the code under test touches, not the whole Response surface. Needed explicitly
+    // now only because fetchImpl is typed to `typeof fetch` rather than to an any-shaped mock.
     fetchImpl.mockResolvedValue({
       json: () => Promise.reject(new Error('not json')),
       ok: true,
       status: 200,
       text: () => Promise.resolve('<html>proxy error</html>'),
-    })
+    } as unknown as Response)
     expect(await codeOf(transcribeRecording(deps(), { language: 'en-US', recording: recording() }))).toBe('engine')
   })
 })

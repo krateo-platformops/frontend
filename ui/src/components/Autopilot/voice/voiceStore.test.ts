@@ -15,6 +15,7 @@
  * revoked mid-recording — each must leave no recorder running and no upload in flight, and
  * must leave the draft exactly as it was.
  */
+import type { Mock } from 'vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { autopilotComposerDraftStore } from '../composerDraftStore'
@@ -81,7 +82,8 @@ const recorderDeps = (): RecorderDeps => ({
   now: () => clock,
 })
 
-let fetchImpl: ReturnType<typeof vi.fn>
+// Typed to the signature it stands in for — see dictation.test.tsx.
+let fetchImpl: Mock<typeof fetch>
 
 const transcribeDeps = (): TranscribeDeps => ({
   authHeader: () => ({ Authorization: 'Bearer portal-jwt' }),
