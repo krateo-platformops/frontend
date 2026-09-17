@@ -189,3 +189,23 @@ describe('AutopilotPreviewDrawer — editable page "Files" tab', () => {
     off()
   })
 })
+
+describe('frontend#180 — the preview must not cover a widened rail', () => {
+  it('insets by the rail LIVE width var, never a hardcoded default', async () => {
+    // The inset used to be the constant 384 — the rail's DEFAULT width. The rail is drag-resizable,
+    // widens further when the history split opens, and can go full width, so any of those put the
+    // drawer on top of the conversation and clipped it. AutopilotRail publishes its live width as
+    // `--autopilot-rail-width` for exactly this; a CSS var also tracks a drag without this component
+    // re-rendering, which it does not do per frame.
+    render(<AutopilotPreviewDrawer />)
+    openAutopilotPreview(buildRestDefPreviewPayload({ title: 'x', yaml: 'kind: RestDefinition\n' }))
+    const root = await waitFor(() => {
+      const el = document.querySelector<HTMLElement>('.ant-drawer')
+      if (!el) { throw new Error('drawer root not mounted') }
+      return el
+    })
+    const inset = root.style.insetInlineEnd
+    expect(inset, 'the inset must read the live rail width').toContain('--autopilot-rail-width')
+    expect(inset, 'a hardcoded rail width is the bug itself').not.toMatch(/\b384\b/)
+  })
+})

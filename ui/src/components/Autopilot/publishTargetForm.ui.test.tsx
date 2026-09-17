@@ -100,6 +100,30 @@ describe('the publish-destination gate stacks above the preview drawer', () => {
     expect(note.textContent).toMatch(/created if it doesn’t exist/i)
     expect(note.textContent, 'the old, false precondition must not come back').not.toMatch(/must already exist/i)
   })
+
+  it('does NOT throw the publish away on Escape (frontend#279)', async () => {
+    // onCancel resolves the awaited destination as null, which aborts the whole publish and sends
+    // the user back to re-preview. antd fires onCancel for Escape and for the mask as well as for
+    // the Cancel button — and this modal sits ABOVE the preview drawer, so its mask covers the
+    // drawer: a click aimed at the drawer's own close button lands on the mask. Losing composed work
+    // to a stray key or click is never what someone meant.
+    render(<PublishTargetFormHost />)
+    let settled: unknown = 'pending'
+    await act(() => {
+      void requestPublishTarget({ base: 'main', kind: 'blueprint', owner: 'krateo-blueprints', repo: 'demo' })
+        .then((target) => { settled = target })
+      return Promise.resolve()
+    })
+    await waitFor(() => expect(screen.getByTestId('publish-target-form')).toBeTruthy())
+
+    await act(() => {
+      fireEvent.keyDown(document, { code: 'Escape', key: 'Escape', keyCode: 27 })
+      return Promise.resolve()
+    })
+
+    expect(settled, 'Escape must not resolve the destination — the publish stays in flight').toBe('pending')
+    expect(screen.getByTestId('publish-target-form'), 'the form must still be open').toBeTruthy()
+  })
 })
 
 describe('the remembered destination is per kind', () => {
