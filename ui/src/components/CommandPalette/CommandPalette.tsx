@@ -6,6 +6,8 @@ import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
+import { carryScopeParams } from '../../utils/navigation'
+
 import styles from './CommandPalette.module.css'
 import type { SearchHit } from './useSearchTypeahead'
 import { useSearchTypeahead } from './useSearchTypeahead'
@@ -61,10 +63,12 @@ const CommandPalette = () => {
     // A hit without a link (defensive: the RA always emits one) falls back to the
     // full results page, same as a plain-Enter submit.
     const query = term.trim()
+    // carryScopeParams: a palette jump is a page change like any other, so the header's
+    // project scope (`?projects=`) must survive it instead of being dropped.
     if (hit.link) {
-      void navigate(hit.link)
+      void navigate(carryScopeParams(hit.link))
     } else if (query) {
-      void navigate(`/search?q=${encodeURIComponent(query)}`)
+      void navigate(carryScopeParams(`/search?q=${encodeURIComponent(query)}`))
     }
     close()
   }
@@ -78,7 +82,7 @@ const CommandPalette = () => {
       return
     }
     const query = term.trim()
-    if (query) { void navigate(`/search?q=${encodeURIComponent(query)}`) }
+    if (query) { void navigate(carryScopeParams(`/search?q=${encodeURIComponent(query)}`)) }
     close()
   }
 

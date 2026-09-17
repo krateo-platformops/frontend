@@ -8,6 +8,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { useConfigContext } from '../../context/ConfigContext'
 import { createRoute, useRoutesContext } from '../../context/RoutesContext'
 import type { WidgetProps } from '../../types/Widget'
+import { carryScopeParams, navigateOrExternal } from '../../utils/navigation'
 
 import styles from './Menu.module.css'
 import type { Menu as WidgetType } from './Menu.type'
@@ -41,7 +42,9 @@ export function Menu({ resourcesRefs, uid, widgetData }: WidgetProps<MenuWidgetD
 
   useEffect(() => {
     if (location.pathname === '/' && menuRoutes.length > 0) {
-      void navigate(menuRoutes[0].path)
+      // `/?projects=…` is a legitimate landing URL (a shared, project-scoped link), so the
+      // redirect to the first nav page must keep the scope rather than drop it on arrival.
+      void navigate(carryScopeParams(menuRoutes[0].path))
     }
   }, [location.pathname, menuRoutes, navigate])
 
@@ -84,7 +87,11 @@ export function Menu({ resourcesRefs, uid, widgetData }: WidgetProps<MenuWidgetD
       items={menuItems}
       key={uid}
       mode={mode ?? 'inline'}
-      onClick={(item) => { void navigate(item.key) }}
+      // Through the shared entry point, NOT a bare `navigate(item.key)`: a nav key is a bare
+      // pathname, so clicking the sidebar used to drop the whole query — wiping the header's
+      // project scope on the first navigation (the reported bug). navigateOrExternal carries
+      // the global scope params across.
+      onClick={(item) => { navigateOrExternal(navigate, item.key) }}
       selectedKeys={selectedKey ? [selectedKey] : []}
       theme={theme}
     />
