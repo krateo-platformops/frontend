@@ -83,6 +83,23 @@ describe('the publish-destination gate stacks above the preview drawer', () => {
     // STRICTLY above, not merely equal — equal is what put the buttons out of reach.
     expect(Number(declared)).toBeGreaterThan(PREVIEW_DRAWER_Z_INDEX)
   })
+
+  it('does NOT tell the user to go create the repository by hand', async () => {
+    // This copy used to read "The repository below must already exist ... it does not create the
+    // repository", which is false: builder-publish renders a github Repository with
+    // `repository.create: true` / `autoInit: true` and creates it. Verified on krateo-057 — a publish
+    // to krateo-blueprints/demo-destination rendered `publish-team-health-repo` with auto_init true.
+    // It also contradicted the compose-page form's own field help one panel away ("Created
+    // automatically if it does not exist yet"), so a user got opposite instructions for one action.
+    render(<PublishTargetFormHost />)
+    await act(() => {
+      void requestPublishTarget({ base: 'main', kind: 'page', owner: 'krateo-blueprints', repo: 'demo-destination' })
+      return Promise.resolve()
+    })
+    const note = await screen.findByTestId('publish-repo-precondition')
+    expect(note.textContent).toMatch(/created if it doesn’t exist/i)
+    expect(note.textContent, 'the old, false precondition must not come back').not.toMatch(/must already exist/i)
+  })
 })
 
 describe('the remembered destination is per kind', () => {
