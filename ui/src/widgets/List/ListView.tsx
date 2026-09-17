@@ -4,8 +4,11 @@ import { Avatar, Card, List as AntdList, Button, Dropdown, Progress, Tag, Toolti
 import useApp from 'antd/es/app/useApp'
 import type { ListGridType } from 'antd/es/list'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
+import { useId, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 
+import { childHealthFromRow, useReportChildHealth } from '../../components/PageHealth'
+import type { ConditionLike } from '../../components/PageHealth'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { useHandleAction } from '../../hooks/useHandleActions'
 import { getColorCode } from '../../theme/palette'
@@ -93,6 +96,8 @@ export const ListView = ({
 }: ListViewProps) => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  // Stable per INSTANCE, so two lists on one page report into their own scopes.
+  const reportScope = useId()
   // `?spotlight=<name>` highlights the matching card tile — used by a global-search hit for a
   // not-yet-installed blueprint, which routes to /marketplace?q=<name>&spotlight=<name>.
   const spotlight = searchParams.get('spotlight')
@@ -118,6 +123,33 @@ export const ListView = ({
   // Chip mode (Marketplace facet chips) lays its items out as a wrapping pill row, not a
   // vertical split list.
   const isChips = itemTemplate?.rowVariant === 'chip'
+
+  // COMPOSED CHILDREN → the page's health rollup.
+  //
+  // The `tree` rowVariant IS the composed-children list (that is what it was built for and the only
+  // thing it is used for: the detail Relations tree). Its rows are the child resources the page's
+  // subject owns, so they are exactly the set the page's status pill has to answer for — and until
+  // this report existed, nothing carried them upward: the header stated the composition's own
+  // `Ready` while a child below it read `NotReady`.
+  //
+  // Every other variant reports nothing, so no other page changes.
+  const childHealth = useMemo(() => {
+    if (!itemTemplate || itemTemplate.rowVariant !== 'tree') { return [] }
+    return items.map((item) => {
+      const row = resolveRow(itemTemplate, item)
+      const raw = (item && typeof item === 'object' ? item : {}) as { conditions?: unknown }
+      return childHealthFromRow({
+        color: row.color,
+        // Preferred whenever the row's data carries them: raw conditions are the honest source,
+        // and reading ALL of them is what catches `Ready=True` sitting on `Synced=False`.
+        conditions: Array.isArray(raw.conditions) ? (raw.conditions as ConditionLike[]) : undefined,
+        href: row.navigateTo || undefined,
+        kind: row.primaryText,
+        name: row.subPrimaryText,
+      })
+    })
+  }, [itemTemplate, items])
+  useReportChildHealth(reportScope, childHealth)
 
   if (!loading && !items.length) {
     // Conditional-section gate: when the RA emits no items (the condition is false —
