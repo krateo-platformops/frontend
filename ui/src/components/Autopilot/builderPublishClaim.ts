@@ -57,11 +57,20 @@ export interface BuilderPublishClaim {
      * chart gates on a non-empty `source.url`, so omitting skips the seeding step, while an empty
      * string would render a `Repo` that clones nothing.
      *
-     * `krateoIgnorePath` is sent EXPLICITLY. git-provider's documented default is to look for the
-     * ignore file "at `/`, the root of the repository", which reads like it finds a root
-     * `.krateoignore` on its own — it does not. Verified on a real publish: with the path unset the
-     * template's `.krateoignore` was ignored outright and its example chart was copied into the new
-     * repo, leaving TWO charts for a release workflow that packages every Chart.yaml it can find.
+     * `krateoIgnorePath` is a DIRECTORY, not a file path, and it is sent EXPLICITLY.
+     *
+     * git-provider joins this value with the literal filename, so it must name the directory that
+     * CONTAINS the ignore file. Passing the filename produces `.krateoignore/.krateoignore` and the
+     * whole seeding step dies:
+     *   `failed to set krateo ignore: unable to open .krateoignore:
+     *    lstat /tmp/git-provider-clone-<n>/.krateoignore/.krateoignore: not a directory`
+     * Observed on a real publish (krateo-057, git-provider via builder-publish 1.8.31), which left
+     * the BuilderPublish stuck at `2 of 2 managed children are not ready` and committed nothing.
+     *
+     * It is still sent explicitly rather than left unset: the documented default is the repo root,
+     * but with the path unset the template's `.krateoignore` was ignored outright and its example
+     * chart was copied into the new repo, leaving TWO charts for a release workflow that packages
+     * every Chart.yaml it can find.
      */
     source?: { url: string; krateoIgnorePath: string }
   }
@@ -87,11 +96,13 @@ const parseSlug = (slug: string | undefined): { namespace: string; repo: string 
 }
 
 /**
- * Where the template keeps its ignore list. Sent on every seeded publish because git-provider does
- * NOT pick up a root `.krateoignore` by itself, despite the default being documented as the repo
- * root — a template without this copies wholesale, example chart included.
+ * The DIRECTORY holding the template's ignore list — the repo root. git-provider appends the
+ * `.krateoignore` filename itself, so this must not name the file (see the field doc above: doing so
+ * yields `.krateoignore/.krateoignore` and fails the clone). Sent on every seeded publish because
+ * git-provider does NOT pick up a root `.krateoignore` by itself, despite the default being
+ * documented as the repo root — a template without this copies wholesale, example chart included.
  */
-const TEMPLATE_IGNORE_FILE = '.krateoignore'
+const TEMPLATE_IGNORE_DIR = '/'
 
 /** Base branch a builder branch is cut from — a neutral git default, not a repo source. */
 const DEFAULT_BASE = 'main'
@@ -145,7 +156,7 @@ export const buildBuilderPublishClaim = (args: {
       name,
       // Spread, so the key is ABSENT rather than present-and-undefined: the CRD is strict, and the
       // chart decides whether to render the Repo by testing the url for emptiness.
-      ...(args.sourceUrl ? { source: { krateoIgnorePath: TEMPLATE_IGNORE_FILE, url: args.sourceUrl } } : {}),
+      ...(args.sourceUrl ? { source: { krateoIgnorePath: TEMPLATE_IGNORE_DIR, url: args.sourceUrl } } : {}),
       target: { base: args.target.base, namespace: args.target.namespace, repo: args.target.repo },
     },
   }

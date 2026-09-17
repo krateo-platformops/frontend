@@ -62,14 +62,21 @@ describe('buildBuilderPublishClaim', () => {
         .toBe('https://github.com/krateo-blueprints/portal-builder.git')
     })
 
-    it('names the ignore file EXPLICITLY — the provider default does not find it', () => {
-      // git-provider documents the default as "a file at /, the root of the repository", which reads
-      // like it locates a root .krateoignore unaided. It does not. Verified on a real publish: with
-      // the path unset, the template's ignore file was skipped entirely and its example chart was
-      // copied into the new repo — leaving TWO Chart.yaml files for a release workflow that packages
-      // every chart it finds, and an "Example" page in the sidebar of whoever installs the result.
+    it('sends the ignore DIRECTORY, not the filename — git-provider appends the filename itself', () => {
+      // Passing '.krateoignore' here makes git-provider look for '.krateoignore/.krateoignore' and
+      // the seeding clone dies outright:
+      //   failed to set krateo ignore: unable to open .krateoignore:
+      //   lstat /tmp/git-provider-clone-<n>/.krateoignore/.krateoignore: not a directory
+      // Observed on krateo-057: the BuilderPublish stuck at "2 of 2 managed children are not ready"
+      // and committed nothing at all.
+      //
+      // It is still sent EXPLICITLY rather than omitted: the documented default is the repo root,
+      // but with the path unset the template's ignore file was skipped entirely and its example
+      // chart was copied into the new repo — leaving TWO Chart.yaml files for a release workflow
+      // that packages every chart it finds, and an "Example" page in the sidebar of whoever installs
+      // the result.
       expect(claimWith('https://github.com/krateo-blueprints/portal-builder.git').spec.source?.krateoIgnorePath)
-        .toBe('.krateoignore')
+        .toBe('/')
     })
 
     it.each([
