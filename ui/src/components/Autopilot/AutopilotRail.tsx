@@ -26,7 +26,7 @@ import { useAutopilot } from './AutopilotProvider'
 import styles from './AutopilotRail.module.css'
 import AutopilotTour from './AutopilotTour'
 import { autopilotComposerDraftStore } from './composerDraftStore'
-import { describeArgs, deriveSessionsBase, fetchDelegationEvidence, serializeEvidence, summarizeEvidence } from './evidence'
+import { describeArgs, deriveSessionsBase, fetchDelegationEvidence, NO_DELEGATION_SESSION, serializeEvidence, summarizeEvidence } from './evidence'
 import { useRailFocusTrap } from './focusTrap'
 import { CheckIcon, CollapseIcon, CopyIcon, EvidenceIcon, ExpandIcon, EyeIcon, HistoryIcon, LinkIcon, PlusIcon, SendIcon, ShrinkIcon, SparkIcon, StopIcon } from './icons'
 import { looksLikeOpenApiDocument } from './oasAttachment'
@@ -162,7 +162,7 @@ const EvidencePanel = ({ evidence }: { evidence: EvidenceEntry[] }) => {
             </CopyToClipboard>
           </div>
           {evidence.map((entry) => (entry.agent
-            ? <DelegationRow entry={entry} key={entry.id} state={entry.sessionId ? delegations[entry.sessionId] : undefined} />
+            ? <DelegationRow entry={entry} key={entry.id} state={entry.sessionId ? delegations[entry.sessionId] : { error: NO_DELEGATION_SESSION }} />
             : <EvidenceRow entry={entry} key={entry.id} />))}
         </div>
       ) : null}
