@@ -33,6 +33,7 @@ import { looksLikeOpenApiDocument } from './oasAttachment'
 import { relativeTime, type ThreadSummary } from './sessionHistoryStore'
 import { a2aAuthHeader } from './transport'
 import type { AutopilotMessage, EvidenceEntry } from './types'
+import { useComposerAutoGrow } from './useComposerAutoGrow'
 import { SpeakBackStatus, SpeakBackToggle } from './voice/speak/SpeakBackControls'
 import { autopilotSpeakBackStore } from './voice/speak/speakBackStore'
 import { useVoiceBusy, VoiceButton, VoiceStatus } from './voice/VoiceControl'
@@ -404,6 +405,8 @@ const AutopilotRail = () => {
       el.scrollTop = el.scrollHeight
     }
   }, [messages, streaming, pendingApproval])
+
+  useComposerAutoGrow(textareaRef, draft)
 
   // Publish the rail's actual width as a :root CSS var so body-portalled overlays (the
   // Filters Drawer) can inset their right edge and never sit over the rail — 0 when
