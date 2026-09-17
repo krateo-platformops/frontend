@@ -294,8 +294,21 @@ export const fetchDelegationEvidence = async (
     // is the signature of a specialist that answered without doing any work — which is exactly what
     // a reader opening this panel is trying to find out.
     throw new Error(tasks.length === 0
-      ? 'the specialist recorded no activity in this session — it answered without running any tools'
+      ? 'the specialist recorded no activity in this session — it ran no tools, and may have failed before it started'
       : `this delegation is not identifiable among the ${tasks.length} task${tasks.length === 1 ? '' : 's'} in its session`)
+  }
+  // A task can be recorded and still have failed before the specialist ever reasoned. kagent reports
+  // that as status.state "failed", with the cause in status.message — NOT in history, which is the
+  // only place this function used to look. So a hard failure rendered as an empty trace that said
+  // nothing at all. That silence is exactly what made a total delegation outage read as a specialist
+  // with nothing to say: every delegation was failing on an unresolved prompt placeholder
+  // (krateo-agentiko/frontend-agent#13) and the cause was sitting in status.message the whole time.
+  const status = asRecord(task.status)
+  if (status?.state === 'failed') {
+    const cause = firstText(status.message).trim()
+    throw new Error(cause
+      ? `the specialist failed before returning — ${cause}`
+      : 'the specialist failed before returning, and recorded no reason')
   }
   const history: unknown[] = Array.isArray(task.history) ? task.history : []
   const parts: unknown[] = []

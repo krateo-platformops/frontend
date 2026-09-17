@@ -183,10 +183,10 @@ describe('reaching the session trace', () => {
   })
 
   it('distinguishes "recorded nothing at all" from "not this delegation"', async () => {
-    // The first is the signature of a specialist that answered WITHOUT running any tools — exactly
-    // what someone opening this panel is trying to find out, and precisely the shape of the
-    // platform-wide delegation failure traced in agentgateway-policies#55, where every specialist
-    // returned an empty answer and nothing anywhere went red.
+    // The first is the signature of a specialist that ran no tools at all — exactly what someone
+    // opening this panel is trying to find out. It deliberately does NOT claim the specialist
+    // "answered": it may equally have failed before it started, which is what actually happened in
+    // the outage traced through agentgateway-policies#55 (see the failed-task case below).
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ data: [] }), ok: true })))
     await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {}))
       .rejects.toThrow(/recorded no activity/i)
@@ -195,6 +195,37 @@ describe('reaching the session trace', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ data: other }), ok: true })))
     await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {}))
       .rejects.toThrow(/not identifiable among the 1 task/i)
+  })
+
+  it('surfaces the cause when the task failed before the specialist reasoned', async () => {
+    // kagent puts the cause in status.message, NOT in history — the only place this used to look.
+    // So a hard failure rendered as an EMPTY trace that said nothing, and a total delegation outage
+    // was indistinguishable from a specialist with nothing to say. This is the real message every
+    // delegation returned while a prompt placeholder was unresolvable (frontend-agent#13).
+    const failed = [{
+      ...task('x', 't7'),
+      status: {
+        message: { parts: [{ kind: 'text', text: 'failed to append instructions: failed to inject session state into instruction: state key does not exist' }], role: 'agent' },
+        state: 'failed',
+      },
+    }]
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ data: failed }), ok: true })))
+    await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {}))
+      .rejects.toThrow(/failed before returning — failed to append instructions/i)
+  })
+
+  it('says a failed task failed even when it recorded no reason', async () => {
+    const bare = [{ ...task('x', 't8'), status: { state: 'failed' } }]
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ data: bare }), ok: true })))
+    await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {}))
+      .rejects.toThrow(/failed before returning, and recorded no reason/i)
+  })
+
+  it('still returns the trace for a task that did not fail', async () => {
+    // Guard the happy path: a completed task must not be swallowed by the failed-state branch.
+    const ok = [{ ...task('x', 't9'), status: { state: 'completed' } }]
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ data: ok }), ok: true })))
+    await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {})).resolves.toEqual([])
   })
 })
 
