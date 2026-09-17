@@ -257,6 +257,18 @@ export const selectDelegationTask = (tasks: unknown[], request: string | undefin
   return matched[matched.length - 1]
 }
 
+/** Why a specialist's trace could not be fetched, in words the reader can act on.
+ *
+ * These are different problems with different owners: an expired portal session is the reader's to
+ * fix, a refusal is an authorization boundary, and a missing session means nothing was ever
+ * recorded. The panel used to render all of them — and every other failure — as the single sentence
+ * "its activity is not readable from here" (frontend#181). */
+const TRACE_FETCH_FAILURES: Record<number, string> = {
+  401: 'your portal session expired — sign in again',
+  403: 'the session store refused this request (403) — the trace exists but is not readable with your permissions',
+  404: 'the specialist kept no session under that id (404) — it may have failed before recording anything',
+}
+
 /** The specialist's own rows, from its session's stored tasks. */
 export const fetchDelegationEvidence = async (
   sessionsBase: string,
@@ -268,13 +280,35 @@ export const fetchDelegationEvidence = async (
   }
   const response = await fetch(`${sessionsBase}/${entry.sessionId}/tasks`, { headers })
   if (!response.ok) {
-    throw new Error(`session trace unavailable (${response.status})`)
+    // NAME the failure. A bare status told a reader nothing they could act on, and the panel then
+    // reduced even that to "not readable from here" (frontend#181). These three are genuinely
+    // different problems with different owners: an expired portal session is the reader's to fix, a
+    // refusal is an authorization boundary, and a missing session means the trace was never kept.
+    throw new Error(TRACE_FETCH_FAILURES[response.status] ?? `the session store returned ${response.status}`)
   }
   const body = asRecord(await response.json())
   const tasks: unknown[] = Array.isArray(body?.data) ? body.data : []
   const task = selectDelegationTask(tasks, entry.request)
   if (!task) {
-    throw new Error('this delegation is not identifiable in the session')
+    // Distinguish "nothing was recorded at all" from "recorded, but not this delegation". The first
+    // is the signature of a specialist that answered without doing any work — which is exactly what
+    // a reader opening this panel is trying to find out.
+    throw new Error(tasks.length === 0
+      ? 'the specialist recorded no activity in this session — it ran no tools, and may have failed before it started'
+      : `this delegation is not identifiable among the ${tasks.length} task${tasks.length === 1 ? '' : 's'} in its session`)
+  }
+  // A task can be recorded and still have failed before the specialist ever reasoned. kagent reports
+  // that as status.state "failed", with the cause in status.message — NOT in history, which is the
+  // only place this function used to look. So a hard failure rendered as an empty trace that said
+  // nothing at all. That silence is exactly what made a total delegation outage read as a specialist
+  // with nothing to say: every delegation was failing on an unresolved prompt placeholder
+  // (krateo-agentiko/frontend-agent#13) and the cause was sitting in status.message the whole time.
+  const status = asRecord(task.status)
+  if (status?.state === 'failed') {
+    const cause = firstText(status.message).trim()
+    throw new Error(cause
+      ? `the specialist failed before returning — ${cause}`
+      : 'the specialist failed before returning, and recorded no reason')
   }
   const history: unknown[] = Array.isArray(task.history) ? task.history : []
   const parts: unknown[] = []

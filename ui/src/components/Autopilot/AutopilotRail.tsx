@@ -66,8 +66,9 @@ const EvidenceRow = ({ entry }: { entry: EvidenceEntry }) => {
   )
 }
 
-/** The lazily-resolved sub-evidence of one delegated hop, keyed by the specialist's session. */
-type DelegationState = { children?: EvidenceEntry[]; error?: boolean; loading?: boolean }
+/** Sub-evidence of one delegated hop. `error` carries the REASON, not a boolean (frontend#181) —
+ * see evidence.ts, which words each failure. */
+type DelegationState = { children?: EvidenceEntry[]; error?: string; loading?: boolean }
 
 /** A delegated hop: the specialist's own calls are not on this stream, so they are resolved from the
  *  session its response named. The fetch is lifted to EvidencePanel (which resolves every delegation
@@ -85,7 +86,7 @@ const DelegationRow = ({ entry, state }: { entry: EvidenceEntry; state?: Delegat
       {open ? (
         <div className={styles.apEvNested} id={panelId}>
           {state?.loading ? <div className={styles.apEvMeta}>loading…</div> : null}
-          {state?.error ? <div className={styles.apEvMeta}>its activity is not readable from here</div> : null}
+          {state?.error ? <div className={styles.apEvMeta}>couldn&rsquo;t read its activity — {state.error}</div> : null}
           {children?.length === 0 ? <div className={styles.apEvMeta}>no tool calls recorded</div> : null}
           {children?.map((child) => <EvidenceRow entry={child} key={child.id} />)}
         </div>
@@ -131,7 +132,7 @@ const EvidencePanel = ({ evidence }: { evidence: EvidenceEntry[] }) => {
       const sid = entry.sessionId as string
       fetchDelegationEvidence(deriveSessionsBase(base), entry, a2aAuthHeader())
         .then((children) => setDelegations((prev) => ({ ...prev, [sid]: { children } })))
-        .catch(() => setDelegations((prev) => ({ ...prev, [sid]: { error: true } })))
+        .catch((err: unknown) => setDelegations((prev) => ({ ...prev, [sid]: { error: err instanceof Error ? err.message : String(err) } })))
     }
   }, [open, base, evidence, delegations])
   // The resolved children only (loading/error hops fall back to their bare specialist line in copy).
