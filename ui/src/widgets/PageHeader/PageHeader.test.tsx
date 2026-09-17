@@ -7,6 +7,7 @@
  * the title, its counter and its tags, with the page's actions right-aligned beside them.
  */
 import { cleanup, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type * as Utils from '../../utils/utils'
@@ -21,12 +22,16 @@ vi.mock('../../utils/utils', async (importOriginal) => ({
   getEndpointUrl: (id: string) => (id === 'missing' ? undefined : 'http://example.test/endpoint'),
 }))
 
+// A routed page in production, so the header resolves a navigate() for its composed-children
+// exception pill (the pill links to the failing child). Rendering it bare would throw.
 const renderHeader = (widgetData: Partial<PageHeaderWidgetData>) => render(
-  <PageHeader
-    resourcesRefs={{ items: [] }}
-    uid='ph'
-    widgetData={{ allowedResources: ['buttons'], items: [], title: 'Compositions', ...widgetData }}
-  />,
+  <MemoryRouter>
+    <PageHeader
+      resourcesRefs={{ items: [] }}
+      uid='ph'
+      widgetData={{ allowedResources: ['buttons'], items: [], title: 'Compositions', ...widgetData }}
+    />
+  </MemoryRouter>,
 )
 
 describe('PageHeader', () => {

@@ -4,6 +4,7 @@ import { useLocation } from 'react-router'
 import { useRoutesContext } from '../../context/RoutesContext'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import Page404 from '../../pages/Page404'
+import { PageHealthProvider } from '../PageHealth'
 import PageSearch from '../PageSearch'
 import WidgetRenderer from '../WidgetRenderer'
 import { WidgetLoading } from '../WidgetStates'
@@ -66,10 +67,14 @@ export const WidgetPage = ({ defaultWidgetEndpoint }: { defaultWidgetEndpoint?: 
   }
   const searchPlaceholder = PAGE_SEARCH[location.pathname]
   return (
-    <>
+    // Child-health scope = the page. A detail page's status pill and its composed-children list are
+    // two independently-resolved widgets; this is what lets the pill answer for the children (see
+    // PageHealthContext). Keyed by pathname so one composition's children are never rolled up into
+    // the next page's header.
+    <PageHealthProvider key={location.pathname}>
       {searchPlaceholder ? <PageSearch placeholder={searchPlaceholder} /> : null}
       <WidgetRenderer key='content' widgetEndpoint={widgetEndpoint} />
-    </>
+    </PageHealthProvider>
   )
 }
 

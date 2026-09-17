@@ -42,3 +42,20 @@
   margin: 0 !important;
   max-width: 68ch;
 }
+
+/* The composed-children exception pill. Interactive only when the child row carried a route, so a
+ * non-navigable one is never given a pointer it cannot honour. */
+.childHealth {
+  display: inline-flex;
+}
+
+.childHealth[role='button'] {
+  cursor: pointer;
+}
+
+/* The same connector the Relations tree draws, muted: it names the SUBJECT of the pill (something
+ * under this page) without adding a word to the Kubernetes status vocabulary. */
+.childConnector {
+  margin-right: var(--spacing-xs);
+  opacity: 0.7;
+}
