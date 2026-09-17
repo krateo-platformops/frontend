@@ -123,6 +123,19 @@ export const PublishTargetFormHost = () => {
   return (
     <Modal
       cancelText='Cancel publish'
+      // AN IN-FLIGHT PUBLISH IS NOT DISCARDED BY AN INCIDENTAL CLICK (frontend#279).
+      //
+      // antd fires `onCancel` for the mask and for Escape as well as for the Cancel button, and
+      // `onCancel` here resolves the awaited destination as null — which aborts the whole publish
+      // with "publish cancelled — destination not confirmed" and sends the user back to re-preview.
+      // This modal sits ABOVE the preview drawer, so its mask covers the drawer: a click aimed at
+      // anything behind it — the drawer's own close button included — lands on the mask and throws
+      // the publish away. Reproduced exactly that way.
+      //
+      // Losing composed work to a stray click is never what someone meant. Abandoning a publish now
+      // requires saying so, via "Cancel publish".
+      keyboard={false}
+      maskClosable={false}
       okText='Confirm destination'
       onCancel={() => close(null)}
       onOk={() => {

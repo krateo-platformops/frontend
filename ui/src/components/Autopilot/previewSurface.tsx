@@ -30,7 +30,6 @@ import { LAYER } from '../../theme/layers'
 import { DrawerHeader, drawerCloseProps } from '../DrawerHeader/DrawerHeader'
 import WidgetRenderer from '../WidgetRenderer'
 
-import { useAutopilot } from './AutopilotProvider'
 import { parseFileEdit, parseRestDefEdit } from './previewBridge'
 import { AUTOPILOT_PREVIEW_EVENT, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
 import { previewSurfaceClaimed } from './previewDraftChanged'
@@ -45,9 +44,19 @@ import styles from './previewSurface.module.css'
  * page/blueprint distinction is read on the edit path — the SAME discriminator the payload builders set. */
 const BLUEPRINT_FILES_LABEL = 'Chart files'
 
-/** The open Autopilot rail's fixed width (AutopilotRail.module.css `.apRail.open`). The preview
- * drawer offsets by this so it sits LEFT of the chat instead of covering it. */
-const RAIL_WIDTH = 384
+/** How far to inset the preview so it sits LEFT of the chat instead of covering it.
+ *
+ * READ THE RAIL'S LIVE WIDTH, never a constant. This was hardcoded at 384 — the rail's DEFAULT —
+ * but the rail is user-resizable by drag, gains HISTORY_EXTRA_WIDTH when the history split opens,
+ * and goes to 100% in full-width mode. Any of those made the drawer overlap and clip the
+ * conversation (frontend#180: "enlarged autopilot window gets hidden by the preview block").
+ *
+ * AutopilotRail owns `--autopilot-rail-width` and publishes exactly this value for exactly this
+ * purpose ("so body-portalled overlays can inset their right edge and never sit over the rail").
+ * Using the var also means a drag RESIZES the inset live — a prop would need this component to
+ * re-render on every drag frame, which it does not do. Falls back to 0 so a missing var cannot
+ * push the drawer off-screen; the rail sets it to 0px when closed, so no open/closed branch. */
+const RAIL_INSET = 'var(--autopilot-rail-width, 0px)'
 
 /** Pin the preview Drawer at antd's default popup z-index (1000). Belt-and-suspenders for the
  * "confirm opens BEHIND the preview" fix (item Q): the blast-radius confirm modal is
@@ -437,7 +446,6 @@ export const PreviewContent = ({ editVerdicts, focusPath, onVerdicts, payload }:
 }
 
 export const AutopilotPreviewDrawer = () => {
-  const { open: railOpen } = useAutopilot()
   const [open, setOpen] = useState(false)
   const [payload, setPayload] = useState<AutopilotPreviewPayload | null>(null)
   // FE-K(edit): the LIVE verdicts of the (possibly edited) RestDefinition source — null until the
@@ -470,8 +478,8 @@ export const AutopilotPreviewDrawer = () => {
       // #86 §0.10: shared close placement (X at the END), from the one drawerCloseProps source.
       closable={drawerCloseProps.closable}
       destroyOnHidden
-      // #3 — don't cover the chat: drop the dimming mask, and when the rail is open shift the drawer
-      // left of its 384px so the preview AND the conversation stay visible + interactive at once.
+      // #3 — don't cover the chat: drop the dimming mask, and inset the drawer by the rail's LIVE
+      // width so the preview AND the conversation stay visible + interactive at once, at any rail size.
       mask={false}
       onClose={() => {
         setOpen(false)
@@ -480,7 +488,7 @@ export const AutopilotPreviewDrawer = () => {
         payload.onClose?.()
       }}
       open={open}
-      rootStyle={railOpen ? { insetInlineEnd: RAIL_WIDTH } : undefined}
+      rootStyle={{ insetInlineEnd: RAIL_INSET }}
       size='large'
       // #86 §0.10: title via the shared DrawerHeader (default 16px tier). payload.title stays a
       // string → previewBus/verbRegistry untouched.
