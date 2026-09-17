@@ -167,6 +167,35 @@ describe('reaching the session trace', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({}), ok: false, status: 403 })))
     await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {})).rejects.toThrow('403')
   })
+
+  // frontend#181. Every one of these used to reach the panel as the single sentence "its activity is
+  // not readable from here" — the one fact the reader already had. They have different owners: an
+  // expired session is theirs to fix, a 403 is an authorization boundary, a 404 means nothing was
+  // ever recorded. A panel that exists so an answer can be CHECKED has to say which.
+  it.each([
+    [401, /session expired/i],
+    [403, /refused|permissions/i],
+    [404, /kept no session|never/i],
+    [503, /returned 503/],
+  ])('names WHY a trace could not be read (%i)', async (status, expected) => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({}), ok: false, status })))
+    await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {})).rejects.toThrow(expected)
+  })
+
+  it('distinguishes "recorded nothing at all" from "not this delegation"', async () => {
+    // The first is the signature of a specialist that answered WITHOUT running any tools — exactly
+    // what someone opening this panel is trying to find out, and precisely the shape of the
+    // platform-wide delegation failure traced in agentgateway-policies#55, where every specialist
+    // returned an empty answer and nothing anywhere went red.
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ data: [] }), ok: true })))
+    await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {}))
+      .rejects.toThrow(/recorded no activity/i)
+
+    const other = [{ history: [{ parts: [{ kind: 'text', text: 'someone else\'s turn' }], role: 'user' }], id: 't9' }]
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ data: other }), ok: true })))
+    await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {}))
+      .rejects.toThrow(/not identifiable among the 1 task/i)
+  })
 })
 
 describe('panel headline and naming', () => {
