@@ -227,6 +227,40 @@ describe('reaching the session trace', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ data: ok }), ok: true })))
     await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {})).resolves.toEqual([])
   })
+
+  // The three ways a delegation still reached the reader with nothing to act on AFTER the statuses
+  // above were named. Each one bypasses them: no request is made, the request never completes, or it
+  // completes with a body that is not a trace.
+  it('will not pass off an unlooked-at trace as an empty one', async () => {
+    // No subagent_session_id means there is nothing to fetch. Resolving [] rendered as "no tool calls
+    // recorded" — a claim about the specialist's work that nobody checked. Worse, the panel skips
+    // fetching these rows entirely, so the hop expanded to a BLANK box: the #181 complaint, with even
+    // the one sentence removed.
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    await expect(fetchDelegationEvidence('/autopilot/sessions', { ...delegation('x'), sessionId: undefined }, {}))
+      .rejects.toThrow(/no session id/i)
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('names an unreachable session store rather than echoing the browser', async () => {
+    // A rejected fetch never reaches the status table, so `TypeError: Failed to fetch` — which names
+    // neither what was being reached nor what to do — went to the reader verbatim.
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))))
+    await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {}))
+      .rejects.toThrow(/could not reach the session store/i)
+  })
+
+  it('says a proxy answered when a 200 body is not a trace', async () => {
+    // An auth proxy or ingress standing in for the session store answers with its own HTML page and a
+    // 200, so every named status looks fine and json() rejects with `Unexpected token '<'` instead.
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
+      json: () => Promise.reject(new SyntaxError('Unexpected token \'<\', "<!DOCTYPE "... is not valid JSON')),
+      ok: true,
+    })))
+    await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {}))
+      .rejects.toThrow(/proxy or login page/i)
+  })
 })
 
 describe('panel headline and naming', () => {

@@ -269,6 +269,22 @@ const TRACE_FETCH_FAILURES: Record<number, string> = {
   404: 'the specialist kept no session under that id (404) — it may have failed before recording anything',
 }
 
+/** A delegation whose result never carried a `subagent_session_id`. There is no session to read, so
+ *  this is the one case the fetch cannot even attempt — and the rail must still SAY so: the panel
+ *  skips fetching for these rows, so before this they expanded to a blank box, which is a worse
+ *  answer than the sentence #181 was filed about. Exported because AutopilotRail renders it without
+ *  calling the fetch at all. */
+export const NO_DELEGATION_SESSION
+  = 'the delegation returned no session id, so no trace exists to read — the specialist was never reached, or kagent recorded nothing for it'
+
+/** The request never completed: DNS, TLS, a dead gateway, an offline browser, a blocked origin. The
+ *  browser's own wording for this is `TypeError: Failed to fetch`, which the panel used to render
+ *  verbatim — it names neither what was being reached nor what to do about it. */
+const unreachable = (cause: unknown): Error => {
+  const detail = cause instanceof Error ? cause.message : String(cause)
+  return new Error(`could not reach the session store — it is down, or the browser was blocked from reaching it (${detail})`)
+}
+
 /** The specialist's own rows, from its session's stored tasks. */
 export const fetchDelegationEvidence = async (
   sessionsBase: string,
@@ -276,9 +292,18 @@ export const fetchDelegationEvidence = async (
   headers: Record<string, string>,
 ): Promise<EvidenceEntry[]> => {
   if (!entry.sessionId) {
-    return []
+    // Not an empty trace — an unlooked-at one. Returning [] here rendered as "no tool calls
+    // recorded", which asserts a fact nobody checked (frontend#181).
+    throw new Error(NO_DELEGATION_SESSION)
   }
-  const response = await fetch(`${sessionsBase}/${entry.sessionId}/tasks`, { headers })
+  let response: Response
+  try {
+    response = await fetch(`${sessionsBase}/${entry.sessionId}/tasks`, { headers })
+  } catch (cause) {
+    // A rejected fetch never reaches the status checks below, so none of #181's named reasons
+    // applied to it and the browser's raw `Failed to fetch` went straight to the reader.
+    throw unreachable(cause)
+  }
   if (!response.ok) {
     // NAME the failure. A bare status told a reader nothing they could act on, and the panel then
     // reduced even that to "not readable from here" (frontend#181). These three are genuinely
@@ -286,7 +311,16 @@ export const fetchDelegationEvidence = async (
     // refusal is an authorization boundary, and a missing session means the trace was never kept.
     throw new Error(TRACE_FETCH_FAILURES[response.status] ?? `the session store returned ${response.status}`)
   }
-  const body = asRecord(await response.json())
+  // A 200 does not guarantee a trace. An auth proxy or ingress that answers in the session store's
+  // place typically returns its own HTML login/error page WITH a 200, and `json()` then rejects with
+  // `Unexpected token '<'` — parser noise the reader cannot act on, and the one failure mode that
+  // survived #181 precisely because the status looked fine.
+  let body: Record<string, unknown> | undefined
+  try {
+    body = asRecord(await response.json())
+  } catch {
+    throw new Error('the session store answered with something that is not a trace — a proxy or login page probably answered in its place')
+  }
   const tasks: unknown[] = Array.isArray(body?.data) ? body.data : []
   const task = selectDelegationTask(tasks, entry.request)
   if (!task) {
