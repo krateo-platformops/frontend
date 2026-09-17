@@ -11,6 +11,7 @@ import { useAgentDraft } from '../../components/Autopilot/agentDraft'
 import WidgetRenderer from '../../components/WidgetRenderer'
 import { useHandleAction } from '../../hooks/useHandleActions'
 import type { WidgetProps } from '../../types/Widget'
+import { carryScopeParams } from '../../utils/navigation'
 import { getEndpointUrl } from '../../utils/utils'
 import { useDrawerContext } from '../Drawer/DrawerContext'
 
@@ -89,7 +90,7 @@ const FormExtra = ({ buttonConfig, disabled = false, form, loading, onDraft, sub
           form={form}
           htmlType={secondaryNav ? 'button' : 'reset'}
           icon={buttonConfig?.secondary?.icon ? <FontAwesomeIcon icon={buttonConfig?.secondary?.icon as IconProp} /> : undefined}
-          onClick={secondaryNav ? () => { void navigate(secondaryNav) } : undefined}
+          onClick={secondaryNav ? () => { void navigate(carryScopeParams(secondaryNav)) } : undefined}
           type='default'
         >
           {buttonConfig?.secondary?.label || 'Reset'}

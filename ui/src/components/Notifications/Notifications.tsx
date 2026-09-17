@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router'
 import { useConfigContext } from '../../context/ConfigContext'
 import { LAYER } from '../../theme/layers'
 import { getAccessToken } from '../../utils/getAccessToken'
+import { carryScopeParams } from '../../utils/navigation'
 import type { SSEK8sEvent } from '../../utils/types'
 import { DrawerHeader, drawerCloseProps } from '../DrawerHeader/DrawerHeader'
 import HeaderIconButton from '../HeaderIconButton'
@@ -263,7 +264,9 @@ export const NotificationsDrawer = () => {
 
   const handleNavigate = useCallback((url: string) => {
     setOpen(false)
-    void navigate(url)
+    // The event deep-link is a page change, so it carries the header's project scope along
+    // rather than silently resetting it (see utils/navigation carryScopeParams).
+    void navigate(carryScopeParams(url))
   }, [setOpen, navigate])
 
   const renderBody = () => {
