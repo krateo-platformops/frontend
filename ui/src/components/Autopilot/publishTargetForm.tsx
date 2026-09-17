@@ -144,12 +144,21 @@ export const PublishTargetFormHost = () => {
           {/* Name the artifact at the write gate: what a publish of THIS kind actually commits. */}
           {pending ? KIND_BLURB[pending.req.kind] : KIND_BLURB.page}
         </Typography.Paragraph>
-        <Typography.Paragraph data-testid='publish-repo-precondition' type='warning'>
-          {/* The publish CLONES the destination (git-provider never creates a repo). A repo that does
-              not exist fails every file with a clone/auth error — so state the precondition here. */}
-          The repository below must <strong>already exist</strong>: publishing pushes a branch to it and
-          opens a change request — it does not create the repository. If it isn&rsquo;t there yet, create
-          it (with an initial <Typography.Text code>main</Typography.Text> branch) first, then publish.
+        <Typography.Paragraph data-testid='publish-repo-precondition' type='secondary'>
+          {/* THIS TEXT WAS WRONG AND SENT PEOPLE TO DO WORK THE PLATFORM ALREADY DOES. It used to say
+              the repository "must already exist ... it does not create the repository", dating from
+              when the publish only cloned a destination. builder-publish now renders a github
+              `Repository` (values.yaml `repository.create: true`, `autoInit: true`) and creates it,
+              which is why a brand-new page set no longer needs a repo made by hand first. Verified on
+              krateo-057: a publish to krateo-blueprints/demo-destination rendered
+              `publish-team-health-repo` with `auto_init: true`.
+
+              It also contradicted the compose-page form one panel away, whose own field help reads
+              "Created automatically if it does not exist yet." Two opposite claims about the same
+              action in the same product is worse than either one alone. */}
+          The repository is <strong>created if it doesn&rsquo;t exist</strong>. Publishing pushes a
+          branch to it and opens a change request into the base branch below — nothing merges without
+          your review.
         </Typography.Paragraph>
         <Form form={form} layout='vertical'>
           <Form.Item label='Repository owner' name='owner' rules={[{ message: 'the owner/org (or GitLab group) is required', required: true }]}>
