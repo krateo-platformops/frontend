@@ -1,9 +1,11 @@
-import { Form as AntdForm, Collapse, Input, InputNumber, Select, Switch } from 'antd'
+import { Form as AntdForm, AutoComplete, Collapse, Input, InputNumber, Select, Switch } from 'antd'
+import type { DefaultOptionType } from 'antd/es/select'
 import type { JSONSchema4 } from 'json-schema'
 import { useState } from 'react'
 
 import styles from './Form.module.css'
-import { getOptionsFromEnum } from './utils'
+import type { SuggestionGroup } from './utils'
+import { getOptionsFromEnum, getSuggestionGroups, suggestionSearchText } from './utils'
 
 /**
  * Editor for a free-form object/array node (a `type: object` map without `properties`,
@@ -44,10 +46,99 @@ const JsonValueInput = ({ onChange, value }: { onChange?: (next: unknown) => voi
   )
 }
 
+/**
+ * Turns normalised suggestion groups into antd options.
+ *
+ * Two things the plain `{ label, value }` pair cannot carry, both of which the catalogue needs:
+ *
+ * - The SECOND LINE. A suggestion is only useful if the reader can tell what it is without
+ *   already knowing — a metric name alone ("k8s.pod.memory.working_set") says less than the
+ *   same name over its unit. So `label` is a ReactNode, name over muted description.
+ * - The SEARCH TEXT. Because `label` is a node, antd's `optionFilterProp` has nothing to match
+ *   on, and matching `value` alone would make the description unsearchable. `title` carries the
+ *   flattened label+value+description that `filterSuggestion` matches — and, being the native
+ *   `title` attribute, it doubles as the hover tooltip for an entry the row has to truncate.
+ *
+ * A single ungrouped bucket stays flat (no optgroup heading for a list that has only one).
+ */
+const suggestionOptions = (groups: SuggestionGroup[]): DefaultOptionType[] => {
+  const optionFor = (entry: SuggestionGroup['entries'][number]): DefaultOptionType => ({
+    label: (
+      <span className={styles.optionLabel}>
+        <span className={styles.optionMain}>{entry.label ?? entry.value}</span>
+        {entry.description ? <span className={styles.optionDesc}>{entry.description}</span> : null}
+      </span>
+    ),
+    title: suggestionSearchText(entry),
+    value: entry.value,
+  })
+
+  if (groups.length === 1 && !groups[0].group) {
+    return groups[0].entries.map(optionFor)
+  }
+
+  return groups.map((bucket) => ({
+    label: bucket.group ?? 'Other',
+    options: bucket.entries.map(optionFor),
+  }))
+}
+
+/** Substring match over a suggestion's flattened search text (see `suggestionOptions`). */
+const filterSuggestion = (input: string, option?: DefaultOptionType): boolean =>
+  typeof option?.title === 'string' && option.title.includes(input.trim().toLowerCase())
+
 /** Renders an antd form control for a single schema node (the schema-driven control). */
 const controlFor = (node: JSONSchema4): React.ReactNode => {
+  // SUGGESTIONS BEFORE EVERYTHING ELSE, and deliberately so: they are an OPEN catalogue, so the
+  // control they produce must still accept a value that is not in the list. A node may carry
+  // both `enum` and suggestions only by authoring mistake — `enum` would then silently win and
+  // reject every hand-typed value, which is the exact failure suggestions exist to avoid.
+  const suggestions = getSuggestionGroups(node)
+  if (suggestions) {
+    const options = suggestionOptions(suggestions)
+    // An open string ARRAY keeps its `mode='tags'` multi-select — now seeded with the catalogue.
+    // Tags mode already admits values that are not options, so free entry survives.
+    if (node.type === 'array') {
+      return (
+        <Select
+          allowClear
+          filterOption={filterSuggestion}
+          mode='tags'
+          options={options}
+          placeholder='Select or type…'
+          style={{ width: '100%' }}
+        />
+      )
+    }
+    // A scalar becomes an AutoComplete, NOT a Select: antd's Select commits one of its options,
+    // whereas AutoComplete is a text input that happens to suggest — so the field still submits
+    // whatever the user typed.
+    return (
+      <AutoComplete
+        allowClear
+        filterOption={filterSuggestion}
+        options={options}
+        placeholder='Select or type…'
+        style={{ width: '100%' }}
+      />
+    )
+  }
+
   if (Array.isArray(node.enum)) {
-    return <Select allowClear options={getOptionsFromEnum(node.enum)} placeholder='Select…' style={{ width: '100%' }} />
+    // `showSearch` because an enum is not always short — a server-side filter can hand this
+    // widget a list with hundreds of entries (the platform collects 174 distinct metric names),
+    // and a scroll-only dropdown is unusable at that size. It stays CLOSED: search filters the
+    // options, it does not admit a value outside them.
+    return (
+      <Select
+        allowClear
+        optionFilterProp='label'
+        options={getOptionsFromEnum(node.enum)}
+        placeholder='Select…'
+        showSearch
+        style={{ width: '100%' }}
+      />
+    )
   }
   if (node.type === 'boolean') { return <Switch /> }
   if (node.type === 'integer' || node.type === 'number') { return <InputNumber style={{ width: '100%' }} /> }
@@ -55,7 +146,7 @@ const controlFor = (node: JSONSchema4): React.ReactNode => {
   // e.g. the W3-1 fleet-rollout target-clusters field); checked before the free-text
   // `tags` fallback, which is for open string arrays only.
   if (node.type === 'array' && !Array.isArray(node.items) && Array.isArray(node.items?.enum)) {
-    return <Select allowClear mode='multiple' options={getOptionsFromEnum(node.items.enum)} placeholder='Select…' style={{ width: '100%' }} />
+    return <Select allowClear mode='multiple' optionFilterProp='label' options={getOptionsFromEnum(node.items.enum)} placeholder='Select…' style={{ width: '100%' }} />
   }
   if (node.type === 'array' && !Array.isArray(node.items) && node.items?.type === 'string') {
     return <Select allowClear mode='tags' placeholder='Add values…' style={{ width: '100%' }} />
