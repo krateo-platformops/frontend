@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { ResourcesRefs } from '../../types/Widget'
 
@@ -82,6 +82,62 @@ describe('Menu navModel', () => {
       ],
       { items: [] },
       'krateo-system',
+      // A denied id proves evaluation HAPPENED, so an absent ref means denied. Without this the
+      // empty-refs guard below would (correctly) read the whole input as "nothing was evaluated".
+      ['some-denied-page'],
+    )
+    expect(entries.map((entry) => entry.label)).toEqual(['Marketplace'])
+  })
+
+  it('shows every entry when refs came back EMPTY and NOTHING was denied — nothing was evaluated', () => {
+    // The failure this guards (frontend#295): snowplow returns no refs at all — an RBAC evaluation
+    // error, a failed resolve, a nav RESTAction whose $roots resolved empty. Every item then
+    // carries a resourceRefId that matches nothing, `some()` is false for all of them, and the
+    // sidebar renders EMPTY for everyone, admins included. Hiding the entire product is never the
+    // right reading of "we learned nothing".
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const { entries } = buildNavModel(
+      [
+        { label: 'Home', order: 1, path: '/home', resourceRefId: 'home-page' },
+        { label: 'Settings', order: 2, path: '/settings', resourceRefId: 'settings-page' },
+      ],
+      { items: [] },
+      'krateo-system',
+      [],
+    )
+
+    expect(entries.map((entry) => entry.label)).toEqual(['Home', 'Settings'])
+    // and it must SAY so — the page survived, but something upstream produced nothing.
+    expect(spy).toHaveBeenCalled()
+    spy.mockRestore()
+  })
+
+  it('still HIDES a denied entry when some refs resolved — a partial deny is a real judgement', () => {
+    // The guard must not weaken the case the gate exists for. Here evaluation plainly happened:
+    // one ref survived, one was denied. The denied one stays hidden.
+    const { entries } = buildNavModel(
+      [
+        { label: 'Home', order: 1, path: '/home', resourceRefId: 'home-page' },
+        { label: 'Settings', order: 2, path: '/settings', resourceRefId: 'settings-page' },
+      ],
+      { items: [resourcesRefs.items[0]] },
+      'krateo-system',
+      ['settings-page'],
+    )
+    expect(entries.map((entry) => entry.label)).toEqual(['Home'])
+  })
+
+  it('hides a denied entry even when refs are empty, provided something was denied', () => {
+    // Total denial is a legitimate outcome: a user permitted no pages at all sees no gated pages.
+    // Distinguished from "nothing evaluated" purely by deniedRefIds being non-empty.
+    const { entries } = buildNavModel(
+      [
+        { label: 'Marketplace', order: 1, path: '/marketplace' },
+        { label: 'Home', order: 2, path: '/home', resourceRefId: 'home-page' },
+      ],
+      { items: [] },
+      'krateo-system',
+      ['home-page'],
     )
     expect(entries.map((entry) => entry.label)).toEqual(['Marketplace'])
   })

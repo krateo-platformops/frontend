@@ -92,10 +92,42 @@ export const resolveContentEndpoint = (
  * `page-<slug>` pages) — those carry no ref to gate on and stay visible; RBAC-driven
  * nav therefore requires each gated page to carry a `resourceRefId`.
  */
-const isNavEntryAllowed = (item: InlineNavItem, resourcesRefs: ResourcesRefs): boolean => {
+const isNavEntryAllowed = (
+  item: InlineNavItem,
+  resourcesRefs: ResourcesRefs,
+  deniedRefIds: readonly string[] = [],
+): boolean => {
   if (!item.resourceRefId) { return true }
   // ref present == survived WidgetRenderer's allowed-filter == user may GET the page.
-  return !!resourcesRefs?.items?.some(({ id }) => id === item.resourceRefId)
+  if (resourcesRefs?.items?.some(({ id }) => id === item.resourceRefId)) { return true }
+
+  // The ref is ABSENT, and absence alone cannot say why. WidgetRenderer drops `allowed: false`
+  // refs before the Menu sees them (WidgetRenderer.tsx), so at this layer these are identical:
+  //
+  //   a) the ref was evaluated and DENIED          -> must stay hidden
+  //   b) NOTHING was evaluated — snowplow returned no refs at all (an RBAC evaluation error,
+  //      a failed resolve, an iterator with no context) -> hiding is wrong
+  //
+  // `deniedRefIds` is the discriminator, and WidgetRenderer already computes and passes it for
+  // exactly this ambiguity. If refs came back empty AND nothing was denied, no judgement was made
+  // about anything, and the honest response is to show the nav rather than delete the product from
+  // under the user — admins included. snowplow's rbac.UserCan returns false on every error path,
+  // not only a genuine deny, so (b) is reachable without anyone losing a permission.
+  //
+  // Deliberately NOT a blanket fail-open: with any denied ref present, evaluation demonstrably
+  // happened, so an absent ref means denied and stays hidden (frontend#295).
+  const nothingWasEvaluated = !resourcesRefs?.items?.length && deniedRefIds.length === 0
+  if (nothingWasEvaluated) {
+    // Loud on purpose: the fallback saved the page, but a nav RESTAction that resolved no refs at
+    // all is always a defect upstream — and since portal#225 it also means the prewarm walker got
+    // nothing to descend, so the cache is cold for every page below the nav.
+    console.error(
+      `Menu: resourcesRefs resolved EMPTY with nothing denied — showing all nav entries rather than none. `
+      + `The nav RESTAction returned no refs; entries are unfiltered until it does.`,
+    )
+    return true
+  }
+  return false
 }
 
 /**
@@ -113,6 +145,7 @@ export const buildNavModel = (
   items: readonly InlineNavItem[],
   resourcesRefs: ResourcesRefs,
   namespace: string = '',
+  deniedRefIds: readonly string[] = [],
 ): { entries: NavEntry[]; routes: AppRoute[] } => {
   const sorted = [...items].sort((left, right) => (left.order ?? 100) - (right.order ?? 100))
 
@@ -130,7 +163,7 @@ export const buildNavModel = (
     if (item.type === 'divider') {
       return [{ key: `divider-${item.order ?? idx}`, type: 'divider' as const }]
     }
-    if (item.label && item.path && isNavEntryAllowed(item, resourcesRefs)) {
+    if (item.label && item.path && isNavEntryAllowed(item, resourcesRefs, deniedRefIds)) {
       return [{ iconName: item.icon, key: item.path, label: item.label }]
     }
     return []
