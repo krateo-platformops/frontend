@@ -34,7 +34,7 @@ import { describe, it, expect } from 'vitest'
 import { getDefaultPageSizeForEndpoint } from '../components/WidgetRenderer/WidgetRenderer'
 import { isTimeoutError } from '../components/WidgetStates'
 
-import { buildExtrasParam, MAX_WIDGET_FETCH_RETRIES, shouldRetryWidgetFetch, WidgetFetchError, widgetFetchRetryDelay } from './useWidgetQuery'
+import { MAX_WIDGET_FETCH_RETRIES, WidgetFetchError, boundedWindow, buildExtrasParam, shouldRetryWidgetFetch, widgetFetchRetryDelay } from './useWidgetQuery'
 
 /**
  * Pure replica of ScrollPagination.tsx:25-29 — the intersection-observer
@@ -510,5 +510,41 @@ describe('buildExtrasParam — request/user values forwarded into the RA jq dict
     const explicitTrue = buildExtrasParam(sp('q=foo'), { namespace: 'demo' }, 'Diego', 'diego.braga', true)
     expect(legacyDefault).toBe(explicitTrue)
     expect(legacyDefault).toBe('{"q":"foo","namespace":"demo","displayName":"Diego","username":"diego.braga"}')
+  })
+})
+
+describe('the bounded window — who supplied it must not change the pager', () => {
+  /**
+   * The conflation that was the bug. `usesDefaultPaging` went false the instant the endpoint
+   * carried page/perPage, so a chart declaring `resourcesRefs.items[].slice` (portal#235) would
+   * fall through to the infinite-scroll branch that snowplow's `slice.continue` keeps alive — and
+   * re-grow the un-virtualized DOM the pager exists to bound, while the pager controls vanished.
+   */
+  it('takes the ENDPOINT window when the chart declares a slice', () => {
+    expect(boundedWindow(50, undefined)).toBe(50)
+  })
+
+  it('a declared slice still counts as BOUNDED — this is the whole fix', () => {
+    // Before: endpoint-supplied pagination disabled the classic pager. Now it is a window like
+    // any other, so the four behaviours that key off "bounded" all keep working.
+    expect(typeof boundedWindow(50, undefined)).toBe('number')
+  })
+
+  it('falls back to the caller default when the endpoint declares nothing — today, every widget', () => {
+    expect(boundedWindow(undefined, 50)).toBe(50)
+  })
+
+  it('prefers the endpoint over the default when both are present', () => {
+    // The chart is the more specific statement: it knows what the seed was keyed under.
+    expect(boundedWindow(25, 50)).toBe(25)
+  })
+
+  it('is UNBOUNDED when neither supplies one — snowplow is asked for the full set', () => {
+    expect(boundedWindow(undefined, undefined)).toBeUndefined()
+  })
+
+  it('treats an explicit 0 as supplied, not as absent', () => {
+    // `??` rather than `||`, so a zero window is not silently replaced by the default.
+    expect(boundedWindow(0, 50)).toBe(0)
   })
 })
