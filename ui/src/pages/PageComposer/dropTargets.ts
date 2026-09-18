@@ -1,18 +1,13 @@
 /**
  * Which containers can accept a dragged widget — the legality kernel behind drag & drop.
  *
- * WHY THIS IS NOT "does the parent declare the plural". `placeChild` GROWS the parent's
- * `widgetData.allowedResources` when the plural is missing, so asking what a container currently
- * declares answers nothing about what it may hold. The real constraints are three, and they are
- * different in kind:
+ * Three constraints, different in kind:
  *
- *   1. IS IT A CONTAINER AT ALL. Only `LAYOUT_KINDS` carry `widgetData.items` + `allowedResources`;
- *      a Paragraph holds nothing and never can.
- *   2. DOES THE CRD PERMIT THE PLURAL. `allowedResources` is an ENUM on the container's CRD, so a
- *      plural outside it is rejected at apply no matter what the draft says — the reason a Flex
- *      cannot hold an `inputs` today (see PageSearch.tsx). That enum lives on the cluster, so it is
- *      INJECTED here rather than fetched: this module stays pure and testable, and the caller owns
- *      the discovery.
+ *   1. IS IT A CONTAINER AT ALL. Only `LAYOUT_KINDS` carry `widgetData.items` +
+ *      `allowedResources`; a Paragraph holds nothing and never can.
+ *   2. DOES THIS CONTAINER SAY IT HOLDS THIS, read from its OWN
+ *      `spec.widgetData.allowedResources` — see below, because this reverses what an earlier
+ *      version of this file asserted.
  *   3. CAN WE EDIT THE PARENT. A child is a reference held by its parent, so placing one rewrites
  *      the PARENT's file. A node the draft does not carry (`drafted: false`, an existing cluster
  *      widget) has no file to rewrite and cannot take a child, however legal the type would be.
@@ -21,18 +16,33 @@
  * descendants, or the tree stops being a tree. That check needs the moving NODE, not its plural,
  * which is why `legalTargets` takes one and `canAccept` does not.
  *
- * UNKNOWN ENUM MEANS PERMITTED, deliberately. Before the CRDs are discovered the caller supplies
- * nothing and every container accepts every plural. Defaulting to DENY would render a canvas with
- * no legal target anywhere — indistinguishable from a broken page — and `placeChild` plus the
- * live-CRD validation downstream still reject a genuinely bad placement. So the strong guarantee,
- * "an illegal drop is impossible rather than rejected afterwards", holds exactly when the enum is
- * known, and the module never pretends otherwise.
+ * WHERE THE PERMISSION COMES FROM, CORRECTED. This module used to take an injected map of
+ * kind -> permitted plurals, on the stated grounds that `allowedResources` is "an ENUM on the
+ * container's CRD, so a plural outside it is rejected at apply". That is false, and was checked
+ * against the live CRDs: cards, rows, cols, tabs and flexes all type the field `string[]` with NO
+ * enum, deliberately — the CRD's own description records that the per-widget enums drifted and
+ * enforced nothing. Nothing rejects a placement at apply: not OpenAPI, not a webhook, not the
+ * renderer. The only thing that reads the field back is the portal chart's design lint (rule X5).
+ *
+ * The map was the wrong SHAPE for the real thing too. `allowedResources` is per-CR, so two Flexes
+ * on one page may legitimately declare different slots, and a map keyed by kind cannot express
+ * that. The declaration lives in the draft the canvas already holds, so it is read off the node
+ * rather than fetched or injected — no discovery, nothing to go stale.
+ *
+ * EMPTY MEANS UNCONSTRAINED, NOT "HOLDS NOTHING". The CRD requires the key, so `newContainerYaml`
+ * writes `allowedResources: []` and every freshly created container starts there. Treating empty
+ * as a closed set would make every container a person just made accept nothing — a canvas with no
+ * legal target anywhere, indistinguishable from a broken page. Only a NON-EMPTY list is a
+ * statement of intent, and that one is honoured.
+ *
+ * WHY HONOUR IT AT ALL, given `placeChild` GROWS the list when the plural is missing. Because
+ * growing it silently redefines what the author said the slot was for, and nothing downstream
+ * reports that — X5 passes precisely BECAUSE the declaration was widened. Offering only containers
+ * that already say they hold this plural keeps the declaration meaningful; editing the YAML in the
+ * Files tab remains the way to change one's mind.
  */
 import type { TreeNode } from './objectTree'
 import { LAYOUT_KINDS } from './structureEdit'
-
-/** CRD plural -> the plurals that container's `allowedResources` enum admits. */
-export type PermittedChildren = Readonly<Record<string, readonly string[]>>
 
 const isContainerKind = (kind: string | null): boolean =>
   !!kind && Object.prototype.hasOwnProperty.call(LAYOUT_KINDS, kind)
@@ -42,11 +52,7 @@ const isContainerKind = (kind: string | null): boolean =>
  *
  * Type legality plus editability. Says nothing about cycles — see `legalTargets`.
  */
-export const canAccept = (
-  node: TreeNode,
-  childPlural: string,
-  permitted?: PermittedChildren,
-): boolean => {
+export const canAccept = (node: TreeNode, childPlural: string): boolean => {
   if (!isContainerKind(node.kind)) {
     return false
   }
@@ -57,10 +63,9 @@ export const canAccept = (
   if (!childPlural) {
     return false
   }
-  const enumerated = permitted?.[node.kind as string]
-  // Unknown enum => permitted (see the header). A DECLARED but empty enum is a real "holds
-  // nothing" and is honoured as such.
-  return enumerated ? enumerated.includes(childPlural) : true
+  const declared = node.allowedResources
+  // Absent or empty => the author has not said, so anything may land (see the header).
+  return declared && declared.length > 0 ? declared.includes(childPlural) : true
 }
 
 /** Every node in this subtree, including its root — what a move may not be dropped into. */
@@ -100,8 +105,7 @@ const flatten = (roots: readonly TreeNode[]): TreeNode[] => {
 export const legalTargets = (
   roots: readonly TreeNode[],
   moving: { plural: string; node?: TreeNode },
-  permitted?: PermittedChildren,
 ): TreeNode[] => {
   const excluded = moving.node ? subtreeOf(moving.node) : new Set<TreeNode>()
-  return flatten(roots).filter((node) => !excluded.has(node) && canAccept(node, moving.plural, permitted))
+  return flatten(roots).filter((node) => !excluded.has(node) && canAccept(node, moving.plural))
 }

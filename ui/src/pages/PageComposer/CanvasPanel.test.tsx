@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import CanvasPanel from './CanvasPanel'
 import type { TreeNode } from './objectTree'
 
-const cr = (kind: string, name: string, children: readonly [string, string][] = [], apiRef = false) => {
+const cr = (kind: string, name: string, children: readonly [string, string][] = [], apiRef = false, allowed?: readonly string[]) => {
   const lines: string[] = [
     `kind: ${kind}`,
     'apiVersion: widgets.templates.krateo.io/v1beta1',
@@ -26,6 +26,10 @@ const cr = (kind: string, name: string, children: readonly [string, string][] = 
     lines.push('  apiRef:', '    name: some-restaction', '    namespace: krateo-system')
   }
   lines.push('  widgetData:')
+  if (allowed?.length) {
+    lines.push('    allowedResources:')
+    allowed.forEach((entry) => lines.push(`      - ${entry}`))
+  }
   lines.push(children.length ? '    items:' : '    items: []')
   children.forEach(([refId]) => lines.push(`      - resourceRefId: ${refId}`))
   lines.push('  resourcesRefs:')
@@ -135,8 +139,9 @@ describe('CanvasPanel — dragging', () => {
     expect(accepts('page-demo')).toBe(true)
   })
 
-  it('honours the CRD enum — a container that declares it cannot hold cards does not light up', () => {
-    render(<CanvasPanel files={draft()} permitted={{ Card: [], Flex: ['rows'], Row: ['cards'] }} />)
+  it('honours what each container declares — a rows-only page does not light up for a card', () => {
+    const files = { ...draft(), 'templates/flex.page-demo.yaml': cr('Flex', 'page-demo', [['r', 'row-one'], ['p', 'para-one']], false, ['rows']) }
+    render(<CanvasPanel files={files} />)
     fireEvent.dragStart(frame('inner'))
     expect(accepts('row-one')).toBe(true)
     expect(accepts('page-demo')).toBe(false)
@@ -157,7 +162,8 @@ describe('CanvasPanel — dragging', () => {
     // The well carries no drop handler at all when it does not accept, so the browser refuses the
     // gesture before anyone lets go. Asserting the callback is what a consumer actually relies on.
     const onMove = vi.fn()
-    render(<CanvasPanel files={draft()} onMove={onMove} permitted={{ Flex: ['rows'], Row: ['cards'] }} />)
+    const files = { ...draft(), 'templates/flex.page-demo.yaml': cr('Flex', 'page-demo', [['r', 'row-one'], ['p', 'para-one']], false, ['rows']) }
+    render(<CanvasPanel files={files} onMove={onMove} />)
     fireEvent.dragStart(frame('inner'))
     fireEvent.drop(well('page-demo'))
     expect(onMove).not.toHaveBeenCalled()

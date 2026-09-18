@@ -29,7 +29,6 @@
 import { Empty, Tag, Tooltip, Typography } from 'antd'
 import { useMemo, useState } from 'react'
 
-import type { PermittedChildren } from './dropTargets'
 import { legalTargets } from './dropTargets'
 import { buildObjectTree } from './objectTree'
 import type { TreeNode } from './objectTree'
@@ -176,7 +175,7 @@ const Frame = ({ depth, dragging, legal, node, onDragEnd, onDragStart, onDrop, o
  * The canvas. `files` is the held draft — the same input the tree takes, so the two cannot be given
  * different pictures of the same page.
  */
-export const CanvasPanel = ({ files, onMove, onSelect, permitted }: {
+export const CanvasPanel = ({ files, onMove, onSelect }: {
   files: Record<string, string>
   /**
    * A completed gesture: `moving` was dropped on `target`. The canvas has already checked the drop
@@ -186,16 +185,14 @@ export const CanvasPanel = ({ files, onMove, onSelect, permitted }: {
    */
   onMove?: (moving: TreeNode, target: TreeNode) => void
   onSelect?: (path: string | null) => void
-  /** The CRDs' allowedResources enums, so the highlight honours what each container really takes. */
-  permitted?: PermittedChildren
 }) => {
   const roots = useMemo(() => buildObjectTree(files), [files])
   const [dragging, setDragging] = useState<TreeNode | null>(null)
 
   // Recomputed per drag, not per render: the answer depends on what is in the air.
   const legal = useMemo(
-    () => new Set(dragging?.resource ? legalTargets(roots, { node: dragging, plural: dragging.resource }, permitted) : []),
-    [dragging, permitted, roots],
+    () => new Set(dragging?.resource ? legalTargets(roots, { node: dragging, plural: dragging.resource }) : []),
+    [dragging, roots],
   )
 
   if (roots.length === 0) {
