@@ -16,7 +16,7 @@ import { buildNavModel, type InlineNavItem } from './navModel'
 
 export type MenuWidgetData = WidgetType['spec']['widgetData']
 
-export function Menu({ resourcesRefs, uid, widgetData }: WidgetProps<MenuWidgetData>) {
+export function Menu({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<MenuWidgetData>) {
   const { items: navItems = [], mode, theme } = widgetData
   const location = useLocation()
   const navigate = useNavigate()
@@ -25,9 +25,11 @@ export function Menu({ resourcesRefs, uid, widgetData }: WidgetProps<MenuWidgetD
   const namespace = config?.params.FRONTEND_NAMESPACE
 
   // Nav data is inline on widgetData.items (the folded form) — the single route source.
+  // `deniedRefIds` rides along so the gate can tell "this ref was denied" from "no ref was
+  // evaluated at all"; without it an upstream failure deletes the whole sidebar (frontend#295).
   const { entries, routes } = useMemo(
-    () => buildNavModel(navItems as InlineNavItem[], resourcesRefs, namespace),
-    [navItems, resourcesRefs, namespace]
+    () => buildNavModel(navItems as InlineNavItem[], resourcesRefs, namespace, deniedRefIds),
+    [navItems, resourcesRefs, namespace, deniedRefIds]
   )
 
   useEffect(() => {
