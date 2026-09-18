@@ -1196,7 +1196,7 @@
 .apLiveActRow {
   align-items: center;
   display: flex;
-  font-size: 12px;
+  font-size: var(--krateo-text-label-xs);
   gap: var(--spacing-xxs);
 }
 
