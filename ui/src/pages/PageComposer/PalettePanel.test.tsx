@@ -12,7 +12,15 @@ import type { PalettePick } from './PalettePanel'
 import { LAYOUT_KINDS } from './structureEdit'
 import { iconForResource, KNOWN_ICON_PLURALS } from './widgetIcons'
 
-const harness = vi.hoisted(() => ({ result: null }))
+/**
+ * The mocked loader's answer.
+ *
+ * ANNOTATED, not asserted. `null as unknown` reads as an unnecessary assertion to eslint, which
+ * strips it on --fix; the property then infers as `null` and every assignment below fails
+ * typecheck. A return type on the factory is the form both rules accept.
+ */
+type MockResult = { ok: true; widgets: { name: string; resource: string }[] } | { ok: false; error: string }
+const harness = vi.hoisted((): { result: MockResult | null } => ({ result: null }))
 vi.mock('./placeableWidgets', () => ({
   listPlaceableWidgets: () => Promise.resolve(harness.result),
 }))
