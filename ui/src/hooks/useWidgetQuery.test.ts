@@ -31,7 +31,6 @@
 
 import { describe, it, expect } from 'vitest'
 
-import { getDefaultPageSizeForEndpoint } from '../components/WidgetRenderer/WidgetRenderer'
 import { isTimeoutError } from '../components/WidgetStates'
 
 import { MAX_WIDGET_FETCH_RETRIES, WidgetFetchError, boundedWindow, buildExtrasParam, shouldRetryWidgetFetch, widgetFetchRetryDelay } from './useWidgetQuery'
@@ -99,19 +98,6 @@ const computeInitialPaging = (deps: {
     initialPerPage: usesDefaultPaging ? deps.defaultPageSize : deps.endpointPerPage,
     usesDefaultPaging,
   }
-}
-
-/**
- * Pure replica of WidgetRenderer.getDefaultPageSizeForEndpoint — resolves the
- * per-page window from the endpoint's `resource` plural. (Kept in lockstep with
- * the exported production fn, also imported+asserted below.)
- */
-const PAGINATED_RESOURCE_PAGE_SIZE: Record<string, number> = { tables: 50 }
-const resolvePageSize = (endpoint: string): number | undefined => {
-  const queryStart = endpoint.indexOf('?')
-  if (queryStart === -1) { return undefined }
-  const resource = new URLSearchParams(endpoint.slice(queryStart)).get('resource')
-  return resource ? PAGINATED_RESOURCE_PAGE_SIZE[resource] : undefined
 }
 
 describe('Path B — cold visit fetches only page 1, no auto-advance', () => {
@@ -279,25 +265,6 @@ describe('bounded server-side pagination — request seeding (paginate + virtual
     expect(computeNextPageParam(pageWithContinue, { page: 1, perPage: 50 }, /* usesDefaultPaging */ true)).toBeUndefined()
     // Sanity: the SAME response WOULD advance in infinite-scroll (List) mode.
     expect(computeNextPageParam(pageWithContinue, { page: 1, perPage: 50 }, false)).toEqual({ page: 2, perPage: 50 })
-  })
-})
-
-describe('bounded server-side pagination — resource opt-in resolver', () => {
-  it('resolves the per-page window for a `tables` endpoint (compositions Table)', () => {
-    const endpoint = '/call?resource=tables&apiVersion=widgets.templates.krateo.io%2Fv1beta1&name=compositions-table&namespace=krateo-system'
-    expect(getDefaultPageSizeForEndpoint(endpoint)).toBe(50)
-    // replica stays in lockstep with production
-    expect(resolvePageSize(endpoint)).toBe(getDefaultPageSizeForEndpoint(endpoint))
-  })
-
-  it('returns undefined for non-paginated resources (statistics, cards, …)', () => {
-    expect(getDefaultPageSizeForEndpoint('/call?resource=statistics&name=stat-compositions')).toBeUndefined()
-    expect(getDefaultPageSizeForEndpoint('/call?resource=cards&name=status-card')).toBeUndefined()
-  })
-
-  it('returns undefined when the endpoint has no query string', () => {
-    expect(getDefaultPageSizeForEndpoint('/call')).toBeUndefined()
-    expect(getDefaultPageSizeForEndpoint('')).toBeUndefined()
   })
 })
 
@@ -546,5 +513,28 @@ describe('the bounded window — who supplied it must not change the pager', () 
   it('treats an explicit 0 as supplied, not as absent', () => {
     // `??` rather than `||`, so a zero window is not silently replaced by the default.
     expect(boundedWindow(0, 50)).toBe(0)
+  })
+})
+
+describe('the per-resource page-size registry is retired', () => {
+  /**
+   * Step C of #309. The registry keyed every `tables` widget apart from its prewarm seed: snowplow
+   * seeded under (-1,-1) and the SPA asked under (50,1), so every table missed L1 on every request.
+   * The window now comes from the chart (`resourcesRefs.items[].slice`), which snowplow emits into
+   * the child's own /call URL — so seed and serve derive the key from one source.
+   */
+  it('no longer exports a per-resource resolver — reintroducing one re-breaks the cache key', async () => {
+    const mod = await import('../components/WidgetRenderer/WidgetRenderer')
+    expect('getDefaultPageSizeForEndpoint' in mod).toBe(false)
+  })
+
+  it('a tables endpoint carries NO implicit window — it is unbounded unless something declares one', () => {
+    // The 22 tables that read no `.slice` now request the full set and match their (-1,-1) seed.
+    // compositions-table is bounded because the CHART says so, not because of its plural.
+    expect(boundedWindow(undefined, undefined)).toBeUndefined()
+  })
+
+  it('a chart-declared window is still honoured', () => {
+    expect(boundedWindow(50, undefined)).toBe(50)
   })
 })
