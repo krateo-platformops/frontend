@@ -68,18 +68,28 @@ const Item = ({ label, onPick, pick, sub }: {
   )
 }
 
-const Section = ({ children, title }: { children: React.ReactNode; title: string }) => (
+const Section = ({ children, title, wrap }: { children: React.ReactNode; title: string; wrap?: boolean }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
     <Text strong style={{ fontSize: 11, letterSpacing: 0.4, textTransform: 'uppercase' }} type='secondary'>{title}</Text>
-    {children}
+    <div style={{ display: 'flex', flexDirection: wrap ? 'row' : 'column', flexWrap: wrap ? 'wrap' : 'nowrap', gap: 6 }}>
+      {children}
+    </div>
   </div>
 )
 
-export const PalettePanel = ({ namespace, onPick, snowplowBaseUrl }: {
+export const PalettePanel = ({ namespace, onPick, snowplowBaseUrl, wrap }: {
   /** The draft's namespace — existing widgets are listed from it. */
   namespace: string | null
   onPick?: (pick: PalettePick) => void
   snowplowBaseUrl?: string
+  /**
+   * Lay the items out as a wrapping ROW rather than a column.
+   *
+   * Not decoration: the palette has to be visible AT THE SAME TIME as the canvas, because you
+   * cannot drag from one tab onto another. A wrapping strip above the frames is what makes them
+   * co-exist in a 320px rail; a column would push the canvas off the panel.
+   */
+  wrap?: boolean
 }) => {
   const [existing, setExisting] = useState<PlaceableWidget[] | null>(null)
   // A string, not a boolean: the reason is the content when the list cannot be had. An empty picker
@@ -107,7 +117,7 @@ export const PalettePanel = ({ namespace, onPick, snowplowBaseUrl }: {
 
   return (
     <div data-testid='palette-panel' style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <Section title='Containers'>
+      <Section title='Containers' wrap={wrap}>
         {(Object.keys(LAYOUT_KINDS) as (keyof typeof LAYOUT_KINDS)[]).map((layout) => (
           <Item
             key={layout}
@@ -118,7 +128,7 @@ export const PalettePanel = ({ namespace, onPick, snowplowBaseUrl }: {
         ))}
       </Section>
 
-      <Section title='Existing widgets'>
+      <Section title='Existing widgets' wrap={wrap}>
         {error ? <Alert message={error} showIcon type='warning' /> : null}
         {!error && existing === null ? <Spin size='small' /> : null}
         {!error && existing?.length === 0

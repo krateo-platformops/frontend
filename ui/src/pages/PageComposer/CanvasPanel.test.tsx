@@ -235,3 +235,53 @@ describe('CanvasPanel — where a drop lands', () => {
     expect(at).toBeUndefined()
   })
 })
+
+describe('CanvasPanel — a palette pick', () => {
+  const frame = (name: string) => screen.getByTestId(`canvas-frame-${name}`)
+  const well = (name: string) => screen.getByTestId(`canvas-well-${name}`)
+  const cardPick = { kind: 'existing' as const, name: 'fleet-card', resource: 'cards' }
+
+  it('lights up the containers that will take it, with nothing being dragged', () => {
+    render(<CanvasPanel files={draft()} pick={cardPick} />)
+    expect(frame('page-demo').getAttribute('data-accepts')).toBe('yes')
+    expect(frame('para-one').getAttribute('data-accepts')).toBeNull()
+  })
+
+  it('reports an ADD, not a move — they are different operations', () => {
+    const onAdd = vi.fn()
+    const onMove = vi.fn()
+    render(<CanvasPanel files={draft()} onAdd={onAdd} onMove={onMove} pick={cardPick} />)
+    fireEvent.drop(well('page-demo'))
+    expect(onMove).not.toHaveBeenCalled()
+    expect(onAdd).toHaveBeenCalledTimes(1)
+    const [target, at, picked] = onAdd.mock.calls[0] as [TreeNode, number | undefined, typeof cardPick]
+    expect(target.name).toBe('page-demo')
+    expect(at).toBeUndefined()
+    expect(picked).toEqual(cardPick)
+  })
+
+  it('lands in the gap it was dropped in', () => {
+    const onAdd = vi.fn()
+    render(<CanvasPanel files={draft()} onAdd={onAdd} pick={cardPick} />)
+    fireEvent.drop(screen.getByTestId('canvas-gap-page-demo-1'))
+    expect(onAdd.mock.calls[0][1]).toBe(1)
+  })
+
+  it('honours the container declaration for a pick too', () => {
+    const onAdd = vi.fn()
+    const files = { ...draft(), 'templates/flex.page-demo.yaml': cr('Flex', 'page-demo', [['r', 'row-one'], ['p', 'para-one']], false, ['rows']) }
+    render(<CanvasPanel files={files} onAdd={onAdd} pick={cardPick} />)
+    fireEvent.drop(well('page-demo'))
+    expect(onAdd).not.toHaveBeenCalled()
+  })
+
+  it('a dragged NODE still wins over a stale pick — a move is not an add', () => {
+    const onAdd = vi.fn()
+    const onMove = vi.fn()
+    render(<CanvasPanel files={draft()} onAdd={onAdd} onMove={onMove} pick={cardPick} />)
+    fireEvent.dragStart(frame('inner'))
+    fireEvent.drop(well('page-demo'))
+    expect(onMove).toHaveBeenCalledTimes(1)
+    expect(onAdd).not.toHaveBeenCalled()
+  })
+})
