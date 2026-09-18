@@ -28,6 +28,7 @@
 import { Alert, Button, Empty, Popconfirm, Space, Tabs, Typography } from 'antd'
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 
+import { onComposeRequest } from '../../components/Autopilot/composeRequest'
 import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { claimPreviewSurface, onDraftChanged, requestDraftReplay } from '../../components/Autopilot/previewDraftChanged'
@@ -40,7 +41,7 @@ import type { RestDefVerdicts } from '../../components/Autopilot/previewSurface'
 import { ConfigContext } from '../../context/ConfigContext'
 
 import CanvasPanel from './CanvasPanel'
-import { draftNamespace } from './objectTree'
+import { buildObjectTree, draftNamespace, flattenTree } from './objectTree'
 import type { TreeNode } from './objectTree'
 import ObjectTreePanel from './ObjectTreePanel'
 import styles from './PageComposer.module.css'
@@ -49,6 +50,7 @@ import type { PalettePick } from './PalettePanel'
 import { planAdd } from './planAdd'
 import { planMove } from './planMove'
 import StartDraftModal from './StartDraftModal'
+import { LAYOUT_KINDS } from './structureEdit'
 
 /**
  * Where a newly started page is created.
@@ -169,6 +171,50 @@ const PageComposer = () => {
   // The held draft, and a replay request for the case this page mounted after it was seeded —
   // navigate here with a draft already open and the tree would otherwise sit empty until the next
   // edit, describing a draft that exists as if it did not.
+  /**
+   * THE AGENT RESTRUCTURING THE DRAFT — through the same kernel as a drag.
+   *
+   * The proposal names the intent ("put this widget in that container"); everything that decides
+   * whether it is legal and what bytes result is `planMove`/`planAdd`, unchanged. So an agent
+   * cannot place a child a person could not have dragged there, and a refusal reads the same way
+   * for both — including in the same Alert.
+   *
+   * Nodes are resolved from ONE tree so the identities `legalTargets` compares by reference all
+   * come from the same build; rebuilding per lookup would make every proposal illegal for a reason
+   * no message could explain (the trap #304 documents).
+   */
+  useEffect(() => onComposeRequest((request) => {
+    const roots = buildObjectTree(files)
+    const byName = (name: string) => flattenTree(roots).find((node) => node.name === name)
+    const target = byName(request.target)
+    if (!target) {
+      setMoveError(`"${request.target}" is not in this draft`)
+      return
+    }
+    if (request.op === 'move') {
+      const moving = byName(request.widget)
+      if (!moving) {
+        setMoveError(`"${request.widget}" is not in this draft`)
+        return
+      }
+      applyMove(moving, target, roots, request.at)
+      return
+    }
+    if (request.op === 'addContainer') {
+      // Validated against the real map, not cast: a proposal can name anything, and a bogus layout
+      // must be refused with a reason rather than coerced into a kind that does not exist.
+      const layout = (Object.keys(LAYOUT_KINDS) as (keyof typeof LAYOUT_KINDS)[])
+        .find((kind) => kind.toLowerCase() === request.layout.toLowerCase())
+      if (!layout) {
+        setMoveError(`"${request.layout}" is not a layout kind — try one of ${Object.keys(LAYOUT_KINDS).join(', ')}`)
+        return
+      }
+      applyAdd(target, request.at, { kind: 'container', layout, resource: LAYOUT_KINDS[layout] })
+      return
+    }
+    applyAdd(target, request.at, { kind: 'existing', name: request.name, resource: request.resource })
+  }), [applyAdd, applyMove, files])
+
   useEffect(() => {
     const stop = onDraftChanged(({ files: next }) => setFiles(next))
     requestDraftReplay()

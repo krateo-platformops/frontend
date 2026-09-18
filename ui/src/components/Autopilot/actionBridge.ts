@@ -32,6 +32,7 @@ import { applyResourceSet, type ApplyResourceSetOp, type ApplyResourceSetProposa
 // patchField — the day-2 mutating branch (a DISTINCT, explicitly-gated verb owned by the
 // bridge, NOT a read-only registry entry): scoped by isPatchAllowed, dispatched through the
 // SAME dispatcher so it flows through the W0-2 blast-radius gate.
+import { emitComposeRequest } from './composeRequest'
 import { applyPatchField, type PatchFieldProposal } from './patchField'
 // Import the preview handlers module for its side effect: it registers previewBlueprint /
 // previewPage into READONLY_VERB_REGISTRY on load, so they are present before any apply().
@@ -199,6 +200,17 @@ export interface PortalActionProposal {
   /** patchField / applyResourceSet: the target object's namespace + name. */
   namespace?: string
   name?: string
+  /** composeMove / composeAdd: the CONTAINER in the held page draft to place into, by CR name. */
+  target?: string
+  /** composeMove / composeAdd: where among the container's children, as the list reads now.
+   *  Omitted means the end, exactly as dropping onto the container rather than between two of
+   *  its children does. */
+  at?: number
+  /** composeAdd: the layout kind to CREATE (Row, Col, Flex, Card, Tabs). Exactly one of `layout`
+   *  or (`name` + `resource`) — creating and placing are different operations. */
+  layout?: string
+  /** composeMove / composeAdd: the CRD plural of the thing being placed. */
+  resource?: string
   /** previewBlueprint (Wave 4): the chart to helm-render dry-run ({url, version?,
    * repo?}); `values` above (shared with prefillForm) carries the render values. */
   chart?: { url: string; version?: string; repo?: string }
@@ -489,6 +501,44 @@ export const useAutopilotActionBridge = () => {
     // SAME useHandleAction dispatcher the button uses — never a synthesized call. On a
     // mutating verb, requireConfirmation is FORCED (never trusted from the model), so the
     // dispatcher's own modal.confirm is the binding HITL gate; the user confirms.
+    /**
+     * composeMove / composeAdd — restructure the HELD PAGE DRAFT.
+     *
+     * The agent names the INTENT and the composer decides. It deliberately does not compute the
+     * resulting YAML (which `previewPage`'s rawTemplates would let it do), because then the agent
+     * and the canvas would each decide what a container may hold and the two would drift. One
+     * kernel — `planMove` / `planAdd` — answers for a drag, a tree action and a proposal alike.
+     *
+     * Not a write in the sense the read-only rule means: this rewrites bytes in a draft the person
+     * is already looking at. It does not reach the apiserver, does not publish, and does not
+     * submit; the preview gate and the human-raised change request are untouched.
+     */
+    if (proposal.verb === 'composeMove') {
+      if (!proposal.widget || !proposal.target) {
+        return refused('composeMove', 'a move needs both the widget to move and the container to move it into')
+      }
+      emitComposeRequest({ at: proposal.at, op: 'move', target: proposal.target, widget: proposal.widget })
+      return { label: `Moved ${proposal.widget} into ${proposal.target}`, readOnly: true, verb: 'composeMove' }
+    }
+
+    if (proposal.verb === 'composeAdd') {
+      if (!proposal.target) {
+        return refused('composeAdd', 'an add needs the container to add into')
+      }
+      if (proposal.layout) {
+        emitComposeRequest({ at: proposal.at, layout: proposal.layout, op: 'addContainer', target: proposal.target })
+        return { label: `Added a ${proposal.layout} inside ${proposal.target}`, readOnly: true, verb: 'composeAdd' }
+      }
+      if (proposal.name && proposal.resource) {
+        emitComposeRequest({ at: proposal.at, name: proposal.name, op: 'addExisting', resource: proposal.resource, target: proposal.target })
+        return { label: `Placed ${proposal.name} inside ${proposal.target}`, readOnly: true, verb: 'composeAdd' }
+      }
+      // Ambiguous is refused rather than guessed: creating a container and placing an existing
+      // widget write different things, and inferring which was meant is how a proposal silently
+      // creates a file nobody asked for.
+      return refused('composeAdd', 'an add needs either a layout kind to create, or the name and resource of an existing widget')
+    }
+
     if (proposal.verb === 'runAction') {
       const found = lookupAction(queryClient, proposal.widget, proposal.actionId)
       if (found === SUBMIT_REFUSED) {
