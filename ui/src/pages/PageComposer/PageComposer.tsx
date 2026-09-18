@@ -87,8 +87,8 @@ const PageComposer = () => {
    *
    * `roots` comes from the canvas rather than being rebuilt here — see CanvasPanel's onMove.
    */
-  const applyMove = useCallback((moving: TreeNode, target: TreeNode, roots: readonly TreeNode[]) => {
-    const plan = planMove(files, roots, moving, target)
+  const applyMove = useCallback((moving: TreeNode, target: TreeNode, roots: readonly TreeNode[], at?: number) => {
+    const plan = planMove(files, roots, moving, target, at)
     if (!plan.ok) {
       setMoveError(plan.reason)
       return

@@ -27,7 +27,7 @@
  * pointer-only gesture, so the tree remains the accessible route and must keep its move controls.
  */
 import { Empty, Tag, Tooltip, Typography } from 'antd'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 
 import { legalTargets } from './dropTargets'
 import { buildObjectTree } from './objectTree'
@@ -54,6 +54,48 @@ const frameOpacity = (external: boolean, isDragging: boolean): number => {
 const isMovable = (node: TreeNode): boolean =>
   node.drafted && !!node.parentPath && node.refId !== null && node.position !== null
 
+/**
+ * The seam between two children — and the only way to say WHERE something lands.
+ *
+ * Without these a drop can only mean "into this container", which `placeChild` appends: every move
+ * ends up last, and reordering is impossible. The gap names an index measured against the list as
+ * it is drawn, which is also how a person reads it; `reparentChild` owns the correction for the
+ * fact that a same-parent move removes before it places.
+ *
+ * It stays in the layout at zero-ish height rather than appearing on drag, so nothing reflows
+ * under the pointer mid-gesture — a target that moves as you approach it is worse than none.
+ */
+const DropGap = ({ at, container, live, onDrop }: {
+  at: number
+  /** Names the container, so a gap is identifiable in a nested page rather than ambiguous. */
+  container: string
+  live: boolean
+  onDrop: (at: number) => void
+}) => (
+  <div
+    data-testid={`canvas-gap-${container}-${at}`}
+    onDragOver={live
+      ? (event) => {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+      : undefined}
+    onDrop={live
+      ? (event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        onDrop(at)
+      }
+      : undefined}
+    style={{
+      background: live ? 'var(--krateo-canvas-accept, #11B2E2)' : 'transparent',
+      borderRadius: 2,
+      height: live ? 3 : 2,
+      opacity: live ? 0.45 : 0,
+    }}
+  />
+)
+
 const Frame = ({ depth, dragging, legal, node, onDragEnd, onDragStart, onDrop, onSelect }: {
   depth: number
   dragging: TreeNode | null
@@ -61,7 +103,7 @@ const Frame = ({ depth, dragging, legal, node, onDragEnd, onDragStart, onDrop, o
   node: TreeNode
   onDragEnd: () => void
   onDragStart: (node: TreeNode) => void
-  onDrop: (target: TreeNode) => void
+  onDrop: (target: TreeNode, at?: number) => void
   onSelect?: (path: string | null) => void
 }) => {
   const container = isContainer(node.kind)
@@ -150,13 +192,13 @@ const Frame = ({ depth, dragging, legal, node, onDragEnd, onDragStart, onDrop, o
             paddingLeft: 10,
           }}
         >
-          {node.children.length === 0
-            ? <Text style={{ fontSize: 12 }} type='secondary'>empty</Text>
-            : node.children.map((child, index) => (
+          {node.children.length === 0 ? <Text style={{ fontSize: 12 }} type='secondary'>empty</Text> : null}
+          <DropGap at={0} container={node.name} live={accepts} onDrop={(at) => onDrop(node, at)} />
+          {node.children.map((child, index) => (
+            <Fragment key={`${child.name}-${child.refId ?? index}-${index}`}>
               <Frame
                 depth={depth + 1}
                 dragging={dragging}
-                key={`${child.name}-${child.refId ?? index}-${index}`}
                 legal={legal}
                 node={child}
                 onDragEnd={onDragEnd}
@@ -164,7 +206,9 @@ const Frame = ({ depth, dragging, legal, node, onDragEnd, onDragStart, onDrop, o
                 onDrop={onDrop}
                 onSelect={onSelect}
               />
-            ))}
+              <DropGap at={index + 1} container={node.name} live={accepts} onDrop={(at) => onDrop(node, at)} />
+            </Fragment>
+          ))}
         </div>
       ) : null}
     </div>
@@ -189,7 +233,7 @@ export const CanvasPanel = ({ files, onMove, onSelect }: {
    * The consumer must still run `planMove`: that is what produces the bytes, and it re-checks,
    * because the canvas's `legal` set is a render-time snapshot.
    */
-  onMove?: (moving: TreeNode, target: TreeNode, roots: readonly TreeNode[]) => void
+  onMove?: (moving: TreeNode, target: TreeNode, roots: readonly TreeNode[], at?: number) => void
   onSelect?: (path: string | null) => void
 }) => {
   const roots = useMemo(() => buildObjectTree(files), [files])
@@ -218,9 +262,9 @@ export const CanvasPanel = ({ files, onMove, onSelect }: {
           node={root}
           onDragEnd={finish}
           onDragStart={setDragging}
-          onDrop={(target) => {
+          onDrop={(target, at) => {
             if (dragging && dragging !== target) {
-              onMove?.(dragging, target, roots)
+              onMove?.(dragging, target, roots, at)
             }
             finish()
           }}

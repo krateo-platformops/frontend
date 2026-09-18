@@ -188,3 +188,50 @@ describe('CanvasPanel — dragging', () => {
     expect(accepts('page-demo')).toBe(false)
   })
 })
+
+describe('CanvasPanel — where a drop lands', () => {
+  const frame = (name: string) => screen.getByTestId(`canvas-frame-${name}`)
+  const gap = (container: string, at: number) => screen.getByTestId(`canvas-gap-${container}-${at}`)
+
+  it('reports the INDEX of the gap it was dropped in, not just the container', () => {
+    // Without this a drop can only mean "into this container", which appends — so every move ends
+    // up last and reordering is impossible.
+    const onMove = vi.fn()
+    render(<CanvasPanel files={draft()} onMove={onMove} />)
+    fireEvent.dragStart(frame('inner'))
+    fireEvent.drop(gap('page-demo', 1))
+    expect(onMove).toHaveBeenCalledTimes(1)
+    const [moving, target, , at] = onMove.mock.calls[0] as [TreeNode, TreeNode, unknown, number]
+    expect(moving.name).toBe('inner')
+    expect(target.name).toBe('page-demo')
+    expect(at).toBe(1)
+  })
+
+  it('offers a gap before the first child and after every one — n children means n+1 seams', () => {
+    render(<CanvasPanel files={draft()} />)
+    fireEvent.dragStart(frame('inner'))
+    // page-demo holds row-one and para-one
+    expect(gap('page-demo', 0)).toBeTruthy()
+    expect(gap('page-demo', 1)).toBeTruthy()
+    expect(gap('page-demo', 2)).toBeTruthy()
+    expect(screen.queryByTestId('canvas-gap-page-demo-3')).toBeNull()
+  })
+
+  it('a gap in a container that cannot accept the drag does NOT take the drop', () => {
+    const onMove = vi.fn()
+    const files = { ...draft(), 'templates/flex.page-demo.yaml': cr('Flex', 'page-demo', [['r', 'row-one'], ['p', 'para-one']], false, ['rows']) }
+    render(<CanvasPanel files={files} onMove={onMove} />)
+    fireEvent.dragStart(frame('inner'))
+    fireEvent.drop(gap('page-demo', 1))
+    expect(onMove).not.toHaveBeenCalled()
+  })
+
+  it('dropping on the WELL still means the end — unchanged', () => {
+    const onMove = vi.fn()
+    render(<CanvasPanel files={draft()} onMove={onMove} />)
+    fireEvent.dragStart(frame('inner'))
+    fireEvent.drop(screen.getByTestId('canvas-well-page-demo'))
+    const [, , , at] = onMove.mock.calls[0] as [TreeNode, TreeNode, unknown, number | undefined]
+    expect(at).toBeUndefined()
+  })
+})

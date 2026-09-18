@@ -118,10 +118,29 @@ export const reparentChild = (
     at: ChildAt
     /** The child as the new parent must declare it. */
     child: PlaceChild
+    /**
+     * Where it lands in the new parent's `items`. Omitted appends, which is what dropping onto a
+     * container means; a number is what dropping BETWEEN two siblings means.
+     */
+    toIndex?: number
     /** Optional: pin the bytes this move was planned against. */
     expect?: { from?: string; to?: string }
   },
-): TxResult => runStructureTx(files, [
-  { apply: (yaml) => removeChild(yaml, move.at), expectContent: move.expect?.from, path: move.fromPath },
-  { apply: (yaml) => placeChild(yaml, move.child), expectContent: move.expect?.to, path: move.toPath },
-])
+): TxResult => {
+  // THE OFF-BY-ONE THAT ONLY EXISTS WITHIN ONE PARENT. The removal runs first (it must — see the
+  // header), so inside a single file every index after the removed one has already shifted down by
+  // the time the placement runs. An index the caller measured against the PRE-move list is
+  // therefore one too high whenever it points past the row being removed.
+  //
+  // Across two files nothing shifts, and an index equal to or before the removed row is unaffected
+  // either way, so the correction is exactly this case and no other.
+  const sameParent = move.fromPath === move.toPath
+  const toIndex = sameParent && move.toIndex !== undefined && move.toIndex > move.at.index
+    ? move.toIndex - 1
+    : move.toIndex
+
+  return runStructureTx(files, [
+    { apply: (yaml) => removeChild(yaml, move.at), expectContent: move.expect?.from, path: move.fromPath },
+    { apply: (yaml) => placeChild(yaml, move.child, toIndex), expectContent: move.expect?.to, path: move.toPath },
+  ])
+}

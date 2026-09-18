@@ -10,7 +10,8 @@
  *   - #297 `legalTargets` answers MAY this land here — container kind, what the target itself
  *     declares it holds, editability, and the cycle rule (no dropping a container inside itself).
  *   - #300 `reparentChild` answers WHAT BYTES result — remove then place, all-or-nothing across the
- *     two files, refusing the whole move if either file changed underneath it.
+ *     two files, refusing the whole move if either file changed underneath it, and placing at the
+ *     requested index rather than always at the end.
  *
  * WHAT GUARDS A STALE DROP. A drag is slow in computer terms and the Files tab can rewrite a file
  * mid-gesture, so the question is real. The guard is `ChildAt` (#300): the removal names both the
@@ -49,6 +50,16 @@ export const planMove = (
   roots: readonly TreeNode[],
   moving: TreeNode,
   target: TreeNode,
+  /**
+   * Where in the target's children it lands, measured against the list as it is NOW. Omitted means
+   * the end, which is what dropping onto a container (rather than between two of its children)
+   * means.
+   *
+   * `reparentChild` owns the correction for a same-parent move: the removal runs first, so an
+   * index measured before the move is one too high whenever it points past the row being removed.
+   * That correction lives there because that is where the ordering of the two edits is decided.
+   */
+  at?: number,
 ): MovePlan => {
   const from = placement(moving)
   if (!from) {
@@ -78,6 +89,7 @@ export const planMove = (
     at: { index: from.index, refId: from.refId },
     child: { name: moving.name, namespace: moving.namespace, resource: moving.resource },
     fromPath: from.parentPath,
+    toIndex: at,
     toPath: target.path,
   })
   return result.ok ? { files: result.files, ok: true } : { ok: false, reason: result.error }

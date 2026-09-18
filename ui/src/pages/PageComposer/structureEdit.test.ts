@@ -347,3 +347,41 @@ describe('wrapChild — re-parenting, the operation that actually creates nestin
     expect(result.ok).toBe(false)
   })
 })
+
+describe('placeChild — the insertion index', () => {
+  const order = (yaml: string): string[] => {
+    const doc = load(yaml) as { spec?: { widgetData?: { items?: { resourceRefId?: string }[] } } }
+    return (doc.spec?.widgetData?.items ?? []).map((item) => item.resourceRefId ?? '')
+  }
+  const three = () => parent(['p', 'q', 'r'])
+  const card = { name: 'x', namespace: 'krateo-system', resource: 'cards' }
+
+  it('inserts at the index rather than appending', () => {
+    const result = placeChild(three(), card, 1)
+    expect('content' in result).toBe(true)
+    if (!('content' in result)) { return }
+    expect(order(result.content)).toEqual(['p', 'x', 'q', 'r'])
+  })
+
+  it('appends when the index is omitted — unchanged behaviour for every existing caller', () => {
+    const result = placeChild(three(), card)
+    expect('content' in result).toBe(true)
+    if (!('content' in result)) { return }
+    expect(order(result.content)).toEqual(['p', 'q', 'r', 'x'])
+  })
+
+  it('clamps out of range rather than refusing — a drop indicator can only name a gap that exists', () => {
+    // Refusing would turn a harmless rounding into a failed move; "past the end" means the end.
+    const high = placeChild(three(), card, 99)
+    const low = placeChild(three(), card, -4)
+    expect('content' in high && order(high.content)).toEqual(['p', 'q', 'r', 'x'])
+    expect('content' in low && order(low.content)).toEqual(['x', 'p', 'q', 'r'])
+  })
+
+  it('index 0 puts it first', () => {
+    const result = placeChild(three(), card, 0)
+    expect('content' in result).toBe(true)
+    if (!('content' in result)) { return }
+    expect(order(result.content)).toEqual(['x', 'p', 'q', 'r'])
+  })
+})
