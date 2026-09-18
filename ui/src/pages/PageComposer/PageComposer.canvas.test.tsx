@@ -10,6 +10,7 @@
  * passes through the draft's byte cap and re-arms the publish gate exactly like a hand edit.
  */
 import { cleanup, fireEvent, screen } from '@testing-library/react'
+import { load } from 'js-yaml'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { capture, emit, installAntdShims, mountWithConfig, widgetCr } from './composerTestHarness'
@@ -110,3 +111,34 @@ describe('PageComposer — the canvas is wired to the draft', () => {
 })
 
 afterAll(cleanup)
+
+describe('PageComposer — a drop lands where it was aimed', () => {
+  /** Flex page-x > [ row-a, card-b ] — two children, so order is observable. */
+  const two = () => [
+    { content: widgetCr('Card', 'card-b'), path: 'templates/card.card-b.yaml' },
+    { content: widgetCr('Flex', 'page-x', ['row-a', 'card-b']), path: 'templates/flex.page-x.yaml' },
+    { content: widgetCr('Row', 'row-a'), path: 'templates/row.row-a.yaml' },
+  ]
+
+  const order = (yaml: string): string[] => {
+    const doc = load(yaml) as { spec?: { widgetData?: { items?: { resourceRefId?: string }[] } } }
+    return (doc.spec?.widgetData?.items ?? []).map((item) => item.resourceRefId ?? '')
+  }
+
+  it('REORDERS within one parent — the whole point of the seams', () => {
+    // card-b is second. Dropping it in the gap BEFORE row-a must make it first, which is only
+    // correct if the index survives the round trip AND the same-parent off-by-one is corrected.
+    const bus = capture()
+    mountWithConfig()
+    emit({ files: two(), title: 'x' })
+    fireEvent.click(screen.getByRole('tab', { name: 'Canvas' }))
+
+    fireEvent.dragStart(screen.getByTestId('canvas-frame-card-b'))
+    fireEvent.drop(screen.getByTestId('canvas-gap-page-x-0'))
+
+    const edited = bus.log.filter((entry) => entry.path === 'templates/flex.page-x.yaml')
+    expect(edited).toHaveLength(1)
+    expect(order(edited[0].content)).toEqual(['card-b', 'row-a'])
+    bus.stop()
+  })
+})
