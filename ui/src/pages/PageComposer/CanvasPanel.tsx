@@ -16,12 +16,21 @@
  * from the same `buildObjectTree`, so they cannot drift — and #297's `legalTargets` will drive
  * both, so a drop behaves identically wherever it is made.
  *
- * WHAT IS DELIBERATELY ABSENT: drag, drop, selection-to-edit, and any mutation. Those arrive in
- * Stage 4 on top of #300's atomic commit. A node here is inert.
+ * STAGE 4 ADDS DRAG. The canvas now reports one gesture — "this node was dropped on that
+ * container" — and nothing more. It does NOT decide whether the drop is allowed and does NOT
+ * rewrite any file: `planMove` owns both, so the tree and the canvas cannot drift into disagreeing
+ * about what a drop means. What the canvas DOES own is showing which containers will accept the
+ * thing currently in the air, and it asks the same `legalTargets` that will later judge the drop —
+ * so a well that lights up is a well that accepts, by construction rather than by coincidence.
+ *
+ * STILL ABSENT: selection-to-edit, and any keyboard path for moving a node. Dragging is a
+ * pointer-only gesture, so the tree remains the accessible route and must keep its move controls.
  */
 import { Empty, Tag, Tooltip, Typography } from 'antd'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
+import type { PermittedChildren } from './dropTargets'
+import { legalTargets } from './dropTargets'
 import { buildObjectTree } from './objectTree'
 import type { TreeNode } from './objectTree'
 import { LAYOUT_KINDS } from './structureEdit'
@@ -36,12 +45,31 @@ const isContainer = (kind: string | null): boolean =>
  * containment rather than as indentation — which is the whole point of showing a canvas next to a
  * tree that already indents perfectly well.
  */
-const Frame = ({ depth, node, onSelect }: {
+/** External stays dimmed; the node currently in the air dims further so the gap it leaves reads. */
+const frameOpacity = (external: boolean, isDragging: boolean): number => {
+  if (external) { return 0.6 }
+  return isDragging ? 0.4 : 1
+}
+
+/** A node can be dragged only if its parent addresses it — a root is placed by nothing. */
+const isMovable = (node: TreeNode): boolean =>
+  node.drafted && !!node.parentPath && node.refId !== null && node.position !== null
+
+const Frame = ({ depth, dragging, legal, node, onDragEnd, onDragStart, onDrop, onSelect }: {
   depth: number
+  dragging: TreeNode | null
+  legal: ReadonlySet<TreeNode>
   node: TreeNode
+  onDragEnd: () => void
+  onDragStart: (node: TreeNode) => void
+  onDrop: (target: TreeNode) => void
   onSelect?: (path: string | null) => void
 }) => {
   const container = isContainer(node.kind)
+  const movable = isMovable(node)
+  // Asked of the SAME function that will judge the drop, so the highlight cannot promise something
+  // the drop then refuses.
+  const accepts = !!dragging && legal.has(node)
   // A node the draft does not carry is an existing cluster widget: it renders, but it has no file,
   // so it can never be edited here. Saying so is honest and it is also exactly why `canAccept`
   // refuses it as a drop target (#297).
@@ -49,15 +77,27 @@ const Frame = ({ depth, node, onSelect }: {
 
   return (
     <div
+      data-accepts={accepts ? 'yes' : undefined}
       data-testid={`canvas-frame-${node.name}`}
+      draggable={movable}
+      onDragEnd={movable ? onDragEnd : undefined}
+      onDragStart={movable
+        ? (event) => {
+          // Without this the drag bubbles to every ancestor frame and the outermost one wins, so
+          // dragging a card would move the page.
+          event.stopPropagation()
+          onDragStart(node)
+        }
+        : undefined}
       style={{
         background: external ? 'transparent' : 'var(--krateo-canvas-frame-bg, rgba(127,127,127,0.04))',
-        border: `1px ${container ? 'dashed' : 'solid'} rgba(127,127,127,0.35)`,
+        border: `1px ${container ? 'dashed' : 'solid'} ${accepts ? 'var(--krateo-canvas-accept, #11B2E2)' : 'rgba(127,127,127,0.35)'}`,
         borderRadius: 8,
+        cursor: movable ? 'grab' : 'default',
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
-        opacity: external ? 0.6 : 1,
+        opacity: frameOpacity(external, dragging === node),
         padding: 10,
       }}
     >
@@ -85,12 +125,46 @@ const Frame = ({ depth, node, onSelect }: {
       {container ? (
         <div
           data-testid={`canvas-well-${node.name}`}
-          style={{ display: 'flex', flexDirection: 'column', gap: 8, minHeight: 28, paddingLeft: 10 }}
+          onDragOver={accepts
+            ? (event) => {
+              // preventDefault is what MAKES an element a drop target. Calling it only when the
+              // well accepts means an illegal container refuses the drop at the browser level —
+              // the cursor says "no" before anyone lets go.
+              event.preventDefault()
+              event.stopPropagation()
+            }
+            : undefined}
+          onDrop={accepts
+            ? (event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              onDrop(node)
+            }
+            : undefined}
+          style={{
+            background: accepts ? 'var(--krateo-canvas-accept-bg, rgba(17,178,226,0.08))' : undefined,
+            borderRadius: 6,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            minHeight: 28,
+            paddingLeft: 10,
+          }}
         >
           {node.children.length === 0
             ? <Text style={{ fontSize: 12 }} type='secondary'>empty</Text>
             : node.children.map((child, index) => (
-              <Frame depth={depth + 1} key={`${child.name}-${child.refId ?? index}-${index}`} node={child} onSelect={onSelect} />
+              <Frame
+                depth={depth + 1}
+                dragging={dragging}
+                key={`${child.name}-${child.refId ?? index}-${index}`}
+                legal={legal}
+                node={child}
+                onDragEnd={onDragEnd}
+                onDragStart={onDragStart}
+                onDrop={onDrop}
+                onSelect={onSelect}
+              />
             ))}
         </div>
       ) : null}
@@ -102,20 +176,53 @@ const Frame = ({ depth, node, onSelect }: {
  * The canvas. `files` is the held draft — the same input the tree takes, so the two cannot be given
  * different pictures of the same page.
  */
-export const CanvasPanel = ({ files, onSelect }: {
+export const CanvasPanel = ({ files, onMove, onSelect, permitted }: {
   files: Record<string, string>
+  /**
+   * A completed gesture: `moving` was dropped on `target`. The canvas has already checked the drop
+   * is legal before offering it, but the consumer must still run `planMove` — that is what produces
+   * the bytes, and it re-checks, because the canvas's `legal` set is a render-time snapshot and the
+   * draft can change between render and drop.
+   */
+  onMove?: (moving: TreeNode, target: TreeNode) => void
   onSelect?: (path: string | null) => void
+  /** The CRDs' allowedResources enums, so the highlight honours what each container really takes. */
+  permitted?: PermittedChildren
 }) => {
   const roots = useMemo(() => buildObjectTree(files), [files])
+  const [dragging, setDragging] = useState<TreeNode | null>(null)
+
+  // Recomputed per drag, not per render: the answer depends on what is in the air.
+  const legal = useMemo(
+    () => new Set(dragging?.resource ? legalTargets(roots, { node: dragging, plural: dragging.resource }, permitted) : []),
+    [dragging, permitted, roots],
+  )
 
   if (roots.length === 0) {
     return <Empty description='Nothing to render yet — the draft carries no page root.' image={Empty.PRESENTED_IMAGE_SIMPLE} />
   }
 
+  const finish = () => setDragging(null)
+
   return (
     <div data-testid='canvas-panel' style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {roots.map((root, index) => (
-        <Frame depth={0} key={`${root.name}-${index}`} node={root} onSelect={onSelect} />
+        <Frame
+          depth={0}
+          dragging={dragging}
+          key={`${root.name}-${index}`}
+          legal={legal}
+          node={root}
+          onDragEnd={finish}
+          onDragStart={setDragging}
+          onDrop={(target) => {
+            if (dragging && dragging !== target) {
+              onMove?.(dragging, target)
+            }
+            finish()
+          }}
+          onSelect={onSelect}
+        />
       ))}
     </div>
   )
