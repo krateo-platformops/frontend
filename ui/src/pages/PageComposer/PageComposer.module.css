@@ -49,6 +49,20 @@
   min-width: 0;
 }
 
+/* The right rail: a bare flex item that holds the Canvas/Structure tabs. Deliberately WITHOUT the
+   .tree box — ObjectTreePanel draws its own, and nesting the two produced a double border. The
+   canvas pane gets .canvasPane instead, so both panes look like one panel. */
+.rail {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.canvasPane {
+  border: 1px solid var(--border-color, rgb(0 0 0 / 10%));
+  border-radius: var(--border-radius, 8px);
+  padding: var(--spacing-sm);
+}
+
 .tree {
   flex: 1 1 320px;
   border: 1px solid var(--border-color, rgb(0 0 0 / 10%));

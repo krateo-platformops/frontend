@@ -25,20 +25,24 @@
  * start one. Publishing is unchanged and still ends at a form a person submits — the agent's
  * never-submit guarantee is not weakened by any of this.
  */
-import { Alert, Button, Empty, Popconfirm, Space, Typography } from 'antd'
-import { useContext, useEffect, useRef, useState } from 'react'
+import { Alert, Button, Empty, Popconfirm, Space, Tabs, Typography } from 'antd'
+import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 
 import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { claimPreviewSurface, onDraftChanged, requestDraftReplay } from '../../components/Autopilot/previewDraftChanged'
 import { emitDraftStart } from '../../components/Autopilot/previewDraftStart'
+import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
 import { emitPublishRequest, onPublishResult } from '../../components/Autopilot/previewPublishRequest'
 import { PreviewContent } from '../../components/Autopilot/previewSurface'
 import type { RestDefVerdicts } from '../../components/Autopilot/previewSurface'
 import { ConfigContext } from '../../context/ConfigContext'
 
+import CanvasPanel from './CanvasPanel'
+import type { TreeNode } from './objectTree'
 import ObjectTreePanel from './ObjectTreePanel'
 import styles from './PageComposer.module.css'
+import { planMove } from './planMove'
 import StartDraftModal from './StartDraftModal'
 
 /**
@@ -70,6 +74,29 @@ const PageComposer = () => {
    * the routed path is a path that gets routed twice.
    */
   const [files, setFiles] = useState<Record<string, string>>({})
+  // Why a move can be refused, shown where the other outcomes are shown. Not antd `message`: the
+  // composer already reports through Alerts, and a toast that vanishes is the wrong surface for
+  // "this drop was rejected and here is why".
+  const [moveError, setMoveError] = useState<string | null>(null)
+
+  /**
+   * A drop from the canvas: plan it, then persist through the SAME file-edit bus the Files tab uses
+   * (emitFileEdit -> blueprintDraftStore -> broadcast -> the `files` this component holds). Nothing
+   * is written directly, so a move goes through the draft's own byte cap and gate-rearming exactly
+   * like a hand edit, and the canvas re-renders from the store rather than from local state.
+   *
+   * `roots` comes from the canvas rather than being rebuilt here — see CanvasPanel's onMove.
+   */
+  const applyMove = useCallback((moving: TreeNode, target: TreeNode, roots: readonly TreeNode[]) => {
+    const plan = planMove(files, roots, moving, target)
+    if (!plan.ok) {
+      setMoveError(plan.reason)
+      return
+    }
+    setMoveError(null)
+    // Only the files the transaction changed — usually the two parents, one for a same-parent move.
+    Object.entries(plan.files).forEach(([path, content]) => emitFileEdit({ content, path }))
+  }, [files])
   const [starting, setStarting] = useState(false)
   // The tree selection, reflected in the Files list. Without it the two halves of the page are
   // unrelated views of the same draft.
@@ -191,6 +218,17 @@ const PageComposer = () => {
             </Space>
           )
           : null}
+        {moveError
+          ? (
+            <Alert
+              closable
+              onClose={() => setMoveError(null)}
+              showIcon
+              title={moveError}
+              type='warning'
+            />
+          )
+          : null}
         {outcome
           ? (
             <Alert
@@ -216,7 +254,31 @@ const PageComposer = () => {
             <div className={styles.surface}>
               <PreviewContent editVerdicts={editVerdicts} focusPath={focusPath} onVerdicts={setEditVerdicts} payload={payload} />
             </div>
-            <ObjectTreePanel files={files} onSelect={setFocusPath} snowplowBaseUrl={snowplowBaseUrl} />
+            <div className={styles.rail}>
+              <Tabs
+                items={[
+                  // STRUCTURE FIRST, and it stays the default on purpose. The tree is the proven
+                  // surface and the keyboard-operable one; the canvas is new and pointer-only, so
+                  // it is offered rather than imposed. When it earns the default — an insertion
+                  // index and a palette are what it is missing — that is a deliberate change, not
+                  // a side effect of mounting it.
+                  {
+                    children: <ObjectTreePanel files={files} onSelect={setFocusPath} snowplowBaseUrl={snowplowBaseUrl} />,
+                    key: 'structure',
+                    label: 'Structure',
+                  },
+                  {
+                    children: (
+                      <div className={styles.canvasPane}>
+                        <CanvasPanel files={files} onMove={applyMove} onSelect={setFocusPath} />
+                      </div>
+                    ),
+                    key: 'canvas',
+                    label: 'Canvas',
+                  },
+                ]}
+              />
+            </div>
           </div>
         )
         : (

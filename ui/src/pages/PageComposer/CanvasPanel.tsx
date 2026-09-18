@@ -178,12 +178,18 @@ const Frame = ({ depth, dragging, legal, node, onDragEnd, onDragStart, onDrop, o
 export const CanvasPanel = ({ files, onMove, onSelect }: {
   files: Record<string, string>
   /**
-   * A completed gesture: `moving` was dropped on `target`. The canvas has already checked the drop
-   * is legal before offering it, but the consumer must still run `planMove` — that is what produces
-   * the bytes, and it re-checks, because the canvas's `legal` set is a render-time snapshot and the
-   * draft can change between render and drop.
+   * A completed gesture: `moving` was dropped on `target`, within `roots`.
+   *
+   * `roots` is handed over deliberately rather than left for the consumer to rebuild. `legalTargets`
+   * compares nodes by REFERENCE, so a consumer that called `buildObjectTree` again would hold nodes
+   * that are equal in every field and identical to none — and every move would be refused as
+   * illegal, for a reason no message could explain. Passing the tree these nodes came from keeps
+   * the identity intact.
+   *
+   * The consumer must still run `planMove`: that is what produces the bytes, and it re-checks,
+   * because the canvas's `legal` set is a render-time snapshot.
    */
-  onMove?: (moving: TreeNode, target: TreeNode) => void
+  onMove?: (moving: TreeNode, target: TreeNode, roots: readonly TreeNode[]) => void
   onSelect?: (path: string | null) => void
 }) => {
   const roots = useMemo(() => buildObjectTree(files), [files])
@@ -214,7 +220,7 @@ export const CanvasPanel = ({ files, onMove, onSelect }: {
           onDragStart={setDragging}
           onDrop={(target) => {
             if (dragging && dragging !== target) {
-              onMove?.(dragging, target)
+              onMove?.(dragging, target, roots)
             }
             finish()
           }}
