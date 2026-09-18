@@ -12,7 +12,7 @@ import { buildObjectTree } from './objectTree'
 import type { TreeNode } from './objectTree'
 import { planMove } from './planMove'
 
-const cr = (kind: string, name: string, children: readonly [string, string, string?][] = []) => {
+const cr = (kind: string, name: string, children: readonly [string, string, string?][] = [], allowed?: readonly string[]) => {
   const lines = [
     `kind: ${kind}`,
     'apiVersion: widgets.templates.krateo.io/v1beta1',
@@ -22,6 +22,10 @@ const cr = (kind: string, name: string, children: readonly [string, string, stri
     'spec:',
     '  widgetData:',
   ]
+  if (allowed?.length) {
+    lines.push('    allowedResources:')
+    allowed.forEach((entry) => lines.push(`      - ${entry}`))
+  }
   lines.push(children.length ? '    items:' : '    items: []')
   children.forEach(([refId]) => lines.push(`      - resourceRefId: ${refId}`))
   lines.push('  resourcesRefs:')
@@ -108,13 +112,19 @@ describe('planMove', () => {
     expect(plan.reason).toMatch(/into itself/i)
   })
 
-  it('honours the CRD enum — a target that declares it cannot hold this plural refuses it', () => {
-    const files = draft()
+  it('honours what the target declares it holds — a page that says "rows only" refuses a card', () => {
+    const files = { ...draft(), 'templates/flex.page-demo.yaml': cr('Flex', 'page-demo', [['r', 'row-one', 'rows'], ['l', 'loose']], ['rows']) }
     const roots = buildObjectTree(files)
-    const plan = planMove(files, roots, find(roots, 'inner'), find(roots, 'page-demo'), { Flex: ['rows'], Row: ['cards'] })
+    const plan = planMove(files, roots, find(roots, 'inner'), find(roots, 'page-demo'))
     expect(plan.ok).toBe(false)
     if (plan.ok) { return }
     expect(plan.reason).toMatch(/cannot hold a cards/i)
+  })
+
+  it('a container that declares nothing still accepts — empty is the shipped default', () => {
+    const files = draft()
+    const roots = buildObjectTree(files)
+    expect(planMove(files, roots, find(roots, 'inner'), find(roots, 'page-demo')).ok).toBe(true)
   })
 
   it('refuses a leaf as a target — a Card is not a container', () => {

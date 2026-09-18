@@ -9,7 +9,18 @@ import { describe, expect, it } from 'vitest'
 import { canAccept, legalTargets } from './dropTargets'
 import { buildObjectTree, flattenTree } from './objectTree'
 
-const cr = (kind: string, name: string, children: [string, string][] = []) => {
+/** The `allowedResources` block, or '' when the key should be absent entirely. */
+const declaredBlock = (allowed?: readonly string[]): string => {
+  if (allowed === undefined) {
+    return ''
+  }
+  if (!allowed.length) {
+    return '    allowedResources: []'
+  }
+  return `    allowedResources:\n${allowed.map((plural) => `      - ${plural}`).join('\n')}`
+}
+
+const cr = (kind: string, name: string, children: [string, string][] = [], allowed?: readonly string[]) => {
   const items = children.map(([id]) => `      - resourceRefId: ${id}`).join('\n')
   const refs = children.map(([id, crName]) =>
     `      - id: ${id}\n        name: ${crName}\n        resource: widgets`).join('\n')
@@ -19,11 +30,17 @@ const cr = (kind: string, name: string, children: [string, string][] = []) => {
     `metadata:\n  name: ${name}`,
     'spec:',
     '  widgetData:',
+    // Omitted entirely when undefined, so a test can distinguish ABSENT from declared-and-empty.
+    declaredBlock(allowed),
     items ? `    items:\n${items}` : '    items: []',
     '  resourcesRefs:',
     refs ? `    items:\n${refs}` : '    items: []',
-  ].join('\n')
+  ].filter(Boolean).join('\n')
 }
+
+/** A one-container tree whose root declares exactly `allowed`. */
+const declaring = (allowed?: readonly string[]) =>
+  buildObjectTree({ 'templates/flex.page-demo.yaml': cr('Flex', 'page-demo', [], allowed) })[0]
 
 /** root Flex > [ Row > [ Card ], Paragraph ] */
 const page = () => buildObjectTree({
@@ -64,23 +81,35 @@ describe('canAccept — type legality and editability', () => {
   })
 })
 
-describe('canAccept — the CRD allowedResources enum', () => {
-  it('honours a declared enum: a plural outside it is refused', () => {
-    const permitted = { Flex: ['cards', 'rows'] }
-    expect(canAccept(find('page-demo'), 'cards', permitted)).toBe(true)
-    // the case PageSearch.tsx is blocked on: `inputs` is not in the Flex enum
-    expect(canAccept(find('page-demo'), 'inputs', permitted)).toBe(false)
+describe('canAccept — what the container declares it holds', () => {
+  it('honours a NON-EMPTY declaration: a plural outside it is refused', () => {
+    const flex = declaring(['cards', 'rows'])
+    expect(canAccept(flex, 'cards')).toBe(true)
+    expect(canAccept(flex, 'inputs')).toBe(false)
   })
 
-  it('a DECLARED but empty enum means holds nothing — not unknown', () => {
-    expect(canAccept(find('page-demo'), 'cards', { Flex: [] })).toBe(false)
+  it('a DECLARED but EMPTY list means unconstrained — it is what every new container ships with', () => {
+    // newContainerYaml writes `allowedResources: []` because the CRD requires the key. Reading
+    // that as a closed set would make every container a person just created accept nothing.
+    expect(canAccept(declaring([]), 'cards')).toBe(true)
   })
 
-  it('an UNKNOWN enum permits — a canvas with no legal target is indistinguishable from broken', () => {
-    // Before CRD discovery the caller supplies nothing; downstream validation still rejects a
-    // genuinely bad placement, so this errs toward a usable canvas rather than a dead one.
-    expect(canAccept(find('page-demo'), 'anything-at-all')).toBe(true)
-    expect(canAccept(find('page-demo'), 'cards', { Row: ['cards'] })).toBe(true)
+  it('an ABSENT declaration permits — the author has not said', () => {
+    expect(canAccept(declaring(undefined), 'anything-at-all')).toBe(true)
+  })
+
+  it('reads the declaration PER CONTAINER, not per kind', () => {
+    // The shape the injected kind -> plurals map could not express: two Flexes on one page, each
+    // declaring a different slot. This is why the permission is read off the node.
+    const roots = buildObjectTree({
+      'templates/flex.cards-only.yaml': cr('Flex', 'cards-only', [], ['cards']),
+      'templates/flex.rows-only.yaml': cr('Flex', 'rows-only', [], ['rows']),
+    })
+    const byName = (name: string) => flattenTree(roots).find((node) => node.name === name)!
+    expect(canAccept(byName('cards-only'), 'cards')).toBe(true)
+    expect(canAccept(byName('cards-only'), 'rows')).toBe(false)
+    expect(canAccept(byName('rows-only'), 'rows')).toBe(true)
+    expect(canAccept(byName('rows-only'), 'cards')).toBe(false)
   })
 })
 
@@ -114,8 +143,13 @@ describe('legalTargets — cycles and reparenting', () => {
     expect(named(legalTargets(page(), { plural: 'cards' }))).toEqual(['inner', 'page-demo', 'row-one'])
   })
 
-  it('applies the enum while walking, not only per node', () => {
-    const targets = named(legalTargets(page(), { plural: 'cards' }, { Card: [], Flex: ['cards'], Row: ['cards'] }))
-    expect(targets).toEqual(['page-demo', 'row-one'])
+  it('applies each container\'s own declaration while walking, not only at the top', () => {
+    const roots = buildObjectTree({
+      'templates/card.inner.yaml': cr('Card', 'inner', [], ['paragraphs']),
+      'templates/flex.page-demo.yaml': cr('Flex', 'page-demo', [['r', 'row-one']], ['rows', 'cards']),
+      'templates/row.row-one.yaml': cr('Row', 'row-one', [['c', 'inner']], ['cards']),
+    })
+    // inner declares paragraphs only, so it drops out even though it is a container deep in the walk.
+    expect(named(legalTargets(roots, { plural: 'cards' }))).toEqual(['page-demo', 'row-one'])
   })
 })

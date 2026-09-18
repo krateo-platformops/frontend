@@ -7,8 +7,8 @@
  * implemented twice is a rule that will disagree with itself.
  *
  * It composes the two stages underneath it rather than re-deciding anything:
- *   - #297 `legalTargets` answers MAY this land here — container kind, the CRD's allowedResources
- *     enum, editability, and the cycle rule (a container may not be dropped inside itself).
+ *   - #297 `legalTargets` answers MAY this land here — container kind, what the target itself
+ *     declares it holds, editability, and the cycle rule (no dropping a container inside itself).
  *   - #300 `reparentChild` answers WHAT BYTES result — remove then place, all-or-nothing across the
  *     two files, refusing the whole move if either file changed underneath it.
  *
@@ -27,7 +27,6 @@
  * The target file needs no pin either: a target that gained a child under the drag is simply
  * appended to, which is the correct outcome rather than a conflict.
  */
-import type { PermittedChildren } from './dropTargets'
 import { legalTargets } from './dropTargets'
 import type { TreeNode } from './objectTree'
 import { reparentChild } from './structureTx'
@@ -50,7 +49,6 @@ export const planMove = (
   roots: readonly TreeNode[],
   moving: TreeNode,
   target: TreeNode,
-  permitted?: PermittedChildren,
 ): MovePlan => {
   const from = placement(moving)
   if (!from) {
@@ -70,7 +68,7 @@ export const planMove = (
   }
 
   // One authority for legality, shared with the tree and with whatever highlights drop zones.
-  if (!legalTargets(roots, { node: moving, plural: moving.resource }, permitted).includes(target)) {
+  if (!legalTargets(roots, { node: moving, plural: moving.resource }).includes(target)) {
     return target === moving
       ? { ok: false, reason: `"${moving.name}" cannot be dropped into itself` }
       : { ok: false, reason: `"${target.name}" cannot hold a ${moving.resource}` }

@@ -50,6 +50,17 @@ export interface TreeNode {
   /** True when the CR reads its data from a RESTAction (`spec.apiRef`) — the data-bound half. */
   bound: boolean
   /**
+   * What this container says it is for: its own `spec.widgetData.allowedResources`.
+   *
+   * `null` when the key is absent; an array otherwise, and EMPTY is the normal state — the CRD
+   * requires the key, so `newContainerYaml` writes `[]` and every freshly created container starts
+   * there. Empty therefore means "the author has not said", not "holds nothing"; only a NON-EMPTY
+   * list is a statement. Nothing validates this field at runtime (the CRD types it `string[]` with
+   * no enum, on purpose), so it is a declaration of intent — which is exactly why a builder should
+   * read it back rather than quietly widen it.
+   */
+  allowedResources: readonly string[] | null
+  /**
    * The CRD plural its PARENT declares for it (`resourcesRefs[].resource`), or null for a root and
    * for a child whose reference is dangling.
    *
@@ -96,6 +107,7 @@ interface ParsedObject {
   path: string
   bound: boolean
   namespace: string | null
+  allowedResources: readonly string[] | null
   /** Ordered children, each carrying BOTH the parent's id for it and the name it resolves to. */
   children: ChildRef[]
 }
@@ -161,7 +173,9 @@ const parseObject = (path: string, content: string): ParsedObject | null => {
     }
   }
 
+  const declared = widgetData?.allowedResources
   return {
+    allowedResources: Array.isArray(declared) ? declared.filter((entry): entry is string => typeof entry === 'string') : null,
     bound: Boolean(spec?.apiRef),
     children,
     kind: typeof root?.kind === 'string' ? root.kind : null,
@@ -204,13 +218,14 @@ export const buildObjectTree = (files: Record<string, string>): TreeNode[] => {
     const object = objects.get(name)
     if (!object) {
       // Referenced but not in the draft: an existing cluster widget being placed.
-      return { bound: false, children: [], drafted: false, kind: null, name, namespace, parentPath, path: null, position, refId, resource }
+      return { allowedResources: null, bound: false, children: [], drafted: false, kind: null, name, namespace, parentPath, path: null, position, refId, resource }
     }
     if (seen.has(name)) {
-      return { bound: object.bound, children: [], drafted: true, kind: object.kind, name, namespace, parentPath, path: object.path, position, refId, resource }
+      return { allowedResources: object.allowedResources, bound: object.bound, children: [], drafted: true, kind: object.kind, name, namespace, parentPath, path: object.path, position, refId, resource }
     }
     const nextSeen = new Set(seen).add(name)
     return {
+      allowedResources: object.allowedResources,
       bound: object.bound,
       children: object.children.map((child, index) => toNode(child, index, nextSeen, object.path)),
       drafted: true,
