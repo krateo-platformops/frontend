@@ -824,10 +824,24 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
 
   // The `?ask=` deep-link (Diagnose / Troubleshoot buttons): enabled → open the rail
   // and seed one turn; disabled → honest UX-19 notice. All in useAskDeepLink.
+  //
+  // A FRESH THREAD, and it is not cosmetic. The seed is a self-contained investigation of ONE
+  // object ("Diagnose composition X: is it healthy?"), so appending it to whatever conversation
+  // happened to be open puts an unrelated transcript above the answer and — worse — sends that
+  // transcript along as context, inviting the orchestrator to reason about the previous task.
+  // Observed on 057: clicking Diagnose on a broken composition landed the prompt under a stale
+  // page-publish thread, whose half-finished "0/7 committed, 7 pending" output read as the
+  // diagnosis having failed.
+  //
+  // `newThread` ARCHIVES rather than discards (and skips archiving an already-empty thread), so
+  // nothing the user had is lost — the previous conversation stays browsable in the rail's
+  // history. Both calls are synchronous store writes, and `send` reads the store rather than
+  // React state, so the turn lands in the new thread and not the old one.
   useAskDeepLink(enabled, useCallback((ask: string) => {
     setOpen(true)
+    newThread()
     send(ask)
-  }, [send]))
+  }, [newThread, send]))
 
   // `sessions` is a stable bound-free store method (closes over its own state, no `this`) — passed
   // through directly; it reads the archive lazily each call, re-read on every provider re-render.
