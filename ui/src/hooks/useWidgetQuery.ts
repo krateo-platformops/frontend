@@ -184,6 +184,21 @@ export type UseWidgetQueryOptions = {
   defaultPageSize?: number
 }
 
+/**
+ * The window size actually in play, whoever supplied it — the ENDPOINT's declared slice first, else
+ * the caller's `defaultPageSize`. `undefined` means unbounded (snowplow's -1/-1 full set).
+ *
+ * Exported because it is the rule, not a detail: every pager behaviour keys off it, and it replaces
+ * a test on WHO supplied the window. That conflation was the bug — the pager switched itself off
+ * the moment the endpoint carried `page`/`perPage`, on the assumption that endpoint-supplied
+ * pagination meant infinite scroll. A declared slice is a bounded window exactly like a
+ * client-chosen one.
+ */
+export const boundedWindow = (
+  endpointPerPage: number | undefined,
+  defaultPageSize: number | undefined,
+): number | undefined => endpointPerPage ?? defaultPageSize
+
 export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOptions = {}) => {
   const { config } = useConfigContext()
   const [searchParams] = useSearchParams()
@@ -223,10 +238,31 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   // snowplow's -1/-1 full-set sentinel. `serverPage` is client state so the
   // Table's pager can jump to any page; it is part of the react-query key so
   // each page is its own (per-page-cached, snowplow-L1-aligned) entry.
-  const [serverPage, setServerPage] = useState(1)
-  const usesDefaultPaging = typeof defaultPageSize === 'number' && endpointPage === undefined && endpointPerPage === undefined
-  const initialPerPage = usesDefaultPaging ? defaultPageSize : endpointPerPage
-  const initialPage = usesDefaultPaging ? serverPage : endpointPage
+  const [serverPage, setServerPage] = useState(endpointPage ?? 1)
+
+  /**
+   * The window size actually in play, whoever supplied it — the ENDPOINT's declared slice first,
+   * else the caller's `defaultPageSize`.
+   *
+   * This replaces a test on WHO supplied the window, and that conflation was the bug. The pager
+   * used to switch itself off the moment the endpoint carried `page`/`perPage`, on the assumption
+   * that endpoint-supplied pagination meant infinite scroll. It does not: a declared slice is a
+   * BOUNDED window exactly like a client-chosen one, and the distinction that matters to every
+   * behaviour below is bounded vs unbounded.
+   *
+   * Left as it was, a chart declaring `resourcesRefs.items[].slice` (portal#235) would fall through
+   * to the infinite-scroll branch — which snowplow's `status.resourcesRefs.slice.continue` keeps
+   * alive — and re-grow the un-virtualized DOM toward the full set this pager exists to bound,
+   * while the pager controls silently vanished.
+   *
+   * A NO-OP TODAY, deliberately: no chart declares a slice, so `endpointPerPage` is undefined for
+   * every widget and this resolves to `defaultPageSize` exactly as before. It ships first so the
+   * chart change has somewhere safe to land.
+   */
+  const boundedPerPage = boundedWindow(endpointPerPage, defaultPageSize)
+  const usesClassicPager = typeof boundedPerPage === 'number'
+  const initialPerPage = usesClassicPager ? boundedPerPage : endpointPerPage
+  const initialPage = usesClassicPager ? serverPage : endpointPage
 
   async function fetchWidget({ page, perPage }: { page?: number; perPage?: number }) {
     /* set new page and perPage to the original requestUrl with updated values */
@@ -286,7 +322,7 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
     // distinct, independently-cached query (jumping pages re-inits the infinite
     // query with the new page as its only page). Non-paged widgets keep the
     // stable 3-tuple key so their cache identity is unchanged.
-    queryKey: usesDefaultPaging
+    queryKey: usesClassicPager
       ? ['widgets', widgetEndpoint, extrasParam, serverPage]
       : ['widgets', widgetEndpoint, extrasParam],
     queryFn: ({ pageParam }) => fetchWidget(pageParam),
@@ -311,7 +347,7 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
       // (the pager), NOT infinite-scroll — each page is its own query keyed by
       // `serverPage`. Never accumulate pages here: accumulating would re-grow
       // the un-virtualized DOM toward the full 60K set that this fix removes.
-      if (usesDefaultPaging) {
+      if (usesClassicPager) {
         return undefined
       }
 
@@ -413,8 +449,8 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
     // was set). `serverPage` is the 1-based current page; `setServerPage` jumps
     // to a page (re-keying the query → fetches that page only). `serverPageSize`
     // is the per-page window size the request used.
-    serverPagination: usesDefaultPaging
-      ? { page: serverPage, pageSize: defaultPageSize, setPage: setServerPage }
+    serverPagination: usesClassicPager
+      ? { page: serverPage, pageSize: boundedPerPage, setPage: setServerPage }
       : undefined,
   }
 }
