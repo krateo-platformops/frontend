@@ -50,6 +50,21 @@ export interface TreeNode {
   /** True when the CR reads its data from a RESTAction (`spec.apiRef`) — the data-bound half. */
   bound: boolean
   /**
+   * The CRD plural its PARENT declares for it (`resourcesRefs[].resource`), or null for a root and
+   * for a child whose reference is dangling.
+   *
+   * Read from the parent rather than derived from `kind`, because lowercase(kind)+"s" is wrong for
+   * a good number of kinds — and a move that guessed it would ask `canAccept` about a plural the
+   * target's enum never mentions and be refused for the wrong reason.
+   */
+  resource: string | null
+  /**
+   * The namespace its parent declares for it. Required when re-placing the child under a new
+   * parent: `PlaceChild.namespace` has no default, and an entry without one resolves against the
+   * empty namespace and renders nothing.
+   */
+  namespace: string | null
+  /**
    * Path of the file that PLACES this node — the one a move/remove rewrites, since a child is a
    * reference held by its parent, not a property of itself. Null for a root, which nothing places.
    */
@@ -61,6 +76,18 @@ export interface TreeNode {
 interface ChildRef {
   refId: string
   name: string
+  /**
+   * The CRD plural and namespace the PARENT declares for this child, carried through from its
+   * `resourcesRefs` entry rather than guessed from the kind.
+   *
+   * A move needs both: the plural to ask `canAccept` whether a target may hold it, and the
+   * namespace because `PlaceChild.namespace` is required — snowplow puts it straight into the
+   * /call query with no defaulting, so a re-placement that dropped it would publish clean and
+   * render a hole. Deriving the plural as lowercase(kind)+"s" is wrong for many kinds, which is
+   * exactly why the parent writes it down.
+   */
+  resource: string | null
+  namespace: string | null
 }
 
 interface ParsedObject {
@@ -99,13 +126,17 @@ const parseObject = (path: string, content: string): ParsedObject | null => {
 
   // refId -> CR name. The id and the name usually coincide, but nothing requires it, so resolve
   // rather than assume: a page that names them differently would otherwise render a flat tree.
-  const refs = new Map<string, string>()
+  const refs = new Map<string, { name: string; namespace: string | null; resource: string | null }>()
   const refItems = asRecord(spec?.resourcesRefs)?.items
   if (Array.isArray(refItems)) {
     for (const entry of refItems) {
       const ref = asRecord(entry)
       if (typeof ref?.id === 'string' && typeof ref?.name === 'string') {
-        refs.set(ref.id, ref.name)
+        refs.set(ref.id, {
+          name: ref.name,
+          namespace: typeof ref.namespace === 'string' ? ref.namespace : null,
+          resource: typeof ref.resource === 'string' ? ref.resource : null,
+        })
       }
     }
   }
@@ -119,7 +150,13 @@ const parseObject = (path: string, content: string): ParsedObject | null => {
       if (refId) {
         // Unresolvable id: keep it, named by itself. A dangling reference is a real state of a
         // half-edited page and the tree should show it, not drop the row.
-        children.push({ name: refs.get(refId) ?? refId, refId })
+        const ref = refs.get(refId)
+        children.push({
+          name: ref?.name ?? refId,
+          namespace: ref?.namespace ?? null,
+          refId,
+          resource: ref?.resource ?? null,
+        })
       }
     }
   }
@@ -158,37 +195,39 @@ export const buildObjectTree = (files: Record<string, string>): TreeNode[] => {
   // sections, and both placements should render. It exists only to stop a cycle — which a
   // hand-edit can create — from recursing forever and freezing the panel.
   const toNode = (
-    name: string,
-    refId: string | null,
+    ref: { name: string; namespace: string | null; refId: string | null; resource: string | null },
     position: number | null,
     seen: ReadonlySet<string>,
     parentPath: string | null,
   ): TreeNode => {
+    const { name, namespace, refId, resource } = ref
     const object = objects.get(name)
     if (!object) {
       // Referenced but not in the draft: an existing cluster widget being placed.
-      return { bound: false, children: [], drafted: false, kind: null, name, parentPath, path: null, position, refId }
+      return { bound: false, children: [], drafted: false, kind: null, name, namespace, parentPath, path: null, position, refId, resource }
     }
     if (seen.has(name)) {
-      return { bound: object.bound, children: [], drafted: true, kind: object.kind, name, parentPath, path: object.path, position, refId }
+      return { bound: object.bound, children: [], drafted: true, kind: object.kind, name, namespace, parentPath, path: object.path, position, refId, resource }
     }
     const nextSeen = new Set(seen).add(name)
     return {
       bound: object.bound,
-      children: object.children.map((child, index) => toNode(child.name, child.refId, index, nextSeen, object.path)),
+      children: object.children.map((child, index) => toNode(child, index, nextSeen, object.path)),
       drafted: true,
       kind: object.kind,
       name,
+      namespace,
       parentPath,
       path: object.path,
       position,
       refId,
+      resource,
     }
   }
 
   return [...objects.values()]
     .filter((object) => !referenced.has(object.name))
-    .map((object) => toNode(object.name, null, null, new Set(), null))
+    .map((object) => toNode({ name: object.name, namespace: object.namespace, refId: null, resource: null }, null, new Set(), null))
 }
 
 /** Every node, depth-first — for counting, searching, and scrolling the Files tab to a selection. */

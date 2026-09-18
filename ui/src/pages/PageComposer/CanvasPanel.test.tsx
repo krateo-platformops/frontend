@@ -7,10 +7,11 @@
  * (which the Files tab allows at any moment) changes what the canvas shows, because nothing is
  * cached beside the files.
  */
-import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import CanvasPanel from './CanvasPanel'
+import type { TreeNode } from './objectTree'
 
 const cr = (kind: string, name: string, children: readonly [string, string][] = [], apiRef = false) => {
   const lines: string[] = [
@@ -106,5 +107,78 @@ describe('CanvasPanel — the projection', () => {
     render(<CanvasPanel files={{ 'templates/flex.page-demo.yaml': cr('Flex', 'page-demo') }} />)
     expect(screen.getByTestId('canvas-well-page-demo')).toBeTruthy()
     expect(screen.getByText('empty')).toBeTruthy()
+  })
+})
+
+describe('CanvasPanel — dragging', () => {
+  const frame = (name: string) => screen.getByTestId(`canvas-frame-${name}`)
+  const well = (name: string) => screen.getByTestId(`canvas-well-${name}`)
+  const accepts = (name: string) => frame(name).getAttribute('data-accepts') === 'yes'
+
+  it('offers only the containers that will actually take what is in the air', () => {
+    render(<CanvasPanel files={draft()} />)
+    fireEvent.dragStart(frame('inner'))
+    // Flex and Row are containers that accept cards…
+    expect(accepts('page-demo')).toBe(true)
+    expect(accepts('row-one')).toBe(true)
+    // …a Paragraph is a leaf and never lights up.
+    expect(accepts('para-one')).toBe(false)
+  })
+
+  it('never offers a container its own subtree — the cycle rule, honoured in the highlight', () => {
+    render(<CanvasPanel files={draft()} />)
+    fireEvent.dragStart(frame('row-one'))
+    // Dropping row-one into the card it contains would detach the branch from the page.
+    expect(accepts('inner')).toBe(false)
+    expect(accepts('row-one')).toBe(false)
+    // Its ancestor is still a legitimate destination.
+    expect(accepts('page-demo')).toBe(true)
+  })
+
+  it('honours the CRD enum — a container that declares it cannot hold cards does not light up', () => {
+    render(<CanvasPanel files={draft()} permitted={{ Card: [], Flex: ['rows'], Row: ['cards'] }} />)
+    fireEvent.dragStart(frame('inner'))
+    expect(accepts('row-one')).toBe(true)
+    expect(accepts('page-demo')).toBe(false)
+  })
+
+  it('reports the completed gesture — which node onto which container', () => {
+    const onMove = vi.fn()
+    render(<CanvasPanel files={draft()} onMove={onMove} />)
+    fireEvent.dragStart(frame('inner'))
+    fireEvent.drop(well('page-demo'))
+    expect(onMove).toHaveBeenCalledTimes(1)
+    const [moving, target] = onMove.mock.calls[0] as [TreeNode, TreeNode]
+    expect(moving.name).toBe('inner')
+    expect(target.name).toBe('page-demo')
+  })
+
+  it('DOES NOT report a drop on a container that cannot accept it', () => {
+    // The well carries no drop handler at all when it does not accept, so the browser refuses the
+    // gesture before anyone lets go. Asserting the callback is what a consumer actually relies on.
+    const onMove = vi.fn()
+    render(<CanvasPanel files={draft()} onMove={onMove} permitted={{ Flex: ['rows'], Row: ['cards'] }} />)
+    fireEvent.dragStart(frame('inner'))
+    fireEvent.drop(well('page-demo'))
+    expect(onMove).not.toHaveBeenCalled()
+  })
+
+  it('a page root is not draggable — nothing places it, so there is no reference to move', () => {
+    render(<CanvasPanel files={draft()} />)
+    expect(frame('page-demo').getAttribute('draggable')).toBe('false')
+    expect(frame('inner').getAttribute('draggable')).toBe('true')
+  })
+
+  it('a widget the draft does not carry is not draggable — there is no file to rewrite', () => {
+    render(<CanvasPanel files={{ 'templates/flex.page-demo.yaml': cr('Flex', 'page-demo', [['g', 'ghost']]) }} />)
+    expect(frame('ghost').getAttribute('draggable')).toBe('false')
+  })
+
+  it('clears the drag when it ends, so nothing stays highlighted', () => {
+    render(<CanvasPanel files={draft()} />)
+    fireEvent.dragStart(frame('inner'))
+    expect(accepts('page-demo')).toBe(true)
+    fireEvent.dragEnd(frame('inner'))
+    expect(accepts('page-demo')).toBe(false)
   })
 })
