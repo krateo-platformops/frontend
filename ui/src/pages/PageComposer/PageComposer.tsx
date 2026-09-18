@@ -32,6 +32,7 @@ import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { claimPreviewSurface, onDraftChanged, requestDraftReplay } from '../../components/Autopilot/previewDraftChanged'
 import { emitDraftStart } from '../../components/Autopilot/previewDraftStart'
+import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
 import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
 import { emitPublishRequest, onPublishResult } from '../../components/Autopilot/previewPublishRequest'
 import { PreviewContent } from '../../components/Autopilot/previewSurface'
@@ -39,9 +40,13 @@ import type { RestDefVerdicts } from '../../components/Autopilot/previewSurface'
 import { ConfigContext } from '../../context/ConfigContext'
 
 import CanvasPanel from './CanvasPanel'
+import { draftNamespace } from './objectTree'
 import type { TreeNode } from './objectTree'
 import ObjectTreePanel from './ObjectTreePanel'
 import styles from './PageComposer.module.css'
+import PalettePanel from './PalettePanel'
+import type { PalettePick } from './PalettePanel'
+import { planAdd } from './planAdd'
 import { planMove } from './planMove'
 import StartDraftModal from './StartDraftModal'
 
@@ -78,6 +83,29 @@ const PageComposer = () => {
   // composer already reports through Alerts, and a toast that vanishes is the wrong surface for
   // "this drop was rejected and here is why".
   const [moveError, setMoveError] = useState<string | null>(null)
+
+  /** What the palette has in the air. Lifted here because the palette and the canvas are siblings. */
+  const [pick, setPick] = useState<PalettePick | null>(null)
+
+  /**
+   * A palette drop: plan it, then persist through the same buses a hand edit uses.
+   *
+   * ORDER IS LOAD-BEARING when a container was created — the file must be ADDED before the parent
+   * that references it, or the parent momentarily names a file the draft does not carry. planAdd
+   * returns the created file separately so this cannot be got the wrong way round by accident.
+   */
+  const applyAdd = useCallback((target: TreeNode, at: number | undefined, picked: PalettePick) => {
+    const plan = planAdd(files, target, picked, draftNamespace(files), at)
+    if (!plan.ok) {
+      setMoveError(plan.reason)
+      return
+    }
+    setMoveError(null)
+    if (plan.created) {
+      emitFileAdd(plan.created)
+    }
+    Object.entries(plan.files).forEach(([path, content]) => emitFileEdit({ content, path }))
+  }, [files])
 
   /**
    * A drop from the canvas: plan it, then persist through the SAME file-edit bus the Files tab uses
@@ -270,7 +298,17 @@ const PageComposer = () => {
                   {
                     children: (
                       <div className={styles.canvasPane}>
-                        <CanvasPanel files={files} onMove={applyMove} onSelect={setFocusPath} />
+                        {/* ABOVE the canvas, not in a tab of its own: you cannot drag from one tab
+                            onto another, so the palette and its target have to be on screen at the
+                            same time. */}
+                        <PalettePanel
+                          namespace={draftNamespace(files)}
+                          onPick={setPick}
+                          snowplowBaseUrl={snowplowBaseUrl}
+                          wrap
+                        />
+                        <div style={{ borderTop: '1px solid var(--border-color, rgba(0,0,0,0.1))', margin: '10px 0' }} />
+                        <CanvasPanel files={files} onAdd={applyAdd} onMove={applyMove} onSelect={setFocusPath} pick={pick} />
                       </div>
                     ),
                     key: 'canvas',

@@ -32,6 +32,7 @@ import { Fragment, useMemo, useState } from 'react'
 import { legalTargets } from './dropTargets'
 import { buildObjectTree } from './objectTree'
 import type { TreeNode } from './objectTree'
+import type { PalettePick } from './PalettePanel'
 import { LAYOUT_KINDS } from './structureEdit'
 
 const { Text } = Typography
@@ -96,7 +97,10 @@ const DropGap = ({ at, container, live, onDrop }: {
   />
 )
 
-const Frame = ({ depth, dragging, legal, node, onDragEnd, onDragStart, onDrop, onSelect }: {
+const Frame = ({ airborne, depth, dragging, legal, node, onDragEnd, onDragStart, onDrop, onSelect }: {
+  /** Something is in the air — a node being moved OR a palette pick. The highlight asks this rather
+   *  than `dragging`, because a pick has no node and would otherwise light nothing up. */
+  airborne: boolean
   depth: number
   dragging: TreeNode | null
   legal: ReadonlySet<TreeNode>
@@ -110,7 +114,7 @@ const Frame = ({ depth, dragging, legal, node, onDragEnd, onDragStart, onDrop, o
   const movable = isMovable(node)
   // Asked of the SAME function that will judge the drop, so the highlight cannot promise something
   // the drop then refuses.
-  const accepts = !!dragging && legal.has(node)
+  const accepts = airborne && legal.has(node)
   // A node the draft does not carry is an existing cluster widget: it renders, but it has no file,
   // so it can never be edited here. Saying so is honest and it is also exactly why `canAccept`
   // refuses it as a drop target (#297).
@@ -197,6 +201,7 @@ const Frame = ({ depth, dragging, legal, node, onDragEnd, onDragStart, onDrop, o
           {node.children.map((child, index) => (
             <Fragment key={`${child.name}-${child.refId ?? index}-${index}`}>
               <Frame
+                airborne={airborne}
                 depth={depth + 1}
                 dragging={dragging}
                 legal={legal}
@@ -219,8 +224,15 @@ const Frame = ({ depth, dragging, legal, node, onDragEnd, onDragStart, onDrop, o
  * The canvas. `files` is the held draft — the same input the tree takes, so the two cannot be given
  * different pictures of the same page.
  */
-export const CanvasPanel = ({ files, onMove, onSelect }: {
+export const CanvasPanel = ({ files, onAdd, onMove, onSelect, pick }: {
   files: Record<string, string>
+  /**
+   * A palette pick was dropped on `target` at `at`. Separate from `onMove` because the two are
+   * different operations, not one with a flag: a move rewrites two parents and creates nothing,
+   * while an add may write a new file. Collapsing them is how a palette drop silently becomes a
+   * move of something that was never placed.
+   */
+  onAdd?: (target: TreeNode, at: number | undefined, pick: PalettePick) => void
   /**
    * A completed gesture: `moving` was dropped on `target`, within `roots`.
    *
@@ -235,14 +247,24 @@ export const CanvasPanel = ({ files, onMove, onSelect }: {
    */
   onMove?: (moving: TreeNode, target: TreeNode, roots: readonly TreeNode[], at?: number) => void
   onSelect?: (path: string | null) => void
+  /** What the palette currently has in the air, if anything. */
+  pick?: PalettePick | null
 }) => {
   const roots = useMemo(() => buildObjectTree(files), [files])
   const [dragging, setDragging] = useState<TreeNode | null>(null)
 
-  // Recomputed per drag, not per render: the answer depends on what is in the air.
+  /**
+   * What is in the air — a node being moved, or a palette pick. One question, two sources, so the
+   * highlight is computed once from whichever it is.
+   *
+   * A palette pick passes no `node`, which is exactly right: the cycle rule excludes a moving
+   * subtree from its own descendants, and a pick has no subtree yet. Passing one would be
+   * meaningless; omitting it is not a shortcut.
+   */
+  const airborne = dragging?.resource ?? pick?.resource
   const legal = useMemo(
-    () => new Set(dragging?.resource ? legalTargets(roots, { node: dragging, plural: dragging.resource }) : []),
-    [dragging, roots],
+    () => new Set(airborne ? legalTargets(roots, { node: dragging ?? undefined, plural: airborne }) : []),
+    [airborne, dragging, roots],
   )
 
   if (roots.length === 0) {
@@ -255,6 +277,7 @@ export const CanvasPanel = ({ files, onMove, onSelect }: {
     <div data-testid='canvas-panel' style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {roots.map((root, index) => (
         <Frame
+          airborne={!!airborne}
           depth={0}
           dragging={dragging}
           key={`${root.name}-${index}`}
@@ -265,6 +288,8 @@ export const CanvasPanel = ({ files, onMove, onSelect }: {
           onDrop={(target, at) => {
             if (dragging && dragging !== target) {
               onMove?.(dragging, target, roots, at)
+            } else if (!dragging && pick) {
+              onAdd?.(target, at, pick)
             }
             finish()
           }}

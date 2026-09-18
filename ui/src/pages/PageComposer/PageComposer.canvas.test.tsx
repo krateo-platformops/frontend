@@ -142,3 +142,29 @@ describe('PageComposer — a drop lands where it was aimed', () => {
     bus.stop()
   })
 })
+
+describe('PageComposer — adding from the palette', () => {
+  const nested = () => [
+    { content: widgetCr('Card', 'card-b'), path: 'templates/card.card-b.yaml' },
+    { content: widgetCr('Flex', 'page-x', ['card-b']), path: 'templates/flex.page-x.yaml' },
+  ]
+
+  it('a CONTAINER drop adds the file BEFORE the parent that references it', () => {
+    // Order is the property: a parent emitted first momentarily names a file the draft does not
+    // carry. planAdd returns the created file separately so this cannot be got backwards.
+    const bus = capture()
+    mountWithConfig()
+    emit({ files: nested(), title: 'x' })
+    fireEvent.click(screen.getByRole('tab', { name: 'Canvas' }))
+
+    fireEvent.dragStart(screen.getByTestId('palette-item-Row'))
+    fireEvent.drop(screen.getByTestId('canvas-well-page-x'))
+
+    expect(bus.log.map((entry) => entry.op)).toEqual(['add', 'edit'])
+    expect(bus.log[0].path).toBe('templates/row.page-x-row.yaml')
+    expect(bus.log[0].content).toContain('kind: Row')
+    expect(bus.log[1].path).toBe('templates/flex.page-x.yaml')
+    expect(bus.log[1].content).toContain('page-x-row')
+    bus.stop()
+  })
+})
