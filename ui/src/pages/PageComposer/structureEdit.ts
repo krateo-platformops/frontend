@@ -102,8 +102,17 @@ const slots = (doc: Doc) => {
   }
 }
 
-/** Append a child to a container: the ordered reference AND the ref entry that resolves it. */
-export const placeChild = (parentYaml: string, child: PlaceChild): StructureResult => {
+/**
+ * Place a child in a container: the ordered reference AND the ref entry that resolves it.
+ *
+ * `at` is an insertion index into `widgetData.items`; omitted (or past the end) appends, which is
+ * the original behaviour and what "drop onto a container" means. Order in `items` IS the rendered
+ * order, so this is what makes a drop land BETWEEN two siblings rather than always at the bottom.
+ *
+ * Only `items` is ordered. `allowedResources` and `resourcesRefs` are sets addressed by value and
+ * by id, so neither takes a position.
+ */
+export const placeChild = (parentYaml: string, child: PlaceChild, at?: number): StructureResult => {
   const parsed = parse(parentYaml)
   if ('error' in parsed) {
     return { error: parsed.error, ok: false }
@@ -119,7 +128,11 @@ export const placeChild = (parentYaml: string, child: PlaceChild): StructureResu
   // Placing the same widget twice is legitimate — a divider between sections, say — but placing it
   // twice by accident is the more likely case, and a duplicate REF ENTRY (same id) is malformed
   // either way. So the reference may repeat; the resourcesRefs entry must not.
-  items.push({ resourceRefId: child.name })
+  // Clamped rather than validated: a drop indicator can only ever name a gap that exists, and an
+  // out-of-range index from anywhere else means "the end", which is the safe reading. Refusing
+  // would turn a harmless rounding into a failed move.
+  const index = at === undefined ? items.length : Math.max(0, Math.min(at, items.length))
+  items.splice(index, 0, { resourceRefId: child.name })
   if (!refs.some((ref) => ref.id === child.name)) {
     refs.push({
       apiVersion: child.apiVersion ?? WIDGET_API_VERSION,

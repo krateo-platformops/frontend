@@ -9,6 +9,7 @@
  *   - a failure anywhere must leave NOTHING applied, or the draft is neither the before nor the
  *     after and the child has vanished from one parent without appearing in the other.
  */
+import { load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
 import { placeChild, removeChild } from './structureEdit'
@@ -179,5 +180,91 @@ describe('reparentChild', () => {
     expect(result.ok).toBe(false)
     if (result.ok) { return }
     expect(result.path).toBe('templates/flex.left.yaml')
+  })
+})
+
+describe('reparentChild — WHERE it lands', () => {
+  /** The ordered refIds of a container's items, which IS its rendered order. */
+  const order = (yaml: string): string[] => {
+    const doc = load(yaml) as { spec?: { widgetData?: { items?: { resourceRefId?: string }[] } } }
+    return (doc.spec?.widgetData?.items ?? []).map((item) => item.resourceRefId ?? '')
+  }
+
+  const page = () => ({
+    'a.yaml': container('src', ['x'], ['cards']),
+    'b.yaml': container('dst', ['p', 'q', 'r'], ['cards']),
+  })
+
+  it('places at the requested index in a DIFFERENT parent — no correction needed', () => {
+    const result = reparentChild(page(), {
+      at: { index: 0, refId: 'x' },
+      child: { name: 'x', namespace: 'krateo-system', resource: 'cards' },
+      fromPath: 'a.yaml',
+      toIndex: 1,
+      toPath: 'b.yaml',
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) { return }
+    expect(order(result.files['b.yaml'])).toEqual(['p', 'x', 'q', 'r'])
+    expect(order(result.files['a.yaml'])).toEqual([])
+  })
+
+  it('still appends when no index is given — dropping ON a container means the end', () => {
+    const result = reparentChild(page(), {
+      at: { index: 0, refId: 'x' },
+      child: { name: 'x', namespace: 'krateo-system', resource: 'cards' },
+      fromPath: 'a.yaml',
+      toPath: 'b.yaml',
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) { return }
+    expect(order(result.files['b.yaml'])).toEqual(['p', 'q', 'r', 'x'])
+  })
+
+  /**
+   * THE OFF-BY-ONE, worked through. Within ONE parent the removal runs first, so every index after
+   * the removed row has already shifted down by the time the placement runs. An index the caller
+   * measured against the list as the person SAW it is therefore one too high — but only when it
+   * points past the row being removed.
+   */
+  describe('within one parent, the index is corrected for the removal that precedes it', () => {
+    const one = () => ({ 'c.yaml': container('only', ['a', 'b', 'c', 'd'], ['cards']) })
+    const move = (from: number, refId: string, to: number) => reparentChild(one(), {
+      at: { index: from, refId },
+      child: { name: refId, namespace: 'krateo-system', resource: 'cards' },
+      fromPath: 'c.yaml',
+      toIndex: to,
+      toPath: 'c.yaml',
+    })
+
+    it('forward: dropping `a` into the gap before `c` lands it between b and c', () => {
+      // The gap before `c` is index 2 on [a,b,c,d]. After `a` leaves it is index 1 on [b,c,d].
+      const result = move(0, 'a', 2)
+      expect(result.ok).toBe(true)
+      if (!result.ok) { return }
+      expect(order(result.files['c.yaml'])).toEqual(['b', 'a', 'c', 'd'])
+    })
+
+    it('backward: dropping `d` into the gap before `b` needs NO correction', () => {
+      // Index 1 is before the removed row, so the removal does not shift it.
+      const result = move(3, 'd', 1)
+      expect(result.ok).toBe(true)
+      if (!result.ok) { return }
+      expect(order(result.files['c.yaml'])).toEqual(['a', 'd', 'b', 'c'])
+    })
+
+    it('to the very end', () => {
+      const result = move(1, 'b', 4)
+      expect(result.ok).toBe(true)
+      if (!result.ok) { return }
+      expect(order(result.files['c.yaml'])).toEqual(['a', 'c', 'd', 'b'])
+    })
+
+    it('onto its own gap is a no-op in effect, not an error', () => {
+      const result = move(0, 'a', 0)
+      expect(result.ok).toBe(true)
+      if (!result.ok) { return }
+      expect(order(result.files['c.yaml'])).toEqual(['a', 'b', 'c', 'd'])
+    })
   })
 })
