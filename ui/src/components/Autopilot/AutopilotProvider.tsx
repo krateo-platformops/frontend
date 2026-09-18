@@ -275,6 +275,23 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // suspended in a blast-radius confirm or a destination form. Any "how was the last turn
   // asked" value read after that await belongs to the OTHER turn — which would read a typed
   // answer aloud, the one thing the single-trigger rule forbids, and swallow the spoken one.
+  /**
+   * Mirror the in-flight evidence onto the streaming message so the rail can SHOW what is
+   * happening while the answer is still being written.
+   *
+   * It lived only in `evidenceRef` until now, and a ref does not re-render — which is exactly why
+   * the rail could show nothing during a turn and everything after it. The ref stays the authority
+   * (finalize reads it, and it survives a re-render); this is a copy for rendering.
+   *
+   * Cost is one setMessages per tool frame, which is a handful per turn — not per token.
+   */
+  const publishEvidence = useCallback((assistantId: string) => {
+    const evidence = evidenceRef.current.get(assistantId) ?? []
+    setMessages((prev) => prev.map((message) => (
+      message.id === assistantId ? { ...message, evidence } : message
+    )))
+  }, [setMessages])
+
   const finalize = useCallback(async (assistantId: string, modality: TurnModality) => {
     // A turn can receive `done` more than once (the `completed` status event AND the
     // transport's stream-close fallback). finalize() deletes the per-turn text buffer, so a
@@ -542,10 +559,12 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
           proposalsRef.current.set(assistantId, [...(proposalsRef.current.get(assistantId) ?? []), frame.args as PortalActionProposal])
         } else {
           evidenceRef.current.set(assistantId, recordToolFrame(evidenceRef.current.get(assistantId) ?? [], frame))
+          publishEvidence(assistantId)
         }
         break
       case 'tool_result':
         evidenceRef.current.set(assistantId, recordToolFrame(evidenceRef.current.get(assistantId) ?? [], frame))
+        publishEvidence(assistantId)
         break
       case 'error':
         assistantTextRef.current.delete(assistantId)
@@ -574,7 +593,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       default:
         break
     }
-  }, [finalize, setMessages])
+  }, [finalize, publishEvidence, setMessages])
 
   // Send a HITL decision over A2A (the `{decision_type}` DataPart on the paused task —
   // see approval.ts) and stream the agent's continuation into a NEW assistant bubble,

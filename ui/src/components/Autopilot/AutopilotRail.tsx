@@ -29,6 +29,7 @@ import { autopilotComposerDraftStore } from './composerDraftStore'
 import { describeArgs, deriveSessionsBase, fetchDelegationEvidence, NO_DELEGATION_SESSION, serializeEvidence, summarizeEvidence } from './evidence'
 import { useRailFocusTrap } from './focusTrap'
 import { CheckIcon, CollapseIcon, CopyIcon, EvidenceIcon, ExpandIcon, EyeIcon, HistoryIcon, LinkIcon, PlusIcon, SendIcon, ShrinkIcon, SparkIcon, StopIcon } from './icons'
+import { LiveActivity } from './liveActivity'
 import { looksLikeOpenApiDocument } from './oasAttachment'
 import { relativeTime, type ThreadSummary } from './sessionHistoryStore'
 import { a2aAuthHeader } from './transport'
@@ -191,6 +192,7 @@ const MessageBubble = ({ message }: { message: AutopilotMessage }) => {
           {action.readOnly ? <span className={styles.apActRo}>read-only</span> : null}
         </div>
       ))}
+      {message.streaming ? <LiveActivity evidence={message.evidence ?? []} /> : null}
       {message.evidence && !message.streaming ? <EvidencePanel evidence={message.evidence} /> : null}
     </div>
   )
