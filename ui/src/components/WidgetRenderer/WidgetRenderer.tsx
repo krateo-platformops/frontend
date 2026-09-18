@@ -25,7 +25,6 @@ type WidgetRendererProps = {
   }
 }
 
-
 const parseWidget = (
   widget: Widget,
   fetchNextPage: () => Promise<unknown> | void,
