@@ -72,6 +72,15 @@ export interface EvidenceEntry {
   request?: string
   note?: string
   failed?: boolean
+  /**
+   * The result frame arrived. Absent means the call is STILL IN FLIGHT — which is the whole
+   * distinction the live activity view is built on, and one `failed` cannot carry: a call that has
+   * not come back and a call that came back fine are both `failed: undefined`.
+   *
+   * Optional because a message restored from history predates it; such an entry reads as
+   * unfinished, which is harmless in a transcript nothing is streaming.
+   */
+  done?: boolean
 }
 
 export interface EvidenceSource {

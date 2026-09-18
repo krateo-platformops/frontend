@@ -1182,3 +1182,46 @@
     transition: none;
   }
 }
+
+/* --- Live activity: what the agent is doing while the answer is still being written ---------- */
+.apLiveAct {
+  border-left: 2px solid var(--krateo-color-agent-signal-fill, var(--primary-color));
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxs);
+  margin-top: var(--spacing-xsm);
+  padding-left: var(--spacing-sm);
+}
+
+.apLiveActRow {
+  align-items: center;
+  display: flex;
+  font-size: 12px;
+  gap: var(--spacing-xxs);
+}
+
+/* The state is carried by the mark, not by colouring the text: a row that has finished should
+   recede, not compete with the one still running. */
+.apLiveActMark {
+  border-radius: 50%;
+  flex: 0 0 auto;
+  height: 6px;
+  width: 6px;
+}
+
+.apLiveActRow[data-state='running'] .apLiveActMark {
+  animation: apBlink 1s steps(2, start) infinite;
+  background: var(--krateo-color-agent-signal-fill, var(--primary-color));
+}
+
+.apLiveActRow[data-state='done'] .apLiveActMark {
+  background: var(--border-color);
+}
+
+.apLiveActRow[data-state='failed'] .apLiveActMark {
+  background: var(--error-color, #d4380d);
+}
+
+.apLiveActRow[data-state='done'] {
+  opacity: 0.65;
+}

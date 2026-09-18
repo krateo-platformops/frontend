@@ -169,6 +169,7 @@ export const mergeToolResult = (entries: EvidenceEntry[], part: ToolPart): Evide
     : undefined
   const merged: EvidenceEntry = {
     ...entry,
+    done: true,
     ...(failed ? { failed: true } : {}),
     ...(provenance.note ? { note: provenance.note } : {}),
     ...(part.sessionId ? { sessionId: part.sessionId } : {}),
