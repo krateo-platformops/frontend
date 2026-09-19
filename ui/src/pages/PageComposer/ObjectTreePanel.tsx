@@ -12,7 +12,7 @@
  * lets a person rewrite any file's YAML — a structure kept alongside would be stale the moment they
  * did, in a way nothing would report.
  */
-import { ApiOutlined, ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, GroupOutlined, ImportOutlined, PlusOutlined } from '@ant-design/icons'
+import { ApiOutlined, ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, DragOutlined, GroupOutlined, ImportOutlined, PlusOutlined } from '@ant-design/icons'
 import { App, Badge, Button, Dropdown, Empty, Space, Tag, Tooltip, Tree, Typography } from 'antd'
 import type { DataNode } from 'antd/es/tree'
 import { useMemo, useState } from 'react'
@@ -22,11 +22,13 @@ import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
 
 import BindDataModal from './BindDataModal'
 import type { BindingResult } from './generateBinding'
+import MoveIntoModal from './MoveIntoModal'
 import { buildObjectTree, draftNamespace, flattenTree } from './objectTree'
 import type { TreeNode } from './objectTree'
 import styles from './PageComposer.module.css'
 import type { PlaceableWidget } from './placeableWidgets'
 import PlaceWidgetModal from './PlaceWidgetModal'
+import { planMove } from './planMove'
 import { containerPath, LAYOUT_KINDS, moveChild, newContainerYaml, placeChild, removeChild, wrapChild } from './structureEdit'
 import type { LayoutKind } from './structureEdit'
 
@@ -51,8 +53,9 @@ const toDataNode = (
   bindInto: (node: TreeNode) => void,
   wrapIn: (node: TreeNode, kind: LayoutKind) => void,
   placeInto: (node: TreeNode) => void,
+  moveInto: (node: TreeNode) => void,
 ): DataNode => ({
-  children: node.children.map((child, index) => toDataNode(child, `${key}-${index}`, mutate, addLayout, bindInto, wrapIn, placeInto)),
+  children: node.children.map((child, index) => toDataNode(child, `${key}-${index}`, mutate, addLayout, bindInto, wrapIn, placeInto, moveInto)),
   key,
   title: (
     <span className={styles.node}>
@@ -123,6 +126,10 @@ const toDataNode = (
               </Tooltip>
             </Dropdown>
             <Tooltip title='Move earlier'>
+              {/* Reparenting from the KEYBOARD. The canvas can drag a node into another container;
+                  without this the tree could only reorder within the parent it already had, so the
+                  one edit that changes a page's shape was pointer-only. */}
+              <Button aria-label={`Move ${node.name} into another container`} icon={<DragOutlined />} onClick={(event) => { event.stopPropagation(); moveInto(node) }} size='small' type='text' />
               <Button aria-label={`Move ${node.name} up`} icon={<ArrowUpOutlined />} onClick={(event) => { event.stopPropagation(); mutate(node, 'up') }} size='small' type='text' />
             </Tooltip>
             <Tooltip title='Move later'>
@@ -151,6 +158,7 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
   const [bindTarget, setBindTarget] = useState<TreeNode | null>(null)
   // Which container a placed EXISTING widget lands in. Null closes the modal.
   const [placeTarget, setPlaceTarget] = useState<TreeNode | null>(null)
+  const [moveSubject, setMoveSubject] = useState<TreeNode | null>(null)
   const tree = useMemo(() => buildObjectTree(files), [files])
   const flat = useMemo(() => flattenTree(tree), [tree])
   // Where anything new is created. Read from the draft's own objects because the widget CRDs
@@ -276,7 +284,7 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
   }
 
   const nodes = useMemo(
-    () => tree.map((node, index) => toDataNode(node, `${index}`, mutate, addLayout, setBindTarget, wrapIn, setPlaceTarget)),
+    () => tree.map((node, index) => toDataNode(node, `${index}`, mutate, addLayout, setBindTarget, wrapIn, setPlaceTarget, setMoveSubject)),
     // `mutate` closes over `files` and is recreated each render; depending on it would defeat the
     // memo entirely. `tree` already changes whenever `files` does, which is the only time the
     // rendered nodes need rebuilding.
@@ -374,8 +382,36 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
     setPlaceTarget(null)
   }
 
+  /**
+   * A reparent chosen from the tree, applied through the SAME planner a drag uses.
+   *
+   * `tree` is passed as the roots so the node identities match the ones `legalTargets` compared
+   * when it offered the choice — rebuilding here would make every move illegal for a reason no
+   * message could explain.
+   */
+  const acceptMove = (moving: TreeNode, target: TreeNode) => {
+    const plan = planMove(files, tree, moving, target)
+    setMoveSubject(null)
+    if (!plan.ok) {
+      message.warning(plan.reason)
+      return
+    }
+    Object.entries(plan.files).forEach(([path, content]) => emitFileEdit({ content, path }))
+  }
+
   return (
     <div className={styles.tree}>
+      {moveSubject
+        ? (
+          <MoveIntoModal
+            moving={moveSubject}
+            onCancel={() => setMoveSubject(null)}
+            onMove={(target) => acceptMove(moveSubject, target)}
+            open
+            roots={tree}
+          />
+        )
+        : null}
       {placeTarget
         ? (
           <PlaceWidgetModal
