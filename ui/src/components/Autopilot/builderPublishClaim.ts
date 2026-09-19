@@ -49,7 +49,8 @@ export interface BuilderPublishClaim {
     name: string
     builder: BuilderKind
     branch: string
-    target: { namespace: string; repo: string; base: string }
+    /** `visibility` is OPTIONAL and its ABSENCE is meaningful — see buildBuilderPublishClaim. */
+    target: { namespace: string; repo: string; base: string; visibility?: 'public' | 'private' }
     files: BuilderPublishFile[]
     /**
      * OPTIONAL template repo the destination is seeded from BEFORE the held files are committed —

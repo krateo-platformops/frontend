@@ -119,7 +119,10 @@ describe('buildBuilderPublishClaim', () => {
 
   it('carries the publisher\u2019s repo visibility into spec.target', () => {
     const claim = buildBuilderPublishClaim({
-      apiVersion: API_VERSION, builder: 'page', files: [{ content: 'x', path: 'a.yaml' }], slug: 'p',
+      apiVersion: API_VERSION,
+      builder: 'page',
+      files: [{ content: 'x', path: 'a.yaml' }],
+      slug: 'p',
       target: { ...target, visibility: 'private' },
     })
     expect(claim.spec.target.visibility).toBe('private')

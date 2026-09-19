@@ -221,11 +221,11 @@ export const PublishTargetFormHost = () => {
             name='visibility'
           >
             <Radio.Group
+              optionType='button'
               options={[
                 { label: 'Public — anyone can install it', value: 'public' },
                 { label: 'Private — internal only', value: 'private' },
               ]}
-              optionType='button'
             />
           </Form.Item>
         </Form>
