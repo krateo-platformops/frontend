@@ -11,7 +11,7 @@
  * non-UI callers) the request resolves to its prefills, keeping those flows
  * non-interactive and byte-identical to the pre-form behavior.
  */
-import { Form, Input, Modal, Typography } from 'antd'
+import { Form, Input, Modal, Radio, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 
 import { ABOVE_PREVIEW_DRAWER_Z_INDEX } from '../../hooks/confirmModalProps'
@@ -23,6 +23,19 @@ export interface PublishTarget {
   owner: string
   repo: string
   base: string
+  /**
+   * Visibility of the destination repository IF THIS PUBLISH CREATES IT.
+   *
+   * Asked here rather than fixed at install because it is a per-publish decision: most blueprints
+   * exist to be installed by someone else, and some destinations are deliberately internal. The
+   * install-level default (`repository.private` in builder-publish) remains what a claim that says
+   * nothing gets, so a headless caller is unaffected.
+   *
+   * OPTIONAL, and the absence is meaningful rather than lazy: it is how a non-UI caller says "use
+   * the install default", which the chart distinguishes from an explicit `public`. The form always
+   * sets it, so an interactive publish is never ambiguous.
+   */
+  visibility?: 'public' | 'private'
 }
 
 export interface PublishTargetRequest extends PublishTarget {
@@ -106,7 +119,7 @@ let lastConfirmed: Partial<Record<PublishTargetRequest['kind'], Pick<PublishTarg
  * denied). With no mounted host, resolves the prefills immediately (headless-safe). */
 export const requestPublishTarget = async (req: PublishTargetRequest): Promise<PublishTarget | null> => {
   if (!activeHandler) {
-    return { base: req.base, owner: req.owner, repo: req.repo }
+    return { base: req.base, owner: req.owner, repo: req.repo, visibility: req.visibility }
   }
 
   return activeHandler(req)
@@ -137,6 +150,10 @@ export const askPublishDestination = (
   owner: typeof proposal.owner === 'string' && proposal.owner ? proposal.owner : defaultOwner,
   repo: artifact?.slug || (typeof proposal.repo === 'string' && proposal.repo ? proposal.repo : defaultRepo),
   ...(artifact?.slug && artifact.seeded ? { requiredRepo: artifact.slug } : {}),
+  // NO visibility here, deliberately. Headless (no mounted host) this resolves straight to the
+  // prefills, and a visibility set here would ride into the claim and OVERRIDE the operator's
+  // install-level `repository.private`. A non-UI publish should honour that choice, not silently
+  // replace it. The PUBLIC default belongs to the form below, where a person sees and confirms it.
 })
 
 /**
@@ -175,7 +192,22 @@ export const PublishTargetFormHost = () => {
     if (pending) {
       // The repository is ALWAYS the request's: never the last one confirmed (see lastConfirmed).
       const remembered = lastConfirmed[pending.req.kind]
-      form.setFieldsValue({ base: remembered?.base ?? pending.req.base, owner: remembered?.owner ?? pending.req.owner, repo: pending.req.repo })
+      form.setFieldsValue({
+        base: remembered?.base ?? pending.req.base,
+        owner: remembered?.owner ?? pending.req.owner,
+        repo: pending.req.repo,
+        // PUBLIC unless the person says otherwise — and not because public is the safer default in
+        // general, but because it is the one that does not fail SILENTLY. A GHCR package inherits
+        // the visibility of the repository that published it and no API can change it afterwards,
+        // so a private destination publishes a chart that installs for nobody outside the org: the
+        // publish reports success and the artifact 401s at install. The failing option has to be
+        // the one someone opts into rather than the one they get by not looking.
+        //
+        // NOT remembered between publishes, and that is a consequence of `lastConfirmed` keeping
+        // only base and owner (see `close`). Each publish re-asks. A remembered `private` would
+        // otherwise apply silently to a later destination the person never considered.
+        visibility: pending.req.visibility ?? 'public',
+      })
     }
   }, [pending, form])
 
@@ -264,6 +296,23 @@ export const PublishTargetFormHost = () => {
           </Form.Item>
           <Form.Item label='Base branch (the change-request target)' name='base' rules={[{ message: 'the base branch is required', required: true }]}>
             <Input placeholder='main' />
+          </Form.Item>
+          {/* Only meaningful when the repository does not exist yet — an existing one keeps its
+              visibility, because a create call cannot change one. Said in the help text rather
+              than by disabling the control: whether the repo exists is not known here, and a
+              disabled control with no explanation is worse than an honest caveat. */}
+          <Form.Item
+            extra='Only applies if the repository is created now. A private one publishes a chart nobody outside the org can install — a package inherits its repository&rsquo;s visibility and cannot be changed afterwards.'
+            label='Repository visibility'
+            name='visibility'
+          >
+            <Radio.Group
+              options={[
+                { label: 'Public — anyone can install it', value: 'public' },
+                { label: 'Private — internal only', value: 'private' },
+              ]}
+              optionType='button'
+            />
           </Form.Item>
         </Form>
       </div>
