@@ -27,14 +27,28 @@
   margin-block-end: 0;
 }
 
-/* Surface on the left, the draft's structure on the right. The tree is the narrow column: it is a
-   map, not the work.
+/* THE BUILDER ROW: pick · place · operate. The result sits BELOW it, at .result.
 
-   NO MEDIA QUERY, deliberately. `flex-wrap` collapses the two columns when there is no room for
-   them, which is the same outcome a breakpoint would give without inventing a sixth breakpoint
-   value — the thing design/lint T6 exists to prevent. It also reacts to the actual available
-   width rather than the viewport, so it behaves correctly with the Autopilot rail open. */
-.split {
+   WHAT WAS WRONG BEFORE. Two tab bars faced each other — the preview surface carried
+   Rendered|Files|Source on the left, a rail carried Structure|Canvas on the right — so the page
+   offered two view-pickers that named different axes, and nothing said which one held what. Worse,
+   the CANVAS was in the 320px rail while the read-mostly preview held the 520px column: the thing
+   you manipulate had the least room, and the palette was folded into a wrapping strip above it to
+   fit at all.
+
+   WHY ALL THREE ARE MOUNTED AT ONCE and none is a tab. The palette must share a screen with the
+   canvas because a drag cannot cross a tab boundary. The tree must share it because it is not a
+   VIEW of the canvas but the keyboard-operable route to the same edits — move, wrap, add inside,
+   remove, bind — so putting it behind a tab would take those controls away from anyone not using a
+   pointer. What IS a set of views, the render and the files and the source, is below and keeps the
+   page's only tab bar.
+
+   NO MEDIA QUERY, deliberately. `flex-wrap` collapses the columns when there is no room, which is
+   what a breakpoint would give without inventing a sixth breakpoint value (design/lint T6). It also
+   reacts to the available width rather than the viewport, so it behaves with the Autopilot rail
+   open. The bases are ordered palette < structure < canvas, so the palette is the last thing
+   squeezed and the canvas the first thing grown. */
+.build {
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-md);
@@ -42,25 +56,43 @@
   min-height: 0;
 }
 
-/* Grows to fill, wraps the tree below it when the remainder drops under its basis. min-width:0 so a
-   wide code block inside the surface scrolls in its own container instead of pushing the layout. */
-.surface {
-  flex: 1 1 520px;
-  min-width: 0;
-}
-
-/* The right rail: a bare flex item that holds the Canvas/Structure tabs. Deliberately WITHOUT the
-   .tree box — ObjectTreePanel draws its own, and nesting the two produced a double border. The
-   canvas pane gets .canvasPane instead, so both panes look like one panel. */
-.rail {
-  flex: 1 1 320px;
-  min-width: 0;
-}
-
-.canvasPane {
+/* Narrow and non-greedy: it is a source of things, not a place to work. */
+.palette {
+  flex: 0 1 200px;
+  min-width: 170px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xsm);
   border: 1px solid var(--border-color, rgb(0 0 0 / 10%));
   border-radius: var(--border-radius, 8px);
   padding: var(--spacing-sm);
+}
+
+/* Grows first and hardest. min-width:0 so a deeply nested page scrolls inside its own frame
+   instead of pushing the other two columns off the row. */
+.canvas {
+  flex: 3 1 420px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xsm);
+  border: 1px solid var(--border-color, rgb(0 0 0 / 10%));
+  border-radius: var(--border-radius, 8px);
+  padding: var(--spacing-sm);
+}
+
+/* The tree — the keyboard-operable route to the same edits the canvas performs by pointer, so it
+   is a TOOL in this row, not a view of it. Bare rather than boxed: ObjectTreePanel draws its own
+   border and heading, and nesting the two produced a double rule. */
+.structure {
+  flex: 2 1 300px;
+  min-width: 0;
+}
+
+/* The result, under the builder and across its full width: a rendered page wants the width, and
+   "what I am building" above "what it looks like" is the order the work is actually done in. */
+.result {
+  min-width: 0;
 }
 
 .tree {

@@ -25,7 +25,7 @@
  * start one. Publishing is unchanged and still ends at a form a person submits — the agent's
  * never-submit guarantee is not weakened by any of this.
  */
-import { Alert, Button, Empty, Popconfirm, Space, Tabs, Typography } from 'antd'
+import { Alert, Button, Empty, Popconfirm, Space, Typography } from 'antd'
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 
 import { onComposeRequest } from '../../components/Autopilot/composeRequest'
@@ -321,49 +321,55 @@ const PageComposer = () => {
 
       {payload
         ? (
-          // Two columns: the surface (live render + files + verdicts) beside the tree that says
-          // what the draft actually CONTAINS. The tree is derived from payload.files on every
-          // render — see objectTree.ts for why it is never stored.
-          <div className={styles.split}>
-            <div className={styles.surface}>
+          /*
+           * BUILD ABOVE, RESULT BELOW — and exactly one tab bar on the page.
+           *
+           * WHAT THIS REPLACES. The composer used to face two tab bars at each other: the preview
+           * surface carried Rendered|Files|Source on the left, a rail carried Structure|Canvas on
+           * the right. Neither named the same axis, nothing said which bar a given view lived in,
+           * and the CANVAS — the thing you manipulate — was in the 320px rail while the read-mostly
+           * preview held the wide column. The palette had to be folded into a wrapping strip above
+           * the canvas just to fit beside it.
+           *
+           * THE ORDER NOW FOLLOWS THE WORK. The top row is the builder and everything in it is a
+           * tool: pick something (palette), place it (canvas), operate on it (tree). All three are
+           * mounted at once, which is not a preference — a drag cannot cross a tab boundary, so the
+           * palette and the canvas MUST share a screen; and the tree is not a view of the canvas
+           * but the keyboard-operable route to the same edits (move, wrap, add inside, remove,
+           * bind), so hiding it behind a tab would take those controls away from anyone not using a
+           * pointer. Below sits the one thing that is genuinely a set of VIEWS of the result, and
+           * it keeps its own tab bar — now the only one.
+           */
+          <>
+            <div className={styles.build}>
+              <section className={styles.palette}>
+                <Typography.Text strong>Add</Typography.Text>
+                {/* A column, not a strip: the palette has a column of its own now, so it no longer
+                    has to reflow its height to share one with the canvas. */}
+                <PalettePanel
+                  namespace={draftNamespace(files)}
+                  onPick={setPick}
+                  snowplowBaseUrl={snowplowBaseUrl}
+                />
+              </section>
+
+              <section className={styles.canvas}>
+                <Typography.Text strong>Layout</Typography.Text>
+                <CanvasPanel files={files} onAdd={applyAdd} onMove={applyMove} onSelect={setFocusPath} pick={pick} />
+              </section>
+
+              {/* Draws its own box and heading — see .structure for why it is not wrapped in one. */}
+              <div className={styles.structure}>
+                <ObjectTreePanel files={files} onSelect={setFocusPath} snowplowBaseUrl={snowplowBaseUrl} />
+              </div>
+            </div>
+
+            {/* Full width, because the live render is a page and a page wants the width. Selecting
+                a node above still reveals its bytes in Files here — same `focusPath` as before. */}
+            <div className={styles.result}>
               <PreviewContent editVerdicts={editVerdicts} focusPath={focusPath} onVerdicts={setEditVerdicts} payload={payload} />
             </div>
-            <div className={styles.rail}>
-              <Tabs
-                items={[
-                  // STRUCTURE FIRST, and it stays the default on purpose. The tree is the proven
-                  // surface and the keyboard-operable one; the canvas is new and pointer-only, so
-                  // it is offered rather than imposed. When it earns the default — an insertion
-                  // index and a palette are what it is missing — that is a deliberate change, not
-                  // a side effect of mounting it.
-                  {
-                    children: <ObjectTreePanel files={files} onSelect={setFocusPath} snowplowBaseUrl={snowplowBaseUrl} />,
-                    key: 'structure',
-                    label: 'Structure',
-                  },
-                  {
-                    children: (
-                      <div className={styles.canvasPane}>
-                        {/* ABOVE the canvas, not in a tab of its own: you cannot drag from one tab
-                            onto another, so the palette and its target have to be on screen at the
-                            same time. */}
-                        <PalettePanel
-                          namespace={draftNamespace(files)}
-                          onPick={setPick}
-                          snowplowBaseUrl={snowplowBaseUrl}
-                          wrap
-                        />
-                        <div style={{ borderTop: '1px solid var(--border-color, rgba(0,0,0,0.1))', margin: '10px 0' }} />
-                        <CanvasPanel files={files} onAdd={applyAdd} onMove={applyMove} onSelect={setFocusPath} pick={pick} />
-                      </div>
-                    ),
-                    key: 'canvas',
-                    label: 'Canvas',
-                  },
-                ]}
-              />
-            </div>
-          </div>
+          </>
         )
         : (
           // An honest empty state rather than a fake canvas: nothing is being authored yet, and

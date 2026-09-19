@@ -253,7 +253,10 @@ describe('PageComposer — adding a layout container', () => {
     emit({ files: [{ content: widgetCr('Flex', 'page-x'), path: 'templates/flex.page-x.yaml' }], title: 'x' })
 
     act(() => { screen.getByLabelText('Add inside page-x').click() })
-    act(() => { screen.getByText('Row').click() })
+    // Scoped to the open menu: the palette column offers a 'Row' of its own now, and an unscoped
+    // text query matches both. Which one is clicked is the whole difference between this test and
+    // the palette-drop test, so the scope is the assertion, not tidiness.
+    act(() => { within(document.querySelector('.ant-dropdown') as HTMLElement).getByText('Row').click() })
     bus.stop()
 
     // The add MUST precede the edit: the parent's new reference resolves to a file that has to

@@ -68,28 +68,24 @@ const Item = ({ label, onPick, pick, sub }: {
   )
 }
 
-const Section = ({ children, title, wrap }: { children: React.ReactNode; title: string; wrap?: boolean }) => (
+/* A COLUMN, always. The palette used to offer a wrapping-row mode, which existed for one reason:
+   it had to share a 320px rail with the canvas, and a column would have pushed the canvas off the
+   panel. The builder now gives the palette a column of its own, so the strip has nothing left to
+   solve — and a list that reflows its height as you filter it was never the better read. */
+const Section = ({ children, title }: { children: React.ReactNode; title: string }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
     <Text strong style={{ fontSize: 11, letterSpacing: 0.4, textTransform: 'uppercase' }} type='secondary'>{title}</Text>
-    <div style={{ display: 'flex', flexDirection: wrap ? 'row' : 'column', flexWrap: wrap ? 'wrap' : 'nowrap', gap: 6 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {children}
     </div>
   </div>
 )
 
-export const PalettePanel = ({ namespace, onPick, snowplowBaseUrl, wrap }: {
+export const PalettePanel = ({ namespace, onPick, snowplowBaseUrl }: {
   /** The draft's namespace — existing widgets are listed from it. */
   namespace: string | null
   onPick?: (pick: PalettePick) => void
   snowplowBaseUrl?: string
-  /**
-   * Lay the items out as a wrapping ROW rather than a column.
-   *
-   * Not decoration: the palette has to be visible AT THE SAME TIME as the canvas, because you
-   * cannot drag from one tab onto another. A wrapping strip above the frames is what makes them
-   * co-exist in a 320px rail; a column would push the canvas off the panel.
-   */
-  wrap?: boolean
 }) => {
   const [existing, setExisting] = useState<PlaceableWidget[] | null>(null)
   // A string, not a boolean: the reason is the content when the list cannot be had. An empty picker
@@ -117,7 +113,7 @@ export const PalettePanel = ({ namespace, onPick, snowplowBaseUrl, wrap }: {
 
   return (
     <div data-testid='palette-panel' style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <Section title='Containers' wrap={wrap}>
+      <Section title='Containers'>
         {(Object.keys(LAYOUT_KINDS) as (keyof typeof LAYOUT_KINDS)[]).map((layout) => (
           <Item
             key={layout}
@@ -128,7 +124,7 @@ export const PalettePanel = ({ namespace, onPick, snowplowBaseUrl, wrap }: {
         ))}
       </Section>
 
-      <Section title='Existing widgets' wrap={wrap}>
+      <Section title='Existing widgets'>
         {error ? <Alert message={error} showIcon type='warning' /> : null}
         {!error && existing === null ? <Spin size='small' /> : null}
         {!error && existing?.length === 0

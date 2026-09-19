@@ -29,24 +29,27 @@ const nested = () => [
   { content: widgetCr('Row', 'row-a', ['card-b']), path: 'templates/row.row-a.yaml' },
 ]
 
-const openCanvas = () => {
-  fireEvent.click(screen.getByRole('tab', { name: 'Canvas' }))
-}
-
 describe('PageComposer — the canvas is wired to the draft', () => {
-  it('is offered, but the STRUCTURE tree is still what opens', () => {
-    // Mounting a new surface must not silently replace the proven one. The canvas is a tab away.
+  it('PALETTE, CANVAS AND TREE ARE ALL MOUNTED AT ONCE — none of them is behind a tab', () => {
+    // This replaces an assertion that the canvas sat behind a 'Canvas' tab, opposite a second tab
+    // bar. That arrangement was the layout defect. Two reasons none of these three may be a tab:
+    // a drag cannot cross a tab boundary, so the palette must share a screen with what it feeds;
+    // and the tree is not a view of the canvas but the KEYBOARD route to the same edits, so hiding
+    // it would take move/wrap/add/remove away from anyone not using a pointer.
     mountWithConfig()
     emit({ files: nested(), title: 'x' })
-    expect(screen.getByRole('tab', { name: 'Canvas' })).toBeTruthy()
-    expect(screen.queryByTestId('canvas-panel')).toBeNull()
+    expect(screen.getByTestId('canvas-panel')).toBeTruthy()
+    expect(screen.getByTestId('palette-item-Row')).toBeTruthy()
+    expect(screen.getByLabelText('Add inside page-x')).toBeTruthy()
+    expect(screen.queryByRole('tab', { name: 'Canvas' })).toBeNull()
+    // Exactly one tab bar remains on the page — the preview's views of the result.
+    expect(document.querySelectorAll('.ant-tabs-nav')).toHaveLength(1)
   })
 
   it('A DROP REACHES THE DRAFT — both parents are rewritten on the file-edit bus', () => {
     const bus = capture()
     mountWithConfig()
     emit({ files: nested(), title: 'x' })
-    openCanvas()
 
     fireEvent.dragStart(screen.getByTestId('canvas-frame-card-b'))
     fireEvent.drop(screen.getByTestId('canvas-well-page-x'))
@@ -94,7 +97,6 @@ describe('PageComposer — the canvas is wired to the draft', () => {
       ],
       title: 'x',
     })
-    openCanvas()
 
     // row-a accepts anything (it declares []), so dragging the card there is legal and would write.
     // The page is the one that refuses. Drag onto the page's own well.
@@ -131,7 +133,6 @@ describe('PageComposer — a drop lands where it was aimed', () => {
     const bus = capture()
     mountWithConfig()
     emit({ files: two(), title: 'x' })
-    fireEvent.click(screen.getByRole('tab', { name: 'Canvas' }))
 
     fireEvent.dragStart(screen.getByTestId('canvas-frame-card-b'))
     fireEvent.drop(screen.getByTestId('canvas-gap-page-x-0'))
@@ -155,7 +156,6 @@ describe('PageComposer — adding from the palette', () => {
     const bus = capture()
     mountWithConfig()
     emit({ files: nested(), title: 'x' })
-    fireEvent.click(screen.getByRole('tab', { name: 'Canvas' }))
 
     fireEvent.dragStart(screen.getByTestId('palette-item-Row'))
     fireEvent.drop(screen.getByTestId('canvas-well-page-x'))
