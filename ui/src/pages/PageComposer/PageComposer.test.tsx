@@ -82,6 +82,27 @@ describe('PageComposer — the preview surface, outside the rail', () => {
 })
 
 describe('PageComposer — a person starts the draft', () => {
+  it('states the publish guarantee ONCE, not in two paragraphs that say the same thing', () => {
+    // It used to read "...you review every file before it is published" in the description and
+    // "...nothing is published until you submit the change request yourself" in a second paragraph
+    // under the button — the same promise, restated, in an empty state whose whole job is to be
+    // short. Design rule P16: say what to do next, do not fill space.
+    mount()
+    const published = screen.getAllByText(/before anything is published|until you submit/i)
+    expect(published).toHaveLength(1)
+  })
+
+  it('routes the empty state through the SHARED empty treatment (C14), not a hand-rolled one', () => {
+    // The page hand-rolled its own <Empty> because the shared component had no action slot and
+    // this state needs a "Start a page" button. The slot was added instead, so a future change to
+    // the empty treatment reaches this page too — which is the whole point of the rule.
+    mount()
+    const empty = document.querySelector('.ant-empty')
+    expect(empty).toBeTruthy()
+    // The CTA lives INSIDE the empty state, not stranded beside it.
+    expect(empty?.querySelector('button')?.textContent).toContain('Start a page')
+  })
+
   it('offers Start a page rather than only waiting for the agent', () => {
     mount()
 
