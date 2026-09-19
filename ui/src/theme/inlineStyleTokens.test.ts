@@ -12,7 +12,11 @@
  *   - `Markdown.tsx` — a 12% grey that renders the same fill in both modes: theme-neutral by
  *     accident rather than by design.
  *   - `PageComposer` — colours behind `var(--krateo-canvas-*, …)` fallbacks naming tokens nothing
- *     emits, which is a literal that reads as a token. Fixed separately.
+ *     emits, which is a literal that reads as a token.
+ *
+ * NO EXCLUSIONS. This walked every directory but `PageComposer` when it was written, because that
+ * one's colours were still being fixed on another branch; carrying the carve-out any further would
+ * have left the guard blind to the directory the whole audit started in.
  *
  * A literal announces itself; the other two forms do not. This test sees all three.
  */
@@ -39,8 +43,6 @@ const walk = (dir: string): string[] =>
 describe('T1 — colour comes from a token, never a literal (inline styles)', () => {
   it('no .tsx writes a colour literal inside style={{ … }}', () => {
     const offenders = walk(ROOT).flatMap((path) => {
-      // PageComposer is fixed on its own branch; this exclusion goes with that merge.
-      if (path.includes('PageComposer')) { return [] }
       const text = code(readFileSync(path, 'utf8'))
       return [...text.matchAll(INLINE_STYLE)]
         .flatMap((match) => match[1].match(COLOUR) ?? [])
