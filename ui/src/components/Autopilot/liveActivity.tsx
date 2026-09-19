@@ -44,18 +44,33 @@ export const LiveActivity = ({ evidence }: { evidence: EvidenceEntry[] }) => {
   // The last few, not all of them: during a long turn this grows without bound and the useful
   // answer is always "what is it doing NOW".
   const recent = evidence.slice(-4)
-  if (!recent.length) {
-    return null
-  }
   return (
     <div aria-live='polite' className={styles.apLiveAct} data-testid='autopilot-live-activity'>
-      {recent.map((entry) => (
-        <div className={styles.apLiveActRow} data-state={activityState(entry)} key={entry.id}>
-          <span className={styles.apLiveActMark} />
-          <span className={styles.apEvTool}>{activityLabel(entry)}</span>
-          {entry.request ? <span className={styles.apEvMeta}>{entry.request}</span> : null}
-        </div>
-      ))}
+      {/*
+        THE EMPTY CASE IS THE ONE THAT MATTERS, and an earlier version of this component got it
+        wrong by rendering null. The longest wait in a turn is BEFORE the first tool call — the
+        model is reading the page context and deciding what to do — and that was exactly when the
+        strip showed nothing, leaving a blinking caret as the only sign the thing was alive. The
+        reported symptom ("still the yellow blinking, waiting for a response") was this gap, not a
+        missing deploy.
+
+        It says "working" rather than naming a step, because at this point there is genuinely no
+        step to name; inventing one would be worse than admitting the wait.
+      */}
+      {recent.length === 0
+        ? (
+          <div className={styles.apLiveActRow} data-state='running'>
+            <span className={styles.apLiveActMark} />
+            <span className={styles.apEvTool}>working…</span>
+          </div>
+        )
+        : recent.map((entry) => (
+          <div className={styles.apLiveActRow} data-state={activityState(entry)} key={entry.id}>
+            <span className={styles.apLiveActMark} />
+            <span className={styles.apEvTool}>{activityLabel(entry)}</span>
+            {entry.request ? <span className={styles.apEvMeta}>{entry.request}</span> : null}
+          </div>
+        ))}
     </div>
   )
 }
