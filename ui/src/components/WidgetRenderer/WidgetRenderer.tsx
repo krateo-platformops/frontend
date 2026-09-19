@@ -25,25 +25,6 @@ type WidgetRendererProps = {
   }
 }
 
-/**
- * Widget-`/call` RESOURCE plurals that render potentially-unbounded lists and so
- * default to BOUNDED server-side pagination (paginate + virtualize) instead of
- * snowplow's `-1/-1` full-set sentinel. Keyed by the `resource` query param the
- * endpoint carries (known before the fetch, unlike the widget `kind`). Value is
- * the per-page window size. `tables` covers the compositions Table — the 60K-row
- * `/compositions` wedge this map exists to prevent.
- */
-const PAGINATED_RESOURCE_PAGE_SIZE: Record<string, number> = {
-  tables: 50,
-}
-
-export const getDefaultPageSizeForEndpoint = (widgetEndpoint: string): number | undefined => {
-  const queryStart = widgetEndpoint.indexOf('?')
-  if (queryStart === -1) { return undefined }
-  const resource = new URLSearchParams(widgetEndpoint.slice(queryStart)).get('resource')
-  return resource ? PAGINATED_RESOURCE_PAGE_SIZE[resource] : undefined
-}
-
 const parseWidget = (
   widget: Widget,
   fetchNextPage: () => Promise<unknown> | void,
@@ -122,13 +103,13 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
     console.warn(`WidgetRenderer received widgetEndpoint=${widgetEndpoint}, which is probably invalid. An url is expected.`)
   }
 
-  // Bounded server-side pagination is opt-in by RESOURCE PLURAL (the `resource`
-  // param on the widget's `/call` endpoint), resolved BEFORE the fetch — the
-  // widget `kind` is only known after the response, but the plural is in the URL.
-  // Keeps `useWidgetQuery` generic; the opt-in set is one explicit, greppable map.
-  const defaultPageSize = getDefaultPageSizeForEndpoint(widgetEndpoint)
-
-  const { isFetchingResourcesRefs, queryResult, serverPagination, timedOut, widgetId } = useWidgetQuery(widgetEndpoint, { defaultPageSize })
+  // The WINDOW NOW COMES FROM THE CHART, not from here. A ref that wants a bounded page declares
+  // `resourcesRefs.items[].slice`, and snowplow emits it into the child's own /call URL — so the
+  // prewarm seed and the browser request derive their cache key from the same source. Minting the
+  // params client-side keyed every `tables` widget apart from its seed and missed L1 on every
+  // request (portal#235). `useWidgetQuery` still accepts `defaultPageSize` for a caller that has a
+  // window of its own; nothing in the SPA has one.
+  const { isFetchingResourcesRefs, queryResult, serverPagination, timedOut, widgetId } = useWidgetQuery(widgetEndpoint)
   const { data: widget, dataUpdatedAt, error, fetchNextPage, hasNextPage, isFetching, isFetchingNextPage, isLoading, isPending, isStale, refetch } = queryResult
 
   // Freshness signal fed to the FreshnessBadge overlaid on the rendered widget.

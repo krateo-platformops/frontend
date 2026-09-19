@@ -67,7 +67,8 @@ export type WidgetAction = RestAction | NavigateAction | OpenDrawerAction | Open
 
 /**
  * Classic server-side pager controls, produced by `useWidgetQuery` for widgets
- * that opt into bounded pagination (see `PAGINATED_RESOURCE_PAGE_SIZE`) and passed
+ * for which a bounded window is in play — declared by the chart as
+ * `resourcesRefs.items[].slice`, or supplied by a caller's `defaultPageSize` — and passed
  * down to the widget so its pager can jump pages WITHOUT accumulating the whole
  * dataset. `page` is 1-based; `setPage` re-keys the query to fetch that page only;
  * `pageSize` is the per-page window the request used. Undefined for non-paged widgets.
