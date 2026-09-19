@@ -117,6 +117,27 @@ describe('buildBuilderPublishClaim', () => {
     expect(JSON.stringify(claim)).not.toContain('secretRef')
   })
 
+  it('carries the publisher\u2019s repo visibility into spec.target', () => {
+    const claim = buildBuilderPublishClaim({
+      apiVersion: API_VERSION, builder: 'page', files: [{ content: 'x', path: 'a.yaml' }], slug: 'p',
+      target: { ...target, visibility: 'private' },
+    })
+    expect(claim.spec.target.visibility).toBe('private')
+  })
+
+  it('OMITS the key entirely when no visibility was chosen \u2014 absent is not the same as public', () => {
+    // The chart reads three states off this one field: "private", "public", and NOTHING (fall back
+    // to the install-level repository.private). A key present-and-undefined collapses the third
+    // into the second, silently overriding an operator who deliberately set private at install —
+    // and the BuilderPublish CRD is generated additionalProperties:false, so an undefined value is
+    // not merely redundant, it is a field the apiserver may reject.
+    const claim = buildBuilderPublishClaim({
+      apiVersion: API_VERSION, builder: 'page', files: [{ content: 'x', path: 'a.yaml' }], slug: 'p', target,
+    })
+    expect('visibility' in claim.spec.target).toBe(false)
+    expect(JSON.stringify(claim.spec.target)).not.toContain('visibility')
+  })
+
   it('derives the builder branch from the slug', () => {
     expect(builderBranch('my-dashboard')).toBe('builder/my-dashboard')
   })
