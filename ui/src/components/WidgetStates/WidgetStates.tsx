@@ -10,10 +10,22 @@ export const WidgetLoading = () => (
   </div>
 )
 
-/** Shared empty state for list/data widgets. */
-export const WidgetEmpty = ({ description }: { description?: ReactNode }) => (
+/**
+ * Shared empty state for list/data widgets — and for a page with nothing in it yet (C14).
+ *
+ * `children` is the ACTION slot, and it is why this now covers more than widgets. An empty state
+ * that can only describe a void sends the reader away to find the thing that fills it; the one
+ * place a "start something" control belongs is inside the emptiness it resolves. Without the slot,
+ * a surface needing that control had to hand-roll its own `<Empty>` — which is exactly the drift
+ * C14 exists to prevent, and the Page Composer had already drifted that way.
+ *
+ * Optional, so every existing caller is unchanged and renders the same markup as before.
+ */
+export const WidgetEmpty = ({ children, description }: { children?: ReactNode; description?: ReactNode }) => (
   <div className={styles.empty}>
-    <Empty description={description} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+    <Empty description={description} image={Empty.PRESENTED_IMAGE_SIMPLE}>
+      {children}
+    </Empty>
   </div>
 )
 

@@ -25,7 +25,7 @@
  * start one. Publishing is unchanged and still ends at a form a person submits — the agent's
  * never-submit guarantee is not weakened by any of this.
  */
-import { Alert, Button, Empty, Popconfirm, Space, Typography } from 'antd'
+import { Alert, Button, Popconfirm, Space, Typography } from 'antd'
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 
 import { onComposeRequest } from '../../components/Autopilot/composeRequest'
@@ -38,6 +38,7 @@ import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
 import { emitPublishRequest, onPublishResult } from '../../components/Autopilot/previewPublishRequest'
 import { PreviewContent } from '../../components/Autopilot/previewSurface'
 import type { RestDefVerdicts } from '../../components/Autopilot/previewSurface'
+import { WidgetEmpty } from '../../components/WidgetStates'
 import { ConfigContext } from '../../context/ConfigContext'
 
 import CanvasPanel from './CanvasPanel'
@@ -372,23 +373,25 @@ const PageComposer = () => {
           </>
         )
         : (
-          // An honest empty state rather than a fake canvas: nothing is being authored yet, and
-          // saying so beats rendering an empty page that looks like a failed load.
-          <Empty
-            description={
-              <span>
-                No draft open. Start one, or ask Autopilot for a page — either way the draft
-                lands here and you review every file before it is published.
-              </span>
-            }
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          /*
+           * An honest empty state rather than a fake canvas: nothing is being authored yet, and
+           * saying so beats rendering an empty page that looks like a failed load.
+           *
+           * THROUGH `WidgetEmpty`, not a hand-rolled `<Empty>` — design rule C14. This page used to
+           * roll its own because the shared one had no action slot and the state needs a "Start a
+           * page" button; the slot was added rather than the rule worked around, so a future change
+           * to the empty treatment reaches here too.
+           *
+           * ONE SENTENCE, because it used to say the same thing twice. The description ended
+           * "...you review every file before it is published" and a second paragraph under the
+           * button ended "...nothing is published until you submit the change request yourself" —
+           * the same guarantee, restated. P16: say what to do next, do not fill space.
+           */
+          <WidgetEmpty
+            description='No draft open. Start a page here, or ask Autopilot to draft one — either way you review every file before anything is published.'
           >
             <Button onClick={() => setStarting(true)} type='primary'>Start a page</Button>
-            <Typography.Paragraph className={styles.hint} type='secondary'>
-              Or ask Autopilot — either way the draft lands here and nothing is published until
-              you submit the change request yourself.
-            </Typography.Paragraph>
-          </Empty>
+          </WidgetEmpty>
         )}
     </div>
   )
