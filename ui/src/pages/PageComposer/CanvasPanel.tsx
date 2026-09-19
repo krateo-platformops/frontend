@@ -89,7 +89,7 @@ const DropGap = ({ at, container, live, onDrop }: {
       }
       : undefined}
     style={{
-      background: live ? 'var(--krateo-canvas-accept, #11B2E2)' : 'transparent',
+      background: live ? 'var(--krateo-color-action-primary)' : 'transparent',
       borderRadius: 2,
       height: live ? 3 : 2,
       opacity: live ? 0.45 : 0,
@@ -135,15 +135,15 @@ const Frame = ({ airborne, depth, dragging, legal, node, onDragEnd, onDragStart,
         }
         : undefined}
       style={{
-        background: external ? 'transparent' : 'var(--krateo-canvas-frame-bg, rgba(127,127,127,0.04))',
-        border: `1px ${container ? 'dashed' : 'solid'} ${accepts ? 'var(--krateo-canvas-accept, #11B2E2)' : 'rgba(127,127,127,0.35)'}`,
+        background: external ? 'transparent' : 'var(--krateo-color-background-surface)',
+        border: `1px ${container ? 'dashed' : 'solid'} ${accepts ? 'var(--krateo-color-action-primary)' : 'var(--krateo-color-border-strong)'}`,
         borderRadius: 8,
         cursor: movable ? 'grab' : 'default',
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
         opacity: frameOpacity(external, dragging === node),
-        padding: 10,
+        padding: 12,
       }}
     >
       <div style={{ alignItems: 'center', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -187,13 +187,13 @@ const Frame = ({ airborne, depth, dragging, legal, node, onDragEnd, onDragStart,
             }
             : undefined}
           style={{
-            background: accepts ? 'var(--krateo-canvas-accept-bg, rgba(17,178,226,0.08))' : undefined,
+            background: accepts ? 'var(--krateo-color-background-selected)' : undefined,
             borderRadius: 6,
             display: 'flex',
             flexDirection: 'column',
             gap: 8,
             minHeight: 28,
-            paddingLeft: 10,
+            paddingLeft: 12,
           }}
         >
           {node.children.length === 0 ? <Text style={{ fontSize: 12 }} type='secondary'>empty</Text> : null}
@@ -274,7 +274,7 @@ export const CanvasPanel = ({ files, onAdd, onMove, onSelect, pick }: {
   const finish = () => setDragging(null)
 
   return (
-    <div data-testid='canvas-panel' style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div data-testid='canvas-panel' style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {roots.map((root, index) => (
         <Frame
           airborne={!!airborne}

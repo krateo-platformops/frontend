@@ -52,7 +52,7 @@ const Item = ({ label, onPick, pick, sub }: {
       onDragStart={() => onPick?.(pick)}
       style={{
         alignItems: 'center',
-        border: '1px solid rgba(127,127,127,0.25)',
+        border: '1px solid var(--krateo-color-border-subtle)',
         borderRadius: 6,
         cursor: 'grab',
         display: 'flex',
@@ -112,7 +112,7 @@ export const PalettePanel = ({ namespace, onPick, snowplowBaseUrl }: {
   }, [namespace, snowplowBaseUrl])
 
   return (
-    <div data-testid='palette-panel' style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div data-testid='palette-panel' style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Section title='Containers'>
         {(Object.keys(LAYOUT_KINDS) as (keyof typeof LAYOUT_KINDS)[]).map((layout) => (
           <Item
