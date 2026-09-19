@@ -164,3 +164,42 @@ describe('Info status colour — distinct from the interaction blue (T8)', () =>
     expect(relativeLuminance(colorDark.info)).toBeGreaterThan(relativeLuminance(color.info))
   })
 })
+
+/**
+ * NON-TEXT contrast — the 3:1 floor WCAG sets for a meaningful icon, which is a different (and
+ * lower) bar than the 4.5:1 above and therefore a separate block.
+ *
+ * Written because the notification list failed it in exactly one theme. Its warning triangle was a
+ * hardcoded `#faad14` — antd's gold, 8.97:1 on the dark ground and **1.90:1 on the light one**. The
+ * one glyph on the row whose job is to say "this needs attention" was the least visible thing on it
+ * in light mode, and the defect could not be seen by anyone working in dark.
+ *
+ * So the pairs below are pinned in BOTH modes. A token that passes in one and fails in the other is
+ * the failure this block exists to catch — a single-mode check would have called `#faad14` fine.
+ */
+describe('Status and de-emphasised icons — WCAG non-text contrast ≥ 3:1', () => {
+  const NON_TEXT_MIN = 3
+
+  it('warning reads on the light ground — the pairing that was failing at 1.90:1', () => {
+    expect(contrastRatio(color.warning, color.light)).toBeGreaterThanOrEqual(NON_TEXT_MIN)
+  })
+
+  it('warning reads on the dark ground', () => {
+    expect(contrastRatio(colorDark.warning, colorDark.light)).toBeGreaterThanOrEqual(NON_TEXT_MIN)
+  })
+
+  it('faint — the de-emphasised icon tier — reads in both modes', () => {
+    expect(contrastRatio(color.faint, color.light)).toBeGreaterThanOrEqual(NON_TEXT_MIN)
+    expect(contrastRatio(colorDark.faint, colorDark.light)).toBeGreaterThanOrEqual(NON_TEXT_MIN)
+  })
+
+  it('antd gold (#faad14) FAILS on the light ground — documents why the token is not it', () => {
+    // Kept as an assertion rather than a comment: if a future palette change made this pass, the
+    // reason the notification icon uses `warning` instead would have quietly stopped being true.
+    expect(contrastRatio('#faad14', color.light)).toBeLessThan(NON_TEXT_MIN)
+  })
+
+  it('warning follows the mode — a fixed literal cannot', () => {
+    expect(colorDark.warning).not.toBe(color.warning)
+  })
+})

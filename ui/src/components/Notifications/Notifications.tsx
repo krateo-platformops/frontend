@@ -175,7 +175,16 @@ const EventItem = memo(function EventItem({ deduped, onNavigate }: { deduped: De
             icon={isWarning ? (['fas', 'triangle-exclamation'] as IconProp) : (['fas', 'circle-info'] as IconProp)}
             // #80 (reiteration 3): centered against the whole item via `.list .ant-list-item-meta`
             // (Notifications.module.css) rather than the old top-aligned `marginTop: 2` nudge.
-            style={{ color: isWarning ? '#faad14' : '#8c8c8c', fontSize: 16 }}
+            // TOKENS, AND THE WARNING ONE IS AN ACCESSIBILITY FIX (T1). This read
+            // `#faad14` / `#8c8c8c`. Measured against the light ground (#FFFFFF), `#faad14` is
+            // 1.90:1 — under the 3:1 minimum for a non-text icon, so the triangle that says this
+            // row needs attention was the least visible thing on it. In dark mode it is 8.97:1,
+            // which is why it survived: the failure only existed in one theme.
+            //
+            // `--warning-color` is contrast-corrected per mode — 5.81:1 light (#8A5C00) and
+            // 8.93:1 dark (#FFAA00). `--faint-color` is the de-emphasised token, 5.10:1 / 4.94:1,
+            // replacing a grey that passed at 3.36:1 but tracked no theme.
+            style={{ color: isWarning ? 'var(--warning-color)' : 'var(--faint-color)', fontSize: 16 }}
           />
         }
         description={

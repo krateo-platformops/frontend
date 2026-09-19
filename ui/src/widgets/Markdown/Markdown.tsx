@@ -43,7 +43,11 @@ const CodeBlock = ({ children }: { children?: ReactNode }) => {
     <div className={styles.codeBlock}>
       <pre
         style={{
-          background: 'rgba(127,127,127,0.12)',
+          // The one value in this block that was not a token, beside `--border-color` and
+          // `--primary-color` on the next two lines. A 12% grey is theme-neutral by accident, not
+          // by design: it renders the same fill on both grounds. `--lightgray-color` is the subtle
+          // surface tier and moves with the mode (#F5F5F5 light, #1C1C1C dark).
+          background: 'var(--lightgray-color)',
           border: '1px solid var(--border-color)',
           borderLeft: '3px solid var(--primary-color)',
           borderRadius: '4px',
