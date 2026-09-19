@@ -73,6 +73,15 @@ describe('LiveActivity — the strip', () => {
     expect(strip.querySelector('[data-state="running"]')).toBeTruthy()
   })
 
+  it('says ANSWERING once the answer has started arriving — not still "working"', () => {
+    // kagent's turn machine separates `working` (acknowledged, nothing back) from `streaming`
+    // (content arriving), because the A2A transport spells them the same way. A turn already
+    // writing its answer must not read as not having started.
+    render(<LiveActivity answering evidence={[]} />)
+    expect(screen.getByText('answering…')).toBeTruthy()
+    expect(screen.queryByText('working…')).toBeNull()
+  })
+
   it('replaces the placeholder as soon as there is a real step to name', () => {
     render(<LiveActivity evidence={[entry({ tool: 'list_pods' })]} />)
     expect(screen.queryByText('working…')).toBeNull()

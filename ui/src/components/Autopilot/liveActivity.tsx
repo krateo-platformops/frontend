@@ -40,7 +40,19 @@ const activityLabel = (entry: EvidenceEntry): string =>
  *
  * `aria-live="polite"` because someone who cannot see the strip has exactly the same question.
  */
-export const LiveActivity = ({ evidence }: { evidence: EvidenceEntry[] }) => {
+export const LiveActivity = ({ answering, evidence }: {
+  /**
+   * The first text of the answer has landed.
+   *
+   * kagent's own transcript draws exactly this distinction and says why: its turn machine separates
+   * `working` ("the agent acknowledged the turn and is working on it") from `streaming` ("content
+   * is arriving"), keyed on the machine's phase "rather than on the A2A task state … the two the
+   * transport spells the same way, and the two a reader most wants told apart". Without it a turn
+   * that is already writing its answer still reads as not having started.
+   */
+  answering?: boolean
+  evidence: EvidenceEntry[]
+}) => {
   // The last few, not all of them: during a long turn this grows without bound and the useful
   // answer is always "what is it doing NOW".
   const recent = evidence.slice(-4)
@@ -54,14 +66,15 @@ export const LiveActivity = ({ evidence }: { evidence: EvidenceEntry[] }) => {
         reported symptom ("still the yellow blinking, waiting for a response") was this gap, not a
         missing deploy.
 
-        It says "working" rather than naming a step, because at this point there is genuinely no
-        step to name; inventing one would be worse than admitting the wait.
+        It names no step because at this point there genuinely is none; inventing one would be
+        worse than admitting the wait. The two labels follow kagent's own turn machine — "working"
+        while nothing has come back, "answering" once the answer has started arriving.
       */}
       {recent.length === 0
         ? (
           <div className={styles.apLiveActRow} data-state='running'>
             <span className={styles.apLiveActMark} />
-            <span className={styles.apEvTool}>working…</span>
+            <span className={styles.apEvTool}>{answering ? 'answering…' : 'working…'}</span>
           </div>
         )
         : recent.map((entry) => (

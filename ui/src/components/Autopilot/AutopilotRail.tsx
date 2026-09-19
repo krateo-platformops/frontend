@@ -192,7 +192,7 @@ const MessageBubble = ({ message }: { message: AutopilotMessage }) => {
           {action.readOnly ? <span className={styles.apActRo}>read-only</span> : null}
         </div>
       ))}
-      {message.streaming ? <LiveActivity evidence={message.evidence ?? []} /> : null}
+      {message.streaming ? <LiveActivity answering={message.text.length > 0} evidence={message.evidence ?? []} /> : null}
       {message.evidence && !message.streaming ? <EvidencePanel evidence={message.evidence} /> : null}
     </div>
   )
