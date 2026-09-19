@@ -182,7 +182,7 @@ describe('the remembered destination is per kind', () => {
 
 describe('repository visibility is the publisher’s choice, per publish', () => {
   /** Answer the open form: optionally click a visibility button, then confirm. */
-  const confirm = async (pick?: 'Public' | 'Private') => {
+  const confirm = (pick?: 'Public' | 'Private') => {
     if (pick) {
       fireEvent.click(screen.getByText(new RegExp(`^${pick}`)))
     }
@@ -207,13 +207,19 @@ describe('repository visibility is the publisher’s choice, per publish', () =>
     // nobody outside the org: the publish reports success and the artifact 401s at install. The
     // failing default has to be the one the person opts into, not the one they get by not looking.
     const get = await openForm()
-    await act(async () => { await confirm() })
+    await act(() => {
+      confirm()
+      return Promise.resolve()
+    })
     await waitFor(() => expect(get()?.visibility).toBe('public'))
   })
 
   it('carries PRIVATE when the publisher picks it', async () => {
     const get = await openForm()
-    await act(async () => { await confirm('Private') })
+    await act(() => {
+      confirm('Private')
+      return Promise.resolve()
+    })
     await waitFor(() => expect(get()?.visibility).toBe('private'))
   })
 
