@@ -40,22 +40,50 @@ const activityLabel = (entry: EvidenceEntry): string =>
  *
  * `aria-live="polite"` because someone who cannot see the strip has exactly the same question.
  */
-export const LiveActivity = ({ evidence }: { evidence: EvidenceEntry[] }) => {
+export const LiveActivity = ({ answering, evidence }: {
+  /**
+   * The first text of the answer has landed.
+   *
+   * kagent's own transcript draws exactly this distinction and says why: its turn machine separates
+   * `working` ("the agent acknowledged the turn and is working on it") from `streaming` ("content
+   * is arriving"), keyed on the machine's phase "rather than on the A2A task state … the two the
+   * transport spells the same way, and the two a reader most wants told apart". Without it a turn
+   * that is already writing its answer still reads as not having started.
+   */
+  answering?: boolean
+  evidence: EvidenceEntry[]
+}) => {
   // The last few, not all of them: during a long turn this grows without bound and the useful
   // answer is always "what is it doing NOW".
   const recent = evidence.slice(-4)
-  if (!recent.length) {
-    return null
-  }
   return (
     <div aria-live='polite' className={styles.apLiveAct} data-testid='autopilot-live-activity'>
-      {recent.map((entry) => (
-        <div className={styles.apLiveActRow} data-state={activityState(entry)} key={entry.id}>
-          <span className={styles.apLiveActMark} />
-          <span className={styles.apEvTool}>{activityLabel(entry)}</span>
-          {entry.request ? <span className={styles.apEvMeta}>{entry.request}</span> : null}
-        </div>
-      ))}
+      {/*
+        THE EMPTY CASE IS THE ONE THAT MATTERS, and an earlier version of this component got it
+        wrong by rendering null. The longest wait in a turn is BEFORE the first tool call — the
+        model is reading the page context and deciding what to do — and that was exactly when the
+        strip showed nothing, leaving a blinking caret as the only sign the thing was alive. The
+        reported symptom ("still the yellow blinking, waiting for a response") was this gap, not a
+        missing deploy.
+
+        It names no step because at this point there genuinely is none; inventing one would be
+        worse than admitting the wait. The two labels follow kagent's own turn machine — "working"
+        while nothing has come back, "answering" once the answer has started arriving.
+      */}
+      {recent.length === 0
+        ? (
+          <div className={styles.apLiveActRow} data-state='running'>
+            <span className={styles.apLiveActMark} />
+            <span className={styles.apEvTool}>{answering ? 'answering…' : 'working…'}</span>
+          </div>
+        )
+        : recent.map((entry) => (
+          <div className={styles.apLiveActRow} data-state={activityState(entry)} key={entry.id}>
+            <span className={styles.apLiveActMark} />
+            <span className={styles.apEvTool}>{activityLabel(entry)}</span>
+            {entry.request ? <span className={styles.apEvMeta}>{entry.request}</span> : null}
+          </div>
+        ))}
     </div>
   )
 }

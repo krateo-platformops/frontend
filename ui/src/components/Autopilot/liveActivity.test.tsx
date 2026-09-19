@@ -60,9 +60,32 @@ describe('LiveActivity — the strip', () => {
     expect(screen.getByText('tool_8')).toBeTruthy()
   })
 
-  it('renders nothing at all when there is no activity yet', () => {
-    const { container } = render(<LiveActivity evidence={[]} />)
-    expect(container.firstChild).toBeNull()
+  it('SHOWS THAT IT IS WORKING BEFORE THE FIRST TOOL CALL — the longest part of the wait', () => {
+    // This REVERSES an earlier assertion in this file, deliberately. Rendering nothing when there
+    // is no evidence yet meant the strip appeared only once the agent had already started doing
+    // things — and the wait before the first tool call, while it reads the page context and
+    // decides, is the longest and the one that feels broken. What was visible then was a blinking
+    // caret and nothing else, which is precisely what got reported.
+    render(<LiveActivity evidence={[]} />)
+    const strip = screen.getByTestId('autopilot-live-activity')
+    expect(strip).toBeTruthy()
+    expect(screen.getByText('working…')).toBeTruthy()
+    expect(strip.querySelector('[data-state="running"]')).toBeTruthy()
+  })
+
+  it('says ANSWERING once the answer has started arriving — not still "working"', () => {
+    // kagent's turn machine separates `working` (acknowledged, nothing back) from `streaming`
+    // (content arriving), because the A2A transport spells them the same way. A turn already
+    // writing its answer must not read as not having started.
+    render(<LiveActivity answering evidence={[]} />)
+    expect(screen.getByText('answering…')).toBeTruthy()
+    expect(screen.queryByText('working…')).toBeNull()
+  })
+
+  it('replaces the placeholder as soon as there is a real step to name', () => {
+    render(<LiveActivity evidence={[entry({ tool: 'list_pods' })]} />)
+    expect(screen.queryByText('working…')).toBeNull()
+    expect(screen.getByText('list_pods')).toBeTruthy()
   })
 
   it('is announced — someone who cannot see the strip has the same question', () => {
