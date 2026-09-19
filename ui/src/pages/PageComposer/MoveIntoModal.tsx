@@ -88,7 +88,7 @@ export const MoveIntoModal = ({ moving, onCancel, onMove, open, roots }: {
       open={open}
       title={`Move ${moving.name} into…`}
     >
-      <Text style={{ display: 'block', marginBottom: 10 }} type='secondary'>
+      <Text style={{ display: 'block', marginBottom: 12 }} type='secondary'>
         It lands at the end of the container you choose; use the up and down controls to position it.
       </Text>
       {body()}
