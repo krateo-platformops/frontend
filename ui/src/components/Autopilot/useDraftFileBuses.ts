@@ -43,6 +43,11 @@ export const useDraftFileBuses = (
   store: BlueprintDraftStore,
   gate: PreviewGateLike,
   identityOf: (held: ReturnType<BlueprintDraftStore['get']>) => string | null,
+  /**
+   * Apply a freshly started draft to the preview sandbox and open it live — the host's own
+   * `previewPage`. Optional: absent, a started draft opens source-only, as it always did.
+   */
+  previewLive?: (widgets: Record<string, unknown>[], title: string) => Promise<unknown>,
 ): void => {
   // EDIT: an accepted per-file edit from a Files tab.
   //
@@ -83,6 +88,27 @@ export const useDraftFileBuses = (
       return
     }
     recordPagePreview(widgets, store, gate)
+
+    // AND THEN THE SAME LIVE PREVIEW A PROPOSAL GETS.
+    //
+    // The comment above says this path takes "the SAME entry point a proposed page takes", and in
+    // one sense it did — `recordPagePreview` is shared. But a PROPOSED page also goes through
+    // `previewPage`, which applies the drafts to the sandbox and hands the drawer a `liveEndpoint`;
+    // a hand-started one stopped at the held bytes. So the two were not indistinguishable at all:
+    // the agent's page rendered, and the person's showed YAML.
+    //
+    // That asymmetry got worse the moment drag & drop became the ONLY way to build a portal page
+    // (portal#237). The path we made primary was the one without a live preview, and the path we
+    // de-emphasised was the one that rendered.
+    //
+    // `previewLive` is the host's own `previewPage` apply — the identical verb, deps and safety
+    // kernel, not a second implementation. It is OPTIONAL: with no host wired (unit tests, a
+    // non-UI caller) this falls back to the source-only payload exactly as before, so nothing
+    // that worked without a sandbox starts depending on one.
+    if (previewLive) {
+      void previewLive(widgets, title)
+      return
+    }
     openAutopilotPreview({ ...buildPagePreviewPayload(widgets), caption: undefined, title })
-  }), [gate, store])
+  }), [gate, previewLive, store])
 }
