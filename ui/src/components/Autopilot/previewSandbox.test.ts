@@ -90,8 +90,16 @@ describe('draftGvrOf — the verbatim CRD plural table', () => {
     expect(draftGvrOf('')).toBeNull()
   })
 
-  it('every table entry has a co-located schema kind shape (42 widget kinds)', () => {
-    expect(Object.keys(WIDGET_KIND_PLURALS)).toHaveLength(42)
+  it('has entries at all — the COUNT is pinned against the CRDs, not a literal', () => {
+    // This used to assert `toHaveLength(42)`, and that is why the table could lose `PageHeader`
+    // and `Theme` without a test noticing: a count compares the table to ITSELF AS IT WAS, so it
+    // locks in a gap as firmly as it locks in the contents. It passed throughout, while every
+    // hand-started page was rejected with "unknown kind".
+    //
+    // The real assertion — every shipped CRD kind is present, with its own plural, and nothing is
+    // invented — lives in previewSandbox.kinds.test.ts, where it is checked against the chart's
+    // CRDs rather than against a number someone has to remember to update.
+    expect(Object.keys(WIDGET_KIND_PLURALS).length).toBeGreaterThan(30)
   })
 })
 

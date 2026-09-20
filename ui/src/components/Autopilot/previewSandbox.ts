@@ -47,6 +47,15 @@ export const PREVIEW_SESSION_LABEL = 'krateo.io/preview-session'
  * decide (Listy→listies, Progress→progresses vs the already-plural Tabs/Steps/
  * Descriptions/Filters). A kind absent here is NOT a widget → the draft is rejected
  * before anything is applied (deny-by-default).
+ *
+ * DENY-BY-DEFAULT MAKES AN OMISSION INDISTINGUISHABLE FROM A REJECTION, which is how this table
+ * lost `PageHeader` and `Theme` without anyone noticing. Every page a person starts carries a
+ * PageHeader — StartDraftModal emits one — and design rule P25 requires one on every nav-declared
+ * page, so the omission rejected the entire draft with "unknown kind" and no live preview ever
+ * rendered for a hand-built page. It read as the feature not working rather than as a missing row.
+ *
+ * `previewSandbox.kinds.test.ts` now pins this table against the shipped CRDs, so the next kind to
+ * arrive fails a test instead of silently rejecting the drafts that use it.
  */
 export const WIDGET_KIND_PLURALS: Record<string, string> = {
   Alert: 'alerts',
@@ -73,6 +82,7 @@ export const WIDGET_KIND_PLURALS: Record<string, string> = {
   Listy: 'listies',
   Markdown: 'markdowns',
   Menu: 'menus',
+  PageHeader: 'pageheaders',
   Paragraph: 'paragraphs',
   PieChart: 'piecharts',
   Progress: 'progresses',
@@ -89,6 +99,7 @@ export const WIDGET_KIND_PLURALS: Record<string, string> = {
   Table: 'tables',
   Tabs: 'tabs',
   Tag: 'tags',
+  Theme: 'themes',
   Upload: 'uploads',
   YamlViewer: 'yamlviewers',
 }
