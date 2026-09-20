@@ -5,10 +5,21 @@
  * nothing — so a resumed drawer that armed one would make opening your own draft the act that
  * destroys it.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { resetKindCacheForTests } from './kindResolver'
 import { AUTOPILOT_PREVIEW_EVENT } from './previewBus'
 import { RESUME_PARAM, resumePreviewDraft, resumeSlugFrom } from './resumePreviewDraft'
+
+const SNOWPLOW = 'http://snowplow.test'
+
+beforeEach(() => {
+  resetKindCacheForTests()
+  // The resume reads a GVR, so it resolves `Flex` first — same discovery path previewPage uses.
+  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
+    json: () => Promise.resolve({ plural: 'flexes' }), ok: true, status: 200,
+  })))
+})
 
 const SANDBOX = 'krateo-preview'
 
@@ -48,9 +59,9 @@ describe('resumeSlugFrom — what the drafts table hands back', () => {
 })
 
 describe('resumePreviewDraft — opens the draft that is already there', () => {
-  it('opens the live drawer on the page-<slug> root in the sandbox', () => {
+  it('opens the live drawer on the page-<slug> root in the sandbox', async () => {
     const sink = captureOpen()
-    expect(resumePreviewDraft('fleet-overview', SANDBOX)).toBe(true)
+    expect(await resumePreviewDraft('fleet-overview', SANDBOX, SNOWPLOW)).toBe(true)
 
     const payload = sink.last!
     expect(payload.title).toBe('Draft — fleet-overview')
@@ -61,9 +72,9 @@ describe('resumePreviewDraft — opens the draft that is already there', () => {
     sink.off()
   })
 
-  it('arms NO teardown — closing a resumed drawer must leave the draft alone', () => {
+  it('arms NO teardown — closing a resumed drawer must leave the draft alone', async () => {
     const sink = captureOpen()
-    resumePreviewDraft('fleet-overview', SANDBOX)
+    await resumePreviewDraft('fleet-overview', SANDBOX, SNOWPLOW)
 
     // The apply path sets onClose to delete what it created. Resuming created nothing, so an
     // onClose here would delete a draft this session never made.
@@ -71,11 +82,11 @@ describe('resumePreviewDraft — opens the draft that is already there', () => {
     sink.off()
   })
 
-  it('refuses rather than opening an empty drawer', () => {
+  it('refuses rather than opening an empty drawer', async () => {
     const sink = captureOpen()
     // no sandbox configured
-    expect(resumePreviewDraft('fleet-overview', '')).toBe(false)
-    expect(resumePreviewDraft('Bad Slug', SANDBOX)).toBe(false)
+    expect(await resumePreviewDraft('fleet-overview', '', SNOWPLOW)).toBe(false)
+    expect(await resumePreviewDraft('Bad Slug', SANDBOX, SNOWPLOW)).toBe(false)
     expect(sink.last).toBeNull()
     sink.off()
   })

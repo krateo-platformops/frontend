@@ -145,7 +145,7 @@ export const applyPreviewPageV2 = async (
   }
 
   // 1. VALIDATE — any failure: source drawer with the verdicts, NOTHING applied.
-  const problems = await validatePageDrafts(widgets)
+  const problems = await validatePageDrafts(widgets, deps.snowplowBaseUrl)
   if (problems.length) {
     // Surface the verdicts to the CONTEXT COLLECTOR — the model self-corrects from these.
     setPreviewProblems(problems)

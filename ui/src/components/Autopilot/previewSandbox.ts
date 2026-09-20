@@ -22,6 +22,7 @@ import Ajv, { type ValidateFunction } from 'ajv'
 import { getResourceEndpoint } from '../../utils/utils'
 
 import { type ApplyResourceSetGvr, type ApplyResourceSetOp, MAX_APPLY_SET_OPS } from './applyResourceSet'
+import { pluralOf, primeKinds } from './kindResolver'
 
 /** The widget-CR coordinates every draft is normalized to (the live CRD group/version). */
 export const WIDGETS_GROUP = 'widgets.templates.krateo.io'
@@ -40,59 +41,6 @@ export const PREVIEW_PURPOSE_LABEL = 'krateo.io/purpose'
 export const PREVIEW_PURPOSE_VALUE = 'preview-draft'
 export const PREVIEW_SESSION_LABEL = 'krateo.io/preview-session'
 
-/**
- * kind → CRD plural for EVERY widget kind, copied VERBATIM from the shipped CRDs
- * (krateo-frontend-chart crds-subchart — the authoritative `spec.names.plural` per
- * kind). An explicit table, NOT a pluralizer: the set has irregulars a rule cannot
- * decide (Listy→listies, Progress→progresses vs the already-plural Tabs/Steps/
- * Descriptions/Filters). A kind absent here is NOT a widget → the draft is rejected
- * before anything is applied (deny-by-default).
- */
-export const WIDGET_KIND_PLURALS: Record<string, string> = {
-  Alert: 'alerts',
-  Badge: 'badges',
-  BarChart: 'barcharts',
-  Breadcrumb: 'breadcrumbs',
-  Button: 'buttons',
-  ButtonGroup: 'buttongroups',
-  Card: 'cards',
-  Checkbox: 'checkboxes',
-  Col: 'cols',
-  DatePicker: 'datepickers',
-  Descriptions: 'descriptions',
-  Divider: 'dividers',
-  Filters: 'filters',
-  Flex: 'flexes',
-  FlowChart: 'flowcharts',
-  Form: 'forms',
-  Image: 'images',
-  Input: 'inputs',
-  InputNumber: 'inputnumbers',
-  Layout: 'layouts',
-  LineChart: 'linecharts',
-  Listy: 'listies',
-  Markdown: 'markdowns',
-  Menu: 'menus',
-  Paragraph: 'paragraphs',
-  PieChart: 'piecharts',
-  Progress: 'progresses',
-  QRCode: 'qrcodes',
-  Radio: 'radios',
-  RangePicker: 'rangepickers',
-  Result: 'results',
-  Row: 'rows',
-  Select: 'selects',
-  Slider: 'sliders',
-  Statistic: 'statistics',
-  Steps: 'steps',
-  Switch: 'switches',
-  Table: 'tables',
-  Tabs: 'tabs',
-  Tag: 'tags',
-  Upload: 'uploads',
-  YamlViewer: 'yamlviewers',
-}
-
 /** DNS-1123 name (same class applyResourceSet's path-segment guard enforces). */
 const DNS1123 = /^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$/
 
@@ -109,13 +57,39 @@ export interface DraftTarget {
 }
 
 /** The GVR a draft's kind maps to — widget kinds via the plural table, RESTAction, or null (unknown). */
+/**
+ * The GVR for a draft kind, or null.
+ *
+ * SYNCHRONOUS, reading a cache `primeDraftKinds` fills — the shape `@kubernetes/client-node` uses
+ * (async `resource()` at the seam, sync path building after), because the callers that assemble API
+ * paths are not async and should not become so.
+ *
+ * A kind nobody primed reads as unknown. That is the same deny-by-default the old hardcoded table
+ * gave, and it fails in the safe direction: an unprimed lookup can only under-permit.
+ */
 export const draftGvrOf = (kind: string): ApplyResourceSetGvr | null => {
   if (kind === RESTACTION_KIND) {
     return { group: RESTACTION_GROUP, resource: RESTACTIONS_PLURAL, version: RESTACTION_VERSION }
   }
-  const plural = WIDGET_KIND_PLURALS[kind]
+  const plural = pluralOf(WIDGETS_API_VERSION, kind)
 
   return plural ? { group: WIDGETS_GROUP, resource: plural, version: WIDGETS_VERSION } : null
+}
+
+/**
+ * Resolve every widget kind in `drafts` before anything reads a GVR. Call this FIRST.
+ *
+ * RESTAction is excluded: it is a different group with a fixed plural this module owns, not a
+ * discovered widget kind.
+ */
+export const primeDraftKinds = async (
+  drafts: readonly Record<string, unknown>[],
+  snowplowBaseUrl?: string,
+): Promise<void> => {
+  const kinds = drafts
+    .map((cr) => (isNonEmptyString(cr.kind) ? cr.kind : ''))
+    .filter((kind) => kind && kind !== RESTACTION_KIND)
+  await primeKinds(snowplowBaseUrl, WIDGETS_API_VERSION, kinds)
 }
 
 /** The apiVersion a draft of this kind MUST carry (normalized in the rewrite). */
@@ -228,7 +202,13 @@ const validateDraft = async (cr: Record<string, unknown>, index: number): Promis
  * EMPTY means every draft is applyable. Also rejects duplicate (kind, name) pairs
  * (the second POST would 409 mid-set) — all-or-nothing, like the set kernel.
  */
-export const validatePageDrafts = async (drafts: readonly Record<string, unknown>[]): Promise<string[]> => {
+export const validatePageDrafts = async (
+  drafts: readonly Record<string, unknown>[],
+  snowplowBaseUrl?: string,
+): Promise<string[]> => {
+  // Resolve the kinds before any of them is looked up. Without a base URL nothing resolves and
+  // every widget kind reads as unknown — which is why the caller must pass it (previewPageV2 does).
+  await primeDraftKinds(drafts, snowplowBaseUrl)
   const problems: string[] = []
   const seen = new Set<string>()
   for (const [index, cr] of drafts.entries()) {

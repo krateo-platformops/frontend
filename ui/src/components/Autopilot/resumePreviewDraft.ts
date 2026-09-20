@@ -21,7 +21,7 @@
  */
 
 import { openAutopilotPreview } from './previewBus'
-import { buildSandboxWidgetEndpoint, draftGvrOf } from './previewSandbox'
+import { buildSandboxWidgetEndpoint, draftGvrOf, primeDraftKinds } from './previewSandbox'
 
 /** The query parameter the drafts table's rowNavigateTo carries (`/portal-builder?resume=<slug>`). */
 export const RESUME_PARAM = 'resume'
@@ -52,7 +52,14 @@ export const resumeSlugFrom = (search: string): string | null => {
  * Returns false when the request cannot be honoured — no sandbox configured, or a slug that is not
  * a slug — so the caller can leave the page alone instead of opening an empty drawer.
  */
-export const resumePreviewDraft = (slug: string, sandboxNamespace: string): boolean => {
+export const resumePreviewDraft = async (
+  slug: string,
+  sandboxNamespace: string,
+  snowplowBaseUrl?: string,
+): Promise<boolean> => {
+  // Resolve `Flex` before reading its GVR — see draftGvrOf: an unprimed kind reads as unknown, so
+  // without this a resume would refuse itself rather than reopen the drawer.
+  await primeDraftKinds([{ kind: 'Flex' }], snowplowBaseUrl)
   const gvr = draftGvrOf('Flex')
   if (!gvr || !sandboxNamespace || !SLUG.test(slug)) {
     return false
