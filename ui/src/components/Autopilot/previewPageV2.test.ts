@@ -19,10 +19,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WriteOp, WriteOpResult } from '../../hooks/runRestSet'
 
 import type { PortalActionProposal } from './actionBridge'
+import { resetKindCacheForTests } from './kindResolver'
 import { openAutopilotPreview } from './previewBus'
 import type { AutopilotPreviewPayload } from './previewBus'
 import { applyPreviewPageV2, type PreviewPageV2Deps } from './previewPageV2'
-import { createPreviewPageSession, WIDGETS_API_VERSION } from './previewSandbox'
+import { createPreviewPageSession, primeDraftKinds, WIDGETS_API_VERSION } from './previewSandbox'
 
 vi.mock('./previewBus', () => ({ openAutopilotPreview: vi.fn(), setPreviewProblems: vi.fn() }))
 
@@ -63,8 +64,33 @@ const makeDeps = (results?: (ops: readonly WriteOp[]) => WriteOpResult[] | null)
 
 const openedPayload = (call = 0): AutopilotPreviewPayload => openPreviewMock.mock.calls[call][0]
 
-beforeEach(() => {
+const SNOWPLOW = 'http://snowplow.test'
+
+/**
+ * snowplow's discovery-backed plural resolver, stubbed.
+ *
+ * Every test here needs it because previewPage resolves kinds before it applies anything — which is
+ * the point of the change that introduced this: the plural comes from the API server, so a test
+ * that supplies no discovery source is a test of a preview that cannot resolve any widget kind.
+ */
+const PLURALS: Record<string, string> = {
+  Card: 'cards', Flex: 'flexes', PageHeader: 'pageheaders', Paragraph: 'paragraphs', Table: 'tables',
+}
+
+beforeEach(async () => {
   vi.clearAllMocks()
+  resetKindCacheForTests()
+  vi.stubGlobal('fetch', vi.fn((url: string) => {
+    const kind = new URL(url).searchParams.get('kind') ?? ''
+    const plural = PLURALS[kind]
+    return Promise.resolve(plural
+      ? { json: () => Promise.resolve({ plural }), ok: true, status: 200 }
+      : { json: () => Promise.resolve({}), ok: false, status: 404 })
+  }))
+  // Prime here rather than via deps.snowplowBaseUrl: the cache is module-scoped, so the kinds are
+  // resolved for the call under test WITHOUT arming awaitSandboxWarmup, which these tests do not
+  // exercise and which polls for ~21s once a base URL is present.
+  await primeDraftKinds(Object.keys(PLURALS).map((kind) => ({ kind })), SNOWPLOW)
 })
 
 describe('previewPage v2 — deny + validation gates (nothing applied)', () => {
