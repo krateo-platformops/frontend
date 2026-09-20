@@ -118,9 +118,18 @@ export const startDraft = (input: StartDraftInput): StartDraftResult => {
         }],
       },
       widgetData: {
-        // Required by the CRD, and carrying exactly what is placed — see structureEdit for the
-        // three places a child lives and why omitting this one renders nothing.
-        allowedResources: ['pageheaders'],
+        // EMPTY = UNCONSTRAINED, which is what a brand-new page must be.
+        //
+        // This said `['pageheaders']` — "exactly what is placed" — and that made a started page
+        // refuse every drop: `canAccept` honours a NON-EMPTY list as a statement of intent, so the
+        // canvas correctly rejected a Row, a Card and everything else. The page accepted only the
+        // header it already had, and the palette had nowhere to go.
+        //
+        // `[]` is the CRD-required default `newContainerYaml` writes for every container a person
+        // creates, and it means the author has not yet said what this holds. A page root at the
+        // moment of creation has not said either. Declaring the one child it happens to ship with
+        // is not intent, it is a description of the present mistaken for a rule.
+        allowedResources: [],
         gap: 'middle',
         items: [{ resourceRefId: headerName }],
         vertical: true,

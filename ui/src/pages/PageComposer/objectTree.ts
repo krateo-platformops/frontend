@@ -262,11 +262,20 @@ export const flattenTree = (nodes: readonly TreeNode[]): TreeNode[] =>
  * new ones are created. Null when the draft declares none — the caller must then refuse to
  * generate rather than emit an object the cluster will reject.
  */
+/**
+ * A namespace a NEW object can be created in, or null.
+ *
+ * Skips Helm template expressions. The held draft is a page-set CHART — `pageDraft.ts` rewrites
+ * every namespace to `{{ include "page.tierNamespace" ... }}` so the published chart is portable —
+ * so the literal most files carry is a template, not a place. Counting it produced a "namespace"
+ * that no apiserver would accept, and Bind data refused with "the draft has no namespace to create
+ * these in" on every hand-started page.
+ */
 export const draftNamespace = (files: Record<string, string>): string | null => {
   const counts = new Map<string, number>()
   for (const [path, content] of Object.entries(files)) {
     const namespace = parseObject(path, content)?.namespace
-    if (namespace) {
+    if (namespace && !namespace.includes('{{')) {
       counts.set(namespace, (counts.get(namespace) ?? 0) + 1)
     }
   }

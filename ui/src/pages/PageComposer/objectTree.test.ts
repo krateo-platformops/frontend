@@ -222,3 +222,32 @@ describe('draftNamespace', () => {
     expect(draftNamespace({ 'a.yaml': inNs('a') })).toBeNull()
   })
 })
+
+describe('draftNamespace ignores Helm templates', () => {
+  // The held draft IS a page-set chart: pageDraft.ts rewrites every namespace to
+  // `{{ include "page.tierNamespace" ... }}` so the published chart is portable. Counting that as
+  // a namespace produced one no apiserver would accept, and Bind data refused with "the draft has
+  // no namespace to create these in" on every hand-started page.
+  const file = (name: string, ns: string) => [
+    `templates/flex.${name}.yaml`,
+    `apiVersion: widgets.templates.krateo.io/v1beta1\nkind: Flex\nmetadata:\n  name: ${name}\n  namespace: ${ns}\nspec:\n  widgetData: {}\n`,
+  ] as const
+
+  it('returns null when every namespace is a template, rather than the template itself', () => {
+    const tpl = '\'{{ include "page.tierNamespace" (dict "ctx" . "tier" "common") }}\''
+    expect(draftNamespace(Object.fromEntries([file('a', tpl), file('b', tpl)]))).toBeNull()
+  })
+
+  it('still finds a REAL namespace, and prefers the commonest', () => {
+    const files = Object.fromEntries([
+      file('a', 'krateo-system'), file('b', 'krateo-system'), file('c', 'other'),
+    ])
+    expect(draftNamespace(files)).toBe('krateo-system')
+  })
+
+  it('ignores the template even when it outnumbers the real one', () => {
+    const tpl = '\'{{ include "page.tierNamespace" (dict "ctx" . "tier" "common") }}\''
+    const files = Object.fromEntries([file('a', tpl), file('b', tpl), file('c', 'krateo-system')])
+    expect(draftNamespace(files)).toBe('krateo-system')
+  })
+})

@@ -88,7 +88,7 @@ describe('PalettePanel', () => {
   })
 
   it('reports a container pick as CREATE, carrying the layout kind', () => {
-    const picks: PalettePick[] = []
+    const picks: (PalettePick | null)[] = []
     harness.result = { ok: true, widgets: [] }
     render(<PalettePanel namespace={null} onPick={(pick) => picks.push(pick)} />)
     fireEvent.dragStart(screen.getByTestId('palette-item-Row'))
@@ -97,7 +97,7 @@ describe('PalettePanel', () => {
 
   it('reports an existing pick as PLACE, carrying the name — never a layout kind', () => {
     // The distinction that decides whether a file gets written.
-    const picks: PalettePick[] = []
+    const picks: (PalettePick | null)[] = []
     harness.result = { ok: true, widgets: [{ name: 'fleet-card', resource: 'cards' }] }
     render(<PalettePanel namespace='krateo-system' onPick={(pick) => picks.push(pick)} snowplowBaseUrl='http://snowplow.test' />)
     return waitFor(() => screen.getByTestId('palette-item-fleet-card')).then(() => {
