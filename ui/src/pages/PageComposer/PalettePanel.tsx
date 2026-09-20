@@ -39,7 +39,7 @@ export type PalettePick =
 
 const Item = ({ label, onPick, pick, sub }: {
   label: string
-  onPick?: (pick: PalettePick) => void
+  onPick?: (pick: PalettePick | null) => void
   pick: PalettePick
   sub?: string
 }) => {
@@ -48,7 +48,10 @@ const Item = ({ label, onPick, pick, sub }: {
     <div
       data-testid={`palette-item-${label}`}
       draggable
-      onDragEnd={() => onPick?.(pick)}
+      // CLEARS on end, sets on start. This said `onPick?.(pick)` for BOTH, so a pick outlived the
+      // drag that raised it: after any gesture the canvas still believed something was in the air,
+      // and every legal well stayed lit until the next drag replaced it.
+      onDragEnd={() => onPick?.(null)}
       onDragStart={() => onPick?.(pick)}
       style={{
         alignItems: 'center',
@@ -84,7 +87,7 @@ const Section = ({ children, title }: { children: React.ReactNode; title: string
 export const PalettePanel = ({ namespace, onPick, snowplowBaseUrl }: {
   /** The draft's namespace — existing widgets are listed from it. */
   namespace: string | null
-  onPick?: (pick: PalettePick) => void
+  onPick?: (pick: PalettePick | null) => void
   snowplowBaseUrl?: string
 }) => {
   const [existing, setExisting] = useState<PlaceableWidget[] | null>(null)

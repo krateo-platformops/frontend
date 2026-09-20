@@ -91,6 +91,16 @@ const PageComposer = () => {
   const [pick, setPick] = useState<PalettePick | null>(null)
 
   /**
+   * Where a NEW object this page authors is created.
+   *
+   * The draft's own namespaces are Helm templates once serialized as a chart, so `draftNamespace`
+   * legitimately finds none — and "none" must not mean "refuse to bind data". A page started here
+   * was started in NEW_DRAFT_NAMESPACE; that is the honest fallback, and it is the same namespace
+   * every other builder path assumes.
+   */
+  const authoringNamespace = draftNamespace(files) ?? NEW_DRAFT_NAMESPACE
+
+  /**
    * A palette drop: plan it, then persist through the same buses a hand edit uses.
    *
    * ORDER IS LOAD-BEARING when a container was created — the file must be ADDED before the parent
@@ -98,7 +108,7 @@ const PageComposer = () => {
    * returns the created file separately so this cannot be got the wrong way round by accident.
    */
   const applyAdd = useCallback((target: TreeNode, at: number | undefined, picked: PalettePick) => {
-    const plan = planAdd(files, target, picked, draftNamespace(files), at)
+    const plan = planAdd(files, target, picked, authoringNamespace, at)
     if (!plan.ok) {
       setMoveError(plan.reason)
       return
@@ -108,7 +118,7 @@ const PageComposer = () => {
       emitFileAdd(plan.created)
     }
     Object.entries(plan.files).forEach(([path, content]) => emitFileEdit({ content, path }))
-  }, [files])
+  }, [authoringNamespace, files])
 
   /**
    * A drop from the canvas: plan it, then persist through the SAME file-edit bus the Files tab uses
@@ -348,7 +358,7 @@ const PageComposer = () => {
                 {/* A column, not a strip: the palette has a column of its own now, so it no longer
                     has to reflow its height to share one with the canvas. */}
                 <PalettePanel
-                  namespace={draftNamespace(files)}
+                  namespace={authoringNamespace}
                   onPick={setPick}
                   snowplowBaseUrl={snowplowBaseUrl}
                 />

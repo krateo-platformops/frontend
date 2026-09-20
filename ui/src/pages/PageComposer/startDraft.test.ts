@@ -8,6 +8,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
+import { canAccept } from './dropTargets'
 import { startDraft, validateStartDraft } from './startDraft'
 
 const seed = (over = {}) => {
@@ -48,7 +49,30 @@ describe('startDraft — the seed the cluster accepts', () => {
     // Two out of three renders an empty slot; the CRD only catches the third.
     expect(spec.widgetData.items).toEqual([{ resourceRefId: 'page-fleet-health-header' }])
     expect(spec.resourcesRefs.items[0].id).toBe('page-fleet-health-header')
-    expect(spec.widgetData.allowedResources).toEqual(['pageheaders'])
+    // UNCONSTRAINED, not ['pageheaders']. Declaring the one child a new page ships with made
+    // `canAccept` refuse every drop — the page accepted only its own header and the palette had
+    // nowhere to go. `[]` is what every container a person creates starts at: the CRD requires the
+    // key, and an empty list means the author has not said yet.
+    expect(spec.widgetData.allowedResources).toEqual([])
+  })
+
+  it('a started page ACCEPTS a palette drop — the gesture the builder exists for', () => {
+    const [root] = seed()
+    const node = {
+      allowedResources: (root.spec as { widgetData: { allowedResources: string[] } }).widgetData.allowedResources,
+      children: [],
+      drafted: true,
+      kind: 'Flex',
+      name: 'page-fleet-health',
+      path: 'templates/flex.page-fleet-health.yaml',
+    } as unknown as Parameters<typeof canAccept>[0]
+
+    // The regression this pins: with ['pageheaders'] every one of these was false, so a brand-new
+    // page was a canvas nothing could be dropped onto.
+    expect(canAccept(node, 'rows')).toBe(true)
+    expect(canAccept(node, 'cards')).toBe(true)
+    expect(canAccept(node, 'tables')).toBe(true)
+    expect(canAccept(node, 'pageheaders')).toBe(true)
   })
 
   it('namespaces BOTH objects and the ref entry — no defaulting exists for any of them', () => {
