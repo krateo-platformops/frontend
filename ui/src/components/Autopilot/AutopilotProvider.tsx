@@ -796,9 +796,14 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // emits a clean edit anyway, so the held bytes are exactly the human-edited bytes.
   useEffect(() => onRestDefEdit(({ draft }) => previewGate.recordPreview(draft)), [previewGate])
 
+  // A person's draft gets the live render a proposal gets — `apply` IS the `previewPage` verb, so
+  // same deps, sandbox carve-out and kernel. Why it matters: see useDraftFileBuses.
+  const previewStartedDraft = useCallback((widgets: Record<string, unknown>[], title: string) =>
+    apply({ label: `Page preview — ${title}`, verb: 'previewPage', widgets }), [apply])
+
   // Both held-draft write paths — the Files-tab edit and the composer's add — live in one hook.
   // See useDraftFileBuses for why they are two buses and why `addFile` is separate from updateFile.
-  useDraftFileBuses(blueprintStore, blueprintGate, heldDraftIdentity)
+  useDraftFileBuses(blueprintStore, blueprintGate, heldDraftIdentity, previewStartedDraft)
 
   /**
    * PUBLISH, asked for by a person rather than proposed by the model.
