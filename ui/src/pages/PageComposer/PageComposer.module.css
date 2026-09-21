@@ -1,17 +1,33 @@
 /* Page Composer — the authoring surface as a page rather than a drawer.
    Spacing follows the design-system tokens; no raw px, per design/lint/lint-css-tokens.py. */
+/*
+ * A CONTAINER, and the height the columns measure against.
+ *
+ * `container-type: inline-size` rather than a media query for the same reason `.build` wraps rather
+ * than breaking: the composer's width is set by the Autopilot rail, not by the viewport, so a
+ * viewport breakpoint would lay the page out for space it does not have. It also keeps T6 honest —
+ * the lint stops a sixth `@media` width appearing, and this adds none.
+ */
 .page {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
   padding: var(--spacing-md);
   min-height: 0;
+  /* border-box or the 16px of padding is ADDED to the 100% and the page overflows by exactly that,
+     which reads as a stray 32px scrollbar rather than as a box-model mistake. */
+  box-sizing: border-box;
+  height: 100%;
+  overflow: hidden;
+  container-name: composer;
+  container-type: inline-size;
 }
 
 .head {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xsm);
+  flex: 0 0 auto;
 }
 
 /* Publish and Close sit under the description rather than beside the title: the head is a column,
@@ -48,6 +64,59 @@
   gap: var(--spacing-md);
   align-items: flex-start;
   min-height: 0;
+  /* The builder row owns the scrollbar, not the document — that is what keeps the page one screen
+     tall while the columns are still free to wrap. Overridden at width, where each column scrolls
+     itself instead. */
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+
+/*
+ * PLACE AND VERIFY, IN ONE COLUMN. The canvas is the structural view of the page and the preview is
+ * the rendered view OF THE SAME THING, so they belong on one axis with a handle between them rather
+ * than in different regions of the document. This is also the column that should be widest — the
+ * original comment was right that "a rendered page wants the width", it just put the preview
+ * somewhere it had to wait for a scroll to be seen.
+ *
+ * `--split` is the canvas's share, written by SplitDivider. Both panes take `min-height: 0` because
+ * without it a flex child refuses to shrink below its content and the pane scrolls the PAGE instead
+ * of itself — which is the whole defect, reintroduced one level down.
+ */
+.centre {
+  flex: 3 1 420px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.centre > .canvas {
+  flex: 0 1 var(--split, 60%);
+  min-height: 0;
+  overflow: auto;
+}
+
+.centre > .result {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Wide enough to grab, quiet enough to ignore. The hit area is the padding, not the rule. */
+.split {
+  flex: 0 0 auto;
+  padding-block: var(--spacing-xs);
+  cursor: row-resize;
+  background-clip: content-box;
+  background-color: var(--krateo-color-border-subtle);
+  border: 0;
+  block-size: var(--spacing-smd);
+}
+
+.split:hover,
+.split:focus-visible {
+  background-color: var(--krateo-color-border-focus);
+  outline: none;
 }
 
 /* Narrow and non-greedy: it is a source of things, not a place to work. */
@@ -105,8 +174,8 @@
   min-width: 0;
 }
 
-/* The result, under the builder and across its full width: a rendered page wants the width, and
-   "what I am building" above "what it looks like" is the order the work is actually done in. */
+/* Lives inside `.centre` now, under the canvas and above nothing. See `.centre` for why it moved,
+   and SplitDivider for what it cost to have it anywhere else. */
 .result {
   min-width: 0;
 }
@@ -205,4 +274,33 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-lg);
   pointer-events: none;
+}
+
+/*
+ * WIDE ENOUGH FOR ALL THREE: stop wrapping, stretch the columns to full height and give each its
+ * own scrollbar, so nothing the builder needs can sit below the fold. The width is the sum of what
+ * the columns actually ask for (200 + 420 + 300 bases, two 16px gaps, 16px of page padding either
+ * side) rather than a round number chosen to look like a breakpoint.
+ */
+@container composer (min-width: 1000px) {
+  .build {
+    align-items: stretch;
+    flex-wrap: nowrap;
+    overflow: visible;
+  }
+
+  /* `align-items: stretch` already gives these the row's height; `height: 100%` on top of it
+     resolves against a different box and overshot by a couple of pixels. min-height:0 is the part
+     that matters — without it a flex child will not shrink below its content and scrolls the row
+     instead of itself. */
+  .palette,
+  .structure {
+    max-height: none;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .centre {
+    height: 100%;
+  }
 }
