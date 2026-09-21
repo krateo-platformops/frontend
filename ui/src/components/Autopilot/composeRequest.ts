@@ -108,6 +108,78 @@ export const onComposeResult = (handler: (detail: ComposeResult) => void): (() =
 }
 
 /**
+ * THE REFUSAL THE MODEL ACTUALLY HEARS.
+ *
+ * A chip is not a channel to the agent. The turn transmits `{context, contextId, sessionId, text}`
+ * and nothing else — `message.actions` is local UI state that never leaves the browser — so every
+ * refusal above reaches the PERSON and stops there. The model saw its own directive, then a fresh
+ * user message, and no sign that anything had gone wrong; on the next turn it could only infer a
+ * failure from a draft that had not changed.
+ *
+ * That is the whole reason a verbal-reflection loop had nothing to work with, and it is not fixed
+ * by making the refusal better worded. It is fixed by putting it where the model reads.
+ *
+ * `previewProblems` already solved exactly this for rejected previews: the verdicts are held here,
+ * the context collector surfaces them on the envelope, and the model corrects itself without the
+ * user relaying anything. This is that mechanism for compose, deliberately the same shape.
+ *
+ * WHEN IT CLEARS. On any APPLIED compose: the draft has moved, so a refusal computed against the
+ * old one may no longer be true, and a stale "you cannot put a card in page-x" is worse than
+ * silence. Not on delivery — an unfixed problem should keep riding, which is what makes it a
+ * standing correction rather than a notification.
+ */
+export interface ComposeRefusalNote {
+  /** The proposal that was refused, restated so the model can tell WHICH one this is about. */
+  tried: string
+  reason: string
+  /** Containers that would have accepted it — the corrected proposal, ready to re-issue. */
+  where?: string[]
+}
+
+/** Enough to describe a turn that went wrong several times; capped so a loop cannot fill the
+ *  envelope with its own history. Oldest drop out first. */
+const MAX_REFUSALS = 5
+
+let composeRefusals: ComposeRefusalNote[] = []
+
+/** A one-line restatement of the op, so a note says what it is about without the model re-reading
+ *  its own directive. */
+const describeOp = (op: ComposeOp): string => {
+  if (op.op === 'move') {
+    return `move ${op.widget} into ${op.target}`
+  }
+  if (op.op === 'addContainer') {
+    return `add a ${op.layout} inside ${op.target}`
+  }
+  return `place ${op.name} inside ${op.target}`
+}
+
+export const recordComposeOutcome = (op: ComposeOp, result: ComposeResult): void => {
+  if (result.applied) {
+    // The draft moved. Every held refusal was computed against the draft as it was.
+    composeRefusals = []
+    return
+  }
+  const note: ComposeRefusalNote = {
+    reason: result.reason ?? 'the composer did not apply it',
+    tried: describeOp(op),
+    ...(result.where?.length ? { where: result.where } : {}),
+  }
+  // A repeat replaces its predecessor rather than stacking: the same proposal refused twice is one
+  // standing problem, and listing it twice would read as two.
+  composeRefusals = [...composeRefusals.filter((held) => held.tried !== note.tried), note].slice(-MAX_REFUSALS)
+}
+
+/** The standing compose refusals, for the context collector. Null when there are none. */
+export const getComposeRefusals = (): ComposeRefusalNote[] | null =>
+  (composeRefusals.length ? composeRefusals : null)
+
+/** Drop everything held — a new draft is not answerable for the last one's refusals. */
+export const clearComposeRefusals = (): void => {
+  composeRefusals = []
+}
+
+/**
  * Ask the composer to restructure, and WAIT for its answer.
  *
  * Bounded: with no composer mounted nothing ever answers, and an action that hangs forever is worse
@@ -124,7 +196,9 @@ export const requestCompose = (
   const sub: { stop?: () => void } = {}
   const timer = setTimeout(() => {
     sub.stop?.()
-    resolve({ applied: false, id, paths: [], reason: 'no page composer is open to apply this' })
+    const timedOut: ComposeResult = { applied: false, id, paths: [], reason: 'no page composer is open to apply this' }
+    recordComposeOutcome(request, timedOut)
+    resolve(timedOut)
   }, timeoutMs)
   sub.stop = onComposeResult((result) => {
     // Not our answer: another composer, or a reply to a request that has already timed out.
@@ -133,6 +207,9 @@ export const requestCompose = (
     }
     clearTimeout(timer)
     sub.stop?.()
+    // Every outcome is recorded HERE, the single point every answer passes through, rather than at
+    // the three bridge call sites — a fourth call site would otherwise be silent by omission.
+    recordComposeOutcome(request, result)
     resolve(result)
   })
   emitComposeRequest({ ...request, id })
