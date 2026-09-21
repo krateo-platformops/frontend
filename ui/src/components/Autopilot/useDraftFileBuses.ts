@@ -29,6 +29,7 @@ import { openAutopilotPreview } from './previewBus'
 import { emitDraftChanged, onDraftReplayRequest } from './previewDraftChanged'
 import { onDraftStart } from './previewDraftStart'
 import { onFileAdd } from './previewFileAdd'
+import { onFileRemove } from './previewFileRemove'
 import { onFileEdit } from './previewFileEdit'
 import { recordPagePreview } from './publishCompile'
 
@@ -64,6 +65,14 @@ export const useDraftFileBuses = (
   // ADD: a file the composer just authored — a layout container, a new widget.
   useEffect(() => onFileAdd(({ content, path }) => {
     if (store.addFile(path, content).ok) {
+      gate.recordPreview(identityOf(store.get()))
+    }
+  }), [gate, identityOf, store])
+
+  // Removal re-arms the gate exactly as an add or an edit does: the draft's identity has changed,
+  // and a gate still armed for the previous shape would let a publish commit a set nobody previewed.
+  useEffect(() => onFileRemove(({ path }) => {
+    if (store.removeFile(path).ok) {
       gate.recordPreview(identityOf(store.get()))
     }
   }), [gate, identityOf, store])

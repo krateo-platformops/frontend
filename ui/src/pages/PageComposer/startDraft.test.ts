@@ -127,9 +127,18 @@ describe('startDraft — the seed the cluster accepts', () => {
     it('guesses NO icon and NO group — the RA omits what is absent', () => {
       // Both are optional in the RA's jq. An invented icon or a section the page does not belong to
       // is worse than an unadorned top-level entry.
-      expect(Object.keys(annotations()).sort()).toEqual([
-        'krateo.io/nav-label', 'krateo.io/nav-order', 'krateo.io/nav-path',
-      ])
+      //
+      // Scoped to the NAV annotations rather than to every key: the root also carries the composer's
+      // allowed-resources provenance marker, which is not a nav concern and is asserted below.
+      expect(Object.keys(annotations()).filter((key) => key.startsWith('krateo.io/nav')).sort())
+        .toEqual(['krateo.io/nav-label', 'krateo.io/nav-order', 'krateo.io/nav-path'])
+    })
+
+    it('marks its own allowedResources as DERIVED — the list it grows is not a declaration', () => {
+      // The root starts `allowedResources: []` and `placeChild` must append each child's plural or
+      // the child will not render. Without this marker the first Row dropped in leaves a one-entry
+      // list that `canAccept` reads as intent, and the page silently accepts nothing else.
+      expect(annotations()['krateo.io/allowed-resources']).toBe('derived')
     })
   })
 })

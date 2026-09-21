@@ -9,13 +9,21 @@
  * the composer never writes files itself. It emits on the same bus the Files tab uses, so a move
  * passes through the draft's byte cap and re-arms the publish gate exactly like a hand edit.
  */
-import { cleanup, fireEvent, screen } from '@testing-library/react'
+import { cleanup, screen } from '@testing-library/react'
 import { load } from 'js-yaml'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { capture, emit, installAntdShims, mountWithConfig, widgetCr } from './composerTestHarness'
+import { dragOnto, stubLayout } from './dndTestDriver'
 
 afterEach(cleanup)
+
+// The gestures below are real dnd-kit gestures, and dnd-kit decides what you are over by geometry.
+// jsdom measures everything as 0x0, so without this every drop would land on nothing and every
+// assertion here would pass for the wrong reason.
+let restoreLayout: () => void
+beforeEach(() => { restoreLayout = stubLayout() })
+afterEach(() => restoreLayout())
 beforeAll(installAntdShims)
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -51,8 +59,7 @@ describe('PageComposer — the canvas is wired to the draft', () => {
     mountWithConfig()
     emit({ files: nested(), title: 'x' })
 
-    fireEvent.dragStart(screen.getByTestId('canvas-frame-card-b'))
-    fireEvent.drop(screen.getByTestId('canvas-well-page-x'))
+    dragOnto(screen.getByTestId('canvas-handle-card-b'), screen.getByTestId('canvas-well-page-x'))
 
     // Two edits, no adds: a move rewrites the two parents and invents no file.
     expect(bus.log.map((entry) => entry.op)).toEqual(['edit', 'edit'])
@@ -100,14 +107,26 @@ describe('PageComposer — the canvas is wired to the draft', () => {
 
     // row-a accepts anything (it declares []), so dragging the card there is legal and would write.
     // The page is the one that refuses. Drag onto the page's own well.
-    fireEvent.dragStart(screen.getByTestId('canvas-frame-card-b'))
-    fireEvent.drop(screen.getByTestId('canvas-well-page-x'))
+    dragOnto(screen.getByTestId('canvas-handle-card-b'), screen.getByTestId('canvas-well-page-x'))
 
-    // Never offered…
+    // Never offered — the highlight still tells the truth before the gesture ends…
     expect(screen.getByTestId('canvas-frame-page-x').getAttribute('data-accepts')).toBeNull()
-    // …so nothing was written, and nothing needed saying.
+    // …and nothing is written.
     expect(bus.log).toHaveLength(0)
-    expect(screen.queryByRole('alert')).toBeNull()
+    // BUT IT IS NO LONGER SILENT, and that is the point of the migration.
+    //
+    // This assertion used to read `expect(screen.queryByRole('alert')).toBeNull()` — "nothing
+    // needed saying". It was describing a limitation as an intention. Under native HTML5 drag the
+    // refusal could not be said: `preventDefault` on dragover is what makes an element a drop
+    // target, so declining to call it meant `drop` never fired, and the precise reason planAdd and
+    // planMove compute died at the browser boundary. The person got an absent highlight among
+    // several present ones and no way to ask why.
+    //
+    // dnd-kit has no such coupling: every container is a droppable, the KERNEL refuses, and the
+    // reason it already computed reaches the surface that shows every other outcome.
+    const refusal = screen.getByRole('alert')
+    expect(refusal.textContent).toContain('page-x')
+    expect(refusal.textContent).toMatch(/cannot hold a cards/i)
     bus.stop()
   })
 })
@@ -134,8 +153,7 @@ describe('PageComposer — a drop lands where it was aimed', () => {
     mountWithConfig()
     emit({ files: two(), title: 'x' })
 
-    fireEvent.dragStart(screen.getByTestId('canvas-frame-card-b'))
-    fireEvent.drop(screen.getByTestId('canvas-gap-page-x-0'))
+    dragOnto(screen.getByTestId('canvas-handle-card-b'), screen.getByTestId('canvas-gap-page-x-0'))
 
     const edited = bus.log.filter((entry) => entry.path === 'templates/flex.page-x.yaml')
     expect(edited).toHaveLength(1)
@@ -150,6 +168,44 @@ describe('PageComposer — adding from the palette', () => {
     { content: widgetCr('Flex', 'page-x', ['card-b']), path: 'templates/flex.page-x.yaml' },
   ]
 
+  it('A SECOND KIND STILL LANDS — a container does not lock to the first thing dropped in it', () => {
+    /*
+     * The defect this replaces, reproduced twice on the live page by an external review: drag a Row
+     * onto a fresh page, then drag a Card onto the same page, and nothing happens. No message, no
+     * refusal, no way to find out why.
+     *
+     * The cause was two correct rules meeting. `placeChild` MUST append each child's plural or the
+     * CRD will not render the child; `canAccept` honours any non-empty list as intent. So the Row
+     * left `allowedResources: ['rows']` behind and the page started refusing everything else — on
+     * the strength of a declaration the composer itself had written a moment earlier.
+     *
+     * Provenance is what separates them: a container the composer created says so, and its list is
+     * read as a description of what it holds rather than as a rule about what it may hold.
+     */
+    const bus = capture()
+    mountWithConfig()
+    emit({ files: nested(), title: 'x' })
+
+    dragOnto(screen.getByTestId('palette-item-Row'), screen.getByTestId('canvas-well-page-x'))
+    const afterRow = bus.log.length
+    expect(afterRow).toBeGreaterThan(0)
+
+    // …and now a DIFFERENT kind onto the same container. Before the fix this wrote nothing at all.
+    dragOnto(screen.getByTestId('palette-item-Card'), screen.getByTestId('canvas-well-page-x'))
+    expect(bus.log.length).toBeGreaterThan(afterRow)
+    const parent = [...bus.log].reverse().find((entry) => entry.path === 'templates/flex.page-x.yaml')
+    expect(parent?.content).toContain('cards')
+    // …and it was not refused. The pair matters: a drop that writes nothing AND says nothing is
+    // exactly what the defect looked like from the canvas.
+    expect(screen.queryByRole('alert')).toBeNull()
+
+    // NOTE the harness does not feed accepted edits back into the composer's `files`, so the second
+    // plan is computed against the draft as first emitted — which is why this asserts that the drop
+    // LANDED rather than that the parent ends up listing both plurals. The accumulation is
+    // structureEdit's own property and is covered there.
+    bus.stop()
+  })
+
   it('a CONTAINER drop adds the file BEFORE the parent that references it', () => {
     // Order is the property: a parent emitted first momentarily names a file the draft does not
     // carry. planAdd returns the created file separately so this cannot be got backwards.
@@ -157,8 +213,7 @@ describe('PageComposer — adding from the palette', () => {
     mountWithConfig()
     emit({ files: nested(), title: 'x' })
 
-    fireEvent.dragStart(screen.getByTestId('palette-item-Row'))
-    fireEvent.drop(screen.getByTestId('canvas-well-page-x'))
+    dragOnto(screen.getByTestId('palette-item-Row'), screen.getByTestId('canvas-well-page-x'))
 
     expect(bus.log.map((entry) => entry.op)).toEqual(['add', 'edit'])
     expect(bus.log[0].path).toBe('templates/row.page-x-row.yaml')

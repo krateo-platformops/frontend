@@ -25,8 +25,12 @@
  * start one. Publishing is unchanged and still ends at a form a person submits — the agent's
  * never-submit guarantee is not weakened by any of this.
  */
-import { Alert, Button, Popconfirm, Space, Typography } from 'antd'
-import { useCallback, useContext, useEffect, useRef, useState } from 'react'
+import {
+  DndContext, DragOverlay, KeyboardSensor, PointerSensor, pointerWithin, useSensor, useSensors,
+} from '@dnd-kit/core'
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
+import { Alert, Button, Popconfirm, Space, Tag, Typography } from 'antd'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 
 import { emitComposeResult, onComposeRequest } from '../../components/Autopilot/composeRequest'
 import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
@@ -42,6 +46,8 @@ import { WidgetEmpty } from '../../components/WidgetStates'
 import { ConfigContext } from '../../context/ConfigContext'
 
 import CanvasPanel from './CanvasPanel'
+import { resolveDrop } from './dndIds'
+import type { DragPayload, DropPayload } from './dndIds'
 import { legalTargets } from './dropTargets'
 import { buildObjectTree, draftNamespace, flattenTree } from './objectTree'
 import type { TreeNode } from './objectTree'
@@ -62,6 +68,12 @@ import { LAYOUT_KINDS } from './structureEdit'
  * It is visible and editable in the Files tab before anything is published, which is the backstop.
  */
 const NEW_DRAFT_NAMESPACE = 'krateo-system'
+
+/** What the drag chip says: the layout kind being created, or the name of the thing being placed. */
+const airborneLabel = (payload: DragPayload): string => {
+  if (payload.from === 'canvas') { return payload.node.name }
+  return payload.pick.kind === 'container' ? payload.pick.layout : payload.pick.name
+}
 
 /**
  * What a structural edit did — the composer's answer to whoever asked.
@@ -117,8 +129,15 @@ const PageComposer = () => {
   // "this drop was rejected and here is why".
   const [moveError, setMoveError] = useState<string | null>(null)
 
-  /** What the palette has in the air. Lifted here because the palette and the canvas are siblings. */
-  const [pick, setPick] = useState<PalettePick | null>(null)
+  /**
+   * What is in the air, from EITHER panel, and the dnd-kit id of the thing being dragged.
+   *
+   * Lifted here because a drag that starts in the palette and ends on the canvas is one gesture
+   * across two siblings, so the `DndContext` has to enclose both — and the state it produces
+   * belongs at the same level.
+   */
+  const [airborne, setAirborne] = useState<DragPayload | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
 
   /**
    * Where a NEW object this page authors is created.
@@ -129,6 +148,15 @@ const PageComposer = () => {
    * every other builder path assumes.
    */
   const authoringNamespace = draftNamespace(files) ?? NEW_DRAFT_NAMESPACE
+
+  /**
+   * ONE tree per render, shared by the canvas and by the drop handler.
+   *
+   * `legalTargets` compares nodes by REFERENCE, so a canvas that built its own tree and a handler
+   * that built another would agree about the page and disagree about its nodes — the highlight
+   * would light a node the drop then could not find.
+   */
+  const roots = useMemo(() => buildObjectTree(files), [files])
 
   /**
    * A palette drop: plan it, then persist through the same buses a hand edit uses.
@@ -177,6 +205,56 @@ const PageComposer = () => {
 
     return { ok: true, paths: Object.keys(plan.files) }
   }, [files])
+  /**
+   * dnd-kit sensors.
+   *
+   * PointerSensor covers mouse, trackpad AND touch — the canvas was completely inert on a coarse
+   * pointer before, because native HTML5 drag does not fire there at all. The 6px activation
+   * distance is what keeps a CLICK on the kind label (which selects the node) from being swallowed
+   * as a micro-drag.
+   *
+   * KeyboardSensor is the one there was no substitute for: not one of 80 tab stops used to land in
+   * the canvas or the palette, and the object tree — documented in this file as the keyboard route
+   * — sent focus to BODY after every edit. Space lifts, arrows move, Space drops, Escape cancels.
+   */
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor),
+  )
+
+  const onDragStart = useCallback((event: DragStartEvent) => {
+    setAirborne(event.active.data.current as DragPayload)
+    setDraggingId(String(event.active.id))
+  }, [])
+
+  /**
+   * The end of a gesture, and the point of the whole migration.
+   *
+   * An ILLEGAL drop arrives here. Under native DnD it could not: `preventDefault` on `dragover` is
+   * what makes an element a drop target, so declining to call it — correct, and what the old canvas
+   * did — meant `drop` never fired and `planAdd`/`planMove`'s refusal text was unreachable from a
+   * drag. Every container is a droppable now and the KERNEL decides, so a refused drop says why
+   * through the same Alert a tree action uses.
+   */
+  const onDragEnd = useCallback((event: DragEndEvent) => {
+    const intent = resolveDrop(
+      event.active.data.current as DragPayload | undefined,
+      event.over?.data.current as DropPayload | undefined,
+    )
+    setAirborne(null)
+    setDraggingId(null)
+    if (intent.do === 'add') {
+      applyAdd(intent.target, intent.at, intent.pick)
+    } else if (intent.do === 'move') {
+      applyMove(intent.moving, intent.target, roots, intent.at)
+    }
+  }, [applyAdd, applyMove, roots])
+
+  const onDragCancel = useCallback(() => {
+    setAirborne(null)
+    setDraggingId(null)
+  }, [])
+
   const [starting, setStarting] = useState(false)
   // The tree selection, reflected in the Files list. Without it the two halves of the page are
   // unrelated views of the same draft.
@@ -422,28 +500,63 @@ const PageComposer = () => {
            * it keeps its own tab bar — now the only one.
            */
           <>
-            <div className={styles.build}>
-              <section className={styles.palette}>
-                <Typography.Text strong>Add</Typography.Text>
-                {/* A column, not a strip: the palette has a column of its own now, so it no longer
-                    has to reflow its height to share one with the canvas. */}
-                <PalettePanel
-                  namespace={authoringNamespace}
-                  onPick={setPick}
-                  snowplowBaseUrl={snowplowBaseUrl}
-                />
-              </section>
+            {/*
+              ONE CONTEXT OVER BOTH PANELS. A drag that begins in the palette and ends on the canvas
+              is a single gesture, so the two cannot each own one — which is also why the drag state
+              lives in this component rather than in either panel.
 
-              <section className={styles.canvas}>
-                <Typography.Text strong>Layout</Typography.Text>
-                <CanvasPanel files={files} onAdd={applyAdd} onMove={applyMove} onSelect={setFocusPath} pick={pick} />
-              </section>
+              `pointerWithin` rather than the default rectangle intersection: the canvas is nested
+              containers, wells inside wells, and rectangle overlap resolves an inner well and its
+              ancestors as equally good candidates. Asking which droppable the POINTER is inside is
+              the collision strategy dnd-kit documents for nesting, and it is what makes exactly one
+              target light up instead of six.
+            */}
+            <DndContext
+              collisionDetection={pointerWithin}
+              onDragCancel={onDragCancel}
+              onDragEnd={onDragEnd}
+              onDragStart={onDragStart}
+              sensors={sensors}
+            >
+              <div className={styles.build}>
+                <section className={styles.palette}>
+                  <Typography.Text strong>Add</Typography.Text>
+                  <PalettePanel
+                    namespace={authoringNamespace}
+                    snowplowBaseUrl={snowplowBaseUrl}
+                  />
+                </section>
 
-              {/* Draws its own box and heading — see .structure for why it is not wrapped in one. */}
-              <div className={styles.structure}>
-                <ObjectTreePanel files={files} onSelect={setFocusPath} snowplowBaseUrl={snowplowBaseUrl} />
+                <section className={styles.canvas}>
+                  <Typography.Text strong>Layout</Typography.Text>
+                  <CanvasPanel
+                    airborne={airborne}
+                    draggingId={draggingId}
+                    files={files}
+                    onSelect={setFocusPath}
+                    roots={roots}
+                  />
+                </section>
+
+                {/* Draws its own box and heading — see .structure for why it is not wrapped in one. */}
+                <div className={styles.structure}>
+                  <ObjectTreePanel files={files} onSelect={setFocusPath} snowplowBaseUrl={snowplowBaseUrl} />
+                </div>
               </div>
-            </div>
+              {/*
+              THE DRAG IMAGE. The browser's default was a translucent snapshot of the dragged
+              element — so dragging a populated container dragged a copy of its whole subtree across
+              the canvas, covering the very drop targets it was being aimed at. A chip says what is
+              in the air and occludes nothing.
+            */}
+              <DragOverlay dropAnimation={null}>
+                {airborne ? (
+                  <Tag color='processing' style={{ margin: 0 }}>
+                    {airborneLabel(airborne)}
+                  </Tag>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
 
             {/* Full width, because the live render is a page and a page wants the width. Selecting
                 a node above still reveals its bytes in Files here — same `focusPath` as before. */}

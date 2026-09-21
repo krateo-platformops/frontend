@@ -20,6 +20,8 @@
  */
 import { load } from 'js-yaml'
 
+import { DERIVED_ALLOWED_ANNOTATION } from './structureEdit'
+
 export interface TreeNode {
   /** The CR's metadata.name. */
   name: string
@@ -60,6 +62,14 @@ export interface TreeNode {
    * read it back rather than quietly widen it.
    */
   allowedResources: readonly string[] | null
+  /**
+   * True when `allowedResources` was GROWN by the composer rather than written by an author.
+   *
+   * The list cannot say where it came from and the difference decides whether it is a rule. See
+   * DERIVED_ALLOWED_ANNOTATION in structureEdit — a container the composer created is annotated at
+   * creation, and editing the file is how an author takes ownership of the declaration.
+   */
+  allowedDerived: boolean
   /**
    * The CRD plural its PARENT declares for it (`resourcesRefs[].resource`), or null for a root and
    * for a child whose reference is dangling.
@@ -108,6 +118,8 @@ interface ParsedObject {
   bound: boolean
   namespace: string | null
   allowedResources: readonly string[] | null
+  /** Whether that list was grown by the composer rather than declared — see the TreeNode field. */
+  allowedDerived: boolean
   /** Ordered children, each carrying BOTH the parent's id for it and the name it resolves to. */
   children: ChildRef[]
 }
@@ -173,8 +185,11 @@ const parseObject = (path: string, content: string): ParsedObject | null => {
     }
   }
 
+  const annotations = asRecord(meta?.annotations)
+  const allowedDerived = annotations?.[DERIVED_ALLOWED_ANNOTATION] === 'derived'
   const declared = widgetData?.allowedResources
   return {
+    allowedDerived,
     allowedResources: Array.isArray(declared) ? declared.filter((entry): entry is string => typeof entry === 'string') : null,
     bound: Boolean(spec?.apiRef),
     children,
@@ -218,13 +233,14 @@ export const buildObjectTree = (files: Record<string, string>): TreeNode[] => {
     const object = objects.get(name)
     if (!object) {
       // Referenced but not in the draft: an existing cluster widget being placed.
-      return { allowedResources: null, bound: false, children: [], drafted: false, kind: null, name, namespace, parentPath, path: null, position, refId, resource }
+      return { allowedDerived: false, allowedResources: null, bound: false, children: [], drafted: false, kind: null, name, namespace, parentPath, path: null, position, refId, resource }
     }
     if (seen.has(name)) {
-      return { allowedResources: object.allowedResources, bound: object.bound, children: [], drafted: true, kind: object.kind, name, namespace, parentPath, path: object.path, position, refId, resource }
+      return { allowedDerived: object.allowedDerived, allowedResources: object.allowedResources, bound: object.bound, children: [], drafted: true, kind: object.kind, name, namespace, parentPath, path: object.path, position, refId, resource }
     }
     const nextSeen = new Set(seen).add(name)
     return {
+      allowedDerived: object.allowedDerived,
       allowedResources: object.allowedResources,
       bound: object.bound,
       children: object.children.map((child, index) => toNode(child, index, nextSeen, object.path)),

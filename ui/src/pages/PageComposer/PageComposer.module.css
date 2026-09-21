@@ -51,6 +51,25 @@
 }
 
 /* Narrow and non-greedy: it is a source of things, not a place to work. */
+/*
+ * THE PALETTE SCROLLS ITSELF. Measured on krateo-057 it was 16,793px tall — 300 items, 5 containers
+ * and 295 widgets the cluster already carries — beside a 120px canvas. Three consequences followed
+ * from that one number, and none of them was a styling complaint:
+ *
+ *   - the drag SOURCE and the drop TARGET could not be on screen together for most of the list, so
+ *     placing anything below the fold was not achievable by dragging at all;
+ *   - at 1024px the object tree fell off the flex row and landed ~16,800px BELOW the canvas, which
+ *     is the layout contradicting the reason given below for mounting all three panels at once;
+ *   - the live render sat about 20 screens down, so the page's own feedback loop was unreachable.
+ *
+ * Capping the height fixes all three at once, because the row's height stops being a function of
+ * how many widgets somebody happens to have authored on this cluster.
+ *
+ * THE TRADE, stated because it is real: a scrolled palette does not auto-scroll during a drag, so
+ * scrolling WITHIN the palette mid-gesture stops working. The person who has scrolled to an item
+ * can now see the canvas, which is the whole point, and it is the trade Figma, Webflow and
+ * Builder.io all make.
+ */
 .palette {
   flex: 0 1 200px;
   min-width: 170px;
@@ -60,6 +79,9 @@
   border: 1px solid var(--border-color, rgb(0 0 0 / 10%));
   border-radius: var(--border-radius, 8px);
   padding: var(--spacing-sm);
+  max-height: min(60vh, 640px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* Grows first and hardest. min-width:0 so a deeply nested page scrolls inside its own frame
@@ -117,9 +139,21 @@
 /* The move/remove controls on a tree row. Held at low opacity until the row is hovered or focused:
    three buttons per node at full strength turn the tree into a wall of icons and bury the names,
    which are the thing being read. Focus-within keeps them reachable by keyboard. */
-.nodeActions { opacity: 0; transition: opacity .12s ease-in-out; }
-.node:hover .nodeActions,
-.node:focus-within .nodeActions { opacity: 1; }
+.nodeActions { opacity: 1; }
+
+/*
+ * HIDDEN ONLY WHERE HOVER EXISTS. The reveal-on-hover was unconditional, and hover is not a thing a
+ * touch device has: iOS Safari's synthetic :hover on first tap is a heuristic, not a contract. So on
+ * a tablet Wrap / Move into / Move up / Move down / Remove were invisible — and since native drag
+ * does not fire on a coarse pointer either, that left "add a widget to the page" as the only
+ * operation available and no way to rearrange or undo it. WCAG 2.5.7 asks for a single-pointer
+ * alternative to dragging; this was the alternative, and it could not be seen.
+ */
+@media (hover: hover) and (pointer: fine) {
+  .nodeActions { opacity: 0; transition: opacity .12s ease-in-out; }
+  .node:hover .nodeActions,
+  .node:focus-within .nodeActions { opacity: 1; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .nodeActions { transition: none; }
