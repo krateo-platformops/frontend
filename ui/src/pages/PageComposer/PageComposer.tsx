@@ -30,7 +30,7 @@ import {
   useSensor, useSensors,
 } from '@dnd-kit/core'
 import type { CollisionDetection, DragEndEvent, DragStartEvent } from '@dnd-kit/core'
-import { Alert, Button, Popconfirm, Space, Tag, Typography } from 'antd'
+import { Alert, Button, Popconfirm, Space, Typography } from 'antd'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { emitComposeResult, onComposeRequest } from '../../components/Autopilot/composeRequest'
@@ -692,12 +692,15 @@ const PageComposer = () => {
               element — so dragging a populated container dragged a copy of its whole subtree across
               the canvas, covering the very drop targets it was being aimed at. A chip says what is
               in the air and occludes nothing.
+
+              The chip itself then went too far the other way: an antd Tag, 27px wide, translucent,
+              sitting exactly on the label it was hovering. See `.dragChip` for what that cost.
             */}
               <DragOverlay dropAnimation={null}>
                 {airborne ? (
-                  <Tag color='processing' style={{ margin: 0 }}>
+                  <div className={styles.dragChip}>
                     {airborneLabel(airborne)}
-                  </Tag>
+                  </div>
                 ) : null}
               </DragOverlay>
             </DndContext>

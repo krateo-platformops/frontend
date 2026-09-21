@@ -175,3 +175,34 @@
   white-space: nowrap;
   border: 0;
 }
+
+/*
+ * THE DRAG CHIP — what is in the air, drawn so it can be read.
+ *
+ * It was an antd `<Tag color='processing'>`: about 27px wide in a 1600px viewport, translucent, and
+ * rendered at the grab offset — which puts it ON TOP of the label of whatever it is hovering. In a
+ * screen recording the ghost and the text underneath mutually erased each other, and the gesture
+ * that the whole canvas exists to support was the least legible thing on screen. It is no better
+ * for a person than for a camera: the chip is the only feedback saying WHICH widget is travelling.
+ *
+ * Opaque, because it crosses text it must not blend into. Offset down-right of the pointer so the
+ * cursor and the drop target it is aimed at stay visible. Shadowed, because the canvas is a flat
+ * dark surface and a border alone does not lift it off one.
+ */
+.dragChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xsm) var(--spacing-smd);
+  transform: translate(var(--spacing-smd), var(--spacing-sm));
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--krateo-color-text-default);
+  background: var(--krateo-color-background-elevated);
+  border: 2px solid var(--krateo-color-border-focus);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-lg);
+  pointer-events: none;
+}

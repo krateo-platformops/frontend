@@ -13,7 +13,7 @@
  * did, in a way nothing would report.
  */
 import { ApiOutlined, ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, DragOutlined, GroupOutlined, ImportOutlined, PlusOutlined } from '@ant-design/icons'
-import { App, Badge, Button, Dropdown, Empty, Popconfirm, Space, Tag, Tooltip, Tree, Typography } from 'antd'
+import { App, Button, Dropdown, Empty, Popconfirm, Space, Tag, Tooltip, Tree, Typography } from 'antd'
 import type { DataNode } from 'antd/es/tree'
 import { useMemo, useState } from 'react'
 
@@ -537,7 +537,17 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
       <div className={styles.treeHead}>
         <Typography.Text strong>Objects</Typography.Text>
         <span className={styles.counts}>
-          <Badge color='default' count={flat.length} overflowCount={999} showZero title='objects on this page' />
+          {/*
+            A COUNT, NOT A PROBLEM. This was `<Badge color='default'>`, which renders RED: antd's
+            `isPresetColor` tests the thirteen HUE presets and `default` is a STATUS keyword, not one
+            of them, so the component falls through to `style.background = 'default'` — invalid CSS,
+            silently dropped, leaving the default red. A red pill reading "3" beside the word
+            Objects says three things are wrong with the page; nothing is. Red is exception-only.
+
+            A Tag rather than a fixed-up Badge, so it matches the `N data` tag beside it — the two
+            are the same kind of fact and were drawn as two different kinds of thing.
+          */}
+          <Tooltip title='objects on this page'><Tag>{flat.length}</Tag></Tooltip>
           {boundCount
             ? <Tooltip title={`${boundCount} read their data from a RESTAction`}><Tag color='blue'>{boundCount} data</Tag></Tooltip>
             : null}
