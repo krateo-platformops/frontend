@@ -7,6 +7,7 @@
  * what it does to the draft in the other — so each file still reads as one argument.
  */
 import { act, render, screen } from '@testing-library/react'
+import { App as AntdApp } from 'antd'
 import { vi } from 'vitest'
 
 import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
@@ -48,7 +49,22 @@ export const installAntdShims = () => {
  * AutopilotProvider, which is the whole point: that is the coupling this change removes, and its
  * absence is what these tests assert.
  */
-export const mount = () => render(<ThemeModeProvider><PageComposer /></ThemeModeProvider>)
+/**
+ * INSIDE antd's `<App>`, because the composer reads `App.useApp()`.
+ *
+ * `ObjectTreePanel` takes its `message` from that context (ObjectTreePanel.tsx:156), and outside an
+ * `<App>` provider antd hands back an empty default whose `.warning` is undefined. So every refusal
+ * path in the tree — remove failed, place failed, wrap failed, name clash, move refused — threw a
+ * TypeError under test while the assertions around it still passed, because the throw escaped as an
+ * unhandled rejection rather than failing the case that caused it. Production has always been
+ * correct: App.tsx:66 wraps the router in `<AntdApp>`.
+ *
+ * This is therefore a harness fidelity fix, not a product fix, and it is what makes the tree's
+ * refusal messages assertable at all.
+ */
+const inApp = (node: React.ReactNode) => <AntdApp>{node}</AntdApp>
+
+export const mount = () => render(inApp(<ThemeModeProvider><PageComposer /></ThemeModeProvider>))
 
 /**
  * Mount WITH config — needed only where the surface talks to snowplow (the widget picker).
@@ -58,9 +74,11 @@ export const mount = () => render(<ThemeModeProvider><PageComposer /></ThemeMode
  * AutopilotProvider" is a property worth keeping asserted — this adds config, not the rail.
  */
 export const mountWithConfig = (snowplow = 'http://snowplow.test') => render(
-  <ConfigContext.Provider value={{ config: { api: { SNOWPLOW_API_BASE_URL: snowplow } } } as never}>
-    <ThemeModeProvider><PageComposer /></ThemeModeProvider>
-  </ConfigContext.Provider>,
+  inApp(
+    <ConfigContext.Provider value={{ config: { api: { SNOWPLOW_API_BASE_URL: snowplow } } } as never}>
+      <ThemeModeProvider><PageComposer /></ThemeModeProvider>
+    </ConfigContext.Provider>,
+  ),
 )
 
 /**
