@@ -13,12 +13,13 @@
  * did, in a way nothing would report.
  */
 import { ApiOutlined, ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, DragOutlined, GroupOutlined, ImportOutlined, PlusOutlined } from '@ant-design/icons'
-import { App, Badge, Button, Dropdown, Empty, Space, Tag, Tooltip, Tree, Typography } from 'antd'
+import { App, Badge, Button, Dropdown, Empty, Popconfirm, Space, Tag, Tooltip, Tree, Typography } from 'antd'
 import type { DataNode } from 'antd/es/tree'
 import { useMemo, useState } from 'react'
 
 import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
 import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
+import { emitFileRemove } from '../../components/Autopilot/previewFileRemove'
 
 import BindDataModal from './BindDataModal'
 import type { BindingResult } from './generateBinding'
@@ -135,9 +136,21 @@ const toDataNode = (
             <Tooltip title='Move later'>
               <Button aria-label={`Move ${node.name} down`} icon={<ArrowDownOutlined />} onClick={(event) => { event.stopPropagation(); mutate(node, 'down') }} size='small' type='text' />
             </Tooltip>
-            <Tooltip title='Remove from this page'>
-              <Button aria-label={`Remove ${node.name}`} icon={<DeleteOutlined />} onClick={(event) => { event.stopPropagation(); mutate(node, 'remove') }} size='small' type='text' />
-            </Tooltip>
+            {/*
+              CONFIRMED, because it is unrecoverable: removing the last placement of a drafted
+              object now deletes its file, and the composer has no undo of any kind. This was a bare
+              onClick on an operation that silently orphaned a file; it is now a decision.
+            */}
+            <Popconfirm
+              cancelText='Keep'
+              okText='Remove'
+              onConfirm={() => mutate(node, 'remove')}
+              title={`Remove ${node.name} from this page?`}
+            >
+              <Tooltip title='Remove from this page'>
+                <Button aria-label={`Remove ${node.name}`} icon={<DeleteOutlined />} onClick={(event) => event.stopPropagation()} size='small' type='text' />
+              </Tooltip>
+            </Popconfirm>
           </Space>
         )
         : null}
@@ -205,6 +218,28 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
       return
     }
     emitFileEdit({ content: result.content, path: node.parentPath })
+
+    /*
+     * REMOVE ALSO REMOVES THE FILE — which it did not, and that was the whole defect.
+     *
+     * `removeChild` rewrites the PARENT: it deletes the reference and nothing else. The child's file
+     * stayed in the held draft, `buildObjectTree` saw a file nothing referenced and drew it as a page
+     * ROOT, and the thing just removed reappeared on the canvas beside the page. It had no
+     * `parentPath`, so the tree drew no buttons on it — there was no Remove to press a second time —
+     * and `pagePublish` builds one repocontents op per held key, so it shipped in the change request
+     * too. "I pressed Remove and it is still there, and now I cannot get rid of it."
+     *
+     * ONLY WHEN NOTHING ELSE HOLDS IT. The same widget may legitimately be placed twice — a divider
+     * between two sections — and each placement is its own reference. Deleting the file on the first
+     * removal would blank the surviving placement. So the file goes only when this was the last
+     * placement of it, counted over the tree as it stands BEFORE the removal.
+     */
+    if (op === 'remove' && node.drafted && node.path) {
+      const placements = flat.filter((other) => other.name === node.name && other.refId !== null)
+      if (placements.length <= 1) {
+        emitFileRemove({ path: node.path })
+      }
+    }
   }
 
   /**

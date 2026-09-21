@@ -230,6 +230,12 @@ describe('PageComposer — structural edits from the tree', () => {
     expect(order(seen[1].content)).toEqual(['third', 'first', 'second'])
   })
 
+  /** Remove is confirmed now — it deletes a file and the composer has no undo. */
+  const confirmRemove = (label: string) => {
+    act(() => { screen.getByLabelText(label).click() })
+    act(() => { screen.getByRole('button', { name: 'Remove' }).click() })
+  }
+
   it('removing emits a parent without that child', () => {
     const seen: { content: string }[] = []
     const listener = (event: Event) => {
@@ -238,11 +244,67 @@ describe('PageComposer — structural edits from the tree', () => {
     window.addEventListener('autopilotPreviewFileEdited', listener)
     openTwoChildDraft()
 
-    act(() => { screen.getByLabelText('Remove first').click() })
+    confirmRemove('Remove first')
     window.removeEventListener('autopilotPreviewFileEdited', listener)
 
     expect(seen[0].content).not.toContain('first')
     expect(seen[0].content).toContain('second')
+  })
+
+  it('REMOVES THE FILE TOO — otherwise the thing you removed comes back as a second page root', () => {
+    /*
+     * `removeChild` rewrites only the parent. The child's file stayed held, `buildObjectTree` drew
+     * the now-unreferenced file as a ROOT, and the removed object reappeared on the canvas beside
+     * the page — with no `parentPath`, so no action buttons, so no way to remove it a second time.
+     * It shipped in the change request as well, since pagePublish emits one op per held key.
+     */
+    const removed: { path: string }[] = []
+    const listener = (event: Event) => { removed.push((event as CustomEvent<{ path: string }>).detail) }
+    window.addEventListener('autopilotPreviewFileRemoved', listener)
+    // A draft that CARRIES the child. The two-child fixture references widgets the draft does not
+    // hold — external cluster widgets — and those have no file to remove, which is why the guard
+    // asks for `drafted` before emitting anything.
+    mount()
+    emit({
+      files: [
+        { content: widgetCr('Flex', 'page-x', ['row-a']), path: 'templates/flex.page-x.yaml' },
+        { content: widgetCr('Row', 'row-a'), path: 'templates/row.row-a.yaml' },
+      ],
+      title: 'x',
+    })
+
+    confirmRemove('Remove row-a')
+    window.removeEventListener('autopilotPreviewFileRemoved', listener)
+
+    expect(removed).toHaveLength(1)
+    expect(removed[0].path).toBe('templates/row.row-a.yaml')
+  })
+
+  it('leaves an EXTERNAL widget\'s file alone — there is none, and the CR is not ours to delete', () => {
+    const removed: { path: string }[] = []
+    const listener = (event: Event) => { removed.push((event as CustomEvent<{ path: string }>).detail) }
+    window.addEventListener('autopilotPreviewFileRemoved', listener)
+    openTwoChildDraft()
+
+    confirmRemove('Remove first')
+    window.removeEventListener('autopilotPreviewFileRemoved', listener)
+
+    // The reference goes; nothing is deleted, because the widget lives on the cluster and this page
+    // merely pointed at it.
+    expect(removed).toHaveLength(0)
+  })
+
+  it('asks before removing — the one destructive edit in the tree, and there is no undo', () => {
+    const removed: { path: string }[] = []
+    const listener = (event: Event) => { removed.push((event as CustomEvent<{ path: string }>).detail) }
+    window.addEventListener('autopilotPreviewFileRemoved', listener)
+    openTwoChildDraft()
+
+    // The click alone must not delete anything.
+    act(() => { screen.getByLabelText('Remove first').click() })
+    expect(removed).toHaveLength(0)
+    expect(screen.getByText('Remove first from this page?')).toBeTruthy()
+    window.removeEventListener('autopilotPreviewFileRemoved', listener)
   })
 })
 

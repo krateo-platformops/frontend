@@ -51,7 +51,16 @@ const summarizeNodes = (nodes: readonly TreeNode[], budget: { left: number }): D
     budget.left -= 1
     const children = summarizeNodes(node.children, budget)
     out.push({
-      ...(node.allowedResources?.length ? { allows: node.allowedResources } : {}),
+      // ONLY AN AUTHORED LIST IS REPORTED AS A CONSTRAINT.
+      //
+      // `placeChild` appends each child's plural because the CRD requires it, so a container the
+      // composer created carries a non-empty list that describes what it HOLDS rather than what it
+      // MAY hold — and `canAccept` stopped treating those as rules. If they were still reported
+      // here the model would route around a constraint that is no longer enforced: it would decline
+      // to place a Card in a page whose list happens to read `[rows]`, and explain that decision to
+      // the user, while a person dragging the same Card would succeed. A fence the agent believes
+      // and the canvas does not is worse than no fence.
+      ...(!node.allowedDerived && node.allowedResources?.length ? { allows: node.allowedResources } : {}),
       ...(children.length ? { children } : {}),
       ...(node.drafted ? {} : { external: true as const }),
       kind: node.kind,
