@@ -48,6 +48,7 @@ import { WidgetEmpty } from '../../components/WidgetStates'
 import { ConfigContext } from '../../context/ConfigContext'
 
 import CanvasPanel from './CanvasPanel'
+import CreateWidgetModal from './CreateWidgetModal'
 import { resolveDrop } from './dndIds'
 import type { DragPayload, DropPayload } from './dndIds'
 import { legalTargets } from './dropTargets'
@@ -61,6 +62,7 @@ import { planAdd } from './planAdd'
 import { planMove } from './planMove'
 import StartDraftModal from './StartDraftModal'
 import { LAYOUT_KINDS } from './structureEdit'
+import { WIDGET_KINDS } from './widgetKinds.generated'
 
 /**
  * Where a newly started page is created.
@@ -71,10 +73,12 @@ import { LAYOUT_KINDS } from './structureEdit'
  */
 const NEW_DRAFT_NAMESPACE = 'krateo-system'
 
-/** What the drag chip says: the layout kind being created, or the name of the thing being placed. */
+/** What the drag chip says: the kind being created, or the name of the thing being placed. */
 const airborneLabel = (payload: DragPayload): string => {
   if (payload.from === 'canvas') { return payload.node.name }
-  return payload.pick.kind === 'container' ? payload.pick.layout : payload.pick.name
+  if (payload.pick.kind === 'container') { return payload.pick.layout }
+  if (payload.pick.kind === 'new') { return payload.pick.widgetKind }
+  return payload.pick.name
 }
 
 /**
@@ -140,6 +144,16 @@ const PageComposer = () => {
    */
   /** How many steps back are available — read from the history so the control cannot claim one. */
   const undoDepth = useSyncExternalStore(draftHistory.subscribe, draftHistory.depth, draftHistory.depth)
+  /**
+   * A drop that cannot be applied yet, because the kind has required fields nobody has supplied.
+   *
+   * Held rather than applied: `planAdd` refuses a `new` pick with no authored widgetData, and it is
+   * right to — a widget missing a required field is rejected at apply, which surfaces at publish.
+   * So the gesture pauses here, the modal asks, and the SAME target and index are used when it
+   * answers. Recomputing the target from the tree afterwards would resolve a node that the answer
+   * may have taken a while to arrive at.
+   */
+  const [pendingCreate, setPendingCreate] = useState<{ at?: number; target: TreeNode; widgetKind: string } | null>(null)
   const [airborne, setAirborne] = useState<DragPayload | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
 
@@ -248,6 +262,10 @@ const PageComposer = () => {
     setAirborne(null)
     setDraggingId(null)
     if (intent.do === 'add') {
+      if (intent.pick.kind === 'new' && !intent.pick.authored) {
+        setPendingCreate({ at: intent.at, target: intent.target, widgetKind: intent.pick.widgetKind })
+        return
+      }
       applyAdd(intent.target, intent.at, intent.pick)
     } else if (intent.do === 'move') {
       applyMove(intent.moving, intent.target, roots, intent.at)
@@ -572,6 +590,29 @@ const PageComposer = () => {
                 ) : null}
               </DragOverlay>
             </DndContext>
+            {/*
+              The drop asks what the CRD requires. It is mounted beside the context rather than
+              inside it because the gesture is already over: what is left is authoring, and a modal
+              inside a DndContext would be a drop target nobody wants.
+            */}
+            <CreateWidgetModal
+              onCancel={() => setPendingCreate(null)}
+              onCreate={({ name, widgetData }) => {
+                if (!pendingCreate) {
+                  return
+                }
+                applyAdd(pendingCreate.target, pendingCreate.at, {
+                  authored: widgetData,
+                  kind: 'new',
+                  name,
+                  resource: WIDGET_KINDS[pendingCreate.widgetKind]?.plural ?? '',
+                  widgetKind: pendingCreate.widgetKind,
+                })
+                setPendingCreate(null)
+              }}
+              open={!!pendingCreate}
+              widgetKind={pendingCreate?.widgetKind ?? null}
+            />
 
             {/* Full width, because the live render is a page and a page wants the width. Selecting
                 a node above still reveals its bytes in Files here — same `focusPath` as before. */}

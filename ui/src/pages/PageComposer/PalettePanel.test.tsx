@@ -4,7 +4,7 @@
  * CREATED (a new file) while an existing widget is only PLACED (a reference, no file) — conflating
  * them is how a palette silently writes files it should not.
  */
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import PalettePanel from './PalettePanel'
@@ -72,12 +72,58 @@ describe('PalettePanel', () => {
     }
   })
 
+  /**
+   * INSTANCES ARE BEHIND A DISCLOSURE NOW, grouped by plural. Forty-four kinds move when the chart
+   * does; two hundred and ninety-five instances move when anyone authors a widget, and showing
+   * them all by default is what made a drag source and its target impossible to see together.
+   * Filtering opens the groups, so these reach them the way a person would.
+   */
+  const reveal = (text: string) => {
+    fireEvent.change(screen.getByLabelText('Filter the palette'), { target: { value: text } })
+  }
+
   it('lists the existing widgets the caller may see, with their plural', async () => {
     harness.result = { ok: true, widgets: [{ name: 'fleet-card', resource: 'cards' }, { name: 'runs', resource: 'tables' }] }
     render(<PalettePanel namespace='krateo-system' snowplowBaseUrl='http://snowplow.test' />)
+    await waitFor(() => expect(screen.getByText(/cards · 1/)).toBeTruthy())
+    reveal('fleet-card')
     await waitFor(() => expect(screen.getByTestId('palette-item-fleet-card')).toBeTruthy())
-    expect(screen.getByTestId('palette-item-runs')).toBeTruthy()
-    expect(screen.getByText('tables')).toBeTruthy()
+    reveal('runs')
+    await waitFor(() => expect(screen.getByTestId('palette-item-runs')).toBeTruthy())
+    // Scoped to the instance's own row: `tables` now also appears as the plural of the Table KIND,
+    // which the palette can create. A bare getByText would match either and assert neither.
+    expect(screen.getByTestId('palette-item-runs').textContent).toContain('tables')
+  })
+
+  it('filters on the PLURAL as well as the name — people think in either', async () => {
+    harness.result = { ok: true, widgets: [{ name: 'fleet-card', resource: 'cards' }] }
+    render(<PalettePanel namespace='krateo-system' snowplowBaseUrl='http://snowplow.test' />)
+    await waitFor(() => expect(screen.getByText(/cards · 1/)).toBeTruthy())
+    reveal('cards')
+    expect(screen.getByTestId('palette-item-fleet-card')).toBeTruthy()
+    // …and it narrows the KIND lists at the same time, since they answer the same question.
+    expect(screen.queryByTestId('palette-item-BarChart')).toBeNull()
+    expect(screen.getByTestId('palette-item-Card')).toBeTruthy()
+  })
+
+  it('offers every CRD kind, not the five the old literal knew', () => {
+    /*
+     * The palette could CREATE five layout containers and REFERENCE widgets somebody had already
+     * authored on the cluster. Nobody could make a new Statistic — which is why "support any widget
+     * the frontend supports" was never a matter of lengthening the list.
+     */
+    harness.result = { ok: true, widgets: [] }
+    render(<PalettePanel namespace={null} />)
+
+    // A container the old literal missed, and which every draft already contains as a leaf.
+    expect(screen.getByTestId('palette-item-PageHeader')).toBeTruthy()
+    // A leaf kind that could not previously be created at all.
+    expect(screen.getByTestId('palette-item-Statistic')).toBeTruthy()
+    expect(screen.getByTestId('palette-item-BarChart')).toBeTruthy()
+    // …and the five it did know are still there.
+    for (const known of ['Flex', 'Row', 'Col', 'Card', 'Tabs']) {
+      expect(screen.getByTestId(`palette-item-${known}`)).toBeTruthy()
+    }
   })
 
   it('SHOWS WHY the list is missing rather than an empty picker', async () => {
@@ -106,7 +152,8 @@ describe('PalettePanel', () => {
   it('renders an existing widget as its own control, distinct from the container items', () => {
     harness.result = { ok: true, widgets: [{ name: 'fleet-card', resource: 'cards' }] }
     render(<PalettePanel namespace='krateo-system' snowplowBaseUrl='http://snowplow.test' />)
-    return waitFor(() => screen.getByTestId('palette-item-fleet-card')).then(() => {
+    return waitFor(() => screen.getByText(/cards · 1/)).then(() => {
+      reveal('fleet-card')
       const item = screen.getByTestId('palette-item-fleet-card')
       expect(item.getAttribute('role')).toBe('button')
       // the plural badge is still shown, and no longer wraps mid-word

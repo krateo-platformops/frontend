@@ -23,7 +23,7 @@
  * did nothing, which is worse than a panel that plainly has no target yet.
  */
 import { useDraggable } from '@dnd-kit/core'
-import { Alert, Empty, Spin, Typography } from 'antd'
+import { Alert, Collapse, Empty, Input, Spin, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 
 import { paletteDragId } from './dndIds'
@@ -32,13 +32,30 @@ import { listPlaceableWidgets } from './placeableWidgets'
 import type { PlaceableWidget } from './placeableWidgets'
 import { LAYOUT_KINDS } from './structureEdit'
 import { iconForResource } from './widgetIcons'
+import { WIDGET_KINDS } from './widgetKinds.generated'
 
 const { Text } = Typography
+
+/** Derived once from the CRDs, not per render — the table is static for the life of the bundle. */
+const containerKinds = Object.keys(WIDGET_KINDS).filter((kind) => WIDGET_KINDS[kind].container).sort()
+const leafKinds = Object.keys(WIDGET_KINDS).filter((kind) => !WIDGET_KINDS[kind].container).sort()
 
 /** What a palette drag is carrying. */
 export type PalettePick =
   | { kind: 'container'; layout: keyof typeof LAYOUT_KINDS; resource: string }
   | { kind: 'existing'; name: string; resource: string }
+  /**
+   * CREATE a widget of this kind — the variant the palette did not have.
+   *
+   * Containers were CREATED and everything else was only ever REFERENCED, so a page could contain
+   * the five layout kinds plus whatever widgets somebody had already authored on this cluster.
+   * Nobody could make a new Statistic. That is why "support any widget the frontend supports"
+   * could not be delivered by lengthening a list.
+   *
+   * It carries no bytes: thirty-seven of the forty-four kinds have required widgetData fields, so
+   * what to write is not knowable at drag time. The drop asks, and `authored` is what comes back.
+   */
+  | { kind: 'new'; widgetKind: string; resource: string; authored?: Record<string, unknown>; name?: string }
 
 const Item = ({ label, pick, sub }: {
   label: string
@@ -122,32 +139,114 @@ export const PalettePanel = ({ namespace, snowplowBaseUrl }: {
     return () => { live = false }
   }, [namespace, snowplowBaseUrl])
 
+  /**
+   * ONE FILTER OVER EVERYTHING. The palette answers "what can I put on this page", and that used to
+   * be a flat list of three hundred items on a real cluster — 16,793px of it. Capping the height
+   * made it usable; it did not make it navigable, and the kind set has since grown from five to
+   * forty-four. Matching on the name AND the plural is what lets someone who thinks in either
+   * vocabulary find the same thing.
+   */
+  const [filter, setFilter] = useState('')
+  const needle = filter.trim().toLowerCase()
+  const matches = (name: string, plural: string): boolean =>
+    !needle || name.toLowerCase().includes(needle) || plural.toLowerCase().includes(needle)
+
+  const containers = containerKinds.filter((kind) => matches(kind, WIDGET_KINDS[kind].plural))
+  const leaves = leafKinds.filter((kind) => matches(kind, WIDGET_KINDS[kind].plural))
+  const instances = (existing ?? []).filter((widget) => matches(widget.name, widget.resource))
+
+  /**
+   * Instances are grouped by plural and behind a disclosure; KINDS are not.
+   *
+   * The two are different questions and only one of them scales. There are forty-four kinds and
+   * that number moves when the chart does; there were two hundred and ninety-five instances on one
+   * cluster and that number moves when anyone authors a widget. Showing every instance by default
+   * is what made the source of a drag and its target impossible to see at the same time.
+   */
+  const grouped = new Map<string, PlaceableWidget[]>()
+  for (const widget of instances) {
+    grouped.set(widget.resource, [...(grouped.get(widget.resource) ?? []), widget])
+  }
+
   return (
     <div data-testid='palette-panel' style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Section title='Containers'>
-        {(Object.keys(LAYOUT_KINDS) as (keyof typeof LAYOUT_KINDS)[]).map((layout) => (
-          <Item
-            key={layout}
-            label={layout}
-            pick={{ kind: 'container', layout, resource: LAYOUT_KINDS[layout] }}
-          />
-        ))}
-      </Section>
+      <Input
+        allowClear
+        aria-label='Filter the palette'
+        onChange={(event) => setFilter(event.target.value)}
+        placeholder='Filter by name or plural'
+        size='small'
+        value={filter}
+      />
 
-      <Section title='Existing widgets'>
+      {/*
+        ELEVEN CONTAINERS, NOT FIVE, and thirty-three widgets that could not be created at all.
+        Both lists come from the CRDs (see widgetKinds.generated) rather than from a literal, so a
+        kind added to the chart appears here without anyone remembering to add it — and PageHeader,
+        a container the composer has always treated as a leaf, is offered as one.
+      */}
+      {containers.length ? (
+        <Section title={`Containers · ${containers.length}`}>
+          {containers.map((kind) => (
+            <Item
+              key={kind}
+              label={kind}
+              pick={kind in LAYOUT_KINDS
+                ? { kind: 'container', layout: kind as keyof typeof LAYOUT_KINDS, resource: WIDGET_KINDS[kind].plural }
+                : { kind: 'new', resource: WIDGET_KINDS[kind].plural, widgetKind: kind }}
+              sub={WIDGET_KINDS[kind].plural}
+            />
+          ))}
+        </Section>
+      ) : null}
+
+      {/* CREATE, as opposed to PLACE — dropping one opens the form that asks what its CRD requires. */}
+      {leaves.length ? (
+        <Section title={`New widgets · ${leaves.length}`}>
+          {leaves.map((kind) => (
+            <Item
+              key={kind}
+              label={kind}
+              pick={{ kind: 'new', resource: WIDGET_KINDS[kind].plural, widgetKind: kind }}
+              sub={WIDGET_KINDS[kind].plural}
+            />
+          ))}
+        </Section>
+      ) : null}
+
+      <Section title={`Existing widgets${instances.length ? ` · ${instances.length}` : ''}`}>
         {error ? <Alert message={error} showIcon type='warning' /> : null}
         {!error && existing === null ? <Spin size='small' /> : null}
         {!error && existing?.length === 0
           ? <Empty description='Nothing placeable here yet.' image={Empty.PRESENTED_IMAGE_SIMPLE} />
           : null}
-        {(existing ?? []).map((widget) => (
-          <Item
-            key={`${widget.resource}/${widget.name}`}
-            label={widget.name}
-            pick={{ kind: 'existing', name: widget.name, resource: widget.resource }}
-            sub={widget.resource}
+        {/*
+          Open when the filter has narrowed them, closed otherwise. A search that found something
+          and then hid it behind a click is a search that did not answer.
+        */}
+        {grouped.size ? (
+          <Collapse
+            activeKey={needle ? [...grouped.keys()] : undefined}
+            ghost
+            items={[...grouped.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([plural, widgets]) => ({
+              children: (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {widgets.map((widget) => (
+                    <Item
+                      key={`${widget.resource}/${widget.name}`}
+                      label={widget.name}
+                      pick={{ kind: 'existing', name: widget.name, resource: widget.resource }}
+                      sub={widget.resource}
+                    />
+                  ))}
+                </div>
+              ),
+              key: plural,
+              label: `${plural} · ${widgets.length}`,
+            }))}
+            size='small'
           />
-        ))}
+        ) : null}
       </Section>
     </div>
   )
