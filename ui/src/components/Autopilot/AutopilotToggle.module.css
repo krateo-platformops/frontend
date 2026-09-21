@@ -57,7 +57,7 @@
 
 /*
  * "Autopilot is EXECUTING" — Signal Yellow, Tier-2 locked to this one meaning (issue #49), the
- * same token the rail's streaming caret uses. Deliberately static: a blink here would loop for the
+ * same token the rail's live-activity mark uses. Deliberately static: a blink here would loop for the
  * whole turn in the page header, which is the motion G13 rules out. Its presence is the signal.
  */
 .executing {

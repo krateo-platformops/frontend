@@ -182,7 +182,6 @@ const MessageBubble = ({ message }: { message: AutopilotMessage }) => {
           as RAW markdown characters. react-markdown emits NO raw HTML by default, and sanitizeChatText
           has already stripped any code/YAML blocks the agent shouldn't show. */}
       <div className={styles.apMd}><ReactMarkdown>{message.text}</ReactMarkdown></div>
-      {message.streaming ? <span className={styles.apCaret} /> : null}
       {message.actions?.map((action, index) => (
         <div className={styles.apAct} key={`act-${index}`}>
           <CheckIcon className={styles.apActCheck} />
