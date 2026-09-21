@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import './load'
 
-import { getWidgetModule, getWidgetRegistry } from './registry'
+import { getStructuralRegistry, getWidgetModule, getWidgetRegistry } from './registry'
 
 const widgetRegistry = getWidgetRegistry()
 
@@ -60,7 +60,24 @@ describe('widgetRegistry', () => {
     }
   })
 
-  it('segregates structural kinds: excluded from the antd registry, still resolvable', () => {
+  it('has NO structural kinds today — asserted, rather than looped over vacuously', () => {
+    /*
+     * This iterated STRUCTURAL_KINDS, which is `[]`. A loop over an empty list passes without
+     * asserting anything, so the suite reported coverage of a segregation nothing exercised — and
+     * the flag it guards is declared by none of the 46 widget modules.
+     *
+     * That is deliberate and documented in registry.ts: Page/Route/RoutesLoader/NavMenu were
+     * removed because routing is data, and the hook is kept so a future non-antd kind can opt out.
+     * So the honest assertion is that the set is EMPTY. The day something declares `structural`,
+     * this fails and whoever added it writes the segregation test that was always implied.
+     */
+    expect(getStructuralRegistry()).toEqual({})
+    expect(STRUCTURAL_KINDS).toHaveLength(0)
+  })
+
+  it('segregates any structural kind that IS declared, keeping it resolvable', () => {
+    // Vacuous today, by construction — and it is the test STRUCTURAL_KINDS exists for, so it stays
+    // beside the assertion above rather than disappearing with the empty list.
     for (const kind of STRUCTURAL_KINDS) {
       expect(widgetRegistry[kind], `structural "${kind}" must NOT be an antd widget`).toBeUndefined()
       expect(getWidgetModule(kind), `structural "${kind}" must still resolve for rendering`).toBeDefined()
