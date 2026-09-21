@@ -11,13 +11,30 @@
  * surfaces at publish, long after the gesture, with nothing connecting the two.
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { installAntdShims } from './composerTestHarness'
 import { CreateWidgetModal, requiredSchema } from './CreateWidgetModal'
 import { WIDGET_KINDS } from './widgetKinds.generated'
 
-afterEach(cleanup)
+/*
+ * FAKE TIMERS, because antd's Modal schedules one that outlives the test.
+ *
+ * rc-util's `useDelayState` drives the open/close transition with a setTimeout. Under real timers
+ * that callback can fire AFTER vitest has torn the jsdom environment down, and it calls setState —
+ * so React reaches for `window` and finds nothing. It surfaces as an uncaught
+ * "ReferenceError: window is not defined" attributed to whichever file happened to be running,
+ * which is why the report named an unrelated suite. Every test passed; the run still failed.
+ *
+ * Running the pending timers before handing the clock back drains the transition inside the test
+ * that created it.
+ */
+beforeEach(() => vi.useFakeTimers())
+afterEach(() => {
+  cleanup()
+  vi.runOnlyPendingTimers()
+  vi.useRealTimers()
+})
 // antd needs matchMedia and ResizeObserver, which jsdom has neither of.
 beforeAll(installAntdShims)
 
