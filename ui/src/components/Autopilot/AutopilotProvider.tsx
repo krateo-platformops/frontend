@@ -28,6 +28,7 @@ import { createBlueprintGate } from './blueprintGate'
 import { trackPublishStatus } from './builderClaimPublish'
 import { useBuilderTargets } from './builderTargets'
 import { autopilotConversationStore } from './conversationStore'
+import { withHeldDraft } from './draftStructure'
 import { recordToolFrame } from './evidence'
 import { useAutopilotShortcut } from './keyboardShortcut'
 import { dispatchKogPublish } from './kogPublishDispatch'
@@ -677,7 +678,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     // that question. Anything else — including an approval continuation — is a typed turn.
     const modality: TurnModality = opts?.modality ?? 'text'
 
-    const envelope = collect()
+    // The collector reads the live widget cache and cannot see the held draft; the store is here.
+    const envelope = withHeldDraft(collect(), blueprintStore.get())
     const baseContext = buildContextDelta(envelope, autopilotConversationStore.getLastEnvelope())
     autopilotConversationStore.setLastEnvelope(envelope)
 
@@ -693,7 +695,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     setStreaming(true)
 
     abortRef.current = transport.send({ context: baseContext, contextId, sessionId, text: trimmed }, { onFrame: (frame) => applyFrame(assistantId, frame, modality) })
-  }, [applyFrame, collect, contextId, sessionId, setMessages, streaming, transport])
+  }, [applyFrame, blueprintStore, collect, contextId, sessionId, setMessages, streaming, transport])
 
   // Keep the finalize-side recovery trampoline pointing at the CURRENT send closure.
   useEffect(() => { sendRef.current = send }, [send])
