@@ -23,6 +23,8 @@ import { dump } from 'js-yaml'
 
 import { pageDraftSlug } from '../../components/Autopilot/pageDraft'
 
+import { WIDGET_KINDS } from './widgetKinds.generated'
+
 export interface BindingInput {
   /** Base name for both objects — the RESTAction and the widget share it. */
   name: string
@@ -42,6 +44,44 @@ export interface BindingInput {
    * unpublishable.
    */
   namespace: string
+  /**
+   * The widget kind to generate. Defaults to Table, which is all this could emit before.
+   *
+   * Every widget CRD carries `spec.apiRef`, so binding was never Table-specific in the data model —
+   * only in this emitter, which is why the one path that gave a newly authored widget live data
+   * produced a Table whatever you had asked for.
+   */
+  kind?: string
+  /**
+   * widgetData the CALLER collected for this kind — a chart's `xField`/`yField`, say.
+   *
+   * Not derived here: which of the mapped columns is the x axis is a question only the author can
+   * answer, and guessing it produces a chart that publishes clean and plots the wrong thing.
+   */
+  extraWidgetData?: Record<string, unknown>
+}
+
+/**
+ * WHERE THE FETCHED ARRAY LANDS in this kind's widgetData — the one per-kind fact binding needs.
+ *
+ * Derived from the CRD rather than listed here, with one rule that had to be discovered rather than
+ * assumed: "the required array property" does NOT find it. Charts require `data` and it is right;
+ * Table and Listy use `dataSource` and do NOT require it; and every CONTAINER requires the arrays
+ * `items` and `allowedResources`, which hold child references and would be catastrophic to fill
+ * with fetched rows.
+ *
+ * So: `dataSource`, then `data`, and never a structural array. A kind with neither cannot be bound
+ * to a list by this path, and says so rather than emitting a template that writes nowhere.
+ */
+export const dataPathFor = (kind: string): string | null => {
+  const schema = WIDGET_KINDS[kind]?.schema as { properties?: Record<string, { type?: string }> } | undefined
+  const properties = schema?.properties ?? {}
+  for (const candidate of ['dataSource', 'data']) {
+    if (properties[candidate]?.type === 'array') {
+      return candidate
+    }
+  }
+  return null
 }
 
 export interface GeneratedFile {
@@ -161,30 +201,64 @@ export const generateBinding = (input: BindingInput): BindingResult => {
     path: pageDraftSlug('RESTAction', input.name),
   }
 
-  const cells = keyed
-    .map(({ key }) => `{valueKey:"${key}",kind:"jsonSchemaType",type:"string",stringValue:.${key}}`)
-    .join(', ')
+  const kind = input.kind ?? 'Table'
+  const dataPath = dataPathFor(kind)
+  if (!dataPath) {
+    return { error: `a ${kind} has no list to bind — it takes no data array`, ok: false }
+  }
+
+  /*
+   * TWO ELEMENT SHAPES, not forty-four.
+   *
+   * A Table row is an ARRAY OF CELL OBJECTS, each carrying `valueKey` and `kind` — the widget
+   * 400-rejects the whole serve without them, and that rejection is silent in the UI. Everything
+   * else that takes a list — the charts, Listy — takes plain objects keyed by the column titles the
+   * author mapped, which is also what a chart's own `xField`/`yField` name.
+   *
+   * So the per-kind knowledge here is a shape, not a table of kinds: the CRD says WHERE the array
+   * goes (`dataPathFor`) and this says what an element looks like when it gets there.
+   */
+  /*
+   * A NON-TABLE ELEMENT IS KEYED BY THE COLUMN TITLE, and that is not cosmetic.
+   *
+   * Internally each column gets a safe generated key — c1, c2 — because a title is free text and
+   * cannot go straight into a jq object construction. A Table never exposes those: its cells carry
+   * `valueKey` and the widget reads them positionally.
+   *
+   * A chart does expose them. `xField` NAMES a key in the data, and the author picks it from the
+   * titles they just typed — so emitting `{c1: …, c2: …}` would hand them a chart whose axes refer
+   * to fields that do not exist, which renders empty and reports nothing. The title is quoted, so a
+   * title with a space stays valid jq and stays selectable as an xField.
+   */
+  const element = kind === 'Table'
+    ? `[ ${keyed.map(({ key }) => `{valueKey:"${key}",kind:"jsonSchemaType",type:"string",stringValue:.${key}}`).join(', ')} ]`
+    : `{ ${keyed.map(({ key, title }) => `${JSON.stringify(title)}: .${key}`).join(', ')} }`
 
   const widget: GeneratedFile = {
     content: dump({
       apiVersion: WIDGET_API_VERSION,
-      kind: 'Table',
+      kind,
       metadata: { name: input.name, namespace: input.namespace },
       spec: {
         apiRef: { name: input.name, namespace: input.namespace },
         resourcesRefs: { items: [] },
         widgetData: {
-          // REQUIRED by the Table CRD — omitting it is rejected at apply with
-          // "spec.widgetData.allowedResources: Required value". Empty because a Table holds no
-          // child widgets; it is the container kinds that grow this list as children are placed.
+          // REQUIRED on the container kinds and harmless elsewhere — the CRD rejects a container
+          // without it ("spec.widgetData.allowedResources: Required value"). Empty because a bound
+          // widget holds no child widgets; container kinds grow this list as children are placed.
           allowedResources: [],
-          columns: keyed.map(({ key, title }) => ({ title, valueKey: key })),
-          dataSource: [],
+          // A Table names its columns; nothing else has the concept, and emitting it for a chart
+          // would be a field the CRD does not define.
+          ...(kind === 'Table' ? { columns: keyed.map(({ key, title }) => ({ title, valueKey: key })) } : {}),
+          [dataPath]: [],
+          // What the CALLER collected for this kind — a chart's xField/yField. Last, so an author
+          // who has named a field wins over anything defaulted above.
+          ...(input.extraWidgetData ?? {}),
         },
-        widgetDataTemplate: [{ expression: `\${ [ .rows[] | [ ${cells} ] ] }`, forPath: 'dataSource' }],
+        widgetDataTemplate: [{ expression: `\${ [ .rows[] | ${element} ] }`, forPath: dataPath }],
       },
     }, DUMP),
-    path: pageDraftSlug('Table', input.name),
+    path: pageDraftSlug(kind, input.name),
   }
 
   /*
@@ -199,5 +273,5 @@ export const generateBinding = (input: BindingInput): BindingResult => {
    * cell-array jq, the `dataSource` envelope — so binding a LineChart to live data still needs its
    * own emitter. Returning the plural is what makes that a change in ONE file when it comes.
    */
-  return { name: input.name, ok: true, resource: 'tables', restAction, widget }
+  return { name: input.name, ok: true, resource: WIDGET_KINDS[kind].plural, restAction, widget }
 }

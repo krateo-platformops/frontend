@@ -15,7 +15,7 @@
 import { load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
-import { generateBinding, validateBinding } from './generateBinding'
+import { dataPathFor, generateBinding, validateBinding } from './generateBinding'
 
 const input = (over: Partial<Parameters<typeof generateBinding>[0]> = {}) => ({
   apiPath: '/apis/composition.krateo.io/v1alpha1/namespaces/krateo-system/fireworksapps',
@@ -197,5 +197,113 @@ describe('validateBinding — what the author types never reaches the jq uncheck
     // The guard belongs on the generator as well: a caller that forgets to validate must not be
     // able to produce a broken filter.
     expect(generateBinding(input({ columns: { Bad: '.a | halt' } })).ok).toBe(false)
+  })
+})
+
+describe('binding a kind that is not a Table', () => {
+  /*
+   * Every widget CRD carries `spec.apiRef`, so binding was never Table-specific in the data model —
+   * only in this emitter. The one path that gave a newly authored widget live data therefore
+   * produced a Table whatever you had asked for, which at forty-four creatable kinds is the
+   * difference between "create any widget" and "create any widget and then hand-write its YAML".
+   */
+  const bind = (kind: string, extraWidgetData?: Record<string, unknown>) => generateBinding({
+    apiPath: '/api/v1/namespaces/krateo-system/pods',
+    columns: { Node: '.spec.nodeName', Pod: '.metadata.name' },
+    extraWidgetData,
+    itemsAt: '.items',
+    kind,
+    name: 'pods-by-node',
+    namespace: 'krateo-system',
+  })
+
+  it('writes into the array field the CRD names, which differs by kind', () => {
+    // Charts require `data`; Table and Listy use `dataSource` and do not require it — so "the
+    // required array property" is the wrong rule and finds nothing for half of them.
+    expect(dataPathFor('LineChart')).toBe('data')
+    expect(dataPathFor('Table')).toBe('dataSource')
+    expect(dataPathFor('Listy')).toBe('dataSource')
+  })
+
+  it('NEVER treats a container\'s items as a data array', () => {
+    // Every container REQUIRES the arrays `items` and `allowedResources`, which hold child
+    // references. Filling them with fetched rows would replace a page's structure with its data.
+    for (const container of ['Flex', 'Row', 'Col', 'Tabs', 'Card']) {
+      expect(dataPathFor(container), container).not.toBe('items')
+      expect(dataPathFor(container), container).not.toBe('allowedResources')
+    }
+  })
+
+  it('emits PLAIN OBJECTS for a chart, not Table cell arrays', () => {
+    const result = bind('LineChart', { xField: 'Node', yField: 'Pod' })
+    expect(result.ok).toBe(true)
+    if (!result.ok) { return }
+    const widget = load(result.widget.content) as { kind: string; spec: { widgetDataTemplate: { expression: string; forPath: string }[] } }
+    expect(widget.kind).toBe('LineChart')
+    expect(widget.spec.widgetDataTemplate[0].forPath).toBe('data')
+    // Keyed by the column TITLE — a chart's xField names a key in the data, and the author picks it
+    // from the titles they typed. Emitting the internal c1/c2 would give them axes referring to
+    // fields that do not exist: renders empty, reports nothing.
+    expect(widget.spec.widgetDataTemplate[0].expression).toContain('"Pod": .c1')
+    expect(widget.spec.widgetDataTemplate[0].expression).toContain('"Node": .c2')
+    expect(widget.spec.widgetDataTemplate[0].expression).not.toContain('valueKey')
+  })
+
+  it('a title with a SPACE stays valid jq and stays selectable as an axis', () => {
+    const result = generateBinding({
+      apiPath: '/api/v1/namespaces/krateo-system/pods',
+      columns: { 'Node name': '.spec.nodeName' },
+      extraWidgetData: { xField: 'Node name', yField: 'Node name' },
+      itemsAt: '.items',
+      kind: 'LineChart',
+      name: 'by-node',
+      namespace: 'krateo-system',
+    })
+    if (!result.ok) { return }
+    const widget = load(result.widget.content) as { spec: { widgetDataTemplate: { expression: string }[] } }
+    expect(widget.spec.widgetDataTemplate[0].expression).toContain('"Node name": .c1')
+  })
+
+  it('carries the fields only the author can decide, and lets them win', () => {
+    // Which mapped column is the x axis is not derivable; guessing it publishes clean and plots the
+    // wrong thing.
+    const result = bind('LineChart', { xField: 'Node', yField: 'Pod' })
+    if (!result.ok) { return }
+    const widget = load(result.widget.content) as { spec: { widgetData: Record<string, unknown> } }
+    expect(widget.spec.widgetData.xField).toBe('Node')
+    expect(widget.spec.widgetData.yField).toBe('Pod')
+  })
+
+  it('omits `columns`, which only a Table has', () => {
+    const result = bind('LineChart', { xField: 'Node', yField: 'Pod' })
+    if (!result.ok) { return }
+    const widget = load(result.widget.content) as { spec: { widgetData: Record<string, unknown> } }
+    expect(widget.spec.widgetData).not.toHaveProperty('columns')
+  })
+
+  it('reports the plural of the kind it ACTUALLY emitted', () => {
+    const result = bind('LineChart', { xField: 'Node', yField: 'Pod' })
+    expect(result).toMatchObject({ ok: true, resource: 'linecharts' })
+  })
+
+  it('REFUSES a kind with no list to bind, rather than writing a template that goes nowhere', () => {
+    // A Paragraph takes text, not rows. Emitting `forPath: dataSource` for it would produce a
+    // widget that publishes cleanly and renders nothing — the failure this codebase calls the worst
+    // available, because nothing downstream reports it.
+    const result = bind('Paragraph')
+    expect(result.ok).toBe(false)
+    if (result.ok) { return }
+    expect(result.error).toMatch(/no list to bind/)
+  })
+
+  it('still emits a Table when nothing says otherwise', () => {
+    const result = generateBinding({
+      apiPath: '/api/v1/namespaces/krateo-system/pods',
+      columns: { Pod: '.metadata.name' },
+      itemsAt: '.items',
+      name: 'pods',
+      namespace: 'krateo-system',
+    })
+    expect(result).toMatchObject({ ok: true, resource: 'tables' })
   })
 })
