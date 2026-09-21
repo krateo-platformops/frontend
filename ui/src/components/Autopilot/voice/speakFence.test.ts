@@ -20,7 +20,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { ESLint } from 'eslint'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 const uiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..')
 const fencedFile = path.join(uiRoot, 'src/components/Autopilot/voice/speak/speakBackStore.ts')
@@ -36,6 +36,29 @@ const fenceVerdicts = async (source: string): Promise<string[]> => {
     .filter((message) => message.ruleId === 'no-restricted-imports')
     .map((message) => message.message)
 }
+
+/**
+ * WARM THE INSTANCE BEFORE ANYTHING IS ASSERTED.
+ *
+ * This suite failed in CI on its FIRST case and passed on the later ones — including the case that
+ * lints the same module under its `.ts` spelling — while passing locally in every ordering I could
+ * produce. The one thing the first call does that the others do not is what the comment above
+ * already names: it builds the type-aware program the config asks for. A rule set that is not yet
+ * fully resolved on that first pass reports nothing, and "reports nothing" is indistinguishable
+ * from "the fence is open" to an assertion counting verdicts.
+ *
+ * So the warm-up is not a workaround for a slow machine: it removes an ordering dependency from
+ * tests that are supposed to be about the config. It also means a future reader who adds a case at
+ * the top of this describe does not silently inherit the failure.
+ *
+ * HONESTLY LABELLED: I could not reproduce the CI failure locally, so this is reasoned from the
+ * evidence (first-case-only, extension-independent, environment-dependent) rather than observed. If
+ * CI still fails here, the next thing to suspect is `patterns.group` matching a RELATIVE specifier,
+ * and the discriminator is in issue #335.
+ */
+beforeAll(async () => {
+  await eslint.lintText('export {}\n', { filePath: fencedFile })
+}, 120_000)
 
 describe('speak-back cannot make a network call (voice spec FR 65/68)', () => {
   it('refuses an import of the Cloud TTS client from inside voice/speak/', async () => {
