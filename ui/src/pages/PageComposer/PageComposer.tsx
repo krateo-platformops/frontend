@@ -48,6 +48,7 @@ import { WidgetEmpty } from '../../components/WidgetStates'
 import { ConfigContext } from '../../context/ConfigContext'
 
 import CanvasPanel from './CanvasPanel'
+import { announce, onAnnounce } from './composerAnnounce'
 import CreateWidgetModal from './CreateWidgetModal'
 import { resolveDrop } from './dndIds'
 import type { DragPayload, DropPayload } from './dndIds'
@@ -154,6 +155,17 @@ const PageComposer = () => {
    * may have taken a while to arrive at.
    */
   const [pendingCreate, setPendingCreate] = useState<{ at?: number; target: TreeNode; widgetKind: string } | null>(null)
+  /**
+   * The live region's text. Held in state so a repeat of the same sentence still re-announces —
+   * moving two widgets into the same container really does produce the same words twice, and a
+   * reader that heard it once would otherwise believe the second gesture did nothing.
+   */
+  const [announcement, setAnnouncement] = useState('')
+  useEffect(() => onAnnounce((message) => {
+    setAnnouncement('')
+    // A frame apart, so assistive technology sees a CHANGE rather than an identical value.
+    window.setTimeout(() => setAnnouncement(message), 0)
+  }), [])
   const [airborne, setAirborne] = useState<DragPayload | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
 
@@ -266,9 +278,15 @@ const PageComposer = () => {
         setPendingCreate({ at: intent.at, target: intent.target, widgetKind: intent.pick.widgetKind })
         return
       }
-      applyAdd(intent.target, intent.at, intent.pick)
+      const added = applyAdd(intent.target, intent.at, intent.pick)
+      announce(added.ok
+        ? `Added to ${intent.target.name}`
+        : `Not added: ${added.reason}`)
     } else if (intent.do === 'move') {
-      applyMove(intent.moving, intent.target, roots, intent.at)
+      const moved = applyMove(intent.moving, intent.target, roots, intent.at)
+      announce(moved.ok
+        ? `Moved ${intent.moving.name} into ${intent.target.name}`
+        : `Not moved: ${moved.reason}`)
     }
   }, [applyAdd, applyMove, roots])
 
@@ -435,6 +453,16 @@ const PageComposer = () => {
 
   return (
     <div className={styles.page}>
+      {/*
+        EVERY OUTCOME, successes and refusals alike, and mounted unconditionally so the region
+        EXISTS before the first edit — assistive technology watches a region it has already seen,
+        and one that appears at the same moment as its first message is commonly missed.
+        A region that speaks only on failure teaches people to ignore it, and then silence has two
+        meanings: it worked, or it did nothing. `role='status'` announces without interrupting.
+      */}
+      <div aria-live='polite' className={styles.announce} data-testid='composer-announce' role='status'>
+        {announcement}
+      </div>
       {/* NEW_DRAFT_NAMESPACE, not a namespace read from the draft: there IS no draft yet, which is
           the whole point of this control. It matches what every Autopilot-published page already
           carries, so starting one here and asking the agent for one produce the same bytes. */}

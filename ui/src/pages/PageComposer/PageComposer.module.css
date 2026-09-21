@@ -32,7 +32,7 @@
 
    WHY ALL THREE ARE MOUNTED AT ONCE and none is a tab. The palette must share a screen with the
    canvas because a drag cannot cross a tab boundary. The tree must share it because it is not a
-   VIEW of the canvas but the keyboard-operable route to the same edits — move, wrap, add inside,
+   VIEW of the canvas but the keyboard route to the same edits — move, wrap, add inside,
    remove, bind — so putting it behind a tab would take those controls away from anyone not using a
    pointer. What IS a set of views, the render and the files and the source, is below and keeps the
    page's only tab bar.
@@ -97,7 +97,7 @@
   padding: var(--spacing-sm);
 }
 
-/* The tree — the keyboard-operable route to the same edits the canvas performs by pointer, so it
+/* The tree — the keyboard route to the same edits the canvas performs by pointer, so it
    is a TOOL in this row, not a view of it. Bare rather than boxed: ObjectTreePanel draws its own
    border and heading, and nesting the two produced a double rule. */
 .structure {
@@ -157,4 +157,21 @@
 
 @media (prefers-reduced-motion: reduce) {
   .nodeActions { transition: none; }
+}
+
+/*
+ * The live region. Present in the accessibility tree, absent from the page — a status message is
+ * for a reader that is not watching the canvas, and printing it on screen would duplicate feedback
+ * the canvas already gives by redrawing.
+ */
+.announce {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
