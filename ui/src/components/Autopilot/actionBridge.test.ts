@@ -210,3 +210,46 @@ describe('the agent can only drive a control that is actually mounted', () => {
     expect(call![0]).toContain("type: 'active'")
   })
 })
+
+/**
+ * A tripwire, like the one above, because the compose branches live inside the hook and there is
+ * no seam to call — and because the property at stake is precisely the one a behavioural test on
+ * a mocked bus would not catch: that NO compose branch returns a success label without first
+ * hearing the composer say it applied.
+ *
+ * This is what shipped broken on krateo-057: the chip read "Added a Card inside page-x", read-only
+ * and with no error, over a canvas with no card in it. Restoring fire-and-forget — dropping the
+ * `await`, or returning the label without the `applied` check — must fail here.
+ */
+describe('a compose chip never claims an outcome the composer did not report', () => {
+  const composeBranches = (): string[] => {
+    const bridge = railSource('actionBridge.ts')
+    return [...bridge.matchAll(/const result = await requestCompose\(\{[\s\S]{0,400}?\n(\s*)\}\n/g)]
+      .map((match) => match[0])
+  }
+
+  it('awaits the composer on every compose call site', () => {
+    const bridge = railSource('actionBridge.ts')
+    const calls = [...bridge.matchAll(/requestCompose\(/g)]
+    expect(calls.length, 'compose call sites changed — re-point this tripwire').toBe(3)
+    // Every one of them is awaited into a result. A bare `requestCompose({...})` is fire-and-forget.
+    expect([...bridge.matchAll(/await requestCompose\(/g)]).toHaveLength(3)
+  })
+
+  it('gates each success label behind result.applied', () => {
+    const branches = composeBranches()
+    expect(branches.length, 'compose call sites changed — re-point this tripwire').toBe(3)
+    for (const branch of branches) {
+      expect(branch).toMatch(/if \(!result\.applied\) \{/)
+      expect(branch).toMatch(/return refused\('compose(Move|Add)', result\.reason \?\?/)
+    }
+  })
+
+  it("prefers the composer's reason over the bridge's fallback wording", () => {
+    // `result.reason ?? '<fallback>'` — the fallback exists only for an answer with no reason,
+    // never as the wording a real refusal is reported with.
+    for (const branch of composeBranches()) {
+      expect(branch).not.toMatch(/return refused\('compose(Move|Add)', '[^']+'\)\s*$/m)
+    }
+  })
+})

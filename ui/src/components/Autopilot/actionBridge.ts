@@ -32,7 +32,7 @@ import { applyResourceSet, type ApplyResourceSetOp, type ApplyResourceSetProposa
 // patchField — the day-2 mutating branch (a DISTINCT, explicitly-gated verb owned by the
 // bridge, NOT a read-only registry entry): scoped by isPatchAllowed, dispatched through the
 // SAME dispatcher so it flows through the W0-2 blast-radius gate.
-import { emitComposeRequest } from './composeRequest'
+import { requestCompose } from './composeRequest'
 import { applyPatchField, type PatchFieldProposal } from './patchField'
 // Import the preview handlers module for its side effect: it registers previewBlueprint /
 // previewPage into READONLY_VERB_REGISTRY on load, so they are present before any apply().
@@ -513,11 +513,25 @@ export const useAutopilotActionBridge = () => {
      * is already looking at. It does not reach the apiserver, does not publish, and does not
      * submit; the preview gate and the human-raised change request are untouched.
      */
+    /**
+     * THE CHIP REPORTS WHAT HAPPENED, not what was asked for.
+     *
+     * These used to emit and immediately return a success label. On krateo-057 that produced
+     * "Added a Card inside page-x", READ-ONLY and with no error, while the canvas had no card —
+     * the composer had never applied it and nothing said so. The refusal was not missing, it was
+     * discarded: planAdd/planMove compute a precise reason and it died at the bus boundary.
+     *
+     * `requestCompose` awaits the composer's answer, so a refusal becomes the chip's text and
+     * reaches the model as an environment signal it can act on.
+     */
     if (proposal.verb === 'composeMove') {
       if (!proposal.widget || !proposal.target) {
         return refused('composeMove', 'a move needs both the widget to move and the container to move it into')
       }
-      emitComposeRequest({ at: proposal.at, op: 'move', target: proposal.target, widget: proposal.widget })
+      const result = await requestCompose({ at: proposal.at, op: 'move', target: proposal.target, widget: proposal.widget })
+      if (!result.applied) {
+        return refused('composeMove', result.reason ?? 'the composer did not apply the move')
+      }
       return { label: `Moved ${proposal.widget} into ${proposal.target}`, readOnly: true, verb: 'composeMove' }
     }
 
@@ -526,11 +540,17 @@ export const useAutopilotActionBridge = () => {
         return refused('composeAdd', 'an add needs the container to add into')
       }
       if (proposal.layout) {
-        emitComposeRequest({ at: proposal.at, layout: proposal.layout, op: 'addContainer', target: proposal.target })
+        const result = await requestCompose({ at: proposal.at, layout: proposal.layout, op: 'addContainer', target: proposal.target })
+        if (!result.applied) {
+          return refused('composeAdd', result.reason ?? 'the composer did not apply the add')
+        }
         return { label: `Added a ${proposal.layout} inside ${proposal.target}`, readOnly: true, verb: 'composeAdd' }
       }
       if (proposal.name && proposal.resource) {
-        emitComposeRequest({ at: proposal.at, name: proposal.name, op: 'addExisting', resource: proposal.resource, target: proposal.target })
+        const result = await requestCompose({ at: proposal.at, name: proposal.name, op: 'addExisting', resource: proposal.resource, target: proposal.target })
+        if (!result.applied) {
+          return refused('composeAdd', result.reason ?? 'the composer did not place the widget')
+        }
         return { label: `Placed ${proposal.name} inside ${proposal.target}`, readOnly: true, verb: 'composeAdd' }
       }
       // Ambiguous is refused rather than guessed: creating a container and placing an existing

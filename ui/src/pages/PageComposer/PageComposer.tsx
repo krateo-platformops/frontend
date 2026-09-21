@@ -28,7 +28,7 @@
 import { Alert, Button, Popconfirm, Space, Typography } from 'antd'
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 
-import { onComposeRequest } from '../../components/Autopilot/composeRequest'
+import { emitComposeResult, onComposeRequest } from '../../components/Autopilot/composeRequest'
 import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { claimPreviewSurface, onDraftChanged, requestDraftReplay } from '../../components/Autopilot/previewDraftChanged'
@@ -61,6 +61,15 @@ import { LAYOUT_KINDS } from './structureEdit'
  * It is visible and editable in the Files tab before anything is published, which is the backstop.
  */
 const NEW_DRAFT_NAMESPACE = 'krateo-system'
+
+/**
+ * What a structural edit did — the composer's answer to whoever asked.
+ *
+ * The kernel already decides and already says why when it refuses; this is only what carries that
+ * decision back out. A drag ignores it (the canvas re-renders and the person sees the result); an
+ * agent needs it, because nothing else tells it whether its proposal landed.
+ */
+type Outcome = { ok: true; paths: string[] } | { ok: false; paths: string[]; reason: string }
 
 const PageComposer = () => {
   // `useContext`, not `useConfigContext`: the hook throws with no provider above it, and this page
@@ -107,17 +116,19 @@ const PageComposer = () => {
    * that references it, or the parent momentarily names a file the draft does not carry. planAdd
    * returns the created file separately so this cannot be got the wrong way round by accident.
    */
-  const applyAdd = useCallback((target: TreeNode, at: number | undefined, picked: PalettePick) => {
+  const applyAdd = useCallback((target: TreeNode, at: number | undefined, picked: PalettePick): Outcome => {
     const plan = planAdd(files, target, picked, authoringNamespace, at)
     if (!plan.ok) {
       setMoveError(plan.reason)
-      return
+      return { ok: false, paths: [], reason: plan.reason }
     }
     setMoveError(null)
     if (plan.created) {
       emitFileAdd(plan.created)
     }
     Object.entries(plan.files).forEach(([path, content]) => emitFileEdit({ content, path }))
+
+    return { ok: true, paths: [...(plan.created ? [plan.created.path] : []), ...Object.keys(plan.files)] }
   }, [authoringNamespace, files])
 
   /**
@@ -128,15 +139,17 @@ const PageComposer = () => {
    *
    * `roots` comes from the canvas rather than being rebuilt here — see CanvasPanel's onMove.
    */
-  const applyMove = useCallback((moving: TreeNode, target: TreeNode, roots: readonly TreeNode[], at?: number) => {
+  const applyMove = useCallback((moving: TreeNode, target: TreeNode, roots: readonly TreeNode[], at?: number): Outcome => {
     const plan = planMove(files, roots, moving, target, at)
     if (!plan.ok) {
       setMoveError(plan.reason)
-      return
+      return { ok: false, paths: [], reason: plan.reason }
     }
     setMoveError(null)
     // Only the files the transaction changed — usually the two parents, one for a same-parent move.
     Object.entries(plan.files).forEach(([path, content]) => emitFileEdit({ content, path }))
+
+    return { ok: true, paths: Object.keys(plan.files) }
   }, [files])
   const [starting, setStarting] = useState(false)
   // The tree selection, reflected in the Files list. Without it the two halves of the page are
@@ -195,20 +208,37 @@ const PageComposer = () => {
    * no message could explain (the trap #304 documents).
    */
   useEffect(() => onComposeRequest((request) => {
+    // EVERY PATH ANSWERS. The handler used to `return` on each refusal, setting a local Alert and
+    // telling the asker nothing — so the agent's chip reported a success the composer had never
+    // performed. `reply` is the single exit, so a path that forgets to answer cannot compile away
+    // quietly: the asker either hears the outcome or hears the timeout, never silence.
+    const reply = (outcome: Outcome): void => {
+      emitComposeResult({
+        applied: outcome.ok,
+        id: request.id,
+        paths: outcome.paths,
+        reason: outcome.ok ? null : outcome.reason,
+      })
+    }
+    const refuse = (reason: string): void => {
+      setMoveError(reason)
+      reply({ ok: false, paths: [], reason })
+    }
+
     const roots = buildObjectTree(files)
     const byName = (name: string) => flattenTree(roots).find((node) => node.name === name)
     const target = byName(request.target)
     if (!target) {
-      setMoveError(`"${request.target}" is not in this draft`)
+      refuse(`"${request.target}" is not in this draft`)
       return
     }
     if (request.op === 'move') {
       const moving = byName(request.widget)
       if (!moving) {
-        setMoveError(`"${request.widget}" is not in this draft`)
+        refuse(`"${request.widget}" is not in this draft`)
         return
       }
-      applyMove(moving, target, roots, request.at)
+      reply(applyMove(moving, target, roots, request.at))
       return
     }
     if (request.op === 'addContainer') {
@@ -217,13 +247,13 @@ const PageComposer = () => {
       const layout = (Object.keys(LAYOUT_KINDS) as (keyof typeof LAYOUT_KINDS)[])
         .find((kind) => kind.toLowerCase() === request.layout.toLowerCase())
       if (!layout) {
-        setMoveError(`"${request.layout}" is not a layout kind — try one of ${Object.keys(LAYOUT_KINDS).join(', ')}`)
+        refuse(`"${request.layout}" is not a layout kind — try one of ${Object.keys(LAYOUT_KINDS).join(', ')}`)
         return
       }
-      applyAdd(target, request.at, { kind: 'container', layout, resource: LAYOUT_KINDS[layout] })
+      reply(applyAdd(target, request.at, { kind: 'container', layout, resource: LAYOUT_KINDS[layout] }))
       return
     }
-    applyAdd(target, request.at, { kind: 'existing', name: request.name, resource: request.resource })
+    reply(applyAdd(target, request.at, { kind: 'existing', name: request.name, resource: request.resource }))
   }), [applyAdd, applyMove, files])
 
   useEffect(() => {
