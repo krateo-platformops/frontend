@@ -50,8 +50,10 @@ export interface GeneratedFile {
 }
 
 export type BindingResult =
-  /** `name` is carried back so a caller can place the widget without re-deriving it from a path. */
-  | { ok: true; name: string; restAction: GeneratedFile; widget: GeneratedFile }
+  /** `name` is carried back so a caller can place the widget without re-deriving it from a path.
+   *  `resource` is the plural of the kind this ACTUALLY generated — see the note on `resource`
+   *  below for why the caller must not assume it. */
+  | { ok: true; name: string; resource: string; restAction: GeneratedFile; widget: GeneratedFile }
   | { ok: false; error: string }
 
 const WIDGET_API_VERSION = 'widgets.templates.krateo.io/v1beta1'
@@ -185,5 +187,17 @@ export const generateBinding = (input: BindingInput): BindingResult => {
     path: pageDraftSlug('Table', input.name),
   }
 
-  return { name: input.name, ok: true, restAction, widget }
+  /*
+   * `resource` IS PART OF THE RESULT, and that is the point rather than a convenience.
+   *
+   * The caller hardcoded `resource: 'tables'` when placing what came back. That was true — this
+   * generator emits a Table and only a Table — but it was true by coincidence at the call site
+   * rather than by construction, and it went wrong the moment the palette could create forty-four
+   * kinds: a placement declaring the wrong plural renders nothing and reports nothing.
+   *
+   * WHAT THIS DOES NOT DO is generalise the generation. The shape below is Table-specific — the
+   * cell-array jq, the `dataSource` envelope — so binding a LineChart to live data still needs its
+   * own emitter. Returning the plural is what makes that a change in ONE file when it comes.
+   */
+  return { name: input.name, ok: true, resource: 'tables', restAction, widget }
 }

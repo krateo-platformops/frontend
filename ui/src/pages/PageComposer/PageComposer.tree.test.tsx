@@ -29,7 +29,9 @@ describe('PageComposer — placing a widget that already exists', () => {
   it('places it into the chosen container, adding no file to the draft', async () => {
     // The widget is already on the cluster: only the PARENT changes. One emission, not two.
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
-      json: () => Promise.resolve({ status: { widgets: [{ name: 'fleet-card', resource: 'cards' }] } }),
+      // /list returns a bare array of the objects themselves — the plural is derived from `kind`
+      // through the generated table, not sent by the server.
+      json: () => Promise.resolve([{ kind: 'Card', metadata: { name: 'fleet-card' } }]),
       ok: true,
       status: 200,
     })))

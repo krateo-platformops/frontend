@@ -48,6 +48,7 @@ import { WidgetEmpty } from '../../components/WidgetStates'
 import { ConfigContext } from '../../context/ConfigContext'
 
 import CanvasPanel from './CanvasPanel'
+import { announce, onAnnounce } from './composerAnnounce'
 import CreateWidgetModal from './CreateWidgetModal'
 import { resolveDrop } from './dndIds'
 import type { DragPayload, DropPayload } from './dndIds'
@@ -154,6 +155,17 @@ const PageComposer = () => {
    * may have taken a while to arrive at.
    */
   const [pendingCreate, setPendingCreate] = useState<{ at?: number; target: TreeNode; widgetKind: string } | null>(null)
+  /**
+   * The live region's text. Held in state so a repeat of the same sentence still re-announces —
+   * moving two widgets into the same container really does produce the same words twice, and a
+   * reader that heard it once would otherwise believe the second gesture did nothing.
+   */
+  const [announcement, setAnnouncement] = useState('')
+  useEffect(() => onAnnounce((message) => {
+    setAnnouncement('')
+    // A frame apart, so assistive technology sees a CHANGE rather than an identical value.
+    window.setTimeout(() => setAnnouncement(message), 0)
+  }), [])
   const [airborne, setAirborne] = useState<DragPayload | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
 
@@ -266,9 +278,15 @@ const PageComposer = () => {
         setPendingCreate({ at: intent.at, target: intent.target, widgetKind: intent.pick.widgetKind })
         return
       }
-      applyAdd(intent.target, intent.at, intent.pick)
+      const added = applyAdd(intent.target, intent.at, intent.pick)
+      announce(added.ok
+        ? `Added to ${intent.target.name}`
+        : `Not added: ${added.reason}`)
     } else if (intent.do === 'move') {
-      applyMove(intent.moving, intent.target, roots, intent.at)
+      const moved = applyMove(intent.moving, intent.target, roots, intent.at)
+      announce(moved.ok
+        ? `Moved ${intent.moving.name} into ${intent.target.name}`
+        : `Not moved: ${moved.reason}`)
     }
   }, [applyAdd, applyMove, roots])
 
@@ -287,6 +305,8 @@ const PageComposer = () => {
   const [publishing, setPublishing] = useState(false)
   const [outcome, setOutcome] = useState<{ denial: string | null; deepLink: string | null } | null>(null)
   const publishId = useRef<string | null>(null)
+  /** The result panel, so the header can take you to it without anyone hunting for it. */
+  const resultRef = useRef<HTMLDivElement | null>(null)
   // Re-validated verdicts after an applied edit, so the Alert blocks reflect the latest draft
   // rather than the one that was first handed over. Same contract the drawer keeps.
   const [editVerdicts, setEditVerdicts] = useState<RestDefVerdicts | null>(null)
@@ -435,6 +455,16 @@ const PageComposer = () => {
 
   return (
     <div className={styles.page}>
+      {/*
+        EVERY OUTCOME, successes and refusals alike, and mounted unconditionally so the region
+        EXISTS before the first edit — assistive technology watches a region it has already seen,
+        and one that appears at the same moment as its first message is commonly missed.
+        A region that speaks only on failure teaches people to ignore it, and then silence has two
+        meanings: it worked, or it did nothing. `role='status'` announces without interrupting.
+      */}
+      <div aria-live='polite' className={styles.announce} data-testid='composer-announce' role='status'>
+        {announcement}
+      </div>
       {/* NEW_DRAFT_NAMESPACE, not a namespace read from the draft: there IS no draft yet, which is
           the whole point of this control. It matches what every Autopilot-published page already
           carries, so starting one here and asking the agent for one produce the same bytes. */}
@@ -459,6 +489,21 @@ const PageComposer = () => {
         {payload
           ? (
             <Space className={styles.actions}>
+              {/*
+                THE PREVIEW IS TWENTY SCREENS DOWN, and build-above/result-below is still the right
+                reading order — a page builder that put the render between the palette and the
+                canvas would be worse. What it costs is the feedback loop that makes direct
+                manipulation worth having: you edit, and then you go and look, which is the loop
+                direct manipulation exists to remove.
+                This is the cheap eighty percent of fixing that. A sticky strip or a split with a
+                draggable divider would be better and takes vertical space from the canvas, which
+                is the scarcest thing on this page — that is a layout decision, not a defect fix.
+              */}
+              <Button
+                onClick={() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              >
+                Preview
+              </Button>
               {/*
                 UNDO. The composer had none, which was merely expensive while every operation was
                 recoverable by hand — and two were not. Remove is now genuinely destructive (it
@@ -616,7 +661,7 @@ const PageComposer = () => {
 
             {/* Full width, because the live render is a page and a page wants the width. Selecting
                 a node above still reveals its bytes in Files here — same `focusPath` as before. */}
-            <div className={styles.result}>
+            <div className={styles.result} ref={resultRef}>
               <PreviewContent editVerdicts={editVerdicts} focusPath={focusPath} liveFiles={files} onVerdicts={setEditVerdicts} payload={payload} />
             </div>
           </>

@@ -22,6 +22,7 @@ import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
 import { emitFileRemove } from '../../components/Autopilot/previewFileRemove'
 
 import BindDataModal from './BindDataModal'
+import { announce } from './composerAnnounce'
 import type { BindingResult } from './generateBinding'
 import MoveIntoModal from './MoveIntoModal'
 import { buildObjectTree, draftNamespace, flattenTree } from './objectTree'
@@ -126,11 +127,21 @@ const toDataNode = (
                 <Button aria-label={`Wrap ${node.name}`} icon={<GroupOutlined />} onClick={(event) => event.stopPropagation()} size='small' type='text' />
               </Tooltip>
             </Dropdown>
-            <Tooltip title='Move earlier'>
+            {/*
+              ONE TOOLTIP PER BUTTON. This was a single <Tooltip title='Move earlier'> wrapping
+              BOTH of these, so at most one could receive it and the text was wrong for the other:
+              the left-hand control reparents into a different container, which is not "earlier"
+              by any reading. The aria-labels were always right, so it cost sighted mouse users
+              only — which is exactly the kind of defect that survives, because the people most
+              likely to notice it are the ones not being shown it.
+            */}
+            <Tooltip title='Move into another container'>
               {/* Reparenting from the KEYBOARD. The canvas can drag a node into another container;
                   without this the tree could only reorder within the parent it already had, so the
                   one edit that changes a page's shape was pointer-only. */}
               <Button aria-label={`Move ${node.name} into another container`} icon={<DragOutlined />} onClick={(event) => { event.stopPropagation(); moveInto(node) }} size='small' type='text' />
+            </Tooltip>
+            <Tooltip title='Move earlier'>
               <Button aria-label={`Move ${node.name} up`} icon={<ArrowUpOutlined />} onClick={(event) => { event.stopPropagation(); mutate(node, 'up') }} size='small' type='text' />
             </Tooltip>
             <Tooltip title='Move later'>
@@ -192,6 +203,35 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
    * A refusal is SHOWN. Moving the first child up is a real refusal, not a no-op, and saying so
    * beats a button that appears to do nothing.
    */
+  /**
+   * SAY WHAT HAPPENED, AND PUT FOCUS BACK.
+   *
+   * Both halves matter and neither worked. The tree re-renders after every edit, which destroys the
+   * focused button — measured: after pressing "Move … down", document.activeElement was BODY, and
+   * getting back to the same control took seventeen tabs in a three-object draft. So the keyboard
+   * route existed in the sense that the controls could be reached, and not in the sense that anyone
+   * could use it: one drag-equivalent cost about a hundred keystrokes.
+   *
+   * Focus is restored BY ARIA-LABEL rather than by node identity, because the node objects are
+   * rebuilt from the draft's bytes on every render — there is no stable reference to hold. The
+   * label is what the person was last on, which is also what they would look for.
+   */
+  const settle = (message: string, label?: string) => {
+    announce(message)
+    if (!label) {
+      return
+    }
+    // After the re-render, not during it.
+    window.setTimeout(() => {
+      // Compared rather than selected: a label is arbitrary user text (it contains the CR's name),
+      // so putting it inside a selector needs escaping — and `CSS.escape` is absent in jsdom, which
+      // would make this the one path the tests could not cover.
+      const control = [...document.querySelectorAll<HTMLElement>('[aria-label]')]
+        .find((candidate) => candidate.getAttribute('aria-label') === label)
+      control?.focus()
+    }, 0)
+  }
+
   const mutate = (node: TreeNode, op: 'up' | 'down' | 'remove') => {
     const parentYaml = node.parentPath ? files[node.parentPath] : undefined
     if (!node.parentPath || parentYaml === undefined) {
@@ -215,9 +255,16 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
       : moveChild(parentYaml, child, op)
     if (!result.ok) {
       message.warning(result.error)
+      settle(`Not done: ${result.error}`)
       return
     }
     emitFileEdit({ content: result.content, path: node.parentPath })
+    // The removed node's controls are gone, so focus goes back to its PARENT's — the nearest thing
+    // still on screen, and where someone removing several children wants to be.
+    settle(
+      op === 'remove' ? `Removed ${node.name}` : `Moved ${node.name} ${op}`,
+      op === 'remove' ? undefined : `Move ${node.name} ${op}`,
+    )
 
     /*
      * REMOVE ALSO REMOVES THE FILE — which it did not, and that was the whole defect.
@@ -380,7 +427,11 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
     }
     // `result.name`, not the filename parsed back out of a path: the generator already knows it,
     // and re-deriving it would be a second place that has to agree about naming.
-    const placed = placeChild(parentYaml, { name: result.name, namespace, resource: 'tables' })
+    // THE PLURAL THE GENERATOR ACTUALLY EMITTED, not a literal repeated here. It was `'tables'`,
+    // which was true — generateBinding emits a Table — but true by coincidence at this call site
+    // rather than by construction. A placement declaring the wrong plural renders nothing and
+    // reports nothing, which is the failure this file can least afford to introduce silently.
+    const placed = placeChild(parentYaml, { name: result.name, namespace, resource: result.resource })
     if (!placed.ok) {
       message.warning(placed.error)
       return

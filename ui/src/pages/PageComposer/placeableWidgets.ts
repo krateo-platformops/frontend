@@ -23,6 +23,24 @@
  */
 import { getAccessToken } from '../../utils/getAccessToken'
 
+import { WIDGET_KINDS } from './widgetKinds.generated'
+
+/**
+ * The category EVERY widget CRD declares — verified across all forty-four: `[widgets, krateo]`.
+ *
+ * This is what retires `page-composable`. That RESTAction existed because `/call` cannot list a
+ * collection: `ParseNamespacedName` refuses a request with no `name`, so the frontend could fetch a
+ * named object and nothing else, and listing had to be delegated to an RA whose api steps do
+ * collection GETs internally. The cost was a hand-written list of SEVEN kinds living in the portal
+ * chart — a different repository, released separately, failing silently apart: a kind the RA omits
+ * is simply absent from the palette with no error anywhere.
+ *
+ * `/list` takes a CATEGORY, discovers the GVRs in it server-side, and lists each under the CALLER'S
+ * own client. So one request returns every widget instance the user may see, across all
+ * forty-four kinds, with no hand-maintained list anywhere and nothing to keep in step.
+ */
+const WIDGET_CATEGORY = 'widgets'
+
 /** One placeable widget: the CR name and the CRD plural its parent must declare to render it. */
 export interface PlaceableWidget {
   name: string
@@ -59,34 +77,40 @@ export const listPlaceableWidgets = async (
   namespace: string,
 ): Promise<PlaceableResult> => {
   try {
-    const url = new URL(`${snowplowBaseUrl.replace(/\/+$/, '')}/call`)
-    url.searchParams.set('resource', 'restactions')
-    url.searchParams.set('apiVersion', 'templates.krateo.io/v1')
-    url.searchParams.set('name', 'page-composable')
-    url.searchParams.set('namespace', namespace)
+    const url = new URL(`${snowplowBaseUrl.replace(/\/+$/, '')}/list`)
+    url.searchParams.set('category', WIDGET_CATEGORY)
+    url.searchParams.set('ns', namespace)
     const response = await fetch(url.toString(), { headers: { ...authHeader() } })
-    if (!response.ok) {
-      return { error: `could not list widgets — page-composable responded ${response.status}`, ok: false }
+    if (response.status === 403) {
+      // The user may not list these. Said plainly, because an empty picker that does not explain
+      // itself is the failure this module exists to avoid.
+      return { error: 'you may not list widgets in this namespace', ok: false }
     }
-    // snowplow puts a RESTAction's jq output DIRECTLY in `.status` (not `.status.widgetData`, which
-    // is the widget shape).
-    const cr = await response.json().catch(() => null) as { status?: unknown } | null
-    const list = asRecord(cr?.status)?.widgets
-    if (!Array.isArray(list)) {
-      return { error: 'page-composable returned no widget list', ok: false }
+    if (!response.ok) {
+      return { error: `could not list widgets — snowplow responded ${response.status}`, ok: false }
+    }
+    // /list encodes a bare ARRAY of unstructured objects — not an envelope, and not a k8s List.
+    const items = await response.json().catch(() => null) as unknown
+    if (!Array.isArray(items)) {
+      return { error: 'the widget list came back in a shape this build does not understand', ok: false }
     }
     const widgets: PlaceableWidget[] = []
-    for (const entry of list) {
+    for (const entry of items) {
       const item = asRecord(entry)
-      // Both fields or the row is dropped: a name with no plural cannot be placed (the container
-      // would not declare it and would render nothing), and a plural with no name resolves to
-      // nothing. Silently placing half an entry is worse than omitting it from the picker.
-      if (typeof item?.name === 'string' && typeof item.resource === 'string' && item.name && item.resource) {
-        widgets.push({ name: item.name, resource: item.resource })
+      const name = asRecord(item?.metadata)?.name
+      // The PLURAL, derived from the kind through the generated table rather than guessed:
+      // lowercase(kind)+"s" is wrong for a good number of them, and a wrong plural places a child
+      // its parent will not render.
+      const kind = typeof item?.kind === 'string' ? item.kind : ''
+      const resource = WIDGET_KINDS[kind]?.plural
+      // Both or the row is dropped: a name with no plural cannot be placed (the container would not
+      // declare it and would render nothing), and a plural with no name resolves to nothing.
+      if (typeof name === 'string' && name && resource) {
+        widgets.push({ name, resource })
       }
     }
     return { ok: true, widgets }
   } catch (error) {
-    return { error: `could not reach page-composable — ${error instanceof Error ? error.message : String(error)}`, ok: false }
+    return { error: `could not reach snowplow — ${error instanceof Error ? error.message : String(error)}`, ok: false }
   }
 }

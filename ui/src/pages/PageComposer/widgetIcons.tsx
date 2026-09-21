@@ -19,6 +19,32 @@
  * glyph — which is right, since they are the same kind.
  */
 import {
+  AppstoreAddOutlined,
+  BarChartOutlined,
+  BgColorsOutlined,
+  CalendarOutlined,
+  CheckCircleOutlined,
+  CheckSquareOutlined,
+  CodeOutlined,
+  DownOutlined,
+  EditOutlined,
+  FilterOutlined,
+  FormOutlined,
+  LoadingOutlined,
+  MenuOutlined,
+  MinusOutlined,
+  OrderedListOutlined,
+  PartitionOutlined,
+  PictureOutlined,
+  PieChartOutlined,
+  ProfileOutlined,
+  QrcodeOutlined,
+  RightOutlined,
+  SlidersOutlined,
+  SwapOutlined,
+  TagOutlined,
+  UploadOutlined,
+  WarningOutlined,
   AppstoreOutlined,
   BorderOutlined,
   ColumnHeightOutlined,
@@ -43,17 +69,50 @@ import type { ComponentType } from 'react'
  * only thing distinguishing a Row from a Col at a glance and the words do not help someone new.
  */
 const BY_PLURAL: Readonly<Record<string, ComponentType>> = {
+  alerts: WarningOutlined,
+  badges: TagOutlined,
+  barcharts: BarChartOutlined,
+  breadcrumbs: RightOutlined,
+  buttongroups: AppstoreAddOutlined,
+  buttons: BorderOutlined,
   cards: BorderOutlined,
+  checkboxes: CheckSquareOutlined,
   cols: ColumnHeightOutlined,
+  datepickers: CalendarOutlined,
+  descriptions: ProfileOutlined,
+  dividers: MinusOutlined,
+  filters: FilterOutlined,
   flexes: LayoutOutlined,
+  flowcharts: PartitionOutlined,
+  forms: FormOutlined,
+  images: PictureOutlined,
+  inputnumbers: FieldNumberOutlined,
+  inputs: EditOutlined,
+  layouts: LayoutOutlined,
   linecharts: LineChartOutlined,
   listies: UnorderedListOutlined,
   markdowns: FileMarkdownOutlined,
+  menus: MenuOutlined,
+  pageheaders: FontSizeOutlined,
   paragraphs: FontSizeOutlined,
+  piecharts: PieChartOutlined,
+  progresses: LoadingOutlined,
+  qrcodes: QrcodeOutlined,
+  radios: CheckCircleOutlined,
+  rangepickers: CalendarOutlined,
+  results: CheckCircleOutlined,
   rows: ColumnWidthOutlined,
+  selects: DownOutlined,
+  sliders: SlidersOutlined,
   statistics: FieldNumberOutlined,
+  steps: OrderedListOutlined,
+  switches: SwapOutlined,
   tables: TableOutlined,
   tabs: PicCenterOutlined,
+  tags: TagOutlined,
+  themes: BgColorsOutlined,
+  uploads: UploadOutlined,
+  yamlviewers: CodeOutlined,
 }
 
 /**
@@ -62,6 +121,13 @@ const BY_PLURAL: Readonly<Record<string, ComponentType>> = {
  * A widget kind this build has never heard of is a REAL case, not a defensive branch: the widget
  * registry grows without the composer being rebuilt, so an unknown plural means "newer than me",
  * and drawing a generic block is better than drawing nothing and leaving a ragged row.
+ *
+ * THE FALLBACK MUST STAY AN EXCEPTION, which it had stopped being. The map covered eleven plurals;
+ * the palette now offers forty-four kinds, so thirty-three rows drew the SAME generic block. A
+ * glyph column identical on three quarters of its rows is worse than no glyph column at all,
+ * because it implies a distinction it is not making — the eye reads "these are alike" and they are
+ * not. Repeats between related kinds are deliberate and honest (a RangePicker is a DatePicker over
+ * two dates); an accidental repeat across unrelated ones is the thing being avoided.
  */
 export const iconForResource = (resource: string | null | undefined): ComponentType =>
   (resource ? BY_PLURAL[resource] ?? AppstoreOutlined : AppstoreOutlined)

@@ -10,6 +10,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import PalettePanel from './PalettePanel'
 import { LAYOUT_KINDS } from './structureEdit'
 import { iconForResource, KNOWN_ICON_PLURALS } from './widgetIcons'
+import { WIDGET_KINDS } from './widgetKinds.generated'
 
 /**
  * The mocked loader's answer.
@@ -46,10 +47,18 @@ describe('widgetIcons', () => {
     }
   })
 
-  it('every plural `placeableWidgets` can return has one too', () => {
-    // The seven collections that RESTAction lists — see placeableWidgets' header.
-    for (const plural of ['cards', 'tables', 'listies', 'linecharts', 'statistics', 'paragraphs', 'markdowns']) {
-      expect(KNOWN_ICON_PLURALS).toContain(plural)
+  it('EVERY kind the palette can offer has its own glyph, not just the seven it used to', () => {
+    /*
+     * The map covered eleven plurals while the palette offered five kinds and seven collections.
+     * The palette now offers forty-four, so the fallback had stopped being an exception and become
+     * the rule: thirty-three rows drew the SAME generic block, which is worse than no glyph column
+     * at all — it implies a distinction it is not making.
+     *
+     * Asserted against the GENERATED kind set rather than a list written here, so a kind added to
+     * the CRDs fails this test instead of quietly joining the identical rows.
+     */
+    for (const kind of Object.values(WIDGET_KINDS)) {
+      expect(KNOWN_ICON_PLURALS, kind.plural).toContain(kind.plural)
     }
   })
 

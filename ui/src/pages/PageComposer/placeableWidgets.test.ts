@@ -18,31 +18,64 @@ const respond = (body: unknown, ok = true, status = 200) => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('listPlaceableWidgets', () => {
-  it('reads the jq output straight off .status, where snowplow puts it', async () => {
-    // NOT .status.widgetData — that is the widget shape. A RESTAction's filter output lands in
-    // .status itself, which is the contract callBlueprintRenderRA already relies on.
-    respond({ status: { widgets: [{ id: 'cards/a', name: 'a', resource: 'cards' }] } })
+  /*
+   * WHAT CHANGED AND WHY. This read a RESTAction — `page-composable` — because `/call` cannot list
+   * a collection: snowplow's ParseNamespacedName refuses a request with no `name`, so the frontend
+   * could fetch a named object and nothing else. The RA's api steps did the collection GETs, and
+   * the cost was a hand-written list of SEVEN kinds living in the portal chart: a different repo,
+   * released separately, failing silently apart — a kind it omitted was simply absent from the
+   * palette with no error anywhere.
+   *
+   * `/list?category=widgets` discovers the GVRs server-side and lists each under the CALLER'S own
+   * client. Every widget CRD declares `categories: [widgets, krateo]` — checked across all
+   * forty-four — so one request returns everything the user may see, with nothing to keep in step.
+   */
+  it('asks snowplow to LIST the widgets category, in the draft namespace', async () => {
+    respond([])
+    await listPlaceableWidgets('http://snowplow/', 'krateo-system')
+
+    const url = new URL((vi.mocked(fetch).mock.calls[0][0]) as string)
+    expect(url.pathname).toBe('/list')
+    expect(url.searchParams.get('category')).toBe('widgets')
+    expect(url.searchParams.get('ns')).toBe('krateo-system')
+  })
+
+  it('reads a bare ARRAY of objects — /list is not an envelope and not a k8s List', async () => {
+    respond([{ kind: 'Card', metadata: { name: 'a' } }])
 
     const result = await listPlaceableWidgets('http://snowplow', 'krateo-system')
 
     expect(result).toEqual({ ok: true, widgets: [{ name: 'a', resource: 'cards' }] })
   })
 
-  it('calls the RESTAction over the same /call transport a widget uses', async () => {
-    respond({ status: { widgets: [] } })
-    await listPlaceableWidgets('http://snowplow/', 'krateo-system')
+  it('derives the plural from the KIND through the generated table, never by guessing', async () => {
+    // lowercase(kind)+"s" is wrong for a good number of them, and a wrong plural places a child its
+    // parent will not declare — so it renders nothing and reports nothing.
+    respond([
+      { kind: 'Listy', metadata: { name: 'runs' } },
+      { kind: 'PieChart', metadata: { name: 'split' } },
+    ])
 
-    const url = new URL((vi.mocked(fetch).mock.calls[0][0]) as string)
-    expect(url.pathname).toBe('/call')
-    expect(url.searchParams.get('resource')).toBe('restactions')
-    expect(url.searchParams.get('name')).toBe('page-composable')
-    expect(url.searchParams.get('namespace')).toBe('krateo-system')
+    const result = await listPlaceableWidgets('http://snowplow', 'krateo-system')
+
+    expect(result).toEqual({ ok: true, widgets: [{ name: 'runs', resource: 'listies' }, { name: 'split', resource: 'piecharts' }] })
   })
 
-  it('drops a row missing its plural, which could never be placed', async () => {
-    // A container that does not declare the child's plural renders nothing, so half an entry is
-    // not placeable — omitting it from the picker beats placing something invisible.
-    respond({ status: { widgets: [{ name: 'a', resource: 'cards' }, { name: 'b' }, { resource: 'tables' }] } })
+  it('reaches kinds the old seven-kind RESTAction could never return', async () => {
+    // The palette can place a BarChart now because the category discovers it, not because anybody
+    // added it to a list.
+    respond([{ kind: 'BarChart', metadata: { name: 'throughput' } }])
+
+    await expect(listPlaceableWidgets('http://snowplow', 'krateo-system'))
+      .resolves.toEqual({ ok: true, widgets: [{ name: 'throughput', resource: 'barcharts' }] })
+  })
+
+  it('drops a row this build cannot place, rather than guessing its plural', async () => {
+    respond([
+      { kind: 'Card', metadata: { name: 'a' } },
+      { kind: 'SomethingNewerThanThisBuild', metadata: { name: 'b' } },
+      { kind: 'Card', metadata: {} },
+    ])
 
     const result = await listPlaceableWidgets('http://snowplow', 'krateo-system')
 
@@ -50,17 +83,17 @@ describe('listPlaceableWidgets', () => {
   })
 
   it('reports a 403 as content rather than throwing', async () => {
-    // Each step runs under the caller's own RBAC, so a 403 is a real and expected answer: this
+    // The listing runs under the caller's own client, so a 403 is a real and expected answer: this
     // user may not list these. An empty picker that does not say why is the failure to avoid.
     respond(null, false, 403)
 
     const result = await listPlaceableWidgets('http://snowplow', 'krateo-system')
 
     expect(result.ok).toBe(false)
-    expect(result).toHaveProperty('error', expect.stringContaining('403'))
+    expect(result).toHaveProperty('error', expect.stringContaining('may not list'))
   })
 
-  it('reports a RESTAction that is not installed', async () => {
+  it('reports a shape it does not understand rather than showing an empty picker', async () => {
     respond({ status: {} })
 
     const result = await listPlaceableWidgets('http://snowplow', 'krateo-system')

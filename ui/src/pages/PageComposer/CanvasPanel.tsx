@@ -23,7 +23,9 @@
  *   2. NOTHING WORKED ON TOUCH. Native DnD does not fire on a coarse pointer at all, so the canvas
  *      was inert on a tablet. dnd-kit's PointerSensor is pointer-events based and does.
  *   3. THERE WAS NO KEYBOARD PATH. Not one of 80 tab stops landed in the canvas. KeyboardSensor
- *      gives lift/move/drop on Space and the arrow keys, with announcements.
+ *      gives lift/move/drop on Space and the arrow keys, with announcements. The TREE's claim to be
+ *      the keyboard route is now true as well: it restores focus after an edit and writes every
+ *      outcome into the composer's live region, neither of which it did when the claim was written.
  *   4. THE DRAG IMAGE WAS THE ELEMENT. The browser's default ghost is a translucent copy of the
  *      whole subtree, which covered the very drop targets it was being aimed at. `DragOverlay`
  *      renders a small chip instead.
