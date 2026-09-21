@@ -42,6 +42,7 @@ import { WidgetEmpty } from '../../components/WidgetStates'
 import { ConfigContext } from '../../context/ConfigContext'
 
 import CanvasPanel from './CanvasPanel'
+import { legalTargets } from './dropTargets'
 import { buildObjectTree, draftNamespace, flattenTree } from './objectTree'
 import type { TreeNode } from './objectTree'
 import ObjectTreePanel from './ObjectTreePanel'
@@ -69,7 +70,27 @@ const NEW_DRAFT_NAMESPACE = 'krateo-system'
  * decision back out. A drag ignores it (the canvas re-renders and the person sees the result); an
  * agent needs it, because nothing else tells it whether its proposal landed.
  */
-type Outcome = { ok: true; paths: string[] } | { ok: false; paths: string[]; reason: string }
+type Outcome =
+  | { ok: true; paths: string[] }
+  | { ok: false; paths: string[]; reason: string; where?: string[] }
+
+/**
+ * How many alternative containers a refusal names.
+ *
+ * Enough to be an answer on any real page, capped so a pathological draft cannot turn one refusal
+ * into an inventory. Ordered as the tree reads, so the first name is the outermost container that
+ * would take it rather than an arbitrary one.
+ */
+const MAX_ALTERNATIVES = 12
+
+/** The containers that would accept `plural`, by name — `legalTargets`, never a second opinion. */
+const acceptedBy = (
+  roots: readonly TreeNode[],
+  plural: string | null | undefined,
+  moving?: TreeNode,
+): string[] => (plural
+  ? legalTargets(roots, { node: moving, plural }).map((node) => node.name).slice(0, MAX_ALTERNATIVES)
+  : [])
 
 const PageComposer = () => {
   // `useContext`, not `useConfigContext`: the hook throws with no provider above it, and this page
@@ -120,7 +141,10 @@ const PageComposer = () => {
     const plan = planAdd(files, target, picked, authoringNamespace, at)
     if (!plan.ok) {
       setMoveError(plan.reason)
-      return { ok: false, paths: [], reason: plan.reason }
+      // A palette pick is under nothing, so nothing is excluded — every container that declares it
+      // holds this plural is a real alternative. The tree is rebuilt from the same `files` the plan
+      // just refused against, so the answer describes the draft the refusal was about.
+      return { ok: false, paths: [], reason: plan.reason, where: acceptedBy(buildObjectTree(files), picked.resource) }
     }
     setMoveError(null)
     if (plan.created) {
@@ -143,7 +167,9 @@ const PageComposer = () => {
     const plan = planMove(files, roots, moving, target, at)
     if (!plan.ok) {
       setMoveError(plan.reason)
-      return { ok: false, paths: [], reason: plan.reason }
+      // `moving` is passed so its own subtree is excluded: offering a container as an alternative
+      // destination for something it sits inside would be an answer that is refused in turn.
+      return { ok: false, paths: [], reason: plan.reason, where: acceptedBy(roots, moving.resource, moving) }
     }
     setMoveError(null)
     // Only the files the transaction changed — usually the two parents, one for a same-parent move.
@@ -218,18 +244,32 @@ const PageComposer = () => {
         id: request.id,
         paths: outcome.paths,
         reason: outcome.ok ? null : outcome.reason,
+        ...(outcome.ok || !outcome.where?.length ? {} : { where: outcome.where }),
       })
     }
-    const refuse = (reason: string): void => {
+    const refuse = (reason: string, where?: string[]): void => {
       setMoveError(reason)
-      reply({ ok: false, paths: [], reason })
+      reply({ ok: false, paths: [], reason, where })
     }
 
     const roots = buildObjectTree(files)
     const byName = (name: string) => flattenTree(roots).find((node) => node.name === name)
     const target = byName(request.target)
     if (!target) {
-      refuse(`"${request.target}" is not in this draft`)
+      // The target is a typo or a name from another draft — but what is being PLACED is still
+      // known, so the useful half of the answer survives. For a move whose widget is also missing
+      // it does not: "which container accepts a widget the draft does not carry" has no answer, and
+      // `acceptedBy` returns nothing rather than guessing a plural from the name.
+      const moving = request.op === 'move' ? byName(request.widget) : undefined
+      let plural: string | null | undefined
+      if (request.op === 'move') {
+        plural = moving?.resource
+      } else if (request.op === 'addExisting') {
+        plural = request.resource
+      } else {
+        plural = LAYOUT_KINDS[request.layout as keyof typeof LAYOUT_KINDS]
+      }
+      refuse(`"${request.target}" is not in this draft`, acceptedBy(roots, plural, moving))
       return
     }
     if (request.op === 'move') {

@@ -140,6 +140,111 @@ describe('the agent restructures the draft through the composer', () => {
     bus.stop()
   })
 
+  /**
+   * A refusal that only says no leaves the next proposal a guess, and on a page with four
+   * containers the guess is usually wrong. `legalTargets` — the kernel the canvas highlights drop
+   * zones with, and the one planMove already consults in order to refuse — knows the answer and
+   * was discarding it.
+   */
+  describe('a refusal says where it could have gone', () => {
+    /** Flex page-x holds ROWS only; Row row-a and Row row-b hold anything. */
+    const rowsOnly = () => [
+      { content: widgetCr('Card', 'card-b'), path: 'templates/card.card-b.yaml' },
+      {
+        content: widgetCr('Flex', 'page-x', ['row-a', 'row-b']).replace('allowedResources: []', 'allowedResources:\n      - rows'),
+        path: 'templates/flex.page-x.yaml',
+      },
+      { content: widgetCr('Row', 'row-a', ['card-b']), path: 'templates/row.row-a.yaml' },
+      { content: widgetCr('Row', 'row-b'), path: 'templates/row.row-b.yaml' },
+    ]
+
+    it('names the containers that WOULD have taken the widget', () => {
+      const bus = capture()
+      mountWithConfig()
+      emit({ files: rowsOnly(), title: 'x' })
+
+      // card-b lives in row-a; page-x holds rows only, so this is refused.
+      const answer = propose({ op: 'move', target: 'page-x', widget: 'card-b' })
+      expect(answer?.applied).toBe(false)
+      expect(answer?.where).toContain('row-b')
+      expect(answer?.where).not.toContain('page-x')
+      bus.stop()
+    })
+
+    it('excludes the moving widget\'s own subtree — an answer that would be refused in turn', () => {
+      const bus = capture()
+      mountWithConfig()
+      emit({ files: rowsOnly(), title: 'x' })
+
+      // Moving row-a into page-x is legal, so force a refusal on a node that HAS a subtree by
+      // aiming at a non-container: row-a may not be dropped into the card it contains.
+      const answer = propose({ op: 'move', target: 'card-b', widget: 'row-a' })
+      expect(answer?.applied).toBe(false)
+      expect(answer?.where).not.toContain('row-a')
+      expect(answer?.where).not.toContain('card-b')
+      bus.stop()
+    })
+
+    it('answers for a PLACEMENT that names a container which cannot hold it', () => {
+      const bus = capture()
+      mountWithConfig()
+      emit({ files: rowsOnly(), title: 'x' })
+
+      const answer = propose({ name: 'fleet-card', op: 'addExisting', resource: 'cards', target: 'page-x' })
+      expect(answer?.applied).toBe(false)
+      expect(answer?.where).toEqual(expect.arrayContaining(['row-a', 'row-b']))
+      bus.stop()
+    })
+
+    it('still answers when the TARGET does not exist — what is being placed is still known', () => {
+      const bus = capture()
+      mountWithConfig()
+      emit({ files: rowsOnly(), title: 'x' })
+
+      const answer = propose({ name: 'fleet-card', op: 'addExisting', resource: 'cards', target: 'typo-x' })
+      expect(answer?.reason).toMatch(/is not in this draft/)
+      expect(answer?.where).toEqual(expect.arrayContaining(['row-a', 'row-b']))
+      bus.stop()
+    })
+
+    it('offers nothing rather than guessing when the WIDGET is unknown too', () => {
+      const bus = capture()
+      mountWithConfig()
+      emit({ files: rowsOnly(), title: 'x' })
+
+      // "Which container accepts a widget the draft does not carry" has no answer, and inferring a
+      // plural from the name would be exactly the guess this whole layer exists to remove.
+      const answer = propose({ op: 'move', target: 'typo-x', widget: 'no-such-card' })
+      expect(answer?.applied).toBe(false)
+      expect(answer?.where ?? []).toEqual([])
+      bus.stop()
+    })
+
+    it('omits the field entirely when nothing on the page would take it', () => {
+      const bus = capture()
+      mountWithConfig()
+      // One container, declaring rows; the only other node is a Paragraph, which is not a
+      // container kind at all (a Card IS one — it holds `cards`). Nothing on this page accepts a
+      // `cards`, so there is no alternative to offer, and the field is absent rather than an empty
+      // list presented as an answer.
+      emit({
+        files: [
+          { content: widgetCr('Paragraph', 'copy-b'), path: 'templates/paragraph.copy-b.yaml' },
+          {
+            content: widgetCr('Flex', 'page-x', ['copy-b']).replace('allowedResources: []', 'allowedResources:\n      - rows'),
+            path: 'templates/flex.page-x.yaml',
+          },
+        ],
+        title: 'x',
+      })
+
+      const answer = propose({ name: 'fleet-card', op: 'addExisting', resource: 'cards', target: 'page-x' })
+      expect(answer?.applied).toBe(false)
+      expect(answer?.where).toBeUndefined()
+      bus.stop()
+    })
+  })
+
   it('says so when the WIDGET being moved is not in the draft', () => {
     const bus = capture()
     open()

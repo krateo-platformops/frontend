@@ -30,6 +30,13 @@
  * importance: the chip stops asserting an outcome it does not know, and the agent gets an
  * environment signal it can act on. The second is the precondition for any self-correction at all;
  * a verbal-reflection loop over an unconditional "success" has nothing to reflect on.
+ *
+ * AND A REFUSAL SAYS WHERE IT COULD HAVE GONE. "page-x cannot hold a cards" is true and still
+ * leaves the next attempt a guess; on a page with four containers the guess is usually wrong, and a
+ * second wrong guess is how a turn is spent. So a refusal carries the containers that WOULD have
+ * accepted it — computed by `legalTargets`, the same kernel the canvas highlights drop zones with
+ * and the one `planMove` consults to refuse in the first place. It was already working the set out
+ * and throwing it away.
  */
 export const AUTOPILOT_COMPOSE_REQUEST_EVENT = 'autopilotComposeRequest'
 export const AUTOPILOT_COMPOSE_RESULT_EVENT = 'autopilotComposeResult'
@@ -44,6 +51,17 @@ export interface ComposeResult {
   reason: string | null
   /** The draft paths the edit rewrote or created — what changed, not just that something did. */
   paths: string[]
+  /**
+   * On a refusal: the containers that WOULD have accepted this, by name. Empty when nothing would,
+   * and when the request was too malformed to ask the question ("which container accepts a widget
+   * the draft does not carry?" has no answer).
+   *
+   * A refusal that only says no leaves the next proposal a guess, and a second wrong guess is how a
+   * turn is spent. The set is not re-derived here: `legalTargets` is the kernel the canvas
+   * highlights drop zones with and the one `planMove` already consults to refuse — this stops
+   * discarding what it worked out.
+   */
+  where?: string[]
 }
 
 /** The restructure itself, without correlation — `Omit` does not distribute over a union, so the
