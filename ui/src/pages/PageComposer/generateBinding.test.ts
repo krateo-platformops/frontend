@@ -244,9 +244,14 @@ describe('binding a kind that is not a Table', () => {
     // Keyed by the column TITLE — a chart's xField names a key in the data, and the author picks it
     // from the titles they typed. Emitting the internal c1/c2 would give them axes referring to
     // fields that do not exist: renders empty, reports nothing.
-    expect(widget.spec.widgetDataTemplate[0].expression).toContain('"Pod": .c1')
-    expect(widget.spec.widgetDataTemplate[0].expression).toContain('"Node": .c2')
-    expect(widget.spec.widgetDataTemplate[0].expression).not.toContain('valueKey')
+    //
+    // Asserted WITHOUT assuming which title got which generated key: that follows the object's
+    // insertion order, and a lint autofix sorting the fixture's keys is enough to flip it. The
+    // property is that each TITLE maps to some internal key, not which one.
+    const [{ expression }] = widget.spec.widgetDataTemplate
+    expect(expression).toMatch(/"Pod": \.c\d/)
+    expect(expression).toMatch(/"Node": \.c\d/)
+    expect(expression).not.toContain('valueKey')
   })
 
   it('a title with a SPACE stays valid jq and stays selectable as an axis', () => {
@@ -261,7 +266,7 @@ describe('binding a kind that is not a Table', () => {
     })
     if (!result.ok) { return }
     const widget = load(result.widget.content) as { spec: { widgetDataTemplate: { expression: string }[] } }
-    expect(widget.spec.widgetDataTemplate[0].expression).toContain('"Node name": .c1')
+    expect(widget.spec.widgetDataTemplate[0].expression).toMatch(/"Node name": \.c\d/)
   })
 
   it('carries the fields only the author can decide, and lets them win', () => {
