@@ -33,6 +33,7 @@ import { applyResourceSet, type ApplyResourceSetOp, type ApplyResourceSetProposa
 // bridge, NOT a read-only registry entry): scoped by isPatchAllowed, dispatched through the
 // SAME dispatcher so it flows through the W0-2 blast-radius gate.
 import { requestCompose } from './composeRequest'
+import type { ComposeResult } from './composeRequest'
 import { applyPatchField, type PatchFieldProposal } from './patchField'
 // Import the preview handlers module for its side effect: it registers previewBlueprint /
 // previewPage into READONLY_VERB_REGISTRY on load, so they are present before any apply().
@@ -471,6 +472,19 @@ const collectRoutePatterns = (routes: RouteObject[]): string[] => {
   return out
 }
 
+/**
+ * A refusal, plus where the thing could have gone.
+ *
+ * The alternatives land in the chip's own text rather than in a side channel, because both readers
+ * need them and neither has another route to them: the person sees why the drop was refused and
+ * what to drag it onto instead, and the model — which reads its own chips back as turn history —
+ * gets the corrected proposal handed to it instead of guessing a second time.
+ */
+const composeRefusal = (verb: string, result: ComposeResult, fallback: string): AutopilotActionChip => {
+  const reason = result.reason ?? fallback
+  return refused(verb, result.where?.length ? `${reason} — it would fit in ${result.where.join(', ')}` : reason)
+}
+
 export const useAutopilotActionBridge = () => {
   const { handleAction, handleActionSet } = useHandleAction()
   const queryClient = useQueryClient()
@@ -530,7 +544,7 @@ export const useAutopilotActionBridge = () => {
       }
       const result = await requestCompose({ at: proposal.at, op: 'move', target: proposal.target, widget: proposal.widget })
       if (!result.applied) {
-        return refused('composeMove', result.reason ?? 'the composer did not apply the move')
+        return composeRefusal('composeMove', result, 'the composer did not apply the move')
       }
       return { label: `Moved ${proposal.widget} into ${proposal.target}`, readOnly: true, verb: 'composeMove' }
     }
@@ -542,14 +556,14 @@ export const useAutopilotActionBridge = () => {
       if (proposal.layout) {
         const result = await requestCompose({ at: proposal.at, layout: proposal.layout, op: 'addContainer', target: proposal.target })
         if (!result.applied) {
-          return refused('composeAdd', result.reason ?? 'the composer did not apply the add')
+          return composeRefusal('composeAdd', result, 'the composer did not apply the add')
         }
         return { label: `Added a ${proposal.layout} inside ${proposal.target}`, readOnly: true, verb: 'composeAdd' }
       }
       if (proposal.name && proposal.resource) {
         const result = await requestCompose({ at: proposal.at, name: proposal.name, op: 'addExisting', resource: proposal.resource, target: proposal.target })
         if (!result.applied) {
-          return refused('composeAdd', result.reason ?? 'the composer did not place the widget')
+          return composeRefusal('composeAdd', result, 'the composer did not place the widget')
         }
         return { label: `Placed ${proposal.name} inside ${proposal.target}`, readOnly: true, verb: 'composeAdd' }
       }

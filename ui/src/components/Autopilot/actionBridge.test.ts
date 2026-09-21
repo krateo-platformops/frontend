@@ -241,15 +241,25 @@ describe('a compose chip never claims an outcome the composer did not report', (
     expect(branches.length, 'compose call sites changed — re-point this tripwire').toBe(3)
     for (const branch of branches) {
       expect(branch).toMatch(/if \(!result\.applied\) \{/)
-      expect(branch).toMatch(/return refused\('compose(Move|Add)', result\.reason \?\?/)
+      // Every refusal goes through the one helper, which is where the reason and the alternatives
+      // are assembled. A branch hand-rolling its own `refused(...)` would skip both.
+      expect(branch).toMatch(/return composeRefusal\('compose(Move|Add)', result, '[^']+'\)/)
     }
   })
 
   it("prefers the composer's reason over the bridge's fallback wording", () => {
-    // `result.reason ?? '<fallback>'` — the fallback exists only for an answer with no reason,
-    // never as the wording a real refusal is reported with.
-    for (const branch of composeBranches()) {
-      expect(branch).not.toMatch(/return refused\('compose(Move|Add)', '[^']+'\)\s*$/m)
-    }
+    // The fallback exists only for an answer that carries no reason, never as the wording a real
+    // refusal is reported with.
+    const helper = /const composeRefusal = [\s\S]{0,600}?\n\}/.exec(railSource('actionBridge.ts'))
+    expect(helper, 'composeRefusal is gone — re-point this tripwire').toBeTruthy()
+    expect(helper![0]).toMatch(/result\.reason \?\? fallback/)
+  })
+
+  it('hands the alternatives to the reader instead of dropping them', () => {
+    // `where` is the half of a refusal that makes the next attempt something other than a guess.
+    // It reaches the model the only way a chip does: through the chip's own text.
+    const helper = /const composeRefusal = [\s\S]{0,600}?\n\}/.exec(railSource('actionBridge.ts'))
+    expect(helper![0]).toMatch(/result\.where\?\.length/)
+    expect(helper![0]).toMatch(/result\.where\.join/)
   })
 })
