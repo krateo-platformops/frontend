@@ -30,13 +30,15 @@ import {
 } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { Alert, Button, Popconfirm, Space, Tag, Typography } from 'antd'
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { emitComposeResult, onComposeRequest } from '../../components/Autopilot/composeRequest'
+import { draftHistory } from '../../components/Autopilot/draftHistory'
 import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { claimPreviewSurface, onDraftChanged, requestDraftReplay } from '../../components/Autopilot/previewDraftChanged'
 import { emitDraftStart } from '../../components/Autopilot/previewDraftStart'
+import { emitDraftUndo } from '../../components/Autopilot/previewDraftUndo'
 import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
 import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
 import { emitPublishRequest, onPublishResult } from '../../components/Autopilot/previewPublishRequest'
@@ -136,6 +138,8 @@ const PageComposer = () => {
    * across two siblings, so the `DndContext` has to enclose both — and the state it produces
    * belongs at the same level.
    */
+  /** How many steps back are available — read from the history so the control cannot claim one. */
+  const undoDepth = useSyncExternalStore(draftHistory.subscribe, draftHistory.depth, draftHistory.depth)
   const [airborne, setAirborne] = useState<DragPayload | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
 
@@ -437,6 +441,17 @@ const PageComposer = () => {
         {payload
           ? (
             <Space className={styles.actions}>
+              {/*
+                UNDO. The composer had none, which was merely expensive while every operation was
+                recoverable by hand — and two were not. Remove is now genuinely destructive (it
+                deletes the file rather than orphaning it), so this is the control that makes that
+                safe rather than merely confirmed. It steps the WHOLE held tree back, so it covers
+                a container drop that both added a file and rewrote a parent, a hand edit in the
+                Files tab, and the agent's own compose edits alike.
+              */}
+              <Button disabled={!undoDepth} onClick={() => emitDraftUndo()}>
+                Undo
+              </Button>
               <Button loading={publishing} onClick={publish} type='primary'>
                 {publishing ? 'Publishing…' : 'Publish'}
               </Button>
@@ -561,7 +576,7 @@ const PageComposer = () => {
             {/* Full width, because the live render is a page and a page wants the width. Selecting
                 a node above still reveals its bytes in Files here — same `focusPath` as before. */}
             <div className={styles.result}>
-              <PreviewContent editVerdicts={editVerdicts} focusPath={focusPath} onVerdicts={setEditVerdicts} payload={payload} />
+              <PreviewContent editVerdicts={editVerdicts} focusPath={focusPath} liveFiles={files} onVerdicts={setEditVerdicts} payload={payload} />
             </div>
           </>
         )

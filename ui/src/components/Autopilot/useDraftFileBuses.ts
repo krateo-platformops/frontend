@@ -24,13 +24,15 @@ import { useEffect } from 'react'
 
 import type { BlueprintDraftStore } from './blueprintDraftStore'
 import { clearComposeRefusals } from './composeRequest'
+import { draftHistory } from './draftHistory'
 import { buildPagePreviewPayload } from './previewBridge'
 import { openAutopilotPreview } from './previewBus'
 import { emitDraftChanged, onDraftReplayRequest } from './previewDraftChanged'
 import { onDraftStart } from './previewDraftStart'
+import { onDraftUndo } from './previewDraftUndo'
 import { onFileAdd } from './previewFileAdd'
-import { onFileRemove } from './previewFileRemove'
 import { onFileEdit } from './previewFileEdit'
+import { onFileRemove } from './previewFileRemove'
 import { recordPagePreview } from './publishCompile'
 
 /** The slice of the preview gate this hook needs — narrowed so tests need not build a whole gate. */
@@ -57,14 +59,21 @@ export const useDraftFileBuses = (
   // draft holds it under a bare token, and updateFile matches on the held key — so the raw
   // displayed path would refuse every page edit, silently (a refused edit just leaves the bytes).
   useEffect(() => onFileEdit(({ content, path }) => {
+    // Captured BEFORE the call and pushed only if it was accepted: a refused or over-cap edit
+    // leaves the tree exactly as it was, and a snapshot for one would make Undo consume a step
+    // without changing anything — the control would move and the draft would not.
+    const before = store.get()?.files
     if (store.updateDisplayedFile(path, content).ok) {
+      if (before) { draftHistory.push(before) }
       gate.recordPreview(identityOf(store.get()))
     }
   }), [gate, identityOf, store])
 
   // ADD: a file the composer just authored — a layout container, a new widget.
   useEffect(() => onFileAdd(({ content, path }) => {
+    const before = store.get()?.files
     if (store.addFile(path, content).ok) {
+      if (before) { draftHistory.push(before) }
       gate.recordPreview(identityOf(store.get()))
     }
   }), [gate, identityOf, store])
@@ -72,7 +81,22 @@ export const useDraftFileBuses = (
   // Removal re-arms the gate exactly as an add or an edit does: the draft's identity has changed,
   // and a gate still armed for the previous shape would let a publish commit a set nobody previewed.
   useEffect(() => onFileRemove(({ path }) => {
+    const before = store.get()?.files
     if (store.removeFile(path).ok) {
+      if (before) { draftHistory.push(before) }
+      gate.recordPreview(identityOf(store.get()))
+    }
+  }), [gate, identityOf, store])
+
+  // UNDO: put the whole tree back. `set` rather than a per-file replay, because the step being
+  // undone may have added or removed files as well as changed them — a container drop does both.
+  useEffect(() => onDraftUndo(() => {
+    const previous = draftHistory.pop()
+    const kind = store.get()?.kind
+    if (!previous || !kind) {
+      return
+    }
+    if (store.set(previous, kind).ok) {
       gate.recordPreview(identityOf(store.get()))
     }
   }), [gate, identityOf, store])
@@ -101,6 +125,8 @@ export const useDraftFileBuses = (
     // about a draft that no longer exists, and carrying it forward would have the model correcting
     // a problem this page does not have.
     clearComposeRefusals()
+    // A snapshot restored into a DIFFERENT page would be a worse data loss than the one undo fixes.
+    draftHistory.clear()
     recordPagePreview(widgets, store, gate)
 
     // AND THEN THE SAME LIVE PREVIEW A PROPOSAL GETS.

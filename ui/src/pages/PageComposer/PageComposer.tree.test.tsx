@@ -89,7 +89,10 @@ describe('PageComposer — the two halves are one view', () => {
       ],
       title: 'Fleet',
     })
-    // The tree reads the HELD draft (bare keys); the Files tab shows routed repo destinations.
+    // BOTH HALVES NOW READ THE HELD DRAFT. The Files tab used to render `payload.files` — built
+    // once by the verb that proposed the draft and never re-emitted — so it showed the bytes as
+    // they were at first preview while the tree and canvas showed the live ones. The payload above
+    // is deliberately left at the old `helm/portal/…` spelling to prove the tab no longer reads it.
     held({
       'templates/flex.page-fleet.yaml': widgetCr('Flex', 'page-fleet', ['stat-ready']),
       'templates/statistic.stat-ready.yaml': widgetCr('Statistic', 'stat-ready'),
@@ -102,7 +105,32 @@ describe('PageComposer — the two halves are one view', () => {
     // in the draft beside a list that will not show you the one you just clicked.
     const files = document.querySelector('.ant-tabs-tab-active')?.textContent
     expect(files).toBe('Files')
-    expect(document.getElementById('preview-file-helm-portal-templates-statistic-stat-ready-yaml')).toBeTruthy()
+    // Anchored at the HELD key, which for a page draft is already the chart-relative path.
+    expect(document.getElementById('preview-file-templates-statistic-stat-ready-yaml')).toBeTruthy()
+    // …and the stale payload's routed spelling is gone from the tab entirely.
+    expect(document.getElementById('preview-file-helm-portal-templates-statistic-stat-ready-yaml')).toBeNull()
+  })
+
+  it('the Files tab shows the draft AS IT IS, not as it was when first previewed', () => {
+    /*
+     * The defect: `payload` is built once by the verb that proposed the draft and nothing re-emits
+     * it. The canvas and the tree were moved onto a live `files` state for exactly that reason; the
+     * Files tab was not moved with them. So there were three views of one draft, and the one
+     * LABELLED Files — the surface a person is told to review before opening a real pull request —
+     * was the only one that was neither live nor authoritative.
+     */
+    mount()
+    emit({ files: [{ content: widgetCr('Flex', 'page-fleet'), path: 'templates/flex.page-fleet.yaml' }], title: 'Fleet' })
+    // …and now the draft GAINS a file, exactly as placing a container does.
+    held({
+      'templates/flex.page-fleet.yaml': widgetCr('Flex', 'page-fleet', ['row-a']),
+      'templates/row.row-a.yaml': widgetCr('Row', 'row-a'),
+    })
+
+    // The file that did not exist when the payload was built is listed…
+    expect(document.getElementById('preview-file-templates-row-row-a-yaml')).toBeTruthy()
+    // …which it could not be while the tab rendered the one-shot payload.
+    expect(document.getElementById('preview-file-templates-flex-page-fleet-yaml')).toBeTruthy()
   })
 
   it('claims nothing for a placed existing widget, which has no file in this draft', () => {
