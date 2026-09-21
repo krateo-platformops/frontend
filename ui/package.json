@@ -20,7 +20,8 @@
     "apply-examples": "tsx scripts/apply-examples.ts",
     "apply-crds": "tsx scripts/apply-crds.ts",
     "examples": "tsx scripts/run-examples.ts",
-    "test": "vitest"
+    "test": "vitest",
+    "gen-widget-kinds": "tsx scripts/gen-widget-kinds.ts"
   },
   "repository": {
     "type": "git",
