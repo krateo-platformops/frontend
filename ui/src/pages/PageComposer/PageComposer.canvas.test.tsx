@@ -168,6 +168,44 @@ describe('PageComposer — adding from the palette', () => {
     { content: widgetCr('Flex', 'page-x', ['card-b']), path: 'templates/flex.page-x.yaml' },
   ]
 
+  it('A SECOND KIND STILL LANDS — a container does not lock to the first thing dropped in it', () => {
+    /*
+     * The defect this replaces, reproduced twice on the live page by an external review: drag a Row
+     * onto a fresh page, then drag a Card onto the same page, and nothing happens. No message, no
+     * refusal, no way to find out why.
+     *
+     * The cause was two correct rules meeting. `placeChild` MUST append each child's plural or the
+     * CRD will not render the child; `canAccept` honours any non-empty list as intent. So the Row
+     * left `allowedResources: ['rows']` behind and the page started refusing everything else — on
+     * the strength of a declaration the composer itself had written a moment earlier.
+     *
+     * Provenance is what separates them: a container the composer created says so, and its list is
+     * read as a description of what it holds rather than as a rule about what it may hold.
+     */
+    const bus = capture()
+    mountWithConfig()
+    emit({ files: nested(), title: 'x' })
+
+    dragOnto(screen.getByTestId('palette-item-Row'), screen.getByTestId('canvas-well-page-x'))
+    const afterRow = bus.log.length
+    expect(afterRow).toBeGreaterThan(0)
+
+    // …and now a DIFFERENT kind onto the same container. Before the fix this wrote nothing at all.
+    dragOnto(screen.getByTestId('palette-item-Card'), screen.getByTestId('canvas-well-page-x'))
+    expect(bus.log.length).toBeGreaterThan(afterRow)
+    const parent = [...bus.log].reverse().find((entry) => entry.path === 'templates/flex.page-x.yaml')
+    expect(parent?.content).toContain('cards')
+    // …and it was not refused. The pair matters: a drop that writes nothing AND says nothing is
+    // exactly what the defect looked like from the canvas.
+    expect(screen.queryByRole('alert')).toBeNull()
+
+    // NOTE the harness does not feed accepted edits back into the composer's `files`, so the second
+    // plan is computed against the draft as first emitted — which is why this asserts that the drop
+    // LANDED rather than that the parent ends up listing both plurals. The accumulation is
+    // structureEdit's own property and is covered there.
+    bus.stop()
+  })
+
   it('a CONTAINER drop adds the file BEFORE the parent that references it', () => {
     // Order is the property: a parent emitted first momentarily names a file the draft does not
     // carry. planAdd returns the created file separately so this cannot be got backwards.

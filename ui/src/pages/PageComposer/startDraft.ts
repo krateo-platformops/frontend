@@ -22,6 +22,8 @@
  */
 import { dump } from 'js-yaml'
 
+import { DERIVED_ALLOWED_ANNOTATION } from './structureEdit'
+
 const WIDGET_API_VERSION = 'widgets.templates.krateo.io/v1beta1'
 const DUMP = { lineWidth: -1, noRefs: true, sortKeys: false } as const
 
@@ -99,6 +101,7 @@ export const startDraft = (input: StartDraftInput): StartDraftResult => {
       // visible to anyone editing the CR; icon and group are deliberately unset — the RA omits them
       // and the page sits ungrouped rather than guessing at an icon or a section it doesn't belong to.
       annotations: {
+        [DERIVED_ALLOWED_ANNOTATION]: 'derived',
         'krateo.io/nav-label': title,
         'krateo.io/nav-order': '100',
         'krateo.io/nav-path': `/${slug}`,
@@ -129,6 +132,12 @@ export const startDraft = (input: StartDraftInput): StartDraftResult => {
         // creates, and it means the author has not yet said what this holds. A page root at the
         // moment of creation has not said either. Declaring the one child it happens to ship with
         // is not intent, it is a description of the present mistaken for a rule.
+        //
+        // AND IT STAYS NOT-INTENT AFTER THE FIRST DROP. `placeChild` must append each child's
+        // plural or the child will not render, so this list does not stay empty — it grows, and a
+        // grown list read as a declaration is what locked a page to rows the moment a Row landed
+        // in it. The root is annotated as composer-derived for the same reason every container the
+        // composer creates is; see DERIVED_ALLOWED_ANNOTATION.
         allowedResources: [],
         gap: 'middle',
         items: [{ resourceRefId: headerName }],
