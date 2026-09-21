@@ -26,9 +26,10 @@
  * never-submit guarantee is not weakened by any of this.
  */
 import {
-  DndContext, DragOverlay, KeyboardSensor, PointerSensor, pointerWithin, useSensor, useSensors,
+  DndContext, DragOverlay, KeyboardSensor, PointerSensor, pointerWithin, rectIntersection,
+  useSensor, useSensors,
 } from '@dnd-kit/core'
-import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
+import type { CollisionDetection, DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { Alert, Button, Popconfirm, Space, Tag, Typography } from 'antd'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
@@ -74,12 +75,68 @@ import { WIDGET_KINDS } from './widgetKinds.generated'
  */
 const NEW_DRAFT_NAMESPACE = 'krateo-system'
 
+/**
+ * POINTER FIRST, RECTANGLES WHEN THERE IS NO POINTER.
+ *
+ * `pointerWithin` is the right strategy for this canvas and the wrong one on its own. The canvas is
+ * nested containers — wells inside wells — and rectangle overlap resolves an inner well and all of
+ * its ancestors as equally good candidates, so asking which droppable the POINTER is inside is what
+ * makes exactly one thing light up.
+ *
+ * But it answers by pointer position, and A KEYBOARD DRAG HAS NO POINTER. With `pointerWithin`
+ * alone, every keyboard drag lifted correctly, announced correctly, moved correctly — and could
+ * never resolve a target, so `over` was always null and the drop silently did nothing. The whole
+ * keyboard path was impossible, in the change that was bought to provide it, and both the sensor
+ * and the ARIA attributes were present and correct the entire time. A test that drives the sensor
+ * is the only thing that finds this; a test that asserts the handle has a role does not.
+ *
+ * So: pointer when there is one, rectangle intersection when there is not.
+ */
+const composerCollisions: CollisionDetection = (args) => {
+  const byPointer = pointerWithin(args)
+  return byPointer.length ? byPointer : rectIntersection(args)
+}
+
 /** What the drag chip says: the kind being created, or the name of the thing being placed. */
 const airborneLabel = (payload: DragPayload): string => {
   if (payload.from === 'canvas') { return payload.node.name }
   if (payload.pick.kind === 'container') { return payload.pick.layout }
   if (payload.pick.kind === 'new') { return payload.pick.widgetKind }
   return payload.pick.name
+}
+
+/** The human name of whatever a drag id refers to — `over` is a droppable, `active` a draggable. */
+const nameOfDrag = (payload: unknown): string => {
+  const drag = payload as DragPayload | undefined
+  if (drag?.from === 'canvas') { return drag.node.name }
+  if (drag?.from === 'palette') { return airborneLabel(drag) }
+  const drop = payload as DropPayload | undefined
+  if (drop?.at === 'gap') { return `position ${drop.index + 1} in ${drop.node.name}` }
+  if (drop?.at === 'well') { return drop.node.name }
+  return 'the page'
+}
+
+/**
+ * WHAT A KEYBOARD DRAG SAYS. Every string here replaces one that read an internal id aloud.
+ *
+ * `onDragEnd` deliberately does not claim the move succeeded: the KERNEL decides, and it may refuse
+ * for a reason this callback cannot see. The composer's own live region announces the outcome a
+ * moment later, so saying "moved" here would be the drag asserting something the draft may not
+ * have done — the same defect the compose chip had.
+ */
+const dragAnnouncements = {
+  onDragCancel: ({ active }: { active: { data: { current?: unknown } } }) =>
+    `Cancelled. ${nameOfDrag(active.data.current)} was not moved.`,
+  onDragEnd: ({ active, over }: { active: { data: { current?: unknown } }; over?: { data: { current?: unknown } } | null }) =>
+    (over
+      ? `Dropped ${nameOfDrag(active.data.current)} on ${nameOfDrag(over.data.current)}.`
+      : `${nameOfDrag(active.data.current)} was dropped outside every container.`),
+  onDragMove: ({ over }: { over?: { data: { current?: unknown } } | null }) =>
+    (over ? `Over ${nameOfDrag(over.data.current)}.` : 'Over nothing droppable.'),
+  onDragOver: ({ over }: { over?: { data: { current?: unknown } } | null }) =>
+    (over ? `Over ${nameOfDrag(over.data.current)}.` : 'Over nothing droppable.'),
+  onDragStart: ({ active }: { active: { data: { current?: unknown } } }) =>
+    `Picked up ${nameOfDrag(active.data.current)}. Use the arrow keys to move it, space to drop, escape to cancel.`,
 }
 
 /**
@@ -590,7 +647,16 @@ const PageComposer = () => {
               target light up instead of six.
             */}
             <DndContext
-              collisionDetection={pointerWithin}
+              /*
+                ANNOUNCEMENTS THAT NAME THINGS, not ids.
+                dnd-kit ships English defaults and they work — they just read the identifier, so a
+                screen-reader user heard "Draggable item node:card-b:c:0 was moved over droppable
+                area well:page-x". The ids are deliberately opaque (a placement needs name AND refId
+                AND position to be addressed), which makes them exactly the wrong thing to say out
+                loud. The tree's live region already speaks in names; this is the canvas catching up.
+              */
+              accessibility={{ announcements: dragAnnouncements }}
+              collisionDetection={composerCollisions}
               onDragCancel={onDragCancel}
               onDragEnd={onDragEnd}
               onDragStart={onDragStart}

@@ -92,3 +92,31 @@ export const dragOnto = (source: Element, target: Element): void => {
     fireEvent.pointerUp(document, { clientX: to.x, clientY: to.y, pointerId: 1 })
   })
 }
+
+/**
+ * A complete gesture FROM THE KEYBOARD — space to lift, arrows to move, space to drop.
+ *
+ * This exists because the claim needed testing rather than repeating. dnd-kit's KeyboardSensor was
+ * wired and the handle was given a role and a tabindex, and two tests asserted exactly that much —
+ * which is "the controls can be reached", not "a keyboard user can move a widget". The composer's
+ * own comments have been caught asserting the second while only having the first before.
+ *
+ * `stubLayout` is still required: the KeyboardSensor moves a virtual pointer by a fixed step and
+ * asks collision detection what is under it, so with jsdom's 0x0 rects every arrow press lands on
+ * nothing. The bands that stub supplies are what make a direction meaningful at all.
+ */
+export const dragByKeyboard = (handle: HTMLElement, presses: number, key = 'ArrowDown'): void => {
+  act(() => {
+    handle.focus()
+    fireEvent.keyDown(handle, { code: 'Space', key: ' ' })
+  })
+  for (let step = 0; step < presses; step += 1) {
+    // Sequential on purpose: each press is a separate commit, and dnd-kit re-measures between them.
+    act(() => {
+      fireEvent.keyDown(document.activeElement ?? handle, { code: key, key })
+    })
+  }
+  act(() => {
+    fireEvent.keyDown(document.activeElement ?? handle, { code: 'Space', key: ' ' })
+  })
+}

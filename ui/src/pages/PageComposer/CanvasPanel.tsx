@@ -181,7 +181,7 @@ const Frame = ({ airborne, depth, draggingId, legal, node, onSelect }: {
   const external = !node.drafted
 
   const dragId = nodeDragId(node)
-  const { attributes, listeners, setNodeRef } = useDraggable({
+  const { attributes, listeners, setActivatorNodeRef, setNodeRef } = useDraggable({
     data: { from: 'canvas', node } satisfies DragPayload,
     disabled: !movable,
     id: dragId,
@@ -218,16 +218,34 @@ const Frame = ({ airborne, depth, draggingId, legal, node, onSelect }: {
           {...(movable ? listeners : {})}
           data-testid={`canvas-handle-${node.name}`}
           onClick={node.path ? () => onSelect?.(node.path) : undefined}
-          onKeyDown={node.path
-            ? (event: React.KeyboardEvent) => {
-              // Enter selects. Space is left to dnd-kit's lift, which is the convention its own
-              // KeyboardSensor documents and what a screen-reader user will expect.
-              if (event.key === 'Enter') {
-                event.preventDefault()
-                onSelect?.(node.path)
-              }
+          /*
+           * COMPOSED WITH dnd-kit's HANDLER, NOT INSTEAD OF IT.
+           *
+           * This was declared after `{...listeners}` and therefore REPLACED the KeyboardSensor's
+           * own `onKeyDown` — so Space never lifted anything and the keyboard drag, the property
+           * the whole migration was bought for, did not work at all. Two comments in this file
+           * asserted that it did. It is the same mistake as re-declaring `tabIndex` after the
+           * spread, which silently removed the focusability it was meant to add.
+           *
+           * Enter selects; everything else — Space to lift, arrows to move, Escape to cancel —
+           * belongs to the sensor and is passed straight through.
+           */
+          onKeyDown={(event: React.KeyboardEvent) => {
+            if (node.path && event.key === 'Enter') {
+              event.preventDefault()
+              onSelect?.(node.path)
+              return
             }
-            : undefined}
+            if (movable) {
+              (listeners as { onKeyDown?: (pressed: React.KeyboardEvent) => void } | undefined)?.onKeyDown?.(event)
+            }
+          }}
+          // THE HANDLE IS NOT THE DRAGGABLE. `setNodeRef` is on the frame — that is the thing that
+          // moves — while the listeners live on this label. dnd-kit needs to be told which element
+          // is the activator, or the KeyboardSensor has no node to compute its starting coordinates
+          // from and the lift does nothing at all. Pointer drags survive the omission; keyboard
+          // drags do not, which is exactly why this went unnoticed.
+          ref={setActivatorNodeRef}
           // NOT after the spread when movable: dnd-kit's `attributes` already carry role, tabIndex
           // and aria-roledescription, and re-declaring tabIndex here overwrote theirs with
           // undefined — which silently removed the keyboard reachability this change exists to add.
