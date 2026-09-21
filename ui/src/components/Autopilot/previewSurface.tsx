@@ -259,7 +259,7 @@ const FileEditBlock = ({
  */
 const fileAnchorId = (path: string): string => `preview-file-${path.replace(/[^a-zA-Z0-9]+/g, '-')}`
 
-export const PreviewContent = ({ editVerdicts, focusPath, onVerdicts, payload }: {
+export const PreviewContent = ({ editVerdicts, focusPath, liveFiles, onVerdicts, payload }: {
   editVerdicts: RestDefVerdicts | null
   /**
    * The draft file to reveal in the Files tab — the composer's tree selection.
@@ -274,6 +274,23 @@ export const PreviewContent = ({ editVerdicts, focusPath, onVerdicts, payload }:
    * has no tree, and passes nothing.
    */
   focusPath?: string | null
+  /**
+   * THE DRAFT AS IT IS NOW, when the surface showing it has one.
+   *
+   * `payload` is built ONCE, by the verb that proposed the draft, and nothing re-emits it — which
+   * this file's callers already knew: the composer's canvas and tree were moved onto a separate
+   * live `files` state for exactly that reason. The Files tab was not moved with them, so it went
+   * on rendering the bytes as they were when the draft was first previewed. Three views of one
+   * draft, and the one LABELLED Files — presented as the write set the blast-radius confirm will
+   * act on — was the only one that was neither live nor authoritative.
+   *
+   * Keyed by held key, which for a page draft IS the chart-relative path (`pagePublishPath` is the
+   * identity function now), so no routing is needed to show them.
+   *
+   * Optional: the drawer has no live state and passes nothing, keeping its behaviour exactly as it
+   * was.
+   */
+  liveFiles?: Record<string, string>
   onVerdicts: (verdicts: RestDefVerdicts) => void
   payload: AutopilotPreviewPayload
 }): React.ReactNode => {
@@ -310,9 +327,13 @@ export const PreviewContent = ({ editVerdicts, focusPath, onVerdicts, payload }:
   // A page's files are widget CRs (require the apiVersion/kind/metadata.name shape); a blueprint's are
   // Helm chart templates (YAML-parse-only) — distinguished by the payload's files label.
   const isPageWidget = (payload.filesLabel ?? '') !== BLUEPRINT_FILES_LABEL
-  const filesBody = payload.files?.length ? (
+  // The live draft when the surface has one, the one-shot payload otherwise.
+  const shownFiles = liveFiles
+    ? Object.entries(liveFiles).map(([path, content]) => ({ content, path })).sort((left, right) => left.path.localeCompare(right.path))
+    : payload.files
+  const filesBody = shownFiles?.length ? (
     <div className={styles.body}>
-      {payload.files.map((file, index) => (
+      {shownFiles.map((file, index) => (
         <div id={fileAnchorId(file.path)} key={`file-${index}-${file.path}`}>
           <FileEditBlock
             content={file.content}
@@ -402,7 +423,7 @@ export const PreviewContent = ({ editVerdicts, focusPath, onVerdicts, payload }:
   // A node with no file of its own — a placed EXISTING widget — matches nothing and is left alone
   // rather than scrolling somewhere arbitrary.
   const focusedFile = focusPath
-    ? payload.files?.find((file) => file.path === focusPath || file.path.endsWith(`/${focusPath}`))
+    ? shownFiles?.find((file) => file.path === focusPath || file.path.endsWith(`/${focusPath}`))
     : undefined
   useEffect(() => {
     if (!focusedFile) {
