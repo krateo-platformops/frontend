@@ -7,11 +7,11 @@
  * (which the Files tab allows at any moment) changes what the canvas shows, because nothing is
  * cached beside the files.
  */
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import CanvasPanel from './CanvasPanel'
-import type { TreeNode } from './objectTree'
+import { buildObjectTree, flattenTree } from './objectTree'
 
 const cr = (kind: string, name: string, children: readonly [string, string][] = [], apiRef = false, allowed?: readonly string[]) => {
   const lines: string[] = [
@@ -115,13 +115,32 @@ describe('CanvasPanel — the projection', () => {
 })
 
 describe('CanvasPanel — dragging', () => {
+  /**
+   * Put a node in the air by PROP, not by faking a gesture.
+   *
+   * The old tests called `fireEvent.dragStart` because the canvas owned that state. dnd-kit's
+   * gestures are pointer sequences jsdom does not meaningfully reproduce, and a simulation good
+   * enough to pass would prove the simulation. What these cases are actually about is the
+   * highlight — a pure function of "what is in the air" and the legality kernel — so that is what
+   * they now supply directly.
+   *
+   * `roots` is shared with the component deliberately: `legalTargets` compares nodes by REFERENCE,
+   * so passing the same tree is the contract, and a test that rebuilt it would silently light
+   * nothing up.
+   */
+  const withAirborne = (files: Record<string, string>, name: string) => {
+    const roots = buildObjectTree(files)
+    const node = flattenTree(roots).find((candidate) => candidate.name === name)!
+    return { airborne: { from: 'canvas' as const, node }, node, roots }
+  }
+
   const frame = (name: string) => screen.getByTestId(`canvas-frame-${name}`)
-  const well = (name: string) => screen.getByTestId(`canvas-well-${name}`)
   const accepts = (name: string) => frame(name).getAttribute('data-accepts') === 'yes'
 
   it('offers only the containers that will actually take what is in the air', () => {
-    render(<CanvasPanel files={draft()} />)
-    fireEvent.dragStart(frame('inner'))
+    const files = draft()
+    const { airborne, roots } = withAirborne(files, 'inner')
+    render(<CanvasPanel airborne={airborne} files={files} roots={roots} />)
     // Flex and Row are containers that accept cards…
     expect(accepts('page-demo')).toBe(true)
     expect(accepts('row-one')).toBe(true)
@@ -130,8 +149,9 @@ describe('CanvasPanel — dragging', () => {
   })
 
   it('never offers a container its own subtree — the cycle rule, honoured in the highlight', () => {
-    render(<CanvasPanel files={draft()} />)
-    fireEvent.dragStart(frame('row-one'))
+    const files = draft()
+    const { airborne, roots } = withAirborne(files, 'row-one')
+    render(<CanvasPanel airborne={airborne} files={files} roots={roots} />)
     // Dropping row-one into the card it contains would detach the branch from the page.
     expect(accepts('inner')).toBe(false)
     expect(accepts('row-one')).toBe(false)
@@ -141,147 +161,48 @@ describe('CanvasPanel — dragging', () => {
 
   it('honours what each container declares — a rows-only page does not light up for a card', () => {
     const files = { ...draft(), 'templates/flex.page-demo.yaml': cr('Flex', 'page-demo', [['r', 'row-one'], ['p', 'para-one']], false, ['rows']) }
-    render(<CanvasPanel files={files} />)
-    fireEvent.dragStart(frame('inner'))
+    const { airborne, roots } = withAirborne(files, 'inner')
+    render(<CanvasPanel airborne={airborne} files={files} roots={roots} />)
     expect(accepts('row-one')).toBe(true)
     expect(accepts('page-demo')).toBe(false)
   })
 
-  it('reports the completed gesture — which node onto which container', () => {
-    const onMove = vi.fn()
-    render(<CanvasPanel files={draft()} onMove={onMove} />)
-    fireEvent.dragStart(frame('inner'))
-    fireEvent.drop(well('page-demo'))
-    expect(onMove).toHaveBeenCalledTimes(1)
-    const [moving, target] = onMove.mock.calls[0] as [TreeNode, TreeNode]
-    expect(moving.name).toBe('inner')
-    expect(target.name).toBe('page-demo')
-  })
-
-  it('DOES NOT report a drop on a container that cannot accept it', () => {
-    // The well carries no drop handler at all when it does not accept, so the browser refuses the
-    // gesture before anyone lets go. Asserting the callback is what a consumer actually relies on.
-    const onMove = vi.fn()
+  it('says AT REST what a container will hold, not only during a drag', () => {
+    // Whether a container is constrained used to be visible only mid-gesture, so "why did that not
+    // drop" had no answer you could look up.
     const files = { ...draft(), 'templates/flex.page-demo.yaml': cr('Flex', 'page-demo', [['r', 'row-one'], ['p', 'para-one']], false, ['rows']) }
-    render(<CanvasPanel files={files} onMove={onMove} />)
-    fireEvent.dragStart(frame('inner'))
-    fireEvent.drop(well('page-demo'))
-    expect(onMove).not.toHaveBeenCalled()
+    render(<CanvasPanel files={files} />)
+    expect(frame('page-demo').textContent).toContain('rows only')
+    expect(frame('row-one').textContent).not.toContain('only')
   })
 
-  it('a page root is not draggable — nothing places it, so there is no reference to move', () => {
+  /*
+   * MOVABILITY IS NOW READ OFF THE HANDLE, not off a `draggable` attribute.
+   *
+   * dnd-kit does not use the native attribute at all; it attaches listeners and a set of ARIA
+   * attributes to whatever element it is given. That is the point — a bare `draggable` div had
+   * role:null and tabindex:null and could not be tabbed to, whereas the handle is a real control.
+   * So the assertion moves from "the browser thinks this is draggable" to "this has a grab handle",
+   * which is the property a person actually has.
+   */
+  const handle = (name: string) => screen.getByTestId(`canvas-handle-${name}`)
+
+  it('a page root has no grab handle — nothing places it, so there is no reference to move', () => {
     render(<CanvasPanel files={draft()} />)
-    expect(frame('page-demo').getAttribute('draggable')).toBe('false')
-    expect(frame('inner').getAttribute('draggable')).toBe('true')
+    expect(handle('page-demo').getAttribute('aria-roledescription')).toBeNull()
+    expect(handle('inner').getAttribute('aria-roledescription')).toBe('draggable')
   })
 
-  it('a widget the draft does not carry is not draggable — there is no file to rewrite', () => {
+  it('a widget the draft does not carry has no grab handle — there is no file to rewrite', () => {
     render(<CanvasPanel files={{ 'templates/flex.page-demo.yaml': cr('Flex', 'page-demo', [['g', 'ghost']]) }} />)
-    expect(frame('ghost').getAttribute('draggable')).toBe('false')
+    expect(handle('ghost').getAttribute('aria-roledescription')).toBeNull()
   })
 
-  it('clears the drag when it ends, so nothing stays highlighted', () => {
+  it('the grab handle is KEYBOARD-REACHABLE — the property the old canvas had nowhere', () => {
+    // Not one of 80 tab stops used to land in the canvas: every frame was a bare div with
+    // role:null, tabindex:null, aria-label:null.
     render(<CanvasPanel files={draft()} />)
-    fireEvent.dragStart(frame('inner'))
-    expect(accepts('page-demo')).toBe(true)
-    fireEvent.dragEnd(frame('inner'))
-    expect(accepts('page-demo')).toBe(false)
-  })
-})
-
-describe('CanvasPanel — where a drop lands', () => {
-  const frame = (name: string) => screen.getByTestId(`canvas-frame-${name}`)
-  const gap = (container: string, at: number) => screen.getByTestId(`canvas-gap-${container}-${at}`)
-
-  it('reports the INDEX of the gap it was dropped in, not just the container', () => {
-    // Without this a drop can only mean "into this container", which appends — so every move ends
-    // up last and reordering is impossible.
-    const onMove = vi.fn()
-    render(<CanvasPanel files={draft()} onMove={onMove} />)
-    fireEvent.dragStart(frame('inner'))
-    fireEvent.drop(gap('page-demo', 1))
-    expect(onMove).toHaveBeenCalledTimes(1)
-    const [moving, target, , at] = onMove.mock.calls[0] as [TreeNode, TreeNode, unknown, number]
-    expect(moving.name).toBe('inner')
-    expect(target.name).toBe('page-demo')
-    expect(at).toBe(1)
-  })
-
-  it('offers a gap before the first child and after every one — n children means n+1 seams', () => {
-    render(<CanvasPanel files={draft()} />)
-    fireEvent.dragStart(frame('inner'))
-    // page-demo holds row-one and para-one
-    expect(gap('page-demo', 0)).toBeTruthy()
-    expect(gap('page-demo', 1)).toBeTruthy()
-    expect(gap('page-demo', 2)).toBeTruthy()
-    expect(screen.queryByTestId('canvas-gap-page-demo-3')).toBeNull()
-  })
-
-  it('a gap in a container that cannot accept the drag does NOT take the drop', () => {
-    const onMove = vi.fn()
-    const files = { ...draft(), 'templates/flex.page-demo.yaml': cr('Flex', 'page-demo', [['r', 'row-one'], ['p', 'para-one']], false, ['rows']) }
-    render(<CanvasPanel files={files} onMove={onMove} />)
-    fireEvent.dragStart(frame('inner'))
-    fireEvent.drop(gap('page-demo', 1))
-    expect(onMove).not.toHaveBeenCalled()
-  })
-
-  it('dropping on the WELL still means the end — unchanged', () => {
-    const onMove = vi.fn()
-    render(<CanvasPanel files={draft()} onMove={onMove} />)
-    fireEvent.dragStart(frame('inner'))
-    fireEvent.drop(screen.getByTestId('canvas-well-page-demo'))
-    const [, , , at] = onMove.mock.calls[0] as [TreeNode, TreeNode, unknown, number | undefined]
-    expect(at).toBeUndefined()
-  })
-})
-
-describe('CanvasPanel — a palette pick', () => {
-  const frame = (name: string) => screen.getByTestId(`canvas-frame-${name}`)
-  const well = (name: string) => screen.getByTestId(`canvas-well-${name}`)
-  const cardPick = { kind: 'existing' as const, name: 'fleet-card', resource: 'cards' }
-
-  it('lights up the containers that will take it, with nothing being dragged', () => {
-    render(<CanvasPanel files={draft()} pick={cardPick} />)
-    expect(frame('page-demo').getAttribute('data-accepts')).toBe('yes')
-    expect(frame('para-one').getAttribute('data-accepts')).toBeNull()
-  })
-
-  it('reports an ADD, not a move — they are different operations', () => {
-    const onAdd = vi.fn()
-    const onMove = vi.fn()
-    render(<CanvasPanel files={draft()} onAdd={onAdd} onMove={onMove} pick={cardPick} />)
-    fireEvent.drop(well('page-demo'))
-    expect(onMove).not.toHaveBeenCalled()
-    expect(onAdd).toHaveBeenCalledTimes(1)
-    const [target, at, picked] = onAdd.mock.calls[0] as [TreeNode, number | undefined, typeof cardPick]
-    expect(target.name).toBe('page-demo')
-    expect(at).toBeUndefined()
-    expect(picked).toEqual(cardPick)
-  })
-
-  it('lands in the gap it was dropped in', () => {
-    const onAdd = vi.fn()
-    render(<CanvasPanel files={draft()} onAdd={onAdd} pick={cardPick} />)
-    fireEvent.drop(screen.getByTestId('canvas-gap-page-demo-1'))
-    expect(onAdd.mock.calls[0][1]).toBe(1)
-  })
-
-  it('honours the container declaration for a pick too', () => {
-    const onAdd = vi.fn()
-    const files = { ...draft(), 'templates/flex.page-demo.yaml': cr('Flex', 'page-demo', [['r', 'row-one'], ['p', 'para-one']], false, ['rows']) }
-    render(<CanvasPanel files={files} onAdd={onAdd} pick={cardPick} />)
-    fireEvent.drop(well('page-demo'))
-    expect(onAdd).not.toHaveBeenCalled()
-  })
-
-  it('a dragged NODE still wins over a stale pick — a move is not an add', () => {
-    const onAdd = vi.fn()
-    const onMove = vi.fn()
-    render(<CanvasPanel files={draft()} onAdd={onAdd} onMove={onMove} pick={cardPick} />)
-    fireEvent.dragStart(frame('inner'))
-    fireEvent.drop(well('page-demo'))
-    expect(onMove).toHaveBeenCalledTimes(1)
-    expect(onAdd).not.toHaveBeenCalled()
+    expect(handle('inner').getAttribute('tabindex')).toBe('0')
+    expect(handle('inner').getAttribute('role')).toBe('button')
   })
 })

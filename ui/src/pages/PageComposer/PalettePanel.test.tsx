@@ -4,11 +4,10 @@
  * CREATED (a new file) while an existing widget is only PLACED (a reference, no file) — conflating
  * them is how a palette silently writes files it should not.
  */
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import PalettePanel from './PalettePanel'
-import type { PalettePick } from './PalettePanel'
 import { LAYOUT_KINDS } from './structureEdit'
 import { iconForResource, KNOWN_ICON_PLURALS } from './widgetIcons'
 
@@ -87,22 +86,31 @@ describe('PalettePanel', () => {
     await waitFor(() => expect(screen.getByText(/may not list widgets/)).toBeTruthy())
   })
 
-  it('reports a container pick as CREATE, carrying the layout kind', () => {
-    const picks: (PalettePick | null)[] = []
+  /*
+   * WHAT A PICK MEANS is asserted in dndIds.test.ts now — the pick travels as a dnd-kit payload
+   * rather than through an `onPick` callback, and `resolveDrop` is what turns it into a CREATE or a
+   * PLACE. What belongs here is what the PANEL is responsible for: that each pick is rendered as a
+   * control a person can actually operate.
+   */
+  it('renders every item as a KEYBOARD-REACHABLE control, not a bare draggable div', () => {
+    // Every palette item used to be `<div draggable>` with role:null, tabindex:null and no label —
+    // so not one of 80 tab stops landed in the palette.
     harness.result = { ok: true, widgets: [] }
-    render(<PalettePanel namespace={null} onPick={(pick) => picks.push(pick)} />)
-    fireEvent.dragStart(screen.getByTestId('palette-item-Row'))
-    expect(picks[0]).toEqual({ kind: 'container', layout: 'Row', resource: 'rows' })
+    render(<PalettePanel namespace={null} />)
+    const row = screen.getByTestId('palette-item-Row')
+    expect(row.getAttribute('role')).toBe('button')
+    expect(row.getAttribute('tabindex')).toBe('0')
+    expect(row.getAttribute('aria-roledescription')).toBe('draggable')
   })
 
-  it('reports an existing pick as PLACE, carrying the name — never a layout kind', () => {
-    // The distinction that decides whether a file gets written.
-    const picks: (PalettePick | null)[] = []
+  it('renders an existing widget as its own control, distinct from the container items', () => {
     harness.result = { ok: true, widgets: [{ name: 'fleet-card', resource: 'cards' }] }
-    render(<PalettePanel namespace='krateo-system' onPick={(pick) => picks.push(pick)} snowplowBaseUrl='http://snowplow.test' />)
+    render(<PalettePanel namespace='krateo-system' snowplowBaseUrl='http://snowplow.test' />)
     return waitFor(() => screen.getByTestId('palette-item-fleet-card')).then(() => {
-      fireEvent.dragStart(screen.getByTestId('palette-item-fleet-card'))
-      expect(picks[0]).toEqual({ kind: 'existing', name: 'fleet-card', resource: 'cards' })
+      const item = screen.getByTestId('palette-item-fleet-card')
+      expect(item.getAttribute('role')).toBe('button')
+      // the plural badge is still shown, and no longer wraps mid-word
+      expect(item.textContent).toContain('cards')
     })
   })
 

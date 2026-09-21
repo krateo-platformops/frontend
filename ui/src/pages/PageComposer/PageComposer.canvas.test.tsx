@@ -9,13 +9,21 @@
  * the composer never writes files itself. It emits on the same bus the Files tab uses, so a move
  * passes through the draft's byte cap and re-arms the publish gate exactly like a hand edit.
  */
-import { cleanup, fireEvent, screen } from '@testing-library/react'
+import { cleanup, screen } from '@testing-library/react'
 import { load } from 'js-yaml'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { capture, emit, installAntdShims, mountWithConfig, widgetCr } from './composerTestHarness'
+import { dragOnto, stubLayout } from './dndTestDriver'
 
 afterEach(cleanup)
+
+// The gestures below are real dnd-kit gestures, and dnd-kit decides what you are over by geometry.
+// jsdom measures everything as 0x0, so without this every drop would land on nothing and every
+// assertion here would pass for the wrong reason.
+let restoreLayout: () => void
+beforeEach(() => { restoreLayout = stubLayout() })
+afterEach(() => restoreLayout())
 beforeAll(installAntdShims)
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -51,8 +59,7 @@ describe('PageComposer — the canvas is wired to the draft', () => {
     mountWithConfig()
     emit({ files: nested(), title: 'x' })
 
-    fireEvent.dragStart(screen.getByTestId('canvas-frame-card-b'))
-    fireEvent.drop(screen.getByTestId('canvas-well-page-x'))
+    dragOnto(screen.getByTestId('canvas-handle-card-b'), screen.getByTestId('canvas-well-page-x'))
 
     // Two edits, no adds: a move rewrites the two parents and invents no file.
     expect(bus.log.map((entry) => entry.op)).toEqual(['edit', 'edit'])
@@ -100,14 +107,26 @@ describe('PageComposer — the canvas is wired to the draft', () => {
 
     // row-a accepts anything (it declares []), so dragging the card there is legal and would write.
     // The page is the one that refuses. Drag onto the page's own well.
-    fireEvent.dragStart(screen.getByTestId('canvas-frame-card-b'))
-    fireEvent.drop(screen.getByTestId('canvas-well-page-x'))
+    dragOnto(screen.getByTestId('canvas-handle-card-b'), screen.getByTestId('canvas-well-page-x'))
 
-    // Never offered…
+    // Never offered — the highlight still tells the truth before the gesture ends…
     expect(screen.getByTestId('canvas-frame-page-x').getAttribute('data-accepts')).toBeNull()
-    // …so nothing was written, and nothing needed saying.
+    // …and nothing is written.
     expect(bus.log).toHaveLength(0)
-    expect(screen.queryByRole('alert')).toBeNull()
+    // BUT IT IS NO LONGER SILENT, and that is the point of the migration.
+    //
+    // This assertion used to read `expect(screen.queryByRole('alert')).toBeNull()` — "nothing
+    // needed saying". It was describing a limitation as an intention. Under native HTML5 drag the
+    // refusal could not be said: `preventDefault` on dragover is what makes an element a drop
+    // target, so declining to call it meant `drop` never fired, and the precise reason planAdd and
+    // planMove compute died at the browser boundary. The person got an absent highlight among
+    // several present ones and no way to ask why.
+    //
+    // dnd-kit has no such coupling: every container is a droppable, the KERNEL refuses, and the
+    // reason it already computed reaches the surface that shows every other outcome.
+    const refusal = screen.getByRole('alert')
+    expect(refusal.textContent).toContain('page-x')
+    expect(refusal.textContent).toMatch(/cannot hold a cards/i)
     bus.stop()
   })
 })
@@ -134,8 +153,7 @@ describe('PageComposer — a drop lands where it was aimed', () => {
     mountWithConfig()
     emit({ files: two(), title: 'x' })
 
-    fireEvent.dragStart(screen.getByTestId('canvas-frame-card-b'))
-    fireEvent.drop(screen.getByTestId('canvas-gap-page-x-0'))
+    dragOnto(screen.getByTestId('canvas-handle-card-b'), screen.getByTestId('canvas-gap-page-x-0'))
 
     const edited = bus.log.filter((entry) => entry.path === 'templates/flex.page-x.yaml')
     expect(edited).toHaveLength(1)
@@ -157,8 +175,7 @@ describe('PageComposer — adding from the palette', () => {
     mountWithConfig()
     emit({ files: nested(), title: 'x' })
 
-    fireEvent.dragStart(screen.getByTestId('palette-item-Row'))
-    fireEvent.drop(screen.getByTestId('canvas-well-page-x'))
+    dragOnto(screen.getByTestId('palette-item-Row'), screen.getByTestId('canvas-well-page-x'))
 
     expect(bus.log.map((entry) => entry.op)).toEqual(['add', 'edit'])
     expect(bus.log[0].path).toBe('templates/row.page-x-row.yaml')
