@@ -62,6 +62,7 @@ import PalettePanel from './PalettePanel'
 import type { PalettePick } from './PalettePanel'
 import { planAdd } from './planAdd'
 import { planMove } from './planMove'
+import { SplitDivider } from './SplitDivider'
 import StartDraftModal from './StartDraftModal'
 import { LAYOUT_KINDS } from './structureEdit'
 import { WIDGET_KINDS } from './widgetKinds.generated'
@@ -174,6 +175,9 @@ const PageComposer = () => {
   // the whole route down for that would be worse, and the page is asserted to mount bare.
   const snowplowBaseUrl = useContext(ConfigContext)?.config?.api?.SNOWPLOW_API_BASE_URL ?? ''
   const [payload, setPayload] = useState<AutopilotPreviewPayload | null>(null)
+  // Canvas's share of the centre column. Opens favouring the canvas — you place before you
+  // verify — but the preview is VISIBLE from the first frame, which is the point.
+  const [split, setSplit] = useState(60)
   /**
    * The draft AS IT IS NOW, keyed by held key — not `payload.files`.
    *
@@ -671,16 +675,26 @@ const PageComposer = () => {
                   />
                 </section>
 
-                <section className={styles.canvas}>
-                  <Typography.Text strong>Layout</Typography.Text>
-                  <CanvasPanel
-                    airborne={airborne}
-                    draggingId={draggingId}
-                    files={files}
-                    onSelect={setFocusPath}
-                    roots={roots}
-                  />
-                </section>
+                {/*
+                  PLACE ABOVE, VERIFY BELOW. The preview used to sit under the whole builder row,
+                  where a short draft left it off-screen — see SplitDivider for what that cost.
+                */}
+                <div className={styles.centre} style={{ '--split': `${split}%` } as React.CSSProperties}>
+                  <section className={styles.canvas}>
+                    <Typography.Text strong>Layout</Typography.Text>
+                    <CanvasPanel
+                      airborne={airborne}
+                      draggingId={draggingId}
+                      files={files}
+                      onSelect={setFocusPath}
+                      roots={roots}
+                    />
+                  </section>
+                  <SplitDivider onChange={setSplit} value={split} />
+                  <div className={styles.result} ref={resultRef}>
+                    <PreviewContent editVerdicts={editVerdicts} focusPath={focusPath} liveFiles={files} onVerdicts={setEditVerdicts} payload={payload} />
+                  </div>
+                </div>
 
                 {/* Draws its own box and heading — see .structure for why it is not wrapped in one. */}
                 <div className={styles.structure}>
@@ -730,9 +744,6 @@ const PageComposer = () => {
 
             {/* Full width, because the live render is a page and a page wants the width. Selecting
                 a node above still reveals its bytes in Files here — same `focusPath` as before. */}
-            <div className={styles.result} ref={resultRef}>
-              <PreviewContent editVerdicts={editVerdicts} focusPath={focusPath} liveFiles={files} onVerdicts={setEditVerdicts} payload={payload} />
-            </div>
           </>
         )
         : (
