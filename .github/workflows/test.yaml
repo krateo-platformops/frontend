@@ -1,0 +1,35 @@
+# The unit suite, in CI. It was never run here: typecheck.yaml says in its own header that it runs
+# `npm run typecheck` and NOT `npm test`, because ui/package.json defines `"test": "vitest"` with no
+# subcommand — so `npm test` starts a WATCH and a CI job invoking it hangs until the timeout instead
+# of failing. That reasoning is correct and the conclusion drawn from it was to run nothing.
+#
+# So this calls `vitest run` explicitly, which is what that header asks any future test job to do.
+# 1891 tests existed with no gate: a pull request that broke every one of them showed all-green.
+name: test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Install ui deps
+        run: npm ci --no-audit --no-fund
+      # `run`, never bare `vitest` — see the header.
+      - name: Unit tests
+        run: npx vitest run --reporter=dot
