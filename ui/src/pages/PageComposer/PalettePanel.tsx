@@ -22,9 +22,12 @@
  * a second payload is its own change — done here, the palette would look finished while dropping
  * did nothing, which is worse than a panel that plainly has no target yet.
  */
+import { useDraggable } from '@dnd-kit/core'
 import { Alert, Empty, Spin, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 
+import { paletteDragId } from './dndIds'
+import type { DragPayload } from './dndIds'
 import { listPlaceableWidgets } from './placeableWidgets'
 import type { PlaceableWidget } from './placeableWidgets'
 import { LAYOUT_KINDS } from './structureEdit'
@@ -37,22 +40,26 @@ export type PalettePick =
   | { kind: 'container'; layout: keyof typeof LAYOUT_KINDS; resource: string }
   | { kind: 'existing'; name: string; resource: string }
 
-const Item = ({ label, onPick, pick, sub }: {
+const Item = ({ label, pick, sub }: {
   label: string
-  onPick?: (pick: PalettePick | null) => void
   pick: PalettePick
   sub?: string
 }) => {
   const Glyph = iconForResource(pick.resource)
+  // A BUTTON, not a bare draggable div. dnd-kit's `attributes` supply role, tabIndex and
+  // aria-roledescription, so the item is reachable by keyboard and announced — where the old
+  // `<div draggable>` had role:null, tabindex:null, aria-label:null and could not be tabbed to at
+  // all. `listeners` carry both the pointer lift and the keyboard one.
+  const { attributes, listeners, setNodeRef } = useDraggable({
+    data: { from: 'palette', pick } satisfies DragPayload,
+    id: paletteDragId(pick),
+  })
   return (
     <div
+      {...attributes}
+      {...listeners}
       data-testid={`palette-item-${label}`}
-      draggable
-      // CLEARS on end, sets on start. This said `onPick?.(pick)` for BOTH, so a pick outlived the
-      // drag that raised it: after any gesture the canvas still believed something was in the air,
-      // and every legal well stayed lit until the next drag replaced it.
-      onDragEnd={() => onPick?.(null)}
-      onDragStart={() => onPick?.(pick)}
+      ref={setNodeRef}
       style={{
         alignItems: 'center',
         border: '1px solid var(--krateo-color-border-subtle)',
@@ -66,7 +73,9 @@ const Item = ({ label, onPick, pick, sub }: {
     >
       <Glyph />
       <Text style={{ fontSize: 12 }}>{label}</Text>
-      {sub ? <Text style={{ fontSize: 11, marginLeft: 'auto' }} type='secondary'>{sub}</Text> : null}
+      {/* nowrap: at the measured 182px column the plural badge wrapped mid-word, rendering as
+          "card" / "s" on two lines. */}
+      {sub ? <Text style={{ fontSize: 11, marginLeft: 'auto', whiteSpace: 'nowrap' }} type='secondary'>{sub}</Text> : null}
     </div>
   )
 }
@@ -84,10 +93,9 @@ const Section = ({ children, title }: { children: React.ReactNode; title: string
   </div>
 )
 
-export const PalettePanel = ({ namespace, onPick, snowplowBaseUrl }: {
+export const PalettePanel = ({ namespace, snowplowBaseUrl }: {
   /** The draft's namespace — existing widgets are listed from it. */
   namespace: string | null
-  onPick?: (pick: PalettePick | null) => void
   snowplowBaseUrl?: string
 }) => {
   const [existing, setExisting] = useState<PlaceableWidget[] | null>(null)
@@ -121,7 +129,6 @@ export const PalettePanel = ({ namespace, onPick, snowplowBaseUrl }: {
           <Item
             key={layout}
             label={layout}
-            onPick={onPick}
             pick={{ kind: 'container', layout, resource: LAYOUT_KINDS[layout] }}
           />
         ))}
@@ -137,7 +144,6 @@ export const PalettePanel = ({ namespace, onPick, snowplowBaseUrl }: {
           <Item
             key={`${widget.resource}/${widget.name}`}
             label={widget.name}
-            onPick={onPick}
             pick={{ kind: 'existing', name: widget.name, resource: widget.resource }}
             sub={widget.resource}
           />
