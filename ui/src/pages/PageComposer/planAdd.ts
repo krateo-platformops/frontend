@@ -18,12 +18,15 @@
  * NOTHING IS EMITTED HERE. The placement is computed in memory first, so a refusal costs nothing —
  * there is no orphan file to clean up, because nothing has been written yet.
  */
+import { pageDraftSlug } from '../../components/Autopilot/pageDraft'
+
 import { canAccept } from './dropTargets'
 import type { TreeNode } from './objectTree'
 import type { PalettePick } from './PalettePanel'
-import { containerPath, newContainerYaml, placeChild } from './structureEdit'
+import { containerPath, newContainerYaml, newWidgetYaml, placeChild } from './structureEdit'
 import type { LAYOUT_KINDS } from './structureEdit'
 import { runStructureTx } from './structureTx'
+import { WIDGET_KINDS } from './widgetKinds.generated'
 
 export type AddPlan =
   | {
@@ -71,12 +74,26 @@ export const planAdd = (
     return { ok: false, reason: `"${target.name}" cannot hold a ${pick.resource}` }
   }
 
-  const created = pick.kind === 'container'
-    ? (() => {
-      const name = freeName(files, target.name, pick.layout)
-      return { content: newContainerYaml(pick.layout, name, namespace), name, path: containerPath(pick.layout, name) }
-    })()
-    : null
+  let created: { content: string; name: string; path: string } | null = null
+  if (pick.kind === 'container') {
+    const name = freeName(files, target.name, pick.layout)
+    created = { content: newContainerYaml(pick.layout, name, namespace), name, path: containerPath(pick.layout, name) }
+  } else if (pick.kind === 'new') {
+    // AUTHORED, not guessed. The drop asked for whatever the CRD requires and handed it back; a
+    // widget created without those fields is rejected at apply, which surfaces at publish.
+    if (!pick.authored || !pick.name) {
+      return { ok: false, reason: `creating a ${pick.widgetKind} needs a name and its required fields` }
+    }
+    const path = pageDraftSlug(pick.widgetKind, pick.name)
+    if (files[path]) {
+      return { ok: false, reason: `"${pick.name}" is already in this draft — pick another name` }
+    }
+    created = {
+      content: newWidgetYaml(pick.widgetKind, pick.name, namespace, pick.authored, WIDGET_KINDS[pick.widgetKind]?.container ?? false),
+      name: pick.name,
+      path,
+    }
+  }
 
   const child = {
     name: created?.name ?? (pick.kind === 'existing' ? pick.name : ''),

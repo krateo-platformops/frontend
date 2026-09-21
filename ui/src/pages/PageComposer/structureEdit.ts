@@ -249,6 +249,43 @@ export const DERIVED_ALLOWED_ANNOTATION = 'krateo.io/allowed-resources'
  * as it is placed — the list grows to exactly what the container actually holds, rather than being
  * guessed up front.
  */
+/**
+ * The YAML for a widget the composer is CREATING — any kind, not just the five layout ones.
+ *
+ * `newContainerYaml` writes one shape that happens to satisfy Flex, Row, Col, Card and Tabs. It
+ * cannot serve the rest: thirty-seven of the forty-four kinds have REQUIRED widgetData fields, and
+ * they are substantive — a BarChart wants data, xField and yField; a Button wants actions and
+ * clickActionId. A widget created without them is rejected at apply, which surfaces at PUBLISH,
+ * long after the gesture that caused it and with nothing in between to explain the connection.
+ *
+ * So the required fields are not guessed here — they are ASKED FOR, and arrive as `widgetData`.
+ * This function's job is only to put them in the envelope the CRD expects.
+ *
+ * `allowedResources` and `items` are written for a CONTAINER kind and omitted for a leaf, because
+ * the CRD requires them on the former and does not define them on the latter. The container's list
+ * starts empty and is annotated as derived, exactly as newContainerYaml's does, so a container
+ * created this way does not lock to the first thing dropped into it either.
+ */
+export const newWidgetYaml = (
+  kind: string,
+  name: string,
+  namespace: string,
+  widgetData: Record<string, unknown>,
+  isContainer: boolean,
+): string => dump({
+  apiVersion: WIDGET_API_VERSION,
+  kind,
+  metadata: isContainer
+    ? { annotations: { [DERIVED_ALLOWED_ANNOTATION]: 'derived' }, name, namespace }
+    : { name, namespace },
+  spec: {
+    resourcesRefs: { items: [] },
+    widgetData: isContainer
+      ? { allowedResources: [], items: [], ...widgetData }
+      : widgetData,
+  },
+})
+
 export const newContainerYaml = (kind: LayoutKind, name: string, namespace: string): string => dump({
   apiVersion: WIDGET_API_VERSION,
   kind,

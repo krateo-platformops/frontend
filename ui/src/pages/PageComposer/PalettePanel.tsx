@@ -32,13 +32,30 @@ import { listPlaceableWidgets } from './placeableWidgets'
 import type { PlaceableWidget } from './placeableWidgets'
 import { LAYOUT_KINDS } from './structureEdit'
 import { iconForResource } from './widgetIcons'
+import { WIDGET_KINDS } from './widgetKinds.generated'
 
 const { Text } = Typography
+
+/** Derived once from the CRDs, not per render — the table is static for the life of the bundle. */
+const containerKinds = Object.keys(WIDGET_KINDS).filter((kind) => WIDGET_KINDS[kind].container).sort()
+const leafKinds = Object.keys(WIDGET_KINDS).filter((kind) => !WIDGET_KINDS[kind].container).sort()
 
 /** What a palette drag is carrying. */
 export type PalettePick =
   | { kind: 'container'; layout: keyof typeof LAYOUT_KINDS; resource: string }
   | { kind: 'existing'; name: string; resource: string }
+  /**
+   * CREATE a widget of this kind — the variant the palette did not have.
+   *
+   * Containers were CREATED and everything else was only ever REFERENCED, so a page could contain
+   * the five layout kinds plus whatever widgets somebody had already authored on this cluster.
+   * Nobody could make a new Statistic. That is why "support any widget the frontend supports"
+   * could not be delivered by lengthening a list.
+   *
+   * It carries no bytes: thirty-seven of the forty-four kinds have required widgetData fields, so
+   * what to write is not knowable at drag time. The drop asks, and `authored` is what comes back.
+   */
+  | { kind: 'new'; widgetKind: string; resource: string; authored?: Record<string, unknown>; name?: string }
 
 const Item = ({ label, pick, sub }: {
   label: string
@@ -124,12 +141,40 @@ export const PalettePanel = ({ namespace, snowplowBaseUrl }: {
 
   return (
     <div data-testid='palette-panel' style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/*
+        ELEVEN CONTAINERS, NOT FIVE, and thirty-three widgets that could not be created at all.
+        Both lists come from the CRDs (see widgetKinds.generated) rather than from a literal, so a
+        kind added to the chart appears here without anyone remembering to add it — and PageHeader,
+        a container the composer has always treated as a leaf, is offered as one.
+
+        The five the old literal knew keep their own entry shape: they go through `newContainerYaml`
+        and need nothing asked, so dropping one is still a single gesture.
+      */}
       <Section title='Containers'>
-        {(Object.keys(LAYOUT_KINDS) as (keyof typeof LAYOUT_KINDS)[]).map((layout) => (
+        {containerKinds.map((kind) => (
           <Item
-            key={layout}
-            label={layout}
-            pick={{ kind: 'container', layout, resource: LAYOUT_KINDS[layout] }}
+            key={kind}
+            label={kind}
+            pick={kind in LAYOUT_KINDS
+              ? { kind: 'container', layout: kind as keyof typeof LAYOUT_KINDS, resource: WIDGET_KINDS[kind].plural }
+              : { kind: 'new', resource: WIDGET_KINDS[kind].plural, widgetKind: kind }}
+            sub={WIDGET_KINDS[kind].plural}
+          />
+        ))}
+      </Section>
+
+      {/*
+        CREATE, as opposed to PLACE. Everything below this line used to be impossible: the palette
+        could only reference widgets somebody had already authored on the cluster, so nobody could
+        make a new Statistic. Dropping one opens the form that asks what its CRD requires.
+      */}
+      <Section title='New widgets'>
+        {leafKinds.map((kind) => (
+          <Item
+            key={kind}
+            label={kind}
+            pick={{ kind: 'new', resource: WIDGET_KINDS[kind].plural, widgetKind: kind }}
+            sub={WIDGET_KINDS[kind].plural}
           />
         ))}
       </Section>
