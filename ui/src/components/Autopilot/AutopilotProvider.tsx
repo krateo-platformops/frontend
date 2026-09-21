@@ -742,16 +742,26 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     // Clear any pending form draft and re-key (bump nonce) so the form reverts to base.
     setAgentDraft(null)
     setDraftNonce((nonce) => nonce + 1)
-    // W4 KOG + BLUEPRINT: the preview gates are THREAD-scoped — a new thread forgets every
-    // recorded preview (publish is denied again until re-previewed), and the held OAS
-    // attachment + blueprint draft are dropped with the conversation that produced them
-    // (deny-by-default posture).
+    // W4 KOG + BLUEPRINT: the preview GATES are THREAD-scoped — a new thread forgets every
+    // recorded preview, so publish is denied again until the draft is re-previewed. That is the
+    // deny-by-default posture, and it is entirely carried by the gates.
     previewGate.reset()
     blueprintGate.reset()
     oasStore.clear()
-    blueprintStore.clear()
     setOasHeld(null)
-  }, [blueprintGate, blueprintStore, oasStore, previewGate, transport])
+    // THE DRAFT ITSELF SURVIVES. This used to call `blueprintStore.clear()`, on the grounds that
+    // the held draft was "dropped with the conversation that produced them". That was true when
+    // every draft came from a conversation. It stopped being true when the composer shipped: a
+    // person starts a page, drags widgets into it and binds data without Autopilot involved at
+    // all — and then starting a fresh thread silently destroyed the page they were building, with
+    // no warning and no undo. Worse, starting a fresh thread is exactly what you are told to do
+    // before asking the agent for help, so the advice and the data loss arrived together.
+    //
+    // Nothing is weakened by keeping the bytes. The gate reset above already denies publish until
+    // a re-preview, which is where the security posture actually lives; the draft is visible in
+    // the Files tab either way, and the surfaces already offer an explicit Close draft for when
+    // someone means to discard it.
+  }, [blueprintGate, oasStore, previewGate, transport])
 
   const newThread = useCallback(() => {
     teardownThread()
