@@ -12,6 +12,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 
+import { getComposeRefusals } from './composeRequest'
 import { draftFingerprint } from './draftStructure'
 import { getPreviewProblems } from './previewBus'
 import { redactAutopilotContext } from './redact'
@@ -481,8 +482,14 @@ export const buildContextDelta = (
   //    only, so a widgetData edit (which changes no handle and no placement rule) still collapses.
   const hasPrefillableForm = next.widgets.some((widget) => widget.kind === 'Form' && (widget.fields?.length ?? 0) > 0)
   const sameStatus = previous.pageStatus === next.pageStatus
+  //  - Never collapse while a compose refusal is STANDING, or when the set of them changed. It is
+  //    the correction the model is meant to act on, and a refused proposal changes nothing about
+  //    the route, the widget set, the page status or the draft — every other guard here is blind
+  //    to it by construction, so collapsing would drop the only signal the turn produced.
   const sameDraft = draftFingerprint(previous.draft) === draftFingerprint(next.draft)
-  if (sameRoute && prevEndpoints === nextEndpoints && sameStatus && sameDraft && !hasPrefillableForm) {
+  const sameRefusals = JSON.stringify(previous.composeRefusals ?? null) === JSON.stringify(next.composeRefusals ?? null)
+  if (sameRoute && prevEndpoints === nextEndpoints && sameStatus && sameDraft && sameRefusals
+    && !next.composeRefusals?.length && !hasPrefillableForm) {
     const statusNote = next.pageStatus ? `, page ${next.pageStatus}` : ''
     return `<page_context>\nUnchanged: still on ${next.focus ?? next.route} (${next.widgets.length} widgets${statusNote}).\n</page_context>`
   }
@@ -527,8 +534,12 @@ export const useAutopilotContext = () => {
 
     const route = window.location.pathname
     const previewProblems = getPreviewProblems()
+    const composeRefusals = getComposeRefusals()
     return {
       capturedAt: Date.now(),
+      // The model SEES its own refused restructure — the compose sibling of previewProblems. A
+      // chip never leaves the browser, so this is the only route a refusal has to the next turn.
+      ...(composeRefusals ? { composeRefusals } : {}),
       extras: collectExtras(window.location.search),
       focus: focusFromRoute(route),
       identity: collectIdentity(),

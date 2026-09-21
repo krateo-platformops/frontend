@@ -23,6 +23,7 @@
 import { useEffect } from 'react'
 
 import type { BlueprintDraftStore } from './blueprintDraftStore'
+import { clearComposeRefusals } from './composeRequest'
 import { buildPagePreviewPayload } from './previewBridge'
 import { openAutopilotPreview } from './previewBus'
 import { emitDraftChanged, onDraftReplayRequest } from './previewDraftChanged'
@@ -87,6 +88,10 @@ export const useDraftFileBuses = (
     if (store.get()) {
       return
     }
+    // A new page is not answerable for the last one's refusals: "page-x cannot hold a cards" is
+    // about a draft that no longer exists, and carrying it forward would have the model correcting
+    // a problem this page does not have.
+    clearComposeRefusals()
     recordPagePreview(widgets, store, gate)
 
     // AND THEN THE SAME LIVE PREVIEW A PROPOSAL GETS.

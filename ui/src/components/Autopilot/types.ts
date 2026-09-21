@@ -11,6 +11,7 @@
  */
 
 import type { ApprovalDecision, ApprovalPause } from './approval'
+import type { ComposeRefusalNote } from './composeRequest'
 
 /** Who authored a transcript message. */
 export type AutopilotRole = 'user' | 'assistant'
@@ -207,6 +208,16 @@ export interface PageContextEnvelope {
    * REJECTED. The model must fix these exact errors and re-emit the full corrected
    * previewPage fence (see the PREVIEW SELF-CORRECTION routing rule). */
   previewProblems?: string[]
+  /**
+   * Compose proposals the composer REFUSED and the model has not yet corrected — with the
+   * containers that would have accepted each.
+   *
+   * The sibling of `previewProblems`, and present for the same reason: a chip never leaves the
+   * browser (the turn transmits context + text and nothing else), so without this the model's only
+   * evidence that its restructure failed is a draft that did not change. Cleared as soon as any
+   * compose applies, because a refusal computed against the old draft may no longer be true.
+   */
+  composeRefusals?: ComposeRefusalNote[]
   /** A one-line kind-aware summary of the focused surface. */
   focus?: string
   /** When this snapshot was taken (ms epoch) — lets the model reason about freshness. */
