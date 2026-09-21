@@ -305,6 +305,8 @@ const PageComposer = () => {
   const [publishing, setPublishing] = useState(false)
   const [outcome, setOutcome] = useState<{ denial: string | null; deepLink: string | null } | null>(null)
   const publishId = useRef<string | null>(null)
+  /** The result panel, so the header can take you to it without anyone hunting for it. */
+  const resultRef = useRef<HTMLDivElement | null>(null)
   // Re-validated verdicts after an applied edit, so the Alert blocks reflect the latest draft
   // rather than the one that was first handed over. Same contract the drawer keeps.
   const [editVerdicts, setEditVerdicts] = useState<RestDefVerdicts | null>(null)
@@ -488,6 +490,21 @@ const PageComposer = () => {
           ? (
             <Space className={styles.actions}>
               {/*
+                THE PREVIEW IS TWENTY SCREENS DOWN, and build-above/result-below is still the right
+                reading order — a page builder that put the render between the palette and the
+                canvas would be worse. What it costs is the feedback loop that makes direct
+                manipulation worth having: you edit, and then you go and look, which is the loop
+                direct manipulation exists to remove.
+                This is the cheap eighty percent of fixing that. A sticky strip or a split with a
+                draggable divider would be better and takes vertical space from the canvas, which
+                is the scarcest thing on this page — that is a layout decision, not a defect fix.
+              */}
+              <Button
+                onClick={() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              >
+                Preview
+              </Button>
+              {/*
                 UNDO. The composer had none, which was merely expensive while every operation was
                 recoverable by hand — and two were not. Remove is now genuinely destructive (it
                 deletes the file rather than orphaning it), so this is the control that makes that
@@ -644,7 +661,7 @@ const PageComposer = () => {
 
             {/* Full width, because the live render is a page and a page wants the width. Selecting
                 a node above still reveals its bytes in Files here — same `focusPath` as before. */}
-            <div className={styles.result}>
+            <div className={styles.result} ref={resultRef}>
               <PreviewContent editVerdicts={editVerdicts} focusPath={focusPath} liveFiles={files} onVerdicts={setEditVerdicts} payload={payload} />
             </div>
           </>
