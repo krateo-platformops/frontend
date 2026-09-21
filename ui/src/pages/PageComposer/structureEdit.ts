@@ -216,6 +216,26 @@ export const LAYOUT_KINDS = {
 export type LayoutKind = keyof typeof LAYOUT_KINDS
 
 /**
+ * WHO WROTE `allowedResources` — the annotation that makes the difference decidable.
+ *
+ * `placeChild` MUST append each child's plural or the container will not render it (the CRD's own
+ * semantics, and the reason the field is required). `canAccept` then honours any non-empty list as
+ * a statement of intent. Put together, those two correct rules produced a wrong one: the first
+ * thing dropped into a fresh container permanently narrowed it to that kind, and the declaration
+ * being honoured had been written by the composer a moment earlier rather than by any author.
+ *
+ * The list cannot say where it came from, so the container does. A container the composer created
+ * carries this annotation and its list is read as a DESCRIPTION of what it currently holds; one
+ * without it — hand-written, chart-supplied, or agent-proposed — is read as a DECLARATION and
+ * honoured exactly as before. Editing the file in the Files tab is how an author converts the one
+ * into the other, which is also the only place intent could honestly come from.
+ *
+ * It rides to the cluster on the published CR, which is the point: the provenance outlives the
+ * session that created it, and a later editor can see why the field looks the way it does.
+ */
+export const DERIVED_ALLOWED_ANNOTATION = 'krateo.io/allowed-resources'
+
+/**
  * The YAML for a new, empty container.
  *
  * Minimal on purpose: kind, name, empty items, empty refs. Everything else a container can carry —
@@ -232,7 +252,7 @@ export type LayoutKind = keyof typeof LAYOUT_KINDS
 export const newContainerYaml = (kind: LayoutKind, name: string, namespace: string): string => dump({
   apiVersion: WIDGET_API_VERSION,
   kind,
-  metadata: { name, namespace },
+  metadata: { annotations: { [DERIVED_ALLOWED_ANNOTATION]: 'derived' }, name, namespace },
   spec: { resourcesRefs: { items: [] }, widgetData: { allowedResources: [], items: [] } },
 }, DUMP)
 
