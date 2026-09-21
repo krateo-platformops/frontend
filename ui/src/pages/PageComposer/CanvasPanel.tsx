@@ -249,6 +249,13 @@ const Frame = ({ airborne, depth, draggingId, legal, node, onSelect }: {
             <Tag>external</Tag>
           </Tooltip>
         ) : null}
+        {/* Which named slot it fills. Without it a Card's cover is indistinguishable on the canvas
+            from a widget sitting in the Card's ordered content, and they behave differently. */}
+        {node.slot ? (
+          <Tooltip title={`fills its parent's "${node.slot}" slot, not its ordered content`}>
+            <Tag color='geekblue'>{node.slot}</Tag>
+          </Tooltip>
+        ) : null}
         {/*
           WHAT THIS CONTAINER SAYS IT HOLDS, readable AT REST.
           Whether a container is constrained was previously visible only during a drag you may not
