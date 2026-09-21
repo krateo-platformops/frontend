@@ -249,6 +249,20 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
       message.error('that object carries no reference id, so its parent cannot address it')
       return
     }
+    /*
+     * A NAMED SLOT CHILD IS NOT IN `items`, so `position` does not address it.
+     *
+     * It is this node's index among its siblings in the TREE — a different list — so removing or
+     * reordering by it would edit whichever ordered child happens to sit at that index. Refused by
+     * name until slot-aware editing exists, because the alternative is a silent wrong edit to a
+     * page, which is the failure class this file has already produced twice.
+     */
+    if (node.slot) {
+      const reason = `${node.name} fills the "${node.slot}" slot — edit that field in Files to change it`
+      message.warning(reason)
+      settle(`Not done: ${reason}`)
+      return
+    }
     const child = { index: node.position, refId: node.refId }
     const result = op === 'remove'
       ? removeChild(parentYaml, child)

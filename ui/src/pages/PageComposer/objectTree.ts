@@ -21,6 +21,7 @@
 import { load } from 'js-yaml'
 
 import { DERIVED_ALLOWED_ANNOTATION } from './structureEdit'
+import { WIDGET_KINDS } from './widgetKinds.generated'
 
 export interface TreeNode {
   /** The CR's metadata.name. */
@@ -43,6 +44,15 @@ export interface TreeNode {
    * first. Null for a root, which sits in no parent's items.
    */
   position: number | null
+  /**
+   * The NAMED SLOT this node occupies in its parent (`cover`, `header`), or null for ordered items.
+   *
+   * Load-bearing rather than descriptive: a slot child has NO index in `widgetData.items`, so the
+   * `position` every move and remove addresses it by would be a lie — it is this node's index among
+   * its siblings in the TREE, which is a different list. Anything that edits a placement must check
+   * this first.
+   */
+  slot: string | null
   /** Kind as written in the CR (Flex, Card, Table…), or null for a reference we cannot resolve. */
   kind: string | null
   /** Repo-relative path in the draft, or null when the child is an existing cluster widget. */
@@ -95,6 +105,8 @@ export interface TreeNode {
 
 /** One ordered child of a container: the id its parent holds, and the CR name that id resolves to. */
 interface ChildRef {
+  /** The NAMED slot this child sits in (`cover`, `header`), or absent for ordered `items[]`. */
+  slot?: string
   refId: string
   name: string
   /**
@@ -166,6 +178,33 @@ const parseObject = (path: string, content: string): ParsedObject | null => {
   }
 
   const children: ChildRef[] = []
+
+  /*
+   * NAMED SLOTS FIRST — a Card's cover, a Layout's header.
+   *
+   * These are children too, and the tree showed none of them: a Card with a cover rendered as a
+   * Card with nothing in it, and the canvas drew the same. For a VIEW whose stated rule is that it
+   * derives everything from the draft's bytes, omitting a whole containment shape is the one defect
+   * it cannot argue with — the projection was not projecting part of the model.
+   *
+   * Before `items`, because a slot renders above or around the ordered content in every case here
+   * (a cover sits on top, a header above), so reading order matches rendered order.
+   */
+  const ownKind = typeof root?.kind === 'string' ? root.kind : ''
+  for (const slot of WIDGET_KINDS[ownKind]?.slots ?? []) {
+    const refId = widgetData?.[slot]
+    if (typeof refId === 'string' && refId) {
+      const ref = refs.get(refId)
+      children.push({
+        name: ref?.name ?? refId,
+        namespace: ref?.namespace ?? null,
+        refId,
+        resource: ref?.resource ?? null,
+        slot,
+      })
+    }
+  }
+
   const items = widgetData?.items
   if (Array.isArray(items)) {
     for (const entry of items) {
@@ -224,19 +263,19 @@ export const buildObjectTree = (files: Record<string, string>): TreeNode[] => {
   // sections, and both placements should render. It exists only to stop a cycle — which a
   // hand-edit can create — from recursing forever and freezing the panel.
   const toNode = (
-    ref: { name: string; namespace: string | null; refId: string | null; resource: string | null },
+    ref: { name: string; namespace: string | null; refId: string | null; resource: string | null; slot?: string },
     position: number | null,
     seen: ReadonlySet<string>,
     parentPath: string | null,
   ): TreeNode => {
-    const { name, namespace, refId, resource } = ref
+    const { name, namespace, refId, resource, slot = null } = ref
     const object = objects.get(name)
     if (!object) {
       // Referenced but not in the draft: an existing cluster widget being placed.
-      return { allowedDerived: false, allowedResources: null, bound: false, children: [], drafted: false, kind: null, name, namespace, parentPath, path: null, position, refId, resource }
+      return { allowedDerived: false, allowedResources: null, bound: false, children: [], drafted: false, kind: null, name, namespace, parentPath, path: null, position, refId, resource, slot }
     }
     if (seen.has(name)) {
-      return { allowedDerived: object.allowedDerived, allowedResources: object.allowedResources, bound: object.bound, children: [], drafted: true, kind: object.kind, name, namespace, parentPath, path: object.path, position, refId, resource }
+      return { allowedDerived: object.allowedDerived, allowedResources: object.allowedResources, bound: object.bound, children: [], drafted: true, kind: object.kind, name, namespace, parentPath, path: object.path, position, refId, resource, slot }
     }
     const nextSeen = new Set(seen).add(name)
     return {
@@ -253,6 +292,7 @@ export const buildObjectTree = (files: Record<string, string>): TreeNode[] => {
       position,
       refId,
       resource,
+      slot,
     }
   }
 

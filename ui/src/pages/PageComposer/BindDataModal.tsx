@@ -15,11 +15,12 @@
  * refuses anything outside a conservative path subset BY NAME rather than letting it become a
  * syntax error in code they did not write.
  */
-import { Alert, Form, Input, Modal, Typography } from 'antd'
+import { Alert, Form, Input, Modal, Select, Typography } from 'antd'
 import { useState } from 'react'
 
-import { generateBinding, validateBinding } from './generateBinding'
+import { dataPathFor, generateBinding, validateBinding } from './generateBinding'
 import type { BindingResult } from './generateBinding'
+import { WIDGET_KINDS } from './widgetKinds.generated'
 
 const PLACEHOLDER = `{
   "Name":   ".metadata.name",
@@ -44,7 +45,39 @@ export const BindDataModal = ({ namespace, onCancel, onGenerate, open }: {
   const [apiPath, setApiPath] = useState('')
   const [itemsAt, setItemsAt] = useState('.items')
   const [columnsText, setColumnsText] = useState('')
+  /**
+   * WHICH KIND to bind. It was always a Table, and not because anything required that: every widget
+   * CRD carries `spec.apiRef`, so the restriction lived entirely in the emitter. At forty-four
+   * creatable kinds it was the difference between "create any widget" and "create any widget, then
+   * hand-write its YAML to give it data".
+   */
+  const [kind, setKind] = useState('Table')
+  /** A chart's xField/yField and anything else its CRD requires beyond the list itself. */
+  const [extraText, setExtraText] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  /**
+   * What the EMITTER already writes, so the form does not ask for it.
+   *
+   * A Table requires `allowedResources` and `columns`, and generateBinding supplies both — asking
+   * the author for them would make the one flow that already worked stop working. The remainder is
+   * the genuinely author-only part: a chart's xField/yField, which no amount of schema-reading can
+   * derive because "which mapped column is the x axis" is a decision, not a fact.
+   */
+  const emitted = new Set(['allowedResources', 'columns'])
+
+  /** Only kinds with somewhere for a fetched list to land — see dataPathFor. */
+  const bindableKinds = Object.keys(WIDGET_KINDS).filter((candidate) => dataPathFor(candidate)).sort()
+
+  /**
+   * What this kind needs BEYOND the list — its required fields less the array the binding fills.
+   *
+   * A LineChart requires data, xField and yField; the binding provides `data`, and which mapped
+   * column is the x axis is a question only the author can answer. Guessing it publishes cleanly
+   * and plots the wrong thing.
+   */
+  const extraRequired = (WIDGET_KINDS[kind]?.required ?? [])
+    .filter((field) => !emitted.has(field) && field !== dataPathFor(kind))
 
   const submit = () => {
     let columns: Record<string, string>
@@ -66,7 +99,27 @@ export const BindDataModal = ({ namespace, onCancel, onGenerate, open }: {
       setError('this draft declares no namespace — open a page draft before binding data')
       return
     }
-    const input = { apiPath, columns, itemsAt, name, namespace }
+    let extraWidgetData: Record<string, unknown> = {}
+    if (extraRequired.length) {
+      try {
+        const parsed: unknown = JSON.parse(extraText || '{}')
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+          setError(`${kind} needs ${extraRequired.join(', ')} as a JSON object`)
+          return
+        }
+        extraWidgetData = parsed as Record<string, unknown>
+      } catch {
+        setError(`${kind}'s extra fields are not valid JSON`)
+        return
+      }
+      const missing = extraRequired.filter((field) => extraWidgetData[field] === undefined)
+      if (missing.length) {
+        // Named, not counted: the CRD rejects the widget without them and that surfaces at publish.
+        setError(`${kind} also requires ${missing.join(', ')} — the CRD rejects it without them`)
+        return
+      }
+    }
+    const input = { apiPath, columns, extraWidgetData, itemsAt, kind, name, namespace }
     const invalid = validateBinding(input)
     if (invalid) {
       setError(invalid)
@@ -88,8 +141,22 @@ export const BindDataModal = ({ namespace, onCancel, onGenerate, open }: {
         you review them in Files before anything is published.
       </Typography.Paragraph>
       <Form layout='vertical'>
+        {/*
+          WHICH KIND. It was always a Table — not because anything required that, but because the
+          emitter could only make one. Every widget CRD carries `spec.apiRef`, so the restriction
+          was ours. Only kinds with somewhere for a fetched list to land are offered: a Paragraph
+          takes text, and binding one would write a template that goes nowhere.
+        */}
+        <Form.Item help='Only kinds that take a list can be bound to one.' label='Widget kind' required>
+          <Select
+            onChange={setKind}
+            options={bindableKinds.map((candidate) => ({ label: candidate, value: candidate }))}
+            showSearch
+            value={kind}
+          />
+        </Form.Item>
         <Form.Item
-          help='Lower-case, dashes. Becomes the name of both the query and the table.'
+          help='Lower-case, dashes. Becomes the name of both the query and the widget.'
           label='Name'
           required
         >
@@ -122,6 +189,20 @@ export const BindDataModal = ({ namespace, onCancel, onGenerate, open }: {
           />
         </Form.Item>
         {error ? <Alert showIcon title={error} type='error' /> : null}
+        {extraRequired.length ? (
+          <Form.Item
+            help={`Keyed by the column titles above — a chart's xField names a key in the data.`}
+            label={`${kind} also needs ${extraRequired.join(', ')}`}
+            required
+          >
+            <Input.TextArea
+              autoSize={{ maxRows: 6, minRows: 2 }}
+              onChange={(event) => setExtraText(event.target.value)}
+              placeholder={`{${extraRequired.map((field) => `"${field}": ""`).join(', ')}}`}
+              value={extraText}
+            />
+          </Form.Item>
+        ) : null}
       </Form>
     </Modal>
   )

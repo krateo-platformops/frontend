@@ -45,6 +45,7 @@ interface Schema {
   items?: Schema
   type?: string
   default?: unknown
+  description?: string
 }
 
 interface CrdDoc {
@@ -70,6 +71,28 @@ const holdsChildren = (widgetData: Schema | undefined): boolean => {
   const entry = items?.items
   return !!entry?.properties && 'resourceRefId' in entry.properties
 }
+
+/**
+ * NAMED SLOTS — the third containment shape, and the one the composer had no vocabulary for.
+ *
+ * A container holds an ordered `items[]`. A Card ALSO has `cover` and `extraRefId`, and a Layout
+ * holds its children entirely through `content`, `header` and `footer`: single properties each
+ * carrying one `resourceRefId`. So a Card with a cover has a child the object tree never showed and
+ * the canvas never drew — the projection omitted part of the thing it claims to project.
+ *
+ * DETECTED, NOT LISTED, for the same reason nothing else here is listed: a hand-written list of
+ * five property names is the class of literal this generator exists to remove. The marker is
+ * structural-ish rather than structural — `type: string` plus a description naming `resourceRefId`
+ * — because the CRDs carry no dedicated field for it. That is weaker than the `items[]` test and
+ * it fails SAFE: a reworded description stops a slot being offered, which loses a capability rather
+ * than corrupting a page. Exactly five properties across all forty-four CRDs match today, and the
+ * test pins them so a rewording is a failing PR rather than a silent loss.
+ */
+const namedSlots = (widgetData: Schema | undefined): string[] =>
+  Object.entries(widgetData?.properties ?? {})
+    .filter(([, property]) => property.type === 'string' && (property.description ?? '').includes('resourceRefId'))
+    .map(([name]) => name)
+    .sort()
 
 const widgetDataOf = (doc: CrdDoc): Schema | undefined => {
   const versions = doc.spec?.versions ?? []
@@ -105,6 +128,7 @@ const build = async (): Promise<string> => {
       `  ${kind}: {`,
       `    plural: ${JSON.stringify(plural)},`,
       `    container: ${holdsChildren(widgetData)},`,
+      `    slots: ${JSON.stringify(namedSlots(widgetData))},`,
       `    required: ${JSON.stringify(widgetData.required ?? [])},`,
       `    schema: ${JSON.stringify(widgetData)},`,
       '  },',
@@ -123,6 +147,8 @@ const build = async (): Promise<string> => {
     '  plural: string',
     '  /** Holds ORDERED child references (widgetData.items[].resourceRefId), so a drop may target it. */',
     '  container: boolean',
+    '  /** NAMED single-reference slots — a Card\'s cover, a Layout\'s header. Each holds one refId. */',
+    '  slots: readonly string[]',
     '  /** widgetData fields the CRD REQUIRES — what a drop has to ask for before it can create one. */',
     '  required: readonly string[]',
     '  /** The widgetData schema, for the drop form. It is JSON Schema, which SchemaForm renders. */',

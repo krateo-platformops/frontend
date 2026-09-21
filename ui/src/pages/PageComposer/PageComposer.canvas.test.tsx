@@ -9,7 +9,7 @@
  * the composer never writes files itself. It emits on the same bus the Files tab uses, so a move
  * passes through the draft's byte cap and re-arms the publish gate exactly like a hand edit.
  */
-import { cleanup, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { load } from 'js-yaml'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -220,6 +220,54 @@ describe('PageComposer — adding from the palette', () => {
     expect(bus.log[0].content).toContain('kind: Row')
     expect(bus.log[1].path).toBe('templates/flex.page-x.yaml')
     expect(bus.log[1].content).toContain('page-x-row')
+    bus.stop()
+  })
+
+  it('A KEYBOARD LIFT WORKS AND SAYS WHAT IT PICKED UP', () => {
+    /*
+     * WHAT THIS PROVES, AND WHAT IT DOES NOT.
+     *
+     * Wiring KeyboardSensor and giving the handle a role and a tabindex proves the controls can be
+     * REACHED. It does not prove anything happens when you press Space, and this file's comments
+     * claimed it did. Writing a test that actually drives the sensor found three real bugs that had
+     * all shipped as "keyboard drag works":
+     *
+     *   1. `onKeyDown` was declared AFTER `{...listeners}` on the handle, so it REPLACED the
+     *      sensor's own key handler. Space did nothing at all.
+     *   2. `setActivatorNodeRef` was never passed. The listeners are on the label while the
+     *      draggable is the frame, which is a drag-handle setup — without it the sensor has no node
+     *      to take its starting coordinates from. Pointer drags survive the omission; keyboard ones
+     *      do not, which is why nobody noticed.
+     *   3. `collisionDetection` was `pointerWithin` alone. It answers by POINTER POSITION and a
+     *      keyboard drag has no pointer, so `over` was permanently null and a keyboard drop could
+     *      never resolve a target — in the very change bought to provide the keyboard path.
+     *
+     * The lift and its announcement are asserted here because they are what this harness can
+     * honestly observe. A COMPLETE keyboard drop is not: dnd-kit measures its droppables through
+     * ResizeObserver, which jsdom does not implement and the antd shim stubs inert, so `over` stays
+     * null for reasons that belong to the harness rather than to the page. The three fixes above are
+     * each necessary; whether they are together sufficient needs a real browser, and the build that
+     * contains them is not deployed anywhere yet.
+     */
+    const bus = capture()
+    mountWithConfig()
+    emit({ files: nested(), title: 'x' })
+
+    const handle = screen.getByTestId('canvas-handle-card-b')
+    act(() => {
+      handle.focus()
+      fireEvent.keyDown(handle, { code: 'Space', key: ' ' })
+    })
+
+    // dnd-kit's own live region — and it says the widget's NAME. It used to read the internal id
+    // ("node:card-b:c:0"), which is deliberately opaque and exactly the wrong thing to say aloud.
+    const spoken = [...document.querySelectorAll('[aria-live]')].map((node) => node.textContent).join(' ')
+    expect(spoken).toContain('Picked up card-b')
+    expect(spoken).toContain('arrow keys')
+    expect(spoken).not.toContain('node:')
+
+    // Nothing has been written: a lift is not a drop.
+    expect(bus.log).toHaveLength(0)
     bus.stop()
   })
 })
