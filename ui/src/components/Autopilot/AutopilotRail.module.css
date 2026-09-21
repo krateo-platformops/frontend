@@ -484,20 +484,6 @@
   padding-left: var(--spacing-smd);
 }
 
-/* Streaming caret = the "Autopilot is EXECUTING" indicator. Signal Yellow #E8FF00 is Tier-2
-   locked to EXACTLY this meaning (issue #49) — never a CTA/decoration/link. --krateo-color-
-   agent-signal-fill is #E8FF00 in both modes. (The pending-HITL approval gate below stays the
-   warning token — it's a WAITING/attention state, not executing.) */
-.apCaret {
-  animation: apBlink 1s steps(2, start) infinite;
-  background: var(--krateo-color-agent-signal-fill);
-  display: inline-block;
-  height: 13px;
-  margin-left: var(--spacing-xxs);
-  vertical-align: text-bottom;
-  width: 7px;
-}
-
 @keyframes apBlink {
   to {
     visibility: hidden;
@@ -1209,9 +1195,22 @@
   width: 6px;
 }
 
+/* THE "Autopilot is EXECUTING" indicator, and now the only one — the blinking caret that used to
+   sit above this carried the same meaning with none of the words. Signal Yellow #E8FF00 is Tier-2
+   locked to EXACTLY this meaning (issue #49) — never a CTA/decoration/link; the token is #E8FF00 in
+   both modes. (The pending-HITL approval gate stays the warning token: WAITING is not EXECUTING.) */
 .apLiveActRow[data-state='running'] .apLiveActMark {
   animation: apBlink 1s steps(2, start) infinite;
   background: var(--krateo-color-agent-signal-fill, var(--primary-color));
+}
+
+/* The mark's PRESENCE is the signal, so stopping the blink loses nothing — and an indefinite loop
+   is exactly what this media query exists to stop. Neither this nor the caret it replaces was ever
+   guarded; the caret is gone, so this is the one that needed it. */
+@media (prefers-reduced-motion: reduce) {
+  .apLiveActRow[data-state='running'] .apLiveActMark {
+    animation: none;
+  }
 }
 
 .apLiveActRow[data-state='done'] .apLiveActMark {
