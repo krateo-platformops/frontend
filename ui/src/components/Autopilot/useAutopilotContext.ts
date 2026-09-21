@@ -12,6 +12,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 
+import { draftFingerprint } from './draftStructure'
 import { getPreviewProblems } from './previewBus'
 import { redactAutopilotContext } from './redact'
 import type { AutopilotIdentity, PageContextEnvelope, WidgetInventoryEntry } from './types'
@@ -472,9 +473,16 @@ export const buildContextDelta = (
   //    changing; re-send the full envelope so the model never reasons from a stale "the page is fine".
   // When we DO collapse, still restate the current pageStatus in the note (it is unchanged here, but
   // the model should keep seeing it).
+  //  - Never collapse when the HELD DRAFT's shape changed. A compose turn does not move the route
+  //    and does not necessarily change the on-screen widget set — the composer's live render is
+  //    one endpoint whether the page holds three widgets or thirty — so a draft the agent had just
+  //    restructured would be described to it exactly once, and every following turn would reason
+  //    about the containment it had before its own edit. The fingerprint is names/kinds/nesting
+  //    only, so a widgetData edit (which changes no handle and no placement rule) still collapses.
   const hasPrefillableForm = next.widgets.some((widget) => widget.kind === 'Form' && (widget.fields?.length ?? 0) > 0)
   const sameStatus = previous.pageStatus === next.pageStatus
-  if (sameRoute && prevEndpoints === nextEndpoints && sameStatus && !hasPrefillableForm) {
+  const sameDraft = draftFingerprint(previous.draft) === draftFingerprint(next.draft)
+  if (sameRoute && prevEndpoints === nextEndpoints && sameStatus && sameDraft && !hasPrefillableForm) {
     const statusNote = next.pageStatus ? `, page ${next.pageStatus}` : ''
     return `<page_context>\nUnchanged: still on ${next.focus ?? next.route} (${next.widgets.length} widgets${statusNote}).\n</page_context>`
   }

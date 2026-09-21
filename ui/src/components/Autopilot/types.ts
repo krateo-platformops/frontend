@@ -220,6 +220,41 @@ export interface PageContextEnvelope {
    * (no widgets in cache), page state is unknown — do NOT infer a cause.
    */
   pageStatus?: 'loading' | 'error' | 'heavy' | 'ready'
+  /**
+   * The HELD PAGE DRAFT's structure — names, kinds and containment — when one is held.
+   *
+   * Not part of the widget inventory, and deliberately so: the inventory reports what the browser
+   * RENDERED, and a draft under construction may never have rendered at all. `composeMove` and
+   * `composeAdd` address this tree by CR name, so without it the model is naming handles it has
+   * not been shown. See `draftStructure.ts`.
+   */
+  draft?: DraftSummary
+}
+
+export interface DraftNodeSummary {
+  /** The CR name — the handle `composeMove` / `composeAdd` must use. */
+  name: string
+  kind: string | null
+  /**
+   * What this container declares it holds (`widgetData.allowedResources`), when it declares
+   * anything. Absent means the author has not said — NOT that it holds nothing — so the model must
+   * not read absence as a refusal it can predict.
+   */
+  allows?: readonly string[]
+  /** The CRD plural the PARENT addresses it by — what `addExisting` has to name for a sibling. */
+  resource?: string
+  /** True when the node is referenced but not carried in the draft: an existing cluster widget. */
+  external?: true
+  children?: DraftNodeSummary[]
+}
+
+export interface DraftSummary {
+  /** How many files the draft holds. */
+  files: number
+  /** The page's containment, roots first. */
+  roots: DraftNodeSummary[]
+  /** Present only when MAX_NODES bit — the tree shown is partial and must not be read as complete. */
+  truncated?: true
 }
 
 // ────────────────────────────────────────────────────────────────────────────
