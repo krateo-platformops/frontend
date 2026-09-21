@@ -57,9 +57,21 @@ export type PalettePick =
    */
   | { kind: 'new'; widgetKind: string; resource: string; authored?: Record<string, unknown>; name?: string }
 
-const Item = ({ label, pick, sub }: {
+/**
+ * A palette row.
+ *
+ * `sub` is RENDERED beside the name; `plural` is only carried into the tooltip. A kind row passes
+ * `plural`, an instance row passes `sub`, and the difference is whether the string tells anyone
+ * anything: "Card · cards" spends a third of a 182px column restating the name, while "fleet-card ·
+ * cards" is the only place that instance's kind appears. With the plural rendered on kind rows too,
+ * the two competed for the column and the KIND lost — "ButtonGro…  buttongro…" — which is backwards,
+ * since a plural is derivable from a kind name and a kind name is not derivable from a truncated
+ * one. Filtering still matches on the plural either way: it reads the data, not the rendered text.
+ */
+const Item = ({ label, pick, plural, sub }: {
   label: string
   pick: PalettePick
+  plural?: string
   sub?: string
 }) => {
   const Glyph = iconForResource(pick.resource)
@@ -86,13 +98,26 @@ const Item = ({ label, pick, sub }: {
         gap: 8,
         padding: '6px 8px',
       }}
-      title={sub ?? label}
+      title={(sub ?? plural) ? `${label} \u00b7 ${sub ?? plural}` : label}
     >
       <Glyph />
-      <Text style={{ fontSize: 12 }}>{label}</Text>
+      {/* nowrap HERE TOO. The plural below was fixed for this exact defect and the label was left
+          with it: at the measured 182px column "ButtonGroup" rendered as "ButtonGrou" / "p" and
+          "PageHeader" as "PageHeade" / "r" — every frame of both demo videos. Truncating with an
+          ellipsis rather than wrapping keeps each item one row high, so the list stays scannable;
+          `minWidth: 0` is what lets a flex child shrink far enough to ellipsize at all, and the
+          title attribute now carries the full label so a truncated one is still recoverable. */}
+      <Text style={{ flexShrink: 1, fontSize: 12, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</Text>
       {/* nowrap: at the measured 182px column the plural badge wrapped mid-word, rendering as
-          "card" / "s" on two lines. */}
-      {sub ? <Text style={{ fontSize: 11, marginLeft: 'auto', whiteSpace: 'nowrap' }} type='secondary'>{sub}</Text> : null}
+          "card" / "s" on two lines.
+
+          SHRINKS FIRST, by a factor of a hundred. With the plural rigid, the 182px column gave it
+          all the room it asked for and truncated the KIND instead — "ButtonGr…  buttongroups",
+          which is backwards: a plural is derivable from a kind name, a kind name is not derivable
+          from a truncated one. flex-shrink is a weight, so this makes the plural absorb essentially
+          all the deficit while still degrading gracefully if a kind ever outgrows the column
+          alone. */}
+      {sub ? <Text style={{ flexShrink: 100, fontSize: 11, marginLeft: 'auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} type='secondary'>{sub}</Text> : null}
     </div>
   )
 }
@@ -194,7 +219,7 @@ export const PalettePanel = ({ namespace, snowplowBaseUrl }: {
               pick={kind in LAYOUT_KINDS
                 ? { kind: 'container', layout: kind as keyof typeof LAYOUT_KINDS, resource: WIDGET_KINDS[kind].plural }
                 : { kind: 'new', resource: WIDGET_KINDS[kind].plural, widgetKind: kind }}
-              sub={WIDGET_KINDS[kind].plural}
+              plural={WIDGET_KINDS[kind].plural}
             />
           ))}
         </Section>
@@ -208,7 +233,7 @@ export const PalettePanel = ({ namespace, snowplowBaseUrl }: {
               key={kind}
               label={kind}
               pick={{ kind: 'new', resource: WIDGET_KINDS[kind].plural, widgetKind: kind }}
-              sub={WIDGET_KINDS[kind].plural}
+              plural={WIDGET_KINDS[kind].plural}
             />
           ))}
         </Section>

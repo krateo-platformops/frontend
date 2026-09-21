@@ -53,6 +53,28 @@ describe('the composer styles from tokens (T1, T4)', () => {
     expect(phantom).toEqual([])
   })
 
+  /*
+   * A STATUS KEYWORD IS NOT A BADGE COLOUR. `<Badge color='default'>` reads as "neutral" and renders
+   * RED: antd's `isPresetColor(color, false)` tests the thirteen HUE presets (blue, cyan, gold …),
+   * and the five STATUS keywords — success, processing, error, default, warning — are a different
+   * set that it does not consult. A non-preset value falls through to `style.background = color`,
+   * so the component emits `background: default`, the browser drops it as invalid, and the badge
+   * keeps antd's default red. Nothing errors and nothing warns.
+   *
+   * The composer shipped that on the Objects count for three releases: a red pill reading "3" next
+   * to the word Objects, which says three things are wrong with a page where nothing is. Red is
+   * exception-only — see the status-indicator rule — so this asserts the mistake cannot return by
+   * the same silent route.
+   */
+  it('passes NO antd status keyword as a Badge or Tag `color`', () => {
+    const statusKeywords = ['default', 'processing']
+    const offenders = sources.flatMap(([file, text]) =>
+      [...code(text).matchAll(/<(Badge|Tag)\b[^>]*?\scolor='([a-z]+)'/g)]
+        .filter((match) => statusKeywords.includes(match[2]))
+        .map((match) => `${file}: <${match[1]} color='${match[2]}'>`))
+    expect(offenders).toEqual([])
+  })
+
   it('uses only spacing steps that exist on the scale', () => {
     const steps = new Set<number>([0, ...Object.values(spacing)])
     const offenders = sources.flatMap(([file, text]) =>
