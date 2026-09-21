@@ -56,6 +56,29 @@ describe('summarizeDraft', () => {
     expect(summary?.roots[0].children?.[0].allows).toBeUndefined()
   })
 
+  it('does NOT report a list the composer grew — the agent must not believe a fence the canvas ignores', () => {
+    /*
+     * `placeChild` appends each child's plural because the CRD requires the container to list it,
+     * so a container the composer created ends up with a non-empty list that DESCRIBES what it
+     * holds. `canAccept` stopped treating those as rules (they are annotated at creation), and this
+     * summary is what the model reasons from — so reporting one would have the agent decline a
+     * placement, and explain that decision to the user, while a person dragging the same widget
+     * succeeds. A constraint the agent honours and the canvas does not is worse than none.
+     */
+    const derived = {
+      'templates/flex.page-x.yaml': cr('Flex', 'page-x', ['row-a'], ['rows'])
+        .replace('  name: page-x', '  annotations:\n    krateo.io/allowed-resources: derived\n  name: page-x'),
+      'templates/row.row-a.yaml': cr('Row', 'row-a'),
+    }
+    expect(summarizeDraft(held(derived))?.roots[0].allows).toBeUndefined()
+
+    // …while the SAME list, written by an author, is still reported.
+    expect(summarizeDraft(held({
+      'templates/flex.page-x.yaml': cr('Flex', 'page-x', ['row-a'], ['rows']),
+      'templates/row.row-a.yaml': cr('Row', 'row-a'),
+    }))?.roots[0].allows).toEqual(['rows'])
+  })
+
   it('names the plural the PARENT declares, which is what addExisting has to say', () => {
     expect(summarizeDraft(held(page))?.roots[0].children?.[0].resource).toBe('cards')
   })

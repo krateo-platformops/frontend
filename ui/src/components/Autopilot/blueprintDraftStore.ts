@@ -154,6 +154,18 @@ export interface BlueprintDraftStore {
    * tree untouched when it would be exceeded.
    */
   addFile: (path: string, content: string) => FileUpdateResult
+  /**
+   * DROP a file the draft holds.
+   *
+   * The counterpart `addFile` needed and did not have. Without it "remove" in the object tree could
+   * only delete the parent's REFERENCE, leaving the child's file held — which `buildObjectTree` then
+   * drew as a second page root with no controls on it, and which `pagePublish` shipped anyway.
+   *
+   * Refuses an unknown path rather than succeeding vacuously: "removed" and "was never there" are
+   * different answers, and a caller that mis-addresses a file should hear about it instead of
+   * believing the draft changed.
+   */
+  removeFile: (path: string) => FileUpdateResult
 }
 
 export const createBlueprintDraftStore = (onChange?: DraftChangeListener): BlueprintDraftStore => {
@@ -194,6 +206,22 @@ export const createBlueprintDraftStore = (onChange?: DraftChangeListener): Bluep
     clear: () => {
       held = null
       announce()
+    },
+    removeFile: (path) => {
+      if (!held) {
+        return { bytes: 0, error: 'no draft is held', ok: false }
+      }
+      if (!(path in held.files)) {
+        return { bytes: held.bytes, error: `"${path}" is not in the draft`, ok: false }
+      }
+      const nextFiles = { ...held.files }
+      delete nextFiles[path]
+      const bytes = measureTreeBytes(nextFiles)
+      // `held.kind` carries forward, as it does for every other edit: removing a file never changes
+      // WHO authored the draft.
+      held = { bytes, files: nextFiles, kind: held.kind }
+      announce()
+      return { bytes, ok: true }
     },
     get: () => held,
     set: (files: Record<string, string>, kind: DraftKind) => {
