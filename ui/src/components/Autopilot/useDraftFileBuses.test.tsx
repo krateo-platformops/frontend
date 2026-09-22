@@ -113,16 +113,20 @@ describe('a draft that CHANGES after it started', () => {
   ].join('\n')
 
   type LivePreview = (w: Record<string, unknown>[], t: string) => Promise<void>
-  const start = (previewLive: LivePreview & { mockClear: () => void }) => {
+  // AWAITED, because the start apply is now serialised with the re-applies and lands in a
+  // microtask: returning before it settles leaves its own announcement to arrive mid-test and
+  // makes every count off by one.
+  const start = async (previewLive: LivePreview & { mockClear: () => void }) => {
     render(<Host previewLive={previewLive} />)
     act(() => { emitDraftStart({ title: 'Service catalog', widgets: widgets() }) })
+    await act(async () => { await Promise.resolve() })
     previewLive.mockClear()
   }
 
   it('RE-APPLIES to the sandbox when a file is added', async () => {
     vi.useFakeTimers()
     const previewLive = vi.fn<LivePreview>().mockResolvedValue(undefined)
-    start(previewLive)
+    await start(previewLive)
 
     act(() => { emitFileAdd({ content: rowFile, path: 'templates/row.page-service-catalog-row.yaml' }) })
     // debounced, not immediate
@@ -141,7 +145,7 @@ describe('a draft that CHANGES after it started', () => {
   it('COALESCES one gesture into one apply — a drop adds a file AND rewrites its parent', async () => {
     vi.useFakeTimers()
     const previewLive = vi.fn<LivePreview>().mockResolvedValue(undefined)
-    start(previewLive)
+    await start(previewLive)
 
     act(() => {
       emitFileAdd({ content: rowFile, path: 'templates/row.page-service-catalog-row.yaml' })
@@ -176,9 +180,11 @@ describe('a draft that CHANGES after it started', () => {
     // server beside zero rows in the pane, still zero at +30s.
     vi.useFakeTimers()
     const previewLive = vi.fn<LivePreview>().mockResolvedValue(undefined)
+    await start(previewLive)
+    // Subscribed AFTER the start apply, which announces too — it is an apply, and the render it
+    // produced should be as re-readable as any later one.
     const heard = vi.fn()
     const stop = onPreviewApplied(heard)
-    start(previewLive)
 
     act(() => { emitFileAdd({ content: rowFile, path: 'templates/row.page-service-catalog-row.yaml' }) })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
@@ -191,9 +197,9 @@ describe('a draft that CHANGES after it started', () => {
   it('does NOT announce when the apply FAILED — a refetch would just re-read the old sandbox', async () => {
     vi.useFakeTimers()
     const previewLive = vi.fn<LivePreview>().mockRejectedValue(new Error('sandbox refused'))
+    await start(previewLive)
     const heard = vi.fn()
     const stop = onPreviewApplied(heard)
-    start(previewLive)
 
     act(() => { emitFileAdd({ content: rowFile, path: 'templates/row.page-service-catalog-row.yaml' }) })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
@@ -203,10 +209,60 @@ describe('a draft that CHANGES after it started', () => {
     vi.useRealTimers()
   })
 
+  it('NEVER runs two applies at once — the 409 that came from overlapping sweeps', async () => {
+    /*
+     * An apply DELETEs every name it is about to write, then POSTs them. Overlap them and B's
+     * sweep can run between A's sweep and A's POSTs, so B's create hits A's object: measured live,
+     * every recorded session produced exactly one
+     *   Flex/page-proof-d: flexes... "page-proof-d" already exists
+     * and that apply was rolled back, dropping the live render to source-only until the next one
+     * happened to succeed.
+     */
+    vi.useFakeTimers()
+    let running = 0
+    let overlapped = false
+    let release: (() => void) | null = null
+    const previewLive = vi.fn<LivePreview>().mockImplementation(async () => {
+      running += 1
+      if (running > 1) {
+        overlapped = true
+      }
+      await new Promise<void>((resolve) => {
+        release = () => {
+          running -= 1
+          resolve()
+        }
+      })
+    })
+    render(<Host previewLive={previewLive} />)
+    act(() => { emitDraftStart({ title: 'Service catalog', widgets: widgets() }) })
+    await act(async () => { await Promise.resolve() })
+
+    // A change arrives while the START apply is still in flight, then another while THAT waits.
+    act(() => { emitFileAdd({ content: rowFile, path: 'templates/row.page-service-catalog-row.yaml' }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    act(() => { emitFileEdit({ content: rowFile, path: 'templates/row.page-service-catalog-row.yaml' }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+
+    // the start apply, still holding the lock
+    expect(previewLive).toHaveBeenCalledTimes(1)
+    await act(async () => {
+      release?.()
+      await Promise.resolve()
+    })
+    await act(async () => { await Promise.resolve() })
+
+    // …and the queued work drains as ONE apply of the final state, not one per edit.
+    expect(previewLive).toHaveBeenCalledTimes(2)
+    expect(overlapped).toBe(false)
+    act(() => { release?.() })
+    vi.useRealTimers()
+  })
+
   it('SURVIVES a rejected apply — the composer must not die with the preview', async () => {
     vi.useFakeTimers()
     const previewLive = vi.fn<LivePreview>().mockRejectedValue(new Error('sandbox refused'))
-    start(previewLive)
+    await start(previewLive)
 
     act(() => { emitFileAdd({ content: rowFile, path: 'templates/row.page-service-catalog-row.yaml' }) })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
