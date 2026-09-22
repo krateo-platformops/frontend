@@ -73,6 +73,16 @@ const listPlaceableByCategory = async (
   namespace: string,
   category: string,
   noun: string,
+  /**
+   * The PLURAL for a listed object's kind — and the reason this is a parameter rather than a
+   * lookup. It was `WIDGET_KINDS[kind]?.plural`, which is the generated table of the forty-four
+   * WIDGET kinds; `RESTAction` is not one of them (it is templates.krateo.io, from snowplow's
+   * chart, and the generator reads helm/frontend-crds). So every RESTAction row resolved to
+   * `undefined` and was dropped by the guard below — the listing returned 85 objects and the
+   * picker showed none, with no error anywhere, because an empty result is exactly what an empty
+   * namespace looks like.
+   */
+  pluralFor: (kind: string) => string | undefined,
 ): Promise<PlaceableResult> => {
   try {
     const url = new URL(`${snowplowBaseUrl.replace(/\/+$/, '')}/list`)
@@ -100,7 +110,7 @@ const listPlaceableByCategory = async (
       // lowercase(kind)+"s" is wrong for a good number of them, and a wrong plural places a child
       // its parent will not render.
       const kind = typeof item?.kind === 'string' ? item.kind : ''
-      const resource = WIDGET_KINDS[kind]?.plural
+      const resource = pluralFor(kind)
       // Both or the row is dropped: a name with no plural cannot be placed (the container would not
       // declare it and would render nothing), and a plural with no name resolves to nothing.
       if (typeof name === 'string' && name && resource) {
@@ -124,7 +134,9 @@ const listPlaceableByCategory = async (
 export const listPlaceableWidgets = async (
   snowplowBaseUrl: string,
   namespace: string,
-): Promise<PlaceableResult> => listPlaceableByCategory(snowplowBaseUrl, namespace, WIDGET_CATEGORY, 'widgets')
+): Promise<PlaceableResult> =>
+  listPlaceableByCategory(snowplowBaseUrl, namespace, WIDGET_CATEGORY, 'widgets',
+    (kind) => WIDGET_KINDS[kind]?.plural)
 
 /**
  * The CATEGORY every RESTAction CRD declares — `categories: [krateo, rest, actions]`.
@@ -140,4 +152,8 @@ export const ACTION_CATEGORY = 'actions'
 export const listPlaceableActions = async (
   snowplowBaseUrl: string,
   namespace: string,
-): Promise<PlaceableResult> => listPlaceableByCategory(snowplowBaseUrl, namespace, ACTION_CATEGORY, 'RESTActions')
+): Promise<PlaceableResult> =>
+  // One kind in this category, and its plural is fixed by snowplow's CRD rather than discovered:
+  // `restactions`. Looking it up in the widget table is what emptied the picker.
+  listPlaceableByCategory(snowplowBaseUrl, namespace, ACTION_CATEGORY, 'RESTActions',
+    (kind) => (kind === 'RESTAction' ? 'restactions' : undefined))
