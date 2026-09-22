@@ -82,6 +82,29 @@ export const CreateWidgetModal = ({ onCancel, onCreate, open, widgetKind }: {
       setError('name must be lower-case letters, digits and dashes — it becomes the CR\'s name')
       return
     }
+    /*
+     * AN UNTOUCHED REQUIRED ARRAY IS `[]`, NOT A MISSING ANSWER — and getting this wrong made
+     * fourteen of the forty-four kinds impossible to create, Table and all four charts among them.
+     *
+     * The CRD requires the KEY to be present; `[]` satisfies it, and `[]` is what every Table the
+     * portal ships actually sets `allowedResources` to. The check below could not tell "the author
+     * has nothing to say here" from "the author has not answered yet", so it refused the drop with
+     * a message no amount of typing could clear — the only way through was to add a tag and then
+     * delete it, which leaves exactly the `[]` this now writes.
+     *
+     * It is worse than fiddly on the data-bearing kinds. A Table's `columns` and a chart's `data`
+     * are the fields `widgetDataTemplate` FILLS from the RESTAction's result; demanding them at
+     * drop time asks the author to hand-write the very thing they are about to bind.
+     *
+     * Scalars are untouched: a required string that is still blank is a missing answer, and the
+     * refusal below is the right one.
+     */
+    const properties = (WIDGET_KINDS[widgetKind]?.schema as { properties?: Record<string, { type?: string }> })?.properties ?? {}
+    for (const field of WIDGET_KINDS[widgetKind]?.required ?? []) {
+      if (widgetData[field] === undefined && properties[field]?.type === 'array') {
+        widgetData[field] = []
+      }
+    }
     const missing = (WIDGET_KINDS[widgetKind]?.required ?? []).filter((field) => {
       const value = widgetData[field]
       return value === undefined || value === null || value === ''
@@ -99,7 +122,7 @@ export const CreateWidgetModal = ({ onCancel, onCreate, open, widgetKind }: {
       {error ? <Alert message={error} showIcon style={{ marginBottom: 12 }} type='error' /> : null}
       <Typography.Paragraph type='secondary'>
         {schema
-          ? `${widgetKind} needs these before it can be created — the names are the CRD's own. Everything else is editable in Files.`
+          ? `${widgetKind} needs these before it can be created — the names are the CRD's own. A list may be left empty when data binding will fill it. Everything else is editable in Files.`
           : `${widgetKind} needs nothing beyond a name.`}
       </Typography.Paragraph>
       <Form form={form} layout='vertical'>
