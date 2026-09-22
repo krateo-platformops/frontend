@@ -49,6 +49,7 @@ import { WidgetEmpty } from '../../components/WidgetStates'
 import { ConfigContext } from '../../context/ConfigContext'
 
 import CanvasPanel from './CanvasPanel'
+import { authorWidget, bindData } from './composeAuthoring'
 import { announce, onAnnounce } from './composerAnnounce'
 import CreateWidgetModal from './CreateWidgetModal'
 import { resolveDrop } from './dndIds'
@@ -442,6 +443,31 @@ const PageComposer = () => {
 
       const roots = buildObjectTree(files)
       const byName = (name: string) => flattenTree(roots).find((node) => node.name === name)
+
+      /*
+       * BINDING DATA NAMES A WIDGET, NOT A CONTAINER, so it is answered before the target lookup
+       * below — a `target` it does not carry would resolve to undefined and refuse every time with
+       * a message about a container nobody mentioned.
+       *
+       * This is the agent's half of the Data modal, and it reuses that modal's own functions
+       * rather than restating them: a divergence between what a person can author and what an
+       * agent can is the very gap this op exists to close.
+       */
+      if (request.op === 'bindData') {
+        const node = byName(request.widget)
+        const outcome = bindData(request, node, node?.path ? files[node.path] : undefined, authoringNamespace)
+        if (!outcome.ok) {
+          refuse(outcome.error)
+          return
+        }
+        // The RESTAction FIRST, matching ObjectTreePanel's ordering: the widget's apiRef names it,
+        // and a widget pointing at a file the draft does not hold yet is briefly inconsistent.
+        if (outcome.created) { emitFileAdd(outcome.created) }
+        emitFileEdit({ content: outcome.yaml, path: outcome.path })
+        reply({ ok: true, paths: [outcome.path, ...(outcome.created ? [outcome.created.path] : [])] })
+        return
+      }
+
       const target = byName(request.target)
       if (!target) {
       // The target is a typo or a name from another draft — but what is being PLACED is still
@@ -454,6 +480,8 @@ const PageComposer = () => {
           plural = moving?.resource
         } else if (request.op === 'addExisting') {
           plural = request.resource
+        } else if (request.op === 'addWidget') {
+          plural = WIDGET_KINDS[request.kind]?.plural
         } else {
           plural = LAYOUT_KINDS[request.layout as keyof typeof LAYOUT_KINDS]
         }
@@ -467,6 +495,36 @@ const PageComposer = () => {
           return
         }
         reply(applyMove(moving, target, roots, request.at))
+        return
+      }
+      /*
+       * CREATING A WIDGET — the agent's palette drop, and the op whose absence caused the bug this
+       * branch set exists to prevent.
+       *
+       * Validated the way `addContainer` validates its layout and for the same reason: a proposal
+       * can name anything. The kind is resolved against the GENERATED CRD table rather than a list
+       * written here, so a kind added to the chart is placeable by an agent with no code change —
+       * the same property the palette has.
+       *
+       * REQUIRED ARRAYS DEFAULT TO EMPTY, matching what the drop form does for a person. A Table's
+       * `columns` and a chart's `data` are the fields `widgetDataTemplate` fills from a
+       * RESTAction's result, so demanding them here would force the agent to hand-write the very
+       * thing it is about to bind — and fourteen of the forty-four kinds would be uncreatable
+       * again, this time only for the agent.
+       */
+      if (request.op === 'addWidget') {
+        const authored = authorWidget(request, (name) => !!byName(name))
+        if (!authored.ok) {
+          refuse(authored.error)
+          return
+        }
+        reply(applyAdd(target, request.at, {
+          authored: authored.authored,
+          kind: 'new',
+          name: request.name,
+          resource: authored.resource,
+          widgetKind: authored.kind,
+        }))
         return
       }
       if (request.op === 'addContainer') {

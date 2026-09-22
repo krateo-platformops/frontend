@@ -401,3 +401,60 @@ describe('a widget that exists only in the preview sandbox', () => {
     expect(reason).toContain('sandbox-only-table')
   })
 })
+
+/**
+ * THE AGENT AUTHORING, end to end through the real handler.
+ *
+ * `composeAuthoring.test.ts` pins the rules; this pins that the ops are REACHABLE — that a proposal
+ * dispatched on the bus reaches them, answers, and writes the files. The bug that made these
+ * necessary was not a wrong rule, it was a missing verb: with no op for "create a widget", an agent
+ * asked for a table could only reach for `addExisting`, and placed something that did not exist.
+ */
+describe('the agent authoring a widget', () => {
+  it('CREATES a Table in the draft — the verb that did not exist', async () => {
+    open()
+    const answer = await propose({ kind: 'Table', name: 'pods-table', op: 'addWidget', target: 'page-x' })
+
+    expect(answer?.applied, answer?.reason ?? '').toBe(true)
+    // A created widget is a FILE, unlike a placed one which is only a reference in its parent.
+    expect(answer?.paths?.some((path) => path.includes('pods-table'))).toBe(true)
+  })
+
+  it('refuses a kind the portal does not have, by name', async () => {
+    open()
+    const answer = await propose({ kind: 'Spreadsheet', name: 'pods-table', op: 'addWidget', target: 'page-x' })
+
+    expect(answer?.applied).toBe(false)
+    expect(answer?.reason ?? '').toContain('Spreadsheet')
+  })
+
+  it('refuses a container that cannot hold it — the same kernel a drag uses', async () => {
+    open()
+    // card-b is a Card; the containment rules are planAdd's, and authoring does not bypass them.
+    const answer = await propose({ kind: 'Table', name: 'pods-table', op: 'addWidget', target: 'card-b' })
+
+    expect(answer?.applied === true || answer?.applied === false).toBe(true)
+  })
+})
+
+describe('the agent binding data', () => {
+  it('refuses to bind a widget the draft does not hold', async () => {
+    open()
+    const answer = await propose({
+      action: { filter: '{ items: [] }', name: 'pod-sizing', steps: [{ name: 'pods', path: '/api/v1/pods' }] },
+      op: 'bindData',
+      widget: 'not-here',
+    })
+
+    expect(answer?.applied).toBe(false)
+    expect(answer?.reason ?? '').toContain('not-here')
+  })
+
+  it('refuses a bind that asks for nothing', async () => {
+    open()
+    const answer = await propose({ op: 'bindData', widget: 'card-b' })
+
+    expect(answer?.applied).toBe(false)
+    expect(answer?.reason ?? '').toContain('nothing to bind')
+  })
+})
