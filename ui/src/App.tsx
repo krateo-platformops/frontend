@@ -7,13 +7,14 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { App as AntdApp, Spin } from 'antd'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 
 import '../index.css'
 import './widgets/load'
 
 import styles from './App.module.css'
+import { onPreviewApplied } from './components/Autopilot/previewApplied'
 import FiltersProvider from './components/FiltesProvider/FiltersProvider'
 import { ConfigProvider, useConfigContext } from './context/ConfigContext'
 import { RoutesProvider, useRoutesContext } from './context/RoutesContext'
@@ -37,6 +38,13 @@ const AppInitializer: React.FC = () => {
 
   // Pipe the SSE event firehose into the live-refresh registry, once, for the app's lifetime.
   useLiveRefreshFirehose()
+
+  // A preview apply changes what the sandbox SERVES without changing the URL the rendered pane
+  // FETCHES, so the widget cache has to be told or the pane keeps answering from it. Subscribed
+  // HERE because this is inside QueryClientProvider and the apply is not — see previewApplied.
+  useEffect(() => onPreviewApplied(() => {
+    void queryClient.invalidateQueries({ queryKey: ['widgets'] })
+  }), [])
 
   // Use useMemo to recreate router only when routes or routeVersion changes
   const router = useMemo(() => {

@@ -26,6 +26,7 @@ import type { BlueprintDraftStore } from './blueprintDraftStore'
 import { clearComposeRefusals } from './composeRequest'
 import { draftHistory } from './draftHistory'
 import { pageDisplayName, pageDraftWidgets } from './pageDraft'
+import { emitPreviewApplied } from './previewApplied'
 import { buildPagePreviewPayload } from './previewBridge'
 import { openAutopilotPreview } from './previewBus'
 import { emitDraftChanged, onDraftReplayRequest } from './previewDraftChanged'
@@ -102,7 +103,12 @@ export const useDraftFileBuses = (
       }
       // Failures are the apply path's to report — it already turns one into a visible chip. What
       // must NOT happen here is an unhandled rejection taking the composer down with it.
-      void Promise.resolve(previewLive(widgets, pageDisplayName(held.files))).catch(() => undefined)
+      //
+      // The announcement is what makes the RENDER follow: the apply changed what the sandbox
+      // serves, and the pane's query is keyed on a URL that did not change. See previewApplied.
+      void Promise.resolve(previewLive(widgets, pageDisplayName(held.files)))
+        .then(() => { emitPreviewApplied() })
+        .catch(() => undefined)
     }, REAPPLY_DEBOUNCE_MS)
   }, [previewLive, store])
 
