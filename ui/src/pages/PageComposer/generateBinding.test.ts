@@ -144,22 +144,54 @@ describe('generateBinding — the pair', () => {
   })
 })
 
-describe('validateBinding — what the author types never reaches the jq unchecked', () => {
+describe('validateBinding — the author may write an expression; it may not escape the wrapper', () => {
+  /*
+   * THIS CONTRACT INVERTED, deliberately, and the old one is worth stating because it was wrong
+   * for a stated reason rather than by accident.
+   *
+   * It used to refuse every pipe, function and piece of arithmetic, on the grounds that a bad
+   * expression would leave the author "debugging generated code they did not write". Measured
+   * against the live server, that premise is false: snowplow answers a malformed filter with
+   *   unable to resolve filter: invalid jq query "{ rows: [ ... | { c1: } ] }": unexpected token "}"
+   * and a runtime fault with
+   *   unable to resolve filter: expected an object but got: string ("kagent-ui-...")
+   * — the query quoted, the token named, the offending value named. `readErrorDetail` already
+   * hoists that onto the error and `WidgetRenderer` already prefers it over the HTTP phrase, so the
+   * author reads the server's own words in the live preview.
+   *
+   * What remains refused is CONTAINMENT, not taste: the expression is interpolated inside
+   * `(try ( … ) catch null)`, and a balanced expression cannot reach past those parens whatever it
+   * contains.
+   */
   it.each([
-    ['a pipe', '.metadata.name | halt'],
-    ['a function call', 'input_line_number'],
-    ['arithmetic', '.a + .b'],
-    ['an alternative', '.a // "x"'],
-    ['a closing paren', '.a) | .b'],
-    ['a bare identifier', 'metadata.name'],
+    ['a pipe', '.metadata.name | ascii_downcase'],
+    ['a function call', '(.spec.replicas // 0) | tostring'],
+    ['arithmetic', '(.status.ready // 0) - (.status.desired // 0)'],
+    ['an alternative', '.a // "n/a"'],
+    ['an if/then/else', 'if .status.phase == "Running" then "up" else "down" end'],
+    ['an array construction', '[.spec.containers[].name] | join(", ")'],
+  ])('ACCEPTS %s — being wrong is the server\'s job to report, not the form\'s', (_label, path) => {
+    expect(validateBinding(input({ columns: { Good: path } }))).toBeNull()
+  })
+
+  it.each([
+    ['a closing paren that escapes the wrapper', '.a) | .b'],
+    ['a fabricated sibling key', '1) } ], evil: (2'],
+    ['an unclosed bracket', '.spec.containers[0'],
+    ['an unclosed brace', '{ a: .b'],
+    ['an unterminated string', '.metadata.labels["krateo'],
     ['empty', ''],
     // A backslash passes a quote-only check — it is an ordinary character to the regex — and then
     // escapes the closing quote inside the generated program, so jq fails to compile.
     ['a backslash in a quoted key', '.["a\\"]'],
-  ])('refuses %s by name rather than generating broken jq', (_label, path) => {
+  ])('refuses %s — it would rewrite the generated program', (_label, path) => {
     const error = validateBinding(input({ columns: { Bad: path } }))
 
-    expect(error).toContain('not a supported field path')
+    expect(error).toContain('unbalanced')
+  })
+
+  it('refuses a control character, which would break the generated line', () => {
+    expect(validateBinding(input({ columns: { Bad: '.a\nevil' } }))).toContain('unbalanced')
   })
 
   it.each([
@@ -195,8 +227,12 @@ describe('validateBinding — what the author types never reaches the jq uncheck
 
   it('generateBinding refuses too, not just validateBinding', () => {
     // The guard belongs on the generator as well: a caller that forgets to validate must not be
-    // able to produce a broken filter.
-    expect(generateBinding(input({ columns: { Bad: '.a | halt' } })).ok).toBe(false)
+    // able to produce a filter that rewrites the program around it.
+    //
+    // The example is UNBALANCED rather than merely exotic. `.a | halt` used to serve here and no
+    // longer refuses — it is contained, so it reaches the server, aborts the filter, and comes back
+    // as a message the preview shows. That is the new contract working, not a hole in it.
+    expect(generateBinding(input({ columns: { Bad: '.a) | .b' } })).ok).toBe(false)
   })
 })
 

@@ -11,9 +11,12 @@
  * the author will paste from a `kubectl -o json` anyway, and it round-trips with what the Files tab
  * shows. A grid of inputs would be more chrome for the same information.
  *
- * VALIDATION IS THE FEATURE. What the author types lands inside a generated jq program, so the form
- * refuses anything outside a conservative path subset BY NAME rather than letting it become a
- * syntax error in code they did not write.
+ * CONTAINMENT IS THE FEATURE; CORRECTNESS IS THE SERVER'S. What the author types lands inside a
+ * generated jq program, so the form refuses anything that could reach PAST the parentheses it is
+ * wrapped in — an unbalanced bracket rewrites the program around it. It no longer refuses
+ * expressions for being expressions. It used to, on the grounds that a mistake would leave the
+ * author debugging code they never saw; snowplow disproves that by quoting the query and naming
+ * the token, and the live preview shows them those words. See `isContainedExpression`.
  */
 import { Alert, Form, Input, Modal, Select, Typography } from 'antd'
 import { useState } from 'react'
@@ -177,7 +180,7 @@ export const BindDataModal = ({ namespace, onCancel, onGenerate, open }: {
           <Input onChange={(event) => setItemsAt(event.target.value)} value={itemsAt} />
         </Form.Item>
         <Form.Item
-          help='Column heading to the field it reads, as JSON. Paths only — .metadata.name, .status.conditions[0].type.'
+          help='Column heading to what it reads, as JSON. A field path like .metadata.name, or an expression — [.spec.containers[].name] | join(", "). If it does not resolve, the preview shows what the server said.'
           label='Columns'
           required
         >

@@ -113,6 +113,82 @@ const DUMP = { lineWidth: -1, noRefs: true } as const
  */
 const FIELD_PATH = /^\.(?:[A-Za-z_][A-Za-z0-9_]*|\["[^"\\\]]*"\]|\[\d+\])(?:\.[A-Za-z_][A-Za-z0-9_]*|\["[^"\\\]]*"\]|\[\d+\])*$/
 
+/** Longest a column expression may be. Generous for a real expression, short of a program. */
+const MAX_EXPRESSION = 500
+
+/**
+ * Is this expression CONTAINED — can it only ever be the inside of the parentheses we wrap it in?
+ *
+ * WHY THIS REPLACED "A DOTTED PATH AND NOTHING ELSE". The old rule rejected every pipe, function
+ * and piece of arithmetic, and justified it like this: "everything this rejects is something the
+ * author would have to debug inside generated code they did not write; a named refusal at the form
+ * is a better failure."
+ *
+ * That premise is FALSE, and the codebase disproves it two layers down. snowplow returns the fault
+ * precisely — measured against the live server:
+ *
+ *   {"message":"unable to resolve filter: invalid jq query \"{ rows: [ ... | { c1: } ] }\":
+ *              unexpected token \"}\"", "code":500}
+ *   {"message":"unable to resolve filter: expected an object but got: string (\"kagent-ui-...\")"}
+ *
+ * — it quotes the query, names the token, and for a runtime fault names the offending VALUE. And
+ * `useWidgetQuery.readErrorDetail` already hoists that message onto the error, which
+ * `WidgetRenderer` already PREFERS over the generic HTTP phrase. So the author is not debugging
+ * blind: the live preview shows them what the server said, in the server's words.
+ *
+ * WHAT IS STILL REFUSED, and why it is not a style rule. The expression is interpolated into a
+ * generated program, inside `(try ( … ) catch null)`. A BALANCED expression cannot reach past those
+ * parentheses whatever it contains. An unbalanced one can: `1) } ], evil: (2` closes the wrapper,
+ * the object and the array, and then writes the rest of the program. That is the only thing this
+ * check is for — containment, not taste — so it counts delimiters outside string literals and says
+ * nothing about whether the jq is any good. Being wrong is now the server's job to report.
+ *
+ * The quote scan honours backslash escapes for the reason the old comment gave: `.["a\\"]` passes a
+ * naive quote count, then escapes the closing quote inside the generated program.
+ */
+export const isContainedExpression = (value: string): boolean => {
+  if (!value.trim() || value.length > MAX_EXPRESSION) {
+    return false
+  }
+  // A control character cannot appear in a useful expression and can break the generated line.
+  // Compared by code point rather than by a regex class, which the lint reads as a literal control
+  // character in the source — the check is about the VALUE, not about this file's bytes.
+  if ([...value].some((char) => (char.codePointAt(0) ?? 0) < 0x20)) {
+    return false
+  }
+  const closers: Record<string, string> = { '(': ')', '[': ']', '{': '}' }
+  const stack: string[] = []
+  let inString = false
+  let escaped = false
+  for (const char of value) {
+    if (escaped) {
+      escaped = false
+      continue
+    }
+    if (char === '\\') {
+      escaped = true
+      continue
+    }
+    if (inString) {
+      if (char === '"') {
+        inString = false
+      }
+      continue
+    }
+    if (char === '"') {
+      inString = true
+    } else if (char in closers) {
+      stack.push(closers[char])
+    } else if (char === ')' || char === ']' || char === '}') {
+      if (stack.pop() !== char) {
+        return false
+      }
+    }
+  }
+
+  return !inString && !escaped && stack.length === 0
+}
+
 /** `.items`, `.` (the response IS the array), or a nested path to one. */
 const isItemsPath = (value: string): boolean => value === '.' || FIELD_PATH.test(value)
 
@@ -141,8 +217,10 @@ export const validateBinding = (input: BindingInput): string | null => {
     if (!title.trim()) {
       return 'every column needs a title — it is the header the reader sees'
     }
-    if (!FIELD_PATH.test(path)) {
-      return `"${path}" (${title}) is not a supported field path — use forms like .metadata.name or .status.conditions[0].type`
+    if (!FIELD_PATH.test(path) && !isContainedExpression(path)) {
+      // Named for WHAT IS WRONG. The only structural rule left is balance, so say that rather than
+      // implying the expression is too clever — it is almost always a missing bracket.
+      return `"${path}" (${title}) has unbalanced brackets or quotes — a column expression must close everything it opens`
     }
   }
   return null
