@@ -65,34 +65,32 @@ const asRecord = (value: unknown): Record<string, unknown> | null =>
   ((typeof value === 'object' && value !== null && !Array.isArray(value)) ? value as Record<string, unknown> : null)
 
 /**
- * Read `page-composable`'s widget list.
- *
- * `namespace` is both the RA's own namespace and — because the RA hardcodes
- * `{{ .Release.Namespace }}` in every step path — the namespace the listed widgets live in. The two
- * coincide today; a caller must not assume they always will, which is why the placed entry's
- * namespace is taken from here rather than from the draft.
+ * One listing, parameterised by category — widgets and RESTActions differ only in which category
+ * they declare and in what to call them when the call fails.
  */
-export const listPlaceableWidgets = async (
+const listPlaceableByCategory = async (
   snowplowBaseUrl: string,
   namespace: string,
+  category: string,
+  noun: string,
 ): Promise<PlaceableResult> => {
   try {
     const url = new URL(`${snowplowBaseUrl.replace(/\/+$/, '')}/list`)
-    url.searchParams.set('category', WIDGET_CATEGORY)
+    url.searchParams.set('category', category)
     url.searchParams.set('ns', namespace)
     const response = await fetch(url.toString(), { headers: { ...authHeader() } })
     if (response.status === 403) {
       // The user may not list these. Said plainly, because an empty picker that does not explain
       // itself is the failure this module exists to avoid.
-      return { error: 'you may not list widgets in this namespace', ok: false }
+      return { error: `you may not list ${noun} in this namespace`, ok: false }
     }
     if (!response.ok) {
-      return { error: `could not list widgets — snowplow responded ${response.status}`, ok: false }
+      return { error: `could not list ${noun} — snowplow responded ${response.status}`, ok: false }
     }
     // /list encodes a bare ARRAY of unstructured objects — not an envelope, and not a k8s List.
     const items = await response.json().catch(() => null) as unknown
     if (!Array.isArray(items)) {
-      return { error: 'the widget list came back in a shape this build does not understand', ok: false }
+      return { error: `the ${noun} list came back in a shape this build does not understand`, ok: false }
     }
     const widgets: PlaceableWidget[] = []
     for (const entry of items) {
@@ -114,3 +112,32 @@ export const listPlaceableWidgets = async (
     return { error: `could not reach snowplow — ${error instanceof Error ? error.message : String(error)}`, ok: false }
   }
 }
+
+/**
+ * Read `page-composable`'s widget list.
+ *
+ * `namespace` is both the RA's own namespace and — because the RA hardcodes
+ * `{{ .Release.Namespace }}` in every step path — the namespace the listed widgets live in. The two
+ * coincide today; a caller must not assume they always will, which is why the placed entry's
+ * namespace is taken from here rather than from the draft.
+ */
+export const listPlaceableWidgets = async (
+  snowplowBaseUrl: string,
+  namespace: string,
+): Promise<PlaceableResult> => listPlaceableByCategory(snowplowBaseUrl, namespace, WIDGET_CATEGORY, 'widgets')
+
+/**
+ * The CATEGORY every RESTAction CRD declares — `categories: [krateo, rest, actions]`.
+ *
+ * A RESTAction is discovered exactly the way a widget is, by the same endpoint under the same
+ * RBAC, because it is an ordinary CRD in a category. The composer treated widgets as the only
+ * placeable thing, which is why a page's DATA could only ever come from the three-question
+ * bind-data form — not because the platform said so, but because nothing else was ever offered.
+ */
+export const ACTION_CATEGORY = 'actions'
+
+/** List the RESTActions the caller may see in a namespace — the `apiRef` picker's left half. */
+export const listPlaceableActions = async (
+  snowplowBaseUrl: string,
+  namespace: string,
+): Promise<PlaceableResult> => listPlaceableByCategory(snowplowBaseUrl, namespace, ACTION_CATEGORY, 'RESTActions')
