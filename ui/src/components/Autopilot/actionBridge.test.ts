@@ -231,19 +231,21 @@ describe('a compose chip never claims an outcome the composer did not report', (
   it('awaits the composer on every compose call site', () => {
     const bridge = railSource('actionBridge.ts')
     const calls = [...bridge.matchAll(/requestCompose\(/g)]
-    expect(calls.length, 'compose call sites changed — re-point this tripwire').toBe(3)
+    // Five: move, addContainer, addWidget, addExisting, bindData. The last two arrived with the
+    // agent's authoring verbs and are held to the same contract as the three that predate them.
+    expect(calls.length, 'compose call sites changed — re-point this tripwire').toBe(5)
     // Every one of them is awaited into a result. A bare `requestCompose({...})` is fire-and-forget.
-    expect([...bridge.matchAll(/await requestCompose\(/g)]).toHaveLength(3)
+    expect([...bridge.matchAll(/await requestCompose\(/g)]).toHaveLength(5)
   })
 
   it('gates each success label behind result.applied', () => {
     const branches = composeBranches()
-    expect(branches.length, 'compose call sites changed — re-point this tripwire').toBe(3)
+    expect(branches.length, 'compose call sites changed — re-point this tripwire').toBe(5)
     for (const branch of branches) {
       expect(branch).toMatch(/if \(!result\.applied\) \{/)
       // Every refusal goes through the one helper, which is where the reason and the alternatives
       // are assembled. A branch hand-rolling its own `refused(...)` would skip both.
-      expect(branch).toMatch(/return composeRefusal\('compose(Move|Add)', result, '[^']+'\)/)
+      expect(branch).toMatch(/return composeRefusal\('compose(Move|Add|Bind)', result, '[^']+'\)/)
     }
   })
 
@@ -261,5 +263,58 @@ describe('a compose chip never claims an outcome the composer did not report', (
     const helper = /const composeRefusal = [\s\S]{0,600}?\n\}/.exec(railSource('actionBridge.ts'))
     expect(helper![0]).toMatch(/result\.where\?\.length/)
     expect(helper![0]).toMatch(/result\.where\.join/)
+  })
+})
+
+/**
+ * THE AUTHORING DIRECTIVES — the bridge half of the verb that did not exist.
+ *
+ * `composeAdd` could create a CONTAINER or place an EXISTING widget. Neither is "make a Table", so
+ * an agent asked for one reached for the place arm and named a widget that was not there; the page
+ * published clean with a hole in it.
+ *
+ * Structural, like the rest of this file, because `apply` is a hook and there is no assembly step
+ * to call. The ops' own RULES are pinned behaviourally in composeAuthoring.test.ts and
+ * PageComposer.agent.test.tsx; what these assert is that the directive can reach them at all.
+ */
+describe('the authoring directives reach the composer', () => {
+  const bridge = () => railSource('actionBridge.ts')
+
+  it('routes a composeAdd carrying a KIND to the addWidget op', () => {
+    const source = bridge()
+    expect(source).toMatch(/if \(proposal\.kind\)/)
+    expect(source).toMatch(/op: 'addWidget'/)
+    // …and carries the widgetData through, or the CRD's required fields never arrive.
+    expect(source).toMatch(/widgetData: proposal\.widgetData/)
+  })
+
+  it('checks KIND before the place arm — a proposal naming a kind is unambiguously a creation', () => {
+    const source = bridge()
+    expect(source.indexOf("if (proposal.kind)")).toBeLessThan(source.indexOf("proposal.name && proposal.resource"))
+  })
+
+  it('refuses a create with no name, since the name becomes the CR name', () => {
+    expect(bridge()).toMatch(/creating a widget needs a name/)
+  })
+
+  it('routes composeBind to the bindData op with every part of the binding', () => {
+    const source = bridge()
+    expect(source).toMatch(/proposal\.verb === 'composeBind'/)
+    expect(source).toMatch(/op: 'bindData'/)
+    for (const part of ['action: proposal.action', 'actionRef: proposal.actionRef',
+      'dataTemplate: proposal.dataTemplate', 'refsTemplate: proposal.refsTemplate']) {
+      expect(source, part).toContain(part)
+    }
+  })
+
+  it('still names all three arms in its ambiguity refusal', () => {
+    // The refusal is what an agent reads when it guessed wrong, so it has to list what IS on offer
+    // — otherwise the only way to discover the new verb is to already know it.
+    // Anchored on 'a layout kind', not just 'an add needs' — there are two refusals starting that
+    // way and the shorter one (a missing target) matches first under a non-greedy scan.
+    const refusal = (/'an add needs a layout kind[^']*'/.exec(bridge()) ?? [''])[0]
+    expect(refusal).toContain('layout kind')
+    expect(refusal).toContain('widget kind')
+    expect(refusal).toContain('existing widget')
   })
 })

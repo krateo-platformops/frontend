@@ -207,9 +207,23 @@ export interface PortalActionProposal {
    *  Omitted means the end, exactly as dropping onto the container rather than between two of
    *  its children does. */
   at?: number
-  /** composeAdd: the layout kind to CREATE (Row, Col, Flex, Card, Tabs). Exactly one of `layout`
-   *  or (`name` + `resource`) — creating and placing are different operations. */
+  /** composeAdd: the layout kind to CREATE (Row, Col, Flex, Card, Tabs). Exactly one of `layout`,
+   *  `kind`, or (`name` + `resource`) — creating and placing are different operations. */
   layout?: string
+  /** composeAdd: the WIDGET kind to create (Table, BarChart, Statistic — any of the forty-four).
+   *  The agent's palette drop; `widgetData` carries the CRD's own required fields. */
+  kind?: string
+  /** composeAdd: the new widget's `widgetData`, in the CRD's own shape. Required LISTS may be
+   *  omitted — the composer defaults them, exactly as the drop form does for a person. */
+  widgetData?: Record<string, unknown>
+  /** composeBind: the RESTAction to author — `{name, steps:[{name,path,verb?,dependsOn?}], filter}`. */
+  action?: { name: string; steps: { name: string; path: string; verb?: string; dependsOn?: string }[]; filter: string }
+  /** composeBind: an existing RESTAction to point at instead of authoring one. */
+  actionRef?: { name: string; namespace?: string }
+  /** composeBind: `widgetDataTemplate` entries — which widgetData path each jq expression fills. */
+  dataTemplate?: { forPath: string; expression: string }[]
+  /** composeBind: `resourcesRefsTemplate` entries — children generated one per item. */
+  refsTemplate?: { iterator: string; template: { resource?: string; name?: string } }[]
   /** composeMove / composeAdd: the CRD plural of the thing being placed. */
   resource?: string
   /** previewBlueprint (Wave 4): the chart to helm-render dry-run ({url, version?,
@@ -560,6 +574,31 @@ export const useAutopilotActionBridge = () => {
         }
         return { label: `Added a ${proposal.layout} inside ${proposal.target}`, readOnly: true, verb: 'composeAdd' }
       }
+      /*
+       * CREATING A WIDGET — the arm whose absence made this verb answer the wrong question.
+       *
+       * With only `layout` and `name`+`resource`, an agent asked for "a table of pods" had no way
+       * to say "make one". It said "place one", named a Table that did not exist, and the page
+       * published clean with a hole in it. Checked BEFORE the place arm because a proposal that
+       * carries `kind` is unambiguously a creation, whatever else it carries.
+       */
+      if (proposal.kind) {
+        if (!proposal.name) {
+          return refused('composeAdd', 'creating a widget needs a name for it — it becomes the CR\'s name')
+        }
+        const result = await requestCompose({
+          at: proposal.at,
+          kind: proposal.kind,
+          name: proposal.name,
+          op: 'addWidget',
+          target: proposal.target,
+          widgetData: proposal.widgetData,
+        })
+        if (!result.applied) {
+          return composeRefusal('composeAdd', result, 'the composer did not create the widget')
+        }
+        return { label: `Created a ${proposal.kind} named ${proposal.name} inside ${proposal.target}`, readOnly: true, verb: 'composeAdd' }
+      }
       if (proposal.name && proposal.resource) {
         const result = await requestCompose({ at: proposal.at, name: proposal.name, op: 'addExisting', resource: proposal.resource, target: proposal.target })
         if (!result.applied) {
@@ -567,10 +606,37 @@ export const useAutopilotActionBridge = () => {
         }
         return { label: `Placed ${proposal.name} inside ${proposal.target}`, readOnly: true, verb: 'composeAdd' }
       }
-      // Ambiguous is refused rather than guessed: creating a container and placing an existing
-      // widget write different things, and inferring which was meant is how a proposal silently
-      // creates a file nobody asked for.
-      return refused('composeAdd', 'an add needs either a layout kind to create, or the name and resource of an existing widget')
+      // Ambiguous is refused rather than guessed: creating a container, creating a widget and
+      // placing an existing one write different things, and inferring which was meant is how a
+      // proposal silently creates a file nobody asked for.
+      return refused('composeAdd', 'an add needs a layout kind to create, a widget kind plus a name to create, or the name and resource of an existing widget')
+    }
+
+    /*
+     * POINTING A WIDGET AT ITS DATA — the agent's half of the Data modal.
+     *
+     * Creating a Table is half an answer: a Table with no `apiRef` renders an empty frame. This
+     * authors the RESTAction (or names one that exists), sets `apiRef`, and fills
+     * `widgetDataTemplate` / `resourcesRefsTemplate`. Like the other compose verbs it names the
+     * INTENT and lets the composer decide — the bytes are not computed here.
+     */
+    if (proposal.verb === 'composeBind') {
+      if (!proposal.widget) {
+        return refused('composeBind', 'binding data needs the widget to bind, by CR name')
+      }
+      const result = await requestCompose({
+        action: proposal.action,
+        actionRef: proposal.actionRef,
+        dataTemplate: proposal.dataTemplate,
+        op: 'bindData',
+        refsTemplate: proposal.refsTemplate,
+        widget: proposal.widget,
+      })
+      if (!result.applied) {
+        return composeRefusal('composeBind', result, 'the composer did not bind the data')
+      }
+      const source = proposal.action ? proposal.action.name : (proposal.actionRef?.name ?? 'its templates')
+      return { label: `Bound ${proposal.widget} to ${source}`, readOnly: true, verb: 'composeBind' }
     }
 
     if (proposal.verb === 'runAction') {
