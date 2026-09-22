@@ -5,7 +5,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { listPlaceableWidgets } from './placeableWidgets'
+import { listPlaceableActions, listPlaceableWidgets } from './placeableWidgets'
 
 const respond = (body: unknown, ok = true, status = 200) => {
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
@@ -105,5 +105,69 @@ describe('listPlaceableWidgets', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))))
 
     await expect(listPlaceableWidgets('http://snowplow', 'krateo-system')).resolves.toMatchObject({ ok: false })
+  })
+})
+
+describe('listPlaceableActions — the RESTAction picker', () => {
+  /*
+   * THE PICKER WAS EMPTY AND NOTHING SAID SO. The listing returned 85 objects with HTTP 200 and the
+   * dropdown showed none, because the parse resolved a row's plural through `WIDGET_KINDS` — the
+   * generated table of the forty-four WIDGET kinds. RESTAction is not one of them: it belongs to
+   * templates.krateo.io, from snowplow's chart, while the generator reads helm/frontend-crds. So
+   * every row failed the name-and-plural guard and was dropped silently.
+   *
+   * Silently is the operative word. An empty picker is exactly what an empty namespace looks like,
+   * so there was no error to see and no symptom to chase — which is why this is pinned by the
+   * SHAPE of a real listing response rather than by a hand-written row that happens to pass.
+   */
+  const restActionRow = (name: string) => ({
+    apiVersion: 'templates.krateo.io/v1',
+    kind: 'RESTAction',
+    metadata: { name, namespace: 'krateo-system' },
+    spec: { api: [] },
+  })
+
+  it('keeps RESTActions, which the widget table can never resolve', async () => {
+    respond([restActionRow('pod-sizing'), restActionRow('platform-alerts')])
+    const result = await listPlaceableActions('http://snowplow.test', 'krateo-system')
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.widgets).toEqual([
+        { name: 'pod-sizing', resource: 'restactions' },
+        { name: 'platform-alerts', resource: 'restactions' },
+      ])
+    }
+  })
+
+  it('asks for the ACTIONS category — the one the RESTAction CRD declares', async () => {
+    respond([])
+    await listPlaceableActions('http://snowplow.test', 'krateo-system')
+
+    const url = String((globalThis.fetch as unknown as { mock: { calls: string[][] } }).mock.calls[0][0])
+    expect(url).toContain('category=actions')
+    expect(url).toContain('ns=krateo-system')
+  })
+
+  it('drops a row of some OTHER kind rather than mislabelling it a RESTAction', async () => {
+    // The category is snowplow's, not ours: if something else ever declares it, a fixed plural
+    // would place a child its parent cannot render.
+    respond([{ apiVersion: 'x/v1', kind: 'Something', metadata: { name: 'n' } }])
+    const result = await listPlaceableActions('http://snowplow.test', 'krateo-system')
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.widgets).toEqual([])
+    }
+  })
+
+  it('names RESTActions in its refusal, not "widgets"', async () => {
+    respond([], false, 403)
+    const result = await listPlaceableActions('http://snowplow.test', 'krateo-system')
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toContain('RESTActions')
+    }
   })
 })
