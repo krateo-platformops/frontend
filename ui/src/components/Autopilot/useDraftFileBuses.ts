@@ -20,11 +20,12 @@
  * draft's identity; a refused one arms nothing, so publishing stays deny-by-default. The bytes that
  * publish are the bytes a human produced — neither path round-trips the model.
  */
-import { useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 import type { BlueprintDraftStore } from './blueprintDraftStore'
 import { clearComposeRefusals } from './composeRequest'
 import { draftHistory } from './draftHistory'
+import { pageDisplayName, pageDraftWidgets } from './pageDraft'
 import { buildPagePreviewPayload } from './previewBridge'
 import { openAutopilotPreview } from './previewBus'
 import { emitDraftChanged, onDraftReplayRequest } from './previewDraftChanged'
@@ -34,6 +35,13 @@ import { onFileAdd } from './previewFileAdd'
 import { onFileEdit } from './previewFileEdit'
 import { onFileRemove } from './previewFileRemove'
 import { recordPagePreview } from './publishCompile'
+
+/**
+ * How long a burst of writes settles before the sandbox is re-applied. One gesture is several
+ * emissions — a container drop adds a file and rewrites its parent — so this is the window that
+ * turns a drag into one apply instead of three.
+ */
+const REAPPLY_DEBOUNCE_MS = 700
 
 /** The slice of the preview gate this hook needs — narrowed so tests need not build a whole gate. */
 interface PreviewGateLike {
@@ -53,6 +61,58 @@ export const useDraftFileBuses = (
    */
   previewLive?: (widgets: Record<string, unknown>[], title: string) => Promise<unknown>,
 ): void => {
+  /*
+   * RE-APPLY: what makes "Rendered (live)" actually live.
+   *
+   * The sandbox was seeded ONCE — `previewPage` on draft start — and never again. Every later
+   * change went through the three handlers below, each of which updates the held store, pushes an
+   * undo step and re-arms the publish gate, and NONE of which told the sandbox anything. Measured
+   * on a live cluster: after dragging a Row onto the canvas and binding a Table to a RESTAction,
+   * the sandbox held exactly the two objects the draft started with. The Row was in the tree, in
+   * the files and in the publish set, and absent from the thing labelled "Rendered (live)"; the
+   * RESTAction and the Table answered 404. The preview was not stale by a little — it was a
+   * snapshot of a draft that no longer existed, and nothing anywhere said so.
+   *
+   * DEBOUNCED, because one gesture is several writes. A container drop adds a file AND rewrites its
+   * parent; a bind adds two files and edits a third. Applying per-emission would fire three sandbox
+   * sweeps for one drag, each tearing down and recreating the same names, and the last one would
+   * race the first. One apply per settled burst is both correct and cheaper.
+   *
+   * THE SAME VERB, not a second implementation: `previewLive` is the host's own `previewPage`, with
+   * its sweep, its ≤10-op chunking and its safety kernel. Absent (unit tests, a non-UI caller) this
+   * is inert and the hook behaves exactly as it did.
+   */
+  const replayTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scheduleReapply = useCallback(() => {
+    if (!previewLive) {
+      return
+    }
+    if (replayTimer.current) {
+      clearTimeout(replayTimer.current)
+    }
+    replayTimer.current = setTimeout(() => {
+      replayTimer.current = null
+      const held = store.get()
+      if (!held) {
+        return
+      }
+      const widgets = pageDraftWidgets(held.files)
+      if (!widgets.length) {
+        return
+      }
+      // Failures are the apply path's to report — it already turns one into a visible chip. What
+      // must NOT happen here is an unhandled rejection taking the composer down with it.
+      void Promise.resolve(previewLive(widgets, pageDisplayName(held.files))).catch(() => undefined)
+    }, REAPPLY_DEBOUNCE_MS)
+  }, [previewLive, store])
+
+  // Cancel in flight on unmount: a timer that fires after the composer is gone would apply a draft
+  // nobody is looking at, into a sandbox the close path may already have torn down.
+  useEffect(() => () => {
+    if (replayTimer.current) {
+      clearTimeout(replayTimer.current)
+    }
+  }, [])
   // EDIT: an accepted per-file edit from a Files tab.
   //
   // updateDisplayedFile, not updateFile: the surface shows a page at its repo DESTINATION while the
@@ -66,8 +126,9 @@ export const useDraftFileBuses = (
     if (store.updateDisplayedFile(path, content).ok) {
       if (before) { draftHistory.push(before) }
       gate.recordPreview(identityOf(store.get()))
+      scheduleReapply()
     }
-  }), [gate, identityOf, store])
+  }), [gate, identityOf, scheduleReapply, store])
 
   // ADD: a file the composer just authored — a layout container, a new widget.
   useEffect(() => onFileAdd(({ content, path }) => {
@@ -75,8 +136,9 @@ export const useDraftFileBuses = (
     if (store.addFile(path, content).ok) {
       if (before) { draftHistory.push(before) }
       gate.recordPreview(identityOf(store.get()))
+      scheduleReapply()
     }
-  }), [gate, identityOf, store])
+  }), [gate, identityOf, scheduleReapply, store])
 
   // Removal re-arms the gate exactly as an add or an edit does: the draft's identity has changed,
   // and a gate still armed for the previous shape would let a publish commit a set nobody previewed.
@@ -85,8 +147,9 @@ export const useDraftFileBuses = (
     if (store.removeFile(path).ok) {
       if (before) { draftHistory.push(before) }
       gate.recordPreview(identityOf(store.get()))
+      scheduleReapply()
     }
-  }), [gate, identityOf, store])
+  }), [gate, identityOf, scheduleReapply, store])
 
   // UNDO: put the whole tree back. `set` rather than a per-file replay, because the step being
   // undone may have added or removed files as well as changed them — a container drop does both.
@@ -98,8 +161,9 @@ export const useDraftFileBuses = (
     }
     if (store.set(previous, kind).ok) {
       gate.recordPreview(identityOf(store.get()))
+      scheduleReapply()
     }
-  }), [gate, identityOf, store])
+  }), [gate, identityOf, scheduleReapply, store])
 
   // REPLAY: a surface that mounted AFTER the draft was seeded missed the store's broadcast, so it
   // asks and we answer on the same bus. Answering with an empty map when nothing is held is
