@@ -406,6 +406,11 @@ spec:
                             type: object
                           type: array
                       type: object
+                    allowedResources:
+                      description: the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.
+                      items:
+                        type: string
+                      type: array
                     buttonConfig:
                       description: custom labels and icons for form buttons
                       properties:
@@ -531,11 +536,6 @@ spec:
                     submitDisabledWhenPristine:
                       description: when true, the primary (submit) button stays disabled until at least one field differs from its initial value (initialValues overlaid on schema defaults). Use for update forms where submitting an unchanged value is a no-op — e.g. a version picker pre-set to the currently-installed version.
                       type: boolean
-                    allowedResources:
-                      description: the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.
-                      items:
-                        type: string
-                      type: array
                   required:
                     - actions
                     - submitActionId
