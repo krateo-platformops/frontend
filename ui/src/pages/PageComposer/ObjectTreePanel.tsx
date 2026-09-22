@@ -540,10 +540,17 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
           />
         )
         : null}
-      {dataTarget?.path && files[dataTarget.path] && namespace
+      {/* `placeNamespace`, not `namespace`. A page draft holds the TEMPLATED namespace
+          (`{{ include "page.tierNamespace" ... }}`) in every file, and draftNamespace deliberately
+          skips anything containing `{{` — so it returns null for exactly the drafts this modal is
+          for, and the guard silently rendered nothing. The button appeared, the click set state,
+          and no modal came: the failure mode a unit test cannot see, because it never mounts the
+          component with realistic held files. The composer already resolved this the same way for
+          its own authoring path (`authoringNamespace`). */}
+      {dataTarget?.path && files[dataTarget.path]
         ? (
           <DataBindingModal
-            namespace={namespace}
+            namespace={placeNamespace}
             onCancel={() => setDataTarget(null)}
             onDone={({ restAction, widgetYaml }) => {
               // The RESTAction FIRST when there is one: the widget's apiRef names it, and a widget
