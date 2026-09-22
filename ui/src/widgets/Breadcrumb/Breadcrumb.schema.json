@@ -26,6 +26,13 @@
             "items"
           ],
           "properties": {
+            "allowedResources": {
+              "description": "the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
             "items": {
               "type": "array",
               "description": "antd Breadcrumb `items`",
@@ -201,7 +208,7 @@
             },
             "additionalProperties": false
           },
-          "description": "Generates resourcesRefs entries from the apiRef response \u2014 one per element the iterator yields \u2014 so a widget can reference a list whose length it does not know when authored."
+          "description": "Generates resourcesRefs entries from the apiRef response — one per element the iterator yields — so a widget can reference a list whose length it does not know when authored."
         }
       },
       "description": "The widget's contract: its own data, an optional binding to a RESTAction, the resources it references, and any templated overrides."

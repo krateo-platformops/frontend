@@ -23,12 +23,15 @@
           ],
           "additionalProperties": false,
           "properties": {
-            "prefix": {
-              "description": "the prefix used to share filter values with the widgets being filtered",
-              "type": "string"
+            "allowedResources": {
+              "description": "the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
             },
             "items": {
-              "description": "resourceRefIds of form-control widgets (Input/Select/Switch/DatePicker/\u2026) composed as filter fields. Each control's `name` is the dotted data path it filters; the match strategy is inferred from the value type.",
+              "description": "resourceRefIds of form-control widgets (Input/Select/Switch/DatePicker/…) composed as filter fields. Each control's `name` is the dotted data path it filters; the match strategy is inferred from the value type.",
               "type": "array",
               "items": {
                 "type": "object",
@@ -43,6 +46,10 @@
                   }
                 }
               }
+            },
+            "prefix": {
+              "description": "the prefix used to share filter values with the widgets being filtered",
+              "type": "string"
             }
           },
           "description": "The properties Filters renders. Where Filters wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them."
@@ -194,7 +201,7 @@
             },
             "additionalProperties": false
           },
-          "description": "Generates resourcesRefs entries from the apiRef response \u2014 one per element the iterator yields \u2014 so a widget can reference a list whose length it does not know when authored."
+          "description": "Generates resourcesRefs entries from the apiRef response — one per element the iterator yields — so a widget can reference a list whose length it does not know when authored."
         }
       },
       "required": [

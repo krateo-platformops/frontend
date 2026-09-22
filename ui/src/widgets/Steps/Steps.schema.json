@@ -22,9 +22,63 @@
           ],
           "additionalProperties": false,
           "properties": {
+            "allowedResources": {
+              "description": "the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
             "current": {
               "type": "integer",
               "description": "the index of the current step (0-based)"
+            },
+            "items": {
+              "type": "array",
+              "description": "the steps to display",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "title"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "the title of the step"
+                  },
+                  "eyebrow": {
+                    "type": "string",
+                    "description": "a short eyebrow label shown ABOVE the title (e.g. `Step 1`) — rendered mono/uppercase"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "the description of the step"
+                  },
+                  "subTitle": {
+                    "type": "string",
+                    "description": "the subtitle of the step"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "wait",
+                      "process",
+                      "finish",
+                      "error"
+                    ],
+                    "description": "the status of this step"
+                  },
+                  "icon": {
+                    "type": "string",
+                    "description": "a font awesome icon name for the step (eg: `fa-user`)"
+                  },
+                  "resourceRefId": {
+                    "type": "string",
+                    "description": "optional id of a widget to render inline below this step's description (e.g. an action button for the active step)"
+                  }
+                }
+              }
             },
             "orientation": {
               "type": "string",
@@ -68,53 +122,6 @@
                 "inline"
               ],
               "description": "the visual type of the steps"
-            },
-            "items": {
-              "type": "array",
-              "description": "the steps to display",
-              "items": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "title"
-                ],
-                "properties": {
-                  "title": {
-                    "type": "string",
-                    "description": "the title of the step"
-                  },
-                  "eyebrow": {
-                    "type": "string",
-                    "description": "a short eyebrow label shown ABOVE the title (e.g. `Step 1`) \u2014 rendered mono/uppercase"
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "the description of the step"
-                  },
-                  "subTitle": {
-                    "type": "string",
-                    "description": "the subtitle of the step"
-                  },
-                  "status": {
-                    "type": "string",
-                    "enum": [
-                      "wait",
-                      "process",
-                      "finish",
-                      "error"
-                    ],
-                    "description": "the status of this step"
-                  },
-                  "icon": {
-                    "type": "string",
-                    "description": "a font awesome icon name for the step (eg: `fa-user`)"
-                  },
-                  "resourceRefId": {
-                    "type": "string",
-                    "description": "optional id of a widget to render inline below this step's description (e.g. an action button for the active step)"
-                  }
-                }
-              }
             }
           },
           "description": "The properties Steps renders. Where Steps wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them."
@@ -296,7 +303,7 @@
             },
             "additionalProperties": false
           },
-          "description": "Generates resourcesRefs entries from the apiRef response \u2014 one per element the iterator yields \u2014 so a widget can reference a list whose length it does not know when authored."
+          "description": "Generates resourcesRefs entries from the apiRef response — one per element the iterator yields — so a widget can reference a list whose length it does not know when authored."
         }
       },
       "required": [

@@ -18,9 +18,208 @@
         "widgetData": {
           "type": "object",
           "properties": {
+            "allowedResources": {
+              "description": "the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
             "anchorId": {
               "type": "string",
               "description": "renders this panel with a DOM id so an in-page `[text](#anchorId)` link (e.g. a summary/table-of-contents Markdown widget) scrolls to it"
+            },
+            "clickActionId": {
+              "type": "string",
+              "description": "the id of the action to be executed when the panel is clicked"
+            },
+            "cover": {
+              "type": "string",
+              "description": "resourceRefId of a widget rendered as the antd Card cover"
+            },
+            "extra": {
+              "type": "string",
+              "description": "antd Card extra — content shown top-right of the card header (renamed from `headerRight`)"
+            },
+            "extraRefId": {
+              "type": "string",
+              "description": "resourceRefId of a widget (e.g. a Button) rendered top-right of the card header — a real, independently-actioned slot with its own icon/size/navigation, distinct from the plain-text `extra`. Mirrors the `cover`/`footer` widget slots; renders a nested WidgetRenderer, so it does NOT make the whole card the click target the way `extra` + `clickActionId` does."
+            },
+            "extraStatus": {
+              "type": "string",
+              "enum": [
+                "success",
+                "processing",
+                "warning",
+                "error",
+                "default",
+                "green",
+                "gold",
+                "red",
+                "blue",
+                "violet"
+              ],
+              "description": "colour token: antd Badge status for `extraVariant: badge`; antd Tag color for `extraVariant: tag`"
+            },
+            "extraVariant": {
+              "type": "string",
+              "enum": [
+                "text",
+                "badge",
+                "tag"
+              ],
+              "description": "how `extra` renders top-right: `text` (default, plain), `badge` (glow dot + uppercase mono, for CONVERGED/DRIFT/DEGRADED), or `tag` (soft antd Tag pill — for Up to date / status labels)"
+            },
+            "footer": {
+              "description": "footer section of the panel containing additional items",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "resourceRefId"
+                ],
+                "properties": {
+                  "resourceRefId": {
+                    "type": "string",
+                    "description": "the identifier of the k8s custom resource that should be represented, usually a widget"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "headerLeft": {
+              "type": "string",
+              "description": "optional text to be displayed under the title, on the left side of the Card"
+            },
+            "icon": {
+              "type": "object",
+              "description": "icon displayed in the panel header",
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "name of the icon to display (font awesome icon name eg: `fa-inbox`)"
+                },
+                "color": {
+                  "type": "string",
+                  "description": "color of the icon"
+                }
+              },
+              "additionalProperties": false
+            },
+            "items": {
+              "type": "array",
+              "description": "list of resource references to display as main content in the panel",
+              "items": {
+                "type": "object",
+                "required": [
+                  "resourceRefId"
+                ],
+                "properties": {
+                  "resourceRefId": {
+                    "type": "string",
+                    "description": "the identifier of the k8s custom resource that should be represented, usually a widget"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "legend": {
+              "type": "array",
+              "description": "optional legend key shown top-right of the card header (e.g. the reconciliation-rail actual/drift/target swatches): each item is a small colour swatch + label",
+              "items": {
+                "type": "object",
+                "required": [
+                  "color",
+                  "label"
+                ],
+                "properties": {
+                  "color": {
+                    "type": "string",
+                    "description": "swatch colour (palette name, e.g. cyan / magenta / amber)"
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "swatch label (e.g. actual / drift / target)"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "live": {
+              "type": "boolean",
+              "description": "show a pulsing \"Live\" badge next to the card title (for cards backed by a live/SSE feed)"
+            },
+            "size": {
+              "type": "string",
+              "enum": [
+                "default",
+                "small"
+              ],
+              "description": "antd Card size"
+            },
+            "tags": {
+              "type": "array",
+              "description": "list of string tags to be displayed in the footer",
+              "items": {
+                "type": "string"
+              }
+            },
+            "title": {
+              "type": "string",
+              "description": "text to be displayed as the panel title"
+            },
+            "titleVariant": {
+              "type": "string",
+              "enum": [
+                "heading",
+                "eyebrow"
+              ],
+              "description": "how the panel title is rendered. 'heading' (default) = readable card heading (marketplace tiles, detail headers). 'eyebrow' = small mono uppercase letter-spaced muted caption (flight-deck section/panel labels)."
+            },
+            "tooltip": {
+              "type": "string",
+              "description": "optional tooltip text shown on the top right side of the card to provide additional context"
+            },
+            "variant": {
+              "type": "string",
+              "enum": [
+                "outlined",
+                "borderless"
+              ],
+              "description": "antd Card variant"
+            },
+            "watch": {
+              "description": "live-refresh watch: involvedObject(s) this widget is tied to (see src/schemas/watch.schema.json). A matching k8s event refetches the widget.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "apiVersion",
+                  "kind"
+                ],
+                "properties": {
+                  "apiVersion": {
+                    "type": "string",
+                    "description": "group/version, e.g. composition.krateo.io/v1alpha1"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "description": "e.g. DemoClaim"
+                  },
+                  "namespace": {
+                    "type": "string",
+                    "description": "scope to a namespace; omit to match any"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "a specific object; omit to match any object of this kind (\"GVR-level\")"
+                  }
+                }
+              }
             },
             "widgetActions": {
               "description": "the Krateo event actions of the widget (renamed from `actions`, which collides with antd Card.actions)",
@@ -55,7 +254,7 @@
                       },
                       "ops": {
                         "type": "array",
-                        "description": "ordered list of DISTINCT writes applied as ONE gated set (e.g. one Form submit creating a Role AND its RoleBinding): each op resolves its OWN resourceRefId (verb + path + payload base) and builds its OWN payload/payloadToOverride against the SAME submitted values. The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics). Mutually exclusive with fanOutPath; onEventNavigateTo is not supported on a multi-op action. The action's own top-level payload/payloadToOverride are IGNORED when ops is present and its top-level resourceRefId is ignored for dispatch (it must still name a valid resource ref \u2014 point it at the first op's)",
+                        "description": "ordered list of DISTINCT writes applied as ONE gated set (e.g. one Form submit creating a Role AND its RoleBinding): each op resolves its OWN resourceRefId (verb + path + payload base) and builds its OWN payload/payloadToOverride against the SAME submitted values. The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics). Mutually exclusive with fanOutPath; onEventNavigateTo is not supported on a multi-op action. The action's own top-level payload/payloadToOverride are IGNORED when ops is present and its top-level resourceRefId is ignored for dispatch (it must still name a valid resource ref — point it at the first op's)",
                         "items": {
                           "type": "object",
                           "additionalProperties": false,
@@ -129,7 +328,7 @@
                           },
                           "reloadRoutes": {
                             "type": "boolean",
-                            "description": "Re-fetch the route table before navigating. Set it when the action creates its own destination \u2014 publishing a new page, for example \u2014 so the route exists by the time the navigation happens."
+                            "description": "Re-fetch the route table before navigating. Set it when the action creates its own destination — publishing a new page, for example — so the route exists by the time the navigation happens."
                           },
                           "loadingMessage": {
                             "type": "string",
@@ -381,198 +580,6 @@
                 }
               },
               "additionalProperties": false
-            },
-            "clickActionId": {
-              "type": "string",
-              "description": "the id of the action to be executed when the panel is clicked"
-            },
-            "footer": {
-              "description": "footer section of the panel containing additional items",
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": [
-                  "resourceRefId"
-                ],
-                "properties": {
-                  "resourceRefId": {
-                    "type": "string",
-                    "description": "the identifier of the k8s custom resource that should be represented, usually a widget"
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "headerLeft": {
-              "type": "string",
-              "description": "optional text to be displayed under the title, on the left side of the Card"
-            },
-            "extra": {
-              "type": "string",
-              "description": "antd Card extra \u2014 content shown top-right of the card header (renamed from `headerRight`)"
-            },
-            "extraVariant": {
-              "type": "string",
-              "enum": [
-                "text",
-                "badge",
-                "tag"
-              ],
-              "description": "how `extra` renders top-right: `text` (default, plain), `badge` (glow dot + uppercase mono, for CONVERGED/DRIFT/DEGRADED), or `tag` (soft antd Tag pill \u2014 for Up to date / status labels)"
-            },
-            "extraStatus": {
-              "type": "string",
-              "enum": [
-                "success",
-                "processing",
-                "warning",
-                "error",
-                "default",
-                "green",
-                "gold",
-                "red",
-                "blue",
-                "violet"
-              ],
-              "description": "colour token: antd Badge status for `extraVariant: badge`; antd Tag color for `extraVariant: tag`"
-            },
-            "extraRefId": {
-              "type": "string",
-              "description": "resourceRefId of a widget (e.g. a Button) rendered top-right of the card header \u2014 a real, independently-actioned slot with its own icon/size/navigation, distinct from the plain-text `extra`. Mirrors the `cover`/`footer` widget slots; renders a nested WidgetRenderer, so it does NOT make the whole card the click target the way `extra` + `clickActionId` does."
-            },
-            "live": {
-              "type": "boolean",
-              "description": "show a pulsing \"Live\" badge next to the card title (for cards backed by a live/SSE feed)"
-            },
-            "legend": {
-              "type": "array",
-              "description": "optional legend key shown top-right of the card header (e.g. the reconciliation-rail actual/drift/target swatches): each item is a small colour swatch + label",
-              "items": {
-                "type": "object",
-                "required": [
-                  "color",
-                  "label"
-                ],
-                "properties": {
-                  "color": {
-                    "type": "string",
-                    "description": "swatch colour (palette name, e.g. cyan / magenta / amber)"
-                  },
-                  "label": {
-                    "type": "string",
-                    "description": "swatch label (e.g. actual / drift / target)"
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "variant": {
-              "type": "string",
-              "enum": [
-                "outlined",
-                "borderless"
-              ],
-              "description": "antd Card variant"
-            },
-            "size": {
-              "type": "string",
-              "enum": [
-                "default",
-                "small"
-              ],
-              "description": "antd Card size"
-            },
-            "cover": {
-              "type": "string",
-              "description": "resourceRefId of a widget rendered as the antd Card cover"
-            },
-            "icon": {
-              "type": "object",
-              "description": "icon displayed in the panel header",
-              "required": [
-                "name"
-              ],
-              "properties": {
-                "name": {
-                  "type": "string",
-                  "description": "name of the icon to display (font awesome icon name eg: `fa-inbox`)"
-                },
-                "color": {
-                  "type": "string",
-                  "description": "color of the icon"
-                }
-              },
-              "additionalProperties": false
-            },
-            "items": {
-              "type": "array",
-              "description": "list of resource references to display as main content in the panel",
-              "items": {
-                "type": "object",
-                "required": [
-                  "resourceRefId"
-                ],
-                "properties": {
-                  "resourceRefId": {
-                    "type": "string",
-                    "description": "the identifier of the k8s custom resource that should be represented, usually a widget"
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "tags": {
-              "type": "array",
-              "description": "list of string tags to be displayed in the footer",
-              "items": {
-                "type": "string"
-              }
-            },
-            "title": {
-              "type": "string",
-              "description": "text to be displayed as the panel title"
-            },
-            "titleVariant": {
-              "type": "string",
-              "enum": [
-                "heading",
-                "eyebrow"
-              ],
-              "description": "how the panel title is rendered. 'heading' (default) = readable card heading (marketplace tiles, detail headers). 'eyebrow' = small mono uppercase letter-spaced muted caption (flight-deck section/panel labels)."
-            },
-            "tooltip": {
-              "type": "string",
-              "description": "optional tooltip text shown on the top right side of the card to provide additional context"
-            },
-            "watch": {
-              "description": "live-refresh watch: involvedObject(s) this widget is tied to (see src/schemas/watch.schema.json). A matching k8s event refetches the widget.",
-              "type": "array",
-              "items": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "apiVersion",
-                  "kind"
-                ],
-                "properties": {
-                  "apiVersion": {
-                    "type": "string",
-                    "description": "group/version, e.g. composition.krateo.io/v1alpha1"
-                  },
-                  "kind": {
-                    "type": "string",
-                    "description": "e.g. DemoClaim"
-                  },
-                  "namespace": {
-                    "type": "string",
-                    "description": "scope to a namespace; omit to match any"
-                  },
-                  "name": {
-                    "type": "string",
-                    "description": "a specific object; omit to match any object of this kind (\"GVR-level\")"
-                  }
-                }
-              }
             }
           },
           "required": [
@@ -758,7 +765,7 @@
             },
             "additionalProperties": false
           },
-          "description": "Generates resourcesRefs entries from the apiRef response \u2014 one per element the iterator yields \u2014 so a widget can reference a list whose length it does not know when authored."
+          "description": "Generates resourcesRefs entries from the apiRef response — one per element the iterator yields — so a widget can reference a list whose length it does not know when authored."
         }
       },
       "required": [
