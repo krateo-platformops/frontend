@@ -498,13 +498,24 @@ const PageComposer = () => {
      * constrained by construction. The agent names a string, and nothing was checking it against
      * the same catalogue. This checks it against exactly that catalogue, so the two paths agree.
      *
+     * WHAT THIS ACTUALLY CHECKS, stated precisely because the refusal must not overclaim: the
+     * catalogue is snowplow's `/list` under the CALLER'S OWN RBAC, scoped to one namespace. So it
+     * answers "is this visible to you here", NOT "does this exist". A widget the author cannot
+     * read, or one living in another namespace, is absent from it while being perfectly real.
+     *
+     * Refusing that case is still right, and the reason is not that the widget is fake: a preview
+     * renders under the author's identity, so a widget they cannot see is one they cannot verify,
+     * and placing it means publishing a page whose content they were never shown. But the message
+     * has to say what was tested — "not visible to you in <ns>" — because "does not exist" would
+     * be a false statement about the cluster and would send the author hunting the wrong bug.
+     *
      * FAIL CLOSED when the catalogue cannot be read. Failing open would reinstate the defect
      * precisely when the cluster is least well understood, and the cost of being wrong is
      * asymmetric: a refusal is visible and recoverable, a dangling reference is neither.
      */
       const catalogue = await listPlaceableWidgets(snowplowBaseUrl, authoringNamespace)
       if (!catalogue.ok) {
-        refuse(`cannot confirm "${request.name}" exists — ${catalogue.error}`)
+        refuse(`cannot confirm "${request.name}" is placeable — ${catalogue.error}`)
         return
       }
       const exists = catalogue.widgets.some(
@@ -517,8 +528,8 @@ const PageComposer = () => {
           .filter((widget) => widget.resource === request.resource)
           .map((widget) => widget.name)
         refuse(sameKind.length
-          ? `no ${request.resource} named "${request.name}" in ${authoringNamespace} — there is ${sameKind.slice(0, 6).join(', ')}`
-          : `no ${request.resource} named "${request.name}" in ${authoringNamespace}, and no ${request.resource} at all — create it before placing it`)
+          ? `no ${request.resource} named "${request.name}" is visible to you in ${authoringNamespace} — there is ${sameKind.slice(0, 6).join(', ')}`
+          : `no ${request.resource} named "${request.name}" is visible to you in ${authoringNamespace}, and no ${request.resource} at all — create it first, or check you may read it`)
         return
       }
       reply(applyAdd(target, request.at, { kind: 'existing', name: request.name, resource: request.resource }))

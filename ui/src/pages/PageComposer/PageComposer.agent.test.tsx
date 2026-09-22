@@ -340,3 +340,29 @@ describe('placing a widget that does not exist', () => {
     expect(answer?.reason ?? '').toContain('fleet-card')
   })
 })
+
+/**
+ * THE REFUSAL MUST NOT OVERCLAIM. The catalogue is snowplow's `/list` under the CALLER'S OWN RBAC,
+ * scoped to one namespace — so it answers "is this visible to you here", not "does this exist". A
+ * widget the author cannot read is absent from it while being perfectly real, and a message saying
+ * it does not exist would be a false statement about the cluster that sends them hunting the wrong
+ * bug. Refusing is still correct (a preview renders under the author's identity, so what they
+ * cannot see they cannot verify) — the wording is what has to be honest.
+ */
+describe('what the refusal claims', () => {
+  it('says NOT VISIBLE TO YOU, never that the widget does not exist', async () => {
+    open()
+    const answer = await propose({ name: 'pod-sizing', op: 'addExisting', resource: 'tables', target: 'page-x' })
+    const reason = answer?.reason ?? ''
+
+    expect(reason).toContain('visible to you')
+    expect(reason.toLowerCase()).not.toContain('does not exist')
+  })
+
+  it('names the namespace it actually looked in, since that is half the scope', async () => {
+    open()
+    const answer = await propose({ name: 'pod-sizing', op: 'addExisting', resource: 'tables', target: 'page-x' })
+
+    expect(answer?.reason ?? '').toMatch(/in \S+/)
+  })
+})
