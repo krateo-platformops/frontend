@@ -154,6 +154,11 @@ spec:
                 widgetData:
                   description: The properties Steps renders. Where Steps wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
+                    allowedResources:
+                      description: the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.
+                      items:
+                        type: string
+                      type: array
                     current:
                       description: the index of the current step (0-based)
                       format: int32
@@ -225,11 +230,6 @@ spec:
                         - navigation
                         - inline
                       type: string
-                    allowedResources:
-                      description: the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.
-                      items:
-                        type: string
-                      type: array
                   required:
                     - items
                   type: object

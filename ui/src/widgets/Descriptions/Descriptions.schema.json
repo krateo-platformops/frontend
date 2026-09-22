@@ -22,34 +22,20 @@
           ],
           "additionalProperties": false,
           "properties": {
-            "title": {
-              "type": "string",
-              "description": "the title displayed above the description list"
-            },
-            "column": {
-              "type": "integer",
-              "description": "the number of label/value pairs per row (antd Descriptions `column`)"
+            "allowedResources": {
+              "description": "the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
             },
             "bordered": {
               "type": "boolean",
               "description": "whether to render cell borders (antd Descriptions `bordered`)"
             },
-            "size": {
-              "type": "string",
-              "enum": [
-                "default",
-                "middle",
-                "small"
-              ],
-              "description": "the size of the description list"
-            },
-            "variant": {
-              "type": "string",
-              "enum": [
-                "default",
-                "form"
-              ],
-              "description": "rendering style. 'default' = antd Descriptions definition list; 'form' = read-only mirror of the create Form's property layout \u2014 each item a connector-rail field (bold label above a mono value), grouped into sections by the item's `section` (nested objects each become a labelled section)"
+            "column": {
+              "type": "integer",
+              "description": "the number of label/value pairs per row (antd Descriptions `column`)"
             },
             "items": {
               "type": "array",
@@ -68,7 +54,7 @@
                   },
                   "section": {
                     "type": "string",
-                    "description": "(variant:form only) the section this property is grouped under \u2014 e.g. a nested object's top-level key; empty/absent = the ungrouped top section"
+                    "description": "(variant:form only) the section this property is grouped under — e.g. a nested object's top-level key; empty/absent = the ungrouped top section"
                   },
                   "value": {
                     "type": "string",
@@ -80,6 +66,27 @@
                   }
                 }
               }
+            },
+            "size": {
+              "type": "string",
+              "enum": [
+                "default",
+                "middle",
+                "small"
+              ],
+              "description": "the size of the description list"
+            },
+            "title": {
+              "type": "string",
+              "description": "the title displayed above the description list"
+            },
+            "variant": {
+              "type": "string",
+              "enum": [
+                "default",
+                "form"
+              ],
+              "description": "rendering style. 'default' = antd Descriptions definition list; 'form' = read-only mirror of the create Form's property layout — each item a connector-rail field (bold label above a mono value), grouped into sections by the item's `section` (nested objects each become a labelled section)"
             }
           },
           "description": "The properties Descriptions renders. Where Descriptions wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them."
@@ -261,7 +268,7 @@
             },
             "additionalProperties": false
           },
-          "description": "Generates resourcesRefs entries from the apiRef response \u2014 one per element the iterator yields \u2014 so a widget can reference a list whose length it does not know when authored."
+          "description": "Generates resourcesRefs entries from the apiRef response — one per element the iterator yields — so a widget can reference a list whose length it does not know when authored."
         }
       },
       "required": [

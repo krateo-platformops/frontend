@@ -23,28 +23,6 @@
             "submitActionId"
           ],
           "properties": {
-            "layout": {
-              "description": "antd Form layout",
-              "type": "string",
-              "enum": [
-                "horizontal",
-                "vertical",
-                "inline"
-              ]
-            },
-            "size": {
-              "description": "antd Form size",
-              "type": "string",
-              "enum": [
-                "small",
-                "middle",
-                "large"
-              ]
-            },
-            "disabled": {
-              "description": "antd Form disabled (disables all fields)",
-              "type": "boolean"
-            },
             "actions": {
               "description": "the actions of the widget",
               "type": "object",
@@ -78,7 +56,7 @@
                       },
                       "ops": {
                         "type": "array",
-                        "description": "ordered list of DISTINCT writes applied as ONE gated set (e.g. one Form submit creating a Role AND its RoleBinding): each op resolves its OWN resourceRefId (verb + path + payload base) and builds its OWN payload/payloadToOverride against the SAME submitted values. The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics). Mutually exclusive with fanOutPath; onEventNavigateTo is not supported on a multi-op action. The action's own top-level payload/payloadToOverride are IGNORED when ops is present and its top-level resourceRefId is ignored for dispatch (it must still name a valid resource ref \u2014 point it at the first op's)",
+                        "description": "ordered list of DISTINCT writes applied as ONE gated set (e.g. one Form submit creating a Role AND its RoleBinding): each op resolves its OWN resourceRefId (verb + path + payload base) and builds its OWN payload/payloadToOverride against the SAME submitted values. The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics). Mutually exclusive with fanOutPath; onEventNavigateTo is not supported on a multi-op action. The action's own top-level payload/payloadToOverride are IGNORED when ops is present and its top-level resourceRefId is ignored for dispatch (it must still name a valid resource ref — point it at the first op's)",
                         "items": {
                           "type": "object",
                           "additionalProperties": false,
@@ -152,7 +130,7 @@
                           },
                           "reloadRoutes": {
                             "type": "boolean",
-                            "description": "Re-fetch the route table before navigating. Set it when the action creates its own destination \u2014 publishing a new page, for example \u2014 so the route exists by the time the navigation happens."
+                            "description": "Re-fetch the route table before navigating. Set it when the action creates its own destination — publishing a new page, for example — so the route exists by the time the navigation happens."
                           },
                           "loadingMessage": {
                             "type": "string",
@@ -405,6 +383,13 @@
               },
               "additionalProperties": false
             },
+            "allowedResources": {
+              "description": "the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
             "buttonConfig": {
               "type": "object",
               "description": "custom labels and icons for form buttons",
@@ -445,7 +430,7 @@
                 },
                 "draft": {
                   "type": "object",
-                  "description": "draft button configuration \u2014 only rendered when widgetData.draftActionId is also set; clicking it persists the current (un-validated) field values via that action",
+                  "description": "draft button configuration — only rendered when widgetData.draftActionId is also set; clicking it persists the current (un-validated) field values via that action",
                   "properties": {
                     "label": {
                       "type": "string",
@@ -460,7 +445,7 @@
                 },
                 "review": {
                   "type": "object",
-                  "description": "Configure-step button label when reviewBeforeSubmit is set (the button that opens the in-place Review; default 'Review \u2192')",
+                  "description": "Configure-step button label when reviewBeforeSubmit is set (the button that opens the in-place Review; default 'Review →')",
                   "properties": {
                     "label": {
                       "type": "string",
@@ -471,7 +456,7 @@
                 },
                 "reviewBack": {
                   "type": "object",
-                  "description": "Review-step back button label when reviewBeforeSubmit is set (returns to editing; default '\u2190 Back to edit')",
+                  "description": "Review-step back button label when reviewBeforeSubmit is set (returns to editing; default '← Back to edit')",
                   "properties": {
                     "label": {
                       "type": "string",
@@ -483,6 +468,14 @@
               },
               "additionalProperties": false
             },
+            "disabled": {
+              "description": "antd Form disabled (disables all fields)",
+              "type": "boolean"
+            },
+            "draftActionId": {
+              "description": "optional id of an action fired by a 'Save draft' button that captures the CURRENT field values WITHOUT running form validation (so an incomplete form can be persisted). Pair with buttonConfig.draft to show the button.",
+              "type": "string"
+            },
             "initialValues": {
               "description": "optional object with initial values for form fields. Keys should match form field names (supports nested objects). These values override schema defaults.",
               "type": "object",
@@ -490,7 +483,7 @@
               "tsType": "Record<string, unknown>"
             },
             "items": {
-              "description": "resourceRefIds of form-control widgets (Input, Select, Switch, \u2026) to compose inside the Form. Composable mode \u2014 an alternative to the schema/stringSchema generator.",
+              "description": "resourceRefIds of form-control widgets (Input, Select, Switch, …) to compose inside the Form. Composable mode — an alternative to the schema/stringSchema generator.",
               "type": "array",
               "items": {
                 "type": "object",
@@ -506,15 +499,14 @@
                 }
               }
             },
-            "schema": {
-              "description": "JSON schema (e.g. a blueprint CRD's openAPIV3Schema spec) rendered as form fields \u2014 the schema-driven alternative to `items`. Usually populated server-side via a widgetDataTemplate jq expression that extracts the spec schema. Note: a schema sourced from a CRD's openAPIV3Schema has its `properties` map serialized alphabetically (order lost); use `stringSchema` to preserve the source values.schema.json authoring order.",
-              "type": "object",
-              "additionalProperties": true,
-              "tsType": "Record<string, unknown>"
-            },
-            "stringSchema": {
-              "description": "Same JSON schema as `schema`, but as a raw JSON STRING. Preferred over `schema` when present: the client JSON.parses it, preserving key insertion order, so fields render in the source values.schema.json order rather than the alphabetized order a CRD-sourced object schema yields. Typically populated server-side from the blueprint's per-version jsonschema ConfigMap (which keeps authoring order). Falls back to `schema` when absent or not valid JSON.",
-              "type": "string"
+            "layout": {
+              "description": "antd Form layout",
+              "type": "string",
+              "enum": [
+                "horizontal",
+                "vertical",
+                "inline"
+              ]
             },
             "propertiesToHide": {
               "description": "top-level schema property names to omit from the schema-driven form",
@@ -524,19 +516,30 @@
               }
             },
             "reviewBeforeSubmit": {
-              "description": "when true (inline render only), the primary button validates and reveals an in-place read-only Review of the entered values before the real submit \u2014 the form stays mounted so 'Back to edit' preserves every value. Pair with buttonConfig.review / buttonConfig.reviewBack for custom labels.",
+              "description": "when true (inline render only), the primary button validates and reveals an in-place read-only Review of the entered values before the real submit — the form stays mounted so 'Back to edit' preserves every value. Pair with buttonConfig.review / buttonConfig.reviewBack for custom labels.",
               "type": "boolean"
             },
-            "submitDisabledWhenPristine": {
-              "description": "when true, the primary (submit) button stays disabled until at least one field differs from its initial value (initialValues overlaid on schema defaults). Use for update forms where submitting an unchanged value is a no-op \u2014 e.g. a version picker pre-set to the currently-installed version.",
-              "type": "boolean"
+            "schema": {
+              "description": "JSON schema (e.g. a blueprint CRD's openAPIV3Schema spec) rendered as form fields — the schema-driven alternative to `items`. Usually populated server-side via a widgetDataTemplate jq expression that extracts the spec schema. Note: a schema sourced from a CRD's openAPIV3Schema has its `properties` map serialized alphabetically (order lost); use `stringSchema` to preserve the source values.schema.json authoring order.",
+              "type": "object",
+              "additionalProperties": true,
+              "tsType": "Record<string, unknown>"
+            },
+            "size": {
+              "description": "antd Form size",
+              "type": "string",
+              "enum": [
+                "small",
+                "middle",
+                "large"
+              ]
+            },
+            "stringSchema": {
+              "description": "Same JSON schema as `schema`, but as a raw JSON STRING. Preferred over `schema` when present: the client JSON.parses it, preserving key insertion order, so fields render in the source values.schema.json order rather than the alphabetized order a CRD-sourced object schema yields. Typically populated server-side from the blueprint's per-version jsonschema ConfigMap (which keeps authoring order). Falls back to `schema` when absent or not valid JSON.",
+              "type": "string"
             },
             "submitActionId": {
               "description": "the id of the action to be called when the form is submitted",
-              "type": "string"
-            },
-            "draftActionId": {
-              "description": "optional id of an action fired by a 'Save draft' button that captures the CURRENT field values WITHOUT running form validation (so an incomplete form can be persisted). Pair with buttonConfig.draft to show the button.",
               "type": "string"
             },
             "submitActionSelector": {
@@ -548,7 +551,7 @@
                   "type": "string"
                 },
                 "map": {
-                  "description": "map of field-value \u2192 action id",
+                  "description": "map of field-value → action id",
                   "type": "object",
                   "additionalProperties": {
                     "type": "string"
@@ -564,6 +567,10 @@
                 "map"
               ],
               "additionalProperties": false
+            },
+            "submitDisabledWhenPristine": {
+              "description": "when true, the primary (submit) button stays disabled until at least one field differs from its initial value (initialValues overlaid on schema defaults). Use for update forms where submitting an unchanged value is a no-op — e.g. a version picker pre-set to the currently-installed version.",
+              "type": "boolean"
             }
           },
           "additionalProperties": false
@@ -745,7 +752,7 @@
             },
             "additionalProperties": false
           },
-          "description": "Generates resourcesRefs entries from the apiRef response \u2014 one per element the iterator yields \u2014 so a widget can reference a list whose length it does not know when authored."
+          "description": "Generates resourcesRefs entries from the apiRef response — one per element the iterator yields — so a widget can reference a list whose length it does not know when authored."
         }
       },
       "required": [
