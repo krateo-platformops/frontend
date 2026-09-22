@@ -504,7 +504,7 @@ describe('PageComposer — binding live data', () => {
     expect(edits).toHaveLength(0)
   })
 
-  it('refuses a field path that is not a path, rather than generating broken jq', () => {
+  it('refuses a column that would REWRITE the generated program, and says which rule it broke', () => {
     mount()
     emit({ files: [flexFile], title: 'x' })
     act(() => { screen.getByLabelText('Bind data inside page-x').click() })
@@ -512,11 +512,14 @@ describe('PageComposer — binding live data', () => {
     act(() => {
       fireEvent.change(screen.getByPlaceholderText('fleet-failing'), { target: { value: 'fleet' } })
       fireEvent.change(screen.getByPlaceholderText('/apis/…'), { target: { value: '/apis/x' } })
-      fireEvent.change(screen.getByPlaceholderText(/"Name"/), { target: { value: '{"Bad": ".a | halt"}' } })
+      // Unbalanced, not merely exotic. `.a | halt` used to fail here and is now ACCEPTED: it is
+      // contained, so it reaches the server and comes back as a message the preview shows.
+      fireEvent.change(screen.getByPlaceholderText(/"Name"/), { target: { value: '{"Bad": ".a) | .b"}' } })
     })
     act(() => { screen.getByText('Generate').click() })
 
-    // Named refusal at the form beats a syntax error inside generated code the author never wrote.
-    expect(screen.getByText(/not a supported field path/i)).toBeTruthy()
+    // The form still refuses what could escape the wrapper it is interpolated into — and names the
+    // actual rule, which is almost always a missing bracket rather than an expression too clever.
+    expect(screen.getByText(/unbalanced/i)).toBeTruthy()
   })
 })
