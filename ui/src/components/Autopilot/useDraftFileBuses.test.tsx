@@ -15,6 +15,7 @@ import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createBlueprintDraftStore } from './blueprintDraftStore'
+import { onPreviewApplied } from './previewApplied'
 import { AUTOPILOT_PREVIEW_EVENT } from './previewBus'
 import { emitDraftStart } from './previewDraftStart'
 import { emitFileAdd } from './previewFileAdd'
@@ -166,6 +167,39 @@ describe('a draft that CHANGES after it started', () => {
 
     window.removeEventListener(AUTOPILOT_PREVIEW_EVENT, onPreview)
     expect(opened).toEqual([])
+    vi.useRealTimers()
+  })
+
+  it('ANNOUNCES the apply, so the rendered pane refetches instead of answering from cache', async () => {
+    // The apply changes what the sandbox serves and not the URL the pane fetches, so without this
+    // the render keeps answering from the widget cache — measured live as dataSource=23 on the
+    // server beside zero rows in the pane, still zero at +30s.
+    vi.useFakeTimers()
+    const previewLive = vi.fn<LivePreview>().mockResolvedValue(undefined)
+    const heard = vi.fn()
+    const stop = onPreviewApplied(heard)
+    start(previewLive)
+
+    act(() => { emitFileAdd({ content: rowFile, path: 'templates/row.page-service-catalog-row.yaml' }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+
+    expect(heard).toHaveBeenCalledTimes(1)
+    stop()
+    vi.useRealTimers()
+  })
+
+  it('does NOT announce when the apply FAILED — a refetch would just re-read the old sandbox', async () => {
+    vi.useFakeTimers()
+    const previewLive = vi.fn<LivePreview>().mockRejectedValue(new Error('sandbox refused'))
+    const heard = vi.fn()
+    const stop = onPreviewApplied(heard)
+    start(previewLive)
+
+    act(() => { emitFileAdd({ content: rowFile, path: 'templates/row.page-service-catalog-row.yaml' }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+
+    expect(heard).not.toHaveBeenCalled()
+    stop()
     vi.useRealTimers()
   })
 
