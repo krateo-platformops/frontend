@@ -88,3 +88,70 @@ describe('the Data action on a real page draft', () => {
     expect(screen.getByText('Write a new one')).toBeTruthy()
   })
 })
+
+/**
+ * A NODE ADDED AFTER MOUNT MUST BE REACHABLE — the regression this suite existed to prevent,
+ * arriving through a different door.
+ *
+ * `defaultExpandAll` is an UNCONTROLLED default: antd reads it once, at the first mount, and never
+ * again. A fresh page draft holds two nodes at that moment, so everything a person subsequently
+ * builds lands under a parent nothing expanded — and antd does not render a collapsed subtree into
+ * the DOM at all.
+ *
+ * Found in a browser, not here: a Table dropped into a Row drew on the canvas, wrote its file, and
+ * had no row in the tree — so no Data action, no Move, no Remove. Every existing test in this file
+ * mounts a draft that already contains its nodes, which is exactly the case the bug spares.
+ */
+describe('a node added AFTER the first mount', () => {
+  /** A draft whose root Flex holds one child — the shape a drop produces. */
+  const draftWithChild = () => pageDraftFiles([
+    {
+      apiVersion: 'widgets.templates.krateo.io/v1beta1',
+      kind: 'Flex',
+      metadata: { name: 'page-fleet', namespace: 'krateo-system' },
+      spec: {
+        resourcesRefs: { items: [{ id: 'r1', name: 'fleet-row', namespace: 'krateo-system', resource: 'rows' }] },
+        widgetData: { items: [{ resourceRefId: 'r1' }] },
+      },
+    },
+    {
+      apiVersion: 'widgets.templates.krateo.io/v1beta1',
+      kind: 'Row',
+      metadata: { name: 'fleet-row', namespace: 'krateo-system' },
+      spec: {
+        resourcesRefs: { items: [{ id: 't1', name: 'pods-table', namespace: 'krateo-system', resource: 'tables' }] },
+        widgetData: { items: [{ resourceRefId: 't1' }] },
+      },
+    },
+    {
+      apiVersion: 'widgets.templates.krateo.io/v1beta1',
+      kind: 'Table',
+      metadata: { name: 'pods-table', namespace: 'krateo-system' },
+      spec: { widgetData: { allowedResources: [], columns: [] } },
+    },
+  ]) ?? {}
+
+  const mount = (files: Record<string, string>) => render(
+    <App><ObjectTreePanel files={files} snowplowBaseUrl='http://snowplow.test' /></App>,
+  )
+
+  it('is rendered, with its own actions, when the draft GROWS under an existing parent', async () => {
+    // Mount on the two-node draft — the state `defaultExpandAll` was evaluated against.
+    const { rerender } = mount(realDraft())
+    expect(screen.queryByLabelText('Data for pods-table')).toBeNull()
+
+    // …then grow it, the way a drop does. The Table is a grandchild: its row only exists in the
+    // DOM if BOTH the root and the Row were expanded in response.
+    rerender(<App><ObjectTreePanel files={draftWithChild()} snowplowBaseUrl='http://snowplow.test' /></App>)
+
+    await waitFor(() => expect(screen.getByLabelText('Data for pods-table')).toBeTruthy())
+    // Not just the Data action — every per-node action lives in the same collapsed subtree.
+    expect(screen.getByLabelText('Data for fleet-row')).toBeTruthy()
+  })
+
+  it('still renders a draft that already contains its nodes at mount', () => {
+    // The case that always worked; asserted so the fix cannot be a swap of one gap for another.
+    mount(draftWithChild())
+    expect(screen.getByLabelText('Data for pods-table')).toBeTruthy()
+  })
+})

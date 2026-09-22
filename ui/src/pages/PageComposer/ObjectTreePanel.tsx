@@ -15,7 +15,7 @@
 import { ApiOutlined, ArrowDownOutlined, ArrowUpOutlined, DatabaseOutlined, DeleteOutlined, DragOutlined, GroupOutlined, ImportOutlined, PlusOutlined } from '@ant-design/icons'
 import { App, Button, Dropdown, Empty, Popconfirm, Space, Tag, Tooltip, Tree, Typography } from 'antd'
 import type { DataNode } from 'antd/es/tree'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
 import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
@@ -395,6 +395,25 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
     emitFileEdit({ content: result.parent, path: node.parentPath })
   }
 
+  /*
+   * A NODE YOU JUST CREATED MUST NOT BE BORN HIDDEN.
+   *
+   * The tree was `defaultExpandAll`, which is an UNCONTROLLED default: antd reads it once, at the
+   * first mount, and never again. At that moment a fresh draft holds two nodes. Everything added
+   * afterwards — which in a builder is everything — lands under a parent antd has no reason to
+   * expand, and antd does not render a collapsed subtree into the DOM at all.
+   *
+   * So dropping a Table into a Row put a widget on the canvas that was absent from the tree, and
+   * with it every per-node action: Data, Move, Remove. The widget was fine, its file was written,
+   * the canvas drew it — it was simply unreachable from the panel that exists to reach it. That is
+   * the same failure shape as the drop form refusing fourteen kinds: present in the build, absent
+   * at the seam, with nothing in between saying so.
+   *
+   * Expanding a NEW key's ANCESTORS, rather than re-expanding everything, is what keeps a
+   * deliberate collapse deliberate: closing a section you are not working on has to survive the
+   * next edit elsewhere, or the panel fights you. Keys are positional (`0`, `0-1`, `0-1-0`), so an
+   * ancestor is a `-`-delimited prefix.
+   */
   const nodes = useMemo(
     () => tree.map((node, index) => toDataNode(node, `${index}`, mutate, addLayout, setBindTarget, setDataTarget, wrapIn, setPlaceTarget, setMoveSubject)),
     // `mutate` closes over `files` and is recreated each render; depending on it would defeat the
@@ -415,6 +434,33 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
     tree.forEach((node, index) => walk(node, `${index}`))
     return map
   }, [tree])
+
+  /** Every key the tree currently holds — `byKey` already walks exactly that shape. */
+  const allKeys = useMemo(() => [...byKey.keys()], [byKey])
+
+  /**
+   * Keys the user can see. Starts as everything (what `defaultExpandAll` promised) and then only
+   * ever GROWS by the ancestors of keys that did not exist on the previous render.
+   */
+  const [expandedKeys, setExpandedKeys] = useState<string[]>(allKeys)
+  const knownKeys = useRef<string[]>(allKeys)
+  useEffect(() => {
+    const fresh = allKeys.filter((key) => !knownKeys.current.includes(key))
+    knownKeys.current = allKeys
+    if (!fresh.length) {
+      return
+    }
+    // The ancestors, not the new key itself: revealing `0-1-0` means opening `0` and `0-1`. A leaf
+    // has no subtree to open, and expanding it would be a no-op that hides the real requirement.
+    const ancestors = new Set<string>()
+    for (const key of fresh) {
+      const parts = key.split('-')
+      for (let cut = 1; cut < parts.length; cut += 1) {
+        ancestors.add(parts.slice(0, cut).join('-'))
+      }
+    }
+    setExpandedKeys((previous) => [...new Set([...previous, ...ancestors])])
+  }, [allKeys])
 
   if (!flat.length) {
     return (
@@ -599,7 +645,8 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
         </span>
       </div>
       <Tree
-        defaultExpandAll
+        expandedKeys={expandedKeys}
+        onExpand={(keys) => setExpandedKeys(keys.map(String))}
         onSelect={(keys) => {
           const node = byKey.get(String(keys[0]))
           // `node.path` is null for a placed EXISTING widget — it has no file in this draft, so
