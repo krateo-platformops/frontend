@@ -60,6 +60,7 @@ import ObjectTreePanel from './ObjectTreePanel'
 import styles from './PageComposer.module.css'
 import PalettePanel from './PalettePanel'
 import type { PalettePick } from './PalettePanel'
+import { listPlaceableWidgets } from './placeableWidgets'
 import { planAdd } from './planAdd'
 import { planMove } from './planMove'
 import { SplitDivider } from './SplitDivider'
@@ -174,6 +175,8 @@ const PageComposer = () => {
   // only DEGRADES without config — the widget picker reports that it cannot reach the list. Taking
   // the whole route down for that would be worse, and the page is asserted to mount bare.
   const snowplowBaseUrl = useContext(ConfigContext)?.config?.api?.SNOWPLOW_API_BASE_URL ?? ''
+  /** Where drafts — and anything an agent authors for one — are actually applied. */
+  const previewSandboxNamespace = useContext(ConfigContext)?.config?.api?.PREVIEW_SANDBOX_NAMESPACE ?? ''
   const [payload, setPayload] = useState<AutopilotPreviewPayload | null>(null)
   // Canvas's share of the centre column. Opens favouring the canvas — you place before you
   // verify — but the preview is VISIBLE from the first frame, which is the point.
@@ -415,67 +418,143 @@ const PageComposer = () => {
    * no message could explain (the trap #304 documents).
    */
   useEffect(() => onComposeRequest((request) => {
+    // `void` the promise rather than handing an async function to a void-returning callback: the
+    // asker is answered through `reply`, never through a return value, so nothing is dropped by
+    // not awaiting here — and the emitter keeps its synchronous contract.
+    void (async () => {
     // EVERY PATH ANSWERS. The handler used to `return` on each refusal, setting a local Alert and
     // telling the asker nothing — so the agent's chip reported a success the composer had never
     // performed. `reply` is the single exit, so a path that forgets to answer cannot compile away
     // quietly: the asker either hears the outcome or hears the timeout, never silence.
-    const reply = (outcome: Outcome): void => {
-      emitComposeResult({
-        applied: outcome.ok,
-        id: request.id,
-        paths: outcome.paths,
-        reason: outcome.ok ? null : outcome.reason,
-        ...(outcome.ok || !outcome.where?.length ? {} : { where: outcome.where }),
-      })
-    }
-    const refuse = (reason: string, where?: string[]): void => {
-      setMoveError(reason)
-      reply({ ok: false, paths: [], reason, where })
-    }
+      const reply = (outcome: Outcome): void => {
+        emitComposeResult({
+          applied: outcome.ok,
+          id: request.id,
+          paths: outcome.paths,
+          reason: outcome.ok ? null : outcome.reason,
+          ...(outcome.ok || !outcome.where?.length ? {} : { where: outcome.where }),
+        })
+      }
+      const refuse = (reason: string, where?: string[]): void => {
+        setMoveError(reason)
+        reply({ ok: false, paths: [], reason, where })
+      }
 
-    const roots = buildObjectTree(files)
-    const byName = (name: string) => flattenTree(roots).find((node) => node.name === name)
-    const target = byName(request.target)
-    if (!target) {
+      const roots = buildObjectTree(files)
+      const byName = (name: string) => flattenTree(roots).find((node) => node.name === name)
+      const target = byName(request.target)
+      if (!target) {
       // The target is a typo or a name from another draft — but what is being PLACED is still
       // known, so the useful half of the answer survives. For a move whose widget is also missing
       // it does not: "which container accepts a widget the draft does not carry" has no answer, and
       // `acceptedBy` returns nothing rather than guessing a plural from the name.
-      const moving = request.op === 'move' ? byName(request.widget) : undefined
-      let plural: string | null | undefined
-      if (request.op === 'move') {
-        plural = moving?.resource
-      } else if (request.op === 'addExisting') {
-        plural = request.resource
-      } else {
-        plural = LAYOUT_KINDS[request.layout as keyof typeof LAYOUT_KINDS]
-      }
-      refuse(`"${request.target}" is not in this draft`, acceptedBy(roots, plural, moving))
-      return
-    }
-    if (request.op === 'move') {
-      const moving = byName(request.widget)
-      if (!moving) {
-        refuse(`"${request.widget}" is not in this draft`)
+        const moving = request.op === 'move' ? byName(request.widget) : undefined
+        let plural: string | null | undefined
+        if (request.op === 'move') {
+          plural = moving?.resource
+        } else if (request.op === 'addExisting') {
+          plural = request.resource
+        } else {
+          plural = LAYOUT_KINDS[request.layout as keyof typeof LAYOUT_KINDS]
+        }
+        refuse(`"${request.target}" is not in this draft`, acceptedBy(roots, plural, moving))
         return
       }
-      reply(applyMove(moving, target, roots, request.at))
-      return
-    }
-    if (request.op === 'addContainer') {
+      if (request.op === 'move') {
+        const moving = byName(request.widget)
+        if (!moving) {
+          refuse(`"${request.widget}" is not in this draft`)
+          return
+        }
+        reply(applyMove(moving, target, roots, request.at))
+        return
+      }
+      if (request.op === 'addContainer') {
       // Validated against the real map, not cast: a proposal can name anything, and a bogus layout
       // must be refused with a reason rather than coerced into a kind that does not exist.
-      const layout = (Object.keys(LAYOUT_KINDS) as (keyof typeof LAYOUT_KINDS)[])
-        .find((kind) => kind.toLowerCase() === request.layout.toLowerCase())
-      if (!layout) {
-        refuse(`"${request.layout}" is not a layout kind — try one of ${Object.keys(LAYOUT_KINDS).join(', ')}`)
+        const layout = (Object.keys(LAYOUT_KINDS) as (keyof typeof LAYOUT_KINDS)[])
+          .find((kind) => kind.toLowerCase() === request.layout.toLowerCase())
+        if (!layout) {
+          refuse(`"${request.layout}" is not a layout kind — try one of ${Object.keys(LAYOUT_KINDS).join(', ')}`)
+          return
+        }
+        reply(applyAdd(target, request.at, { kind: 'container', layout, resource: LAYOUT_KINDS[layout] }))
         return
       }
-      reply(applyAdd(target, request.at, { kind: 'container', layout, resource: LAYOUT_KINDS[layout] }))
-      return
-    }
-    reply(applyAdd(target, request.at, { kind: 'existing', name: request.name, resource: request.resource }))
-  }), [applyAdd, applyMove, files])
+      /*
+     * DOES THE THING BEING PLACED EXIST? The two branches above already refuse a proposal that
+     * names something unreal — a move of a widget not in the draft, a container kind not in
+     * LAYOUT_KINDS — and this one, the only branch whose argument is the NAME OF A CR ON THE
+     * CLUSTER, accepted whatever it was handed.
+     *
+     * So an agent could place `tables/pod-sizing` when no such Table exists anywhere. Observed,
+     * not hypothesised: the draft gained `resourcesRefs: [tables/pod-sizing]` and an items entry
+     * pointing at it, the agent reported "I have added the pod-sizing table", and the page
+     * rendered a hole. Nothing errored, because a dangling reference is only discovered by
+     * looking at the rendered page — which is why `structureEdit` calls this failure the worst
+     * available: it publishes clean.
+     *
+     * The invariant this restores is the one stated at the top of this handler — an agent cannot
+     * place a child a person could not have dragged there. A PERSON cannot do this: the palette
+     * and PlaceWidgetModal offer a list of widgets that actually exist, so the gesture is
+     * constrained by construction. The agent names a string, and nothing was checking it against
+     * the same catalogue. This checks it against exactly that catalogue, so the two paths agree.
+     *
+     * WHAT THIS ACTUALLY CHECKS, stated precisely because the refusal must not overclaim: the
+     * catalogue is snowplow's `/list` under the CALLER'S OWN RBAC, scoped to one namespace. So it
+     * answers "is this visible to you here", NOT "does this exist". A widget the author cannot
+     * read, or one living in another namespace, is absent from it while being perfectly real.
+     *
+     * Refusing that case is still right, and the reason is not that the widget is fake: a preview
+     * renders under the author's identity, so a widget they cannot see is one they cannot verify,
+     * and placing it means publishing a page whose content they were never shown. But the message
+     * has to say what was tested — "not visible to you in <ns>" — because "does not exist" would
+     * be a false statement about the cluster and would send the author hunting the wrong bug.
+     *
+     * FAIL CLOSED when the catalogue cannot be read. Failing open would reinstate the defect
+     * precisely when the cluster is least well understood, and the cost of being wrong is
+     * asymmetric: a refusal is visible and recoverable, a dangling reference is neither.
+     */
+      /*
+       * BOTH NAMESPACES, and the sandbox is the load-bearing one. A page draft's own objects carry
+       * TEMPLATED namespaces, so `draftNamespace` finds none and `authoringNamespace` falls back
+       * to krateo-system — while the draft itself, and every widget an agent authors for it, is
+       * applied to the PREVIEW SANDBOX. Checking only the fallback would refuse the agent's own
+       * freshly-created widget, which is the one case this validation must not break: author-then
+       * -place is exactly the flow it exists to protect.
+       */
+      const lookupNamespaces = [authoringNamespace, previewSandboxNamespace]
+        .filter((ns, index, all): ns is string => !!ns && all.indexOf(ns) === index)
+      const catalogues = await Promise.all(
+        lookupNamespaces.map((ns) => listPlaceableWidgets(snowplowBaseUrl, ns)),
+      )
+      const readable = catalogues.filter((entry) => entry.ok)
+      if (!readable.length) {
+        const failed = catalogues.find((entry) => !entry.ok)
+        refuse(`cannot confirm "${request.name}" is placeable — ${failed && !failed.ok ? failed.error : 'the widget list could not be read'}`)
+        return
+      }
+      const placeable = readable.flatMap((entry) => (entry.ok ? entry.widgets : []))
+      const exists = placeable.some(
+        (widget) => widget.name === request.name && widget.resource === request.resource,
+      )
+      if (!exists) {
+      // Named alternatives rather than a bare refusal: the likeliest cause is a plausible-looking
+      // invention, and the answer to "that does not exist" is "here is what does".
+        const sameKind = placeable
+          .filter((widget) => widget.resource === request.resource)
+          .map((widget) => widget.name)
+        // Names WHERE it looked — both places. "not in krateo-system" would be a puzzling thing to
+        // read about a draft whose objects live in the sandbox.
+        const lookedIn = lookupNamespaces.join(' or ')
+        refuse(sameKind.length
+          ? `no ${request.resource} named "${request.name}" is visible to you in ${lookedIn} — there is ${sameKind.slice(0, 6).join(', ')}`
+          : `no ${request.resource} named "${request.name}" is visible to you in ${lookedIn}, and no ${request.resource} at all — create it first, or check you may read it`)
+        return
+      }
+      reply(applyAdd(target, request.at, { kind: 'existing', name: request.name, resource: request.resource }))
+    })()
+  }), [applyAdd, applyMove, authoringNamespace, files, previewSandboxNamespace, snowplowBaseUrl])
 
   useEffect(() => {
     const stop = onDraftChanged(({ files: next }) => setFiles(next))

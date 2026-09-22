@@ -15,6 +15,28 @@ import type { ComposeOp, ComposeResult } from '../../components/Autopilot/compos
 
 import { capture, emit, installAntdShims, mountWithConfig, widgetCr } from './composerTestHarness'
 
+/*
+ * THE CATALOGUE A PLACEMENT IS CHECKED AGAINST — the same listing the palette shows a person.
+ *
+ * A proposal that names a widget is now confirmed to exist before it is placed, because an agent
+ * could otherwise place `tables/pod-sizing` when no such Table exists and the page would publish
+ * clean and render a hole. `fleet-card` is what these tests place, so it is what the cluster is
+ * mocked to hold; `listPlaceableActions` is untouched by this path and answers empty.
+ */
+vi.mock('./placeableWidgets', () => ({
+  ACTION_CATEGORY: 'actions',
+  listPlaceableActions: () => Promise.resolve({ ok: true, widgets: [] }),
+  // PER NAMESPACE, because the two are not interchangeable: `krateo-system` is the fallback for a
+  // draft whose own namespaces are Helm templates, and `krateo-preview` is where the draft and
+  // everything an agent authors for it actually lives. A mock that answered the same for both
+  // could not see the bug where only the fallback was consulted.
+  listPlaceableWidgets: (_base: string, namespace: string) => Promise.resolve(
+    namespace === 'krateo-preview'
+      ? { ok: true, widgets: [{ name: 'sandbox-only-table', resource: 'tables' }] }
+      : { ok: true, widgets: [{ name: 'fleet-card', resource: 'cards' }, { name: 'runs', resource: 'tables' }] },
+  ),
+}))
+
 afterEach(cleanup)
 beforeAll(installAntdShims)
 afterEach(() => {
@@ -43,11 +65,19 @@ let seq = 0
  * answer returns null here — which is what every test in this file would have looked like before
  * the result channel existed, and is exactly the silence the agent used to read as success.
  */
-const propose = (request: ComposeOp): ComposeResult | null => {
+const propose = async (request: ComposeOp): Promise<ComposeResult | null> => {
   const answers: ComposeResult[] = []
   const stop = onComposeResult((result) => { answers.push(result) })
   const id = `test-${(seq += 1)}`
-  act(() => emitComposeRequest({ ...request, id }))
+  await act(async () => {
+    emitComposeRequest({ ...request, id })
+    // AWAITED, because placing an existing widget now confirms it exists on the cluster first, so
+    // the answer arrives a microtask later. A synchronous read here returns null for exactly the
+    // branch under test — which would read as "the handler forgot to answer", the one failure this
+    // helper was written to make visible.
+    await Promise.resolve()
+    await Promise.resolve()
+  })
   stop()
   expect(answers.length, 'the composer answered more than once').toBeLessThan(2)
   if (answers.length === 1) { expect(answers[0].id).toBe(id) }
@@ -60,10 +90,10 @@ const open = () => {
 }
 
 describe('the agent restructures the draft through the composer', () => {
-  it('MOVES a widget — the same two-file rewrite a drag produces', () => {
+  it('MOVES a widget — the same two-file rewrite a drag produces', async () => {
     const bus = capture()
     open()
-    const answer = propose({ op: 'move', target: 'page-x', widget: 'card-b' })
+    const answer = await propose({ op: 'move', target: 'page-x', widget: 'card-b' })
 
     expect(bus.log.map((entry) => entry.op)).toEqual(['edit', 'edit'])
     // What it reports having touched is what it touched — the asker can name the files.
@@ -75,20 +105,20 @@ describe('the agent restructures the draft through the composer', () => {
     bus.stop()
   })
 
-  it('places an EXISTING widget without inventing a file', () => {
+  it('places an EXISTING widget without inventing a file', async () => {
     const bus = capture()
     open()
-    propose({ name: 'fleet-card', op: 'addExisting', resource: 'cards', target: 'page-x' })
+    await propose({ name: 'fleet-card', op: 'addExisting', resource: 'cards', target: 'page-x' })
 
     expect(bus.log.map((entry) => entry.op)).toEqual(['edit'])
     expect(order(bus.log[0].content)).toEqual(['row-a', 'fleet-card'])
     bus.stop()
   })
 
-  it('CREATES a container, emitting the file before the parent that references it', () => {
+  it('CREATES a container, emitting the file before the parent that references it', async () => {
     const bus = capture()
     open()
-    const answer = propose({ layout: 'Row', op: 'addContainer', target: 'page-x' })
+    const answer = await propose({ layout: 'Row', op: 'addContainer', target: 'page-x' })
 
     expect(bus.log.map((entry) => entry.op)).toEqual(['add', 'edit'])
     expect(bus.log[0].path).toBe('templates/row.page-x-row.yaml')
@@ -97,15 +127,15 @@ describe('the agent restructures the draft through the composer', () => {
     bus.stop()
   })
 
-  it('honours the insertion index', () => {
+  it('honours the insertion index', async () => {
     const bus = capture()
     open()
-    propose({ at: 0, name: 'fleet-card', op: 'addExisting', resource: 'cards', target: 'page-x' })
+    await propose({ at: 0, name: 'fleet-card', op: 'addExisting', resource: 'cards', target: 'page-x' })
     expect(order(bus.log[0].content)).toEqual(['fleet-card', 'row-a'])
     bus.stop()
   })
 
-  it('CANNOT place what a person could not drag — the container declaration is honoured', () => {
+  it('CANNOT place what a person could not drag — the container declaration is honoured', async () => {
     const bus = capture()
     mountWithConfig()
     // A page that says it holds rows only.
@@ -117,7 +147,7 @@ describe('the agent restructures the draft through the composer', () => {
     ].join('\n')
     emit({ files: [{ content: rowsOnly, path: 'templates/flex.page-x.yaml' }], title: 'x' })
 
-    const answer = propose({ name: 'fleet-card', op: 'addExisting', resource: 'cards', target: 'page-x' })
+    const answer = await propose({ name: 'fleet-card', op: 'addExisting', resource: 'cards', target: 'page-x' })
 
     expect(bus.log).toHaveLength(0)
     expect(screen.getByText(/cannot hold a cards/i)).toBeTruthy()
@@ -128,10 +158,10 @@ describe('the agent restructures the draft through the composer', () => {
     bus.stop()
   })
 
-  it('says so when the target is not in the draft, rather than failing silently', () => {
+  it('says so when the target is not in the draft, rather than failing silently', async () => {
     const bus = capture()
     open()
-    const answer = propose({ op: 'move', target: 'no-such-container', widget: 'card-b' })
+    const answer = await propose({ op: 'move', target: 'no-such-container', widget: 'card-b' })
     expect(bus.log).toHaveLength(0)
     expect(screen.getByText(/is not in this draft/i)).toBeTruthy()
     // The asker hears the same sentence the person does, rather than nothing.
@@ -158,69 +188,69 @@ describe('the agent restructures the draft through the composer', () => {
       { content: widgetCr('Row', 'row-b'), path: 'templates/row.row-b.yaml' },
     ]
 
-    it('names the containers that WOULD have taken the widget', () => {
+    it('names the containers that WOULD have taken the widget', async () => {
       const bus = capture()
       mountWithConfig()
       emit({ files: rowsOnly(), title: 'x' })
 
       // card-b lives in row-a; page-x holds rows only, so this is refused.
-      const answer = propose({ op: 'move', target: 'page-x', widget: 'card-b' })
+      const answer = await propose({ op: 'move', target: 'page-x', widget: 'card-b' })
       expect(answer?.applied).toBe(false)
       expect(answer?.where).toContain('row-b')
       expect(answer?.where).not.toContain('page-x')
       bus.stop()
     })
 
-    it('excludes the moving widget\'s own subtree — an answer that would be refused in turn', () => {
+    it('excludes the moving widget\'s own subtree — an answer that would be refused in turn', async () => {
       const bus = capture()
       mountWithConfig()
       emit({ files: rowsOnly(), title: 'x' })
 
       // Moving row-a into page-x is legal, so force a refusal on a node that HAS a subtree by
       // aiming at a non-container: row-a may not be dropped into the card it contains.
-      const answer = propose({ op: 'move', target: 'card-b', widget: 'row-a' })
+      const answer = await propose({ op: 'move', target: 'card-b', widget: 'row-a' })
       expect(answer?.applied).toBe(false)
       expect(answer?.where).not.toContain('row-a')
       expect(answer?.where).not.toContain('card-b')
       bus.stop()
     })
 
-    it('answers for a PLACEMENT that names a container which cannot hold it', () => {
+    it('answers for a PLACEMENT that names a container which cannot hold it', async () => {
       const bus = capture()
       mountWithConfig()
       emit({ files: rowsOnly(), title: 'x' })
 
-      const answer = propose({ name: 'fleet-card', op: 'addExisting', resource: 'cards', target: 'page-x' })
+      const answer = await propose({ name: 'fleet-card', op: 'addExisting', resource: 'cards', target: 'page-x' })
       expect(answer?.applied).toBe(false)
       expect(answer?.where).toEqual(expect.arrayContaining(['row-a', 'row-b']))
       bus.stop()
     })
 
-    it('still answers when the TARGET does not exist — what is being placed is still known', () => {
+    it('still answers when the TARGET does not exist — what is being placed is still known', async () => {
       const bus = capture()
       mountWithConfig()
       emit({ files: rowsOnly(), title: 'x' })
 
-      const answer = propose({ name: 'fleet-card', op: 'addExisting', resource: 'cards', target: 'typo-x' })
+      const answer = await propose({ name: 'fleet-card', op: 'addExisting', resource: 'cards', target: 'typo-x' })
       expect(answer?.reason).toMatch(/is not in this draft/)
       expect(answer?.where).toEqual(expect.arrayContaining(['row-a', 'row-b']))
       bus.stop()
     })
 
-    it('offers nothing rather than guessing when the WIDGET is unknown too', () => {
+    it('offers nothing rather than guessing when the WIDGET is unknown too', async () => {
       const bus = capture()
       mountWithConfig()
       emit({ files: rowsOnly(), title: 'x' })
 
       // "Which container accepts a widget the draft does not carry" has no answer, and inferring a
       // plural from the name would be exactly the guess this whole layer exists to remove.
-      const answer = propose({ op: 'move', target: 'typo-x', widget: 'no-such-card' })
+      const answer = await propose({ op: 'move', target: 'typo-x', widget: 'no-such-card' })
       expect(answer?.applied).toBe(false)
       expect(answer?.where ?? []).toEqual([])
       bus.stop()
     })
 
-    it('omits the field entirely when nothing on the page would take it', () => {
+    it('omits the field entirely when nothing on the page would take it', async () => {
       const bus = capture()
       mountWithConfig()
       // One container, declaring rows; the only other node is a Paragraph, which is not a
@@ -238,31 +268,136 @@ describe('the agent restructures the draft through the composer', () => {
         title: 'x',
       })
 
-      const answer = propose({ name: 'fleet-card', op: 'addExisting', resource: 'cards', target: 'page-x' })
+      const answer = await propose({ name: 'fleet-card', op: 'addExisting', resource: 'cards', target: 'page-x' })
       expect(answer?.applied).toBe(false)
       expect(answer?.where).toBeUndefined()
       bus.stop()
     })
   })
 
-  it('says so when the WIDGET being moved is not in the draft', () => {
+  it('says so when the WIDGET being moved is not in the draft', async () => {
     const bus = capture()
     open()
-    const answer = propose({ op: 'move', target: 'page-x', widget: 'no-such-card' })
+    const answer = await propose({ op: 'move', target: 'page-x', widget: 'no-such-card' })
     expect(bus.log).toHaveLength(0)
     expect(answer).toMatchObject({ applied: false, paths: [] })
     expect(answer?.reason).toMatch(/"no-such-card" is not in this draft/)
     bus.stop()
   })
 
-  it('refuses a layout kind that does not exist instead of coercing it', () => {
+  it('refuses a layout kind that does not exist instead of coercing it', async () => {
     const bus = capture()
     open()
-    const answer = propose({ layout: 'Carousel', op: 'addContainer', target: 'page-x' })
+    const answer = await propose({ layout: 'Carousel', op: 'addContainer', target: 'page-x' })
     expect(bus.log).toHaveLength(0)
     expect(screen.getByText(/is not a layout kind/i)).toBeTruthy()
     expect(answer).toMatchObject({ applied: false, paths: [] })
     expect(answer?.reason).toMatch(/is not a layout kind/)
     bus.stop()
+  })
+})
+
+/**
+ * PLACING SOMETHING THAT DOES NOT EXIST — the one branch that took an unchecked string.
+ *
+ * This handler's contract is that an agent cannot place a child a person could not have dragged
+ * there. A person cannot drag a widget that does not exist: the palette and PlaceWidgetModal offer
+ * a list of real ones, so the gesture is constrained by construction. The agent names a string,
+ * and nothing compared it to that list.
+ *
+ * Observed on a live cluster, not imagined: the agent answered "I have added the pod-sizing table",
+ * the draft gained `resourcesRefs: [tables/pod-sizing]` with a matching items entry, no such Table
+ * existed anywhere, and the page rendered a hole. It publishes clean, which `structureEdit` calls
+ * the worst failure available.
+ */
+describe('placing a widget that does not exist', () => {
+  it('REFUSES it, rather than writing a reference to nothing', async () => {
+    open()
+    const answer = await propose({ name: 'pod-sizing', op: 'addExisting', resource: 'tables', target: 'page-x' })
+
+    expect(answer?.applied).toBe(false)
+    expect(answer?.reason ?? '').toContain('pod-sizing')
+  })
+
+  it('NAMES what does exist of that kind — "that is not real" is only half an answer', async () => {
+    open()
+    const answer = await propose({ name: 'pod-sizing', op: 'addExisting', resource: 'tables', target: 'page-x' })
+
+    // The catalogue holds one table, `runs`. A refusal that does not say so sends the asker
+    // guessing at another name, which is how the invented one arrived in the first place.
+    expect(answer?.reason ?? '').toContain('runs')
+  })
+
+  it('still places a widget that DOES exist — the check must not refuse the legitimate case', async () => {
+    open()
+    const answer = await propose({ name: 'fleet-card', op: 'addExisting', resource: 'cards', target: 'page-x' })
+
+    expect(answer?.applied).toBe(true)
+  })
+
+  it('distinguishes a wrong NAME from a wrong KIND', async () => {
+    open()
+    // `fleet-card` exists, but as a card, not a table. Placing it as a table would write a
+    // resourcesRefs entry whose plural does not match the CR, which renders nothing either.
+    const answer = await propose({ name: 'fleet-card', op: 'addExisting', resource: 'tables', target: 'page-x' })
+
+    expect(answer?.applied).toBe(false)
+    expect(answer?.reason ?? '').toContain('fleet-card')
+  })
+})
+
+/**
+ * THE REFUSAL MUST NOT OVERCLAIM. The catalogue is snowplow's `/list` under the CALLER'S OWN RBAC,
+ * scoped to one namespace — so it answers "is this visible to you here", not "does this exist". A
+ * widget the author cannot read is absent from it while being perfectly real, and a message saying
+ * it does not exist would be a false statement about the cluster that sends them hunting the wrong
+ * bug. Refusing is still correct (a preview renders under the author's identity, so what they
+ * cannot see they cannot verify) — the wording is what has to be honest.
+ */
+describe('what the refusal claims', () => {
+  it('says NOT VISIBLE TO YOU, never that the widget does not exist', async () => {
+    open()
+    const answer = await propose({ name: 'pod-sizing', op: 'addExisting', resource: 'tables', target: 'page-x' })
+    const reason = answer?.reason ?? ''
+
+    expect(reason).toContain('visible to you')
+    expect(reason.toLowerCase()).not.toContain('does not exist')
+  })
+
+  it('names the namespace it actually looked in, since that is half the scope', async () => {
+    open()
+    const answer = await propose({ name: 'pod-sizing', op: 'addExisting', resource: 'tables', target: 'page-x' })
+
+    expect(answer?.reason ?? '').toMatch(/in \S+/)
+  })
+})
+
+/**
+ * THE AGENT AUTHORS INTO THE PREVIEW SANDBOX, so the check has to look there.
+ *
+ * A page draft's objects carry TEMPLATED namespaces, so `draftNamespace` finds none and the
+ * authoring namespace falls back to krateo-system — while the draft, and every widget an agent
+ * creates for it, is applied to the sandbox. A validation that consulted only the fallback would
+ * refuse the agent's own freshly-created widget: author-then-place is the exact flow it exists to
+ * protect, and breaking it would be worse than the bug it fixes.
+ */
+describe('a widget that exists only in the preview sandbox', () => {
+  it('is placeable — the sandbox is where a draft actually lives', async () => {
+    open()
+    const answer = await propose({ name: 'sandbox-only-table', op: 'addExisting', resource: 'tables', target: 'page-x' })
+
+    expect(answer?.applied, answer?.reason ?? '').toBe(true)
+  })
+
+  it('still refuses an invented name, with BOTH namespaces named', async () => {
+    open()
+    const answer = await propose({ name: 'pod-sizing', op: 'addExisting', resource: 'tables', target: 'page-x' })
+    const reason = answer?.reason ?? ''
+
+    expect(answer?.applied).toBe(false)
+    expect(reason).toContain('krateo-system')
+    expect(reason).toContain('krateo-preview')
+    // and it offers what IS placeable, from both
+    expect(reason).toContain('sandbox-only-table')
   })
 })

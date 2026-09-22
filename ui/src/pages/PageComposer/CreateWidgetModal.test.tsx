@@ -150,7 +150,7 @@ describe('a required LIST left untouched', () => {
       fireEvent.click(screen.getByText('Create'))
 
       expect(onCreate, `${kind} was refused`).toHaveBeenCalled()
-      const { widgetData } = (onCreate.mock.calls[0] as [{ widgetData: Record<string, unknown> }])[0]
+      const [[{ widgetData }]] = onCreate.mock.calls as [[{ widgetData: Record<string, unknown> }]]
       for (const field of requiredArrays(kind)) {
         expect(widgetData[field], `${kind}.${field}`).toEqual([])
       }
