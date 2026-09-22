@@ -175,6 +175,8 @@ const PageComposer = () => {
   // only DEGRADES without config — the widget picker reports that it cannot reach the list. Taking
   // the whole route down for that would be worse, and the page is asserted to mount bare.
   const snowplowBaseUrl = useContext(ConfigContext)?.config?.api?.SNOWPLOW_API_BASE_URL ?? ''
+  /** Where drafts — and anything an agent authors for one — are actually applied. */
+  const previewSandboxNamespace = useContext(ConfigContext)?.config?.api?.PREVIEW_SANDBOX_NAMESPACE ?? ''
   const [payload, setPayload] = useState<AutopilotPreviewPayload | null>(null)
   // Canvas's share of the centre column. Opens favouring the canvas — you place before you
   // verify — but the preview is VISIBLE from the first frame, which is the point.
@@ -513,28 +515,46 @@ const PageComposer = () => {
      * precisely when the cluster is least well understood, and the cost of being wrong is
      * asymmetric: a refusal is visible and recoverable, a dangling reference is neither.
      */
-      const catalogue = await listPlaceableWidgets(snowplowBaseUrl, authoringNamespace)
-      if (!catalogue.ok) {
-        refuse(`cannot confirm "${request.name}" is placeable — ${catalogue.error}`)
+      /*
+       * BOTH NAMESPACES, and the sandbox is the load-bearing one. A page draft's own objects carry
+       * TEMPLATED namespaces, so `draftNamespace` finds none and `authoringNamespace` falls back
+       * to krateo-system — while the draft itself, and every widget an agent authors for it, is
+       * applied to the PREVIEW SANDBOX. Checking only the fallback would refuse the agent's own
+       * freshly-created widget, which is the one case this validation must not break: author-then
+       * -place is exactly the flow it exists to protect.
+       */
+      const lookupNamespaces = [authoringNamespace, previewSandboxNamespace]
+        .filter((ns, index, all): ns is string => !!ns && all.indexOf(ns) === index)
+      const catalogues = await Promise.all(
+        lookupNamespaces.map((ns) => listPlaceableWidgets(snowplowBaseUrl, ns)),
+      )
+      const readable = catalogues.filter((entry) => entry.ok)
+      if (!readable.length) {
+        const failed = catalogues.find((entry) => !entry.ok)
+        refuse(`cannot confirm "${request.name}" is placeable — ${failed && !failed.ok ? failed.error : 'the widget list could not be read'}`)
         return
       }
-      const exists = catalogue.widgets.some(
+      const placeable = readable.flatMap((entry) => (entry.ok ? entry.widgets : []))
+      const exists = placeable.some(
         (widget) => widget.name === request.name && widget.resource === request.resource,
       )
       if (!exists) {
       // Named alternatives rather than a bare refusal: the likeliest cause is a plausible-looking
       // invention, and the answer to "that does not exist" is "here is what does".
-        const sameKind = catalogue.widgets
+        const sameKind = placeable
           .filter((widget) => widget.resource === request.resource)
           .map((widget) => widget.name)
+        // Names WHERE it looked — both places. "not in krateo-system" would be a puzzling thing to
+        // read about a draft whose objects live in the sandbox.
+        const lookedIn = lookupNamespaces.join(' or ')
         refuse(sameKind.length
-          ? `no ${request.resource} named "${request.name}" is visible to you in ${authoringNamespace} — there is ${sameKind.slice(0, 6).join(', ')}`
-          : `no ${request.resource} named "${request.name}" is visible to you in ${authoringNamespace}, and no ${request.resource} at all — create it first, or check you may read it`)
+          ? `no ${request.resource} named "${request.name}" is visible to you in ${lookedIn} — there is ${sameKind.slice(0, 6).join(', ')}`
+          : `no ${request.resource} named "${request.name}" is visible to you in ${lookedIn}, and no ${request.resource} at all — create it first, or check you may read it`)
         return
       }
       reply(applyAdd(target, request.at, { kind: 'existing', name: request.name, resource: request.resource }))
     })()
-  }), [applyAdd, applyMove, authoringNamespace, files, snowplowBaseUrl])
+  }), [applyAdd, applyMove, authoringNamespace, files, previewSandboxNamespace, snowplowBaseUrl])
 
   useEffect(() => {
     const stop = onDraftChanged(({ files: next }) => setFiles(next))

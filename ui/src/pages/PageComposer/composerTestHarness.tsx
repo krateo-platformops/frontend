@@ -73,9 +73,13 @@ export const mount = () => render(inApp(<ThemeModeProvider><PageComposer /></The
  * route always has it in production. The bare `mount` stays, because "renders with no
  * AutopilotProvider" is a property worth keeping asserted — this adds config, not the rail.
  */
-export const mountWithConfig = (snowplow = 'http://snowplow.test') => render(
+export const mountWithConfig = (snowplow = 'http://snowplow.test', sandbox = 'krateo-preview') => render(
   inApp(
-    <ConfigContext.Provider value={{ config: { api: { SNOWPLOW_API_BASE_URL: snowplow } } } as never}>
+    // PREVIEW_SANDBOX_NAMESPACE is part of the config a real composer runs with: a draft's objects
+    // are applied there, so anything that reasons about where a widget LIVES needs it to be set.
+    <ConfigContext.Provider
+      value={{ config: { api: { PREVIEW_SANDBOX_NAMESPACE: sandbox, SNOWPLOW_API_BASE_URL: snowplow } } } as never}
+    >
       <ThemeModeProvider><PageComposer /></ThemeModeProvider>
     </ConfigContext.Provider>,
   ),

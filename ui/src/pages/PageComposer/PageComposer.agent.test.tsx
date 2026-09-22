@@ -26,10 +26,15 @@ import { capture, emit, installAntdShims, mountWithConfig, widgetCr } from './co
 vi.mock('./placeableWidgets', () => ({
   ACTION_CATEGORY: 'actions',
   listPlaceableActions: () => Promise.resolve({ ok: true, widgets: [] }),
-  listPlaceableWidgets: () => Promise.resolve({
-    ok: true,
-    widgets: [{ name: 'fleet-card', resource: 'cards' }, { name: 'runs', resource: 'tables' }],
-  }),
+  // PER NAMESPACE, because the two are not interchangeable: `krateo-system` is the fallback for a
+  // draft whose own namespaces are Helm templates, and `krateo-preview` is where the draft and
+  // everything an agent authors for it actually lives. A mock that answered the same for both
+  // could not see the bug where only the fallback was consulted.
+  listPlaceableWidgets: (_base: string, namespace: string) => Promise.resolve(
+    namespace === 'krateo-preview'
+      ? { ok: true, widgets: [{ name: 'sandbox-only-table', resource: 'tables' }] }
+      : { ok: true, widgets: [{ name: 'fleet-card', resource: 'cards' }, { name: 'runs', resource: 'tables' }] },
+  ),
 }))
 
 afterEach(cleanup)
@@ -364,5 +369,35 @@ describe('what the refusal claims', () => {
     const answer = await propose({ name: 'pod-sizing', op: 'addExisting', resource: 'tables', target: 'page-x' })
 
     expect(answer?.reason ?? '').toMatch(/in \S+/)
+  })
+})
+
+/**
+ * THE AGENT AUTHORS INTO THE PREVIEW SANDBOX, so the check has to look there.
+ *
+ * A page draft's objects carry TEMPLATED namespaces, so `draftNamespace` finds none and the
+ * authoring namespace falls back to krateo-system — while the draft, and every widget an agent
+ * creates for it, is applied to the sandbox. A validation that consulted only the fallback would
+ * refuse the agent's own freshly-created widget: author-then-place is the exact flow it exists to
+ * protect, and breaking it would be worse than the bug it fixes.
+ */
+describe('a widget that exists only in the preview sandbox', () => {
+  it('is placeable — the sandbox is where a draft actually lives', async () => {
+    open()
+    const answer = await propose({ name: 'sandbox-only-table', op: 'addExisting', resource: 'tables', target: 'page-x' })
+
+    expect(answer?.applied, answer?.reason ?? '').toBe(true)
+  })
+
+  it('still refuses an invented name, with BOTH namespaces named', async () => {
+    open()
+    const answer = await propose({ name: 'pod-sizing', op: 'addExisting', resource: 'tables', target: 'page-x' })
+    const reason = answer?.reason ?? ''
+
+    expect(answer?.applied).toBe(false)
+    expect(reason).toContain('krateo-system')
+    expect(reason).toContain('krateo-preview')
+    // and it offers what IS placeable, from both
+    expect(reason).toContain('sandbox-only-table')
   })
 })
