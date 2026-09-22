@@ -84,8 +84,91 @@ export const useDraftFileBuses = (
    * is inert and the hook behaves exactly as it did.
    */
   const replayTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Read through refs so the runner below can be created ONCE and still see the current props. A
+  // runner rebuilt on every render would make the in-flight flags below meaningless: each new
+  // closure would carry its own idea of whether an apply was already running.
+  const liveRef = useRef(previewLive)
+  liveRef.current = previewLive
+  const storeRef = useRef(store)
+  storeRef.current = store
+  /** An apply is between its sweep and its last POST. Nothing else may apply in that window. */
+  const inFlight = useRef(false)
+  /** Something changed while an apply was running — drain it when that one lands. */
+  const pending = useRef(false)
+
+  /*
+   * ONE APPLY AT A TIME, and the reason is the 409 this replaced.
+   *
+   * An apply is not atomic: it DELETEs every name it is about to write (the sweep), then POSTs
+   * them. The sweep exists because the sandbox uses the draft's real names — `page-<slug>`,
+   * `platform-alerts` — since the preview has to render the same object graph that will be
+   * published, wired by the same names. Two applies overlapping interleave into
+   * sweep(A) POST(A) sweep(B) POST(B) at best, and sweep(B) POST(A) POST(B) at worst: B's create
+   * then hits A's object and the apiserver answers 409 "already exists". Measured on a live
+   * cluster, every recorded session produced exactly one:
+   *
+   *   Flex/page-proof-d: flexes.widgets.templates.krateo.io "page-proof-d" already exists
+   *
+   * That apply is abandoned and rolled back, and its drawer falls back to source-only — the live
+   * render disappears until the next apply happens to succeed. It self-heals, which is precisely
+   * what made it easy to miss.
+   *
+   * This was not possible before the re-apply existed: there was exactly ONE apply per session, at
+   * draft start. It is a defect of this file, not of the apply path.
+   *
+   * DRAINED, NOT QUEUED. A request that arrives mid-flight sets a flag rather than joining a queue,
+   * and the loop below re-reads the HELD DRAFT when it comes round. Ten edits during one apply
+   * therefore cost one more apply of the final state, not ten applies of ten intermediate states —
+   * and the sandbox never renders a shape the author has already moved past.
+   */
+  const runApply = useCallback(async (explicit?: { title: string; widgets: Record<string, unknown>[] }) => {
+    const live = liveRef.current
+    if (!live) {
+      return
+    }
+    if (inFlight.current) {
+      pending.current = true
+
+      return
+    }
+    inFlight.current = true
+    try {
+      let job = explicit
+      do {
+        pending.current = false
+        if (!job) {
+          const held = storeRef.current.get()
+          const widgets = held ? pageDraftWidgets(held.files) : []
+          job = widgets.length && held ? { title: pageDisplayName(held.files), widgets } : undefined
+        }
+        if (!job) {
+          break
+        }
+        // Serialising IS the point: the next apply must not start until this one's POSTs have
+        // landed, or its sweep races them.
+        // eslint-disable-next-line no-await-in-loop
+        await live(job.widgets, job.title)
+        // The announcement is what makes the RENDER follow: the apply changed what the sandbox
+        // serves, and the pane's query is keyed on a URL that did not change. See previewApplied.
+        emitPreviewApplied()
+        job = undefined
+      } while (pending.current)
+    } catch {
+      // Failures are the apply path's to report — it already turns one into a visible chip. What
+      // must NOT happen here is an unhandled rejection taking the composer down with it.
+    } finally {
+      // The lint reads these as a possible interleaving. They cannot interleave: this ref IS the
+      // mutex, JS runs one task at a time, and the only writer is this function — which is exactly
+      // why the flag was added. Clearing it anywhere but `finally` would strand every later apply
+      // behind a failed one.
+      // eslint-disable-next-line require-atomic-updates
+      inFlight.current = false
+      pending.current = false
+    }
+  }, [])
+
   const scheduleReapply = useCallback(() => {
-    if (!previewLive) {
+    if (!liveRef.current) {
       return
     }
     if (replayTimer.current) {
@@ -93,24 +176,9 @@ export const useDraftFileBuses = (
     }
     replayTimer.current = setTimeout(() => {
       replayTimer.current = null
-      const held = store.get()
-      if (!held) {
-        return
-      }
-      const widgets = pageDraftWidgets(held.files)
-      if (!widgets.length) {
-        return
-      }
-      // Failures are the apply path's to report — it already turns one into a visible chip. What
-      // must NOT happen here is an unhandled rejection taking the composer down with it.
-      //
-      // The announcement is what makes the RENDER follow: the apply changed what the sandbox
-      // serves, and the pane's query is keyed on a URL that did not change. See previewApplied.
-      void Promise.resolve(previewLive(widgets, pageDisplayName(held.files)))
-        .then(() => { emitPreviewApplied() })
-        .catch(() => undefined)
+      void runApply()
     }, REAPPLY_DEBOUNCE_MS)
-  }, [previewLive, store])
+  }, [runApply])
 
   // Cancel in flight on unmount: a timer that fires after the composer is gone would apply a draft
   // nobody is looking at, into a sandbox the close path may already have torn down.
@@ -216,9 +284,12 @@ export const useDraftFileBuses = (
     // non-UI caller) this falls back to the source-only payload exactly as before, so nothing
     // that worked without a sandbox starts depending on one.
     if (previewLive) {
-      void previewLive(widgets, title)
+      // THROUGH THE SAME GATE. The start apply is an apply: a drag a moment later must queue behind
+      // it rather than sweep underneath it.
+      void runApply({ title, widgets })
+
       return
     }
     openAutopilotPreview({ ...buildPagePreviewPayload(widgets), caption: undefined, title })
-  }), [gate, previewLive, store])
+  }), [gate, previewLive, runApply, store])
 }
