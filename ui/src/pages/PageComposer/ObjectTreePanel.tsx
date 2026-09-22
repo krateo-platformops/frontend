@@ -12,7 +12,7 @@
  * lets a person rewrite any file's YAML — a structure kept alongside would be stale the moment they
  * did, in a way nothing would report.
  */
-import { ApiOutlined, ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, DragOutlined, GroupOutlined, ImportOutlined, PlusOutlined } from '@ant-design/icons'
+import { ApiOutlined, ArrowDownOutlined, ArrowUpOutlined, DatabaseOutlined, DeleteOutlined, DragOutlined, GroupOutlined, ImportOutlined, PlusOutlined } from '@ant-design/icons'
 import { App, Button, Dropdown, Empty, Popconfirm, Space, Tag, Tooltip, Tree, Typography } from 'antd'
 import type { DataNode } from 'antd/es/tree'
 import { useMemo, useState } from 'react'
@@ -23,6 +23,7 @@ import { emitFileRemove } from '../../components/Autopilot/previewFileRemove'
 
 import BindDataModal from './BindDataModal'
 import { announce } from './composerAnnounce'
+import { DataBindingModal } from './DataBindingModal'
 import type { BindingResult } from './generateBinding'
 import MoveIntoModal from './MoveIntoModal'
 import { buildObjectTree, draftNamespace, flattenTree } from './objectTree'
@@ -53,11 +54,12 @@ const toDataNode = (
   mutate: (node: TreeNode, op: 'up' | 'down' | 'remove') => void,
   addLayout: (node: TreeNode, kind: LayoutKind) => void,
   bindInto: (node: TreeNode) => void,
+  dataFor: (node: TreeNode) => void,
   wrapIn: (node: TreeNode, kind: LayoutKind) => void,
   placeInto: (node: TreeNode) => void,
   moveInto: (node: TreeNode) => void,
 ): DataNode => ({
-  children: node.children.map((child, index) => toDataNode(child, `${key}-${index}`, mutate, addLayout, bindInto, wrapIn, placeInto, moveInto)),
+  children: node.children.map((child, index) => toDataNode(child, `${key}-${index}`, mutate, addLayout, bindInto, dataFor, wrapIn, placeInto, moveInto)),
   key,
   title: (
     <span className={styles.node}>
@@ -105,6 +107,18 @@ const toDataNode = (
         ? (
           <Tooltip title='Add a table that reads live data from the cluster'>
             <Button aria-label={`Bind data inside ${node.name}`} icon={<ApiOutlined />} onClick={(event) => { event.stopPropagation(); bindInto(node) }} size='small' type='text' />
+          </Tooltip>
+        )
+        : null}
+      {/* ON EVERY DRAFTED WIDGET, not only a container. `apiRef`, `widgetDataTemplate` and
+          `resourcesRefsTemplate` are declared by all forty-four widget CRDs, so "where does this
+          widget's data come from" is a question every one of them can answer. The composer only
+          ever asked it of containers, and only through bind-data, which is why a page's data could
+          come from one API path and nothing else. */}
+      {node.drafted
+        ? (
+          <Tooltip title='Where this widget&rsquo;s data comes from, and what fills it'>
+            <Button aria-label={`Data for ${node.name}`} icon={<DatabaseOutlined />} onClick={(event) => { event.stopPropagation(); dataFor(node) }} size='small' type='text' />
           </Tooltip>
         )
         : null}
@@ -180,6 +194,8 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
   const { message } = App.useApp()
   // Which container a generated binding will be placed into. Null closes the modal.
   const [bindTarget, setBindTarget] = useState<TreeNode | null>(null)
+  /** The widget whose apiRef / templates are being edited. Null closes the modal. */
+  const [dataTarget, setDataTarget] = useState<TreeNode | null>(null)
   // Which container a placed EXISTING widget lands in. Null closes the modal.
   const [placeTarget, setPlaceTarget] = useState<TreeNode | null>(null)
   const [moveSubject, setMoveSubject] = useState<TreeNode | null>(null)
@@ -380,7 +396,7 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
   }
 
   const nodes = useMemo(
-    () => tree.map((node, index) => toDataNode(node, `${index}`, mutate, addLayout, setBindTarget, wrapIn, setPlaceTarget, setMoveSubject)),
+    () => tree.map((node, index) => toDataNode(node, `${index}`, mutate, addLayout, setBindTarget, setDataTarget, wrapIn, setPlaceTarget, setMoveSubject)),
     // `mutate` closes over `files` and is recreated each render; depending on it would defeat the
     // memo entirely. `tree` already changes whenever `files` does, which is the only time the
     // rendered nodes need rebuilding.
@@ -521,6 +537,28 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
             onPlace={(widget) => acceptPlacement(placeTarget, widget)}
             open
             snowplowBaseUrl={snowplowBaseUrl}
+          />
+        )
+        : null}
+      {dataTarget?.path && files[dataTarget.path] && namespace
+        ? (
+          <DataBindingModal
+            namespace={namespace}
+            onCancel={() => setDataTarget(null)}
+            onDone={({ restAction, widgetYaml }) => {
+              // The RESTAction FIRST when there is one: the widget's apiRef names it, and a widget
+              // whose apiRef points at a file the draft does not hold yet is briefly inconsistent —
+              // the same ordering every other two-object emission here uses.
+              if (restAction) {
+                emitFileAdd({ content: restAction.content, path: restAction.path })
+              }
+              emitFileEdit({ content: widgetYaml, path: dataTarget.path as string })
+              setDataTarget(null)
+            }}
+            open
+            snowplowBaseUrl={snowplowBaseUrl}
+            widgetName={dataTarget.name}
+            widgetYaml={files[dataTarget.path]}
           />
         )
         : null}

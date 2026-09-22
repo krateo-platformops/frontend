@@ -152,3 +152,135 @@ export const setApiRef = (widgetYaml: string, ref: { name: string; namespace: st
   return widgetYaml.replace(/^(\s*)spec:\s*$/m,
     (match, indent: string) => `${match}\n${indent}  apiRef:\n${indent}    name: ${ref.name}\n${indent}    namespace: ${ref.namespace}`)
 }
+
+/** One `widgetDataTemplate` entry: a jq expression and the widgetData path it fills. */
+export interface DataTemplateEntry {
+  forPath: string
+  expression: string
+}
+
+/** One `resourcesRefsTemplate` entry: a jq iterator and the ref it produces per item. */
+export interface RefsTemplateEntry {
+  iterator: string
+  template: { id?: string; name?: string; namespace?: string; resource?: string; apiVersion?: string; verb?: string }
+}
+
+/**
+ * The OTHER half of binding, and the half the composer never exposed.
+ *
+ * `apiRef` says WHERE the data comes from. `widgetDataTemplate` says what to DO with it: each entry
+ * is a jq expression and the `widgetData` path it fills, so a Table's `dataSource`, a chart's
+ * `data`, a Statistic's `value` are all the same mechanism pointed at different paths. bind-data
+ * has always written exactly one of these — `forPath: dataSource` with a generated
+ * `${ [ .rows[] | … ] }` — which is why it could fill a table and nothing else.
+ *
+ * Measured on the cluster: 49 Tables carry one today, and all 44 widget CRDs declare the field.
+ *
+ * THE `${ }` WRAPPER IS THE CONTRACT, not decoration: snowplow evaluates the inside as jq and
+ * substitutes the result at `forPath`. An expression without it is copied through as a literal
+ * string, which renders as the text of the program — a failure that looks like a typo in the data.
+ * So it is checked here, and added when the author omits it rather than refused.
+ */
+export const normalizeExpression = (expression: string): string => {
+  const trimmed = expression.trim()
+  if (!trimmed) {
+    return trimmed
+  }
+
+  return /^\$\{[\s\S]*\}$/.test(trimmed) ? trimmed : `\${ ${trimmed} }`
+}
+
+/** Refuse what the CRD or the renderer will reject; say nothing about the jq itself. */
+export const validateDataTemplate = (entries: readonly DataTemplateEntry[]): string | null => {
+  const seen = new Set<string>()
+  for (const [index, entry] of entries.entries()) {
+    const at = `template ${index + 1}`
+    const path = entry.forPath.trim()
+    if (!path) {
+      return `${at}: forPath is required — it names the widgetData field this fills`
+    }
+    if (!/^[A-Za-z_][A-Za-z0-9_.[\]]*$/.test(path)) {
+      return `${at}: "${path}" is not a widgetData path — use forms like dataSource or series[0].data`
+    }
+    if (seen.has(path)) {
+      return `${at}: "${path}" is filled twice — the second would overwrite the first`
+    }
+    if (!entry.expression.trim()) {
+      return `${at}: the expression is empty — ${path} would be set to nothing`
+    }
+    seen.add(path)
+  }
+
+  return null
+}
+
+/** Same shape of rule for the refs template: the iterator and the plural are what the CRD needs. */
+export const validateRefsTemplate = (entries: readonly RefsTemplateEntry[]): string | null => {
+  for (const [index, entry] of entries.entries()) {
+    const at = `refs template ${index + 1}`
+    if (!entry.iterator.trim()) {
+      return `${at}: the iterator is required — it selects the list each ref is built from`
+    }
+    if (!entry.template.resource?.trim()) {
+      // Without a plural the ref addresses no kind, and the child silently never resolves — the
+      // same empty-hole failure placeChild refuses for a hand-placed widget.
+      return `${at}: resource is required — the PLURAL of the kind each ref points at`
+    }
+    if (!entry.template.name?.trim()) {
+      return `${at}: name is required — usually a jq expression reading the current item`
+    }
+  }
+
+  return null
+}
+
+/**
+ * Replace one `spec.<key>` block in the held YAML, or append it under `spec:`.
+ *
+ * Block-level rather than a parse/dump round trip, for the reason `setApiRef` gives: the held file
+ * is the author's bytes and re-emitting the whole document reorders keys and drops any comment
+ * they added in the Files tab. Only the block being edited is rewritten.
+ */
+export const setSpecBlock = (widgetYaml: string, key: string, blockYaml: string): string => {
+  const lines = widgetYaml.split('\n')
+  const at = lines.findIndex((line) => new RegExp(`^\\s*${key}:`).test(line))
+  const body = blockYaml.trimEnd().split('\n')
+
+  if (at >= 0) {
+    // The block runs until the next line indented NO DEEPER than the key itself. Scanned rather
+    // than matched: a regex with a backreference and an empty-line alternative swallowed the rest
+    // of the document, which is the kind of failure that only shows up on the second edit.
+    const [indent = ''] = lines[at].match(/^\s*/) ?? []
+    let end = at + 1
+    while (end < lines.length) {
+      const line = lines[end]
+      if (line.trim() && !line.startsWith(`${indent} `) && !line.startsWith(`${indent}\t`)) {
+        break
+      }
+      end += 1
+    }
+
+    return [
+      ...lines.slice(0, at),
+      `${indent}${key}:`,
+      ...body.map((line) => `${indent}${line}`),
+      ...lines.slice(end),
+    ].join('\n')
+  }
+
+  return widgetYaml.replace(/^(\s*)spec:\s*$/m, (match, indent: string) =>
+    `${match}\n${indent}  ${key}:\n${body.map((line) => `${indent}  ${line}`).join('\n')}`)
+}
+
+/** Write `spec.widgetDataTemplate` from the author's entries. */
+export const setDataTemplate = (widgetYaml: string, entries: readonly DataTemplateEntry[]): string =>
+  setSpecBlock(widgetYaml, 'widgetDataTemplate', dump(
+    entries.map((entry) => ({ expression: normalizeExpression(entry.expression), forPath: entry.forPath.trim() })), DUMP))
+
+/** Write `spec.resourcesRefsTemplate` from the author's entries. */
+export const setRefsTemplate = (widgetYaml: string, entries: readonly RefsTemplateEntry[]): string =>
+  setSpecBlock(widgetYaml, 'resourcesRefsTemplate', dump(
+    entries.map((entry) => ({
+      iterator: entry.iterator.trim(),
+      template: Object.fromEntries(Object.entries(entry.template).filter(([, value]) => String(value ?? '').trim())),
+    })), DUMP))
