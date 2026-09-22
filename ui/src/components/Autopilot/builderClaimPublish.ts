@@ -44,7 +44,7 @@ export const buildClaimPublish = async (args: {
   builder: BuilderKind
   slug: string
   files: BuilderPublishFile[]
-  dest: { owner?: string; repo?: string; base?: string } | null
+  dest: { owner?: string; repo?: string; base?: string; visibility?: 'public' | 'private' } | null
   namespace: string
   config: Config | undefined
   gate: (ops: ApplyResourceSetOp[]) => GateVerdict
@@ -58,6 +58,7 @@ export const buildClaimPublish = async (args: {
     ...(args.dest?.owner ? { namespace: args.dest.owner } : {}),
     ...(args.dest?.repo ? { repo: args.dest.repo } : {}),
     ...(args.dest?.base ? { base: args.dest.base } : {}),
+    ...(args.dest?.visibility ? { visibility: args.dest.visibility } : {}),
   }
   // No hardcoded fallback repo: if neither install config (AUTOPILOT_<X>_BUILDER_REPO) nor the
   // human-confirmed destination supplied an owner + repo, DENY rather than POST a half-addressed
