@@ -22,7 +22,7 @@
  * shared held-draft store; the previewPage branch in finalize populates it via these helpers.
  */
 
-import { dump } from 'js-yaml'
+import { dump, load } from 'js-yaml'
 
 import type { BlueprintDraftHeld } from './blueprintDraftStore'
 
@@ -282,6 +282,52 @@ export const pageDraftFiles = (widgets: readonly unknown[]): Record<string, stri
  * carry a chart. A page that ships as its own chart inverts that test silently, so the fact is
  * carried now instead of re-derived from a coincidence.
  */
+/**
+ * The INVERSE of pageDraftFiles: the held tree back to the widget CRs it was built from.
+ *
+ * WHY THIS HAS TO EXIST. `pageDraftFiles` is where a set of CRs becomes a chart, and until now that
+ * was a one-way door: the composer's canvas reads the held YAML, but the only consumer that needed
+ * OBJECTS — the preview apply — was handed them by whoever started the draft and never asked again.
+ * So the sandbox was seeded once and then drifted from the draft with every edit, which is exactly
+ * as wrong as it sounds: a Row dragged onto the canvas was in the tree, in the files and in the
+ * publish set, and absent from the thing labelled "Rendered (live)".
+ *
+ * THE TEMPLATED NAMESPACE COMES BACK AS-IS, deliberately. `pageDraftFiles` writes
+ * `{{ include "page.tierNamespace" ... }}` into metadata.namespace so the CHART does not hardcode
+ * an authoring namespace. Reversing that here would mean guessing which namespace it came from.
+ * It does not need reversing: `rewriteDraftsForSandbox` FORCES the namespace to the sandbox before
+ * anything is applied, so the include is overwritten rather than resolved. Anything that starts
+ * applying these objects WITHOUT that rewrite has to resolve the namespace itself first.
+ *
+ * Non-template files (Chart.yaml, values, the tier helper) are not widgets and are skipped. A file
+ * that does not parse, or parses to something that is not a CR, is skipped rather than failing the
+ * whole set: one malformed file should cost its own widget, not the preview.
+ */
+export const pageDraftWidgets = (files: Record<string, string>): Record<string, unknown>[] => {
+  const widgets: Record<string, unknown>[] = []
+  for (const key of Object.keys(files).sort()) {
+    if (!key.startsWith(`${PAGE_TEMPLATES_DIR}/`) || !key.endsWith('.yaml')) {
+      continue
+    }
+    let parsed: unknown
+    try {
+      parsed = load(files[key])
+    } catch {
+      continue
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      continue
+    }
+    const cr = parsed as Record<string, unknown>
+    const metadata = cr.metadata && typeof cr.metadata === 'object' ? (cr.metadata as Record<string, unknown>) : null
+    if (typeof cr.kind !== 'string' || !cr.kind || !metadata || typeof metadata.name !== 'string' || !metadata.name) {
+      continue
+    }
+    widgets.push(cr)
+  }
+  return widgets
+}
+
 export const isPageDraft = (held: Pick<BlueprintDraftHeld, 'kind'>): boolean => held.kind === 'page'
 
 /**
