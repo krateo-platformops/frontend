@@ -60,6 +60,7 @@ import ObjectTreePanel from './ObjectTreePanel'
 import styles from './PageComposer.module.css'
 import PalettePanel from './PalettePanel'
 import type { PalettePick } from './PalettePanel'
+import { listPlaceableWidgets } from './placeableWidgets'
 import { planAdd } from './planAdd'
 import { planMove } from './planMove'
 import { SplitDivider } from './SplitDivider'
@@ -415,67 +416,114 @@ const PageComposer = () => {
    * no message could explain (the trap #304 documents).
    */
   useEffect(() => onComposeRequest((request) => {
+    // `void` the promise rather than handing an async function to a void-returning callback: the
+    // asker is answered through `reply`, never through a return value, so nothing is dropped by
+    // not awaiting here — and the emitter keeps its synchronous contract.
+    void (async () => {
     // EVERY PATH ANSWERS. The handler used to `return` on each refusal, setting a local Alert and
     // telling the asker nothing — so the agent's chip reported a success the composer had never
     // performed. `reply` is the single exit, so a path that forgets to answer cannot compile away
     // quietly: the asker either hears the outcome or hears the timeout, never silence.
-    const reply = (outcome: Outcome): void => {
-      emitComposeResult({
-        applied: outcome.ok,
-        id: request.id,
-        paths: outcome.paths,
-        reason: outcome.ok ? null : outcome.reason,
-        ...(outcome.ok || !outcome.where?.length ? {} : { where: outcome.where }),
-      })
-    }
-    const refuse = (reason: string, where?: string[]): void => {
-      setMoveError(reason)
-      reply({ ok: false, paths: [], reason, where })
-    }
+      const reply = (outcome: Outcome): void => {
+        emitComposeResult({
+          applied: outcome.ok,
+          id: request.id,
+          paths: outcome.paths,
+          reason: outcome.ok ? null : outcome.reason,
+          ...(outcome.ok || !outcome.where?.length ? {} : { where: outcome.where }),
+        })
+      }
+      const refuse = (reason: string, where?: string[]): void => {
+        setMoveError(reason)
+        reply({ ok: false, paths: [], reason, where })
+      }
 
-    const roots = buildObjectTree(files)
-    const byName = (name: string) => flattenTree(roots).find((node) => node.name === name)
-    const target = byName(request.target)
-    if (!target) {
+      const roots = buildObjectTree(files)
+      const byName = (name: string) => flattenTree(roots).find((node) => node.name === name)
+      const target = byName(request.target)
+      if (!target) {
       // The target is a typo or a name from another draft — but what is being PLACED is still
       // known, so the useful half of the answer survives. For a move whose widget is also missing
       // it does not: "which container accepts a widget the draft does not carry" has no answer, and
       // `acceptedBy` returns nothing rather than guessing a plural from the name.
-      const moving = request.op === 'move' ? byName(request.widget) : undefined
-      let plural: string | null | undefined
-      if (request.op === 'move') {
-        plural = moving?.resource
-      } else if (request.op === 'addExisting') {
-        plural = request.resource
-      } else {
-        plural = LAYOUT_KINDS[request.layout as keyof typeof LAYOUT_KINDS]
-      }
-      refuse(`"${request.target}" is not in this draft`, acceptedBy(roots, plural, moving))
-      return
-    }
-    if (request.op === 'move') {
-      const moving = byName(request.widget)
-      if (!moving) {
-        refuse(`"${request.widget}" is not in this draft`)
+        const moving = request.op === 'move' ? byName(request.widget) : undefined
+        let plural: string | null | undefined
+        if (request.op === 'move') {
+          plural = moving?.resource
+        } else if (request.op === 'addExisting') {
+          plural = request.resource
+        } else {
+          plural = LAYOUT_KINDS[request.layout as keyof typeof LAYOUT_KINDS]
+        }
+        refuse(`"${request.target}" is not in this draft`, acceptedBy(roots, plural, moving))
         return
       }
-      reply(applyMove(moving, target, roots, request.at))
-      return
-    }
-    if (request.op === 'addContainer') {
+      if (request.op === 'move') {
+        const moving = byName(request.widget)
+        if (!moving) {
+          refuse(`"${request.widget}" is not in this draft`)
+          return
+        }
+        reply(applyMove(moving, target, roots, request.at))
+        return
+      }
+      if (request.op === 'addContainer') {
       // Validated against the real map, not cast: a proposal can name anything, and a bogus layout
       // must be refused with a reason rather than coerced into a kind that does not exist.
-      const layout = (Object.keys(LAYOUT_KINDS) as (keyof typeof LAYOUT_KINDS)[])
-        .find((kind) => kind.toLowerCase() === request.layout.toLowerCase())
-      if (!layout) {
-        refuse(`"${request.layout}" is not a layout kind — try one of ${Object.keys(LAYOUT_KINDS).join(', ')}`)
+        const layout = (Object.keys(LAYOUT_KINDS) as (keyof typeof LAYOUT_KINDS)[])
+          .find((kind) => kind.toLowerCase() === request.layout.toLowerCase())
+        if (!layout) {
+          refuse(`"${request.layout}" is not a layout kind — try one of ${Object.keys(LAYOUT_KINDS).join(', ')}`)
+          return
+        }
+        reply(applyAdd(target, request.at, { kind: 'container', layout, resource: LAYOUT_KINDS[layout] }))
         return
       }
-      reply(applyAdd(target, request.at, { kind: 'container', layout, resource: LAYOUT_KINDS[layout] }))
-      return
-    }
-    reply(applyAdd(target, request.at, { kind: 'existing', name: request.name, resource: request.resource }))
-  }), [applyAdd, applyMove, files])
+      /*
+     * DOES THE THING BEING PLACED EXIST? The two branches above already refuse a proposal that
+     * names something unreal — a move of a widget not in the draft, a container kind not in
+     * LAYOUT_KINDS — and this one, the only branch whose argument is the NAME OF A CR ON THE
+     * CLUSTER, accepted whatever it was handed.
+     *
+     * So an agent could place `tables/pod-sizing` when no such Table exists anywhere. Observed,
+     * not hypothesised: the draft gained `resourcesRefs: [tables/pod-sizing]` and an items entry
+     * pointing at it, the agent reported "I have added the pod-sizing table", and the page
+     * rendered a hole. Nothing errored, because a dangling reference is only discovered by
+     * looking at the rendered page — which is why `structureEdit` calls this failure the worst
+     * available: it publishes clean.
+     *
+     * The invariant this restores is the one stated at the top of this handler — an agent cannot
+     * place a child a person could not have dragged there. A PERSON cannot do this: the palette
+     * and PlaceWidgetModal offer a list of widgets that actually exist, so the gesture is
+     * constrained by construction. The agent names a string, and nothing was checking it against
+     * the same catalogue. This checks it against exactly that catalogue, so the two paths agree.
+     *
+     * FAIL CLOSED when the catalogue cannot be read. Failing open would reinstate the defect
+     * precisely when the cluster is least well understood, and the cost of being wrong is
+     * asymmetric: a refusal is visible and recoverable, a dangling reference is neither.
+     */
+      const catalogue = await listPlaceableWidgets(snowplowBaseUrl, authoringNamespace)
+      if (!catalogue.ok) {
+        refuse(`cannot confirm "${request.name}" exists — ${catalogue.error}`)
+        return
+      }
+      const exists = catalogue.widgets.some(
+        (widget) => widget.name === request.name && widget.resource === request.resource,
+      )
+      if (!exists) {
+      // Named alternatives rather than a bare refusal: the likeliest cause is a plausible-looking
+      // invention, and the answer to "that does not exist" is "here is what does".
+        const sameKind = catalogue.widgets
+          .filter((widget) => widget.resource === request.resource)
+          .map((widget) => widget.name)
+        refuse(sameKind.length
+          ? `no ${request.resource} named "${request.name}" in ${authoringNamespace} — there is ${sameKind.slice(0, 6).join(', ')}`
+          : `no ${request.resource} named "${request.name}" in ${authoringNamespace}, and no ${request.resource} at all — create it before placing it`)
+        return
+      }
+      reply(applyAdd(target, request.at, { kind: 'existing', name: request.name, resource: request.resource }))
+    })()
+  }), [applyAdd, applyMove, authoringNamespace, files, snowplowBaseUrl])
 
   useEffect(() => {
     const stop = onDraftChanged(({ files: next }) => setFiles(next))
