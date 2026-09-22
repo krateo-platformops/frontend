@@ -73,6 +73,33 @@ export type ComposeOp =
   | { op: 'addExisting'; name: string; resource: string; target: string; at?: number }
   /** Create a layout container inside `target`. */
   | { op: 'addContainer'; layout: string; target: string; at?: number }
+  /**
+   * CREATE a widget of any kind inside `target` — the agent's equivalent of a palette drop.
+   *
+   * Its absence is why an agent asked for "a table of pods" could only reach for `addExisting` and
+   * place something that already existed, or something that did not. A person can create any of the
+   * forty-four kinds; until this op the agent could create five layout containers and nothing else,
+   * so every request for a real widget had to be answered with the wrong verb.
+   *
+   * `widgetData` is the CRD's own shape, exactly as `CreateWidgetModal` collects it.
+   */
+  | { op: 'addWidget'; kind: string; name: string; widgetData?: Record<string, unknown>; target: string; at?: number }
+  /**
+   * Point a widget at its data — the agent's equivalent of the Data modal.
+   *
+   * Creating a Table is half an answer; a Table with no `apiRef` renders an empty frame. `action`
+   * authors a new RESTAction, `actionRef` names one that already exists, and the two templates fill
+   * the widget from its result. All three parts are optional so an agent can bind data to a widget
+   * it did not create, or re-point one it did.
+   */
+  | {
+    op: 'bindData'
+    widget: string
+    action?: { name: string; steps: { name: string; path: string; verb?: string; dependsOn?: string }[]; filter: string }
+    actionRef?: { name: string; namespace?: string }
+    dataTemplate?: { forPath: string; expression: string }[]
+    refsTemplate?: { iterator: string; template: { resource?: string; name?: string } }[]
+  }
 
 /** An op plus the id its answer will carry. */
 export type ComposeRequest = ComposeOp & { id: string }
@@ -150,6 +177,20 @@ const describeOp = (op: ComposeOp): string => {
   }
   if (op.op === 'addContainer') {
     return `add a ${op.layout} inside ${op.target}`
+  }
+  if (op.op === 'addWidget') {
+    return `create a ${op.kind} named ${op.name} inside ${op.target}`
+  }
+  if (op.op === 'bindData') {
+    // Says WHICH data, because "bind data to X" read identically whether the agent pointed the
+    // widget at a new RESTAction, an existing one, or neither — and those fail differently.
+    let source = 'no action'
+    if (op.action) {
+      source = `a new ${op.action.name}`
+    } else if (op.actionRef) {
+      source = op.actionRef.name
+    }
+    return `bind ${op.widget} to ${source}`
   }
   return `place ${op.name} inside ${op.target}`
 }

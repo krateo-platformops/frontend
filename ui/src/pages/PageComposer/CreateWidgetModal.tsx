@@ -27,9 +27,11 @@ import { useEffect, useState } from 'react'
 
 import { SchemaForm } from '../../widgets/Form/SchemaFields'
 
+import { DNS_1123 } from './composeAuthoring'
 import { WIDGET_KINDS } from './widgetKinds.generated'
 
-const DNS_1123 = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/
+// The name rule lives with the authoring ops, so a person's drop form and an agent's addWidget
+// cannot disagree about what a legal name is.
 
 /** The required-fields subset of a kind's widgetData schema — what the drop actually asks for. */
 export const requiredSchema = (widgetKind: string): JSONSchema4 | null => {
