@@ -3,17 +3,28 @@
   flex-direction: column;
   position: relative;
 
-  /* #86 §0.9b: a header-action widget (extraRefId — e.g. the alert-detail "Investigate with
-     Autopilot" button) lands in `.ant-card-extra` inside `.ant-card-head`, a flex child isolated
-     to the single-line header — so it could only ever centre against the title, never the
-     Watching/Threshold/Phase rows in `.ant-card-body`. Pull it out of the header's flow and pin it
-     against `.panel` (which spans head+body and is already position:relative) so it centres against
-     the FULL panel height. Gated on `.hasExtraAction` (set in Card.tsx only when extraEndpoint is
-     truthy) so plain `extra`/legend/tag/badge/statCard headers are byte-for-byte untouched.
-     `margin: 0` neutralises antd's `.ant-card-extra{ margin-inline-start:auto }`; `right` matches
-     the header padding so horizontal placement is unchanged. Single-consumer today — if a future
-     card ever co-locates extraRefId WITH a legend in the same extra fragment, both would be
-     absolutely-positioned and mis-stack. */
+  /* #86 §0.9b pinned the extraRefId action against `.panel` so it centred against the FULL panel
+     height — right for the alert-detail card, whose body is three short rows, and the comment
+     said so: "single-consumer today".
+
+     IT IS NOT SINGLE-CONSUMER ANY MORE, AND THE RULE DOES NOT GENERALISE. Centring against the
+     panel means the taller the body, the further the button travels INTO it. On the portal-builder
+     card — a four-step Steps, roughly 200px of body — "Ask Autopilot" landed on top of step four's
+     description and overprinted it: "Publishing commits every file — the page ro̶o̶t̶, e̶a̶c̶h̶".
+     Observed in a recording of the live page, not theorised.
+
+     So the containing block is the HEAD, not the panel. `top:0; bottom:0` still stretches the
+     extra and still centres the action within it — but within the title row, which is the one
+     region that cannot contain body text. A card whose action is not centred against its body is
+     a small loss; a card whose action is printed over its content is unreadable, and it gets
+     worse the more the card has to say.
+
+     This is a visible change to the alert-detail card: its action moves from panel-centred to
+     aligned with the title. That is the trade, taken deliberately. */
+  &.hasExtraAction :global(.ant-card-head) {
+    position: relative;
+  }
+
   &.hasExtraAction :global(.ant-card-extra) {
     align-items: center;
     bottom: 0;
