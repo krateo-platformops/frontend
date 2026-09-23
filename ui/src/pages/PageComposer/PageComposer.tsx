@@ -42,6 +42,7 @@ import { emitDraftStart } from '../../components/Autopilot/previewDraftStart'
 import { emitDraftUndo } from '../../components/Autopilot/previewDraftUndo'
 import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
 import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
+import { LIVE_PREVIEW_CAPTION_INLINE } from '../../components/Autopilot/previewPageV2'
 import { emitPublishRequest, onPublishResult } from '../../components/Autopilot/previewPublishRequest'
 import { PreviewContent } from '../../components/Autopilot/previewSurface'
 import type { RestDefVerdicts } from '../../components/Autopilot/previewSurface'
@@ -833,7 +834,7 @@ const PageComposer = () => {
                   </section>
                   <SplitDivider onChange={setSplit} value={split} />
                   <div className={styles.result} ref={resultRef}>
-                    <PreviewContent editVerdicts={editVerdicts} focusPath={focusPath} liveFiles={files} onVerdicts={setEditVerdicts} payload={payload} />
+                    <PreviewContent caption={payload.caption ? LIVE_PREVIEW_CAPTION_INLINE : undefined} editVerdicts={editVerdicts} focusPath={focusPath} liveFiles={files} onVerdicts={setEditVerdicts} payload={payload} />
                   </div>
                 </div>
 
