@@ -17,7 +17,7 @@ import type { WriteOrigin } from '../../hooks/provenance'
 import { randomId } from '../../utils/utils'
 
 import type { PortalActionProposal, PortalTour } from './actionBridge'
-import { parseAutopilotDirectives, sanitizeChatText, useAutopilotActionBridge } from './actionBridge'
+import { parseAutopilotDirectives, sanitizeChatText, selectProposalsToRun, useAutopilotActionBridge } from './actionBridge'
 import { AgentDraftProvider } from './agentDraft'
 import type { ApprovalDecision, ApprovalGovernor, ApprovalPause } from './approval'
 import { createApprovalGovernor, summarizeApprovalTools } from './approval'
@@ -317,11 +317,11 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     setStreaming(false)
 
     const chips: AutopilotActionChip[] = []
-    // At most ONE action per reply — now ENFORCED, not just requested in the prompt. A model that
-    // emits two navigates (or a duplicated tool_call + a fenced block) would otherwise run them
-    // sequentially, flashing the page A then B while only the last chip's label matches. Take the first.
-    const [proposal] = [...toolProposals, ...textProposals]
-    if (proposal) {
+    // Which of a reply's proposals run — and why compose is exempt from the one-action cap. See
+    // selectProposalsToRun; order is preserved and the loop awaits them in turn.
+    const toRun = selectProposalsToRun(toolProposals, textProposals)
+    /* eslint-disable no-await-in-loop -- sequential is the point; see selectProposalsToRun. */
+    for (const proposal of toRun) {
       // W0-3 provenance: tag the dispatch as agent-origin with the identity context the
       // provider actually holds at dispatch time — the frontend-owned session id and the
       // user's latest chat message (the prompt that produced this proposal). If a write
@@ -442,6 +442,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         }
       }
     }
+    /* eslint-enable no-await-in-loop */
     if (chips.length) {
       setMessages((prev) => prev.map((message) => (
         message.id === assistantId ? { ...message, actions: chips } : message
@@ -461,7 +462,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     // directive instead of writing it as fenced text. Recover ONCE per user turn: hide the raw error and
     // re-prompt for the SAME action as a fenced directive. Restricted to the KNOWN portal verbs so a real
     // tool typo is never swallowed. Returns early (an errored turn proposes nothing to tour).
-    if (!proposal && recoveryCountRef.current < 1) {
+    if (!toRun.length && recoveryCountRef.current < 1) {
       const toolNotFound = /\bTool ['"`]?(navigate|setExtras|openDrawer|openModal|prefillForm|runAction|previewBlueprint|previewPage|previewRestDef|explainUpgradeImpact|describeResource|patchField|applyResourceSet)['"`]? (?:is |was )?not found/i.exec(cleanedText)
       if (toolNotFound) {
         recoveryCountRef.current += 1
