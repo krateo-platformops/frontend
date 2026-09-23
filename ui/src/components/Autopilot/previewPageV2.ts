@@ -103,9 +103,20 @@ export const awaitSandboxWarmup = async (
   }
 }
 
-/** The drawer caption of a LIVE sandbox preview (A.2.4). */
+/** The DRAWER caption of a LIVE sandbox preview (A.2.4). Named for its surface — see below. */
 export const LIVE_PREVIEW_CAPTION
   = 'Live preview — the drafts are applied to the quarantined preview sandbox and rendered by the real server, with your identity and permissions. Closing this drawer removes them.'
+
+/**
+ * The same explanation for the COMPOSER, which embeds the preview inline and has no drawer.
+ *
+ * The sentence above ends "Closing this drawer removes them", and the composer was showing it
+ * verbatim in the lower half of its split — describing a control that is not on the reader's
+ * screen. Theirs is "Close draft", and saying so is the difference between an explanation and a
+ * puzzle.
+ */
+export const LIVE_PREVIEW_CAPTION_INLINE
+  = 'Live preview — this draft is applied to the quarantined preview sandbox and rendered by the real server, with your identity and permissions. Closing the draft removes it.'
 
 const compileWriteOps = (ops: readonly ApplyResourceSetOp[]): WriteOp[] =>
   ops.map((op) => ({

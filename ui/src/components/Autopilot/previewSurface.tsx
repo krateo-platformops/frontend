@@ -259,7 +259,19 @@ const FileEditBlock = ({
  */
 const fileAnchorId = (path: string): string => `preview-file-${path.replace(/[^a-zA-Z0-9]+/g, '-')}`
 
-export const PreviewContent = ({ editVerdicts, focusPath, liveFiles, onVerdicts, payload }: {
+export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, onVerdicts, payload }: {
+  /**
+   * OVERRIDES the payload's own caption, for a surface that is not the drawer.
+   *
+   * `LIVE_PREVIEW_CAPTION` is written for the drawer and says so — "Closing this drawer removes
+   * them". The composer embeds this same component INLINE, in the lower half of its split, where
+   * there is no drawer to close and the equivalent control is "Close draft". So the drawer's
+   * sentence was being shown to a reader who could not act on it, describing a thing that was not
+   * on their screen.
+   *
+   * Omitted, the payload's caption stands — the drawer keeps its own wording unchanged.
+   */
+  caption?: string
   editVerdicts: RestDefVerdicts | null
   /**
    * The draft file to reveal in the Files tab — the composer's tree selection.
@@ -450,7 +462,9 @@ export const PreviewContent = ({ editVerdicts, focusPath, liveFiles, onVerdicts,
 
   return (
     <div className={styles.body}>
-      {payload.caption ? <Typography.Paragraph type='secondary'>{payload.caption}</Typography.Paragraph> : null}
+      {(caption ?? payload.caption)
+        ? <Typography.Paragraph type='secondary'>{caption ?? payload.caption}</Typography.Paragraph>
+        : null}
       {payload.publishTarget ? (
         <div className={styles.target}>
           <Tag color='geekblue'>Publishes to</Tag>
