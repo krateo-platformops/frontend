@@ -157,3 +157,56 @@ export const listPlaceableActions = async (
   // `restactions`. Looking it up in the widget table is what emptied the picker.
   listPlaceableByCategory(snowplowBaseUrl, namespace, ACTION_CATEGORY, 'RESTActions',
     (kind) => (kind === 'RESTAction' ? 'restactions' : undefined))
+
+/** What a targeted existence probe can conclude about one named widget. */
+export type WidgetPresence =
+  | { presence: 'found' }
+  | { presence: 'missing' }
+  | { presence: 'forbidden' }
+  | { presence: 'unknown'; error: string }
+
+/**
+ * Does ONE named widget exist, asked about directly.
+ *
+ * WHY NOT THE LISTING. `listPlaceableWidgets` answers this too, and it was what the placement check
+ * originally used — but it enumerates a whole category in a namespace, and on a real cluster that
+ * is 553 objects and SEVEN SECONDS. `requestCompose` gives the composer four seconds to answer, so
+ * the check could never finish in time: every placement timed out and reported "no page composer is
+ * open to apply this", on a page whose composer was open and working. A correctness fix that turns
+ * a working path into a misleading timeout is a worse bug than the one it fixed.
+ *
+ * The same question asked about one object is a single GET: measured at 111ms when it exists and
+ * 58ms when it does not, against ~7100ms for the listing.
+ *
+ * IT ALSO ANSWERS MORE PRECISELY. A listing can only say "not among the things you can see", which
+ * conflates "no such widget" with "you may not read it" — and the refusal had to hedge accordingly.
+ * A status code separates them: 404 is absence, 403 is permission. The reader gets the true reason
+ * rather than the union of two.
+ */
+export const widgetExists = async (
+  snowplowBaseUrl: string,
+  namespace: string,
+  resource: string,
+  name: string,
+): Promise<WidgetPresence> => {
+  try {
+    const url = new URL(`${snowplowBaseUrl.replace(/\/+$/, '')}/call`)
+    url.searchParams.set('apiVersion', 'widgets.templates.krateo.io/v1beta1')
+    url.searchParams.set('resource', resource)
+    url.searchParams.set('name', name)
+    url.searchParams.set('namespace', namespace)
+    const response = await fetch(url.toString(), { headers: { ...authHeader() } })
+    if (response.ok) {
+      return { presence: 'found' }
+    }
+    if (response.status === 404) {
+      return { presence: 'missing' }
+    }
+    if (response.status === 401 || response.status === 403) {
+      return { presence: 'forbidden' }
+    }
+    return { error: `the cluster answered ${response.status}`, presence: 'unknown' }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'the request failed', presence: 'unknown' }
+  }
+}

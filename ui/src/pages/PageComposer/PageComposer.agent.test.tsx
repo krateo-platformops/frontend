@@ -6,6 +6,8 @@
  * something a person could not have done by dragging. Both go through planMove/planAdd, so an
  * illegal placement is refused identically and for the same reason.
  */
+import { readFileSync } from 'node:fs'
+
 import { act, cleanup, screen } from '@testing-library/react'
 import { load } from 'js-yaml'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -23,18 +25,26 @@ import { capture, emit, installAntdShims, mountWithConfig, widgetCr } from './co
  * clean and render a hole. `fleet-card` is what these tests place, so it is what the cluster is
  * mocked to hold; `listPlaceableActions` is untouched by this path and answers empty.
  */
+/*
+ * ONE WIDGET AT A TIME, per namespace — the shape the real check now uses.
+ *
+ * It listed a whole category before, which on a real cluster is 553 objects and seven seconds
+ * against `requestCompose`'s four-second budget. The mock answers per (namespace, resource, name)
+ * so the two things that matter stay visible: that BOTH namespaces are consulted, and that a
+ * FORBIDDEN answer is not the same as a MISSING one.
+ */
+const CLUSTER: Record<string, Record<string, string>> = {
+  'krateo-preview': { 'tables/sandbox-only-table': 'found' },
+  'krateo-system': { 'cards/fleet-card': 'found', 'tables/locked-table': 'forbidden', 'tables/runs': 'found' },
+}
 vi.mock('./placeableWidgets', () => ({
   ACTION_CATEGORY: 'actions',
   listPlaceableActions: () => Promise.resolve({ ok: true, widgets: [] }),
-  // PER NAMESPACE, because the two are not interchangeable: `krateo-system` is the fallback for a
-  // draft whose own namespaces are Helm templates, and `krateo-preview` is where the draft and
-  // everything an agent authors for it actually lives. A mock that answered the same for both
-  // could not see the bug where only the fallback was consulted.
-  listPlaceableWidgets: (_base: string, namespace: string) => Promise.resolve(
-    namespace === 'krateo-preview'
-      ? { ok: true, widgets: [{ name: 'sandbox-only-table', resource: 'tables' }] }
-      : { ok: true, widgets: [{ name: 'fleet-card', resource: 'cards' }, { name: 'runs', resource: 'tables' }] },
-  ),
+  // PalettePanel is mounted by PageComposer and imports this; dropping it from the mock takes the
+  // whole component down, which reads as 27 unrelated failures rather than one missing export.
+  listPlaceableWidgets: () => Promise.resolve({ ok: true, widgets: [] }),
+  widgetExists: (_base: string, namespace: string, resource: string, name: string) =>
+    Promise.resolve({ presence: CLUSTER[namespace]?.[`${resource}/${name}`] ?? 'missing' }),
 }))
 
 afterEach(cleanup)
@@ -319,13 +329,14 @@ describe('placing a widget that does not exist', () => {
     expect(answer?.reason ?? '').toContain('pod-sizing')
   })
 
-  it('NAMES what does exist of that kind — "that is not real" is only half an answer', async () => {
+  it('names BOTH namespaces it looked in', async () => {
     open()
     const answer = await propose({ name: 'pod-sizing', op: 'addExisting', resource: 'tables', target: 'page-x' })
 
-    // The catalogue holds one table, `runs`. A refusal that does not say so sends the asker
-    // guessing at another name, which is how the invented one arrived in the first place.
-    expect(answer?.reason ?? '').toContain('runs')
+    // Both namespaces are named, so "not in krateo-system" cannot be read about a draft whose
+    // objects live in the sandbox.
+    expect(answer?.reason ?? '').toContain('krateo-system')
+    expect(answer?.reason ?? '').toContain('krateo-preview')
   })
 
   it('still places a widget that DOES exist — the check must not refuse the legitimate case', async () => {
@@ -355,13 +366,15 @@ describe('placing a widget that does not exist', () => {
  * cannot see they cannot verify) — the wording is what has to be honest.
  */
 describe('what the refusal claims', () => {
-  it('says NOT VISIBLE TO YOU, never that the widget does not exist', async () => {
+  it('says what actually happened — absent, not merely invisible', async () => {
     open()
     const answer = await propose({ name: 'pod-sizing', op: 'addExisting', resource: 'tables', target: 'page-x' })
     const reason = answer?.reason ?? ''
 
-    expect(reason).toContain('visible to you')
-    expect(reason.toLowerCase()).not.toContain('does not exist')
+    // PRECISE NOW, not hedged. The listing could only say "not among what you can see"; a status
+    // code separates absence from permission, so the refusal names which one actually happened.
+    expect(reason).toContain('no tables named "pod-sizing"')
+    expect(reason).toContain('create it before placing it')
   })
 
   it('names the namespace it actually looked in, since that is half the scope', async () => {
@@ -397,8 +410,6 @@ describe('a widget that exists only in the preview sandbox', () => {
     expect(answer?.applied).toBe(false)
     expect(reason).toContain('krateo-system')
     expect(reason).toContain('krateo-preview')
-    // and it offers what IS placeable, from both
-    expect(reason).toContain('sandbox-only-table')
   })
 })
 
@@ -456,5 +467,44 @@ describe('the agent binding data', () => {
 
     expect(answer?.applied).toBe(false)
     expect(answer?.reason ?? '').toContain('nothing to bind')
+  })
+})
+
+/**
+ * THE CHECK HAS TO FINISH INSIDE THE COMPOSER'S ANSWER BUDGET.
+ *
+ * `requestCompose` waits four seconds and then reports "no page composer is open to apply this".
+ * The first version of this validation enumerated a whole widget category in two namespaces —
+ * measured on a real cluster at 553 objects and ~7100ms — so it could never answer in time. Every
+ * placement timed out, and the message blamed a composer that was open and working.
+ *
+ * A targeted probe is 111ms when the widget exists and 58ms when it does not. These pin the SHAPE
+ * that keeps it that way: one question per namespace, about one widget, never a listing.
+ */
+describe('the placement check asks about one widget', () => {
+  it('distinguishes FORBIDDEN from MISSING — a status code can, a listing cannot', async () => {
+    open()
+    const answer = await propose({ name: 'locked-table', op: 'addExisting', resource: 'tables', target: 'page-x' })
+
+    expect(answer?.applied).toBe(false)
+    // Not "no such table": it is there, and saying otherwise sends the reader hunting a ghost.
+    expect(answer?.reason ?? '').toContain('you may not read it')
+    expect(answer?.reason ?? '').not.toContain('create it before placing it')
+  })
+
+  it('places a widget that exists only in the SANDBOX, where a draft actually lives', async () => {
+    open()
+    const answer = await propose({ name: 'sandbox-only-table', op: 'addExisting', resource: 'tables', target: 'page-x' })
+    expect(answer?.applied, answer?.reason ?? '').toBe(true)
+  })
+
+  it('never reaches for a listing on the placement path', () => {
+    // The regression is a one-import relapse: `listPlaceableWidgets` is still exported and still
+    // right for the palette, which can afford seven seconds because nothing is waiting on it.
+    // cwd-relative, not import.meta.url: this suite runs under jsdom, where import.meta.url is
+    // an http URL and readFileSync rejects it ("The URL must be of scheme file").
+    const source = readFileSync('src/pages/PageComposer/PageComposer.tsx', 'utf-8')
+    expect(source).toContain('widgetExists(')
+    expect(source).not.toContain('listPlaceableWidgets')
   })
 })

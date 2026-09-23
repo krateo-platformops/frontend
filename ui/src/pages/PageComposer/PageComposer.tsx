@@ -61,7 +61,7 @@ import ObjectTreePanel from './ObjectTreePanel'
 import styles from './PageComposer.module.css'
 import PalettePanel from './PalettePanel'
 import type { PalettePick } from './PalettePanel'
-import { listPlaceableWidgets } from './placeableWidgets'
+import { widgetExists } from './placeableWidgets'
 import { planAdd } from './planAdd'
 import { planMove } from './planMove'
 import { SplitDivider } from './SplitDivider'
@@ -574,40 +574,42 @@ const PageComposer = () => {
      * asymmetric: a refusal is visible and recoverable, a dangling reference is neither.
      */
       /*
-       * BOTH NAMESPACES, and the sandbox is the load-bearing one. A page draft's own objects carry
-       * TEMPLATED namespaces, so `draftNamespace` finds none and `authoringNamespace` falls back
-       * to krateo-system — while the draft itself, and every widget an agent authors for it, is
-       * applied to the PREVIEW SANDBOX. Checking only the fallback would refuse the agent's own
-       * freshly-created widget, which is the one case this validation must not break: author-then
-       * -place is exactly the flow it exists to protect.
+       * ASKED ABOUT ONE WIDGET, NOT ABOUT ALL OF THEM.
+       *
+       * This check first enumerated the category in both namespaces. On a real cluster that is 553
+       * objects and SEVEN SECONDS, and `requestCompose` gives the composer FOUR to answer — so the
+       * check could never finish in time. Every placement timed out and reported "no page composer
+       * is open to apply this", on a page whose composer was open and working perfectly. A
+       * correctness fix that turns a working path into a misleading timeout is worse than the bug
+       * it fixed, and this one shipped.
+       *
+       * One GET about one name is 111ms when it exists and 58ms when it does not.
+       *
+       * IT ALSO ANSWERS THE QUESTION PROPERLY. A listing can only say "not among what you can
+       * see", which fuses "no such widget" with "you may not read it" — the refusal had to hedge,
+       * and the hedge was the honest wording of an imprecise instrument. A status code separates
+       * them, so the reader is told which of the two actually happened.
+       *
+       * BOTH NAMESPACES, and the sandbox is the load-bearing one: a page draft's objects carry
+       * templated namespaces, so `authoringNamespace` falls back to krateo-system while the draft
+       * and everything an agent authors for it lives in the preview sandbox.
        */
       const lookupNamespaces = [authoringNamespace, previewSandboxNamespace]
         .filter((ns, index, all): ns is string => !!ns && all.indexOf(ns) === index)
-      const catalogues = await Promise.all(
-        lookupNamespaces.map((ns) => listPlaceableWidgets(snowplowBaseUrl, ns)),
+      const probes = await Promise.all(
+        lookupNamespaces.map((ns) => widgetExists(snowplowBaseUrl, ns, request.resource, request.name)),
       )
-      const readable = catalogues.filter((entry) => entry.ok)
-      if (!readable.length) {
-        const failed = catalogues.find((entry) => !entry.ok)
-        refuse(`cannot confirm "${request.name}" is placeable — ${failed && !failed.ok ? failed.error : 'the widget list could not be read'}`)
-        return
-      }
-      const placeable = readable.flatMap((entry) => (entry.ok ? entry.widgets : []))
-      const exists = placeable.some(
-        (widget) => widget.name === request.name && widget.resource === request.resource,
-      )
-      if (!exists) {
-      // Named alternatives rather than a bare refusal: the likeliest cause is a plausible-looking
-      // invention, and the answer to "that does not exist" is "here is what does".
-        const sameKind = placeable
-          .filter((widget) => widget.resource === request.resource)
-          .map((widget) => widget.name)
-        // Names WHERE it looked — both places. "not in krateo-system" would be a puzzling thing to
-        // read about a draft whose objects live in the sandbox.
+      if (!probes.some((probe) => probe.presence === 'found')) {
         const lookedIn = lookupNamespaces.join(' or ')
-        refuse(sameKind.length
-          ? `no ${request.resource} named "${request.name}" is visible to you in ${lookedIn} — there is ${sameKind.slice(0, 6).join(', ')}`
-          : `no ${request.resource} named "${request.name}" is visible to you in ${lookedIn}, and no ${request.resource} at all — create it first, or check you may read it`)
+        const unknown = probes.find((probe) => probe.presence === 'unknown')
+        if (unknown?.presence === 'unknown') {
+          // Fail closed: a check that could not run is not a check that passed.
+          refuse(`cannot confirm "${request.name}" is placeable — ${unknown.error}`)
+          return
+        }
+        refuse(probes.some((probe) => probe.presence === 'forbidden')
+          ? `"${request.name}" exists in ${lookedIn} but you may not read it — it cannot be placed in a draft you could not preview`
+          : `no ${request.resource} named "${request.name}" in ${lookedIn} — create it before placing it`)
         return
       }
       reply(applyAdd(target, request.at, { kind: 'existing', name: request.name, resource: request.resource }))
