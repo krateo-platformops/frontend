@@ -2,7 +2,8 @@ import { readdirSync, readFileSync } from 'node:fs'
 
 import { describe, expect, it } from 'vitest'
 
-import { parseAutopilotDirectives, sanitizeChatText, refused } from './actionBridge'
+import { parseAutopilotDirectives, sanitizeChatText, refused, selectProposalsToRun } from './actionBridge'
+import type { PortalActionProposal } from './actionBridge'
 
 const railSource = (file: string): string =>
   readFileSync(new URL(`./${file}`, import.meta.url), 'utf-8')
@@ -290,7 +291,7 @@ describe('the authoring directives reach the composer', () => {
 
   it('checks KIND before the place arm — a proposal naming a kind is unambiguously a creation', () => {
     const source = bridge()
-    expect(source.indexOf("if (proposal.kind)")).toBeLessThan(source.indexOf("proposal.name && proposal.resource"))
+    expect(source.indexOf('if (proposal.kind)')).toBeLessThan(source.indexOf('proposal.name && proposal.resource'))
   })
 
   it('refuses a create with no name, since the name becomes the CR name', () => {
@@ -312,9 +313,56 @@ describe('the authoring directives reach the composer', () => {
     // — otherwise the only way to discover the new verb is to already know it.
     // Anchored on 'a layout kind', not just 'an add needs' — there are two refusals starting that
     // way and the shorter one (a missing target) matches first under a non-greedy scan.
-    const refusal = (/'an add needs a layout kind[^']*'/.exec(bridge()) ?? [''])[0]
+    const [refusal = ''] = /'an add needs a layout kind[^']*'/.exec(bridge()) ?? []
     expect(refusal).toContain('layout kind')
     expect(refusal).toContain('widget kind')
     expect(refusal).toContain('existing widget')
+  })
+})
+
+/**
+ * WHICH PROPOSALS RUN — the cap that made authoring impossible.
+ *
+ * One action per reply is enforced so two navigates cannot flash the page A then B. That reasoning
+ * is about actions that MOVE THE PAGE, and it was applied flatly to every verb — including the
+ * compose verbs, which edit the held draft and navigate nothing.
+ *
+ * The cost, observed: creating a Table and binding it to its data is ONE intent that takes TWO
+ * directives, so the bind was always the second and always dropped. The agent created an empty
+ * Table and then described the binding the host had just prevented — "bound it to a multi-stage
+ * RESTAction … using quantity.jq" — with every downstream signal agreeing. It was right about what
+ * should happen and had no way to learn it had not.
+ */
+describe('selectProposalsToRun', () => {
+  const at = (verb: string): PortalActionProposal => ({ verb })
+
+  it('keeps ONE for page-moving verbs — two navigates still flash the page', () => {
+    expect(selectProposalsToRun([], [at('navigate'), at('navigate')]).map((x) => x.verb)).toEqual(['navigate'])
+  })
+
+  it('runs a compose SEQUENCE, because a create and its bind are one intent', () => {
+    const run = selectProposalsToRun([], [at('composeAdd'), at('composeBind')])
+    expect(run.map((x) => x.verb)).toEqual(['composeAdd', 'composeBind'])
+  })
+
+  it('preserves ORDER — a bind names the widget the create just made', () => {
+    const run = selectProposalsToRun([at('composeAdd')], [at('composeBind'), at('composeMove')])
+    expect(run.map((x) => x.verb)).toEqual(['composeAdd', 'composeBind', 'composeMove'])
+  })
+
+  it('answers a MIXED reply as the authoring it is', () => {
+    // Choosing the page-moving action over the draft edits would apply the half the user did not
+    // ask about, and mixing is not a shape the prompt asks for.
+    const run = selectProposalsToRun([], [at('navigate'), at('composeAdd'), at('composeBind')])
+    expect(run.map((x) => x.verb)).toEqual(['composeAdd', 'composeBind'])
+  })
+
+  it('tool-call proposals come before fenced ones, as they always did', () => {
+    const run = selectProposalsToRun([at('composeAdd')], [at('composeBind')])
+    expect(run.map((x) => x.verb)).toEqual(['composeAdd', 'composeBind'])
+  })
+
+  it('answers nothing for an empty reply', () => {
+    expect(selectProposalsToRun([], [])).toEqual([])
   })
 })

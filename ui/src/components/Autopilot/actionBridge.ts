@@ -367,6 +367,50 @@ export const sanitizeChatText = (text: string): string => {
   return cleaned.replace(/\[\[FENCE:(\d+)\]\]/g, (_match, index: string) => fences[Number(index)] ?? '')
 }
 
+/**
+ * WHICH of a reply's proposals actually run.
+ *
+ * At most ONE action per reply is enforced here rather than merely requested in the prompt: a model
+ * that emits two navigates — or a duplicated tool_call alongside a fenced block — would otherwise
+ * run them in sequence, flashing the page A then B while only the last chip's label matches what
+ * the reader ends up looking at.
+ *
+ * COMPOSE IS THE EXCEPTION, because that reasoning is about actions that MOVE THE PAGE. A compose
+ * verb edits the held draft and navigates nothing, so there is no flash to prevent — and authoring
+ * genuinely takes more than one directive. Creating a Table and binding it to its data is ONE
+ * intent expressed in two verbs, and it cannot be expressed in one.
+ *
+ * Under the flat cap the bind was silently dropped. Observed, not theorised: the agent created an
+ * empty Table, then described in prose the binding the host had just prevented it from performing
+ * — "bound it to a multi-stage RESTAction … using quantity.jq" — and every downstream signal
+ * agreed with it. It was right about what should happen and had no way to know it had not.
+ *
+ * The caller awaits them SEQUENTIALLY (with no-await-in-loop disabled at that site) because the
+ * order is load-bearing: a bind names the widget the create just made, so running them
+ * concurrently would race the second against a file the first has not written yet. That rule
+ * guards against serialising INDEPENDENT work; this work is not independent.
+ */
+/** The verbs that edit the HELD DRAFT rather than the page. */
+export const COMPOSE_VERBS = new Set(['composeMove', 'composeAdd', 'composeBind'])
+
+export const isComposeVerb = (verb: string): boolean => COMPOSE_VERBS.has(verb)
+
+/**
+ * The proposals to apply, in order.
+ *
+ * A reply that mixes compose with something else is answered as the AUTHORING it is: the compose
+ * sequence runs and the rest is dropped. Mixing is not a shape the prompt asks for, and choosing
+ * the page-moving action over the draft edits would apply the half the user did not ask about.
+ */
+export const selectProposalsToRun = (
+  toolProposals: readonly PortalActionProposal[],
+  textProposals: readonly PortalActionProposal[],
+): PortalActionProposal[] => {
+  const ordered = [...toolProposals, ...textProposals]
+  const composeRun = ordered.filter((candidate) => isComposeVerb(candidate.verb))
+  return composeRun.length ? composeRun : ordered.slice(0, 1)
+}
+
 export const parseAutopilotDirectives = (text: string): AutopilotDirectives => {
   const proposals: PortalActionProposal[] = []
   const suggestions: string[] = []
