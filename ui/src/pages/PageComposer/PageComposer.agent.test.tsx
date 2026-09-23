@@ -329,14 +329,13 @@ describe('placing a widget that does not exist', () => {
     expect(answer?.reason ?? '').toContain('pod-sizing')
   })
 
-  it('names BOTH namespaces it looked in', async () => {
+  it('names the namespace it looked in', async () => {
     open()
     const answer = await propose({ name: 'pod-sizing', op: 'addExisting', resource: 'tables', target: 'page-x' })
 
-    // Both namespaces are named, so "not in krateo-system" cannot be read about a draft whose
-    // objects live in the sandbox.
+    // The authoring namespace, which is what the palette lists and therefore what a placement is
+    // measured against. The sandbox is deliberately NOT consulted — see below.
     expect(answer?.reason ?? '').toContain('krateo-system')
-    expect(answer?.reason ?? '').toContain('krateo-preview')
   })
 
   it('still places a widget that DOES exist — the check must not refuse the legitimate case', async () => {
@@ -386,40 +385,18 @@ describe('what the refusal claims', () => {
 })
 
 /**
- * THE AGENT AUTHORS INTO THE PREVIEW SANDBOX, so the check has to look there.
+ * THE PREVIEW SANDBOX IS SCRATCH SPACE, NOT A CATALOGUE.
  *
- * A page draft's objects carry TEMPLATED namespaces, so `draftNamespace` finds none and the
- * authoring namespace falls back to krateo-system — while the draft, and every widget an agent
- * creates for it, is applied to the sandbox. A validation that consulted only the fallback would
- * refuse the agent's own freshly-created widget: author-then-place is the exact flow it exists to
- * protect, and breaking it would be worse than the bug it fixes.
- */
-describe('a widget that exists only in the preview sandbox', () => {
-  it('is placeable — the sandbox is where a draft actually lives', async () => {
-    open()
-    const answer = await propose({ name: 'sandbox-only-table', op: 'addExisting', resource: 'tables', target: 'page-x' })
-
-    expect(answer?.applied, answer?.reason ?? '').toBe(true)
-  })
-
-  it('still refuses an invented name, with BOTH namespaces named', async () => {
-    open()
-    const answer = await propose({ name: 'pod-sizing', op: 'addExisting', resource: 'tables', target: 'page-x' })
-    const reason = answer?.reason ?? ''
-
-    expect(answer?.applied).toBe(false)
-    expect(reason).toContain('krateo-system')
-    expect(reason).toContain('krateo-preview')
-  })
-})
-
-/**
- * THE AGENT AUTHORING, end to end through the real handler.
+ * I added the sandbox to this check on the reasoning that a draft's objects live there. They do —
+ * and so does every OTHER draft's residue. Asked to build a pod-sizing page, the agent found
+ * `tables/pod-sizing-table` sitting in the sandbox from an earlier recording of this same demo and
+ * placed it: a five-hour-old table wired to a RESTAction nobody had asked for, reported as "I have
+ * added the pod-sizing-table", rendering nothing.
  *
- * `composeAuthoring.test.ts` pins the rules; this pins that the ops are REACHABLE — that a proposal
- * dispatched on the bus reaches them, answers, and writes the files. The bug that made these
- * necessary was not a wrong rule, it was a missing verb: with no op for "create a widget", an agent
- * asked for a table could only reach for `addExisting`, and placed something that did not exist.
+ * The palette and PlaceWidgetModal both list `authoringNamespace` alone, so consulting the sandbox
+ * handed the agent something a person cannot reach — the exact invariant this handler opens with.
+ * This draft's OWN widgets stay placeable: they are files in the held draft and answer to
+ * `byName`, no cluster lookup needed.
  */
 describe('the agent authoring a widget', () => {
   it('CREATES a Table in the draft — the verb that did not exist', async () => {
@@ -492,9 +469,21 @@ describe('the placement check asks about one widget', () => {
     expect(answer?.reason ?? '').not.toContain('create it before placing it')
   })
 
-  it('places a widget that exists only in the SANDBOX, where a draft actually lives', async () => {
+  it('REFUSES a widget that exists only in the preview sandbox — that is another draft\'s residue', async () => {
+    // The sandbox is scratch space, not a catalogue. Consulting it handed the agent a five-hour-old
+    // table left by an earlier recording of this same demo, which it placed and which rendered
+    // nothing. The palette lists the authoring namespace alone, so this restores parity.
     open()
     const answer = await propose({ name: 'sandbox-only-table', op: 'addExisting', resource: 'tables', target: 'page-x' })
+
+    expect(answer?.applied).toBe(false)
+    expect(answer?.reason ?? '').toContain('create it before placing it')
+  })
+
+  it('still places a widget THIS draft already holds — its own file, not a stranger\'s', async () => {
+    // card-b is in the nested fixture as a real file, so it is ours and needs no cluster lookup.
+    open()
+    const answer = await propose({ name: 'card-b', op: 'addExisting', resource: 'cards', target: 'row-a' })
     expect(answer?.applied, answer?.reason ?? '').toBe(true)
   })
 

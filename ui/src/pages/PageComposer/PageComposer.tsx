@@ -577,40 +577,42 @@ const PageComposer = () => {
        * ASKED ABOUT ONE WIDGET, NOT ABOUT ALL OF THEM.
        *
        * This check first enumerated the category in both namespaces. On a real cluster that is 553
-       * objects and SEVEN SECONDS, and `requestCompose` gives the composer FOUR to answer — so the
-       * check could never finish in time. Every placement timed out and reported "no page composer
-       * is open to apply this", on a page whose composer was open and working perfectly. A
-       * correctness fix that turns a working path into a misleading timeout is worse than the bug
-       * it fixed, and this one shipped.
+       * objects and ~7100ms, and `requestCompose` gives the composer 4000ms — so it could never
+       * answer in time, and every placement timed out reporting "no page composer is open to apply
+       * this" on a page whose composer was open. One GET about one name is 111ms, or 58ms when it
+       * is absent, and a status code says WHICH: 404 is absence, 403 is permission.
        *
-       * One GET about one name is 111ms when it exists and 58ms when it does not.
+       * WHERE IT LOOKS IS THE OTHER HALF, and getting it wrong was worse than the latency.
        *
-       * IT ALSO ANSWERS THE QUESTION PROPERLY. A listing can only say "not among what you can
-       * see", which fuses "no such widget" with "you may not read it" — the refusal had to hedge,
-       * and the hedge was the honest wording of an imprecise instrument. A status code separates
-       * them, so the reader is told which of the two actually happened.
+       * It consulted the preview sandbox as well as the authoring namespace, reasoning that a
+       * draft's objects live there. They do — and so does every OTHER draft's residue, because the
+       * sandbox is scratch space, not a catalogue. Asked to build a pod-sizing page, the agent
+       * found `tables/pod-sizing-table` sitting there from an earlier recording of this very demo
+       * and PLACED it: a five-hour-old table wired to a RESTAction nobody had asked for, reported
+       * as "I have added the pod-sizing-table". It rendered nothing.
        *
-       * BOTH NAMESPACES, and the sandbox is the load-bearing one: a page draft's objects carry
-       * templated namespaces, so `authoringNamespace` falls back to krateo-system while the draft
-       * and everything an agent authors for it lives in the preview sandbox.
+       * The palette and PlaceWidgetModal both list `authoringNamespace` ALONE. So the sandbox
+       * lookup handed the agent something a person cannot reach, which is exactly the invariant at
+       * the top of this handler — an agent cannot place a child a person could not have dragged
+       * there. THIS draft's own widgets stay placeable, because they are files in the held draft
+       * and answer to `byName`; what is refused is another draft's leftovers.
        */
-      const lookupNamespaces = [authoringNamespace, previewSandboxNamespace]
-        .filter((ns, index, all): ns is string => !!ns && all.indexOf(ns) === index)
-      const probes = await Promise.all(
-        lookupNamespaces.map((ns) => widgetExists(snowplowBaseUrl, ns, request.resource, request.name)),
-      )
-      if (!probes.some((probe) => probe.presence === 'found')) {
-        const lookedIn = lookupNamespaces.join(' or ')
-        const unknown = probes.find((probe) => probe.presence === 'unknown')
-        if (unknown?.presence === 'unknown') {
+      const drafted = byName(request.name)
+      if (!drafted?.drafted) {
+        const probe = await widgetExists(snowplowBaseUrl, authoringNamespace, request.resource, request.name)
+        if (probe.presence === 'unknown') {
           // Fail closed: a check that could not run is not a check that passed.
-          refuse(`cannot confirm "${request.name}" is placeable — ${unknown.error}`)
+          refuse(`cannot confirm "${request.name}" is placeable — ${probe.error}`)
           return
         }
-        refuse(probes.some((probe) => probe.presence === 'forbidden')
-          ? `"${request.name}" exists in ${lookedIn} but you may not read it — it cannot be placed in a draft you could not preview`
-          : `no ${request.resource} named "${request.name}" in ${lookedIn} — create it before placing it`)
-        return
+        if (probe.presence === 'forbidden') {
+          refuse(`"${request.name}" exists in ${authoringNamespace} but you may not read it — it cannot be placed in a draft you could not preview`)
+          return
+        }
+        if (probe.presence === 'missing') {
+          refuse(`no ${request.resource} named "${request.name}" in ${authoringNamespace} — create it before placing it`)
+          return
+        }
       }
       reply(applyAdd(target, request.at, { kind: 'existing', name: request.name, resource: request.resource }))
     })()
