@@ -278,6 +278,72 @@ describe('previewPage v2 — apply failure (graceful, rolled back, never a crash
     expect(openedPayload().error).toContain('quota exceeded')
   })
 
+  /**
+   * RE-PREVIEWING THE SAME DRAFT. Three takes of a demo lost their live render to this, and none of
+   * the tests above could see it: every one of them previews ONCE.
+   *
+   * The second apply POSTs names the first apply created. The apiserver answers 409 "… already
+   * exists", and the failure path then tears down the drafts that HAD landed — so the second preview
+   * does not merely fail, it destroys the working render the first one produced. The sweep is meant
+   * to prevent the 409 and, when its DELETE is refused, silently does not: `handleActionSet` resolves
+   * with {ok:false} rather than throwing, and the old sweep discarded its results.
+   *
+   * So the 409 is reclaimed where it is detected. The third case is the one that matters most: a
+   * name we cannot free must STILL fail, and must fail naming what is in the way.
+   */
+  it('a 409 on re-apply is RECLAIMED: delete that name, retry once, preview succeeds', async () => {
+    let posts = 0
+    const { deps, handleActionSet } = makeDeps((ops) => {
+      if (ops[0].verb !== 'POST') {
+        return ops.map((_, index) => ({ index, message: 'OK', ok: true, status: 200 }))
+      }
+      posts += 1
+
+      return posts === 1
+        ? ops.map((_, index) => ({ index, message: 'tables.widgets.templates.krateo.io "x" already exists', ok: false, status: 409 }))
+        : ops.map((_, index) => ({ index, message: 'OK', ok: true, status: 201 }))
+    })
+
+    const chip = await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
+
+    expect(chip?.label).not.toContain('failed')
+    expect(openedPayload().error).toBeUndefined()
+    expect(openedPayload().liveEndpoint).toBeDefined()
+    const verbs = handleActionSet.mock.calls.map(([ops]) => (ops as WriteOp[])[0].verb)
+    expect(verbs).toContain('DELETE')
+  })
+
+  it('a 409 whose DELETE is REFUSED still fails, reporting what is in the way', async () => {
+    const { deps } = makeDeps((ops) => (
+      ops[0].verb === 'POST'
+        ? ops.map((_, index) => ({ index, message: 'tables "pods-table" already exists', ok: false, status: 409 }))
+        : ops.map((_, index) => ({ index, message: 'forbidden', ok: false, status: 403 }))
+    ))
+
+    const chip = await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
+
+    expect(chip?.label).toContain('already exists')
+    expect(openedPayload().error).toContain('already exists')
+    expect(openedPayload().liveEndpoint).toBeUndefined()
+  })
+
+  it('does NOT retry a failure that is not a 409 — one POST attempt, then rollback', async () => {
+    let posts = 0
+    const { deps } = makeDeps((ops) => {
+      if (ops[0].verb !== 'POST') {
+        return ops.map((_, index) => ({ index, message: 'OK', ok: true, status: 200 }))
+      }
+      posts += 1
+
+      return ops.map((_, index) => ({ index, message: 'admission webhook denied', ok: false, status: 400 }))
+    })
+
+    const chip = await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
+
+    expect(chip?.label).toContain('admission webhook denied')
+    expect(posts).toBe(1)
+  })
+
   it('a null dispatch result (not dispatched) is a graceful failure chip, never a throw', async () => {
     const { deps } = makeDeps(() => null)
     const chip = await applyPreviewPageV2(proposalOf([flexRoot()]), deps)
