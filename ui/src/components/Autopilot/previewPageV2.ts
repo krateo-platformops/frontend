@@ -125,17 +125,83 @@ const compileWriteOps = (ops: readonly ApplyResourceSetOp[]): WriteOp[] =>
     ...(op.payload === undefined ? {} : { payload: op.payload }),
   }))
 
-/** Fire a best-effort SILENT sandbox set (teardown/sweep): failures are swallowed —
- * the TTL janitor is the backstop — and the confirm is skipped (sandbox-confined). */
-const dispatchBestEffort = async (ops: readonly ApplyResourceSetOp[], deps: PreviewPageV2Deps): Promise<void> => {
+/**
+ * Fire a SILENT sandbox set (teardown/sweep) and REPORT what happened.
+ *
+ * It used to return void, and that single fact is what broke preview re-entry. `handleActionSet`
+ * does not throw when the server refuses an op — it resolves with a per-op
+ * `{ok, status, message}`. So a DELETE the apiserver rejected was indistinguishable from one that
+ * worked, the `catch` here caught nothing, and the very next line POSTed the same name. The file's
+ * own contract promises "re-used names never 409"; it could not keep that promise while the only
+ * evidence of the sweep was discarded.
+ *
+ * Still best-effort in the sense that a failed delete does not abort the preview — the TTL janitor
+ * remains the backstop. What changes is that the caller can now SEE it and act, which is what
+ * `applyWithReclaim` below does.
+ */
+const dispatchSilent = async (
+  ops: readonly ApplyResourceSetOp[],
+  deps: PreviewPageV2Deps,
+): Promise<WriteOpResult[] | null> => {
   if (!ops.length) {
-    return
+    return []
   }
   try {
-    await deps.handleActionSet(compileWriteOps(ops), { silent: true, skipConfirmForSandbox: deps.sandboxNamespace })
+    return await deps.handleActionSet(
+      compileWriteOps(ops),
+      { silent: true, skipConfirmForSandbox: deps.sandboxNamespace },
+    )
   } catch {
-    // Best-effort by contract (A.2.5) — a failed delete is the janitor's problem.
+    // A thrown dispatch (network/abort) is still not the preview's problem to escalate.
+    return null
   }
+}
+
+/** Kept for the teardown call sites, whose only contract is "try, never escalate". */
+const dispatchBestEffort = async (ops: readonly ApplyResourceSetOp[], deps: PreviewPageV2Deps): Promise<void> => {
+  await dispatchSilent(ops, deps)
+}
+
+/**
+ * A name that is already there is RECLAIMED, not fatal.
+ *
+ * WHY THIS EXISTS, from a recording. A preview applies the draft, succeeds, and renders. The agent
+ * previews the same draft again a moment later — which it does routinely, and a person clicking
+ * "Preview page" twice does the same thing. The second apply POSTs names the FIRST apply created,
+ * the apiserver answers 409 `… "pods-table" already exists`, and the failure path then tears down
+ * the drafts that had landed. So the second preview does not merely fail: it destroys the working
+ * render produced by the first. Observed three times while filming, each time costing the take its
+ * only shot at showing live data.
+ *
+ * The sweep was supposed to prevent it and silently did not (see dispatchSilent). Rather than trust
+ * a sweep whose result nobody checked, a 409 is now resolved where it is detected: delete that one
+ * name, CONFIRM the delete came back ok, and retry the create once. Idempotent by construction
+ * instead of by assumption — and it holds for someone else's orphan under the same name just as
+ * well as for our own, because it reclaims by name rather than by provenance.
+ *
+ * One retry, never a loop: a 409 that survives its own delete is a different fault (a finalizer, a
+ * controller recreating it) and must surface rather than spin.
+ */
+const ALREADY_EXISTS = /already exists/i
+
+const applyWithReclaim = async (
+  op: ApplyResourceSetOp,
+  target: DraftTarget,
+  deps: PreviewPageV2Deps,
+): Promise<WriteOpResult | null> => {
+  const [first] = (await dispatchSilent([op], deps)) ?? []
+  if (!first || first.ok || !ALREADY_EXISTS.test(first.message)) {
+    return first ?? null
+  }
+  const [cleared] = (await dispatchSilent(buildSandboxTeardownOps([target], deps.sandboxNamespace), deps)) ?? []
+  if (!cleared?.ok) {
+    // The name is occupied and we could not free it. Report the ORIGINAL 409 — it says what is in
+    // the way, which is more use than "the delete failed".
+    return first
+  }
+  const [retried] = (await dispatchSilent([op], deps)) ?? []
+
+  return retried ?? first
 }
 
 /** The graceful-failure chip + source drawer (never a crash, nothing left behind claims). */
@@ -228,6 +294,27 @@ export const applyPreviewPageV2 = async (
         applied.push(target)
       } else {
         failure = `${target.kind}/${target.name}: ${result.message}`
+      }
+    }
+    // A 409 on a name we are re-applying is RECLAIMABLE, and reclaiming it here is what makes a
+    // second preview of the same draft safe. Only the occupied names are retried — a chunk that
+    // failed for any other reason still falls through to the rollback below unchanged.
+    if (failure && ALREADY_EXISTS.test(failure)) {
+      // `offset` is reassigned each iteration, so it is bound here before any closure reads it.
+      const base = offset
+      const occupied = results
+        .map((result, index) => ({ index, result, target: targets[base + index] }))
+        .filter(({ result }) => !result.ok && ALREADY_EXISTS.test(result.message))
+      failure = null
+      for (const { index, target } of occupied) {
+        // eslint-disable-next-line no-await-in-loop -- one name at a time: a reclaim is delete-then-create and must not race its own delete
+        const reclaimed = await applyWithReclaim(chunk[index], target, deps)
+        if (reclaimed?.ok) {
+          applied.push(target)
+        } else {
+          failure = `${target.kind}/${target.name}: ${reclaimed?.message ?? 'could not be reclaimed'}`
+          break
+        }
       }
     }
     if (failure) {
