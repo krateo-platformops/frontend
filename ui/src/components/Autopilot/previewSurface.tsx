@@ -30,6 +30,7 @@ import { LAYER } from '../../theme/layers'
 import { DrawerHeader, drawerCloseProps } from '../DrawerHeader/DrawerHeader'
 import WidgetRenderer from '../WidgetRenderer'
 
+import type { DraftKind } from './blueprintDraftStore'
 import { DraftProblemsAlert } from './DraftProblemsAlert'
 import { parseFileEdit, parseRestDefEdit } from './previewBridge'
 import { AUTOPILOT_PREVIEW_EVENT, isHeldDraftPayload, isPageDraftPayload, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
@@ -158,6 +159,7 @@ const FileEditBlock = ({
   content,
   editable,
   isPageWidget,
+  kind,
   mode,
   path,
   style,
@@ -165,6 +167,8 @@ const FileEditBlock = ({
   content: string
   /** Only the HELD draft's files: an edit is written into whatever is held, by path. */
   editable: boolean
+  /** What the preview showed — the provider refuses an edit whose kind is not what it holds. */
+  kind: DraftKind
   isPageWidget: boolean
   mode: 'dark' | 'light'
   path: string
@@ -192,7 +196,7 @@ const FileEditBlock = ({
     setCurrent(result.content)
     setError(null)
     setEditing(false)
-    emitFileEdit({ content: result.content, path })
+    emitFileEdit({ content: result.content, kind, path })
   }
 
   return (
@@ -354,6 +358,7 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, on
             content={file.content}
             editable={heldDraft}
             isPageWidget={isPageWidget}
+            kind={isPageWidget ? 'page' : 'blueprint'}
             mode={mode}
             path={file.path}
             style={highlighterStyle}
@@ -493,10 +498,10 @@ export const AutopilotPreviewDrawer = () => {
   // problems/immutability/summary Alert blocks reflect the edit. Reset whenever a new payload arrives.
   const [editVerdicts, setEditVerdicts] = useState<RestDefVerdicts | null>(null)
 
-  // The HELD draft this drawer is showing, if any. Read through a ref because both listeners below
-  // subscribe once and must see what is on screen now, not what they closed over.
+  // The HELD draft this drawer is showing, if any — written where the payload is set, not during
+  // render. A discard re-announced when a late re-apply lands arrives in the same tick that apply
+  // opened its payload, before React has rendered it; a render-time ref would still say "nothing".
   const heldShown = useRef<AutopilotPreviewPayload | null>(null)
-  heldShown.current = open && payload && isHeldDraftPayload(payload) ? payload : null
   /**
    * Close the held draft shown here — it was discarded, or a page this drawer defers replaced it in
    * the store. Left open, its Files tab writes by path into whatever is held NOW, and a page set
@@ -524,6 +529,7 @@ export const AutopilotPreviewDrawer = () => {
         dropHeld()
         return
       }
+      heldShown.current = isHeldDraftPayload(event.detail) ? event.detail : null
       setPayload(event.detail)
       setEditVerdicts(null)
       setOpen(true)
@@ -548,6 +554,7 @@ export const AutopilotPreviewDrawer = () => {
       // width so the preview AND the conversation stay visible + interactive at once, at any rail size.
       mask={false}
       onClose={() => {
+        heldShown.current = null
         setOpen(false)
         // previewPage v2 teardown seam — fired on the ACTUAL close (epoch-guarded
         // upstream, so a payload replaced while open never double-tears-down).

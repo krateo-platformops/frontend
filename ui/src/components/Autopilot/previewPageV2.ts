@@ -204,6 +204,15 @@ const applyWithReclaim = async (
   return retried ?? first
 }
 
+/**
+ * A DISCARD, not a drawer close: delete whatever live preview is applied, whichever surface's
+ * payload rendered it. The payload's own close is epoch-guarded and reaches only the render that
+ * payload came with — a composer that mounted after the render was applied never had it.
+ */
+export const discardPreviewSandbox = async (deps: PreviewPageV2Deps): Promise<void> => {
+  await dispatchBestEffort(deps.session.take(), deps)
+}
+
 /** The graceful-failure chip + source drawer (never a crash, nothing left behind claims). */
 const blockedChip = (label: string): AutopilotActionChip => ({ label, readOnly: true, verb: 'previewPage' })
 

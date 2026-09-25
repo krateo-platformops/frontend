@@ -486,15 +486,30 @@ describe('a discard that lands while a re-apply is on the wire', () => {
     return { calls, live }
   }
 
-  const host = (live: ReturnType<typeof deferredLive>['live']) => {
+  const host = (live: ReturnType<typeof deferredLive>['live'], discardLive = vi.fn(() => Promise.resolve())) => {
     const store = createBlueprintDraftStore()
     const Hosted = () => {
-      useDraftFileBuses(store, { forget: vi.fn(), recordPreview: vi.fn() }, (held) => (held ? 'page:x' : null), live)
+      useDraftFileBuses(store, { forget: vi.fn(), recordPreview: vi.fn() }, (held) => (held ? 'page:x' : null), live, discardLive)
       return null
     }
     render(<Hosted />)
     return store
   }
+
+  it('deletes the sandbox render only AFTER the apply lands — before it, there is nothing of it to delete', async () => {
+    const { calls, live } = deferredLive()
+    const discardLive = vi.fn(() => Promise.resolve())
+    host(live, discardLive)
+    act(() => { emitDraftStart({ title: 'x', widgets: widgets() }) })
+    act(() => { emitDraftClose() })
+    // Queued behind the apply: a DELETE racing its POSTs on the same names is the 409 this loop exists to prevent.
+    expect(discardLive).not.toHaveBeenCalled()
+    await act(async () => {
+      calls[0]()
+      await Promise.resolve()
+    })
+    expect(discardLive).toHaveBeenCalledTimes(1)
+  })
 
   it('is ANNOUNCED AGAIN when the apply lands, so every surface drops the render it put back', async () => {
     const { calls, live } = deferredLive()
@@ -536,7 +551,45 @@ describe('a discard that lands while a re-apply is on the wire', () => {
     stop()
     expect(closes).toHaveBeenCalledTimes(1)
     expect(store.get()?.kind).toBe('page')
-    // The new draft is applied next, by the same serialised loop.
+    // The new draft is applied next, by the same serialised loop — after the discarded one's
+    // objects are deleted, since the two may share names.
     expect(live).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('what the loop applies, and what an edit may reach', () => {
+  const chart = { 'Chart.yaml': 'apiVersion: v2\nname: nginx-demo\nversion: 0.1.0\n', 'templates/cm.yaml': 'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: x\n', 'values.schema.json': '{"type":"object"}' }
+
+  it('never re-applies a CHART as if it were a page', async () => {
+    vi.useFakeTimers()
+    const store = createBlueprintDraftStore()
+    store.set(chart, 'blueprint')
+    const live = vi.fn(() => Promise.resolve())
+    const Hosted = () => {
+      useDraftFileBuses(store, { forget: vi.fn(), recordPreview: vi.fn() }, () => 'nginx-demo', live)
+      return null
+    }
+    render(<Hosted />)
+    act(() => { emitFileEdit({ content: 'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: y\n', kind: 'blueprint', path: 'templates/cm.yaml' }) })
+    await act(async () => { await vi.runAllTimersAsync() })
+    vi.useRealTimers()
+    expect(store.get()?.files['templates/cm.yaml']).toContain('name: y')
+    expect(live).not.toHaveBeenCalled()
+  })
+
+  it('refuses an edit made in a preview of the OTHER kind — Chart.yaml exists in both', () => {
+    const store = createBlueprintDraftStore()
+    const gate = { forget: vi.fn(), recordPreview: vi.fn() }
+    const Hosted = () => {
+      useDraftFileBuses(store, gate, () => 'page:x')
+      return null
+    }
+    render(<Hosted />)
+    act(() => { emitDraftStart({ title: 'x', widgets: widgets() }) })
+    const before = store.get()?.files['Chart.yaml']
+    gate.recordPreview.mockClear()
+    act(() => { emitFileEdit({ content: 'apiVersion: v2\nname: aws-vpc\n', kind: 'blueprint', path: 'Chart.yaml' }) })
+    expect(store.get()?.files['Chart.yaml']).toBe(before)
+    expect(gate.recordPreview).not.toHaveBeenCalled()
   })
 })

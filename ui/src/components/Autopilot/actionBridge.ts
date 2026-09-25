@@ -43,7 +43,7 @@ import './previewHandlers'
 // read-only registry (it APPLIES drafts to the quarantined sandbox and renders the
 // root's real widgetEndpoint); absent config the registry's v1 source preview runs
 // untouched. See previewPageV2.ts / previewSandbox.ts.
-import { applyPreviewPageV2 } from './previewPageV2'
+import { applyPreviewPageV2, discardPreviewSandbox } from './previewPageV2'
 import { createPreviewPageSession } from './previewSandbox'
 import type { AutopilotActionChip } from './types'
 import { READONLY_VERB_REGISTRY } from './verbRegistry'
@@ -781,5 +781,18 @@ export const useAutopilotActionBridge = () => {
       ?? refused(proposal.verb)
   }, [frontendNamespace, handleAction, handleActionSet, previewPageSession, queryClient, renderBaseUrl, routePatterns, sandboxNamespace, snowplowBaseUrl])
 
-  return { apply }
+  // A discarded draft's live render goes with it: the teardown session taken unconditionally.
+  const discardSandbox = useCallback(async (): Promise<void> => {
+    if (!sandboxNamespace) {
+      return
+    }
+    await discardPreviewSandbox({
+      handleActionSet: (ops, options) => handleActionSet(ops, undefined, options),
+      sandboxNamespace,
+      session: previewPageSession,
+      sessionId: 'unattributed',
+    })
+  }, [handleActionSet, previewPageSession, sandboxNamespace])
+
+  return { apply, discardSandbox }
 }

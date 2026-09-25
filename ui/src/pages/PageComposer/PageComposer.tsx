@@ -182,6 +182,8 @@ const PageComposer = () => {
   /** Where drafts — and anything an agent authors for one — are actually applied. */
   const previewSandboxNamespace = useContext(ConfigContext)?.config?.api?.PREVIEW_SANDBOX_NAMESPACE ?? ''
   const [payload, setPayload] = useState<AutopilotPreviewPayload | null>(null)
+  // The payload as ADOPTED, not as rendered — see the discard listener.
+  const adopted = useRef<AutopilotPreviewPayload | null>(null)
   // Canvas's share of the centre column. Opens favouring the canvas — you place before you
   // verify — but the preview is VISIBLE from the first frame, which is the point.
   const [split, setSplit] = useState(60)
@@ -403,6 +405,7 @@ const PageComposer = () => {
       if (!isPageDraftPayload(event.detail)) {
         return
       }
+      adopted.current = event.detail
       setPayload(event.detail)
       setEditVerdicts(null)
     }
@@ -671,15 +674,18 @@ const PageComposer = () => {
   // A REAL discard: the held draft is dropped in the provider — store, gate arming, undo history —
   // not merely hidden here. Hiding it left the files publishable and refused every later start.
   // This view is torn down by LISTENING, not here, because a discard is also re-announced when a
-  // re-apply that was already on the wire lands after it and puts a render back.
+  // re-apply that was already on the wire lands after it and puts a render back — in the same tick
+  // that apply opened its payload, before React has rendered it. So the listener reads the payload
+  // as adopted (a ref), not as rendered: the rendered one is still the null of the first discard.
   const closeDraft = emitDraftClose
   useEffect(() => onDraftClose(() => {
-    payload?.onClose?.()
+    adopted.current?.onClose?.()
+    adopted.current = null
     setPayload(null)
     setEditVerdicts(null)
     setFiles({})
     setFocusPath(null)
-  }), [payload])
+  }), [])
 
   // What the body shows: the adopted preview, or — for a page held from before this view mounted —
   // one built from the held files, rather than "No draft open" over a draft that is there.

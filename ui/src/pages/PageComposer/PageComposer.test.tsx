@@ -89,7 +89,7 @@ describe('PageComposer — the preview surface, outside the rail', () => {
     mount()
     act(() => emitDraftChanged({ files: { 'templates/flex.page-x.yaml': widgetCr('Flex', 'page-x') }, kind: 'page' }))
     expect(screen.queryByText(/No draft open/i)).toBeNull()
-    expect(screen.getByText(/Held from earlier in this thread/i)).toBeTruthy()
+    expect(screen.getByText(/The held draft, shown from its files/i)).toBeTruthy()
     const closes = vi.fn()
     const stop = onDraftClose(closes)
     act(() => { screen.getByText('Close draft').click() })
@@ -103,6 +103,17 @@ describe('PageComposer — the preview surface, outside the rail', () => {
     mount()
     emit({ files: [{ content: widgetCr('Flex', 'page-x'), path: 'flex.page-x.yaml' }], onClose, title: 'x' })
     act(() => { emitDraftClose() })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(screen.getByText(/No draft open/i)).toBeTruthy()
+  })
+
+  it('drops a render it adopted in the SAME tick as the discard — before it was ever drawn', () => {
+    const onClose = vi.fn()
+    mount()
+    act(() => {
+      window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, { detail: { onClose, summary: ['flex.page-x'], title: 'x' } }))
+      emitDraftClose()
+    })
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(screen.getByText(/No draft open/i)).toBeTruthy()
   })

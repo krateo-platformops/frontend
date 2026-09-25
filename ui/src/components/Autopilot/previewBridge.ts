@@ -19,7 +19,7 @@ import { getAccessToken } from '../../utils/getAccessToken'
 import type { PortalActionProposal } from './actionBridge'
 import { parseRawTemplates } from './blueprintDraft'
 import { restDefImmutabilityWarnings, validateRestDefinitionDraft } from './kogMapping'
-import { pageDraftSlug, pagePublishPath } from './pageDraft'
+import { pageDraftFiles, pageDraftSlug, pagePublishPath } from './pageDraft'
 import { setPreviewProblems, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
 
 /** The chart coordinates previewBlueprint sends to the render service. */
@@ -271,6 +271,9 @@ export const PAGE_PREVIEW_CAPTION
   = 'Source preview — the proposed widget CRs exactly as they would be submitted. Nothing is applied; live in-page rendering of drafts is a follow-up.'
 
 export const buildPagePreviewPayload = (widgets: Record<string, unknown>[]): AutopilotPreviewPayload => ({
+  // A set the store cannot hold as a page — no page-<slug> root — is looked at, not held: its files
+  // must not be editable (an edit writes into whatever IS held), and no composer may adopt it.
+  ...(pageDraftFiles(widgets) === null ? { builder: 'inspect' as const } : {}),
   caption: PAGE_PREVIEW_CAPTION,
   // The proposed widget CRs, each at the destination a publish ACTUALLY writes it to — routed
   // through the same pagePublishPath the two publish paths use. Spelling the prefix here instead is

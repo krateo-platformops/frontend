@@ -111,3 +111,14 @@ describe('the page twin, and a store that holds nothing', () => {
     expect(draftHistory.depth()).toBe(0)
   })
 })
+
+describe('recordBlueprintPreview holds the tree that was RENDERED', () => {
+  it('a file the model wrapped in a code fence is held de-fenced — as the preview parsed and rendered it', () => {
+    // The drawer reads the de-fenced tree and labels it the held draft; the provider used to lint
+    // the raw bytes, refuse, and leave whatever was held before — which the drawer's edits then hit.
+    const store = createBlueprintDraftStore()
+    const fenced = { ...CLEAN, [VALUES_SCHEMA_PATH]: `\`\`\`json\n${CLEAN[VALUES_SCHEMA_PATH]}\n\`\`\`` }
+    expect(recordBlueprintPreview(fenced, false, store, createBlueprintGate())).toBe(true)
+    expect(store.get()?.files[VALUES_SCHEMA_PATH]).toBe(CLEAN[VALUES_SCHEMA_PATH])
+  })
+})

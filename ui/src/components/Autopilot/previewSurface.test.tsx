@@ -133,11 +133,11 @@ describe('AutopilotPreviewDrawer — editable RestDefinition source', () => {
 })
 
 describe('AutopilotPreviewDrawer — editable page "Files" tab', () => {
-  /** A minimal page preview payload (one widget CR at the chart-relative templates/flex.root.yaml). */
+  /** A minimal page preview payload (one widget CR at the chart-relative templates/flex.page-root.yaml). */
   const pagePayload = () => buildPagePreviewPayload([{
     apiVersion: 'widgets.templates.krateo.io/v1beta1',
     kind: 'Flex',
-    metadata: { name: 'root' },
+    metadata: { name: 'page-root' },
     spec: { widgetData: {} },
   }])
 
@@ -150,7 +150,7 @@ describe('AutopilotPreviewDrawer — editable page "Files" tab', () => {
 
   const openEditor = async (view: ReturnType<typeof render>): Promise<HTMLTextAreaElement> => {
     fireEvent.click(view.getByRole('button', { name: 'Edit' }))
-    return waitFor(() => view.getByLabelText(/^Edit templates\/flex\.root\.yaml$/) as HTMLTextAreaElement)
+    return waitFor(() => view.getByLabelText(/^Edit templates\/flex\.page-root\.yaml$/) as HTMLTextAreaElement)
   }
 
   it('a CLEAN page-file edit emits {path, content} on the file-edit bus', async () => {
@@ -158,16 +158,18 @@ describe('AutopilotPreviewDrawer — editable page "Files" tab', () => {
     const off = captureFileEmits(sink)
     const view = render(<AutopilotPreviewDrawer />)
     openAutopilotPreview(pagePayload())
-    await waitFor(() => expect(view.getByText('templates/flex.root.yaml')).toBeTruthy())
+    await waitFor(() => expect(view.getByText('templates/flex.page-root.yaml')).toBeTruthy())
     const area = await openEditor(view)
 
     // A human edit of the held widget CR (still a valid CR — apiVersion/kind/metadata.name intact).
-    const edited = toYamlString({ apiVersion: 'widgets.templates.krateo.io/v1beta1', kind: 'Flex', metadata: { name: 'root' }, spec: { widgetData: { direction: 'vertical' } } })
+    const edited = toYamlString({ apiVersion: 'widgets.templates.krateo.io/v1beta1', kind: 'Flex', metadata: { name: 'page-root' }, spec: { widgetData: { direction: 'vertical' } } })
     fireEvent.change(area, { target: { value: edited } })
     fireEvent.click(view.getByRole('button', { name: 'Apply edits' }))
 
     await waitFor(() => expect(sink.last).not.toBeNull())
-    expect(sink.last?.path).toBe('templates/flex.root.yaml')
+    expect(sink.last?.path).toBe('templates/flex.page-root.yaml')
+    // Says what it showed, so the provider can refuse it if a chart is what is held.
+    expect(sink.last?.kind).toBe('page')
     // byte-for-byte the human's edit (held == published)
     expect(sink.last?.content).toBe(edited)
     off()
@@ -178,7 +180,7 @@ describe('AutopilotPreviewDrawer — editable page "Files" tab', () => {
     const off = captureFileEmits(sink)
     const view = render(<AutopilotPreviewDrawer />)
     openAutopilotPreview(pagePayload())
-    await waitFor(() => expect(view.getByText('templates/flex.root.yaml')).toBeTruthy())
+    await waitFor(() => expect(view.getByText('templates/flex.page-root.yaml')).toBeTruthy())
     const area = await openEditor(view)
 
     // Strip the CR identity — a page widget file must keep apiVersion/kind/metadata.name.
@@ -311,5 +313,20 @@ describe('AutopilotPreviewDrawer — only the HELD draft is editable', () => {
     act(() => { openAutopilotPreview({ summary: ['flex.page-x'], title: 'Page preview — x' }) })
     expect(document.querySelector('.ant-drawer-open')).not.toBeNull()
     release()
+  })
+})
+
+describe('AutopilotPreviewDrawer — a discard re-announced in the tick a late apply opened its render', () => {
+  it('drops the render it has not even drawn yet, and fires its teardown', async () => {
+    // The late apply opens its payload and resolves; the loop re-announces the discard a microtask
+    // later — before React has rendered the payload. A render-time ref still says "nothing shown".
+    const onClose = vi.fn()
+    render(<AutopilotPreviewDrawer />)
+    act(() => {
+      openAutopilotPreview({ onClose, summary: ['flex.page-x'], title: 'Page preview — x' })
+      emitDraftClose()
+    })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(document.querySelector('.ant-drawer-open')).toBeNull())
   })
 })

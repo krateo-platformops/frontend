@@ -12,7 +12,7 @@
 
 import type { ApplyResourceSetOp } from './applyResourceSet'
 import { stampAuthorship, type AuthorshipOrigin } from './authorship'
-import { draftDisplayName, lintBlueprintDraft } from './blueprintDraft'
+import { draftDisplayName, lintBlueprintDraft, parseRawTemplates } from './blueprintDraft'
 import { substituteFileContent, type BlueprintDraftHeld, type BlueprintDraftStore } from './blueprintDraftStore'
 import type { BlueprintGate } from './blueprintGate'
 import type { PublishStatusClaim } from './builderPublishStatus'
@@ -149,11 +149,16 @@ export const recordBlueprintPreview = (
   store: BlueprintDraftStore,
   gate: Pick<BlueprintGate, 'recordPreview'>,
 ): boolean => {
-  if (!rawTemplates || previewFailed || lintBlueprintDraft(rawTemplates).length > 0) {
+  // The tree the handler RENDERED — de-fenced, exactly as the preview parsed it — not the raw
+  // proposal bytes. Linting the raw bytes refused a draft whose one file the model had wrapped in a
+  // code fence, while the drawer, which read the de-fenced tree, showed it as the held draft: its
+  // Files tab then wrote by path into whatever WAS held.
+  const tree = parseRawTemplates(rawTemplates)
+  if (!tree || previewFailed || lintBlueprintDraft(tree).length > 0) {
     return false
   }
   const replaced = heldDraftIdentity(store.get())
-  const draft = store.set(rawTemplates, 'blueprint')
+  const draft = store.set(tree, 'blueprint')
   if (!draft.ok) {
     return false
   }

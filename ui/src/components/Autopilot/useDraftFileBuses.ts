@@ -87,6 +87,12 @@ export const useDraftFileBuses = (
    * `previewPage`. Optional: absent, a started draft opens source-only, as it always did.
    */
   previewLive?: (widgets: Record<string, unknown>[], title: string) => Promise<unknown>,
+  /**
+   * Delete whatever live preview is applied in the sandbox — the host's teardown session, taken
+   * unconditionally. A discard's, and only a discard's: the surfaces' own closes are epoch-guarded
+   * and reach only the render THEY adopted, which a composer that mounted late never had.
+   */
+  discardLive?: () => Promise<unknown>,
 ): void => {
   /*
    * RE-APPLY: what makes "Rendered (live)" actually live.
@@ -115,6 +121,10 @@ export const useDraftFileBuses = (
   // closure would carry its own idea of whether an apply was already running.
   const liveRef = useRef(previewLive)
   liveRef.current = previewLive
+  const discardLiveRef = useRef(discardLive)
+  discardLiveRef.current = discardLive
+  /** A discard's sandbox teardown is waiting for the apply loop — see runApply. */
+  const discardQueued = useRef(false)
   const storeRef = useRef(store)
   storeRef.current = store
   /** An apply is between its sweep and its last POST. Nothing else may apply in that window. */
@@ -164,9 +174,19 @@ export const useDraftFileBuses = (
       let job = explicit
       do {
         pending.current = false
+        // A DISCARD'S TEARDOWN IS A STEP OF THIS LOOP, not a request fired beside it: its DELETEs
+        // and an apply's POSTs reuse the same names, so letting them overlap is the 409 (or worse, a
+        // create deleted after it landed) that serialising exists to prevent.
+        if (discardQueued.current) {
+          discardQueued.current = false
+          // eslint-disable-next-line no-await-in-loop
+          await discardLiveRef.current?.()
+        }
         if (!job) {
+          // A PAGE draft only: a chart's templates are not widget CRs, and re-applying one "as a
+          // page" produced a preview that the drawer deferred to the composer as if it were one.
           const held = storeRef.current.get()
-          const widgets = held ? pageDraftWidgets(held.files) : []
+          const widgets = held?.kind === 'page' ? pageDraftWidgets(held.files) : []
           job = widgets.length && held ? { title: pageDisplayName(held.files), widgets } : undefined
         }
         if (!job) {
@@ -178,12 +198,16 @@ export const useDraftFileBuses = (
         // eslint-disable-next-line no-await-in-loop
         await live(job.widgets, job.title)
         // DISCARDED WHILE ON THE WIRE. The apply re-created the sandbox objects and opened a live
-        // render of a draft the person has just thrown away — after the surfaces had torn theirs
-        // down. Say it again, so each drops what this apply put back. Only while nothing new is
-        // held: a draft started since then is not answerable for this one, and its own apply sweeps.
-        if (discards.current !== discardsBefore && !storeRef.current.get()) {
-          emitDraftClose()
-          break
+        // render of a draft the person has just thrown away. Its objects go by the teardown the
+        // discard queued (next pass — `pending` is set); its render goes by saying the discard
+        // again, so each surface drops what it adopted. Said only while nothing new is held: a
+        // draft started since is not answerable for this one, and would be discarded by it.
+        if (discards.current !== discardsBefore) {
+          if (!storeRef.current.get()) {
+            emitDraftClose()
+          }
+          job = undefined
+          continue
         }
         // The announcement is what makes the RENDER follow: the apply changed what the sandbox
         // serves, and the pane's query is keyed on a URL that did not change. See previewApplied.
@@ -253,7 +277,12 @@ export const useDraftFileBuses = (
   // updateDisplayedFile, not updateFile: the surface shows a page at its repo DESTINATION while the
   // draft holds it under a bare token, and updateFile matches on the held key — so the raw
   // displayed path would refuse every page edit, silently (a refused edit just leaves the bytes).
-  useEffect(() => onFileEdit(({ content, path }) => {
+  useEffect(() => onFileEdit(({ content, kind, path }) => {
+    // An edit made in a preview of the OTHER kind is not an edit of this draft — Chart.yaml and
+    // values.schema.json exist in both, so the path alone would have accepted it.
+    if (kind && kind !== store.get()?.kind) {
+      return
+    }
     // Captured BEFORE the call and pushed only if it was accepted: a refused or over-cap edit
     // leaves the tree exactly as it was, and a snapshot for one would make Undo consume a step
     // without changing anything — the control would move and the draft would not.
@@ -322,13 +351,17 @@ export const useDraftFileBuses = (
       clearTimeout(replayTimer.current)
       replayTimer.current = null
     }
+    // The sandbox render goes too — through the apply loop, so it cannot race an apply; one already
+    // on the wire runs it the moment it lands, which is when there is something to delete.
+    discardQueued.current = true
+    void runApply()
     draftHistory.clear()
     clearComposeRefusals()
     // The verdicts the model was shown about this draft go with it, or its next turn is spent
     // fixing a page that no longer exists.
     setPreviewProblems(null)
     store.clear()
-  }), [gate, identityOf, store])
+  }), [gate, identityOf, runApply, store])
 
   // REPLAY: a surface that mounted AFTER the draft was seeded missed the store's broadcast, so it
   // asks and we answer on the same bus. Answering with an empty map when nothing is held is

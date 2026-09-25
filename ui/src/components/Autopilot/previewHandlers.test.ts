@@ -231,6 +231,13 @@ describe('previewPage — honest source preview, zero network', () => {
     expect(chip).toEqual({ label: 'preview page (2 widgets)', readOnly: true, verb: 'previewPage' })
   })
 
+  it('a set with NO page-<slug> root is an inspection — the store cannot hold it, so nothing may edit it', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    const rootless = [{ apiVersion: 'widgets.templates.krateo.io/v1beta1', kind: 'Table', metadata: { name: 'pods', namespace: 'krateo-system' }, spec: { widgetData: {} } }]
+    await previewPageSpec.apply(asProposal('previewPage', { widgets: rootless }), makeDeps())
+    expect(openedPayload().builder).toBe('inspect')
+  })
+
   it('denies malformed args (empty list / kind-less entry): null, no drawer', async () => {
     const deps = makeDeps()
     expect(previewPageSpec.argSchema(asProposal('previewPage', { widgets: [] }))).toBe(false)
