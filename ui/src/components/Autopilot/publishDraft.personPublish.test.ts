@@ -45,7 +45,7 @@ const deps = (applied: AutopilotActionChip | null) => {
       apply,
       blueprintGate: { evaluate: () => ({ allowed: true, reason: null }) },
       blueprintStore: store,
-      builderTargets: { blueprint: { owner: 'krateo-blueprints', repo: 'builder-publish' }, page: { owner: 'krateo-platformops', repo: 'portal' } },
+      builderTargets: { blueprint: { owner: 'krateo-blueprints', repo: 'builder-publish' }, blueprintTemplate: { owner: '', repo: '' }, page: { owner: 'krateo-platformops', repo: 'portal' } },
       origin: { prompt: null, sessionId: null },
       track,
     } as unknown as PersonPublishDeps,

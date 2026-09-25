@@ -43,32 +43,63 @@ export const resolveBuilderTarget = (slug: string | undefined): BuilderTarget =>
 
 export interface BuilderTargets {
   blueprint: BuilderTarget
+  /**
+   * Template repo a NEW blueprint repository is SEEDED from — see pageTemplate. The same scaffold
+   * serves both builders, because what a builder repo needs does not depend on what the chart holds:
+   * a release workflow that packages the one chart at the root, a `.helmignore` so the package
+   * carries the chart and not the repository, and nothing else.
+   */
+  blueprintTemplate: BuilderTarget
   kog: BuilderTarget
   page: BuilderTarget
   /**
    * Template repo a NEW page-set repository is SEEDED from — a destination's starting content, not
-   * a destination. Empty (the default) means no seeding: the previous behaviour, a bare auto-init'd
-   * repo holding only the composed chart.
+   * a destination. Empty means no seeding: a bare auto-init'd repo holding only the composed chart,
+   * with no workflow to release it.
    */
   pageTemplate: BuilderTarget
 }
 
+/** The install-config slugs the builder targets are resolved from — `config.api`'s five keys. */
+export type BuilderTargetSlugs = Pick<Config['api'],
+  | 'AUTOPILOT_BLUEPRINT_BUILDER_REPO'
+  | 'AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE'
+  | 'AUTOPILOT_KOG_BUILDER_REPO'
+  | 'AUTOPILOT_PAGE_BUILDER_REPO'
+  | 'AUTOPILOT_PAGE_BUILDER_TEMPLATE'>
+
+/**
+ * Resolve every builder target from install config. Pure — the hook below only memoizes it — so
+ * which key feeds which target is testable without rendering anything, and a key wired to the wrong
+ * target is a failed assertion rather than a publish seeded from the other builder's template.
+ */
+export const resolveBuilderTargets = (api: BuilderTargetSlugs | undefined): BuilderTargets => ({
+  blueprint: resolveBuilderTarget(api?.AUTOPILOT_BLUEPRINT_BUILDER_REPO),
+  blueprintTemplate: resolveBuilderTarget(api?.AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE),
+  kog: resolveBuilderTarget(api?.AUTOPILOT_KOG_BUILDER_REPO),
+  page: resolveBuilderTarget(api?.AUTOPILOT_PAGE_BUILDER_REPO),
+  pageTemplate: resolveBuilderTarget(api?.AUTOPILOT_PAGE_BUILDER_TEMPLATE),
+})
+
 /** Resolve the builders' publish destinations from install config, memoized on the slugs. */
 export const useBuilderTargets = (config: Config | undefined): BuilderTargets => {
+  const blueprintSlug = config?.api.AUTOPILOT_BLUEPRINT_BUILDER_REPO
+  const blueprintTemplateSlug = config?.api.AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE
   const kogSlug = config?.api.AUTOPILOT_KOG_BUILDER_REPO
   const pageSlug = config?.api.AUTOPILOT_PAGE_BUILDER_REPO
-  const blueprintSlug = config?.api.AUTOPILOT_BLUEPRINT_BUILDER_REPO
   const pageTemplateSlug = config?.api.AUTOPILOT_PAGE_BUILDER_TEMPLATE
-  return useMemo(() => ({
-    blueprint: resolveBuilderTarget(blueprintSlug),
-    kog: resolveBuilderTarget(kogSlug),
-    page: resolveBuilderTarget(pageSlug),
-    pageTemplate: resolveBuilderTarget(pageTemplateSlug),
-  }), [blueprintSlug, kogSlug, pageSlug, pageTemplateSlug])
+  return useMemo(() => resolveBuilderTargets({
+    AUTOPILOT_BLUEPRINT_BUILDER_REPO: blueprintSlug,
+    AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE: blueprintTemplateSlug,
+    AUTOPILOT_KOG_BUILDER_REPO: kogSlug,
+    AUTOPILOT_PAGE_BUILDER_REPO: pageSlug,
+    AUTOPILOT_PAGE_BUILDER_TEMPLATE: pageTemplateSlug,
+  }), [blueprintSlug, blueprintTemplateSlug, kogSlug, pageSlug, pageTemplateSlug])
 }
 
 /**
- * The clone URL a `Repo.spec.fromRepo` seeds from, or `null` when no template is configured.
+ * The clone URL a `Repo.spec.fromRepo` seeds from, or `null` when no template is configured —
+ * for either builder's template.
  *
  * Built from the same `AUTOPILOT_GIT_HOST` the publish deep links use, so a self-hosted SCM seeds
  * from its own server rather than github.com. `null` — not an empty string — because the claim must

@@ -97,8 +97,9 @@ describe('buildClaimPublish', () => {
   it('DENIES with a "no publish destination" message when config has no repo and no dest is confirmed (#163)', async () => {
     const res = await buildClaimPublish({
       builder: 'blueprint',
-      config: cfg({}),               // no AUTOPILOT_BLUEPRINT_BUILDER_REPO
-      dest: null,                    // human confirmed nothing
+      // No AUTOPILOT_BLUEPRINT_BUILDER_REPO, and the human confirmed nothing.
+      config: cfg({}),
+      dest: null,
       files,
       gate: allow,
       namespace: 'krateo-system',
@@ -114,8 +115,9 @@ describe('buildClaimPublish', () => {
   it('per-artifact: a dest.repo (the artifact name) is honored even when config has none (#163)', async () => {
     const res = await buildClaimPublish({
       builder: 'blueprint',
-      config: cfg({}),                               // no config repo
-      dest: { owner: 'acme', repo: 'my-blueprint' }, // per-artifact repo from the form
+      // No config repo; the per-artifact repo comes from the form.
+      config: cfg({}),
+      dest: { owner: 'acme', repo: 'my-blueprint' },
       files,
       gate: allow,
       namespace: 'krateo-system',
@@ -125,5 +127,41 @@ describe('buildClaimPublish', () => {
     expect(res.compiled.denial).toBeNull()
     expect(res.compiled.ops?.[0].payload).toMatchObject({ spec: { target: { namespace: 'acme', repo: 'my-blueprint' } } })
     expect(res.deepLink).toContain('https://github.com/acme/my-blueprint/compare/')
+  })
+
+  describe('a SEEDED destination is named for its one chart (D4)', () => {
+    const TEMPLATE = 'https://github.com/krateo-blueprints/builder-scaffold.git'
+    const publish = (repo: string, sourceUrl: string | null) => buildClaimPublish({
+      builder: 'blueprint',
+      config: cfg({ AUTOPILOT_BLUEPRINT_BUILDER_REPO: 'krateo-blueprints/<chart>' }),
+      dest: { owner: 'krateo-blueprints', repo },
+      files,
+      gate: allow,
+      namespace: 'krateo-system',
+      origin,
+      slug: 'orders-api',
+      sourceUrl,
+    })
+
+    it('DENIES a seeded publish into a repository named for something else — before any write', async () => {
+      // The publish form refuses this as it is typed. This is the same rule where every builder's
+      // claim is built, so a headless run or a model-emitted repo cannot get past it either.
+      const res = await publish('blueprints', TEMPLATE)
+      expect(res.compiled.ops).toBeNull()
+      expect(res.deepLink).toBeNull()
+      expect(res.compiled.denial).toMatch(/^denied — the repository must be "orders-api", not "blueprints"/)
+    })
+
+    it('compiles a seeded publish into the chart\'s own repository, carrying the template', async () => {
+      const res = await publish('orders-api', TEMPLATE)
+      expect(res.compiled.denial).toBeNull()
+      expect(res.compiled.ops?.[0].payload).toMatchObject({ spec: { source: { url: TEMPLATE }, target: { repo: 'orders-api' } } })
+    })
+
+    it('leaves an UNSEEDED destination to the person — there is no release workflow to protect', async () => {
+      const res = await publish('shared-charts', null)
+      expect(res.compiled.denial).toBeNull()
+      expect(res.compiled.ops?.[0].payload).toMatchObject({ spec: { target: { repo: 'shared-charts' } } })
+    })
   })
 })

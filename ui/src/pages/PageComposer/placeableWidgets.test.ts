@@ -1,7 +1,8 @@
 /**
- * The listing exists so "Place existing" offers the SAME set the old `compose-page` card did —
- * retiring that card must not quietly narrow what a person can place. So what is under test is the
- * contract with `restaction.page-composable`, and every way it can fail to hold.
+ * The listing exists so "Place existing" offers at least the set the old `compose-page` card did —
+ * retiring that card must not quietly narrow what a person can place. What is under test is the
+ * contract with snowplow's `/list`, which replaced `restaction.page-composable` (deleted in
+ * portal#245), and every way it can fail to hold.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 

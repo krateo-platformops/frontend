@@ -203,7 +203,10 @@ describe('page publish gate (safety)', () => {
 })
 
 describe('pageCompositionDefinition — what actually REGISTERS a published page set', () => {
-  const cd = () => pageCompositionDefinition('fleet-health', 'acme')
+  const cd = () => pageCompositionDefinition('fleet-health', 'acme', 'fleet-health') ?? ''
+  const comments = () => cd().split('\n')
+    .filter((line) => line.startsWith('#'))
+    .join('\n')
 
   it('points at the page set\'s OWN chart, under the destination owner', () => {
     // The url is <owner>/charts/<chart name>. Getting either half wrong registers a chart that
@@ -213,18 +216,48 @@ describe('pageCompositionDefinition — what actually REGISTERS a published page
     expect(cd()).toContain('name: fleet-health')
   })
 
+  it('lower-cases the owner in the url — the release workflow refuses any other', () => {
+    expect(pageCompositionDefinition('fleet-health', 'Acme', 'fleet-health')).toContain('url: oci://ghcr.io/acme/charts/fleet-health')
+  })
+
   it('leaves CHART_VERSION for the release workflow to stamp', () => {
     // Registering a concrete version from the branch pins a chart version that was never published.
     expect(cd()).toContain('version: CHART_VERSION')
   })
 
-  it('tells the reader to apply the RELEASE copy, not this one', () => {
-    // The whole hazard of a placeholder in a file people kubectl apply by hand.
-    expect(cd()).toMatch(/STAMPED copy from the GitHub release/)
+  it('names the placeholder ONLY on the version line — the release stamps every occurrence', () => {
+    // The release runs sed s/CHART_VERSION/<tag>/g over the whole file before attaching it, so a
+    // comment that spelled the placeholder out would read, in the attached copy, as a version.
+    expect(cd().match(/CHART_VERSION/g)).toHaveLength(1)
   })
 
-  it('is a CompositionDefinition core-provider will accept', () => {
+  it('names the release in the DESTINATION repository, not a repo assumed to be the slug', () => {
+    // With no template configured a person may publish a page set to a repo of another name, and
+    // a release url built from the slug then points at a repository that does not exist.
+    const other = pageCompositionDefinition('fleet-health', 'acme', 'team-pages') ?? ''
+    expect(other).toContain('https://github.com/acme/team-pages/releases/tag/<tag>')
+    expect(other).not.toContain('github.com/acme/fleet-health')
+  })
+
+  it('sends a person to Register in the portal, with the release tag as the version', () => {
+    expect(comments()).toMatch(/Register it from the portal once a release is green \(builder deliverables -> Register\)/)
+    expect(comments()).toMatch(/entering\s+# the release tag as the version/)
+    expect(comments()).not.toMatch(/kubectl/)
+  })
+
+  it('does not claim to overwrite anything — a publish never overwrites a file', () => {
+    // It used to say it "overwrites the copy a template scaffold brings in". The claim commits with
+    // override: false, so the template's copy won and this one never landed.
+    expect(cd()).not.toMatch(/overwrite/i)
+  })
+
+  it('is a CompositionDefinition core-provider will accept, in krateo-system', () => {
     expect(cd()).toContain('apiVersion: core.krateo.io/v1alpha1')
     expect(cd()).toContain('kind: CompositionDefinition')
+    expect(cd()).toContain('namespace: krateo-system')
+  })
+
+  it('is null without an owner — there is no url to register', () => {
+    expect(pageCompositionDefinition('fleet-health', '', 'fleet-health')).toBeNull()
   })
 })

@@ -23,6 +23,9 @@
 
 import { dump, load } from 'js-yaml'
 
+import { compositionKind } from '../../pages/BlueprintComposer/chartIdentity'
+import { ociChartLocation } from '../../pages/BlueprintComposer/startChart'
+
 import type { BlueprintDraftHeld } from './blueprintDraftStore'
 
 /** Where a page chart keeps its widget CRs — the same place any Helm chart keeps its templates. */
@@ -157,21 +160,33 @@ export const pageRootSlug = (files: Record<string, string>): string | null => {
  * only then can a claim of that Kind put the pages on the cluster. The chart alone is inert.
  *
  * It is written at PUBLISH time rather than into the held draft because it is the one file that
- * depends on the DESTINATION — the OCI url is `<owner>/charts/<chart name>`, and the owner is not
- * known until the human confirms it. That also means it overwrites the copy a template scaffold
- * brings in, which still names the template's own chart.
+ * depends on the DESTINATION — the OCI url is `<owner>/charts/<chart name>` and the release lives
+ * in `<owner>/<repo>`, and neither is known until the human confirms them. The repository is taken
+ * as confirmed rather than assumed to be the slug: that assumption is what the publish form's
+ * repository field exists to override when no template is configured.
  *
- * `CHART_VERSION` is the placeholder the release workflow stamps, and the stamped copy is attached
- * to the GitHub release — so this file is applied FROM THE RELEASE, never from the branch. Writing
- * a real version here would register a chart version that does not exist yet.
+ * It lands because the template brings none. This comment used to say it "overwrites the copy a
+ * template scaffold brings in", which was never true: the claim commits with `override: false`, so
+ * a template's own compositiondefinition.yaml won and this one was skipped. The builder scaffold is
+ * chart-free and CD-free for exactly that reason.
+ *
+ * The version is the release's placeholder, as Chart.yaml's is: the release workflow fills in its
+ * tag and attaches that copy to the release. Registering is a PERSON's action, from the portal's
+ * builder deliverables list, where the version to enter is the release tag. The header avoids the
+ * placeholder's literal spelling on purpose — the release stamps every occurrence in the file, and
+ * a comment naming it would read as a version in the attached copy.
+ *
+ * The owner is lower-cased, as the registry's is — and null without one (ociChartLocation).
  */
-export const pageCompositionDefinition = (slug: string, owner: string): string => `# REGISTERS this page set as installable. Apply the STAMPED copy from the GitHub release, not this
-# one: the branch carries the CHART_VERSION placeholder, and registering that pins a chart version
-# that was never published.
-#
-#   kubectl apply -f https://github.com/${owner}/${slug}/releases/download/<tag>/compositiondefinition.yaml
-#
-# Install it WHERE THE PORTAL IS — the pages must land in namespaces the portal's RBAC covers.
+export const pageCompositionDefinition = (slug: string, owner: string, repo: string): string | null => {
+  const url = ociChartLocation(owner, slug)
+  return url ? `# REGISTERS this page set: core-provider pulls the chart, generates the CRD from values.schema.json
+# and serves the Kind ${compositionKind(slug)} as composition.krateo.io/v<release tag, dots as dashes>.
+# Register it from the portal once a release is green (builder deliverables -> Register), entering
+# the release tag as the version. The release attaches this file, with its tag filled in, to
+# https://github.com/${owner.trim().toLowerCase()}/${repo.trim()}/releases/tag/<tag>.
+# On the branch the version below is a placeholder, and registering it as it stands pins a chart
+# version that was never published.
 apiVersion: core.krateo.io/v1alpha1
 kind: CompositionDefinition
 metadata:
@@ -179,9 +194,10 @@ metadata:
   namespace: krateo-system
 spec:
   chart:
-    url: oci://ghcr.io/${owner}/charts/${slug}
+    url: ${url}
     version: CHART_VERSION
-`
+` : null
+}
 
 /** The namespace every CR this chart ships is created in — resolved at install time, not authoring. */
 const TIER_NAMESPACE = `{{ include "page.tierNamespace" (dict "ctx" . "tier" "${PAGE_TIER}") }}`

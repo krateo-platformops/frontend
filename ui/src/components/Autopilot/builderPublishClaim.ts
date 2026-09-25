@@ -68,10 +68,15 @@ export interface BuilderPublishClaim {
      * Observed on a real publish (krateo-057, git-provider via builder-publish 1.8.31), which left
      * the BuilderPublish stuck at `2 of 2 managed children are not ready` and committed nothing.
      *
-     * It is still sent explicitly rather than left unset: the documented default is the repo root,
-     * but with the path unset the template's `.krateoignore` was ignored outright and its example
-     * chart was copied into the new repo, leaving TWO charts for a release workflow that packages
-     * every Chart.yaml it can find.
+     * WHAT THE IGNORE FILE CANNOT DO: keep a file out of the copy. git-provider's `.krateoignore`
+     * only stops a file being RENDERED — it is copied all the same (copier.go sets `doNotRender`,
+     * and `TestKrateoIgnorePreventsRendering` pins it). This comment used to credit a missing ignore
+     * path for the example chart that arrived in every seeded page-set repo; the example chart
+     * arrived because it was in the template. So the template is now one with nothing to keep out —
+     * `krateo-blueprints/builder-scaffold`, which holds a release workflow, `.helmignore`,
+     * `.gitignore` and a README, and no chart and no CompositionDefinition. The path is still sent:
+     * a template without a `.krateoignore` is read as having nothing to ignore, and one that has one
+     * gets it honoured for rendering, which is all it ever did.
      */
     source?: { url: string; krateoIgnorePath: string }
   }
@@ -99,11 +104,37 @@ const parseSlug = (slug: string | undefined): { namespace: string; repo: string 
 /**
  * The DIRECTORY holding the template's ignore list — the repo root. git-provider appends the
  * `.krateoignore` filename itself, so this must not name the file (see the field doc above: doing so
- * yields `.krateoignore/.krateoignore` and fails the clone). Sent on every seeded publish because
- * git-provider does NOT pick up a root `.krateoignore` by itself, despite the default being
- * documented as the repo root — a template without this copies wholesale, example chart included.
+ * yields `.krateoignore/.krateoignore` and fails the clone). An absent file is not an error
+ * (`setKrateoIgnore` treats it as an empty list), so the chart-free scaffold, which has none, is
+ * seeded whole — which is the point of it.
  */
 const TEMPLATE_IGNORE_DIR = '/'
+
+/**
+ * ONE REPOSITORY PER ARTIFACT, once the destination is SEEDED from a template: the repository must
+ * be named for the chart it will hold. Null when it is; otherwise the reason, in words a person can
+ * act on.
+ *
+ * WHY THE SEED MAKES IT A RULE. A seeded repository is a release unit for exactly one chart, at its
+ * root: its release workflow refuses a second Chart.yaml, and checks that compositiondefinition.yaml
+ * registers the chart beside it. Point a second chart at a repository that already holds one and
+ * nothing fails at publish — it fails quietly instead: the claim commits with `override: false`, so
+ * every root file already there (Chart.yaml, values.yaml, values.schema.json,
+ * compositiondefinition.yaml) is SKIPPED, and the change request folds the new chart's templates
+ * into the old chart. Before this rule, fifteen page sets were published into one repository
+ * (`demo-service-catalog`), because the publish form carried the last repository over.
+ *
+ * Without a template there is no release workflow to protect, so the rule is not applied: the
+ * repository prefill is still the slug, and a person may change it.
+ */
+export const seededRepoProblem = (slug: string, repo: string): string | null => {
+  const wanted = slug.trim()
+  const given = repo.trim()
+  if (given === wanted) {
+    return null
+  }
+  return `the repository must be "${wanted}", not "${given}" — a repository seeded from the builder template holds exactly one chart, at its root, and is named for it. A repository that already holds a chart keeps its own Chart.yaml, values.schema.json and compositiondefinition.yaml (a publish never overwrites a file), so this chart's templates would be merged into that one.`
+}
 
 /** Base branch a builder branch is cut from — a neutral git default, not a repo source. */
 const DEFAULT_BASE = 'main'

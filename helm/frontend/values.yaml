@@ -187,34 +187,52 @@ config:
   # rebuild (the krateo org migration braghettos → krateo-platformops proved that). The frontend has
   # NO hardcoded fallback repo: these are the ONLY source of the default destination (plus the human's
   # confirmation at publish). Absent/malformed → an empty prefill; the human supplies the destination.
-  # A model-emitted owner/repo still wins over the prefill.
+  # A model-emitted OWNER still wins over the prefill; a model-emitted repo does not for a page or a
+  # blueprint, whose repository is always the artifact's own name (below).
   #
   # PAGE — PER-ARTIFACT since #277: a page set is its own chart, so each one gets its OWN repo named
   #   for the page slug. The OWNER segment is what matters (the org new page-set repos land in); the
   #   REPO segment is only a placeholder prefill the page slug overrides.
   AUTOPILOT_PAGE_BUILDER_REPO: krateo-platformops/portal
-  # PAGE TEMPLATE — the repo a NEW page-set repository is SEEDED from, before the composed chart is
-  #   committed into it. builder-publish creates the destination repo and auto-inits it, so without
-  #   this a composed page set lands in a bare repo: a valid chart with no release workflow and no
-  #   compositiondefinition.yaml, and therefore no way to release or register itself. The template's
-  #   .krateoignore keeps its own example chart out of the copy, so the composed chart is the only
-  #   chart in the new repo. Empty = no seeding (the pre-#277 behaviour).
-  AUTOPILOT_PAGE_BUILDER_TEMPLATE: krateo-blueprints/portal-builder
+  # BUILDER TEMPLATES — the repo a NEW page-set / blueprint repository is SEEDED from, before the
+  #   composed chart is committed into it. builder-publish CREATES the destination repo and
+  #   auto-inits it, so without a template a composed chart lands in a bare repo: a valid chart with
+  #   no release workflow, and therefore no way to release itself. Empty = no seeding.
+  #
+  #   Both builders seed from ONE chart-free scaffold: a release workflow (a thin wrapper over the
+  #   org's release-oci), a .helmignore so the package carries the chart and not the repository, a
+  #   .gitignore, and a README. It must hold no chart and no compositiondefinition.yaml. This comment
+  #   used to say the template's .krateoignore kept its example chart out of the copy; it never did —
+  #   git-provider's .krateoignore stops RENDERING, not copying — so every page-set repo seeded from
+  #   krateo-blueprints/portal-builder received that example chart and the template's own
+  #   CompositionDefinition, and the publish, which never overwrites a file, kept the template's.
+  #   The CompositionDefinition is written by the publish, for the chart it commits.
+  #
+  #   ONE REPOSITORY PER ARTIFACT follows: with a template set, the publish form prefills the
+  #   repository with the chart's name and refuses any other, because a seeded repo releases exactly
+  #   one chart, at its root.
+  #
+  #   The scaffold must EXIST before a frontend carrying these defaults is deployed: the claim's file
+  #   commits wait for the seed, so a missing template leaves every publish pending.
+  AUTOPILOT_PAGE_BUILDER_TEMPLATE: krateo-blueprints/builder-scaffold
+  AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE: krateo-blueprints/builder-scaffold
   # BLUEPRINT / KOG(controller) — PER-ARTIFACT repos (#163): each blueprint / RestDefinition gets its
   #   OWN repo named for the artifact. Here the OWNER segment is what matters (the org new repos land
-  #   in); the REPO segment is only a placeholder prefill that the per-artifact name overrides. The
+  #   in); the REPO segment is only a fallback prefill that the per-artifact name overrides. The
   #   default SCM-agnostic path discriminates Portal-Builder listings by the krateo.io/builder LABEL,
   #   not the repo, so per-artifact repos are safe.
-  # EMPTY ON PURPOSE. This shipped as `krateo-blueprints/blueprints`, which does not exist — the org
-  # has 35 repositories and none by that name. The page and KOG defaults above/below are real; this
-  # one was the outlier, so every install that did not override it had blueprint publishing that
-  # could never complete. A default pointing nowhere is worse than none: `builderClaimPublish.ts`
-  # already DENIES an empty destination with an actionable message naming this key, but a non-empty
-  # one sails past that guard, renders a LocalResource per file, and fails as `authentication
-  # required: invalid credentials` — git reports an absent-or-invisible repo as an auth error, so it
-  # does not even read as a wrong address. Set it to a real owner/repo that already EXISTS: a
-  # publish pushes a branch to an existing repository, it never creates one.
-  AUTOPILOT_BLUEPRINT_BUILDER_REPO: ""
+  # BLUEPRINT: krateo-blueprints owns the new repos. It is the OWNER the Blueprint Composer shows a
+  #   chart will be registered under, and the one the publish form prefills; with this key empty
+  #   both were blank and every publish asked the person for an org.
+  #   The repo segment is `<chart>` on purpose, because nothing should ever publish to it. A publish
+  #   is only built for a held chart, and a held chart's name is always the repository prefill, so
+  #   the segment is read by people — and by the model, in the rail's publish re-prompt — and never
+  #   by a claim. So it must not name a real repository. This key once shipped as
+  #   `krateo-blueprints/blueprints`: a repo that did not exist, and since the publish CREATES a
+  #   missing repository, a name like that would now become one shared repository for every
+  #   blueprint. `<chart>` is not a legal GitHub repository name, so it cannot address or be mistaken
+  #   for one, and it reads as what it means: the repository is the chart's name.
+  AUTOPILOT_BLUEPRINT_BUILDER_REPO: krateo-blueprints/<chart>
   AUTOPILOT_KOG_BUILDER_REPO: krateo-platformops/krateo-oas
   # PUBLISHING IS ALWAYS A BuilderPublish CLAIM. The builders' held files are committed by
   # git-provider LocalResources; the frontend never writes github.krateo.io GitRef / RepoContent /

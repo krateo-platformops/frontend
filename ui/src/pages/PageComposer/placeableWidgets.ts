@@ -1,25 +1,23 @@
 /**
  * The widgets already on the cluster, for "Place existing".
  *
- * NO NEW BACKEND. `restaction.page-composable` has existed since the builder's first card and
- * already returns exactly what is needed: seven collection GETs (cards, tables, listies,
- * linecharts, statistics, paragraphs, markdowns) flattened into `{id, name, resource}`. It is what
- * `form.compose-page`'s multi-select reads, so the composer offers the SAME set the old card does —
- * which matters, because retiring that card must not quietly narrow what a person can place.
+ * NO NEW BACKEND, AND NO RESTACTION. This used to read `restaction.page-composable`, the list
+ * `form.compose-page`'s multi-select read, so the composer offered the same set the old card did.
+ * Both are gone from the portal chart: the form in portal#237, the RESTAction in portal#245, once
+ * nothing fetched it. This module reads snowplow's `/list` instead (WIDGET_CATEGORY below), which
+ * offers every widget kind rather than the seven that RESTAction named — the old card's set, and
+ * more, so retiring the card did not narrow what a person can place.
  *
- * WHY THAT IS THE RIGHT AUTHORIZATION MODEL. Every step is a plain collection GET with no
- * `endpointRef`, so snowplow resolves it against the caller's own `<user>-clientconfig` credential:
- * the list is exactly what THIS user may read, and the composer adds no authorization surface of
- * its own. The RA's own header comment says so.
+ * WHY THAT IS THE RIGHT AUTHORIZATION MODEL. `/list` resolves every GVR in the category under the
+ * caller's own `<user>-clientconfig` credential: the list is exactly what THIS user may read, and the
+ * composer adds no authorization surface of its own.
  *
- * WHY A PLAIN FETCH. `callBlueprintRenderRA` is the precedent — a non-widget React module calling a
- * RESTAction over the same `/call` transport a widget uses, reading the jq output straight off
- * `.status`. There is no list hook in the codebase to reuse: every other widget read in the UI is a
- * single named CR GET, and `getResourceEndpoint` requires a name.
+ * WHY A PLAIN FETCH. There is no list hook in the codebase to reuse: every other widget read in the
+ * UI is a single named CR GET, and `getResourceEndpoint` requires a name.
  *
- * FAILURE IS CONTENT, NEVER A THROW. A 403 (the user may not list these), a 404 (the RA is not
- * installed on this portal) and a 5xx all end as a string the surface shows, because an empty
- * picker that does not say why is the failure mode worth avoiding here.
+ * FAILURE IS CONTENT, NEVER A THROW. A 403 (the user may not list these), a 404 (a snowplow that
+ * does not serve `/list`) and a 5xx all end as a string the surface shows, because an empty picker
+ * that does not say why is the failure mode worth avoiding here.
  */
 import { getAccessToken } from '../../utils/getAccessToken'
 
@@ -28,12 +26,13 @@ import { WIDGET_KINDS } from './widgetKinds.generated'
 /**
  * The category EVERY widget CRD declares — verified across all forty-four: `[widgets, krateo]`.
  *
- * This is what retires `page-composable`. That RESTAction existed because `/call` cannot list a
- * collection: `ParseNamespacedName` refuses a request with no `name`, so the frontend could fetch a
- * named object and nothing else, and listing had to be delegated to an RA whose api steps do
- * collection GETs internally. The cost was a hand-written list of SEVEN kinds living in the portal
- * chart — a different repository, released separately, failing silently apart: a kind the RA omits
- * is simply absent from the palette with no error anywhere.
+ * This is what retired `page-composable`, since deleted from the portal chart (portal#245). That
+ * RESTAction existed because `/call` cannot list a collection: `ParseNamespacedName` refuses a
+ * request with no `name`, so the frontend could fetch a named object and nothing else, and listing
+ * had to be delegated to an RA whose api steps do collection GETs internally. The cost was a
+ * hand-written list of SEVEN kinds living in the portal chart — a different repository, released
+ * separately, failing silently apart: a kind the RA omitted was simply absent from the palette with
+ * no error anywhere.
  *
  * `/list` takes a CATEGORY, discovers the GVRs in it server-side, and lists each under the CALLER'S
  * own client. So one request returns every widget instance the user may see, across all
@@ -124,12 +123,11 @@ const listPlaceableByCategory = async (
 }
 
 /**
- * Read `page-composable`'s widget list.
+ * List the widgets the caller may see in `namespace`, across every widget kind.
  *
- * `namespace` is both the RA's own namespace and — because the RA hardcodes
- * `{{ .Release.Namespace }}` in every step path — the namespace the listed widgets live in. The two
- * coincide today; a caller must not assume they always will, which is why the placed entry's
- * namespace is taken from here rather than from the draft.
+ * `namespace` is where the listed widgets LIVE, which is why the placed entry's namespace is taken
+ * from here rather than from the draft: a placed widget stays where it is, and a ref that named the
+ * draft's namespace would point at nothing.
  */
 export const listPlaceableWidgets = async (
   snowplowBaseUrl: string,

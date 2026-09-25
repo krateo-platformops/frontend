@@ -45,7 +45,7 @@ import type { LayoutKind } from './structureEdit'
  */
 const CONTAINERS = new Set<string>(Object.keys(LAYOUT_KINDS))
 
-/** Where `page-composable` lists from when the draft itself declares no namespace. */
+/** Where "Place existing" lists widgets from when the draft itself declares no namespace. */
 const PORTAL_NAMESPACE = 'krateo-system'
 
 const toDataNode = (
@@ -188,7 +188,7 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
   files: Record<string, string>
   /** The selected object's held key, so the surface can reveal that file. */
   onSelect?: (path: string) => void
-  /** Base URL for the `page-composable` RESTAction that lists placeable widgets. */
+  /** Snowplow's base URL — "Place existing" lists placeable widgets from its `/list`. */
   snowplowBaseUrl: string
 }) => {
   const { message } = App.useApp()

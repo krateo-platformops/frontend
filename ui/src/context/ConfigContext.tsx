@@ -76,22 +76,30 @@ export interface Config {
      * an EMPTY prefill and the human supplies the destination (or the publish is denied). All three
      * supply the OWNER while the repo is per-artifact — each blueprint, RestDefinition and page set
      * gets its own repo, since a page set became its own chart (#277). Consumed as the publish-form
-     * prefill — the human confirms every destination, and a model-emitted owner/repo still wins. */
+     * prefill — the human confirms every destination. For a page or a blueprint the repository
+     * prefill is always the artifact's own name, so only the OWNER of a model-emitted destination
+     * still wins; the repo segment here is a fallback nothing reaches while a draft is held. */
     AUTOPILOT_KOG_BUILDER_REPO?: string
     AUTOPILOT_PAGE_BUILDER_REPO?: string
     AUTOPILOT_BLUEPRINT_BUILDER_REPO?: string
-    /** Template repo a NEW page-set repository is seeded from, as an `owner/repo` slug.
+    /** Template repos a NEW page-set / blueprint repository is seeded from, as `owner/repo` slugs.
      *
-     * `builder-publish` creates the destination repo and auto-inits it, so without this a composed
-     * page set lands in a bare repo: a valid chart with no release workflow and no
-     * CompositionDefinition, and therefore no way to release or register itself. Setting this makes
-     * the claim render a git-provider `Repo` (`fromRepo` → `toRepo`) that copies the template in
-     * first; the template's `.krateoignore` keeps its example chart out, so what arrives is the
-     * scaffolding only and the composed chart is the repo's one chart.
+     * `builder-publish` creates the destination repo and auto-inits it, so without one a composed
+     * chart lands in a bare repo: a valid chart with no release workflow, and therefore no way to
+     * release itself. Setting one makes the claim render a git-provider `Repo` (`fromRepo` →
+     * `toRepo`) that copies the template in first. The template must be chart-free — git-provider
+     * copies every file, and `.krateoignore` only stops rendering — which is why both default to
+     * `krateo-blueprints/builder-scaffold`: a release workflow, `.helmignore`, `.gitignore`, a
+     * README, and nothing a composed chart could collide with. The CompositionDefinition is NOT
+     * the template's: the publish writes one for the chart it commits.
+     *
+     * A seeded repository is one chart's, so with a template configured the publish refuses a
+     * repository named anything but the chart (seededRepoProblem).
      *
      * Config-driven and with NO hardcoded fallback, for the same reason as the destinations above.
-     * Absent/empty/malformed → no seeding, which is exactly the previous behaviour. */
+     * Absent/empty/malformed → no seeding. */
     AUTOPILOT_PAGE_BUILDER_TEMPLATE?: string
+    AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE?: string
     /* SCM-agnostic publishing (git-provider LocalResource path). The builder publish targets are
      * install config; these two say WHICH SCM flavour + host so the frontend builds the right
      * change-request deep link + citation URLs (the write itself is scm-blind, done by git-provider).

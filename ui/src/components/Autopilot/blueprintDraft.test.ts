@@ -20,11 +20,13 @@ import {
   draftDisplayName,
   lintBlueprintDraft,
   lintValuesSchemaDefaults,
+  lintValuesSchemaRoot,
   parseRawTemplates,
   RAW_TEMPLATES_MAX_BYTES,
   rawTemplatesByteSize,
   stripCodeFence,
 } from './blueprintDraft'
+import { pageValuesSchema } from './pageDraft'
 
 describe('stripCodeFence — de-fence a model-wrapped file body', () => {
   const json = '{ "title": "AWS VPC", "type": "object" }'
@@ -359,6 +361,45 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
     expect(chartYamlVersion('version: 2\n')).toBe('2')
     expect(chartYamlVersion('name: pg-app\n')).toBeNull()
     expect(chartYamlVersion('version: [unclosed\n')).toBeNull()
+  })
+
+  describe('[CDC-GLOBAL] a closed root must declare global (E6)', () => {
+    // composition-dynamic-controller adds a top-level `global` to the values of EVERY render, and
+    // Helm validates them against this schema first. A closed root that does not declare it previews,
+    // publishes, merges, releases and registers — and then no composition of the chart renders.
+    // test-mongodb-db found it that way (ea6aa3c).
+    const withSchema = (schema: unknown, kind: 'blueprint' | 'page' = 'blueprint') =>
+      lintBlueprintDraft({ ...cleanDraft, 'values.schema.json': JSON.stringify(schema) }, kind).join('\n')
+    const closed = { additionalProperties: false, properties: { size: { type: 'string' } }, type: 'object' }
+
+    it('REFUSES a blueprint whose root sets additionalProperties: false without declaring global', () => {
+      const problems = withSchema(closed)
+      expect(problems).toContain('[CDC-GLOBAL] values.schema.json')
+      // The message names the CAUSE, so the author can see why a valid schema is refused.
+      expect(problems).toMatch(/composition-dynamic-controller adds a top-level global block to the values of every render/)
+    })
+
+    it('accepts the same closed root once global is declared under properties', () => {
+      expect(withSchema({ ...closed, properties: { ...closed.properties, global: { type: 'object' } } })).toBe('')
+    })
+
+    it('accepts an OPEN root, and a closed NESTED object — CDC injects nothing deeper', () => {
+      expect(withSchema({ properties: { size: { type: 'string' } }, type: 'object' })).toBe('')
+      expect(withSchema({ additionalProperties: true, properties: {}, type: 'object' })).toBe('')
+      expect(withSchema({ properties: { db: { additionalProperties: false, properties: { name: { type: 'string' } }, type: 'object' } }, type: 'object' })).toBe('')
+    })
+
+    it('is a BLUEPRINT rule — a page set\'s generated schema is not refused for it', () => {
+      // pageValuesSchema is written by the page builder, closed at the root; refusing it here would
+      // refuse every page draft for a file nobody authored.
+      const pageDraft = { 'Chart.yaml': 'apiVersion: v2\nname: fleet\nversion: CHART_VERSION\n', 'values.schema.json': pageValuesSchema('fleet') }
+      expect(lintBlueprintDraft(pageDraft, 'page').join('\n')).not.toContain('CDC-GLOBAL')
+    })
+
+    it('names invalid JSON once — the defaults lint already reports it', () => {
+      expect(lintValuesSchemaRoot('{not json')).toEqual([])
+      expect(lintBlueprintDraft({ ...cleanDraft, 'values.schema.json': '{not json' }, 'blueprint').filter((problem) => problem.includes('not valid JSON'))).toHaveLength(1)
+    })
   })
 
   it('rawTemplatesByteSize measures UTF-8 bytes of paths + contents', () => {
