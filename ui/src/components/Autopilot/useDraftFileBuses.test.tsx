@@ -536,6 +536,44 @@ describe('a discard that lands while a re-apply is on the wire', () => {
     expect(applied).not.toHaveBeenCalled()
   })
 
+  it('still deletes the sandbox render when the apply it waited behind FAILS', async () => {
+    // A failed apply used to end the whole loop — and with it the discard's queued teardown.
+    const rejects: Array<(reason: Error) => void> = []
+    const live = vi.fn(() => new Promise<void>((_resolve, reject) => { rejects.push(reject) }))
+    const discardLive = vi.fn(() => Promise.resolve())
+    host(live, discardLive)
+    act(() => { emitDraftStart({ title: 'x', widgets: widgets() }) })
+    act(() => { emitDraftClose() })
+    await act(async () => {
+      rejects[0](new Error('schema chunk failed to load'))
+      await Promise.resolve()
+    })
+    expect(discardLive).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs a discard that arrived WHILE the previous discard\'s teardown was on the wire', async () => {
+    const { calls, live } = deferredLive()
+    const teardowns: Array<() => void> = []
+    const discardLive = vi.fn(() => new Promise<void>((resolve) => { teardowns.push(resolve) }))
+    host(live, discardLive)
+    act(() => { emitDraftStart({ title: 'a', widgets: widgets() }) })
+    act(() => { emitDraftClose() })
+    act(() => { emitDraftStart({ title: 'b', widgets: widgets() }) })
+    // A lands; B is held, so the loop runs A's queued teardown next — and B is discarded during it.
+    await act(async () => {
+      calls[0]()
+      await Promise.resolve()
+    })
+    expect(discardLive).toHaveBeenCalledTimes(1)
+    act(() => { emitDraftClose() })
+    await act(async () => {
+      teardowns[0]()
+      await Promise.resolve()
+    })
+    // B's discard owes a teardown of its own; the loop used to `break` on "no job" and drop it.
+    expect(discardLive).toHaveBeenCalledTimes(2)
+  })
+
   it('stays quiet when a NEW draft was started meanwhile — that one is not answerable for the last', async () => {
     const { calls, live } = deferredLive()
     const store = host(live)

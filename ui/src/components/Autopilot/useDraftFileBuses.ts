@@ -190,13 +190,23 @@ export const useDraftFileBuses = (
           job = widgets.length && held ? { title: pageDisplayName(held.files), widgets } : undefined
         }
         if (!job) {
-          break
+          // Not `break`: a discard can arrive while THIS pass awaited its teardown, and its own
+          // teardown must still run. The loop condition decides whether anything is left.
+          continue
         }
         const discardsBefore = discards.current
-        // Serialising IS the point: the next apply must not start until this one's POSTs have
-        // landed, or its sweep races them.
-        // eslint-disable-next-line no-await-in-loop
-        await live(job.widgets, job.title)
+        try {
+          // Serialising IS the point: the next apply must not start until this one's POSTs have
+          // landed, or its sweep races them.
+          // eslint-disable-next-line no-await-in-loop
+          await live(job.widgets, job.title)
+        } catch {
+          // Failures are the apply path's to report — it already turns one into a visible chip.
+          // A failed pass ends THAT pass, not the loop: a discard queued behind it still owes the
+          // sandbox its teardown, and nothing else would run it.
+          job = undefined
+          continue
+        }
         // DISCARDED WHILE ON THE WIRE. The apply re-created the sandbox objects and opened a live
         // render of a draft the person has just thrown away. Its objects go by the teardown the
         // discard queued (next pass — `pending` is set); its render goes by saying the discard
@@ -213,10 +223,10 @@ export const useDraftFileBuses = (
         // serves, and the pane's query is keyed on a URL that did not change. See previewApplied.
         emitPreviewApplied()
         job = undefined
-      } while (pending.current)
+      } while (pending.current || discardQueued.current)
     } catch {
-      // Failures are the apply path's to report — it already turns one into a visible chip. What
-      // must NOT happen here is an unhandled rejection taking the composer down with it.
+      // Belt and braces: a failed apply is caught per pass above. What must NOT happen here is an
+      // unhandled rejection taking the composer down with it.
     } finally {
       // The lint reads these as a possible interleaving. They cannot interleave: this ref IS the
       // mutex, JS runs one task at a time, and the only writer is this function — which is exactly
