@@ -188,12 +188,54 @@ describe('BlueprintComposer — Start a chart (screen 2)', () => {
     expect(screen.getByText(/DNS-1123|lower-case/i)).toBeTruthy()
   })
 
-  it('refuses a name whose Kind outgrows the controller Service budget at this version — and says the budget', () => {
+  it('refuses a name whose Kind outgrows the controller container budget at this version — and says the budget', () => {
     mount()
     openStart()
-    // 35 letters of Kind at 0.1.0, where the budget is 34.
+    // 43 letters of Kind at 0.1.0, where the budget is 42.
+    type('Chart name', `a${'b'.repeat(42)}`)
+    expect(screen.getByText(/at most 42/)).toBeTruthy()
+    expect(screen.getByLabelText('Chart name').getAttribute('aria-invalid')).toBe('true')
+  })
+
+  it('WARNS about the metrics Service budget without refusing — Start still starts the chart', () => {
+    const starts = listen<ChartStartDetail>(AUTOPILOT_CHART_START_EVENT)
+    mount()
+    openStart()
+    // Kind 35 at 0.1.0: over the metrics Service's 34, well inside the container's 42.
     type('Chart name', `a${'b'.repeat(34)}`)
-    expect(screen.getByText(/at most 34/)).toBeTruthy()
+    expect(screen.getByText(/may not fit one that runs core-provider with CDC metrics on/)).toBeTruthy()
+    expect(screen.getByLabelText('Chart name').getAttribute('aria-invalid')).toBeNull()
+    act(() => { screen.getByRole('button', { name: 'Start' }).click() })
+    starts.stop()
+    expect(starts.seen).toHaveLength(1)
+  })
+
+  it('ties each refusal to its field — invalid, described by its reason — and puts focus on the first', () => {
+    // Red text under a field is not an error a screen reader hears: with no aria-invalid and no
+    // aria-describedby, Start did nothing and nothing was announced.
+    mount()
+    openStart()
+    type('Chart name', 'Builder_Publish')
+    type('Version', '1.x')
+    act(() => { screen.getByRole('button', { name: 'Start' }).click() })
+    const described = (input: HTMLElement): string =>
+      (input.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent ?? '').join(' ')
+    const name = screen.getByLabelText('Chart name')
+    const version = screen.getByLabelText('Version')
+    expect(name.getAttribute('aria-invalid')).toBe('true')
+    expect(described(name)).toMatch(/not a valid chart name/)
+    expect(version.getAttribute('aria-invalid')).toBe('true')
+    expect(described(version)).toMatch(/a semantic version such as 0\.1\.0/)
+    expect(document.activeElement).toBe(name)
+  })
+
+  it('a field that is fine is not marked invalid, and is still described by its help', () => {
+    mount()
+    openStart()
+    type('Chart name', 'builder-publish')
+    const name = screen.getByLabelText('Chart name')
+    expect(name.getAttribute('aria-invalid')).toBeNull()
+    expect(document.getElementById(name.getAttribute('aria-describedby') ?? '')?.textContent).toMatch(/Lower-case, dashes/)
   })
 
   it('refuses a version that is not SemVer', () => {

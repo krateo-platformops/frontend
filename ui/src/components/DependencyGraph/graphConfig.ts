@@ -172,7 +172,16 @@ export const graphEdgeOptions = <E, >(
   return states ? { state: states, style, type: GRAPH_EDGE_TYPE } : { style, type: GRAPH_EDGE_TYPE }
 }
 
+/**
+ * How the graph meets its box. `view` (FlowChart's, the default) scales it to fill the box. `natural`
+ * draws it at zoom 1 — centred by G6 at each layout, then placed by `placeAtNaturalSize` — for cards
+ * designed at a pixel size, which `view` magnifies or shrinks past the type floor.
+ */
+export type GraphFit = 'natural' | 'view'
+
 export interface GraphOptionsInput<N, E> {
+  /** Default `view`. */
+  fit?: GraphFit
   nodes: GraphNode<N>[]
   edges: GraphEdge<E>[]
   renderNode: (node: GraphNode<N>) => ReactNode
@@ -185,9 +194,9 @@ export interface GraphOptionsInput<N, E> {
 
 /** Everything FlowGraph is given, from one place. */
 export const buildGraphOptions = <N, E>(input: GraphOptionsInput<N, E>): FlowGraphOptions => {
-  const { edgeAppearance, edgeStates, edges, nodeSize, nodes, palette, renderNode } = input
+  const { edgeAppearance, edgeStates, edges, fit = 'view', nodeSize, nodes, palette, renderNode } = input
   return {
-    autoFit: 'view',
+    autoFit: fit === 'natural' ? 'center' : 'view',
     behaviors: GRAPH_BEHAVIORS,
     data: { edges: edges as G6.EdgeData[], nodes: nodes as unknown as G6.NodeData[] },
     edge: graphEdgeOptions(palette, edgeAppearance, edgeStates),

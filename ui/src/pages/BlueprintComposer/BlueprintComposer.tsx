@@ -104,7 +104,10 @@ const BlueprintComposer = () => {
   const [startOpen, setStartOpen] = useState(false)
   const [level, setLevel] = useState(0)
   const [selected, setSelected] = useState<string | null>(null)
-  const [focusPath, setFocusPath] = useState<string | null>(null)
+  // The file Chart files reveals — and a count of the requests, because asking for the SAME file
+  // again (after Source, or after scrolling away) must reveal it again (PreviewContent's focusNonce).
+  const [focus, setFocus] = useState<{ path: string; nonce: number } | null>(null)
+  const openFile = useCallback((path: string) => setFocus((last) => ({ nonce: (last?.nonce ?? 0) + 1, path })), [])
   const [editVerdicts, setEditVerdicts] = useState<RestDefVerdicts | null>(null)
   const [publishing, setPublishing] = useState(false)
   const [published, setPublished] = useState<{ denial: string | null; deepLink: string | null } | null>(null)
@@ -150,7 +153,7 @@ const BlueprintComposer = () => {
   useEffect(() => onDraftClose(() => {
     reset()
     setSelected(null)
-    setFocusPath(null)
+    setFocus(null)
     setLevel(0)
     setEditVerdicts(null)
     setPublished(null)
@@ -180,18 +183,22 @@ const BlueprintComposer = () => {
   const architecture = view.status === 'ok' || view.status === 'cycle' ? view.architecture : null
   const selectedNode = architecture?.resources.find((node) => node.id === selected) ?? null
 
-  // A node, from the canvas: the inspector shows it, and Chart files opens its template.
+  // Own keys only: a template path named `constructor` is not a file this chart holds.
+  const hasFile = useCallback((path: string) => Object.prototype.hasOwnProperty.call(files, path), [files])
+
+  // A node, from the canvas: the inspector shows it, and Chart files opens its template — when the
+  // chart has one (the inspector says so when it does not).
   const select = useCallback((id: string) => {
     setSelected(id)
     const node = architecture?.resources.find((resource) => resource.id === id)
-    if (node) { setFocusPath(node.template) }
-  }, [architecture])
+    if (node && hasFile(node.template)) { openFile(node.template) }
+  }, [architecture, hasFile, openFile])
 
   const addDescriptor = () => {
     const chart = chartYamlName(files[CHART_YAML_PATH]) ?? draftDisplayName(files)
     const descriptor = serializeArchitecture({ apiVersion: ARCHITECTURE_API_VERSION, chart, kind: ARCHITECTURE_KIND, resources: [] })
     emitFileAdd({ content: wrapAsConfigMapTemplate(descriptor, chart), path: ARCHITECTURE_TEMPLATE_PATH })
-    setFocusPath(ARCHITECTURE_TEMPLATE_PATH)
+    openFile(ARCHITECTURE_TEMPLATE_PATH)
   }
 
   // Publish — the same runDraftPublish the agent's verb takes, asked for by a person. It PROPOSES
@@ -316,7 +323,7 @@ const BlueprintComposer = () => {
             model={model}
             onAddDescriptor={addDescriptor}
             onLevel={setLevel}
-            onOpenFile={setFocusPath}
+            onOpenFile={openFile}
             onSelect={select}
             selected={selectedNode ? selected : null}
             steps={steps}
@@ -330,7 +337,8 @@ const BlueprintComposer = () => {
               <PreviewContent
                 caption={renderCaption(files, requests.lastRender)}
                 editVerdicts={editVerdicts}
-                focusPath={focusPath}
+                focusNonce={focus?.nonce}
+                focusPath={focus?.path ?? null}
                 hideDraftProblems
                 liveFiles={files}
                 onVerdicts={setEditVerdicts}
@@ -342,10 +350,11 @@ const BlueprintComposer = () => {
         <div className={styles.side}>
           <StatePanel model={model} view={view} />
           <NodeInspector
+            hasFile={hasFile}
             levels={view.status === 'ok' ? view.derived.levels : null}
             node={selectedNode}
             onClear={() => setSelected(null)}
-            onOpenFile={setFocusPath}
+            onOpenFile={openFile}
             schemaText={files[VALUES_SCHEMA_PATH]}
           />
         </div>

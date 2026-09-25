@@ -24,9 +24,9 @@ import { dump } from 'js-yaml'
 import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from '../../components/Autopilot/blueprintDraft'
 
 import { ARCHITECTURE_API_VERSION, ARCHITECTURE_KIND, ARCHITECTURE_TEMPLATE_PATH, serializeArchitecture, wrapAsConfigMapTemplate } from './architecture'
-import { chartIdentityProblems } from './chartIdentity'
+import { chartIdentityProblems, chartIdentityWarnings } from './chartIdentity'
 
-export { CHART_NAME_MAX, COMPOSITION_GROUP, KIND_MAX, claimApiVersion, compositionKind, compositionVersion, kindBudget } from './chartIdentity'
+export { CHART_NAME_MAX, COMPOSITION_GROUP, KIND_MAX, claimApiVersion, compositionKind, compositionVersion, kindBudget, metricsKindBudget } from './chartIdentity'
 
 export const VALUES_YAML_PATH = 'values.yaml'
 
@@ -62,6 +62,13 @@ export const ociChartLocation = (owner: string, name: string): string | null => 
  */
 export const validateStartChart = (input: StartChartInput): StartChartProblem[] =>
   chartIdentityProblems({ name: input.name, version: input.version })
+
+/**
+ * What the modal ADVISES without refusing — a name that deploys, but not on an install running CDC
+ * metrics (chartIdentity's header). Start still works: the lint does not refuse it either.
+ */
+export const startChartWarnings = (input: StartChartInput): StartChartProblem[] =>
+  chartIdentityWarnings({ name: input.name, version: input.version })
 
 /** Build by assignment: the lint alphabetises object literals, and a file's key order is its format. */
 const chartYaml = (name: string, version: string, description: string): string => {

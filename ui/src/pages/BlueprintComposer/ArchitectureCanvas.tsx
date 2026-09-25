@@ -26,7 +26,7 @@ import DependencyGraph, { type EdgeAppearance, type EdgeStateStyles, type GraphE
 
 import { ARCHITECTURE_TEMPLATE_PATH } from './architecture'
 import canvas from './ArchitectureCanvas.module.css'
-import type { ArchitectureEdgeData, ArchitectureGraph, ArchitectureNodeData } from './architectureGraph'
+import { inReadingOrder, type ArchitectureEdgeData, type ArchitectureGraph, type ArchitectureNodeData } from './architectureGraph'
 import { ArchitectureNodeCard, NODE_SIZE } from './ArchitectureNodeCard'
 import { counted, elementStates, type ArchitectureView } from './architectureView'
 import styles from './BlueprintComposer.module.css'
@@ -117,10 +117,16 @@ export const ArchitectureCanvas = ({ model, onAddDescriptor, onLevel, onOpenFile
   // Read by the data builders below, which must not depend on it: a step is not new data.
   const statesRef = useRef(states)
   statesRef.current = states
+  // In READING order (inReadingOrder): the cards are DOM buttons in data order, so this is Tab order.
   const nodes = useMemo(
-    () => (graph?.nodes ?? []).map((node) => ({ ...node, states: statesRef.current[node.id] ?? [] })),
+    () => (graph ? inReadingOrder(graph) : []).map((node) => ({ ...node, states: statesRef.current[node.id] ?? [] })),
     [graph],
   )
+  // …and G6 APPENDS an element added to a live graph, after every card already drawn, whatever the
+  // data order says. So a change to WHICH nodes there are draws a fresh graph (a new key), and the
+  // new card lands in its column's place in the tab order. New data is a full layout anyway; an edit
+  // that keeps the same nodes keeps the same graph.
+  const nodeOrder = nodes.map((node) => node.id).join('\n')
   const edges = useMemo(
     () => (graph?.edges ?? []).map((edge) => ({ ...edge, states: statesRef.current[edge.id] ?? [] })),
     [graph],
@@ -199,7 +205,8 @@ export const ArchitectureCanvas = ({ model, onAddDescriptor, onLevel, onOpenFile
     body = (
       <CanvasState action={openDescriptor} title='No resources yet'>
         <p className={canvas.canvasStateText}>
-          Each resource becomes a node here and a file in <code>templates/</code>. Add one by editing
+          Each resource becomes a node here, rendered by a template of its own in <code>templates/</code> — a
+          separate file, which listing the resource does not write. Add one by editing
           {' '}<code>{ARCHITECTURE_TEMPLATE_PATH}</code> in Chart files below, or ask Autopilot to add it — placing
           them from a palette comes later. A <code>dependsOn</code> entry from A to B says A waits for B.
         </p>
@@ -214,11 +221,15 @@ export const ArchitectureCanvas = ({ model, onAddDescriptor, onLevel, onOpenFile
           </p>
         ) : null}
         <div className={canvas.graph} data-testid='architecture-graph'>
+          {/* fit='natural': the cards at their designed size, in a box the page resizes (see
+              DependencyGraph's header). */}
           <DependencyGraph<ArchitectureNodeData, ArchitectureEdgeData>
             edgeAppearance={architectureEdgeAppearance}
             edgeStates={STEPPED_EDGE_STATES}
             edges={edges}
+            fit='natural'
             graphRef={graphRef}
+            key={nodeOrder}
             nodeSize={NODE_SIZE}
             nodes={nodes}
             onNodeClick={onSelect}

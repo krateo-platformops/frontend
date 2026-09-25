@@ -116,6 +116,12 @@ export interface AutopilotActionChip {
    * of a failure is not a render (an unconfigured render service returns neither).
    */
   rendered?: boolean
+  /**
+   * applyResourceSet only: the set was dispatched and an op did NOT land — the apiserver's refusal
+   * (or the transport error), in words. Structural for the same reason as `previewFailed`: a
+   * person's Publish reads it to decide whether to say "published".
+   */
+  failure?: string
 }
 
 // ────────────────────────────────────────────────────────────────────────────

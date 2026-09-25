@@ -68,8 +68,8 @@ describe('runDraftPublish — a lint-dirty draft', () => {
 })
 
 describe('runDraftPublish — the lint runs under the HELD kind', () => {
-  // Kind 34: inside the budget at 0.1.0, over it at 10.20.30.
-  const name = `a${'b'.repeat(33)}`
+  // Kind 42: inside the budget at 0.1.0, over it at 10.20.30 (the controller container would be 64).
+  const name = `a${'b'.repeat(41)}`
 
   it('a page set is not refused for its CHART_VERSION placeholder — the version budget is a blueprint\'s', async () => {
     const store = createBlueprintDraftStore()
@@ -85,6 +85,6 @@ describe('runDraftPublish — the lint runs under the HELD kind', () => {
     const store = createBlueprintDraftStore()
     store.set({ [CHART_YAML_PATH]: `apiVersion: v2\nname: ${name}\nversion: 10.20.30\n`, [VALUES_SCHEMA_PATH]: '{"type":"object"}' }, 'blueprint')
     const outcome = await runDraftPublish(deps(store), { verb: 'publishBlueprint' })
-    expect(outcome.compiled.denial).toMatch(/fails the chart lint: .*at version 10\.20\.30 the Kind .* at most 31 characters/)
+    expect(outcome.compiled.denial).toMatch(/fails the chart lint: .*at version 10\.20\.30 the Kind .* at most 39 characters/)
   })
 })

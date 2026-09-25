@@ -237,9 +237,11 @@ export const chartYamlVersion = (chartYaml: string | undefined): string | null =
  *
  * A BLUEPRINT is also held to the whole of chartIdentity's rule — the one Start runs — at the
  * version Chart.yaml carries NOW: core-provider derives the Kind, the CRD and the controller
- * Service from name + version, and a release that lengthens the version can push a name that fit at
- * Start past what Kubernetes accepts. Checked here, on every write, because that is the only place
- * a bump is seen before a CompositionDefinition wedges on it.
+ * container from name + version, and a release that lengthens the version can push a name that fit
+ * at Start past what Kubernetes accepts. Checked here, on every write, because that is the only place
+ * a bump is seen before a CompositionDefinition wedges on it. Only what fails on EVERY install is
+ * refused — the metrics Service's tighter budget is Start's advice, never a lint problem, or a real
+ * blueprint that deploys could not be previewed or published (chartIdentity's header).
  *
  * A PAGE set keeps the label check only. It IS registered by a CompositionDefinition too, but at
  * publish time (pageCompositionDefinition) and against a Chart.yaml whose version is the

@@ -24,6 +24,15 @@
  *     inline arrow does not count as a changed input. A node card that must be keyboard-operable
  *     should also render a real button wired through `renderNode`'s own closure: G6 hit-tests a
  *     forwarded DOM click at its pointer coordinates, and a key-activated click has none.
+ *   - TRUE SIZE, IN A BOX THAT CHANGES (`fit="natural"`). FlowChart's fit scales the graph to fill
+ *     its box; a caller whose cards are designed at a pixel size draws at zoom 1 instead, placed by
+ *     `placeAtNaturalSize` after each layout. And G6 sizes its canvas from its container once — its
+ *     own `autoResize` hears only the WINDOW — so a box resized by the page around it (the Autopilot
+ *     rail opening) left the canvas at its old width: clipped when narrower, stranded in a corner when
+ *     wider. With `natural`, the box is observed, and a new size resizes the canvas and places the
+ *     graph again. A graph at true size can also be wider than its box, so a card focused past the
+ *     edge is PANNED into view — never scrolled, which moved the cards off their edges. FlowChart's
+ *     behaviour is unchanged.
  *   - THE GRAPH HANDLE. `graphRef` receives the G6 Graph the moment G6 creates it (`onInit`) and
  *     is cleared when it is destroyed. NOT through FlowGraph's own forwarded ref: @ant-design/graphs
  *     2.1.1's BaseGraph fills that at its commit, before @antv/graphin's mount effect has created
@@ -45,9 +54,11 @@ import {
   type EdgeAppearance,
   type EdgeStateStyles,
   type GraphEdge,
+  type GraphFit,
   type GraphNode,
   type GraphPalette,
 } from './graphConfig'
+import { placeAtNaturalSize, revealOffset } from './naturalViewport'
 
 // Register the React custom-node type once so React components render as G6 nodes. Idempotent:
 // the registry throws on a second registration, which is the "already registered" case.
@@ -125,24 +136,38 @@ export interface DependencyGraphProps<N, E> {
    * opacity only. Absent, edges have no state styles (FlowChart: C19's edge object, key for key).
    */
   edgeStates?: EdgeStateStyles
+  /** How the graph meets its box — `view` (default: fill it) or `natural` (zoom 1). See the header. */
+  fit?: GraphFit
 }
 
 interface CanvasProps {
   options: FlowGraphOptions
   onInit: (graph: G6.Graph) => void
+  onReady?: (graph: G6.Graph) => void
 }
 
 /**
  * FlowGraph behind `memo`: with stable props it does not re-render, so G6 does not re-lay out.
  * No `ref`: the graph handle comes from `onInit` (see the header).
  */
-const GraphCanvas = memo(({ onInit, options }: CanvasProps) => <FlowGraph {...options} onInit={onInit} />)
+const GraphCanvas = memo(({ onInit, onReady, options }: CanvasProps) => (
+  // `onReady` only when given: FlowChart's props stay exactly what they were (FlowChart.test).
+  <FlowGraph {...options} onInit={onInit} {...(onReady ? { onReady } : {})} />
+))
 GraphCanvas.displayName = 'GraphCanvas'
+
+/** Place a live graph at its true size; a graph torn down mid-placement has nothing left to place. */
+const placeNatural = (graph: G6.Graph): void => {
+  if (!graph.destroyed) {
+    placeAtNaturalSize(graph).catch(() => undefined)
+  }
+}
 
 const DependencyGraph = <N, E = Record<string, unknown>>({
   edgeAppearance,
   edgeStates,
   edges,
+  fit = 'view',
   graphRef,
   nodeSize,
   nodes,
@@ -151,6 +176,8 @@ const DependencyGraph = <N, E = Record<string, unknown>>({
   themed = true,
 }: DependencyGraphProps<N, E>) => {
   const mode = useDocumentThemeMode()
+  const natural = fit === 'natural'
+  const box = useRef<HTMLDivElement | null>(null)
 
   const clickRef = useRef(onNodeClick)
   useEffect(() => {
@@ -198,9 +225,81 @@ const DependencyGraph = <N, E = Record<string, unknown>>({
   // options, because Graphin answers new options with a full re-layout. New data still picks up
   // the mode active then. The flip itself repaints the live graph, below.
   const options = useMemo(
-    () => buildGraphOptions({ edgeAppearance, edgeStates, edges, nodeSize, nodes, palette: themed ? graphPalette(activeThemeMode()) : null, renderNode }),
-    [edgeAppearance, edgeStates, edges, nodeSize, nodes, renderNode, themed],
+    () => buildGraphOptions({ edgeAppearance, edgeStates, edges, fit, nodeSize, nodes, palette: themed ? graphPalette(activeThemeMode()) : null, renderNode }),
+    [edgeAppearance, edgeStates, edges, fit, nodeSize, nodes, renderNode, themed],
   )
+
+  // NATURAL: the box, observed. A new size is a canvas resize (no layout) and a new placement; the
+  // first report — the size the graph was created at — resizes nothing and places what is drawn.
+  useEffect(() => {
+    const element = box.current
+    if (!natural || !element || typeof ResizeObserver === 'undefined') {
+      return undefined
+    }
+    let seen = ''
+    const observer = new ResizeObserver(() => {
+      const graph = liveGraph.current
+      const size = `${element.clientWidth}×${element.clientHeight}`
+      if (!graph || graph.destroyed || size === seen) {
+        return
+      }
+      seen = size
+      graph.resize()
+      placeNatural(graph)
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [natural])
+
+  // NATURAL: a graph at true size can be wider than its box, and its cards are DOM (G6's HTML layer,
+  // over the <canvas> the edges are painted on). Focusing a card past the edge — Tab — makes the
+  // browser SCROLL that layer's overflow:hidden container to reveal it: the cards moved, the edges
+  // did not. So a scroll inside the box is taken back and made a pan, which moves both together and
+  // leaves the focused card exactly where the browser put it.
+  useEffect(() => {
+    const element = box.current
+    if (!natural || !element) {
+      return undefined
+    }
+    const onScroll = (event: Event): void => {
+      const layer = event.target
+      if (!(layer instanceof HTMLElement) || layer === element || (!layer.scrollLeft && !layer.scrollTop)) {
+        return
+      }
+      const offset: [number, number] = [-layer.scrollLeft, -layer.scrollTop]
+      layer.scrollLeft = 0
+      layer.scrollTop = 0
+      const graph = liveGraph.current
+      if (graph && !graph.destroyed) {
+        graph.translateBy(offset, false).catch(() => undefined)
+      }
+    }
+    // …and a card that takes focus is panned fully into view, on whichever side it sits — next frame,
+    // once any scroll the focus caused has been taken back above.
+    let frame = 0
+    const onFocus = (event: FocusEvent): void => {
+      const card = event.target
+      if (!(card instanceof HTMLElement)) {
+        return
+      }
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const graph = liveGraph.current
+        const offset = revealOffset(card.getBoundingClientRect(), element.getBoundingClientRect())
+        if (graph && !graph.destroyed && (offset[0] || offset[1])) {
+          graph.translateBy(offset, false).catch(() => undefined)
+        }
+      })
+    }
+    // Capture: a scroll event does not bubble.
+    element.addEventListener('scroll', onScroll, true)
+    element.addEventListener('focusin', onFocus)
+    return () => {
+      cancelAnimationFrame(frame)
+      element.removeEventListener('scroll', onScroll, true)
+      element.removeEventListener('focusin', onFocus)
+    }
+  }, [natural])
 
   useEffect(() => {
     const graph = liveGraph.current
@@ -209,7 +308,16 @@ const DependencyGraph = <N, E = Record<string, unknown>>({
     }
   }, [mode, themed])
 
-  return <GraphCanvas onInit={onInit} options={options} />
+  if (!natural) {
+    return <GraphCanvas onInit={onInit} options={options} />
+  }
+  // The box the canvas fills, observed for size (above). `height: inherit` passes the caller's height
+  // on to Graphin's own container, which inherits its height the same way.
+  return (
+    <div ref={box} style={{ height: 'inherit', position: 'relative' }}>
+      <GraphCanvas onInit={onInit} onReady={placeNatural} options={options} />
+    </div>
+  )
 }
 
 export default DependencyGraph

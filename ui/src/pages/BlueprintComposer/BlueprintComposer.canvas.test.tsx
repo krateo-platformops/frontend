@@ -13,7 +13,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { AUTOPILOT_PREVIEW_FILE_ADD_EVENT, type FileAddDetail } from '../../components/Autopilot/previewFileAdd'
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 
-import { ARCHITECTURE_TEMPLATE_PATH, parseArchitecture, unwrapFromConfigMapTemplate, type ResourceNode } from './architecture'
+import { ARCHITECTURE_TEMPLATE_PATH, parseArchitecture, unwrapFromConfigMapTemplate, wrapAsConfigMapTemplate, type ResourceNode } from './architecture'
 import { builderPublishChart, chartWith, hold, installAntdShims, installScrollShim, listen, mount, scrolled, seededChart } from './blueprintTestHarness'
 
 vi.mock('@ant-design/graphs', () => import('../../components/DependencyGraph/flowGraphDouble'))
@@ -27,6 +27,8 @@ beforeEach(() => graphDouble.reset())
 afterEach(cleanup)
 
 const card = (id: string): HTMLElement => screen.getByTestId(`node-card-${id}`)
+/** The ids of the elements the reveal scrolled into view, oldest first. */
+const scrolledTo = (): string[] => scrolled.mock.contexts.map((element) => (element as HTMLElement).id)
 const statesOf = (id: string): string[] => (card(id).getAttribute('data-states') ?? '').split(' ').filter(Boolean)
 const step = (label: RegExp) => screen.getByRole('button', { name: label })
 const native = (id: string, dependsOn?: ResourceNode['dependsOn']): ResourceNode =>
@@ -56,7 +58,7 @@ describe('BlueprintComposer — the architecture graph', () => {
   it('draws one card per resource, from templates/architecture.yaml, with its kind, group and class', () => {
     mount()
     hold(builderPublishChart())
-    expect(graphDouble.last().data?.nodes?.map((node) => node.id)).toEqual(['localresources', 'pullrequest', 'repo', 'repository', 'username-secret'])
+    expect(graphDouble.last().data?.nodes?.map((node) => node.id)).toEqual(['repository', 'username-secret', 'repo', 'localresources', 'pullrequest'])
     expect(within(card('repository')).getByText('Repository · github.krateo.io')).toBeTruthy()
     expect(within(card('localresources')).getByText('×N')).toBeTruthy()
     expect(within(card('username-secret')).getByText('shim')).toBeTruthy()
@@ -64,6 +66,41 @@ describe('BlueprintComposer — the architecture graph', () => {
     const pane = screen.getByLabelText('Architecture')
     expect(within(pane).getByText('5 resources')).toBeTruthy()
     expect(within(pane).getByText('4 states')).toBeTruthy()
+  })
+
+  it('hands the cards over in READING order — column by column — so Tab walks the picture left to right', () => {
+    // The descriptor lists builder-publish alphabetically; its columns are repository (S1), repo
+    // (S2), localresources (S3), pullrequest (S4). The G6 cards are DOM nodes in data order, so the
+    // data order IS the tab order: it went middle, far right, back, then the far left.
+    mount()
+    hold(builderPublishChart())
+    expect(graphDouble.last().data?.nodes?.map((node) => node.id)).toEqual(['repository', 'username-secret', 'repo', 'localresources', 'pullrequest'])
+  })
+
+  it('a new resource re-creates the graph, so its card takes its place in the tab order', () => {
+    // G6 APPENDS an element it adds to a live graph — after every card already drawn — whatever the
+    // data order says. So a change to WHICH nodes there are draws a fresh graph; any other edit does not.
+    const files = builderPublishChart()
+    mount()
+    hold(files)
+    const first = graphDouble.graph
+    const renamed = files[ARCHITECTURE_TEMPLATE_PATH].replace('- { name: seeding }', '- { name: seeding-the-repo }')
+    hold({ ...files, [ARCHITECTURE_TEMPLATE_PATH]: renamed })
+    expect(graphDouble.graph).toBe(first)
+    const descriptor = (unwrapFromConfigMapTemplate(renamed) ?? '')
+      .replace('resources:\n', 'resources:\n  - id: aaa-first\n    class: native\n    apiVersion: v1\n    kind: ConfigMap\n    template: templates/aaa-first.yaml\n')
+    hold({ ...files, [ARCHITECTURE_TEMPLATE_PATH]: wrapAsConfigMapTemplate(descriptor, 'builder-publish') })
+    expect(graphDouble.graph).not.toBe(first)
+    expect(graphDouble.last().data?.nodes?.map((node) => node.id)).toEqual(['aaa-first', 'repository', 'username-secret', 'repo', 'localresources', 'pullrequest'])
+  })
+
+  it('draws the cards AT 156×72: never fitted to the pane — placed at zoom 1 after the layout', async () => {
+    // Fitted, one card filled the 360px pane at five times its size, and builder-publish's four
+    // columns shrank its 10px labels to 8.3px — under the type floor.
+    mount()
+    hold(builderPublishChart())
+    expect(graphDouble.last().autoFit).toBe('center')
+    await waitFor(() => expect(graphDouble.viewport).toEqual(['zoomTo 1', 'fitCenter']))
   })
 
   it('hands dagre the card box (156×72) and dashes nothing that waits for readiness', () => {
@@ -97,6 +134,17 @@ describe('BlueprintComposer — the architecture graph', () => {
     expect(within(pane).getByText('S1 · initial')).toBeTruthy()
     // Nothing to lay out: no graph was drawn at all.
     expect(graphDouble.renders).toHaveLength(0)
+  })
+
+  it('zero resources: "Open templates/architecture.yaml" opens it every time it is pressed, not only the first', () => {
+    mount()
+    hold(seededChart())
+    const open = () => within(screen.getByLabelText('Architecture')).getByRole('button', { name: `Open ${ARCHITECTURE_TEMPLATE_PATH}` })
+    act(() => { open().click() })
+    expect(screen.getByRole('tab', { name: 'Chart files', selected: true })).toBeTruthy()
+    act(() => { fireEvent.click(screen.getByRole('tab', { name: 'Source' })) })
+    act(() => { open().click() })
+    expect(screen.getByRole('tab', { name: 'Chart files', selected: true })).toBeTruthy()
   })
 
   it('NO architecture file: its own state, and one button that adds an empty, readable descriptor', () => {
@@ -210,6 +258,29 @@ describe('BlueprintComposer — the state stepper (screen 8)', () => {
     expect(repo?.states).toEqual(['frontier'])
     expect(step(/S2\s*seeding-the-repo/)).toBeTruthy()
   })
+
+  it('…and its EDGES carry the current step too — the new layout draws them lit and withheld', () => {
+    const files = builderPublishChart()
+    mount()
+    hold(files)
+    act(() => { step(/S3/).click() })
+    const edited = files[ARCHITECTURE_TEMPLATE_PATH].replace('- { name: seeding }', '- { name: seeding-the-repo }')
+    hold({ ...files, [ARCHITECTURE_TEMPLATE_PATH]: edited })
+    const edges = graphDouble.last().data?.edges as { id: string; states?: string[] }[]
+    expect(edges.find((edge) => edge.id === 'localresources:dependsOn[0]')?.states).toEqual(['lit'])
+    expect(edges.find((edge) => edge.id === 'pullrequest:dependsOn[0]')?.states).toEqual(['withheld'])
+  })
+
+  it('an edit that removes the state on screen lands on the last one left — the machine does not vanish', () => {
+    mount()
+    hold(chartWith([native('a'), native('b', [{ ref: 'a' }]), native('c', [{ ref: 'b' }])]))
+    act(() => { step(/S3/).click() })
+    hold(chartWith([native('a'), native('b', [{ ref: 'a' }])]))
+    expect(step(/S2/).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.queryByRole('button', { name: /S3/ })).toBeNull()
+    expect(statesOf('b')).toEqual(['frontier'])
+    expect(statesOf('a')).toEqual(['lit'])
+  })
 })
 
 describe('BlueprintComposer — selecting a node (screen 5)', () => {
@@ -237,15 +308,42 @@ describe('BlueprintComposer — selecting a node (screen 5)', () => {
     expect(within(inspector).getByText('outside the sequence')).toBeTruthy()
   })
 
-  it('marks the node selected on the live graph — without a layout — and opens its template in Chart files', async () => {
+  it('marks the node selected on the live graph — without a layout — and opens ITS template in Chart files', async () => {
     mount()
     hold(builderPublishChart())
+    scrolled.mockClear()
     act(() => graphDouble.click('repository'))
     expect(graphDouble.renders).toHaveLength(1)
     expect(statesOf('repository')).toContain('selected')
     expect(screen.getByRole('tab', { name: 'Chart files', selected: true })).toBeTruthy()
-    // The reveal scrolls on the next frame, once the Files tab is mounted.
-    await waitFor(() => expect(scrolled).toHaveBeenCalled())
+    // The reveal scrolls on the next frame, once the Files tab is mounted — and it scrolls to THIS
+    // node's file: Chart files is the default tab, so "a scroll happened" alone proves nothing.
+    await waitFor(() => expect(scrolledTo()).toEqual(['preview-file-templates-repository-yaml']))
+  })
+
+  it('asking for the same file AGAIN reveals it again — after Source, the Template link and the node both go back', async () => {
+    mount()
+    hold(builderPublishChart())
+    act(() => graphDouble.click('repository'))
+    act(() => { fireEvent.click(screen.getByRole('tab', { name: 'Source' })) })
+    act(() => { within(screen.getByLabelText('Inspector')).getByRole('button', { name: 'templates/repository.yaml' }).click() })
+    expect(screen.getByRole('tab', { name: 'Chart files', selected: true })).toBeTruthy()
+    act(() => { fireEvent.click(screen.getByRole('tab', { name: 'Source' })) })
+    scrolled.mockClear()
+    act(() => graphDouble.click('repository'))
+    expect(screen.getByRole('tab', { name: 'Chart files', selected: true })).toBeTruthy()
+    await waitFor(() => expect(scrolledTo()).toEqual(['preview-file-templates-repository-yaml']))
+  })
+
+  it('a node whose template is NOT in the chart says so — no link that opens nothing', () => {
+    // Adding a resource to the architecture file (the one S3b path) writes no template for it.
+    mount()
+    hold(chartWith([native('config'), native('deploy', [{ ref: 'config' }])]))
+    act(() => graphDouble.click('deploy'))
+    const inspector = screen.getByLabelText('Inspector')
+    expect(within(inspector).queryByRole('button', { name: 'templates/deploy.yaml' })).toBeNull()
+    expect(within(inspector).getByText('templates/deploy.yaml')).toBeTruthy()
+    expect(within(inspector).getByText(/not in the chart yet/)).toBeTruthy()
   })
 
   it('the card is a real button: a keyboard press selects exactly as a pointer click does', () => {

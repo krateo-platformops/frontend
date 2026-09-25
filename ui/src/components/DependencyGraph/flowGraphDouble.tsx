@@ -36,6 +36,7 @@ interface Options {
   layout?: unknown
   node?: { style?: { component?: (datum: unknown) => ReactNode }; type?: string }
   onInit?: (graph: unknown) => void
+  onReady?: (graph: unknown) => void
 }
 
 type Handler = (event: unknown) => void
@@ -49,6 +50,14 @@ export interface FakeGraph {
   on: (event: string, handler: Handler) => void
   setEdge: (edge: unknown) => void
   setElementState: (config: Record<string, string | string[]>, animation?: boolean) => Promise<void>
+  // The viewport, as far as a true-size placement drives it: each call is logged in `viewport`.
+  fitCenter: () => Promise<void>
+  getCanvas: () => { getBounds: () => { max: number[]; min: number[] } }
+  getSize: () => [number, number]
+  getViewportByCanvas: (point: number[]) => number[]
+  resize: () => void
+  translateBy: (offset: number[]) => Promise<void>
+  zoomTo: (zoom: number) => Promise<void>
 }
 
 const handlers = new Map<string, Handler[]>()
@@ -83,10 +92,18 @@ export const graphDouble = {
     liveStates.clear()
     graphDouble.draws = 0
     graphDouble.graph = null
+    graphDouble.viewport.length = 0
     handlers.clear()
   },
   /** Every `setElementState()` config, oldest first — a state change drawn without a layout. */
   stateUpdates: [] as Record<string, string | string[]>[],
+  /** Every viewport call (`zoomTo 1`, `fitCenter`, `resize`, `translateBy x,y`), oldest first. */
+  viewport: [] as string[],
+}
+
+const logged = (call: string): Promise<void> => {
+  graphDouble.viewport.push(call)
+  return Promise.resolve()
 }
 
 const createGraph = (options: () => Options): FakeGraph => {
@@ -104,13 +121,19 @@ const createGraph = (options: () => Options): FakeGraph => {
       graphDouble.draws += 1
       return Promise.resolve()
     },
+    // A graph that fits its 800×360 box: placing it is a zoom and a centring, never a translate.
+    fitCenter: () => logged('fitCenter'),
+    getCanvas: () => ({ getBounds: () => ({ max: [300, 100, 0], min: [0, 0, 0] }) }),
     getOptions: () => {
       const current = options()
       return override?.over === current ? { ...current, edge: override.edge } : current
     },
+    getSize: () => [800, 360],
+    getViewportByCanvas: (point) => point,
     on: (event, handler) => {
       handlers.set(event, [...(handlers.get(event) ?? []), handler])
     },
+    resize: () => { graphDouble.viewport.push('resize') },
     setEdge: (edge) => {
       override = { edge, over: options() }
       graphDouble.edgeUpdates.push(edge)
@@ -123,6 +146,8 @@ const createGraph = (options: () => Options): FakeGraph => {
       stateListeners.forEach((redraw) => redraw())
       return Promise.resolve()
     },
+    translateBy: (offset) => logged(`translateBy ${offset.join(',')}`),
+    zoomTo: (zoom) => logged(`zoomTo ${zoom}`),
   }
   return graph
 }
@@ -152,8 +177,9 @@ const Cards = ({ component, nodes }: { component?: (datum: unknown) => ReactNode
 export const FlowGraph = forwardRef<unknown, Options>((props, ref) => {
   graphDouble.renders.push(props)
   // As Graphin: new options (a re-render) replace the graph's options — setOptions + render — and
-  // with them the data, so any state set on the old data is gone.
-  const latest = useRef(props)
+  // with them the data, so any state set on the old data is gone. So is any set on a graph that is
+  // not this one: a fresh mount (a new key) is a new G6 graph, which starts from its data alone.
+  const latest = useRef<Options | null>(null)
   if (latest.current !== props) { liveStates.clear() }
   latest.current = props
   // As BaseGraph: the forwarded ref is filled at commit from a slot the mount effect fills later.
@@ -163,7 +189,7 @@ export const FlowGraph = forwardRef<unknown, Options>((props, ref) => {
   // in the cleanup.
   const onInit = useRef(props.onInit)
   useEffect(() => {
-    const graph = createGraph(() => latest.current)
+    const graph = createGraph(() => latest.current ?? {})
     slot.current = graph
     graphDouble.graph = graph
     onInit.current?.(graph)
@@ -173,6 +199,10 @@ export const FlowGraph = forwardRef<unknown, Options>((props, ref) => {
       if (graphDouble.graph === graph) { graphDouble.graph = null }
     }
   }, [])
+  // As useGraph: every options change is setOptions + render, then `onReady(graph)` once it is drawn.
+  useEffect(() => {
+    if (slot.current) { props.onReady?.(slot.current) }
+  }, [props])
   return (
     <div data-testid='flow-graph'>
       <Cards component={props.node?.style?.component} nodes={props.data?.nodes ?? []} />

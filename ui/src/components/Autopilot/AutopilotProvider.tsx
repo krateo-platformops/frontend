@@ -38,7 +38,7 @@ import { buildKogPublishNudge, createPreviewGate, hydrateRestDefinitionOps } fro
 import { emitPublishResult, onPublishRequest } from './previewPublishRequest'
 import { AutopilotPreviewDrawer } from './previewSurface'
 import { blueprintChipRendered, compilePublishOps, heldDraftIdentity, recordBlueprintPreview, recordPagePreview, type PublishCompileResult } from './publishCompile'
-import { runDraftPublish } from './publishDraft'
+import { runDraftPublish, runPersonPublish } from './publishDraft'
 import { PublishTargetFormHost } from './publishTargetForm'
 import type { ThreadSummary } from './sessionHistoryStore'
 import { a2aAuthHeader, createEchoTransport, createKagentTransport } from './transport'
@@ -810,7 +810,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
    * The same `runDraftPublish` the verb branch calls, so there is exactly one destination form,
    * one gate evaluation and one file cap — a UI publish that took a shortcut past the gate would
    * be a way to ship un-previewed bytes. `apply` still raises the blast-radius confirm, so this
-   * button proposes a write; it does not perform one.
+   * button proposes a write; it does not perform one. The answer (runPersonPublish) carries no
+   * denial only when the claim was written — a declined confirm or a refused claim is said as such.
    *
    * The AUTHORSHIP origin is empty and the PROVENANCE actor is `human` — two different records,
    * both honest. No agent session id and no prompt are stamped on the objects, because no model
@@ -820,21 +821,19 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     // The bus handler is sync (a listener's return value is ignored); the publish itself is async
     // and self-contained — it ends by emitting its own result rather than resolving to a caller.
     void (async () => {
-      const { compiled, deepLink } = await runDraftPublish(
+      const answer = await runPersonPublish(
         {
+          apply: (ops) => apply({ label: 'Publish', ops, verb: 'applyResourceSet' }, { actor: 'human' }),
           blueprintGate,
           blueprintStore,
           builderTargets,
           config,
           origin: { prompt: null, sessionId: null },
+          track: (claim) => trackPublishStatus(config, claim, setMessages, randomId),
         },
-        { label: 'Publish', verb },
+        verb,
       )
-      if (compiled.denial === null && compiled.ops) {
-        await apply({ label: 'Publish', ops: compiled.ops, verb: 'applyResourceSet' }, { actor: 'human' })
-        if (compiled.claim) { trackPublishStatus(config, compiled.claim, setMessages, randomId) }
-      }
-      emitPublishResult({ deepLink, denial: compiled.denial, id })
+      emitPublishResult({ ...answer, id })
     })()
   }), [apply, blueprintGate, blueprintStore, builderTargets, config, oasStore, previewGate, setMessages])
 

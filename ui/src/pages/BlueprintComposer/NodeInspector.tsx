@@ -7,6 +7,10 @@
  * and `planEdge`, so that a person and the agent go through the same legality check. Until then the
  * way to change a node is its text, and the template path here opens that text in Chart files.
  *
+ * A TEMPLATE THE CHART DOES NOT HOLD IS SAID, not linked. Adding a resource to the architecture file
+ * writes no template for it, and a link to a file that is not there opened nothing, silently. The
+ * path is shown as text with what that means — nothing renders the resource until the file exists.
+ *
  * READINESS IS ALWAYS ANSWERED. A node with no `readyWhen` still has a meaning for "ready" — its
  * class default (kstatus for native, Ready and Synced for a composition) — or, for a custom
  * resource, none at all, which is what makes a `ready: true` edge onto it unsatisfiable. The panel
@@ -42,7 +46,8 @@ const readiness = (node: ResourceNode): { label: string; value: string; note?: s
     : { label: 'Ready when', note: 'A custom resource has no default, so nothing can wait on its readiness until one is declared.', value: MISSING_READINESS }
 }
 
-const NodeFields = ({ levels, node, onOpenFile }: {
+const NodeFields = ({ hasFile, levels, node, onOpenFile }: {
+  hasFile: (path: string) => boolean
   levels: Record<string, number> | null
   node: ResourceNode
   onOpenFile: (path: string) => void
@@ -62,7 +67,17 @@ const NodeFields = ({ levels, node, onOpenFile }: {
         <span className={styles.fieldText}>{`API group ${apiGroup(node.apiVersion)}`}</span>
       </Field>
       <Field label='Template'>
-        <button className={styles.pathLink} onClick={() => onOpenFile(node.template)} type='button'>{node.template}</button>
+        {hasFile(node.template) ? (
+          <button className={styles.pathLink} onClick={() => onOpenFile(node.template)} type='button'>{node.template}</button>
+        ) : (
+          <>
+            <span className={styles.fieldValue}>{node.template}</span>
+            <span className={styles.fieldText}>
+              not in the chart yet — nothing renders this resource until the file exists. Ask Autopilot to write it;
+              adding a file here arrives with the palette.
+            </span>
+          </>
+        )}
       </Field>
       <Field label='Depends on'>
         {node.dependsOn?.length ? (
@@ -113,7 +128,9 @@ const NodeFields = ({ levels, node, onOpenFile }: {
   )
 }
 
-export const NodeInspector = ({ levels, node, onClear, onOpenFile, schemaText }: {
+export const NodeInspector = ({ hasFile, levels, node, onClear, onOpenFile, schemaText }: {
+  /** Whether the held chart has this path — a template the descriptor names may not exist yet. */
+  hasFile: (path: string) => boolean
   /** The derived levels, or null when there are none (a cycle). */
   levels: Record<string, number> | null
   /** The selected resource, or null. */
@@ -138,7 +155,7 @@ export const NodeInspector = ({ levels, node, onClear, onOpenFile, schemaText }:
             <Field label='Node'>
               <span className={styles.fieldValue}>{node.id}</span>
             </Field>
-            <NodeFields levels={levels} node={node} onOpenFile={onOpenFile} />
+            <NodeFields hasFile={hasFile} levels={levels} node={node} onOpenFile={onOpenFile} />
             <p className={styles.note}>Read-only for now — change a node in its text, in Chart files. Editing it here arrives with the palette.</p>
           </>
         ) : (

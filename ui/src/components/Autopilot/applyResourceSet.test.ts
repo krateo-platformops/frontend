@@ -308,6 +308,23 @@ describe('applyResourceSet — dispatch through the W0-4 gate', () => {
     expect(handleActionSet).toHaveBeenCalledTimes(1)
     expect(chip).toBeNull()
   })
+
+  it('a write the apiserver REFUSED is on the chip — dispatched is not landed', async () => {
+    // A composer read a chip with no failure as "published" and linked a change request nobody
+    // opened: the 403 was in the results, and nothing looked at them.
+    const { deps } = makeDeps([
+      { index: 0, message: 'OK', ok: true, status: 201 },
+      { index: 1, message: 'builderpublishes.builder.krateo.io is forbidden', ok: false, status: 403 },
+    ])
+    const chip = await applyResourceSet(makeProposal([KRATEO_OP, CONFIGMAP_OP]), deps)
+    expect(chip?.failure).toBe('HTTP 403 — builderpublishes.builder.krateo.io is forbidden')
+  })
+
+  it('a request that never reached the apiserver is a failure too (status 0)', async () => {
+    const { deps } = makeDeps([{ index: 0, message: 'The operation was aborted', ok: false, status: 0 }])
+    const chip = await applyResourceSet(makeProposal([KRATEO_OP]), deps)
+    expect(chip?.failure).toBe('The operation was aborted')
+  })
 })
 
 describe('applyResourceSet — DENIED (no dispatch) — the kernel gates before W0-4', () => {

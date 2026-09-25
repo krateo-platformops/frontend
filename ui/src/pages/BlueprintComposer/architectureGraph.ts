@@ -117,3 +117,41 @@ export const toArchitectureGraph = (arch: ChartArchitecture, derived: DeriveResu
   }
   return { dropped, edges, nodes }
 }
+
+/**
+ * The nodes in the order a person READS the picture: column by column, left to right — and within a
+ * column, as the descriptor lists them (a stable sort).
+ *
+ * WHY IT MATTERS. Each card is a DOM button in G6's own layer, placed in data order, so the data
+ * order IS the keyboard's Tab order (WCAG 2.4.3). In descriptor order — builder-publish lists its
+ * resources alphabetically — focus went middle, far right, back, then far left.
+ *
+ * A node's column is its level. A node with none sits where dagre puts it: one column past the
+ * deepest thing it depends on, or the first column when it depends on nothing — which is where a
+ * shim lands. Inside a cycle there are no levels; the walk stops at a node already on its path.
+ */
+export const inReadingOrder = (graph: ArchitectureGraph): ArchitectureGraphNode[] => {
+  const dependencies = new Map<string, string[]>()
+  for (const edge of graph.edges) {
+    dependencies.set(edge.target, [...(dependencies.get(edge.target) ?? []), edge.source])
+  }
+  const byId = new Map(graph.nodes.map((node) => [node.id, node]))
+  const columns = new Map<string, number>()
+  const columnOf = (id: string, path: ReadonlySet<string>): number => {
+    const known = columns.get(id)
+    if (known !== undefined) {
+      return known
+    }
+    const level = byId.get(id)?.data.level
+    let column = 0
+    if (typeof level === 'number') {
+      column = level
+    } else if (!path.has(id)) {
+      const onPath = new Set(path).add(id)
+      column = Math.max(-1, ...(dependencies.get(id) ?? []).map((dep) => columnOf(dep, onPath))) + 1
+    }
+    columns.set(id, column)
+    return column
+  }
+  return [...graph.nodes].sort((left, right) => columnOf(left.id, new Set()) - columnOf(right.id, new Set()))
+}

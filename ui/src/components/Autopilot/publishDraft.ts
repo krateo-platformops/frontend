@@ -20,15 +20,19 @@
 import type { Config } from '../../context/ConfigContext'
 
 import type { PortalActionProposal } from './actionBridge'
+import type { ApplyResourceSetOp } from './applyResourceSet'
 import type { AuthorshipOrigin } from './authorship'
 import { lintBlueprintDraft } from './blueprintDraft'
 import { heldPublishFiles, type BlueprintDraftStore } from './blueprintDraftStore'
 import type { createBlueprintGate } from './blueprintGate'
 import { buildClaimPublish } from './builderClaimPublish'
+import type { PublishStatusClaim } from './builderPublishStatus'
 import { builderTemplateUrl, type useBuilderTargets } from './builderTargets'
 import { isPageDraft, pageCompositionDefinition, pageRootSlug } from './pageDraft'
+import type { PublishRequestDetail, PublishResultDetail } from './previewPublishRequest'
 import { heldDraftIdentity, type PublishCompileResult } from './publishCompile'
 import { askPublishDestination } from './publishTargetForm'
+import type { AutopilotActionChip } from './types'
 
 export interface PublishDraftDeps {
   blueprintGate: ReturnType<typeof createBlueprintGate>
@@ -145,4 +149,48 @@ export const runDraftPublish = async (
     sourceUrl: isPage ? builderTemplateUrl(builderTargets.pageTemplate, config?.api.AUTOPILOT_GIT_HOST) : null,
   })
   return { compiled: res.compiled, deepLink: res.deepLink }
+}
+
+export interface PersonPublishDeps extends PublishDraftDeps {
+  /** The provider's `apply` of the compiled set, as a HUMAN write — it raises the blast-radius confirm. */
+  apply: (ops: ApplyResourceSetOp[]) => Promise<AutopilotActionChip | null>
+  /** Watch the claim's LocalResources in the rail. */
+  track: (claim: PublishStatusClaim) => void
+}
+
+/**
+ * A PERSON'S Publish, end to end — the composer's button, answered on the publish-result bus.
+ *
+ * The same `runDraftPublish` the agent's verb takes, then the same `apply`, which raises the
+ * blast-radius confirm: this proposes a write, a person answers it. Lifted out of the provider so
+ * the ANSWER can be tested, because the answer is what the composer believes.
+ *
+ * NO DENIAL MEANS WRITTEN. A composer reads `denial: null` as "published" and links the change
+ * request. The deep link is computed before anything is written, so it proves nothing; only the
+ * apply's own result does. A declined confirm (apply → null: nothing dispatched) and a refused
+ * claim (a chip carrying the apiserver's failure) are each a denial, with no link and no status
+ * watch — there is no claim to watch.
+ */
+export const runPersonPublish = async (
+  deps: PersonPublishDeps,
+  verb: PublishRequestDetail['verb'],
+): Promise<Omit<PublishResultDetail, 'id'>> => {
+  const { compiled, deepLink } = await runDraftPublish(deps, { label: 'Publish', verb })
+  if (compiled.denial !== null) {
+    return { deepLink: null, denial: compiled.denial }
+  }
+  if (!compiled.ops) {
+    return { deepLink: null, denial: 'Not published — nothing was compiled to write.' }
+  }
+  const applied = await deps.apply(compiled.ops)
+  if (!applied) {
+    // apply answers null for two reasons it cannot tell apart here — the person declined the
+    // confirm, or the set was refused before any write — and both mean the same thing to them.
+    return { deepLink: null, denial: 'Not published — nothing was written: the confirm was declined, or the write was refused before it was sent.' }
+  }
+  if (applied.failure) {
+    return { deepLink: null, denial: `Not published — the claim was refused: ${applied.failure}` }
+  }
+  if (compiled.claim) { deps.track(compiled.claim) }
+  return { deepLink, denial: null }
 }

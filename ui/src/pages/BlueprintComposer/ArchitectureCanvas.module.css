@@ -47,8 +47,9 @@
 
 /* ── The canvas ──────────────────────────────────────────────────────────────────────────────── */
 
-/* A fixed height, because G6 sizes its canvas from its container once, at render — a container
-   that grew afterwards would leave the graph drawn in the corner of it. */
+/* A fixed height, and the cards at their designed size inside it (fit="natural"): a graph that
+   does not fit keeps its first column in view and is dragged for the rest. The WIDTH follows the
+   page — the Autopilot rail sets it — and DependencyGraph observes the box and resizes its canvas. */
 .graph {
   height: 360px;
   position: relative;
@@ -134,9 +135,14 @@
   gap: var(--spacing-xxs);
   height: 72px;
   padding: var(--spacing-sm) var(--spacing-smd);
+  position: relative;
   text-align: start;
-  transition: opacity var(--motion-fast) ease-in-out, border-color var(--motion-fast) ease-in-out;
+  transition: background-color var(--motion-fast) ease-in-out, border-color var(--motion-fast) ease-in-out;
   width: 156px;
+}
+
+.card > * {
+  transition: opacity var(--motion-fast) ease-in-out;
 }
 
 .cardEyebrow,
@@ -226,11 +232,19 @@
   box-shadow: 0 0 0 3px var(--krateo-color-background-selected);
 }
 
+/* FADED THROUGH THE CONTENT, never the card: `opacity` on the card fades everything it paints —
+   the keyboard focus ring (C3's outline) included, to under the 3:1 a focus indicator needs. So the
+   text fades, the box goes see-through and its hairline faint, and the ring stays at full strength. */
 .card[data-states~='withheld'] {
+  background: transparent;
+  border-color: var(--line-color);
+}
+
+.card[data-states~='withheld'] > * {
   opacity: 0.35;
 }
 
-.card[data-states~='orthogonal'] {
+.card[data-states~='orthogonal'] > * {
   opacity: 0.7;
 }
 
@@ -239,14 +253,26 @@
   box-shadow: 0 0 0 3px var(--krateo-color-status-error-subtle);
 }
 
-/* Selection is the inspector's subject — the focus colour, outside the state ring. */
+/* Selection is the inspector's subject. NOT the outline: that is the keyboard focus ring (C3, one
+   definition in ui/index.css), and a selected card beside a focused one wore the same ring, so
+   nothing said which had focus. Selection is its own shape instead — a tint and a ring INSIDE the
+   border — so it composes with every state ring outside it, and with the focus ring beyond that. */
 .card[data-states~='selected'] {
-  outline: 2px solid var(--krateo-color-border-focus);
-  outline-offset: 2px;
+  background: var(--krateo-color-background-selected);
+}
+
+.card[data-states~='selected']::after {
+  border: 2px solid var(--primary-color);
+  border-radius: var(--radius-md);
+  content: '';
+  inset: 2px;
+  pointer-events: none;
+  position: absolute;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card {
+  .card,
+  .card > * {
     transition: none;
   }
 }

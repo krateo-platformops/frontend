@@ -18,14 +18,22 @@
  * them — or refuses, and says why. A refusal (a draft is already open, the tree is over the cap)
  * stays in this modal, where the person can act on it; anything else means the chart is held, and
  * the composer takes over.
+ *
+ * A REFUSAL IS HEARD, NOT ONLY SEEN. Each field names the text under it as its description and says
+ * when it is invalid, and a refused Start moves focus to the first refused field — so a screen reader
+ * announces the field and why, where red text alone announced nothing. (The Form.Items carry no
+ * `name`, so antd wires none of this; it is done here.)
+ *
+ * ADVICE IS NOT A REFUSAL. A name that deploys everywhere but may not fit an install running CDC
+ * metrics (chartIdentity's header) is warned about under the field, and Start still works.
  */
-import { Alert, Form, Input, Modal } from 'antd'
-import { useId, useState } from 'react'
+import { Alert, Form, Input, Modal, type InputRef } from 'antd'
+import { useEffect, useId, useRef, useState } from 'react'
 
 import type { DraftRenderResultDetail } from '../../components/Autopilot/previewDraftRender'
 
 import styles from './BlueprintComposer.module.css'
-import { claimApiVersion, compositionKind, ociChartLocation, startChart, validateStartChart, type StartChartInput } from './startChart'
+import { claimApiVersion, compositionKind, ociChartLocation, startChart, startChartWarnings, validateStartChart, type StartChartInput } from './startChart'
 
 export const DEFAULT_VERSION = '0.1.0'
 
@@ -44,8 +52,13 @@ export const StartChartModal = ({ onCancel, onStart, open, owner, pending, refus
   // Problems show for a field once it holds something, or everywhere once Start was pressed — not
   // on an empty form that nobody has typed into yet.
   const [submitted, setSubmitted] = useState(false)
-  // Labels bound to their inputs, so each field is found — and announced — by its name.
-  const ids = { description: useId(), name: useId(), version: useId() }
+  // Labels bound to their inputs, so each field is found — and announced — by its name; and the text
+  // under each field bound as its description, so it is announced with it.
+  const ids = { description: useId(), name: useId(), nameHelp: useId(), version: useId(), versionHelp: useId() }
+  const fields = { name: useRef<InputRef>(null), version: useRef<InputRef>(null) }
+  // Each refused Start, counted: focus moves AFTER the render that shows the reasons, so the field
+  // is announced with the reason, not with the help it replaced.
+  const [refusedStarts, setRefusedStarts] = useState(0)
 
   const problems = validateStartChart(input)
   const problemFor = (field: keyof StartChartInput): string | undefined => {
@@ -60,13 +73,34 @@ export const StartChartModal = ({ onCancel, onStart, open, owner, pending, refus
     const result = startChart(input)
     if (result.ok) {
       onStart(result.files)
+      return
     }
+    setRefusedStarts((count) => count + 1)
   }
+
+  useEffect(() => {
+    if (!refusedStarts) {
+      return
+    }
+    const first = validateStartChart(input)[0]?.field
+    if (first === 'name' || first === 'version') {
+      fields[first].current?.focus()
+    }
+    // Only a new refused Start moves focus — not every keystroke after it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refusedStarts])
 
   const name = input.name.trim()
   const location = name ? ociChartLocation(owner, name) : null
   const nameProblem = problemFor('name')
   const versionProblem = problemFor('version')
+  const nameWarning = !nameProblem && name ? startChartWarnings(input).find((warning) => warning.field === 'name')?.message : undefined
+  let nameStatus: 'error' | 'warning' | undefined
+  if (nameProblem) {
+    nameStatus = 'error'
+  } else if (nameWarning) {
+    nameStatus = 'warning'
+  }
 
   return (
     <Modal
@@ -86,17 +120,48 @@ export const StartChartModal = ({ onCancel, onStart, open, owner, pending, refus
     >
       <Form layout='vertical'>
         <Form.Item
-          help={nameProblem ?? `Lower-case, dashes. It becomes the repository name${owner ? ` under ${owner}` : ''} and the OCI chart name.`}
+          help={(
+            <span id={ids.nameHelp}>
+              {nameProblem ?? nameWarning ?? `Lower-case, dashes. It becomes the repository name${owner ? ` under ${owner}` : ''} and the OCI chart name.`}
+            </span>
+          )}
           htmlFor={ids.name}
           label='Chart name'
           required
-          validateStatus={nameProblem ? 'error' : undefined}
+          validateStatus={nameStatus}
         >
-          <Input className={styles.mono} id={ids.name} onChange={set('name')} onPressEnter={submit} placeholder='builder-publish' value={input.name} />
+          <Input
+            aria-describedby={ids.nameHelp}
+            aria-invalid={nameProblem ? true : undefined}
+            aria-required
+            className={styles.mono}
+            id={ids.name}
+            onChange={set('name')}
+            onPressEnter={submit}
+            placeholder='builder-publish'
+            ref={fields.name}
+            value={input.name}
+          />
         </Form.Item>
         <div className={styles.fieldRow}>
-          <Form.Item help={versionProblem} htmlFor={ids.version} label='Version' required validateStatus={versionProblem ? 'error' : undefined}>
-            <Input className={styles.mono} id={ids.version} onChange={set('version')} onPressEnter={submit} value={input.version} />
+          <Form.Item
+            help={versionProblem ? <span id={ids.versionHelp}>{versionProblem}</span> : undefined}
+            htmlFor={ids.version}
+            label='Version'
+            required
+            validateStatus={versionProblem ? 'error' : undefined}
+          >
+            <Input
+              aria-describedby={versionProblem ? ids.versionHelp : undefined}
+              aria-invalid={versionProblem ? true : undefined}
+              aria-required
+              className={styles.mono}
+              id={ids.version}
+              onChange={set('version')}
+              onPressEnter={submit}
+              ref={fields.version}
+              value={input.version}
+            />
           </Form.Item>
           <Form.Item htmlFor={ids.description} label='Description'>
             <Input id={ids.description} onChange={set('description')} onPressEnter={submit} placeholder='What a consumer gets when they install it' value={input.description} />

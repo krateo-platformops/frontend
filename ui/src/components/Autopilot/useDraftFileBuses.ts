@@ -320,21 +320,30 @@ export const useDraftFileBuses = (
   // updateDisplayedFile, not updateFile: the surface shows a page at its repo DESTINATION while the
   // draft holds it under a bare token, and updateFile matches on the held key — so the raw
   // displayed path would refuse every page edit, silently (a refused edit just leaves the bytes).
-  useEffect(() => onFileEdit(({ content, kind, path }) => {
+  //
+  // ANSWERED EITHER WAY. The surface that made the edit shows it as held only when this says so;
+  // a refusal carries the store's reason (the byte cap, a path not held), shown where it was typed.
+  useEffect(() => onFileEdit(({ content, kind, path }, respond) => {
     // An edit made in a preview of the OTHER kind is not an edit of this draft — Chart.yaml and
     // values.schema.json exist in both, so the path alone would have accepted it.
-    if (kind && kind !== store.get()?.kind) {
+    const heldKind = store.get()?.kind
+    if (kind && kind !== heldKind) {
+      respond({ error: heldKind ? `the open draft is a ${heldKind === 'page' ? 'portal page' : 'blueprint chart'}, not the one this preview shows` : 'no draft is held', ok: false })
       return
     }
     // Captured BEFORE the call and pushed only if it was accepted: a refused or over-cap edit
     // leaves the tree exactly as it was, and a snapshot for one would make Undo consume a step
     // without changing anything — the control would move and the draft would not.
     const before = store.get()
-    if (store.updateDisplayedFile(path, content).ok) {
-      if (before) { draftHistory.push(before) }
-      rearm()
-      scheduleReapply()
+    const result = store.updateDisplayedFile(path, content)
+    if (!result.ok) {
+      respond({ error: result.error ?? 'the provider did not write the edit', ok: false })
+      return
     }
+    if (before) { draftHistory.push(before) }
+    rearm()
+    scheduleReapply()
+    respond({ ok: true })
   }), [rearm, scheduleReapply, store])
 
   // ADD: a file the composer just authored — a layout container, a new widget.

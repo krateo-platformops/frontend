@@ -38,17 +38,47 @@ export interface FileEditDetail {
   kind?: DraftKind
 }
 
-/** Emit an accepted per-file edit — the provider writes it into the held draft + re-arms the gate. */
-export const emitFileEdit = (detail: FileEditDetail): void => {
-  window.dispatchEvent(new CustomEvent<FileEditDetail>(AUTOPILOT_PREVIEW_FILE_EDIT_EVENT, { detail }))
+/**
+ * THE PROVIDER'S ANSWER to one edit — written into the held draft, or refused and why.
+ *
+ * The surface used to show an edit as applied the moment it emitted it. The provider can still say
+ * no — over the 512 KiB tree cap, a path it does not hold, a preview of the other kind — and a
+ * refusal left the tree exactly as it was, so the Files tab showed bytes that would NOT publish
+ * while Publish stayed on for the ones that would. The bus is synchronous (dispatchEvent runs every
+ * listener before it returns), so the answer comes back from `emitFileEdit` itself.
+ */
+export type FileEditOutcome = { ok: true } | { ok: false; error: string }
+
+/** What travels on the event: the edit, and the one-shot way to answer it. */
+interface FileEditRequest extends FileEditDetail {
+  respond?: (outcome: FileEditOutcome) => void
 }
 
-/** Subscribe to accepted per-file edits. Returns the unsubscribe fn (React effect cleanup). */
-export const onFileEdit = (handler: (detail: FileEditDetail) => void): (() => void) => {
+/**
+ * Emit an accepted per-file edit — the provider writes it into the held draft + re-arms the gate.
+ * Returns the provider's answer, or null when nothing answered (no provider mounted, or a
+ * subscriber that predates answers) — which a caller treats as it always did.
+ */
+export const emitFileEdit = (detail: FileEditDetail): FileEditOutcome | null => {
+  const answer: { outcome: FileEditOutcome | null } = { outcome: null }
+  const respond = (outcome: FileEditOutcome): void => {
+    // The first answer is the provider's; a second subscriber cannot overrule it.
+    answer.outcome ??= outcome
+  }
+  window.dispatchEvent(new CustomEvent<FileEditRequest>(AUTOPILOT_PREVIEW_FILE_EDIT_EVENT, { detail: { ...detail, respond } }))
+  return answer.outcome
+}
+
+/**
+ * Subscribe to accepted per-file edits. The handler gets the edit and a `respond` it may call once,
+ * synchronously, to say whether it was written. Returns the unsubscribe fn (React effect cleanup).
+ */
+export const onFileEdit = (handler: (detail: FileEditDetail, respond: (outcome: FileEditOutcome) => void) => void): (() => void) => {
   const listener = (event: Event): void => {
-    const { detail } = event as CustomEvent<FileEditDetail>
+    const { detail } = event as CustomEvent<FileEditRequest>
     if (detail && typeof detail.path === 'string' && detail.path && typeof detail.content === 'string') {
-      handler(detail)
+      const { respond, ...edit } = detail
+      handler(edit, respond ?? (() => undefined))
     }
   }
   window.addEventListener(AUTOPILOT_PREVIEW_FILE_EDIT_EVENT, listener)

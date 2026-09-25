@@ -210,8 +210,8 @@ describe('previewing the held chart', () => {
 
   it('LINTS the chart identity at the version held NOW: a bump past the name\'s budget sends nothing', async () => {
     const { gate, results, stop, store } = mount()
-    // Kind 34 fits at 0.1.0 (where Start accepted it) and not at 10.20.30 — the Service would be 64.
-    const name = `a${'b'.repeat(33)}`
+    // Kind 42 fits at 0.1.0 (where Start accepted it) and not at 10.20.30 — the controller container would be 64.
+    const name = `a${'b'.repeat(41)}`
     store.set({ ...chart(), [CHART_YAML_PATH]: `apiVersion: v2\nname: ${name}\nversion: 10.20.30\n` }, 'blueprint')
 
     act(() => { emitDraftRenderRequest({ id: 'r2b' }) })
@@ -220,7 +220,7 @@ describe('previewing the held chart', () => {
     expect(callBlueprintRenderRA).not.toHaveBeenCalled()
     expect(gate.recordPreview).not.toHaveBeenCalled()
     expect(results[0]).toMatchObject({ id: 'r2b', outcome: 'refused' })
-    expect(results[0].problems?.join(' ')).toMatch(/at version 10\.20\.30 the Kind .* at most 31 characters/)
+    expect(results[0].problems?.join(' ')).toMatch(/at version 10\.20\.30 the Kind .* at most 39 characters/)
     stop()
   })
 

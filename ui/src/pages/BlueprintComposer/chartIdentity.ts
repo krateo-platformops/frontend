@@ -16,19 +16,27 @@
  *   the CRD            plural `lower(flect.Pluralize(Kind))`, singular `lower(Kind)` and list type
  *                      `Kind + "List"` (plumbing crdgen, transpile.go). apiextensions validates each,
  *                      lower-cased, as a DNS-1035 label: at most 63. ListKind is the longest → Kind ≤ 59.
- *   the CDC Service    `<plural>-<apiVersion>-controller-service` (assets/cdc/service.yaml). A Service
- *                      name is a DNS-1035 label: at most 63. THE BINDING ONE. core-provider creates it
- *                      when its chart runs with cdc.metrics.enabled (off in the chart's own defaults);
- *                      the portal cannot see that setting, so the rule assumes the install has it on.
  *   the container      `<plural>-<apiVersion>-controller` (assets/cdc/deployment.yaml): a DNS-1123
- *                      label, eight shorter than the Service, so the Service bounds it too — and it
- *                      is what binds, eight characters looser, on an install without the Service.
+ *                      label, at most 63. THE BINDING ONE, because it exists on EVERY install — a name
+ *                      over it cannot become a CompositionDefinition anywhere. Refused, here and in
+ *                      the lint.
+ *   the CDC Service    `<plural>-<apiVersion>-controller-service` (assets/cdc/service.yaml), eight
+ *                      longer — but core-provider creates it ONLY with cdc.metrics.enabled, which is
+ *                      false in its own chart and in the installer's (deploy.go applies the Service
+ *                      only when its template is mounted, and the chart mounts it only under that
+ *                      flag). The portal cannot see the setting. Refusing every name over the Service
+ *                      budget refused real blueprints that deploy — github-scaffolding-with-
+ *                      composition-page@1.2.2 (Kind 36), portal-composition-page-continuous-
+ *                      deployment@1.0.0 (Kind 41) — and, through the lint, made them unpreviewable
+ *                      and unpublishable. So it is a WARNING, at Start only: a NEW name can leave the
+ *                      room for an install that turns metrics on, and is told how much.
  *   everything else    the Deployment, ConfigMaps, ServiceAccount, (Cluster)Roles and bindings are
  *                      `<plural>-<apiVersion>-…` too, but DNS-1123 subdomains (253) or looser.
  *
- * So, with V = the API version's length (`0.1.0` → `v0-1-0`, 6):
+ * So, with V = the API version's length (`0.1.0` → `v0-1-0`, 6), and plural ≤ Kind + 3:
  *
- *   plural + 1 + V + 19 ≤ 63   and   plural ≤ Kind + 3   ⇒   Kind ≤ 40 − V   (and Kind ≤ 59 always)
+ *   refused    plural + 1 + V + 11 ≤ 63   ⇒   Kind ≤ 48 − V   (and Kind ≤ 59 always)
+ *   warned     plural + 1 + V + 19 ≤ 63   ⇒   Kind ≤ 40 − V   (only with CDC metrics on)
  *
  * The +3 is flect v1.0.3's worst growth — `-s` is one, `-es`/`y → ies` one or two, `child →
  * children` and `quiz → quizzes` three (measured by running flect in Go). It is the bound, not
@@ -53,7 +61,10 @@ export const CHART_NAME_MAX = 63
  */
 export const KIND_MAX = CHART_NAME_MAX - 'List'.length
 
-/** What core-provider appends to `<plural>-<apiVersion>` to name the CDC's Service. */
+/** What core-provider appends to `<plural>-<apiVersion>` to name the CDC's container — on every install. */
+export const CDC_CONTAINER_SUFFIX = '-controller'
+
+/** …and its metrics Service, which exists only when core-provider runs with cdc.metrics.enabled. */
 export const CDC_SERVICE_SUFFIX = '-controller-service'
 
 /** flect v1.0.3's longest plural suffix growth: `quiz → quizzes`, `child → children`. */
@@ -153,13 +164,19 @@ export const compositionVersion = (version: string): string => `v${version.trim(
 /** The claim's apiVersion: `0.1.0` → `composition.krateo.io/v0-1-0`. */
 export const claimApiVersion = (version: string): string => `${COMPOSITION_GROUP}/${compositionVersion(version)}`
 
+/** The longest Kind whose `<plural>-<apiVersion><suffix>` fits in a 63-character label. */
+const budgetFor = (suffix: string, version: string): number =>
+  Math.min(KIND_MAX, CHART_NAME_MAX - suffix.length - 1 - compositionVersion(version).length - PLURAL_GROWTH_MAX)
+
 /**
- * The longest Kind whose names all fit at this chart version — the formula in the header:
- * min(KIND_MAX, 63 − len("-controller-service") − 1 − len(apiVersion) − PLURAL_GROWTH_MAX).
- * At 0.1.0 that is 34; at 10.20.30, 31. Below 1, no Kind fits and the VERSION is the problem.
+ * The longest Kind whose names all fit at this chart version on ANY install — the container bound in
+ * the header: min(KIND_MAX, 63 − len("-controller") − 1 − len(apiVersion) − PLURAL_GROWTH_MAX).
+ * At 0.1.0 that is 42; at 10.20.30, 39. Below 1, no Kind fits and the VERSION is the problem.
  */
-export const kindBudget = (version: string): number =>
-  Math.min(KIND_MAX, CHART_NAME_MAX - CDC_SERVICE_SUFFIX.length - 1 - compositionVersion(version).length - PLURAL_GROWTH_MAX)
+export const kindBudget = (version: string): number => budgetFor(CDC_CONTAINER_SUFFIX, version)
+
+/** The tighter budget on an install that runs CDC metrics (the Service): 34 at 0.1.0, 31 at 10.20.30. */
+export const metricsKindBudget = (version: string): number => budgetFor(CDC_SERVICE_SUFFIX, version)
 
 /**
  * The part of the rule EVERY chart name obeys, a page set's included: a DNS-1123 label. The name
@@ -193,7 +210,7 @@ const nameProblem = (name: string, version: string, versionOk: boolean): string 
   // and its own refusal says so. The name is checked again the moment the version reads.
   const budget = kindBudget(version)
   if (versionOk && kind.length > budget) {
-    return `at version ${version} the Kind (the name without dashes) can be at most ${budget} characters — ${kind} has ${kind.length}. core-provider names the controller's metrics Service <plural>-${compositionVersion(version)}${CDC_SERVICE_SUFFIX}, a Service name is at most ${CHART_NAME_MAX}, and the plural can run ${PLURAL_GROWTH_MAX} longer than the Kind. A release can lengthen the version (0.9.0 → 0.10.0), so leave room.`
+    return `at version ${version} the Kind (the name without dashes) can be at most ${budget} characters — ${kind} has ${kind.length}. core-provider names the controller's container <plural>-${compositionVersion(version)}${CDC_CONTAINER_SUFFIX}, a container name is at most ${CHART_NAME_MAX}, and the plural can run ${PLURAL_GROWTH_MAX} longer than the Kind. A release can lengthen the version (0.9.0 → 0.10.0), so leave room.`
   }
   return null
 }
@@ -207,7 +224,7 @@ const versionProblem = (version: string): string | null => {
     return `becomes the API version ${apiVersion}, which Kubernetes refuses — no build metadata (+…) and a lower-case pre-release tag`
   }
   if (kindBudget(version) < 1) {
-    return `becomes the API version ${apiVersion} (${apiVersion.length} characters), which leaves no room for any Kind in the controller's metrics Service core-provider names <plural>-${apiVersion}${CDC_SERVICE_SUFFIX} — at most ${CHART_NAME_MAX}`
+    return `becomes the API version ${apiVersion} (${apiVersion.length} characters), which leaves no room for any Kind in the controller container core-provider names <plural>-${apiVersion}${CDC_CONTAINER_SUFFIX} — at most ${CHART_NAME_MAX}`
   }
   return null
 }
@@ -230,4 +247,27 @@ export const chartIdentityProblems = (identity: ChartIdentity): ChartIdentityPro
     problems.push({ field: 'version', message: versionMessage })
   }
   return problems
+}
+
+/**
+ * What this name, at this version, would NOT survive on an install that runs CDC metrics — the
+ * metrics Service's tighter budget (the header). Advice, never a refusal: most installs do not create
+ * the Service, and a chart that deploys must stay previewable and publishable. Empty when there is
+ * nothing to say — including when the identity is refused outright (its problem says more).
+ */
+export const chartIdentityWarnings = (identity: ChartIdentity): ChartIdentityProblem[] => {
+  if (chartIdentityProblems(identity).length) {
+    return []
+  }
+  const name = identity.name.trim()
+  const version = identity.version.trim()
+  const kind = compositionKind(name)
+  const budget = metricsKindBudget(version)
+  if (kind.length <= budget) {
+    return []
+  }
+  return [{
+    field: 'name',
+    message: `fits every install — but may not fit one that runs core-provider with CDC metrics on (cdc.metrics.enabled): its Service <plural>-${compositionVersion(version)}${CDC_SERVICE_SUFFIX} leaves the Kind at most ${budget} characters (the plural can run ${PLURAL_GROWTH_MAX} longer), and ${kind} has ${kind.length}. A shorter name leaves that room.`,
+  }]
 }

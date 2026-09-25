@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { ARCHITECTURE_API_VERSION, deriveStates, parseArchitecture, type ChartArchitecture } from './architecture'
-import { dependencyEdgeId, toArchitectureGraph } from './architectureGraph'
+import { dependencyEdgeId, inReadingOrder, toArchitectureGraph } from './architectureGraph'
 import { extractArchitecture } from './gateExtract'
 
 const FIXTURE = join(__dirname, '__fixtures__', 'builder-publish')
@@ -112,5 +112,26 @@ describe('toArchitectureGraph — the inputs that would break the canvas', () =>
       ['a', true, null], ['b', true, null], ['c', true, null], ['d', false, null],
     ])
     expect(graph.edges.every((edge) => edge.data.minlen === 1)).toBe(true)
+  })
+})
+
+describe('inReadingOrder — the Tab order of the cards', () => {
+  it('builder-publish: column by column, the descriptor\'s order within one — the shim in the first', () => {
+    const architecture = builderPublish()
+    const graph = toArchitectureGraph(architecture, deriveStates(architecture))
+    expect(inReadingOrder(graph).map((node) => node.id)).toEqual(['repository', 'username-secret', 'repo', 'localresources', 'pullrequest'])
+  })
+
+  it('a node outside the sequence goes one column past what it depends on, as dagre draws it', () => {
+    const shim = { ...native('shim', [{ ref: 'web' }]), lifecycle: 'shim' as const }
+    const shape = arch([shim, native('web', [{ ref: 'db' }]), native('db')])
+    const graph = toArchitectureGraph(shape, deriveStates(shape))
+    expect(inReadingOrder(graph).map((node) => node.id)).toEqual(['db', 'web', 'shim'])
+  })
+
+  it('a cycle has no levels and does not loop: the walk stops where it came in', () => {
+    const shape = arch([native('a', [{ ref: 'b' }]), native('b', [{ ref: 'a' }]), native('d')])
+    const graph = toArchitectureGraph(shape, deriveStates(shape))
+    expect(inReadingOrder(graph).map((node) => node.id).sort()).toEqual(['a', 'b', 'd'])
   })
 })

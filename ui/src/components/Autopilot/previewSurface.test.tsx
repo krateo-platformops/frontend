@@ -240,6 +240,21 @@ describe('AutopilotPreviewDrawer — which previews a mounted page composer take
     release()
   })
 
+  it('a claim made while it is OPEN on the held draft closes it — only for that kind', async () => {
+    // Deferring the NEXT preview was half of it: a drawer already open on the held chart stayed
+    // open over the composer, and its one-shot Files tab wrote stale bytes over the composer's edits.
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ builder: 'blueprint', summary: ['nginx-demo'], title: 'Blueprint preview — nginx-demo' }) })
+    await waitFor(() => expect(view.getByText('Blueprint preview — nginx-demo')).toBeTruthy())
+    const releasePage = claimPreviewSurface('page')
+    expect(document.querySelector('.ant-drawer-open')).not.toBeNull()
+    releasePage()
+    let releaseBlueprint: () => void = () => undefined
+    act(() => { releaseBlueprint = claimPreviewSurface('blueprint') })
+    await waitFor(() => expect(document.querySelector('.ant-drawer-open')).toBeNull())
+    releaseBlueprint()
+  })
+
   it('opens a page preview as before when no composer holds the claim', async () => {
     const view = render(<AutopilotPreviewDrawer />)
     act(() => { openAutopilotPreview({ summary: ['flex.page-x'], title: 'Page preview — x' }) })

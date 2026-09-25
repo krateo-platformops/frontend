@@ -231,7 +231,7 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
     expect(named('-pg')).toContain('not a valid chart name')
     expect(named('a'.repeat(64))).toContain('not a valid chart name')
     // 63 is a legal LABEL, and used to pass here. It is not a legal blueprint: its Kind is 63, and
-    // the controller Service core-provider names after it cannot exist. See the identity block below.
+    // the CRD list type core-provider names after it cannot exist. See the identity block below.
     expect(named('a'.repeat(63))).toContain('the Kind (the name without dashes) can be at most 59')
     expect(named('"pg-app" # quoted, with a comment')).toBe('')
     expect(lintBlueprintDraft({ ...cleanDraft, 'Chart.yaml': 'apiVersion: v2\nversion: 0.1.0\n' }, 'blueprint').join('\n')).toContain('Chart.yaml has no name')
@@ -241,15 +241,26 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
     const chart = (name: string, version: string) => `apiVersion: v2\nname: ${name}\nversion: ${version}\n`
     const lint = (name: string, version: string, kind: 'blueprint' | 'page') =>
       lintBlueprintDraft({ ...cleanDraft, 'Chart.yaml': chart(name, version) }, kind).join('\n')
-    // Kind 34 = the budget at 0.1.0: flect pluralises it with one `s`, so the Service is
-    // <35>-v0-1-0-controller-service = 61 characters. At 10.20.30 the same plural makes 64.
-    const FITS_ONLY_EARLY = `a${'b'.repeat(33)}`
+    // Kind 42 = the budget at 0.1.0: flect pluralises it with one `s`, so the controller container
+    // is <43>-v0-1-0-controller = 61 characters. At 10.20.30 the same plural makes 64.
+    const FITS_ONLY_EARLY = `a${'b'.repeat(41)}`
 
-    it('a held blueprint whose version was bumped past the budget is REFUSED, naming the Service and the budget', () => {
+    // krateoplatformops-blueprints charts at their released versions. Each deploys on a default
+    // install (core-provider's cdc.metrics.enabled is false, so no metrics Service is created), and
+    // each was refused here — unpreviewable, unholdable, unpublishable — by a rule that assumed it.
+    it.each([
+      ['github-scaffolding-with-composition-page', '1.2.2'],
+      ['portal-composition-page-cloudnative-stack', '1.4.2'],
+      ['portal-composition-page-continuous-deployment', '1.0.0'],
+    ])('a real blueprint that deploys is not refused: %s@%s', (name, version) => {
+      expect(lint(name, version, 'blueprint')).toBe('')
+    })
+
+    it('a held blueprint whose version was bumped past the budget is REFUSED, naming the container and the budget', () => {
       expect(lint(FITS_ONLY_EARLY, '0.1.0', 'blueprint')).toBe('')
       const bumped = lint(FITS_ONLY_EARLY, '10.20.30', 'blueprint')
-      expect(bumped).toContain(`Chart.yaml name "${FITS_ONLY_EARLY}": at version 10.20.30 the Kind (the name without dashes) can be at most 31 characters`)
-      expect(bumped).toContain('<plural>-v10-20-30-controller-service')
+      expect(bumped).toContain(`Chart.yaml name "${FITS_ONLY_EARLY}": at version 10.20.30 the Kind (the name without dashes) can be at most 39 characters`)
+      expect(bumped).toContain('container <plural>-v10-20-30-controller,')
     })
 
     it('the SAME name on a PAGE draft is not — a page keeps the label check only (its version is the CHART_VERSION placeholder)', () => {

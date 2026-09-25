@@ -15,8 +15,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import { draftHistory } from '../../components/Autopilot/draftHistory'
 import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
-import { AUTOPILOT_PREVIEW_DRAFT_CLOSE_EVENT } from '../../components/Autopilot/previewDraftClose'
-import { AUTOPILOT_DRAFT_RENDER_REQUEST_EVENT, type DraftRenderRequestDetail } from '../../components/Autopilot/previewDraftRender'
+import { AUTOPILOT_PREVIEW_DRAFT_CLOSE_EVENT, emitDraftClose } from '../../components/Autopilot/previewDraftClose'
+import { AUTOPILOT_CHART_START_EVENT, AUTOPILOT_DRAFT_RENDER_REQUEST_EVENT, type ChartStartDetail, type DraftRenderRequestDetail } from '../../components/Autopilot/previewDraftRender'
 import { AUTOPILOT_PREVIEW_DRAFT_UNDO_EVENT } from '../../components/Autopilot/previewDraftUndo'
 import { AUTOPILOT_PREVIEW_FILE_EDIT_EVENT, type FileEditDetail } from '../../components/Autopilot/previewFileEdit'
 import { AUTOPILOT_PUBLISH_REQUEST_EVENT, emitPublishResult, type PublishRequestDetail } from '../../components/Autopilot/previewPublishRequest'
@@ -25,7 +25,7 @@ import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 import { ThemeModeProvider } from '../../context/ThemeModeContext'
 
 import BlueprintComposer from './BlueprintComposer'
-import { answer, hold, installAntdShims, installScrollShim, listen, mount, renderedPayload, seededChart } from './blueprintTestHarness'
+import { answer, builderPublishChart, hold, installAntdShims, installScrollShim, listen, mount, renderedPayload, seededChart } from './blueprintTestHarness'
 import { STALE_RENDER_CAPTION, UNRENDERED_CAPTION } from './heldBlueprintPayload'
 
 vi.mock('@ant-design/graphs', () => import('../../components/DependencyGraph/flowGraphDouble'))
@@ -75,6 +75,15 @@ describe('BlueprintComposer — "Preview needed", and only as the exception', ()
     mount()
     hold(seededChart())
     expect(screen.queryByText('Preview needed')).toBeNull()
+  })
+
+  it('…and keeps Publish OFF while it is unknown: no `previewed` is not a preview', () => {
+    // The pill is the exception only; the gate is not. A broadcast that does not say the chart
+    // previewed must not enable a publish, and the reason is still said.
+    mount()
+    hold(seededChart())
+    expect(publishButton().disabled).toBe(true)
+    expect(document.getElementById(publishButton().getAttribute('aria-describedby') ?? '')?.textContent).toMatch(/^Preview needed/)
   })
 })
 
@@ -217,6 +226,24 @@ describe('BlueprintComposer — Preview, and every answer in the person\'s words
   })
 })
 
+describe('BlueprintComposer — only the HELD chart\'s preview is adopted', () => {
+  it.each([
+    ['an inspection (a remote chart\'s dry run)', { builder: 'inspect' }],
+    ['a page preview', { builder: 'page' }],
+    ['a legacy payload with no builder', {}],
+  ])('ignores %s on the preview bus — Source is the held chart\'s', (_label, builder) => {
+    const files = seededChart()
+    mount()
+    hold(files, { previewed: true })
+    act(() => {
+      window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, { detail: { ...renderedPayload(files, OBJECTS), builder: undefined, ...builder } }))
+    })
+    act(() => { fireEvent.click(screen.getByRole('tab', { name: 'Source' })) })
+    expect(screen.queryByText('builder-publish-repo')).toBeNull()
+    expect(screen.getByText(UNRENDERED_CAPTION)).toBeTruthy()
+  })
+})
+
 describe('BlueprintComposer — Chart files, edited in place', () => {
   it('an accepted edit rides the file-edit bus, tagged as a blueprint', () => {
     const edits = listen<FileEditDetail>(AUTOPILOT_PREVIEW_FILE_EDIT_EVENT)
@@ -227,7 +254,7 @@ describe('BlueprintComposer — Chart files, edited in place', () => {
     act(() => { fireEvent.change(screen.getByLabelText('Edit values.yaml'), { target: { value: 'replicas: 2\n' } }) })
     act(() => { screen.getByRole('button', { name: 'Apply edits' }).click() })
     edits.stop()
-    expect(edits.seen).toEqual([{ content: 'replicas: 2\n', kind: 'blueprint', path: 'values.yaml' }])
+    expect(edits.seen).toMatchObject([{ content: 'replicas: 2\n', kind: 'blueprint', path: 'values.yaml' }])
   })
 
   it('shows the bytes the provider holds NOW — an undo arriving on the broadcast replaces what is shown', () => {
@@ -308,5 +335,42 @@ describe('BlueprintComposer — publish, undo, close', () => {
     hold(files, { previewed: false })
     expect(screen.queryByText(/Rendered 2 objects/)).toBeNull()
     expect(screen.getByText(UNRENDERED_CAPTION)).toBeTruthy()
+  })
+})
+
+describe('BlueprintComposer — a discard forgets everything that described the discarded chart', () => {
+  it('the step, the selection and "Published" do not carry over to the next chart', () => {
+    const asked = listen<PublishRequestDetail>(AUTOPILOT_PUBLISH_REQUEST_EVENT)
+    const files = builderPublishChart()
+    mount()
+    hold(files, { previewed: true })
+    act(() => { screen.getByRole('button', { name: /S3/ }).click() })
+    act(() => { screen.getByTestId('node-card-repository').click() })
+    act(() => { publishButton().click() })
+    asked.stop()
+    act(() => { emitPublishResult({ deepLink: 'https://example.invalid/pulls/1', denial: null, id: asked.seen[0].id }) })
+    expect(screen.getByText('Published — the change request is open for review.')).toBeTruthy()
+
+    act(() => { emitDraftClose() })
+    hold({}, { kind: null })
+    hold(files, { previewed: false })
+    expect(screen.getByRole('button', { name: /S1/ }).getAttribute('aria-pressed')).toBe('true')
+    expect(within(screen.getByLabelText('Inspector')).getByText(/Select a node to see what it is/)).toBeTruthy()
+    expect(screen.queryByText('Published — the change request is open for review.')).toBeNull()
+  })
+
+  it('a started chart that is discarded does not bring the Start modal back', () => {
+    const starts = listen<ChartStartDetail>(AUTOPILOT_CHART_START_EVENT)
+    mount()
+    act(() => { screen.getByRole('button', { name: 'Start a chart' }).click() })
+    act(() => { fireEvent.change(screen.getByLabelText('Chart name'), { target: { value: 'builder-publish' } }) })
+    act(() => { screen.getByRole('button', { name: 'Start' }).click() })
+    starts.stop()
+    hold(starts.seen[0].files, { previewed: false })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    act(() => { emitDraftClose() })
+    hold({}, { kind: null })
+    expect(screen.getByText(/No chart open/)).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })

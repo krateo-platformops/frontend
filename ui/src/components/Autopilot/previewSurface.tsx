@@ -34,7 +34,7 @@ import type { DraftKind } from './blueprintDraftStore'
 import { DraftProblemsAlert } from './DraftProblemsAlert'
 import { parseFileEdit, parseRestDefEdit } from './previewBridge'
 import { AUTOPILOT_PREVIEW_EVENT, draftKindOfPayload, isHeldDraftPayload, isPageDraftPayload, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
-import { previewSurfaceClaimed } from './previewDraftChanged'
+import { onPreviewSurfaceClaimed, previewSurfaceClaimed } from './previewDraftChanged'
 import { onDraftClose } from './previewDraftClose'
 import { emitRestDefEdit } from './previewEditBus'
 import { emitFileEdit } from './previewFileEdit'
@@ -203,10 +203,17 @@ const FileEditBlock = ({
       setError(result.problems[0] ?? 'the edit could not be applied')
       return
     }
+    // The PROVIDER decides whether it is held — the byte cap, a path it does not hold. Refused: said
+    // here, the editor stays open on the person's text, and the block goes on showing the held bytes
+    // (the ones a publish commits). No answer at all (no provider) keeps the old optimistic show.
+    const outcome = emitFileEdit({ content: result.content, kind, path })
+    if (outcome && !outcome.ok) {
+      setError(outcome.error)
+      return
+    }
     setCurrent(result.content)
     setError(null)
     setEditing(false)
-    emitFileEdit({ content: result.content, kind, path })
   }
 
   return (
@@ -272,7 +279,7 @@ const FileEditBlock = ({
  */
 const fileAnchorId = (path: string): string => `preview-file-${path.replace(/[^a-zA-Z0-9]+/g, '-')}`
 
-export const PreviewContent = ({ caption, editVerdicts, focusPath, hideDraftProblems, liveFiles, onVerdicts, payload }: {
+export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, hideDraftProblems, liveFiles, onVerdicts, payload }: {
   /**
    * OVERRIDES the payload's own caption, for a surface that is not the drawer.
    *
@@ -299,6 +306,14 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, hideDraftProb
    * has no tree, and passes nothing.
    */
   focusPath?: string | null
+  /**
+   * A new value is a new REQUEST to reveal `focusPath`, even the same path again. The reveal is keyed
+   * on the path, and asking for the file you asked for last — the Template link after switching to
+   * Source, the node clicked a second time — changed nothing React could see, so nothing happened.
+   * A surface that re-reveals on request bumps this with each one; the drawer and the page composer
+   * pass nothing and keep reveal-on-change.
+   */
+  focusNonce?: number
   /**
    * The surface shows the held draft's lint problems itself, above this component — so this one
    * does not repeat them. The Blueprint Composer puts them under its header, beside the Publish
@@ -479,7 +494,7 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, hideDraftProb
       document.getElementById(fileAnchorId(focusedPath))?.scrollIntoView({ block: 'nearest' })
     })
     return () => cancelAnimationFrame(frame)
-  }, [focusedPath])
+  }, [focusedPath, focusNonce])
 
   const tabs = [
     ...(payload.liveEndpoint
@@ -563,6 +578,16 @@ export const AutopilotPreviewDrawer = () => {
 
   // A draft discarded elsewhere — the composer's Discard — takes its preview with it.
   useEffect(() => onDraftClose(dropHeld), [dropHeld])
+
+  // A composer of the held draft's kind mounted while this was open on it: the draft has one
+  // surface, and it is the composer now (see claimPreviewSurface). Anything else shown here — an
+  // inspection, the other kind — stays.
+  useEffect(() => onPreviewSurfaceClaimed((kind) => {
+    const shown = heldShown.current
+    if (shown && draftKindOfPayload(shown) === kind) {
+      dropHeld()
+    }
+  }), [dropHeld])
 
   if (!payload) {
     return null

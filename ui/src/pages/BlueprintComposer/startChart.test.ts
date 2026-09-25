@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { draftDisplayName, lintBlueprintDraft } from '../../components/Autopilot/blueprintDraft'
 
 import { ARCHITECTURE_TEMPLATE_PATH, deriveStates, parseArchitecture, serializeArchitecture, unwrapFromConfigMapTemplate } from './architecture'
-import { KIND_MAX, claimApiVersion, compositionKind, kindBudget, ociChartLocation, startChart, validateStartChart } from './startChart'
+import { KIND_MAX, claimApiVersion, compositionKind, kindBudget, metricsKindBudget, ociChartLocation, startChart, startChartWarnings, validateStartChart } from './startChart'
 
 const INPUT = { description: 'Publishes a page set as a pull request', name: 'builder-publish', version: '0.1.0' }
 
@@ -79,43 +79,63 @@ describe('startChart — refusals, by field', () => {
     expect(result.problems.map((problem) => problem.field)).toEqual([field])
   })
 
-  // What binds is not the name's 63: it is the longest object core-provider names after the chart,
-  // the CDC Service `<plural>-<apiVersion>-controller-service`, at most 63 — so the Kind's budget
-  // depends on the version. The plural lengths below are strings.ToLower(flect.Pluralize(Kind)) from
-  // flect v1.0.3, run in Go over the Kind — what core-provider's CRD generator names the resource.
-  it('the budget is 63 − 19 − 1 − len(apiVersion) − 3: 34 at 0.1.0, 31 at 10.20.30', () => {
-    expect(kindBudget('0.1.0')).toBe(34)
-    expect(kindBudget('10.20.30')).toBe(31)
-    expect(kindBudget('1.0.0-rc.1')).toBe(29)
+  // What binds is not the name's 63: it is the longest object core-provider names after the chart
+  // on EVERY install, the CDC container `<plural>-<apiVersion>-controller`, at most 63 — so the Kind's
+  // budget depends on the version. The plural lengths below are strings.ToLower(flect.Pluralize(Kind))
+  // from flect v1.0.3, run in Go over the Kind — what core-provider's CRD generator names the resource.
+  it('the budget is 63 − 11 − 1 − len(apiVersion) − 3: 42 at 0.1.0, 39 at 10.20.30', () => {
+    expect(kindBudget('0.1.0')).toBe(42)
+    expect(kindBudget('10.20.30')).toBe(39)
+    expect(kindBudget('1.0.0-rc.1')).toBe(37)
   })
 
-  it('at 0.1.0 a Kind of 34 is the limit, not over it — dashes do not count (Kind 34, plural 35, Service 61)', () => {
-    const name = `ab-cd-ef-${'g'.repeat(28)}`
-    expect(name).toHaveLength(37)
-    expect(compositionKind(name)).toHaveLength(34)
+  it('the metrics Service\'s budget is eight tighter — advice, not a refusal: 34 at 0.1.0, 31 at 10.20.30', () => {
+    expect(metricsKindBudget('0.1.0')).toBe(34)
+    expect(metricsKindBudget('10.20.30')).toBe(31)
+  })
+
+  it('at 0.1.0 a Kind of 42 is the limit, not over it — dashes do not count (Kind 42, plural 43, container 61)', () => {
+    const name = `ab-cd-ef-${'g'.repeat(36)}`
+    expect(name).toHaveLength(45)
+    expect(compositionKind(name)).toHaveLength(42)
     expect(validateStartChart({ ...INPUT, name })).toEqual([])
   })
 
-  it('at 0.1.0 a Kind of 35 is refused, naming the Service, the version and the budget', () => {
-    const problems = validateStartChart({ ...INPUT, name: `ab-cd-ef-${'g'.repeat(29)}` })
+  it('at 0.1.0 a Kind of 43 is refused, naming the container, the version and the budget', () => {
+    const problems = validateStartChart({ ...INPUT, name: `ab-cd-ef-${'g'.repeat(37)}` })
     expect(problems.map((problem) => problem.field)).toEqual(['name'])
-    expect(problems[0].message).toMatch(/^at version 0\.1\.0 the Kind \(the name without dashes\) can be at most 34 characters — AbCdEfGg+ has 35\./)
-    expect(problems[0].message).toContain('<plural>-v0-1-0-controller-service')
+    expect(problems[0].message).toMatch(/^at version 0\.1\.0 the Kind \(the name without dashes\) can be at most 42 characters — AbCdEfGg+ has 43\./)
+    expect(problems[0].message).toContain('container <plural>-v0-1-0-controller,')
   })
 
   it('a name that fits at 0.1.0 does not fit at 10.20.30 — the version is half the budget', () => {
-    // Kind 34, plural 35: Service 61 at v0-1-0, 64 at v10-20-30.
-    const name = `a${'b'.repeat(33)}`
+    // Kind 42, plural 43: container 61 at v0-1-0, 64 at v10-20-30.
+    const name = `a${'b'.repeat(41)}`
     expect(validateStartChart({ ...INPUT, name })).toEqual([])
     const problems = validateStartChart({ ...INPUT, name, version: '10.20.30' })
     expect(problems.map((problem) => problem.field)).toEqual(['name'])
-    expect(problems[0].message).toMatch(/^at version 10\.20\.30 the Kind .* at most 31 characters/)
+    expect(problems[0].message).toMatch(/^at version 10\.20\.30 the Kind .* at most 39 characters/)
   })
 
   it('the +3 is exact, not generous: -quiz pluralises to -quizzes', () => {
-    // Kind …Quiz of 34 → plural 37 → Service 63 at 0.1.0: fits. Of 35 → 38 → 64: does not.
-    expect(validateStartChart({ ...INPUT, name: `${'a'.repeat(30)}-quiz` })).toEqual([])
-    expect(validateStartChart({ ...INPUT, name: `${'a'.repeat(31)}-quiz` }).map((problem) => problem.field)).toEqual(['name'])
+    // Kind …Quiz of 42 → plural 45 → container 63 at 0.1.0: fits. Of 43 → 46 → 64: does not.
+    expect(validateStartChart({ ...INPUT, name: `${'a'.repeat(38)}-quiz` })).toEqual([])
+    expect(validateStartChart({ ...INPUT, name: `${'a'.repeat(39)}-quiz` }).map((problem) => problem.field)).toEqual(['name'])
+  })
+
+  it('WARNS, without refusing, a name over the metrics Service budget — the Service exists only with CDC metrics on', () => {
+    // Kind 35 at 0.1.0: the container fits on every install (plural ≤ 38 → ≤ 56); the metrics
+    // Service can reach 64 with the longest plural, and exists only where metrics run.
+    const name = `a${'b'.repeat(34)}`
+    expect(validateStartChart({ ...INPUT, name })).toEqual([])
+    const warnings = startChartWarnings({ ...INPUT, name })
+    expect(warnings.map((warning) => warning.field)).toEqual(['name'])
+    expect(warnings[0].message).toMatch(/^fits every install — but may not fit one that runs core-provider with CDC metrics on .* at most 34 characters .*, and Ab+ has 35/)
+    expect(startChartWarnings({ ...INPUT, name: `a${'b'.repeat(33)}` })).toEqual([])
+  })
+
+  it('says nothing more for a name it already refuses — the refusal is the whole answer', () => {
+    expect(startChartWarnings({ ...INPUT, name: `a${'b'.repeat(42)}` })).toEqual([])
   })
 
   it('a Kind of 60 is refused at ANY version: the CRD\'s list type (Kind + List) must be a 63-character label', () => {
@@ -126,7 +146,8 @@ describe('startChart — refusals, by field', () => {
   })
 
   it('a version so long that no Kind fits is the VERSION\'s problem, not the name\'s', () => {
-    const problems = validateStartChart({ ...INPUT, name: 'x', version: `1.0.0-${'a'.repeat(34)}` })
+    // v1-0-0-aaa… of 49 characters: 63 − 11 − 1 − 49 − 3 < 1.
+    const problems = validateStartChart({ ...INPUT, name: 'x', version: `1.0.0-${'a'.repeat(42)}` })
     expect(problems.map((problem) => problem.field)).toEqual(['version'])
     expect(problems[0].message).toMatch(/leaves no room for any Kind/)
   })
@@ -144,6 +165,14 @@ describe('startChart — refusals, by field', () => {
   it('a lower-case pre-release is fine', () => {
     expect(validateStartChart({ ...INPUT, version: '1.0.0-rc.1' })).toEqual([])
     expect(claimApiVersion('1.0.0-rc.1')).toBe('composition.krateo.io/v1-0-0-rc-1')
+  })
+
+  it.each([
+    ['github-scaffolding-with-composition-page', '1.2.2'],
+    ['portal-composition-page-cloudnative-stack', '1.4.2'],
+    ['portal-composition-page-continuous-deployment', '1.0.0'],
+  ])('does not refuse a real blueprint that deploys on a default install: %s@%s', (name, version) => {
+    expect(validateStartChart({ ...INPUT, name, version })).toEqual([])
   })
 
   it('reports every bad field at once, so the modal can mark both', () => {

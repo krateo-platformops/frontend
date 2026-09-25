@@ -53,8 +53,8 @@ describe('recordBlueprintPreview', () => {
   it('arms NOTHING for a chart whose name outgrew its version — it is linted as the blueprint it would be held as', () => {
     const store = createBlueprintDraftStore()
     const gate = createBlueprintGate()
-    // Kind 34 fits at 0.1.0 and not at 10.20.30: the controller Service would be 64 characters.
-    const bumped = { ...CLEAN, [CHART_YAML_PATH]: `apiVersion: v2\nname: a${'b'.repeat(33)}\nversion: 10.20.30\n` }
+    // Kind 42 fits at 0.1.0 and not at 10.20.30: the controller container would be 64 characters.
+    const bumped = { ...CLEAN, [CHART_YAML_PATH]: `apiVersion: v2\nname: a${'b'.repeat(41)}\nversion: 10.20.30\n` }
     expect(recordBlueprintPreview(bumped, false, store, gate)).toBe(false)
     expect(store.get()).toBeNull()
   })
