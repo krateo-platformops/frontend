@@ -45,8 +45,8 @@ describe('the turn carries NO instruction preamble', () => {
       'PORTAL_CAPABILITIES_PROMPT =', 'PORTAL_HOUSE_RULES =',
       'GROUNDING_GUARDRAIL_PROMPT =', 'PORTAL_BUILDER_ROUTING_DIRECTIVE =',
       // Load-bearing headings, matched in FULL form: the bare phrase "BLUEPRINT BUILDER"
-      // legitimately appears in prose that REFERS to the prompt (e.g. blueprintPublish.ts naming
-      // where its repo defaults come from), and that is not a regression.
+      // legitimately appears in prose that REFERS to the prompt (e.g. a code comment naming where
+      // a builder's defaults come from), and that is not a regression.
       'BLUEPRINT BUILDER — AUTHOR', 'PORTAL BUILDER — AUTHOR', 'HOUSE RULES —',
       'AUTHORITATIVE ROUTING', 'CHECK THE SCHEMA FIRST', 'TOURS ARE OFF BY DEFAULT',
       'REMEDIATION ORDER (always in this order)',

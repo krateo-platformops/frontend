@@ -15,8 +15,8 @@
  * THE "HELD-IN-PORTAL, NEVER RETYPED BY THE MODEL" GUARANTEE IS PRESERVED. The edited content is
  * plain text a HUMAN produced by editing the held file in the drawer; it never round-trips the model.
  * The drawer parses/validates it once (deny-by-default: an invalid edit is never emitted), and the
- * provider's updateFile re-checks the cap/held-path once more, so the bytes that publish (via the
- * $fileContent substitution) are exactly the human-edited bytes.
+ * provider's updateFile re-checks the cap/held-path once more, so the bytes that publish (the claim
+ * carries the held files verbatim) are exactly the human-edited bytes.
  *
  * Pure module: one CustomEvent name + a dispatch/subscribe pair. No React, no module state.
  */

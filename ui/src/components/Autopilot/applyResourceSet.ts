@@ -21,7 +21,9 @@
  *      op's namespace EXACTLY equals the configured preview sandbox
  *      (config api.PREVIEW_SANDBOX_NAMESPACE; absent config ⇒ no exception). The
  *      sandbox is BY DESIGN outside every Helm release, quota-bounded and
- *      TTL-swept, so the carve-out never widens the fabric. Anything else is
+ *      TTL-swept, so the carve-out never widens the fabric. And (d) NEVER-WRITE-GIT:
+ *      github.krateo.io gitrefs / repocontents / pullrequests are DENIED everywhere —
+ *      publishing is one BuilderPublish claim. Anything else is
  *      REJECTED here — the branch returns null, exactly like an unknown verb.
  *   2. The W0-4 gate — the compiled ops are dispatched via `deps.handleActionSet` →
  *      `runRestSet`, whose aggregated set-level BlastRadiusConfirm (ordered op list,
@@ -77,6 +79,21 @@ export const WIDGETS_TEMPLATES_GROUP = 'widgets.templates.krateo.io'
 
 /** The RESTAction plural — same never-hand-apply rule (matched on ANY group, defensive). */
 export const RESTACTIONS_RESOURCE = 'restactions'
+
+/**
+ * NEVER-WRITE-GIT: the github.krateo.io objects that write to a repository — a branch, a file, a
+ * pull request. The frontend publishes through ONE BuilderPublish claim (git-provider commits the
+ * files, the builder-publish composition opens the change request); the host-built GitHub op set
+ * that wrote these directly was removed 2026-09-25. So no set the agent proposes may write them
+ * either — otherwise the legacy path survives as a model-emitted back door, outside the preview
+ * gate's publish flow. The prompt already says never to hand-write them; this makes it true.
+ */
+export const GITHUB_GIT_WRITE_GROUP = 'github.krateo.io'
+export const GIT_WRITE_RESOURCES: readonly string[] = ['gitrefs', 'repocontents', 'pullrequests']
+
+/** True when the op would write a branch, file or pull request through github.krateo.io. */
+export const isGitWriteTarget = (gvr: ApplyResourceSetGvr): boolean =>
+  gvr.group === GITHUB_GIT_WRITE_GROUP && GIT_WRITE_RESOURCES.includes(gvr.resource)
 
 /**
  * True when the op targets the NEVER-HAND-APPLY surface (widget CRs / RESTActions —
@@ -143,7 +160,7 @@ export const isSetOpAllowed = (op: ApplyResourceSetOp | undefined, sandboxNamesp
   if (name !== undefined && (typeof name !== 'string' || !isPathSegment(name))) {
     return false
   }
-  if (!isSetOpGroupAllowed(gvr)) {
+  if (!isSetOpGroupAllowed(gvr) || isGitWriteTarget(gvr)) {
     return false
   }
 

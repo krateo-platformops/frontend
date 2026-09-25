@@ -1,6 +1,6 @@
 /**
  * FE-BP2 — the blueprint preview gate:
- *   - only sets touching a blueprint-publish resource (gitrefs/repocontents/pullrequests/
+ *   - only sets touching a blueprint-publish resource (the builderpublishes claim /
  *     compositiondefinitions) are gated; anything else passes;
  *   - a publish is DENIED unless the CURRENTLY-HELD draft's chart name was previewed this
  *     thread (deny-by-default; no held draft => deny; wrong name => deny);
@@ -23,22 +23,18 @@ const op = (group: string, resource: string, name: string): ApplyResourceSetOp =
   verb: 'POST',
 })
 
-/** A blueprint git-publish set (set #1) + the register op (set #2). */
-const gitSet: ApplyResourceSetOp[] = [
-  op('github.krateo.io', 'gitrefs', 'builder-branch'),
-  op('github.krateo.io', 'repocontents', 'chart-yaml'),
-  op('github.krateo.io', 'pullrequests', 'the-pr'),
-]
+/** A blueprint publish (the one BuilderPublish claim, set #1) + the register op (set #2). */
+const claimSet: ApplyResourceSetOp[] = [op('composition.krateo.io', 'builderpublishes', 'publish-hello')]
 const registerSet: ApplyResourceSetOp[] = [op('core.krateo.io', 'compositiondefinitions', 'hello')]
 /** A non-blueprint set (a KOG ConfigMap publish, say) — never gated by THIS gate. */
 const otherSet: ApplyResourceSetOp[] = [op('', 'configmaps', 'oas'), op('ogen.krateo.io', 'restdefinitions', 'x')]
 
 describe('opsArePublishSet', () => {
   it('detects every guarded resource, ignores others', () => {
-    expect(BLUEPRINT_PUBLISH_RESOURCES).toEqual(
-      expect.arrayContaining(['compositiondefinitions', 'gitrefs', 'repocontents', 'pullrequests']),
-    )
-    expect(opsArePublishSet(gitSet)).toBe(true)
+    expect([...BLUEPRINT_PUBLISH_RESOURCES].sort()).toEqual(['builderpublishes', 'compositiondefinitions'])
+    // The GitHub git-write kinds are not GATED — they are refused outright (applyResourceSet).
+    expect(opsArePublishSet([op('github.krateo.io', 'repocontents', 'x')])).toBe(false)
+    expect(opsArePublishSet(claimSet)).toBe(true)
     expect(opsArePublishSet(registerSet)).toBe(true)
     expect(opsArePublishSet(otherSet)).toBe(false)
     expect(opsArePublishSet([])).toBe(false)
@@ -55,7 +51,7 @@ describe('createBlueprintGate — preview-before-publish', () => {
 
   it('DENIES a publish by default (fresh gate, nothing previewed)', () => {
     const gate = createBlueprintGate()
-    const verdict = gate.evaluate(gitSet, 'hello')
+    const verdict = gate.evaluate(claimSet, 'hello')
     expect(verdict.allowed).toBe(false)
     expect(!verdict.allowed && verdict.reason).toContain('hello')
   })
@@ -72,13 +68,13 @@ describe('createBlueprintGate — preview-before-publish', () => {
   it('DENIES when the held draft name was not the one previewed', () => {
     const gate = createBlueprintGate()
     gate.recordPreview('other-chart')
-    expect(gate.evaluate(gitSet, 'hello').allowed).toBe(false)
+    expect(gate.evaluate(claimSet, 'hello').allowed).toBe(false)
   })
 
   it('ALLOWS a publish once the held draft name was previewed this thread', () => {
     const gate = createBlueprintGate()
     gate.recordPreview('hello')
-    expect(gate.evaluate(gitSet, 'hello').allowed).toBe(true)
+    expect(gate.evaluate(claimSet, 'hello').allowed).toBe(true)
     expect(gate.evaluate(registerSet, 'hello').allowed).toBe(true)
   })
 
@@ -86,10 +82,10 @@ describe('createBlueprintGate — preview-before-publish', () => {
     const gate = createBlueprintGate()
     gate.recordPreview('a')
     gate.recordPreview('b')
-    expect(gate.evaluate(gitSet, 'a').allowed).toBe(true)
-    expect(gate.evaluate(gitSet, 'b').allowed).toBe(true)
+    expect(gate.evaluate(claimSet, 'a').allowed).toBe(true)
+    expect(gate.evaluate(claimSet, 'b').allowed).toBe(true)
     gate.reset()
-    expect(gate.evaluate(gitSet, 'a').allowed).toBe(false)
+    expect(gate.evaluate(claimSet, 'a').allowed).toBe(false)
   })
 
   it('ignores null/empty preview records (deny-by-default holds)', () => {
@@ -97,7 +93,7 @@ describe('createBlueprintGate — preview-before-publish', () => {
     gate.recordPreview(null)
     gate.recordPreview('')
     gate.recordPreview(undefined)
-    expect(gate.evaluate(gitSet, 'hello').allowed).toBe(false)
+    expect(gate.evaluate(claimSet, 'hello').allowed).toBe(false)
   })
 })
 
@@ -112,12 +108,12 @@ describe('forget — one name back to deny, the rest untouched', () => {
     const gate = createBlueprintGate()
     gate.recordPreview('hello')
     gate.recordPreview('other')
-    expect(gate.evaluate(gitSet, 'hello').allowed).toBe(true)
+    expect(gate.evaluate(claimSet, 'hello').allowed).toBe(true)
 
     gate.forget('hello')
 
-    expect(gate.evaluate(gitSet, 'hello').allowed).toBe(false)
-    expect(gate.evaluate(gitSet, 'other').allowed).toBe(true)
+    expect(gate.evaluate(claimSet, 'hello').allowed).toBe(false)
+    expect(gate.evaluate(claimSet, 'other').allowed).toBe(true)
   })
 
   it('a null/undefined/unknown name is a no-op, not a throw', () => {
@@ -128,7 +124,7 @@ describe('forget — one name back to deny, the rest untouched', () => {
       gate.forget(undefined)
       gate.forget('never-seen')
     }).not.toThrow()
-    expect(gate.evaluate(gitSet, 'hello').allowed).toBe(true)
+    expect(gate.evaluate(claimSet, 'hello').allowed).toBe(true)
   })
 
   it('a forgotten chart re-arms on its next clean preview', () => {
@@ -136,6 +132,6 @@ describe('forget — one name back to deny, the rest untouched', () => {
     gate.recordPreview('hello')
     gate.forget('hello')
     gate.recordPreview('hello')
-    expect(gate.evaluate(gitSet, 'hello').allowed).toBe(true)
+    expect(gate.evaluate(claimSet, 'hello').allowed).toBe(true)
   })
 })

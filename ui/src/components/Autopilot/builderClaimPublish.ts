@@ -1,9 +1,9 @@
 /**
- * The SCM-agnostic publish orchestration (AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER) — the claim-path analog
- * of the buildXPublishOps + compilePublishOps flow in AutopilotProvider.finalize. Given a builder's
- * held files + the user-confirmed destination, it builds a gated BuilderPublish claim (one POST op)
- * and the host-aware "Open change request" deep link (Option A). Kept out of finalize so the
- * finalize edit is a thin flag-gated delegation and the logic stays unit-testable.
+ * The publish orchestration every builder uses (page, blueprint, controller). Given a builder's held
+ * files + the user-confirmed destination, it builds a gated BuilderPublish claim (one POST op) and the
+ * host-aware "Open change request" deep link. It is the ONLY publish path: the host-built
+ * github.krateo.io GitRef / RepoContent / PullRequest set it used to sit beside was removed
+ * 2026-09-25. Kept out of finalize so the logic stays unit-testable.
  */
 
 import type { Config } from '../../context/ConfigContext'

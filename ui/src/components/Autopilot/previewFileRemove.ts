@@ -6,8 +6,8 @@
  * the reference and left the child's file in the held draft. `buildObjectTree` then saw a file
  * nothing referenced and drew it as a page ROOT, so the thing the person had just removed reappeared
  * on the canvas beside their page. It had no `parentPath`, so the tree rendered no action buttons on
- * it and there was no Remove to press a second time; and `pagePublish` builds one repocontents op
- * per held key, so the orphan shipped in the change request. Three surfaces, one missing verb.
+ * it and there was no Remove to press a second time; and a publish commits every held key, so the
+ * orphan shipped in the change request. Three surfaces, one missing verb.
  *
  * NOT A FLAG ON THE ADD BUS, for the reason previewFileAdd gives about not being a flag on the edit
  * bus: an add carries bytes and a remove carries none, the provider answers them with different

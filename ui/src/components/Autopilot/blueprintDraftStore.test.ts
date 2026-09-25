@@ -14,10 +14,8 @@ import {
   BLUEPRINT_DRAFT_MAX_BYTES,
   createBlueprintDraft,
   createBlueprintDraftStore,
-  encodeUtf8Base64,
   fileContentTokenPath,
   opsCarryFileContentToken,
-  substituteFileContent,
 } from './blueprintDraftStore'
 
 const CHART = {
@@ -26,7 +24,7 @@ const CHART = {
   'values.schema.json': '{"type":"object","properties":{"replicas":{"type":"integer"}}}',
 }
 
-/** A git publish set: one RepoContent per file carrying a `{$fileContent:<path>}` token. */
+/** The legacy GitHub publish's shape — kept to pin that the token is still DETECTED (and so refused). */
 const publishOps: ApplyResourceSetOp[] = Object.keys(CHART).map((path) => ({
   gvr: { group: 'github.krateo.io', resource: 'repocontents', version: 'v1alpha1' },
   name: `hello-${path.replace(/[^a-z0-9]+/gi, '-')}`,
@@ -169,69 +167,6 @@ describe('opsCarryFileContentToken', () => {
   it('detects a token nested anywhere in any op payload', () => {
     expect(opsCarryFileContentToken(publishOps)).toBe(true)
     expect(opsCarryFileContentToken([{ ...publishOps[0], payload: { spec: { path: 'x' } } }])).toBe(false)
-  })
-})
-
-describe('substituteFileContent — the publish-compile substitution', () => {
-  const held = { bytes: 0, files: CHART, kind: 'blueprint' as const }
-
-  it('replaces each token with the held verbatim file (text mode) and only the token', () => {
-    const result = substituteFileContent(publishOps, held)
-    expect(result.ok).toBe(true)
-    if (!result.ok) {
-      return
-    }
-    expect(result.substituted).toBe(3)
-    result.ops.forEach((op) => {
-      const { spec } = op.payload as { spec: { content: unknown; path: string } }
-      expect(spec.content).toBe(CHART[spec.path as keyof typeof CHART])
-    })
-  })
-
-  it('base64-encodes when asked (UTF-8 safe, round-trips)', () => {
-    const result = substituteFileContent(publishOps, held, 'base64')
-    expect(result.ok).toBe(true)
-    if (!result.ok) {
-      return
-    }
-    const first = result.ops[0].payload as { spec: { content: string; path: string } }
-    expect(first.spec.content).toBe(encodeUtf8Base64(CHART[first.spec.path as keyof typeof CHART]))
-    expect(atob(first.spec.content)).toBe(CHART[first.spec.path as keyof typeof CHART])
-  })
-
-  it('is pure — the proposal ops are never mutated', () => {
-    const before = JSON.parse(JSON.stringify(publishOps)) as unknown
-    substituteFileContent(publishOps, held)
-    expect(publishOps).toEqual(before)
-  })
-
-  it('passes ops through untouched when no token is present (substituted:0)', () => {
-    const plain: ApplyResourceSetOp[] = [{ ...publishOps[0], payload: { spec: { path: 'Chart.yaml' } } }]
-    const result = substituteFileContent(plain, null)
-    expect(result.ok && result.substituted).toBe(0)
-  })
-
-  it('REFUSES when a token is present but nothing is held', () => {
-    const result = substituteFileContent(publishOps, null)
-    expect(result.ok).toBe(false)
-    expect(!result.ok && result.error).toContain('PREVIEW')
-  })
-
-  it('REFUSES when a token names a path the held draft does not contain (drift)', () => {
-    const rogue: ApplyResourceSetOp[] = [{
-      ...publishOps[0],
-      payload: { spec: { content: { $fileContent: 'templates/secret.yaml' }, path: 'templates/secret.yaml' } },
-    }]
-    const result = substituteFileContent(rogue, held)
-    expect(result.ok).toBe(false)
-    expect(!result.ok && result.error).toContain('templates/secret.yaml')
-  })
-})
-
-describe('encodeUtf8Base64 — chunked, UTF-8 safe', () => {
-  it('round-trips large multibyte content without overflowing', () => {
-    const big = '✓café '.repeat(20000)
-    expect(new TextDecoder().decode(Uint8Array.from(atob(encodeUtf8Base64(big)), (ch) => ch.charCodeAt(0)))).toBe(big)
   })
 })
 

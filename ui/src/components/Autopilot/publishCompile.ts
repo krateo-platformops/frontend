@@ -1,19 +1,18 @@
 /**
- * The publish-compile pipeline, factored OUT of AutopilotProvider.finalize — the pure step that
- * turns a host-built git-write op set into ready-to-dispatch ops (or a denial). Two shapes:
- *   - compilePublishOps    — the blueprint/page (and legacy KOG direct-write) path: both preview
- *                            gates, then the $oasAttachment + $fileContent substitutions (held bytes
- *                            replace the tokens), then the authorship stamp.
- *   - compileKogPublishOps — the KOG PR path (item #30): the ops already carry FINAL host-serialized
- *                            bytes (no token to substitute), so only the KOG preview gate + the
- *                            authorship stamp apply.
+ * The publish-compile pipeline, factored OUT of AutopilotProvider.finalize — the pure steps that
+ * turn an op set into ready-to-dispatch ops (or a denial). Two shapes:
+ *   - compileClaimPublish — every builder's publish: ONE host-built BuilderPublish claim, gated on
+ *                           preview-before-publish, then the authorship stamp.
+ *   - compilePublishOps   — a MODEL-emitted applyResourceSet (a RestDefinition apply, a register
+ *                           CompositionDefinition): both preview gates, the $oasAttachment
+ *                           substitution, then the authorship stamp.
  * Plus the held-draft identity helpers the finalize branches share. No React, no network.
  */
 
-import type { ApplyResourceSetOp } from './applyResourceSet'
+import { isGitWriteTarget, type ApplyResourceSetOp } from './applyResourceSet'
 import { stampAuthorship, type AuthorshipOrigin } from './authorship'
 import { draftDisplayName, lintBlueprintDraft, parseRawTemplates } from './blueprintDraft'
-import { substituteFileContent, type BlueprintDraftHeld, type BlueprintDraftStore } from './blueprintDraftStore'
+import { opsCarryFileContentToken, type BlueprintDraftHeld, type BlueprintDraftStore } from './blueprintDraftStore'
 import type { BlueprintGate } from './blueprintGate'
 import type { PublishStatusClaim } from './builderPublishStatus'
 import { draftHistory } from './draftHistory'
@@ -32,17 +31,15 @@ export interface PublishCompileResult {
 }
 
 /**
- * The applyResourceSet publish-compile pipeline. Order: both preview gates, then the $oasAttachment
- * + $fileContent substitutions (held bytes replace the tokens), then the host authorship stamp. Any
- * gate/substitution failure short-circuits to a denial with NO compiled ops; success yields the
- * stamped, ready-to-dispatch ops.
+ * The model-emitted applyResourceSet compile pipeline. Order: both preview gates, the $fileContent
+ * refusal, the $oasAttachment substitution (held bytes replace the token), then the host authorship
+ * stamp. Any failure short-circuits to a denial with NO compiled ops.
  */
 export const compilePublishOps = (
   ops: readonly ApplyResourceSetOp[] | undefined,
   kogVerdict: GateVerdict,
   blueprintVerdict: GateVerdict,
   oasAttachment: OasAttachment | null,
-  blueprintHeld: BlueprintDraftHeld | null,
   origin: AuthorshipOrigin,
 ): PublishCompileResult => {
   if (!kogVerdict.allowed) {
@@ -51,52 +48,30 @@ export const compilePublishOps = (
   if (!blueprintVerdict.allowed) {
     return { denial: blueprintVerdict.reason, ops: null }
   }
+  // Refused HERE, by name, and not only by the apply-set kernel: the kernel's refusal is a silent
+  // null — no chip, nothing the model can read — so a hand-written git-write set would just vanish.
+  if ((ops ?? []).some((op) => isGitWriteTarget(op.gvr))) {
+    return { denial: 'denied — Autopilot does not write gitrefs / repocontents / pullrequests: publish a chart, page or API mapping with publishBlueprint / publishPage / publishRestDef, which commit the held files through one BuilderPublish claim.', ops: null }
+  }
+  // `$fileContent` was substituted into the RepoContent payloads of the legacy GitHub publish, which
+  // is gone. Nothing substitutes it now, so a set carrying it would write the literal token into an
+  // object: refuse it, and say where charts and pages are published from.
+  if (opsCarryFileContentToken(ops ?? [])) {
+    return { denial: 'denied — "$fileContent" is not substituted any more: publish a chart or page with publishBlueprint / publishPage, which commit the held files through one BuilderPublish claim.', ops: null }
+  }
   const oasCompiled = substituteOasAttachment(ops ?? [], oasAttachment)
   if (!oasCompiled.ok) {
     return { denial: oasCompiled.error, ops: null }
   }
-  // base64: every $fileContent token is a RepoContent `.spec.content` value (the BLUEPRINT
-  // BUILDER prompt is its sole emitter), and GitHub's create-or-update-file API requires the
-  // file bytes base64-encoded. Without this the chart files ship as raw text and GitHub 422s
-  // at publish (FE-BP5 — the git-provider CR shape is now verified: content = base64).
-  const fileCompiled = substituteFileContent(oasCompiled.ops, blueprintHeld, 'base64')
-  if (!fileCompiled.ok) {
-    return { denial: fileCompiled.error, ops: null }
-  }
-  return { denial: null, ops: stampAuthorship(fileCompiled.ops, origin) }
+  return { denial: null, ops: stampAuthorship(oasCompiled.ops, origin) }
 }
 
 /**
- * The KOG PR-publish compile step. UNLIKE compilePublishOps, the git-write ops here already carry
- * their FINAL, host-serialized file bytes (buildKogPublishAsPrOps deterministically serializes the
- * previewed RestDefinition + embeds the held OAS document), so there is NO $fileContent/$oasAttachment
- * token to substitute. Two things still gate it:
- *   1. The KOG preview gate (FE-K3) — a publish is DENIED unless a matching (kind+resourceGroup)
- *      previewRestDef happened this thread. The git-write ops write gitrefs/repocontents/pullrequests
- *      (not restdefinitions), so the caller evaluates the gate against the RESOLVED draft directly (a
- *      synthetic restdefinitions op) rather than against the git-write ops.
- *   2. The authorship stamp (FE-BP3) — host-injected managed-by/authored-by onto every op envelope.
- * The blueprintGate is deliberately NOT applied: it matches on the blueprintStore's held chart name,
- * which the KOG path never populates — the KOG preview gate is the correct preview-before-publish gate.
- */
-export const compileKogPublishOps = (
-  ops: ApplyResourceSetOp[],
-  kogVerdict: GateVerdict,
-  origin: AuthorshipOrigin,
-): PublishCompileResult => {
-  if (!kogVerdict.allowed) {
-    return { denial: kogVerdict.reason, ops: null }
-  }
-  return { denial: null, ops: stampAuthorship(ops, origin) }
-}
-
-/**
- * The SCM-agnostic (AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER) publish-compile step. The op set is a SINGLE
- * BuilderPublish claim carrying the held files verbatim — no $fileContent/$oasAttachment token to
- * substitute (the composition splits each path into fileName + toRepo.path and git-provider commits
- * the bytes). A preview gate still enforces preview-before-publish (blueprint/page: blueprintGate,
- * which now arms on the claim's `builderpublishes` resource; controller: the KOG preview gate via a
- * synthetic probe), then the authorship stamp lands on the claim envelope like the github paths.
+ * The publish-compile step every builder uses. The op set is a SINGLE BuilderPublish claim carrying
+ * the held files verbatim — no token to substitute (the composition splits each path into fileName +
+ * toRepo.path and git-provider commits the bytes). A preview gate enforces preview-before-publish
+ * (blueprint/page: blueprintGate, armed on the claim's `builderpublishes` resource; controller: the
+ * KOG preview gate via a synthetic probe), then the authorship stamp lands on the claim envelope.
  */
 export const compileClaimPublish = (
   ops: ApplyResourceSetOp[],

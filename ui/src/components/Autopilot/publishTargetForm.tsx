@@ -1,6 +1,6 @@
 /**
  * The PUBLISH DESTINATION form — the human declares WHERE a publish commits (owner /
- * repository / base branch) in a proper form BEFORE any git-write set is assembled. The
+ * repository / base branch) in a proper form BEFORE the publish claim is built. The
  * model's fence coords (and the builder defaults) are only PREFILLS: the destination is
  * user-owned and asked at every publish; the last confirmed choice prefills the next ask.
  *

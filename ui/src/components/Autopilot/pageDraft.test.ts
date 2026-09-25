@@ -162,14 +162,12 @@ describe('pageDisplayName', () => {
   })
 })
 
-// The safety invariant: a page publish (RepoContent/GitRef/PullRequest ops) is DENIED by the
-// SHARED blueprint gate unless the SAME page was previewed this thread — identical to the
-// blueprint invariant, so FE-P2 does not weaken the mutation-safety boundary.
+// The safety invariant: a page publish (the BuilderPublish claim) is DENIED by the SHARED blueprint
+// gate unless the SAME page was previewed this thread — identical to the blueprint invariant, so
+// FE-P2 does not weaken the mutation-safety boundary.
 describe('page publish gate (safety)', () => {
   const pagePublishOps = [
-    { gvr: { group: 'github.krateo.io', resource: 'gitrefs', version: 'v1alpha1' }, namespace: 'krateo-system', verb: 'POST' as const },
-    { gvr: { group: 'github.krateo.io', resource: 'repocontents', version: 'v1alpha1' }, namespace: 'krateo-system', verb: 'POST' as const },
-    { gvr: { group: 'github.krateo.io', resource: 'pullrequests', version: 'v1alpha1' }, namespace: 'krateo-system', verb: 'POST' as const },
+    { gvr: { group: 'composition.krateo.io', resource: 'builderpublishes', version: 'v1-8-21' }, namespace: 'krateo-system', verb: 'POST' as const },
   ]
 
   it('DENIES a page publish that was never previewed', () => {

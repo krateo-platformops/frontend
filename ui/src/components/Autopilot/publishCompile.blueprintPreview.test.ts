@@ -21,7 +21,8 @@ const DIRTY: Record<string, string> = {
   ...CLEAN,
   [VALUES_SCHEMA_PATH]: JSON.stringify({ properties: { resources: { default: { limits: { cpu: '100m' } }, type: 'object' } }, type: 'object' }),
 }
-const publishSet = [{ gvr: { group: 'github.krateo.io', resource: 'pullrequests', version: 'v1alpha1' }, name: 'pr', namespace: 'krateo-system', payload: {}, verb: 'POST' as const }]
+/** The one BuilderPublish claim every builder publishes through — the set the gate arms on. */
+const publishSet = [{ gvr: { group: 'composition.krateo.io', resource: 'builderpublishes', version: 'v1-8-21' }, name: 'publish-nginx-demo', namespace: 'krateo-system', payload: {}, verb: 'POST' as const }]
 
 describe('recordBlueprintPreview', () => {
   it('holds a clean, rendered draft AS A BLUEPRINT and arms the gate for its Chart.yaml name', () => {
