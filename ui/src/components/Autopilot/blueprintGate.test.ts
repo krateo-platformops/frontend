@@ -108,12 +108,12 @@ describe('forget — one name back to deny, the rest untouched', () => {
     const gate = createBlueprintGate()
     gate.recordPreview('hello')
     gate.recordPreview('other')
-    expect(gate.evaluate(gitSet, 'hello').allowed).toBe(true)
+    expect(gate.evaluate(claimSet, 'hello').allowed).toBe(true)
 
     gate.forget('hello')
 
-    expect(gate.evaluate(gitSet, 'hello').allowed).toBe(false)
-    expect(gate.evaluate(gitSet, 'other').allowed).toBe(true)
+    expect(gate.evaluate(claimSet, 'hello').allowed).toBe(false)
+    expect(gate.evaluate(claimSet, 'other').allowed).toBe(true)
   })
 
   it('a null/undefined/unknown name is a no-op, not a throw', () => {
@@ -124,7 +124,7 @@ describe('forget — one name back to deny, the rest untouched', () => {
       gate.forget(undefined)
       gate.forget('never-seen')
     }).not.toThrow()
-    expect(gate.evaluate(gitSet, 'hello').allowed).toBe(true)
+    expect(gate.evaluate(claimSet, 'hello').allowed).toBe(true)
   })
 
   it('a forgotten chart re-arms on its next clean preview', () => {
@@ -132,6 +132,6 @@ describe('forget — one name back to deny, the rest untouched', () => {
     gate.recordPreview('hello')
     gate.forget('hello')
     gate.recordPreview('hello')
-    expect(gate.evaluate(gitSet, 'hello').allowed).toBe(true)
+    expect(gate.evaluate(claimSet, 'hello').allowed).toBe(true)
   })
 })
