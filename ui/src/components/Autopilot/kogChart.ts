@@ -67,12 +67,24 @@ export const kogChartYaml = (kind: string): string => dump({
  * form is worse than no knob. NO subschema combinators — an `anyOf` in a values.schema.json is what
  * stranded builder-publish at Ready=False for two releases, because core-provider cannot turn a
  * combinator into a structural CRD.
+ *
+ * `global` is the one property it declares, and it is not a knob: nobody fills it in. The chart is
+ * registered through a CompositionDefinition (kogCompositionDefinition), composition-dynamic-
+ * controller adds a top-level `global` block to the values of every render, and a closed root that
+ * does not declare it refuses that block, so no claim of the controller could render (the same
+ * defect, and the same fix, as pageValuesSchema). Left open, because the controller decides which
+ * keys it carries.
  */
 export const kogValuesSchema = (kind: string): string => `${JSON.stringify({
   $schema: 'http://json-schema.org/draft-07/schema#',
   additionalProperties: false,
   description: `Krateo API Builder — the ${kind} controller.`,
-  properties: {},
+  properties: {
+    global: {
+      description: 'Set by composition-dynamic-controller on every render (composition name, namespace, kind, ...); not for a deployer to fill in.',
+      type: 'object',
+    },
+  },
   title: kind,
   type: 'object',
 }, null, 2)}\n`

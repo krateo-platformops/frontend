@@ -77,8 +77,19 @@ export interface BuilderPublishClaim {
      * `.gitignore` and a README, and no chart and no CompositionDefinition. The path is still sent:
      * a template without a `.krateoignore` is read as having nothing to ignore, and one that has one
      * gets it honoured for rendering, which is all it ever did.
+     *
+     * `intoBranch` is the BUILDER branch, always, so the scaffold is part of the change request.
+     * The chart's default is the base, which writes the scaffold straight onto main, unreviewed.
+     * That is harmless for a new repository and not for one that already exists: builder-publish
+     * adopts an existing repository of the same name (its Repository GETs before it creates), and
+     * the publish has no read of the SCM that could tell the two apart before it writes (builder
+     * surfaces read only through snowplow /call). Seeding main would then put a release workflow
+     * and a .helmignore onto another product's default branch, where the workflow runs on every
+     * later push. On the builder branch the scaffold, like the chart, reaches main only through a
+     * merge a person reviews. The release is unchanged for a new repository: its main stays
+     * README-only until the merge, and the merge push carries the workflow in and runs it.
      */
-    source?: { url: string; krateoIgnorePath: string }
+    source?: { intoBranch: string; krateoIgnorePath: string; url: string }
   }
 }
 
@@ -123,6 +134,14 @@ const TEMPLATE_IGNORE_DIR = '/'
  * compositiondefinition.yaml) is SKIPPED, and the change request folds the new chart's templates
  * into the old chart. Before this rule, fifteen page sets were published into one repository
  * (`demo-service-catalog`), because the publish form carried the last repository over.
+ *
+ * WHAT IT DOES NOT CHECK: that the repository is new. It compares two names and nothing else. That
+ * stops a publish landing in whatever repository was used last, but a chart that shares its name
+ * with an existing repository (`marketplace`, `github-provider-kog`) still passes, is adopted by
+ * builder-publish, and folds into that repository exactly as above. Refusing it would need a read
+ * of the SCM, which the builders do not have. What contains that case is where the seed lands: on
+ * the builder branch (`source.intoBranch`), so neither the scaffold nor the chart reaches that
+ * repository's main without a person merging a change request that shows both.
  *
  * Without a template there is no release workflow to protect, so the rule is not applied: the
  * repository prefill is still the slug, and a person may change it.
@@ -177,18 +196,20 @@ export const buildBuilderPublishClaim = (args: {
 }): BuilderPublishClaim => {
   const name = `${PUBLISH_CLAIM_PREFIX}${args.slug}`
   const ns = args.namespace || 'krateo-system'
+  const branch = builderBranch(args.slug)
   return {
     apiVersion: args.apiVersion,
     kind: 'BuilderPublish',
     metadata: { name, namespace: ns },
     spec: {
-      branch: builderBranch(args.slug),
+      branch,
       builder: args.builder,
       files: args.files,
       name,
       // Spread, so the key is ABSENT rather than present-and-undefined: the CRD is strict, and the
-      // chart decides whether to render the Repo by testing the url for emptiness.
-      ...(args.sourceUrl ? { source: { krateoIgnorePath: TEMPLATE_IGNORE_DIR, url: args.sourceUrl } } : {}),
+      // chart decides whether to render the Repo by testing the url for emptiness. The seed goes
+      // onto the builder branch, never the base (see the field doc).
+      ...(args.sourceUrl ? { source: { intoBranch: branch, krateoIgnorePath: TEMPLATE_IGNORE_DIR, url: args.sourceUrl } } : {}),
       target: { base: args.target.base, namespace: args.target.namespace, repo: args.target.repo },
     },
   }

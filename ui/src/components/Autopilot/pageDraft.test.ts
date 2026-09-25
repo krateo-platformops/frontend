@@ -61,6 +61,16 @@ describe('pageDraftFiles', () => {
       expect(Object.keys(schema.properties.tiers.properties)).toEqual(['common'])
     })
 
+    it('declares the `global` composition-dynamic-controller adds to every render, and stays closed', () => {
+      // CDC renders each composition with a top-level `global` block the deployer never writes, and
+      // Helm checks it against this schema first. A closed root without the declaration refused it,
+      // so no composition of a registered page set rendered and none of its pages were created.
+      // generatedValuesSchemas.test.ts validates the full block against this generator.
+      const schema = JSON.parse(chart()['values.schema.json']) as { additionalProperties: unknown; properties: Record<string, unknown> }
+      expect(schema.properties.global).toBeDefined()
+      expect(schema.additionalProperties).toBe(false)
+    })
+
     it('states the same defaults in values.yaml as in the schema', () => {
       // Two files describing one fact drift; this is the cheapest place to notice.
       const schema = JSON.parse(chart()['values.schema.json']) as { properties: { tiers: { properties: { common: { default: string } } } } }

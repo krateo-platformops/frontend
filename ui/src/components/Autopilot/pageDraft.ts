@@ -102,12 +102,27 @@ Returns .Values.tiers.<tier> if non-empty, else .Release.Namespace.
  * It lists ONLY the tier the templates actually reference. The portal's own schema offers admin and
  * tenant beside common, and mirroring all three here would have put two knobs in the install form
  * that no template reads — a setting that silently does nothing is worse than one that isn't there.
+ *
+ * `global` is declared because the root is closed and a value nobody fills in still arrives.
+ * composition-dynamic-controller adds a top-level `global` block to the values of EVERY render
+ * (plumbing `InjectGlobalValues`: compositionName, compositionNamespace, compositionKind and seven
+ * more), and Helm validates the values against this file before it renders. Without the
+ * declaration a closed root refuses that block, so every composition of a registered page set
+ * failed its install and created no page, after a publish, a merge, a release and a Register that
+ * all went green. It stays OPEN (no nested additionalProperties) because the controller, not this
+ * chart, decides which keys it carries. The blueprint lint refuses the same closed root in an
+ * authored schema ([CDC-GLOBAL], lintValuesSchemaRoot); generatedValuesSchemas.test.ts runs that
+ * check on this generator too, so the two cannot drift apart.
  */
 export const pageValuesSchema = (slug: string): string => `${JSON.stringify({
   $schema: 'http://json-schema.org/draft-07/schema#',
   additionalProperties: false,
   description: `Krateo Composable Portal pages — ${slug}.`,
   properties: {
+    global: {
+      description: 'Set by composition-dynamic-controller on every render (composition name, namespace, kind, ...); not for a deployer to fill in.',
+      type: 'object',
+    },
     tiers: {
       additionalProperties: false,
       description: 'Which namespace this page set is created in. Empty = the release namespace.',

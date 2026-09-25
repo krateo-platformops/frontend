@@ -108,7 +108,7 @@ describe('runDraftPublish — the lint runs under the HELD kind', () => {
     expect(outcome.compiled.denial).toMatch(/fails the chart lint: \[CDC-GLOBAL\] values\.schema\.json: the root sets "additionalProperties": false and does not declare "global"/)
   })
 
-  it('a page set is NOT denied for its generated closed root — the CDC-GLOBAL rule is a blueprint\'s', async () => {
+  it('a page set is NOT denied for its generated schema — its closed root declares global', async () => {
     const store = createBlueprintDraftStore()
     store.set({ [CHART_YAML_PATH]: pageChartYaml('page-x'), [VALUES_SCHEMA_PATH]: pageValuesSchema('page-x'), 'templates/flex.page-x.yaml': 'kind: Flex\n' }, 'page')
     const outcome = await runDraftPublish(deps(store), { verb: 'publishPage' })

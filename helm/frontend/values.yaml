@@ -212,8 +212,20 @@ config:
   #   repository with the chart's name and refuses any other, because a seeded repo releases exactly
   #   one chart, at its root.
   #
+  #   The scaffold is copied onto the BUILDER branch, not main, so it reaches main only with the
+  #   change request a person merges. A chart named like a repository that already exists is
+  #   published into that repository, and seeding main would have put a release workflow onto its
+  #   default branch with no review.
+  #
   #   The scaffold must EXIST before a frontend carrying these defaults is deployed: the claim's file
   #   commits wait for the seed, so a missing template leaves every publish pending.
+  #
+  #   The template is cloned from AUTOPILOT_GIT_HOST, not from github.com: the frontend joins the
+  #   owner/repo slug to that host. On a self-hosted SCM, either mirror
+  #   krateo-blueprints/builder-scaffold at the same owner/repo on that host, or set BOTH
+  #   AUTOPILOT_PAGE_BUILDER_TEMPLATE and AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE to "". Otherwise the
+  #   seed clone fails and every publish waits on it forever, listed nowhere: the deliverables and
+  #   builder-prs lists are built from the file commits, which never happen.
   AUTOPILOT_PAGE_BUILDER_TEMPLATE: krateo-blueprints/builder-scaffold
   AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE: krateo-blueprints/builder-scaffold
   # BLUEPRINT / KOG(controller) — PER-ARTIFACT repos (#163): each blueprint / RestDefinition gets its
@@ -260,6 +272,7 @@ config:
   # the AUTOPILOT_GIT_SCM values below are not all equally complete paths today.
   # SCM flavour + host — drive the "Open pull/merge request" deep link + the source-citation URL
   # scheme (github | gitlab | bitbucket | ado). Default github.com; set for self-hosted / other SCMs.
+  # Changing the host also moves where the builder templates above are cloned from.
   AUTOPILOT_GIT_SCM: github
   AUTOPILOT_GIT_HOST: github.com
   # Autopilot SPEAK-BACK — reads an answer aloud when the question was asked BY VOICE (a

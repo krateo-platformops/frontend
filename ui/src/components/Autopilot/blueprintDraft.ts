@@ -374,9 +374,10 @@ export const lintBlueprintDraft = (rawTemplates: Record<string, string>, kind: D
     problems.push(...lintValuesSchemaDefaults(schemaText))
     // A BLUEPRINT only, because a refusal has to be something the author can act on. A blueprint's
     // schema is authored, by a person or an agent, and this is the last point before a composition
-    // fails where anyone sees it. A page set's is GENERATED (pageValuesSchema), closed at the root,
-    // and would be refused on every page draft for a file nobody wrote — that generator, and
-    // kogValuesSchema beside it, carry the same exposure and are fixed where they are written.
+    // fails where anyone sees it. A page set's is GENERATED (pageValuesSchema), and so is a
+    // controller's (kogValuesSchema): a refusal here would name a file nobody wrote. Both close
+    // their root and declare `global` where they are written, and generatedValuesSchemas.test.ts
+    // runs this same check on them, so a regression fails a test instead of every page publish.
     if (kind === 'blueprint') {
       problems.push(...lintValuesSchemaRoot(schemaText))
     }

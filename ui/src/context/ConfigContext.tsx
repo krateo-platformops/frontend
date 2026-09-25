@@ -87,7 +87,9 @@ export interface Config {
      * `builder-publish` creates the destination repo and auto-inits it, so without one a composed
      * chart lands in a bare repo: a valid chart with no release workflow, and therefore no way to
      * release itself. Setting one makes the claim render a git-provider `Repo` (`fromRepo` →
-     * `toRepo`) that copies the template in first. The template must be chart-free — git-provider
+     * `toRepo`) that copies the template in first, onto the builder branch so it is reviewed with
+     * the chart. It is cloned from AUTOPILOT_GIT_HOST, so a self-hosted SCM needs a mirror of it at
+     * the same slug, or both keys empty. The template must be chart-free — git-provider
      * copies every file, and `.krateoignore` only stops rendering — which is why both default to
      * `krateo-blueprints/builder-scaffold`: a release workflow, `.helmignore`, `.gitignore`, a
      * README, and nothing a composed chart could collide with. The CompositionDefinition is NOT

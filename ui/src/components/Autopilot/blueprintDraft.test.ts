@@ -26,7 +26,6 @@ import {
   rawTemplatesByteSize,
   stripCodeFence,
 } from './blueprintDraft'
-import { pageValuesSchema } from './pageDraft'
 
 describe('stripCodeFence — de-fence a model-wrapped file body', () => {
   const json = '{ "title": "AWS VPC", "type": "object" }'
@@ -389,10 +388,12 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
       expect(withSchema({ properties: { db: { additionalProperties: false, properties: { name: { type: 'string' } }, type: 'object' } }, type: 'object' })).toBe('')
     })
 
-    it('is a BLUEPRINT rule — a page set\'s generated schema is not refused for it', () => {
-      // pageValuesSchema is written by the page builder, closed at the root; refusing it here would
-      // refuse every page draft for a file nobody authored.
-      const pageDraft = { 'Chart.yaml': 'apiVersion: v2\nname: fleet\nversion: CHART_VERSION\n', 'values.schema.json': pageValuesSchema('fleet') }
+    it('is a BLUEPRINT rule — a page draft is not refused for it', () => {
+      // A page set's schema is written by the page builder, not by the person publishing it, so a
+      // refusal here would name a file nobody authored. The generator declares global instead, and
+      // generatedValuesSchemas.test.ts runs this same check on it. The schema here is closed WITHOUT
+      // global on purpose: with the generator's own, this test would pass whatever the scope was.
+      const pageDraft = { 'Chart.yaml': 'apiVersion: v2\nname: fleet\nversion: CHART_VERSION\n', 'values.schema.json': JSON.stringify(closed) }
       expect(lintBlueprintDraft(pageDraft, 'page').join('\n')).not.toContain('CDC-GLOBAL')
     })
 

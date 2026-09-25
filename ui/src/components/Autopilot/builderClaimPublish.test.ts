@@ -158,6 +158,18 @@ describe('buildClaimPublish', () => {
       expect(res.compiled.ops?.[0].payload).toMatchObject({ spec: { source: { url: TEMPLATE }, target: { repo: 'orders-api' } } })
     })
 
+    it('seeds the claim\'s own builder branch, so a same-named EXISTING repository\'s main is never written', async () => {
+      // The name rule cannot tell a new repository from an existing one: `orders-api` passes it
+      // either way, and builder-publish adopts a repository that already exists. What keeps that
+      // repository's main unwritten is the seed landing on the branch the change request is opened
+      // from, so the scaffold is reviewed with the chart.
+      const res = await publish('orders-api', TEMPLATE)
+      const claim = res.compiled.ops?.[0].payload as { spec: { branch: string; source?: { intoBranch?: string } } }
+      expect(claim.spec.source?.intoBranch).toBe(claim.spec.branch)
+      expect(res.branch).toBe('builder/orders-api')
+      expect(res.deepLink).toContain('compare/main...builder/orders-api')
+    })
+
     it('leaves an UNSEEDED destination to the person — there is no release workflow to protect', async () => {
       const res = await publish('shared-charts', null)
       expect(res.compiled.denial).toBeNull()

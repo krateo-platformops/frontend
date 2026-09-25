@@ -17,14 +17,26 @@ import { join } from 'node:path'
 import { load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
-import { resolveBuilderTarget, type BuilderTargetSlugs } from './builderTargets'
+import { builderTemplateUrl, resolveBuilderTarget, type BuilderTargetSlugs } from './builderTargets'
 
 const CHART = join(__dirname, '..', '..', '..', '..', 'helm', 'frontend')
 
 interface ConfigSchema { properties: { config: { default: Record<string, unknown>; properties: Record<string, { default?: unknown }> } } }
 
 const schema = JSON.parse(readFileSync(join(CHART, 'values.schema.json'), 'utf8')) as ConfigSchema
-const values = load(readFileSync(join(CHART, 'values.yaml'), 'utf8')) as { config: Record<string, unknown> }
+const valuesText = readFileSync(join(CHART, 'values.yaml'), 'utf8')
+const values = load(valuesText) as { config: Record<string, unknown> }
+
+/** The comment lines directly above `key:` in values.yaml, joined — what an operator reads for it. */
+const commentAbove = (key: string): string => {
+  const lines = valuesText.split('\n')
+  const at = lines.findIndex((line) => line.trimStart().startsWith(`${key}:`))
+  const block: string[] = []
+  for (let i = at - 1; i >= 0 && lines[i].trimStart().startsWith('#'); i -= 1) {
+    block.unshift(lines[i].trimStart().replace(/^#\s?/, '').trim())
+  }
+  return block.join(' ')
+}
 
 /** Every key builderTargets reads. Typed against BuilderTargetSlugs, so a key added there and not here fails to compile. */
 const BUILDER_KEYS: Record<keyof BuilderTargetSlugs, true> = {
@@ -62,5 +74,28 @@ describe('the defaults themselves (D1, D8)', () => {
     const target = resolveBuilderTarget(deployed('AUTOPILOT_BLUEPRINT_BUILDER_REPO') as string)
     expect(target.owner).toBe('krateo-blueprints')
     expect(target.repo).not.toMatch(/^[A-Za-z0-9._-]+$/)
+  })
+})
+
+describe('what values.yaml tells a self-hosted SCM install about the templates', () => {
+  // The default template is a github.com repository, and it is cloned from AUTOPILOT_GIT_HOST. On
+  // any other host that repository does not exist, the seed clone fails, and every publish waits on
+  // it forever without appearing in any list — while an unseeded publish worked there before the
+  // templates had defaults. The operator reads values.yaml, so values.yaml has to say it.
+  it('the templates are cloned from AUTOPILOT_GIT_HOST, not github.com', () => {
+    const template = resolveBuilderTarget(deployed('AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE') as string)
+    expect(builderTemplateUrl(template, 'gitlab.example.com')).toBe('https://gitlab.example.com/krateo-blueprints/builder-scaffold.git')
+  })
+
+  it('says so above the template keys, with both ways out', () => {
+    const doc = commentAbove('AUTOPILOT_PAGE_BUILDER_TEMPLATE')
+    expect(doc).toMatch(/cloned from AUTOPILOT_GIT_HOST, not from github\.com/)
+    expect(doc).toMatch(/mirror krateo-blueprints\/builder-scaffold at the same owner\/repo on that host/)
+    expect(doc).toMatch(/set BOTH AUTOPILOT_PAGE_BUILDER_TEMPLATE and AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE to ""/)
+  })
+
+  it('and again above the SCM/host keys, where the change is made', () => {
+    // The pair shares one comment, above AUTOPILOT_GIT_SCM.
+    expect(commentAbove('AUTOPILOT_GIT_SCM')).toMatch(/Changing the host also moves where the builder templates above are cloned from/)
   })
 })

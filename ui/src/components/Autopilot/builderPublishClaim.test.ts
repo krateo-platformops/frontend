@@ -63,6 +63,16 @@ describe('buildBuilderPublishClaim', () => {
         .toBe('https://github.com/krateo-blueprints/builder-scaffold.git')
     })
 
+    it('seeds the BUILDER branch, never the base — the scaffold rides the change request', () => {
+      // builder-publish's default seeds target.base. A chart named like an existing repository is
+      // adopted by the publish, so seeding the base committed a release workflow and a .helmignore
+      // straight onto that repository's main, unreviewed, where the workflow then ran on every push.
+      const claim = claimWith('https://github.com/krateo-blueprints/builder-scaffold.git')
+      expect(claim.spec.source?.intoBranch).toBe(claim.spec.branch)
+      expect(claim.spec.source?.intoBranch).toBe('builder/fleet')
+      expect(claim.spec.source?.intoBranch).not.toBe(target.base)
+    })
+
     it('sends the ignore DIRECTORY, not the filename — git-provider appends the filename itself', () => {
       // Passing '.krateoignore' here makes git-provider look for '.krateoignore/.krateoignore' and
       // the seeding clone dies outright:
