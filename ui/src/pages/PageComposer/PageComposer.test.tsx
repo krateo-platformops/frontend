@@ -15,7 +15,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
 import { emitDraftChanged, previewSurfaceClaimed } from '../../components/Autopilot/previewDraftChanged'
-import { onDraftClose } from '../../components/Autopilot/previewDraftClose'
+import { emitDraftClose, onDraftClose } from '../../components/Autopilot/previewDraftClose'
 import { AUTOPILOT_DRAFT_START_EVENT } from '../../components/Autopilot/previewDraftStart'
 import type { DraftStartDetail } from '../../components/Autopilot/previewDraftStart'
 import { AUTOPILOT_PUBLISH_REQUEST_EVENT, emitPublishResult } from '../../components/Autopilot/previewPublishRequest'
@@ -80,6 +80,30 @@ describe('PageComposer — the preview surface, outside the rail', () => {
       window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, { detail: { builder: 'blueprint', summary: ['nginx-demo-rendered'], title: 'Blueprint preview — nginx-demo' } }))
     })
     expect(screen.queryByText('nginx-demo-rendered')).toBeNull()
+    expect(screen.getByText(/No draft open/i)).toBeTruthy()
+  })
+
+  it('SHOWS a page draft held from before it mounted, instead of "No draft open" over it', () => {
+    // The draft reaches a late-mounted composer by replay — files, no payload. It used to say "No
+    // draft open" and offer a Start the provider silently refused, with no way to discard.
+    mount()
+    act(() => emitDraftChanged({ files: { 'templates/flex.page-x.yaml': widgetCr('Flex', 'page-x') }, kind: 'page' }))
+    expect(screen.queryByText(/No draft open/i)).toBeNull()
+    expect(screen.getByText(/Held from earlier in this thread/i)).toBeTruthy()
+    const closes = vi.fn()
+    const stop = onDraftClose(closes)
+    act(() => { screen.getByText('Close draft').click() })
+    act(() => { screen.getByText('Discard').click() })
+    stop()
+    expect(closes).toHaveBeenCalledTimes(1)
+  })
+
+  it('drops its render when the draft is discarded ELSEWHERE — a re-apply landing late re-announces it', () => {
+    const onClose = vi.fn()
+    mount()
+    emit({ files: [{ content: widgetCr('Flex', 'page-x'), path: 'flex.page-x.yaml' }], onClose, title: 'x' })
+    act(() => { emitDraftClose() })
+    expect(onClose).toHaveBeenCalledTimes(1)
     expect(screen.getByText(/No draft open/i)).toBeTruthy()
   })
 

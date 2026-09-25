@@ -15,11 +15,12 @@ import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createBlueprintDraftStore } from './blueprintDraftStore'
+import { getComposeRefusals, recordComposeOutcome } from './composeRequest'
 import { draftHistory } from './draftHistory'
 import { onPreviewApplied } from './previewApplied'
-import { AUTOPILOT_PREVIEW_EVENT } from './previewBus'
+import { AUTOPILOT_PREVIEW_EVENT, getPreviewProblems, setPreviewProblems } from './previewBus'
 import { type DraftChangedDetail, onDraftChanged, requestDraftReplay } from './previewDraftChanged'
-import { emitDraftClose } from './previewDraftClose'
+import { emitDraftClose, onDraftClose } from './previewDraftClose'
 import { emitDraftStart } from './previewDraftStart'
 import { emitDraftUndo } from './previewDraftUndo'
 import { emitFileAdd } from './previewFileAdd'
@@ -430,6 +431,22 @@ describe('discarding the held draft', () => {
     expect(store.get()?.kind).toBe('page')
   })
 
+  it('forgets what the MODEL was told about the draft — its refusals and its preview verdicts', () => {
+    const store = createBlueprintDraftStore()
+    const Hosted = () => {
+      useDraftFileBuses(store, { forget: vi.fn(), recordPreview: vi.fn() }, () => 'page:x')
+      return null
+    }
+    render(<Hosted />)
+    act(() => { emitDraftStart({ title: 'x', widgets: widgets() }) })
+    recordComposeOutcome({ op: 'move', target: 'page-x', widget: 'table-a' }, { applied: false, id: '1', paths: [], reason: 'page-x cannot hold a table' })
+    setPreviewProblems(['spec.widgetData.items: required'])
+    act(() => { emitDraftClose() })
+    // Left behind, the next turn is spent fixing a page that no longer exists.
+    expect(getComposeRefusals()).toBeNull()
+    expect(getPreviewProblems()).toBeNull()
+  })
+
   it('is a no-op with nothing held', () => {
     const store = createBlueprintDraftStore()
     const gate = { forget: vi.fn(), recordPreview: vi.fn() }
@@ -456,5 +473,70 @@ describe('the provider store', () => {
     // values.schema.json is missing — the lint says so on the broadcast itself.
     expect(heard[0].problems?.some((line) => line.includes('values.schema.json'))).toBe(true)
     expect(heard[1]).toEqual({ files: {}, kind: null, problems: [] })
+  })
+})
+
+describe('a discard that lands while a re-apply is on the wire', () => {
+  afterEach(() => draftHistory.clear())
+
+  /** A live apply that does not land until the test says so. */
+  const deferredLive = () => {
+    const calls: Array<() => void> = []
+    const live = vi.fn(() => new Promise<void>((resolve) => { calls.push(resolve) }))
+    return { calls, live }
+  }
+
+  const host = (live: ReturnType<typeof deferredLive>['live']) => {
+    const store = createBlueprintDraftStore()
+    const Hosted = () => {
+      useDraftFileBuses(store, { forget: vi.fn(), recordPreview: vi.fn() }, (held) => (held ? 'page:x' : null), live)
+      return null
+    }
+    render(<Hosted />)
+    return store
+  }
+
+  it('is ANNOUNCED AGAIN when the apply lands, so every surface drops the render it put back', async () => {
+    const { calls, live } = deferredLive()
+    host(live)
+    const closes = vi.fn()
+    const applied = vi.fn()
+    const stopCloses = onDraftClose(closes)
+    const stopApplied = onPreviewApplied(applied)
+    act(() => { emitDraftStart({ title: 'x', widgets: widgets() }) })
+    expect(live).toHaveBeenCalledTimes(1)
+
+    act(() => { emitDraftClose() })
+    expect(closes).toHaveBeenCalledTimes(1)
+    // The apply was already past its sweep: it lands, re-creating the sandbox objects and opening a
+    // live render of the draft that was just thrown away.
+    await act(async () => {
+      calls[0]()
+      await Promise.resolve()
+    })
+    stopCloses()
+    stopApplied()
+    expect(closes).toHaveBeenCalledTimes(2)
+    // …and it is not announced as an applied preview of anything.
+    expect(applied).not.toHaveBeenCalled()
+  })
+
+  it('stays quiet when a NEW draft was started meanwhile — that one is not answerable for the last', async () => {
+    const { calls, live } = deferredLive()
+    const store = host(live)
+    const closes = vi.fn()
+    const stop = onDraftClose(closes)
+    act(() => { emitDraftStart({ title: 'x', widgets: widgets() }) })
+    act(() => { emitDraftClose() })
+    act(() => { emitDraftStart({ title: 'y', widgets: widgets() }) })
+    await act(async () => {
+      calls[0]()
+      await Promise.resolve()
+    })
+    stop()
+    expect(closes).toHaveBeenCalledTimes(1)
+    expect(store.get()?.kind).toBe('page')
+    // The new draft is applied next, by the same serialised loop.
+    expect(live).toHaveBeenCalledTimes(2)
   })
 })

@@ -38,7 +38,7 @@ import { draftHistory } from '../../components/Autopilot/draftHistory'
 import { AUTOPILOT_PREVIEW_EVENT, isPageDraftPayload } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { claimPreviewSurface, onDraftChanged, requestDraftReplay } from '../../components/Autopilot/previewDraftChanged'
-import { emitDraftClose } from '../../components/Autopilot/previewDraftClose'
+import { emitDraftClose, onDraftClose } from '../../components/Autopilot/previewDraftClose'
 import { emitDraftStart } from '../../components/Autopilot/previewDraftStart'
 import { emitDraftUndo } from '../../components/Autopilot/previewDraftUndo'
 import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
@@ -57,6 +57,7 @@ import CreateWidgetModal from './CreateWidgetModal'
 import { resolveDrop } from './dndIds'
 import type { DragPayload, DropPayload } from './dndIds'
 import { legalTargets } from './dropTargets'
+import { heldPagePayload } from './heldPagePayload'
 import { buildObjectTree, draftNamespace, flattenTree } from './objectTree'
 import type { TreeNode } from './objectTree'
 import ObjectTreePanel from './ObjectTreePanel'
@@ -669,14 +670,20 @@ const PageComposer = () => {
 
   // A REAL discard: the held draft is dropped in the provider — store, gate arming, undo history —
   // not merely hidden here. Hiding it left the files publishable and refused every later start.
-  const closeDraft = () => {
-    emitDraftClose()
+  // This view is torn down by LISTENING, not here, because a discard is also re-announced when a
+  // re-apply that was already on the wire lands after it and puts a render back.
+  const closeDraft = emitDraftClose
+  useEffect(() => onDraftClose(() => {
     payload?.onClose?.()
     setPayload(null)
     setEditVerdicts(null)
     setFiles({})
     setFocusPath(null)
-  }
+  }), [payload])
+
+  // What the body shows: the adopted preview, or — for a page held from before this view mounted —
+  // one built from the held files, rather than "No draft open" over a draft that is there.
+  const shown = useMemo(() => payload ?? (parkedBlueprint ? null : heldPagePayload(files)), [files, parkedBlueprint, payload])
 
   const emptyState = <ComposerEmptyState onDiscard={closeDraft} onStart={() => setStarting(true)} parkedBlueprint={parkedBlueprint} />
 
@@ -713,7 +720,7 @@ const PageComposer = () => {
         {/* Closing is the sandbox TEARDOWN, which this page now owns: it took the claim, so the
             drawer that used to carry this control never opens here. Confirmed rather than
             immediate, because the draft is not recoverable and nothing else in view says so. */}
-        {payload && !parkedBlueprint
+        {shown && !parkedBlueprint
           ? (
             <Space className={styles.actions}>
               {/*
@@ -783,7 +790,7 @@ const PageComposer = () => {
           : null}
       </header>
 
-      {payload && !parkedBlueprint
+      {shown && !parkedBlueprint
         ? (
           /*
            * BUILD ABOVE, RESULT BELOW — and exactly one tab bar on the page.
@@ -858,7 +865,7 @@ const PageComposer = () => {
                   </section>
                   <SplitDivider onChange={setSplit} value={split} />
                   <div className={styles.result} ref={resultRef}>
-                    <PreviewContent caption={payload.caption ? LIVE_PREVIEW_CAPTION_INLINE : undefined} editVerdicts={editVerdicts} focusPath={focusPath} liveFiles={files} onVerdicts={setEditVerdicts} payload={payload} />
+                    <PreviewContent caption={payload?.caption ? LIVE_PREVIEW_CAPTION_INLINE : undefined} editVerdicts={editVerdicts} focusPath={focusPath} liveFiles={files} onVerdicts={setEditVerdicts} payload={shown} />
                   </div>
                 </div>
 

@@ -20,12 +20,16 @@ export interface PreviewObjectEntry {
 /** Everything the preview drawer renders. Pure data — the surface never fetches. */
 export interface AutopilotPreviewPayload {
   /**
-   * WHICH BUILDER'S PREVIEW THIS IS. Absent means a PAGE draft — every page payload predates this
-   * field, and the page composer adopts exactly those. Everything else says what it is, because the
-   * page composer claims the preview surface while it is mounted and the drawer defers to it: a
-   * blueprint, RestDefinition or inspection preview proposed on /portal-builder/compose was swallowed
-   * by a surface that cannot show it. Ownership is decided by what the preview IS, not by which
-   * draft happens to be held.
+   * WHAT THIS PREVIEW IS. Absent means a PAGE draft — every page payload predates this field, and
+   * the page composer adopts exactly those. `blueprint` is a chart draft the provider HOLDS: a clean
+   * inline draft that rendered. `restdef` is a RestDefinition draft. `inspect` holds nothing — a
+   * published chart's dry run, a draft that failed its lint or its render, a CRD description.
+   *
+   * Two decisions hang on it. WHERE it shows: the page composer claims the preview surface while
+   * mounted and the drawer defers to it, so a chart or an inspection routed there was shown nowhere.
+   * And WHETHER it is the held draft: its Files tab writes into the held draft by path, its lint is
+   * the held draft's lint, and a discard closes it — none of which is true of a preview nothing
+   * holds, whose edits would land in whatever draft happened to be held under the same file names.
    */
   builder?: 'blueprint' | 'restdef' | 'inspect'
   /** Drawer title, named by the verb (e.g. "Blueprint preview — aws-vpc"). */
@@ -98,3 +102,7 @@ export const openAutopilotPreview = (payload: AutopilotPreviewPayload): void => 
 
 /** True for a payload the page composer owns: a page draft (the only kind with no `builder`). */
 export const isPageDraftPayload = (payload: Pick<AutopilotPreviewPayload, 'builder'>): boolean => payload.builder === undefined
+
+/** True when the payload shows the draft the provider holds — what a Files-tab edit writes into. */
+export const isHeldDraftPayload = (payload: Pick<AutopilotPreviewPayload, 'builder'>): boolean =>
+  payload.builder === undefined || payload.builder === 'blueprint'

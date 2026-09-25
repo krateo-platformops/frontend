@@ -241,6 +241,8 @@ describe('AutopilotPreviewDrawer — the held draft, discarded or dirty', () => 
     await waitFor(() => expect(view.getByText('Page preview — x')).toBeTruthy())
     act(() => { emitDraftClose() })
     expect(onClose).toHaveBeenCalledTimes(1)
+    // CLOSED, not merely torn down: left open it would offer edits to files that no longer exist.
+    await waitFor(() => expect(document.querySelector('.ant-drawer-open')).toBeNull())
   })
 
   it('a discard leaves an INSPECTION open — it was never the draft', async () => {
@@ -262,5 +264,52 @@ describe('AutopilotPreviewDrawer — the held draft, discarded or dirty', () => 
     act(() => { openAutopilotPreview({ builder: 'restdef', summary: ['gh-repo'], title: 'RestDefinition preview — gh-repo' }) })
     await waitFor(() => expect(view.getByText('RestDefinition preview — gh-repo')).toBeTruthy())
     expect(view.queryByText('values.schema.json is missing')).toBeNull()
+  })
+})
+
+describe('AutopilotPreviewDrawer — only the HELD draft is editable', () => {
+  const chartFiles = [{ content: 'apiVersion: v2\nname: aws-vpc\n', path: 'Chart.yaml' }]
+
+  it('a held blueprint draft offers Edit on its chart files', async () => {
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ builder: 'blueprint', files: chartFiles, filesLabel: 'Chart files', title: 'Blueprint preview — aws-vpc' }) })
+    await waitFor(() => expect(view.getByText('Chart.yaml')).toBeTruthy())
+    expect(view.getByRole('button', { name: 'Edit' })).toBeTruthy()
+  })
+
+  it('a preview nothing holds (a draft that failed to render) shows its files READ-ONLY', async () => {
+    // An edit here was written by path into whatever WAS held — a page set holds Chart.yaml too.
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ builder: 'inspect', error: 'function "boom" not defined', files: chartFiles, filesLabel: 'Chart files', title: 'Blueprint preview — aws-vpc' }) })
+    await waitFor(() => expect(view.getByText('Chart.yaml')).toBeTruthy())
+    expect(view.queryByRole('button', { name: 'Edit' })).toBeNull()
+  })
+
+  it('does not show the held draft\'s lint problems on a preview that is not the held draft', async () => {
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ builder: 'inspect', summary: ['aws-vpc'], title: 'Blueprint preview — aws-vpc' }) })
+    await waitFor(() => expect(view.getByText('Blueprint preview — aws-vpc')).toBeTruthy())
+    act(() => { emitDraftChanged({ files: { 'Chart.yaml': 'x' }, kind: 'page', problems: ['values.schema.json is missing'] }) })
+    expect(view.queryByText('values.schema.json is missing')).toBeNull()
+  })
+
+  it('closes a held draft that a deferred PAGE preview replaced — its Files tab would write into the page', async () => {
+    const release = claimPreviewSurface()
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ builder: 'blueprint', files: chartFiles, filesLabel: 'Chart files', title: 'Blueprint preview — aws-vpc' }) })
+    await waitFor(() => expect(view.getByText('Blueprint preview — aws-vpc')).toBeTruthy())
+    act(() => { openAutopilotPreview({ summary: ['flex.page-x'], title: 'Page preview — x' }) })
+    await waitFor(() => expect(document.querySelector('.ant-drawer-open')).toBeNull())
+    release()
+  })
+
+  it('leaves an INSPECTION open when a deferred page preview arrives — nothing replaced it', async () => {
+    const release = claimPreviewSurface()
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ builder: 'inspect', summary: ['repos'], title: 'Describe — repos' }) })
+    await waitFor(() => expect(view.getByText('Describe — repos')).toBeTruthy())
+    act(() => { openAutopilotPreview({ summary: ['flex.page-x'], title: 'Page preview — x' }) })
+    expect(document.querySelector('.ant-drawer-open')).not.toBeNull()
+    release()
   })
 })

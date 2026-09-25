@@ -112,8 +112,9 @@ describe('previewBlueprint', () => {
     expect(openPreviewMock).toHaveBeenCalledTimes(1)
     const payload = openedPayload()
     expect(payload.title).toBe('Blueprint preview — aws-vpc')
-    // Says what it is, so a mounted page composer does not swallow it (the drawer opens for it).
-    expect(payload.builder).toBe('blueprint')
+    // A published chart's dry run holds nothing: an inspection, shown in the drawer, never adopted
+    // by a page composer and never written into by a Files-tab edit.
+    expect(payload.builder).toBe('inspect')
     expect(payload.error).toBeUndefined()
     expect(payload.objects).toEqual([{ apiVersion: 'apps/v1', kind: 'Deployment', name: 'web', namespace: 'demo', yaml: 'kind: Deployment' }])
     expect(chip).toEqual({ label: 'preview aws-vpc (1 object)', readOnly: true, verb: 'previewBlueprint' })

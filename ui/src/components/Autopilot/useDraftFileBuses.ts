@@ -29,9 +29,9 @@ import { draftHistory } from './draftHistory'
 import { pageDisplayName, pageDraftWidgets } from './pageDraft'
 import { emitPreviewApplied } from './previewApplied'
 import { buildPagePreviewPayload } from './previewBridge'
-import { openAutopilotPreview } from './previewBus'
+import { openAutopilotPreview, setPreviewProblems } from './previewBus'
 import { type DraftChangedDetail, emitDraftChanged, onDraftReplayRequest } from './previewDraftChanged'
-import { onDraftClose } from './previewDraftClose'
+import { emitDraftClose, onDraftClose } from './previewDraftClose'
 import { onDraftStart } from './previewDraftStart'
 import { onDraftUndo } from './previewDraftUndo'
 import { onFileAdd } from './previewFileAdd'
@@ -121,6 +121,8 @@ export const useDraftFileBuses = (
   const inFlight = useRef(false)
   /** Something changed while an apply was running — drain it when that one lands. */
   const pending = useRef(false)
+  /** How many held drafts were discarded — an apply that sees this move under it was for a dead one. */
+  const discards = useRef(0)
 
   /*
    * ONE APPLY AT A TIME, and the reason is the 409 this replaced.
@@ -170,10 +172,19 @@ export const useDraftFileBuses = (
         if (!job) {
           break
         }
+        const discardsBefore = discards.current
         // Serialising IS the point: the next apply must not start until this one's POSTs have
         // landed, or its sweep races them.
         // eslint-disable-next-line no-await-in-loop
         await live(job.widgets, job.title)
+        // DISCARDED WHILE ON THE WIRE. The apply re-created the sandbox objects and opened a live
+        // render of a draft the person has just thrown away — after the surfaces had torn theirs
+        // down. Say it again, so each drops what this apply put back. Only while nothing new is
+        // held: a draft started since then is not answerable for this one, and its own apply sweeps.
+        if (discards.current !== discardsBefore && !storeRef.current.get()) {
+          emitDraftClose()
+          break
+        }
         // The announcement is what makes the RENDER follow: the apply changed what the sandbox
         // serves, and the pane's query is keyed on a URL that did not change. See previewApplied.
         emitPreviewApplied()
@@ -297,14 +308,15 @@ export const useDraftFileBuses = (
     }
   }), [rearm, scheduleReapply, store])
 
-  // DISCARD: the held draft goes — its files, its gate arming, its undo steps and the refusals the
-  // model was told about it. Arming is forgotten BEFORE the clear, while the identity is still
-  // readable; and a queued re-apply is cancelled, since it would apply a draft that no longer exists.
+  // DISCARD: the held draft goes — its files, its gate arming, its undo steps and what the model was
+  // told about it. Arming is forgotten BEFORE the clear, while the identity is still readable; a
+  // queued re-apply is cancelled, and one already on the wire notices when it lands (runApply).
   useEffect(() => onDraftClose(() => {
     const held = store.get()
     if (!held) {
       return
     }
+    discards.current += 1
     gate.forget?.(identityOf(held))
     if (replayTimer.current) {
       clearTimeout(replayTimer.current)
@@ -312,6 +324,9 @@ export const useDraftFileBuses = (
     }
     draftHistory.clear()
     clearComposeRefusals()
+    // The verdicts the model was shown about this draft go with it, or its next turn is spent
+    // fixing a page that no longer exists.
+    setPreviewProblems(null)
     store.clear()
   }), [gate, identityOf, store])
 

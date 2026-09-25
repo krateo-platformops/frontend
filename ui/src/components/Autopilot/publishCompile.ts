@@ -123,9 +123,13 @@ export const heldDraftIdentity = (held: BlueprintDraftHeld | null): string | nul
  * step recorded against page-a, restored into page-b, would be the silent data loss undo exists to
  * prevent. A re-preview of the SAME draft keeps it: undoing back past the agent's own revision is
  * what the history is for.
+ *
+ * Replacing NOTHING counts as different. The history is module state and the store is the
+ * provider's, so a provider remount (every nav-route registration remounts the router) empties the
+ * store and keeps the steps — which belong to no draft at all.
  */
 const forgetOtherDraftsHistory = (replaced: string | null, held: BlueprintDraftHeld): void => {
-  if (replaced !== null && replaced !== heldDraftIdentity(held)) {
+  if (replaced !== heldDraftIdentity(held)) {
     draftHistory.clear()
   }
 }

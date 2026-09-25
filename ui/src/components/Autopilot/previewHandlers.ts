@@ -91,7 +91,8 @@ export const previewBlueprintSpec: VerbSpec = {
       const problems = lintBlueprintDraft(args.rawTemplates)
       if (problems.length) {
         openAutopilotPreview({
-          builder: 'blueprint',
+          // Refused before any render, so nothing holds it: an inspection of a draft, not a draft.
+          builder: 'inspect',
           caption: DRAFT_REJECTED_CAPTION,
           problems,
           title: `Blueprint preview — ${name}`,
@@ -108,7 +109,9 @@ export const previewBlueprintSpec: VerbSpec = {
     // payload and mounts as a read-only SchemaForm section in the drawer.
     const formSchema = buildFormSchemaText(args.rawTemplates, rendered.valuesSchema, rendered.error)
     openAutopilotPreview({
-      builder: 'blueprint',
+      // HELD only when an inline draft rendered — the same rule recordBlueprintPreview applies. A
+      // published chart's dry run, or a draft that failed to render, is looked at, not held.
+      builder: args.rawTemplates && !rendered.error ? 'blueprint' : 'inspect',
       // Name the artifact: a blueprint IS a Helm chart, and this caption + the "Chart files"
       // tab are where the user learns that (the #1 what-am-I-publishing question).
       caption: 'This blueprint is a Helm chart — Chart files is the tree the change request commits; Source is its helm-rendered objects (dry run, nothing applied to the cluster)',

@@ -20,7 +20,7 @@
  * closes (epoch-guarded upstream, so a stale close never touches a newer preview).
  */
 import { Alert, Button, Collapse, Drawer, Empty, Input, Space, Tabs, Tag, Typography } from 'antd'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import SyntaxHighlighter from 'react-syntax-highlighter'
 import atomOneDark from 'react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark.js'
 import lightfair from 'react-syntax-highlighter/dist/esm/styles/hljs/lightfair.js'
@@ -32,7 +32,7 @@ import WidgetRenderer from '../WidgetRenderer'
 
 import { DraftProblemsAlert } from './DraftProblemsAlert'
 import { parseFileEdit, parseRestDefEdit } from './previewBridge'
-import { AUTOPILOT_PREVIEW_EVENT, isPageDraftPayload, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
+import { AUTOPILOT_PREVIEW_EVENT, isHeldDraftPayload, isPageDraftPayload, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
 import { previewSurfaceClaimed } from './previewDraftChanged'
 import { onDraftClose } from './previewDraftClose'
 import { emitRestDefEdit } from './previewEditBus'
@@ -156,12 +156,15 @@ const RestDefEditSection = ({
  */
 const FileEditBlock = ({
   content,
+  editable,
   isPageWidget,
   mode,
   path,
   style,
 }: {
   content: string
+  /** Only the HELD draft's files: an edit is written into whatever is held, by path. */
+  editable: boolean
   isPageWidget: boolean
   mode: 'dark' | 'light'
   path: string
@@ -196,7 +199,7 @@ const FileEditBlock = ({
     <div className={styles.file}>
       <div className={styles.fileHead}>
         <div className={styles.filePath}><Typography.Text code>{path}</Typography.Text></div>
-        {editing ? null : <Button onClick={beginEdit} size='small' type='link'>Edit</Button>}
+        {editing || !editable ? null : <Button onClick={beginEdit} size='small' type='link'>Edit</Button>}
       </div>
       {error ? (
         <Alert
@@ -336,6 +339,9 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, on
   // Helm chart templates (YAML-parse-only) — distinguished by what the payload says it IS, not by its
   // tab label: a label is copy, and keying the edit parser on copy is how a chart got a page's rules.
   const isPageWidget = isPageDraftPayload(payload)
+  // …and editable at all only when the payload IS the held draft. A preview nothing holds — a draft
+  // that failed its render — has files too, and an edit to its Chart.yaml would land in the held one.
+  const heldDraft = isHeldDraftPayload(payload)
   // The live draft when the surface has one, the one-shot payload otherwise.
   const shownFiles = liveFiles
     ? Object.entries(liveFiles).map(([path, content]) => ({ content, path })).sort((left, right) => left.path.localeCompare(right.path))
@@ -346,6 +352,7 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, on
         <div id={fileAnchorId(file.path)} key={`file-${index}-${file.path}`}>
           <FileEditBlock
             content={file.content}
+            editable={heldDraft}
             isPageWidget={isPageWidget}
             mode={mode}
             path={file.path}
@@ -459,7 +466,7 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, on
 
   return (
     <div className={styles.body}>
-      {payload.builder === 'restdef' || payload.builder === 'inspect' ? null : <DraftProblemsAlert />}
+      {heldDraft ? <DraftProblemsAlert /> : null}
       {(caption ?? payload.caption)
         ? <Typography.Paragraph type='secondary'>{caption ?? payload.caption}</Typography.Paragraph>
         : null}
@@ -486,6 +493,26 @@ export const AutopilotPreviewDrawer = () => {
   // problems/immutability/summary Alert blocks reflect the edit. Reset whenever a new payload arrives.
   const [editVerdicts, setEditVerdicts] = useState<RestDefVerdicts | null>(null)
 
+  // The HELD draft this drawer is showing, if any. Read through a ref because both listeners below
+  // subscribe once and must see what is on screen now, not what they closed over.
+  const heldShown = useRef<AutopilotPreviewPayload | null>(null)
+  heldShown.current = open && payload && isHeldDraftPayload(payload) ? payload : null
+  /**
+   * Close the held draft shown here — it was discarded, or a page this drawer defers replaced it in
+   * the store. Left open, its Files tab writes by path into whatever is held NOW, and a page set
+   * holds Chart.yaml and values.schema.json under the same names a chart does.
+   */
+  const dropHeld = useCallback(() => {
+    const shown = heldShown.current
+    if (!shown) {
+      return
+    }
+    heldShown.current = null
+    setOpen(false)
+    // Epoch-guarded upstream: the close of a superseded page render never deletes a newer one.
+    shown.onClose?.()
+  }, [])
+
   useEffect(() => {
     const handleOpen = (event: CustomEvent<AutopilotPreviewPayload>) => {
       // Defer to a mounted page composer: it is already showing this draft, it owns the close, and
@@ -494,6 +521,7 @@ export const AutopilotPreviewDrawer = () => {
       // ONLY a page preview: the composer claims the surface but can show nothing else, so deferring
       // a blueprint, RestDefinition or inspection preview to it showed that preview NOWHERE.
       if (previewSurfaceClaimed() && isPageDraftPayload(event.detail)) {
+        dropHeld()
         return
       }
       setPayload(event.detail)
@@ -502,16 +530,10 @@ export const AutopilotPreviewDrawer = () => {
     }
     window.addEventListener(AUTOPILOT_PREVIEW_EVENT, handleOpen as EventListener)
     return () => window.removeEventListener(AUTOPILOT_PREVIEW_EVENT, handleOpen as EventListener)
-  }, [])
+  }, [dropHeld])
 
-  // A draft discarded elsewhere — the composer's Discard — takes its preview with it. Left open, this
-  // drawer would go on offering edits to files that no longer exist. An inspection is not a draft.
-  useEffect(() => onDraftClose(() => {
-    if (payload && (payload.builder === undefined || payload.builder === 'blueprint')) {
-      setOpen(false)
-      payload.onClose?.()
-    }
-  }), [payload])
+  // A draft discarded elsewhere — the composer's Discard — takes its preview with it.
+  useEffect(() => onDraftClose(dropHeld), [dropHeld])
 
   if (!payload) {
     return null

@@ -9,7 +9,7 @@ import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from './blueprintDraft'
 import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
 import { draftHistory } from './draftHistory'
-import { recordBlueprintPreview } from './publishCompile'
+import { recordBlueprintPreview, recordPagePreview } from './publishCompile'
 
 const CLEAN: Record<string, string> = {
   [CHART_YAML_PATH]: 'apiVersion: v2\nname: nginx-demo\nversion: 0.1.0\n',
@@ -78,5 +78,36 @@ describe('a proposal replacing the held draft — the undo history belongs to th
     draftHistory.push({ files: CLEAN, kind: 'blueprint' })
     recordBlueprintPreview({ ...CLEAN, 'templates/service.yaml': 'kind: Service\n' }, false, store, gate)
     expect(draftHistory.depth()).toBe(1)
+  })
+})
+
+describe('the page twin, and a store that holds nothing', () => {
+  afterEach(() => draftHistory.clear())
+  const flex = (name: string) => [{ apiVersion: 'widgets.templates.krateo.io/v1beta1', kind: 'Flex', metadata: { name, namespace: 'krateo-system' }, spec: { widgetData: { items: [] } } }]
+
+  it('a DIFFERENT page replacing the held one takes the history with it', () => {
+    const store = createBlueprintDraftStore()
+    const gate = createBlueprintGate()
+    recordPagePreview(flex('page-a'), store, gate)
+    draftHistory.push({ files: store.get()?.files ?? {}, kind: 'page' })
+    recordPagePreview(flex('page-b'), store, gate)
+    expect(draftHistory.depth()).toBe(0)
+  })
+
+  it('a re-preview of the SAME page keeps it', () => {
+    const store = createBlueprintDraftStore()
+    const gate = createBlueprintGate()
+    recordPagePreview(flex('page-a'), store, gate)
+    draftHistory.push({ files: store.get()?.files ?? {}, kind: 'page' })
+    recordPagePreview(flex('page-a'), store, gate)
+    expect(draftHistory.depth()).toBe(1)
+  })
+
+  it('steps left over with NOTHING held belong to no draft — the first proposal drops them', () => {
+    // The history is module state and the store is the provider's: a provider remount (every
+    // nav-route registration remounts the router) empties the store and keeps the steps.
+    draftHistory.push({ files: { 'templates/flex.page-old.yaml': 'kind: Flex' }, kind: 'page' })
+    recordPagePreview(flex('page-new'), createBlueprintDraftStore(), createBlueprintGate())
+    expect(draftHistory.depth()).toBe(0)
   })
 })
