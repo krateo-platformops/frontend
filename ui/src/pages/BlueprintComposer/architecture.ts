@@ -75,6 +75,16 @@ const CLASSES: ResourceClass[] = ['native', 'custom', 'composition']
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
 /**
+ * The one id refused for its spelling. Ids key records here and in every consumer to come, and
+ * `obj['__proto__'] = x` does not add a key — it tries to swap the object's prototype — so a
+ * resource named that would silently vanish from any plain-object index. The code in this
+ * directory survives it (deriveStates builds with a Map, `levelOf` reads own keys only); the next
+ * consumer might not, and no chart needs the name. The other Object.prototype names (`constructor`,
+ * `toString` …) are ordinary ids and must work: `levelOf` is what makes them.
+ */
+const RESERVED_ID = '__proto__'
+
+/**
  * `when`, `forEach` and `readyWhen` are PATHS, written bare. The descriptor is itself a Helm
  * template, so an author reaching for `{{ .Values.x }}` gets one of two wrong things: unquoted, YAML
  * reads the braces as a flow mapping and the field silently becomes an object; quoted, Helm renders
@@ -167,6 +177,9 @@ export const parseArchitecture = (text: string): ParseResult => {
     if (typeof entry.id === 'string') {
       if (ids.has(entry.id)) {
         problems.push({ message: `duplicate id "${entry.id}"`, path: `${at}.id` })
+      }
+      if (entry.id === RESERVED_ID) {
+        problems.push({ message: `"${RESERVED_ID}" is reserved — any other name`, path: `${at}.id` })
       }
       ids.add(entry.id)
     }
@@ -274,6 +287,15 @@ export type DeriveResult =
   | { ok: true; states: DerivedState[]; levels: Record<string, number> }
   | { ok: false; cycle: string[] }
 
+/**
+ * A resource's derived level, or undefined when it has none (orthogonal, unknown, or the graph has
+ * a cycle). Read `levels` through this, never `levels[id]` or `id in levels`: a resource id is
+ * author text, and for `constructor`, `toString`, `valueOf` … both of those find Object.prototype —
+ * a Function where a level should be, which turned a level into NaN and emptied every state.
+ */
+export const levelOf = (levels: Record<string, number>, id: string): number | undefined =>
+  (Object.prototype.hasOwnProperty.call(levels, id) ? levels[id] : undefined)
+
 /** Nodes that take part in the sequence: shims and the descriptor itself are orthogonal to it. */
 const sequenced = (arch: ChartArchitecture): ResourceNode[] => arch.resources.filter((node) => !node.lifecycle)
 
@@ -285,10 +307,12 @@ const sequenced = (arch: ChartArchitecture): ResourceNode[] => arch.resources.fi
 export const deriveStates = (arch: ChartArchitecture): DeriveResult => {
   const nodes = sequenced(arch)
   const byId = new Map(nodes.map((node) => [node.id, node]))
-  const levels: Record<string, number> = {}
+  // A Map while computing: see `levelOf` for what an object index does with `constructor`.
+  const levels = new Map<string, number>()
+  const levelAt = (id: string): number => levels.get(id) ?? 0
   const visiting = new Set<string>()
   const visit = (id: string, trail: string[]): string[] | null => {
-    if (id in levels) { return null }
+    if (levels.has(id)) { return null }
     if (visiting.has(id)) { return [...trail, id] }
     visiting.add(id)
     const node = byId.get(id)
@@ -297,10 +321,10 @@ export const deriveStates = (arch: ChartArchitecture): DeriveResult => {
       if (!byId.has(dep.ref)) { continue }
       const cycle = visit(dep.ref, [...trail, id])
       if (cycle) { return cycle }
-      level = Math.max(level, levels[dep.ref] + 1)
+      level = Math.max(level, levelAt(dep.ref) + 1)
     }
     visiting.delete(id)
-    levels[id] = level
+    levels.set(id, level)
     return null
   }
   for (const node of nodes) {
@@ -310,20 +334,28 @@ export const deriveStates = (arch: ChartArchitecture): DeriveResult => {
       return { cycle: cycle.slice(start), ok: false }
     }
   }
-  const max = nodes.length ? Math.max(...Object.values(levels)) : -1
+  const max = nodes.length ? Math.max(...levels.values()) : -1
   const states: DerivedState[] = []
   for (let level = 0; level <= max; level += 1) {
-    const renders = nodes.filter((node) => levels[node.id] <= level).map((node) => node.id)
-    const withheld = nodes.filter((node) => levels[node.id] > level).map((node) => node.id)
+    const renders = nodes.filter((node) => levelAt(node.id) <= level).map((node) => node.id)
+    const withheld = nodes.filter((node) => levelAt(node.id) > level).map((node) => node.id)
     states.push({ level, name: arch.states?.[level]?.name || `level-${level}`, renders, withheld })
   }
-  return { levels, ok: true, states }
+  // A plain record for callers (and toEqual). fromEntries DEFINES each key, so even an id that
+  // assignment would mishandle lands as an own key; read it back with `levelOf`.
+  return { levels: Object.fromEntries(levels), ok: true, states }
 }
 
 /**
  * The template that carries the descriptor into the cluster: a ConfigMap per composition. The
  * block is indented verbatim, so `.Values` references inside it render with the composition's own
  * values — that is what "stored in the chart, retrieved when deployed" means in practice.
+ *
+ * The label value is QUOTED. Kubernetes decodes manifests as YAML 1.1, where a bare `on`, `yes`,
+ * `n`, `true` or `null` is a bool or null, not a string — and a label value that is not a string
+ * fails the apply. Those are all valid chart names, so the value is written as a JSON string
+ * (a YAML double-quoted scalar). Unwrapping never read the label, so templates written before the
+ * quoting unwrap unchanged.
  */
 export const wrapAsConfigMapTemplate = (descriptor: string, chart: string): string => {
   const body = descriptor.trimEnd().split('\n').map((line) => `    ${line}`)
@@ -337,7 +369,7 @@ export const wrapAsConfigMapTemplate = (descriptor: string, chart: string): stri
     '  name: {{ printf "%s-architecture" .Release.Name | trunc 63 | trimSuffix "-" }}',
     '  namespace: {{ .Release.Namespace }}',
     '  labels:',
-    `    krateo.io/architecture: ${chart}`,
+    `    krateo.io/architecture: ${JSON.stringify(chart)}`,
     'data:',
     '  architecture: |',
     body,

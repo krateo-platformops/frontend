@@ -21,7 +21,7 @@
  */
 import type { GraphEdge, GraphNode } from '../../components/DependencyGraph'
 
-import type { ChartArchitecture, DeriveResult, ResourceNode } from './architecture'
+import { levelOf, type ChartArchitecture, type DeriveResult, type ResourceNode } from './architecture'
 
 export interface ArchitectureNodeData {
   resource: ResourceNode
@@ -66,7 +66,9 @@ export const dependencyEdgeId = (dependent: string, index: number): string => `$
 export const toArchitectureGraph = (arch: ChartArchitecture, derived: DeriveResult): ArchitectureGraph => {
   const levels: Record<string, number> = derived.ok ? derived.levels : {}
   const cycle = new Set(derived.ok ? [] : derived.cycle)
-  const levelOf = (id: string): number | null => (id in levels ? levels[id] : null)
+  // Own keys only (`levelOf`): a node named `constructor` outside the sequence has no level, not
+  // Object's constructor. null, not undefined: the node datum says "no level" explicitly.
+  const levelIn = (id: string): number | null => levelOf(levels, id) ?? null
 
   const nodes: ArchitectureGraphNode[] = []
   const dropped: DroppedElement[] = []
@@ -80,7 +82,7 @@ export const toArchitectureGraph = (arch: ChartArchitecture, derived: DeriveResu
     seen.add(resource.id)
     drawn.push({ index, resource })
     nodes.push({
-      data: { inCycle: cycle.has(resource.id), level: levelOf(resource.id), orthogonal: !!resource.lifecycle, resource },
+      data: { inCycle: cycle.has(resource.id), level: levelIn(resource.id), orthogonal: !!resource.lifecycle, resource },
       id: resource.id,
     })
   })
@@ -100,8 +102,8 @@ export const toArchitectureGraph = (arch: ChartArchitecture, derived: DeriveResu
         dropped.push({ path, reason: `"${resource.id}" already depends on "${dep.ref}"` })
       } else {
         pairs.add(pair)
-        const from = levelOf(dep.ref)
-        const to = levelOf(resource.id)
+        const from = levelIn(dep.ref)
+        const to = levelIn(resource.id)
         const data: ArchitectureEdgeData = {
           all: !!dep.all,
           minlen: from !== null && to !== null ? Math.max(1, to - from) : 1,

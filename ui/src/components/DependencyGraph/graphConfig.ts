@@ -15,7 +15,8 @@
 import type { FlowGraphOptions, G6 } from '@ant-design/graphs'
 import type { ReactNode } from 'react'
 
-import { color, colorDark, type ThemeMode } from '../../theme/tokens'
+import { themeColors } from '../../theme/palette'
+import type { ThemeMode } from '../../theme/tokens'
 
 /** A node as the graph draws it: its id and whatever the node card renders from. */
 export interface GraphNode<N = Record<string, unknown>> {
@@ -82,14 +83,25 @@ export const GRAPH_BEHAVIORS = ['drag-canvas', 'zoom-canvas']
 export const DASHED_EDGE = [6, 4]
 
 /**
- * Canvas colours from the design tokens for a mode. Edges use `faint` (AA-pinned and per-mode, so
- * a line reads on both grounds without competing with the cards); labels use `gray` on the
- * surface colour. G6 needs concrete values — a `var(--…)` means nothing on a canvas.
+ * Canvas colours from the design tokens for a mode — a map over `themeColors`, which owns the
+ * mode → table choice. Edges use `faint` (AA-pinned and per-mode, so a line reads on both grounds
+ * without competing with the cards); labels use `gray` on the surface colour. G6 needs concrete
+ * values — a `var(--…)` means nothing on a canvas.
  */
 export const graphPalette = (mode: ThemeMode): GraphPalette => {
-  const palette = mode === 'dark' ? colorDark : color
-  return { edge: palette.faint, label: palette.gray, labelBackground: palette.panelbg }
+  const tokens = themeColors(mode)
+  return { edge: tokens.faint, label: tokens.gray, labelBackground: tokens.panelbg }
 }
+
+/**
+ * The edge-style keys a palette sets — and ONLY those, so a theme flip can lay them over a live
+ * graph's edge options without touching anything else (DependencyGraph's restyle).
+ */
+export const edgePaletteStyle = (palette: GraphPalette): Record<'labelBackgroundFill' | 'labelFill' | 'stroke', string> => ({
+  labelBackgroundFill: palette.labelBackground,
+  labelFill: palette.label,
+  stroke: palette.edge,
+})
 
 /** An edge's `minlen`, or 1 — dagre's own default — for anything that is not a positive integer. */
 export const edgeMinLen = (edge: { data?: Record<string, unknown> }): number => {
@@ -113,30 +125,30 @@ export const graphLayout = (edges: GraphEdge<unknown>[]): FlowGraphOptions['layo
   (edges.some(carriesMinLen) ? { ...GRAPH_LAYOUT, edgeMinLen } : { ...GRAPH_LAYOUT })
 
 /**
- * The edge options. With no palette they are exactly C19's `{ style: { router: false }, type }`,
- * and G6's own light-theme colours stand — what FlowChart has always drawn, in both portal modes.
- * With one, the stroke (which the arrowhead inherits) and the label take token colours.
+ * The edge options. Two independent layers over C19's `{ style: { router: false }, type }`:
+ *
+ *   - `appearance` (per-edge dash and label) is applied whenever it is given, palette or not.
+ *     It is not a colour, so `themed={false}` is no reason to drop it — it once was, silently.
+ *   - `palette`: the stroke (which the arrowhead inherits) and the label take token colours.
+ *     Without one G6's own light-theme colours stand — what FlowChart has always drawn, in both
+ *     portal modes.
+ *
+ * With neither — FlowChart — the options are exactly C19's object, key for key.
  */
 export const graphEdgeOptions = <E, >(
   palette: GraphPalette | null,
   appearance?: (edge: GraphEdge<E>) => EdgeAppearance,
 ): FlowGraphOptions['edge'] => {
-  if (!palette) {
-    return { style: { router: false }, type: GRAPH_EDGE_TYPE }
+  const style: Record<string, unknown> = { router: false }
+  if (appearance) {
+    const look = (datum: G6.EdgeData): EdgeAppearance => appearance(datum as unknown as GraphEdge<E>)
+    style.labelText = (datum: G6.EdgeData) => look(datum).label ?? ''
+    style.lineDash = (datum: G6.EdgeData) => (look(datum).dashed ? DASHED_EDGE : 0)
   }
-  const look = (datum: G6.EdgeData): EdgeAppearance => appearance?.(datum as unknown as GraphEdge<E>) ?? {}
-  return {
-    style: {
-      labelBackground: true,
-      labelBackgroundFill: palette.labelBackground,
-      labelFill: palette.label,
-      labelText: (datum: G6.EdgeData) => look(datum).label ?? '',
-      lineDash: (datum: G6.EdgeData) => (look(datum).dashed ? DASHED_EDGE : 0),
-      router: false,
-      stroke: palette.edge,
-    },
-    type: GRAPH_EDGE_TYPE,
+  if (palette) {
+    Object.assign(style, { labelBackground: true, ...edgePaletteStyle(palette) })
   }
+  return { style, type: GRAPH_EDGE_TYPE }
 }
 
 export interface GraphOptionsInput<N, E> {

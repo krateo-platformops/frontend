@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ARCHITECTURE_API_VERSION,
   deriveStates,
+  levelOf,
   parseArchitecture,
   serializeArchitecture,
   unwrapFromConfigMapTemplate,
@@ -56,6 +57,37 @@ describe('deriveStates — levels are the longest path, never authored', () => {
   })
 })
 
+// `id in {}` and `{}[id]` both find Object.prototype for these: a Function where a level should be
+// turned the dependent's level into NaN, and NaN levels derived no states at all.
+describe('deriveStates — an id Object.prototype also answers to is an ordinary id', () => {
+  it.each(['constructor', 'toString', 'valueOf', 'hasOwnProperty'])('%s gets a level and a place in every state', (id) => {
+    const arch = base()
+    arch.resources[0].id = id
+    arch.resources[2].dependsOn = [{ ready: true, ref: id }, { ref: 'cfg' }]
+    const derived = deriveStates(arch)
+    if (!derived.ok) { throw new Error('unexpected cycle') }
+    expect(derived.levels).toEqual({ cfg: 0, [id]: 0, svc: 2, web: 1 })
+    expect(derived.states.map((state) => state.renders)).toEqual([[id, 'cfg'], [id, 'cfg', 'web'], [id, 'cfg', 'web', 'svc']])
+  })
+
+  it('levelOf reads own keys only: no level is undefined, not an inherited member', () => {
+    expect(levelOf({ web: 1 }, 'web')).toBe(1)
+    expect(levelOf({ web: 1 }, 'constructor')).toBeUndefined()
+    expect(levelOf({ web: 1 }, '__proto__')).toBeUndefined()
+  })
+
+  it('even __proto__, built by hand past the parser, keeps its level', () => {
+    const arch = base()
+    arch.resources[1].id = '__proto__'
+    arch.resources[2].dependsOn = [{ ready: true, ref: 'db' }, { ref: '__proto__' }]
+    const derived = deriveStates(arch)
+    if (!derived.ok) { throw new Error('unexpected cycle') }
+    expect(levelOf(derived.levels, '__proto__')).toBe(0)
+    expect(levelOf(derived.levels, 'web')).toBe(1)
+    expect(derived.states[0].renders).toEqual(['db', '__proto__'])
+  })
+})
+
 describe('parseArchitecture — every fault by path, nothing guessed', () => {
   it('round-trips through serialise', () => {
     const text = serializeArchitecture(base())
@@ -92,6 +124,19 @@ resources:
     expect(parsed.problems.map((problem) => problem.path).sort()).toEqual(
       ['resources[0].class', 'resources[0].dependsOn[0]', 'resources[0].dependsOn[1]', 'resources[1].id'].sort(),
     )
+  })
+
+  it('refuses __proto__ as an id — a plain-object index would drop it — and nothing else for its spelling', () => {
+    const parsed = parseArchitecture(`apiVersion: ${ARCHITECTURE_API_VERSION}
+kind: ChartArchitecture
+chart: x
+resources:
+  - { id: __proto__, class: native, apiVersion: v1, kind: ConfigMap, template: t/a.yaml }
+  - { id: constructor, class: native, apiVersion: v1, kind: Secret, template: t/b.yaml }
+`)
+    expect(parsed.ok).toBe(false)
+    if (parsed.ok) { return }
+    expect(parsed.problems).toEqual([{ message: '"__proto__" is reserved — any other name', path: 'resources[0].id' }])
   })
 
   it('refuses the same ref twice in one dependsOn — G6 would throw on the duplicate edge', () => {
@@ -197,9 +242,16 @@ describe('the ConfigMap template packaging', () => {
     const descriptor = serializeArchitecture(arch)
     const template = wrapAsConfigMapTemplate(descriptor, 'demo')
     expect(template).toContain('kind: ConfigMap')
-    expect(template).toContain('krateo.io/architecture: demo')
+    expect(template).toContain('krateo.io/architecture: "demo"')
     expect(template).toContain('    when: .Values.web.enabled')
     expect(unwrapFromConfigMapTemplate(template)).toBe(descriptor)
+  })
+
+  it('a template written before the label was quoted still unwraps to the same descriptor', () => {
+    const descriptor = serializeArchitecture(base())
+    const legacy = wrapAsConfigMapTemplate(descriptor, 'demo').replace('krateo.io/architecture: "demo"', 'krateo.io/architecture: demo')
+    expect(legacy).toContain('    krateo.io/architecture: demo\n')
+    expect(unwrapFromConfigMapTemplate(legacy)).toBe(descriptor)
   })
 
   it('a template that is not ours unwraps to null, not to garbage', () => {

@@ -21,7 +21,7 @@
  * nothing entering, nothing withheld, no way out (`initial: true`, `total: 1`). The page renders it
  * as "S1 · initial" over an empty canvas. It is the same shape the first real resource then fills.
  */
-import type { ChartArchitecture, DeriveResult, ResourceClass, ResourceNode } from './architecture'
+import { levelOf, type ChartArchitecture, type DeriveResult, type ResourceClass, type ResourceNode } from './architecture'
 
 /** The name the stepper shows for the one state a chart with no sequenced resources has. */
 export const INITIAL_STATE_NAME = 'initial'
@@ -86,7 +86,7 @@ const leaving = (arch: ChartArchitecture, levels: Record<string, number>, level:
   const byId = new Map(arch.resources.map((node) => [node.id, node]))
   const out: LeaveCondition[] = []
   for (const node of arch.resources) {
-    if (levels[node.id] !== level + 1) { continue }
+    if (levelOf(levels, node.id) !== level + 1) { continue }
     for (const dep of node.dependsOn ?? []) {
       const target = byId.get(dep.ref)
       if (!dep.ready || !target) { continue }
@@ -110,7 +110,7 @@ export const stepperModel = (arch: ChartArchitecture, derived: DerivedMachine, l
   const at = Number.isFinite(level) ? Math.min(Math.max(Math.trunc(level), 0), total - 1) : 0
   const state = derived.states[at]
   return {
-    frontier: state.renders.filter((id) => derived.levels[id] === at),
+    frontier: state.renders.filter((id) => levelOf(derived.levels, id) === at),
     initial: false,
     label: `S${at + 1}`,
     leavesWhen: at < total - 1 ? leaving(arch, derived.levels, at) : [],

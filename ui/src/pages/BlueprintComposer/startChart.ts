@@ -32,6 +32,17 @@ export const VALUES_YAML_PATH = 'values.yaml'
 /** A DNS-1123 label's limit — the chart name becomes release, resource and CRD names. */
 export const CHART_NAME_MAX = 63
 
+/**
+ * The longest generated Kind whose CRD still has a legal resource name — the limit that actually
+ * binds, since a 63-character name is not enough on its own. core-provider's CRD generator
+ * (plumbing crdgen, transpile.go) names the resource `strings.ToLower(flect.Pluralize(Kind))`, and
+ * that plural must be a DNS-1035 label: at most 63. flect v1.0.3 lengthens a word by at most
+ * THREE characters — `-s`, `-es` and `y → ies` are one or two, but `child → children` and
+ * `quiz → quizzes` are three (measured by running flect) — so a Kind of 60 always fits and one of
+ * 61 may not. The name can still be 63: its dashes are not in the Kind.
+ */
+export const KIND_MAX = CHART_NAME_MAX - 3
+
 export const COMPOSITION_GROUP = 'composition.krateo.io'
 
 export interface StartChartInput {
@@ -147,6 +158,11 @@ export const validateStartChart = (input: StartChartInput): StartChartProblem[] 
     problems.push({ field: 'name', message: `at most ${CHART_NAME_MAX} characters — it becomes Kubernetes resource names` })
   } else if (/^\d/.test(name)) {
     problems.push({ field: 'name', message: `must start with a letter — the generated Kind (${compositionKind(name)}) cannot begin with a digit` })
+  } else if (compositionKind(name).length > KIND_MAX) {
+    problems.push({
+      field: 'name',
+      message: `at most ${KIND_MAX} letters and digits (dashes do not count) — the generated Kind has ${compositionKind(name).length}, and Kubernetes names the resource after its plural, which must fit in ${CHART_NAME_MAX}`,
+    })
   }
   if (!SEMVER.test(version)) {
     problems.push({ field: 'version', message: 'a semantic version such as 0.1.0 (MAJOR.MINOR.PATCH)' })

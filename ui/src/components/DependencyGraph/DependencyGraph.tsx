@@ -10,27 +10,43 @@
  *     `render()` — a full dagre pass and an `autoFit`. So any re-render of the host (a stepper
  *     click, a draft broadcast) reset the user's pan and zoom. Here the options are memoised on
  *     their real inputs and FlowGraph sits behind `memo`, so it re-renders only when those change.
- *     The caller's part of the bargain: `nodes`, `edges`, `nodeSize`, `renderNode`,
- *     `edgeAppearance` and `graphRef` must be stable (module constants, `useMemo`, `useCallback`).
+ *     The caller's part of the bargain: `nodes`, `edges`, `nodeSize`, `renderNode` and
+ *     `edgeAppearance` must be stable (module constants, `useMemo`, `useCallback`). A `graphRef`
+ *     should be too: it does not re-lay out, but a new one is detached and re-attached.
  *   - TOKEN COLOURS THAT FOLLOW THE THEME. G6 defaults to its own light theme whatever the portal
- *     mode is. `themed` (the default) paints edges and labels from the design tokens and redraws
- *     when `data-theme` flips. `themed={false}` keeps G6's colours, which is what FlowChart has
- *     always drawn (its canvas never followed the portal theme; changing that is a visual change).
+ *     mode is. `themed` (the default) paints edges and labels from the design tokens and, when
+ *     `data-theme` flips, REPAINTS the graph already on screen — new colours, same positions, same
+ *     pan and zoom (see `restyleEdges`). `themed={false}` keeps G6's colours, which is what
+ *     FlowChart has always drawn (its canvas never followed the portal theme; changing that is a
+ *     visual change).
  *   - PER-EDGE minlen, so a caller can pin columns to levels (`graphLayout`).
  *   - NODE CLICK. `onNodeClick(id)` fires for G6's `node:click`. It is read through a ref, so an
  *     inline arrow does not count as a changed input. A node card that must be keyboard-operable
  *     should also render a real button wired through `renderNode`'s own closure: G6 hit-tests a
  *     forwarded DOM click at its pointer coordinates, and a key-activated click has none.
+ *   - THE GRAPH HANDLE. `graphRef` receives the G6 Graph the moment G6 creates it (`onInit`) and
+ *     is cleared when it is destroyed. NOT through FlowGraph's own forwarded ref: @ant-design/graphs
+ *     2.1.1's BaseGraph fills that at its commit, before @antv/graphin's mount effect has created
+ *     the graph, so it is set to null — and with FlowGraph behind `memo` nothing re-renders
+ *     BaseGraph to fill it later. It stayed null for the life of the canvas.
  *
  * Empty data is the caller's to handle (FlowChart shows WidgetEmpty): this draws what it is given.
  */
 import { FlowGraph, G6, type FlowGraphOptions } from '@ant-design/graphs'
 import { ReactNode as G6ReactNode } from '@antv/g6-extension-react'
-import { memo, useCallback, useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode, type Ref } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, type ReactNode, type Ref } from 'react'
 
-import type { ThemeMode } from '../../theme/tokens'
+import { activeThemeMode, useDocumentThemeMode } from '../../theme/palette'
 
-import { buildGraphOptions, graphPalette, type EdgeAppearance, type GraphEdge, type GraphNode } from './graphConfig'
+import {
+  buildGraphOptions,
+  edgePaletteStyle,
+  graphPalette,
+  type EdgeAppearance,
+  type GraphEdge,
+  type GraphNode,
+  type GraphPalette,
+} from './graphConfig'
 
 // Register the React custom-node type once so React components render as G6 nodes. Idempotent:
 // the registry throws on a second registration, which is the "already registered" case.
@@ -44,23 +60,50 @@ try {
 const NODE_CLICK = 'node:click'
 
 /**
- * The mode `getColorCode` reads — `data-theme` on <html>, which ThemeModeProvider sets — as a
- * subscribable value. Read from the attribute rather than the context so the graph needs no
- * provider (a widget mounted in a test, a node's own React root) and cannot disagree with the
- * palette helpers about which mode is active.
+ * G6's GraphEvent.BEFORE_DESTROY, spelled out likewise. Not AFTER_DESTROY: `graph.destroy()`
+ * removes every listener before it emits that one, so a handler for it never runs.
  */
-const readMode = (): ThemeMode => (typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light')
+const BEFORE_DESTROY = 'beforedestroy'
 
-const subscribeMode = (onChange: () => void): (() => void) => {
-  if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') {
+/**
+ * Give a caller's ref — object or callback — the graph, and return what takes it back: the
+ * callback's own cleanup when it returned one (React 19 refs may), else `ref(null)`; for an
+ * object, null, unless something else has been put there since.
+ */
+const attachRef = (ref: Ref<G6.Graph> | undefined, graph: G6.Graph): (() => void) => {
+  if (typeof ref === 'function') {
+    const cleanup = ref(graph)
+    return typeof cleanup === 'function' ? cleanup : () => { ref(null) }
+  }
+  if (!ref) {
     return () => undefined
   }
-  const observer = new MutationObserver(onChange)
-  observer.observe(document.documentElement, { attributeFilter: ['data-theme'], attributes: true })
-  return () => observer.disconnect()
+  ref.current = graph
+  return () => {
+    if (ref.current === graph) { ref.current = null }
+  }
 }
 
-export const useDocumentThemeMode = (): ThemeMode => useSyncExternalStore(subscribeMode, readMode, () => 'light')
+/**
+ * Repaint a live graph's edges in `palette` WITHOUT a re-layout. `setEdge` + `draw()` redraws the
+ * elements where they stand; handing Graphin new options would `setOptions()` + `render()` — dagre
+ * and `autoFit` again, i.e. the user's pan and zoom thrown away by a theme toggle.
+ *
+ * The colour keys are laid over the graph's OWN edge options, not rebuilt from graphConfig:
+ * `setEdge` replaces the whole mapping, and the live one is FlowGraph's merge of its defaults
+ * (arrowhead, line width, corner radius) with ours — rebuilding would drop the arrowheads.
+ * A graph already in these colours (every mount: it was created with them) is left alone.
+ */
+const restyleEdges = (graph: G6.Graph, palette: GraphPalette): void => {
+  const current = graph.getOptions().edge ?? {}
+  const style = (current.style && typeof current.style === 'object' ? current.style : {}) as Record<string, unknown>
+  const colours = edgePaletteStyle(palette)
+  if (Object.entries(colours).every(([key, value]) => style[key] === value)) {
+    return
+  }
+  graph.setEdge({ ...current, style: { ...style, ...colours } })
+  void graph.draw()
+}
 
 export interface DependencyGraphProps<N, E> {
   nodes: GraphNode<N>[]
@@ -81,11 +124,13 @@ export interface DependencyGraphProps<N, E> {
 interface CanvasProps {
   options: FlowGraphOptions
   onInit: (graph: G6.Graph) => void
-  graphRef?: Ref<G6.Graph>
 }
 
-/** FlowGraph behind `memo`: with stable props it does not re-render, so G6 does not re-lay out. */
-const GraphCanvas = memo(({ graphRef, onInit, options }: CanvasProps) => <FlowGraph {...options} onInit={onInit} ref={graphRef} />)
+/**
+ * FlowGraph behind `memo`: with stable props it does not re-render, so G6 does not re-lay out.
+ * No `ref`: the graph handle comes from `onInit` (see the header).
+ */
+const GraphCanvas = memo(({ onInit, options }: CanvasProps) => <FlowGraph {...options} onInit={onInit} />)
 GraphCanvas.displayName = 'GraphCanvas'
 
 const DependencyGraph = <N, E = Record<string, unknown>>({
@@ -99,29 +144,65 @@ const DependencyGraph = <N, E = Record<string, unknown>>({
   themed = true,
 }: DependencyGraphProps<N, E>) => {
   const mode = useDocumentThemeMode()
-  const palette = useMemo(() => (themed ? graphPalette(mode) : null), [mode, themed])
 
   const clickRef = useRef(onNodeClick)
   useEffect(() => {
     clickRef.current = onNodeClick
   }, [onNodeClick])
 
-  // Bound once, when G6 creates the graph; the ref makes a later callback the one that fires.
+  // The graph G6 created (null before onInit and after destroy), the caller's handle as of the
+  // last commit, and what detaches the graph from that handle.
+  const liveGraph = useRef<G6.Graph | null>(null)
+  const handleRef = useRef(graphRef)
+  const detachRef = useRef<(() => void) | null>(null)
+
+  const bindHandle = useCallback(() => {
+    detachRef.current?.()
+    detachRef.current = liveGraph.current ? attachRef(handleRef.current, liveGraph.current) : null
+  }, [])
+
+  // Bound once, when G6 creates the graph (Graphin calls onInit from its mount effect, once); the
+  // refs make a later callback or handle the one that is used.
   const onInit = useCallback((graph: G6.Graph) => {
+    liveGraph.current = graph
+    bindHandle()
+    graph.on(BEFORE_DESTROY, () => {
+      if (liveGraph.current === graph) {
+        liveGraph.current = null
+        bindHandle()
+      }
+    })
     graph.on(NODE_CLICK, (event: G6.IElementEvent) => {
       const id = event.target?.id
       if (id !== undefined) {
         clickRef.current?.(String(id))
       }
     })
-  }, [])
+  }, [bindHandle])
 
+  // A caller that swaps its ref: the old one lets go, the new one gets the graph that exists.
+  useEffect(() => {
+    if (handleRef.current === graphRef) { return }
+    handleRef.current = graphRef
+    bindHandle()
+  }, [bindHandle, graphRef])
+
+  // The palette is READ when the options are built, not depended on: a theme flip must not be new
+  // options, because Graphin answers new options with a full re-layout. New data still picks up
+  // the mode active then. The flip itself repaints the live graph, below.
   const options = useMemo(
-    () => buildGraphOptions({ edgeAppearance, edges, nodeSize, nodes, palette, renderNode }),
-    [edgeAppearance, edges, nodeSize, nodes, palette, renderNode],
+    () => buildGraphOptions({ edgeAppearance, edges, nodeSize, nodes, palette: themed ? graphPalette(activeThemeMode()) : null, renderNode }),
+    [edgeAppearance, edges, nodeSize, nodes, renderNode, themed],
   )
 
-  return <GraphCanvas graphRef={graphRef} onInit={onInit} options={options} />
+  useEffect(() => {
+    const graph = liveGraph.current
+    if (themed && graph && !graph.destroyed) {
+      restyleEdges(graph, graphPalette(mode))
+    }
+  }, [mode, themed])
+
+  return <GraphCanvas onInit={onInit} options={options} />
 }
 
 export default DependencyGraph

@@ -1,4 +1,4 @@
-export { default, useDocumentThemeMode, type DependencyGraphProps } from './DependencyGraph'
+export { default, type DependencyGraphProps } from './DependencyGraph'
 export {
   DASHED_EDGE,
   GRAPH_LAYOUT,

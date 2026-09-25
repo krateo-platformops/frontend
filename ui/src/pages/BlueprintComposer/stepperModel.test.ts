@@ -3,7 +3,8 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { ARCHITECTURE_API_VERSION, deriveStates, type ChartArchitecture } from './architecture'
+import { ARCHITECTURE_API_VERSION, deriveStates, parseArchitecture, serializeArchitecture, type ChartArchitecture } from './architecture'
+import { toArchitectureGraph } from './architectureGraph'
 import { extractArchitecture } from './gateExtract'
 import { INITIAL_STATE_NAME, MISSING_READINESS, READINESS_DEFAULTS, stepperModel, type DerivedMachine } from './stepperModel'
 
@@ -118,5 +119,39 @@ describe('stepperModel — the zero-state', () => {
   it('a chart of shims only is the same initial state, with the shims orthogonal', () => {
     const arch = empty([{ apiVersion: 'v1', class: 'native', id: 'legacy', kind: 'Secret', lifecycle: 'shim', template: 't/legacy.yaml' }])
     expect(stepperModel(arch, machine(arch), 3)).toMatchObject({ initial: true, label: 'S1', lit: [], orthogonal: ['legacy'], total: 1 })
+  })
+})
+
+// Ids Object.prototype also answers to. Before levels were read by own key, `constructor` made
+// its dependent's level NaN, NaN derived zero states, and the stepper drew the EMPTY chart.
+describe('stepperModel — a resource named "constructor", from the descriptor text to the stepper', () => {
+  it('parses, derives, maps and steps like any other id', () => {
+    const text = serializeArchitecture(empty([
+      { apiVersion: 'v1', class: 'native', id: 'constructor', kind: 'ConfigMap', template: 't/constructor.yaml' },
+      { apiVersion: 'apps/v1', class: 'native', dependsOn: [{ ready: true, ref: 'constructor' }], id: 'web', kind: 'Deployment', template: 't/web.yaml' },
+      { apiVersion: 'v1', class: 'native', id: 'toString', kind: 'Secret', lifecycle: 'shim', template: 't/legacy.yaml' },
+    ]))
+    const parsed = parseArchitecture(text)
+    if (!parsed.ok) { throw new Error(JSON.stringify(parsed.problems)) }
+    const derived = machine(parsed.architecture)
+    expect(derived.levels).toEqual({ constructor: 0, web: 1 })
+
+    const graph = toArchitectureGraph(parsed.architecture, derived)
+    expect(graph.nodes.map((node) => [node.id, node.data.level])).toEqual([['constructor', 0], ['web', 1], ['toString', null]])
+    expect(graph.edges.map((edge) => [edge.source, edge.target, edge.data.minlen])).toEqual([['constructor', 'web', 1]])
+
+    expect(stepperModel(parsed.architecture, derived, 0)).toEqual({
+      frontier: ['constructor'],
+      initial: false,
+      label: 'S1',
+      leavesWhen: [{ from: 'constructor', predicate: READINESS_DEFAULTS.native, source: 'default', to: 'web' }],
+      level: 0,
+      lit: ['constructor'],
+      name: null,
+      orthogonal: ['toString'],
+      total: 2,
+      withheld: ['web'],
+    })
+    expect(stepperModel(parsed.architecture, derived, 1)).toMatchObject({ frontier: ['web'], leavesWhen: [], lit: ['constructor', 'web'], withheld: [] })
   })
 })

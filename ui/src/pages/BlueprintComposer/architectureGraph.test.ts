@@ -91,6 +91,18 @@ describe('toArchitectureGraph — the inputs that would break the canvas', () =>
     ])
   })
 
+  it('a node with no level named after an Object.prototype member has level null, not the member', () => {
+    // A shim is outside the sequence, so it has no level: `id in levels` found Object's own.
+    const shape = arch([native('db'), { ...native('constructor'), lifecycle: 'shim' as const }, native('web', [{ ref: 'db' }])])
+    const graph = toArchitectureGraph(shape, deriveStates(shape))
+    expect(graph.nodes.map((node) => [node.id, node.data.level])).toEqual([['db', 0], ['constructor', null], ['web', 1]])
+    // …and so does every node while the graph has a cycle and `levels` is empty.
+    const cyclic = arch([native('toString', [{ ref: 'valueOf' }]), native('valueOf', [{ ref: 'toString' }])])
+    const { edges, nodes } = toArchitectureGraph(cyclic, deriveStates(cyclic))
+    expect(nodes.map((node) => node.data.level)).toEqual([null, null])
+    expect(edges.map((edge) => edge.data.minlen)).toEqual([1, 1])
+  })
+
   it('a cycle has no levels: its members are flagged, and every edge falls back to minlen 1', () => {
     const shape = arch([native('a', [{ ref: 'c' }]), native('b', [{ ref: 'a' }]), native('c', [{ ref: 'b' }]), native('d')])
     const derived = deriveStates(shape)

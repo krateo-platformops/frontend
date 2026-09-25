@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { draftDisplayName, lintBlueprintDraft } from '../../components/Autopilot/blueprintDraft'
 
 import { ARCHITECTURE_TEMPLATE_PATH, deriveStates, parseArchitecture, serializeArchitecture, unwrapFromConfigMapTemplate } from './architecture'
-import { claimApiVersion, compositionKind, ociChartLocation, startChart, validateStartChart } from './startChart'
+import { KIND_MAX, claimApiVersion, compositionKind, ociChartLocation, startChart, validateStartChart } from './startChart'
 
 const INPUT = { description: 'Publishes a page set as a pull request', name: 'builder-publish', version: '0.1.0' }
 
@@ -52,6 +52,15 @@ describe('startChart — the seeded draft', () => {
     // Zero resources derive zero states: the stepper's initial shape takes it from here.
     expect(deriveStates(parsed.architecture)).toEqual({ levels: {}, ok: true, states: [] })
   })
+
+  // Kubernetes decodes the rendered ConfigMap as YAML 1.1: bare, each of these is a bool or null,
+  // and a label value that is not a string fails the apply. Every one is a valid chart name.
+  it.each(['on', 'off', 'yes', 'no', 'y', 'n', 'true', 'false', 'null'])('a chart named %j gets a QUOTED architecture label — a string under YAML 1.1 too', (name) => {
+    const template = started({ ...INPUT, name })[ARCHITECTURE_TEMPLATE_PATH]
+    const label = template.split('\n').find((line) => line.trim().startsWith('krateo.io/architecture:'))
+    expect(label).toBe(`    krateo.io/architecture: "${name}"`)
+    expect(load(label!.trim())).toEqual({ 'krateo.io/architecture': name })
+  })
 })
 
 describe('startChart — refusals, by field', () => {
@@ -70,8 +79,25 @@ describe('startChart — refusals, by field', () => {
     expect(result.problems.map((problem) => problem.field)).toEqual([field])
   })
 
-  it('a 63-character name is the limit, not over it', () => {
-    expect(validateStartChart({ ...INPUT, name: `a${'b'.repeat(62)}` })).toEqual([])
+  // The plural lengths in these cases are strings.ToLower(flect.Pluralize(Kind)) from flect v1.0.3,
+  // run in Go over the Kind — what core-provider's CRD generator names the resource.
+  it('a 63-character name is the limit, not over it — when its Kind\'s plural fits (Kind 60, plural 61)', () => {
+    const name = `ab-cd-ef-${'g'.repeat(54)}`
+    expect(name).toHaveLength(63)
+    expect(compositionKind(name)).toHaveLength(KIND_MAX)
+    expect(validateStartChart({ ...INPUT, name })).toEqual([])
+  })
+
+  it('a 63-character name with no dashes is refused: its Kind is 63, its plural 64 — no legal CRD', () => {
+    const problems = validateStartChart({ ...INPUT, name: `a${'b'.repeat(62)}` })
+    expect(problems.map((problem) => problem.field)).toEqual(['name'])
+    expect(problems[0].message).toMatch(/at most 60 letters and digits \(dashes do not count\).*has 63/)
+  })
+
+  it('the bound is flect\'s worst growth, three: -quiz pluralises to -quizzes', () => {
+    // Kind …Quiz of 60 → plural of 63: fits. Of 61 → 64: does not.
+    expect(validateStartChart({ ...INPUT, name: `${'a'.repeat(56)}-quiz` })).toEqual([])
+    expect(validateStartChart({ ...INPUT, name: `${'a'.repeat(57)}-quiz` }).map((problem) => problem.field)).toEqual(['name'])
   })
 
   it.each(['1.0', 'v1.0.0', '01.0.0', '1.0.0.0', 'latest', ''])('version %j is not semantic and is refused', (version) => {

@@ -9,6 +9,7 @@
  * Used for AUTO-assigned chart series (no operator colour). Operator-specified colours still go
  * through getColorCode(name) — intentional control, not overridden.
  */
+import { activeThemeMode } from './palette'
 
 const CHART_CAT_DARK = [
   '#11B2E2', '#FFAA00', '#00D690', '#9350DB', '#F84C4C',
@@ -20,9 +21,6 @@ const CHART_CAT_LIGHT = [
   '#0E9488', '#C13B7E', '#879500', '#5F7285', '#7A7A7A',
 ] as const
 
-const isDark = (): boolean =>
-  typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark'
-
 /** Read one `--krateo-chart-cat-NN` CSS var (1-based, zero-padded); '' if unavailable. */
 const readChartCatVar = (index: number): string => {
   if (typeof document === 'undefined' || typeof getComputedStyle !== 'function') { return '' }
@@ -32,7 +30,7 @@ const readChartCatVar = (index: number): string => {
 
 /** The full 10-colour categorical palette for the active theme (G2 `scale.color.range`). */
 export const getChartCatPalette = (): string[] => {
-  const fallback: readonly string[] = isDark() ? CHART_CAT_DARK : CHART_CAT_LIGHT
+  const fallback: readonly string[] = activeThemeMode() === 'dark' ? CHART_CAT_DARK : CHART_CAT_LIGHT
   return fallback.map((hex, i) => readChartCatVar(i) || hex)
 }
 
