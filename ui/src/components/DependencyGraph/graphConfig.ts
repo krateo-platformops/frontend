@@ -22,6 +22,14 @@ import type { ThemeMode } from '../../theme/tokens'
 export interface GraphNode<N = Record<string, unknown>> {
   id: string
   data: N
+  /**
+   * G6 element states. On the data: the states the node STARTS in. In `renderNode`: the states it
+   * is in NOW — a caller changes them on the live graph with `graph.setElementState` (via
+   * `graphRef`), and G6 redraws the element with its new states and no layout pass, so the card
+   * re-renders and nothing moves. A React card has no G6 shape style to change, so it draws its
+   * own states from this list.
+   */
+  states?: string[]
 }
 
 /**
@@ -38,6 +46,8 @@ export interface GraphEdge<E = Record<string, unknown>> {
   source: string
   target: string
   data?: E & { minlen?: number }
+  /** G6 element states the edge starts in — drawn with `EdgeStateStyles`, changed like a node's. */
+  states?: string[]
 }
 
 /** What a caller may vary per edge. Colours are deliberately NOT here: they come from tokens. */
@@ -45,6 +55,14 @@ export interface EdgeAppearance {
   dashed?: boolean
   label?: string
 }
+
+/**
+ * How an edge looks in each G6 element state a caller sets on the live graph — width and opacity,
+ * never a colour. Colours are the palette's: a theme flip repaints the base style (`restyleEdges`)
+ * and would leave a state colour in the old mode. Must be stable (a module constant), like every
+ * other option input, or each render is a re-layout.
+ */
+export type EdgeStateStyles = Record<string, { lineWidth?: number; opacity?: number }>
 
 /** The canvas colours, resolved to concrete values because G6 paints a canvas, not CSS. */
 export interface GraphPalette {
@@ -133,11 +151,14 @@ export const graphLayout = (edges: GraphEdge<unknown>[]): FlowGraphOptions['layo
  *     Without one G6's own light-theme colours stand — what FlowChart has always drawn, in both
  *     portal modes.
  *
- * With neither — FlowChart — the options are exactly C19's object, key for key.
+ *   - `states`: the per-state styles (`EdgeStateStyles`), only for a caller that sets states.
+ *
+ * With none of them — FlowChart — the options are exactly C19's object, key for key.
  */
 export const graphEdgeOptions = <E, >(
   palette: GraphPalette | null,
   appearance?: (edge: GraphEdge<E>) => EdgeAppearance,
+  states?: EdgeStateStyles,
 ): FlowGraphOptions['edge'] => {
   const style: Record<string, unknown> = { router: false }
   if (appearance) {
@@ -148,7 +169,7 @@ export const graphEdgeOptions = <E, >(
   if (palette) {
     Object.assign(style, { labelBackground: true, ...edgePaletteStyle(palette) })
   }
-  return { style, type: GRAPH_EDGE_TYPE }
+  return states ? { state: states, style, type: GRAPH_EDGE_TYPE } : { style, type: GRAPH_EDGE_TYPE }
 }
 
 export interface GraphOptionsInput<N, E> {
@@ -159,22 +180,31 @@ export interface GraphOptionsInput<N, E> {
   nodeSize: [number, number]
   palette: GraphPalette | null
   edgeAppearance?: (edge: GraphEdge<E>) => EdgeAppearance
+  edgeStates?: EdgeStateStyles
 }
 
 /** Everything FlowGraph is given, from one place. */
 export const buildGraphOptions = <N, E>(input: GraphOptionsInput<N, E>): FlowGraphOptions => {
-  const { edgeAppearance, edges, nodeSize, nodes, palette, renderNode } = input
+  const { edgeAppearance, edgeStates, edges, nodeSize, nodes, palette, renderNode } = input
   return {
     autoFit: 'view',
     behaviors: GRAPH_BEHAVIORS,
     data: { edges: edges as G6.EdgeData[], nodes: nodes as unknown as G6.NodeData[] },
-    edge: graphEdgeOptions(palette, edgeAppearance),
+    edge: graphEdgeOptions(palette, edgeAppearance, edgeStates),
     layout: graphLayout(edges),
     node: {
       style: {
         // Each node is its OWN React root (g6-extension-react), so no context reaches the card —
         // only this closure does. Anything the card needs must travel in `data` or the closure.
-        component: (datum: G6.NodeData) => renderNode({ data: datum.data as N, id: String(datum.id) }),
+        // G6 calls this again when `setElementState` changes the node's states (its default style
+        // is recomputed per draw, with the datum as it is now), so the card re-renders in its new
+        // states without a layout pass. `states` is passed only when set, so a caller that never
+        // uses states sees the card input it always did.
+        component: (datum: G6.NodeData) => renderNode({
+          data: datum.data as N,
+          id: String(datum.id),
+          ...(datum.states?.length ? { states: [...datum.states] } : {}),
+        }),
         ports: GRAPH_PORTS,
         size: nodeSize,
       },

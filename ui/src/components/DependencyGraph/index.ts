@@ -6,6 +6,7 @@ export {
   graphLayout,
   graphPalette,
   type EdgeAppearance,
+  type EdgeStateStyles,
   type GraphEdge,
   type GraphNode,
   type GraphPalette,

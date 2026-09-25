@@ -260,3 +260,35 @@ describe('DependencyGraph — node click and the graph handle', () => {
     expect(graphDouble.renders).toHaveLength(1)
   })
 })
+
+describe('DependencyGraph — element states: a step drawn without a layout', () => {
+  const STATES = { lit: { lineWidth: 2 }, withheld: { opacity: 0.35 } }
+  const renderStated = ({ id, states }: GraphNode<Card>) => <span>{`${id}: ${(states ?? []).join(',') || 'none'}`}</span>
+
+  it('edgeStates reaches G6 as the edge `state` mapping — and only for a caller that passes it', () => {
+    render(<DependencyGraph edgeStates={STATES} edges={EDGES} nodeSize={SIZE} nodes={NODES} renderNode={renderCard} themed={false} />)
+    expect(graphDouble.last().edge).toEqual({ state: STATES, style: { router: false }, type: 'cubic-horizontal' })
+  })
+
+  it('a card is rendered with the states in its data, and with no `states` key when it has none', () => {
+    const seen: GraphNode<Card>[] = []
+    const record = (node: GraphNode<Card>) => {
+      seen.push(node)
+      return renderStated(node)
+    }
+    render(<DependencyGraph edges={EDGES} nodeSize={SIZE} nodes={[{ ...NODES[0], states: ['lit'] }, NODES[1]]} renderNode={record} />)
+    expect(screen.getByText('repository: lit')).toBeTruthy()
+    expect(seen.find((node) => node.id === 'repo')).toEqual({ data: { title: 'Repo' }, id: 'repo' })
+  })
+
+  it('setElementState on the live graph redraws the cards in their new states and is NOT a re-layout', () => {
+    const ref = createRef<{ setElementState: (config: Record<string, string[]>) => Promise<void> }>()
+    render(<DependencyGraph edgeStates={STATES} edges={EDGES} graphRef={ref as never} nodeSize={SIZE} nodes={NODES} renderNode={renderStated} />)
+    expect(screen.getByText('repo: none')).toBeTruthy()
+    act(() => { void ref.current?.setElementState({ repo: ['withheld'], 'repo:dependsOn[0]': ['withheld'], repository: ['lit'] }) })
+    expect(screen.getByText('repo: withheld')).toBeTruthy()
+    expect(screen.getByText('repository: lit')).toBeTruthy()
+    expect(graphDouble.renders).toHaveLength(1)
+    expect(graphDouble.stateUpdates).toHaveLength(1)
+  })
+})

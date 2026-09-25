@@ -43,6 +43,7 @@ import {
   edgePaletteStyle,
   graphPalette,
   type EdgeAppearance,
+  type EdgeStateStyles,
   type GraphEdge,
   type GraphNode,
   type GraphPalette,
@@ -119,6 +120,11 @@ export interface DependencyGraphProps<N, E> {
   themed?: boolean
   /** Per-edge dash and label. Colours are not overridable: they come from the tokens. */
   edgeAppearance?: (edge: GraphEdge<E>) => EdgeAppearance
+  /**
+   * How an edge looks in each element state the caller sets through `graphRef` — width and
+   * opacity only. Absent, edges have no state styles (FlowChart: C19's edge object, key for key).
+   */
+  edgeStates?: EdgeStateStyles
 }
 
 interface CanvasProps {
@@ -135,6 +141,7 @@ GraphCanvas.displayName = 'GraphCanvas'
 
 const DependencyGraph = <N, E = Record<string, unknown>>({
   edgeAppearance,
+  edgeStates,
   edges,
   graphRef,
   nodeSize,
@@ -191,8 +198,8 @@ const DependencyGraph = <N, E = Record<string, unknown>>({
   // options, because Graphin answers new options with a full re-layout. New data still picks up
   // the mode active then. The flip itself repaints the live graph, below.
   const options = useMemo(
-    () => buildGraphOptions({ edgeAppearance, edges, nodeSize, nodes, palette: themed ? graphPalette(activeThemeMode()) : null, renderNode }),
-    [edgeAppearance, edges, nodeSize, nodes, renderNode, themed],
+    () => buildGraphOptions({ edgeAppearance, edgeStates, edges, nodeSize, nodes, palette: themed ? graphPalette(activeThemeMode()) : null, renderNode }),
+    [edgeAppearance, edgeStates, edges, nodeSize, nodes, renderNode, themed],
   )
 
   useEffect(() => {

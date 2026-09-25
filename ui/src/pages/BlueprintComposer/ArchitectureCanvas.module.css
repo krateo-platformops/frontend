@@ -1,0 +1,252 @@
+/* The Architecture pane — the stepper, the canvas, every designed state of it, and the 156×72
+   node card. Split from BlueprintComposer.module.css along the component seam: these rules style
+   ArchitectureCanvas and ArchitectureNodeCard and nothing else. Tokens only, per mode, as there.
+
+   The node card is rendered by G6 in its own React root, outside the page's DOM subtree — so none
+   of its rules may depend on an ancestor selector from the page; each stands on the card alone. */
+
+/* ── The stepper (screen 8) ──────────────────────────────────────────────────────────────────── */
+
+.stepper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xsm);
+}
+
+.step {
+  align-items: center;
+  background: var(--light-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--gray-color);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: inherit;
+  font-size: var(--krateo-text-caption);
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xsm) var(--spacing-smd);
+}
+
+/* Passed: the machine has been through it. */
+.step[data-done='true'] {
+  border-color: var(--green-color);
+  color: var(--green-color);
+}
+
+.step[aria-pressed='true'] {
+  background: var(--krateo-color-background-selected);
+  border-color: var(--primary-color);
+  color: var(--text-color);
+}
+
+.stepIndex {
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+  letter-spacing: 0.06em;
+}
+
+/* ── The canvas ──────────────────────────────────────────────────────────────────────────────── */
+
+/* A fixed height, because G6 sizes its canvas from its container once, at render — a container
+   that grew afterwards would leave the graph drawn in the corner of it. */
+.graph {
+  height: 360px;
+  position: relative;
+}
+
+.caption {
+  color: var(--gray-color);
+  font-size: var(--krateo-text-caption);
+  margin: 0;
+}
+
+/* Every state of the canvas that is not a graph — no resources, no file, a file that cannot be
+   drawn — sits in the same box the graph would, so the page does not jump between them. */
+.canvasState {
+  align-items: center;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  min-height: 360px;
+  padding: var(--spacing-lg);
+}
+
+.canvasStateBody {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-smd);
+  max-width: 460px;
+  text-align: center;
+}
+
+.canvasGlyph {
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-lg);
+  height: 48px;
+  width: 48px;
+}
+
+.canvasStateTitle {
+  color: var(--text-color);
+  font-size: var(--krateo-text-body);
+  font-weight: var(--font-weight-bold);
+  margin: 0;
+}
+
+.canvasStateText {
+  color: var(--gray-color);
+  font-size: var(--krateo-text-body-sm);
+  margin: 0;
+}
+
+.problemList {
+  color: var(--text-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-caption);
+  margin: 0;
+  padding-inline-start: var(--spacing-md);
+  text-align: start;
+}
+
+/* The loop that stops the machine — said above the graph that draws it. */
+.cycleNote {
+  background: var(--krateo-color-status-error-subtle);
+  border-bottom: 1px solid var(--line-color);
+  color: var(--text-color);
+  font-size: var(--krateo-text-body-sm);
+  margin: 0;
+  padding: var(--spacing-sm) var(--spacing-smd);
+}
+
+/* ── The node card (screens 5 and 8) — 156×72, the box NODE_SIZE tells dagre ─────────────────── */
+
+.card {
+  background: var(--light-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-sizing: border-box;
+  color: var(--text-color);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-family);
+  gap: var(--spacing-xxs);
+  height: 72px;
+  padding: var(--spacing-sm) var(--spacing-smd);
+  text-align: start;
+  transition: opacity var(--motion-fast) ease-in-out, border-color var(--motion-fast) ease-in-out;
+  width: 156px;
+}
+
+.cardEyebrow,
+.cardId {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardEyebrow {
+  color: var(--gray-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cardId {
+  font-size: var(--krateo-text-body-sm);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.2;
+}
+
+.cardEach {
+  color: var(--gray-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+  font-weight: var(--font-weight-light);
+  margin-inline-start: var(--spacing-xs);
+}
+
+.cardPills {
+  display: flex;
+  gap: var(--spacing-xs);
+  overflow: hidden;
+}
+
+/* The class: what supplies readiness when readyWhen is omitted. A category, not a status — an
+   outlined label in the class's hue, never a filled pill (C13 keeps fills for status). */
+.classPill {
+  align-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-sizing: border-box;
+  color: var(--gray-color);
+  display: inline-flex;
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+  height: 18px;
+  letter-spacing: 0.06em;
+  padding: 0 var(--spacing-xsm);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.classNative {
+  border-color: var(--teal-color);
+  color: var(--teal-color);
+}
+
+.classCustom {
+  border-color: var(--violet-color);
+  color: var(--violet-color);
+}
+
+.classComposition {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+/* THE MACHINE'S STATES, keyed on the G6 element states the card is rendered with. The card says
+   each one in its accessible name too; these are only how it looks. */
+
+/* An optional resource (`when`) and a shim are dashed: they may not be there. */
+.card[data-optional='true'],
+.card[data-states~='orthogonal'] {
+  border-style: dashed;
+}
+
+.card[data-states~='lit'] {
+  border-color: var(--green-color);
+  box-shadow: 0 0 0 3px var(--krateo-color-status-success-subtle);
+}
+
+.card[data-states~='frontier'] {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--krateo-color-background-selected);
+}
+
+.card[data-states~='withheld'] {
+  opacity: 0.35;
+}
+
+.card[data-states~='orthogonal'] {
+  opacity: 0.7;
+}
+
+.card[data-states~='cycle'] {
+  border-color: var(--error-color);
+  box-shadow: 0 0 0 3px var(--krateo-color-status-error-subtle);
+}
+
+/* Selection is the inspector's subject — the focus colour, outside the state ring. */
+.card[data-states~='selected'] {
+  outline: 2px solid var(--krateo-color-border-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+}

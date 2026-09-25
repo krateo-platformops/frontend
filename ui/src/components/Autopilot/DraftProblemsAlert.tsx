@@ -8,20 +8,30 @@
  * the file is fixed. The problems ride the held-draft broadcast; this renders them.
  *
  * Asks for a replay on mount, so a surface opened AFTER the draft went dirty still says why.
+ *
+ * `problems`, when given, is shown INSTEAD of subscribing. A surface that already listens to the
+ * broadcast (the Blueprint Composer) passes the list it holds: an alert that mounts because that
+ * very broadcast arrived has missed it, and would otherwise say nothing until a replay came back.
  */
 import { Alert } from 'antd'
 import { useEffect, useState } from 'react'
 
 import { onDraftChanged, requestDraftReplay } from './previewDraftChanged'
 
-export const DraftProblemsAlert = () => {
-  const [problems, setProblems] = useState<string[]>([])
+export const DraftProblemsAlert = ({ problems: given }: { problems?: string[] } = {}) => {
+  const [heard, setHeard] = useState<string[]>([])
+  const controlled = given !== undefined
 
   useEffect(() => {
-    const stop = onDraftChanged(({ problems: next }) => setProblems(next ?? []))
+    if (controlled) {
+      return undefined
+    }
+    const stop = onDraftChanged(({ problems: next }) => setHeard(next ?? []))
     requestDraftReplay()
     return stop
-  }, [])
+  }, [controlled])
+
+  const problems = given ?? heard
 
   if (!problems.length) {
     return null

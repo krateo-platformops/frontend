@@ -5,7 +5,9 @@
  * in a component test. What those tests need to see is not pixels but the CONTRACT: the options
  * handed to FlowGraph, how often they were handed over (every render is a re-layout in the real
  * thing), what each node card renders, that `node:click` reaches the caller, and what was done to
- * the live graph without a re-layout (`setEdge` + `draw`). This double records all of it. Where
+ * the live graph without a re-layout (`setEdge` + `draw`, `setElementState`). This double records
+ * all of it, and redraws the cards in their new states the way G6 does — without a FlowGraph
+ * render, which is what a re-layout is here. Where
  * nodes land is tested against the real layout class, in node, by
  * `pages/BlueprintComposer/architectureGraph.layout.test.ts`.
  *
@@ -20,13 +22,16 @@
  *   vi.mock('@antv/g6-extension-react', () => ({ ReactNode: vi.fn() }))
  * and read `graphDouble` from this module (the mock and the test share one instance).
  */
-import { forwardRef, useEffect, useImperativeHandle, useRef, type ReactNode } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useReducer, useRef, type ReactNode } from 'react'
+
+/** A node or edge datum as FlowGraph is handed it. */
+interface Datum { id: string; states?: string[] }
 
 /** The FlowGraph props a suite reads back. No index signature: forwardRef's Omit would erase the named keys. */
 interface Options {
   autoFit?: unknown
   behaviors?: unknown
-  data?: { nodes?: { id: string }[]; edges?: unknown[] }
+  data?: { nodes?: Datum[]; edges?: unknown[] }
   edge?: unknown
   layout?: unknown
   node?: { style?: { component?: (datum: unknown) => ReactNode }; type?: string }
@@ -43,9 +48,15 @@ export interface FakeGraph {
   getOptions: () => Options
   on: (event: string, handler: Handler) => void
   setEdge: (edge: unknown) => void
+  setElementState: (config: Record<string, string | string[]>, animation?: boolean) => Promise<void>
 }
 
 const handlers = new Map<string, Handler[]>()
+
+/** The states `setElementState` gave each element since the data was last replaced, as G6 holds them. */
+const liveStates = new Map<string, string[]>()
+/** The mounted card lists, redrawn when a state changes — G6 redraws the element, not the layout. */
+const stateListeners = new Set<() => void>()
 
 export const graphDouble = {
   /** Fire G6's `node:click` for a node id, as a pointer click on its card would. */
@@ -68,10 +79,14 @@ export const graphDouble = {
   reset: (): void => {
     graphDouble.renders.length = 0
     graphDouble.edgeUpdates.length = 0
+    graphDouble.stateUpdates.length = 0
+    liveStates.clear()
     graphDouble.draws = 0
     graphDouble.graph = null
     handlers.clear()
   },
+  /** Every `setElementState()` config, oldest first — a state change drawn without a layout. */
+  stateUpdates: [] as Record<string, string | string[]>[],
 }
 
 const createGraph = (options: () => Options): FakeGraph => {
@@ -100,15 +115,46 @@ const createGraph = (options: () => Options): FakeGraph => {
       override = { edge, over: options() }
       graphDouble.edgeUpdates.push(edge)
     },
+    setElementState: (config) => {
+      graphDouble.stateUpdates.push(config)
+      for (const [id, value] of Object.entries(config)) {
+        liveStates.set(id, Array.isArray(value) ? value : [value])
+      }
+      stateListeners.forEach((redraw) => redraw())
+      return Promise.resolve()
+    },
   }
   return graph
+}
+
+/**
+ * The cards, apart from FlowGraph so a state change redraws them without a FlowGraph render. Each
+ * is handed its datum with the states it has NOW — its data's own until `setElementState` says
+ * otherwise, as G6 recomputes the element's style from the datum it holds.
+ */
+const Cards = ({ component, nodes }: { component?: (datum: unknown) => ReactNode; nodes: Datum[] }) => {
+  const [, redraw] = useReducer((count: number) => count + 1, 0)
+  useEffect(() => {
+    stateListeners.add(redraw)
+    return () => { stateListeners.delete(redraw) }
+  }, [])
+  return (
+    <>
+      {nodes.map((node) => {
+        const states = liveStates.get(node.id) ?? node.states
+        return <div data-node-id={node.id} key={node.id}>{component?.(states ? { ...node, states } : node)}</div>
+      })}
+    </>
+  )
 }
 
 /** Renders each node card through the options' own `component`, so the card's DOM is queryable. */
 export const FlowGraph = forwardRef<unknown, Options>((props, ref) => {
   graphDouble.renders.push(props)
-  // As Graphin: new options (a re-render) replace the graph's options — setOptions + render.
+  // As Graphin: new options (a re-render) replace the graph's options — setOptions + render — and
+  // with them the data, so any state set on the old data is gone.
   const latest = useRef(props)
+  if (latest.current !== props) { liveStates.clear() }
   latest.current = props
   // As BaseGraph: the forwarded ref is filled at commit from a slot the mount effect fills later.
   const slot = useRef<FakeGraph | null>(null)
@@ -127,10 +173,9 @@ export const FlowGraph = forwardRef<unknown, Options>((props, ref) => {
       if (graphDouble.graph === graph) { graphDouble.graph = null }
     }
   }, [])
-  const component = props.node?.style?.component
   return (
     <div data-testid='flow-graph'>
-      {(props.data?.nodes ?? []).map((node) => <div data-node-id={node.id} key={node.id}>{component?.(node)}</div>)}
+      <Cards component={props.node?.style?.component} nodes={props.data?.nodes ?? []} />
     </div>
   )
 })

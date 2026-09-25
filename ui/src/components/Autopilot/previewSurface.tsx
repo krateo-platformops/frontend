@@ -176,6 +176,16 @@ const FileEditBlock = ({
 }) => {
   // The CURRENT held content (seeded from the payload; replaced by each accepted edit).
   const [current, setCurrent] = useState(content)
+  // …and by the HELD bytes when they change under it. A composer passes its live files, so an Undo,
+  // an agent's write or a start over the same path arrives here as a new `content` — and the block
+  // kept showing the bytes it was first mounted with, because the key is the path and the path had
+  // not changed. Adjusted during render (React's derived-state pattern), so no frame shows the old
+  // bytes; an edit in progress keeps its text, and its Apply compares against the new bytes.
+  const [seenContent, setSeenContent] = useState(content)
+  if (seenContent !== content) {
+    setSeenContent(content)
+    setCurrent(content)
+  }
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(content)
   const [error, setError] = useState<string | null>(null)
@@ -262,7 +272,7 @@ const FileEditBlock = ({
  */
 const fileAnchorId = (path: string): string => `preview-file-${path.replace(/[^a-zA-Z0-9]+/g, '-')}`
 
-export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, onVerdicts, payload }: {
+export const PreviewContent = ({ caption, editVerdicts, focusPath, hideDraftProblems, liveFiles, onVerdicts, payload }: {
   /**
    * OVERRIDES the payload's own caption, for a surface that is not the drawer.
    *
@@ -289,6 +299,13 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, on
    * has no tree, and passes nothing.
    */
   focusPath?: string | null
+  /**
+   * The surface shows the held draft's lint problems itself, above this component — so this one
+   * does not repeat them. The Blueprint Composer puts them under its header, beside the Publish
+   * they disable; a second copy below the canvas would say the same thing twice. Absent (the
+   * drawer, the page composer): shown here, as before.
+   */
+  hideDraftProblems?: boolean
   /**
    * THE DRAFT AS IT IS NOW, when the surface showing it has one.
    *
@@ -443,21 +460,26 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, on
   // Suffix match, because the tree speaks HELD KEYS and this list shows routed repo destinations.
   // A node with no file of its own — a placed EXISTING widget — matches nothing and is left alone
   // rather than scrolling somewhere arbitrary.
-  const focusedFile = focusPath
-    ? shownFiles?.find((file) => file.path === focusPath || file.path.endsWith(`/${focusPath}`))
+  //
+  // Keyed on the matched PATH, a string, not on the file entry: with `liveFiles` the entries are
+  // rebuilt on every render, so an effect keyed on the entry ran on every render — and switched
+  // back to Files each time. With a node selected, clicking Source re-rendered, and the effect put
+  // Files back: Source could not be opened at all until the selection was cleared.
+  const focusedPath = focusPath
+    ? shownFiles?.find((file) => file.path === focusPath || file.path.endsWith(`/${focusPath}`))?.path
     : undefined
   useEffect(() => {
-    if (!focusedFile) {
+    if (!focusedPath) {
       return
     }
     setActiveTab('files')
     // Next frame: the Files tab may have just been mounted by the line above, and an unmounted
     // node has nothing to scroll to.
     const frame = requestAnimationFrame(() => {
-      document.getElementById(fileAnchorId(focusedFile.path))?.scrollIntoView({ block: 'nearest' })
+      document.getElementById(fileAnchorId(focusedPath))?.scrollIntoView({ block: 'nearest' })
     })
     return () => cancelAnimationFrame(frame)
-  }, [focusedFile])
+  }, [focusedPath])
 
   const tabs = [
     ...(payload.liveEndpoint
@@ -471,7 +493,7 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, on
 
   return (
     <div className={styles.body}>
-      {heldDraft ? <DraftProblemsAlert /> : null}
+      {heldDraft && !hideDraftProblems ? <DraftProblemsAlert /> : null}
       {(caption ?? payload.caption)
         ? <Typography.Paragraph type='secondary'>{caption ?? payload.caption}</Typography.Paragraph>
         : null}

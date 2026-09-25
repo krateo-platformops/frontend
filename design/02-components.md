@@ -272,6 +272,17 @@ beside each card, because it is the card's geometry. A caller that knows each no
 per-edge `minlen`, because dagre's own ranks are not levels (a root feeding only a level-2 node lands
 in column 1).
 
+**Highlighting is an element state, never new data.** A graph whose elements change look while
+its shape stays put — the Blueprint Composer's state stepper lights, dims and selects — does it with
+G6 element states: the states an element starts in travel in its data (`GraphNode.states`,
+`GraphEdge.states`), and a change is `setElementState` on the live graph through `graphRef`, which G6
+draws where the elements stand. Handing the graph new nodes instead is a full dagre pass and an
+`autoFit` — the person's pan and zoom thrown away on every click. A React card has no G6 shape
+style to change, so `renderNode` receives the node's CURRENT `states` and the card draws them
+itself; an edge's look per state is `edgeStates` (width and opacity only — colours stay the
+palette's, so a theme flip cannot strand a state in the old mode). A graph that sets no states
+passes neither, and gets exactly the C19 object.
+
 *Evidence: #192 — verified on `origin/main`*
 
 ### C20 — `Table` — `fitContent` is an explicit choice between two opposite behaviours.
