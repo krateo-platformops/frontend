@@ -74,6 +74,52 @@ const CLASSES: ResourceClass[] = ['native', 'custom', 'composition']
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
+/**
+ * `when`, `forEach` and `readyWhen` are PATHS, written bare. The descriptor is itself a Helm
+ * template, so an author reaching for `{{ .Values.x }}` gets one of two wrong things: unquoted, YAML
+ * reads the braces as a flow mapping and the field silently becomes an object; quoted, Helm renders
+ * the VALUE into the ConfigMap and the detail page reads `true` where it expected a path. Both are
+ * refused with the same message, for an agent and a person alike.
+ */
+const PATH_FIELDS: Record<'when' | 'forEach' | 'readyWhen', string> = {
+  forEach: 'a bare path, e.g. .Values.files',
+  readyWhen: 'a bare jq path over the live object, e.g. .status.ready',
+  when: 'a bare path, e.g. .Values.a.b',
+}
+
+const pathProblem = (value: unknown, expected: string): string | null => {
+  if (value === undefined) { return null }
+  if (typeof value !== 'string' || value.includes('{{')) {
+    return `must be ${expected} — the descriptor takes only bare paths such as .Values.a.b, never a Helm action ({{ … }})`
+  }
+  return null
+}
+
+/** Faults inside one resource's own fields that do not need the other resources to judge. */
+const fieldProblems = (entry: Record<string, unknown>, at: string): ArchitectureProblem[] => {
+  const problems: ArchitectureProblem[] = []
+  for (const [field, expected] of Object.entries(PATH_FIELDS)) {
+    const message = pathProblem(entry[field], expected)
+    if (message) { problems.push({ message, path: `${at}.${field}` }) }
+  }
+  if (Array.isArray(entry.dependsOn)) {
+    const firstAt = new Map<string, number>()
+    entry.dependsOn.forEach((dep, depIdx) => {
+      if (!isRecord(dep) || typeof dep.ref !== 'string') { return }
+      const message = pathProblem(dep.when, PATH_FIELDS.when)
+      if (message) { problems.push({ message, path: `${at}.dependsOn[${depIdx}].when` }) }
+      // One edge per dependency: a repeat is either a mistake or a second, conflicting `ready`.
+      const first = firstAt.get(dep.ref)
+      if (first !== undefined) {
+        problems.push({ message: `"${dep.ref}" is already listed at dependsOn[${first}] — one entry per dependency`, path: `${at}.dependsOn[${depIdx}]` })
+      } else {
+        firstAt.set(dep.ref, depIdx)
+      }
+    })
+  }
+  return problems
+}
+
 /** Parse the descriptor text. Every structural fault is reported by path; nothing is guessed. */
 export const parseArchitecture = (text: string): ParseResult => {
   let raw: unknown
@@ -101,6 +147,9 @@ export const parseArchitecture = (text: string): ParseResult => {
   }
   const ids = new Set<string>()
   const resources: ResourceNode[] = []
+  // Each kept resource's index in the RAW list, so a path still names the right entry when a
+  // malformed one before it was skipped.
+  const positions: number[] = []
   raw.resources.forEach((entry, idx) => {
     const at = `resources[${idx}]`
     if (!isRecord(entry)) {
@@ -135,16 +184,25 @@ export const parseArchitecture = (text: string): ParseResult => {
     if (entry.lifecycle !== undefined && entry.lifecycle !== 'shim' && entry.lifecycle !== 'descriptor') {
       problems.push({ message: 'shim | descriptor', path: `${at}.lifecycle` })
     }
+    problems.push(...fieldProblems(entry, at))
     resources.push(entry as unknown as ResourceNode)
+    positions.push(idx)
   })
   // A ref must name a node — and `ready: true` onto a node with no readiness is a promise with
   // nothing to check, so it is refused here rather than discovered as a gate that never opens.
-  for (const node of resources) {
-    for (const [depIdx, dep] of (node.dependsOn ?? []).entries()) {
+  for (const [nodeIdx, node] of resources.entries()) {
+    const deps: unknown[] = Array.isArray(node.dependsOn) ? node.dependsOn : []
+    for (const [depIdx, dep] of deps.entries()) {
+      // Not a mapping with a ref: already reported above as "needs a ref" — and not safe to read.
+      if (!isRecord(dep) || typeof dep.ref !== 'string') { continue }
       const target = resources.find((candidate) => candidate.id === dep.ref)
-      const at = `resources[${resources.indexOf(node)}].dependsOn[${depIdx}]`
+      const at = `resources[${positions[nodeIdx]}].dependsOn[${depIdx}]`
       if (!target) {
         problems.push({ message: `"${dep.ref}" is not a resource of this chart`, path: at })
+      } else if (target.lifecycle && target !== node) {
+        // A lifecycle node is outside the sequence (deriveStates skips it), so an edge onto it
+        // would order nothing while reading as if it did.
+        problems.push({ message: `"${dep.ref}" is lifecycle: ${target.lifecycle} — orthogonal to the sequence, so nothing can wait on it`, path: at })
       } else if (dep.ready && !target.readyWhen && target.class === 'custom') {
         problems.push({ message: `ready: true needs a readyWhen on "${dep.ref}" — a custom resource has no default`, path: at })
       }

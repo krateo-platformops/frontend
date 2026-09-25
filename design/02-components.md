@@ -265,6 +265,13 @@ size: [400, 150]                                          // the key keeps the i
 
 Generalises past this widget: a node size must fit its container — the old `[300,140]` was sized against a 400px card — and a layout gap must exceed what the edge style needs to route through it.
 
+**Where it lives now (C24).** The edge shape, layout, ports and viewport are defined once, in
+`ui/src/components/DependencyGraph/graphConfig.ts`, and drawn by `DependencyGraph`, which both
+`FlowChart` and the Blueprint Composer's architecture graph render through. The node `size` stays
+beside each card, because it is the card's geometry. A caller that knows each node's level passes a
+per-edge `minlen`, because dagre's own ranks are not levels (a root feeding only a level-2 node lands
+in column 1).
+
 *Evidence: #192 — verified on `origin/main`*
 
 ### C20 — `Table` — `fitContent` is an explicit choice between two opposite behaviours.

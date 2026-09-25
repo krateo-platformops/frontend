@@ -94,6 +94,94 @@ resources:
     )
   })
 
+  it('refuses the same ref twice in one dependsOn — G6 would throw on the duplicate edge', () => {
+    const parsed = parseArchitecture(`apiVersion: ${ARCHITECTURE_API_VERSION}
+kind: ChartArchitecture
+chart: x
+resources:
+  - { id: db, class: native, apiVersion: v1, kind: ConfigMap, template: t/db.yaml }
+  - { id: web, class: native, apiVersion: apps/v1, kind: Deployment, template: t/web.yaml, dependsOn: [{ ref: db }, { ref: db, ready: true }] }
+`)
+    expect(parsed.ok).toBe(false)
+    if (parsed.ok) { return }
+    expect(parsed.problems).toEqual([{ message: '"db" is already listed at dependsOn[0] — one entry per dependency', path: 'resources[1].dependsOn[1]' }])
+  })
+
+  it('refuses a dependsOn onto a shim: it is outside the sequence, so nothing can wait on it', () => {
+    const parsed = parseArchitecture(`apiVersion: ${ARCHITECTURE_API_VERSION}
+kind: ChartArchitecture
+chart: x
+resources:
+  - { id: legacy, class: native, apiVersion: v1, kind: Secret, template: t/legacy.yaml, lifecycle: shim }
+  - { id: web, class: native, apiVersion: apps/v1, kind: Deployment, template: t/web.yaml, dependsOn: [{ ref: legacy }] }
+`)
+    expect(parsed.ok).toBe(false)
+    if (parsed.ok) { return }
+    expect(parsed.problems.map((problem) => problem.path)).toEqual(['resources[1].dependsOn[0]'])
+    expect(parsed.problems[0].message).toMatch(/lifecycle: shim/)
+  })
+
+  it('refuses a Helm action where a path belongs — unquoted it parses as a mapping, quoted it renders a value', () => {
+    // Unquoted `{{ .Values.x }}` is YAML for a flow mapping; before this guard it parsed ok:true as
+    // when: {"[object Object]": null}. A quoted one is a string Helm would render to the VALUE.
+    const parsed = parseArchitecture(`apiVersion: ${ARCHITECTURE_API_VERSION}
+kind: ChartArchitecture
+chart: x
+resources:
+  - id: db
+    class: custom
+    apiVersion: g/v1
+    kind: Db
+    template: t/db.yaml
+    when: {{ .Values.db.enabled }}
+    forEach: 3
+    readyWhen: "{{ .Values.ready }}"
+  - id: web
+    class: native
+    apiVersion: apps/v1
+    kind: Deployment
+    template: t/web.yaml
+    dependsOn:
+      - ref: db
+        when: {{ .Values.web.db }}
+`)
+    expect(parsed.ok).toBe(false)
+    if (parsed.ok) { return }
+    expect(parsed.problems.map((problem) => problem.path).sort()).toEqual(
+      ['resources[0].forEach', 'resources[0].readyWhen', 'resources[0].when', 'resources[1].dependsOn[0].when'].sort(),
+    )
+    for (const problem of parsed.problems) {
+      expect(problem.message).toMatch(/only bare paths such as \.Values\.a\.b/)
+    }
+  })
+
+  it('a malformed dependsOn is reported at its own path, never thrown', () => {
+    // Each of these used to throw out of the second pass: a string has no .entries(), a null
+    // entry has no .ref. And the path counts the malformed first entry, not the kept ones.
+    const parsed = parseArchitecture(`apiVersion: ${ARCHITECTURE_API_VERSION}
+kind: ChartArchitecture
+chart: x
+resources:
+  - just a string
+  - { id: a, class: native, apiVersion: v1, kind: ConfigMap, template: t/a.yaml, dependsOn: not-a-list }
+  - { id: b, class: native, apiVersion: v1, kind: ConfigMap, template: t/b.yaml, dependsOn: [~, { ref: ghost }] }
+`)
+    expect(parsed.ok).toBe(false)
+    if (parsed.ok) { return }
+    expect(parsed.problems.map((problem) => problem.path)).toEqual(
+      ['resources[0]', 'resources[1].dependsOn', 'resources[2].dependsOn[0]', 'resources[2].dependsOn[1]'],
+    )
+  })
+
+  it('bare paths are accepted as they always were', () => {
+    const arch = base()
+    arch.resources[0].readyWhen = '.status.ready'
+    arch.resources[2].when = '.Values.web.enabled'
+    arch.resources[2].forEach = '.Values.replicas'
+    arch.resources[2].dependsOn = [{ ready: true, ref: 'db', when: '.Values.db.enabled' }, { ref: 'cfg' }]
+    expect(parseArchitecture(serializeArchitecture(arch)).ok).toBe(true)
+  })
+
   it('not YAML is one problem at the root, not a throw', () => {
     const parsed = parseArchitecture('resources: [\n')
     expect(parsed.ok).toBe(false)
