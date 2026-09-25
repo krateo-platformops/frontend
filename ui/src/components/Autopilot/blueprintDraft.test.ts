@@ -294,6 +294,9 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
     expect(chartYamlName('name: "my chart"\n')).toBe('my chart')
     expect(chartYamlName('apiVersion: v2\n')).toBeNull()
     expect(chartYamlName('name: ""\n')).toBeNull()
+    // A name on the next line is still YAML — and still what Helm reads.
+    expect(chartYamlName('apiVersion: v2\nname:\n  pg-app\nversion: 0.1.0\n')).toBe('pg-app')
+    expect(chartYamlName('name: [unclosed\n')).toBeNull()
     expect(chartYamlName(undefined)).toBeNull()
   })
 

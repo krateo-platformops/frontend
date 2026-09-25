@@ -23,6 +23,7 @@ import type { Config } from '../../context/ConfigContext'
 
 import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from './blueprintDraft'
 import { type BlueprintDraftStore, createBlueprintDraftStore } from './blueprintDraftStore'
+import { type BlueprintGate, createBlueprintGate } from './blueprintGate'
 import { draftHistory } from './draftHistory'
 import { callBlueprintRenderRA, type HelmRenderResult } from './previewBridge'
 import { AUTOPILOT_PREVIEW_EVENT } from './previewBus'
@@ -42,7 +43,7 @@ const RENDERED: HelmRenderResult = { objects: [{ apiVersion: 'v1', kind: 'Config
 
 const gateFake = () => ({ forget: vi.fn(), recordPreview: vi.fn() })
 
-const Host = ({ config, gate, store }: { config: Config | undefined; gate: ReturnType<typeof gateFake>; store: BlueprintDraftStore }) => {
+const Host = ({ config, gate, store }: { config: Config | undefined; gate: Pick<BlueprintGate, 'forget' | 'recordPreview'>; store: BlueprintDraftStore }) => {
   useBlueprintAuthoringBuses(store, gate, config)
   return null
 }
@@ -116,7 +117,7 @@ describe('starting a chart', () => {
   })
 
   it('is REFUSED while a draft is held, and the held draft survives', async () => {
-    const { results, stop, store } = mount()
+    const { gate, results, stop, store } = mount()
     store.set({ 'templates/flex.page-home.yaml': 'kind: Flex\n' }, 'page')
     const before = store.get()
 
@@ -124,6 +125,8 @@ describe('starting a chart', () => {
     await settle()
 
     expect(store.get()).toBe(before)
+    // A refused start touches nothing — not even the held draft's arming.
+    expect(gate.forget).not.toHaveBeenCalled()
     expect(results).toEqual([expect.objectContaining({ id: 's3', outcome: 'refused' })])
     expect(results[0].message).toMatch(/already open/)
     expect(callBlueprintRenderRA).not.toHaveBeenCalled()
@@ -139,6 +142,17 @@ describe('starting a chart', () => {
     expect(gate.forget).toHaveBeenCalledWith('demo-chart')
     expect(gate.recordPreview).not.toHaveBeenCalled()
     stop()
+  })
+
+  it('…and with a REAL gate: the name an earlier chart armed is not armed for this one', () => {
+    vi.mocked(callBlueprintRenderRA).mockReturnValue(new Promise(() => undefined))
+    const gate = createBlueprintGate()
+    gate.recordPreview('demo-chart')
+    render(<Host config={CONFIG} gate={gate} store={createBlueprintDraftStore()} />)
+
+    act(() => { emitChartStart({ files: chart(), id: 's7' }) })
+
+    expect(gate.isArmed('demo-chart')).toBe(false)
   })
 
   it('starts with no undo history from the last draft', () => {

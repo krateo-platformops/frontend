@@ -19,6 +19,7 @@
  *      one (synthetic `name` + `namespace` first, `(should be hidden)` titles hidden)
  *      for the drawer's read-only SchemaForm mount.
  */
+import { load } from 'js-yaml'
 import type { JSONSchema4 } from 'json-schema'
 
 import { ARCHITECTURE_TEMPLATE_PATH, deriveStates, parseArchitecture, unwrapFromConfigMapTemplate } from '../../pages/BlueprintComposer/architecture'
@@ -197,13 +198,22 @@ export const lintValuesSchemaDefaults = (schemaText: string): string[] => {
 
 /**
  * Chart.yaml's `name:`, or null. ONE reader for the lint and for the identity the gate, the slug and
- * the destination are keyed on — two readers disagreed about `name: x # comment`, so the lint
- * passed a chart whose identity had silently fallen back to "draft chart". A `#` opens a comment
- * only after whitespace, as in YAML, so `name: a#b` is the name `a#b` (and the lint refuses it).
+ * the destination are keyed on — two regex readers disagreed about `name: x # comment`, so the lint
+ * passed a chart whose identity had silently fallen back to "draft chart"; a third regex missed a
+ * name on the next line. It is YAML, so it is read as YAML — the way Helm reads it. Never throws:
+ * this runs inside the draft broadcast, and an unreadable Chart.yaml is a missing name.
  */
 export const chartYamlName = (chartYaml: string | undefined): string | null => {
-  const match = chartYaml ? /^name:[ \t]*(?:"([^"]*)"|'([^']*)'|([^\s#]\S*?))(?:[ \t]+#.*)?[ \t\r]*$/m.exec(chartYaml) : null
-  return match ? (match[1] ?? match[2] ?? match[3]) || null : null
+  if (!chartYaml) {
+    return null
+  }
+  try {
+    const doc = load(chartYaml) as { name?: unknown } | null
+    const name = typeof doc?.name === 'number' ? String(doc.name) : doc?.name
+    return typeof name === 'string' && name !== '' ? name : null
+  } catch {
+    return null
+  }
 }
 
 /**
