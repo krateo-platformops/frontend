@@ -204,6 +204,19 @@ describe('BlueprintComposer — Preview, and every answer in the person\'s words
     expect(screen.getByText(STALE_RENDER_CAPTION)).toBeTruthy()
   })
 
+  it('takes back "Publish is on" once the chart changes — it no longer stands beside a disabled Publish', () => {
+    const files = seededChart()
+    mount()
+    hold(files, { previewed: false })
+    answer({ id: pressPreview(), message: null, outcome: 'rendered', payload: renderedPayload(files, OBJECTS) })
+    hold(files, { previewed: true })
+    expect(screen.getByText(/Publish is on until the chart changes/)).toBeTruthy()
+    hold({ ...files, 'values.yaml': 'replicas: 2\n' }, { previewed: false })
+    expect(screen.queryByText(/Publish is on until the chart changes/)).toBeNull()
+    expect(screen.getByText('Preview needed')).toBeTruthy()
+    expect(publishButton().disabled).toBe(true)
+  })
+
   it('shows the AGENT\'s preview of the held chart — the drawer defers it here and must not open', () => {
     const files = seededChart()
     render(

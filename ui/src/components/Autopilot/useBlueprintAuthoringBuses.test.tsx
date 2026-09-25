@@ -220,7 +220,7 @@ describe('previewing the held chart', () => {
     expect(callBlueprintRenderRA).not.toHaveBeenCalled()
     expect(gate.recordPreview).not.toHaveBeenCalled()
     expect(results[0]).toMatchObject({ id: 'r2b', outcome: 'refused' })
-    expect(results[0].problems?.join(' ')).toMatch(/at version 10\.20\.30 the Kind .* at most 39 characters/)
+    expect(results[0].problems?.join(' ')).toMatch(/at version 10\.20\.30 the Kind .* at most 41 characters/)
     stop()
   })
 

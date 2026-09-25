@@ -52,7 +52,7 @@ import ArchitectureCanvas from './ArchitectureCanvas'
 import { architectureView, counted } from './architectureView'
 import styles from './BlueprintComposer.module.css'
 import BlueprintEmptyState from './BlueprintEmptyState'
-import { heldBlueprintPayload, lastRenderOf, renderCaption } from './heldBlueprintPayload'
+import { heldBlueprintPayload, lastRenderOf, renderCaption, sameFiles } from './heldBlueprintPayload'
 import NodeInspector from './NodeInspector'
 import { renderOutcomeCopy } from './renderOutcome'
 import { compositionKind } from './startChart'
@@ -241,7 +241,12 @@ const BlueprintComposer = () => {
   const meta = [chartYamlVersion(files[CHART_YAML_PATH]), name ? compositionKind(name) : null].filter(Boolean).join(' · ')
   const rendering = requests.pending !== null
   const blocker = publishBlocker(held, rendering)
-  const outcome = requests.outcome ? renderOutcomeCopy(requests.outcome) : null
+  // A "rendered" answer says Publish is on UNTIL THE CHART CHANGES — so once the held files differ
+  // from the ones it rendered it is no longer true, and beside the disabled Publish and the
+  // "Preview needed" pill it contradicted them. Measured like the Source caption (the files the
+  // render was of), not by the gate broadcast, which can arrive after the answer it arms.
+  const renderStale = !!requests.lastRender?.files && !sameFiles(requests.lastRender.files, files)
+  const outcome = requests.outcome && !(requests.outcome.outcome === 'rendered' && renderStale) ? renderOutcomeCopy(requests.outcome) : null
 
   return (
     <div className={styles.page}>
@@ -251,7 +256,7 @@ const BlueprintComposer = () => {
             <span className={styles.eyebrow}>{EYEBROW}</span>
             <h1 className={styles.title}>
               {name ?? draftDisplayName(files)}
-              {meta ? <span className={styles.titleMeta}>{meta}</span> : null}
+              {meta ? <>{' '}<span className={styles.titleMeta}>{meta}</span></> : null}
             </h1>
           </div>
           <span className={styles.spacer} />

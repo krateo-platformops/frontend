@@ -85,6 +85,6 @@ describe('runDraftPublish — the lint runs under the HELD kind', () => {
     const store = createBlueprintDraftStore()
     store.set({ [CHART_YAML_PATH]: `apiVersion: v2\nname: ${name}\nversion: 10.20.30\n`, [VALUES_SCHEMA_PATH]: '{"type":"object"}' }, 'blueprint')
     const outcome = await runDraftPublish(deps(store), { verb: 'publishBlueprint' })
-    expect(outcome.compiled.denial).toMatch(/fails the chart lint: .*at version 10\.20\.30 the Kind .* at most 39 characters/)
+    expect(outcome.compiled.denial).toMatch(/fails the chart lint: .*at version 10\.20\.30 the Kind .* at most 41 characters/)
   })
 })

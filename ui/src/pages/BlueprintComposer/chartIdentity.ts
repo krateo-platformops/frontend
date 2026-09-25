@@ -33,16 +33,20 @@
  *   everything else    the Deployment, ConfigMaps, ServiceAccount, (Cluster)Roles and bindings are
  *                      `<plural>-<apiVersion>-…` too, but DNS-1123 subdomains (253) or looser.
  *
- * So, with V = the API version's length (`0.1.0` → `v0-1-0`, 6), and plural ≤ Kind + 3:
+ * So, with V = the API version's length (`0.1.0` → `v0-1-0`, 6), and plural ≤ Kind + G:
  *
- *   refused    plural + 1 + V + 11 ≤ 63   ⇒   Kind ≤ 48 − V   (and Kind ≤ 59 always)
- *   warned     plural + 1 + V + 19 ≤ 63   ⇒   Kind ≤ 40 − V   (only with CDC metrics on)
+ *   refused    plural + 1 + V + 11 ≤ 63   ⇒   Kind ≤ 51 − V − G   (and Kind ≤ 59 always)
+ *   warned     plural + 1 + V + 19 ≤ 63   ⇒   Kind ≤ 43 − V − G   (only with CDC metrics on)
  *
- * The +3 is flect v1.0.3's worst growth — `-s` is one, `-es`/`y → ies` one or two, `child →
- * children` and `quiz → quizzes` three (measured by running flect in Go). It is the bound, not
- * flect's own answer: a Kind whose plural only adds `s` is refused two characters early. Porting
- * flect.Pluralize's dictionary to get those two back would make this rule as wrong as the port.
- * Kind length = the name without its dashes (compositionKind only re-cases letters).
+ * G is the most flect v1.0.3 can grow a Kind WITH THIS ENDING (pluralGrowthBound): three for
+ * `-child`, `-ez`, `-iz` (children, quizzes), two for `-f -h -o -s -x -y -z` (leaves, matches,
+ * potatoes, classes, boxes, policies, waltzes), one for anything else (`s`). A flat three refused
+ * real marketplace blueprints whose every name fits — aws-sagemaker-notebookinstancelifecycleconfig
+ * @0.3.0 (Kind 43, plural 44, container 62). It is a bound by the last letters, not flect's own
+ * answer — run in Go against every suffix rule and dictionary word in flect's tables, and over 1.6M
+ * names from a word list (bare, with my-/sql-/aws- before and -api/-dns/-https after), it undercounts
+ * none. Porting flect.Pluralize's dictionary to get the rest back would make this rule as wrong as
+ * the port. Kind length = the name without its dashes (compositionKind only re-cases letters).
  *
  * THE DERIVATIONS are core-provider's own rules, ported so the modal cannot promise a Kind the
  * cluster will not generate (go/core-provider/internal/tools/chart/chartfs/gvr.go): group
@@ -67,8 +71,18 @@ export const CDC_CONTAINER_SUFFIX = '-controller'
 /** …and its metrics Service, which exists only when core-provider runs with cdc.metrics.enabled. */
 export const CDC_SERVICE_SUFFIX = '-controller-service'
 
-/** flect v1.0.3's longest plural suffix growth: `quiz → quizzes`, `child → children`. */
-export const PLURAL_GROWTH_MAX = 3
+/**
+ * The most flect v1.0.3 can lengthen a Kind with this ending when it pluralises it (the header):
+ * 3 for `-child`/`-ez`/`-iz`, 2 for `-f -h -o -s -x -y -z`, 1 for anything else.
+ */
+export const pluralGrowthBound = (kind: string): number => {
+  const lower = kind.toLowerCase()
+  if (/(child|ez|iz)$/.test(lower)) { return 3 }
+  return /[fhosxyz]$/.test(lower) ? 2 : 1
+}
+
+/** The smallest bound pluralGrowthBound gives (a Kind that only adds `s`): what "no Kind fits this version" is measured with. */
+const PLURAL_GROWTH_MIN = 1
 
 export const COMPOSITION_GROUP = 'composition.krateo.io'
 
@@ -164,19 +178,19 @@ export const compositionVersion = (version: string): string => `v${version.trim(
 /** The claim's apiVersion: `0.1.0` → `composition.krateo.io/v0-1-0`. */
 export const claimApiVersion = (version: string): string => `${COMPOSITION_GROUP}/${compositionVersion(version)}`
 
-/** The longest Kind whose `<plural>-<apiVersion><suffix>` fits in a 63-character label. */
-const budgetFor = (suffix: string, version: string): number =>
-  Math.min(KIND_MAX, CHART_NAME_MAX - suffix.length - 1 - compositionVersion(version).length - PLURAL_GROWTH_MAX)
+/** The longest Kind, growing by `growth`, whose `<plural>-<apiVersion><suffix>` fits in a 63-character label. */
+const budgetFor = (suffix: string, version: string, growth: number): number =>
+  Math.min(KIND_MAX, CHART_NAME_MAX - suffix.length - 1 - compositionVersion(version).length - growth)
 
 /**
- * The longest Kind whose names all fit at this chart version on ANY install — the container bound in
- * the header: min(KIND_MAX, 63 − len("-controller") − 1 − len(apiVersion) − PLURAL_GROWTH_MAX).
- * At 0.1.0 that is 42; at 10.20.30, 39. Below 1, no Kind fits and the VERSION is the problem.
+ * The longest Kind with `kind`'s ending whose names all fit at this chart version on ANY install —
+ * the container bound in the header: min(KIND_MAX, 63 − len("-controller") − 1 − len(apiVersion) −
+ * pluralGrowthBound(kind)). At 0.1.0 that is 44 for a Kind that only adds `s`, 42 for a `…Quiz`.
  */
-export const kindBudget = (version: string): number => budgetFor(CDC_CONTAINER_SUFFIX, version)
+export const kindBudget = (version: string, kind: string): number => budgetFor(CDC_CONTAINER_SUFFIX, version, pluralGrowthBound(kind))
 
-/** The tighter budget on an install that runs CDC metrics (the Service): 34 at 0.1.0, 31 at 10.20.30. */
-export const metricsKindBudget = (version: string): number => budgetFor(CDC_SERVICE_SUFFIX, version)
+/** The tighter budget on an install that runs CDC metrics (the Service): eight less, 36 at 0.1.0 for an `s` plural. */
+export const metricsKindBudget = (version: string, kind: string): number => budgetFor(CDC_SERVICE_SUFFIX, version, pluralGrowthBound(kind))
 
 /**
  * The part of the rule EVERY chart name obeys, a page set's included: a DNS-1123 label. The name
@@ -208,9 +222,9 @@ const nameProblem = (name: string, version: string, versionOk: boolean): string 
   }
   // Only at a version that is itself valid: an unreadable version has no budget to measure against,
   // and its own refusal says so. The name is checked again the moment the version reads.
-  const budget = kindBudget(version)
+  const budget = kindBudget(version, kind)
   if (versionOk && kind.length > budget) {
-    return `at version ${version} the Kind (the name without dashes) can be at most ${budget} characters — ${kind} has ${kind.length}. core-provider names the controller's container <plural>-${compositionVersion(version)}${CDC_CONTAINER_SUFFIX}, a container name is at most ${CHART_NAME_MAX}, and the plural can run ${PLURAL_GROWTH_MAX} longer than the Kind. A release can lengthen the version (0.9.0 → 0.10.0), so leave room.`
+    return `at version ${version} the Kind (the name without dashes) can be at most ${budget} characters — ${kind} has ${kind.length}. core-provider names the controller's container <plural>-${compositionVersion(version)}${CDC_CONTAINER_SUFFIX}, a container name is at most ${CHART_NAME_MAX}, and the plural of ${kind} can run ${pluralGrowthBound(kind)} longer than the Kind. A release can lengthen the version (0.9.0 → 0.10.0), so leave room.`
   }
   return null
 }
@@ -223,7 +237,7 @@ const versionProblem = (version: string): string | null => {
   if (!API_VERSION_LABEL.test(apiVersion)) {
     return `becomes the API version ${apiVersion}, which Kubernetes refuses — no build metadata (+…) and a lower-case pre-release tag`
   }
-  if (kindBudget(version) < 1) {
+  if (budgetFor(CDC_CONTAINER_SUFFIX, version, PLURAL_GROWTH_MIN) < 1) {
     return `becomes the API version ${apiVersion} (${apiVersion.length} characters), which leaves no room for any Kind in the controller container core-provider names <plural>-${apiVersion}${CDC_CONTAINER_SUFFIX} — at most ${CHART_NAME_MAX}`
   }
   return null
@@ -262,12 +276,12 @@ export const chartIdentityWarnings = (identity: ChartIdentity): ChartIdentityPro
   const name = identity.name.trim()
   const version = identity.version.trim()
   const kind = compositionKind(name)
-  const budget = metricsKindBudget(version)
+  const budget = metricsKindBudget(version, kind)
   if (kind.length <= budget) {
     return []
   }
   return [{
     field: 'name',
-    message: `fits every install — but may not fit one that runs core-provider with CDC metrics on (cdc.metrics.enabled): its Service <plural>-${compositionVersion(version)}${CDC_SERVICE_SUFFIX} leaves the Kind at most ${budget} characters (the plural can run ${PLURAL_GROWTH_MAX} longer), and ${kind} has ${kind.length}. A shorter name leaves that room.`,
+    message: `fits every install — but may not fit one that runs core-provider with CDC metrics on (cdc.metrics.enabled): its Service <plural>-${compositionVersion(version)}${CDC_SERVICE_SUFFIX} leaves the Kind at most ${budget} characters (the plural of ${kind} can run ${pluralGrowthBound(kind)} longer), and ${kind} has ${kind.length}. A shorter name leaves that room.`,
   }]
 }

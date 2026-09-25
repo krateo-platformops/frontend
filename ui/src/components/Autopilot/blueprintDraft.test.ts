@@ -241,8 +241,8 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
     const chart = (name: string, version: string) => `apiVersion: v2\nname: ${name}\nversion: ${version}\n`
     const lint = (name: string, version: string, kind: 'blueprint' | 'page') =>
       lintBlueprintDraft({ ...cleanDraft, 'Chart.yaml': chart(name, version) }, kind).join('\n')
-    // Kind 42 = the budget at 0.1.0: flect pluralises it with one `s`, so the controller container
-    // is <43>-v0-1-0-controller = 61 characters. At 10.20.30 the same plural makes 64.
+    // Kind 42, which flect pluralises with one `s`: the controller container is <43>-v0-1-0-controller
+    // = 61 characters. At 10.20.30 the same plural makes 64 — the budget there is 41.
     const FITS_ONLY_EARLY = `a${'b'.repeat(41)}`
 
     // krateoplatformops-blueprints charts at their released versions. Each deploys on a default
@@ -252,6 +252,9 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
       ['github-scaffolding-with-composition-page', '1.2.2'],
       ['portal-composition-page-cloudnative-stack', '1.4.2'],
       ['portal-composition-page-continuous-deployment', '1.0.0'],
+      // Marketplace blueprints whose Kinds (43, 44) only add `s`: a flat +3 for the plural refused them.
+      ['aws-sagemaker-notebookinstancelifecycleconfig', '0.3.0'],
+      ['aws-sagemaker-modelexplainabilityjobdefinition', '0.3.0'],
     ])('a real blueprint that deploys is not refused: %s@%s', (name, version) => {
       expect(lint(name, version, 'blueprint')).toBe('')
     })
@@ -259,7 +262,7 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
     it('a held blueprint whose version was bumped past the budget is REFUSED, naming the container and the budget', () => {
       expect(lint(FITS_ONLY_EARLY, '0.1.0', 'blueprint')).toBe('')
       const bumped = lint(FITS_ONLY_EARLY, '10.20.30', 'blueprint')
-      expect(bumped).toContain(`Chart.yaml name "${FITS_ONLY_EARLY}": at version 10.20.30 the Kind (the name without dashes) can be at most 39 characters`)
+      expect(bumped).toContain(`Chart.yaml name "${FITS_ONLY_EARLY}": at version 10.20.30 the Kind (the name without dashes) can be at most 41 characters`)
       expect(bumped).toContain('container <plural>-v10-20-30-controller,')
     })
 

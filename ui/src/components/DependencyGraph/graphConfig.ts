@@ -97,6 +97,12 @@ export const GRAPH_PORTS: { placement: 'left' | 'right' }[] = [{ placement: 'lef
 /** Pan and zoom only. Selection is a click handler, not G6's `click-select` state. */
 export const GRAPH_BEHAVIORS = ['drag-canvas', 'zoom-canvas']
 
+/** A graph drawn at its true size pans and never zooms: the wheel is the page's (GraphFit). */
+export const NATURAL_BEHAVIORS = ['drag-canvas']
+
+/** …and G6's own centring at each render is instant, so `placeAtNaturalSize` follows no glide. */
+export const NATURAL_AUTO_FIT = { animation: false, type: 'center' } as const
+
 /** The dash an existence-only edge is drawn with, in px (on, off). */
 export const DASHED_EDGE = [6, 4]
 
@@ -176,6 +182,13 @@ export const graphEdgeOptions = <E, >(
  * How the graph meets its box. `view` (FlowChart's, the default) scales it to fill the box. `natural`
  * draws it at zoom 1 — centred by G6 at each layout, then placed by `placeAtNaturalSize` — for cards
  * designed at a pixel size, which `view` magnifies or shrinks past the type floor.
+ *
+ * `natural` also means NO WHEEL ZOOM and NO GLIDE. zoom-canvas takes the page's scroll gesture:
+ * over the Blueprint Composer's pane, one ordinary scroll toward Chart files shrank the 156×72 cards
+ * to a smudge (up to ×0.5 per event) and did not scroll the page, and nothing on the page brings
+ * zoom 1 back. And G6 ends every re-render with its autoFit, animated by default — an edit that kept
+ * the node set slid an overflowing graph to centre, cutting off the first column, before
+ * `placeAtNaturalSize` snapped it back. Drag to pan stays.
  */
 export type GraphFit = 'natural' | 'view'
 
@@ -196,8 +209,8 @@ export interface GraphOptionsInput<N, E> {
 export const buildGraphOptions = <N, E>(input: GraphOptionsInput<N, E>): FlowGraphOptions => {
   const { edgeAppearance, edgeStates, edges, fit = 'view', nodeSize, nodes, palette, renderNode } = input
   return {
-    autoFit: fit === 'natural' ? 'center' : 'view',
-    behaviors: GRAPH_BEHAVIORS,
+    autoFit: fit === 'natural' ? NATURAL_AUTO_FIT : 'view',
+    behaviors: fit === 'natural' ? NATURAL_BEHAVIORS : GRAPH_BEHAVIORS,
     data: { edges: edges as G6.EdgeData[], nodes: nodes as unknown as G6.NodeData[] },
     edge: graphEdgeOptions(palette, edgeAppearance, edgeStates),
     layout: graphLayout(edges),

@@ -33,7 +33,7 @@ import WidgetRenderer from '../WidgetRenderer'
 import type { DraftKind } from './blueprintDraftStore'
 import { DraftProblemsAlert } from './DraftProblemsAlert'
 import { parseFileEdit, parseRestDefEdit } from './previewBridge'
-import { AUTOPILOT_PREVIEW_EVENT, draftKindOfPayload, isHeldDraftPayload, isPageDraftPayload, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
+import { AUTOPILOT_PREVIEW_EVENT, draftKindOfPayload, isHeldDraftPayload, isPageDraftPayload, openAutopilotPreview, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
 import { onPreviewSurfaceClaimed, previewSurfaceClaimed } from './previewDraftChanged'
 import { onDraftClose } from './previewDraftClose'
 import { emitRestDefEdit } from './previewEditBus'
@@ -582,12 +582,24 @@ export const AutopilotPreviewDrawer = () => {
   // A composer of the held draft's kind mounted while this was open on it: the draft has one
   // surface, and it is the composer now (see claimPreviewSurface). Anything else shown here — an
   // inspection, the other kind — stays.
+  //
+  // HANDED OVER, NOT DROPPED. Dropping fired the payload's close, and for a live page render that
+  // close is the sandbox teardown: opening the Portal Builder deleted the draft CRs the person was
+  // looking at, and the composer — which adopts only NEW previews — fell back to a render-less held
+  // view. So the drawer shuts WITHOUT the close and re-announces the payload for the composer to
+  // adopt, render and close together. A microtask, because the claim is made in the composer's
+  // first mount effect and its preview listener is registered by a later one; React runs a commit's
+  // effects in one pass, so by then it is listening. The re-announce comes back here too, is
+  // deferred to the claim, and finds nothing held to drop. If nothing adopts it, nothing leaks: a
+  // discard tears the sandbox down regardless, and the next apply sweeps what the last one made.
   useEffect(() => onPreviewSurfaceClaimed((kind) => {
     const shown = heldShown.current
     if (shown && draftKindOfPayload(shown) === kind) {
-      dropHeld()
+      heldShown.current = null
+      setOpen(false)
+      queueMicrotask(() => openAutopilotPreview(shown))
     }
-  }), [dropHeld])
+  }), [])
 
   if (!payload) {
     return null

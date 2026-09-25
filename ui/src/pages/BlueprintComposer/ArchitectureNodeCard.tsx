@@ -48,9 +48,12 @@ export const ArchitectureNodeCard = ({ node, onSelect }: {
   const states = node.states ?? []
   const said = states.map((state) => STATE_WORDS[state]).filter(Boolean)
   const markers = [resource.lifecycle, resource.when ? 'optional' : null].filter((marker): marker is string => !!marker)
+  // The label REPLACES the visible text as the card's name, so every marker the card shows is said
+  // in it too — the ×N (one card per forEach item) and the pills — or a screen reader never hears them.
+  const heard = [`${node.id}, a ${resource.kind} (${resource.class})`, ...(resource.forEach ? ['one per item'] : []), ...markers, ...said]
   return (
     <button
-      aria-label={[`${node.id}, a ${resource.kind} (${resource.class})`, ...said].join(', ')}
+      aria-label={heard.join(', ')}
       aria-pressed={states.includes('selected')}
       className={styles.card}
       data-optional={resource.when ? 'true' : undefined}

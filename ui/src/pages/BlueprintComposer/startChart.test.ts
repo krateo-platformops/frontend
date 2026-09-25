@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { draftDisplayName, lintBlueprintDraft } from '../../components/Autopilot/blueprintDraft'
 
 import { ARCHITECTURE_TEMPLATE_PATH, deriveStates, parseArchitecture, serializeArchitecture, unwrapFromConfigMapTemplate } from './architecture'
+import { pluralGrowthBound } from './chartIdentity'
 import { KIND_MAX, claimApiVersion, compositionKind, kindBudget, metricsKindBudget, ociChartLocation, startChart, startChartWarnings, validateStartChart } from './startChart'
 
 const INPUT = { description: 'Publishes a page set as a pull request', name: 'builder-publish', version: '0.1.0' }
@@ -83,29 +84,68 @@ describe('startChart — refusals, by field', () => {
   // on EVERY install, the CDC container `<plural>-<apiVersion>-controller`, at most 63 — so the Kind's
   // budget depends on the version. The plural lengths below are strings.ToLower(flect.Pluralize(Kind))
   // from flect v1.0.3, run in Go over the Kind — what core-provider's CRD generator names the resource.
-  it('the budget is 63 − 11 − 1 − len(apiVersion) − 3: 42 at 0.1.0, 39 at 10.20.30', () => {
-    expect(kindBudget('0.1.0')).toBe(42)
-    expect(kindBudget('10.20.30')).toBe(39)
-    expect(kindBudget('1.0.0-rc.1')).toBe(37)
+  it('the budget is 63 − 11 − 1 − len(apiVersion) − the plural\'s growth for that ending', () => {
+    // An `s` plural grows one: 44 at 0.1.0, 41 at 10.20.30, 39 at 1.0.0-rc.1.
+    expect(kindBudget('0.1.0', 'Ab')).toBe(44)
+    expect(kindBudget('10.20.30', 'Ab')).toBe(41)
+    expect(kindBudget('1.0.0-rc.1', 'Ab')).toBe(39)
+    // -es and y → ies grow two; -quizzes and -children three.
+    expect(kindBudget('0.1.0', 'BuilderPublish')).toBe(43)
+    expect(kindBudget('0.1.0', 'NetworkPolicy')).toBe(43)
+    expect(kindBudget('0.1.0', 'AbQuiz')).toBe(42)
+    expect(kindBudget('0.1.0', 'AbChild')).toBe(42)
   })
 
-  it('the metrics Service\'s budget is eight tighter — advice, not a refusal: 34 at 0.1.0, 31 at 10.20.30', () => {
-    expect(metricsKindBudget('0.1.0')).toBe(34)
-    expect(metricsKindBudget('10.20.30')).toBe(31)
+  it('the metrics Service\'s budget is eight tighter — advice, not a refusal: 36 at 0.1.0, 33 at 10.20.30', () => {
+    expect(metricsKindBudget('0.1.0', 'Ab')).toBe(36)
+    expect(metricsKindBudget('10.20.30', 'Ab')).toBe(33)
+    expect(metricsKindBudget('0.1.0', 'AbQuiz')).toBe(34)
   })
 
-  it('at 0.1.0 a Kind of 42 is the limit, not over it — dashes do not count (Kind 42, plural 43, container 61)', () => {
-    const name = `ab-cd-ef-${'g'.repeat(36)}`
-    expect(name).toHaveLength(45)
-    expect(compositionKind(name)).toHaveLength(42)
+  it('the growth bound never undercounts flect v1.0.3 (each pair is flect\'s own plural, run in Go)', () => {
+    for (const [kind, plural] of [
+      ['Repository', 'repositories'], ['BuilderPublish', 'builderpublishes'], ['Box', 'boxes'], ['Leaf', 'leaves'],
+      ['Potato', 'potatoes'], ['Class', 'classes'], ['Waltz', 'waltzes'], ['Quiz', 'quizzes'], ['Fez', 'fezzes'],
+      ['Child', 'children'], ['Ox', 'oxen'], ['Knife', 'knives'], ['Bureau', 'bureaus'], ['Config', 'configs'],
+    ]) {
+      expect(plural.length - kind.length, kind).toBeLessThanOrEqual(pluralGrowthBound(kind))
+    }
+    expect(['Config', 'Endpoint', 'Provider', 'Knife', 'Bureau'].map(pluralGrowthBound)).toEqual([1, 1, 1, 1, 1])
+    expect(['Box', 'Match', 'Policy', 'Class', 'Leaf', 'Potato', 'Waltz'].map(pluralGrowthBound)).toEqual([2, 2, 2, 2, 2, 2, 2])
+    expect(['Quiz', 'Fez', 'Child'].map(pluralGrowthBound)).toEqual([3, 3, 3])
+  })
+
+  it('at 0.1.0 a Kind of 44 is the limit, not over it — dashes do not count (Kind 44, plural 45, container 63)', () => {
+    const name = `ab-cd-ef-${'g'.repeat(38)}`
+    expect(name).toHaveLength(47)
+    expect(compositionKind(name)).toHaveLength(44)
     expect(validateStartChart({ ...INPUT, name })).toEqual([])
   })
 
-  it('at 0.1.0 a Kind of 43 is refused, naming the container, the version and the budget', () => {
-    const problems = validateStartChart({ ...INPUT, name: `ab-cd-ef-${'g'.repeat(37)}` })
+  it('at 0.1.0 a Kind of 45 is refused, naming the container, the version, the budget and the growth', () => {
+    const problems = validateStartChart({ ...INPUT, name: `ab-cd-ef-${'g'.repeat(39)}` })
     expect(problems.map((problem) => problem.field)).toEqual(['name'])
-    expect(problems[0].message).toMatch(/^at version 0\.1\.0 the Kind \(the name without dashes\) can be at most 42 characters — AbCdEfGg+ has 43\./)
+    expect(problems[0].message).toMatch(/^at version 0\.1\.0 the Kind \(the name without dashes\) can be at most 44 characters — AbCdEfGg+ has 45\./)
     expect(problems[0].message).toContain('container <plural>-v0-1-0-controller,')
+    expect(problems[0].message).toMatch(/the plural of AbCdEfGg+ can run 1 longer than the Kind/)
+  })
+
+  // Published krateoplatformops marketplace blueprints at 0.3.0 (their Kinds from aws/CATALOG.md).
+  // A flat +3 refused the first two, whose container names are 62 and 63 — valid, and they deploy.
+  it.each([
+    ['aws-sagemaker-notebookinstancelifecycleconfig', 43],
+    ['aws-sagemaker-modelexplainabilityjobdefinition', 44],
+  ])('a real blueprint whose every name fits is accepted: %s@0.3.0 (Kind %i)', (name, kindLength) => {
+    expect(compositionKind(name)).toHaveLength(kindLength)
+    expect(validateStartChart({ ...INPUT, name, version: '0.3.0' })).toEqual([])
+  })
+
+  it.each([
+    ['aws-bedrockagentcorecontrol-agentruntimeendpoint', 46],
+    ['aws-bedrockagentcorecontrol-apikeycredentialprovider', 50],
+  ])('a real blueprint whose container name would not fit is still refused: %s@0.3.0 (Kind %i)', (name, kindLength) => {
+    expect(compositionKind(name)).toHaveLength(kindLength)
+    expect(validateStartChart({ ...INPUT, name, version: '0.3.0' }).map((problem) => problem.field)).toEqual(['name'])
   })
 
   it('a name that fits at 0.1.0 does not fit at 10.20.30 — the version is half the budget', () => {
@@ -114,28 +154,28 @@ describe('startChart — refusals, by field', () => {
     expect(validateStartChart({ ...INPUT, name })).toEqual([])
     const problems = validateStartChart({ ...INPUT, name, version: '10.20.30' })
     expect(problems.map((problem) => problem.field)).toEqual(['name'])
-    expect(problems[0].message).toMatch(/^at version 10\.20\.30 the Kind .* at most 39 characters/)
+    expect(problems[0].message).toMatch(/^at version 10\.20\.30 the Kind .* at most 41 characters/)
   })
 
-  it('the +3 is exact, not generous: -quiz pluralises to -quizzes', () => {
+  it('a -quiz Kind\'s +3 is exact, not generous: -quiz pluralises to -quizzes', () => {
     // Kind …Quiz of 42 → plural 45 → container 63 at 0.1.0: fits. Of 43 → 46 → 64: does not.
     expect(validateStartChart({ ...INPUT, name: `${'a'.repeat(38)}-quiz` })).toEqual([])
     expect(validateStartChart({ ...INPUT, name: `${'a'.repeat(39)}-quiz` }).map((problem) => problem.field)).toEqual(['name'])
   })
 
   it('WARNS, without refusing, a name over the metrics Service budget — the Service exists only with CDC metrics on', () => {
-    // Kind 35 at 0.1.0: the container fits on every install (plural ≤ 38 → ≤ 56); the metrics
-    // Service can reach 64 with the longest plural, and exists only where metrics run.
-    const name = `a${'b'.repeat(34)}`
+    // Kind 37 at 0.1.0: plural 38, so the container is 56 on every install; the metrics Service
+    // would be 64, and exists only where metrics run.
+    const name = `a${'b'.repeat(36)}`
     expect(validateStartChart({ ...INPUT, name })).toEqual([])
     const warnings = startChartWarnings({ ...INPUT, name })
     expect(warnings.map((warning) => warning.field)).toEqual(['name'])
-    expect(warnings[0].message).toMatch(/^fits every install — but may not fit one that runs core-provider with CDC metrics on .* at most 34 characters .*, and Ab+ has 35/)
-    expect(startChartWarnings({ ...INPUT, name: `a${'b'.repeat(33)}` })).toEqual([])
+    expect(warnings[0].message).toMatch(/^fits every install — but may not fit one that runs core-provider with CDC metrics on .* at most 36 characters \(the plural of Ab+ can run 1 longer\), and Ab+ has 37/)
+    expect(startChartWarnings({ ...INPUT, name: `a${'b'.repeat(35)}` })).toEqual([])
   })
 
   it('says nothing more for a name it already refuses — the refusal is the whole answer', () => {
-    expect(startChartWarnings({ ...INPUT, name: `a${'b'.repeat(42)}` })).toEqual([])
+    expect(startChartWarnings({ ...INPUT, name: `a${'b'.repeat(44)}` })).toEqual([])
   })
 
   it('a Kind of 60 is refused at ANY version: the CRD\'s list type (Kind + List) must be a 63-character label', () => {
@@ -146,8 +186,8 @@ describe('startChart — refusals, by field', () => {
   })
 
   it('a version so long that no Kind fits is the VERSION\'s problem, not the name\'s', () => {
-    // v1-0-0-aaa… of 49 characters: 63 − 11 − 1 − 49 − 3 < 1.
-    const problems = validateStartChart({ ...INPUT, name: 'x', version: `1.0.0-${'a'.repeat(42)}` })
+    // v1-0-0-aaa… of 50 characters: 63 − 11 − 1 − 50 − 1 < 1 — no room even for a one-letter `s` plural.
+    const problems = validateStartChart({ ...INPUT, name: 'x', version: `1.0.0-${'a'.repeat(43)}` })
     expect(problems.map((problem) => problem.field)).toEqual(['version'])
     expect(problems[0].message).toMatch(/leaves no room for any Kind/)
   })

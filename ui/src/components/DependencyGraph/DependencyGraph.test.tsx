@@ -332,8 +332,17 @@ describe('DependencyGraph — fit="natural": cards at their true size, in a box 
   it('never fits to the view: G6 centres at 1:1, and every layout is placed at zoom 1', async () => {
     installResizeObserver()
     render(<DependencyGraph edges={EDGES} fit='natural' nodeSize={SIZE} nodes={NODES} renderNode={renderCard} />)
-    expect(graphDouble.last().autoFit).toBe('center')
+    // Not animated: G6 centres after every re-render, and a glide there slid an overflowing graph's
+    // first column out of the box for half a second before the placement snapped it back.
+    expect(graphDouble.last().autoFit).toEqual({ animation: false, type: 'center' })
     await waitFor(() => expect(graphDouble.viewport).toEqual(['zoomTo 1', 'fitCenter']))
+  })
+
+  it('pans but never zooms: the wheel over a true-size graph scrolls the page, not the cards', () => {
+    // zoom-canvas swallowed the page's scroll gesture over the pane and shrank 156×72 cards to about
+    // 13×6 px, with nothing on the page to bring zoom 1 back. FlowChart's `view` keeps both.
+    render(<DependencyGraph edges={EDGES} fit='natural' nodeSize={SIZE} nodes={NODES} renderNode={renderCard} />)
+    expect(graphDouble.last().behaviors).toEqual(['drag-canvas'])
   })
 
   it('follows ITS BOX, not the window: a resize resizes the canvas and places the graph again — once per size', async () => {

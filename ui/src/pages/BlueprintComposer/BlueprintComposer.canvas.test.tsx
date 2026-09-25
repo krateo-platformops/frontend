@@ -38,8 +38,9 @@ describe('BlueprintComposer — the header of a held chart (screen 3)', () => {
   it('names the chart, its version and its generated Kind, and counts the files with no cap', () => {
     mount()
     hold(builderPublishChart())
-    const heading = screen.getByRole('heading', { level: 1 })
-    expect(heading.textContent).toContain('builder-publish')
+    // By NAME, as assistive technology reads it: a margin is no separator, and the name used to run
+    // "builder-publish0.1.0 · BuilderPublish".
+    const heading = screen.getByRole('heading', { level: 1, name: 'builder-publish 0.1.0 · BuilderPublish' })
     expect(within(heading).getByText('0.1.0 · BuilderPublish')).toBeTruthy()
     expect(screen.getByText('9 files')).toBeTruthy()
     expect(screen.getByText('Blueprint Builder / Compose')).toBeTruthy()
@@ -63,6 +64,10 @@ describe('BlueprintComposer — the architecture graph', () => {
     expect(within(card('localresources')).getByText('×N')).toBeTruthy()
     expect(within(card('username-secret')).getByText('shim')).toBeTruthy()
     expect(within(card('repo')).getByText('optional')).toBeTruthy()
+    // The accessible name replaces the visible text, so it says the same markers.
+    expect(screen.getByRole('button', { name: /^repo, a \w+ \(\w+\), optional/ })).toBe(card('repo'))
+    expect(screen.getByRole('button', { name: /^localresources, a LocalResource \(custom\), one per item/ })).toBe(card('localresources'))
+    expect(card('username-secret').getAttribute('aria-label')).toContain(', shim')
     const pane = screen.getByLabelText('Architecture')
     expect(within(pane).getByText('5 resources')).toBeTruthy()
     expect(within(pane).getByText('4 states')).toBeTruthy()
@@ -99,8 +104,10 @@ describe('BlueprintComposer — the architecture graph', () => {
     // columns shrank its 10px labels to 8.3px — under the type floor.
     mount()
     hold(builderPublishChart())
-    expect(graphDouble.last().autoFit).toBe('center')
+    expect(graphDouble.last().autoFit).toEqual({ animation: false, type: 'center' })
     await waitFor(() => expect(graphDouble.viewport).toEqual(['zoomTo 1', 'fitCenter']))
+    // …and nothing but a layout or a resize moves them off it: the wheel scrolls the page.
+    expect(graphDouble.last().behaviors).toEqual(['drag-canvas'])
   })
 
   it('hands dagre the card box (156×72) and dashes nothing that waits for readiness', () => {

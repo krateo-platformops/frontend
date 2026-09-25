@@ -191,9 +191,9 @@ describe('BlueprintComposer — Start a chart (screen 2)', () => {
   it('refuses a name whose Kind outgrows the controller container budget at this version — and says the budget', () => {
     mount()
     openStart()
-    // 43 letters of Kind at 0.1.0, where the budget is 42.
-    type('Chart name', `a${'b'.repeat(42)}`)
-    expect(screen.getByText(/at most 42/)).toBeTruthy()
+    // 45 letters of Kind at 0.1.0, where the budget for an `s` plural is 44.
+    type('Chart name', `a${'b'.repeat(44)}`)
+    expect(screen.getByText(/at most 44/)).toBeTruthy()
     expect(screen.getByLabelText('Chart name').getAttribute('aria-invalid')).toBe('true')
   })
 
@@ -201,8 +201,8 @@ describe('BlueprintComposer — Start a chart (screen 2)', () => {
     const starts = listen<ChartStartDetail>(AUTOPILOT_CHART_START_EVENT)
     mount()
     openStart()
-    // Kind 35 at 0.1.0: over the metrics Service's 34, well inside the container's 42.
-    type('Chart name', `a${'b'.repeat(34)}`)
+    // Kind 37 at 0.1.0: over the metrics Service's 36, well inside the container's 44.
+    type('Chart name', `a${'b'.repeat(36)}`)
     expect(screen.getByText(/may not fit one that runs core-provider with CDC metrics on/)).toBeTruthy()
     expect(screen.getByLabelText('Chart name').getAttribute('aria-invalid')).toBeNull()
     act(() => { screen.getByRole('button', { name: 'Start' }).click() })

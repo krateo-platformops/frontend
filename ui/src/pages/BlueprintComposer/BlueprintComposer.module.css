@@ -76,14 +76,16 @@
   margin: 0;
 }
 
-/* Version and Kind beside the chart name: data, so mono (T3's data face). */
+/* Version and Kind beside the chart name: data, so mono (T3's data face). A real space precedes it —
+   the heading's accessible name ran "builder-publish0.1.0" together over a margin-only gap — and at
+   the title's 22px that space is about 6px, so the margin keeps the rest of the old 8px gap. */
 .titleMeta {
   color: var(--gray-color);
   font-family: var(--font-mono);
   font-size: var(--krateo-text-caption);
   font-weight: var(--font-weight-light);
   letter-spacing: 0;
-  margin-inline-start: var(--spacing-sm);
+  margin-inline-start: var(--spacing-xxs);
 }
 
 .subtitle {

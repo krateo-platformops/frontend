@@ -35,6 +35,6 @@ describe('the broadcast lints each draft under ITS kind', () => {
 
   it('a blueprint whose version was bumped past its name\'s budget carries the refusal on the broadcast', () => {
     const detail = heldAs({ 'Chart.yaml': `apiVersion: v2\nname: ${NAME}\nversion: 10.20.30\n`, 'values.schema.json': SCHEMA }, 'blueprint')
-    expect(detail.problems?.join('\n')).toContain('at version 10.20.30 the Kind (the name without dashes) can be at most 39 characters')
+    expect(detail.problems?.join('\n')).toContain('at version 10.20.30 the Kind (the name without dashes) can be at most 41 characters')
   })
 })
