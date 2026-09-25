@@ -86,7 +86,7 @@ export const runDraftPublish = async (
   // A draft that fails the chart lint is refused BY NAME, before anyone is asked where to send it.
   // Its gate is already disarmed (a dirty hand edit forgets the arming), but that refusal says
   // "preview first" — the wrong reason, since previewing again cannot help until the file is fixed.
-  const lintProblems = held ? lintBlueprintDraft(held.files) : []
+  const lintProblems = held ? lintBlueprintDraft(held.files, held.kind) : []
   if (lintProblems.length) {
     return { compiled: { denial: `denied — the draft fails the chart lint: ${lintProblems.join('; ')}`, ops: null }, deepLink: null }
   }

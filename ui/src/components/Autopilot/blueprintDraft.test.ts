@@ -16,6 +16,7 @@ import {
   buildFormPreviewModel,
   buildFormSchemaText,
   chartYamlName,
+  chartYamlVersion,
   draftDisplayName,
   lintBlueprintDraft,
   lintValuesSchemaDefaults,
@@ -188,19 +189,19 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
   }
 
   it('passes a clean draft (scalar defaults only, under the cap)', () => {
-    expect(lintBlueprintDraft(cleanDraft)).toEqual([])
+    expect(lintBlueprintDraft(cleanDraft, 'blueprint')).toEqual([])
   })
 
   it('rejects a draft over the 512 KiB cap — the SAME discipline as $oasAttachment', () => {
     const oversized = { ...cleanDraft, 'templates/big.yaml': 'x'.repeat(RAW_TEMPLATES_MAX_BYTES + 1) }
-    const problems = lintBlueprintDraft(oversized)
+    const problems = lintBlueprintDraft(oversized, 'blueprint')
     expect(problems).toHaveLength(1)
     expect(problems[0]).toContain('512 KiB')
   })
 
   it('surfaces the #46 class through the draft gate', () => {
     const bad = { ...cleanDraft, 'values.schema.json': ISSUE_46_INGRESS_HOSTS_SCHEMA }
-    expect(lintBlueprintDraft(bad).join('\n')).toContain('[CRDGEN-DEFAULTS]')
+    expect(lintBlueprintDraft(bad, 'blueprint').join('\n')).toContain('[CRDGEN-DEFAULTS]')
   })
 
   it('REFUSES a draft without values.schema.json — it can be published and never installed', () => {
@@ -211,7 +212,7 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
     // cause. The builder was happily shipping charts that could never become a CRD.
     const noSchema = { 'Chart.yaml': cleanDraft['Chart.yaml'], 'templates/cm.yaml': 'kind: ConfigMap\n' }
 
-    expect(lintBlueprintDraft(noSchema).join('\n')).toContain('values.schema.json is missing')
+    expect(lintBlueprintDraft(noSchema, 'blueprint').join('\n')).toContain('values.schema.json is missing')
   })
 
   it('REFUSES a draft without Chart.yaml, rather than mistaking it for a page', () => {
@@ -220,18 +221,51 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
     // slugs, for a missing chart file.
     const noChart = { 'templates/cm.yaml': 'kind: ConfigMap\n', 'values.schema.json': '{"type":"object"}' }
 
-    expect(lintBlueprintDraft(noChart).join('\n')).toContain('Chart.yaml is missing')
+    expect(lintBlueprintDraft(noChart, 'blueprint').join('\n')).toContain('Chart.yaml is missing')
   })
 
   it('REFUSES a chart name that cannot be a repository, a branch, a claim and a Kind', () => {
-    const named = (name: string) => lintBlueprintDraft({ ...cleanDraft, 'Chart.yaml': `apiVersion: v2\nname: ${name}\nversion: 0.1.0\n` }).join('\n')
+    const named = (name: string) => lintBlueprintDraft({ ...cleanDraft, 'Chart.yaml': `apiVersion: v2\nname: ${name}\nversion: 0.1.0\n` }, 'blueprint').join('\n')
 
-    expect(named('Pg_App')).toContain('"Pg_App" is not a valid chart name')
+    expect(named('Pg_App')).toContain('name "Pg_App": not a valid chart name')
     expect(named('-pg')).toContain('not a valid chart name')
     expect(named('a'.repeat(64))).toContain('not a valid chart name')
-    expect(named('a'.repeat(63))).toBe('')
+    // 63 is a legal LABEL, and used to pass here. It is not a legal blueprint: its Kind is 63, and
+    // the controller Service core-provider names after it cannot exist. See the identity block below.
+    expect(named('a'.repeat(63))).toContain('the Kind (the name without dashes) can be at most 59')
     expect(named('"pg-app" # quoted, with a comment')).toBe('')
-    expect(lintBlueprintDraft({ ...cleanDraft, 'Chart.yaml': 'apiVersion: v2\nversion: 0.1.0\n' }).join('\n')).toContain('Chart.yaml has no name')
+    expect(lintBlueprintDraft({ ...cleanDraft, 'Chart.yaml': 'apiVersion: v2\nversion: 0.1.0\n' }, 'blueprint').join('\n')).toContain('Chart.yaml has no name')
+  })
+
+  describe('the chart identity — the SAME rule Start runs, at the version Chart.yaml carries now', () => {
+    const chart = (name: string, version: string) => `apiVersion: v2\nname: ${name}\nversion: ${version}\n`
+    const lint = (name: string, version: string, kind: 'blueprint' | 'page') =>
+      lintBlueprintDraft({ ...cleanDraft, 'Chart.yaml': chart(name, version) }, kind).join('\n')
+    // Kind 34 = the budget at 0.1.0: flect pluralises it with one `s`, so the Service is
+    // <35>-v0-1-0-controller-service = 61 characters. At 10.20.30 the same plural makes 64.
+    const FITS_ONLY_EARLY = `a${'b'.repeat(33)}`
+
+    it('a held blueprint whose version was bumped past the budget is REFUSED, naming the Service and the budget', () => {
+      expect(lint(FITS_ONLY_EARLY, '0.1.0', 'blueprint')).toBe('')
+      const bumped = lint(FITS_ONLY_EARLY, '10.20.30', 'blueprint')
+      expect(bumped).toContain(`Chart.yaml name "${FITS_ONLY_EARLY}": at version 10.20.30 the Kind (the name without dashes) can be at most 31 characters`)
+      expect(bumped).toContain('<plural>-v10-20-30-controller-service')
+    })
+
+    it('the SAME name on a PAGE draft is not — a page keeps the label check only (its version is the CHART_VERSION placeholder)', () => {
+      expect(lint(FITS_ONLY_EARLY, '10.20.30', 'page')).toBe('')
+      expect(lint(FITS_ONLY_EARLY, 'CHART_VERSION', 'page')).toBe('')
+      expect(lint('a'.repeat(63), 'CHART_VERSION', 'page')).toBe('')
+      expect(lint('Pg_App', 'CHART_VERSION', 'page')).toContain('name "Pg_App": not a valid chart name')
+    })
+
+    it('a blueprint version that is missing, not SemVer, or not an API version is refused as the VERSION', () => {
+      expect(lintBlueprintDraft({ ...cleanDraft, 'Chart.yaml': 'apiVersion: v2\nname: pg-app\n' }, 'blueprint').join('\n')).toContain('Chart.yaml has no version')
+      expect(lint('pg-app', 'CHART_VERSION', 'blueprint')).toContain('version "CHART_VERSION": a semantic version')
+      // YAML reads 1.0 as the NUMBER 1 — read back as "1", and refused as the non-SemVer it is.
+      expect(lint('pg-app', '1.0', 'blueprint')).toContain('version "1": a semantic version')
+      expect(lint('pg-app', '1.0.0-RC.1', 'blueprint')).toContain('API version v1-0-0-RC-1')
+    })
   })
 
   describe('the architecture file, when the chart carries one', () => {
@@ -250,7 +284,7 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
       `    template: templates/${id}.yaml`,
       ...(dependsOn ? [`    dependsOn: [{ ref: ${dependsOn} }]`] : []),
     ].join('\n')
-    const withArch = (text: string) => lintBlueprintDraft({ ...cleanDraft, [ARCHITECTURE_TEMPLATE_PATH]: text }).join('\n')
+    const withArch = (text: string) => lintBlueprintDraft({ ...cleanDraft, [ARCHITECTURE_TEMPLATE_PATH]: text }, 'blueprint').join('\n')
 
     it('passes a well-formed, acyclic descriptor', () => {
       expect(withArch(wrapAsConfigMapTemplate(descriptor([node('a'), node('b', 'a')].join('\n')), 'pg-app'))).toBe('')
@@ -286,10 +320,10 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
     // A trailing comment: the lint passed it, and the identity fell back to "draft chart".
     expect(chartYamlName('name: pg-app # the app\n')).toBe('pg-app')
     expect(draftDisplayName(withName('name: pg-app # the app'))).toBe('pg-app')
-    expect(lintBlueprintDraft(withName('name: pg-app # the app'))).toEqual([])
+    expect(lintBlueprintDraft(withName('name: pg-app # the app'), 'blueprint')).toEqual([])
     // A `#` with no space before it is part of the name, as in YAML — and not a valid one.
     expect(chartYamlName('name: a#b\n')).toBe('a#b')
-    expect(lintBlueprintDraft(withName('name: a#b')).join('\n')).toContain('"a#b" is not a valid chart name')
+    expect(lintBlueprintDraft(withName('name: a#b'), 'blueprint').join('\n')).toContain('name "a#b": not a valid chart name')
     expect(chartYamlName("name: 'pg-app'\r\n")).toBe('pg-app')
     expect(chartYamlName('name: "my chart"\n')).toBe('my chart')
     expect(chartYamlName('apiVersion: v2\n')).toBeNull()
@@ -298,6 +332,12 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
     expect(chartYamlName('apiVersion: v2\nname:\n  pg-app\nversion: 0.1.0\n')).toBe('pg-app')
     expect(chartYamlName('name: [unclosed\n')).toBeNull()
     expect(chartYamlName(undefined)).toBeNull()
+    // The version is read the same way: YAML, a trailing comment is a comment, a number is its string.
+    expect(chartYamlVersion('name: pg-app\nversion: 0.1.0 # first\n')).toBe('0.1.0')
+    expect(chartYamlVersion('version: "1.2.3"\n')).toBe('1.2.3')
+    expect(chartYamlVersion('version: 2\n')).toBe('2')
+    expect(chartYamlVersion('name: pg-app\n')).toBeNull()
+    expect(chartYamlVersion('version: [unclosed\n')).toBeNull()
   })
 
   it('rawTemplatesByteSize measures UTF-8 bytes of paths + contents', () => {

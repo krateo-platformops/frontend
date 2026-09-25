@@ -49,7 +49,7 @@ export const useBlueprintAuthoringBuses = (
       return
     }
     const identity = heldDraftIdentity(held)
-    const problems = lintBlueprintDraft(held.files)
+    const problems = lintBlueprintDraft(held.files, held.kind)
     if (problems.length) {
       gate.forget(identity)
       answer({ message: 'Fix these files before previewing — nothing was sent to the cluster.', outcome: 'refused', problems })

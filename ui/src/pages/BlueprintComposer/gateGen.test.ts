@@ -54,6 +54,23 @@ describe('renderGatePreamble — the edge compiled to the lookup the chart write
   it('a missing name expression is a refusal, not a template with a hole in it', () => {
     expect(renderGatePreamble(node('repo'), arch, {})).toEqual({ ok: false, reason: 'no name expression for "repository"' })
   })
+
+  it('an id that is an Object.prototype name is not "named" by the prototype — still a refusal', () => {
+    // `constructor` is a legal id (a DNS label), and names['constructor'] used to find Object's own
+    // constructor: truthy, so the gate rendered `lookup … (function Object() { [native code] })`.
+    const proto = parseArchitecture([
+      'apiVersion: architecture.krateo.io/v1alpha1',
+      'kind: ChartArchitecture',
+      'chart: proto',
+      'resources:',
+      '  - { id: constructor, class: native, apiVersion: v1, kind: ConfigMap, template: templates/a.yaml }',
+      '  - { id: after, class: native, apiVersion: v1, kind: ConfigMap, template: templates/b.yaml, dependsOn: [{ ref: constructor }] }',
+    ].join('\n'))
+    if (!proto.ok) { throw new Error(JSON.stringify(proto.problems)) }
+    const [, after] = proto.architecture.resources
+    expect(renderGatePreamble(after, proto.architecture, {})).toEqual({ ok: false, reason: 'no name expression for "constructor"' })
+    expect(renderGatePreamble(after, proto.architecture, { constructor: '"cm-a"' }).ok).toBe(true)
+  })
 })
 
 describe('applyGate — owned block, never a hand-written one', () => {

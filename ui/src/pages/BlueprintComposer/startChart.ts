@@ -2,9 +2,9 @@
  * Seed an empty blueprint chart — the Start modal's kernel. Pure.
  *
  * WHAT IT SEEDS, and why each file is there:
- *   Chart.yaml                  names the chart. Its presence is what makes the held draft a
- *                               BLUEPRINT (`isPageDraft` keys on its absence), and core-provider
- *                               derives the generated Kind and API version from its name/version.
+ *   Chart.yaml                  names the chart; core-provider derives the generated Kind and API
+ *                               version from its name and version. (The draft is a BLUEPRINT
+ *                               because the store records it as one, not because this file exists.)
  *   values.yaml                 the defaults; empty until the author places a field.
  *   values.schema.json          IS the generated CRD's spec — core-provider refuses a chart without
  *                               one. `{type: object, properties: {}}` and nothing else: an object or
@@ -14,36 +14,21 @@
  * Nothing else: what the chart deploys is the author's next decision, and a guessed resource
  * would look chosen.
  *
- * THE DERIVATIONS the modal shows as the person types are core-provider's own rules, ported so the
- * preview cannot promise a Kind the cluster will not generate (go/core-provider/internal/tools/
- * chart/chartfs/gvr.go): group `composition.krateo.io`; version `v` + the chart version with dots as
- * dashes; Kind `flect.Pascalize(strutil.ToGolangName(name))` — including flect's acronym rule, so
- * `api-gateway` is `APIGateway`, not `ApiGateway`.
+ * WHAT IT REFUSES is chartIdentity's rule — the SAME one the draft lint runs on every write, so a
+ * name Start accepts is a name the lint accepts, and a later version bump that outgrows it is
+ * caught there. The derivations the modal shows as the person types (Kind, API version) live there
+ * too, and are re-exported here for the modal.
  */
 import { dump } from 'js-yaml'
 
 import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from '../../components/Autopilot/blueprintDraft'
-import { SLUG_PATTERN } from '../PageComposer/startDraft'
 
 import { ARCHITECTURE_API_VERSION, ARCHITECTURE_KIND, ARCHITECTURE_TEMPLATE_PATH, serializeArchitecture, wrapAsConfigMapTemplate } from './architecture'
+import { chartIdentityProblems } from './chartIdentity'
+
+export { CHART_NAME_MAX, COMPOSITION_GROUP, KIND_MAX, claimApiVersion, compositionKind, compositionVersion, kindBudget } from './chartIdentity'
 
 export const VALUES_YAML_PATH = 'values.yaml'
-
-/** A DNS-1123 label's limit — the chart name becomes release, resource and CRD names. */
-export const CHART_NAME_MAX = 63
-
-/**
- * The longest generated Kind whose CRD still has a legal resource name — the limit that actually
- * binds, since a 63-character name is not enough on its own. core-provider's CRD generator
- * (plumbing crdgen, transpile.go) names the resource `strings.ToLower(flect.Pluralize(Kind))`, and
- * that plural must be a DNS-1035 label: at most 63. flect v1.0.3 lengthens a word by at most
- * THREE characters — `-s`, `-es` and `y → ies` are one or two, but `child → children` and
- * `quiz → quizzes` are three (measured by running flect) — so a Kind of 60 always fits and one of
- * 61 may not. The name can still be 63: its dashes are not in the Kind.
- */
-export const KIND_MAX = CHART_NAME_MAX - 3
-
-export const COMPOSITION_GROUP = 'composition.krateo.io'
 
 export interface StartChartInput {
   name: string
@@ -60,84 +45,6 @@ export type StartChartResult =
   | { ok: true; files: Record<string, string> }
   | { ok: false; problems: StartChartProblem[] }
 
-// semver.org's own pattern: MAJOR.MINOR.PATCH, optional -prerelease, optional +build.
-const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
-
-// A Kubernetes API version is a DNS-1035 label: lower-case, starts with a letter, at most 63.
-const API_VERSION_LABEL = /^[a-z]([-a-z0-9]*[a-z0-9])?$/
-
-/**
- * flect v1.0.3's baseAcronyms that an all-caps lookup can hit (acronyms.go). flect upper-cases a
- * word it finds here, so a chart named `sql-db` generates `SQLDb`. The mixed-case entries
- * (`Mbps`, `WiFi` …) are omitted: flect looks words up upper-cased, so they can never match.
- */
-const ACRONYMS = new Set([
-  'ACK', 'ACL', 'ADSL', 'AES', 'ANSI', 'API', 'ARP', 'ATM', 'BGP', 'BSS', 'CCITT', 'CHAP', 'CIDR', 'CIR', 'CLI',
-  'CMOS', 'CPE', 'CPU', 'CRC', 'CRT', 'CSMA', 'DCE', 'DEC', 'DES', 'DHCP', 'DMI', 'DNS', 'DRAM', 'DSL', 'DSLAM',
-  'DTE', 'EHA', 'EIA', 'EIGRP', 'EOF', 'ESS', 'FCC', 'FCS', 'FDDI', 'FTP', 'GBIC', 'GEPOF', 'HDLC', 'HTML', 'HTTP',
-  'HTTPS', 'IANA', 'ICMP', 'ID', 'IDF', 'IDS', 'IEEE', 'IETF', 'IMAP', 'IP', 'IPS', 'ISDN', 'ISP', 'JSON', 'JWT',
-  'LACP', 'LAN', 'LAPB', 'LAPF', 'LLC', 'MAC', 'MC', 'MDF', 'MIB', 'MPLS', 'MTU', 'NAC', 'NAT', 'NBMA', 'NIC',
-  'NRZ', 'NRZI', 'NVRAM', 'OK', 'OSI', 'OSPF', 'OUI', 'PAP', 'PAT', 'PC', 'PCM', 'PDU', 'PIM', 'POP3', 'POTS',
-  'PPP', 'PPTP', 'PTT', 'PVST', 'RAM', 'RARP', 'RCP', 'RFC', 'RIP', 'RLL', 'ROM', 'RSTP', 'RTP', 'SDLC', 'SFD',
-  'SFP', 'SLARP', 'SLIP', 'SMTP', 'SNA', 'SNAP', 'SNMP', 'SOF', 'SQL', 'SRAM', 'SSH', 'SSID', 'STP', 'SYN', 'TDM',
-  'TFTP', 'TIA', 'TOFU', 'UDP', 'URI', 'URL', 'USB', 'UTF8', 'UTP', 'UUID', 'VC', 'VLAN', 'VLSM', 'VPN', 'W3C',
-  'WAN', 'WEP', 'WPA', 'WWW',
-])
-
-const isAcronym = (word: string): boolean => ACRONYMS.has(word.toUpperCase())
-const isUpper = (char: string): boolean => char >= 'A' && char <= 'Z'
-
-/** strutil.ToGolangName: split on anything not a letter or digit, capitalise each piece's first letter. */
-const toGolangName = (name: string): string => {
-  const pieces = name.split(/[^A-Za-z0-9]+/).filter(Boolean)
-  const joined = pieces.map((piece) => piece.charAt(0).toUpperCase() + piece.slice(1)).join('')
-  return /^\d/.test(joined) ? `_${joined}` : joined
-}
-
-/** flect.toParts for an alphanumeric identifier: words start at an upper-case letter. */
-const flectParts = (ident: string): string[] => {
-  if (isAcronym(ident)) { return [ident.toUpperCase()] }
-  const parts: string[] = []
-  const push = (word: string): void => {
-    if (word) { parts.push(isAcronym(word) ? word.toUpperCase() : word) }
-  }
-  let word = ''
-  let prev = ''
-  for (const char of ident) {
-    if (isUpper(char) && (!isUpper(prev) || isAcronym(word))) {
-      push(word)
-      word = ''
-    }
-    word += char
-    prev = char
-  }
-  push(word)
-  return parts
-}
-
-/** flect.Pascalize: camelize (first word lower-cased, the rest capitalised), then raise the head. */
-const pascalize = (ident: string): string => {
-  const parts = flectParts(ident)
-  const camel = parts
-    .map((part, idx) => {
-      const clean = part.replace(/[^A-Za-z0-9]/g, '')
-      return idx === 0 ? clean.toLowerCase() : clean.charAt(0).toUpperCase() + clean.slice(1)
-    })
-    .join('')
-  if (!camel || !parts.length) { return camel }
-  const head = isAcronym(parts[0]) ? parts[0].length : 1
-  return camel.slice(0, head).toUpperCase() + camel.slice(head)
-}
-
-/** The Kind core-provider generates for a chart name: `builder-publish` → `BuilderPublish`. */
-export const compositionKind = (name: string): string => pascalize(toGolangName(name.trim()))
-
-/** The generated API version for a chart version: `0.1.0` → `v0-1-0`. */
-export const compositionVersion = (version: string): string => `v${version.trim().replace(/\./g, '-')}`
-
-/** The claim's apiVersion: `0.1.0` → `composition.krateo.io/v0-1-0`. */
-export const claimApiVersion = (version: string): string => `${COMPOSITION_GROUP}/${compositionVersion(version)}`
-
 /**
  * Where the release workflow pushes the chart — the convention pageDraft.ts and kogChart.ts write
  * into their CompositionDefinitions. Null until an owner is known: a location with an empty owner
@@ -148,29 +55,13 @@ export const ociChartLocation = (owner: string, name: string): string | null => 
   return who ? `oci://ghcr.io/${who}/charts/${name.trim()}` : null
 }
 
-export const validateStartChart = (input: StartChartInput): StartChartProblem[] => {
-  const problems: StartChartProblem[] = []
-  const name = input.name.trim()
-  const version = input.version.trim()
-  if (!SLUG_PATTERN.test(name)) {
-    problems.push({ field: 'name', message: 'lower-case letters, digits and dashes, starting and ending with a letter or digit — it names the chart, its releases and the generated resource' })
-  } else if (name.length > CHART_NAME_MAX) {
-    problems.push({ field: 'name', message: `at most ${CHART_NAME_MAX} characters — it becomes Kubernetes resource names` })
-  } else if (/^\d/.test(name)) {
-    problems.push({ field: 'name', message: `must start with a letter — the generated Kind (${compositionKind(name)}) cannot begin with a digit` })
-  } else if (compositionKind(name).length > KIND_MAX) {
-    problems.push({
-      field: 'name',
-      message: `at most ${KIND_MAX} letters and digits (dashes do not count) — the generated Kind has ${compositionKind(name).length}, and Kubernetes names the resource after its plural, which must fit in ${CHART_NAME_MAX}`,
-    })
-  }
-  if (!SEMVER.test(version)) {
-    problems.push({ field: 'version', message: 'a semantic version such as 0.1.0 (MAJOR.MINOR.PATCH)' })
-  } else if (!API_VERSION_LABEL.test(compositionVersion(version)) || compositionVersion(version).length > CHART_NAME_MAX) {
-    problems.push({ field: 'version', message: `becomes the API version ${compositionVersion(version)}, which Kubernetes refuses — no build metadata (+…) and a lower-case pre-release tag` })
-  }
-  return problems
-}
+/**
+ * The Start modal's refusals, keyed by field. The name and version rules are chartIdentity's — not a
+ * copy — because the lint re-runs them on the held Chart.yaml, and two copies would drift apart the
+ * way the old Kind cap (60, plural-only) drifted from what core-provider actually creates.
+ */
+export const validateStartChart = (input: StartChartInput): StartChartProblem[] =>
+  chartIdentityProblems({ name: input.name, version: input.version })
 
 /** Build by assignment: the lint alphabetises object literals, and a file's key order is its format. */
 const chartYaml = (name: string, version: string, description: string): string => {

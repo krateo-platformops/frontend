@@ -89,7 +89,9 @@ export const previewBlueprintSpec: VerbSpec = {
     // a #46-class schema default (or an over-cap draft) is a HARD ERROR: the drawer
     // shows the verdicts only and NOTHING leaves the browser.
     if (args.rawTemplates) {
-      const problems = lintBlueprintDraft(args.rawTemplates)
+      // A blueprint by the verb: recordBlueprintPreview holds this same tree as one, so it is linted
+      // under the rules it will be held and published under.
+      const problems = lintBlueprintDraft(args.rawTemplates, 'blueprint')
       if (problems.length) {
         openAutopilotPreview({
           // Refused before any render, so nothing holds it: an inspection of a draft, not a draft.
