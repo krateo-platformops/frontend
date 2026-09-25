@@ -21,6 +21,8 @@
  */
 import type { JSONSchema4 } from 'json-schema'
 
+import { ARCHITECTURE_TEMPLATE_PATH, deriveStates, parseArchitecture, unwrapFromConfigMapTemplate } from '../../pages/BlueprintComposer/architecture'
+
 import { OAS_ATTACHMENT_MAX_BYTES, utf8ByteLength } from './oasAttachment'
 
 /** The draft file the lint and the form preview read. */
@@ -100,7 +102,7 @@ const isNonEmptyStructure = (value: unknown): boolean => {
   if (Array.isArray(value)) {
     return value.length > 0
   }
-  return value !== null && typeof value === 'object' && Object.keys(value as Record<string, unknown>).length > 0
+  return value !== null && typeof value === 'object' && Object.keys(value).length > 0
 }
 
 /** Keys whose CHILD KEYS are property NAMES, not schema keywords — a property literally
@@ -194,6 +196,44 @@ export const lintValuesSchemaDefaults = (schemaText: string): string[] => {
 }
 
 /**
+ * The chart NAME becomes the repository, the branch (`builder/<name>`), the claim, the OCI chart and
+ * the generated Kind. A missing one used to fall back to "draft chart" — which is none of those — and
+ * an invalid one fails at whichever of them checks first. So it must be a DNS-1123 label.
+ */
+const DNS_LABEL = /^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$/
+const lintChartName = (chartYaml: string): string[] => {
+  const name = /^name:\s*["']?([^"'\s#]+)["']?\s*(#.*)?$/m.exec(chartYaml)?.[1]
+  if (!name) {
+    return [`${CHART_YAML_PATH} has no name — it becomes the repository, the branch, the claim and the Kind.`]
+  }
+  if (!DNS_LABEL.test(name)) {
+    return [`${CHART_YAML_PATH} name "${name}" is not a valid chart name — use lower-case letters, digits and hyphens (at most 63), starting and ending with a letter or digit.`]
+  }
+  return []
+}
+
+/**
+ * The architecture file, when the chart has one, must say something the composer and the
+ * composition detail page can read: the descriptor in the ConfigMap's data.architecture, well
+ * formed, and without a dependency cycle (a chart with a cycle never leaves its first state).
+ */
+const lintDescriptor = (text: string | undefined): string[] => {
+  if (text === undefined) {
+    return []
+  }
+  const descriptor = unwrapFromConfigMapTemplate(text)
+  if (descriptor === null) {
+    return [`${ARCHITECTURE_TEMPLATE_PATH} does not carry the descriptor in data.architecture — the composer and the composition detail page read it from there.`]
+  }
+  const parsed = parseArchitecture(descriptor)
+  if (!parsed.ok) {
+    return parsed.problems.map((problem) => `${ARCHITECTURE_TEMPLATE_PATH}: ${problem.path} — ${problem.message}`)
+  }
+  const derived = deriveStates(parsed.architecture)
+  return derived.ok ? [] : [`${ARCHITECTURE_TEMPLATE_PATH}: the dependencies form a cycle (${derived.cycle.join(' → ')}) — a chart with a cycle never leaves its first state.`]
+}
+
+/**
  * The pre-render gate for an inline draft: the 512 KiB size cap first (an over-cap
  * draft is refused whole — same posture as an over-cap OAS paste), then the FE-B2
  * crdgen-defaults lint of values.schema.json when the draft ships one. Empty = the
@@ -214,7 +254,10 @@ export const lintBlueprintDraft = (rawTemplates: Record<string, string>): string
   // — a message about page slugs, for a missing chart file.
   if (rawTemplates[CHART_YAML_PATH] === undefined) {
     problems.push(`${CHART_YAML_PATH} is missing — without it this is not a chart, and the publish gate reads the draft as a portal PAGE and refuses it for the wrong reason.`)
+  } else {
+    problems.push(...lintChartName(rawTemplates[CHART_YAML_PATH]))
   }
+  problems.push(...lintDescriptor(rawTemplates[ARCHITECTURE_TEMPLATE_PATH]))
 
   // values.schema.json is REQUIRED, and this is the expensive one to learn late. core-provider
   // opens it to build the CRD and hard-errors when it is absent, so a draft without one publishes

@@ -76,6 +76,13 @@ export const runDraftPublish = async (
   // config still supplies the OWNER (bt.owner) and the fallback repo; the human confirms or edits in
   // the blast-radius dialog, and a model-emitted repo still wins over this prefill.
   const destRepo = slug || bt.repo
+  // The VERB must match what is held. Everything below derives builder, slug and destination from
+  // the verb alone, and the gate is keyed by name, so publishBlueprint over a held PAGE compiled a
+  // blueprint claim out of page files — refused by name instead.
+  if (held && isPage !== (held.kind === 'page')) {
+    const heldKind = held.kind === 'page' ? 'a portal page' : 'a blueprint chart'
+    return { compiled: { denial: `denied — the open draft is ${heldKind}, and ${proposal.verb} publishes ${isPage ? 'a portal page' : 'a blueprint chart'}. Publish it from the ${held.kind === 'page' ? 'page' : 'blueprint'} composer.`, ops: null }, deepLink: null }
+  }
   // A draft that fails the chart lint is refused BY NAME, before anyone is asked where to send it.
   // Its gate is already disarmed (a dirty hand edit forgets the arming), but that refusal says
   // "preview first" — the wrong reason, since previewing again cannot help until the file is fixed.

@@ -10,6 +10,8 @@
  */
 import { describe, expect, it } from 'vitest'
 
+import { ARCHITECTURE_TEMPLATE_PATH, wrapAsConfigMapTemplate } from '../../pages/BlueprintComposer/architecture'
+
 import {
   buildFormPreviewModel,
   buildFormSchemaText,
@@ -218,6 +220,54 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
     const noChart = { 'templates/cm.yaml': 'kind: ConfigMap\n', 'values.schema.json': '{"type":"object"}' }
 
     expect(lintBlueprintDraft(noChart).join('\n')).toContain('Chart.yaml is missing')
+  })
+
+  it('REFUSES a chart name that cannot be a repository, a branch, a claim and a Kind', () => {
+    const named = (name: string) => lintBlueprintDraft({ ...cleanDraft, 'Chart.yaml': `apiVersion: v2\nname: ${name}\nversion: 0.1.0\n` }).join('\n')
+
+    expect(named('Pg_App')).toContain('"Pg_App" is not a valid chart name')
+    expect(named('-pg')).toContain('not a valid chart name')
+    expect(named('a'.repeat(64))).toContain('not a valid chart name')
+    expect(named('a'.repeat(63))).toBe('')
+    expect(named('"pg-app" # quoted, with a comment')).toBe('')
+    expect(lintBlueprintDraft({ ...cleanDraft, 'Chart.yaml': 'apiVersion: v2\nversion: 0.1.0\n' }).join('\n')).toContain('Chart.yaml has no name')
+  })
+
+  describe('the architecture file, when the chart carries one', () => {
+    const descriptor = (resources: string) => [
+      'apiVersion: architecture.krateo.io/v1alpha1',
+      'kind: ChartArchitecture',
+      'chart: pg-app',
+      'resources:',
+      resources,
+    ].join('\n')
+    const node = (id: string, dependsOn = '') => [
+      `  - id: ${id}`,
+      '    class: native',
+      '    apiVersion: v1',
+      '    kind: ConfigMap',
+      `    template: templates/${id}.yaml`,
+      ...(dependsOn ? [`    dependsOn: [{ ref: ${dependsOn} }]`] : []),
+    ].join('\n')
+    const withArch = (text: string) => lintBlueprintDraft({ ...cleanDraft, [ARCHITECTURE_TEMPLATE_PATH]: text }).join('\n')
+
+    it('passes a well-formed, acyclic descriptor', () => {
+      expect(withArch(wrapAsConfigMapTemplate(descriptor([node('a'), node('b', 'a')].join('\n')), 'pg-app'))).toBe('')
+    })
+
+    it('refuses a template that does not carry the descriptor where the readers look', () => {
+      expect(withArch('apiVersion: v1\nkind: ConfigMap\n')).toContain('does not carry the descriptor in data.architecture')
+    })
+
+    it('names each descriptor problem by its path', () => {
+      const problems = withArch(wrapAsConfigMapTemplate(descriptor('  - id: a\n    class: nonsense'), 'pg-app'))
+      expect(problems).toContain('resources[0].class')
+      expect(problems).toContain('resources[0].kind')
+    })
+
+    it('refuses a dependency cycle — a chart with one never leaves its first state', () => {
+      expect(withArch(wrapAsConfigMapTemplate(descriptor([node('a', 'b'), node('b', 'a')].join('\n')), 'pg-app'))).toMatch(/cycle \(.*→.*\)/)
+    })
   })
 
   it('rawTemplatesByteSize measures UTF-8 bytes of paths + contents', () => {

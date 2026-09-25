@@ -187,7 +187,7 @@ const FileEditBlock = ({
   }
 
   const onApply = () => {
-    const result = parseFileEdit(text, isPageWidget)
+    const result = parseFileEdit(text, isPageWidget, path)
     if (!result.ok || result.content === undefined) {
       // Deny-by-default: surface the error inline; the held bytes (current) are untouched, nothing emitted.
       setError(result.problems[0] ?? 'the edit could not be applied')

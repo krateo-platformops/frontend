@@ -446,6 +446,17 @@ export interface FileEditResult {
 /** The parse-failure copy shown in the drawer when a per-file edit is not valid YAML. */
 export const FILE_EDIT_PARSE_ERROR = 'the edited file is not valid YAML — fix the syntax and apply again'
 
+/** The parse-failure copy for a chart file that must be JSON (values.schema.json). */
+export const FILE_EDIT_JSON_ERROR = 'the edited file is not valid JSON — fix the syntax and apply again'
+
+/**
+ * A chart TEMPLATE is Go-template text, not YAML: `{{- if … }}` at the top of a file is not a YAML
+ * document, so parsing it refused every real template — all six of builder-publish's, and the
+ * architecture.yaml wrapper. Only `helm template` can judge one, and the chart's render is that gate.
+ */
+const isChartTemplatePath = (path: string): boolean =>
+  /(^|\/)templates\//.test(path) || path.endsWith('.tpl') || path.endsWith('.txt')
+
 /** The CR-shape failure copy for a PAGE widget file missing the required identity fields. */
 export const FILE_EDIT_SHAPE_ERROR
   = 'a page widget CR needs apiVersion, kind and metadata.name — publishing this file would be rejected'
@@ -461,7 +472,22 @@ export const FILE_EDIT_SHAPE_ERROR
  *            objects server-side (the render service is the correctness gate), so a CR-shape check
  *            would be wrong here.
  */
-export const parseFileEdit = (source: string, requireCrShape: boolean): FileEditResult => {
+export const parseFileEdit = (source: string, requireCrShape: boolean, path?: string): FileEditResult => {
+  // A chart's files, by what they are: templates are text the render judges, the schema is JSON,
+  // the rest (Chart.yaml, values.yaml) is YAML — parsed below.
+  if (!requireCrShape && path !== undefined) {
+    if (isChartTemplatePath(path)) {
+      return { content: source, ok: true, problems: [] }
+    }
+    if (path.endsWith('.json')) {
+      try {
+        JSON.parse(source)
+      } catch {
+        return { ok: false, problems: [FILE_EDIT_JSON_ERROR] }
+      }
+      return { content: source, ok: true, problems: [] }
+    }
+  }
   // MULTI-DOCUMENT, because both kinds of file here routinely are one. This used js-yaml `load`,
   // which throws `expected a single document in the stream` on any input containing a `---`
   // separator — so a perfectly ordinary Helm chart template was rejected as "not valid YAML", and

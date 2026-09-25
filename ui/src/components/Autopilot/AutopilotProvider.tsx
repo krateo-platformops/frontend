@@ -44,6 +44,7 @@ import type { ThreadSummary } from './sessionHistoryStore'
 import { a2aAuthHeader, createEchoTransport, createKagentTransport } from './transport'
 import type { AutopilotActionChip, AutopilotFrame, AutopilotMessage, AutopilotTransport, EvidenceEntry, PageContextEnvelope, TurnModality } from './types'
 import { buildContextDelta, useAutopilotContext } from './useAutopilotContext'
+import { useBlueprintAuthoringBuses } from './useBlueprintAuthoringBuses'
 import { createBroadcastingDraftStore, useDraftFileBuses } from './useDraftFileBuses'
 import { autopilotSpeakBackStore } from './voice/speak/speakBackStore'
 import { stopVoice } from './voiceWiring'
@@ -800,6 +801,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // Both held-draft write paths — the Files-tab edit and the composer's add — live in one hook.
   // See useDraftFileBuses for why they are two buses and why `addFile` is separate from updateFile.
   useDraftFileBuses(blueprintStore, blueprintGate, heldDraftIdentity, previewStartedDraft, discardSandbox)
+  // A person starting and rendering a chart (the Blueprint Composer) — see useBlueprintAuthoringBuses.
+  useBlueprintAuthoringBuses(blueprintStore, blueprintGate, config)
 
   /**
    * PUBLISH, asked for by a person rather than proposed by the model.
