@@ -161,6 +161,27 @@ spec:
                           date:
                             description: optional date value to be shown in the node, formatted as ISO 8601 string
                             type: string
+                          detail:
+                            description: 'architecture variant: the one line under the name, such as the readiness field and its value, a count, or what the node waits for'
+                            type: string
+                          exception:
+                            description: 'architecture variant: the one marker a node carries, and only when something needs attention'
+                            properties:
+                              label:
+                                description: the Kubernetes condition that is not true
+                                enum:
+                                  - NotReady
+                                  - NotSynced
+                                type: string
+                              message:
+                                description: the condition's message
+                                type: string
+                              reason:
+                                description: the condition's reason
+                                type: string
+                            required:
+                              - label
+                            type: object
                           icon:
                             description: custom icon displayed for the resource node
                             properties:
@@ -269,6 +290,16 @@ spec:
                           resourceVersion:
                             description: internal version string of the resource
                             type: string
+                          state:
+                            description: 'architecture variant: where this resource is in the composition''s sequence'
+                            enum:
+                              - done
+                              - waiting
+                              - withheld
+                              - unreadable
+                              - unavailable
+                              - unknown
+                            type: string
                           statusIcon:
                             description: custom status icon displayed alongside resource info
                             properties:
@@ -297,15 +328,18 @@ spec:
                             description: api version of the resource
                             type: string
                         required:
-                          - date
                           - kind
                           - name
-                          - namespace
-                          - resourceVersion
                           - uid
-                          - version
                         type: object
                       type: array
+                    variant:
+                      default: resource
+                      description: 'resource: one node per live object, the original card. architecture: one node per resource a chart declares, drawn in the state the composition is in'
+                      enum:
+                        - resource
+                        - architecture
+                      type: string
                   required:
                     - data
                   type: object

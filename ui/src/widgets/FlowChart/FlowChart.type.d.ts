@@ -22,7 +22,28 @@ export interface FlowChart {
         /**
          * optional date value to be shown in the node, formatted as ISO 8601 string
          */
-        date: string
+        date?: string
+        /**
+         * architecture variant: the one line under the name, such as the readiness field and its value, a count, or what the node waits for
+         */
+        detail?: string
+        /**
+         * architecture variant: the one marker a node carries, and only when something needs attention
+         */
+        exception?: {
+          /**
+           * the Kubernetes condition that is not true
+           */
+          label: 'NotReady' | 'NotSynced'
+          /**
+           * the condition's reason
+           */
+          reason?: string
+          /**
+           * the condition's message
+           */
+          message?: string
+        }
         /**
          * custom icon displayed for the resource node
          */
@@ -68,7 +89,7 @@ export interface FlowChart {
         /**
          * namespace in which the resource is defined
          */
-        namespace: string
+        namespace?: string
         /**
          * list of parent resources used to define graph relationships
          */
@@ -146,7 +167,11 @@ export interface FlowChart {
         /**
          * internal version string of the resource
          */
-        resourceVersion: string
+        resourceVersion?: string
+        /**
+         * architecture variant: where this resource is in the composition's sequence
+         */
+        state?: 'done' | 'waiting' | 'withheld' | 'unreadable' | 'unavailable' | 'unknown'
         /**
          * unique identifier of the resource
          */
@@ -154,8 +179,12 @@ export interface FlowChart {
         /**
          * api version of the resource
          */
-        version: string
+        version?: string
       }[]
+      /**
+       * resource: one node per live object, the original card. architecture: one node per resource a chart declares, drawn in the state the composition is in
+       */
+      variant?: 'resource' | 'architecture'
     }
     /**
      * Binds this widget to a RESTAction whose response feeds the widgetDataTemplate and resourcesRefsTemplate expressions. Omit it for a widget whose data is entirely static.

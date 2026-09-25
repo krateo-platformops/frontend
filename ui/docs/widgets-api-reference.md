@@ -470,7 +470,12 @@ FlowChart represents a Kubernetes composition as a directed graph. Each node rep
 | Property | Required | Description | Type |
 |----------|----------|-------------|------|
 | data | yes | list of kubernetes resources and their relationships to render as nodes in the flow chart | array |
-| data[].date | yes | optional date value to be shown in the node, formatted as ISO 8601 string | string |
+| data[].date | no | optional date value to be shown in the node, formatted as ISO 8601 string | string |
+| data[].detail | no | architecture variant: the one line under the name, such as the readiness field and its value, a count, or what the node waits for | string |
+| data[].exception | no | architecture variant: the one marker a node carries, and only when something needs attention | object |
+| data[].exception.label | yes | the Kubernetes condition that is not true | `NotReady` \| `NotSynced` |
+| data[].exception.reason | no | the condition's reason | string |
+| data[].exception.message | no | the condition's message | string |
 | data[].icon | no | custom icon displayed for the resource node | object |
 | data[].icon.name | no | FontAwesome icon class name (e.g. 'fa-check') | string |
 | data[].icon.color | no | CSS color value for the icon background | `blue` \| `darkBlue` \| `orange` \| `gray` \| `red` \| `green` \| `violet` |
@@ -481,7 +486,7 @@ FlowChart represents a Kubernetes composition as a directed graph. Each node rep
 | data[].statusIcon.message | no | optional tooltip message describing the status | string |
 | data[].kind | yes | kubernetes resource type (e.g. Deployment, Service) | string |
 | data[].name | yes | name of the resource | string |
-| data[].namespace | yes | namespace in which the resource is defined | string |
+| data[].namespace | no | namespace in which the resource is defined | string |
 | data[].parentRefs | no | list of parent resources used to define graph relationships | array |
 | data[].parentRefs[].date | no | optional date value to be shown in the node, formatted as ISO 8601 string | string |
 | data[].parentRefs[].icon | no | custom icon for the parent resource | object |
@@ -499,9 +504,11 @@ FlowChart represents a Kubernetes composition as a directed graph. Each node rep
 | data[].parentRefs[].resourceVersion | no | internal version string of the parent resource | string |
 | data[].parentRefs[].uid | no | unique identifier of the parent resource | string |
 | data[].parentRefs[].version | no | api version of the parent resource | string |
-| data[].resourceVersion | yes | internal version string of the resource | string |
+| data[].resourceVersion | no | internal version string of the resource | string |
+| data[].state | no | architecture variant: where this resource is in the composition's sequence | `done` \| `waiting` \| `withheld` \| `unreadable` \| `unavailable` \| `unknown` |
 | data[].uid | yes | unique identifier of the resource | string |
-| data[].version | yes | api version of the resource | string |
+| data[].version | no | api version of the resource | string |
+| variant | no | resource: one node per live object, the original card. architecture: one node per resource a chart declares, drawn in the state the composition is in | `resource` \| `architecture` |
 
 
 [Examples](../src/examples/widgets/FlowChart/FlowChart.example.yaml)

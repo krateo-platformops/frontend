@@ -36,6 +36,14 @@ const Row = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<RowWi
     .map((item, index) => ({ index, item }))
     .filter(({ item }) => refChildState(item.resourceRefId, resourcesRefs, deniedRefIds) !== 'denied')
 
+  // A Row with nothing to show is not there. It rendered an empty `<div>` all the same, and inside a
+  // vertical Flex that is one more gap on the page. A Row whose `items` a template resolves to `[]`
+  // — the composition detail page's topology, for a composition without an architecture — is how a
+  // section is hidden, and one whose every child is denied reads as absence (X2), not as a hole.
+  if (visibleItems.length === 0) {
+    return null
+  }
+
   const defaultSize = Math.floor(24 / visibleItems.length) || 24
 
   return (
