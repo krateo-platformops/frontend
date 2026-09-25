@@ -1,22 +1,22 @@
 /**
  * The controller (KOG) publish dispatch — factored out of AutopilotProvider.finalize (which was at
  * its max-lines cap). Given the last previewed RestDefinition + the held OAS document, it asks the
- * destination form, then compiles EITHER the github git-write set (buildKogPublishAsPrOps) OR — when
- * AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER is set — one SCM-agnostic BuilderPublish claim over the same
- * file set. The KOG preview gate (a synthetic probe, since neither path writes a restdefinitions op)
- * enforces preview-before-publish. No React, no chips — returns the compiled result + deep link.
+ * destination form, then compiles one BuilderPublish claim over the controller's chart files — the
+ * same claim every builder publishes through. The KOG preview gate (a synthetic probe, since the
+ * claim writes no restdefinitions op) enforces preview-before-publish. No React, no chips — returns
+ * the compiled result + deep link.
  */
 
 import type { Config } from '../../context/ConfigContext'
 
-import { MAX_APPLY_SET_OPS, type ApplyResourceSetOp } from './applyResourceSet'
+import type { ApplyResourceSetOp } from './applyResourceSet'
 import type { AuthorshipOrigin } from './authorship'
 import { buildClaimPublish } from './builderClaimPublish'
-import { REST_DEFINITION_GVR } from './kogMapping'
 import { kogCompositionDefinition } from './kogChart'
-import { buildKogPublishAsPrOps, kogPublishFiles, resolveKogPublishDraft } from './kogPublish'
+import { REST_DEFINITION_GVR } from './kogMapping'
+import { kogPublishFiles, resolveKogPublishDraft } from './kogPublish'
 import type { PreviewGate } from './previewGate'
-import { compileKogPublishOps, type PublishCompileResult } from './publishCompile'
+import type { PublishCompileResult } from './publishCompile'
 import { askPublishDestination } from './publishTargetForm'
 
 export interface KogPublishDispatchCtx {
@@ -25,7 +25,6 @@ export interface KogPublishDispatchCtx {
   oasText: string | null
   kogTarget: { owner: string; repo: string }
   config: Config | undefined
-  publishViaClaim: boolean
   origin: AuthorshipOrigin
 }
 
@@ -39,9 +38,8 @@ export const dispatchKogPublish = async (
   // so the repo prefill is the resolved kind, with the OWNER from install config (ctx.kogTarget.owner).
   const destRepo = resolution.held?.kind || ctx.kogTarget.repo
   const restDefTarget = await askPublishDestination(proposal, 'restdef', destRepo, ctx.kogTarget.owner)
-  const targeted = restDefTarget ? { ...proposal, ...restDefTarget } : proposal
-  // Probe the KOG preview gate against the RESOLVED draft (neither the git-write ops nor the claim
-  // writes a restdefinitions op, so the gate sees the draft via a synthetic probe op).
+  // Probe the KOG preview gate against the RESOLVED draft (the claim writes no restdefinitions op,
+  // so the gate sees the draft via a synthetic probe op).
   const gateProbe: ApplyResourceSetOp[] | undefined = resolution.held
     ? [{ gvr: { ...REST_DEFINITION_GVR }, namespace: 'krateo-system', payload: resolution.held.draft, verb: 'POST' }]
     : undefined
@@ -67,23 +65,16 @@ export const dispatchKogPublish = async (
       { content: kogCompositionDefinition(resolution.held.kind, kogOwner), path: 'compositiondefinition.yaml' },
     ]
     : kogPublishFiles(resolution.held)
-  if (ctx.publishViaClaim) {
-    // SCM-agnostic: the same RestDefinition (+ OAS ConfigMap) file set → ONE BuilderPublish claim.
-    const res = await buildClaimPublish({
-      builder: 'controller',
-      config: ctx.config,
-      dest: restDefTarget,
-      files: publishFiles,
-      gate: () => ctx.previewGate.evaluate(gateProbe),
-      namespace: 'krateo-system',
-      origin: ctx.origin,
-      slug: resolution.held.kind,
-    })
-    return { compiled: res.compiled, deepLink: res.deepLink }
-  }
-  const built = buildKogPublishAsPrOps(targeted, resolution.held)
-  if (built.length > MAX_APPLY_SET_OPS) {
-    return { compiled: { denial: `denied — the KOG publish set has ${built.length} ops, over the ${MAX_APPLY_SET_OPS}-op cap.`, ops: null }, deepLink: null }
-  }
-  return { compiled: compileKogPublishOps(built, ctx.previewGate.evaluate(gateProbe), ctx.origin), deepLink: null }
+  // SCM-agnostic: the RestDefinition (+ OAS ConfigMap) chart → ONE BuilderPublish claim.
+  const res = await buildClaimPublish({
+    builder: 'controller',
+    config: ctx.config,
+    dest: restDefTarget,
+    files: publishFiles,
+    gate: () => ctx.previewGate.evaluate(gateProbe),
+    namespace: 'krateo-system',
+    origin: ctx.origin,
+    slug: resolution.held.kind,
+  })
+  return { compiled: res.compiled, deepLink: res.deepLink }
 }

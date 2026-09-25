@@ -6,9 +6,8 @@
  * (Chart.yaml, values, schema, templates, architecture.yaml) already reaches nine. Size is what
  * bounds a claim, and the held-draft byte cap enforces it upstream.
  *
- * The legacy GitHub path writes one object per file through applyResourceSet, so the write-set cap
- * still applies there — and its denial must name the path that has no limit, not ask for a
- * smaller chart.
+ * (The legacy GitHub path, which wrote one object per file and so WAS bounded by the write-set cap,
+ * was removed on the same day: the claim is the only publish path.)
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -37,17 +36,14 @@ const bigChart = (): Record<string, string> => {
   return files
 }
 
-const deps = (publishViaClaim: boolean): PublishDraftDeps => {
+const deps = (): PublishDraftDeps => {
   const store = createBlueprintDraftStore()
   store.set(bigChart(), 'blueprint')
   return {
     blueprintGate: { evaluate: () => ({ allowed: true, reason: null }) },
     blueprintStore: store,
     builderTargets: { blueprint: { owner: 'krateo-blueprints', repo: 'big-chart' }, page: { owner: 'krateo-platformops', repo: 'portal' } },
-    oasStore: { get: () => null },
     origin: { prompt: null, sessionId: null },
-    previewGate: { evaluate: () => ({ allowed: true, reason: null }) },
-    publishViaClaim,
   } as unknown as PublishDraftDeps
 }
 
@@ -55,19 +51,11 @@ beforeEach(() => { vi.mocked(buildClaimPublish).mockClear() })
 
 describe('runDraftPublish — how many files a publish may carry', () => {
   it('the git-provider claim takes every file, however many — one write carries them all', async () => {
-    const outcome = await runDraftPublish(deps(true), { verb: 'publishBlueprint' })
+    const outcome = await runDraftPublish(deps(), { verb: 'publishBlueprint' })
     expect(outcome.compiled.denial).toBeNull()
     expect(buildClaimPublish).toHaveBeenCalledTimes(1)
     const [[args]] = vi.mocked(buildClaimPublish).mock.calls
     expect(args.files.length).toBeGreaterThan(MAX_APPLY_SET_OPS)
     expect(args.files).toHaveLength(TEMPLATES + 4)
-  })
-
-  it('the legacy GitHub path is still bounded by the write-set cap — and says which path is not', async () => {
-    const outcome = await runDraftPublish(deps(false), { verb: 'publishBlueprint' })
-    expect(outcome.compiled.ops).toBeNull()
-    expect(outcome.compiled.denial).toMatch(/one object per file/)
-    expect(outcome.compiled.denial).toMatch(/git-provider/)
-    expect(buildClaimPublish).not.toHaveBeenCalled()
   })
 })

@@ -7,19 +7,20 @@
  * inline draft (blueprintDraft.parseRawTemplates) and helm-renders it; this store HOLDS
  * that exact `{path: content}` tree CLIENT-SIDE (owned by the provider — deliberately
  * NOT part of the page-context envelope, so collect() and the redactor never see it and
- * the collected context does not grow). The model's publish proposal then carries only
- * a `{"$fileContent": "<path>"}` token per RepoContent value; the frontend substitutes
- * the held bytes for that path at publish-payload compile time — BEFORE the blast-radius
- * confirm, so the human confirms the REAL file bytes and published bytes == previewed
- * bytes.
+ * the collected context does not grow). The model's publish proposal carries only a scalar
+ * verb; the host builds ONE BuilderPublish claim from the held files (heldPublishFiles) — BEFORE
+ * the blast-radius confirm, so the human confirms the REAL file bytes and published bytes ==
+ * previewed bytes.
  *
- * Difference from oasAttachment: OAS holds ONE document (token `{"$oasAttachment": true}`);
- * a chart is MANY files, so the token names WHICH file (`{"$fileContent": "<path>"}`) and
- * the store is a path→text MAP. The 512 KiB cap is on the TOTAL tree (same rationale: the
- * JSON-escaped payload stays under snowplow's ~1 MiB `/call` body cap and etcd's object
- * cap — though a real chart is chunked across sets, see FE-BP5).
+ * The 512 KiB cap is on the TOTAL tree: the claim carries every file inline in one object, so
+ * the JSON-escaped payload must stay under snowplow's ~1 MiB `/call` body cap and etcd's object
+ * cap. It is the only bound on a publish — there is no file-count limit.
  *
- * Pure module: a tiny store factory + pure detection/substitution helpers. No React, no
+ * `{"$fileContent": "<path>"}` was the token the legacy GitHub path substituted into RepoContent
+ * payloads. That path is gone (2026-09-25); the token is still RECOGNISED, so a model that emits
+ * it is refused rather than having the literal token written into an object.
+ *
+ * Pure module: a tiny store factory + pure detection helpers. No React, no
  * network, no module-scoped state (the provider owns the store instance; newThread clears
  * it, exactly like the OAS store).
  */
@@ -33,9 +34,6 @@ export const FILE_CONTENT_KEY = '$fileContent'
 
 /** Hard client-side cap on the held tree: 512 KiB of UTF-8 bytes across ALL files (spec §5). */
 export const BLUEPRINT_DRAFT_MAX_BYTES = OAS_ATTACHMENT_MAX_BYTES
-
-/** How a substituted file's bytes are encoded into the op payload value. */
-export type FileContentEncoding = 'text' | 'base64'
 
 /**
  * WHICH BUILDER AUTHORED THE HELD DRAFT.
@@ -274,7 +272,7 @@ export const fileContentTokenPath = (value: unknown): string | null => {
   return typeof path === 'string' && path.length > 0 ? path : null
 }
 
-/** True iff any op payload carries a `{"$fileContent": …}` token (a blueprint git publish). */
+/** True iff any op payload carries a `{"$fileContent": …}` token — refused since the GitHub path went. */
 export const opsCarryFileContentToken = (ops: readonly ApplyResourceSetOp[]): boolean => {
   const walk = (value: unknown): boolean => {
     if (fileContentTokenPath(value) !== null) {
@@ -289,87 +287,4 @@ export const opsCarryFileContentToken = (ops: readonly ApplyResourceSetOp[]): bo
     return false
   }
   return ops.some((op) => walk(op.payload))
-}
-
-/** UTF-8-safe base64 of a string (chunked so a large file never overflows the call stack). */
-export const encodeUtf8Base64 = (text: string): string => {
-  const bytes = new TextEncoder().encode(text)
-  let binary = ''
-  const chunk = 0x8000
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
-  }
-  return btoa(binary)
-}
-
-export type BlueprintSubstitutionResult =
-  | { ok: true; ops: ApplyResourceSetOp[]; substituted: number }
-  | { ok: false; error: string }
-
-/**
- * PUBLISH-PAYLOAD COMPILE STEP: substitute every `{"$fileContent": "<path>"}` token in
- * the proposal's op payloads with the held verbatim file bytes for that path. Pure —
- * returns NEW ops, never mutates the proposal. Runs BEFORE dispatch (so before the
- * blast-radius confirm): the human confirms the real file content, and the model never
- * has to (and never can) reproduce the chart bytes.
- *
- * `encoding` selects how the held text lands in the payload value: `'text'` (verbatim,
- * the default — mirrors the OAS seam) or `'base64'` (for a RepoContent-style `content`
- * field). The final choice is FE-BP5's, once the git-provider CR shape is verified.
- *
- * Refusals (the publish is refused, not silently mis-published):
- *   - a token present but NOTHING held → the agent proposed a publish with no previewed
- *     draft (would write meaningless token objects);
- *   - a token names a path NOT in the held draft → the model referenced a file the user
- *     never drafted/previewed (drift — never fabricate its bytes).
- */
-export const substituteFileContent = (
-  ops: readonly ApplyResourceSetOp[],
-  held: BlueprintDraftHeld | null,
-  encoding: FileContentEncoding = 'text',
-): BlueprintSubstitutionResult => {
-  if (!opsCarryFileContentToken(ops)) {
-    return { ok: true, ops: [...ops], substituted: 0 }
-  }
-  if (!held) {
-    return {
-      error: 'no blueprint draft is held — draft the chart in the rail and PREVIEW it first (the previewed tree is held client-side and substituted at publish).',
-      ok: false,
-    }
-  }
-  const miss: { path: string | null } = { path: null }
-  const counter = { count: 0 }
-  const encode = (text: string): string => (encoding === 'base64' ? encodeUtf8Base64(text) : text)
-  const substituteInValue = (value: unknown): unknown => {
-    const path = fileContentTokenPath(value)
-    if (path !== null) {
-      if (!(path in held.files)) {
-        miss.path = miss.path ?? path
-        return value
-      }
-      counter.count += 1
-      return encode(held.files[path])
-    }
-    if (Array.isArray(value)) {
-      return value.map(substituteInValue)
-    }
-    if (value && typeof value === 'object') {
-      const out: Record<string, unknown> = {}
-      for (const [key, entry] of Object.entries(value)) {
-        out[key] = substituteInValue(entry)
-      }
-      return out
-    }
-    return value
-  }
-  const substitutedOps = ops.map((op) => (
-    op.payload === undefined ? { ...op } : { ...op, payload: substituteInValue(op.payload) }
-  ))
-  if (miss.path !== null) {
-    return {
-      error: `the publish references a file the draft does not contain: "${miss.path}". Preview the full chart tree first — only previewed files can be published.`,
-      ok: false,
-    }
-  }
-  return { ok: true, ops: substitutedOps, substituted: counter.count }
 }

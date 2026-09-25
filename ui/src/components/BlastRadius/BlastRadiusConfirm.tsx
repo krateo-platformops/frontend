@@ -149,9 +149,9 @@ const isSetRadius = (radius: BlastRadius | BlastRadiusSet): radius is BlastRadiu
 const GIT_PUBLISH_KINDS = new Set(['gitrefs', 'repocontents', 'pullrequests'])
 
 /**
- * The W0-4 SET decision surface. A PUBLISH set — EITHER the legacy github.krateo.io write set
- * (gitrefs/repocontents/pullrequests) OR the SCM-agnostic single `builderpublishes` claim (the
- * default path) — reads as a CHANGE REQUEST: a plain "Open a change request" summary
+ * The W0-4 SET decision surface. A PUBLISH set — the single `builderpublishes` claim every builder
+ * publishes through, OR a set made only of github.krateo.io write kinds (gitrefs/repocontents/
+ * pullrequests — a FORM may still write those; Autopilot no longer can) — reads as a CHANGE REQUEST: a plain "Open a change request" summary
  * (branch/files counts) + one plain-language line per op ("Create file …", "Open a change
  * request …"), with the raw GVR dropped — the human decides on WHAT it does, not on kubernetes
  * resource strings. Copy is host-neutral ("change request") because a publish may land as a
@@ -162,9 +162,9 @@ const GIT_PUBLISH_KINDS = new Set(['gitrefs', 'repocontents', 'pullrequests'])
 const SetView = ({ radius }: { radius: BlastRadiusSet }) => {
   const irreversibleCount = radius.ops.filter((op) => op.irreversible).length
   const isGitPublish = radius.ops.length > 0 && radius.ops.every((op) => GIT_PUBLISH_KINDS.has(op.gvr.resource))
-  // The SCM-agnostic path: ONE builderpublishes claim POST (composition.krateo.io) that the
-  // composition renders into git-provider LocalResources. It gets the SAME "change request" card as
-  // the legacy github set — the human decides on the change request, not on a raw `builderpublishes` GVR.
+  // The builders' publish: ONE builderpublishes claim POST (composition.krateo.io) that the composition
+  // renders into git-provider LocalResources. It gets the SAME "change request" card as a github write
+  // set — the human decides on the change request, not on a raw `builderpublishes` GVR.
   const claimOp = radius.ops.length === 1 && radius.ops[0].gvr.resource === 'builderpublishes' ? radius.ops[0] : null
   const isPublish = isGitPublish || claimOp !== null
   const branches = radius.ops.filter((op) => op.gvr.resource === 'gitrefs').length

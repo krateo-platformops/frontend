@@ -2,17 +2,17 @@
  * W4 BLUEPRINT-BUILDER (FE-BP2) — the blueprint PREVIEW GATE.
  *
  * THE RULE (the blueprint analogue of the KOG previewGate, see previewGate.ts): an
- * `applyResourceSet` that writes a blueprint PUBLISH resource — a git-write CR
- * (`gitrefs` / `repocontents` / `pullrequests` on github.krateo.io) or the REGISTER
- * `compositiondefinitions` (core.krateo.io) — is DENIED unless a `previewBlueprint`
+ * `applyResourceSet` that writes a blueprint PUBLISH resource — the BuilderPublish
+ * claim (`builderpublishes`) or the REGISTER `compositiondefinitions` (core.krateo.io)
+ * — is DENIED unless a `previewBlueprint`
  * of the SAME chart happened earlier in the SAME thread. This enforces
  * preview-before-publish deterministically on the host: the prompt teaches the
  * workflow, but prompts decay across a thread — the gate does not.
  *
  * WHY MATCH ON THE HELD DRAFT'S CHART NAME (not an in-payload identity like the KOG
  * gate does): a RestDefinition CR carries its own {kind, resourceGroup} identity in
- * its payload, but a blueprint publish is a heterogeneous set (git CRs + a
- * CompositionDefinition) whose payloads do NOT carry the Chart.yaml name in a single
+ * its payload, but a blueprint publish (a claim, or a register CompositionDefinition)
+ * does NOT carry the Chart.yaml name in a single
  * reliable field. The held draft (blueprintDraftStore, FE-BP1) IS the source of the
  * published bytes, so its Chart.yaml name (blueprintDraft.draftDisplayName) is the
  * authoritative identity of what is being published. Matching the previewed name
@@ -35,18 +35,14 @@ import type { ApplyResourceSetOp } from './applyResourceSet'
 
 /**
  * The op resources a blueprint publish writes — any set touching one is a publish:
+ *   - builderpublishes (composition.krateo.io) — the ONE claim every builder publishes through
  *   - compositiondefinitions (core.krateo.io) — the REGISTER write
- *   - gitrefs / repocontents / pullrequests (github.krateo.io) — the git-write set
- *     (builder branch, one RepoContent per chart file, the PR).
+ * The github.krateo.io git-write kinds (gitrefs / repocontents / pullrequests) are not listed:
+ * no set may write them at all (applyResourceSet's NEVER-WRITE-GIT rule), so there is nothing to gate.
  */
 export const BLUEPRINT_PUBLISH_RESOURCES: readonly string[] = [
-  'compositiondefinitions',
-  'gitrefs',
-  'repocontents',
-  'pullrequests',
-  // The SCM-agnostic path (AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER): one BuilderPublish claim replaces
-  // the git-write set, so the gate must arm on it too — preview-before-publish holds either way.
   'builderpublishes',
+  'compositiondefinitions',
 ]
 
 /** True iff any op in the set writes a blueprint-publish resource (so the gate applies). */

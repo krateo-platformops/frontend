@@ -14,18 +14,17 @@
  * `templates/flex.page-<slug>.yaml` — exactly as a blueprint's always were, so the routing step
  * this file used to guard is gone and `pagePublishPath` is the identity function.
  *
- * The DRIFT it guards is not gone. The bug was never really about one prefix; it was about three
- * writers computing a destination independently — the legacy github git-write op set, the
- * BuilderPublish claim (the path that runs when AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER=true), and the
- * preview drawer's Files tab, which is the user's only chance to notice a wrong destination before
- * the merge. Three computations can still disagree; now they must agree on doing nothing.
+ * The DRIFT it guards is not gone. The bug was never really about one prefix; it was about writers
+ * computing a destination independently — there were three, and since the legacy GitHub publish
+ * was removed (2026-09-25) there are two: the BuilderPublish claim, and the preview drawer's Files
+ * tab, which is the user's only chance to notice a wrong destination before the merge. Two
+ * computations can still disagree; they must agree on doing nothing.
  */
 
 import { describe, expect, it } from 'vitest'
 
 import { heldPublishFiles, type BlueprintDraftHeld } from './blueprintDraftStore'
 import { heldKeyForDisplayedPath, pagePublishPath } from './pageDraft'
-import { buildPagePublishOps } from './pagePublish'
 import { buildPagePreviewPayload } from './previewBridge'
 
 /** The directory the portal repo abandoned on 2026-08-03 — no writer may emit it again. */
@@ -49,9 +48,6 @@ const HELD: BlueprintDraftHeld = {
   kind: 'page',
 }
 
-const specOf = (op: { payload?: unknown }) => (op.payload as { spec: Record<string, string> }).spec
-const gitWritePaths = () => buildPagePublishOps({}, HELD, SLUG)
-  .filter((op) => op.gvr.resource === 'repocontents').map((op) => specOf(op).path)
 const claimPaths = () => heldPublishFiles(HELD.files).map((file) => file.path)
 const previewPaths = () => (buildPagePreviewPayload(WIDGETS).files ?? []).map((file) => file.path)
 
@@ -75,16 +71,15 @@ describe('page publish destination — a page set is its own chart', () => {
     ])
   })
 
-  it('NO writer emits the dead chart/ prefix — git-write, claim, and preview alike', () => {
-    for (const path of [...gitWritePaths(), ...claimPaths(), ...previewPaths()]) {
+  it('NO writer emits the dead chart/ prefix — claim and preview alike', () => {
+    for (const path of [...claimPaths(), ...previewPaths()]) {
       expect(path.startsWith(DEAD_PREFIX)).toBe(false)
     }
   })
 
-  it('all three writers agree on the destination for the SAME page (no preview/publish drift)', () => {
+  it('both writers agree on the destination for the SAME page (no preview/publish drift)', () => {
     // The preview is built from the CRs and so carries no Chart.yaml or values.schema.json; it must
     // agree with the publish on exactly the files it does describe.
-    expect(previewPaths().sort()).toEqual(gitWritePaths().filter((path) => path.startsWith('templates/')).sort())
     expect(claimPaths().filter((path) => path.startsWith('templates/')).sort()).toEqual(previewPaths().sort())
   })
 })

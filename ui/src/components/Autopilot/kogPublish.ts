@@ -1,91 +1,31 @@
 /**
- * FE-KOG-PR — DETERMINISTIC KOG-publish op construction, PR-BASED GIT-WRITE variant.
+ * The controller (KOG) builder's publish file set.
  *
- * WHY THIS EXISTS: the ORIGINAL KOG publish (buildKogPublishOps, kogMapping.ts) was a DIRECT
- * 2-op cluster write — POST the OAS ConfigMap + POST the RestDefinition straight onto the live
- * apiserver, so the generated kind landed the instant the user confirmed. That is INCONSISTENT
- * with every other builder in the rail (blueprint / page), which publish through a REVIEWABLE
- * git PR: a human merges, CI/CD reconciles, then the object exists. This module brings the KOG
- * builder onto the SAME git-write rail (item #30).
+ * A `publishRestDef` commits the held, previewed RestDefinition as its own chart — Chart.yaml,
+ * values, schema, the RestDefinition template and (paste case) the OAS ConfigMap — through the
+ * SAME BuilderPublish claim every builder uses (see kogPublishDispatch / builderClaimPublish).
+ * It once had a second route: a host-built github.krateo.io GitRef / RepoContent / PullRequest op
+ * set. That legacy GitHub path was removed 2026-09-25; the claim is the only way a builder publishes.
  *
- * THE SHAPE (mirrors blueprintPublish.ts / pagePublish.ts): the model still emits ONE tiny
- * scalar publish verb with just the repo coordinates; the HOST fans it into the ordered set:
- *   1. POST gitrefs      — cut `refs/heads/builder/<kind>` (sha omitted; the git-provider
- *                          auto-resolves the base-branch HEAD).
- *   2. POST repocontents — one per file:
- *        - apis/<kind>/restdefinition.yaml   (the RestDefinition CR, ALWAYS)
- *        - configmaps/<kind>-oas.yaml         (a ConfigMap manifest carrying the OAS document
- *                                              INLINE — PASTE case only; the URL case ships no
- *                                              ConfigMap, oasgen fetches the URL itself)
- *   3. POST pullrequests — open the PR from the builder branch into `base`.
+ * THE OAS "HELD-IN-PORTAL" GUARANTEE. The pasted OpenAPI document is held client-side in the
+ * provider's OAS store and is NEVER reproduced by the model — its publish proposal carries only
+ * the scalar verb. At publish time the host embeds the held verbatim bytes into the committed
+ * ConfigMap manifest, and rewrites the RestDefinition's oasPath to that ConfigMap, so the merged
+ * chart is internally consistent and published bytes == the bytes the user pasted.
  *
- * THE OAS "HELD-IN-PORTAL" GUARANTEE IS PRESERVED. The pasted OpenAPI document is held
- * client-side in the provider's OAS store and is NEVER reproduced by the model — its publish
- * proposal carries only the scalar verb. Here, at PUBLISH-COMPILE time, the host reads the held
- * verbatim bytes and embeds them into the committed ConfigMap manifest. The model never sees or
- * retypes the document; published bytes == the bytes the user pasted. This is the git-write
- * analogue of the FE-K2 `$oasAttachment` substitution — the substitution point simply moves from
- * a LIVE ConfigMap payload to a COMMITTED ConfigMap-manifest file body.
- *
- * The oasPath the committed RestDefinition points at is ALSO rewritten to the git-relative
- * ConfigMap the PR ships (configmap://<ns>/<kind>-oas/openapi.yaml) so the merged manifest is
- * internally consistent — the same coordinates the ConfigMap manifest declares.
- *
- * Pure module: js-yaml + string helpers, no React/network/module-state. The caller (finalize)
- * enforces the MAX_APPLY_SET_OPS cap and the KOG preview gate before dispatch.
+ * Pure module: js-yaml + string helpers, no React/network/module-state.
  */
 
 import { dump } from 'js-yaml'
 
-import type { ApplyResourceSetGvr, ApplyResourceSetOp } from './applyResourceSet'
-import { encodeUtf8Base64 } from './blueprintDraftStore'
-import { GITHUB_KOG_GROUP, GITHUB_KOG_VERSION } from './blueprintPublish'
 import {
   KOG_RELEASE_NAMESPACE,
   KOG_TEMPLATES_DIR,
   kogChartYaml,
-  kogCompositionDefinition,
   kogValuesSchema,
   kogValuesYaml,
 } from './kogChart'
 import { KOG_MANAGED_BY_LABEL, parseOasPath } from './kogMapping'
-
-/**
- * Repo coordinates for a KOG (RestDefinition) publish. The model supplies these simple scalars
- * from its prompt (which it does reliably); each falls back to the KOG-repo default if omitted,
- * so a publish is robust even when the model drops a field. These mirror BLUEPRINTS_REPO_DEFAULTS
- * (blueprintPublish.ts) and PORTAL_CHART_REPO_DEFAULTS (pagePublish.ts) — the single source of the
- * coordinates stays the prompt/model, not this file.
- */
-// NON-repo install defaults for the legacy github git-write path only. The publish OWNER/REPO are
-// never hardcoded in source — owner comes from install config (AUTOPILOT_KOG_BUILDER_REPO) and the
-// repo is PER-ARTIFACT (each controller/RestDefinition gets its own repo named for the kind), both
-// confirmed by the human at publish.
-//
-// LEGACY-PATH NOTE: on the old github-PR path the portal deliverables RA
-// (restaction.kog-deliverables.yaml) discriminated controller PRs on spec.repo == "krateo-oas". With
-// per-artifact repos that match no longer holds — but the DEFAULT SCM-agnostic path discriminates on
-// the krateo.io/builder: controller LABEL, not the repo, so the Portal Builder listings are unaffected.
-export const KOG_REPO_DEFAULTS = {
-  base: 'main',
-  configurationRef: 'github-blueprints-config',
-  namespace: 'krateo-system',
-} as const
-
-/** The `publishRestDef` verb payload — repo coords only; the RestDefinition + OAS come from the held draft. */
-export interface KogPublishRequest {
-  owner?: string
-  repo?: string
-  base?: string
-  namespace?: string
-  configurationRef?: string
-  title?: string
-  body?: string
-  message?: string
-}
-
-/** DNS-1123-ish name segment from a file path (a RepoContent needs a unique metadata.name per file). */
-const pathNameSlug = (path: string): string => path.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 
 /** Serialize a CR/manifest object to YAML the exact way the page builder does (stable, no anchors). */
 const toYaml = (value: unknown): string => dump(value, { lineWidth: -1, noRefs: true, sortKeys: false })
@@ -147,31 +87,11 @@ const restDefinitionToCommit = (draft: KogPublishDraft, namespace: string): Reco
 }
 
 /**
- * Fan a `publishRestDef` request out into the ordered git-write op set for the HELD RestDefinition
- * draft (+ the held OAS document in the paste case):
- *   1. POST gitrefs      — create `refs/heads/builder/<kind>` (sha omitted; auto-resolved).
- *   2. POST repocontents — apis/<kind>/restdefinition.yaml (the RestDefinition CR), PLUS (paste
- *                          case) configmaps/<kind>-oas.yaml (the ConfigMap manifest holding the
- *                          OAS document inline). Each content is the base64 of the final YAML —
- *                          GitHub's create-file API requires base64 file bytes (same as FE-BP5).
- *   3. POST pullrequests — open the PR from the builder branch into `base`.
- * The branch/paths are DERIVED from the kind so the model never has to match them. Each op's
- * payload is a FULL CR object (apiVersion + kind + metadata.name + spec) — a bare `{spec}` is
- * rejected by the apiserver create ("Object 'Kind' is missing"). Object keys are alphabetized
- * (repo eslint sort-keys). The op count is 3 (URL) or 4 (paste) — well under MAX_APPLY_SET_OPS.
- *
- * NOTE ON AUTHORSHIP: unlike the $fileContent token path, the file bytes are produced HERE (the
- * host serializes the previewed draft deterministically), so ops carry their final content and
- * ride through compilePublishOps' authorship stamp (which stamps the CR ENVELOPES' metadata —
- * gitref/repocontent/pullrequest — exactly as the blueprint/page git-write ops do).
- */
-/**
  * The controller (KOG) builder's committed file set for a held draft: the RestDefinition ALWAYS
  * (apis/<kind>/restdefinition.yaml), plus the OAS ConfigMap (configmaps/<kind>-oas.yaml) in the
  * paste case. The runtime namespace is TEMPLATED (.Release.Namespace), not passed in: a chart that
  * bakes the authoring namespace pins every installation of the controller to wherever the author
- * happened to be working. Shared by the github-PR op path AND the SCM-agnostic BuilderPublish claim
- * path so both commit identical bytes.
+ * happened to be working.
  */
 export const kogPublishFiles = (held: KogPublishDraft): { content: string; path: string }[] => {
   const { kind, oasDocument } = held
@@ -197,80 +117,6 @@ export const kogPublishFiles = (held: KogPublishDraft): { content: string; path:
     })
   }
   return files
-}
-
-export const buildKogPublishAsPrOps = (
-  req: KogPublishRequest,
-  held: KogPublishDraft,
-): ApplyResourceSetOp[] => {
-  const owner = req.owner ?? ''
-  const repo = req.repo ?? ''
-  const base = req.base ?? KOG_REPO_DEFAULTS.base
-  const namespace = req.namespace ?? KOG_REPO_DEFAULTS.namespace
-  const configurationRef = { name: req.configurationRef ?? KOG_REPO_DEFAULTS.configurationRef }
-  const { kind } = held
-  const branch = `builder/${kind}`
-  const apiVersion = `${GITHUB_KOG_GROUP}/${GITHUB_KOG_VERSION}`
-  const gvr = (resource: string): ApplyResourceSetGvr => ({ group: GITHUB_KOG_GROUP, resource, version: GITHUB_KOG_VERSION })
-
-  const cr = (crKind: string, name: string, spec: Record<string, unknown>): Record<string, unknown> => ({
-    apiVersion,
-    kind: crKind,
-    metadata: { name, namespace },
-    spec,
-  })
-
-  // The file set (the chart, plus the OAS ConfigMap only in the paste case) — shared with the
-  // SCM-agnostic claim path so both commit identical bytes, and carrying the SAME registration file
-  // that path appends. Two writers of one destination is exactly how the page preview came to
-  // promise a directory the publish had stopped using; they agree here by construction.
-  const files = [
-    ...kogPublishFiles(held),
-    ...(owner ? [{ content: kogCompositionDefinition(held.kind, owner), path: 'compositiondefinition.yaml' }] : []),
-  ]
-
-  const ops: ApplyResourceSetOp[] = [
-    {
-      gvr: gvr('gitrefs'),
-      namespace,
-      payload: cr('GitRef', kind, { configurationRef, owner, ref: `refs/heads/${branch}`, repo }),
-      verb: 'POST',
-    },
-  ]
-
-  for (const file of files) {
-    ops.push({
-      gvr: gvr('repocontents'),
-      namespace,
-      payload: cr('RepoContent', `${kind}-${pathNameSlug(file.path)}`, {
-        branch,
-        configurationRef,
-        content: encodeUtf8Base64(file.content),
-        message: req.message ?? `feat(${kind}): add ${file.path}`,
-        owner,
-        path: file.path,
-        repo,
-      }),
-      verb: 'POST',
-    })
-  }
-
-  ops.push({
-    gvr: gvr('pullrequests'),
-    namespace,
-    payload: cr('PullRequest', kind, {
-      base,
-      body: req.body ?? `Adds the ${kind} RestDefinition (KOG API mapping), authored end-to-end via the KOG Builder.`,
-      configurationRef,
-      head: branch,
-      owner,
-      repo,
-      title: req.title ?? `feat(${kind}): add ${kind} RestDefinition`,
-    }),
-    verb: 'POST',
-  })
-
-  return ops
 }
 
 /**

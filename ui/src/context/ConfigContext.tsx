@@ -98,14 +98,6 @@ export interface Config {
      * Absent → github / github.com, so existing installs are unchanged. */
     AUTOPILOT_GIT_SCM?: string
     AUTOPILOT_GIT_HOST?: string
-    /* Publish mode. The frontend chart DEFAULTS this to "true" (values.schema.json), so a fresh
-     * install routes the builders through the SCM-agnostic BuilderPublish claim (git-provider
-     * LocalResources) — this assumes git-provider + the builder-publish composition + a
-     * git-provider-credentials secret are wired (git-provider is a mandatory install component).
-     * Set "false" to fall back to the legacy github.krateo.io GitRef/RepoContent/PullRequest path.
-     * Read below still keys on exactly "true" so an unset config (e.g. bare dev) stays on the safe
-     * github path — the chart, not the code, carries the on-by-default. */
-    AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER?: string
     /** Operator kill-switch for Autopilot SPEAK-BACK — reading an answer aloud when the
      * question was asked by voice (voice spec FR 46/76). `"off"` removes the feature and its
      * rail-header control entirely; any other value (absent/`"on"`) leaves it to the per-user

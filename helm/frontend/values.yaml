@@ -204,8 +204,7 @@ config:
   #   OWN repo named for the artifact. Here the OWNER segment is what matters (the org new repos land
   #   in); the REPO segment is only a placeholder prefill that the per-artifact name overrides. The
   #   default SCM-agnostic path discriminates Portal-Builder listings by the krateo.io/builder LABEL,
-  #   not the repo, so per-artifact repos are safe. (KOG repo kept as krateo-oas for the legacy github
-  #   -PR path, where the portal deliverables RA still matches spec.repo == "krateo-oas".)
+  #   not the repo, so per-artifact repos are safe.
   # EMPTY ON PURPOSE. This shipped as `krateo-blueprints/blueprints`, which does not exist — the org
   # has 35 repositories and none by that name. The page and KOG defaults above/below are real; this
   # one was the outlier, so every install that did not override it had blueprint publishing that
@@ -217,10 +216,11 @@ config:
   # publish pushes a branch to an existing repository, it never creates one.
   AUTOPILOT_BLUEPRINT_BUILDER_REPO: ""
   AUTOPILOT_KOG_BUILDER_REPO: krateo-platformops/krateo-oas
-  # SCM-agnostic publishing — ON by default. The builders publish via a BuilderPublish claim: the
-  # held files are committed by git-provider LocalResources, replacing the github.krateo.io GitRef
-  # and RepoContent kinds. PullRequest and Repository are NOT replaced — the composition still
-  # renders both.
+  # PUBLISHING IS ALWAYS A BuilderPublish CLAIM. The builders' held files are committed by
+  # git-provider LocalResources; the frontend never writes github.krateo.io GitRef / RepoContent /
+  # PullRequest objects itself (the legacy GitHub PR path and its AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER
+  # switch were removed 2026-09-25). PullRequest and Repository still exist — the builder-publish
+  # composition renders both, server-side.
   #
   # THE COMPOSITION OPENS THE CHANGE REQUEST ITSELF, from builder-publish 1.8.21. This comment
   # previously said "no PR is opened, the reviewer opens it via a host-aware deep link (Option A)",
@@ -240,9 +240,6 @@ config:
   # RENDER unless pullRequest.create is set false. That is deliberate — a publish that silently
   # never opened its change request is the failure the hard error exists to prevent — but it means
   # the AUTOPILOT_GIT_SCM values below are not all equally complete paths today.
-  #
-  # Set "false" to fall back to the legacy GitHub PR path.
-  AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER: "true"
   # SCM flavour + host — drive the "Open pull/merge request" deep link + the source-citation URL
   # scheme (github | gitlab | bitbucket | ado). Default github.com; set for self-hosted / other SCMs.
   AUTOPILOT_GIT_SCM: github

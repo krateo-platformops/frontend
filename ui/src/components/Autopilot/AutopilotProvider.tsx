@@ -332,11 +332,6 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       const pushChip = (chip: AutopilotActionChip | null) => {
         if (chip) { chips.push(chip) }
       }
-      // SCM-agnostic publishing: when set, the builders emit ONE BuilderPublish claim (git-provider
-      // LocalResources) instead of the github.krateo.io git-write set. Absent/anything-else → the
-      // legacy github path, so existing installs are byte-identical. Flip on once git-provider + the
-      // builder-publish composition are deployed.
-      const publishViaClaim = config?.api.AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER === 'true'
       const pushPublishOutcome = async (compiled: PublishCompileResult, label: string | undefined, deepLink: string | null = null) => {
         if (compiled.denial !== null) {
           chips.push({ label: compiled.denial, readOnly: true, verb: 'applyResourceSet' })
@@ -361,21 +356,19 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         // The publish itself lives in publishDraft.runDraftPublish, so the agent's verb and the
         // composer's Publish button take the SAME path — one destination form, one gate, one cap.
         const { compiled, deepLink } = await runDraftPublish(
-          { blueprintGate, blueprintStore, builderTargets, config, oasStore, origin, previewGate, publishViaClaim },
+          { blueprintGate, blueprintStore, builderTargets, config, origin },
           proposal,
         )
         await pushPublishOutcome(compiled, proposal.label, deepLink)
       } else if (proposal.verb === 'publishRestDef') {
-        // FE-KOG-PR (item #30) — the controller builder publishes via a git PR (github) OR, when
-        // AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER is set, a BuilderPublish claim. The dispatch (destination
-        // form + KOG preview gate + compile) is factored into dispatchKogPublish.
+        // The controller builder publishes through the same BuilderPublish claim as every builder. The
+        // dispatch (destination form + KOG preview gate + compile) is factored into dispatchKogPublish.
         const { compiled, deepLink } = await dispatchKogPublish(proposal, {
           config,
           kogTarget: builderTargets.kog,
           oasText: oasStore.get()?.text ?? null,
           origin: { prompt: lastUserTextRef.current, sessionId },
           previewGate,
-          publishViaClaim,
         })
         await pushPublishOutcome(compiled, proposal.label, deepLink)
       } else if (proposal.verb === 'applyResourceSet') {
@@ -384,25 +377,25 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         // standard denied chip (nothing dispatched, readOnly/honest):
         //  1a. KOG PREVIEW GATE (FE-K3): a set writing restdefinitions needs a matching
         //      (kind+resourceGroup) previewRestDef this thread.
-        //  1b. BLUEPRINT PREVIEW GATE (FE-BP2): a blueprint publish (git-write CRs / a
-        //      register CompositionDefinition) needs the CURRENTLY-HELD draft previewed.
+        //  1b. BLUEPRINT PREVIEW GATE (FE-BP2): a blueprint publish (a BuilderPublish claim /
+        //      a register CompositionDefinition) needs the CURRENTLY-HELD draft previewed.
         //  2a. $oasAttachment substitution (FE-K2): the held OAS replaces the token.
-        //  2b. $fileContent substitution (FE-BP1): the held chart tree replaces per-file
-        //      tokens, so published bytes == previewed bytes.
+        //  2b. $fileContent is REFUSED — it fed the removed GitHub publish; charts and pages
+        //      publish through publishBlueprint / publishPage. (git-write CRs themselves are
+        //      denied by applyResourceSet's NEVER-WRITE-GIT rule.)
         //  3.  AUTHORSHIP stamp (FE-BP3): host-inject managed-by/authored-by/session/prompt
         //      onto every authored object (ownership can't be omitted or spoofed).
         // All at compile time — BEFORE the blast-radius confirm, so the human confirms the
         // REAL, owned payload.
         const held = blueprintStore.get()
         // The held draft's identity for the preview-gate — page slug or blueprint chart name
-        // (heldDraftIdentity); the SAME store/gate/substitution serve both (FE-P2 reuses FE-BP1/BP2).
+        // (heldDraftIdentity); the SAME store and gate serve both (FE-P2 reuses FE-BP1/BP2).
         const heldChartName = heldDraftIdentity(held)
         const { denial, ops: compiledOps } = compilePublishOps(
           hydrateRestDefinitionOps(proposal.ops, previewGate.lastDraft()),
           previewGate.evaluate(proposal.ops),
           blueprintGate.evaluate(proposal.ops, heldChartName),
           oasStore.get(),
-          held,
           { prompt: lastUserTextRef.current, sessionId },
         )
         if (denial !== null) {
@@ -832,10 +825,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
           blueprintStore,
           builderTargets,
           config,
-          oasStore,
           origin: { prompt: null, sessionId: null },
-          previewGate,
-          publishViaClaim: config?.api.AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER === 'true',
         },
         { label: 'Publish', verb },
       )

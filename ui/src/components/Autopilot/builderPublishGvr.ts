@@ -90,5 +90,5 @@ export const resolveBuilderPublishGvr = async (config: Config | undefined): Prom
 /** The denial shown when the GVR cannot be resolved — actionable, names the missing prerequisite. */
 export const BUILDER_PUBLISH_GVR_DENIAL
   = 'denied — the builder-publish composition is not installed or not yet ready on this cluster '
-  + '(git-provider + the builder-publish CompositionDefinition are required for SCM-agnostic publishing). '
-  + 'Ask an operator to install them, or set AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER="false" to use the GitHub PR path.'
+  + '(git-provider + the builder-publish CompositionDefinition are required — every builder publishes through them). '
+  + 'Ask an operator to install them.'

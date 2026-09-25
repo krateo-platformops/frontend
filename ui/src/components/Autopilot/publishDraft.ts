@@ -9,7 +9,7 @@
  * the parity rule applied to the builder; it is the rail wearing a different hat.
  *
  * Extracted rather than duplicated, so the UI path and the verb path are the SAME code: one
- * destination form, one gate evaluation, one file-count cap, one set of denial strings. Two publish
+ * destination form, one gate evaluation, one set of denial strings. Two publish
  * paths for one artifact is exactly how `compose-page` and the drawer drifted apart.
  *
  * WHAT IT DOES NOT DO. It does not dispatch. It returns the compiled op set and lets the caller
@@ -20,19 +20,14 @@
 import type { Config } from '../../context/ConfigContext'
 
 import type { PortalActionProposal } from './actionBridge'
-import { MAX_APPLY_SET_OPS } from './applyResourceSet'
 import type { AuthorshipOrigin } from './authorship'
 import { lintBlueprintDraft } from './blueprintDraft'
 import { heldPublishFiles, type BlueprintDraftStore } from './blueprintDraftStore'
 import type { createBlueprintGate } from './blueprintGate'
-import { buildBlueprintPublishOps } from './blueprintPublish'
 import { buildClaimPublish } from './builderClaimPublish'
 import { builderTemplateUrl, type useBuilderTargets } from './builderTargets'
-import type { createOasAttachmentStore } from './oasAttachment'
 import { isPageDraft, pageCompositionDefinition, pageRootSlug } from './pageDraft'
-import { buildPagePublishOps } from './pagePublish'
-import type { createPreviewGate } from './previewGate'
-import { compilePublishOps, heldDraftIdentity, type PublishCompileResult } from './publishCompile'
+import { heldDraftIdentity, type PublishCompileResult } from './publishCompile'
 import { askPublishDestination } from './publishTargetForm'
 
 export interface PublishDraftDeps {
@@ -40,12 +35,8 @@ export interface PublishDraftDeps {
   blueprintStore: BlueprintDraftStore
   builderTargets: ReturnType<typeof useBuilderTargets>
   config: Config | undefined
-  oasStore: ReturnType<typeof createOasAttachmentStore>
   /** Authorship provenance stamped onto every op — who and what caused the write. */
   origin: AuthorshipOrigin
-  previewGate: ReturnType<typeof createPreviewGate>
-  /** AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER — one BuilderPublish claim instead of the git-write set. */
-  publishViaClaim: boolean
 }
 
 export interface PublishDraftOutcome {
@@ -56,11 +47,10 @@ export interface PublishDraftOutcome {
 /**
  * FE-BP6/BP7 — frontend-constructs-ops (blueprint + its near-identical PAGE variant, unified).
  * ONE scalar verb carries repo coords only; the HOST assembles the publish from the HELD previewed
- * tree — either the github git-write set (gitrefs + per-file repocontents + pullrequests, via
- * compilePublishOps' $fileContent→base64 + authorship) OR, when AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER
- * is set, ONE BuilderPublish claim (git-provider LocalResources). Same destination form and
- * blast-radius confirm either way; the shared blueprintGate identity (chart / page name) enforces
- * preview-before-publish.
+ * tree as ONE BuilderPublish claim (git-provider LocalResources commit the files). The shared
+ * blueprintGate identity (chart / page name) enforces preview-before-publish. There used to be a
+ * second route — a host-built github.krateo.io GitRef / RepoContent / PullRequest set — removed
+ * 2026-09-25: one publish path, whatever the SCM.
  *
  * `proposal` is the model's directive when the agent asked, and a synthetic one carrying just the
  * verb when a person clicked Publish. Everything downstream treats them identically, which is the
@@ -70,7 +60,7 @@ export const runDraftPublish = async (
   deps: PublishDraftDeps,
   proposal: PortalActionProposal,
 ): Promise<PublishDraftOutcome> => {
-  const { blueprintGate, blueprintStore, builderTargets, config, oasStore, origin, previewGate, publishViaClaim } = deps
+  const { blueprintGate, blueprintStore, builderTargets, config, origin } = deps
   const isPage = proposal.verb === 'publishPage'
   const held = blueprintStore.get()
   const identity = heldDraftIdentity(held)
@@ -94,7 +84,6 @@ export const runDraftPublish = async (
     return { compiled: { denial: `denied — the draft fails the chart lint: ${lintProblems.join('; ')}`, ops: null }, deepLink: null }
   }
   const dest = await askPublishDestination(proposal, builder, destRepo, bt.owner)
-  const targeted = dest ? { ...proposal, ...dest } : proposal
 
   if (!dest) {
     return { compiled: { denial: 'publish cancelled — destination not confirmed', ops: null }, deepLink: null }
@@ -118,60 +107,35 @@ export const runDraftPublish = async (
   const publishFiles = isPage && owner
     ? { ...held.files, 'compositiondefinition.yaml': pageCompositionDefinition(slug, owner) }
     : held.files
-  const publishHeld = { ...held, files: publishFiles }
 
-  if (publishViaClaim) {
-    // The claim commits each path VERBATIM (builder-publish only splits it into basename + dir), so
-    // the full repo path is this caller's job — and both builders now hand it chart-relative keys,
-    // so there is one mapping rather than a routed page branch beside a pass-through blueprint one.
-    // That branch existed because a page's keys were bare identity tokens; publishing those unrouted
-    // dropped every widget CR at the repo ROOT — outside the chart, packaged by nothing, merged
-    // green and rendered never. The keys carry their own location now, so nothing has to re-derive
-    // it and the three writers cannot disagree about it.
-    //
-    // NO FILE COUNT LIMIT. The claim is ONE write whatever the chart holds — the files ride inside
-    // it — so the write-set cap (MAX_APPLY_SET_OPS) has nothing to count here. It used to be
-    // borrowed as a file cap, which refused an ordinary blueprint: Chart.yaml, values, schema,
-    // templates and architecture.yaml already make nine. What bounds a claim is its SIZE, and the
-    // held-draft byte cap enforces that before anything reaches here.
-    const files = heldPublishFiles(publishFiles)
-    const res = await buildClaimPublish({
-      builder,
-      config,
-      dest,
-      files,
-      gate: (ops) => blueprintGate.evaluate(ops, identity),
-      namespace: 'krateo-system',
-      origin,
-      slug,
-      // SEED a new page-set repo from the configured template, so what the claim creates is not a
-      // bare repo holding an unreleasable chart. Null when no template is configured — the claim
-      // then omits `source` and behaves exactly as before. Pages only: the blueprint builder has
-      // the same gap and no template key yet.
-      sourceUrl: isPage ? builderTemplateUrl(builderTargets.pageTemplate, config?.api.AUTOPILOT_GIT_HOST) : null,
-    })
-    return { compiled: res.compiled, deepLink: res.deepLink }
-  }
-
-  // The legacy github path commits the same file set, registration file included — but it has no
-  // seeding step (that is the composition's `Repo`, which only the claim path renders), so a page
-  // set published this way still needs the release workflow copied in by hand.
+  // The claim commits each path VERBATIM (builder-publish only splits it into basename + dir), so
+  // the full repo path is this caller's job — and both builders now hand it chart-relative keys,
+  // so there is one mapping rather than a routed page branch beside a pass-through blueprint one.
+  // That branch existed because a page's keys were bare identity tokens; publishing those unrouted
+  // dropped every widget CR at the repo ROOT — outside the chart, packaged by nothing, merged
+  // green and rendered never. The keys carry their own location now, so nothing has to re-derive
+  // it and the three writers cannot disagree about it.
   //
-  // This path IS still limited: it writes one object per file through applyResourceSet, whose
-  // write-set cap bounds any set the agent can propose — a safety rule, not a publishing one. The
-  // denial says so and names the path that has no limit, rather than asking for a smaller chart.
-  const built = isPage ? buildPagePublishOps(targeted, publishHeld, slug) : buildBlueprintPublishOps(targeted, held, slug)
-  if (built.length > MAX_APPLY_SET_OPS) {
-    return {
-      compiled: {
-        denial: `denied — "${slug}" has ${Object.keys(publishHeld.files).length} files, and the legacy GitHub publish writes one object per file in a set capped at ${MAX_APPLY_SET_OPS} writes. Publish through git-provider instead (AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER, on by default), which has no file limit.`,
-        ops: null,
-      },
-      deepLink: null,
-    }
-  }
-  return {
-    compiled: compilePublishOps(built, previewGate.evaluate(built), blueprintGate.evaluate(built, identity), oasStore.get(), held, origin),
-    deepLink: null,
-  }
+  // NO FILE COUNT LIMIT. The claim is ONE write whatever the chart holds — the files ride inside
+  // it — so the write-set cap (MAX_APPLY_SET_OPS) has nothing to count here. It used to be
+  // borrowed as a file cap, which refused an ordinary blueprint: Chart.yaml, values, schema,
+  // templates and architecture.yaml already make nine. What bounds a claim is its SIZE, and the
+  // held-draft byte cap enforces that before anything reaches here.
+  const files = heldPublishFiles(publishFiles)
+  const res = await buildClaimPublish({
+    builder,
+    config,
+    dest,
+    files,
+    gate: (ops) => blueprintGate.evaluate(ops, identity),
+    namespace: 'krateo-system',
+    origin,
+    slug,
+    // SEED a new page-set repo from the configured template, so what the claim creates is not a
+    // bare repo holding an unreleasable chart. Null when no template is configured — the claim
+    // then omits `source` and behaves exactly as before. Pages only: the blueprint builder has
+    // the same gap and no template key yet.
+    sourceUrl: isPage ? builderTemplateUrl(builderTargets.pageTemplate, config?.api.AUTOPILOT_GIT_HOST) : null,
+  })
+  return { compiled: res.compiled, deepLink: res.deepLink }
 }

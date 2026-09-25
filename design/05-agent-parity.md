@@ -27,6 +27,8 @@ The first pass could only measure Autopilot's side. This one diffed it against *
 > An adversarial verifier refuted the publish GAP, finding that `builder-publish` ships as an ordinary blueprint — so instantiating it from `/blueprints` POSTs the same `BuilderPublish` claim the rail emits. That route is real, and it is **not the one in use**: it is live only when `AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER` is `true`, and the chart sets it nowhere. The code comment says why — *“legacy github path, so existing installs are byte-identical. Flip on once git-provider + the builder-publish composition are deployed.”*
 >
 > So the GAP stands for what is deployed, and there is a latent route behind a flag. Worth knowing before anyone builds a publish UI that already half-exists.
+>
+> *Update 2026-09-25:* the flag is gone. The chart had since defaulted it to `true`, and the legacy GitHub path it switched to was removed — every builder publishes through the one `BuilderPublish` claim, and Autopilot can no longer write `gitrefs` / `repocontents` / `pullrequests` at all.
 
 ### A1 — Every capability Autopilot can reach has a control a user can reach without it — and the agent presses that control.
 
@@ -106,9 +108,9 @@ Measured: the invariant holds for navigation, action-driving, form filling and b
 > `blueprintDraftStore` — provider-owned, conversation-scoped, cleared on `newThread` — so a page
 > widget has nothing to read. Half one therefore needs durable drafts plus a page-mounted publish
 > Form, across the frontend store, the portal chart and the widget CRD's `allowedResources`, and it
-> forces a decision on `AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER` (a UI control wants the single
-> `BuilderPublish` claim, not the 3-kind github op set, and flipping that changes the publish path
-> for every existing install). Half two — *the agent presses that control* — additionally needs a
+> forced a decision on `AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER` — since taken: the flag and the 3-kind
+> github op set were removed 2026-09-25, so a UI control and the rail publish through the same single
+> `BuilderPublish` claim. Half two — *the agent presses that control* — additionally needs a
 > primitive that can submit a Form, and today's safety story rests on Autopilot never submitting.
 > That is a policy change against the standing "Autopilot drives UI only" rule and is an owner's
 > call, not an implementer's.

@@ -89,6 +89,28 @@ describe('isSetOpGroupAllowed — Krateo groups or core ConfigMaps only', () => 
   })
 })
 
+describe('NEVER-WRITE-GIT — no set may write a branch, file or pull request through github.krateo.io', () => {
+  const gitOp = (resource: string): ApplyResourceSetOp => ({
+    gvr: { group: 'github.krateo.io', resource, version: 'v1alpha1' },
+    name: 'x',
+    namespace: 'krateo-system',
+    payload: {},
+    verb: 'POST',
+  })
+
+  it('refuses each git-write kind — the legacy GitHub publish must not survive as a model-emitted set', () => {
+    for (const resource of ['gitrefs', 'repocontents', 'pullrequests']) {
+      expect(isSetOpAllowed(gitOp(resource))).toBe(false)
+    }
+    expect(isApplySetAllowed([KRATEO_OP, gitOp('repocontents')])).toBe(false)
+  })
+
+  it('leaves the rest of github.krateo.io and the BuilderPublish claim alone', () => {
+    expect(isSetOpAllowed(gitOp('repositories'))).toBe(true)
+    expect(isSetOpAllowed({ ...gitOp('builderpublishes'), gvr: { group: 'composition.krateo.io', resource: 'builderpublishes', version: 'v1-8-21' } })).toBe(true)
+  })
+})
+
 describe('isSetOpAllowed — one op\'s shape + scope', () => {
   it('allows each mutating verb on an in-scope target', () => {
     expect(isSetOpAllowed(opOf({ verb: 'POST' }))).toBe(true)

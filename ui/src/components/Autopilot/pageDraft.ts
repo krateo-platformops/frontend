@@ -3,12 +3,11 @@
  *
  * The page analogue of blueprintDraftStore (FE-BP1). A `previewPage` whose widget CR objects
  * were accepted is HELD client-side as a `{path: yaml}` file map — EXACTLY the shape
- * blueprintDraftStore already holds — so the SAME machinery publishes it: substituteFileContent
- * (base64) fills each `{"$fileContent":"<path>"}` token from the held YAML at compile time, the
- * blueprint preview-GATE denies a publish unless the SAME page was previewed this thread, and
- * stampAuthorship marks the ops. The page's widget CRs therefore reach the cluster ONLY via a git
- * write (→ the page set's own repo → merge → OCI → its composition renders them) — NEVER
- * hand-applied (applyResourceSet's isSandboxOnlyTarget guard already denies that).
+ * blueprintDraftStore already holds — so the SAME machinery publishes it: one BuilderPublish claim
+ * carries the held files verbatim, the blueprint preview-GATE denies a publish unless the SAME page
+ * was previewed this thread, and stampAuthorship marks the claim. The page's widget CRs therefore
+ * reach the cluster ONLY via git (→ the page set's own repo → merge → OCI → its composition renders
+ * them) — NEVER hand-applied (applyResourceSet's isSandboxOnlyTarget guard already denies that).
  *
  * A PAGE SET IS ITS OWN CHART. It used to be a handful of loose widget CRs posted into the portal's
  * one chart, which meant every page a person authored rode the portal's release cadence and grew
