@@ -1,0 +1,52 @@
+apiVersion: architecture.krateo.io/v1alpha1
+kind: ChartArchitecture
+chart: builder-publish
+resources:
+  - id: localresources
+    class: custom
+    apiVersion: git.krateo.io/v1alpha1
+    kind: LocalResource
+    template: templates/localresources.yaml
+    forEach: builder-publish.files
+    dependsOn:
+      - ref: repository
+        ready: true
+        when: .Values.repository.create
+      - ref: repo
+        ready: true
+        when: .Values.source.url
+    readyWhen: .status.targetCommitId
+  - id: pullrequest
+    class: custom
+    apiVersion: github.krateo.io/v2022-11-28
+    kind: PullRequest
+    template: templates/pullrequest.yaml
+    when: .Values.pullRequest.create
+    dependsOn:
+      - ref: localresources
+        ready: true
+        all: true
+  - id: repo
+    class: custom
+    apiVersion: git.krateo.io/v1alpha1
+    kind: Repo
+    template: templates/repo.yaml
+    when: .Values.source.url
+    dependsOn:
+      - ref: repository
+        ready: true
+        when: .Values.repository.create
+    readyWhen: .status.targetCommitId
+  - id: repository
+    class: custom
+    apiVersion: github.krateo.io/v2022-11-28
+    kind: Repository
+    template: templates/repository.yaml
+    when: .Values.repository.create
+    readyWhen: .status.default_branch
+  - id: username-secret
+    class: native
+    apiVersion: v1
+    kind: Secret
+    template: templates/username-secret.yaml
+    lifecycle: shim
