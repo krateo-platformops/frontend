@@ -1,0 +1,89 @@
+{{/*
+  builder-publish — CREATE THE DESTINATION REPOSITORY.
+
+  Publishing used to require a repository someone had already made by hand, which is backwards for
+  a brand-new blueprint: `toRepo.cloneFromBranch` in localresources.yaml presupposes a repo that
+  already has that branch. This renders the repo itself, as a CR, from the same claim.
+
+  SCM DISPATCH. The kind is per-SCM (`.Values.git.scm`, install-level, alongside host/scheme).
+  Only `github` is implemented, because github-provider-kog is the only per-SCM provider that
+  exists. An unsupported value FAILS THE RENDER rather than skipping creation: skipping would
+  produce a publish that reports success and then dies in git-provider with a clone error the
+  author has to decode.
+
+  ADOPTION IS FREE. `Repository` is level-based — Observe does `GET /repos/{org}/{name}` first and
+  only creates when that reports absent. So declaring this unconditionally is safe: an existing
+  repository is adopted, not re-created and not 422'd. There is no "does it exist?" check to write.
+
+  REQUIRES github-provider-kog to be installed (it owns github.krateo.io). That is a deliberate
+  install-time dependency: see the chart description.
+
+  THE AUTH KIND IS INSTALL-LEVEL, NOT PER PUBLISH. This chart used to render its own
+  RepositoryConfiguration alongside each Repository. Both then lived in the same per-publish Helm
+  release, so deleting a claim removed the configuration that the Repository's own delete handler
+  resolves -- `delete failed: repositoryconfigurations.github.krateo.io "X" not found` -- and the
+  finalizer never cleared. It carries nothing per-publish: only a tokenRef to the install's secret.
+  So it is referenced, never rendered (core-provider#108).
+*/}}
+{{- if .Values.repository.create }}
+{{- $git := .Values.git | default dict -}}
+{{- $scm := $git.scm | default "github" -}}
+{{- if ne $scm "github" -}}
+{{- fail (printf "builder-publish: git.scm=%q has no repository provider. Only \"github\" is implemented (github.krateo.io/Repository, from github-provider-kog). Either install a provider for %q and add its kind here, or set repository.create=false and pre-provision the destination repository yourself." $scm $scm) -}}
+{{- end -}}
+{{- $t := .Values.target -}}
+{{- $cred := .Values.credentials -}}
+{{- $ns := .Release.Namespace -}}
+{{- $repo := printf "%s-repo" .Values.name | trunc 63 | trimSuffix "-" -}}
+{{- $cfgName := .Values.repository.configurationRef.name -}}
+{{- $cfgNs := .Values.repository.configurationRef.namespace | default "" -}}
+{{- if not $cfgName -}}
+{{- fail "builder-publish: repository.configurationRef.name is required — the Repository needs an INSTALL-LEVEL RepositoryConfiguration (default: github-blueprints-config) that outlives any one publish." -}}
+{{- end -}}
+{{/*
+  Fail NOW if the referenced configuration is absent. Without it the Repository is created and then
+  cannot authenticate, which surfaces as a clone failure on the LocalResources much later. A nil
+  lookup is NOT an error — that is equally what `helm template` with no cluster returns.
+*/}}
+{{- $cfg := lookup "github.krateo.io/v1alpha1" "RepositoryConfiguration" (default $ns $cfgNs) $cfgName -}}
+{{- if and (not $cfg) (lookup "v1" "Namespace" "" (default $ns $cfgNs)) -}}
+{{- fail (printf "builder-publish: RepositoryConfiguration %s/%s does not exist. It is install-level and must be provisioned once, outside any publish." (default $ns $cfgNs) $cfgName) -}}
+{{- end -}}
+---
+# VERSION IS NOT v1alpha1, AND NOT ARBITRARY. oasgen-provider derives a RESOURCE kind's CRD
+# version from its OpenAPI document's `info.version`, which for GitHub is the dated API version
+# 2022-11-28 — so the served version is v2022-11-28. (The <Kind>Configuration auth kind above is
+# different: oasgen fixes those at v1alpha1.) Verified on a live install: the Repository CRD serves
+# exactly ["v2022-11-28"] and repositoryconfigurations serves ["v1alpha1"]. If github-provider-kog
+# ever bumps info.version in assets/repository.yaml, this string and the lookup in
+# localresources.yaml must move with it or the CR stops applying and the gate stops matching.
+apiVersion: github.krateo.io/v2022-11-28
+kind: Repository
+metadata:
+  name: {{ $repo }}
+  namespace: {{ $ns }}
+  labels:
+    krateo.io/builder: {{ .Values.builder }}
+    krateo.io/publish: {{ .Values.name }}
+spec:
+  configurationRef:
+    name: {{ $cfgName | quote }}
+    {{- with $cfgNs }}
+    namespace: {{ . | quote }}
+    {{- end }}
+  org: {{ $t.namespace | quote }}      # same field the LocalResource URL is built from
+  name: {{ $t.repo | quote }}
+  # PER-CLAIM WINS, install default is the fallback. `target.visibility` is what the publish form
+  # asks the person; `repository.private` is what a claim that says nothing gets. Compared against
+  # the string rather than coerced, so an empty/absent value falls through to the default instead of
+  # reading as false — which would silently make every visibility-less publish public.
+  private: {{ if .Values.target.visibility }}{{ eq .Values.target.visibility "private" }}{{ else }}{{ .Values.repository.private }}{{ end }}
+  # LOAD-BEARING, do not default this to false. A repository created without an initial commit has
+  # no default branch, so `cloneFromBranch` in localresources.yaml has nothing to clone and every
+  # file in the publish fails. It is also what makes the readiness gate below meaningful: the gate
+  # keys on status.default_branch, which only exists once the repo has a commit.
+  auto_init: {{ .Values.repository.autoInit }}
+  {{- with .Values.repository.description }}
+  description: {{ . | quote }}
+  {{- end }}
+{{- end }}

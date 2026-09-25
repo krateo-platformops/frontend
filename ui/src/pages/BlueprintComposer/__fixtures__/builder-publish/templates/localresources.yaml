@@ -1,0 +1,188 @@
+{{/*
+  builder-publish — renders ONE git-provider LocalResource per held file. Each file lands
+  verbatim (fromString) at its path, on a builder/<slug> branch cut off base, additively. No
+  PR/MR is created (Option A: the UI opens one via a host-aware deep link). Works on any SCM
+  git-provider can reach. Proven end-to-end on git-provider 0.10.0 (kind + gitea).
+
+  Value split:
+    • PER-PUBLISH (the BuilderPublish claim the frontend emits): .Values.target{namespace,repo,base},
+      .Values.files[{path,content}], .Values.builder, .Values.name, .Values.branch.
+    • INSTALL-LEVEL (values.yaml defaults, set once per install): .Values.git{scheme,host,insecure}
+      and .Values.credentials{authMethod,secretRef,usernameRef} — the claim never carries a secret.
+*/}}
+{{/*
+  READINESS GATE (see repository.yaml). When this chart also creates the destination repository,
+  the LocalResources must not run until that repository actually exists — `cloneFromBranch` has
+  nothing to clone otherwise, and every file in the publish fails.
+
+  There is no ordering primitive to reach for: LocalResource has no dependsOn/waitFor field. The
+  supported Krateo answer is Helm's `lookup`, which reads LIVE cluster state, combined with the
+  fact that composition-dynamic-controller RE-RENDERS ON EVERY RECONCILE. So the first pass emits
+  only the Repository, and a later pass — once the repo is real — emits the files. No manual
+  sequencing. (Same pattern as the nutanix-chain-lookup blueprint.)
+
+  The gate keys on `status.default_branch`, NOT merely on the CR existing. That field is populated
+  from GitHub's GET response, so it proves three things at once: the repository exists, it is
+  initialised, and it HAS a branch — which is exactly what cloneFromBranch needs. A repo created
+  without auto_init never publishes a default_branch, so the files correctly never render against
+  an empty repo.
+
+  With repository.create=false the gate is skipped entirely: the operator has asserted the repo is
+  pre-provisioned, and this chart renders exactly what it did before.
+*/}}
+{{- $t := .Values.target -}}
+{{- $gate := true -}}
+{{- if .Values.repository.create -}}
+{{- $gate = false -}}
+{{- $rname := printf "%s-repo" .Values.name | trunc 63 | trimSuffix "-" -}}
+{{- /* v2022-11-28, not v1alpha1 — oasgen derives a resource kind's CRD version from the OAS
+       info.version. A wrong version here does not error: lookup simply never matches, the gate
+       never opens, and the publish silently commits nothing. See repository.yaml. */ -}}
+{{- $r := lookup "github.krateo.io/v2022-11-28" "Repository" .Release.Namespace $rname -}}
+{{- if $r -}}{{- if dig "status" "default_branch" "" $r -}}{{- $gate = true -}}{{- end -}}{{- end -}}
+{{- end -}}
+{{/*
+  SECOND GATE — the optional source seed (templates/repo.yaml). When the destination is being
+  populated from a template repository, the held files must not be committed until that copy has
+  landed. Both write to the same repository, and the builder branch is cut from the base the seed
+  is still filling: publish first and the branch is cut from a base without the template, so the
+  pull request diff carries the whole scaffold instead of the authored blueprint alone.
+
+  Same mechanism as the gate above — `lookup` on live state, re-evaluated every reconcile — keyed
+  on the Repo's own `status.targetCommitId`, which is the direct evidence that the copy committed.
+  No source configured: nothing to wait for, and this gate is skipped entirely.
+*/}}
+{{- $src := .Values.source | default dict -}}
+{{- if $src.url -}}
+{{- $sname := printf "%s-source" .Values.name | trunc 63 | trimSuffix "-" -}}
+{{- $sr := lookup "git.krateo.io/v1alpha1" "Repo" .Release.Namespace $sname -}}
+{{- if not (and $sr (dig "status" "targetCommitId" "" $sr)) -}}{{- $gate = false -}}{{- end -}}
+{{- end -}}
+{{- if $gate -}}
+{{- $git := .Values.git | default dict -}}
+{{- $cred := .Values.credentials | default dict -}}
+{{- $authMethod := $cred.authMethod | default "basic" -}}
+{{/*
+  FAIL LOUDLY, DO NOT PUSH SILENTLY BROKEN. `basic` with no username source produces an empty
+  username, which git-provider accepts (GetSecret returns "" for a missing key, with no error) and
+  the git server then rejects at push time — a failure that surfaces hours later on a stuck
+  LocalResource instead of here.
+*/}}
+{{- if and (eq $authMethod "basic") (not $cred.usernameRef) -}}
+{{- fail "builder-publish: credentials.authMethod is 'basic' but credentials.usernameRef is not set. The username must live in an INSTALL-LEVEL Secret that outlives any one publish — add a `username` key to the Secret that already holds the token (default: git-provider-credentials) and point credentials.usernameRef at it." -}}
+{{- end -}}
+{{/*
+  Fail NOW if the referenced Secret exists but has no username key. git-provider's GetSecret
+  returns "" for a missing key with NO error, so the push goes out with an empty username and
+  the git server rejects it — surfacing hours later on a stuck LocalResource instead of here.
+  A nil lookup is NOT an error: it also means `helm template` with no cluster.
+*/}}
+{{- if $cred.usernameRef -}}
+{{- $uns := $cred.usernameRef.namespace | default .Release.Namespace -}}
+{{- $ukey := $cred.usernameRef.key | default "username" -}}
+{{/* Validates the install-level ref. The FROZEN ref, when one is emitted, is checked at its own
+     use site above — checking $cred.usernameRef.name there would validate a Secret the render does
+     not use, which is how portal#223 passed preflight while emitting a dangling reference. */}}
+{{- $us := lookup "v1" "Secret" $uns $cred.usernameRef.name -}}
+{{- if and $us (not (dig "data" $ukey "" $us)) -}}
+{{- fail (printf "builder-publish: Secret %s/%s has no %q key — every publish would push an empty username and be rejected by the git server." $uns $cred.usernameRef.name $ukey) -}}
+{{- end -}}
+{{- end -}}
+{{- $ns := .Release.Namespace -}}
+{{- $url := printf "%s://%s/%s/%s.git" ($git.scheme | default "https") $git.host $t.namespace $t.repo -}}
+{{- range $i, $f := (include "builder-publish.files" $ | fromYamlArray) }}
+---
+# LocalResource fileName is a BASENAME (CRD pattern forbids slashes); the directory rides in
+# toRepo.path. base/dir split the held file path.
+apiVersion: git.krateo.io/v1alpha1
+kind: LocalResource
+metadata:
+  name: {{ printf "%s-%03d" $.Values.name (int $i) | trunc 63 | trimSuffix "-" }}
+  namespace: {{ $ns }}
+  labels:
+    # neutral discriminator — the portal deliverables RAs select on this. page|blueprint|controller.
+    krateo.io/builder: {{ $.Values.builder }}
+    krateo.io/publish: {{ $.Values.name }}
+spec:
+  fromResource:
+    fileName: {{ base $f.path | quote }}     # basename only (dir goes in toRepo.path)
+    fromString: |                            # held bytes — verbatim, exact ordering preserved
+{{ $f.content | indent 6 }}
+  toRepo:
+    url: {{ $url | quote }}                   # any SCM git-provider can reach
+    branch: {{ $.Values.branch | quote }}     # builder/<slug>
+    path: {{ if eq (dir $f.path) "." }}"/"{{ else }}{{ printf "/%s" (dir $f.path) | quote }}{{ end }}   # the file's directory
+    cloneFromBranch: {{ $t.base | default "main" | quote }}   # cut off base, not orphan
+    credentials:
+      authMethod: {{ $authMethod | quote }}
+      secretRef:
+        name: {{ $cred.secretRef.name | quote }}
+        namespace: {{ $cred.secretRef.namespace | default $ns | quote }}
+        key: {{ $cred.secretRef.key | default "token" | quote }}
+      {{- if $cred.usernameRef }}
+      {{/* toRepo IS IMMUTABLE. git-provider rejects any update to it —
+             "spec: Invalid value: toRepo is immutable once set" — so whatever this rendered the
+             first time is what this LocalResource keeps for life.
+
+             1.8.28 moved the username out of a per-publish Secret and into the install-level one.
+             For a publish CREATED under <=1.8.27 that is a change to an immutable field, and the
+             upgrade fails permanently: all four publishes on krateo-057 went Ready=False/Synced=False
+             the moment builder-publish reached 1.8.28, and no amount of reconciling can move them.
+
+             So DO NOT RE-RENDER IT. Read back what the live object already has and emit that
+             verbatim; only a LocalResource that does not exist yet gets the install-level ref. A nil
+             lookup means either a new instance or `helm template` with no cluster, and both want the
+             new value. This makes the upgrade a no-op for existing publishes instead of a wedge. */}}
+      {{- $liveRef := "" }}
+      {{- $liveNs := "" }}
+      {{- $liveKey := "" }}
+      {{- $live := lookup "git.krateo.io/v1alpha1" "LocalResource" $ns (printf "%s-%03d" $.Values.name (int $i) | trunc 63 | trimSuffix "-") }}
+      {{- if $live }}
+      {{- $liveRef = dig "spec" "toRepo" "credentials" "usernameRef" "name" "" $live }}
+      {{- $liveNs = dig "spec" "toRepo" "credentials" "usernameRef" "namespace" "" $live }}
+      {{- $liveKey = dig "spec" "toRepo" "credentials" "usernameRef" "key" "" $live }}
+      {{- end }}
+      {{/* A FROZEN REF MUST STILL RESOLVE. portal#223: freezing <name>-git-username while the same
+             upgrade stopped rendering it left the LocalResource pinned to a deleted Secret — a
+             pointer that looks fine and resolves to nothing. username-secret.yaml now keeps that
+             Secret alive for exactly as long as a LocalResource names it, so the freeze stays
+             valid; this check is the belt to that braces. If the frozen target is genuinely gone
+             (an install that pruned it before upgrading), fall back to the install-level ref and
+             let git-provider's immutability error name the problem loudly, rather than pushing an
+             empty username that the git server rejects hours later on a stuck resource.
+
+             THE BELT MUST NOT POLICE THE BRACES. `lookup` reads the PRE-UPGRADE snapshot, so on the
+             very upgrade that restores the Secret, username-secret.yaml has not applied yet and the
+             frozen target reads as absent. Acting on that would clear the freeze and rewrite an
+             IMMUTABLE toRepo field on every pre-1.8.29 publish — reintroducing the #221 wedge as
+             the fix for its own sequel, which is precisely the failure #223 already is. So the
+             shim's own Secret is exempt: username-secret.yaml renders it under exactly the
+             condition evaluated here (a live LocalResource naming it), and the two templates must
+             agree on one predicate rather than each deciding separately. A ref that is NOT the
+             shim's is still policed, because nothing in this chart guarantees it. */}}
+      {{- if $liveRef }}
+      {{- $frozenNs := $liveNs | default $ns }}
+      {{- $shimName := printf "%s-git-username" $.Values.name | trunc 63 | trimSuffix "-" }}
+      {{- if not (and (eq $liveRef $shimName) (eq $frozenNs $ns)) }}
+      {{- if not (lookup "v1" "Secret" $frozenNs $liveRef) }}
+      {{- if lookup "v1" "Namespace" "" $frozenNs }}
+      {{- $liveRef = "" }}{{- $liveNs = "" }}{{- $liveKey = "" }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+      usernameRef:            # install-level secret, or whatever an existing object already froze
+        name: {{ $liveRef | default $cred.usernameRef.name | quote }}
+        namespace: {{ $liveNs | default ($cred.usernameRef.namespace | default $ns) | quote }}
+        key: {{ $liveKey | default ($cred.usernameRef.key | default "username") | quote }}
+            {{- end }}
+  override: false        # additive — only this file; leaves the rest of the repo intact
+  syncEnabled: false     # one-shot: a publish is a single commit; source is then immutable
+  createCommitMessage: {{ printf "feat(%s): add %s" $.Values.builder $f.path | quote }}
+  insecure: {{ $git.insecure | default false }}   # true for Azure DevOps
+{{- end }}
+{{- end }}
+{{/*
+  SERIALIZATION — RESOLVED (S0 spike): N LocalResources to the same fresh branch produce N clean
+  sequential commits (git-provider serialises per-repo), all ReconcileSuccess. No dependsOn needed.
+*/}}
