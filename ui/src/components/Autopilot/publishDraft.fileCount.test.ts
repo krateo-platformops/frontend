@@ -15,6 +15,8 @@ vi.mock('./builderClaimPublish', () => ({
   buildClaimPublish: vi.fn(() => Promise.resolve({ branch: 'builder/big-chart', compiled: { denial: null, ops: [] }, deepLink: null })),
 }))
 
+import { wrapAsConfigMapTemplate } from '../../pages/BlueprintComposer/architecture'
+
 import { MAX_APPLY_SET_OPS } from './applyResourceSet'
 import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { buildClaimPublish } from './builderClaimPublish'
@@ -22,11 +24,24 @@ import { runDraftPublish, type PublishDraftDeps } from './publishDraft'
 
 const TEMPLATES = 20
 
+const DESCRIPTOR = [
+  'apiVersion: architecture.krateo.io/v1alpha1',
+  'kind: ChartArchitecture',
+  'chart: big-chart',
+  'resources:',
+  '  - id: cm-0',
+  '    class: native',
+  '    apiVersion: v1',
+  '    kind: ConfigMap',
+  '    template: templates/cm-0.yaml',
+  '',
+].join('\n')
+
 /** A clean chart well past the old ten-file line: the standard files plus twenty templates. */
 const bigChart = (): Record<string, string> => {
   const files: Record<string, string> = {
     'Chart.yaml': 'apiVersion: v2\nname: big-chart\nversion: 0.1.0\n',
-    'templates/architecture.yaml': 'apiVersion: v1\nkind: ConfigMap\n',
+    'templates/architecture.yaml': wrapAsConfigMapTemplate(DESCRIPTOR, 'big-chart'),
     'values.schema.json': JSON.stringify({ properties: { replicas: { default: 1, type: 'integer' } }, type: 'object' }),
     'values.yaml': 'replicas: 1\n',
   }

@@ -319,11 +319,13 @@ describe('a blueprint draft edited by hand', () => {
     expect(gate.recordPreview).not.toHaveBeenCalled()
   })
 
-  it('RE-ARMS as before when the edit leaves the draft clean', () => {
+  it('FORGETS on a CLEAN edit too — a chart is render-gated: only a render re-arms it (Diego, 2026-09-25)', () => {
+    // The lint cannot see a template that fails helm template or a renamed chart never rendered; a
+    // clean edit that re-armed made "what publishes" differ from "what was last rendered".
     const { gate } = seeded()
     act(() => { emitFileEdit({ content: cleanSchema, path: 'values.schema.json' }) })
-    expect(gate.recordPreview).toHaveBeenCalledWith('nginx-demo')
-    expect(gate.forget).not.toHaveBeenCalled()
+    expect(gate.forget).toHaveBeenCalledWith('nginx-demo')
+    expect(gate.recordPreview).not.toHaveBeenCalled()
   })
 
   it('a REMOVE that dirties the draft forgets too — every write path is linted, not only edit', () => {
@@ -347,7 +349,7 @@ describe('a blueprint draft edited by hand', () => {
     const { gate, store } = seeded()
     store.updateFile('values.schema.json', dirtySchema)
     act(() => { emitFileEdit({ content: cleanSchema, path: 'values.schema.json' }) })
-    expect(gate.recordPreview).toHaveBeenCalledWith('nginx-demo')
+    gate.forget.mockClear()
     act(() => { emitDraftUndo() })
     expect(store.get()?.files['values.schema.json']).toBe(dirtySchema)
     expect(gate.forget).toHaveBeenCalledWith('nginx-demo')

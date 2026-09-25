@@ -10,9 +10,12 @@
  */
 import { describe, expect, it } from 'vitest'
 
+import { ARCHITECTURE_TEMPLATE_PATH, wrapAsConfigMapTemplate } from '../../pages/BlueprintComposer/architecture'
+
 import {
   buildFormPreviewModel,
   buildFormSchemaText,
+  chartYamlName,
   draftDisplayName,
   lintBlueprintDraft,
   lintValuesSchemaDefaults,
@@ -218,6 +221,83 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
     const noChart = { 'templates/cm.yaml': 'kind: ConfigMap\n', 'values.schema.json': '{"type":"object"}' }
 
     expect(lintBlueprintDraft(noChart).join('\n')).toContain('Chart.yaml is missing')
+  })
+
+  it('REFUSES a chart name that cannot be a repository, a branch, a claim and a Kind', () => {
+    const named = (name: string) => lintBlueprintDraft({ ...cleanDraft, 'Chart.yaml': `apiVersion: v2\nname: ${name}\nversion: 0.1.0\n` }).join('\n')
+
+    expect(named('Pg_App')).toContain('"Pg_App" is not a valid chart name')
+    expect(named('-pg')).toContain('not a valid chart name')
+    expect(named('a'.repeat(64))).toContain('not a valid chart name')
+    expect(named('a'.repeat(63))).toBe('')
+    expect(named('"pg-app" # quoted, with a comment')).toBe('')
+    expect(lintBlueprintDraft({ ...cleanDraft, 'Chart.yaml': 'apiVersion: v2\nversion: 0.1.0\n' }).join('\n')).toContain('Chart.yaml has no name')
+  })
+
+  describe('the architecture file, when the chart carries one', () => {
+    const descriptor = (resources: string) => [
+      'apiVersion: architecture.krateo.io/v1alpha1',
+      'kind: ChartArchitecture',
+      'chart: pg-app',
+      'resources:',
+      resources,
+    ].join('\n')
+    const node = (id: string, dependsOn = '') => [
+      `  - id: ${id}`,
+      '    class: native',
+      '    apiVersion: v1',
+      '    kind: ConfigMap',
+      `    template: templates/${id}.yaml`,
+      ...(dependsOn ? [`    dependsOn: [{ ref: ${dependsOn} }]`] : []),
+    ].join('\n')
+    const withArch = (text: string) => lintBlueprintDraft({ ...cleanDraft, [ARCHITECTURE_TEMPLATE_PATH]: text }).join('\n')
+
+    it('passes a well-formed, acyclic descriptor', () => {
+      expect(withArch(wrapAsConfigMapTemplate(descriptor([node('a'), node('b', 'a')].join('\n')), 'pg-app'))).toBe('')
+    })
+
+    it('refuses a template that does not carry the descriptor where the readers look', () => {
+      expect(withArch('apiVersion: v1\nkind: ConfigMap\n')).toContain('does not carry the descriptor in data.architecture')
+    })
+
+    it('names each descriptor problem by its path', () => {
+      const problems = withArch(wrapAsConfigMapTemplate(descriptor('  - id: a\n    class: nonsense'), 'pg-app'))
+      expect(problems).toContain('resources[0].class')
+      expect(problems).toContain('resources[0].kind')
+    })
+
+    it('NEVER throws on a malformed dependsOn — this lint runs inside the draft broadcast', () => {
+      // Each of these threw out of the kernel, and so out of every store write that held it: the
+      // tree was replaced, nothing disarmed it, and no draft bus answered again.
+      for (const dependsOn of ['db', '{ ref: a }', '[null]']) {
+        const text = wrapAsConfigMapTemplate(descriptor(`${node('a')}\n    dependsOn: ${dependsOn}`), 'pg-app')
+        expect(() => withArch(text)).not.toThrow()
+        expect(withArch(text)).toContain(ARCHITECTURE_TEMPLATE_PATH)
+      }
+    })
+
+    it('refuses a dependency cycle — a chart with one never leaves its first state', () => {
+      expect(withArch(wrapAsConfigMapTemplate(descriptor([node('a', 'b'), node('b', 'a')].join('\n')), 'pg-app'))).toMatch(/cycle \(.*→.*\)/)
+    })
+  })
+
+  it('reads the chart name ONCE — the lint and the identity cannot disagree', () => {
+    const withName = (line: string) => ({ ...cleanDraft, 'Chart.yaml': `apiVersion: v2\n${line}\nversion: 0.1.0\n` })
+    // A trailing comment: the lint passed it, and the identity fell back to "draft chart".
+    expect(chartYamlName('name: pg-app # the app\n')).toBe('pg-app')
+    expect(draftDisplayName(withName('name: pg-app # the app'))).toBe('pg-app')
+    expect(lintBlueprintDraft(withName('name: pg-app # the app'))).toEqual([])
+    // A `#` with no space before it is part of the name, as in YAML — and not a valid one.
+    expect(chartYamlName('name: a#b\n')).toBe('a#b')
+    expect(lintBlueprintDraft(withName('name: a#b')).join('\n')).toContain('"a#b" is not a valid chart name')
+    expect(chartYamlName("name: 'pg-app'\r\n")).toBe('pg-app')
+    expect(chartYamlName('name: "my chart"\n')).toBe('my chart')
+    expect(chartYamlName('apiVersion: v2\n')).toBeNull()
+    expect(chartYamlName('name: ""\n')).toBeNull()
+    // A name on the next line is still YAML — and still what Helm reads.
+    expect(chartYamlName('apiVersion: v2\nname:\n  pg-app\nversion: 0.1.0\n')).toBe('pg-app')
+    expect(chartYamlName('name: [unclosed\n')).toBeNull()
+    expect(chartYamlName(undefined)).toBeNull()
   })
 
   it('rawTemplatesByteSize measures UTF-8 bytes of paths + contents', () => {

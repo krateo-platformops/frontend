@@ -34,7 +34,8 @@
  * Malformed args are DENIED (argSchema false / apply → null), matching every other
  * registry verb — never a crash, never a partial dispatch.
  */
-import { buildFormSchemaText, DRAFT_REJECTED_CAPTION, draftDisplayName, lintBlueprintDraft } from './blueprintDraft'
+import { DRAFT_REJECTED_CAPTION, draftDisplayName, lintBlueprintDraft } from './blueprintDraft'
+import { buildBlueprintPreviewPayload } from './blueprintPreviewPayload'
 import { buildDescribeResourcePayload, crdNameFromArgs, extractCrdSpecFields, parseDescribeResourceArgs } from './describeResource'
 import {
   buildPagePreviewPayload,
@@ -104,26 +105,9 @@ export const previewBlueprintSpec: VerbSpec = {
     const rendered = canUseRA
       ? await callBlueprintRenderRA(deps.snowplowBaseUrl!, deps.frontendNamespace!, args)
       : await callHelmRender(deps.renderBaseUrl!, args)
-    // FE-B1: the create-form half — the raw values.schema.json string (verbatim from
-    // the draft file when inline; the response's valuesSchema otherwise) rides the
-    // payload and mounts as a read-only SchemaForm section in the drawer.
-    const formSchema = buildFormSchemaText(args.rawTemplates, rendered.valuesSchema, rendered.error)
-    openAutopilotPreview({
-      // HELD only when an inline draft rendered — the same rule recordBlueprintPreview applies. A
-      // published chart's dry run, or a draft that failed to render, is looked at, not held.
-      builder: args.rawTemplates && !rendered.error ? 'blueprint' : 'inspect',
-      // Name the artifact: a blueprint IS a Helm chart, and this caption + the "Chart files"
-      // tab are where the user learns that (the #1 what-am-I-publishing question).
-      caption: 'This blueprint is a Helm chart — Chart files is the tree the change request commits; Source is its helm-rendered objects (dry run, nothing applied to the cluster)',
-      ...(rendered.error ? { error: rendered.error } : {}),
-      // The authored chart tree IS the write-set a publishBlueprint commits — the unified files
-      // tab (a catalog dry-run of an already-published chart has no rawTemplates, so no Files/target).
-      ...(args.rawTemplates ? { files: Object.entries(args.rawTemplates).map(([path, content]) => ({ content, path })), filesLabel: 'Chart files' } : {}),
-      ...(args.rawTemplates ? { publishTarget: { base: 'main', note: 'merged, CI publishes it as a versioned OCI Helm chart', repo: 'krateo-blueprints' } } : {}),
-      ...(formSchema ? { formSchema } : {}),
-      objects: rendered.objects,
-      title: `Blueprint preview — ${name}`,
-    })
+    // HELD only when an inline draft rendered — the same rule recordBlueprintPreview applies. A
+    // published chart's dry run, or a draft that failed to render, is looked at, not held.
+    openAutopilotPreview(buildBlueprintPreviewPayload({ held: Boolean(args.rawTemplates && !rendered.error), name, rawTemplates: args.rawTemplates, rendered }))
     const outcome = rendered.error
       ? 'render failed'
       : `${rendered.objects.length} object${rendered.objects.length === 1 ? '' : 's'}`
@@ -132,6 +116,7 @@ export const previewBlueprintSpec: VerbSpec = {
       // Carried so the host does not arm the publish gate on a chart that failed to render. The
       // drawer already SHOWS the error; nothing stopped the draft being held and published anyway.
       ...(rendered.error ? { previewFailed: true } : {}),
+      ...(args.rawTemplates && !rendered.error ? { rendered: true } : {}),
       readOnly: true,
       verb: 'previewBlueprint',
     }

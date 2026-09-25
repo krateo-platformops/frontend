@@ -74,6 +74,14 @@ export interface BlueprintGate {
   forget: (chartName: string | null | undefined) => void
   /** Thread reset (newThread): every recorded preview is forgotten — deny again. */
   reset: () => void
+  /** Whether `chartName` is armed right now — what a surface reads to say "Preview needed". */
+  isArmed: (chartName: string | null | undefined) => boolean
+  /**
+   * Notified after every change to what is armed. The gate changes without the held draft changing
+   * (a preview arms a draft the store already holds; newThread forgets everything), so the draft
+   * broadcast cannot be its only signal. Returns the unsubscribe fn.
+   */
+  subscribe: (listener: () => void) => () => void
 }
 
 /** The standard "preview first" denial copy (the chip label). */
@@ -88,6 +96,12 @@ export const blueprintPreviewFirstMessage = (chartName: string | null): string =
  */
 export const createBlueprintGate = (): BlueprintGate => {
   let previewed = new Set<string>()
+  const listeners = new Set<() => void>()
+  const changed = (): void => {
+    for (const listener of listeners) {
+      listener()
+    }
+  }
   return {
     evaluate: (ops, heldChartName) => {
       if (!opsArePublishSet(ops)) {
@@ -100,17 +114,27 @@ export const createBlueprintGate = (): BlueprintGate => {
       return { allowed: true }
     },
     forget: (chartName) => {
-      if (chartName) {
-        previewed.delete(chartName)
+      if (chartName && previewed.delete(chartName)) {
+        changed()
       }
     },
+    isArmed: (chartName) => typeof chartName === 'string' && previewed.has(chartName),
     recordPreview: (chartName) => {
-      if (typeof chartName === 'string' && chartName) {
+      if (typeof chartName === 'string' && chartName && !previewed.has(chartName)) {
         previewed.add(chartName)
+        changed()
       }
     },
     reset: () => {
+      const had = previewed.size > 0
       previewed = new Set<string>()
+      if (had) {
+        changed()
+      }
+    },
+    subscribe: (listener) => {
+      listeners.add(listener)
+      return () => { listeners.delete(listener) }
     },
   }
 }

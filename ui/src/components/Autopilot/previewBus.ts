@@ -106,3 +106,15 @@ export const isPageDraftPayload = (payload: Pick<AutopilotPreviewPayload, 'build
 /** True when the payload shows the draft the provider holds — what a Files-tab edit writes into. */
 export const isHeldDraftPayload = (payload: Pick<AutopilotPreviewPayload, 'builder'>): boolean =>
   payload.builder === undefined || payload.builder === 'blueprint'
+
+/** True for a payload the blueprint composer owns: a chart draft the provider holds. */
+export const isBlueprintDraftPayload = (payload: Pick<AutopilotPreviewPayload, 'builder'>): boolean =>
+  payload.builder === 'blueprint'
+
+/** Which composer a payload belongs to — the kind of held draft it shows — or null for an inspection. */
+export const draftKindOfPayload = (payload: Pick<AutopilotPreviewPayload, 'builder'>): 'page' | 'blueprint' | null => {
+  if (isPageDraftPayload(payload)) {
+    return 'page'
+  }
+  return isBlueprintDraftPayload(payload) ? 'blueprint' : null
+}

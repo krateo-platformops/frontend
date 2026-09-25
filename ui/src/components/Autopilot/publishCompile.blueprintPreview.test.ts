@@ -9,7 +9,7 @@ import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from './blueprintDraft'
 import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
 import { draftHistory } from './draftHistory'
-import { recordBlueprintPreview, recordPagePreview } from './publishCompile'
+import { blueprintChipRendered, recordBlueprintPreview, recordPagePreview } from './publishCompile'
 
 const CLEAN: Record<string, string> = {
   [CHART_YAML_PATH]: 'apiVersion: v2\nname: nginx-demo\nversion: 0.1.0\n',
@@ -123,3 +123,13 @@ describe('recordBlueprintPreview holds the tree that was RENDERED', () => {
     expect(store.get()?.files[VALUES_SCHEMA_PATH]).toBe(CLEAN[VALUES_SCHEMA_PATH])
   })
 })
+
+describe('blueprintChipRendered — arming needs a positive render', () => {
+  it('only a chip that says it rendered counts; the absence of a failure does not', () => {
+    expect(blueprintChipRendered({ rendered: true })).toBe(true)
+    // The render-unavailable chip, a refused proposal and a lint-rejected draft carry neither flag.
+    expect(blueprintChipRendered({})).toBe(false)
+    expect(blueprintChipRendered({ rendered: false })).toBe(false)
+  })
+})
+

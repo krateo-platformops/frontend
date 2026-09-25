@@ -33,7 +33,7 @@ import WidgetRenderer from '../WidgetRenderer'
 import type { DraftKind } from './blueprintDraftStore'
 import { DraftProblemsAlert } from './DraftProblemsAlert'
 import { parseFileEdit, parseRestDefEdit } from './previewBridge'
-import { AUTOPILOT_PREVIEW_EVENT, isHeldDraftPayload, isPageDraftPayload, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
+import { AUTOPILOT_PREVIEW_EVENT, draftKindOfPayload, isHeldDraftPayload, isPageDraftPayload, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
 import { previewSurfaceClaimed } from './previewDraftChanged'
 import { onDraftClose } from './previewDraftClose'
 import { emitRestDefEdit } from './previewEditBus'
@@ -187,7 +187,7 @@ const FileEditBlock = ({
   }
 
   const onApply = () => {
-    const result = parseFileEdit(text, isPageWidget)
+    const result = parseFileEdit(text, isPageWidget, path)
     if (!result.ok || result.content === undefined) {
       // Deny-by-default: surface the error inline; the held bytes (current) are untouched, nothing emitted.
       setError(result.problems[0] ?? 'the edit could not be applied')
@@ -520,12 +520,13 @@ export const AutopilotPreviewDrawer = () => {
 
   useEffect(() => {
     const handleOpen = (event: CustomEvent<AutopilotPreviewPayload>) => {
-      // Defer to a mounted page composer: it is already showing this draft, it owns the close, and
-      // opening over it would put two live sandbox renders on one endpoint — where closing THIS
-      // one fires the teardown that deletes the draft CRs the composer is still rendering.
-      // ONLY a page preview: the composer claims the surface but can show nothing else, so deferring
-      // a blueprint, RestDefinition or inspection preview to it showed that preview NOWHERE.
-      if (previewSurfaceClaimed() && isPageDraftPayload(event.detail)) {
+      // Defer to a mounted composer OF THIS KIND: it is already showing this draft and owns its
+      // close, and opening over it would put two surfaces on one draft — for a page, two live
+      // sandbox renders, where closing THIS one tears down the CRs the composer still renders.
+      // Only the claimed kind: a composer can show nothing else, so deferring any other preview to
+      // it would show that preview NOWHERE. A deferred draft replaces the held one, so a held draft
+      // this drawer is showing is superseded and dropped.
+      if (previewSurfaceClaimed(draftKindOfPayload(event.detail))) {
         dropHeld()
         return
       }

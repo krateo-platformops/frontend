@@ -135,3 +135,23 @@ describe('forget — one name back to deny, the rest untouched', () => {
     expect(gate.evaluate(claimSet, 'hello').allowed).toBe(true)
   })
 })
+
+describe('isArmed / subscribe — what a surface reads to say "Preview needed"', () => {
+  it('reports what is armed and notifies only on a real change', () => {
+    const gate = createBlueprintGate()
+    const seen: boolean[] = []
+    const stop = gate.subscribe(() => seen.push(gate.isArmed('hello')))
+    gate.recordPreview('hello')
+    gate.recordPreview('hello')
+    gate.forget('other')
+    gate.forget('hello')
+    gate.reset()
+    stop()
+    gate.recordPreview('hello')
+    // armed, then forgotten — the duplicate record, the unknown forget and the empty reset are silent.
+    expect(seen).toEqual([true, false])
+    expect(gate.isArmed('hello')).toBe(true)
+    expect(gate.isArmed(null)).toBe(false)
+  })
+})
+

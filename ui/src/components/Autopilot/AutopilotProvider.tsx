@@ -37,13 +37,14 @@ import { onRestDefEdit } from './previewEditBus'
 import { buildKogPublishNudge, createPreviewGate, hydrateRestDefinitionOps } from './previewGate'
 import { emitPublishResult, onPublishRequest } from './previewPublishRequest'
 import { AutopilotPreviewDrawer } from './previewSurface'
-import { compilePublishOps, heldDraftIdentity, recordBlueprintPreview, recordPagePreview, type PublishCompileResult } from './publishCompile'
+import { blueprintChipRendered, compilePublishOps, heldDraftIdentity, recordBlueprintPreview, recordPagePreview, type PublishCompileResult } from './publishCompile'
 import { runDraftPublish } from './publishDraft'
 import { PublishTargetFormHost } from './publishTargetForm'
 import type { ThreadSummary } from './sessionHistoryStore'
 import { a2aAuthHeader, createEchoTransport, createKagentTransport } from './transport'
 import type { AutopilotActionChip, AutopilotFrame, AutopilotMessage, AutopilotTransport, EvidenceEntry, PageContextEnvelope, TurnModality } from './types'
 import { buildContextDelta, useAutopilotContext } from './useAutopilotContext'
+import { useBlueprintAuthoringBuses } from './useBlueprintAuthoringBuses'
 import { createBroadcastingDraftStore, useDraftFileBuses } from './useDraftFileBuses'
 import { autopilotSpeakBackStore } from './voice/speak/speakBackStore'
 import { stopVoice } from './voiceWiring'
@@ -204,7 +205,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // composer is a route), so it re-reads from the broadcast rather than computing against stale bytes.
   // The broadcast says WHO holds the draft and, for a blueprint, what the lint thinks of it — built
   // by the same helper the replay uses, so the two emitters cannot disagree.
-  const [blueprintStore] = useState(createBroadcastingDraftStore)
+  const [blueprintStore] = useState(() => createBroadcastingDraftStore(blueprintGate))
 
   const abortRef = useRef<(() => void) | null>(null)
   const approvalRef = useRef<{ governor: ApprovalGovernor; pause: ApprovalPause } | null>(null)
@@ -416,7 +417,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
             // HOLDS the previewed tree and arms the blueprint gate for its Chart.yaml name. The rule
             // lives in `recordBlueprintPreview` beside its page twin, so a preview a person starts
             // from the composer arms the same gate this proposal does.
-            recordBlueprintPreview(proposal.rawTemplates, !!chip.previewFailed, blueprintStore, blueprintGate)
+            recordBlueprintPreview(proposal.rawTemplates, !blueprintChipRendered(chip), blueprintStore, blueprintGate)
           } else if (proposal.verb === 'previewPage') {
             // FE-P2: an APPLIED previewPage holds its widget CRs as a page draft + arms the shared
             // gate (recordPagePreview) — a page publish (into krateo-platformops/portal) is then
@@ -800,6 +801,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // Both held-draft write paths — the Files-tab edit and the composer's add — live in one hook.
   // See useDraftFileBuses for why they are two buses and why `addFile` is separate from updateFile.
   useDraftFileBuses(blueprintStore, blueprintGate, heldDraftIdentity, previewStartedDraft, discardSandbox)
+  // A person starting and rendering a chart (the Blueprint Composer) — see useBlueprintAuthoringBuses.
+  useBlueprintAuthoringBuses(blueprintStore, blueprintGate, config)
 
   /**
    * PUBLISH, asked for by a person rather than proposed by the model.
