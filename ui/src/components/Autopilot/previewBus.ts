@@ -19,6 +19,19 @@ export interface PreviewObjectEntry {
 
 /** Everything the preview drawer renders. Pure data — the surface never fetches. */
 export interface AutopilotPreviewPayload {
+  /**
+   * WHAT THIS PREVIEW IS. Absent means a PAGE draft — every page payload predates this field, and
+   * the page composer adopts exactly those. `blueprint` is a chart draft the provider HOLDS: a clean
+   * inline draft that rendered. `restdef` is a RestDefinition draft. `inspect` holds nothing — a
+   * published chart's dry run, a draft that failed its lint or its render, a CRD description.
+   *
+   * Two decisions hang on it. WHERE it shows: the page composer claims the preview surface while
+   * mounted and the drawer defers to it, so a chart or an inspection routed there was shown nowhere.
+   * And WHETHER it is the held draft: its Files tab writes into the held draft by path, its lint is
+   * the held draft's lint, and a discard closes it — none of which is true of a preview nothing
+   * holds, whose edits would land in whatever draft happened to be held under the same file names.
+   */
+  builder?: 'blueprint' | 'restdef' | 'inspect'
   /** Drawer title, named by the verb (e.g. "Blueprint preview — aws-vpc"). */
   title: string
   /** One-line qualifier under the title (e.g. "source preview — not a live render"). */
@@ -86,3 +99,10 @@ export const PREVIEW_SELF_CORRECTION_NUDGE = 'Your previewed page was REJECTED b
 export const openAutopilotPreview = (payload: AutopilotPreviewPayload): void => {
   window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, { detail: payload }))
 }
+
+/** True for a payload the page composer owns: a page draft (the only kind with no `builder`). */
+export const isPageDraftPayload = (payload: Pick<AutopilotPreviewPayload, 'builder'>): boolean => payload.builder === undefined
+
+/** True when the payload shows the draft the provider holds — what a Files-tab edit writes into. */
+export const isHeldDraftPayload = (payload: Pick<AutopilotPreviewPayload, 'builder'>): boolean =>
+  payload.builder === undefined || payload.builder === 'blueprint'

@@ -20,7 +20,7 @@
  * closes (epoch-guarded upstream, so a stale close never touches a newer preview).
  */
 import { Alert, Button, Collapse, Drawer, Empty, Input, Space, Tabs, Tag, Typography } from 'antd'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import SyntaxHighlighter from 'react-syntax-highlighter'
 import atomOneDark from 'react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark.js'
 import lightfair from 'react-syntax-highlighter/dist/esm/styles/hljs/lightfair.js'
@@ -30,19 +30,16 @@ import { LAYER } from '../../theme/layers'
 import { DrawerHeader, drawerCloseProps } from '../DrawerHeader/DrawerHeader'
 import WidgetRenderer from '../WidgetRenderer'
 
+import type { DraftKind } from './blueprintDraftStore'
+import { DraftProblemsAlert } from './DraftProblemsAlert'
 import { parseFileEdit, parseRestDefEdit } from './previewBridge'
-import { AUTOPILOT_PREVIEW_EVENT, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
+import { AUTOPILOT_PREVIEW_EVENT, isHeldDraftPayload, isPageDraftPayload, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
 import { previewSurfaceClaimed } from './previewDraftChanged'
+import { onDraftClose } from './previewDraftClose'
 import { emitRestDefEdit } from './previewEditBus'
 import { emitFileEdit } from './previewFileEdit'
 import { PreviewFormSection } from './previewFormSection'
 import styles from './previewSurface.module.css'
-
-/** The blueprint "Files" tab is labelled "Chart files"; a page keeps the generic "Files". A
- * blueprint's files are Helm chart TEMPLATES (YAML-parse-only on edit); a page's are widget CRs
- * (which additionally require the apiVersion/kind/metadata.name shape). This is the one place the
- * page/blueprint distinction is read on the edit path — the SAME discriminator the payload builders set. */
-const BLUEPRINT_FILES_LABEL = 'Chart files'
 
 /** How far to inset the preview so it sits LEFT of the chat instead of covering it.
  *
@@ -160,12 +157,18 @@ const RestDefEditSection = ({
  */
 const FileEditBlock = ({
   content,
+  editable,
   isPageWidget,
+  kind,
   mode,
   path,
   style,
 }: {
   content: string
+  /** Only the HELD draft's files: an edit is written into whatever is held, by path. */
+  editable: boolean
+  /** What the preview showed — the provider refuses an edit whose kind is not what it holds. */
+  kind: DraftKind
   isPageWidget: boolean
   mode: 'dark' | 'light'
   path: string
@@ -193,14 +196,14 @@ const FileEditBlock = ({
     setCurrent(result.content)
     setError(null)
     setEditing(false)
-    emitFileEdit({ content: result.content, path })
+    emitFileEdit({ content: result.content, kind, path })
   }
 
   return (
     <div className={styles.file}>
       <div className={styles.fileHead}>
         <div className={styles.filePath}><Typography.Text code>{path}</Typography.Text></div>
-        {editing ? null : <Button onClick={beginEdit} size='small' type='link'>Edit</Button>}
+        {editing || !editable ? null : <Button onClick={beginEdit} size='small' type='link'>Edit</Button>}
       </div>
       {error ? (
         <Alert
@@ -337,8 +340,12 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, on
   // EDITABLE in place — an accepted edit rides the previewFileEdit bus into the held draft (the provider
   // re-arms the gate; the $fileContent publish path then commits the edited bytes automatically).
   // A page's files are widget CRs (require the apiVersion/kind/metadata.name shape); a blueprint's are
-  // Helm chart templates (YAML-parse-only) — distinguished by the payload's files label.
-  const isPageWidget = (payload.filesLabel ?? '') !== BLUEPRINT_FILES_LABEL
+  // Helm chart templates (YAML-parse-only) — distinguished by what the payload says it IS, not by its
+  // tab label: a label is copy, and keying the edit parser on copy is how a chart got a page's rules.
+  const isPageWidget = isPageDraftPayload(payload)
+  // …and editable at all only when the payload IS the held draft. A preview nothing holds — a draft
+  // that failed its render — has files too, and an edit to its Chart.yaml would land in the held one.
+  const heldDraft = isHeldDraftPayload(payload)
   // The live draft when the surface has one, the one-shot payload otherwise.
   const shownFiles = liveFiles
     ? Object.entries(liveFiles).map(([path, content]) => ({ content, path })).sort((left, right) => left.path.localeCompare(right.path))
@@ -349,7 +356,9 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, on
         <div id={fileAnchorId(file.path)} key={`file-${index}-${file.path}`}>
           <FileEditBlock
             content={file.content}
+            editable={heldDraft}
             isPageWidget={isPageWidget}
+            kind={isPageWidget ? 'page' : 'blueprint'}
             mode={mode}
             path={file.path}
             style={highlighterStyle}
@@ -462,6 +471,7 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, on
 
   return (
     <div className={styles.body}>
+      {heldDraft ? <DraftProblemsAlert /> : null}
       {(caption ?? payload.caption)
         ? <Typography.Paragraph type='secondary'>{caption ?? payload.caption}</Typography.Paragraph>
         : null}
@@ -488,21 +498,48 @@ export const AutopilotPreviewDrawer = () => {
   // problems/immutability/summary Alert blocks reflect the edit. Reset whenever a new payload arrives.
   const [editVerdicts, setEditVerdicts] = useState<RestDefVerdicts | null>(null)
 
+  // The HELD draft this drawer is showing, if any — written where the payload is set, not during
+  // render. A discard re-announced when a late re-apply lands arrives in the same tick that apply
+  // opened its payload, before React has rendered it; a render-time ref would still say "nothing".
+  const heldShown = useRef<AutopilotPreviewPayload | null>(null)
+  /**
+   * Close the held draft shown here — it was discarded, or a page this drawer defers replaced it in
+   * the store. Left open, its Files tab writes by path into whatever is held NOW, and a page set
+   * holds Chart.yaml and values.schema.json under the same names a chart does.
+   */
+  const dropHeld = useCallback(() => {
+    const shown = heldShown.current
+    if (!shown) {
+      return
+    }
+    heldShown.current = null
+    setOpen(false)
+    // Epoch-guarded upstream: the close of a superseded page render never deletes a newer one.
+    shown.onClose?.()
+  }, [])
+
   useEffect(() => {
     const handleOpen = (event: CustomEvent<AutopilotPreviewPayload>) => {
       // Defer to a mounted page composer: it is already showing this draft, it owns the close, and
       // opening over it would put two live sandbox renders on one endpoint — where closing THIS
       // one fires the teardown that deletes the draft CRs the composer is still rendering.
-      if (previewSurfaceClaimed()) {
+      // ONLY a page preview: the composer claims the surface but can show nothing else, so deferring
+      // a blueprint, RestDefinition or inspection preview to it showed that preview NOWHERE.
+      if (previewSurfaceClaimed() && isPageDraftPayload(event.detail)) {
+        dropHeld()
         return
       }
+      heldShown.current = isHeldDraftPayload(event.detail) ? event.detail : null
       setPayload(event.detail)
       setEditVerdicts(null)
       setOpen(true)
     }
     window.addEventListener(AUTOPILOT_PREVIEW_EVENT, handleOpen as EventListener)
     return () => window.removeEventListener(AUTOPILOT_PREVIEW_EVENT, handleOpen as EventListener)
-  }, [])
+  }, [dropHeld])
+
+  // A draft discarded elsewhere — the composer's Discard — takes its preview with it.
+  useEffect(() => onDraftClose(dropHeld), [dropHeld])
 
   if (!payload) {
     return null
@@ -517,6 +554,7 @@ export const AutopilotPreviewDrawer = () => {
       // width so the preview AND the conversation stay visible + interactive at once, at any rail size.
       mask={false}
       onClose={() => {
+        heldShown.current = null
         setOpen(false)
         // previewPage v2 teardown seam — fired on the ACTUAL close (epoch-guarded
         // upstream, so a payload replaced while open never double-tears-down).

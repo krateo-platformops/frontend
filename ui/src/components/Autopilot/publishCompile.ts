@@ -12,10 +12,11 @@
 
 import type { ApplyResourceSetOp } from './applyResourceSet'
 import { stampAuthorship, type AuthorshipOrigin } from './authorship'
-import { draftDisplayName } from './blueprintDraft'
+import { draftDisplayName, lintBlueprintDraft, parseRawTemplates } from './blueprintDraft'
 import { substituteFileContent, type BlueprintDraftHeld, type BlueprintDraftStore } from './blueprintDraftStore'
 import type { BlueprintGate } from './blueprintGate'
 import type { PublishStatusClaim } from './builderPublishStatus'
+import { draftHistory } from './draftHistory'
 import { substituteOasAttachment, type OasAttachment } from './oasAttachment'
 import { isPageDraft, pageDisplayName, pageDraftFiles } from './pageDraft'
 
@@ -117,6 +118,55 @@ export const heldDraftIdentity = (held: BlueprintDraftHeld | null): string | nul
   return isPageDraft(held) ? pageDisplayName(held.files) : draftDisplayName(held.files)
 }
 
+/**
+ * A proposal that REPLACES the held draft with a different one takes the undo history with it. A
+ * step recorded against page-a, restored into page-b, would be the silent data loss undo exists to
+ * prevent. A re-preview of the SAME draft keeps it: undoing back past the agent's own revision is
+ * what the history is for.
+ *
+ * Replacing NOTHING counts as different. The history is module state and the store is the
+ * provider's, so a provider remount (every nav-route registration remounts the router) empties the
+ * store and keeps the steps — which belong to no draft at all.
+ */
+const forgetOtherDraftsHistory = (replaced: string | null, held: BlueprintDraftHeld): void => {
+  if (replaced !== heldDraftIdentity(held)) {
+    draftHistory.clear()
+  }
+}
+
+/**
+ * FE-BP1/BP2, moved out of the provider so a preview a PERSON starts from the composer arms the
+ * same gate a proposed one does. Holds the previewed tree (published bytes == previewed bytes) and
+ * arms the blueprint gate for its Chart.yaml name — only when the draft is lint-clean AND the
+ * render succeeded. `previewFailed` is the half the lint cannot see: a chart that fails
+ * `helm template` is lint-clean, and used to be publishable with the drawer showing the error the
+ * whole time. A remote-chart preview (no rawTemplates) holds nothing: there is no authored tree.
+ * Returns whether the draft was held and the gate armed.
+ */
+export const recordBlueprintPreview = (
+  rawTemplates: Record<string, string> | undefined,
+  previewFailed: boolean,
+  store: BlueprintDraftStore,
+  gate: Pick<BlueprintGate, 'recordPreview'>,
+): boolean => {
+  // The tree the handler RENDERED — de-fenced, exactly as the preview parsed it — not the raw
+  // proposal bytes. Linting the raw bytes refused a draft whose one file the model had wrapped in a
+  // code fence, while the drawer, which read the de-fenced tree, showed it as the held draft: its
+  // Files tab then wrote by path into whatever WAS held.
+  const tree = parseRawTemplates(rawTemplates)
+  if (!tree || previewFailed || lintBlueprintDraft(tree).length > 0) {
+    return false
+  }
+  const replaced = heldDraftIdentity(store.get())
+  const draft = store.set(tree, 'blueprint')
+  if (!draft.ok) {
+    return false
+  }
+  forgetOtherDraftsHistory(replaced, draft.held)
+  gate.recordPreview(draftDisplayName(draft.held.files))
+  return true
+}
+
 /** FE-P2: hold an APPLIED previewPage's widget CRs as a {slug: yaml} page draft and arm the SHARED
  * preview gate for the page's identity — so a page publish is allowed ONLY after the SAME page was
  * previewed this thread (published bytes == previewed bytes). No-op on CRs that can't be serialized. */
@@ -132,8 +182,10 @@ export const recordPagePreview = (
   if (!pageFiles) {
     return
   }
+  const replaced = heldDraftIdentity(store.get())
   const draft = store.set(pageFiles, 'page')
   if (draft.ok) {
+    forgetOtherDraftsHistory(replaced, draft.held)
     gate.recordPreview(pageDisplayName(draft.held.files))
   }
 }

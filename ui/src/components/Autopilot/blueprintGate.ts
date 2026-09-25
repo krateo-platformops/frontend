@@ -70,6 +70,12 @@ export interface BlueprintGate {
     ops: readonly ApplyResourceSetOp[] | undefined,
     heldChartName: string | null | undefined,
   ) => BlueprintGateVerdict
+  /**
+   * Forget ONE previewed chart name — the held draft changed in a way that makes the last preview a
+   * lie. A schema edit does not change the chart name, so "not re-arming" would leave the name
+   * armed from its last clean preview; only forgetting it puts the gate back to deny.
+   */
+  forget: (chartName: string | null | undefined) => void
   /** Thread reset (newThread): every recorded preview is forgotten — deny again. */
   reset: () => void
 }
@@ -96,6 +102,11 @@ export const createBlueprintGate = (): BlueprintGate => {
         return { allowed: false, reason: blueprintPreviewFirstMessage(name) }
       }
       return { allowed: true }
+    },
+    forget: (chartName) => {
+      if (chartName) {
+        previewed.delete(chartName)
+      }
     },
     recordPreview: (chartName) => {
       if (typeof chartName === 'string' && chartName) {

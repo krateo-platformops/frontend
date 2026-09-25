@@ -100,3 +100,42 @@ describe('createBlueprintGate — preview-before-publish', () => {
     expect(gate.evaluate(gitSet, 'hello').allowed).toBe(false)
   })
 })
+
+/**
+ * forget — the half `reset` could not do. A hand edit that makes the held draft dirty does not
+ * change its chart name, so "not re-arming" would leave that name armed from its last clean
+ * preview and the publish would pass. Only forgetting the ONE name puts the gate back to deny,
+ * without discarding the previews of anything else in the thread.
+ */
+describe('forget — one name back to deny, the rest untouched', () => {
+  it('denies the forgotten chart, keeps every other preview', () => {
+    const gate = createBlueprintGate()
+    gate.recordPreview('hello')
+    gate.recordPreview('other')
+    expect(gate.evaluate(gitSet, 'hello').allowed).toBe(true)
+
+    gate.forget('hello')
+
+    expect(gate.evaluate(gitSet, 'hello').allowed).toBe(false)
+    expect(gate.evaluate(gitSet, 'other').allowed).toBe(true)
+  })
+
+  it('a null/undefined/unknown name is a no-op, not a throw', () => {
+    const gate = createBlueprintGate()
+    gate.recordPreview('hello')
+    expect(() => {
+      gate.forget(null)
+      gate.forget(undefined)
+      gate.forget('never-seen')
+    }).not.toThrow()
+    expect(gate.evaluate(gitSet, 'hello').allowed).toBe(true)
+  })
+
+  it('a forgotten chart re-arms on its next clean preview', () => {
+    const gate = createBlueprintGate()
+    gate.recordPreview('hello')
+    gate.forget('hello')
+    gate.recordPreview('hello')
+    expect(gate.evaluate(gitSet, 'hello').allowed).toBe(true)
+  })
+})

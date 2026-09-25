@@ -20,11 +20,29 @@
  * Pure module: one event name, a dispatch/subscribe pair. No React, no module state.
  */
 
+import type { DraftKind } from './blueprintDraftStore'
+
 export const AUTOPILOT_DRAFT_CHANGED_EVENT = 'autopilotDraftChanged'
 
-/** The whole held tree after a write: held key -> bytes. */
+/**
+ * The whole held tree after a write: held key -> bytes — and WHICH BUILDER holds it.
+ *
+ * `kind` because a surface that edits pages must not run its object tree over a Helm chart: with a
+ * blueprint draft held, navigating to /portal-builder/compose drew nonsense from chart files. The
+ * store already knows who wrote the draft; the broadcast now says so, and a surface parks a draft
+ * that is not its kind behind an honest empty state. Absent (a legacy emitter, a test harness) it
+ * reads as a page, which is what every emitter was before this field existed. `null` means no
+ * draft is held at all.
+ *
+ * `problems` because a blueprint edit is not verdicted by the drawer the way a page edit is: a hand
+ * edit that puts a populated object default into values.schema.json used to re-arm the publish
+ * gate with no lint at all. The provider lints on every broadcast and every surface sees the same
+ * list; an empty list on a blueprint draft means it is clean.
+ */
 export interface DraftChangedDetail {
   files: Record<string, string>
+  kind?: DraftKind | null
+  problems?: string[]
 }
 
 /** Broadcast the held draft. Called by the provider after an accepted edit or add. */

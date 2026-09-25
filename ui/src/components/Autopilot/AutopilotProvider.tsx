@@ -22,8 +22,6 @@ import { AgentDraftProvider } from './agentDraft'
 import type { ApprovalDecision, ApprovalGovernor, ApprovalPause } from './approval'
 import { createApprovalGovernor, summarizeApprovalTools } from './approval'
 import { useAskDeepLink } from './askDeepLink'
-import { draftDisplayName, lintBlueprintDraft } from './blueprintDraft'
-import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
 import { trackPublishStatus } from './builderClaimPublish'
 import { useBuilderTargets } from './builderTargets'
@@ -35,19 +33,18 @@ import { dispatchKogPublish } from './kogPublishDispatch'
 import { createOasAttachmentStore, type OasAttachmentResult } from './oasAttachment'
 import { isPageDraft, pageRootSlug } from './pageDraft'
 import { PREVIEW_SELF_CORRECTION_NUDGE } from './previewBus'
-import { emitDraftChanged } from './previewDraftChanged'
 import { onRestDefEdit } from './previewEditBus'
 import { buildKogPublishNudge, createPreviewGate, hydrateRestDefinitionOps } from './previewGate'
 import { emitPublishResult, onPublishRequest } from './previewPublishRequest'
 import { AutopilotPreviewDrawer } from './previewSurface'
-import { compilePublishOps, heldDraftIdentity, recordPagePreview, type PublishCompileResult } from './publishCompile'
+import { compilePublishOps, heldDraftIdentity, recordBlueprintPreview, recordPagePreview, type PublishCompileResult } from './publishCompile'
 import { runDraftPublish } from './publishDraft'
 import { PublishTargetFormHost } from './publishTargetForm'
 import type { ThreadSummary } from './sessionHistoryStore'
 import { a2aAuthHeader, createEchoTransport, createKagentTransport } from './transport'
 import type { AutopilotActionChip, AutopilotFrame, AutopilotMessage, AutopilotTransport, EvidenceEntry, PageContextEnvelope, TurnModality } from './types'
 import { buildContextDelta, useAutopilotContext } from './useAutopilotContext'
-import { useDraftFileBuses } from './useDraftFileBuses'
+import { createBroadcastingDraftStore, useDraftFileBuses } from './useDraftFileBuses'
 import { autopilotSpeakBackStore } from './voice/speak/speakBackStore'
 import { stopVoice } from './voiceWiring'
 
@@ -158,7 +155,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   const reachable = enabled && flagAvailable && (useEcho || probeOk)
 
   const { collect } = useAutopilotContext()
-  const { apply } = useAutopilotActionBridge()
+  const { apply, discardSandbox } = useAutopilotActionBridge()
 
   const [open, setOpen] = useState(false)
   // The DURABLE conversation (transcript + thread identity) is held in a module-level
@@ -205,7 +202,9 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   const [blueprintGate] = useState(createBlueprintGate)
   // The held draft + its broadcast: a surface that EDITS it lives outside this provider's tree (the
   // composer is a route), so it re-reads from the broadcast rather than computing against stale bytes.
-  const [blueprintStore] = useState(() => createBlueprintDraftStore((held) => emitDraftChanged({ files: held?.files ?? {} })))
+  // The broadcast says WHO holds the draft and, for a blueprint, what the lint thinks of it — built
+  // by the same helper the replay uses, so the two emitters cannot disagree.
+  const [blueprintStore] = useState(createBroadcastingDraftStore)
 
   const abortRef = useRef<(() => void) | null>(null)
   const approvalRef = useRef<{ governor: ApprovalGovernor; pause: ApprovalPause } | null>(null)
@@ -419,19 +418,12 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
           // parseable draft) arms the preview gate for that draft's kind+resourceGroup.
           if (proposal.verb === 'previewRestDef') {
             previewGate.recordPreview(proposal.restDefinition)
-          } else if (proposal.verb === 'previewBlueprint' && proposal.rawTemplates && !chip.previewFailed && lintBlueprintDraft(proposal.rawTemplates).length === 0) {
-            // FE-BP1/BP2: an APPLIED, lint-clean, SUCCESSFULLY RENDERED inline-draft
-            // previewBlueprint HOLDS the previewed tree (so publish substitutes the SAME bytes)
-            // and arms the blueprint gate for its Chart.yaml name.
-            //
-            // `!chip.previewFailed` because the lint alone was never enough: a chart that fails
-            // `helm template` is lint-clean, so the gate armed and the draft was publishable. The
-            // drawer showed the error the whole time and nothing acted on it.
-            //
-            // A remote-chart preview (no rawTemplates) holds
-            // nothing — there is no authored tree to publish via git.
-            const draft = blueprintStore.set(proposal.rawTemplates, 'blueprint')
-            if (draft.ok) { blueprintGate.recordPreview(draftDisplayName(draft.held.files)) }
+          } else if (proposal.verb === 'previewBlueprint') {
+            // FE-BP1/BP2: an APPLIED, lint-clean, SUCCESSFULLY RENDERED inline-draft previewBlueprint
+            // HOLDS the previewed tree and arms the blueprint gate for its Chart.yaml name. The rule
+            // lives in `recordBlueprintPreview` beside its page twin, so a preview a person starts
+            // from the composer arms the same gate this proposal does.
+            recordBlueprintPreview(proposal.rawTemplates, !!chip.previewFailed, blueprintStore, blueprintGate)
           } else if (proposal.verb === 'previewPage') {
             // FE-P2: an APPLIED previewPage holds its widget CRs as a page draft + arms the shared
             // gate (recordPagePreview) — a page publish (into krateo-platformops/portal) is then
@@ -816,7 +808,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
 
   // Both held-draft write paths — the Files-tab edit and the composer's add — live in one hook.
   // See useDraftFileBuses for why they are two buses and why `addFile` is separate from updateFile.
-  useDraftFileBuses(blueprintStore, blueprintGate, heldDraftIdentity, previewStartedDraft)
+  useDraftFileBuses(blueprintStore, blueprintGate, heldDraftIdentity, previewStartedDraft, discardSandbox)
 
   /**
    * PUBLISH, asked for by a person rather than proposed by the model.

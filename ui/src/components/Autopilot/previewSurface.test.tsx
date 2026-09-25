@@ -10,7 +10,7 @@
  * The held-bytes guarantee is exercised: the emitted draft is the byte-for-byte edited YAML, produced
  * by a human edit in the drawer — never a model round-trip.
  */
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 // WidgetRenderer (only mounted for a liveEndpoint payload, not here) pulls the whole widget system —
@@ -21,6 +21,8 @@ vi.mock('../../context/ThemeModeContext', () => ({ useThemeMode: () => ({ mode: 
 
 import { buildPagePreviewPayload, buildRestDefPreviewPayload, toYamlString } from './previewBridge'
 import { openAutopilotPreview } from './previewBus'
+import { claimPreviewSurface, emitDraftChanged } from './previewDraftChanged'
+import { emitDraftClose } from './previewDraftClose'
 import { AUTOPILOT_PREVIEW_EDIT_EVENT, type RestDefEditDetail } from './previewEditBus'
 import { AUTOPILOT_PREVIEW_FILE_EDIT_EVENT, type FileEditDetail } from './previewFileEdit'
 import { AutopilotPreviewDrawer } from './previewSurface'
@@ -131,11 +133,11 @@ describe('AutopilotPreviewDrawer — editable RestDefinition source', () => {
 })
 
 describe('AutopilotPreviewDrawer — editable page "Files" tab', () => {
-  /** A minimal page preview payload (one widget CR at the chart-relative templates/flex.root.yaml). */
+  /** A minimal page preview payload (one widget CR at the chart-relative templates/flex.page-root.yaml). */
   const pagePayload = () => buildPagePreviewPayload([{
     apiVersion: 'widgets.templates.krateo.io/v1beta1',
     kind: 'Flex',
-    metadata: { name: 'root' },
+    metadata: { name: 'page-root' },
     spec: { widgetData: {} },
   }])
 
@@ -148,7 +150,7 @@ describe('AutopilotPreviewDrawer — editable page "Files" tab', () => {
 
   const openEditor = async (view: ReturnType<typeof render>): Promise<HTMLTextAreaElement> => {
     fireEvent.click(view.getByRole('button', { name: 'Edit' }))
-    return waitFor(() => view.getByLabelText(/^Edit templates\/flex\.root\.yaml$/) as HTMLTextAreaElement)
+    return waitFor(() => view.getByLabelText(/^Edit templates\/flex\.page-root\.yaml$/) as HTMLTextAreaElement)
   }
 
   it('a CLEAN page-file edit emits {path, content} on the file-edit bus', async () => {
@@ -156,16 +158,18 @@ describe('AutopilotPreviewDrawer — editable page "Files" tab', () => {
     const off = captureFileEmits(sink)
     const view = render(<AutopilotPreviewDrawer />)
     openAutopilotPreview(pagePayload())
-    await waitFor(() => expect(view.getByText('templates/flex.root.yaml')).toBeTruthy())
+    await waitFor(() => expect(view.getByText('templates/flex.page-root.yaml')).toBeTruthy())
     const area = await openEditor(view)
 
     // A human edit of the held widget CR (still a valid CR — apiVersion/kind/metadata.name intact).
-    const edited = toYamlString({ apiVersion: 'widgets.templates.krateo.io/v1beta1', kind: 'Flex', metadata: { name: 'root' }, spec: { widgetData: { direction: 'vertical' } } })
+    const edited = toYamlString({ apiVersion: 'widgets.templates.krateo.io/v1beta1', kind: 'Flex', metadata: { name: 'page-root' }, spec: { widgetData: { direction: 'vertical' } } })
     fireEvent.change(area, { target: { value: edited } })
     fireEvent.click(view.getByRole('button', { name: 'Apply edits' }))
 
     await waitFor(() => expect(sink.last).not.toBeNull())
-    expect(sink.last?.path).toBe('templates/flex.root.yaml')
+    expect(sink.last?.path).toBe('templates/flex.page-root.yaml')
+    // Says what it showed, so the provider can refuse it if a chart is what is held.
+    expect(sink.last?.kind).toBe('page')
     // byte-for-byte the human's edit (held == published)
     expect(sink.last?.content).toBe(edited)
     off()
@@ -176,7 +180,7 @@ describe('AutopilotPreviewDrawer — editable page "Files" tab', () => {
     const off = captureFileEmits(sink)
     const view = render(<AutopilotPreviewDrawer />)
     openAutopilotPreview(pagePayload())
-    await waitFor(() => expect(view.getByText('templates/flex.root.yaml')).toBeTruthy())
+    await waitFor(() => expect(view.getByText('templates/flex.page-root.yaml')).toBeTruthy())
     const area = await openEditor(view)
 
     // Strip the CR identity — a page widget file must keep apiVersion/kind/metadata.name.
@@ -207,5 +211,122 @@ describe('frontend#180 — the preview must not cover a widened rail', () => {
     const inset = root.style.insetInlineEnd
     expect(inset, 'the inset must read the live rail width').toContain('--autopilot-rail-width')
     expect(inset, 'a hardcoded rail width is the bug itself').not.toMatch(/\b384\b/)
+  })
+})
+
+describe('AutopilotPreviewDrawer — which previews a mounted page composer takes', () => {
+  it('defers a PAGE preview to the composer, and opens for everything the composer cannot show', async () => {
+    const release = claimPreviewSurface()
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ summary: ['flex.page-x'], title: 'Page preview — x' }) })
+    expect(view.queryByText('Page preview — x')).toBeNull()
+
+    // The regression this pins: a chart proposed while /portal-builder/compose was open went to the
+    // composer, which parks charts — so it was shown nowhere.
+    act(() => { openAutopilotPreview({ builder: 'blueprint', summary: ['nginx-demo'], title: 'Blueprint preview — nginx-demo' }) })
+    await waitFor(() => expect(view.getByText('Blueprint preview — nginx-demo')).toBeTruthy())
+    release()
+  })
+
+  it('opens a page preview as before when no composer holds the claim', async () => {
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ summary: ['flex.page-x'], title: 'Page preview — x' }) })
+    await waitFor(() => expect(view.getByText('Page preview — x')).toBeTruthy())
+  })
+})
+
+describe('AutopilotPreviewDrawer — the held draft, discarded or dirty', () => {
+  it('a discard elsewhere closes a DRAFT preview and fires its teardown', async () => {
+    const onClose = vi.fn()
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ onClose, summary: ['flex.page-x'], title: 'Page preview — x' }) })
+    await waitFor(() => expect(view.getByText('Page preview — x')).toBeTruthy())
+    act(() => { emitDraftClose() })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    // CLOSED, not merely torn down: left open it would offer edits to files that no longer exist.
+    await waitFor(() => expect(document.querySelector('.ant-drawer-open')).toBeNull())
+  })
+
+  it('a discard leaves an INSPECTION open — it was never the draft', async () => {
+    const onClose = vi.fn()
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ builder: 'inspect', onClose, summary: ['repos.github.krateo.io'], title: 'Describe — repos' }) })
+    await waitFor(() => expect(view.getByText('Describe — repos')).toBeTruthy())
+    act(() => { emitDraftClose() })
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('says why the held draft cannot publish, on a draft preview only', async () => {
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ builder: 'blueprint', summary: ['nginx-demo'], title: 'Blueprint preview — nginx-demo' }) })
+    await waitFor(() => expect(view.getByText('Blueprint preview — nginx-demo')).toBeTruthy())
+    act(() => { emitDraftChanged({ files: { 'Chart.yaml': 'x' }, kind: 'blueprint', problems: ['values.schema.json is missing'] }) })
+    expect(view.getByText('values.schema.json is missing')).toBeTruthy()
+
+    act(() => { openAutopilotPreview({ builder: 'restdef', summary: ['gh-repo'], title: 'RestDefinition preview — gh-repo' }) })
+    await waitFor(() => expect(view.getByText('RestDefinition preview — gh-repo')).toBeTruthy())
+    expect(view.queryByText('values.schema.json is missing')).toBeNull()
+  })
+})
+
+describe('AutopilotPreviewDrawer — only the HELD draft is editable', () => {
+  const chartFiles = [{ content: 'apiVersion: v2\nname: aws-vpc\n', path: 'Chart.yaml' }]
+
+  it('a held blueprint draft offers Edit on its chart files', async () => {
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ builder: 'blueprint', files: chartFiles, filesLabel: 'Chart files', title: 'Blueprint preview — aws-vpc' }) })
+    await waitFor(() => expect(view.getByText('Chart.yaml')).toBeTruthy())
+    expect(view.getByRole('button', { name: 'Edit' })).toBeTruthy()
+  })
+
+  it('a preview nothing holds (a draft that failed to render) shows its files READ-ONLY', async () => {
+    // An edit here was written by path into whatever WAS held — a page set holds Chart.yaml too.
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ builder: 'inspect', error: 'function "boom" not defined', files: chartFiles, filesLabel: 'Chart files', title: 'Blueprint preview — aws-vpc' }) })
+    await waitFor(() => expect(view.getByText('Chart.yaml')).toBeTruthy())
+    expect(view.queryByRole('button', { name: 'Edit' })).toBeNull()
+  })
+
+  it('does not show the held draft\'s lint problems on a preview that is not the held draft', async () => {
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ builder: 'inspect', summary: ['aws-vpc'], title: 'Blueprint preview — aws-vpc' }) })
+    await waitFor(() => expect(view.getByText('Blueprint preview — aws-vpc')).toBeTruthy())
+    act(() => { emitDraftChanged({ files: { 'Chart.yaml': 'x' }, kind: 'page', problems: ['values.schema.json is missing'] }) })
+    expect(view.queryByText('values.schema.json is missing')).toBeNull()
+  })
+
+  it('closes a held draft that a deferred PAGE preview replaced — its Files tab would write into the page', async () => {
+    const release = claimPreviewSurface()
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ builder: 'blueprint', files: chartFiles, filesLabel: 'Chart files', title: 'Blueprint preview — aws-vpc' }) })
+    await waitFor(() => expect(view.getByText('Blueprint preview — aws-vpc')).toBeTruthy())
+    act(() => { openAutopilotPreview({ summary: ['flex.page-x'], title: 'Page preview — x' }) })
+    await waitFor(() => expect(document.querySelector('.ant-drawer-open')).toBeNull())
+    release()
+  })
+
+  it('leaves an INSPECTION open when a deferred page preview arrives — nothing replaced it', async () => {
+    const release = claimPreviewSurface()
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ builder: 'inspect', summary: ['repos'], title: 'Describe — repos' }) })
+    await waitFor(() => expect(view.getByText('Describe — repos')).toBeTruthy())
+    act(() => { openAutopilotPreview({ summary: ['flex.page-x'], title: 'Page preview — x' }) })
+    expect(document.querySelector('.ant-drawer-open')).not.toBeNull()
+    release()
+  })
+})
+
+describe('AutopilotPreviewDrawer — a discard re-announced in the tick a late apply opened its render', () => {
+  it('drops the render it has not even drawn yet, and fires its teardown', async () => {
+    // The late apply opens its payload and resolves; the loop re-announces the discard a microtask
+    // later — before React has rendered the payload. A render-time ref still says "nothing shown".
+    const onClose = vi.fn()
+    render(<AutopilotPreviewDrawer />)
+    act(() => {
+      openAutopilotPreview({ onClose, summary: ['flex.page-x'], title: 'Page preview — x' })
+      emitDraftClose()
+    })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(document.querySelector('.ant-drawer-open')).toBeNull())
   })
 })

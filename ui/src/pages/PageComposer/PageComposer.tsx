@@ -35,9 +35,10 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncE
 
 import { emitComposeResult, onComposeRequest } from '../../components/Autopilot/composeRequest'
 import { draftHistory } from '../../components/Autopilot/draftHistory'
-import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
+import { AUTOPILOT_PREVIEW_EVENT, isPageDraftPayload } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { claimPreviewSurface, onDraftChanged, requestDraftReplay } from '../../components/Autopilot/previewDraftChanged'
+import { emitDraftClose, onDraftClose } from '../../components/Autopilot/previewDraftClose'
 import { emitDraftStart } from '../../components/Autopilot/previewDraftStart'
 import { emitDraftUndo } from '../../components/Autopilot/previewDraftUndo'
 import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
@@ -46,16 +47,17 @@ import { LIVE_PREVIEW_CAPTION_INLINE } from '../../components/Autopilot/previewP
 import { emitPublishRequest, onPublishResult } from '../../components/Autopilot/previewPublishRequest'
 import { PreviewContent } from '../../components/Autopilot/previewSurface'
 import type { RestDefVerdicts } from '../../components/Autopilot/previewSurface'
-import { WidgetEmpty } from '../../components/WidgetStates'
 import { ConfigContext } from '../../context/ConfigContext'
 
 import CanvasPanel from './CanvasPanel'
 import { authorWidget, bindData } from './composeAuthoring'
 import { announce, onAnnounce } from './composerAnnounce'
+import { ComposerEmptyState } from './ComposerEmptyState'
 import CreateWidgetModal from './CreateWidgetModal'
 import { resolveDrop } from './dndIds'
 import type { DragPayload, DropPayload } from './dndIds'
 import { legalTargets } from './dropTargets'
+import { heldPagePayload } from './heldPagePayload'
 import { buildObjectTree, draftNamespace, flattenTree } from './objectTree'
 import type { TreeNode } from './objectTree'
 import ObjectTreePanel from './ObjectTreePanel'
@@ -180,6 +182,8 @@ const PageComposer = () => {
   /** Where drafts — and anything an agent authors for one — are actually applied. */
   const previewSandboxNamespace = useContext(ConfigContext)?.config?.api?.PREVIEW_SANDBOX_NAMESPACE ?? ''
   const [payload, setPayload] = useState<AutopilotPreviewPayload | null>(null)
+  // The payload as ADOPTED, not as rendered — see the discard listener.
+  const adopted = useRef<AutopilotPreviewPayload | null>(null)
   // Canvas's share of the centre column. Opens favouring the canvas — you place before you
   // verify — but the preview is VISIBLE from the first frame, which is the point.
   const [split, setSplit] = useState(60)
@@ -197,6 +201,14 @@ const PageComposer = () => {
    * the routed path is a path that gets routed twice.
    */
   const [files, setFiles] = useState<Record<string, string>>({})
+  /**
+   * WHICH BUILDER'S DRAFT IS HELD. This composer edits PAGES. With a blueprint draft held — a chart
+   * previewed in the rail, then a navigation here — it used to run `buildObjectTree` over
+   * Chart.yaml and templates and draw nonsense. The broadcast now says who holds the draft, and a
+   * blueprint is PARKED behind an honest empty state rather than drawn. A detail with no `kind`
+   * (a legacy emitter) reads as a page.
+   */
+  const [parkedBlueprint, setParkedBlueprint] = useState(false)
   // Why a move can be refused, shown where the other outcomes are shown. Not antd `message`: the
   // composer already reports through Alerts, and a toast that vanishes is the wrong surface for
   // "this drop was rejected and here is why".
@@ -387,6 +399,13 @@ const PageComposer = () => {
 
   useEffect(() => {
     const onPreview = (event: CustomEvent<AutopilotPreviewPayload>) => {
+      // Only a PAGE preview is ours. The drawer defers to this page for exactly those and opens for
+      // everything else, so adopting a chart or an inspection here would take it from the one
+      // surface that can show it — and hand this one a payload it would render under page rules.
+      if (!isPageDraftPayload(event.detail)) {
+        return
+      }
+      adopted.current = event.detail
       setPayload(event.detail)
       setEditVerdicts(null)
     }
@@ -620,7 +639,11 @@ const PageComposer = () => {
   }), [applyAdd, applyMove, authoringNamespace, files, previewSandboxNamespace, snowplowBaseUrl])
 
   useEffect(() => {
-    const stop = onDraftChanged(({ files: next }) => setFiles(next))
+    const stop = onDraftChanged(({ files: next, kind }) => {
+      const blueprint = kind === 'blueprint'
+      setParkedBlueprint(blueprint)
+      setFiles(blueprint ? {} : next)
+    })
     requestDraftReplay()
     return stop
   }, [])
@@ -648,13 +671,27 @@ const PageComposer = () => {
     emitPublishRequest({ id, verb: 'publishPage' })
   }
 
-  const closeDraft = () => {
-    payload?.onClose?.()
+  // A REAL discard: the held draft is dropped in the provider — store, gate arming, undo history —
+  // not merely hidden here. Hiding it left the files publishable and refused every later start.
+  // This view is torn down by LISTENING, not here, because a discard is also re-announced when a
+  // re-apply that was already on the wire lands after it and puts a render back — in the same tick
+  // that apply opened its payload, before React has rendered it. So the listener reads the payload
+  // as adopted (a ref), not as rendered: the rendered one is still the null of the first discard.
+  const closeDraft = emitDraftClose
+  useEffect(() => onDraftClose(() => {
+    adopted.current?.onClose?.()
+    adopted.current = null
     setPayload(null)
     setEditVerdicts(null)
     setFiles({})
     setFocusPath(null)
-  }
+  }), [])
+
+  // What the body shows: the adopted preview, or — for a page held from before this view mounted —
+  // one built from the held files, rather than "No draft open" over a draft that is there.
+  const shown = useMemo(() => payload ?? (parkedBlueprint ? null : heldPagePayload(files)), [files, parkedBlueprint, payload])
+
+  const emptyState = <ComposerEmptyState onDiscard={closeDraft} onStart={() => setStarting(true)} parkedBlueprint={parkedBlueprint} />
 
   return (
     <div className={styles.page}>
@@ -689,7 +726,7 @@ const PageComposer = () => {
         {/* Closing is the sandbox TEARDOWN, which this page now owns: it took the claim, so the
             drawer that used to carry this control never opens here. Confirmed rather than
             immediate, because the draft is not recoverable and nothing else in view says so. */}
-        {payload
+        {shown && !parkedBlueprint
           ? (
             <Space className={styles.actions}>
               {/*
@@ -759,7 +796,7 @@ const PageComposer = () => {
           : null}
       </header>
 
-      {payload
+      {shown && !parkedBlueprint
         ? (
           /*
            * BUILD ABOVE, RESULT BELOW — and exactly one tab bar on the page.
@@ -834,7 +871,7 @@ const PageComposer = () => {
                   </section>
                   <SplitDivider onChange={setSplit} value={split} />
                   <div className={styles.result} ref={resultRef}>
-                    <PreviewContent caption={payload.caption ? LIVE_PREVIEW_CAPTION_INLINE : undefined} editVerdicts={editVerdicts} focusPath={focusPath} liveFiles={files} onVerdicts={setEditVerdicts} payload={payload} />
+                    <PreviewContent caption={payload?.caption ? LIVE_PREVIEW_CAPTION_INLINE : undefined} editVerdicts={editVerdicts} focusPath={focusPath} liveFiles={files} onVerdicts={setEditVerdicts} payload={shown} />
                   </div>
                 </div>
 
@@ -903,11 +940,7 @@ const PageComposer = () => {
            * button ended "...nothing is published until you submit the change request yourself" —
            * the same guarantee, restated. P16: say what to do next, do not fill space.
            */
-          <WidgetEmpty
-            description='No draft open. Start a page here, or ask Autopilot to draft one — either way you review every file before anything is published.'
-          >
-            <Button onClick={() => setStarting(true)} type='primary'>Start a page</Button>
-          </WidgetEmpty>
+          emptyState
         )}
     </div>
   )

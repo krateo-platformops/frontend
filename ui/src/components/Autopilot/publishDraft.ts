@@ -22,6 +22,7 @@ import type { Config } from '../../context/ConfigContext'
 import type { PortalActionProposal } from './actionBridge'
 import { MAX_APPLY_SET_OPS } from './applyResourceSet'
 import type { AuthorshipOrigin } from './authorship'
+import { lintBlueprintDraft } from './blueprintDraft'
 import { heldPublishFiles, type BlueprintDraftStore } from './blueprintDraftStore'
 import type { createBlueprintGate } from './blueprintGate'
 import { buildBlueprintPublishOps } from './blueprintPublish'
@@ -85,6 +86,13 @@ export const runDraftPublish = async (
   // config still supplies the OWNER (bt.owner) and the fallback repo; the human confirms or edits in
   // the blast-radius dialog, and a model-emitted repo still wins over this prefill.
   const destRepo = slug || bt.repo
+  // A draft that fails the chart lint is refused BY NAME, before anyone is asked where to send it.
+  // Its gate is already disarmed (a dirty hand edit forgets the arming), but that refusal says
+  // "preview first" — the wrong reason, since previewing again cannot help until the file is fixed.
+  const lintProblems = held ? lintBlueprintDraft(held.files) : []
+  if (lintProblems.length) {
+    return { compiled: { denial: `denied — the draft fails the chart lint: ${lintProblems.join('; ')}`, ops: null }, deepLink: null }
+  }
   const dest = await askPublishDestination(proposal, builder, destRepo, bt.owner)
   const targeted = dest ? { ...proposal, ...dest } : proposal
   const overflow = isPage

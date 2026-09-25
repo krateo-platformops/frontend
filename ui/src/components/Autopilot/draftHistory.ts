@@ -26,9 +26,18 @@
  * No React: a module store read through useSyncExternalStore, the same shape conversationStore and
  * composerDraftStore use and for the same reason — the rail and the composer both remount.
  */
+import type { DraftKind } from './blueprintDraftStore'
 
-/** Deep enough: the map is one level and its values are immutable strings. */
-type Snapshot = Record<string, string>
+/**
+ * The tree and WHAT it is. One store holds either builder's draft, and a page tree restored into a
+ * held chart — undo reading the kind from what is held NOW rather than from the step — would
+ * publish as a chart made of widget CRs. The kind travels with the files so a restore cannot
+ * relabel them.
+ */
+export interface Snapshot {
+  files: Record<string, string>
+  kind: DraftKind
+}
 
 /**
  * Twenty steps. Enough to walk back out of a wrong turn in a composing session, and short enough
@@ -67,8 +76,9 @@ export const draftHistory = {
     return previous
   },
   /** Snapshot the tree as it is BEFORE an accepted mutation. Oldest steps fall off the bottom. */
-  push: (files: Snapshot): void => {
-    stack = [...stack, { ...files }].slice(-MAX_DEPTH)
+  push: ({ files, kind }: Snapshot): void => {
+    // Deep enough: the map is one level and its values are immutable strings.
+    stack = [...stack, { files: { ...files }, kind }].slice(-MAX_DEPTH)
     announce()
   },
   subscribe: (listener: () => void): (() => void) => {

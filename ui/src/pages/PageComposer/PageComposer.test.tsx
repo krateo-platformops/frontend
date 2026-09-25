@@ -13,7 +13,9 @@
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { previewSurfaceClaimed } from '../../components/Autopilot/previewDraftChanged'
+import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
+import { emitDraftChanged, previewSurfaceClaimed } from '../../components/Autopilot/previewDraftChanged'
+import { emitDraftClose, onDraftClose } from '../../components/Autopilot/previewDraftClose'
 import { AUTOPILOT_DRAFT_START_EVENT } from '../../components/Autopilot/previewDraftStart'
 import type { DraftStartDetail } from '../../components/Autopilot/previewDraftStart'
 import { AUTOPILOT_PUBLISH_REQUEST_EVENT, emitPublishResult } from '../../components/Autopilot/previewPublishRequest'
@@ -35,6 +37,93 @@ describe('PageComposer — the preview surface, outside the rail', () => {
     mount()
 
     // An empty page that looks like a failed load is the failure mode being avoided here.
+    expect(screen.getByText(/No draft open/i)).toBeTruthy()
+  })
+
+  it('PARKS a blueprint draft instead of drawing a chart as a page', () => {
+    // With a chart held — previewed in the rail, then a navigation here — this composer used to run
+    // its object tree over Chart.yaml and templates and draw nonsense. The broadcast says who holds
+    // the draft; a blueprint gets an honest empty state and no canvas.
+    mount()
+    emit({ files: [{ content: 'apiVersion: v2\nname: nginx-demo\n', path: 'Chart.yaml' }], title: 'nginx-demo' })
+    act(() => emitDraftChanged({ files: { 'Chart.yaml': 'apiVersion: v2\nname: nginx-demo\n' }, kind: 'blueprint' }))
+
+    expect(screen.getByText(/A blueprint draft is open in this thread/i)).toBeTruthy()
+    expect(screen.queryByText('Objects')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Start a page/i })).toBeNull()
+  })
+
+  it('hides the page controls while parked — Publish here would publish the chart as a page', () => {
+    mount()
+    emit({ files: [{ content: widgetCr('Flex', 'page-x'), path: 'flex.page-x.yaml' }], title: 'x' })
+    expect(screen.getByText('Publish')).toBeTruthy()
+    act(() => emitDraftChanged({ files: { 'Chart.yaml': 'x' }, kind: 'blueprint' }))
+    expect(screen.queryByText('Publish')).toBeNull()
+    expect(screen.queryByText('Undo')).toBeNull()
+    expect(screen.queryByText('Close draft')).toBeNull()
+  })
+
+  it('offers a REAL discard of the parked chart — the provider drops it, not just this view', () => {
+    const closes = vi.fn()
+    const stop = onDraftClose(closes)
+    mount()
+    act(() => emitDraftChanged({ files: { 'Chart.yaml': 'x' }, kind: 'blueprint' }))
+    act(() => { screen.getByText('Discard blueprint draft').click() })
+    act(() => { screen.getByText('Discard').click() })
+    stop()
+    expect(closes).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not adopt a chart, RestDefinition or inspection preview — the drawer shows those', () => {
+    mount()
+    act(() => {
+      window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, { detail: { builder: 'blueprint', summary: ['nginx-demo-rendered'], title: 'Blueprint preview — nginx-demo' } }))
+    })
+    expect(screen.queryByText('nginx-demo-rendered')).toBeNull()
+    expect(screen.getByText(/No draft open/i)).toBeTruthy()
+  })
+
+  it('SHOWS a page draft held from before it mounted, instead of "No draft open" over it', () => {
+    // The draft reaches a late-mounted composer by replay — files, no payload. It used to say "No
+    // draft open" and offer a Start the provider silently refused, with no way to discard.
+    mount()
+    act(() => emitDraftChanged({ files: { 'templates/flex.page-x.yaml': widgetCr('Flex', 'page-x') }, kind: 'page' }))
+    expect(screen.queryByText(/No draft open/i)).toBeNull()
+    expect(screen.getByText(/The held draft, shown from its files/i)).toBeTruthy()
+    const closes = vi.fn()
+    const stop = onDraftClose(closes)
+    act(() => { screen.getByText('Close draft').click() })
+    act(() => { screen.getByText('Discard').click() })
+    stop()
+    expect(closes).toHaveBeenCalledTimes(1)
+  })
+
+  it('drops its render when the draft is discarded ELSEWHERE — a re-apply landing late re-announces it', () => {
+    const onClose = vi.fn()
+    mount()
+    emit({ files: [{ content: widgetCr('Flex', 'page-x'), path: 'flex.page-x.yaml' }], onClose, title: 'x' })
+    act(() => { emitDraftClose() })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(screen.getByText(/No draft open/i)).toBeTruthy()
+  })
+
+  it('drops a render it adopted in the SAME tick as the discard — before it was ever drawn', () => {
+    const onClose = vi.fn()
+    mount()
+    act(() => {
+      window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, { detail: { onClose, summary: ['flex.page-x'], title: 'x' } }))
+      emitDraftClose()
+    })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(screen.getByText(/No draft open/i)).toBeTruthy()
+  })
+
+  it('un-parks when the held draft becomes a page again', () => {
+    mount()
+    act(() => emitDraftChanged({ files: { 'Chart.yaml': 'x' }, kind: 'blueprint' }))
+    expect(screen.getByText(/A blueprint draft is open/i)).toBeTruthy()
+    act(() => emitDraftChanged({ files: {}, kind: null }))
+    expect(screen.queryByText(/A blueprint draft is open/i)).toBeNull()
     expect(screen.getByText(/No draft open/i)).toBeTruthy()
   })
 
@@ -238,6 +327,8 @@ describe('PageComposer — one surface owns the draft', () => {
 
   it('fires the sandbox teardown on close — the lifecycle the drawer used to own', () => {
     const onClose = vi.fn()
+    const closes = vi.fn()
+    const stop = onDraftClose(closes)
     mount()
     emit({ files: [{ content: widgetCr('Flex', 'page-x'), path: 'flex.page-x.yaml' }], onClose, title: 'x' })
 
@@ -246,6 +337,9 @@ describe('PageComposer — one surface owns the draft', () => {
 
     // Without this the sandbox CRs outlive every surface that could render them.
     expect(onClose).toHaveBeenCalledTimes(1)
+    // …and the held draft itself is dropped, or every later "Start a page" is refused.
+    expect(closes).toHaveBeenCalledTimes(1)
+    stop()
     expect(screen.getByText(/No draft open/i)).toBeTruthy()
   })
 })

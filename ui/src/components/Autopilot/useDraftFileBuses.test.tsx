@@ -15,12 +15,18 @@ import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createBlueprintDraftStore } from './blueprintDraftStore'
+import { getComposeRefusals, recordComposeOutcome } from './composeRequest'
+import { draftHistory } from './draftHistory'
 import { onPreviewApplied } from './previewApplied'
-import { AUTOPILOT_PREVIEW_EVENT } from './previewBus'
+import { AUTOPILOT_PREVIEW_EVENT, getPreviewProblems, setPreviewProblems } from './previewBus'
+import { type DraftChangedDetail, onDraftChanged, requestDraftReplay } from './previewDraftChanged'
+import { emitDraftClose, onDraftClose } from './previewDraftClose'
 import { emitDraftStart } from './previewDraftStart'
+import { emitDraftUndo } from './previewDraftUndo'
 import { emitFileAdd } from './previewFileAdd'
 import { emitFileEdit } from './previewFileEdit'
-import { useDraftFileBuses } from './useDraftFileBuses'
+import { emitFileRemove } from './previewFileRemove'
+import { createBroadcastingDraftStore, useDraftFileBuses } from './useDraftFileBuses'
 
 /** A page draft set: the `page-<slug>` root Flex is what makes it a page at all. */
 const widgets = () => [
@@ -269,5 +275,359 @@ describe('a draft that CHANGES after it started', () => {
 
     expect(previewLive).toHaveBeenCalledTimes(1)
     vi.useRealTimers()
+  })
+})
+
+/**
+ * A BLUEPRINT EDIT IS LINTED BEFORE IT RE-ARMS.
+ *
+ * Every accepted write re-armed the publish gate. Right for a page — its edits are ajv-verdicted
+ * in the drawer — and a live hole for a blueprint: a hand edit to values.schema.json that adds a
+ * populated object default (core-provider#46) had no verdict anywhere, so the gate re-armed, the
+ * chart was publishable, and it wedges its CompositionDefinition at Ready=False on registration.
+ * Reachable through the drawer's Files tab before any blueprint composer existed.
+ */
+describe('a blueprint draft edited by hand', () => {
+  const chart = {
+    'Chart.yaml': 'apiVersion: v2\nname: nginx-demo\nversion: 0.1.0\n',
+    'templates/deployment.yaml': 'apiVersion: apps/v1\nkind: Deployment\n',
+    'values.schema.json': JSON.stringify({ properties: { replicas: { default: 1, type: 'integer' } }, type: 'object' }),
+  }
+  const dirtySchema = JSON.stringify({ properties: { resources: { default: { limits: { cpu: '100m' } }, type: 'object' } }, type: 'object' })
+  const cleanSchema = JSON.stringify({ properties: { replicas: { default: 3, type: 'integer' } }, type: 'object' })
+
+  const BlueprintHost = ({ gate, store }: { gate: { forget: (id: string | null | undefined) => void; recordPreview: (id: string | null | undefined) => void }; store: ReturnType<typeof createBlueprintDraftStore> }) => {
+    useDraftFileBuses(store, gate, (held) => (held?.kind === 'blueprint' ? 'nginx-demo' : null))
+    return null
+  }
+
+  const seeded = () => {
+    const store = createBlueprintDraftStore()
+    store.set(chart, 'blueprint')
+    const gate = { forget: vi.fn(), recordPreview: vi.fn() }
+    render(<BlueprintHost gate={gate} store={store} />)
+    return { gate, store }
+  }
+
+  it('FORGETS the chart when the edit makes the draft lint-dirty — and does not re-arm it', () => {
+    const { gate, store } = seeded()
+    act(() => { emitFileEdit({ content: dirtySchema, path: 'values.schema.json' }) })
+    // The edit is accepted into the held tree — the person's bytes are kept, not discarded…
+    expect(store.get()?.files['values.schema.json']).toBe(dirtySchema)
+    // …but the publish is back to deny until a clean preview.
+    expect(gate.forget).toHaveBeenCalledWith('nginx-demo')
+    expect(gate.recordPreview).not.toHaveBeenCalled()
+  })
+
+  it('RE-ARMS as before when the edit leaves the draft clean', () => {
+    const { gate } = seeded()
+    act(() => { emitFileEdit({ content: cleanSchema, path: 'values.schema.json' }) })
+    expect(gate.recordPreview).toHaveBeenCalledWith('nginx-demo')
+    expect(gate.forget).not.toHaveBeenCalled()
+  })
+
+  it('a REMOVE that dirties the draft forgets too — every write path is linted, not only edit', () => {
+    const { gate } = seeded()
+    // Removing values.schema.json makes the chart un-installable ("error getting spec schema").
+    act(() => { emitFileRemove({ path: 'values.schema.json' }) })
+    expect(gate.forget).toHaveBeenCalledWith('nginx-demo')
+    expect(gate.recordPreview).not.toHaveBeenCalled()
+  })
+
+  it('an ADD to a dirty draft does not re-arm it — adding a template fixes nothing', () => {
+    const { gate, store } = seeded()
+    store.updateFile('values.schema.json', dirtySchema)
+    act(() => { emitFileAdd({ content: 'apiVersion: v1\nkind: Service\n', path: 'templates/service.yaml' }) })
+    expect(store.get()?.files['templates/service.yaml']).toBeDefined()
+    expect(gate.forget).toHaveBeenCalledWith('nginx-demo')
+    expect(gate.recordPreview).not.toHaveBeenCalled()
+  })
+
+  it('an UNDO back to a dirty tree forgets — undo is a write like any other', () => {
+    const { gate, store } = seeded()
+    store.updateFile('values.schema.json', dirtySchema)
+    act(() => { emitFileEdit({ content: cleanSchema, path: 'values.schema.json' }) })
+    expect(gate.recordPreview).toHaveBeenCalledWith('nginx-demo')
+    act(() => { emitDraftUndo() })
+    expect(store.get()?.files['values.schema.json']).toBe(dirtySchema)
+    expect(gate.forget).toHaveBeenCalledWith('nginx-demo')
+  })
+
+  it('a PAGE draft is linted too — it publishes as a page-set chart; a clean edit re-arms, a broken one forgets', () => {
+    const store = createBlueprintDraftStore()
+    const gate = { forget: vi.fn(), recordPreview: vi.fn() }
+    const PageHost = () => {
+      useDraftFileBuses(store, gate, () => 'page-x')
+      return null
+    }
+    render(<PageHost />)
+    act(() => { emitDraftStart({ title: 'x', widgets: widgets() }) })
+    gate.recordPreview.mockClear()
+    const root = Object.keys(store.get()?.files ?? {}).find((key) => key.includes('page-service-catalog'))
+    expect(root).toBeDefined()
+    act(() => { emitFileEdit({ content: 'kind: Flex\n', path: root ?? '' }) })
+    expect(gate.recordPreview).toHaveBeenCalledWith('page-x')
+    expect(gate.forget).not.toHaveBeenCalled()
+    act(() => { emitFileRemove({ path: 'values.schema.json' }) })
+    expect(gate.forget).toHaveBeenCalledWith('page-x')
+  })
+
+  it('REPLAY says who holds the draft and what the lint thinks, so a surface can park or explain it', () => {
+    const { store } = seeded()
+    store.updateFile('values.schema.json', dirtySchema)
+    const heard: DraftChangedDetail[] = []
+    const stop = onDraftChanged((detail) => heard.push(detail))
+    act(() => { requestDraftReplay() })
+    stop()
+    expect(heard).toHaveLength(1)
+    expect(heard[0].kind).toBe('blueprint')
+    expect(heard[0].problems?.length).toBeGreaterThan(0)
+  })
+})
+
+describe('undo across a switch of builder', () => {
+  afterEach(() => draftHistory.clear())
+
+  it('does NOT restore a page tree into a held chart — it drops the foreign history instead', () => {
+    const store = createBlueprintDraftStore()
+    store.set({ 'Chart.yaml': 'apiVersion: v2\nname: nginx-demo\nversion: 0.1.0\n', 'values.schema.json': '{"type":"object"}' }, 'blueprint')
+    const before = store.get()
+    const gate = { forget: vi.fn(), recordPreview: vi.fn() }
+    const Hosted = () => {
+      useDraftFileBuses(store, gate, () => 'nginx-demo')
+      return null
+    }
+    render(<Hosted />)
+    draftHistory.push({ files: { 'templates/flex.page-x.yaml': 'kind: Flex' }, kind: 'page' })
+    act(() => { emitDraftUndo() })
+    expect(store.get()).toBe(before)
+    expect(draftHistory.depth()).toBe(0)
+    expect(gate.recordPreview).not.toHaveBeenCalled()
+  })
+})
+
+describe('discarding the held draft', () => {
+  afterEach(() => draftHistory.clear())
+
+  it('drops the files, the gate arming and the undo history — and a new page can start', () => {
+    const store = createBlueprintDraftStore()
+    const gate = { forget: vi.fn(), recordPreview: vi.fn() }
+    const Hosted = () => {
+      useDraftFileBuses(store, gate, (held) => (held ? 'page:page-service-catalog' : null))
+      return null
+    }
+    render(<Hosted />)
+    act(() => { emitDraftStart({ title: 'x', widgets: widgets() }) })
+    act(() => { emitFileAdd({ content: 'kind: Row\n', path: 'templates/row.a.yaml' }) })
+    expect(draftHistory.depth()).toBe(1)
+
+    act(() => { emitDraftClose() })
+    expect(store.get()).toBeNull()
+    expect(gate.forget).toHaveBeenCalledWith('page:page-service-catalog')
+    expect(draftHistory.depth()).toBe(0)
+
+    // The defect this closes: after a "discard" the draft was still held, so every start was refused.
+    act(() => { emitDraftStart({ title: 'y', widgets: widgets() }) })
+    expect(store.get()?.kind).toBe('page')
+  })
+
+  it('forgets what the MODEL was told about the draft — its refusals and its preview verdicts', () => {
+    const store = createBlueprintDraftStore()
+    const Hosted = () => {
+      useDraftFileBuses(store, { forget: vi.fn(), recordPreview: vi.fn() }, () => 'page:x')
+      return null
+    }
+    render(<Hosted />)
+    act(() => { emitDraftStart({ title: 'x', widgets: widgets() }) })
+    recordComposeOutcome({ op: 'move', target: 'page-x', widget: 'table-a' }, { applied: false, id: '1', paths: [], reason: 'page-x cannot hold a table' })
+    setPreviewProblems(['spec.widgetData.items: required'])
+    act(() => { emitDraftClose() })
+    // Left behind, the next turn is spent fixing a page that no longer exists.
+    expect(getComposeRefusals()).toBeNull()
+    expect(getPreviewProblems()).toBeNull()
+  })
+
+  it('is a no-op with nothing held', () => {
+    const store = createBlueprintDraftStore()
+    const gate = { forget: vi.fn(), recordPreview: vi.fn() }
+    const Hosted = () => {
+      useDraftFileBuses(store, gate, () => null)
+      return null
+    }
+    render(<Hosted />)
+    act(() => { emitDraftClose() })
+    expect(gate.forget).not.toHaveBeenCalled()
+  })
+})
+
+describe('the provider store', () => {
+  it('broadcasts every change with its kind and its lint — the one emitter surfaces listen to', () => {
+    const store = createBroadcastingDraftStore()
+    const heard: DraftChangedDetail[] = []
+    const stop = onDraftChanged((detail) => heard.push(detail))
+    store.set({ 'Chart.yaml': 'apiVersion: v2\nname: nginx-demo\nversion: 0.1.0\n' }, 'blueprint')
+    store.clear()
+    stop()
+    expect(heard).toHaveLength(2)
+    expect(heard[0].kind).toBe('blueprint')
+    // values.schema.json is missing — the lint says so on the broadcast itself.
+    expect(heard[0].problems?.some((line) => line.includes('values.schema.json'))).toBe(true)
+    expect(heard[1]).toEqual({ files: {}, kind: null, problems: [] })
+  })
+})
+
+describe('a discard that lands while a re-apply is on the wire', () => {
+  afterEach(() => draftHistory.clear())
+
+  /** A live apply that does not land until the test says so. */
+  const deferredLive = () => {
+    const calls: Array<() => void> = []
+    const live = vi.fn(() => new Promise<void>((resolve) => { calls.push(resolve) }))
+    return { calls, live }
+  }
+
+  const host = (live: ReturnType<typeof deferredLive>['live'], discardLive = vi.fn(() => Promise.resolve())) => {
+    const store = createBlueprintDraftStore()
+    const Hosted = () => {
+      useDraftFileBuses(store, { forget: vi.fn(), recordPreview: vi.fn() }, (held) => (held ? 'page:x' : null), live, discardLive)
+      return null
+    }
+    render(<Hosted />)
+    return store
+  }
+
+  it('deletes the sandbox render only AFTER the apply lands — before it, there is nothing of it to delete', async () => {
+    const { calls, live } = deferredLive()
+    const discardLive = vi.fn(() => Promise.resolve())
+    host(live, discardLive)
+    act(() => { emitDraftStart({ title: 'x', widgets: widgets() }) })
+    act(() => { emitDraftClose() })
+    // Queued behind the apply: a DELETE racing its POSTs on the same names is the 409 this loop exists to prevent.
+    expect(discardLive).not.toHaveBeenCalled()
+    await act(async () => {
+      calls[0]()
+      await Promise.resolve()
+    })
+    expect(discardLive).toHaveBeenCalledTimes(1)
+  })
+
+  it('is ANNOUNCED AGAIN when the apply lands, so every surface drops the render it put back', async () => {
+    const { calls, live } = deferredLive()
+    host(live)
+    const closes = vi.fn()
+    const applied = vi.fn()
+    const stopCloses = onDraftClose(closes)
+    const stopApplied = onPreviewApplied(applied)
+    act(() => { emitDraftStart({ title: 'x', widgets: widgets() }) })
+    expect(live).toHaveBeenCalledTimes(1)
+
+    act(() => { emitDraftClose() })
+    expect(closes).toHaveBeenCalledTimes(1)
+    // The apply was already past its sweep: it lands, re-creating the sandbox objects and opening a
+    // live render of the draft that was just thrown away.
+    await act(async () => {
+      calls[0]()
+      await Promise.resolve()
+    })
+    stopCloses()
+    stopApplied()
+    expect(closes).toHaveBeenCalledTimes(2)
+    // …and it is not announced as an applied preview of anything.
+    expect(applied).not.toHaveBeenCalled()
+  })
+
+  it('still deletes the sandbox render when the apply it waited behind FAILS', async () => {
+    // A failed apply used to end the whole loop — and with it the discard's queued teardown.
+    const rejects: Array<(reason: Error) => void> = []
+    const live = vi.fn(() => new Promise<void>((_resolve, reject) => { rejects.push(reject) }))
+    const discardLive = vi.fn(() => Promise.resolve())
+    host(live, discardLive)
+    act(() => { emitDraftStart({ title: 'x', widgets: widgets() }) })
+    act(() => { emitDraftClose() })
+    await act(async () => {
+      rejects[0](new Error('schema chunk failed to load'))
+      await Promise.resolve()
+    })
+    expect(discardLive).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs a discard that arrived WHILE the previous discard\'s teardown was on the wire', async () => {
+    const { calls, live } = deferredLive()
+    const teardowns: Array<() => void> = []
+    const discardLive = vi.fn(() => new Promise<void>((resolve) => { teardowns.push(resolve) }))
+    host(live, discardLive)
+    act(() => { emitDraftStart({ title: 'a', widgets: widgets() }) })
+    act(() => { emitDraftClose() })
+    act(() => { emitDraftStart({ title: 'b', widgets: widgets() }) })
+    // A lands; B is held, so the loop runs A's queued teardown next — and B is discarded during it.
+    await act(async () => {
+      calls[0]()
+      await Promise.resolve()
+    })
+    expect(discardLive).toHaveBeenCalledTimes(1)
+    act(() => { emitDraftClose() })
+    await act(async () => {
+      teardowns[0]()
+      await Promise.resolve()
+    })
+    // B's discard owes a teardown of its own; the loop used to `break` on "no job" and drop it.
+    expect(discardLive).toHaveBeenCalledTimes(2)
+  })
+
+  it('stays quiet when a NEW draft was started meanwhile — that one is not answerable for the last', async () => {
+    const { calls, live } = deferredLive()
+    const store = host(live)
+    const closes = vi.fn()
+    const stop = onDraftClose(closes)
+    act(() => { emitDraftStart({ title: 'x', widgets: widgets() }) })
+    act(() => { emitDraftClose() })
+    act(() => { emitDraftStart({ title: 'y', widgets: widgets() }) })
+    await act(async () => {
+      calls[0]()
+      await Promise.resolve()
+    })
+    stop()
+    expect(closes).toHaveBeenCalledTimes(1)
+    expect(store.get()?.kind).toBe('page')
+    // The new draft is applied next, by the same serialised loop — after the discarded one's
+    // objects are deleted, since the two may share names.
+    expect(live).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('what the loop applies, and what an edit may reach', () => {
+  const chart = { 'Chart.yaml': 'apiVersion: v2\nname: nginx-demo\nversion: 0.1.0\n', 'templates/cm.yaml': 'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: x\n', 'values.schema.json': '{"type":"object"}' }
+
+  it('never re-applies a CHART as if it were a page', async () => {
+    vi.useFakeTimers()
+    const store = createBlueprintDraftStore()
+    store.set(chart, 'blueprint')
+    const live = vi.fn(() => Promise.resolve())
+    const Hosted = () => {
+      useDraftFileBuses(store, { forget: vi.fn(), recordPreview: vi.fn() }, () => 'nginx-demo', live)
+      return null
+    }
+    render(<Hosted />)
+    act(() => { emitFileEdit({ content: 'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: y\n', kind: 'blueprint', path: 'templates/cm.yaml' }) })
+    await act(async () => { await vi.runAllTimersAsync() })
+    vi.useRealTimers()
+    expect(store.get()?.files['templates/cm.yaml']).toContain('name: y')
+    expect(live).not.toHaveBeenCalled()
+  })
+
+  it('refuses an edit made in a preview of the OTHER kind — Chart.yaml exists in both', () => {
+    const store = createBlueprintDraftStore()
+    const gate = { forget: vi.fn(), recordPreview: vi.fn() }
+    const Hosted = () => {
+      useDraftFileBuses(store, gate, () => 'page:x')
+      return null
+    }
+    render(<Hosted />)
+    act(() => { emitDraftStart({ title: 'x', widgets: widgets() }) })
+    const before = store.get()?.files['Chart.yaml']
+    gate.recordPreview.mockClear()
+    act(() => { emitFileEdit({ content: 'apiVersion: v2\nname: aws-vpc\n', kind: 'blueprint', path: 'Chart.yaml' }) })
+    expect(store.get()?.files['Chart.yaml']).toBe(before)
+    expect(gate.recordPreview).not.toHaveBeenCalled()
   })
 })

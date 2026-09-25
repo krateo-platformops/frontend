@@ -75,6 +75,8 @@ describe('previewBlueprint inline-draft mode (FE-B1)', () => {
     expect(body.chart).toBeUndefined()
     expect(openPreviewMock).toHaveBeenCalledTimes(1)
     const payload = openedPayload()
+    // An inline draft that rendered is the one blueprint preview the provider HOLDS.
+    expect(payload.builder).toBe('blueprint')
     expect(payload.title).toBe('Blueprint preview — pg-app')
     expect(payload.error).toBeUndefined()
     expect(payload.objects).toHaveLength(1)
@@ -120,6 +122,8 @@ describe('previewBlueprint inline-draft mode (FE-B1)', () => {
     expect(openPreviewMock).toHaveBeenCalledTimes(1)
     const payload = openedPayload()
     expect(payload.caption).toBe(DRAFT_REJECTED_CAPTION)
+    // Refused before any render, so nothing holds it — an inspection, whose Files are not editable.
+    expect(payload.builder).toBe('inspect')
     expect(payload.problems).toHaveLength(1)
     expect(payload.problems?.[0]).toContain('[CRDGEN-DEFAULTS]')
     expect(payload.problems?.[0]).toContain('properties.ingress.properties.hosts.default')
@@ -157,6 +161,8 @@ describe('previewBlueprint inline-draft mode (FE-B1)', () => {
     const chip = await previewBlueprintSpec.apply(asProposal({ rawTemplates: DRAFT }), makeDeps('http://render.local'))
     expect(openPreviewMock).toHaveBeenCalledTimes(1)
     const payload = openedPayload()
+    // Not held (the gate never arms on a failed render), so its Chart files must not be editable.
+    expect(payload.builder).toBe('inspect')
     expect(payload.error).toContain('function "boom" not defined')
     expect(payload.formSchema).toBeUndefined()
     // `previewFailed` is what stops the host arming the publish gate on a chart that does

@@ -21,12 +21,21 @@
  * Pure module: one CustomEvent name + a dispatch/subscribe pair. No React, no module state.
  */
 
+import type { DraftKind } from './blueprintDraftStore'
+
 export const AUTOPILOT_PREVIEW_FILE_EDIT_EVENT = 'autopilotPreviewFileEdited'
 
 /** The detail an accepted per-file drawer edit carries: which held file, and its new bytes. */
 export interface FileEditDetail {
   path: string
   content: string
+  /**
+   * WHICH KIND of draft the edited preview showed. A page set holds Chart.yaml, values.yaml and
+   * values.schema.json under the same names a chart does, so a path alone cannot tell the provider
+   * that an edit made in a chart's preview is about to land in a held PAGE. With this it can refuse.
+   * Optional so an emitter that predates it keeps working; the drawer and the composer both send it.
+   */
+  kind?: DraftKind
 }
 
 /** Emit an accepted per-file edit — the provider writes it into the held draft + re-arms the gate. */
