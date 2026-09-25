@@ -31,7 +31,7 @@ const makeDeps = (renderBaseUrl?: string): VerbDeps => ({
 })
 
 const asProposal = (extra: Record<string, unknown>): PortalActionProposal =>
-  ({ verb: 'previewBlueprint', ...extra } as PortalActionProposal)
+  ({ verb: 'previewBlueprint', ...extra })
 
 const openedPayload = (): AutopilotPreviewPayload => openPreviewMock.mock.calls[0][0]
 
@@ -131,6 +131,18 @@ describe('previewBlueprint inline-draft mode (FE-B1)', () => {
     expect(payload.formSchema).toBeUndefined()
     expect(payload.objects).toBeUndefined()
     expect(chip).toEqual({ label: 'preview pg-app (draft rejected)', readOnly: true, verb: 'previewBlueprint' })
+  })
+
+  it('an inline draft is linted AS A BLUEPRINT — a name that outgrew its version is refused BEFORE any fetch', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    // Kind 42: inside the budget at 0.1.0, one over it at 10.20.30 (41). A page would pass; this is not one.
+    const name = `a${'b'.repeat(41)}`
+    const bumped = { ...DRAFT, 'Chart.yaml': `apiVersion: v2\nname: ${name}\nversion: 10.20.30\n` }
+    const chip = await previewBlueprintSpec.apply(asProposal({ rawTemplates: bumped }), makeDeps('http://render.local'))
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(openedPayload().problems?.join('\n')).toContain('at version 10.20.30 the Kind (the name without dashes) can be at most 41 characters')
+    expect(chip?.label).toBe(`preview ${name} (draft rejected)`)
   })
 
   it('size-cap rejection: a draft over 512 KiB is refused BEFORE any fetch', async () => {

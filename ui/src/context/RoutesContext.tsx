@@ -5,6 +5,7 @@ import { useParams, type NonIndexRouteObject, type RouteObject } from 'react-rou
 import ShellRoute from '../components/Shell'
 import WidgetPage from '../components/WidgetPage'
 import Auth from '../pages/Auth/Auth'
+import BlueprintComposer from '../pages/BlueprintComposer'
 import Login from '../pages/Login'
 import Logout from '../pages/Logout'
 import PageComposer from '../pages/PageComposer'
@@ -57,6 +58,10 @@ const defaultRoutes: RouteObject[] = [
       // portal template, generated CRD and installer pin — for no gain, since nothing about it is
       // configurable from a CR. The `*` fallthrough below keeps every CR-driven page unaffected.
       { element: <PageComposer />, path: '/portal-builder/compose' },
+      // The Blueprint Builder's, for the same reasons: React, not widgetData, and nothing about it
+      // is configurable from a CR — a frontend image is the whole release. The entry CTA that links
+      // here lives on /blueprint-builder in the portal chart and ships after a tag carrying this.
+      { element: <BlueprintComposer />, path: '/blueprint-builder/compose' },
       { element: <WidgetPage />, path: '*' },
     ],
     element: <ShellRoute />,

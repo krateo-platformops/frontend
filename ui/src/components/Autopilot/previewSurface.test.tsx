@@ -20,7 +20,7 @@ vi.mock('./AutopilotProvider', () => ({ useAutopilot: () => ({ open: false }) })
 vi.mock('../../context/ThemeModeContext', () => ({ useThemeMode: () => ({ mode: 'light' }) }))
 
 import { buildPagePreviewPayload, buildRestDefPreviewPayload, toYamlString } from './previewBridge'
-import { openAutopilotPreview } from './previewBus'
+import { AUTOPILOT_PREVIEW_EVENT, openAutopilotPreview } from './previewBus'
 import { claimPreviewSurface, emitDraftChanged } from './previewDraftChanged'
 import { emitDraftClose } from './previewDraftClose'
 import { AUTOPILOT_PREVIEW_EDIT_EVENT, type RestDefEditDetail } from './previewEditBus'
@@ -237,6 +237,45 @@ describe('AutopilotPreviewDrawer — which previews a mounted page composer take
     expect(view.queryByText('Blueprint preview — nginx-demo')).toBeNull()
     act(() => { openAutopilotPreview({ summary: ['flex.page-x'], title: 'Page preview — x' }) })
     await waitFor(() => expect(view.getByText('Page preview — x')).toBeTruthy())
+    release()
+  })
+
+  it('a claim made while it is OPEN on the held draft closes it — only for that kind', async () => {
+    // Deferring the NEXT preview was half of it: a drawer already open on the held chart stayed
+    // open over the composer, and its one-shot Files tab wrote stale bytes over the composer's edits.
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ builder: 'blueprint', summary: ['nginx-demo'], title: 'Blueprint preview — nginx-demo' }) })
+    await waitFor(() => expect(view.getByText('Blueprint preview — nginx-demo')).toBeTruthy())
+    const releasePage = claimPreviewSurface('page')
+    expect(document.querySelector('.ant-drawer-open')).not.toBeNull()
+    releasePage()
+    let releaseBlueprint: () => void = () => undefined
+    act(() => { releaseBlueprint = claimPreviewSurface('blueprint') })
+    await waitFor(() => expect(document.querySelector('.ant-drawer-open')).toBeNull())
+    releaseBlueprint()
+  })
+
+  it('HANDS a live page render to the claiming composer — its sandbox teardown is not fired', async () => {
+    // The drawer's close of a live page preview DELETEs the sandbox draft CRs. Firing it on a claim
+    // meant opening the Portal Builder tore down the render the person was looking at, while the
+    // composer (which adopts only NEW previews) had none to show. The composer registers its preview
+    // listener in an effect AFTER the claim's, as this does.
+    const onClose = vi.fn()
+    const payload = { onClose, summary: ['flex.page-x'], title: 'Page preview — x' }
+    const adopted = vi.fn()
+    const adopt = (event: Event): void => { adopted((event as CustomEvent<unknown>).detail) }
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview(payload) })
+    await waitFor(() => expect(view.getByText('Page preview — x')).toBeTruthy())
+    let release: () => void = () => undefined
+    act(() => {
+      release = claimPreviewSurface('page')
+      window.addEventListener(AUTOPILOT_PREVIEW_EVENT, adopt)
+    })
+    await waitFor(() => expect(adopted).toHaveBeenCalledWith(payload))
+    expect(onClose).not.toHaveBeenCalled()
+    await waitFor(() => expect(document.querySelector('.ant-drawer-open')).toBeNull())
+    window.removeEventListener(AUTOPILOT_PREVIEW_EVENT, adopt)
     release()
   })
 

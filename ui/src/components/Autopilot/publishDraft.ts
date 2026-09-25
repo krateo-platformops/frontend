@@ -18,17 +18,22 @@
  * untouched: the model can still only ever get as far as a compiled set a person then confirms.
  */
 import type { Config } from '../../context/ConfigContext'
+import { publishNameProblem } from '../../pages/BlueprintComposer/chartIdentity'
 
 import type { PortalActionProposal } from './actionBridge'
+import type { ApplyResourceSetOp } from './applyResourceSet'
 import type { AuthorshipOrigin } from './authorship'
 import { lintBlueprintDraft } from './blueprintDraft'
 import { heldPublishFiles, type BlueprintDraftStore } from './blueprintDraftStore'
 import type { createBlueprintGate } from './blueprintGate'
 import { buildClaimPublish } from './builderClaimPublish'
+import type { PublishStatusClaim } from './builderPublishStatus'
 import { builderTemplateUrl, type useBuilderTargets } from './builderTargets'
 import { isPageDraft, pageCompositionDefinition, pageRootSlug } from './pageDraft'
+import type { PublishRequestDetail, PublishResultDetail } from './previewPublishRequest'
 import { heldDraftIdentity, type PublishCompileResult } from './publishCompile'
 import { askPublishDestination } from './publishTargetForm'
+import type { AutopilotActionChip } from './types'
 
 export interface PublishDraftDeps {
   blueprintGate: ReturnType<typeof createBlueprintGate>
@@ -86,9 +91,15 @@ export const runDraftPublish = async (
   // A draft that fails the chart lint is refused BY NAME, before anyone is asked where to send it.
   // Its gate is already disarmed (a dirty hand edit forgets the arming), but that refusal says
   // "preview first" — the wrong reason, since previewing again cannot help until the file is fixed.
-  const lintProblems = held ? lintBlueprintDraft(held.files) : []
+  const lintProblems = held ? lintBlueprintDraft(held.files, held.kind) : []
   if (lintProblems.length) {
     return { compiled: { denial: `denied — the draft fails the chart lint: ${lintProblems.join('; ')}`, ops: null }, deepLink: null }
+  }
+  // A valid chart can still be unpublishable: the claim is named for it, and core-provider refuses a
+  // long claim name at admission — the LAST step, after the person confirmed. Said here, first.
+  const claimProblem = slug ? publishNameProblem(slug) : null
+  if (claimProblem) {
+    return { compiled: { denial: `denied — "${slug}" cannot be published through the builder: ${claimProblem}. Rename it in Chart.yaml${isPage ? ' (a page set is named for its page slug)' : ''}.`, ops: null }, deepLink: null }
   }
   const dest = await askPublishDestination(proposal, builder, destRepo, bt.owner)
 
@@ -145,4 +156,48 @@ export const runDraftPublish = async (
     sourceUrl: isPage ? builderTemplateUrl(builderTargets.pageTemplate, config?.api.AUTOPILOT_GIT_HOST) : null,
   })
   return { compiled: res.compiled, deepLink: res.deepLink }
+}
+
+export interface PersonPublishDeps extends PublishDraftDeps {
+  /** The provider's `apply` of the compiled set, as a HUMAN write — it raises the blast-radius confirm. */
+  apply: (ops: ApplyResourceSetOp[]) => Promise<AutopilotActionChip | null>
+  /** Watch the claim's LocalResources in the rail. */
+  track: (claim: PublishStatusClaim) => void
+}
+
+/**
+ * A PERSON'S Publish, end to end — the composer's button, answered on the publish-result bus.
+ *
+ * The same `runDraftPublish` the agent's verb takes, then the same `apply`, which raises the
+ * blast-radius confirm: this proposes a write, a person answers it. Lifted out of the provider so
+ * the ANSWER can be tested, because the answer is what the composer believes.
+ *
+ * NO DENIAL MEANS WRITTEN. A composer reads `denial: null` as "published" and links the change
+ * request. The deep link is computed before anything is written, so it proves nothing; only the
+ * apply's own result does. A declined confirm (apply → null: nothing dispatched) and a refused
+ * claim (a chip carrying the apiserver's failure) are each a denial, with no link and no status
+ * watch — there is no claim to watch.
+ */
+export const runPersonPublish = async (
+  deps: PersonPublishDeps,
+  verb: PublishRequestDetail['verb'],
+): Promise<Omit<PublishResultDetail, 'id'>> => {
+  const { compiled, deepLink } = await runDraftPublish(deps, { label: 'Publish', verb })
+  if (compiled.denial !== null) {
+    return { deepLink: null, denial: compiled.denial }
+  }
+  if (!compiled.ops) {
+    return { deepLink: null, denial: 'Not published — nothing was compiled to write.' }
+  }
+  const applied = await deps.apply(compiled.ops)
+  if (!applied) {
+    // apply answers null for two reasons it cannot tell apart here — the person declined the
+    // confirm, or the set was refused before any write — and both mean the same thing to them.
+    return { deepLink: null, denial: 'Not published — nothing was written: the confirm was declined, or the write was refused before it was sent.' }
+  }
+  if (applied.failure) {
+    return { deepLink: null, denial: `Not published — the claim was refused: ${applied.failure}` }
+  }
+  if (compiled.claim) { deps.track(compiled.claim) }
+  return { deepLink, denial: null }
 }

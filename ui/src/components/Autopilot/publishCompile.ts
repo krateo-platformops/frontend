@@ -136,7 +136,8 @@ export const recordBlueprintPreview = (
   // code fence, while the drawer, which read the de-fenced tree, showed it as the held draft: its
   // Files tab then wrote by path into whatever WAS held.
   const tree = parseRawTemplates(rawTemplates)
-  if (!tree || previewFailed || lintBlueprintDraft(tree).length > 0) {
+  // Linted as the blueprint it is about to be held as (store.set below) — the kind is not in the files.
+  if (!tree || previewFailed || lintBlueprintDraft(tree, 'blueprint').length > 0) {
     return false
   }
   const replaced = heldDraftIdentity(store.get())

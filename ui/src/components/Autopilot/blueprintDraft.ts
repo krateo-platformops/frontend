@@ -23,7 +23,9 @@ import { load } from 'js-yaml'
 import type { JSONSchema4 } from 'json-schema'
 
 import { ARCHITECTURE_TEMPLATE_PATH, deriveStates, parseArchitecture, unwrapFromConfigMapTemplate } from '../../pages/BlueprintComposer/architecture'
+import { chartIdentityProblems, chartNameProblem } from '../../pages/BlueprintComposer/chartIdentity'
 
+import type { DraftKind } from './blueprintDraftStore'
 import { OAS_ATTACHMENT_MAX_BYTES, utf8ByteLength } from './oasAttachment'
 
 /** The draft file the lint and the form preview read. */
@@ -197,40 +199,73 @@ export const lintValuesSchemaDefaults = (schemaText: string): string[] => {
 }
 
 /**
- * Chart.yaml's `name:`, or null. ONE reader for the lint and for the identity the gate, the slug and
- * the destination are keyed on — two regex readers disagreed about `name: x # comment`, so the lint
- * passed a chart whose identity had silently fallen back to "draft chart"; a third regex missed a
- * name on the next line. It is YAML, so it is read as YAML — the way Helm reads it. Never throws:
- * this runs inside the draft broadcast, and an unreadable Chart.yaml is a missing name.
+ * One top-level Chart.yaml scalar, or null. It is YAML, so it is read as YAML — the way Helm reads
+ * it: two regex readers disagreed about `name: x # comment`, and a third missed a value on the next
+ * line. A number is read back as its string (`version: 1.0` is `1`, which the rule then refuses as
+ * the non-SemVer it is). Never throws: this runs inside the draft broadcast, and an unreadable
+ * Chart.yaml is a missing value.
  */
-export const chartYamlName = (chartYaml: string | undefined): string | null => {
+const chartYamlScalar = (chartYaml: string | undefined, key: 'name' | 'version'): string | null => {
   if (!chartYaml) {
     return null
   }
   try {
-    const doc = load(chartYaml) as { name?: unknown } | null
-    const name = typeof doc?.name === 'number' ? String(doc.name) : doc?.name
-    return typeof name === 'string' && name !== '' ? name : null
+    const doc = load(chartYaml) as Record<string, unknown> | null
+    const value = typeof doc?.[key] === 'number' ? String(doc[key]) : doc?.[key]
+    return typeof value === 'string' && value !== '' ? value : null
   } catch {
     return null
   }
 }
 
 /**
- * The chart NAME becomes the repository, the branch (`builder/<name>`), the claim, the OCI chart and
- * the generated Kind. A missing one used to fall back to "draft chart" — which is none of those — and
- * an invalid one fails at whichever of them checks first. So it must be a DNS-1123 label.
+ * Chart.yaml's `name:`, or null. ONE reader for the lint and for the identity the gate, the slug and
+ * the destination are keyed on — so the lint cannot pass a chart whose identity has silently fallen
+ * back to "draft chart".
  */
-const DNS_LABEL = /^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$/
-const lintChartName = (chartYaml: string): string[] => {
+export const chartYamlName = (chartYaml: string | undefined): string | null => chartYamlScalar(chartYaml, 'name')
+
+/** Chart.yaml's `version:`, or null — read exactly as the name is, because the rule reads them together. */
+export const chartYamlVersion = (chartYaml: string | undefined): string | null => chartYamlScalar(chartYaml, 'version')
+
+/**
+ * The chart's identity, by the kind of draft it is.
+ *
+ * EVERY chart name must be a DNS-1123 label: it becomes the repository, the branch
+ * (`builder/<name>`), the release and the claim. A missing one used to fall back to "draft chart",
+ * which is none of those.
+ *
+ * A BLUEPRINT is also held to the whole of chartIdentity's rule — the one Start runs — at the
+ * version Chart.yaml carries NOW: core-provider derives the Kind, the CRD and the controller
+ * container from name + version, and a release that lengthens the version can push a name that fit
+ * at Start past what Kubernetes accepts. Checked here, on every write, because that is the only place
+ * a bump is seen before a CompositionDefinition wedges on it. Only what fails on EVERY install is
+ * refused — the metrics Service's tighter budget is Start's advice, never a lint problem, or a real
+ * blueprint that deploys could not be previewed or published (chartIdentity's header).
+ *
+ * A PAGE set keeps the label check only. It IS registered by a CompositionDefinition too, but at
+ * publish time (pageCompositionDefinition) and against a Chart.yaml whose version is the
+ * CHART_VERSION placeholder the release stamps — there is no version to measure the budget at here,
+ * and the placeholder would be refused as non-SemVer on every page draft.
+ */
+const lintChartIdentity = (chartYaml: string, kind: DraftKind): string[] => {
   const name = chartYamlName(chartYaml)
   if (name === null) {
     return [`${CHART_YAML_PATH} has no name — it becomes the repository, the branch, the claim and the Kind.`]
   }
-  if (!DNS_LABEL.test(name)) {
-    return [`${CHART_YAML_PATH} name "${name}" is not a valid chart name — use lower-case letters, digits and hyphens (at most 63), starting and ending with a letter or digit.`]
+  if (kind === 'page') {
+    const problem = chartNameProblem(name)
+    return problem ? [`${CHART_YAML_PATH} name "${name}": ${problem}`] : []
   }
-  return []
+  const version = chartYamlVersion(chartYaml)
+  return chartIdentityProblems({ name, version: version ?? '' }).map((problem) => {
+    if (problem.field === 'name') {
+      return `${CHART_YAML_PATH} name "${name}": ${problem.message}`
+    }
+    return version === null
+      ? `${CHART_YAML_PATH} has no version — Helm refuses the chart, and core-provider derives the API version from it.`
+      : `${CHART_YAML_PATH} version "${version}": ${problem.message}`
+  })
 }
 
 /**
@@ -267,8 +302,14 @@ const lintDescriptor = (text: string | undefined): string[] => {
  * draft is refused whole — same posture as an over-cap OAS paste), then the FE-B2
  * crdgen-defaults lint of values.schema.json when the draft ships one. Empty = the
  * draft may be POSTed to the render service.
+ *
+ * `kind` is REQUIRED, with no default. The rules differ by kind (lintChartIdentity), and the files
+ * cannot say which kind they are: both carry a Chart.yaml and a values.schema.json now, which is
+ * why isPageDraft stopped sniffing the file set and reads the kind the store recorded. A default
+ * would apply one kind's rules to every caller that forgot the other; a required argument makes
+ * each caller say what it is linting.
  */
-export const lintBlueprintDraft = (rawTemplates: Record<string, string>): string[] => {
+export const lintBlueprintDraft = (rawTemplates: Record<string, string>, kind: DraftKind): string[] => {
   const bytes = rawTemplatesByteSize(rawTemplates)
   if (bytes > RAW_TEMPLATES_MAX_BYTES) {
     const kib = Math.ceil(bytes / 1024)
@@ -284,7 +325,7 @@ export const lintBlueprintDraft = (rawTemplates: Record<string, string>): string
   if (rawTemplates[CHART_YAML_PATH] === undefined) {
     problems.push(`${CHART_YAML_PATH} is missing — without it this is not a chart, and the publish gate reads the draft as a portal PAGE and refuses it for the wrong reason.`)
   } else {
-    problems.push(...lintChartName(rawTemplates[CHART_YAML_PATH]))
+    problems.push(...lintChartIdentity(rawTemplates[CHART_YAML_PATH], kind))
   }
   problems.push(...lintDescriptor(rawTemplates[ARCHITECTURE_TEMPLATE_PATH]))
 

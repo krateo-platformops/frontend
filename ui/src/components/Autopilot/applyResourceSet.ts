@@ -219,6 +219,21 @@ export interface ApplyResourceSetChip {
   verb: 'applyResourceSet'
   label: string
   readOnly: false
+  /**
+   * Why the set did not land — the first op the apiserver refused (or that never reached it).
+   * Absent when every op landed. DISPATCHED IS NOT LANDED: a chip without this field used to mean
+   * both, so a composer read a 403 on its BuilderPublish claim as "published".
+   */
+  failure?: string
+}
+
+/** The first refused op, in words: `HTTP 403 — …`, or the transport error when there was no response. */
+const failureOf = (results: readonly WriteOpResult[]): string | undefined => {
+  const failed = results.find((result) => !result.ok)
+  if (!failed) {
+    return undefined
+  }
+  return failed.status ? `HTTP ${failed.status} — ${failed.message}` : failed.message
 }
 
 /**
@@ -252,6 +267,9 @@ export const applyResourceSet = async (
   }
 
   const label = proposal.label ?? `apply ${ops.length} object${ops.length === 1 ? '' : 's'}`
+  // runRestSet stops at the first error, so a refused op is the last result — and every op after
+  // it was never sent. The chip says so, rather than reading as a set that landed.
+  const failure = failureOf(results)
 
-  return { label, readOnly: false, verb: 'applyResourceSet' }
+  return failure ? { failure, label, readOnly: false, verb: 'applyResourceSet' } : { label, readOnly: false, verb: 'applyResourceSet' }
 }

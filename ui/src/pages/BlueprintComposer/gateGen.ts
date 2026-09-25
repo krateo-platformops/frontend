@@ -51,7 +51,11 @@ export const renderGatePreamble = (node: ResourceNode, arch: ChartArchitecture, 
     if (!target) {
       return { ok: false, reason: `"${dep.ref}" is not a resource of this chart` }
     }
-    const nameExpr = names[target.id]
+    // Own keys only. A resource id is author text, and `names[id]` for `constructor`, `toString` …
+    // finds Object.prototype: a Function where the expression should be, which is truthy, so the
+    // missing name was not refused and the Function's source was spliced into the lookup. (Object.hasOwn
+    // is ES2022; this project's lib is ES2020 — the same call architecture.ts's levelOf makes.)
+    const nameExpr = Object.prototype.hasOwnProperty.call(names, target.id) ? names[target.id] : undefined
     if (!nameExpr) {
       return { ok: false, reason: `no name expression for "${target.id}"` }
     }

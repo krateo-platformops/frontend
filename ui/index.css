@@ -59,8 +59,13 @@ body {
  * at once; color-mix off --primary-color keeps it theme-adaptive (Sovereign #05629A light
  * / Krateo Blue #2FBFE6 dark). `danger` primaries map to color-dangerous, so destructive
  * buttons stay crimson untouched.
+ *
+ * NOT when disabled. This selector outranks antd's own `:disabled` rule, so without the :not() a
+ * disabled primary kept the full wash — the same fill, border and label as an enabled one, only the
+ * cursor differed — and "Publish is off" could not be seen. Excluded, antd's disabled style applies
+ * (the one every other disabled button shows).
  */
-.ant-btn.ant-btn-color-primary.ant-btn-variant-solid {
+.ant-btn.ant-btn-color-primary.ant-btn-variant-solid:not(:disabled, .ant-btn-disabled) {
   background: color-mix(in srgb, var(--primary-color) 14%, transparent);
   border-color: color-mix(in srgb, var(--primary-color) 40%, transparent);
   box-shadow: none;

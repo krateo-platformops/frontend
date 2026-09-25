@@ -33,8 +33,8 @@ import WidgetRenderer from '../WidgetRenderer'
 import type { DraftKind } from './blueprintDraftStore'
 import { DraftProblemsAlert } from './DraftProblemsAlert'
 import { parseFileEdit, parseRestDefEdit } from './previewBridge'
-import { AUTOPILOT_PREVIEW_EVENT, draftKindOfPayload, isHeldDraftPayload, isPageDraftPayload, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
-import { previewSurfaceClaimed } from './previewDraftChanged'
+import { AUTOPILOT_PREVIEW_EVENT, draftKindOfPayload, isHeldDraftPayload, isPageDraftPayload, openAutopilotPreview, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
+import { onPreviewSurfaceClaimed, previewSurfaceClaimed } from './previewDraftChanged'
 import { onDraftClose } from './previewDraftClose'
 import { emitRestDefEdit } from './previewEditBus'
 import { emitFileEdit } from './previewFileEdit'
@@ -176,6 +176,16 @@ const FileEditBlock = ({
 }) => {
   // The CURRENT held content (seeded from the payload; replaced by each accepted edit).
   const [current, setCurrent] = useState(content)
+  // …and by the HELD bytes when they change under it. A composer passes its live files, so an Undo,
+  // an agent's write or a start over the same path arrives here as a new `content` — and the block
+  // kept showing the bytes it was first mounted with, because the key is the path and the path had
+  // not changed. Adjusted during render (React's derived-state pattern), so no frame shows the old
+  // bytes; an edit in progress keeps its text, and its Apply compares against the new bytes.
+  const [seenContent, setSeenContent] = useState(content)
+  if (seenContent !== content) {
+    setSeenContent(content)
+    setCurrent(content)
+  }
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(content)
   const [error, setError] = useState<string | null>(null)
@@ -193,10 +203,17 @@ const FileEditBlock = ({
       setError(result.problems[0] ?? 'the edit could not be applied')
       return
     }
+    // The PROVIDER decides whether it is held — the byte cap, a path it does not hold. Refused: said
+    // here, the editor stays open on the person's text, and the block goes on showing the held bytes
+    // (the ones a publish commits). No answer at all (no provider) keeps the old optimistic show.
+    const outcome = emitFileEdit({ content: result.content, kind, path })
+    if (outcome && !outcome.ok) {
+      setError(outcome.error)
+      return
+    }
     setCurrent(result.content)
     setError(null)
     setEditing(false)
-    emitFileEdit({ content: result.content, kind, path })
   }
 
   return (
@@ -262,7 +279,7 @@ const FileEditBlock = ({
  */
 const fileAnchorId = (path: string): string => `preview-file-${path.replace(/[^a-zA-Z0-9]+/g, '-')}`
 
-export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, onVerdicts, payload }: {
+export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, hideDraftProblems, liveFiles, onVerdicts, payload }: {
   /**
    * OVERRIDES the payload's own caption, for a surface that is not the drawer.
    *
@@ -289,6 +306,21 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, on
    * has no tree, and passes nothing.
    */
   focusPath?: string | null
+  /**
+   * A new value is a new REQUEST to reveal `focusPath`, even the same path again. The reveal is keyed
+   * on the path, and asking for the file you asked for last — the Template link after switching to
+   * Source, the node clicked a second time — changed nothing React could see, so nothing happened.
+   * A surface that re-reveals on request bumps this with each one; the drawer and the page composer
+   * pass nothing and keep reveal-on-change.
+   */
+  focusNonce?: number
+  /**
+   * The surface shows the held draft's lint problems itself, above this component — so this one
+   * does not repeat them. The Blueprint Composer puts them under its header, beside the Publish
+   * they disable; a second copy below the canvas would say the same thing twice. Absent (the
+   * drawer, the page composer): shown here, as before.
+   */
+  hideDraftProblems?: boolean
   /**
    * THE DRAFT AS IT IS NOW, when the surface showing it has one.
    *
@@ -443,21 +475,26 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, on
   // Suffix match, because the tree speaks HELD KEYS and this list shows routed repo destinations.
   // A node with no file of its own — a placed EXISTING widget — matches nothing and is left alone
   // rather than scrolling somewhere arbitrary.
-  const focusedFile = focusPath
-    ? shownFiles?.find((file) => file.path === focusPath || file.path.endsWith(`/${focusPath}`))
+  //
+  // Keyed on the matched PATH, a string, not on the file entry: with `liveFiles` the entries are
+  // rebuilt on every render, so an effect keyed on the entry ran on every render — and switched
+  // back to Files each time. With a node selected, clicking Source re-rendered, and the effect put
+  // Files back: Source could not be opened at all until the selection was cleared.
+  const focusedPath = focusPath
+    ? shownFiles?.find((file) => file.path === focusPath || file.path.endsWith(`/${focusPath}`))?.path
     : undefined
   useEffect(() => {
-    if (!focusedFile) {
+    if (!focusedPath) {
       return
     }
     setActiveTab('files')
     // Next frame: the Files tab may have just been mounted by the line above, and an unmounted
     // node has nothing to scroll to.
     const frame = requestAnimationFrame(() => {
-      document.getElementById(fileAnchorId(focusedFile.path))?.scrollIntoView({ block: 'nearest' })
+      document.getElementById(fileAnchorId(focusedPath))?.scrollIntoView({ block: 'nearest' })
     })
     return () => cancelAnimationFrame(frame)
-  }, [focusedFile])
+  }, [focusedPath, focusNonce])
 
   const tabs = [
     ...(payload.liveEndpoint
@@ -471,7 +508,7 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, on
 
   return (
     <div className={styles.body}>
-      {heldDraft ? <DraftProblemsAlert /> : null}
+      {heldDraft && !hideDraftProblems ? <DraftProblemsAlert /> : null}
       {(caption ?? payload.caption)
         ? <Typography.Paragraph type='secondary'>{caption ?? payload.caption}</Typography.Paragraph>
         : null}
@@ -541,6 +578,28 @@ export const AutopilotPreviewDrawer = () => {
 
   // A draft discarded elsewhere — the composer's Discard — takes its preview with it.
   useEffect(() => onDraftClose(dropHeld), [dropHeld])
+
+  // A composer of the held draft's kind mounted while this was open on it: the draft has one
+  // surface, and it is the composer now (see claimPreviewSurface). Anything else shown here — an
+  // inspection, the other kind — stays.
+  //
+  // HANDED OVER, NOT DROPPED. Dropping fired the payload's close, and for a live page render that
+  // close is the sandbox teardown: opening the Portal Builder deleted the draft CRs the person was
+  // looking at, and the composer — which adopts only NEW previews — fell back to a render-less held
+  // view. So the drawer shuts WITHOUT the close and re-announces the payload for the composer to
+  // adopt, render and close together. A microtask, because the claim is made in the composer's
+  // first mount effect and its preview listener is registered by a later one; React runs a commit's
+  // effects in one pass, so by then it is listening. The re-announce comes back here too, is
+  // deferred to the claim, and finds nothing held to drop. If nothing adopts it, nothing leaks: a
+  // discard tears the sandbox down regardless, and the next apply sweeps what the last one made.
+  useEffect(() => onPreviewSurfaceClaimed((kind) => {
+    const shown = heldShown.current
+    if (shown && draftKindOfPayload(shown) === kind) {
+      heldShown.current = null
+      setOpen(false)
+      queueMicrotask(() => openAutopilotPreview(shown))
+    }
+  }), [])
 
   if (!payload) {
     return null

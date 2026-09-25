@@ -111,12 +111,36 @@ export const onDraftReplayRequest = (handler: () => void): (() => void) => {
  */
 const composerMounted: Record<DraftKind, number> = { blueprint: 0, page: 0 }
 
+/**
+ * A CLAIM IS ANNOUNCED, not only recorded. Deferring the NEXT preview is half of "one surface per
+ * draft": a drawer ALREADY OPEN on the held draft — the agent previewed the chart on another route,
+ * then the person navigated to the composer — stayed open over it, and its Files tab, seeded from the
+ * one-shot payload, wrote its stale bytes over whatever the person had since edited in the composer.
+ * So a claim tells the drawer, which hands a held draft of that kind to the composer: it shuts without
+ * firing the payload's close (for a live page render, the sandbox teardown) and re-announces the
+ * payload, so the composer adopts the render and owns its close from then on.
+ */
+export const AUTOPILOT_PREVIEW_CLAIMED_EVENT = 'autopilotPreviewSurfaceClaimed'
+
 /** Claim the preview surface for `kind` for as long as that composer is mounted. Returns the release fn. */
 export const claimPreviewSurface = (kind: DraftKind): (() => void) => {
   composerMounted[kind] += 1
+  window.dispatchEvent(new CustomEvent<DraftKind>(AUTOPILOT_PREVIEW_CLAIMED_EVENT, { detail: kind }))
   return () => {
     composerMounted[kind] = Math.max(0, composerMounted[kind] - 1)
   }
+}
+
+/** The drawer's side: hear each claim, by kind. Returns the unsubscribe fn. */
+export const onPreviewSurfaceClaimed = (handler: (kind: DraftKind) => void): (() => void) => {
+  const listener = (event: Event): void => {
+    const { detail } = event as CustomEvent<DraftKind>
+    if (detail === 'page' || detail === 'blueprint') {
+      handler(detail)
+    }
+  }
+  window.addEventListener(AUTOPILOT_PREVIEW_CLAIMED_EVENT, listener)
+  return () => window.removeEventListener(AUTOPILOT_PREVIEW_CLAIMED_EVENT, listener)
 }
 
 /** True while a mounted composer owns incoming previews of `kind` — the drawer defers those to it. */

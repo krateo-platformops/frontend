@@ -1,0 +1,379 @@
+/* Blueprint Composer — a chart, its architecture graph, the machine that graph derives, and the
+   files a publish commits. Mockup screens 2, 3, 5, 8 and 9.
+
+   TOKENS ONLY, and the mockup's own names map onto them one for one: --panel is --panelbg-color,
+   --elev is --light-color, --border is --border-color, --line is --line-color, every status hue is
+   its palette key, and the soft tints are the canonical --krateo-* subtle/selected roles (the
+   same values as the palette's camelCase *Soft keys, under names stylelint accepts). All of them
+   are emitted per mode by cssVariables(), so light (Clean) and dark (Glass) both come from this
+   one file — there is no dark block because nothing here names a colour a mode does not supply.
+   The Architecture pane's own rules are in ArchitectureCanvas.module.css. */
+
+/* The page: one screen tall, the header fixed and the work area below it scrolling. `container-type`
+   for the same reason as the Page Composer: the width is set by the Autopilot rail, not the
+   viewport, so the two columns wrap on the space they actually have and no sixth breakpoint is
+   invented (T6). */
+.page {
+  box-sizing: border-box;
+  container-name: blueprint-composer;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: var(--spacing-md);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* C17 — the micro-label idiom: mono, uppercase, 0.08em. The eyebrow above every title here. */
+.eyebrow {
+  color: var(--gray-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-sm);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.titleRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-smd);
+}
+
+.titleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxs);
+  min-width: 0;
+}
+
+.title {
+  color: var(--text-color);
+  font-size: var(--krateo-text-h3);
+  font-weight: var(--font-weight-bolder);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The page title when no chart is open — the composer's own name, a step up the scale (screen 2). */
+.pageTitle {
+  color: var(--text-color);
+  font-size: var(--krateo-text-h2);
+  font-weight: var(--font-weight-bolder);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin: 0;
+}
+
+/* Version and Kind beside the chart name: data, so mono (T3's data face). A real space precedes it —
+   the heading's accessible name ran "builder-publish0.1.0" together over a margin-only gap — and at
+   the title's 22px that space is about 6px, so the margin keeps the rest of the old 8px gap. */
+.titleMeta {
+  color: var(--gray-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-caption);
+  font-weight: var(--font-weight-light);
+  letter-spacing: 0;
+  margin-inline-start: var(--spacing-xxs);
+}
+
+.subtitle {
+  color: var(--gray-color);
+  font-size: var(--krateo-text-body-sm);
+  margin: 0;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+/* A COUNT, not a status: neutral, mono, no dot. "9 files" is a fact about the draft, and there is
+   no cap to measure it against (frontend#367) — so nothing about it may read as a warning. */
+.countPill {
+  align-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-sizing: border-box;
+  color: var(--gray-color);
+  display: inline-flex;
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+  height: 20px;
+  letter-spacing: 0.06em;
+  padding: 0 var(--spacing-sm);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* What the Publish tooltip hangs on — a disabled button fires no pointer events of its own. */
+.tooltipAnchor {
+  display: inline-flex;
+}
+
+/* Read aloud, never drawn: why Publish is off, for a reader that cannot hover a tooltip. */
+.srOnly {
+  border: 0;
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/* THE WORK AREA: the canvas column and the side column. Wraps when there is no room for both,
+   canvas first, rather than squeezing a 156px-card graph into what is left — and then scrolls as
+   one. Wide enough for both, each column scrolls itself (below). */
+.body {
+  align-items: flex-start;
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.centre {
+  display: flex;
+  flex: 1 1 520px;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  min-width: 0;
+}
+
+.side {
+  display: flex;
+  flex: 0 1 300px;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  min-width: 260px;
+}
+
+.pane {
+  background: var(--panelbg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.paneHead {
+  align-items: center;
+  border-bottom: 1px solid var(--line-color);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-smd);
+}
+
+.paneTitle {
+  color: var(--text-color);
+  font-size: var(--krateo-text-body-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+/* Chart files | Source, under the canvas. Its own scroller when the columns stand side by side. */
+.filesPane {
+  min-height: 0;
+}
+
+/* The files and the render, under the canvas: they are views of what the canvas describes. */
+.paneFoot {
+  border-top: 1px solid var(--line-color);
+  padding: var(--spacing-sm) var(--spacing-smd);
+}
+
+/* ── The side panels: the state, the node, the create form ──────────────────────────────────── */
+
+.section {
+  color: var(--text-color);
+  display: flex;
+  flex-direction: column;
+  font-size: var(--krateo-text-body-sm);
+  gap: var(--spacing-smd);
+  padding: var(--spacing-smd);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxs);
+  min-width: 0;
+}
+
+.fieldValue {
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-caption);
+  overflow-wrap: anywhere;
+}
+
+.fieldText {
+  color: var(--gray-color);
+  font-size: var(--krateo-text-caption);
+}
+
+.plainList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.note {
+  border: 1px solid var(--line-color);
+  border-radius: var(--radius-md);
+  color: var(--gray-color);
+  font-size: var(--krateo-text-caption);
+  margin: 0;
+  padding: var(--spacing-smd);
+}
+
+.dashedNote {
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--faint-color);
+  font-size: var(--krateo-text-caption);
+  margin: 0;
+  padding: var(--spacing-md);
+  text-align: center;
+}
+
+/* A path you can open: mono, the link colour, and a real button underneath. */
+.pathLink {
+  background: none;
+  border: 0;
+  color: var(--krateo-color-text-link);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-caption);
+  overflow-wrap: anywhere;
+  padding: 0;
+  text-align: start;
+}
+
+.pathLink:hover {
+  color: var(--krateo-color-text-link-hover);
+  text-decoration: underline;
+}
+
+/* ── The Start modal (screen 2) ──────────────────────────────────────────────────────────────── */
+
+.modalHeading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxs);
+}
+
+.modalTitle {
+  color: var(--text-color);
+  font-size: var(--krateo-text-h4);
+  font-weight: var(--font-weight-bold);
+}
+
+.fieldRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+
+.fieldRow > :first-child {
+  flex: 1 1 120px;
+}
+
+.fieldRow > :last-child {
+  flex: 2 1 220px;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.derivedList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-block-end: var(--spacing-md);
+}
+
+/* A derivation, not an input: dashed, on the page ground, so it cannot be mistaken for a field. */
+.derived {
+  align-items: center;
+  background: var(--background-color);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-smd);
+}
+
+.derivedLabel {
+  color: var(--gray-color);
+  font-size: var(--krateo-text-body-sm);
+}
+
+.derivedValue {
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-body-sm);
+  overflow-wrap: anywhere;
+}
+
+/* The one reassurance the Start modal gives, on the info tint rather than a status colour. */
+.infoNote {
+  background: var(--krateo-color-background-selected);
+  border-radius: var(--radius-md);
+  color: var(--text-color);
+  display: flex;
+  font-size: var(--krateo-text-body-sm);
+  gap: var(--spacing-smd);
+  margin: 0;
+  padding: var(--spacing-smd);
+}
+
+/*
+ * WIDE ENOUGH FOR BOTH COLUMNS: stop wrapping and give each its own scrollbar, so the canvas never
+ * leaves the screen. Selecting a node reveals its template in Chart files; with one page-wide
+ * scroller that reveal scrolled the canvas and the inspector away from the person who had just
+ * clicked in them. Now it scrolls the files pane alone. The width is the two columns' bases (520 +
+ * 300), the gap and the page padding, rounded up — not a number chosen to look like a breakpoint.
+ */
+@container blueprint-composer (min-width: 900px) {
+  .body {
+    align-items: stretch;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .centre,
+  .side {
+    min-height: 0;
+  }
+
+  .side {
+    overflow-y: auto;
+  }
+
+  .centre > .filesPane {
+    flex: 1 1 auto;
+    overflow-y: auto;
+  }
+}

@@ -265,6 +265,24 @@ size: [400, 150]                                          // the key keeps the i
 
 Generalises past this widget: a node size must fit its container — the old `[300,140]` was sized against a 400px card — and a layout gap must exceed what the edge style needs to route through it.
 
+**Where it lives now (C24).** The edge shape, layout, ports and viewport are defined once, in
+`ui/src/components/DependencyGraph/graphConfig.ts`, and drawn by `DependencyGraph`, which both
+`FlowChart` and the Blueprint Composer's architecture graph render through. The node `size` stays
+beside each card, because it is the card's geometry. A caller that knows each node's level passes a
+per-edge `minlen`, because dagre's own ranks are not levels (a root feeding only a level-2 node lands
+in column 1).
+
+**Highlighting is an element state, never new data.** A graph whose elements change look while
+its shape stays put — the Blueprint Composer's state stepper lights, dims and selects — does it with
+G6 element states: the states an element starts in travel in its data (`GraphNode.states`,
+`GraphEdge.states`), and a change is `setElementState` on the live graph through `graphRef`, which G6
+draws where the elements stand. Handing the graph new nodes instead is a full dagre pass and an
+`autoFit` — the person's pan and zoom thrown away on every click. A React card has no G6 shape
+style to change, so `renderNode` receives the node's CURRENT `states` and the card draws them
+itself; an edge's look per state is `edgeStates` (width and opacity only — colours stay the
+palette's, so a theme flip cannot strand a state in the old mode). A graph that sets no states
+passes neither, and gets exactly the C19 object.
+
 *Evidence: #192 — verified on `origin/main`*
 
 ### C20 — `Table` — `fitContent` is an explicit choice between two opposite behaviours.

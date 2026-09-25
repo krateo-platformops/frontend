@@ -285,10 +285,21 @@ Someone will ask: *can I do everything the agent can, without the agent?*
 | Compositions, blueprints, marketplace, alerts, incidents, clusters | **yes** — gated buttons and forms |
 | Portal Builder (pages) | **yes** — Compose-a-page form → *Publish page* |
 | Controller Builder (APIs) | **yes** — paste OAS + define controller cards |
-| **Blueprint Builder (charts)** | **no** — header, Ask-Autopilot CTA, read-only table only |
+| **Blueprint Builder (charts)** | **no**, in the deployed chart — header, Ask-Autopilot CTA, read-only table only; the composer below is built, not yet released |
+
+**What is built but not yet deployed** (frontend source, no tag carries it yet): the Blueprint
+composer at `/blueprint-builder/compose`. A person can start a chart (the generated Kind and API
+version shown as the name is typed), see its architecture file drawn as a dependency graph, step
+the states that graph derives, inspect each resource read-only, preview it (the lint, then the real
+helm render), and publish it through the same destination form and confirm the agent's publish
+uses. What it cannot do yet is place resources or draw edges by hand: a resource is added by
+editing `templates/architecture.yaml` in Chart files, or by asking Autopilot. The palette, in-place
+node editing and generated `lookup` gates are the next stage, and the `/blueprint-builder` entry
+link ships with the portal chart after a frontend tag carries the route.
 
 So: *"Pages and controllers you can author and publish by hand today. Blueprint authoring is
-still agent-first, and closing that is in flight."* That is true, checkable, and much better
+still agent-first in the deployed portal; the composer that closes it is built and on its way,
+and adding resources to it by hand comes next."* That is true, checkable, and much better
 than claiming total parity.
 
 ---

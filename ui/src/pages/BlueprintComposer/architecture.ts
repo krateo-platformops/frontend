@@ -74,6 +74,62 @@ const CLASSES: ResourceClass[] = ['native', 'custom', 'composition']
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
+/**
+ * The one id refused for its spelling. Ids key records here and in every consumer to come, and
+ * `obj['__proto__'] = x` does not add a key — it tries to swap the object's prototype — so a
+ * resource named that would silently vanish from any plain-object index. The code in this
+ * directory survives it (deriveStates builds with a Map, `levelOf` reads own keys only); the next
+ * consumer might not, and no chart needs the name. The other Object.prototype names (`constructor`,
+ * `toString` …) are ordinary ids and must work: `levelOf` is what makes them.
+ */
+const RESERVED_ID = '__proto__'
+
+/**
+ * `when`, `forEach` and `readyWhen` are PATHS, written bare. The descriptor is itself a Helm
+ * template, so an author reaching for `{{ .Values.x }}` gets one of two wrong things: unquoted, YAML
+ * reads the braces as a flow mapping and the field silently becomes an object; quoted, Helm renders
+ * the VALUE into the ConfigMap and the detail page reads `true` where it expected a path. Both are
+ * refused with the same message, for an agent and a person alike.
+ */
+const PATH_FIELDS: Record<'when' | 'forEach' | 'readyWhen', string> = {
+  forEach: 'a bare path, e.g. .Values.files',
+  readyWhen: 'a bare jq path over the live object, e.g. .status.ready',
+  when: 'a bare path, e.g. .Values.a.b',
+}
+
+const pathProblem = (value: unknown, expected: string): string | null => {
+  if (value === undefined) { return null }
+  if (typeof value !== 'string' || value.includes('{{')) {
+    return `must be ${expected} — the descriptor takes only bare paths such as .Values.a.b, never a Helm action ({{ … }})`
+  }
+  return null
+}
+
+/** Faults inside one resource's own fields that do not need the other resources to judge. */
+const fieldProblems = (entry: Record<string, unknown>, at: string): ArchitectureProblem[] => {
+  const problems: ArchitectureProblem[] = []
+  for (const [field, expected] of Object.entries(PATH_FIELDS)) {
+    const message = pathProblem(entry[field], expected)
+    if (message) { problems.push({ message, path: `${at}.${field}` }) }
+  }
+  if (Array.isArray(entry.dependsOn)) {
+    const firstAt = new Map<string, number>()
+    entry.dependsOn.forEach((dep, depIdx) => {
+      if (!isRecord(dep) || typeof dep.ref !== 'string') { return }
+      const message = pathProblem(dep.when, PATH_FIELDS.when)
+      if (message) { problems.push({ message, path: `${at}.dependsOn[${depIdx}].when` }) }
+      // One edge per dependency: a repeat is either a mistake or a second, conflicting `ready`.
+      const first = firstAt.get(dep.ref)
+      if (first !== undefined) {
+        problems.push({ message: `"${dep.ref}" is already listed at dependsOn[${first}] — one entry per dependency`, path: `${at}.dependsOn[${depIdx}]` })
+      } else {
+        firstAt.set(dep.ref, depIdx)
+      }
+    })
+  }
+  return problems
+}
+
 /** Parse the descriptor text. Every structural fault is reported by path; nothing is guessed. */
 export const parseArchitecture = (text: string): ParseResult => {
   let raw: unknown
@@ -101,6 +157,9 @@ export const parseArchitecture = (text: string): ParseResult => {
   }
   const ids = new Set<string>()
   const resources: ResourceNode[] = []
+  // Each kept resource's index in the RAW list, so a path still names the right entry when a
+  // malformed one before it was skipped.
+  const positions: number[] = []
   raw.resources.forEach((entry, idx) => {
     const at = `resources[${idx}]`
     if (!isRecord(entry)) {
@@ -119,6 +178,9 @@ export const parseArchitecture = (text: string): ParseResult => {
       if (ids.has(entry.id)) {
         problems.push({ message: `duplicate id "${entry.id}"`, path: `${at}.id` })
       }
+      if (entry.id === RESERVED_ID) {
+        problems.push({ message: `"${RESERVED_ID}" is reserved — any other name`, path: `${at}.id` })
+      }
       ids.add(entry.id)
     }
     if (entry.dependsOn !== undefined) {
@@ -135,16 +197,25 @@ export const parseArchitecture = (text: string): ParseResult => {
     if (entry.lifecycle !== undefined && entry.lifecycle !== 'shim' && entry.lifecycle !== 'descriptor') {
       problems.push({ message: 'shim | descriptor', path: `${at}.lifecycle` })
     }
+    problems.push(...fieldProblems(entry, at))
     resources.push(entry as unknown as ResourceNode)
+    positions.push(idx)
   })
   // A ref must name a node — and `ready: true` onto a node with no readiness is a promise with
   // nothing to check, so it is refused here rather than discovered as a gate that never opens.
-  for (const node of resources) {
-    for (const [depIdx, dep] of (node.dependsOn ?? []).entries()) {
+  for (const [nodeIdx, node] of resources.entries()) {
+    const deps: unknown[] = Array.isArray(node.dependsOn) ? node.dependsOn : []
+    for (const [depIdx, dep] of deps.entries()) {
+      // Not a mapping with a ref: already reported above as "needs a ref" — and not safe to read.
+      if (!isRecord(dep) || typeof dep.ref !== 'string') { continue }
       const target = resources.find((candidate) => candidate.id === dep.ref)
-      const at = `resources[${resources.indexOf(node)}].dependsOn[${depIdx}]`
+      const at = `resources[${positions[nodeIdx]}].dependsOn[${depIdx}]`
       if (!target) {
         problems.push({ message: `"${dep.ref}" is not a resource of this chart`, path: at })
+      } else if (target.lifecycle && target !== node) {
+        // A lifecycle node is outside the sequence (deriveStates skips it), so an edge onto it
+        // would order nothing while reading as if it did.
+        problems.push({ message: `"${dep.ref}" is lifecycle: ${target.lifecycle} — orthogonal to the sequence, so nothing can wait on it`, path: at })
       } else if (dep.ready && !target.readyWhen && target.class === 'custom') {
         problems.push({ message: `ready: true needs a readyWhen on "${dep.ref}" — a custom resource has no default`, path: at })
       }
@@ -216,6 +287,15 @@ export type DeriveResult =
   | { ok: true; states: DerivedState[]; levels: Record<string, number> }
   | { ok: false; cycle: string[] }
 
+/**
+ * A resource's derived level, or undefined when it has none (orthogonal, unknown, or the graph has
+ * a cycle). Read `levels` through this, never `levels[id]` or `id in levels`: a resource id is
+ * author text, and for `constructor`, `toString`, `valueOf` … both of those find Object.prototype —
+ * a Function where a level should be, which turned a level into NaN and emptied every state.
+ */
+export const levelOf = (levels: Record<string, number>, id: string): number | undefined =>
+  (Object.prototype.hasOwnProperty.call(levels, id) ? levels[id] : undefined)
+
 /** Nodes that take part in the sequence: shims and the descriptor itself are orthogonal to it. */
 const sequenced = (arch: ChartArchitecture): ResourceNode[] => arch.resources.filter((node) => !node.lifecycle)
 
@@ -227,10 +307,12 @@ const sequenced = (arch: ChartArchitecture): ResourceNode[] => arch.resources.fi
 export const deriveStates = (arch: ChartArchitecture): DeriveResult => {
   const nodes = sequenced(arch)
   const byId = new Map(nodes.map((node) => [node.id, node]))
-  const levels: Record<string, number> = {}
+  // A Map while computing: see `levelOf` for what an object index does with `constructor`.
+  const levels = new Map<string, number>()
+  const levelAt = (id: string): number => levels.get(id) ?? 0
   const visiting = new Set<string>()
   const visit = (id: string, trail: string[]): string[] | null => {
-    if (id in levels) { return null }
+    if (levels.has(id)) { return null }
     if (visiting.has(id)) { return [...trail, id] }
     visiting.add(id)
     const node = byId.get(id)
@@ -239,10 +321,10 @@ export const deriveStates = (arch: ChartArchitecture): DeriveResult => {
       if (!byId.has(dep.ref)) { continue }
       const cycle = visit(dep.ref, [...trail, id])
       if (cycle) { return cycle }
-      level = Math.max(level, levels[dep.ref] + 1)
+      level = Math.max(level, levelAt(dep.ref) + 1)
     }
     visiting.delete(id)
-    levels[id] = level
+    levels.set(id, level)
     return null
   }
   for (const node of nodes) {
@@ -252,20 +334,28 @@ export const deriveStates = (arch: ChartArchitecture): DeriveResult => {
       return { cycle: cycle.slice(start), ok: false }
     }
   }
-  const max = nodes.length ? Math.max(...Object.values(levels)) : -1
+  const max = nodes.length ? Math.max(...levels.values()) : -1
   const states: DerivedState[] = []
   for (let level = 0; level <= max; level += 1) {
-    const renders = nodes.filter((node) => levels[node.id] <= level).map((node) => node.id)
-    const withheld = nodes.filter((node) => levels[node.id] > level).map((node) => node.id)
+    const renders = nodes.filter((node) => levelAt(node.id) <= level).map((node) => node.id)
+    const withheld = nodes.filter((node) => levelAt(node.id) > level).map((node) => node.id)
     states.push({ level, name: arch.states?.[level]?.name || `level-${level}`, renders, withheld })
   }
-  return { levels, ok: true, states }
+  // A plain record for callers (and toEqual). fromEntries DEFINES each key, so even an id that
+  // assignment would mishandle lands as an own key; read it back with `levelOf`.
+  return { levels: Object.fromEntries(levels), ok: true, states }
 }
 
 /**
  * The template that carries the descriptor into the cluster: a ConfigMap per composition. The
  * block is indented verbatim, so `.Values` references inside it render with the composition's own
  * values — that is what "stored in the chart, retrieved when deployed" means in practice.
+ *
+ * The label value is QUOTED. Kubernetes decodes manifests as YAML 1.1, where a bare `on`, `yes`,
+ * `n`, `true` or `null` is a bool or null, not a string — and a label value that is not a string
+ * fails the apply. Those are all valid chart names, so the value is written as a JSON string
+ * (a YAML double-quoted scalar). Unwrapping never read the label, so templates written before the
+ * quoting unwrap unchanged.
  */
 export const wrapAsConfigMapTemplate = (descriptor: string, chart: string): string => {
   const body = descriptor.trimEnd().split('\n').map((line) => `    ${line}`)
@@ -279,7 +369,7 @@ export const wrapAsConfigMapTemplate = (descriptor: string, chart: string): stri
     '  name: {{ printf "%s-architecture" .Release.Name | trunc 63 | trimSuffix "-" }}',
     '  namespace: {{ .Release.Namespace }}',
     '  labels:',
-    `    krateo.io/architecture: ${chart}`,
+    `    krateo.io/architecture: ${JSON.stringify(chart)}`,
     'data:',
     '  architecture: |',
     body,

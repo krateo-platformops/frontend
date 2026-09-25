@@ -5,10 +5,16 @@
  * read "preview first": the wrong reason, because previewing again cannot help until the file is
  * fixed. The person was also asked for a destination for a chart that could never be sent.
  */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+// Past the lint a publish builds the claim; nothing here is about the claim, so it only answers.
+vi.mock('./builderClaimPublish', () => ({
+  buildClaimPublish: vi.fn(() => Promise.resolve({ compiled: { denial: null, ops: [] }, deepLink: null })),
+}))
 
 import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from './blueprintDraft'
 import { createBlueprintDraftStore } from './blueprintDraftStore'
+import { pageChartYaml } from './pageDraft'
 import { runDraftPublish, type PublishDraftDeps } from './publishDraft'
 
 const deps = (store: ReturnType<typeof createBlueprintDraftStore>): PublishDraftDeps => ({
@@ -40,6 +46,17 @@ describe('runDraftPublish — the verb must match what is held', () => {
   })
 })
 
+describe('runDraftPublish — a valid chart its publish claim cannot carry', () => {
+  it('is denied BY NAME before the destination is asked — not refused by admission at the last step', async () => {
+    const store = createBlueprintDraftStore()
+    const name = `a${'b'.repeat(36)}`
+    store.set({ [CHART_YAML_PATH]: `apiVersion: v2\nname: ${name}\nversion: 0.1.0\n`, [VALUES_SCHEMA_PATH]: '{"type":"object"}' }, 'blueprint')
+    const outcome = await runDraftPublish(deps(store), { verb: 'publishBlueprint' })
+    expect(outcome.compiled.ops).toBeNull()
+    expect(outcome.compiled.denial).toMatch(new RegExp(`^denied — "${name}" cannot be published through the builder: at most 36 characters to publish`))
+  })
+})
+
 describe('runDraftPublish — a lint-dirty draft', () => {
   it('is denied with the lint problems, not "preview first"', async () => {
     const store = createBlueprintDraftStore()
@@ -58,5 +75,27 @@ describe('runDraftPublish — a lint-dirty draft', () => {
     store.set({ [CHART_YAML_PATH]: 'apiVersion: v2\nname: page-x\n', 'templates/flex.page-x.yaml': 'kind: Flex\n' }, 'page')
     const outcome = await runDraftPublish(deps(store), { verb: 'publishPage' })
     expect(outcome.compiled.denial).toMatch(/values\.schema\.json is missing/)
+  })
+})
+
+describe('runDraftPublish — the lint runs under the HELD kind', () => {
+  // Kind 42: inside the budget at 0.1.0, over it at 10.20.30 (the controller container would be 64).
+  const name = `a${'b'.repeat(41)}`
+
+  it('a page set is not refused for its CHART_VERSION placeholder — the version budget is a blueprint\'s', async () => {
+    const store = createBlueprintDraftStore()
+    store.set({ [CHART_YAML_PATH]: pageChartYaml(name), [VALUES_SCHEMA_PATH]: '{"type":"object"}', 'templates/flex.page-x.yaml': 'kind: Flex\n' }, 'page')
+    const base = deps(store)
+    // A page publish reads the page template too; none configured is a real install's default.
+    const withTemplate: PublishDraftDeps = { ...base, builderTargets: { ...base.builderTargets, pageTemplate: { owner: '', repo: '' } } }
+    const outcome = await runDraftPublish(withTemplate, { verb: 'publishPage' })
+    expect(outcome.compiled.denial).toBeNull()
+  })
+
+  it('a blueprint whose version outgrew its name is denied by the lint, naming the budget', async () => {
+    const store = createBlueprintDraftStore()
+    store.set({ [CHART_YAML_PATH]: `apiVersion: v2\nname: ${name}\nversion: 10.20.30\n`, [VALUES_SCHEMA_PATH]: '{"type":"object"}' }, 'blueprint')
+    const outcome = await runDraftPublish(deps(store), { verb: 'publishBlueprint' })
+    expect(outcome.compiled.denial).toMatch(/fails the chart lint: .*at version 10\.20\.30 the Kind .* at most 41 characters/)
   })
 })
