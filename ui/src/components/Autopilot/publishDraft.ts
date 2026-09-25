@@ -95,9 +95,6 @@ export const runDraftPublish = async (
   }
   const dest = await askPublishDestination(proposal, builder, destRepo, bt.owner)
   const targeted = dest ? { ...proposal, ...dest } : proposal
-  const overflow = isPage
-    ? 'split the page across turns on the same branch'
-    : 'trim the chart tree (large assets belong in a hosted values file)'
 
   if (!dest) {
     return { compiled: { denial: 'publish cancelled — destination not confirmed', ops: null }, deepLink: null }
@@ -131,13 +128,13 @@ export const runDraftPublish = async (
     // dropped every widget CR at the repo ROOT — outside the chart, packaged by nothing, merged
     // green and rendered never. The keys carry their own location now, so nothing has to re-derive
     // it and the three writers cannot disagree about it.
+    //
+    // NO FILE COUNT LIMIT. The claim is ONE write whatever the chart holds — the files ride inside
+    // it — so the write-set cap (MAX_APPLY_SET_OPS) has nothing to count here. It used to be
+    // borrowed as a file cap, which refused an ordinary blueprint: Chart.yaml, values, schema,
+    // templates and architecture.yaml already make nine. What bounds a claim is its SIZE, and the
+    // held-draft byte cap enforces that before anything reaches here.
     const files = heldPublishFiles(publishFiles)
-    if (files.length > MAX_APPLY_SET_OPS) {
-      return {
-        compiled: { denial: `denied — "${slug}" has ${files.length} files; a single publish tops out at ${MAX_APPLY_SET_OPS} — ${overflow}.`, ops: null },
-        deepLink: null,
-      }
-    }
     const res = await buildClaimPublish({
       builder,
       config,
@@ -159,10 +156,17 @@ export const runDraftPublish = async (
   // The legacy github path commits the same file set, registration file included — but it has no
   // seeding step (that is the composition's `Repo`, which only the claim path renders), so a page
   // set published this way still needs the release workflow copied in by hand.
+  //
+  // This path IS still limited: it writes one object per file through applyResourceSet, whose
+  // write-set cap bounds any set the agent can propose — a safety rule, not a publishing one. The
+  // denial says so and names the path that has no limit, rather than asking for a smaller chart.
   const built = isPage ? buildPagePublishOps(targeted, publishHeld, slug) : buildBlueprintPublishOps(targeted, held, slug)
   if (built.length > MAX_APPLY_SET_OPS) {
     return {
-      compiled: { denial: `denied — "${slug}" has ${Object.keys(held.files).length} files; a single publish tops out at ${MAX_APPLY_SET_OPS - 2} — ${overflow}.`, ops: null },
+      compiled: {
+        denial: `denied — "${slug}" has ${Object.keys(publishHeld.files).length} files, and the legacy GitHub publish writes one object per file in a set capped at ${MAX_APPLY_SET_OPS} writes. Publish through git-provider instead (AUTOPILOT_PUBLISH_VIA_GIT_PROVIDER, on by default), which has no file limit.`,
+        ops: null,
+      },
       deepLink: null,
     }
   }
