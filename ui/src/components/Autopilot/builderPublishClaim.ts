@@ -16,6 +16,7 @@
  */
 
 import type { Config } from '../../context/ConfigContext'
+import { PUBLISH_CLAIM_PREFIX } from '../../pages/BlueprintComposer/chartIdentity'
 
 import type { ApplyResourceSetGvr, ApplyResourceSetOp } from './applyResourceSet'
 
@@ -143,7 +144,7 @@ export const buildBuilderPublishClaim = (args: {
   /** Clone URL of a template to seed a NEW destination repo from. Null/absent = no seeding. */
   sourceUrl?: string | null
 }): BuilderPublishClaim => {
-  const name = `publish-${args.slug}`
+  const name = `${PUBLISH_CLAIM_PREFIX}${args.slug}`
   const ns = args.namespace || 'krateo-system'
   return {
     apiVersion: args.apiVersion,

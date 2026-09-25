@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { draftDisplayName, lintBlueprintDraft } from '../../components/Autopilot/blueprintDraft'
 
 import { ARCHITECTURE_TEMPLATE_PATH, deriveStates, parseArchitecture, serializeArchitecture, unwrapFromConfigMapTemplate } from './architecture'
-import { pluralGrowthBound } from './chartIdentity'
+import { PUBLISH_NAME_MAX, chartIdentityProblems, pluralGrowthBound } from './chartIdentity'
 import { KIND_MAX, claimApiVersion, compositionKind, kindBudget, metricsKindBudget, ociChartLocation, startChart, startChartWarnings, validateStartChart } from './startChart'
 
 const INPUT = { description: 'Publishes a page set as a pull request', name: 'builder-publish', version: '0.1.0' }
@@ -119,11 +119,11 @@ describe('startChart — refusals, by field', () => {
     const name = `ab-cd-ef-${'g'.repeat(38)}`
     expect(name).toHaveLength(47)
     expect(compositionKind(name)).toHaveLength(44)
-    expect(validateStartChart({ ...INPUT, name })).toEqual([])
+    expect(chartIdentityProblems({ ...INPUT, name })).toEqual([])
   })
 
   it('at 0.1.0 a Kind of 45 is refused, naming the container, the version, the budget and the growth', () => {
-    const problems = validateStartChart({ ...INPUT, name: `ab-cd-ef-${'g'.repeat(39)}` })
+    const problems = chartIdentityProblems({ ...INPUT, name: `ab-cd-ef-${'g'.repeat(39)}` })
     expect(problems.map((problem) => problem.field)).toEqual(['name'])
     expect(problems[0].message).toMatch(/^at version 0\.1\.0 the Kind \(the name without dashes\) can be at most 44 characters — AbCdEfGg+ has 45\./)
     expect(problems[0].message).toContain('container <plural>-v0-1-0-controller,')
@@ -137,7 +137,7 @@ describe('startChart — refusals, by field', () => {
     ['aws-sagemaker-modelexplainabilityjobdefinition', 44],
   ])('a real blueprint whose every name fits is accepted: %s@0.3.0 (Kind %i)', (name, kindLength) => {
     expect(compositionKind(name)).toHaveLength(kindLength)
-    expect(validateStartChart({ ...INPUT, name, version: '0.3.0' })).toEqual([])
+    expect(chartIdentityProblems({ ...INPUT, name, version: '0.3.0' })).toEqual([])
   })
 
   it.each([
@@ -145,33 +145,56 @@ describe('startChart — refusals, by field', () => {
     ['aws-bedrockagentcorecontrol-apikeycredentialprovider', 50],
   ])('a real blueprint whose container name would not fit is still refused: %s@0.3.0 (Kind %i)', (name, kindLength) => {
     expect(compositionKind(name)).toHaveLength(kindLength)
-    expect(validateStartChart({ ...INPUT, name, version: '0.3.0' }).map((problem) => problem.field)).toEqual(['name'])
+    expect(chartIdentityProblems({ ...INPUT, name, version: '0.3.0' }).map((problem) => problem.field)).toEqual(['name'])
   })
 
   it('a name that fits at 0.1.0 does not fit at 10.20.30 — the version is half the budget', () => {
     // Kind 42, plural 43: container 61 at v0-1-0, 64 at v10-20-30.
     const name = `a${'b'.repeat(41)}`
-    expect(validateStartChart({ ...INPUT, name })).toEqual([])
-    const problems = validateStartChart({ ...INPUT, name, version: '10.20.30' })
+    expect(chartIdentityProblems({ ...INPUT, name })).toEqual([])
+    const problems = chartIdentityProblems({ ...INPUT, name, version: '10.20.30' })
     expect(problems.map((problem) => problem.field)).toEqual(['name'])
     expect(problems[0].message).toMatch(/^at version 10\.20\.30 the Kind .* at most 41 characters/)
   })
 
   it('a -quiz Kind\'s +3 is exact, not generous: -quiz pluralises to -quizzes', () => {
     // Kind …Quiz of 42 → plural 45 → container 63 at 0.1.0: fits. Of 43 → 46 → 64: does not.
-    expect(validateStartChart({ ...INPUT, name: `${'a'.repeat(38)}-quiz` })).toEqual([])
-    expect(validateStartChart({ ...INPUT, name: `${'a'.repeat(39)}-quiz` }).map((problem) => problem.field)).toEqual(['name'])
+    expect(chartIdentityProblems({ ...INPUT, name: `${'a'.repeat(38)}-quiz` })).toEqual([])
+    expect(chartIdentityProblems({ ...INPUT, name: `${'a'.repeat(39)}-quiz` }).map((problem) => problem.field)).toEqual(['name'])
   })
 
   it('WARNS, without refusing, a name over the metrics Service budget — the Service exists only with CDC metrics on', () => {
     // Kind 37 at 0.1.0: plural 38, so the container is 56 on every install; the metrics Service
-    // would be 64, and exists only where metrics run.
+    // would be 64, and exists only where metrics run. (The rule itself — Start would also refuse a
+    // 37-character name as unpublishable, below.)
     const name = `a${'b'.repeat(36)}`
-    expect(validateStartChart({ ...INPUT, name })).toEqual([])
+    expect(chartIdentityProblems({ name, version: '0.1.0' })).toEqual([])
     const warnings = startChartWarnings({ ...INPUT, name })
     expect(warnings.map((warning) => warning.field)).toEqual(['name'])
     expect(warnings[0].message).toMatch(/^fits every install — but may not fit one that runs core-provider with CDC metrics on .* at most 36 characters \(the plural of Ab+ can run 1 longer\), and Ab+ has 37/)
     expect(startChartWarnings({ ...INPUT, name: `a${'b'.repeat(35)}` })).toEqual([])
+    // A name Start takes can still earn the warning, at a longer version: Kind 34 over 33 at 10.20.30.
+    const publishable = `a${'b'.repeat(33)}`
+    expect(validateStartChart({ ...INPUT, name: publishable, version: '10.20.30' })).toEqual([])
+    expect(startChartWarnings({ ...INPUT, name: publishable, version: '10.20.30' }).map((warning) => warning.field)).toEqual(['name'])
+  })
+
+  it('a VALID chart can still be unpublishable: Start refuses a name its publish claim cannot carry', () => {
+    // The builders publish through a claim named publish-<name>, and core-provider refuses a
+    // composition name over 44 — so a name over 36 failed at the LAST step of Publish.
+    expect(PUBLISH_NAME_MAX).toBe(36)
+    expect(validateStartChart({ ...INPUT, name: `a${'b'.repeat(35)}` })).toEqual([])
+    const problems = validateStartChart({ ...INPUT, name: `a${'b'.repeat(36)}` })
+    expect(problems.map((problem) => problem.field)).toEqual(['name'])
+    expect(problems[0].message).toMatch(/^at most 36 characters to publish \(it has 37\) — publishing creates the claim publish-ab+, and core-provider refuses a composition name longer than 44/)
+  })
+
+  it.each([
+    'github-scaffolding-with-composition-page',
+    'aws-sagemaker-modelexplainabilityjobdefinition',
+  ])('a real long-named blueprint is a VALID chart (the lint opens it) but not one Start creates: %s', (name) => {
+    expect(chartIdentityProblems({ name, version: '0.3.0' })).toEqual([])
+    expect(validateStartChart({ ...INPUT, name, version: '0.3.0' })[0].message).toMatch(/^at most 36 characters to publish/)
   })
 
   it('says nothing more for a name it already refuses — the refusal is the whole answer', () => {
@@ -211,8 +234,10 @@ describe('startChart — refusals, by field', () => {
     ['github-scaffolding-with-composition-page', '1.2.2'],
     ['portal-composition-page-cloudnative-stack', '1.4.2'],
     ['portal-composition-page-continuous-deployment', '1.0.0'],
-  ])('does not refuse a real blueprint that deploys on a default install: %s@%s', (name, version) => {
-    expect(validateStartChart({ ...INPUT, name, version })).toEqual([])
+  ])('the chart rule does not refuse a real blueprint that deploys on a default install: %s@%s', (name, version) => {
+    // The CHART rule — what the lint holds an opened chart to. Start additionally asks that a NEW
+    // chart be publishable, which these (over 36) are not; that is its own test above.
+    expect(chartIdentityProblems({ name, version })).toEqual([])
   })
 
   it('reports every bad field at once, so the modal can mark both', () => {

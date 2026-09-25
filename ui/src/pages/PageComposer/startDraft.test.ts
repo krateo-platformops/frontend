@@ -161,4 +161,12 @@ describe('validateStartDraft', () => {
   it('accepts the real shape', () => {
     expect(validateStartDraft({ namespace: 'krateo-system', slug: 'fleet-health' })).toBeNull()
   })
+
+  it('refuses a slug the page set\'s chart could never register or publish — where it is typed', () => {
+    // The slug names the page set's chart, the Kind its CompositionDefinition registers, and the
+    // claim publish-<slug> — which core-provider refuses over 44 characters.
+    expect(validateStartDraft({ namespace: 'krateo-system', slug: '9-lives' })).toContain('must start with a letter')
+    expect(validateStartDraft({ namespace: 'krateo-system', slug: `a${'b'.repeat(35)}` })).toBeNull()
+    expect(validateStartDraft({ namespace: 'krateo-system', slug: `a${'b'.repeat(36)}` })).toContain('at most 36 characters to publish')
+  })
 })

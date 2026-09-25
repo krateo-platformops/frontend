@@ -18,6 +18,7 @@
  * untouched: the model can still only ever get as far as a compiled set a person then confirms.
  */
 import type { Config } from '../../context/ConfigContext'
+import { publishNameProblem } from '../../pages/BlueprintComposer/chartIdentity'
 
 import type { PortalActionProposal } from './actionBridge'
 import type { ApplyResourceSetOp } from './applyResourceSet'
@@ -93,6 +94,12 @@ export const runDraftPublish = async (
   const lintProblems = held ? lintBlueprintDraft(held.files, held.kind) : []
   if (lintProblems.length) {
     return { compiled: { denial: `denied — the draft fails the chart lint: ${lintProblems.join('; ')}`, ops: null }, deepLink: null }
+  }
+  // A valid chart can still be unpublishable: the claim is named for it, and core-provider refuses a
+  // long claim name at admission — the LAST step, after the person confirmed. Said here, first.
+  const claimProblem = slug ? publishNameProblem(slug) : null
+  if (claimProblem) {
+    return { compiled: { denial: `denied — "${slug}" cannot be published through the builder: ${claimProblem}. Rename it in Chart.yaml${isPage ? ' (a page set is named for its page slug)' : ''}.`, ops: null }, deepLink: null }
   }
   const dest = await askPublishDestination(proposal, builder, destRepo, bt.owner)
 

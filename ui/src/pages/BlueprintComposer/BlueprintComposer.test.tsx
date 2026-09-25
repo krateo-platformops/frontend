@@ -201,8 +201,10 @@ describe('BlueprintComposer — Start a chart (screen 2)', () => {
     const starts = listen<ChartStartDetail>(AUTOPILOT_CHART_START_EVENT)
     mount()
     openStart()
-    // Kind 37 at 0.1.0: over the metrics Service's 36, well inside the container's 44.
-    type('Chart name', `a${'b'.repeat(36)}`)
+    // Kind 34 at 10.20.30: over the metrics Service's 33, inside the container's 41 and the
+    // publish claim's 36.
+    type('Chart name', `a${'b'.repeat(33)}`)
+    type('Version', '10.20.30')
     expect(screen.getByText(/may not fit one that runs core-provider with CDC metrics on/)).toBeTruthy()
     expect(screen.getByLabelText('Chart name').getAttribute('aria-invalid')).toBeNull()
     act(() => { screen.getByRole('button', { name: 'Start' }).click() })

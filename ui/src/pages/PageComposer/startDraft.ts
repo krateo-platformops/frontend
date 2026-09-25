@@ -22,6 +22,8 @@
  */
 import { dump } from 'js-yaml'
 
+import { chartNameProblem, publishNameProblem } from '../BlueprintComposer/chartIdentity'
+
 import { DERIVED_ALLOWED_ANNOTATION } from './structureEdit'
 
 const WIDGET_API_VERSION = 'widgets.templates.krateo.io/v1beta1'
@@ -51,6 +53,12 @@ const titleCaseSlug = (slug: string): string =>
 export const validateStartDraft = (input: StartDraftInput): string | null => {
   if (!SLUG_PATTERN.test(input.slug)) {
     return 'the slug must be lower-case letters, digits and dashes — it becomes the page URL and two resource names'
+  }
+  // The slug also names the page set's chart, the Kind its CompositionDefinition registers, and the
+  // publish claim — refused here, where it is typed, rather than at Publish once the page is built.
+  const chartProblem = chartNameProblem(input.slug) ?? publishNameProblem(input.slug)
+  if (chartProblem) {
+    return `the slug ${chartProblem}`
   }
   if (!SLUG_PATTERN.test(input.namespace)) {
     return 'a namespace is required — the widget CRDs demand one and default it nowhere'

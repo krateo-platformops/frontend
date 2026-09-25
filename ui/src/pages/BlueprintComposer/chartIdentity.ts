@@ -86,6 +86,32 @@ const PLURAL_GROWTH_MIN = 1
 
 export const COMPOSITION_GROUP = 'composition.krateo.io'
 
+/**
+ * PUBLISHABLE is narrower than VALID. The builders publish through a claim named
+ * PUBLISH_CLAIM_PREFIX + the chart name (builderPublishClaim.ts), and core-provider's admission
+ * policy (compositions-max-name-length-policy) refuses a composition.krateo.io object longer than
+ * COMPOSITION_NAME_MAX that has no krateo.io/release-name label — the claim has none. So a longer
+ * name passed Start and the lint and failed at the last step of Publish.
+ *
+ * Deliberately NOT part of the chart rule the lint runs: real blueprints with longer names deploy
+ * (github-scaffolding-with-composition-page is 41) and must stay openable and previewable. It is
+ * checked where it binds — Start, so no new chart is born unpublishable, and Publish, before the
+ * destination is asked. The portal's deliverables views recover the chart by stripping the prefix
+ * from the claim name, which is why the claim is not simply shortened here.
+ */
+export const PUBLISH_CLAIM_PREFIX = 'publish-'
+export const COMPOSITION_NAME_MAX = 44
+export const PUBLISH_NAME_MAX = COMPOSITION_NAME_MAX - PUBLISH_CLAIM_PREFIX.length
+
+/** Why this chart name cannot be published through the builders' claim, or null when it can. */
+export const publishNameProblem = (raw: string): string | null => {
+  const name = raw.trim()
+  if (name.length <= PUBLISH_NAME_MAX) {
+    return null
+  }
+  return `at most ${PUBLISH_NAME_MAX} characters to publish (it has ${name.length}) — publishing creates the claim ${PUBLISH_CLAIM_PREFIX}${name}, and core-provider refuses a composition name longer than ${COMPOSITION_NAME_MAX}`
+}
+
 export interface ChartIdentity {
   name: string
   version: string
@@ -205,6 +231,15 @@ export const chartNameProblem = (raw: string): string | null => {
   if (name.length > CHART_NAME_MAX) {
     return `not a valid chart name — at most ${CHART_NAME_MAX} characters (it has ${name.length}); it becomes Kubernetes resource names`
   }
+  // Version-independent, so a page set obeys them too: it is registered by a CompositionDefinition
+  // (pageCompositionDefinition), whose Kind comes from this name.
+  const kind = compositionKind(name)
+  if (/^\d/.test(name)) {
+    return `must start with a letter — the generated Kind (${kind}) cannot begin with a digit`
+  }
+  if (kind.length > KIND_MAX) {
+    return `the Kind (the name without dashes) can be at most ${KIND_MAX} characters — ${kind} has ${kind.length}, and the CRD's list type ${kind}List must fit in a ${CHART_NAME_MAX}-character DNS label`
+  }
   return null
 }
 
@@ -214,12 +249,6 @@ const nameProblem = (name: string, version: string, versionOk: boolean): string 
     return label
   }
   const kind = compositionKind(name)
-  if (/^\d/.test(name)) {
-    return `must start with a letter — the generated Kind (${kind}) cannot begin with a digit`
-  }
-  if (kind.length > KIND_MAX) {
-    return `the Kind (the name without dashes) can be at most ${KIND_MAX} characters — ${kind} has ${kind.length}, and the CRD's list type ${kind}List must fit in a ${CHART_NAME_MAX}-character DNS label`
-  }
   // Only at a version that is itself valid: an unreadable version has no budget to measure against,
   // and its own refusal says so. The name is checked again the moment the version reads.
   const budget = kindBudget(version, kind)

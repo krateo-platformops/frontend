@@ -46,6 +46,17 @@ describe('runDraftPublish — the verb must match what is held', () => {
   })
 })
 
+describe('runDraftPublish — a valid chart its publish claim cannot carry', () => {
+  it('is denied BY NAME before the destination is asked — not refused by admission at the last step', async () => {
+    const store = createBlueprintDraftStore()
+    const name = `a${'b'.repeat(36)}`
+    store.set({ [CHART_YAML_PATH]: `apiVersion: v2\nname: ${name}\nversion: 0.1.0\n`, [VALUES_SCHEMA_PATH]: '{"type":"object"}' }, 'blueprint')
+    const outcome = await runDraftPublish(deps(store), { verb: 'publishBlueprint' })
+    expect(outcome.compiled.ops).toBeNull()
+    expect(outcome.compiled.denial).toMatch(new RegExp(`^denied — "${name}" cannot be published through the builder: at most 36 characters to publish`))
+  })
+})
+
 describe('runDraftPublish — a lint-dirty draft', () => {
   it('is denied with the lint problems, not "preview first"', async () => {
     const store = createBlueprintDraftStore()

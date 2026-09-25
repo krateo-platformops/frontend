@@ -24,7 +24,7 @@ import { dump } from 'js-yaml'
 import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from '../../components/Autopilot/blueprintDraft'
 
 import { ARCHITECTURE_API_VERSION, ARCHITECTURE_KIND, ARCHITECTURE_TEMPLATE_PATH, serializeArchitecture, wrapAsConfigMapTemplate } from './architecture'
-import { chartIdentityProblems, chartIdentityWarnings } from './chartIdentity'
+import { chartIdentityProblems, chartIdentityWarnings, publishNameProblem } from './chartIdentity'
 
 export { CHART_NAME_MAX, COMPOSITION_GROUP, KIND_MAX, claimApiVersion, compositionKind, compositionVersion, kindBudget, metricsKindBudget } from './chartIdentity'
 
@@ -60,8 +60,12 @@ export const ociChartLocation = (owner: string, name: string): string | null => 
  * copy — because the lint re-runs them on the held Chart.yaml, and two copies would drift apart the
  * way the old Kind cap (60, plural-only) drifted from what core-provider actually creates.
  */
-export const validateStartChart = (input: StartChartInput): StartChartProblem[] =>
-  chartIdentityProblems({ name: input.name, version: input.version })
+export const validateStartChart = (input: StartChartInput): StartChartProblem[] => {
+  const problems = chartIdentityProblems({ name: input.name, version: input.version })
+  // A NEW chart must also be publishable — the claim's name limit (chartIdentity's header).
+  const publish = problems.some((problem) => problem.field === 'name') ? null : publishNameProblem(input.name)
+  return publish ? [{ field: 'name', message: publish }, ...problems] : problems
+}
 
 /**
  * What the modal ADVISES without refusing — a name that deploys, but not on an install running CDC

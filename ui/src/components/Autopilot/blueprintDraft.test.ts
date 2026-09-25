@@ -269,8 +269,15 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
     it('the SAME name on a PAGE draft is not — a page keeps the label check only (its version is the CHART_VERSION placeholder)', () => {
       expect(lint(FITS_ONLY_EARLY, '10.20.30', 'page')).toBe('')
       expect(lint(FITS_ONLY_EARLY, 'CHART_VERSION', 'page')).toBe('')
-      expect(lint('a'.repeat(63), 'CHART_VERSION', 'page')).toBe('')
+      expect(lint('a'.repeat(59), 'CHART_VERSION', 'page')).toBe('')
       expect(lint('Pg_App', 'CHART_VERSION', 'page')).toContain('name "Pg_App": not a valid chart name')
+    })
+
+    it('a PAGE set still obeys the version-independent rule — it is registered by a CompositionDefinition too', () => {
+      // Its Kind comes from the name: a leading digit, or a Kind whose list type outgrows a label,
+      // can never create its CRD, at any version.
+      expect(lint('9-lives', 'CHART_VERSION', 'page')).toContain('must start with a letter')
+      expect(lint('a'.repeat(60), 'CHART_VERSION', 'page')).toContain('the CRD\'s list type')
     })
 
     it('a blueprint version that is missing, not SemVer, or not an API version is refused as the VERSION', () => {
