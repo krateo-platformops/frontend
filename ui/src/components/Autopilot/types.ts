@@ -111,6 +111,11 @@ export interface AutopilotActionChip {
    * chip. Absent means "nothing went wrong", so every existing chip keeps its meaning.
    */
   previewFailed?: boolean
+  /**
+   * previewBlueprint only: true when an inline draft ACTUALLY rendered. Arming requires it — the absence
+   * of a failure is not a render (an unconfigured render service returns neither).
+   */
+  rendered?: boolean
 }
 
 // ────────────────────────────────────────────────────────────────────────────

@@ -43,6 +43,12 @@ export interface DraftChangedDetail {
   files: Record<string, string>
   kind?: DraftKind | null
   problems?: string[]
+  /**
+   * Whether the held draft is armed to publish right now (its last preview still stands). A surface
+   * shows the EXCEPTION — "Preview needed" — when this is false for a held draft, never a mark when
+   * it is true. Absent from emitters that do not know the gate, which reads as "unknown", not false.
+   */
+  previewed?: boolean
 }
 
 /** Broadcast the held draft. Called by the provider after an accepted edit or add. */
@@ -97,15 +103,21 @@ export const onDraftReplayRequest = (handler: () => void): (() => void) => {
  * not a context because the two parties sit in different React trees — the drawer renders inside
  * AutopilotProvider, the composer is a route — which is the same reason the buses above exist.
  */
-let composerMounted = 0
+/*
+ * PER KIND. There are two composers — pages and blueprints — and each can show only its own kind of
+ * draft. A single kind-blind counter meant a mounted blueprint composer made the drawer defer every
+ * PAGE preview to a surface that cannot show it (shown nowhere), while its own chart previews still
+ * opened the drawer over it. A claim names the kind it can show; the drawer defers only that kind.
+ */
+const composerMounted: Record<DraftKind, number> = { blueprint: 0, page: 0 }
 
-/** Claim the preview surface for as long as the composer is mounted. Returns the release fn. */
-export const claimPreviewSurface = (): (() => void) => {
-  composerMounted += 1
+/** Claim the preview surface for `kind` for as long as that composer is mounted. Returns the release fn. */
+export const claimPreviewSurface = (kind: DraftKind): (() => void) => {
+  composerMounted[kind] += 1
   return () => {
-    composerMounted = Math.max(0, composerMounted - 1)
+    composerMounted[kind] = Math.max(0, composerMounted[kind] - 1)
   }
 }
 
-/** True while a mounted composer owns incoming previews — the drawer defers to it. */
-export const previewSurfaceClaimed = (): boolean => composerMounted > 0
+/** True while a mounted composer owns incoming previews of `kind` — the drawer defers those to it. */
+export const previewSurfaceClaimed = (kind: DraftKind | null): boolean => kind !== null && composerMounted[kind] > 0

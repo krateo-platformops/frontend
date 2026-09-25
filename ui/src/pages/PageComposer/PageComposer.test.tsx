@@ -315,14 +315,14 @@ describe('PageComposer — publishing without leaving the page', () => {
 
 describe('PageComposer — one surface owns the draft', () => {
   it('claims the preview while mounted, so the drawer does not open over it', () => {
-    expect(previewSurfaceClaimed()).toBe(false)
+    expect(previewSurfaceClaimed('page')).toBe(false)
     const view = mount()
 
     // Both listen on the same bus. Two surfaces on one draft is not merely redundant: the drawer's
     // close fires the sandbox teardown, which DELETEs the draft CRs this page is still rendering.
-    expect(previewSurfaceClaimed()).toBe(true)
+    expect(previewSurfaceClaimed('page')).toBe(true)
     view.unmount()
-    expect(previewSurfaceClaimed()).toBe(false)
+    expect(previewSurfaceClaimed('page')).toBe(false)
   })
 
   it('fires the sandbox teardown on close — the lifecycle the drawer used to own', () => {

@@ -110,6 +110,13 @@ const forgetOtherDraftsHistory = (replaced: string | null, held: BlueprintDraftH
 }
 
 /**
+ * Did a previewBlueprint chip come from an ACTUAL render? Arming requires a positive signal: an
+ * unconfigured render service, a refused or malformed proposal and a lint-rejected draft all return a
+ * chip without `previewFailed`, and used to arm a chart that was never rendered.
+ */
+export const blueprintChipRendered = (chip: { rendered?: boolean }): boolean => chip.rendered === true
+
+/**
  * FE-BP1/BP2, moved out of the provider so a preview a PERSON starts from the composer arms the
  * same gate a proposed one does. Holds the previewed tree (published bytes == previewed bytes) and
  * arms the blueprint gate for its Chart.yaml name — only when the draft is lint-clean AND the

@@ -395,7 +395,7 @@ const PageComposer = () => {
   // Claim the preview while this page is mounted, so the drawer does not ALSO open on the same
   // payload. Two surfaces on one draft is not just redundant: the drawer's close fires the sandbox
   // teardown, which deletes the draft CRs this page is still rendering live.
-  useEffect(() => claimPreviewSurface(), [])
+  useEffect(() => claimPreviewSurface('page'), [])
 
   useEffect(() => {
     const onPreview = (event: CustomEvent<AutopilotPreviewPayload>) => {

@@ -37,7 +37,7 @@ import { onRestDefEdit } from './previewEditBus'
 import { buildKogPublishNudge, createPreviewGate, hydrateRestDefinitionOps } from './previewGate'
 import { emitPublishResult, onPublishRequest } from './previewPublishRequest'
 import { AutopilotPreviewDrawer } from './previewSurface'
-import { compilePublishOps, heldDraftIdentity, recordBlueprintPreview, recordPagePreview, type PublishCompileResult } from './publishCompile'
+import { blueprintChipRendered, compilePublishOps, heldDraftIdentity, recordBlueprintPreview, recordPagePreview, type PublishCompileResult } from './publishCompile'
 import { runDraftPublish } from './publishDraft'
 import { PublishTargetFormHost } from './publishTargetForm'
 import type { ThreadSummary } from './sessionHistoryStore'
@@ -204,7 +204,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // composer is a route), so it re-reads from the broadcast rather than computing against stale bytes.
   // The broadcast says WHO holds the draft and, for a blueprint, what the lint thinks of it — built
   // by the same helper the replay uses, so the two emitters cannot disagree.
-  const [blueprintStore] = useState(createBroadcastingDraftStore)
+  const [blueprintStore] = useState(() => createBroadcastingDraftStore(blueprintGate))
 
   const abortRef = useRef<(() => void) | null>(null)
   const approvalRef = useRef<{ governor: ApprovalGovernor; pause: ApprovalPause } | null>(null)
@@ -416,7 +416,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
             // HOLDS the previewed tree and arms the blueprint gate for its Chart.yaml name. The rule
             // lives in `recordBlueprintPreview` beside its page twin, so a preview a person starts
             // from the composer arms the same gate this proposal does.
-            recordBlueprintPreview(proposal.rawTemplates, !!chip.previewFailed, blueprintStore, blueprintGate)
+            recordBlueprintPreview(proposal.rawTemplates, !blueprintChipRendered(chip), blueprintStore, blueprintGate)
           } else if (proposal.verb === 'previewPage') {
             // FE-P2: an APPLIED previewPage holds its widget CRs as a page draft + arms the shared
             // gate (recordPagePreview) — a page publish (into krateo-platformops/portal) is then

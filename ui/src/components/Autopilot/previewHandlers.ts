@@ -132,6 +132,7 @@ export const previewBlueprintSpec: VerbSpec = {
       // Carried so the host does not arm the publish gate on a chart that failed to render. The
       // drawer already SHOWS the error; nothing stopped the draft being held and published anyway.
       ...(rendered.error ? { previewFailed: true } : {}),
+      ...(args.rawTemplates && !rendered.error ? { rendered: true } : {}),
       readOnly: true,
       verb: 'previewBlueprint',
     }

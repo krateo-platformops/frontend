@@ -24,6 +24,7 @@ import { useCallback, useEffect, useRef } from 'react'
 
 import { lintBlueprintDraft } from './blueprintDraft'
 import { createBlueprintDraftStore, type BlueprintDraftStore } from './blueprintDraftStore'
+import type { BlueprintGate } from './blueprintGate'
 import { clearComposeRefusals } from './composeRequest'
 import { draftHistory } from './draftHistory'
 import { pageDisplayName, pageDraftWidgets } from './pageDraft'
@@ -37,7 +38,7 @@ import { onDraftUndo } from './previewDraftUndo'
 import { onFileAdd } from './previewFileAdd'
 import { onFileEdit } from './previewFileEdit'
 import { onFileRemove } from './previewFileRemove'
-import { recordPagePreview } from './publishCompile'
+import { heldDraftIdentity, recordPagePreview } from './publishCompile'
 
 /**
  * How long a burst of writes settles before the sandbox is re-applied. One gesture is several
@@ -53,10 +54,14 @@ const REAPPLY_DEBOUNCE_MS = 700
  * of EITHER kind, because a page draft is a page-set chart and publishes as one — so a hand edit
  * that would wedge a CompositionDefinition is visible instead of silent.
  */
-export const heldDraftDetail = (held: ReturnType<BlueprintDraftStore['get']>): DraftChangedDetail => ({
+export const heldDraftDetail = (
+  held: ReturnType<BlueprintDraftStore['get']>,
+  isArmed?: (identity: string | null) => boolean,
+): DraftChangedDetail => ({
   files: held?.files ?? {},
   kind: held?.kind ?? null,
   problems: held ? lintBlueprintDraft(held.files) : [],
+  ...(isArmed ? { previewed: held ? isArmed(heldDraftIdentity(held)) : false } : {}),
 })
 
 /**
@@ -65,8 +70,14 @@ export const heldDraftDetail = (held: ReturnType<BlueprintDraftStore['get']>): D
  * carrying kind and problems — is something a test can hold, not an implementation detail of a
  * component too large to mount.
  */
-export const createBroadcastingDraftStore = (): BlueprintDraftStore =>
-  createBlueprintDraftStore((held) => emitDraftChanged(heldDraftDetail(held)))
+export const createBroadcastingDraftStore = (gate?: Pick<BlueprintGate, 'isArmed' | 'subscribe'>): BlueprintDraftStore => {
+  const isArmed = gate ? (identity: string | null) => gate.isArmed(identity) : undefined
+  const store = createBlueprintDraftStore((held) => emitDraftChanged(heldDraftDetail(held, isArmed)))
+  // The gate changes on its own — a preview arms a draft the store already holds — so it announces
+  // too, or "Preview needed" would stay up after the preview that satisfied it.
+  gate?.subscribe(() => emitDraftChanged(heldDraftDetail(store.get(), isArmed)))
+  return store
+}
 
 /** The slice of the preview gate this hook needs — narrowed so tests need not build a whole gate. */
 interface PreviewGateLike {
@@ -76,6 +87,8 @@ interface PreviewGateLike {
   recordPreview: (identity: string | null | undefined) => void
   /** Optional so a gate without it still fits; absent, a lint failure only withholds the re-arm. */
   forget?: (identity: string | null | undefined) => void
+  /** Optional: absent, a replay carries no `previewed` (unknown) rather than a guess. */
+  isArmed?: (identity: string | null | undefined) => boolean
 }
 
 export const useDraftFileBuses = (
@@ -271,11 +284,17 @@ export const useDraftFileBuses = (
    * Clean: re-arm as before. Dirty: FORGET the identity — not merely skip the re-arm, because the
    * name did not change and stays armed from its last clean preview. The problems ride the draft
    * broadcast, so a surface can say why.
+   *
+   * A BLUEPRINT IS RENDER-GATED, NOT LINT-GATED (Diego, 2026-09-25). Any write to a held chart
+   * forgets its arming, clean or not: the lint cannot see a template that fails `helm template`, a
+   * renamed chart that was never rendered, or a gate that no longer matches its descriptor. Only a
+   * render re-arms it — the person's Preview or the agent's previewBlueprint — so what publishes is
+   * what was last rendered. A page stays lint-gated: its edits are ajv-verdicted where they are made.
    */
   const rearm = useCallback(() => {
     const held = store.get()
     const identity = identityOf(held)
-    if (held && lintBlueprintDraft(held.files).length > 0) {
+    if (held && (held.kind === 'blueprint' || lintBlueprintDraft(held.files).length > 0)) {
       gate.forget?.(identity)
       return
     }
@@ -377,8 +396,8 @@ export const useDraftFileBuses = (
   // asks and we answer on the same bus. Answering with an empty map when nothing is held is
   // deliberate — "no draft" is an answer, and silence leaves that surface waiting forever.
   useEffect(() => onDraftReplayRequest(() => {
-    emitDraftChanged(heldDraftDetail(store.get()))
-  }), [store])
+    emitDraftChanged(heldDraftDetail(store.get(), gate.isArmed ? (identity) => gate.isArmed?.(identity) ?? false : undefined))
+  }), [gate, store])
 
   // START: a person creating a draft, rather than an agent proposing one.
   //

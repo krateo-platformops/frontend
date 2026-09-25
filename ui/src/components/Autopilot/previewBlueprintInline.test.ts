@@ -82,7 +82,8 @@ describe('previewBlueprint inline-draft mode (FE-B1)', () => {
     expect(payload.objects).toHaveLength(1)
     // The form-preview half: the RAW draft schema string, verbatim (authoring order).
     expect(payload.formSchema).toBe(SCHEMA_TEXT)
-    expect(chip).toEqual({ label: 'preview pg-app (1 object)', readOnly: true, verb: 'previewBlueprint' })
+    // `rendered` is what arms the gate — a positive signal, not the absence of a failure.
+    expect(chip).toEqual({ label: 'preview pg-app (1 object)', readOnly: true, rendered: true, verb: 'previewBlueprint' })
   })
 
   it('denies ambiguous or malformed args: both sources, neither, or a bad tree — no fetch, no drawer', async () => {

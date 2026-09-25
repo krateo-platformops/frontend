@@ -216,7 +216,7 @@ describe('frontend#180 — the preview must not cover a widened rail', () => {
 
 describe('AutopilotPreviewDrawer — which previews a mounted page composer takes', () => {
   it('defers a PAGE preview to the composer, and opens for everything the composer cannot show', async () => {
-    const release = claimPreviewSurface()
+    const release = claimPreviewSurface('page')
     const view = render(<AutopilotPreviewDrawer />)
     act(() => { openAutopilotPreview({ summary: ['flex.page-x'], title: 'Page preview — x' }) })
     expect(view.queryByText('Page preview — x')).toBeNull()
@@ -225,6 +225,18 @@ describe('AutopilotPreviewDrawer — which previews a mounted page composer take
     // composer, which parks charts — so it was shown nowhere.
     act(() => { openAutopilotPreview({ builder: 'blueprint', summary: ['nginx-demo'], title: 'Blueprint preview — nginx-demo' }) })
     await waitFor(() => expect(view.getByText('Blueprint preview — nginx-demo')).toBeTruthy())
+    release()
+  })
+
+  it('a BLUEPRINT composer takes only charts — a page preview still opens the drawer', async () => {
+    // A kind-blind claim made a mounted blueprint composer swallow every page preview (it cannot show
+    // one), and let its own chart previews open the drawer over it.
+    const release = claimPreviewSurface('blueprint')
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ builder: 'blueprint', summary: ['nginx-demo'], title: 'Blueprint preview — nginx-demo' }) })
+    expect(view.queryByText('Blueprint preview — nginx-demo')).toBeNull()
+    act(() => { openAutopilotPreview({ summary: ['flex.page-x'], title: 'Page preview — x' }) })
+    await waitFor(() => expect(view.getByText('Page preview — x')).toBeTruthy())
     release()
   })
 
@@ -296,7 +308,7 @@ describe('AutopilotPreviewDrawer — only the HELD draft is editable', () => {
   })
 
   it('closes a held draft that a deferred PAGE preview replaced — its Files tab would write into the page', async () => {
-    const release = claimPreviewSurface()
+    const release = claimPreviewSurface('page')
     const view = render(<AutopilotPreviewDrawer />)
     act(() => { openAutopilotPreview({ builder: 'blueprint', files: chartFiles, filesLabel: 'Chart files', title: 'Blueprint preview — aws-vpc' }) })
     await waitFor(() => expect(view.getByText('Blueprint preview — aws-vpc')).toBeTruthy())
@@ -306,7 +318,7 @@ describe('AutopilotPreviewDrawer — only the HELD draft is editable', () => {
   })
 
   it('leaves an INSPECTION open when a deferred page preview arrives — nothing replaced it', async () => {
-    const release = claimPreviewSurface()
+    const release = claimPreviewSurface('page')
     const view = render(<AutopilotPreviewDrawer />)
     act(() => { openAutopilotPreview({ builder: 'inspect', summary: ['repos'], title: 'Describe — repos' }) })
     await waitFor(() => expect(view.getByText('Describe — repos')).toBeTruthy())
