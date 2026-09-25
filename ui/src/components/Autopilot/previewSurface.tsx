@@ -30,19 +30,15 @@ import { LAYER } from '../../theme/layers'
 import { DrawerHeader, drawerCloseProps } from '../DrawerHeader/DrawerHeader'
 import WidgetRenderer from '../WidgetRenderer'
 
+import { DraftProblemsAlert } from './DraftProblemsAlert'
 import { parseFileEdit, parseRestDefEdit } from './previewBridge'
-import { AUTOPILOT_PREVIEW_EVENT, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
+import { AUTOPILOT_PREVIEW_EVENT, isPageDraftPayload, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
 import { previewSurfaceClaimed } from './previewDraftChanged'
+import { onDraftClose } from './previewDraftClose'
 import { emitRestDefEdit } from './previewEditBus'
 import { emitFileEdit } from './previewFileEdit'
 import { PreviewFormSection } from './previewFormSection'
 import styles from './previewSurface.module.css'
-
-/** The blueprint "Files" tab is labelled "Chart files"; a page keeps the generic "Files". A
- * blueprint's files are Helm chart TEMPLATES (YAML-parse-only on edit); a page's are widget CRs
- * (which additionally require the apiVersion/kind/metadata.name shape). This is the one place the
- * page/blueprint distinction is read on the edit path — the SAME discriminator the payload builders set. */
-const BLUEPRINT_FILES_LABEL = 'Chart files'
 
 /** How far to inset the preview so it sits LEFT of the chat instead of covering it.
  *
@@ -337,8 +333,9 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, on
   // EDITABLE in place — an accepted edit rides the previewFileEdit bus into the held draft (the provider
   // re-arms the gate; the $fileContent publish path then commits the edited bytes automatically).
   // A page's files are widget CRs (require the apiVersion/kind/metadata.name shape); a blueprint's are
-  // Helm chart templates (YAML-parse-only) — distinguished by the payload's files label.
-  const isPageWidget = (payload.filesLabel ?? '') !== BLUEPRINT_FILES_LABEL
+  // Helm chart templates (YAML-parse-only) — distinguished by what the payload says it IS, not by its
+  // tab label: a label is copy, and keying the edit parser on copy is how a chart got a page's rules.
+  const isPageWidget = isPageDraftPayload(payload)
   // The live draft when the surface has one, the one-shot payload otherwise.
   const shownFiles = liveFiles
     ? Object.entries(liveFiles).map(([path, content]) => ({ content, path })).sort((left, right) => left.path.localeCompare(right.path))
@@ -462,6 +459,7 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, on
 
   return (
     <div className={styles.body}>
+      {payload.builder === 'restdef' || payload.builder === 'inspect' ? null : <DraftProblemsAlert />}
       {(caption ?? payload.caption)
         ? <Typography.Paragraph type='secondary'>{caption ?? payload.caption}</Typography.Paragraph>
         : null}
@@ -493,7 +491,9 @@ export const AutopilotPreviewDrawer = () => {
       // Defer to a mounted page composer: it is already showing this draft, it owns the close, and
       // opening over it would put two live sandbox renders on one endpoint — where closing THIS
       // one fires the teardown that deletes the draft CRs the composer is still rendering.
-      if (previewSurfaceClaimed()) {
+      // ONLY a page preview: the composer claims the surface but can show nothing else, so deferring
+      // a blueprint, RestDefinition or inspection preview to it showed that preview NOWHERE.
+      if (previewSurfaceClaimed() && isPageDraftPayload(event.detail)) {
         return
       }
       setPayload(event.detail)
@@ -503,6 +503,15 @@ export const AutopilotPreviewDrawer = () => {
     window.addEventListener(AUTOPILOT_PREVIEW_EVENT, handleOpen as EventListener)
     return () => window.removeEventListener(AUTOPILOT_PREVIEW_EVENT, handleOpen as EventListener)
   }, [])
+
+  // A draft discarded elsewhere — the composer's Discard — takes its preview with it. Left open, this
+  // drawer would go on offering edits to files that no longer exist. An inspection is not a draft.
+  useEffect(() => onDraftClose(() => {
+    if (payload && (payload.builder === undefined || payload.builder === 'blueprint')) {
+      setOpen(false)
+      payload.onClose?.()
+    }
+  }), [payload])
 
   if (!payload) {
     return null

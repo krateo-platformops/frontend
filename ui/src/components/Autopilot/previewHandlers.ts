@@ -91,6 +91,7 @@ export const previewBlueprintSpec: VerbSpec = {
       const problems = lintBlueprintDraft(args.rawTemplates)
       if (problems.length) {
         openAutopilotPreview({
+          builder: 'blueprint',
           caption: DRAFT_REJECTED_CAPTION,
           problems,
           title: `Blueprint preview — ${name}`,
@@ -107,6 +108,7 @@ export const previewBlueprintSpec: VerbSpec = {
     // payload and mounts as a read-only SchemaForm section in the drawer.
     const formSchema = buildFormSchemaText(args.rawTemplates, rendered.valuesSchema, rendered.error)
     openAutopilotPreview({
+      builder: 'blueprint',
       // Name the artifact: a blueprint IS a Helm chart, and this caption + the "Chart files"
       // tab are where the user learns that (the #1 what-am-I-publishing question).
       caption: 'This blueprint is a Helm chart — Chart files is the tree the change request commits; Source is its helm-rendered objects (dry run, nothing applied to the cluster)',
@@ -173,7 +175,7 @@ export const previewRestDefSpec: VerbSpec = {
       return Promise.resolve(null)
     }
     const payload = buildRestDefPreviewPayload(restDefinition)
-    openAutopilotPreview(payload)
+    openAutopilotPreview({ ...payload, builder: 'restdef' })
     // FE-P5 for KOG: a problems-carrying draft yields the page-path's "preview blocked" chip
     // convention — the provider's preview-validation trampoline + the every-turn directive
     // then drive an autonomous re-preview of a CORRECTED draft (previewProblems rides the
@@ -215,7 +217,7 @@ export const explainUpgradeImpactSpec: VerbSpec = {
       return { label: UPGRADE_IMPACT_UNAVAILABLE_LABEL, readOnly: true, verb: 'explainUpgradeImpact' }
     }
     const result = await callUpgradeImpactRA(deps.snowplowBaseUrl, deps.frontendNamespace, args)
-    openAutopilotPreview(buildUpgradeImpactPayload(result))
+    openAutopilotPreview({ ...buildUpgradeImpactPayload(result), builder: 'inspect' })
     const outcome = result.error
       ? 'diff failed'
       : (result.summary || `${result.rows.length} change${result.rows.length === 1 ? '' : 's'}`)
@@ -248,7 +250,7 @@ export const describeResourceSpec: VerbSpec = {
     const crdName = crdNameFromArgs(args)
     const { crd, error } = await callDescribeResourceCRD(deps.snowplowBaseUrl, crdName)
     const extract = crd ? extractCrdSpecFields(crd, args.version) : null
-    openAutopilotPreview(buildDescribeResourcePayload(crdName, extract, error))
+    openAutopilotPreview({ ...buildDescribeResourcePayload(crdName, extract, error), builder: 'inspect' })
     const outcome = error || !extract ? 'not found' : `${extract.fields.length} spec field${extract.fields.length === 1 ? '' : 's'}`
     return { label: proposal.label ?? `schema: ${extract?.kind ?? crdName} (${outcome})`, readOnly: true, verb: 'describeResource' }
   },

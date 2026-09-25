@@ -16,6 +16,7 @@ import { draftDisplayName, lintBlueprintDraft } from './blueprintDraft'
 import { substituteFileContent, type BlueprintDraftHeld, type BlueprintDraftStore } from './blueprintDraftStore'
 import type { BlueprintGate } from './blueprintGate'
 import type { PublishStatusClaim } from './builderPublishStatus'
+import { draftHistory } from './draftHistory'
 import { substituteOasAttachment, type OasAttachment } from './oasAttachment'
 import { isPageDraft, pageDisplayName, pageDraftFiles } from './pageDraft'
 
@@ -118,6 +119,18 @@ export const heldDraftIdentity = (held: BlueprintDraftHeld | null): string | nul
 }
 
 /**
+ * A proposal that REPLACES the held draft with a different one takes the undo history with it. A
+ * step recorded against page-a, restored into page-b, would be the silent data loss undo exists to
+ * prevent. A re-preview of the SAME draft keeps it: undoing back past the agent's own revision is
+ * what the history is for.
+ */
+const forgetOtherDraftsHistory = (replaced: string | null, held: BlueprintDraftHeld): void => {
+  if (replaced !== null && replaced !== heldDraftIdentity(held)) {
+    draftHistory.clear()
+  }
+}
+
+/**
  * FE-BP1/BP2, moved out of the provider so a preview a PERSON starts from the composer arms the
  * same gate a proposed one does. Holds the previewed tree (published bytes == previewed bytes) and
  * arms the blueprint gate for its Chart.yaml name — only when the draft is lint-clean AND the
@@ -135,10 +148,12 @@ export const recordBlueprintPreview = (
   if (!rawTemplates || previewFailed || lintBlueprintDraft(rawTemplates).length > 0) {
     return false
   }
+  const replaced = heldDraftIdentity(store.get())
   const draft = store.set(rawTemplates, 'blueprint')
   if (!draft.ok) {
     return false
   }
+  forgetOtherDraftsHistory(replaced, draft.held)
   gate.recordPreview(draftDisplayName(draft.held.files))
   return true
 }
@@ -158,8 +173,10 @@ export const recordPagePreview = (
   if (!pageFiles) {
     return
   }
+  const replaced = heldDraftIdentity(store.get())
   const draft = store.set(pageFiles, 'page')
   if (draft.ok) {
+    forgetOtherDraftsHistory(replaced, draft.held)
     gate.recordPreview(pageDisplayName(draft.held.files))
   }
 }

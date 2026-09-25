@@ -19,6 +19,15 @@ export interface PreviewObjectEntry {
 
 /** Everything the preview drawer renders. Pure data — the surface never fetches. */
 export interface AutopilotPreviewPayload {
+  /**
+   * WHICH BUILDER'S PREVIEW THIS IS. Absent means a PAGE draft — every page payload predates this
+   * field, and the page composer adopts exactly those. Everything else says what it is, because the
+   * page composer claims the preview surface while it is mounted and the drawer defers to it: a
+   * blueprint, RestDefinition or inspection preview proposed on /portal-builder/compose was swallowed
+   * by a surface that cannot show it. Ownership is decided by what the preview IS, not by which
+   * draft happens to be held.
+   */
+  builder?: 'blueprint' | 'restdef' | 'inspect'
   /** Drawer title, named by the verb (e.g. "Blueprint preview — aws-vpc"). */
   title: string
   /** One-line qualifier under the title (e.g. "source preview — not a live render"). */
@@ -86,3 +95,6 @@ export const PREVIEW_SELF_CORRECTION_NUDGE = 'Your previewed page was REJECTED b
 export const openAutopilotPreview = (payload: AutopilotPreviewPayload): void => {
   window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, { detail: payload }))
 }
+
+/** True for a payload the page composer owns: a page draft (the only kind with no `builder`). */
+export const isPageDraftPayload = (payload: Pick<AutopilotPreviewPayload, 'builder'>): boolean => payload.builder === undefined

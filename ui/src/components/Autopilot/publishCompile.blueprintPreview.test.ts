@@ -3,11 +3,12 @@
  * PERSON starts from the composer arms exactly what a proposed one does. It holds the tree and arms
  * the gate ONLY for a lint-clean draft whose render succeeded; every other case holds nothing.
  */
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from './blueprintDraft'
 import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
+import { draftHistory } from './draftHistory'
 import { recordBlueprintPreview } from './publishCompile'
 
 const CLEAN: Record<string, string> = {
@@ -53,5 +54,29 @@ describe('recordBlueprintPreview', () => {
     const gate = createBlueprintGate()
     expect(recordBlueprintPreview(undefined, false, store, gate)).toBe(false)
     expect(store.get()).toBeNull()
+  })
+})
+
+describe('a proposal replacing the held draft — the undo history belongs to the draft it was made on', () => {
+  afterEach(() => draftHistory.clear())
+
+  it('a DIFFERENT chart replacing the held one takes the history with it', () => {
+    const store = createBlueprintDraftStore()
+    const gate = createBlueprintGate()
+    recordBlueprintPreview(CLEAN, false, store, gate)
+    draftHistory.push({ files: CLEAN, kind: 'blueprint' })
+    const other = { ...CLEAN, [CHART_YAML_PATH]: 'apiVersion: v2\nname: aws-vpc\nversion: 0.1.0\n' }
+    recordBlueprintPreview(other, false, store, gate)
+    // Undo would otherwise restore nginx-demo's tree over aws-vpc.
+    expect(draftHistory.depth()).toBe(0)
+  })
+
+  it('a re-preview of the SAME chart keeps it — undoing back past the agent\'s own revision is the point', () => {
+    const store = createBlueprintDraftStore()
+    const gate = createBlueprintGate()
+    recordBlueprintPreview(CLEAN, false, store, gate)
+    draftHistory.push({ files: CLEAN, kind: 'blueprint' })
+    recordBlueprintPreview({ ...CLEAN, 'templates/service.yaml': 'kind: Service\n' }, false, store, gate)
+    expect(draftHistory.depth()).toBe(1)
   })
 })

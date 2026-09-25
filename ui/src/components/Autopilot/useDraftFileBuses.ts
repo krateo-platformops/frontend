@@ -23,7 +23,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 
 import { lintBlueprintDraft } from './blueprintDraft'
-import type { BlueprintDraftStore } from './blueprintDraftStore'
+import { createBlueprintDraftStore, type BlueprintDraftStore } from './blueprintDraftStore'
 import { clearComposeRefusals } from './composeRequest'
 import { draftHistory } from './draftHistory'
 import { pageDisplayName, pageDraftWidgets } from './pageDraft'
@@ -31,6 +31,7 @@ import { emitPreviewApplied } from './previewApplied'
 import { buildPagePreviewPayload } from './previewBridge'
 import { openAutopilotPreview } from './previewBus'
 import { type DraftChangedDetail, emitDraftChanged, onDraftReplayRequest } from './previewDraftChanged'
+import { onDraftClose } from './previewDraftClose'
 import { onDraftStart } from './previewDraftStart'
 import { onDraftUndo } from './previewDraftUndo'
 import { onFileAdd } from './previewFileAdd'
@@ -48,14 +49,24 @@ const REAPPLY_DEBOUNCE_MS = 700
 /**
  * The held draft as the broadcast carries it — ONE definition for both emitters (the store's
  * change listener in the provider, and the replay below), so the two cannot come to disagree about
- * what a surface is told. `kind` lets a page surface park a chart; `problems` is the blueprint lint,
- * so a hand edit that would wedge a CompositionDefinition is visible instead of silent.
+ * what a surface is told. `kind` lets a page surface park a chart; `problems` is the chart lint —
+ * of EITHER kind, because a page draft is a page-set chart and publishes as one — so a hand edit
+ * that would wedge a CompositionDefinition is visible instead of silent.
  */
 export const heldDraftDetail = (held: ReturnType<BlueprintDraftStore['get']>): DraftChangedDetail => ({
   files: held?.files ?? {},
   kind: held?.kind ?? null,
-  problems: held?.kind === 'blueprint' ? lintBlueprintDraft(held.files) : [],
+  problems: held ? lintBlueprintDraft(held.files) : [],
 })
+
+/**
+ * The provider's store, wired to the broadcast. A factory rather than an inline lambda in the
+ * provider so the one line every surface depends on — a store change IS a draft-changed event,
+ * carrying kind and problems — is something a test can hold, not an implementation detail of a
+ * component too large to mount.
+ */
+export const createBroadcastingDraftStore = (): BlueprintDraftStore =>
+  createBlueprintDraftStore((held) => emitDraftChanged(heldDraftDetail(held)))
 
 /** The slice of the preview gate this hook needs — narrowed so tests need not build a whole gate. */
 interface PreviewGateLike {
@@ -210,14 +221,16 @@ export const useDraftFileBuses = (
    * CompositionDefinition at Ready=False on registration. Reachable today through the drawer's
    * Files tab, before any blueprint composer exists.
    *
-   * So a blueprint draft is linted on every write. Clean: re-arm as before. Dirty: FORGET the
-   * identity — not merely skip the re-arm, because the chart name did not change and stays armed
-   * from its last clean preview. The problems ride the draft broadcast, so a surface can say why.
+   * So every draft is linted on every write — a page too: it publishes as a page-set chart, with a
+   * Chart.yaml and a values.schema.json a hand edit can break exactly as it can a blueprint's.
+   * Clean: re-arm as before. Dirty: FORGET the identity — not merely skip the re-arm, because the
+   * name did not change and stays armed from its last clean preview. The problems ride the draft
+   * broadcast, so a surface can say why.
    */
   const rearm = useCallback(() => {
     const held = store.get()
     const identity = identityOf(held)
-    if (held?.kind === 'blueprint' && lintBlueprintDraft(held.files).length > 0) {
+    if (held && lintBlueprintDraft(held.files).length > 0) {
       gate.forget?.(identity)
       return
     }
@@ -233,7 +246,7 @@ export const useDraftFileBuses = (
     // Captured BEFORE the call and pushed only if it was accepted: a refused or over-cap edit
     // leaves the tree exactly as it was, and a snapshot for one would make Undo consume a step
     // without changing anything — the control would move and the draft would not.
-    const before = store.get()?.files
+    const before = store.get()
     if (store.updateDisplayedFile(path, content).ok) {
       if (before) { draftHistory.push(before) }
       rearm()
@@ -243,7 +256,7 @@ export const useDraftFileBuses = (
 
   // ADD: a file the composer just authored — a layout container, a new widget.
   useEffect(() => onFileAdd(({ content, path }) => {
-    const before = store.get()?.files
+    const before = store.get()
     if (store.addFile(path, content).ok) {
       if (before) { draftHistory.push(before) }
       rearm()
@@ -254,7 +267,7 @@ export const useDraftFileBuses = (
   // Removal re-arms the gate exactly as an add or an edit does: the draft's identity has changed,
   // and a gate still armed for the previous shape would let a publish commit a set nobody previewed.
   useEffect(() => onFileRemove(({ path }) => {
-    const before = store.get()?.files
+    const before = store.get()
     if (store.removeFile(path).ok) {
       if (before) { draftHistory.push(before) }
       rearm()
@@ -264,17 +277,43 @@ export const useDraftFileBuses = (
 
   // UNDO: put the whole tree back. `set` rather than a per-file replay, because the step being
   // undone may have added or removed files as well as changed them — a container drop does both.
+  //
+  // A step of ANOTHER kind is not a step of this draft: the history outlived a switch between
+  // builders. Restoring it under the held kind would relabel a page tree as a chart (or back), so
+  // the whole history goes — every step below it is older still, and just as foreign.
   useEffect(() => onDraftUndo(() => {
     const previous = draftHistory.pop()
     const kind = store.get()?.kind
     if (!previous || !kind) {
       return
     }
-    if (store.set(previous, kind).ok) {
+    if (previous.kind !== kind) {
+      draftHistory.clear()
+      return
+    }
+    if (store.set(previous.files, kind).ok) {
       rearm()
       scheduleReapply()
     }
   }), [rearm, scheduleReapply, store])
+
+  // DISCARD: the held draft goes — its files, its gate arming, its undo steps and the refusals the
+  // model was told about it. Arming is forgotten BEFORE the clear, while the identity is still
+  // readable; and a queued re-apply is cancelled, since it would apply a draft that no longer exists.
+  useEffect(() => onDraftClose(() => {
+    const held = store.get()
+    if (!held) {
+      return
+    }
+    gate.forget?.(identityOf(held))
+    if (replayTimer.current) {
+      clearTimeout(replayTimer.current)
+      replayTimer.current = null
+    }
+    draftHistory.clear()
+    clearComposeRefusals()
+    store.clear()
+  }), [gate, identityOf, store])
 
   // REPLAY: a surface that mounted AFTER the draft was seeded missed the store's broadcast, so it
   // asks and we answer on the same bus. Answering with an empty map when nothing is held is

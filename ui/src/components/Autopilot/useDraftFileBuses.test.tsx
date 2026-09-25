@@ -15,14 +15,17 @@ import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createBlueprintDraftStore } from './blueprintDraftStore'
+import { draftHistory } from './draftHistory'
 import { onPreviewApplied } from './previewApplied'
 import { AUTOPILOT_PREVIEW_EVENT } from './previewBus'
 import { type DraftChangedDetail, onDraftChanged, requestDraftReplay } from './previewDraftChanged'
+import { emitDraftClose } from './previewDraftClose'
 import { emitDraftStart } from './previewDraftStart'
+import { emitDraftUndo } from './previewDraftUndo'
 import { emitFileAdd } from './previewFileAdd'
 import { emitFileEdit } from './previewFileEdit'
 import { emitFileRemove } from './previewFileRemove'
-import { useDraftFileBuses } from './useDraftFileBuses'
+import { createBroadcastingDraftStore, useDraftFileBuses } from './useDraftFileBuses'
 
 /** A page draft set: the `page-<slug>` root Flex is what makes it a page at all. */
 const widgets = () => [
@@ -322,7 +325,7 @@ describe('a blueprint draft edited by hand', () => {
     expect(gate.forget).not.toHaveBeenCalled()
   })
 
-  it('an ADD that dirties the draft forgets too — every write path is linted, not only edit', () => {
+  it('a REMOVE that dirties the draft forgets too — every write path is linted, not only edit', () => {
     const { gate } = seeded()
     // Removing values.schema.json makes the chart un-installable ("error getting spec schema").
     act(() => { emitFileRemove({ path: 'values.schema.json' }) })
@@ -330,7 +333,26 @@ describe('a blueprint draft edited by hand', () => {
     expect(gate.recordPreview).not.toHaveBeenCalled()
   })
 
-  it('a PAGE draft is never linted as a chart — its re-arm is unchanged', () => {
+  it('an ADD to a dirty draft does not re-arm it — adding a template fixes nothing', () => {
+    const { gate, store } = seeded()
+    store.updateFile('values.schema.json', dirtySchema)
+    act(() => { emitFileAdd({ content: 'apiVersion: v1\nkind: Service\n', path: 'templates/service.yaml' }) })
+    expect(store.get()?.files['templates/service.yaml']).toBeDefined()
+    expect(gate.forget).toHaveBeenCalledWith('nginx-demo')
+    expect(gate.recordPreview).not.toHaveBeenCalled()
+  })
+
+  it('an UNDO back to a dirty tree forgets — undo is a write like any other', () => {
+    const { gate, store } = seeded()
+    store.updateFile('values.schema.json', dirtySchema)
+    act(() => { emitFileEdit({ content: cleanSchema, path: 'values.schema.json' }) })
+    expect(gate.recordPreview).toHaveBeenCalledWith('nginx-demo')
+    act(() => { emitDraftUndo() })
+    expect(store.get()?.files['values.schema.json']).toBe(dirtySchema)
+    expect(gate.forget).toHaveBeenCalledWith('nginx-demo')
+  })
+
+  it('a PAGE draft is linted too — it publishes as a page-set chart; a clean edit re-arms, a broken one forgets', () => {
     const store = createBlueprintDraftStore()
     const gate = { forget: vi.fn(), recordPreview: vi.fn() }
     const PageHost = () => {
@@ -340,9 +362,13 @@ describe('a blueprint draft edited by hand', () => {
     render(<PageHost />)
     act(() => { emitDraftStart({ title: 'x', widgets: widgets() }) })
     gate.recordPreview.mockClear()
-    const [key] = Object.keys(store.get()?.files ?? {})
-    act(() => { emitFileEdit({ content: 'kind: Flex\n', path: key }) })
+    const root = Object.keys(store.get()?.files ?? {}).find((key) => key.includes('page-service-catalog'))
+    expect(root).toBeDefined()
+    act(() => { emitFileEdit({ content: 'kind: Flex\n', path: root ?? '' }) })
+    expect(gate.recordPreview).toHaveBeenCalledWith('page-x')
     expect(gate.forget).not.toHaveBeenCalled()
+    act(() => { emitFileRemove({ path: 'values.schema.json' }) })
+    expect(gate.forget).toHaveBeenCalledWith('page-x')
   })
 
   it('REPLAY says who holds the draft and what the lint thinks, so a surface can park or explain it', () => {
@@ -355,5 +381,80 @@ describe('a blueprint draft edited by hand', () => {
     expect(heard).toHaveLength(1)
     expect(heard[0].kind).toBe('blueprint')
     expect(heard[0].problems?.length).toBeGreaterThan(0)
+  })
+})
+
+describe('undo across a switch of builder', () => {
+  afterEach(() => draftHistory.clear())
+
+  it('does NOT restore a page tree into a held chart — it drops the foreign history instead', () => {
+    const store = createBlueprintDraftStore()
+    store.set({ 'Chart.yaml': 'apiVersion: v2\nname: nginx-demo\nversion: 0.1.0\n', 'values.schema.json': '{"type":"object"}' }, 'blueprint')
+    const before = store.get()
+    const gate = { forget: vi.fn(), recordPreview: vi.fn() }
+    const Hosted = () => {
+      useDraftFileBuses(store, gate, () => 'nginx-demo')
+      return null
+    }
+    render(<Hosted />)
+    draftHistory.push({ files: { 'templates/flex.page-x.yaml': 'kind: Flex' }, kind: 'page' })
+    act(() => { emitDraftUndo() })
+    expect(store.get()).toBe(before)
+    expect(draftHistory.depth()).toBe(0)
+    expect(gate.recordPreview).not.toHaveBeenCalled()
+  })
+})
+
+describe('discarding the held draft', () => {
+  afterEach(() => draftHistory.clear())
+
+  it('drops the files, the gate arming and the undo history — and a new page can start', () => {
+    const store = createBlueprintDraftStore()
+    const gate = { forget: vi.fn(), recordPreview: vi.fn() }
+    const Hosted = () => {
+      useDraftFileBuses(store, gate, (held) => (held ? 'page:page-service-catalog' : null))
+      return null
+    }
+    render(<Hosted />)
+    act(() => { emitDraftStart({ title: 'x', widgets: widgets() }) })
+    act(() => { emitFileAdd({ content: 'kind: Row\n', path: 'templates/row.a.yaml' }) })
+    expect(draftHistory.depth()).toBe(1)
+
+    act(() => { emitDraftClose() })
+    expect(store.get()).toBeNull()
+    expect(gate.forget).toHaveBeenCalledWith('page:page-service-catalog')
+    expect(draftHistory.depth()).toBe(0)
+
+    // The defect this closes: after a "discard" the draft was still held, so every start was refused.
+    act(() => { emitDraftStart({ title: 'y', widgets: widgets() }) })
+    expect(store.get()?.kind).toBe('page')
+  })
+
+  it('is a no-op with nothing held', () => {
+    const store = createBlueprintDraftStore()
+    const gate = { forget: vi.fn(), recordPreview: vi.fn() }
+    const Hosted = () => {
+      useDraftFileBuses(store, gate, () => null)
+      return null
+    }
+    render(<Hosted />)
+    act(() => { emitDraftClose() })
+    expect(gate.forget).not.toHaveBeenCalled()
+  })
+})
+
+describe('the provider store', () => {
+  it('broadcasts every change with its kind and its lint — the one emitter surfaces listen to', () => {
+    const store = createBroadcastingDraftStore()
+    const heard: DraftChangedDetail[] = []
+    const stop = onDraftChanged((detail) => heard.push(detail))
+    store.set({ 'Chart.yaml': 'apiVersion: v2\nname: nginx-demo\nversion: 0.1.0\n' }, 'blueprint')
+    store.clear()
+    stop()
+    expect(heard).toHaveLength(2)
+    expect(heard[0].kind).toBe('blueprint')
+    // values.schema.json is missing — the lint says so on the broadcast itself.
+    expect(heard[0].problems?.some((line) => line.includes('values.schema.json'))).toBe(true)
+    expect(heard[1]).toEqual({ files: {}, kind: null, problems: [] })
   })
 })

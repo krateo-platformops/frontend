@@ -13,7 +13,9 @@
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
 import { emitDraftChanged, previewSurfaceClaimed } from '../../components/Autopilot/previewDraftChanged'
+import { onDraftClose } from '../../components/Autopilot/previewDraftClose'
 import { AUTOPILOT_DRAFT_START_EVENT } from '../../components/Autopilot/previewDraftStart'
 import type { DraftStartDetail } from '../../components/Autopilot/previewDraftStart'
 import { AUTOPILOT_PUBLISH_REQUEST_EVENT, emitPublishResult } from '../../components/Autopilot/previewPublishRequest'
@@ -49,6 +51,36 @@ describe('PageComposer — the preview surface, outside the rail', () => {
     expect(screen.getByText(/A blueprint draft is open in this thread/i)).toBeTruthy()
     expect(screen.queryByText('Objects')).toBeNull()
     expect(screen.queryByRole('button', { name: /Start a page/i })).toBeNull()
+  })
+
+  it('hides the page controls while parked — Publish here would publish the chart as a page', () => {
+    mount()
+    emit({ files: [{ content: widgetCr('Flex', 'page-x'), path: 'flex.page-x.yaml' }], title: 'x' })
+    expect(screen.getByText('Publish')).toBeTruthy()
+    act(() => emitDraftChanged({ files: { 'Chart.yaml': 'x' }, kind: 'blueprint' }))
+    expect(screen.queryByText('Publish')).toBeNull()
+    expect(screen.queryByText('Undo')).toBeNull()
+    expect(screen.queryByText('Close draft')).toBeNull()
+  })
+
+  it('offers a REAL discard of the parked chart — the provider drops it, not just this view', () => {
+    const closes = vi.fn()
+    const stop = onDraftClose(closes)
+    mount()
+    act(() => emitDraftChanged({ files: { 'Chart.yaml': 'x' }, kind: 'blueprint' }))
+    act(() => { screen.getByText('Discard blueprint draft').click() })
+    act(() => { screen.getByText('Discard').click() })
+    stop()
+    expect(closes).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not adopt a chart, RestDefinition or inspection preview — the drawer shows those', () => {
+    mount()
+    act(() => {
+      window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, { detail: { builder: 'blueprint', summary: ['nginx-demo-rendered'], title: 'Blueprint preview — nginx-demo' } }))
+    })
+    expect(screen.queryByText('nginx-demo-rendered')).toBeNull()
+    expect(screen.getByText(/No draft open/i)).toBeTruthy()
   })
 
   it('un-parks when the held draft becomes a page again', () => {
@@ -260,6 +292,8 @@ describe('PageComposer — one surface owns the draft', () => {
 
   it('fires the sandbox teardown on close — the lifecycle the drawer used to own', () => {
     const onClose = vi.fn()
+    const closes = vi.fn()
+    const stop = onDraftClose(closes)
     mount()
     emit({ files: [{ content: widgetCr('Flex', 'page-x'), path: 'flex.page-x.yaml' }], onClose, title: 'x' })
 
@@ -268,6 +302,9 @@ describe('PageComposer — one surface owns the draft', () => {
 
     // Without this the sandbox CRs outlive every surface that could render them.
     expect(onClose).toHaveBeenCalledTimes(1)
+    // …and the held draft itself is dropped, or every later "Start a page" is refused.
+    expect(closes).toHaveBeenCalledTimes(1)
+    stop()
     expect(screen.getByText(/No draft open/i)).toBeTruthy()
   })
 })

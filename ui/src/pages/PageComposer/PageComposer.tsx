@@ -35,9 +35,10 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncE
 
 import { emitComposeResult, onComposeRequest } from '../../components/Autopilot/composeRequest'
 import { draftHistory } from '../../components/Autopilot/draftHistory'
-import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
+import { AUTOPILOT_PREVIEW_EVENT, isPageDraftPayload } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { claimPreviewSurface, onDraftChanged, requestDraftReplay } from '../../components/Autopilot/previewDraftChanged'
+import { emitDraftClose } from '../../components/Autopilot/previewDraftClose'
 import { emitDraftStart } from '../../components/Autopilot/previewDraftStart'
 import { emitDraftUndo } from '../../components/Autopilot/previewDraftUndo'
 import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
@@ -46,12 +47,12 @@ import { LIVE_PREVIEW_CAPTION_INLINE } from '../../components/Autopilot/previewP
 import { emitPublishRequest, onPublishResult } from '../../components/Autopilot/previewPublishRequest'
 import { PreviewContent } from '../../components/Autopilot/previewSurface'
 import type { RestDefVerdicts } from '../../components/Autopilot/previewSurface'
-import { WidgetEmpty } from '../../components/WidgetStates'
 import { ConfigContext } from '../../context/ConfigContext'
 
 import CanvasPanel from './CanvasPanel'
 import { authorWidget, bindData } from './composeAuthoring'
 import { announce, onAnnounce } from './composerAnnounce'
+import { ComposerEmptyState } from './ComposerEmptyState'
 import CreateWidgetModal from './CreateWidgetModal'
 import { resolveDrop } from './dndIds'
 import type { DragPayload, DropPayload } from './dndIds'
@@ -395,6 +396,12 @@ const PageComposer = () => {
 
   useEffect(() => {
     const onPreview = (event: CustomEvent<AutopilotPreviewPayload>) => {
+      // Only a PAGE preview is ours. The drawer defers to this page for exactly those and opens for
+      // everything else, so adopting a chart or an inspection here would take it from the one
+      // surface that can show it — and hand this one a payload it would render under page rules.
+      if (!isPageDraftPayload(event.detail)) {
+        return
+      }
       setPayload(event.detail)
       setEditVerdicts(null)
     }
@@ -660,7 +667,10 @@ const PageComposer = () => {
     emitPublishRequest({ id, verb: 'publishPage' })
   }
 
+  // A REAL discard: the held draft is dropped in the provider — store, gate arming, undo history —
+  // not merely hidden here. Hiding it left the files publishable and refused every later start.
   const closeDraft = () => {
+    emitDraftClose()
     payload?.onClose?.()
     setPayload(null)
     setEditVerdicts(null)
@@ -668,24 +678,7 @@ const PageComposer = () => {
     setFocusPath(null)
   }
 
-  /*
-   * Nothing this composer can edit is open. Either no draft at all — say how to start one — or the
-   * draft this thread holds is a CHART: not a fake canvas and not silence, but a sentence naming it,
-   * because this surface has no business rewriting a blueprint.
-   */
-  const emptyState = parkedBlueprint
-    ? (
-      <WidgetEmpty
-        description='A blueprint draft is open in this thread. This composer edits pages — close that draft first to start a page here.'
-      />
-    )
-    : (
-      <WidgetEmpty
-        description='No draft open. Start a page here, or ask Autopilot to draft one — either way you review every file before anything is published.'
-      >
-        <Button onClick={() => setStarting(true)} type='primary'>Start a page</Button>
-      </WidgetEmpty>
-    )
+  const emptyState = <ComposerEmptyState onDiscard={closeDraft} onStart={() => setStarting(true)} parkedBlueprint={parkedBlueprint} />
 
   return (
     <div className={styles.page}>
@@ -720,7 +713,7 @@ const PageComposer = () => {
         {/* Closing is the sandbox TEARDOWN, which this page now owns: it took the claim, so the
             drawer that used to carry this control never opens here. Confirmed rather than
             immediate, because the draft is not recoverable and nothing else in view says so. */}
-        {payload
+        {payload && !parkedBlueprint
           ? (
             <Space className={styles.actions}>
               {/*

@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PortalActionProposal } from './actionBridge'
 import type { AutopilotPreviewPayload } from './previewBus'
 import { openAutopilotPreview } from './previewBus'
-import { explainUpgradeImpactSpec, previewBlueprintSpec, previewPageSpec, previewRestDefSpec, RENDER_UNAVAILABLE_LABEL, UPGRADE_IMPACT_UNAVAILABLE_LABEL } from './previewHandlers'
+import { describeResourceSpec, explainUpgradeImpactSpec, previewBlueprintSpec, previewPageSpec, previewRestDefSpec, RENDER_UNAVAILABLE_LABEL, UPGRADE_IMPACT_UNAVAILABLE_LABEL } from './previewHandlers'
 import { isReadOnlyVerb, READONLY_VERB_REGISTRY, type VerbDeps } from './verbRegistry'
 
 vi.mock('./previewBus', () => ({ openAutopilotPreview: vi.fn(), setPreviewProblems: vi.fn() }))
@@ -112,6 +112,8 @@ describe('previewBlueprint', () => {
     expect(openPreviewMock).toHaveBeenCalledTimes(1)
     const payload = openedPayload()
     expect(payload.title).toBe('Blueprint preview — aws-vpc')
+    // Says what it is, so a mounted page composer does not swallow it (the drawer opens for it).
+    expect(payload.builder).toBe('blueprint')
     expect(payload.error).toBeUndefined()
     expect(payload.objects).toEqual([{ apiVersion: 'apps/v1', kind: 'Deployment', name: 'web', namespace: 'demo', yaml: 'kind: Deployment' }])
     expect(chip).toEqual({ label: 'preview aws-vpc (1 object)', readOnly: true, verb: 'previewBlueprint' })
@@ -223,6 +225,8 @@ describe('previewPage — honest source preview, zero network', () => {
     expect(payload.objects).toHaveLength(2)
     expect(payload.objects?.[0]).toMatchObject({ kind: 'Flex', name: 'page-root', namespace: 'krateo-system' })
     expect(payload.caption).toContain('Source preview')
+    // A page is the one kind with no `builder` — the composer adopts exactly those.
+    expect(payload.builder).toBeUndefined()
     expect(chip).toEqual({ label: 'preview page (2 widgets)', readOnly: true, verb: 'previewPage' })
   })
 
@@ -262,6 +266,7 @@ describe('previewRestDef — structured source preview, zero network', () => {
     expect(openPreviewMock).toHaveBeenCalledTimes(1)
     const payload = openedPayload()
     expect(payload.title).toBe('RestDefinition preview — gh-repo')
+    expect(payload.builder).toBe('restdef')
     expect(payload.summary).toEqual([
       'kind: Repo',
       'group: github.ogen.krateo.io',
@@ -336,6 +341,7 @@ describe('explainUpgradeImpact — the version-diff explain verb', () => {
     expect(chip?.label).toContain('upgrade impact → 1.2.0')
     const payload = openedPayload()
     expect(payload.title).toBe('Upgrade impact — 1.1.0 → 1.2.0')
+    expect(payload.builder).toBe('inspect')
     expect(payload.summary).toContain('~ Deployment demo/api — changed: replicas')
     expect(payload.error).toBeUndefined()
   })
@@ -345,5 +351,19 @@ describe('explainUpgradeImpact — the version-diff explain verb', () => {
     const chip = await explainUpgradeImpactSpec.apply(asProposal('explainUpgradeImpact', args), makeRADeps())
     expect(chip?.label).toContain('diff failed')
     expect(openedPayload().error).toBe('chart: not found')
+  })
+})
+
+describe('describeResource — an inspection, not a draft', () => {
+  it('opens the drawer tagged as an inspection, even when the CRD read fails', async () => {
+    // A 404 is content, not a throw — and either way the payload must not read as a PAGE draft, or a
+    // mounted page composer adopts a CRD description as the page being authored.
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({}), ok: false, status: 404 })))
+    await describeResourceSpec.apply(
+      asProposal('describeResource', { gvr: { group: 'github.krateo.io', resource: 'repositories', version: 'v1alpha1' } }),
+      makeRADeps(),
+    )
+    expect(openPreviewMock).toHaveBeenCalledTimes(1)
+    expect(openedPayload().builder).toBe('inspect')
   })
 })

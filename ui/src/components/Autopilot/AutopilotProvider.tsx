@@ -22,7 +22,6 @@ import { AgentDraftProvider } from './agentDraft'
 import type { ApprovalDecision, ApprovalGovernor, ApprovalPause } from './approval'
 import { createApprovalGovernor, summarizeApprovalTools } from './approval'
 import { useAskDeepLink } from './askDeepLink'
-import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
 import { trackPublishStatus } from './builderClaimPublish'
 import { useBuilderTargets } from './builderTargets'
@@ -34,7 +33,6 @@ import { dispatchKogPublish } from './kogPublishDispatch'
 import { createOasAttachmentStore, type OasAttachmentResult } from './oasAttachment'
 import { isPageDraft, pageRootSlug } from './pageDraft'
 import { PREVIEW_SELF_CORRECTION_NUDGE } from './previewBus'
-import { emitDraftChanged } from './previewDraftChanged'
 import { onRestDefEdit } from './previewEditBus'
 import { buildKogPublishNudge, createPreviewGate, hydrateRestDefinitionOps } from './previewGate'
 import { emitPublishResult, onPublishRequest } from './previewPublishRequest'
@@ -46,7 +44,7 @@ import type { ThreadSummary } from './sessionHistoryStore'
 import { a2aAuthHeader, createEchoTransport, createKagentTransport } from './transport'
 import type { AutopilotActionChip, AutopilotFrame, AutopilotMessage, AutopilotTransport, EvidenceEntry, PageContextEnvelope, TurnModality } from './types'
 import { buildContextDelta, useAutopilotContext } from './useAutopilotContext'
-import { heldDraftDetail, useDraftFileBuses } from './useDraftFileBuses'
+import { createBroadcastingDraftStore, useDraftFileBuses } from './useDraftFileBuses'
 import { autopilotSpeakBackStore } from './voice/speak/speakBackStore'
 import { stopVoice } from './voiceWiring'
 
@@ -206,7 +204,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // composer is a route), so it re-reads from the broadcast rather than computing against stale bytes.
   // The broadcast says WHO holds the draft and, for a blueprint, what the lint thinks of it — built
   // by the same helper the replay uses, so the two emitters cannot disagree.
-  const [blueprintStore] = useState(() => createBlueprintDraftStore((held) => emitDraftChanged(heldDraftDetail(held))))
+  const [blueprintStore] = useState(createBroadcastingDraftStore)
 
   const abortRef = useRef<(() => void) | null>(null)
   const approvalRef = useRef<{ governor: ApprovalGovernor; pause: ApprovalPause } | null>(null)

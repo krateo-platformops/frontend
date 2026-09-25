@@ -120,6 +120,7 @@ describe('previewBlueprint inline-draft mode (FE-B1)', () => {
     expect(openPreviewMock).toHaveBeenCalledTimes(1)
     const payload = openedPayload()
     expect(payload.caption).toBe(DRAFT_REJECTED_CAPTION)
+    expect(payload.builder).toBe('blueprint')
     expect(payload.problems).toHaveLength(1)
     expect(payload.problems?.[0]).toContain('[CRDGEN-DEFAULTS]')
     expect(payload.problems?.[0]).toContain('properties.ingress.properties.hosts.default')

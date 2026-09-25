@@ -10,7 +10,7 @@
  * The held-bytes guarantee is exercised: the emitted draft is the byte-for-byte edited YAML, produced
  * by a human edit in the drawer — never a model round-trip.
  */
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 // WidgetRenderer (only mounted for a liveEndpoint payload, not here) pulls the whole widget system —
@@ -21,6 +21,8 @@ vi.mock('../../context/ThemeModeContext', () => ({ useThemeMode: () => ({ mode: 
 
 import { buildPagePreviewPayload, buildRestDefPreviewPayload, toYamlString } from './previewBridge'
 import { openAutopilotPreview } from './previewBus'
+import { claimPreviewSurface, emitDraftChanged } from './previewDraftChanged'
+import { emitDraftClose } from './previewDraftClose'
 import { AUTOPILOT_PREVIEW_EDIT_EVENT, type RestDefEditDetail } from './previewEditBus'
 import { AUTOPILOT_PREVIEW_FILE_EDIT_EVENT, type FileEditDetail } from './previewFileEdit'
 import { AutopilotPreviewDrawer } from './previewSurface'
@@ -207,5 +209,58 @@ describe('frontend#180 — the preview must not cover a widened rail', () => {
     const inset = root.style.insetInlineEnd
     expect(inset, 'the inset must read the live rail width').toContain('--autopilot-rail-width')
     expect(inset, 'a hardcoded rail width is the bug itself').not.toMatch(/\b384\b/)
+  })
+})
+
+describe('AutopilotPreviewDrawer — which previews a mounted page composer takes', () => {
+  it('defers a PAGE preview to the composer, and opens for everything the composer cannot show', async () => {
+    const release = claimPreviewSurface()
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ summary: ['flex.page-x'], title: 'Page preview — x' }) })
+    expect(view.queryByText('Page preview — x')).toBeNull()
+
+    // The regression this pins: a chart proposed while /portal-builder/compose was open went to the
+    // composer, which parks charts — so it was shown nowhere.
+    act(() => { openAutopilotPreview({ builder: 'blueprint', summary: ['nginx-demo'], title: 'Blueprint preview — nginx-demo' }) })
+    await waitFor(() => expect(view.getByText('Blueprint preview — nginx-demo')).toBeTruthy())
+    release()
+  })
+
+  it('opens a page preview as before when no composer holds the claim', async () => {
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ summary: ['flex.page-x'], title: 'Page preview — x' }) })
+    await waitFor(() => expect(view.getByText('Page preview — x')).toBeTruthy())
+  })
+})
+
+describe('AutopilotPreviewDrawer — the held draft, discarded or dirty', () => {
+  it('a discard elsewhere closes a DRAFT preview and fires its teardown', async () => {
+    const onClose = vi.fn()
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ onClose, summary: ['flex.page-x'], title: 'Page preview — x' }) })
+    await waitFor(() => expect(view.getByText('Page preview — x')).toBeTruthy())
+    act(() => { emitDraftClose() })
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('a discard leaves an INSPECTION open — it was never the draft', async () => {
+    const onClose = vi.fn()
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ builder: 'inspect', onClose, summary: ['repos.github.krateo.io'], title: 'Describe — repos' }) })
+    await waitFor(() => expect(view.getByText('Describe — repos')).toBeTruthy())
+    act(() => { emitDraftClose() })
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('says why the held draft cannot publish, on a draft preview only', async () => {
+    const view = render(<AutopilotPreviewDrawer />)
+    act(() => { openAutopilotPreview({ builder: 'blueprint', summary: ['nginx-demo'], title: 'Blueprint preview — nginx-demo' }) })
+    await waitFor(() => expect(view.getByText('Blueprint preview — nginx-demo')).toBeTruthy())
+    act(() => { emitDraftChanged({ files: { 'Chart.yaml': 'x' }, kind: 'blueprint', problems: ['values.schema.json is missing'] }) })
+    expect(view.getByText('values.schema.json is missing')).toBeTruthy()
+
+    act(() => { openAutopilotPreview({ builder: 'restdef', summary: ['gh-repo'], title: 'RestDefinition preview — gh-repo' }) })
+    await waitFor(() => expect(view.getByText('RestDefinition preview — gh-repo')).toBeTruthy())
+    expect(view.queryByText('values.schema.json is missing')).toBeNull()
   })
 })
