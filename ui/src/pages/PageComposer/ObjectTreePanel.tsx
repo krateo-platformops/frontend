@@ -303,8 +303,7 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
      * stayed in the held draft, `buildObjectTree` saw a file nothing referenced and drew it as a page
      * ROOT, and the thing just removed reappeared on the canvas beside the page. It had no
      * `parentPath`, so the tree drew no buttons on it — there was no Remove to press a second time —
-     * and `pagePublish` builds one repocontents op per held key, so it shipped in the change request
-     * too. "I pressed Remove and it is still there, and now I cannot get rid of it."
+     * and a publish commits every held key, so it shipped in the change request too. "I pressed Remove and it is still there, and now I cannot get rid of it."
      *
      * ONLY WHEN NOTHING ELSE HOLDS IT. The same widget may legitimately be placed twice — a divider
      * between two sections — and each placement is its own reference. Deleting the file on the first

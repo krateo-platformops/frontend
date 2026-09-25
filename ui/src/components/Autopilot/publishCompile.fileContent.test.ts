@@ -35,3 +35,18 @@ describe('compilePublishOps — the $fileContent token', () => {
     expect(result.ops).toHaveLength(1)
   })
 })
+
+describe('compilePublishOps — a hand-written git-write set', () => {
+  it('is refused by name — the kernel alone would drop it silently, with no chip the model can read', () => {
+    const repoContent: ApplyResourceSetOp = {
+      gvr: { group: 'github.krateo.io', resource: 'repocontents', version: 'v1alpha1' },
+      name: 'chart-yaml',
+      namespace: 'krateo-system',
+      payload: { spec: { content: 'x', path: 'Chart.yaml' } },
+      verb: 'POST',
+    }
+    const result = compilePublishOps([repoContent], ALLOW, ALLOW, null, origin)
+    expect(result.ops).toBeNull()
+    expect(result.denial).toMatch(/publishBlueprint/)
+  })
+})

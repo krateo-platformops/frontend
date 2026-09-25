@@ -261,18 +261,13 @@ export interface PortalActionProposal {
    * first error. Scoped by isApplySetAllowed (Krateo groups / core ConfigMaps only). */
   ops?: ApplyResourceSetOp[]
   /** publishBlueprint (FE-BP6) / publishPage (FE-BP7) / publishRestDef (FE-KOG-PR), MUTATING: the
-   * git PR publish for a blueprint chart / a portal page / a KOG API mapping. The model emits ONLY
-   * these repo-coordinate scalars; the HOST fans them out into the gitrefs + per-file repocontents +
-   * pullrequests op set from the HELD previewed draft (the model stalls hand-writing that multi-op
-   * payload). All optional — each defaults to the blueprint-catalog (publishBlueprint), portal-chart
-   * (publishPage), or KOG-oas (publishRestDef) repo. `title`/`body`/`namespace` above are shared;
-   * these add the rest. */
+   * publish of a blueprint chart / a portal page / a KOG API mapping. The model emits ONLY these
+   * repo-coordinate scalars — PREFILLS for the destination form the human confirms; the HOST builds
+   * ONE BuilderPublish claim from the HELD previewed draft. All optional. (The GitHub-path fields —
+   * configurationRef, message, body — went with that path, 2026-09-25: nothing read them.) */
   owner?: string
   repo?: string
   base?: string
-  configurationRef?: string
-  message?: string
-  body?: string
   /** Human-readable label for the auto-applied action chip. */
   label?: string
 }

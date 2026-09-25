@@ -194,11 +194,11 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   const [oasStore] = useState(createOasAttachmentStore)
   const [oasHeld, setOasHeld] = useState<{ bytes: number } | null>(null)
   // W4 BLUEPRINT-BUILDER: the thread-scoped BLUEPRINT preview gate (FE-BP2) records every
-  // previewed chart name and denies a blueprint publish (git-write CRs / a register
+  // previewed chart name and denies a blueprint publish (the BuilderPublish claim / a register
   // CompositionDefinition) unless the CURRENTLY-HELD draft was previewed this thread; and
   // the held previewed chart tree (FE-BP1), kept OUTSIDE the page-context path like
-  // oasStore — its bytes fill $fileContent tokens at publish-compile so published bytes ==
-  // previewed bytes. Both reset on newThread.
+  // oasStore — the claim carries its bytes verbatim, so published bytes == previewed bytes.
+  // Both reset on newThread.
   const [blueprintGate] = useState(createBlueprintGate)
   // The held draft + its broadcast: a surface that EDITS it lives outside this provider's tree (the
   // composer is a route), so it re-reads from the broadcast rather than computing against stale bytes.
@@ -469,17 +469,15 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       if (held && heldName && approvedPublish) {
         recoveryCountRef.current += 1
         setMessages((prev) => prev.map((message) => (message.id === assistantId ? { ...message, text: '↻ One moment — preparing the change request…' } : message)))
-        // Re-issue the scalar publish verb that matches the held draft: a page draft (no Chart.yaml)
-        // → publishPage (FE-BP7), a blueprint chart → publishBlueprint (FE-BP6). The host fans either
-        // out; the model must NEVER hand-write the multi-op payload (that is the stall we recover from).
+        // Re-issue the scalar publish verb that matches the held draft: a page draft → publishPage
+        // (FE-BP7), a blueprint chart → publishBlueprint (FE-BP6). The host turns either into ONE
+        // BuilderPublish claim; the model never writes the publish objects itself.
         const pageSlug = isPageDraft(held) ? pageRootSlug(held.files) : null
         const scalarVerb = pageSlug
-          ? `{"verb":"publishPage","owner":"${builderTargets.page.owner}","repo":"${builderTargets.page.repo}","base":"main","configurationRef":"github-blueprints-config","namespace":"krateo-system","title":"builder: page ${pageSlug}","body":"<one-line summary>"}`
-          : `{"verb":"publishBlueprint","owner":"${builderTargets.blueprint.owner}","repo":"${builderTargets.blueprint.repo}","base":"main","configurationRef":"github-blueprints-config","namespace":"krateo-system","title":"feat(${heldName}): add ${heldName} blueprint","body":"<one-line summary>"}`
-        const fanout = pageSlug
-          ? 'the gitrefs + per-file repocontents (widget CRs + the nav fragment) + pullrequests set from the held page'
-          : 'the gitrefs/repocontents/pullrequests set from the held tree'
-        const nudge = `You approved publishing \`${heldName}\` but your reply contained NO portal-action fence, so nothing was proposed and no confirm dialog opened. Do NOT say the user "will be asked to confirm" — EMITTING the fence is ITSELF what opens the blast-radius dialog. Re-issue the PUBLISH step NOW as a single fenced \`\`\`portal-action block containing ONLY this one scalar verb: ${scalarVerb}. The portal fans that out into ${fanout} — you do NOT write those ops yourself.`
+          ? `{"verb":"publishPage","owner":"${builderTargets.page.owner}","repo":"${builderTargets.page.repo}","base":"main"}`
+          : `{"verb":"publishBlueprint","owner":"${builderTargets.blueprint.owner}","repo":"${builderTargets.blueprint.repo}","base":"main"}`
+        const what = pageSlug ? 'the held page' : 'the held chart'
+        const nudge = `You approved publishing \`${heldName}\` but your reply contained NO portal-action fence, so nothing was proposed and no confirm dialog opened. Do NOT say the user "will be asked to confirm" — EMITTING the fence is ITSELF what opens the blast-radius dialog. Re-issue the PUBLISH step NOW as a single fenced \`\`\`portal-action block containing ONLY this one scalar verb: ${scalarVerb}. The portal commits ${what} as ONE publish claim — a branch with its files, and a change request for review — you do NOT write any of that yourself.`
         setTimeout(() => sendRef.current?.(nudge, { modality, recovery: true }), 0)
         return
       }

@@ -338,7 +338,7 @@ export const PreviewContent = ({ caption, editVerdicts, focusPath, liveFiles, on
   // destination path. Same shape for both builders (a page's widget CRs / a blueprint's chart tree) —
   // it IS the write-set the blast-radius later confirms, shown up front. FE-K(edit): each file is
   // EDITABLE in place — an accepted edit rides the previewFileEdit bus into the held draft (the provider
-  // re-arms the gate; the $fileContent publish path then commits the edited bytes automatically).
+  // re-arms the gate; the publish claim then commits the edited bytes, since it carries the held files).
   // A page's files are widget CRs (require the apiVersion/kind/metadata.name shape); a blueprint's are
   // Helm chart templates (YAML-parse-only) — distinguished by what the payload says it IS, not by its
   // tab label: a label is copy, and keying the edit parser on copy is how a chart got a page's rules.
