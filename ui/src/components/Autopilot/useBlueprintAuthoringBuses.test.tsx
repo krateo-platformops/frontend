@@ -101,7 +101,9 @@ describe('starting a chart', () => {
     await settle()
 
     expect(gate.recordPreview).toHaveBeenCalledWith('demo-chart')
-    expect(gate.forget).not.toHaveBeenCalled()
+    // The start forgets any earlier arming of the name FIRST; only the render arms it.
+    expect(gate.forget).toHaveBeenCalledTimes(1)
+    expect(gate.forget.mock.invocationCallOrder[0]).toBeLessThan(gate.recordPreview.mock.invocationCallOrder[0])
     const [answer] = results
     expect(answer).toMatchObject({ id: 's2', message: null, outcome: 'rendered' })
     expect(answer.payload?.builder).toBe('blueprint')
@@ -125,6 +127,17 @@ describe('starting a chart', () => {
     expect(results).toEqual([expect.objectContaining({ id: 's3', outcome: 'refused' })])
     expect(results[0].message).toMatch(/already open/)
     expect(callBlueprintRenderRA).not.toHaveBeenCalled()
+    stop()
+  })
+
+  it('never inherits an arming an earlier chart earned under the same name — a start never arms', () => {
+    vi.mocked(callBlueprintRenderRA).mockReturnValue(new Promise(() => undefined))
+    const { gate, stop } = mount()
+
+    act(() => { emitChartStart({ files: chart(), id: 's6' }) })
+
+    expect(gate.forget).toHaveBeenCalledWith('demo-chart')
+    expect(gate.recordPreview).not.toHaveBeenCalled()
     stop()
   })
 

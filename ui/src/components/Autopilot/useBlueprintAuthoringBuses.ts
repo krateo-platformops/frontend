@@ -82,14 +82,16 @@ export const useBlueprintAuthoringBuses = (
       emitDraftRenderResult({ id, message: 'A draft is already open in this thread — discard it before starting another.', outcome: 'refused' })
       return
     }
-    // A new chart is not answerable for the last draft's refusals or undo steps.
+    // A new chart is not answerable for the last draft's refusals or undo steps — nor for an arming
+    // some earlier chart earned under the same name: a start never arms.
     clearComposeRefusals()
     draftHistory.clear()
+    gate.forget(draftDisplayName(files))
     const set = store.set(files, 'blueprint')
     if (!set.ok) {
       emitDraftRenderResult({ id, message: set.error, outcome: 'refused' })
       return
     }
     void render(id)
-  }), [render, store])
+  }), [gate, render, store])
 }

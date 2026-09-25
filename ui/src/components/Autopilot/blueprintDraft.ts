@@ -196,14 +196,25 @@ export const lintValuesSchemaDefaults = (schemaText: string): string[] => {
 }
 
 /**
+ * Chart.yaml's `name:`, or null. ONE reader for the lint and for the identity the gate, the slug and
+ * the destination are keyed on — two readers disagreed about `name: x # comment`, so the lint
+ * passed a chart whose identity had silently fallen back to "draft chart". A `#` opens a comment
+ * only after whitespace, as in YAML, so `name: a#b` is the name `a#b` (and the lint refuses it).
+ */
+export const chartYamlName = (chartYaml: string | undefined): string | null => {
+  const match = chartYaml ? /^name:[ \t]*(?:"([^"]*)"|'([^']*)'|([^\s#]\S*?))(?:[ \t]+#.*)?[ \t\r]*$/m.exec(chartYaml) : null
+  return match ? (match[1] ?? match[2] ?? match[3]) || null : null
+}
+
+/**
  * The chart NAME becomes the repository, the branch (`builder/<name>`), the claim, the OCI chart and
  * the generated Kind. A missing one used to fall back to "draft chart" — which is none of those — and
  * an invalid one fails at whichever of them checks first. So it must be a DNS-1123 label.
  */
 const DNS_LABEL = /^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$/
 const lintChartName = (chartYaml: string): string[] => {
-  const name = /^name:\s*["']?([^"'\s#]+)["']?\s*(#.*)?$/m.exec(chartYaml)?.[1]
-  if (!name) {
+  const name = chartYamlName(chartYaml)
+  if (name === null) {
     return [`${CHART_YAML_PATH} has no name — it becomes the repository, the branch, the claim and the Kind.`]
   }
   if (!DNS_LABEL.test(name)) {
@@ -225,12 +236,20 @@ const lintDescriptor = (text: string | undefined): string[] => {
   if (descriptor === null) {
     return [`${ARCHITECTURE_TEMPLATE_PATH} does not carry the descriptor in data.architecture — the composer and the composition detail page read it from there.`]
   }
-  const parsed = parseArchitecture(descriptor)
-  if (!parsed.ok) {
-    return parsed.problems.map((problem) => `${ARCHITECTURE_TEMPLATE_PATH}: ${problem.path} — ${problem.message}`)
+  // This lint runs INSIDE the draft broadcast and the gate's change listener, so it must never
+  // throw: a throw there escapes the store write after the tree is replaced, before anything can
+  // disarm it, and every later answer on the draft buses goes with it. A descriptor the kernel
+  // cannot read is a problem to name, like any other.
+  try {
+    const parsed = parseArchitecture(descriptor)
+    if (!parsed.ok) {
+      return parsed.problems.map((problem) => `${ARCHITECTURE_TEMPLATE_PATH}: ${problem.path} — ${problem.message}`)
+    }
+    const derived = deriveStates(parsed.architecture)
+    return derived.ok ? [] : [`${ARCHITECTURE_TEMPLATE_PATH}: the dependencies form a cycle (${derived.cycle.join(' → ')}) — a chart with a cycle never leaves its first state.`]
+  } catch (err) {
+    return [`${ARCHITECTURE_TEMPLATE_PATH} could not be read — ${err instanceof Error ? err.message : String(err)}`]
   }
-  const derived = deriveStates(parsed.architecture)
-  return derived.ok ? [] : [`${ARCHITECTURE_TEMPLATE_PATH}: the dependencies form a cycle (${derived.cycle.join(' → ')}) — a chart with a cycle never leaves its first state.`]
 }
 
 /**
@@ -274,11 +293,8 @@ export const lintBlueprintDraft = (rawTemplates: Record<string, string>): string
 }
 
 /** The draft chart's display name, from Chart.yaml's `name:` (fallback: 'draft chart'). */
-export const draftDisplayName = (rawTemplates: Record<string, string>): string => {
-  const chartYaml = rawTemplates['Chart.yaml']
-  const match = chartYaml ? /^name:\s*["']?([A-Za-z0-9][A-Za-z0-9._-]*)["']?\s*$/m.exec(chartYaml) : null
-  return match ? match[1] : 'draft chart'
-}
+export const draftDisplayName = (rawTemplates: Record<string, string>): string =>
+  chartYamlName(rawTemplates[CHART_YAML_PATH]) ?? 'draft chart'
 
 /**
  * The RAW schema string the drawer's create-form preview renders, or undefined (no

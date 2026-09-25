@@ -15,7 +15,6 @@ import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createBlueprintDraftStore } from './blueprintDraftStore'
-import { createBlueprintGate } from './blueprintGate'
 import { getComposeRefusals, recordComposeOutcome } from './composeRequest'
 import { draftHistory } from './draftHistory'
 import { onPreviewApplied } from './previewApplied'
@@ -634,18 +633,3 @@ describe('what the loop applies, and what an edit may reach', () => {
     expect(gate.recordPreview).not.toHaveBeenCalled()
   })
 })
-
-describe('the broadcast says whether the held draft still stands previewed', () => {
-  it('previewed is false on a fresh hold and true once the gate arms it — the gate announces too', () => {
-    const gate = createBlueprintGate()
-    const store = createBroadcastingDraftStore(gate)
-    const heard: DraftChangedDetail[] = []
-    const stop = onDraftChanged((detail) => heard.push(detail))
-    store.set({ 'Chart.yaml': 'apiVersion: v2\nname: nginx-demo\nversion: 0.1.0\n', 'values.schema.json': '{"type":"object"}' }, 'blueprint')
-    gate.recordPreview('nginx-demo')
-    gate.forget('nginx-demo')
-    stop()
-    expect(heard.map((detail) => detail.previewed)).toEqual([false, true, false])
-  })
-})
-

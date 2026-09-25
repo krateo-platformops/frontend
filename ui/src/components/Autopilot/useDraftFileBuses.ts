@@ -69,14 +69,26 @@ export const heldDraftDetail = (
  * provider so the one line every surface depends on — a store change IS a draft-changed event,
  * carrying kind and problems — is something a test can hold, not an implementation detail of a
  * component too large to mount.
+ *
+ * AN ARMING BELONGS TO THE DRAFT THAT EARNED IT. The gate is keyed by name, so when the held draft
+ * becomes a DIFFERENT one — replaced by another proposal, renamed in Chart.yaml, discarded — the
+ * old name's arming is forgotten here, once, for every path. Otherwise it outlived its draft, and
+ * the next draft to reuse the name started out armed without ever rendering.
+ *
+ * Side-effect free at construction: the provider builds this in a useState initializer, which
+ * StrictMode runs twice. The gate's own announcements are wired by useDraftFileBuses, in an effect.
  */
-export const createBroadcastingDraftStore = (gate?: Pick<BlueprintGate, 'isArmed' | 'subscribe'>): BlueprintDraftStore => {
+export const createBroadcastingDraftStore = (gate?: Pick<BlueprintGate, 'forget' | 'isArmed'>): BlueprintDraftStore => {
   const isArmed = gate ? (identity: string | null) => gate.isArmed(identity) : undefined
-  const store = createBlueprintDraftStore((held) => emitDraftChanged(heldDraftDetail(held, isArmed)))
-  // The gate changes on its own — a preview arms a draft the store already holds — so it announces
-  // too, or "Preview needed" would stay up after the preview that satisfied it.
-  gate?.subscribe(() => emitDraftChanged(heldDraftDetail(store.get(), isArmed)))
-  return store
+  let heldIdentity: string | null = null
+  return createBlueprintDraftStore((held) => {
+    const identity = heldDraftIdentity(held)
+    if (heldIdentity !== null && heldIdentity !== identity) {
+      gate?.forget(heldIdentity)
+    }
+    heldIdentity = identity
+    emitDraftChanged(heldDraftDetail(held, isArmed))
+  })
 }
 
 /** The slice of the preview gate this hook needs — narrowed so tests need not build a whole gate. */
@@ -89,6 +101,8 @@ interface PreviewGateLike {
   forget?: (identity: string | null | undefined) => void
   /** Optional: absent, a replay carries no `previewed` (unknown) rather than a guess. */
   isArmed?: (identity: string | null | undefined) => boolean
+  /** Optional: absent, only a store change announces the draft. Returns the unsubscribe fn. */
+  subscribe?: (listener: () => void) => () => void
 }
 
 export const useDraftFileBuses = (
@@ -396,6 +410,14 @@ export const useDraftFileBuses = (
   // asks and we answer on the same bus. Answering with an empty map when nothing is held is
   // deliberate — "no draft" is an answer, and silence leaves that surface waiting forever.
   useEffect(() => onDraftReplayRequest(() => {
+    emitDraftChanged(heldDraftDetail(store.get(), gate.isArmed ? (identity) => gate.isArmed?.(identity) ?? false : undefined))
+  }), [gate, store])
+
+  // The gate changes on its own — a render arms a draft the store already holds — so it announces
+  // too, or "Preview needed" would stay up after the preview that satisfied it. In an effect, not at
+  // store construction: StrictMode builds the provider's store twice, and the discarded one would
+  // stay subscribed, announcing "nothing held" after every arming change.
+  useEffect(() => gate.subscribe?.(() => {
     emitDraftChanged(heldDraftDetail(store.get(), gate.isArmed ? (identity) => gate.isArmed?.(identity) ?? false : undefined))
   }), [gate, store])
 

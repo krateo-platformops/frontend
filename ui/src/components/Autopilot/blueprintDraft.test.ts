@@ -15,6 +15,7 @@ import { ARCHITECTURE_TEMPLATE_PATH, wrapAsConfigMapTemplate } from '../../pages
 import {
   buildFormPreviewModel,
   buildFormSchemaText,
+  chartYamlName,
   draftDisplayName,
   lintBlueprintDraft,
   lintValuesSchemaDefaults,
@@ -265,9 +266,35 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
       expect(problems).toContain('resources[0].kind')
     })
 
+    it('NEVER throws on a malformed dependsOn — this lint runs inside the draft broadcast', () => {
+      // Each of these threw out of the kernel, and so out of every store write that held it: the
+      // tree was replaced, nothing disarmed it, and no draft bus answered again.
+      for (const dependsOn of ['db', '{ ref: a }', '[null]']) {
+        const text = wrapAsConfigMapTemplate(descriptor(`${node('a')}\n    dependsOn: ${dependsOn}`), 'pg-app')
+        expect(() => withArch(text)).not.toThrow()
+        expect(withArch(text)).toContain(ARCHITECTURE_TEMPLATE_PATH)
+      }
+    })
+
     it('refuses a dependency cycle — a chart with one never leaves its first state', () => {
       expect(withArch(wrapAsConfigMapTemplate(descriptor([node('a', 'b'), node('b', 'a')].join('\n')), 'pg-app'))).toMatch(/cycle \(.*→.*\)/)
     })
+  })
+
+  it('reads the chart name ONCE — the lint and the identity cannot disagree', () => {
+    const withName = (line: string) => ({ ...cleanDraft, 'Chart.yaml': `apiVersion: v2\n${line}\nversion: 0.1.0\n` })
+    // A trailing comment: the lint passed it, and the identity fell back to "draft chart".
+    expect(chartYamlName('name: pg-app # the app\n')).toBe('pg-app')
+    expect(draftDisplayName(withName('name: pg-app # the app'))).toBe('pg-app')
+    expect(lintBlueprintDraft(withName('name: pg-app # the app'))).toEqual([])
+    // A `#` with no space before it is part of the name, as in YAML — and not a valid one.
+    expect(chartYamlName('name: a#b\n')).toBe('a#b')
+    expect(lintBlueprintDraft(withName('name: a#b')).join('\n')).toContain('"a#b" is not a valid chart name')
+    expect(chartYamlName("name: 'pg-app'\r\n")).toBe('pg-app')
+    expect(chartYamlName('name: "my chart"\n')).toBe('my chart')
+    expect(chartYamlName('apiVersion: v2\n')).toBeNull()
+    expect(chartYamlName('name: ""\n')).toBeNull()
+    expect(chartYamlName(undefined)).toBeNull()
   })
 
   it('rawTemplatesByteSize measures UTF-8 bytes of paths + contents', () => {
