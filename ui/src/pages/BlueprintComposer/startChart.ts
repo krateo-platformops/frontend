@@ -24,7 +24,7 @@ import { dump } from 'js-yaml'
 import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from '../../components/Autopilot/blueprintDraft'
 
 import { ARCHITECTURE_API_VERSION, ARCHITECTURE_KIND, ARCHITECTURE_TEMPLATE_PATH, serializeArchitecture, wrapAsConfigMapTemplate } from './architecture'
-import { chartIdentityProblems, chartIdentityWarnings, publishNameProblem } from './chartIdentity'
+import { chartIdentityProblems, chartIdentityWarnings, claimApiVersion, compositionKind, publishNameProblem } from './chartIdentity'
 
 export { CHART_NAME_MAX, COMPOSITION_GROUP, KIND_MAX, claimApiVersion, compositionKind, compositionVersion, kindBudget, metricsKindBudget } from './chartIdentity'
 
@@ -49,10 +49,59 @@ export type StartChartResult =
  * Where the release workflow pushes the chart — the convention pageDraft.ts and kogChart.ts write
  * into their CompositionDefinitions. Null until an owner is known: a location with an empty owner
  * segment is not a location.
+ *
+ * THE OWNER IS LOWER-CASED, because the registry's is. A GHCR path is lower-case, so the release
+ * workflow pushes to `ghcr.io/${owner,,}/charts`, and it refuses a compositiondefinition.yaml whose
+ * url is anything else. An owner typed as `Krateo-Blueprints` would otherwise show — and register —
+ * a location nothing was ever pushed to.
  */
 export const ociChartLocation = (owner: string, name: string): string | null => {
-  const who = owner.trim()
+  const who = owner.trim().toLowerCase()
   return who ? `oci://ghcr.io/${who}/charts/${name.trim()}` : null
+}
+
+/**
+ * The CompositionDefinition that REGISTERS a published blueprint, committed at the repo root beside
+ * the chart it names. Null without an owner (ociChartLocation's rule).
+ *
+ * WRITTEN AT PUBLISH, NOT INTO THE DRAFT, because it is the one file that depends on the
+ * DESTINATION: the url is `<owner>/charts/<name>`, and the owner is settled only when a person
+ * confirms it. A page set's is written at the same moment for the same reason
+ * (pageCompositionDefinition).
+ *
+ * THE VERSION IS LITERAL — Chart.yaml's, as the draft holds it. A blueprint carries a real SemVer
+ * from Start on (the lint refuses anything else), and a merge to main releases exactly that version,
+ * once; the release workflow refuses a tag that differs. So the file on main is byte for byte what
+ * Register applies, and there is no stamped copy to prefer over it — unlike a page set, whose
+ * Chart.yaml still carries the release's placeholder.
+ *
+ * `krateo-system`, because that is where the builder deliverables list looks for a blueprint's
+ * registration, and where Register writes it. Registering is a PERSON's action, from that list —
+ * the header says so, because this file is what someone reads on the branch and wonders whether to
+ * apply.
+ */
+export const blueprintCompositionDefinition = (name: string, owner: string, repo: string, version: string): string | null => {
+  const url = ociChartLocation(owner, name)
+  if (!url) {
+    return null
+  }
+  const chart = name.trim()
+  const release = version.trim()
+  return `# REGISTERS this blueprint: core-provider pulls the chart, generates the CRD from values.schema.json
+# and serves the Kind ${compositionKind(chart)} as ${claimApiVersion(release)}.
+# Register it from the portal once release ${release} is green (builder deliverables -> Register).
+# The same file is attached to https://github.com/${owner.trim().toLowerCase()}/${repo.trim()}/releases/tag/${release}.
+# The version is Chart.yaml's, literally; the release workflow refuses a tag that differs.
+apiVersion: core.krateo.io/v1alpha1
+kind: CompositionDefinition
+metadata:
+  name: ${chart}
+  namespace: krateo-system
+spec:
+  chart:
+    url: ${url}
+    version: ${release}
+`
 }
 
 /**

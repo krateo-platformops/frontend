@@ -57,7 +57,7 @@ const deps = (): PublishDraftDeps => {
   return {
     blueprintGate: { evaluate: () => ({ allowed: true, reason: null }) },
     blueprintStore: store,
-    builderTargets: { blueprint: { owner: 'krateo-blueprints', repo: 'big-chart' }, page: { owner: 'krateo-platformops', repo: 'portal' } },
+    builderTargets: { blueprint: { owner: 'krateo-blueprints', repo: 'big-chart' }, blueprintTemplate: { owner: '', repo: '' }, page: { owner: 'krateo-platformops', repo: 'portal' } },
     origin: { prompt: null, sessionId: null },
   } as unknown as PublishDraftDeps
 }
@@ -71,6 +71,7 @@ describe('runDraftPublish — how many files a publish may carry', () => {
     expect(buildClaimPublish).toHaveBeenCalledTimes(1)
     const [[args]] = vi.mocked(buildClaimPublish).mock.calls
     expect(args.files.length).toBeGreaterThan(MAX_APPLY_SET_OPS)
-    expect(args.files).toHaveLength(TEMPLATES + 4)
+    // The chart's four standard files and its templates, plus the registration file the publish writes.
+    expect(args.files).toHaveLength(TEMPLATES + 5)
   })
 })

@@ -8,6 +8,7 @@ import {
   builderBranch,
   changeRequestDeepLink,
   resolveStructuredTarget,
+  seededRepoProblem,
   type StructuredTarget,
 } from './builderPublishClaim'
 
@@ -58,8 +59,18 @@ describe('buildBuilderPublishClaim', () => {
     })
 
     it('carries the template clone url when one is configured', () => {
-      expect(claimWith('https://github.com/krateo-blueprints/portal-builder.git').spec.source?.url)
-        .toBe('https://github.com/krateo-blueprints/portal-builder.git')
+      expect(claimWith('https://github.com/krateo-blueprints/builder-scaffold.git').spec.source?.url)
+        .toBe('https://github.com/krateo-blueprints/builder-scaffold.git')
+    })
+
+    it('seeds the BUILDER branch, never the base — the scaffold rides the change request', () => {
+      // builder-publish's default seeds target.base. A chart named like an existing repository is
+      // adopted by the publish, so seeding the base committed a release workflow and a .helmignore
+      // straight onto that repository's main, unreviewed, where the workflow then ran on every push.
+      const claim = claimWith('https://github.com/krateo-blueprints/builder-scaffold.git')
+      expect(claim.spec.source?.intoBranch).toBe(claim.spec.branch)
+      expect(claim.spec.source?.intoBranch).toBe('builder/fleet')
+      expect(claim.spec.source?.intoBranch).not.toBe(target.base)
     })
 
     it('sends the ignore DIRECTORY, not the filename — git-provider appends the filename itself', () => {
@@ -70,12 +81,10 @@ describe('buildBuilderPublishClaim', () => {
       // Observed on krateo-057: the BuilderPublish stuck at "2 of 2 managed children are not ready"
       // and committed nothing at all.
       //
-      // It is still sent EXPLICITLY rather than omitted: the documented default is the repo root,
-      // but with the path unset the template's ignore file was skipped entirely and its example
-      // chart was copied into the new repo — leaving TWO Chart.yaml files for a release workflow
-      // that packages every chart it finds, and an "Example" page in the sidebar of whoever installs
-      // the result.
-      expect(claimWith('https://github.com/krateo-blueprints/portal-builder.git').spec.source?.krateoIgnorePath)
+      // What the ignore file does NOT do is keep a file out of the copy — git-provider copies every
+      // file and only skips RENDERING the ignored ones. The example chart that used to arrive in
+      // every seeded repo arrived because it was in the template; the builder scaffold has none.
+      expect(claimWith('https://github.com/krateo-blueprints/builder-scaffold.git').spec.source?.krateoIgnorePath)
         .toBe('/')
     })
 
@@ -158,5 +167,26 @@ describe('changeRequestDeepLink', () => {
 
   it('an unknown scm falls back to the github form', () => {
     expect(changeRequestDeepLink(mkTarget('unknown'), branch)).toContain('/compare/main...builder/githubrepo')
+  })
+})
+
+describe('seededRepoProblem — a seeded repository is named for its one chart', () => {
+  it('accepts the chart\'s own name, whitespace aside', () => {
+    expect(seededRepoProblem('orders-api', 'orders-api')).toBeNull()
+    expect(seededRepoProblem('orders-api', '  orders-api ')).toBeNull()
+  })
+
+  it('refuses any other name, naming the repository it must be and why', () => {
+    // A second chart in a repo that holds one keeps the FIRST chart's root files — the claim never
+    // overwrites — so its templates would be merged into another chart. The reason has to say that,
+    // or a person reads the refusal as arbitrary and types a third name.
+    const problem = seededRepoProblem('orders-api', 'blueprints')
+    expect(problem).toMatch(/^the repository must be "orders-api", not "blueprints"/)
+    expect(problem).toMatch(/exactly one chart, at its root/)
+    expect(problem).toMatch(/never overwrites a file/)
+  })
+
+  it('is case-sensitive — the claim creates the repository under exactly the name it is given', () => {
+    expect(seededRepoProblem('orders-api', 'Orders-Api')).not.toBeNull()
   })
 })

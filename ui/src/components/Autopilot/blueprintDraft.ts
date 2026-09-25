@@ -199,6 +199,40 @@ export const lintValuesSchemaDefaults = (schemaText: string): string[] => {
 }
 
 /**
+ * [CDC-GLOBAL] A CLOSED root that does not declare `global` — valid JSON Schema, a clean preview, a
+ * green publish, merge, release and registration, and then no composition of the chart can render.
+ *
+ * composition-dynamic-controller adds a top-level `global` block to the values of EVERY render
+ * (`internal/composition/composition.go` → plumbing `helm/utils/values.go`, which sets
+ * `global` with `SetNestedField`), and Helm validates the values against this file before it
+ * renders. `additionalProperties: false` at the root refuses the one key the author never wrote.
+ * test-mongodb-db found it that way (ea6aa3c), five steps after the edit that caused it; the
+ * blueprint-builder example schema carries the same root.
+ *
+ * Only the ROOT: CDC injects nothing deeper, so a closed nested object is fine and stays allowed.
+ * Declaring `global` under `properties` is the other way out, for an author who wants the root
+ * closed. Blueprints only — see lintBlueprintDraft. Invalid JSON is not reported here: the
+ * defaults lint already names it, once.
+ */
+export const lintValuesSchemaRoot = (schemaText: string): string[] => {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(schemaText)
+  } catch {
+    return []
+  }
+  const root = asRecord(parsed)
+  if (!root || root.additionalProperties !== false) {
+    return []
+  }
+  const properties = asRecord(root.properties)
+  if (properties && Object.prototype.hasOwnProperty.call(properties, 'global')) {
+    return []
+  }
+  return [`[CDC-GLOBAL] ${VALUES_SCHEMA_PATH}: the root sets "additionalProperties": false and does not declare "global" — composition-dynamic-controller adds a top-level global block to the values of every render, so Helm's schema check refuses every composition of this chart after it is published and registered. Remove additionalProperties: false from the root, or declare "global" under properties.`]
+}
+
+/**
  * One top-level Chart.yaml scalar, or null. It is YAML, so it is read as YAML — the way Helm reads
  * it: two regex readers disagreed about `name: x # comment`, and a third missed a value on the next
  * line. A number is read back as its string (`version: 1.0` is `1`, which the rule then refuses as
@@ -338,6 +372,15 @@ export const lintBlueprintDraft = (rawTemplates: Record<string, string>, kind: D
     problems.push(`${VALUES_SCHEMA_PATH} is missing — it IS the generated CRD's spec, so a chart without one can be published and can never be installed (core-provider fails with "error getting spec schema").`)
   } else {
     problems.push(...lintValuesSchemaDefaults(schemaText))
+    // A BLUEPRINT only, because a refusal has to be something the author can act on. A blueprint's
+    // schema is authored, by a person or an agent, and this is the last point before a composition
+    // fails where anyone sees it. A page set's is GENERATED (pageValuesSchema), and so is a
+    // controller's (kogValuesSchema): a refusal here would name a file nobody wrote. Both close
+    // their root and declare `global` where they are written, and generatedValuesSchemas.test.ts
+    // runs this same check on them, so a regression fails a test instead of every page publish.
+    if (kind === 'blueprint') {
+      problems.push(...lintValuesSchemaRoot(schemaText))
+    }
   }
 
   return problems

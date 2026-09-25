@@ -4,8 +4,9 @@
  * THE SAFE HALF OF THE OLD BUILDER, KEPT. `form.compose-page` could only arrange widgets that
  * already existed, and that limitation was also its virtue: those widgets are already wired to
  * their own data, so a page built from them works. Retiring that card must not take the capability
- * with it, and this offers the SAME set — `page-composable`'s seven composable plurals, read under
- * the caller's own RBAC.
+ * with it, and this offers that set and more — every widget kind snowplow's `/list` finds, read
+ * under the caller's own RBAC (placeableWidgets.ts; the card's `page-composable` RESTAction named
+ * seven).
  *
  * WHAT IT ADDS OVER THE CARD. The card appended to a flat list. This inserts into the container you
  * picked in the tree, which is the whole difference between arranging a page and composing one.
@@ -94,9 +95,9 @@ export const PlaceWidgetModal = ({ into, namespace, onCancel, onPlace, open, sno
         showSearch
         style={{ width: '100%' }}
         value={chosen}
-        // Virtualization off: `page-composable` returns one namespace's composable widgets — tens,
-        // not thousands — so it buys nothing here, and rc-virtual-list needs a measured height it
-        // never gets under jsdom, which makes the control impossible to drive in a test.
+        // Virtualization off: the listing is one namespace's widgets — tens, not thousands — so it
+        // buys nothing here, and rc-virtual-list needs a measured height it never gets under jsdom,
+        // which makes the control impossible to drive in a test.
         virtual={false}
       />
       {widgets?.length === 0 && !error

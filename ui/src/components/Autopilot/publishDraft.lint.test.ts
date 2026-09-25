@@ -14,12 +14,18 @@ vi.mock('./builderClaimPublish', () => ({
 
 import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from './blueprintDraft'
 import { createBlueprintDraftStore } from './blueprintDraftStore'
-import { pageChartYaml } from './pageDraft'
+import { pageChartYaml, pageValuesSchema } from './pageDraft'
 import { runDraftPublish, type PublishDraftDeps } from './publishDraft'
 
 const deps = (store: ReturnType<typeof createBlueprintDraftStore>): PublishDraftDeps => ({
   blueprintStore: store,
-  builderTargets: { blueprint: { owner: 'krateo-blueprints', repo: 'fallback' }, page: { owner: 'krateo-platformops', repo: 'portal' } },
+  // No template configured for either builder — a real install's state before the scaffold existed.
+  builderTargets: {
+    blueprint: { owner: 'krateo-blueprints', repo: 'fallback' },
+    blueprintTemplate: { owner: '', repo: '' },
+    page: { owner: 'krateo-platformops', repo: 'portal' },
+    pageTemplate: { owner: '', repo: '' },
+  },
 } as unknown as PublishDraftDeps)
 
 describe('runDraftPublish — the verb must match what is held', () => {
@@ -85,10 +91,27 @@ describe('runDraftPublish — the lint runs under the HELD kind', () => {
   it('a page set is not refused for its CHART_VERSION placeholder — the version budget is a blueprint\'s', async () => {
     const store = createBlueprintDraftStore()
     store.set({ [CHART_YAML_PATH]: pageChartYaml(name), [VALUES_SCHEMA_PATH]: '{"type":"object"}', 'templates/flex.page-x.yaml': 'kind: Flex\n' }, 'page')
-    const base = deps(store)
-    // A page publish reads the page template too; none configured is a real install's default.
-    const withTemplate: PublishDraftDeps = { ...base, builderTargets: { ...base.builderTargets, pageTemplate: { owner: '', repo: '' } } }
-    const outcome = await runDraftPublish(withTemplate, { verb: 'publishPage' })
+    const outcome = await runDraftPublish(deps(store), { verb: 'publishPage' })
+    expect(outcome.compiled.denial).toBeNull()
+  })
+
+  it('a blueprint whose schema closes its root without `global` is denied by the lint, naming the cause (E6)', async () => {
+    // composition-dynamic-controller adds `global` to every render's values; a closed root refuses
+    // it, and without this the chart would publish, merge, release and register first.
+    const store = createBlueprintDraftStore()
+    store.set({
+      [CHART_YAML_PATH]: 'apiVersion: v2\nname: orders-api\nversion: 0.1.0\n',
+      [VALUES_SCHEMA_PATH]: JSON.stringify({ additionalProperties: false, properties: { size: { type: 'string' } }, type: 'object' }),
+    }, 'blueprint')
+    const outcome = await runDraftPublish(deps(store), { verb: 'publishBlueprint' })
+    expect(outcome.compiled.ops).toBeNull()
+    expect(outcome.compiled.denial).toMatch(/fails the chart lint: \[CDC-GLOBAL\] values\.schema\.json: the root sets "additionalProperties": false and does not declare "global"/)
+  })
+
+  it('a page set is NOT denied for its generated schema — its closed root declares global', async () => {
+    const store = createBlueprintDraftStore()
+    store.set({ [CHART_YAML_PATH]: pageChartYaml('page-x'), [VALUES_SCHEMA_PATH]: pageValuesSchema('page-x'), 'templates/flex.page-x.yaml': 'kind: Flex\n' }, 'page')
+    const outcome = await runDraftPublish(deps(store), { verb: 'publishPage' })
     expect(outcome.compiled.denial).toBeNull()
   })
 

@@ -18,13 +18,17 @@
  * 2. THE REMEMBERED DESTINATION IS PER KIND. The same screenshot showed a PAGE publish
  * prefilled with krateo-oas — the KOG registry — because one global memo carried the last
  * confirmed answer across kinds. The artifacts live in different repos by design, so that
- * prefill is a mis-publish that looks plausible. Repeating within a kind stays.
+ * prefill is a mis-publish that looks plausible. Repeating the OWNER and BASE within a kind
+ * stays; the repository is never repeated, because every artifact has its own.
+ *
+ * 3. A SEEDED REPOSITORY IS NAMED FOR ITS CHART. With a builder template configured, the form
+ * refuses any other repository, and says why, before the publish is built.
  */
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { PREVIEW_DRAWER_Z_INDEX } from './previewSurface'
-import PublishTargetFormHost, { requestPublishTarget, resetPublishTargetForTests } from './publishTargetForm'
+import PublishTargetFormHost, { askPublishDestination, requestPublishTarget, resetPublishTargetForTests } from './publishTargetForm'
 
 // antd's responsive observer needs matchMedia, and its Modal needs ResizeObserver; jsdom
 // ships neither. Same stub the preview-drawer suite installs.
@@ -153,29 +157,115 @@ describe('the remembered destination is per kind', () => {
     expect(screen.getByLabelText<HTMLInputElement>('Repository').value).toBe('krateo-portal-chart')
   })
 
-  it('still repeats the last answer within the same kind', async () => {
+  it('repeats the last OWNER and BASE within the same kind — never the repository', async () => {
+    // The repository used to be remembered with them, so a second publish defaulted to the FIRST
+    // artifact's repository: fifteen page sets landed in one repo that way. Every artifact has its
+    // own repository now, so the prefill is always the request's; owner and base are worth repeating.
     render(<PublishTargetFormHost />)
 
     let first: Promise<unknown> = Promise.resolve()
     await act(async () => {
-      first = requestPublishTarget({ base: 'main', kind: 'restdef', owner: 'krateo-platformops', repo: 'krateo-oas' })
+      first = requestPublishTarget({ base: 'main', kind: 'blueprint', owner: 'krateo-blueprints', repo: 'orders-api' })
       await Promise.resolve()
     })
     await waitFor(() => expect(screen.getByTestId('publish-target-form')).toBeTruthy())
 
-    // The human corrects the destination, then confirms it.
-    fireEvent.change(screen.getByLabelText('Repository'), { target: { value: 'my-own-oas' } })
+    // The human corrects the owner and base, then confirms.
+    fireEvent.change(screen.getByLabelText('Repository owner'), { target: { value: 'acme' } })
+    fireEvent.change(screen.getByLabelText('Base branch (the change-request target)'), { target: { value: 'develop' } })
     await act(async () => {
       fireEvent.click(screen.getByText('Confirm destination'))
       await first
     })
 
-    // Same kind again: the correction is the prefill, not the caller's default.
+    // Another blueprint: the corrections carry over, the repository is the new chart's.
     await act(async () => {
-      void requestPublishTarget({ base: 'main', kind: 'restdef', owner: 'krateo-platformops', repo: 'krateo-oas' })
+      void requestPublishTarget({ base: 'main', kind: 'blueprint', owner: 'krateo-blueprints', repo: 'billing-api' })
       await Promise.resolve()
     })
     await waitFor(() => expect(screen.getByTestId('publish-target-form')).toBeTruthy())
-    expect(screen.getByLabelText<HTMLInputElement>('Repository').value).toBe('my-own-oas')
+    expect(screen.getByLabelText<HTMLInputElement>('Repository owner').value).toBe('acme')
+    expect(screen.getByLabelText<HTMLInputElement>('Base branch (the change-request target)').value).toBe('develop')
+    expect(screen.getByLabelText<HTMLInputElement>('Repository').value).toBe('billing-api')
+  })
+})
+
+describe('a seeded destination is named for its chart', () => {
+  it('refuses another repository, with the reason, and confirms the chart\'s own', async () => {
+    render(<PublishTargetFormHost />)
+    let settled: unknown = 'pending'
+    await act(async () => {
+      void requestPublishTarget({ base: 'main', kind: 'blueprint', owner: 'krateo-blueprints', repo: 'orders-api', requiredRepo: 'orders-api' })
+        .then((target) => { settled = target })
+      await Promise.resolve()
+    })
+    await waitFor(() => expect(screen.getByTestId('publish-target-form')).toBeTruthy())
+    // Said before anyone edits anything: the field is not free text here, and the person should
+    // not have to be refused to learn that.
+    expect(screen.getByText(/Named for this blueprint/)).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Repository'), { target: { value: 'blueprints' } })
+    await act(async () => {
+      fireEvent.click(screen.getByText('Confirm destination'))
+      await Promise.resolve()
+    })
+    expect(await screen.findByText(/the repository must be "orders-api", not "blueprints"/)).toBeTruthy()
+    expect(settled, 'a refused repository must not resolve the destination').toBe('pending')
+
+    fireEvent.change(screen.getByLabelText('Repository'), { target: { value: 'orders-api' } })
+    await act(async () => {
+      fireEvent.click(screen.getByText('Confirm destination'))
+      await Promise.resolve()
+    })
+    await waitFor(() => expect(settled).toEqual({ base: 'main', owner: 'krateo-blueprints', repo: 'orders-api' }))
+  })
+
+  it('a SEEDED publish asks with the slug as the one repository it takes; an unseeded one does not', async () => {
+    // The path the composer and the agent take: publishDraft says whether the new repo is seeded,
+    // and only then is the repository fixed. Driven through askPublishDestination, not a hand-built
+    // request, because that translation is what decides whether the form refuses anything at all.
+    render(<PublishTargetFormHost />)
+    await act(async () => {
+      void askPublishDestination({ repo: 'blueprints' }, 'blueprint', 'fallback', 'krateo-blueprints', { seeded: true, slug: 'orders-api' })
+      await Promise.resolve()
+    })
+    await waitFor(() => expect(screen.getByTestId('publish-target-form')).toBeTruthy())
+    expect(screen.getByLabelText<HTMLInputElement>('Repository').value).toBe('orders-api')
+    expect(screen.getByText(/Named for this blueprint/)).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Repository'), { target: { value: 'blueprints' } })
+    await act(async () => {
+      fireEvent.click(screen.getByText('Confirm destination'))
+      await Promise.resolve()
+    })
+    expect(await screen.findByText(/the repository must be "orders-api", not "blueprints"/)).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(screen.getByText('Cancel publish'))
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      void askPublishDestination({}, 'blueprint', 'fallback', 'krateo-blueprints', { seeded: false, slug: 'orders-api' })
+      await Promise.resolve()
+    })
+    await waitFor(() => expect(screen.getByLabelText<HTMLInputElement>('Repository').value).toBe('orders-api'))
+    expect(screen.queryByText(/Named for this blueprint/)).toBeNull()
+  })
+
+  it('takes any repository when nothing is required — an unseeded publish', async () => {
+    render(<PublishTargetFormHost />)
+    let settled: unknown = 'pending'
+    await act(async () => {
+      void requestPublishTarget({ base: 'main', kind: 'page', owner: 'acme', repo: 'fleet-health' })
+        .then((target) => { settled = target })
+      await Promise.resolve()
+    })
+    await waitFor(() => expect(screen.getByTestId('publish-target-form')).toBeTruthy())
+    expect(screen.queryByText(/Named for this page/)).toBeNull()
+    fireEvent.change(screen.getByLabelText('Repository'), { target: { value: 'team-pages' } })
+    await act(async () => {
+      fireEvent.click(screen.getByText('Confirm destination'))
+      await Promise.resolve()
+    })
+    await waitFor(() => expect(settled).toEqual({ base: 'main', owner: 'acme', repo: 'team-pages' }))
   })
 })

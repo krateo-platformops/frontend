@@ -19,11 +19,12 @@
  */
 import type { Config } from '../../context/ConfigContext'
 import { publishNameProblem } from '../../pages/BlueprintComposer/chartIdentity'
+import { blueprintCompositionDefinition } from '../../pages/BlueprintComposer/startChart'
 
 import type { PortalActionProposal } from './actionBridge'
 import type { ApplyResourceSetOp } from './applyResourceSet'
 import type { AuthorshipOrigin } from './authorship'
-import { lintBlueprintDraft } from './blueprintDraft'
+import { CHART_YAML_PATH, chartYamlVersion, lintBlueprintDraft } from './blueprintDraft'
 import { heldPublishFiles, type BlueprintDraftStore } from './blueprintDraftStore'
 import type { createBlueprintGate } from './blueprintGate'
 import { buildClaimPublish } from './builderClaimPublish'
@@ -47,6 +48,24 @@ export interface PublishDraftDeps {
 export interface PublishDraftOutcome {
   compiled: PublishCompileResult
   deepLink: string | null
+}
+
+/** Where the registration file is committed: the repo root, beside the chart it names. */
+export const REGISTRATION_PATH = 'compositiondefinition.yaml'
+
+/**
+ * The CompositionDefinition a publish commits, by builder — or null when there is no owner to put
+ * in its url. A page set's version is the release's placeholder (its Chart.yaml's is too); a
+ * blueprint's is Chart.yaml's own, literally, because a merge releases exactly that version. The
+ * lint has already refused a blueprint without a version, so the null there is unreachable rather
+ * than a silent skip.
+ */
+const registrationFile = (isPage: boolean, slug: string, owner: string, repo: string, files: Record<string, string>): string | null => {
+  if (isPage) {
+    return pageCompositionDefinition(slug, owner, repo)
+  }
+  const version = chartYamlVersion(files[CHART_YAML_PATH])
+  return version ? blueprintCompositionDefinition(slug, owner, repo, version) : null
 }
 
 /**
@@ -78,8 +97,9 @@ export const runDraftPublish = async (
   // its own repo named for the chart, while every page went to the one configured portal-chart repo,
   // because every page WAS a file in that one chart. A page set is its own chart now, so the same
   // rule applies to it for the same reason — one chart, one repo, one release cadence. The install
-  // config still supplies the OWNER (bt.owner) and the fallback repo; the human confirms or edits in
-  // the blast-radius dialog, and a model-emitted repo still wins over this prefill.
+  // config supplies the OWNER (bt.owner); its repo segment is only the prefill when no draft is held
+  // to name one. The slug is the repository prefill whatever a model emitted (askPublishDestination),
+  // and — once the repo is seeded — the only repository the publish accepts (seededRepoProblem).
   const destRepo = slug || bt.repo
   // The VERB must match what is held. Everything below derives builder, slug and destination from
   // the verb alone, and the gate is keyed by name, so publishBlueprint over a held PAGE compiled a
@@ -101,7 +121,11 @@ export const runDraftPublish = async (
   if (claimProblem) {
     return { compiled: { denial: `denied — "${slug}" cannot be published through the builder: ${claimProblem}. Rename it in Chart.yaml${isPage ? ' (a page set is named for its page slug)' : ''}.`, ops: null }, deepLink: null }
   }
-  const dest = await askPublishDestination(proposal, builder, destRepo, bt.owner)
+  // SEED the new repository from the builder's template, for EITHER builder: a composed chart in a
+  // bare repo has no release workflow, so it can never be released or registered. Null when no
+  // template is configured — the claim then omits `source` and the repo is auto-init'd bare.
+  const sourceUrl = builderTemplateUrl(isPage ? builderTargets.pageTemplate : builderTargets.blueprintTemplate, config?.api.AUTOPILOT_GIT_HOST)
+  const dest = await askPublishDestination(proposal, builder, destRepo, bt.owner, slug ? { seeded: sourceUrl !== null, slug } : undefined)
 
   if (!dest) {
     return { compiled: { denial: 'publish cancelled — destination not confirmed', ops: null }, deepLink: null }
@@ -116,14 +140,15 @@ export const runDraftPublish = async (
     }
   }
 
-  // THE REGISTRATION FILE, written at publish time because it is the one file that depends on the
-  // destination: its OCI url is `<owner>/charts/<chart name>`, and the owner is only settled once
-  // the human confirms it. Without it the page set releases to OCI and nothing installs it — the
-  // chart is inert until a CompositionDefinition registers it. It also overwrites the copy a
-  // template scaffold brings in, which still names the template's own chart.
-  const owner = dest.owner || bt.owner
-  const publishFiles = isPage && owner
-    ? { ...held.files, 'compositiondefinition.yaml': pageCompositionDefinition(slug, owner) }
+  // THE REGISTRATION FILE, for BOTH builders, written at publish time because it is the one file
+  // that depends on the destination: its OCI url is `<owner>/charts/<chart name>` and it names the
+  // release in `<owner>/<repo>`, and both are settled only once the human confirms them. Without it
+  // the chart releases to OCI and nothing installs it — inert until a CompositionDefinition
+  // registers it. It lands because the builder scaffold carries none: the claim never overwrites a
+  // file the seed already put there. (A blueprint used to publish without one at all.)
+  const registration = registrationFile(isPage, slug, dest.owner || bt.owner, dest.repo || destRepo, held.files)
+  const publishFiles = registration
+    ? { ...held.files, [REGISTRATION_PATH]: registration }
     : held.files
 
   // The claim commits each path VERBATIM (builder-publish only splits it into basename + dir), so
@@ -149,11 +174,7 @@ export const runDraftPublish = async (
     namespace: 'krateo-system',
     origin,
     slug,
-    // SEED a new page-set repo from the configured template, so what the claim creates is not a
-    // bare repo holding an unreleasable chart. Null when no template is configured — the claim
-    // then omits `source` and behaves exactly as before. Pages only: the blueprint builder has
-    // the same gap and no template key yet.
-    sourceUrl: isPage ? builderTemplateUrl(builderTargets.pageTemplate, config?.api.AUTOPILOT_GIT_HOST) : null,
+    sourceUrl,
   })
   return { compiled: res.compiled, deepLink: res.deepLink }
 }

@@ -77,10 +77,18 @@ The first pass could only measure Autopilot's side. This one diffed it against *
 > faster path to publishing, it is the only path"* — was therefore true of one page, stated of
 > three.
 >
-> **The one real gap is now closed.** `/blueprint-builder` mounts an `author-blueprint` form
-> (B4) that publishes through the same `BuilderPublish` claim. All three builder pages now
-> carry a human-pressable authoring control: `compose-page-card`, `kog-author-paste` /
-> `kog-author-define`, `author-blueprint-card`.
+> **The one real gap is now closed.** `/blueprint-builder` leads with **Compose a blueprint**
+> (`button.blueprint-builder-compose`), which opens the Blueprint Composer at
+> `/blueprint-builder/compose` (frontend ≥ 1.6.59): start a chart, edit it as files, preview a real
+> render, and publish through the same `BuilderPublish` claim behind the same confirm. All three
+> builder pages carry a human-pressable authoring control: `button.portal-builder-compose` (the
+> Page Composer), `kog-author-paste` / `kog-author-define`, and `button.blueprint-builder-compose`.
+>
+> *Update 2026-09-26:* this paragraph named the controls that closed the gap first —
+> `compose-page-card` and the `author-blueprint` form (B4), whose only chart control was a JSON
+> textarea of path → file contents. Both are retired: the page forms in portal#237, the blueprint
+> form in portal#245, each replaced by its composer. The gap stays closed; the controls that close it
+> changed.
 >
 > **What this does not excuse.** A published audit is load-bearing — the programme in
 > `07-ui-parity-programme.md` sized a 3–4 week "largest item" partly on this paragraph. The

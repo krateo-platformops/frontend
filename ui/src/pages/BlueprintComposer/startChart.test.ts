@@ -5,7 +5,7 @@ import { draftDisplayName, lintBlueprintDraft } from '../../components/Autopilot
 
 import { ARCHITECTURE_TEMPLATE_PATH, deriveStates, parseArchitecture, serializeArchitecture, unwrapFromConfigMapTemplate } from './architecture'
 import { PUBLISH_NAME_MAX, chartIdentityProblems, pluralGrowthBound } from './chartIdentity'
-import { KIND_MAX, claimApiVersion, compositionKind, kindBudget, metricsKindBudget, ociChartLocation, startChart, startChartWarnings, validateStartChart } from './startChart'
+import { KIND_MAX, blueprintCompositionDefinition, claimApiVersion, compositionKind, kindBudget, metricsKindBudget, ociChartLocation, startChart, startChartWarnings, validateStartChart } from './startChart'
 
 const INPUT = { description: 'Publishes a page set as a pull request', name: 'builder-publish', version: '0.1.0' }
 
@@ -294,5 +294,58 @@ describe('the derivations the Start modal shows as the person types', () => {
   it('the OCI location needs an owner; without one there is no location to show', () => {
     expect(ociChartLocation('krateo-blueprints', 'builder-publish')).toBe('oci://ghcr.io/krateo-blueprints/charts/builder-publish')
     expect(ociChartLocation('  ', 'builder-publish')).toBeNull()
+  })
+
+  it('the OCI location lower-cases the owner, because the registry path is lower-case', () => {
+    // The release workflow pushes to ghcr.io/${owner,,}/charts and refuses a CD whose url differs,
+    // so an owner typed with capitals must show — and register — where the chart actually is.
+    expect(ociChartLocation('Krateo-Blueprints', 'orders-api')).toBe('oci://ghcr.io/krateo-blueprints/charts/orders-api')
+  })
+})
+
+describe('blueprintCompositionDefinition — what REGISTERS a published blueprint', () => {
+  const cd = () => blueprintCompositionDefinition('orders-api', 'Krateo-Blueprints', 'orders-api', '0.1.0')
+  const body = () => (cd() ?? '').split('\n').filter((line) => !line.startsWith('#')).join('\n')
+
+  it('is a CompositionDefinition in krateo-system, named for the chart', () => {
+    // krateo-system is where the builder deliverables list joins a blueprint to its registration,
+    // and where Register writes it.
+    expect(body()).toContain('apiVersion: core.krateo.io/v1alpha1\nkind: CompositionDefinition\nmetadata:\n  name: orders-api\n  namespace: krateo-system\n')
+  })
+
+  it('points at the chart the release pushes — the owner lower-cased', () => {
+    expect(body()).toContain('    url: oci://ghcr.io/krateo-blueprints/charts/orders-api\n')
+  })
+
+  it('carries Chart.yaml\'s version LITERALLY — no placeholder for a release to stamp', () => {
+    // A merge releases exactly this version, once, so the file on main is what Register applies.
+    expect(body()).toContain('    version: 0.1.0\n')
+    expect(cd()).not.toContain('CHART_VERSION')
+  })
+
+  it('names the Kind and API version it will serve, and the release it is attached to', () => {
+    // The destination REPO, not the chart name: they are the same only when the repo is seeded, because the form insists.
+    const header = blueprintCompositionDefinition('orders-api', 'acme', 'orders-repo', '1.2.3') ?? ''
+    expect(header).toContain('# and serves the Kind OrdersAPI as composition.krateo.io/v1-2-3.')
+    expect(header).toContain('https://github.com/acme/orders-repo/releases/tag/1.2.3')
+  })
+
+  it('sends a person to Register, not to kubectl', () => {
+    // Registering is a person's action in the portal (builder deliverables -> Register).
+    expect(cd()).toMatch(/Register it from the portal once release 0\.1\.0 is green \(builder deliverables -> Register\)/)
+    expect(cd()).not.toMatch(/kubectl/)
+  })
+
+  it('is YAML the release workflow can read — every comment line starts with #', () => {
+    // The workflow reads name/url/version with sed, from the first line that starts with the key.
+    // A wrapped comment line without its # would be read as the url.
+    for (const line of (cd() ?? '').split('\n').filter((each) => /^(\s*)(url|version|name):/.test(each))) {
+      expect(line).not.toMatch(/^#/)
+    }
+    expect((cd() ?? '').split('\n').filter((line) => /^\s*url:/.test(line))).toHaveLength(1)
+  })
+
+  it('is null without an owner — a location with no owner is not a location', () => {
+    expect(blueprintCompositionDefinition('orders-api', ' ', 'orders-api', '0.1.0')).toBeNull()
   })
 })

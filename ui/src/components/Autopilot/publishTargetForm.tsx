@@ -2,7 +2,8 @@
  * The PUBLISH DESTINATION form — the human declares WHERE a publish commits (owner /
  * repository / base branch) in a proper form BEFORE the publish claim is built. The
  * model's fence coords (and the builder defaults) are only PREFILLS: the destination is
- * user-owned and asked at every publish; the last confirmed choice prefills the next ask.
+ * user-owned and asked at every publish; the last confirmed OWNER and BASE prefill the next
+ * ask, and the repository is always the one this artifact names.
  *
  * Wiring mirrors the preview drawer's global-overlay pattern: ONE host mounted by
  * AutopilotProvider, driven by a promise-based request seam so the (non-React) publish
@@ -15,6 +16,8 @@ import { useEffect, useState } from 'react'
 
 import { ABOVE_PREVIEW_DRAWER_Z_INDEX } from '../../hooks/confirmModalProps'
 
+import { seededRepoProblem } from './builderPublishClaim'
+
 export interface PublishTarget {
   owner: string
   repo: string
@@ -24,6 +27,18 @@ export interface PublishTarget {
 export interface PublishTargetRequest extends PublishTarget {
   /** What is being published — labels the form (a page, a blueprint chart, or a KOG API mapping). */
   kind: 'page' | 'blueprint' | 'restdef'
+  /**
+   * The ONLY repository this publish may name — the artifact's slug — set when the destination is
+   * seeded from a builder template. A seeded repository is one chart's (seededRepoProblem), so the
+   * form refuses any other name, with the reason, as it is typed. Absent: any repository is taken.
+   */
+  requiredRepo?: string
+}
+
+/** The artifact a page / blueprint publish is FOR: its slug, and whether its new repo is seeded. */
+export interface PublishArtifact {
+  slug: string
+  seeded: boolean
 }
 
 /** Human noun for the artifact kind (form title). Keep in sync with the kind union. */
@@ -45,8 +60,16 @@ type Handler = (req: PublishTargetRequest) => Promise<PublishTarget | null>
 
 let activeHandler: Handler | null = null
 /**
- * The last destination the human confirmed, PER KIND — prefills the next ask of that same
- * kind (session-lived).
+ * The last OWNER and BASE the human confirmed, PER KIND — prefill the next ask of that same
+ * kind (session-lived). NOT the repository.
+ *
+ * THE REPOSITORY IS NEVER CARRIED OVER. It used to be: the whole confirmed destination was
+ * remembered, so the second publish in a session defaulted to the FIRST one's repository —
+ * whatever that artifact was called. That is how fifteen page sets landed in one repository
+ * (`demo-service-catalog`) and two blueprints in a shared `blueprints`, each prefill looking
+ * like a considered default. Every artifact has its own repository now (#163), named for it, so
+ * the prefill is always the caller's — the artifact's slug — and the owner and base, which really
+ * are the same from one publish to the next, are what is worth repeating.
  *
  * Keyed by kind, not global. A single memo made one confirmed destination prefill every
  * later publish of every kind, so confirming a KOG mapping into krateo-oas left the next
@@ -55,9 +78,9 @@ let activeHandler: Handler | null = null
  * The artifacts live in different repos by design (blueprints in krateo-blueprints, pages
  * in the portal chart, KOG mappings in krateo-oas), so carrying one kind's answer over to
  * another is never the helpful default — it is a mis-publish with a plausible-looking
- * prefill. Within a kind, repeating the last answer is genuinely useful, so that stays.
+ * prefill. Within a kind, repeating the last owner and base is genuinely useful, so that stays.
  */
-let lastConfirmed: Partial<Record<PublishTargetRequest['kind'], PublishTarget>> = {}
+let lastConfirmed: Partial<Record<PublishTargetRequest['kind'], Pick<PublishTarget, 'base' | 'owner'>>> = {}
 
 /** Ask the human for the publish destination. Resolves null on cancel (the publish is
  * denied). With no mounted host, resolves the prefills immediately (headless-safe). */
@@ -73,18 +96,38 @@ export const requestPublishTarget = async (req: PublishTargetRequest): Promise<P
  * (one-liner for the provider's publish branches; null = cancelled → deny the publish). The
  * owner default is per-builder (`defaultOwner`) because the builders live in different orgs —
  * blueprints in krateo-blueprints, pages + the KOG/oas registry in krateo-platformops. It stays
- * optional (defaulting to krateo-blueprints) so callers/tests that don't pass it are unchanged. */
+ * optional (defaulting to krateo-blueprints) so callers/tests that don't pass it are unchanged.
+ *
+ * `artifact` — a page or blueprint publish names the chart it is for, and then the repository
+ * prefill IS that slug, whatever the proposal says. A model-emitted repo used to win here, and the
+ * rail's own re-prompt handed the model the install's fallback repo to emit — so a page set could
+ * be prefilled into `portal`. The owner and base of a proposal still win. When the new repo is
+ * seeded, the slug is also the only repository the form accepts. */
 export const askPublishDestination = (
   proposal: { base?: string; owner?: string; repo?: string },
   kind: PublishTargetRequest['kind'],
   defaultRepo: string,
   defaultOwner = 'krateo-blueprints',
+  artifact?: PublishArtifact,
 ): Promise<PublishTarget | null> => requestPublishTarget({
   base: typeof proposal.base === 'string' && proposal.base ? proposal.base : 'main',
   kind,
   owner: typeof proposal.owner === 'string' && proposal.owner ? proposal.owner : defaultOwner,
-  repo: typeof proposal.repo === 'string' && proposal.repo ? proposal.repo : defaultRepo,
+  repo: artifact?.slug || (typeof proposal.repo === 'string' && proposal.repo ? proposal.repo : defaultRepo),
+  ...(artifact?.slug && artifact.seeded ? { requiredRepo: artifact.slug } : {}),
 })
+
+/**
+ * The form's repository rule: a seeded destination must be named for its artifact. An EMPTY value
+ * is left to the field's required rule, so the person reads one message, not two.
+ */
+export const repositoryProblem = (req: Pick<PublishTargetRequest, 'requiredRepo'> | undefined, repo: unknown): string | null => {
+  const value = typeof repo === 'string' ? repo : ''
+  if (!req?.requiredRepo || !value.trim()) {
+    return null
+  }
+  return seededRepoProblem(req.requiredRepo, value)
+}
 
 /** TEST SEAM — reset the module-level state between specs. */
 export const resetPublishTargetForTests = (): void => {
@@ -108,13 +151,15 @@ export const PublishTargetFormHost = () => {
 
   useEffect(() => {
     if (pending) {
-      form.setFieldsValue(lastConfirmed[pending.req.kind] ?? { base: pending.req.base, owner: pending.req.owner, repo: pending.req.repo })
+      // The repository is ALWAYS the request's: never the last one confirmed (see lastConfirmed).
+      const remembered = lastConfirmed[pending.req.kind]
+      form.setFieldsValue({ base: remembered?.base ?? pending.req.base, owner: remembered?.owner ?? pending.req.owner, repo: pending.req.repo })
     }
   }, [pending, form])
 
   const close = (target: PublishTarget | null) => {
     if (target && pending) {
-      lastConfirmed[pending.req.kind] = target
+      lastConfirmed[pending.req.kind] = { base: target.base, owner: target.owner }
     }
     pending?.resolve(target)
     setPending(null)
@@ -177,7 +222,22 @@ export const PublishTargetFormHost = () => {
           <Form.Item label='Repository owner' name='owner' rules={[{ message: 'the owner/org (or GitLab group) is required', required: true }]}>
             <Input placeholder='krateo-blueprints' />
           </Form.Item>
-          <Form.Item label='Repository' name='repo' rules={[{ message: 'the repository is required', required: true }]}>
+          <Form.Item
+            extra={pending?.req.requiredRepo
+              ? `Named for this ${KIND_NOUN[pending.req.kind]}: the repository is seeded with a release workflow for exactly one chart.`
+              : undefined}
+            label='Repository'
+            name='repo'
+            rules={[
+              { message: 'the repository is required', required: true },
+              {
+                validator: (_rule, value) => {
+                  const problem = repositoryProblem(pending?.req, value)
+                  return problem ? Promise.reject(new Error(problem)) : Promise.resolve()
+                },
+              },
+            ]}
+          >
             <Input placeholder='portal' />
           </Form.Item>
           <Form.Item label='Base branch (the change-request target)' name='base' rules={[{ message: 'the base branch is required', required: true }]}>
