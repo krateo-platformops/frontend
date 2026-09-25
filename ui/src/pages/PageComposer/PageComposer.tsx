@@ -197,6 +197,14 @@ const PageComposer = () => {
    * the routed path is a path that gets routed twice.
    */
   const [files, setFiles] = useState<Record<string, string>>({})
+  /**
+   * WHICH BUILDER'S DRAFT IS HELD. This composer edits PAGES. With a blueprint draft held — a chart
+   * previewed in the rail, then a navigation here — it used to run `buildObjectTree` over
+   * Chart.yaml and templates and draw nonsense. The broadcast now says who holds the draft, and a
+   * blueprint is PARKED behind an honest empty state rather than drawn. A detail with no `kind`
+   * (a legacy emitter) reads as a page.
+   */
+  const [parkedBlueprint, setParkedBlueprint] = useState(false)
   // Why a move can be refused, shown where the other outcomes are shown. Not antd `message`: the
   // composer already reports through Alerts, and a toast that vanishes is the wrong surface for
   // "this drop was rejected and here is why".
@@ -620,7 +628,11 @@ const PageComposer = () => {
   }), [applyAdd, applyMove, authoringNamespace, files, previewSandboxNamespace, snowplowBaseUrl])
 
   useEffect(() => {
-    const stop = onDraftChanged(({ files: next }) => setFiles(next))
+    const stop = onDraftChanged(({ files: next, kind }) => {
+      const blueprint = kind === 'blueprint'
+      setParkedBlueprint(blueprint)
+      setFiles(blueprint ? {} : next)
+    })
     requestDraftReplay()
     return stop
   }, [])
@@ -655,6 +667,25 @@ const PageComposer = () => {
     setFiles({})
     setFocusPath(null)
   }
+
+  /*
+   * Nothing this composer can edit is open. Either no draft at all — say how to start one — or the
+   * draft this thread holds is a CHART: not a fake canvas and not silence, but a sentence naming it,
+   * because this surface has no business rewriting a blueprint.
+   */
+  const emptyState = parkedBlueprint
+    ? (
+      <WidgetEmpty
+        description='A blueprint draft is open in this thread. This composer edits pages — close that draft first to start a page here.'
+      />
+    )
+    : (
+      <WidgetEmpty
+        description='No draft open. Start a page here, or ask Autopilot to draft one — either way you review every file before anything is published.'
+      >
+        <Button onClick={() => setStarting(true)} type='primary'>Start a page</Button>
+      </WidgetEmpty>
+    )
 
   return (
     <div className={styles.page}>
@@ -759,7 +790,7 @@ const PageComposer = () => {
           : null}
       </header>
 
-      {payload
+      {payload && !parkedBlueprint
         ? (
           /*
            * BUILD ABOVE, RESULT BELOW — and exactly one tab bar on the page.
@@ -903,11 +934,7 @@ const PageComposer = () => {
            * button ended "...nothing is published until you submit the change request yourself" —
            * the same guarantee, restated. P16: say what to do next, do not fill space.
            */
-          <WidgetEmpty
-            description='No draft open. Start a page here, or ask Autopilot to draft one — either way you review every file before anything is published.'
-          >
-            <Button onClick={() => setStarting(true)} type='primary'>Start a page</Button>
-          </WidgetEmpty>
+          emptyState
         )}
     </div>
   )

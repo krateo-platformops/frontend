@@ -13,7 +13,7 @@
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { previewSurfaceClaimed } from '../../components/Autopilot/previewDraftChanged'
+import { emitDraftChanged, previewSurfaceClaimed } from '../../components/Autopilot/previewDraftChanged'
 import { AUTOPILOT_DRAFT_START_EVENT } from '../../components/Autopilot/previewDraftStart'
 import type { DraftStartDetail } from '../../components/Autopilot/previewDraftStart'
 import { AUTOPILOT_PUBLISH_REQUEST_EVENT, emitPublishResult } from '../../components/Autopilot/previewPublishRequest'
@@ -35,6 +35,28 @@ describe('PageComposer — the preview surface, outside the rail', () => {
     mount()
 
     // An empty page that looks like a failed load is the failure mode being avoided here.
+    expect(screen.getByText(/No draft open/i)).toBeTruthy()
+  })
+
+  it('PARKS a blueprint draft instead of drawing a chart as a page', () => {
+    // With a chart held — previewed in the rail, then a navigation here — this composer used to run
+    // its object tree over Chart.yaml and templates and draw nonsense. The broadcast says who holds
+    // the draft; a blueprint gets an honest empty state and no canvas.
+    mount()
+    emit({ files: [{ content: 'apiVersion: v2\nname: nginx-demo\n', path: 'Chart.yaml' }], title: 'nginx-demo' })
+    act(() => emitDraftChanged({ files: { 'Chart.yaml': 'apiVersion: v2\nname: nginx-demo\n' }, kind: 'blueprint' }))
+
+    expect(screen.getByText(/A blueprint draft is open in this thread/i)).toBeTruthy()
+    expect(screen.queryByText('Objects')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Start a page/i })).toBeNull()
+  })
+
+  it('un-parks when the held draft becomes a page again', () => {
+    mount()
+    act(() => emitDraftChanged({ files: { 'Chart.yaml': 'x' }, kind: 'blueprint' }))
+    expect(screen.getByText(/A blueprint draft is open/i)).toBeTruthy()
+    act(() => emitDraftChanged({ files: {}, kind: null }))
+    expect(screen.queryByText(/A blueprint draft is open/i)).toBeNull()
     expect(screen.getByText(/No draft open/i)).toBeTruthy()
   })
 

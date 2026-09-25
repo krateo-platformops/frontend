@@ -12,7 +12,7 @@
 
 import type { ApplyResourceSetOp } from './applyResourceSet'
 import { stampAuthorship, type AuthorshipOrigin } from './authorship'
-import { draftDisplayName } from './blueprintDraft'
+import { draftDisplayName, lintBlueprintDraft } from './blueprintDraft'
 import { substituteFileContent, type BlueprintDraftHeld, type BlueprintDraftStore } from './blueprintDraftStore'
 import type { BlueprintGate } from './blueprintGate'
 import type { PublishStatusClaim } from './builderPublishStatus'
@@ -115,6 +115,32 @@ export const heldDraftIdentity = (held: BlueprintDraftHeld | null): string | nul
     return null
   }
   return isPageDraft(held) ? pageDisplayName(held.files) : draftDisplayName(held.files)
+}
+
+/**
+ * FE-BP1/BP2, moved out of the provider so a preview a PERSON starts from the composer arms the
+ * same gate a proposed one does. Holds the previewed tree (published bytes == previewed bytes) and
+ * arms the blueprint gate for its Chart.yaml name — only when the draft is lint-clean AND the
+ * render succeeded. `previewFailed` is the half the lint cannot see: a chart that fails
+ * `helm template` is lint-clean, and used to be publishable with the drawer showing the error the
+ * whole time. A remote-chart preview (no rawTemplates) holds nothing: there is no authored tree.
+ * Returns whether the draft was held and the gate armed.
+ */
+export const recordBlueprintPreview = (
+  rawTemplates: Record<string, string> | undefined,
+  previewFailed: boolean,
+  store: BlueprintDraftStore,
+  gate: Pick<BlueprintGate, 'recordPreview'>,
+): boolean => {
+  if (!rawTemplates || previewFailed || lintBlueprintDraft(rawTemplates).length > 0) {
+    return false
+  }
+  const draft = store.set(rawTemplates, 'blueprint')
+  if (!draft.ok) {
+    return false
+  }
+  gate.recordPreview(draftDisplayName(draft.held.files))
+  return true
 }
 
 /** FE-P2: hold an APPLIED previewPage's widget CRs as a {slug: yaml} page draft and arm the SHARED

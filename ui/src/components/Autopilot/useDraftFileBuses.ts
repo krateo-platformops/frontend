@@ -22,6 +22,7 @@
  */
 import { useCallback, useEffect, useRef } from 'react'
 
+import { lintBlueprintDraft } from './blueprintDraft'
 import type { BlueprintDraftStore } from './blueprintDraftStore'
 import { clearComposeRefusals } from './composeRequest'
 import { draftHistory } from './draftHistory'
@@ -29,7 +30,7 @@ import { pageDisplayName, pageDraftWidgets } from './pageDraft'
 import { emitPreviewApplied } from './previewApplied'
 import { buildPagePreviewPayload } from './previewBridge'
 import { openAutopilotPreview } from './previewBus'
-import { emitDraftChanged, onDraftReplayRequest } from './previewDraftChanged'
+import { type DraftChangedDetail, emitDraftChanged, onDraftReplayRequest } from './previewDraftChanged'
 import { onDraftStart } from './previewDraftStart'
 import { onDraftUndo } from './previewDraftUndo'
 import { onFileAdd } from './previewFileAdd'
@@ -44,12 +45,26 @@ import { recordPagePreview } from './publishCompile'
  */
 const REAPPLY_DEBOUNCE_MS = 700
 
+/**
+ * The held draft as the broadcast carries it — ONE definition for both emitters (the store's
+ * change listener in the provider, and the replay below), so the two cannot come to disagree about
+ * what a surface is told. `kind` lets a page surface park a chart; `problems` is the blueprint lint,
+ * so a hand edit that would wedge a CompositionDefinition is visible instead of silent.
+ */
+export const heldDraftDetail = (held: ReturnType<BlueprintDraftStore['get']>): DraftChangedDetail => ({
+  files: held?.files ?? {},
+  kind: held?.kind ?? null,
+  problems: held?.kind === 'blueprint' ? lintBlueprintDraft(held.files) : [],
+})
+
 /** The slice of the preview gate this hook needs — narrowed so tests need not build a whole gate. */
 interface PreviewGateLike {
   // Matches BlueprintGate exactly, `undefined` included. A narrower parameter type is NOT a
   // narrower function: one accepting only `string | null` cannot stand in where the real gate is
   // expected, which is how this drifted into rejecting the very gate it describes.
   recordPreview: (identity: string | null | undefined) => void
+  /** Optional so a gate without it still fits; absent, a lint failure only withholds the re-arm. */
+  forget?: (identity: string | null | undefined) => void
 }
 
 export const useDraftFileBuses = (
@@ -187,6 +202,28 @@ export const useDraftFileBuses = (
       clearTimeout(replayTimer.current)
     }
   }, [])
+  /*
+   * RE-ARM, OR DISARM. Every accepted write re-armed the gate for the draft's identity — right for
+   * a page, whose edits are ajv-verdicted in the drawer, and a live hole for a blueprint: a hand
+   * edit to values.schema.json that introduces a populated object default (core-provider#46) has no
+   * verdict anywhere, so the gate re-armed and the chart was publishable, and it wedges its
+   * CompositionDefinition at Ready=False on registration. Reachable today through the drawer's
+   * Files tab, before any blueprint composer exists.
+   *
+   * So a blueprint draft is linted on every write. Clean: re-arm as before. Dirty: FORGET the
+   * identity — not merely skip the re-arm, because the chart name did not change and stays armed
+   * from its last clean preview. The problems ride the draft broadcast, so a surface can say why.
+   */
+  const rearm = useCallback(() => {
+    const held = store.get()
+    const identity = identityOf(held)
+    if (held?.kind === 'blueprint' && lintBlueprintDraft(held.files).length > 0) {
+      gate.forget?.(identity)
+      return
+    }
+    gate.recordPreview(identity)
+  }, [gate, identityOf, store])
+
   // EDIT: an accepted per-file edit from a Files tab.
   //
   // updateDisplayedFile, not updateFile: the surface shows a page at its repo DESTINATION while the
@@ -199,20 +236,20 @@ export const useDraftFileBuses = (
     const before = store.get()?.files
     if (store.updateDisplayedFile(path, content).ok) {
       if (before) { draftHistory.push(before) }
-      gate.recordPreview(identityOf(store.get()))
+      rearm()
       scheduleReapply()
     }
-  }), [gate, identityOf, scheduleReapply, store])
+  }), [rearm, scheduleReapply, store])
 
   // ADD: a file the composer just authored — a layout container, a new widget.
   useEffect(() => onFileAdd(({ content, path }) => {
     const before = store.get()?.files
     if (store.addFile(path, content).ok) {
       if (before) { draftHistory.push(before) }
-      gate.recordPreview(identityOf(store.get()))
+      rearm()
       scheduleReapply()
     }
-  }), [gate, identityOf, scheduleReapply, store])
+  }), [rearm, scheduleReapply, store])
 
   // Removal re-arms the gate exactly as an add or an edit does: the draft's identity has changed,
   // and a gate still armed for the previous shape would let a publish commit a set nobody previewed.
@@ -220,10 +257,10 @@ export const useDraftFileBuses = (
     const before = store.get()?.files
     if (store.removeFile(path).ok) {
       if (before) { draftHistory.push(before) }
-      gate.recordPreview(identityOf(store.get()))
+      rearm()
       scheduleReapply()
     }
-  }), [gate, identityOf, scheduleReapply, store])
+  }), [rearm, scheduleReapply, store])
 
   // UNDO: put the whole tree back. `set` rather than a per-file replay, because the step being
   // undone may have added or removed files as well as changed them — a container drop does both.
@@ -234,16 +271,16 @@ export const useDraftFileBuses = (
       return
     }
     if (store.set(previous, kind).ok) {
-      gate.recordPreview(identityOf(store.get()))
+      rearm()
       scheduleReapply()
     }
-  }), [gate, identityOf, scheduleReapply, store])
+  }), [rearm, scheduleReapply, store])
 
   // REPLAY: a surface that mounted AFTER the draft was seeded missed the store's broadcast, so it
   // asks and we answer on the same bus. Answering with an empty map when nothing is held is
   // deliberate — "no draft" is an answer, and silence leaves that surface waiting forever.
   useEffect(() => onDraftReplayRequest(() => {
-    emitDraftChanged({ files: store.get()?.files ?? {} })
+    emitDraftChanged(heldDraftDetail(store.get()))
   }), [store])
 
   // START: a person creating a draft, rather than an agent proposing one.

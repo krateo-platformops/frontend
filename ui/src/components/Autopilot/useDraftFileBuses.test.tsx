@@ -17,9 +17,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { onPreviewApplied } from './previewApplied'
 import { AUTOPILOT_PREVIEW_EVENT } from './previewBus'
+import { type DraftChangedDetail, onDraftChanged, requestDraftReplay } from './previewDraftChanged'
 import { emitDraftStart } from './previewDraftStart'
 import { emitFileAdd } from './previewFileAdd'
 import { emitFileEdit } from './previewFileEdit'
+import { emitFileRemove } from './previewFileRemove'
 import { useDraftFileBuses } from './useDraftFileBuses'
 
 /** A page draft set: the `page-<slug>` root Flex is what makes it a page at all. */
@@ -269,5 +271,89 @@ describe('a draft that CHANGES after it started', () => {
 
     expect(previewLive).toHaveBeenCalledTimes(1)
     vi.useRealTimers()
+  })
+})
+
+/**
+ * A BLUEPRINT EDIT IS LINTED BEFORE IT RE-ARMS.
+ *
+ * Every accepted write re-armed the publish gate. Right for a page — its edits are ajv-verdicted
+ * in the drawer — and a live hole for a blueprint: a hand edit to values.schema.json that adds a
+ * populated object default (core-provider#46) had no verdict anywhere, so the gate re-armed, the
+ * chart was publishable, and it wedges its CompositionDefinition at Ready=False on registration.
+ * Reachable through the drawer's Files tab before any blueprint composer existed.
+ */
+describe('a blueprint draft edited by hand', () => {
+  const chart = {
+    'Chart.yaml': 'apiVersion: v2\nname: nginx-demo\nversion: 0.1.0\n',
+    'templates/deployment.yaml': 'apiVersion: apps/v1\nkind: Deployment\n',
+    'values.schema.json': JSON.stringify({ properties: { replicas: { default: 1, type: 'integer' } }, type: 'object' }),
+  }
+  const dirtySchema = JSON.stringify({ properties: { resources: { default: { limits: { cpu: '100m' } }, type: 'object' } }, type: 'object' })
+  const cleanSchema = JSON.stringify({ properties: { replicas: { default: 3, type: 'integer' } }, type: 'object' })
+
+  const BlueprintHost = ({ gate, store }: { gate: { forget: (id: string | null | undefined) => void; recordPreview: (id: string | null | undefined) => void }; store: ReturnType<typeof createBlueprintDraftStore> }) => {
+    useDraftFileBuses(store, gate, (held) => (held?.kind === 'blueprint' ? 'nginx-demo' : null))
+    return null
+  }
+
+  const seeded = () => {
+    const store = createBlueprintDraftStore()
+    store.set(chart, 'blueprint')
+    const gate = { forget: vi.fn(), recordPreview: vi.fn() }
+    render(<BlueprintHost gate={gate} store={store} />)
+    return { gate, store }
+  }
+
+  it('FORGETS the chart when the edit makes the draft lint-dirty — and does not re-arm it', () => {
+    const { gate, store } = seeded()
+    act(() => { emitFileEdit({ content: dirtySchema, path: 'values.schema.json' }) })
+    // The edit is accepted into the held tree — the person's bytes are kept, not discarded…
+    expect(store.get()?.files['values.schema.json']).toBe(dirtySchema)
+    // …but the publish is back to deny until a clean preview.
+    expect(gate.forget).toHaveBeenCalledWith('nginx-demo')
+    expect(gate.recordPreview).not.toHaveBeenCalled()
+  })
+
+  it('RE-ARMS as before when the edit leaves the draft clean', () => {
+    const { gate } = seeded()
+    act(() => { emitFileEdit({ content: cleanSchema, path: 'values.schema.json' }) })
+    expect(gate.recordPreview).toHaveBeenCalledWith('nginx-demo')
+    expect(gate.forget).not.toHaveBeenCalled()
+  })
+
+  it('an ADD that dirties the draft forgets too — every write path is linted, not only edit', () => {
+    const { gate } = seeded()
+    // Removing values.schema.json makes the chart un-installable ("error getting spec schema").
+    act(() => { emitFileRemove({ path: 'values.schema.json' }) })
+    expect(gate.forget).toHaveBeenCalledWith('nginx-demo')
+    expect(gate.recordPreview).not.toHaveBeenCalled()
+  })
+
+  it('a PAGE draft is never linted as a chart — its re-arm is unchanged', () => {
+    const store = createBlueprintDraftStore()
+    const gate = { forget: vi.fn(), recordPreview: vi.fn() }
+    const PageHost = () => {
+      useDraftFileBuses(store, gate, () => 'page-x')
+      return null
+    }
+    render(<PageHost />)
+    act(() => { emitDraftStart({ title: 'x', widgets: widgets() }) })
+    gate.recordPreview.mockClear()
+    const [key] = Object.keys(store.get()?.files ?? {})
+    act(() => { emitFileEdit({ content: 'kind: Flex\n', path: key }) })
+    expect(gate.forget).not.toHaveBeenCalled()
+  })
+
+  it('REPLAY says who holds the draft and what the lint thinks, so a surface can park or explain it', () => {
+    const { store } = seeded()
+    store.updateFile('values.schema.json', dirtySchema)
+    const heard: DraftChangedDetail[] = []
+    const stop = onDraftChanged((detail) => heard.push(detail))
+    act(() => { requestDraftReplay() })
+    stop()
+    expect(heard).toHaveLength(1)
+    expect(heard[0].kind).toBe('blueprint')
+    expect(heard[0].problems?.length).toBeGreaterThan(0)
   })
 })
