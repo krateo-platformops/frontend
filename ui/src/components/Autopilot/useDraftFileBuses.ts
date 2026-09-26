@@ -343,7 +343,9 @@ export const useDraftFileBuses = (
     if (before) { draftHistory.push(before) }
     rearm()
     scheduleReapply()
-    respond({ ok: true })
+    // The held bytes, when the store kept different ones (a chart's regenerated graph block), so the
+    // surface that made the edit shows what will publish rather than what was typed.
+    respond(result.content === undefined || result.content === content ? { ok: true } : { content: result.content, ok: true })
   }), [rearm, scheduleReapply, store])
 
   // ADD: a file the composer just authored — a layout container, a new widget.

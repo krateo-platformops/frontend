@@ -16,7 +16,8 @@
  * plain text a HUMAN produced by editing the held file in the drawer; it never round-trips the model.
  * The drawer parses/validates it once (deny-by-default: an invalid edit is never emitted), and the
  * provider's updateFile re-checks the cap/held-path once more, so the bytes that publish (the claim
- * carries the held files verbatim) are exactly the human-edited bytes.
+ * carries the held files verbatim) are exactly the human-edited bytes — with, in a chart's
+ * architecture file, the graph block the store regenerates from them.
  *
  * Pure module: one CustomEvent name + a dispatch/subscribe pair. No React, no module state.
  */
@@ -47,7 +48,13 @@ export interface FileEditDetail {
  * while Publish stayed on for the ones that would. The bus is synchronous (dispatchEvent runs every
  * listener before it returns), so the answer comes back from `emitFileEdit` itself.
  */
-export type FileEditOutcome = { ok: true } | { ok: false; error: string }
+export type FileEditOutcome =
+  /**
+   * `content`: the bytes the provider holds for the file, when they are not the ones sent — a chart's
+   * architecture file is held with its graph block regenerated. The surface shows those: they publish.
+   */
+  | { ok: true; content?: string }
+  | { ok: false; error: string }
 
 /** What travels on the event: the edit, and the one-shot way to answer it. */
 interface FileEditRequest extends FileEditDetail {

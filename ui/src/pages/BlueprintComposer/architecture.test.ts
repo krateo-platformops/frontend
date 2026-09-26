@@ -5,11 +5,13 @@ import {
   deriveStates,
   levelOf,
   parseArchitecture,
+  regenerateGraphBlock,
   serializeArchitecture,
   unwrapFromConfigMapTemplate,
   wrapAsConfigMapTemplate,
   type ChartArchitecture,
 } from './architecture'
+import { graphBlockIn } from './graphCompile'
 
 const base = (over: Partial<ChartArchitecture> = {}): ChartArchitecture => ({
   apiVersion: ARCHITECTURE_API_VERSION,
@@ -269,6 +271,20 @@ resources:
     }
   })
 
+  it('refuses a name that is a template action, and says include — Helm refuses the whole chart where the block evaluates it', () => {
+    const parsed = parseArchitecture(`apiVersion: ${ARCHITECTURE_API_VERSION}
+kind: ChartArchitecture
+chart: x
+resources:
+  - { id: a, class: native, apiVersion: v1, kind: ConfigMap, template: t/a.yaml, name: 'template "x.fullname" .' }
+  - { id: b, class: native, apiVersion: v1, kind: ConfigMap, template: t/b.yaml, name: 'include "x.fullname" .' }
+`)
+    expect(parsed.ok).toBe(false)
+    if (parsed.ok) { return }
+    expect(parsed.problems.map((problem) => problem.path)).toEqual(['resources[0].name'])
+    expect(parsed.problems[0].message).toMatch(/^must name the object with include, not template — include "x" \. is the same object/)
+  })
+
   it('a missing name is not a parse fault — a sequenced node needs one, and the lint says so', () => {
     expect(parseArchitecture(serializeArchitecture(base())).ok).toBe(true)
   })
@@ -350,5 +366,59 @@ describe('the ConfigMap template packaging', () => {
 
   it('a template that is not ours unwraps to null, not to garbage', () => {
     expect(unwrapFromConfigMapTemplate('apiVersion: v1\nkind: Secret\n')).toBeNull()
+  })
+})
+
+describe('regenerateGraphBlock — the block follows the descriptor, and the author keeps the rest', () => {
+  const named = (): ChartArchitecture => base({ resources: base().resources.map((node) => ({ ...node, name: `printf "%s-${node.id}" .Release.Name` })) })
+  const wrapped = wrapAsConfigMapTemplate(serializeArchitecture(named()), 'demo')
+  const indented = (descriptor: string) => descriptor.trimEnd().split('\n')
+    .map((line) => `    ${line}`)
+    .join('\n')
+  /** The file with its data.architecture replaced by hand, and nothing else touched — the block included. */
+  const handEdited = (arch: ChartArchitecture) => wrapped.replace(indented(serializeArchitecture(named())), indented(serializeArchitecture(arch)))
+
+  it('is the identity on a file the composer wrote — a write that changed nothing changes nothing', () => {
+    expect(regenerateGraphBlock(wrapped, 'demo')).toBe(wrapped)
+  })
+
+  it('a descriptor edited by hand gets the block it compiles to, and every other byte stays — an added label too', () => {
+    const arch = named()
+    arch.resources.push({ apiVersion: 'v1', class: 'native', id: 'settings', kind: 'ConfigMap', name: 'printf "%s-settings" .Release.Name', template: 'templates/settings.yaml' })
+    const edited = handEdited(arch).replace('  labels:\n', '  labels:\n    team: platform\n')
+    expect(graphBlockIn(edited)).toBe(graphBlockIn(wrapped))
+    const regenerated = regenerateGraphBlock(edited, 'demo')
+    expect(graphBlockIn(regenerated)).toBe(graphBlockIn(wrapAsConfigMapTemplate(serializeArchitecture(arch), 'demo')))
+    expect(regenerated).toContain('"id" "settings"')
+    expect(regenerated.replace(graphBlockIn(regenerated)!, '')).toBe(edited.replace(graphBlockIn(edited)!, ''))
+    expect(regenerated).toContain('    team: platform\n')
+  })
+
+  it('a chart renamed in Chart.yaml: the block and the label carry the new name', () => {
+    const regenerated = regenerateGraphBlock(wrapped, 'demo-two')
+    expect(regenerated).toContain('    krateo.io/architecture: "demo-two"\n')
+    expect(graphBlockIn(regenerated)).toBe(graphBlockIn(wrapAsConfigMapTemplate(serializeArchitecture(named()), 'demo-two')))
+    // Chart.yaml naming nothing compiles with the descriptor's own chart, as the lint does.
+    expect(regenerateGraphBlock(regenerated, null)).toBe(wrapped)
+  })
+
+  it('the wrapper from before the block is written fresh — its header has no $g, and names the ConfigMap for the release', () => {
+    const descriptor = serializeArchitecture(named())
+    const before = wrapped.replace(graphBlockIn(wrapped)!, '').replace('{{- $g := .Values.global | default dict }}\n', '')
+      .replace('($g.compositionName | default .Release.Name)', '.Release.Name | trunc 63 | trimSuffix "-"')
+    expect(unwrapFromConfigMapTemplate(before)).toBe(descriptor)
+    expect(regenerateGraphBlock(before, 'demo')).toBe(wrapAsConfigMapTemplate(descriptor, 'demo'))
+  })
+
+  it('leaves alone what it cannot compile — the lint names those faults, and a guessed block would hide them', () => {
+    const cycle = named()
+    cycle.resources[0].dependsOn = [{ ref: 'svc' }]
+    for (const template of [
+      'apiVersion: v1\nkind: Secret\n',
+      wrapped.replace('chart: demo', 'chart: [demo'),
+      handEdited(cycle),
+    ]) {
+      expect(regenerateGraphBlock(template, 'demo')).toBe(template)
+    }
   })
 })

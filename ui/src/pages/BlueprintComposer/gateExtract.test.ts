@@ -116,6 +116,23 @@ describe('extractNameExpression — only what the scan can pin down', () => {
     expect(extractNameExpression(doc('', '{{ printf "%s-%d" $.Release.Name $i }}'))).toBe('printf "%s-%d" $.Release.Name $i')
   })
 
+  it('a template action is read as the include that names the same object — one with no argument, not at all', () => {
+    expect(extractNameExpression(doc('', '{{ template "x.fullname" . }}'))).toBe('include "x.fullname" .')
+    expect(extractNameExpression(doc('', '{{- template "x.fullname" $ -}}'))).toBe('include "x.fullname" $')
+    expect(extractNameExpression(doc('', '{{ template "x.fullname" }}'))).toBeNull()
+  })
+
+  it('inside a range or a with, a name read relative to the dot is left out — where the block evaluates it, `.` is the root', () => {
+    const ranged = (open: string, name: string) => `${open}\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: ${name}\n{{- end }}\n`
+    expect(extractNameExpression(ranged('{{- range .Values.items }}', '{{ printf "%s-%s" $.Release.Name .name }}'))).toBeNull()
+    expect(extractNameExpression(ranged('{{- with .Values.db }}', '{{ .name }}'))).toBeNull()
+    expect(extractNameExpression(ranged('{{- with .Values.db }}', '{{ include "x.fullname" . }}'))).toBeNull()
+    // Read from the root or a range variable, the same place names the same object there too.
+    expect(extractNameExpression(ranged('{{- range $i, $f := .Values.items }}', '{{ printf "%s-%d" $.Release.Name $i }}'))).toBe('printf "%s-%d" $.Release.Name $i')
+    // An `if` rebinds nothing.
+    expect(extractNameExpression(ranged('{{- if .Values.db }}', '{{ .Values.db.name }}'))).toBe('.Values.db.name')
+  })
+
   it('only the name under the first object\'s metadata — nothing below it, nothing without it', () => {
     expect(extractNameExpression('apiVersion: v1\nkind: ConfigMap\nmetadata:\n  labels: {}\nspec:\n  name: not-mine\n')).toBeNull()
     expect(extractNameExpression('apiVersion: v1\nkind: ConfigMap\ndata:\n  name: not-mine\n')).toBeNull()

@@ -24,6 +24,7 @@ import {
   parseRawTemplates,
   RAW_TEMPLATES_MAX_BYTES,
   rawTemplatesByteSize,
+  regenerateArchitecture,
   stripCodeFence,
 } from './blueprintDraft'
 
@@ -368,9 +369,26 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
         expect(withArch(handEdited)).toContain('the krateo:graph block no longer matches data.architecture')
         // …and so does a hand edit to the block itself.
         expect(withArch(text.replace('"level" 1', '"level" 0'))).toContain('no longer matches data.architecture')
-        // Both say how it comes back: regenerated from the descriptor, which wrap(unwrap(x)) is.
-        expect(withArch(handEdited)).toContain('Regenerate it that way, or Undo to the version the composer last wrote.')
+        // Both say how it comes back, in a way a person has: any save of the chart rewrites the block.
+        expect(withArch(handEdited)).toContain('the composer rewrites it whenever the chart is saved — in Chart files, by the composer or by Autopilot. Apply any edit in Chart files to have it rewritten, or Undo.')
         expect(withArch(wrapAsConfigMapTemplate(unwrapFromConfigMapTemplate(handEdited)!, 'pg-app'))).toBe('')
+      })
+
+      it('L3 is a backstop: a save regenerates the block, and so does the parse of a tree Autopilot proposes', () => {
+        const text = wrapped(node('a'), node('b', 'a'))
+        const tree = { ...cleanDraft, [ARCHITECTURE_TEMPLATE_PATH]: text.replace('    name: printf "%s-b" .Release.Name', '    name: printf "%s-bee" .Release.Name') }
+        expect(lintBlueprintDraft(tree, 'blueprint').join('\n')).toContain('no longer matches data.architecture')
+        // What every write to a held chart does (the store), and what previewBlueprint's arg guard does
+        // BEFORE the lint and the render, so the bytes rendered are the bytes held.
+        expect(lintBlueprintDraft(regenerateArchitecture(tree), 'blueprint')).toEqual([])
+        expect(parseRawTemplates(tree)).toEqual(regenerateArchitecture(tree))
+        // A chart renamed in Chart.yaml and in the descriptor: the block and the label follow.
+        const renamed = { ...cleanDraft, [ARCHITECTURE_TEMPLATE_PATH]: text.replace('chart: pg-app', 'chart: pg-renamed'), 'Chart.yaml': 'apiVersion: v2\nname: pg-renamed\nversion: 0.1.0\n' }
+        expect(lintBlueprintDraft(renamed, 'blueprint').join('\n')).toContain('no longer matches data.architecture')
+        expect(lintBlueprintDraft(regenerateArchitecture(renamed), 'blueprint')).toEqual([])
+        expect(regenerateArchitecture(renamed)[ARCHITECTURE_TEMPLATE_PATH]).toContain('krateo.io/architecture: "pg-renamed"')
+        // Nothing to regenerate is the same tree back.
+        expect(regenerateArchitecture(cleanDraft)).toBe(cleanDraft)
       })
 
       it('L3: the block is compiled with Chart.yaml\'s name, not whatever the file was wrapped with', () => {
@@ -386,6 +404,26 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
         // A variable assigned twice is not guessed at: no L4 either way.
         const twice = '{{- $n := "x" -}}\n{{- $n = "y" -}}\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ $n }}\n'
         expect(withArch(text, { 'templates/a.yaml': twice })).toBe('')
+      })
+
+      it('L4: inside a range or a with, the name that resolves where the block evaluates it is the one that passes', () => {
+        const scoped = (open: string, name: string) => `${open}\n---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ ${name} }}\n{{- end }}\n`
+        const templates = {
+          'templates/db.yaml': scoped('{{- with .Values.db }}', '.name'),
+          'templates/items.yaml': scoped('{{- range .Values.items }}', 'printf "%s-%s" $.Release.Name .name'),
+        }
+        const text = wrapped(
+          node('items', '', ['    name: printf "%s-%s" $.Release.Name $f.name', '    forEach: .Values.items']),
+          node('db', '', ['    name: .Values.db.name', '    when: .Values.db']),
+        )
+        expect(withArch(text, templates)).toBe('')
+      })
+
+      it('L1/L4: a template named with the template action is matched by the include form — the one the block can evaluate', () => {
+        const svc = { 'templates/svc.yaml': 'apiVersion: v1\nkind: Service\nmetadata:\n  name: {{ template "pg-app.fullname" . }}\n' }
+        expect(withArch(wrapped(node('svc', '', [])), svc)).toContain('templates/svc.yaml names it include "pg-app.fullname" .')
+        expect(withArch(wrapped(node('svc', '', ['    name: include "pg-app.fullname" .'])), svc)).toBe('')
+        expect(withArch(wrapped(node('svc', '', ['    name: template "pg-app.fullname" .'])), svc)).toContain('resources[0].name — must name the object with include, not template')
       })
 
       it('L5: two sequenced resources cannot share a name — the page tells objects apart by it', () => {

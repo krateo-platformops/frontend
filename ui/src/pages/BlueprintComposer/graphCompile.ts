@@ -24,9 +24,10 @@
  * empty under `helm template` and in the composer's Preview, which is expected. `v` versions the
  * JSON so the RESTAction that reads it can refuse a shape it does not know.
  *
- * THE BLOCK IS OWNED, like a gate block: it sits between two markers, it is regenerated from the
- * descriptor, and a hand edit to it is a lint problem (the block no longer equals this function's
- * output), never a second source of truth.
+ * THE BLOCK IS OWNED, like a gate block: it sits between two markers, and it is regenerated from the
+ * descriptor on every write to the held chart (architecture.ts regenerateGraphBlock), so a hand edit
+ * to it does not survive the save that made it. Bytes that reach a draft some other way and disagree
+ * with this function's output are a lint problem, never a second source of truth.
  *
  * Types only from architecture.ts: `wrapAsConfigMapTemplate` there calls this module, so a runtime
  * import back into it would be a cycle.

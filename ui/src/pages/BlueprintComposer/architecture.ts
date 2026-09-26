@@ -21,7 +21,7 @@
  */
 import { dump, load } from 'js-yaml'
 
-import { compileGraphBlock } from './graphCompile'
+import { compileGraphBlock, graphBlockIn } from './graphCompile'
 
 export const ARCHITECTURE_API_VERSION = 'architecture.krateo.io/v1alpha1'
 export const ARCHITECTURE_KIND = 'ChartArchitecture'
@@ -131,6 +131,14 @@ const NAME_FIELD: FieldRule = { expected: 'a bare Helm pipeline, e.g. printf "%s
 
 const HELM_ACTION = /\{\{|\}\}|\n/
 
+/**
+ * `template` is an ACTION, not a function, so it cannot sit where a name goes: the graph block and
+ * the gate evaluate a name inside parentheses, and Helm refuses the whole chart when a `template` is
+ * there — every render fails in architecture.yaml, not at the node. `include` names the same object
+ * and can sit there; gateExtract reads `{{ template "x" . }}` as that.
+ */
+const TEMPLATE_ACTION = /^template\s/
+
 const pathProblem = (value: unknown, { expected, shape }: FieldRule): string | null => {
   if (value === undefined) { return null }
   if (typeof value !== 'string' || HELM_ACTION.test(value)) {
@@ -145,6 +153,9 @@ const fieldProblems = (entry: Record<string, unknown>, at: string): Architecture
   for (const [field, rule] of [...Object.entries(PATH_FIELDS), ['name', NAME_FIELD] as const]) {
     const message = pathProblem(entry[field], rule)
     if (message) { problems.push({ message, path: `${at}.${field}` }) }
+  }
+  if (typeof entry.name === 'string' && TEMPLATE_ACTION.test(entry.name)) {
+    problems.push({ message: 'must name the object with include, not template — include "x" . is the same object; template is an action, and Helm refuses one where the graph block evaluates the name', path: `${at}.name` })
   }
   if (Array.isArray(entry.dependsOn)) {
     const firstAt = new Map<string, number>()
@@ -413,9 +424,10 @@ export const graphBlockFor = (descriptor: string, chart: string): string | null 
  * (a YAML double-quoted scalar). Unwrapping never read the label, so templates written before the
  * quoting unwrap unchanged.
  *
- * REGENERATION is `wrapAsConfigMapTemplate(unwrapFromConfigMapTemplate(x), chart)`, and it is
+ * A FRESH wrap is `wrapAsConfigMapTemplate(unwrapFromConfigMapTemplate(x), chart)`, and it is
  * idempotent: the descriptor goes back verbatim, and everything around it is a function of it and
- * the chart name. `chart` is Chart.yaml's name — the lint holds the descriptor's `chart` to it.
+ * the chart name. `chart` is Chart.yaml's name — the lint holds the descriptor's `chart` to it. A
+ * file already held is regenerated in place instead (regenerateGraphBlock, below).
  */
 export const wrapAsConfigMapTemplate = (descriptor: string, chart: string): string => {
   const body = descriptor.trimEnd().split('\n').map((line) => `    ${line}`)
@@ -451,4 +463,40 @@ export const unwrapFromConfigMapTemplate = (template: string): string | null => 
     out.push(line.slice(4))
   }
   return `${out.join('\n').trimEnd()}\n`
+}
+
+/** The label line the wrapper writes, whatever value it carries now. */
+const LABEL_LINE = /^(\s+krateo\.io\/architecture:)[^\n]*$/m
+
+/**
+ * REGENERATION in place: the `krateo:graph` block recompiled from the descriptor the template carries
+ * NOW, and the label set to `chart` — every other byte of the file kept, because once a chart is held
+ * the file is its author's, and a label or a comment added around the ConfigMap is theirs to keep.
+ * The draft store runs this on every write to a held chart (blueprintDraft's regenerateArchitecture),
+ * so the block follows each edit of data.architecture and of Chart.yaml's name, whoever made it.
+ *
+ * A template with NO block is written fresh around its descriptor: that is the wrapper from before
+ * the block existed, whose header declares no `$g` for the block to read and names the ConfigMap for
+ * the release, which the detail page cannot compute.
+ *
+ * The template comes back unchanged when there is nothing to compile — not ours, a descriptor that
+ * does not parse, a cycle: the lint names those, and a guessed block would hide them. `chart` null
+ * (Chart.yaml names nothing) compiles with the descriptor's own `chart`, as the lint does. Never
+ * throws: it runs inside the store's write.
+ */
+export const regenerateGraphBlock = (template: string, chart: string | null): string => {
+  try {
+    const descriptor = unwrapFromConfigMapTemplate(template)
+    const parsed = descriptor === null ? null : parseArchitecture(descriptor)
+    if (descriptor === null || !parsed?.ok) { return template }
+    const name = chart ?? parsed.architecture.chart
+    const graph = graphBlockFor(descriptor, name)
+    const current = graphBlockIn(template)
+    if (graph === null) { return template }
+    if (current === null) { return wrapAsConfigMapTemplate(descriptor, name) }
+    // Replaced by a function: the block is full of `$`, which a replacement STRING reads as patterns.
+    return template.replace(current, () => graph).replace(LABEL_LINE, (_line, key: string) => `${key} ${JSON.stringify(name)}`)
+  } catch {
+    return template
+  }
 }

@@ -27,6 +27,7 @@ import {
   deriveStates,
   graphBlockFor,
   parseArchitecture,
+  regenerateGraphBlock,
   unwrapFromConfigMapTemplate,
   type ChartArchitecture,
 } from '../../pages/BlueprintComposer/architecture'
@@ -76,32 +77,6 @@ export const stripCodeFence = (raw: string): string => {
     }
   }
   return raw
-}
-
-/**
- * The inline chart tree of a previewBlueprint proposal: a plain object mapping
- * non-empty relative paths to string contents. Anything else — empty map, non-object,
- * a non-string file body — is null (the proposal is denied, matching every arg guard).
- * Each file body is de-fenced (see stripCodeFence) so an accidental model wrapper never
- * corrupts the published chart or the schema lint.
- */
-export const parseRawTemplates = (value: unknown): Record<string, string> | null => {
-  const record = asRecord(value)
-  if (!record) {
-    return null
-  }
-  const entries = Object.entries(record)
-  if (entries.length === 0) {
-    return null
-  }
-  const cleaned: Record<string, string> = {}
-  for (const [path, content] of entries) {
-    if (!path.trim() || typeof content !== 'string') {
-      return null
-    }
-    cleaned[path] = stripCodeFence(content)
-  }
-  return cleaned
 }
 
 /** Total UTF-8 bytes of the draft (paths + contents) — what the 512 KiB cap measures. */
@@ -272,6 +247,54 @@ export const chartYamlName = (chartYaml: string | undefined): string | null => c
 export const chartYamlVersion = (chartYaml: string | undefined): string | null => chartYamlScalar(chartYaml, 'version')
 
 /**
+ * The held chart with its architecture file REGENERATED: the `krateo:graph` block recompiled from
+ * data.architecture as it is now, under Chart.yaml's name (architecture.ts regenerateGraphBlock).
+ *
+ * The canvas tells a person to add a resource by editing templates/architecture.yaml, and that edit
+ * has to be previewable: the block is the composer's to keep in step, never the author's. So the
+ * draft store runs this on every write to a held blueprint — Chart files, the composer, Undo — and
+ * parseRawTemplates on every tree Autopilot proposes, BEFORE it is linted, rendered and held, so the
+ * bytes rendered are the bytes held. Each is still one ordinary write: it disarms the gate, and only
+ * a render arms it again. The same object comes back when nothing changed.
+ */
+export const regenerateArchitecture = (files: Record<string, string>): Record<string, string> => {
+  const template = files[ARCHITECTURE_TEMPLATE_PATH]
+  if (template === undefined) {
+    return files
+  }
+  const next = regenerateGraphBlock(template, chartYamlName(files[CHART_YAML_PATH]))
+  return next === template ? files : { ...files, [ARCHITECTURE_TEMPLATE_PATH]: next }
+}
+
+/**
+ * The inline chart tree of a previewBlueprint proposal: a plain object mapping
+ * non-empty relative paths to string contents. Anything else — empty map, non-object,
+ * a non-string file body — is null (the proposal is denied, matching every arg guard).
+ * Each file body is de-fenced (see stripCodeFence) so an accidental model wrapper never
+ * corrupts the published chart or the schema lint, and the architecture file's graph block is
+ * regenerated (regenerateArchitecture): Autopilot edits data.architecture as a person does, and
+ * the block is not its to write.
+ */
+export const parseRawTemplates = (value: unknown): Record<string, string> | null => {
+  const record = asRecord(value)
+  if (!record) {
+    return null
+  }
+  const entries = Object.entries(record)
+  if (entries.length === 0) {
+    return null
+  }
+  const cleaned: Record<string, string> = {}
+  for (const [path, content] of entries) {
+    if (!path.trim() || typeof content !== 'string') {
+      return null
+    }
+    cleaned[path] = stripCodeFence(content)
+  }
+  return regenerateArchitecture(cleaned)
+}
+
+/**
  * The chart's identity, by the kind of draft it is.
  *
  * EVERY chart name must be a DNS-1123 label: it becomes the repository, the branch
@@ -351,7 +374,11 @@ const descriptorNameProblems = (arch: ChartArchitecture, files: Record<string, s
   return problems
 }
 
-const REGENERATE = 'The block is compiled from the descriptor, never written by hand: the composer regenerates the whole file from data.architecture whenever it writes the descriptor, and a hand edit to either leaves the two out of step. Regenerate it that way, or Undo to the version the composer last wrote.'
+/**
+ * Every write to a held chart regenerates the block (regenerateArchitecture), so this is the backstop
+ * for bytes that reached a draft some other way — and the way out it names is one a person has.
+ */
+const REGENERATE = 'The block is compiled from data.architecture and never written by hand: the composer rewrites it whenever the chart is saved — in Chart files, by the composer or by Autopilot. Apply any edit in Chart files to have it rewritten, or Undo.'
 
 /**
  * The chart name and the graph block (L2, L3). The label and `graph.chart` carry Chart.yaml's name,
