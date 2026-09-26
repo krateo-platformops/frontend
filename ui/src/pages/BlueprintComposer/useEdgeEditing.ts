@@ -132,6 +132,8 @@ export const useEdgeEditing = ({ architecture, files, filesRef, onAccepted }: Ed
       const arch = archRef.current
       setRefusedMoment(null)
       setPending(null)
+      // A new edge retires the last one's account: kept, "What just happened" sat beside the new drag.
+      setAccepted(null)
       setDrawing({ legal: arch ? legalEdgeTargets(arch, id).legal : [], source: id })
     },
   }), [choose])

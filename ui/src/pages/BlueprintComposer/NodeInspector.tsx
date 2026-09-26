@@ -300,7 +300,7 @@ export const NodeInspector = ({
   const [refusal, setRefusal] = useState<string | null>(null)
   useEffect(() => { setRefusal(null) }, [node?.id])
   return (
-    <section aria-label='Inspector' className={styles.pane}>
+    <section aria-label='Inspector' className={styles.pane} tabIndex={-1}>
       <div className={styles.paneHead}>
         <span className={styles.paneTitle}>Inspector</span>
         {node ? <span className={styles.countPill}>{node.class}</span> : null}

@@ -137,6 +137,9 @@ describe('BlueprintComposer — drawing an edge (screen 6)', () => {
     expect(provider.store.get()?.files).toBe(before)
     expect(within(screen.getByRole('region', { name: 'Add' })).getByRole('group', { name: 'Palette' }).getAttribute('aria-disabled')).toBe('true')
     expect(screen.getByText('Palette dims while an edge is being drawn.')).toBeTruthy()
+    // The form fields are part of the palette: dimmed, and inert — a click must not open the form editor mid-edge.
+    const field = within(screen.getByRole('region', { name: 'Add' })).getAllByRole<HTMLButtonElement>('button').find((button) => button.className.includes('paletteField'))
+    expect(field?.disabled).toBe(true)
     expect(eyebrow()).toBe('Drawing: localresource → repository')
   })
 

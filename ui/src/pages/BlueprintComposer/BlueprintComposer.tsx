@@ -147,6 +147,10 @@ const BlueprintComposer = () => {
   const crds = useCrdSchema(api?.SNOWPLOW_API_BASE_URL)
   const [held, setHeld] = useState<DraftChangedDetail>({ files: NOTHING, kind: null, problems: [] })
   const [startOpen, setStartOpen] = useState(false)
+  // Done on "What just happened" unmounts the button it was pressed on: focus goes to the inspector
+  // that takes its place, not to the page.
+  const side = useRef<HTMLDivElement>(null)
+  const [inspectorFocus, setInspectorFocus] = useState(false)
   const [level, setLevel] = useState(0)
   const [selected, setSelected] = useState<string | null>(null)
   // The file Chart files reveals — and a count of the requests, because asking for the SAME file
@@ -276,6 +280,11 @@ const BlueprintComposer = () => {
       openFile(template)
     },
   })
+  useEffect(() => {
+    if (!inspectorFocus || edges.accepted) { return }
+    side.current?.querySelector<HTMLElement>('section[aria-label="Inspector"]')?.focus()
+    setInspectorFocus(false)
+  }, [edges.accepted, inspectorFocus])
   const pendingTarget = architecture?.resources.find((node) => node.id === edges.pending?.to) ?? null
   const pendingStatus = useStatusFields(pendingTarget, paletteRead, crds.read)
   const selectedStatus = useStatusFields(selectedNode, paletteRead, crds.read)
@@ -562,7 +571,7 @@ const BlueprintComposer = () => {
             </div>
           </section>
         </div>
-        <div className={styles.side}>
+        <div className={styles.side} ref={side}>
           <StatePanel model={model} view={view} />
           {edges.refusedMoment ? <RefusedMoment onDismiss={edges.dismissRefusal} reason={edges.refusedMoment} /> : null}
           {edges.pending && pendingTarget ? (
@@ -576,7 +585,7 @@ const BlueprintComposer = () => {
               target={pendingTarget}
             />
           ) : null}
-          {!edges.pending && edges.accepted ? <WhatJustHappened edge={edges.accepted} onDone={edges.dismissAccepted} /> : null}
+          {!edges.pending && edges.accepted ? <WhatJustHappened edge={edges.accepted} onDone={() => { edges.dismissAccepted(); setInspectorFocus(true) }} /> : null}
           {edges.pending || edges.accepted ? null : (
             <NodeInspector
               editing={selectedNode && targets ? {
