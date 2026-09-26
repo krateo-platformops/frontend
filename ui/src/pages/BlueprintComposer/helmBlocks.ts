@@ -48,7 +48,10 @@ export const scanBlocks = (lines: string[]): Block[][] => {
   return open
 }
 
-/** How many blocks one line opens (+) or closes (−), in order — for finding the `end` that closes a head. */
+/**
+ * How many blocks one line opens (+1) or closes (−1), in order — for finding the `end` that closes a
+ * head. An `else` is 0: it opens nothing, but at depth 0 it belongs to a block the HEAD opened.
+ */
 const depthSteps = (line: string): number[] => {
   const steps: number[] = []
   for (const action of line.matchAll(ACTION)) {
@@ -57,6 +60,8 @@ const depthSteps = (line: string): number[] => {
       steps.push(1)
     } else if (/^end\b/.test(body)) {
       steps.push(-1)
+    } else if (/^else\b/.test(body)) {
+      steps.push(0)
     }
   }
   return steps
@@ -88,7 +93,10 @@ export const manifestSpan = (template: string): ManifestSpan => {
   for (let idx = first; idx < lines.length; idx += 1) {
     for (const step of depthSteps(lines[idx])) {
       depth += step
-      if (depth < 0) {
+      // The `end` of a head block, or an `else` of one: the object's body stops before it. An `else`
+      // left inside the span would be owned by the generated `if $gate` — releasing the author's
+      // other branch while the dependency is missing.
+      if (depth < 0 || (step === 0 && depth === 0)) {
         return { body: join(first, idx), head, ok: true, tail: template.slice(head.length + join(first, idx).length) }
       }
     }

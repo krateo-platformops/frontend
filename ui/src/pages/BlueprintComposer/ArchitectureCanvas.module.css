@@ -316,9 +316,16 @@
   border-color: var(--primary-color);
 }
 
-.card[data-states~='pendingTo'],
 .card[data-states~='legalTarget']:hover {
   box-shadow: 0 0 0 3px var(--krateo-color-background-selected);
+}
+
+/* BOTH ends of a pending edge wear a solid accent ring inside the halo. The halo alone is the
+   stepper's `frontier` look, so on the default step the edge's two ends read as two more frontier
+   cards and only a 10px port dot told them apart. */
+.card[data-states~='pendingFrom'],
+.card[data-states~='pendingTo'] {
+  box-shadow: 0 0 0 2px var(--primary-color), 0 0 0 5px var(--krateo-color-background-selected);
 }
 
 /* The pill says what the card is ready by, in the card's one remaining line: in sentence case, so it

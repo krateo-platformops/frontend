@@ -9,6 +9,36 @@ import { manifestSpan, scanBlocks, stripComments } from './helmBlocks'
 const joined = (span: ReturnType<typeof manifestSpan>): string => (span.ok ? `${span.head}${span.body}${span.tail}` : '')
 
 describe('manifestSpan', () => {
+  it("stops before an `else` of a block the head opened — the gate must never own the author's else", () => {
+    const template = [
+      '{{- if .Values.enabled }}',
+      'apiVersion: v1',
+      'kind: ConfigMap',
+      'metadata:',
+      '  name: a',
+      '{{- else }}',
+      'apiVersion: v1',
+      'kind: Secret',
+      'metadata:',
+      '  name: b',
+      '{{- end }}',
+      '',
+    ].join('\n')
+    const span = manifestSpan(template)
+    expect(span.ok).toBe(true)
+    if (!span.ok) { return }
+    expect(span.body).toBe('apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: a\n')
+    expect(span.tail.startsWith('{{- else }}')).toBe(true)
+    expect(joined(span)).toBe(template)
+  })
+
+  it('keeps an `else` that belongs to a block opened INSIDE the manifest', () => {
+    const template = '{{- range .Values.xs }}\napiVersion: v1\nkind: ConfigMap\ndata:\n  {{- if .a }}\n  a: "1"\n  {{- else }}\n  b: "2"\n  {{- end }}\n{{- end }}\n'
+    const span = manifestSpan(template)
+    expect(span.ok && span.body.includes('{{- else }}')).toBe(true)
+    expect(span.ok && span.tail).toBe('{{- end }}\n')
+  })
+
   it('no open block: the head, then the body to the end', () => {
     const template = '{{- /* placed */}}\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: x\n'
     expect(manifestSpan(template)).toEqual({ body: 'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: x\n', head: '{{- /* placed */}}\n', ok: true, tail: '' })

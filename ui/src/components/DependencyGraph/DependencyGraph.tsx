@@ -344,10 +344,20 @@ const DependencyGraph = <N, E = Record<string, unknown>>({
         if (gesture.current !== null && graph && !graph.destroyed) { graph.emit(POINTER_UP, { targetType: 'canvas' }) }
       }, 0)
     }
+    // Esc mid-drag: the caller lets its drawing go, but the gesture here and create-edge's source
+    // would stand, so releasing over a card afterwards still reported a drop — a pending edge the
+    // person had just cancelled. Ended the same way, at once: a pointerup sent on the canvas.
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || gesture.current === null) { return }
+      const graph = liveGraph.current
+      if (graph && !graph.destroyed) { graph.emit(POINTER_UP, { targetType: 'canvas' }) }
+    }
     window.addEventListener('pointerup', onUp)
+    window.addEventListener('keydown', onKey)
     return () => {
       clearTimeout(timer)
       window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('keydown', onKey)
     }
   }, [drawing])
 

@@ -16,7 +16,7 @@ import { invalidateAccessTokenCache } from '../../utils/getAccessToken'
 import { CRDS, PALETTE_STATUS } from './__fixtures__/s4a'
 import { applyPlan, edgeChart } from './__fixtures__/s4b'
 import { installAntdShims, installScrollShim, listen, mountWithProvider, routeFetch, type Answer } from './blueprintTestHarness'
-import { planEdge } from './planEdge'
+import { planEdge, planRemoveNode } from './planEdge'
 import { CUSTOM_NOTE } from './readinessOptions'
 import { conditionReadyWhen } from './readyWhen'
 
@@ -198,6 +198,19 @@ describe('BlueprintComposer — drawing an edge (screen 6)', () => {
     expect(within(screen.getByRole('region', { name: 'Add' })).getByRole('group', { name: 'Palette' }).getAttribute('aria-disabled')).toBeNull()
   })
 
+  it('8b. a pending edge whose endpoint the chart no longer has is let go — never a column with no Cancel', async () => {
+    const provider = await start()
+    await addDependency('localresource', 'repository')
+    expect(screen.queryByTestId('edge-inspector')).not.toBeNull()
+    const plan = planRemoveNode(edgeChart(), 'repository')
+    if (!plan.ok) { throw new Error(plan.reason) }
+    act(() => { provider.store.set(applyPlan(edgeChart(), plan), 'blueprint') })
+    await settle()
+    expect(screen.queryByTestId('edge-inspector')).toBeNull()
+    expect(eyebrow()).toBeNull()
+    expect(within(screen.getByRole('region', { name: 'Add' })).getByRole('group', { name: 'Palette' }).getAttribute('aria-disabled')).toBeNull()
+  })
+
   it('9. a drop on the empty canvas cancels', async () => {
     await start()
     act(() => { graphDouble.startEdge('localresource') })
@@ -213,12 +226,17 @@ describe('BlueprintComposer — drawing an edge (screen 6)', () => {
     await start(edgeChart(), { [REPOSITORY_CRD]: { status: 403 } })
     await addDependency('localresource', 'repository')
     expect(within(screen.getByTestId('edge-inspector')).getByText(`You may not read the CustomResourceDefinition ${REPOSITORY_CRD}, so its status fields cannot be listed. Ask a platform admin for read access, or turn off Wait for readiness.`)).toBeTruthy()
+    // Nothing can be picked, so "pick what ready means" is not raised as an error beside that sentence.
+    expect(within(screen.getByTestId('edge-inspector')).queryByRole('alert')).toBeNull()
+    expect(screen.getByTestId('edge-waiting')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Accept edge' }).hasAttribute('disabled')).toBe(true)
     cleanup()
     const bare = structuredClone(CRDS[REPOSITORY_CRD]) as { spec: { versions: { schema: { openAPIV3Schema: { properties: Record<string, unknown> } } }[] } }
     delete bare.spec.versions[0].schema.openAPIV3Schema.properties.status
     await start(edgeChart(), { [REPOSITORY_CRD]: { body: bare, status: 200 } })
     await addDependency('localresource', 'repository')
     expect(within(screen.getByTestId('edge-inspector')).getByText('Repository\'s CRD declares no status fields, so there is nothing to wait on. Turn off Wait for readiness (it only has to exist).')).toBeTruthy()
+    expect(within(screen.getByTestId('edge-inspector')).queryByRole('alert')).toBeNull()
   })
 
   it('11. a readyWhen that is the target\'s, not the edge\'s: the other dependents are named before Accept', async () => {

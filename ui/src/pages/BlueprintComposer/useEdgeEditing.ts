@@ -136,6 +136,15 @@ export const useEdgeEditing = ({ architecture, files, filesRef, onAccepted }: Ed
     },
   }), [choose])
 
+  // A pending edge (or a drag) whose endpoint the held chart no longer has — an Undo, a Chart files
+  // edit of the descriptor, the agent's write — is let go. Kept, it left the side column with
+  // neither inspector (so no Cancel), the palette disabled, and "Drawing: a → b" for a node gone.
+  useEffect(() => {
+    const has = (id: string): boolean => !!architecture?.resources.some((node) => node.id === id)
+    if (pending && !(has(pending.from) && has(pending.to))) { setPending(null) }
+    if (drawing && !has(drawing.source)) { setDrawing(null) }
+  }, [architecture, drawing, pending])
+
   // Esc lets a pending edge (or a drag) go, from anywhere in the composer.
   const active = !!pending || !!drawing
   useEffect(() => {

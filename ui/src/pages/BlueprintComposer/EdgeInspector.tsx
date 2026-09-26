@@ -73,6 +73,11 @@ export const PendingEdgeInspector = ({ onAccept, onCancel, pending, plan, status
   const op = pendingOp(pending, target, ready, choice)
   const planned = plan(op)
   const refusal = providerError ?? (planned.ok ? null : planned.reason)
+  // "Pick what ready means" is not an ERROR while there is nothing to pick yet (the status fields
+  // are still being read) or nothing to pick at all (a CRD 403, an empty status schema — the
+  // sentence above says so). Accept stays off; the reason is said quietly instead of as an alert.
+  const nothingToPick = status.state === 'loading' || !choices.options.length
+  const quiet = !providerError && !planned.ok && planned.code === 'needs-readyWhen' && !choice && nothingToPick
   const regated = planned.ok ? planned.regated : []
   const accept = () => setProviderError(onAccept(op))
   return (
@@ -119,7 +124,12 @@ export const PendingEdgeInspector = ({ onAccept, onCancel, pending, plan, status
             {`This also changes what ${regated.join(', ')} ${regated.length === 1 ? 'waits' : 'wait'} for — readyWhen belongs to ${pending.to}, not to one edge.`}
           </p>
         ) : null}
-        {refusal ? (
+        {refusal && quiet ? (
+          <p className={styles.fieldText} data-testid='edge-waiting' id={refusalId}>
+            {status.state === 'loading' ? `Reading what ${target.kind} reports in its status…` : refusal}
+          </p>
+        ) : null}
+        {refusal && !quiet ? (
           <div className={styles.schemaRefusal} id={refusalId} role='alert'>{refusal}</div>
         ) : null}
         <div className={styles.edgeActions}>

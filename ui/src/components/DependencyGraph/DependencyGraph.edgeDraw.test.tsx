@@ -121,6 +121,21 @@ describe('DependencyGraph — edgeDraw', () => {
     expect(draw.onDrop).toHaveBeenCalledWith('a', 'b')
   })
 
+  it('Esc mid-drag ends the gesture itself — a later release over a card is not a drop the person cancelled', async () => {
+    const draw = spies()
+    render(<DependencyGraph edgeDraw={draw} edges={EDGES} fit='natural' nodeSize={SIZE} nodes={NODES} renderNode={renderCard} />)
+    act(() => { graphDouble.startEdge('a') })
+    act(() => { fireEvent.keyDown(window, { key: 'Escape' }) })
+    await flush()
+    expect(graphDouble.emitted).toEqual(['pointerup'])
+    expect(draw.onCancel).toHaveBeenCalledTimes(1)
+    expect(draw.onDrop).not.toHaveBeenCalled()
+    // The next drag starts afresh.
+    graphDouble.drawEdge('a', 'b')
+    await flush()
+    expect(draw.onDrop).toHaveBeenCalledWith('a', 'b')
+  })
+
   it('a release INSIDE the canvas sends nothing more — the drop, or the cancel, already ended it', async () => {
     const draw = spies()
     render(<DependencyGraph edgeDraw={draw} edges={EDGES} fit='natural' nodeSize={SIZE} nodes={NODES} renderNode={renderCard} />)
