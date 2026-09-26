@@ -8,9 +8,9 @@ import { describe, expect, it } from 'vitest'
 
 import { applyPlan, editDescriptor, edgeChart } from '../../pages/BlueprintComposer/__fixtures__/s4b'
 import { GATE_BEGIN } from '../../pages/BlueprintComposer/gateGen'
-import { planEdge, regenerateGates } from '../../pages/BlueprintComposer/planEdge'
+import { gateDrift, planEdge, regenerateGates } from '../../pages/BlueprintComposer/planEdge'
 
-import { parseProposedChart } from './proposedChart'
+import { lintHeldDraft, parseProposedChart } from './proposedChart'
 
 const LR = 'templates/localresource.yaml'
 
@@ -48,5 +48,34 @@ describe('a proposed chart gets the gates its declared edges need', () => {
     const tree = { 'Chart.yaml': 'apiVersion: v2\nname: plain\nversion: 0.1.0\n', 'templates/cm.yaml': 'apiVersion: v1\nkind: ConfigMap\n' }
     expect(parseProposedChart(tree)).toEqual(tree)
     expect(parseProposedChart({})).toBeNull()
+  })
+})
+
+describe('declared-vs-gated drift in a held chart', () => {
+  const PR = 'templates/pullrequest.yaml'
+  /** edgeChart with pullrequest's gate hand-stripped in Chart files: the edge declared, nothing enforcing it. */
+  const stripped = (): Record<string, string> => {
+    const chart = edgeChart()
+    const bare = applyPlan(chart, planEdge(chart, { from: 'pullrequest', op: 'remove', to: 'localresource' }))
+    return { ...chart, [PR]: bare[PR] }
+  }
+
+  it('finds none in a chart the composer wrote — every fixture, as built', () => {
+    expect(gateDrift(edgeChart())).toEqual([])
+    expect(lintHeldDraft(edgeChart(), 'blueprint')).toEqual([])
+  })
+
+  it('names a template whose gate was hand-edited out, and the edge declared by hand with no gate', () => {
+    expect(gateDrift(stripped())).toEqual([PR])
+    expect(gateDrift(declaredOnly())).toEqual([LR])
+    expect(lintHeldDraft(stripped(), 'blueprint')).toEqual([
+      `${PR}: its dependency gate does not match templates/architecture.yaml — regenerate the gates, or undo the edit that changed it.`,
+    ])
+  })
+
+  it('is cleared by regenerating — and a page is never linted for it', () => {
+    expect(gateDrift(regenerateGates(stripped()))).toEqual([])
+    expect(regenerateGates(stripped())[PR]).toBe(edgeChart()[PR])
+    expect(lintHeldDraft(stripped(), 'page').some((line) => line.includes('dependency gate'))).toBe(false)
   })
 })

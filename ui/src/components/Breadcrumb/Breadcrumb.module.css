@@ -28,19 +28,18 @@
 }
 
 .breadcrumbItem {
-  display: inline-block;
-  vertical-align: bottom;
-  white-space: nowrap;
-
   /* Adopt the page-header EYEBROW treatment (IBM Plex Mono, uppercase, letter-spaced, muted
      graphite — mirrors .paragraph.eyebrow). The breadcrumb now reads as the section eyebrow
      above the H1, replacing the separate eyebrow widget. */
   color: var(--gray-color);
+  display: inline-block;
   font-family: var(--font-mono);
   font-size: var(--krateo-text-label-sm);
   font-weight: var(--font-weight-medium);
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  vertical-align: bottom;
+  white-space: nowrap;
 
   &.capitalize {
     text-transform: uppercase;
@@ -66,7 +65,7 @@
    height and aligns. Target the <a> ELEMENT (antd does not carry our className onto it). */
 .breadcrumbItem :global(a) {
   display: inline !important;
-  padding: 0;
   line-height: inherit;
+  padding: 0;
   vertical-align: baseline;
 }

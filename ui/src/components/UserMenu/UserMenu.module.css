@@ -65,6 +65,7 @@
     }
   }
 }
+
 /*
  * The account-menu trigger. It has to be a real <button> so the Popover is keyboard-reachable
  * (antd binds only onClick to its child and adds no focus affordance), but it must not LOOK like

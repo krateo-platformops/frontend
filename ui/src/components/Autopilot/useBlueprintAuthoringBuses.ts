@@ -21,7 +21,7 @@ import { useCallback, useEffect } from 'react'
 
 import type { Config } from '../../context/ConfigContext'
 
-import { draftDisplayName, lintBlueprintDraft } from './blueprintDraft'
+import { draftDisplayName } from './blueprintDraft'
 import type { BlueprintDraftStore } from './blueprintDraftStore'
 import type { BlueprintGate } from './blueprintGate'
 import { buildBlueprintPreviewPayload } from './blueprintPreviewPayload'
@@ -29,6 +29,7 @@ import { clearComposeRefusals } from './composeRequest'
 import { draftHistory } from './draftHistory'
 import { callBlueprintRenderRA } from './previewBridge'
 import { type DraftRenderResultDetail, emitDraftRenderResult, onChartStart, onDraftRenderRequest } from './previewDraftRender'
+import { lintHeldDraft } from './proposedChart'
 import { heldDraftIdentity } from './publishCompile'
 
 export const RENDER_NOT_CONFIGURED = 'This portal has no chart render configured (the blueprint-render RESTAction needs the snowplow URL and the frontend namespace), so the chart cannot be previewed here. It is still held.'
@@ -49,7 +50,7 @@ export const useBlueprintAuthoringBuses = (
       return
     }
     const identity = heldDraftIdentity(held)
-    const problems = lintBlueprintDraft(held.files, held.kind)
+    const problems = lintHeldDraft(held.files, held.kind)
     if (problems.length) {
       gate.forget(identity)
       answer({ message: 'Fix these files before previewing — nothing was sent to the cluster.', outcome: 'refused', problems })

@@ -1,19 +1,19 @@
 /* Header "Autopilot" toggle — amber brand pill (mockup `.ap-toggle`). */
 .apToggle {
-  display: inline-flex;
   align-items: center;
+  background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary-color) 40%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--primary-color);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-caption);
   gap: var(--spacing-xsm);
   height: 30px;
   padding: 0 var(--spacing-smd);
-  border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--primary-color) 40%, transparent);
-  background: color-mix(in srgb, var(--primary-color) 12%, transparent);
-  color: var(--primary-color);
-  font-family: var(--font-mono);
-  font-size: var(--krateo-text-caption);
-  cursor: pointer;
-  white-space: nowrap;
   transition: background var(--motion-fast, 0.1s) ease;
+  white-space: nowrap;
 }
 
 .apToggle:hover {
@@ -29,8 +29,8 @@
    Visible but plainly inert — neutral gray, dimmed, no hover, not-allowed cursor. */
 .apToggle.disabled,
 .apToggle.disabled:hover {
-  border-color: color-mix(in srgb, var(--text-color, #888) 20%, transparent);
   background: color-mix(in srgb, var(--text-color, #888) 8%, transparent);
+  border-color: color-mix(in srgb, var(--text-color, #888) 20%, transparent);
   color: color-mix(in srgb, var(--text-color, #888) 55%, transparent);
   cursor: not-allowed;
   opacity: 0.6;
@@ -38,8 +38,8 @@
 
 /* The Tooltip needs a hoverable wrapper because a disabled <button> swallows pointer events. */
 .disabledWrap {
-  display: inline-flex;
   cursor: not-allowed;
+  display: inline-flex;
 }
 
 /* ⌘G / Ctrl G chip — mirrors CommandPalette's own kbd hint, tinted to the toggle's amber. */

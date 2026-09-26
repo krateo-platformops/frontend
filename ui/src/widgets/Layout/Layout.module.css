@@ -46,6 +46,7 @@
   border-bottom: 1px solid var(--border-color);
   display: flex;
   gap: var(--spacing-md);
+
   /* #86 §0.10: shared header-height token (fallback 64px for the pre-paint window before
      cssVariables() runs). The Autopilot rail header reads the same var → they stay in sync. */
   height: var(--header-h, 64px);

@@ -24,7 +24,7 @@ import { blueprintCompositionDefinition } from '../../pages/BlueprintComposer/st
 import type { PortalActionProposal } from './actionBridge'
 import type { ApplyResourceSetOp } from './applyResourceSet'
 import type { AuthorshipOrigin } from './authorship'
-import { CHART_YAML_PATH, chartYamlVersion, lintBlueprintDraft } from './blueprintDraft'
+import { CHART_YAML_PATH, chartYamlVersion } from './blueprintDraft'
 import { heldPublishFiles, type BlueprintDraftStore } from './blueprintDraftStore'
 import type { createBlueprintGate } from './blueprintGate'
 import { buildClaimPublish } from './builderClaimPublish'
@@ -32,6 +32,7 @@ import type { PublishStatusClaim } from './builderPublishStatus'
 import { builderTemplateUrl, type useBuilderTargets } from './builderTargets'
 import { isPageDraft, pageCompositionDefinition, pageRootSlug } from './pageDraft'
 import type { PublishRequestDetail, PublishResultDetail } from './previewPublishRequest'
+import { lintHeldDraft } from './proposedChart'
 import { heldDraftIdentity, type PublishCompileResult } from './publishCompile'
 import { askPublishDestination } from './publishTargetForm'
 import type { AutopilotActionChip } from './types'
@@ -111,7 +112,7 @@ export const runDraftPublish = async (
   // A draft that fails the chart lint is refused BY NAME, before anyone is asked where to send it.
   // Its gate is already disarmed (a dirty hand edit forgets the arming), but that refusal says
   // "preview first" — the wrong reason, since previewing again cannot help until the file is fixed.
-  const lintProblems = held ? lintBlueprintDraft(held.files, held.kind) : []
+  const lintProblems = held ? lintHeldDraft(held.files, held.kind) : []
   if (lintProblems.length) {
     return { compiled: { denial: `denied — the draft fails the chart lint: ${lintProblems.join('; ')}`, ops: null }, deepLink: null }
   }

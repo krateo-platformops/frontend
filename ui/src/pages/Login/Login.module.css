@@ -44,7 +44,7 @@
 }
 
 .subtitle {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgb(255 255 255 / 85%);
   font-size: var(--font-size-md);
   line-height: 1.6;
   margin: 0 0 var(--spacing-xl);
@@ -61,7 +61,7 @@
 
 .highlights li {
   align-items: center;
-  color: rgba(255, 255, 255, 0.95);
+  color: rgb(255 255 255 / 95%);
   display: flex;
   font-size: var(--font-size-sm);
   gap: var(--spacing-sm);
@@ -109,7 +109,7 @@
 }
 
 /* Mobile: drop the branding panel, form takes the full width. */
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .aside {
     display: none;
   }

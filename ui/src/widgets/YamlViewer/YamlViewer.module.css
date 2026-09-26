@@ -20,7 +20,7 @@
        coherent inset surface (not a pasted-in widget). */
     :global(pre) {
       background: var(--background-color) !important;
-      border: 1px solid var(--border-color, rgba(230, 237, 243, 0.1));
+      border: 1px solid var(--border-color, rgb(230 237 243 / 10%));
       border-radius: var(--radius-md);
     }
   }

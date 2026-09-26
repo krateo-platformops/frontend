@@ -313,6 +313,21 @@ export const regenerateGates = (files: Files): Files => {
   return changed.length ? { ...files, ...Object.fromEntries(changed) } : files
 }
 
+/**
+ * The templates whose gate is not what the descriptor generates — declared-vs-gated DRIFT. A person's
+ * Chart files edit of a gate block, or of the descriptor, writes bytes the kernel did not; every
+ * other writer (a drawn edge, a chart verb, an agent's tree) goes through the generator. Regenerate
+ * and compare, rather than parse a gate back: the generator is the one definition of a right gate,
+ * and a second reading of its output would be a second opinion that could drift from it.
+ *
+ * Empty when the chart cannot be planned at all (no readable descriptor, a hand-written lookup
+ * where a gate would go): the lint and the unmanaged-gate notes already say why.
+ */
+export const gateDrift = (files: Files): string[] => {
+  const next = regenerateGates(files)
+  return next === files ? [] : Object.keys(next).filter((path) => next[path] !== files[path]).sort()
+}
+
 /** Every node with a `ready` edge onto `id` — what a change to `id`'s readiness re-gates. */
 const readyDependents = (arch: ChartArchitecture, id: string): string[] =>
   arch.resources.filter((node) => node.dependsOn?.some((dep) => dep.ref === id && dep.ready)).map((node) => node.id)

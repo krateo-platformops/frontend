@@ -181,6 +181,24 @@ describe('BlueprintComposer — the generated gate (screen 7)', () => {
     expect(screen.queryByTestId('what-just-happened')).toBeNull()
   })
 
+  it('4e. a gate hand-edited out of step with the descriptor is a problem, and Regenerate gates puts it back', async () => {
+    const chart = edgeChart()
+    const PR = 'templates/pullrequest.yaml'
+    const bare = applyPlan(chart, planEdge(chart, { from: 'pullrequest', op: 'remove', to: 'localresource' }))
+    const provider = await start({ ...chart, [PR]: bare[PR] })
+    expect(screen.getByText(/pullrequest\.yaml: its dependency gate does not match/)).toBeTruthy()
+    const regenerate = screen.getByRole('button', { name: 'Regenerate gates (1 template)' })
+    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    act(() => { fireEvent.click(regenerate) })
+    batches.stop()
+    expect(batches.seen).toHaveLength(1)
+    expect(Object.keys(batches.seen[0].edit ?? {})).toEqual([PR])
+    expect(batches.seen[0].expect).toEqual({ [PR]: bare[PR] })
+    expect(held(provider)[PR]).toBe(chart[PR])
+    expect(screen.queryByText(/its dependency gate does not match/)).toBeNull()
+    expect(screen.queryByRole('button', { name: /Regenerate gates/ })).toBeNull()
+  })
+
   it('5. Publish is off and Preview is needed — the chart changed (S3 decision 2)', async () => {
     await start()
     expect(publish().disabled).toBe(false)
