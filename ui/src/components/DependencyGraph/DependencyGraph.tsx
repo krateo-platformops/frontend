@@ -78,6 +78,34 @@ const NODE_CLICK = 'node:click'
 const BEFORE_DESTROY = 'beforedestroy'
 
 /**
+ * The events after which G6 has (re)configured its canvas layers: created, rendered, or given a new
+ * renderer. Spelled out, like the two above.
+ */
+const CANVAS_CONFIGURED = ['aftercanvasinit', 'afterrender', 'afterrendererchange'] as const
+
+interface CanvasLayers {
+  getLayers?: () => Record<string, { getContextService?: () => { getDomElement?: () => unknown } } | undefined>
+}
+
+/**
+ * G6 makes every canvas layer FOCUSABLE — `tabIndex = 1`, outline removed (runtime/canvas.ts,
+ * configCanvasDom) — and a positive tabIndex outranks document order. So every graph put its four
+ * layers first in the whole page's Tab order, ahead of the navigation: invisible, unnamed stops
+ * before anything a person can use. The canvases are paint; what a keyboard reaches is the node
+ * cards. Taken out of the Tab order and the accessibility tree each time G6 configures them.
+ */
+export const untabCanvases = (graph: Pick<G6.Graph, 'getCanvas'>): void => {
+  const layers = (graph.getCanvas() as unknown as CanvasLayers | undefined)?.getLayers?.() ?? {}
+  for (const layer of Object.values(layers)) {
+    const element = layer?.getContextService?.().getDomElement?.()
+    if (element instanceof HTMLElement) {
+      element.tabIndex = -1
+      element.setAttribute('aria-hidden', 'true')
+    }
+  }
+}
+
+/**
  * Give a caller's ref — object or callback — the graph, and return what takes it back: the
  * callback's own cleanup when it returned one (React 19 refs may), else `ref(null)`; for an
  * object, null, unless something else has been put there since.
@@ -200,6 +228,10 @@ const DependencyGraph = <N, E = Record<string, unknown>>({
   const onInit = useCallback((graph: G6.Graph) => {
     liveGraph.current = graph
     bindHandle()
+    untabCanvases(graph)
+    for (const event of CANVAS_CONFIGURED) {
+      graph.on(event, () => { untabCanvases(graph) })
+    }
     graph.on(BEFORE_DESTROY, () => {
       if (liveGraph.current === graph) {
         liveGraph.current = null

@@ -52,7 +52,7 @@ export interface FakeGraph {
   setElementState: (config: Record<string, string | string[]>, animation?: boolean) => Promise<void>
   // The viewport, as far as a true-size placement drives it: each call is logged in `viewport`.
   fitCenter: () => Promise<void>
-  getCanvas: () => { getBounds: () => { max: number[]; min: number[] } }
+  getCanvas: () => { getBounds: () => { max: number[]; min: number[] }; getLayers: () => Record<string, { getContextService: () => { getDomElement: () => HTMLCanvasElement } }> }
   getSize: () => [number, number]
   getViewportByCanvas: (point: number[]) => number[]
   resize: () => void
@@ -68,6 +68,8 @@ const liveStates = new Map<string, string[]>()
 const stateListeners = new Set<() => void>()
 
 export const graphDouble = {
+  /** The canvas layers G6 would have made, each FOCUSABLE the way G6 leaves it (tabIndex 1). */
+  canvases: [] as HTMLCanvasElement[],
   /** Fire G6's `node:click` for a node id, as a pointer click on its card would. */
   click: (id: string): void => {
     for (const handler of handlers.get('node:click') ?? []) { handler({ target: { id } }) }
@@ -76,6 +78,10 @@ export const graphDouble = {
   draws: 0,
   /** Every `setEdge()` argument, oldest first. */
   edgeUpdates: [] as unknown[],
+  /** Fire any G6 event the component listens to, as G6 would. */
+  emit: (event: string): void => {
+    for (const handler of handlers.get(event) ?? []) { handler({}) }
+  },
   /** The live graph: created by the mount effect, null again once destroyed. */
   graph: null as FakeGraph | null,
   last: (): Options => {
@@ -93,6 +99,7 @@ export const graphDouble = {
     graphDouble.draws = 0
     graphDouble.graph = null
     graphDouble.viewport.length = 0
+    graphDouble.canvases.length = 0
     handlers.clear()
   },
   /** Every `setElementState()` config, oldest first — a state change drawn without a layout. */
@@ -109,6 +116,12 @@ const logged = (call: string): Promise<void> => {
 const createGraph = (options: () => Options): FakeGraph => {
   // A setEdge holds until the next options replace it — as Graphin's setOptions would.
   let override: { edge: unknown; over: Options } | null = null
+  // G6 makes four canvas layers (main, background, label, transient) and leaves each focusable.
+  graphDouble.canvases.splice(0, graphDouble.canvases.length, ...['main', 'background', 'label', 'transient'].map(() => {
+    const element = document.createElement('canvas')
+    element.tabIndex = 1
+    return element
+  }))
   const graph: FakeGraph = {
     destroy: () => {
       // G6 emits BEFORE_DESTROY while listeners are still attached, then removes them all.
@@ -123,7 +136,10 @@ const createGraph = (options: () => Options): FakeGraph => {
     },
     // A graph that fits its 800×360 box: placing it is a zoom and a centring, never a translate.
     fitCenter: () => logged('fitCenter'),
-    getCanvas: () => ({ getBounds: () => ({ max: [300, 100, 0], min: [0, 0, 0] }) }),
+    getCanvas: () => ({
+      getBounds: () => ({ max: [300, 100, 0], min: [0, 0, 0] }),
+      getLayers: () => Object.fromEntries(graphDouble.canvases.map((element, index) => [String(index), { getContextService: () => ({ getDomElement: () => element }) }])),
+    }),
     getOptions: () => {
       const current = options()
       return override?.over === current ? { ...current, edge: override.edge } : current
