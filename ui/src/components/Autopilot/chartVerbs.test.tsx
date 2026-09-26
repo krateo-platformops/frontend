@@ -14,6 +14,7 @@ import { planEdge } from '../../pages/BlueprintComposer/planEdge'
 import { createBlueprintDraftStore, type BlueprintDraftStore } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
 import { applyChartVerb, readHeldDraft } from './chartVerbs'
+import { clearComposeRefusals, getComposeRefusals } from './composeRequest'
 import { draftHistory } from './draftHistory'
 import { heldDraftIdentity } from './publishCompile'
 import { useDraftFileBuses } from './useDraftFileBuses'
@@ -21,6 +22,7 @@ import { useDraftFileBuses } from './useDraftFileBuses'
 afterEach(() => {
   cleanup()
   draftHistory.clear()
+  clearComposeRefusals()
 })
 
 const LR = 'templates/localresource.yaml'
@@ -157,6 +159,24 @@ describe('what is open', () => {
 
   it('is not a chart verb → null', () => {
     expect(applyChartVerb({ verb: 'navigate' })).toBeNull()
+  })
+})
+
+describe('the model hears how it went — a chip never leaves the browser', () => {
+  it('records a refusal for the next turn, and a write that lands clears it', () => {
+    mount(edgeChart())
+    run({ from: 'localresource', to: 'pullrequest', verb: 'chartLink' })
+    expect(getComposeRefusals()).toEqual([{ reason: expect.stringMatching(/cycle/) as string, tried: 'link localresource → pullrequest' }])
+    run({ content: 'files: []\n', path: 'values.yaml', verb: 'chartPut' })
+    expect(getComposeRefusals()).toBeNull()
+  })
+
+  it('refuses content copied from a redacted view, and says why', () => {
+    const { store } = mount(edgeChart())
+    const before = store.get()
+    expect(run({ content: 'token: [redacted-jwt]\n', path: 'values.yaml', verb: 'chartPut' })).toMatch(/"\[redacted\]" marker/)
+    expect(store.get()).toBe(before)
+    expect(getComposeRefusals()?.[0].tried).toBe('write values.yaml')
   })
 })
 

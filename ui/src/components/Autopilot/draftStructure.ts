@@ -25,8 +25,10 @@
 import { buildObjectTree, flattenTree } from '../../pages/PageComposer/objectTree'
 import type { TreeNode } from '../../pages/PageComposer/objectTree'
 
+import { CHART_YAML_PATH, chartYamlName, VALUES_SCHEMA_PATH } from './blueprintDraft'
 import type { BlueprintDraftHeld } from './blueprintDraftStore'
-import type { DraftNodeSummary, DraftSummary, PageContextEnvelope } from './types'
+import { redactValue } from './redact'
+import type { ChartDraftSummary, DraftNodeSummary, DraftSummary, PageContextEnvelope } from './types'
 
 /**
  * Cap on the nodes described. A hand-built page is a dozen nodes and a generated one rarely more;
@@ -97,14 +99,65 @@ export const summarizeDraft = (held: BlueprintDraftHeld | null): DraftSummary | 
   }
 }
 
+/**
+ * Budget for the chart's bytes on the envelope. A composer-built chart is a few KiB a file; this
+ * keeps a large imported one from crowding everything else out. What does not fit is NAMED as
+ * withheld — never silently dropped, which would read as "the chart has no such file".
+ */
+const MAX_CHART_BYTES = 96 * 1024
+
+const READING_ORDER = [CHART_YAML_PATH, 'templates/architecture.yaml', VALUES_SCHEMA_PATH, 'values.yaml']
+
+/**
+ * The held CHART, for the agent that edits it with chartPut / chartDelete / chartLink. Undefined
+ * unless the held draft is a blueprint.
+ *
+ * AN ARRAY, NOT A PATH-KEYED MAP. The redactor replaces the value of every key that CONTAINS a
+ * credential word, so `{"templates/username-secret.yaml": …}` would reach the model as
+ * "[redacted]" — a file that looks empty, and a whole-file rewrite that would write that back.
+ * And a file whose CONTENT the redactor would change (a JWT, a long base64 run) is withheld, not
+ * sent altered, for the same reason: the model must only ever rewrite bytes it was shown exactly.
+ */
+export const summarizeChart = (held: BlueprintDraftHeld | null): ChartDraftSummary | undefined => {
+  if (!held || held.kind !== 'blueprint') {
+    return undefined
+  }
+  const paths = Object.keys(held.files).sort((left, right) => {
+    const rank = (path: string) => (READING_ORDER.includes(path) ? READING_ORDER.indexOf(path) : READING_ORDER.length)
+    return rank(left) - rank(right) || left.localeCompare(right)
+  })
+  const files: ChartDraftSummary['files'] = []
+  const withheld: NonNullable<ChartDraftSummary['withheld']> = []
+  let budget = MAX_CHART_BYTES
+  for (const path of paths) {
+    const content = held.files[path]
+    if (redactValue(content) !== content) {
+      withheld.push({ path, reason: 'it holds a value shaped like a credential, which the portal never sends' })
+    } else if (content.length > budget) {
+      withheld.push({ path, reason: 'the chart is larger than the context budget' })
+    } else {
+      budget -= content.length
+      files.push({ content, path })
+    }
+  }
+  return { files, name: chartYamlName(held.files[CHART_YAML_PATH]), ...(withheld.length ? { withheld } : {}) }
+}
+
 /** The envelope the collector produced, plus the draft the collector cannot see. */
 export const withHeldDraft = (
   envelope: PageContextEnvelope,
   held: BlueprintDraftHeld | null,
 ): PageContextEnvelope => {
   const draft = summarizeDraft(held)
-  return draft ? { ...envelope, draft } : envelope
+  if (draft) {
+    return { ...envelope, draft }
+  }
+  const chart = summarizeChart(held)
+  return chart ? { ...envelope, chart } : envelope
 }
+
+/** "Is this the same chart as last turn" — the bytes, since a chart verb addresses them. */
+export const chartFingerprint = (chart: ChartDraftSummary | undefined): string => (chart ? JSON.stringify(chart) : '')
 
 /**
  * A cheap identity for "is this the same draft as last turn". Names, kinds and containment only —

@@ -21,13 +21,16 @@
  * `dependsOn` added through the descriptor is enforced like a drawn one.
  *
  * DRAFT ONLY. Nothing here reaches the cluster or a repository: a verb edits the held draft in the
- * browser, and the person still previews and publishes it. A refusal is the chip's text, so the
- * model reads why in its own turn history.
+ * browser, and the person still previews and publishes it. A refusal is the chip's text for the
+ * person and a `composeRefusals` entry on the next turn's envelope for the model — a chip never
+ * leaves the browser, so that entry is the only way the model learns why. The model reads the bytes
+ * it rewrites from the envelope's `chart` (summarizeChart).
  */
 import { planEdge, regenerateGates, type EdgeOp } from '../../pages/BlueprintComposer/planEdge'
 
 import type { PortalActionProposal } from './actionBridge'
 import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from './blueprintDraft'
+import { recordChartOutcome } from './composeRequest'
 import { type DraftChangedDetail, onDraftChanged, requestDraftReplay } from './previewDraftChanged'
 import { emitFilesBatch } from './previewFilesBatch'
 import type { AutopilotActionChip } from './types'
@@ -50,8 +53,27 @@ const PORTAL_OWNED: Record<string, string> = {
   'compositiondefinition.yaml': 'the portal writes the registration file when the chart is published',
 }
 
+/** Outcomes the model is told of: a chip's reason when refused, and whether it wrote at all. */
+const REFUSED = new WeakMap<AutopilotActionChip, string>()
+const WROTE = new WeakSet<AutopilotActionChip>()
+
 const chip = (verb: string, label: string): AutopilotActionChip => ({ label, readOnly: true, verb })
-const refusal = (verb: string, reason: string): AutopilotActionChip => chip(verb, `${verb} — this portal did not run it (${reason})`)
+const refusal = (verb: string, reason: string): AutopilotActionChip => {
+  const refused = chip(verb, `${verb} — this portal did not run it (${reason})`)
+  REFUSED.set(refused, reason)
+  return refused
+}
+
+/** What a model sees in a composeRefusals entry's `tried` — the proposal, restated in one line. */
+const describe = (proposal: PortalActionProposal): string => {
+  if (proposal.verb === 'chartLink') {
+    return `${proposal.unlink ? 'unlink' : 'link'} ${String(proposal.from)} → ${String(proposal.to)}`
+  }
+  return `${proposal.verb === 'chartPut' ? 'write' : 'delete'} ${String(proposal.path)}`
+}
+
+/** A redactor marker in content means it was copied from a redacted view — writing it would lose the real value. */
+const REDACTION_MARKER = /\[redacted(-jwt)?\]/
 
 /**
  * The held draft, read synchronously: the replay request is answered on the draft-changed bus in the
@@ -84,7 +106,10 @@ const heldChart = (verb: string): { files: Record<string, string> } | AutopilotA
 
 const written = (verb: string, outcome: ReturnType<typeof emitFilesBatch>, label: string): AutopilotActionChip => {
   if (!outcome) { return refusal(verb, 'the composer is not reachable in this portal') }
-  return outcome.ok ? chip(verb, `${label} — Preview needed before it can be published`) : refusal(verb, outcome.error)
+  if (!outcome.ok) { return refusal(verb, outcome.error) }
+  const done = chip(verb, `${label} — Preview needed before it can be published`)
+  WROTE.add(done)
+  return done
 }
 
 const put = (proposal: PortalActionProposal): AutopilotActionChip => {
@@ -93,6 +118,9 @@ const put = (proposal: PortalActionProposal): AutopilotActionChip => {
   if (typeof proposal.content !== 'string') { return refusal('chartPut', 'content must be the whole file, as text') }
   const path = proposal.path as string
   if (PORTAL_OWNED[path]) { return refusal('chartPut', PORTAL_OWNED[path]) }
+  if (REDACTION_MARKER.test(proposal.content)) {
+    return refusal('chartPut', 'the content carries a "[redacted]" marker — the real value was never sent to you, so writing this would replace it with the marker')
+  }
   const held = heldChart('chartPut')
   if (!('files' in held)) { return held }
   const current = held.files[path]
@@ -142,12 +170,24 @@ const link = (proposal: PortalActionProposal): AutopilotActionChip => {
   return written('chartLink', emitFilesBatch({ edit: plan.edit, expect: plan.expect, kind: 'blueprint' }), label)
 }
 
-/** Run a chart verb. Null for a verb that is not one. */
-export const applyChartVerb = (proposal: PortalActionProposal): AutopilotActionChip | null => {
+const run = (proposal: PortalActionProposal): AutopilotActionChip | null => {
   switch (proposal.verb) {
     case 'chartPut': return put(proposal)
     case 'chartDelete': return remove(proposal)
     case 'chartLink': return link(proposal)
     default: return null
   }
+}
+
+/** Run a chart verb, and tell the next turn how it went. Null for a verb that is not one. */
+export const applyChartVerb = (proposal: PortalActionProposal): AutopilotActionChip | null => {
+  const result = run(proposal)
+  if (!result) { return null }
+  const reason = REFUSED.get(result)
+  if (reason !== undefined) {
+    recordChartOutcome(describe(proposal), reason)
+  } else if (WROTE.has(result)) {
+    recordChartOutcome(describe(proposal), null)
+  }
+  return result
 }

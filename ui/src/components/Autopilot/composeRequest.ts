@@ -211,6 +211,19 @@ export const recordComposeOutcome = (op: ComposeOp, result: ComposeResult): void
   composeRefusals = [...composeRefusals.filter((held) => held.tried !== note.tried), note].slice(-MAX_REFUSALS)
 }
 
+/**
+ * A chart verb's outcome, on the same channel: a chip never leaves the browser, so this is the only
+ * way the model learns its chartPut / chartDelete / chartLink was refused. `reason` null = it wrote,
+ * and the chart moved, so every held refusal is dropped exactly as an applied compose drops them.
+ */
+export const recordChartOutcome = (tried: string, reason: string | null): void => {
+  if (reason === null) {
+    composeRefusals = []
+    return
+  }
+  composeRefusals = [...composeRefusals.filter((held) => held.tried !== tried), { reason, tried }].slice(-MAX_REFUSALS)
+}
+
 /** The standing compose refusals, for the context collector. Null when there are none. */
 export const getComposeRefusals = (): ComposeRefusalNote[] | null =>
   (composeRefusals.length ? composeRefusals : null)

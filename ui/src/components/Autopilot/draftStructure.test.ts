@@ -11,7 +11,8 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { draftFingerprint, summarizeDraft, withHeldDraft } from './draftStructure'
+import { chartFingerprint, draftFingerprint, summarizeChart, summarizeDraft, withHeldDraft } from './draftStructure'
+import { redactAutopilotContext } from './redact'
 import type { DraftNodeSummary, PageContextEnvelope } from './types'
 import { buildContextDelta } from './useAutopilotContext'
 
@@ -202,5 +203,57 @@ describe('draftFingerprint', () => {
     const widened = { ...page, 'templates/flex.page-x.yaml': cr('Flex', 'page-x', ['row-a'], ['rows', 'cards']) }
     expect(draftFingerprint(summarizeDraft(held(widened))))
       .toBe(draftFingerprint(summarizeDraft(held(page))))
+  })
+})
+
+describe('summarizeChart — the bytes chartPut rewrites', () => {
+  const chart = {
+    'Chart.yaml': 'apiVersion: v2\nname: orders\nversion: 0.1.0\n',
+    'templates/architecture.yaml': 'kind: ConfigMap\n',
+    'templates/b.yaml': 'kind: B\n',
+    'templates/username-secret.yaml': 'kind: Secret\nstringData:\n  username: {{ .Values.user }}\n',
+    'values.schema.json': '{}',
+    'values.yaml': 'user: x\n',
+  }
+
+  it('sends every file, in reading order, under the chart\'s name — and nothing for a page', () => {
+    const summary = summarizeChart(held(chart, 'blueprint'))
+    expect(summary?.name).toBe('orders')
+    expect(summary?.files.map((file) => file.path)).toEqual([
+      'Chart.yaml', 'templates/architecture.yaml', 'values.schema.json', 'values.yaml', 'templates/b.yaml', 'templates/username-secret.yaml',
+    ])
+    expect(summary?.withheld).toBeUndefined()
+    expect(summarizeChart(held(page))).toBeUndefined()
+    expect(summarizeChart(null)).toBeUndefined()
+  })
+
+  it('survives the redactor intact — a path naming a secret is not a secret\'s value', () => {
+    // The redactor blanks the VALUE of a key containing "secret"; keyed by path, this file would
+    // reach the model as "[redacted]" and a whole-file rewrite would write that back.
+    const envelope = withHeldDraft({ route: '/blueprint-builder/compose', widgets: [] }, held(chart, 'blueprint'))
+    const sent = redactAutopilotContext(envelope).chart?.files.find((file) => file.path === 'templates/username-secret.yaml')
+    expect(sent?.content).toBe(chart['templates/username-secret.yaml'])
+  })
+
+  it('withholds — and names — a file the redactor would alter, and what does not fit', () => {
+    const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.c2lnbmF0dXJlc2lnbmF0dXJl'
+    const big = { ...chart, 'templates/huge.yaml': 'a: 1\n'.repeat(25 * 1024), 'templates/token.yaml': `token: ${jwt}\n` }
+    const summary = summarizeChart(held(big, 'blueprint'))
+    expect(summary?.files.map((file) => file.path)).not.toContain('templates/token.yaml')
+    expect(summary?.files.map((file) => file.path)).not.toContain('templates/huge.yaml')
+    expect(summary?.withheld).toEqual([
+      { path: 'templates/huge.yaml', reason: 'the chart is larger than the context budget' },
+      { path: 'templates/token.yaml', reason: 'it holds a value shaped like a credential, which the portal never sends' },
+    ])
+  })
+
+  it('is re-sent whenever a byte changes — a chart verb addresses the bytes', () => {
+    const base = (files: Record<string, string>): PageContextEnvelope =>
+      withHeldDraft({ pageStatus: 'ready', route: '/blueprint-builder/compose', widgets: [] }, held(files, 'blueprint'))
+    const before = base(chart)
+    expect(buildContextDelta(base(chart), before)).toContain('Unchanged:')
+    const after = base({ ...chart, 'values.yaml': 'user: y\n' })
+    expect(chartFingerprint(after.chart)).not.toBe(chartFingerprint(before.chart))
+    expect(buildContextDelta(after, before)).toContain('user: y')
   })
 })
