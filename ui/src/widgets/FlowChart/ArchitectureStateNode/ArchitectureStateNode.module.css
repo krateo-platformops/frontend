@@ -86,16 +86,23 @@
   box-shadow: 0 0 0 3px var(--krateo-color-background-selected);
 }
 
-/* Not rendered yet: a later state brings it. Faded through the content, as on the composer's card,
-   so the box stays a see-through outline. */
+/* Not rendered yet: a later state brings it. A see-through dashed outline, its text in `faint`.
+
+   FADED BY COLOUR, NOT OPACITY. The composer's card fades withheld content with `opacity`; here the
+   detail line is live status (what the node waits for), and `opacity: 0.6` put the gray kind and
+   detail lines at 2.6–2.7:1 in light mode and 3.2–3.3:1 in dark, under AA's 4.5:1. `faint` is the
+   palette's receding grey, pinned at 4.5:1 or better on every surface in both modes (T7), so the
+   whole card recedes and every line stays readable. The exception marker keeps its own colour. */
 .card[data-state='withheld'] {
   background: transparent;
   border-color: var(--line-color);
   border-style: dashed;
+  color: var(--faint-color);
 }
 
-.card[data-state='withheld'] > * {
-  opacity: 0.6;
+.card[data-state='withheld'] .kind,
+.card[data-state='withheld'] .detail {
+  color: var(--faint-color);
 }
 
 /* What the page cannot say: muted, and the detail line says why. */

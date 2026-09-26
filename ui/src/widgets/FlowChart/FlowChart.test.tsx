@@ -9,10 +9,11 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
+import { NATURAL_PADDING } from '../../components/DependencyGraph/naturalViewport'
 
 import { DEMO_FILES_DENIED, V1B, V1B_REPO_DENIED } from './__fixtures__/architecture'
 import FlowChart, { type FlowChartData, type FlowChartWidgetData } from './FlowChart'
@@ -170,6 +171,59 @@ describe('FlowChart variant: architecture — a chart\'s topology in the state t
     expect(await screen.findByText(/^NotSynced: ReconcileError — cannot determine creation result/)).toBeTruthy()
   })
 
+  it('opens that tooltip when the card takes keyboard focus too, and Escape closes it where focus stays', async () => {
+    // Hover was the only way to it: the marker could not take focus, and "label: reason — message"
+    // was otherwise only in the aria-label, which a sighted keyboard user never sees (WCAG 2.1.1).
+    vi.stubGlobal('ResizeObserver', class { disconnect = vi.fn(); observe = vi.fn(); unobserve = vi.fn() })
+    render(<FlowChart resourcesRefs={REFS} uid='fc' widgetData={architecture(V1B)} />)
+    const repo = nodeCard('Repo', 'publish-pod-sizing-v1b-source')
+    const shown = () => screen.queryByText(/^NotSynced: ReconcileError — cannot determine creation result/)
+      ?.closest('.ant-tooltip')?.classList.contains('ant-tooltip-hidden') === false
+    // Which focus it is — Tab's, which the browser marks :focus-visible, or a click's, which it does
+    // not — is said here: jsdom's heuristic answers false for these cards even after a Tab keydown.
+    const matches = repo.matches.bind(repo)
+    const focus = (by: 'click' | 'tab') => {
+      vi.spyOn(repo, 'matches').mockImplementation((selector) => (selector === ':focus-visible' ? by === 'tab' : matches(selector)))
+      act(() => { repo.focus() })
+    }
+    focus('tab')
+    await waitFor(() => expect(shown()).toBe(true))
+    // Dismissed without moving focus (WCAG 1.4.13)…
+    fireEvent.keyDown(repo, { key: 'Escape' })
+    await waitFor(() => expect(shown()).toBe(false))
+    expect(document.activeElement).toBe(repo)
+    // …and closed when focus leaves.
+    act(() => { repo.blur() })
+    focus('tab')
+    await waitFor(() => expect(shown()).toBe(true))
+    act(() => { repo.blur() })
+    await waitFor(() => expect(shown()).toBe(false))
+    // A click's focus does not open it: the pointer's hover does, and this would outstay the pointer.
+    focus('click')
+    await new Promise((resolve) => { setTimeout(resolve, 50) })
+    expect(shown()).toBe(false)
+  })
+
+  it('lets a keyboard reach a card past the box\'s edge: every card takes focus, and a focused one is panned into view', async () => {
+    // V1B lays out 1360px wide (four columns of 220, 160 apart) and the box is often narrower. Drag
+    // was the only pan, and nothing in the box could take focus, so a sighted keyboard user could
+    // not bring the clipped columns into view (WCAG 2.1.1).
+    render(<FlowChart resourcesRefs={REFS} uid='fc' widgetData={architecture(V1B)} />)
+    await waitFor(() => expect(graphDouble.viewport).toEqual(['zoomTo 1', 'fitCenter']))
+    graphDouble.viewport.length = 0
+    expect(screen.getAllByRole('group').map((card) => card.tabIndex)).toEqual([0, 0, 0, 0])
+    const rect = (left: number, top: number, width: number, height: number) => () =>
+      ({ bottom: top + height, height, left, right: left + width, top, width, x: left, y: top }) as DOMRect
+    const box = screen.getByTestId('flow-graph').parentElement as HTMLElement
+    box.getBoundingClientRect = rect(0, 0, 560, 360)
+    // Where the real layout draws the PullRequest with the first column pinned 16px in.
+    const pullRequest = nodeCard('PullRequest', 'publish-pod-sizing-v1b-pr')
+    pullRequest.getBoundingClientRect = rect(1156, 138, 220, 84)
+    act(() => { pullRequest.focus() })
+    expect(document.activeElement).toBe(pullRequest)
+    await waitFor(() => expect(graphDouble.viewport).toEqual([`translateBy ${560 - NATURAL_PADDING - 1376},0`]))
+  })
+
   it('names each card "kind name, state, exception" for a screen reader', () => {
     render(<FlowChart resourcesRefs={REFS} uid='fc' widgetData={architecture(V1B)} />)
     expect(nodeCard('Repo', 'publish-pod-sizing-v1b-source').getAttribute('aria-label')).toBe(
@@ -245,5 +299,14 @@ describe('the architecture card\'s stylesheet — exception-only, and nothing gr
 
   it('draws a withheld node dashed', () => {
     expect(css).toMatch(/\.card\[data-state='withheld'\]\s*\{[^}]*border-style: dashed/)
+  })
+
+  it('fades a withheld node by colour, never opacity: every line is real text at AA (T7)', () => {
+    // opacity 0.6 put the gray kind and detail lines, the detail being what the node waits for, at
+    // 2.6–2.7:1 on the light surfaces and 3.2–3.3:1 on the dark ones. `faint` is pinned at 4.5:1 or
+    // better on every surface in both modes (tokens.contrast.test.ts).
+    expect(css).not.toMatch(/\bopacity\s*:/)
+    expect(css).toMatch(/\.card\[data-state='withheld'\]\s*\{[^}]*[^-]color: var\(--faint-color\)/)
+    expect(css).toMatch(/\.card\[data-state='withheld'\] \.kind,\s*\.card\[data-state='withheld'\] \.detail\s*\{[^}]*color: var\(--faint-color\)/)
   })
 })

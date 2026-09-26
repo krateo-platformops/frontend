@@ -47,7 +47,8 @@ interface VariantProps {
  *     own colours, because moving it is a visual change to every FlowChart CR already published.
  *   - TRUE SIZE (`fit="natural"`). The cards are designed at 220×84 and must stay readable; `view`
  *     would magnify a one-resource chart and shrink a wide one under the type floor. A graph wider
- *     than the box keeps its first state in view and is dragged for the rest.
+ *     than the box keeps its first state in view; the rest is dragged into view, or tabbed to, since
+ *     each card takes focus and a focused card is panned into view (ArchitectureStateNode).
  *   - EDGES INTO A WITHHELD NODE ARE DASHED: that dependency has not been reached yet.
  */
 const ArchitectureFlowChart = ({ data, uid }: VariantProps) => {
