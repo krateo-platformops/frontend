@@ -11,13 +11,14 @@
 
 import { isGitWriteTarget, type ApplyResourceSetOp } from './applyResourceSet'
 import { stampAuthorship, type AuthorshipOrigin } from './authorship'
-import { draftDisplayName, lintBlueprintDraft, parseRawTemplates } from './blueprintDraft'
+import { draftDisplayName, lintBlueprintDraft } from './blueprintDraft'
 import { opsCarryFileContentToken, type BlueprintDraftHeld, type BlueprintDraftStore } from './blueprintDraftStore'
 import type { BlueprintGate } from './blueprintGate'
 import type { PublishStatusClaim } from './builderPublishStatus'
 import { draftHistory } from './draftHistory'
 import { substituteOasAttachment, type OasAttachment } from './oasAttachment'
 import { isPageDraft, pageDisplayName, pageDraftFiles } from './pageDraft'
+import { parseProposedChart } from './proposedChart'
 
 /** A preview-gate verdict shape (both the KOG and blueprint gates match this). */
 export type GateVerdict = { allowed: true } | { allowed: false; reason: string }
@@ -135,7 +136,7 @@ export const recordBlueprintPreview = (
   // proposal bytes. Linting the raw bytes refused a draft whose one file the model had wrapped in a
   // code fence, while the drawer, which read the de-fenced tree, showed it as the held draft: its
   // Files tab then wrote by path into whatever WAS held.
-  const tree = parseRawTemplates(rawTemplates)
+  const tree = parseProposedChart(rawTemplates)
   // Linted as the blueprint it is about to be held as (store.set below) — the kind is not in the files.
   if (!tree || previewFailed || lintBlueprintDraft(tree, 'blueprint').length > 0) {
     return false

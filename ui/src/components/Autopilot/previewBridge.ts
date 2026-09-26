@@ -17,10 +17,10 @@ import { dump, load, loadAll } from 'js-yaml'
 import { getAccessToken } from '../../utils/getAccessToken'
 
 import type { PortalActionProposal } from './actionBridge'
-import { parseRawTemplates } from './blueprintDraft'
 import { restDefImmutabilityWarnings, validateRestDefinitionDraft } from './kogMapping'
 import { pageDraftFiles, pageDraftSlug, pagePublishPath } from './pageDraft'
 import { setPreviewProblems, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
+import { parseProposedChart } from './proposedChart'
 
 /** The chart coordinates previewBlueprint sends to the render service. */
 export interface BlueprintChartRef {
@@ -64,7 +64,7 @@ export const parseBlueprintPreviewArgs = (proposal: PortalActionProposal): Bluep
     return null
   }
   if (proposal.rawTemplates !== undefined) {
-    const rawTemplates = parseRawTemplates(proposal.rawTemplates)
+    const rawTemplates = parseProposedChart(proposal.rawTemplates)
     if (!rawTemplates) {
       return null
     }
