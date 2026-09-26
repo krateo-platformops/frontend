@@ -220,7 +220,7 @@ export const ArchitecturePalette = ({ chart, dimmed, onDismissRefusal, onFormFie
           <Section title='Form fields'>
             <div className={styles.paletteFields}>
               {FORM_FIELD_TYPES.map((field) => (
-                <button className={styles.paletteField} key={field.type} onClick={() => onFormField(field.type)} type='button'>{field.label}</button>
+                <button className={styles.paletteField} disabled={dimmed} key={field.type} onClick={() => onFormField(field.type)} type='button'>{field.label}</button>
               ))}
             </div>
           </Section>

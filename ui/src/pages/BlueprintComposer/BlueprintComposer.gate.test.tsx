@@ -151,6 +151,36 @@ describe('BlueprintComposer — the generated gate (screen 7)', () => {
     expect(lit.some((line) => line?.includes('kind: LocalResource'))).toBe(false)
   })
 
+  it('4b. every source line is a block, not a flex row — a wrapped lookup keeps its spaces', async () => {
+    // react-syntax-highlighter makes a numbered, long-wrapping line display:flex, and a long line then
+    // wraps token by token with the whitespace between tokens collapsed (the S4b review screenshot).
+    await start()
+    await acceptScreen07()
+    await waitFor(() => expect(document.querySelectorAll('[data-gate="true"]').length).toBeGreaterThan(0))
+    const lines = [...document.querySelectorAll<HTMLElement>('[data-gate="true"]')]
+    const lookup = lines.find((line) => line.textContent?.includes('lookup'))
+    expect(lookup?.style.display).toBe('block')
+    expect(lines.every((line) => line.style.display === 'block')).toBe(true)
+  })
+
+  it('4c. Done hands focus to the inspector that takes its place, not to the page', async () => {
+    await start()
+    await acceptScreen07()
+    const done = within(screen.getByLabelText('What just happened')).getByRole('button', { name: 'Done' })
+    expect(document.activeElement).toBe(done)
+    act(() => { fireEvent.click(done) })
+    expect(screen.queryByTestId('what-just-happened')).toBeNull()
+    expect(document.activeElement).toBe(screen.getByLabelText('Inspector'))
+  })
+
+  it('4d. a new drag retires the last edge\'s account — it does not sit beside the next edge', async () => {
+    await start()
+    await acceptScreen07()
+    expect(screen.getByTestId('what-just-happened')).toBeTruthy()
+    act(() => { expect(graphDouble.startEdge('pullrequest')).toBe(true) })
+    expect(screen.queryByTestId('what-just-happened')).toBeNull()
+  })
+
   it('5. Publish is off and Preview is needed — the chart changed (S3 decision 2)', async () => {
     await start()
     expect(publish().disabled).toBe(false)

@@ -165,6 +165,11 @@ export interface FileHighlight {
   caption: string
 }
 
+// react-syntax-highlighter makes every line `display: flex` when wrapLongLines meets showLineNumbers
+// (15.6.x highlight.js:106): each token becomes a flex item, so a long line wraps token by token and the
+// whitespace between tokens collapses away. A block line wraps as text and keeps its spaces.
+const BLOCK_LINE: React.HTMLProps<HTMLElement> = { style: { display: 'block' } }
+
 const FileEditBlock = ({
   content,
   editable,
@@ -282,8 +287,8 @@ const FileEditBlock = ({
           <SyntaxHighlighter
             language='yaml'
             lineProps={highlight ? (line: number) => (highlight.ranges.some((range) => line >= range.from && line <= range.to)
-              ? { className: styles.gateLine, 'data-gate': 'true' } as React.HTMLProps<HTMLElement>
-              : {}) : undefined}
+              ? { ...BLOCK_LINE, className: styles.gateLine, 'data-gate': 'true' } as React.HTMLProps<HTMLElement>
+              : BLOCK_LINE) : BLOCK_LINE}
             showLineNumbers
             style={style}
             wrapLines
@@ -408,7 +413,7 @@ export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, h
   const items = (payload.objects ?? []).map((entry, index) => ({
     children: (
       <div className={styles.yaml}>
-        <SyntaxHighlighter language='yaml' showLineNumbers style={highlighterStyle} wrapLines wrapLongLines>
+        <SyntaxHighlighter language='yaml' lineProps={BLOCK_LINE} showLineNumbers style={highlighterStyle} wrapLines wrapLongLines>
           {entry.yaml}
         </SyntaxHighlighter>
       </div>
