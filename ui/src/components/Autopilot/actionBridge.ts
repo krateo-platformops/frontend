@@ -32,6 +32,7 @@ import { applyResourceSet, type ApplyResourceSetOp, type ApplyResourceSetProposa
 // patchField — the day-2 mutating branch (a DISTINCT, explicitly-gated verb owned by the
 // bridge, NOT a read-only registry entry): scoped by isPatchAllowed, dispatched through the
 // SAME dispatcher so it flows through the W0-2 blast-radius gate.
+import { applyChartVerb, isChartVerb } from './chartVerbs'
 import { requestCompose } from './composeRequest'
 import type { ComposeResult } from './composeRequest'
 import { applyPatchField, type PatchFieldProposal } from './patchField'
@@ -270,6 +271,19 @@ export interface PortalActionProposal {
   base?: string
   /** Human-readable label for the auto-applied action chip. */
   label?: string
+  /** chartPut / chartDelete: the chart-relative path of the file (chartVerbs.ts). */
+  path?: string
+  /** chartPut: the WHOLE file, as text. */
+  content?: string
+  /** chartLink: the dependent node id, and the node it waits for. */
+  from?: string
+  to?: string
+  /** chartLink: wait for the target to be READY (its readyWhen), not only to exist. */
+  ready?: boolean
+  /** chartLink: set the TARGET's readyWhen as part of the edge. */
+  readyWhen?: string | null
+  /** chartLink: remove the edge instead of adding it. */
+  unlink?: boolean
 }
 
 /** One spotlight step in a guided tour: a semantic anchor + popover copy. */
@@ -388,7 +402,8 @@ export const sanitizeChatText = (text: string): string => {
 /** The verbs that edit the HELD DRAFT rather than the page. */
 export const COMPOSE_VERBS = new Set(['composeMove', 'composeAdd', 'composeBind'])
 
-export const isComposeVerb = (verb: string): boolean => COMPOSE_VERBS.has(verb)
+// A chart verb edits the held draft too (chartVerbs.ts), so it is authoring in the same sense.
+export const isComposeVerb = (verb: string): boolean => COMPOSE_VERBS.has(verb) || isChartVerb(verb)
 
 /**
  * The proposals to apply, in order.
@@ -591,6 +606,12 @@ export const useAutopilotActionBridge = () => {
      * `requestCompose` awaits the composer's answer, so a refusal becomes the chip's text and
      * reaches the model as an environment signal it can act on.
      */
+    // chartPut / chartDelete / chartLink — a chart already open in the Blueprint Composer, edited
+    // through the same batch bus and edge kernel a person's edits take (chartVerbs.ts).
+    const chartChip = applyChartVerb(proposal)
+    if (chartChip) {
+      return chartChip
+    }
     if (proposal.verb === 'composeMove') {
       if (!proposal.widget || !proposal.target) {
         return refused('composeMove', 'a move needs both the widget to move and the container to move it into')
