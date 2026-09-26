@@ -4,6 +4,8 @@ import DependencyGraph, { type GraphNode } from '../../components/DependencyGrap
 import { WidgetEmpty } from '../../components/WidgetStates'
 import type { WidgetProps } from '../../types/Widget'
 
+import ArchitectureStateNode from './ArchitectureStateNode'
+import { ARCHITECTURE_NODE_SIZE, architectureEdgeAppearance, toArchitectureGraphData } from './architectureVariant'
 import styles from './FlowChart.module.css'
 import type { FlowChart as WidgetType } from './FlowChart.type'
 import FlowChartNodeElement from './FlowChartNodeElement'
@@ -30,8 +32,48 @@ const NODE_SIZE: [number, number] = [400, 150]
 
 const renderNode = ({ data }: GraphNode<FlowChartNodeData>) => <FlowChartNodeElement data={data} />
 
-const FlowChart = ({ uid, widgetData }: WidgetProps<FlowChartWidgetData>) => {
-  const { data } = widgetData
+const renderArchitectureNode = ({ data }: GraphNode<FlowChartNodeData>) => <ArchitectureStateNode data={data} />
+
+interface VariantProps {
+  data: FlowChartData
+  uid: string
+}
+
+/**
+ * `variant: architecture` — a chart's topology in the state the composition is in (S11). It differs
+ * from the resource variant in three ways, each deliberate:
+ *
+ *   - THEMED. Its edges take the tokens and follow the portal theme. The resource variant keeps G6's
+ *     own colours, because moving it is a visual change to every FlowChart CR already published.
+ *   - TRUE SIZE (`fit="natural"`). The cards are designed at 220×84 and must stay readable; `view`
+ *     would magnify a one-resource chart and shrink a wide one under the type floor. A graph wider
+ *     than the box keeps its first state in view; the rest is dragged into view, or tabbed to, since
+ *     each card takes focus and a focused card is panned into view (ArchitectureStateNode).
+ *   - EDGES INTO A WITHHELD NODE ARE DASHED: that dependency has not been reached yet.
+ */
+const ArchitectureFlowChart = ({ data, uid }: VariantProps) => {
+  const graphData = useMemo(() => toArchitectureGraphData(data), [data])
+
+  if (graphData.nodes.length === 0) {
+    return <WidgetEmpty description='Nothing to graph' />
+  }
+
+  return (
+    <div className={styles.architecture} key={uid}>
+      <DependencyGraph
+        edgeAppearance={architectureEdgeAppearance}
+        edges={graphData.edges}
+        fit='natural'
+        nodeSize={ARCHITECTURE_NODE_SIZE}
+        nodes={graphData.nodes}
+        renderNode={renderArchitectureNode}
+      />
+    </div>
+  )
+}
+
+/** `variant: resource`, the default: one card per live object. Unchanged by the architecture variant. */
+const ResourceFlowChart = ({ data, uid }: VariantProps) => {
   // Memoised on the CR's data so a host re-render is not a new graph (and not a re-layout).
   const graphData = useMemo(() => toGraphData(data), [data])
 
@@ -52,6 +94,13 @@ const FlowChart = ({ uid, widgetData }: WidgetProps<FlowChartWidgetData>) => {
       />
     </div>
   )
+}
+
+const FlowChart = ({ uid, widgetData }: WidgetProps<FlowChartWidgetData>) => {
+  const { data, variant } = widgetData
+  return variant === 'architecture'
+    ? <ArchitectureFlowChart data={data} uid={uid} />
+    : <ResourceFlowChart data={data} uid={uid} />
 }
 
 export default FlowChart

@@ -16,3 +16,11 @@
 :global(.ant-tabs-content) {
   height: 100%;
 }
+
+/* The architecture variant, at the cards' true size (fit="natural"): a fixed height, the width the
+   page gives it, and DependencyGraph observes the box and resizes its canvas. It sits inside the
+   page's own Card, so it paints no surface of its own. */
+.architecture {
+  height: 360px;
+  position: relative;
+}

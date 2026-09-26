@@ -1,0 +1,121 @@
+/* FlowChart's architecture node: one resource a chart declares, in the state the composition is in.
+   220×84, the box ARCHITECTURE_NODE_SIZE tells dagre. The same tokens as the Blueprint Composer's
+   node card (ArchitectureCanvas.module.css), so the author's graph and the live one read alike.
+
+   G6 renders the card in its own React root, outside the page's DOM subtree, so no rule here may
+   depend on an ancestor selector from the page. Tokens only, so both themes follow. */
+
+.card {
+  background: var(--light-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-sizing: border-box;
+  color: var(--text-color);
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-family);
+  gap: var(--spacing-xxs);
+  height: 84px;
+  justify-content: center;
+  padding: var(--spacing-sm) var(--spacing-smd);
+  width: 220px;
+}
+
+.eyebrow {
+  align-items: center;
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: space-between;
+}
+
+.kind,
+.name,
+.detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kind {
+  color: var(--gray-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.name {
+  font-size: var(--krateo-text-body-sm);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.2;
+}
+
+.detail {
+  color: var(--gray-color);
+  font-size: var(--krateo-text-caption);
+}
+
+/* THE ONE MARKER (P14): NotSynced or NotReady, a dot in the error token and the condition's name,
+   so the colour is never the only signal (G12). Reason and message are in the tooltip and in the
+   card's accessible name. */
+.exception {
+  align-items: center;
+  color: var(--text-color);
+  display: inline-flex;
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+  gap: var(--spacing-xs);
+}
+
+.dot {
+  background: var(--krateo-color-status-error);
+  border-radius: 50%;
+  flex: none;
+  height: 8px;
+  width: 8px;
+}
+
+/* THE STATES, keyed on `data-state`. `done` has no rule: a finished resource is the card as it is,
+   neutral and unmarked. Nothing on this card is green. */
+
+/* The state the composition is in now. */
+.card[data-state='waiting'] {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--krateo-color-background-selected);
+}
+
+/* Not rendered yet: a later state brings it. A see-through dashed outline, its text in `faint`.
+
+   FADED BY COLOUR, NOT OPACITY. The composer's card fades withheld content with `opacity`; here the
+   detail line is live status (what the node waits for), and `opacity: 0.6` put the gray kind and
+   detail lines at 2.6–2.7:1 in light mode and 3.2–3.3:1 in dark, under AA's 4.5:1. `faint` is the
+   palette's receding grey, pinned at 4.5:1 or better on every surface in both modes (T7), so the
+   whole card recedes and every line stays readable. The exception marker keeps its own colour. */
+.card[data-state='withheld'] {
+  background: transparent;
+  border-color: var(--line-color);
+  border-style: dashed;
+  color: var(--faint-color);
+}
+
+.card[data-state='withheld'] .kind,
+.card[data-state='withheld'] .detail {
+  color: var(--faint-color);
+}
+
+/* What the page cannot say: muted, and the detail line says why. */
+.card[data-state='unreadable'],
+.card[data-state='unavailable'],
+.card[data-state='unknown'] {
+  background: transparent;
+  border-color: var(--line-color);
+}
+
+.card[data-state='unreadable'] .name,
+.card[data-state='unavailable'] .name,
+.card[data-state='unknown'] .name {
+  color: var(--gray-color);
+  font-weight: var(--font-weight-light);
+}

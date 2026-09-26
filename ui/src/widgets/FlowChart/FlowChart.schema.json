@@ -28,18 +28,44 @@
                 "type": "object",
                 "required": [
                   "kind",
-                  "date",
                   "name",
-                  "namespace",
-                  "resourceVersion",
-                  "uid",
-                  "version"
+                  "uid"
                 ],
                 "additionalProperties": false,
                 "properties": {
                   "date": {
                     "type": "string",
                     "description": "optional date value to be shown in the node, formatted as ISO 8601 string"
+                  },
+                  "detail": {
+                    "type": "string",
+                    "description": "architecture variant: the one line under the name, such as the readiness field and its value, a count, or what the node waits for"
+                  },
+                  "exception": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "description": "architecture variant: the one marker a node carries, and only when something needs attention",
+                    "required": [
+                      "label"
+                    ],
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "description": "the Kubernetes condition that is not true",
+                        "enum": [
+                          "NotReady",
+                          "NotSynced"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "description": "the condition's reason"
+                      },
+                      "message": {
+                        "type": "string",
+                        "description": "the condition's message"
+                      }
+                    }
                   },
                   "icon": {
                     "additionalProperties": false,
@@ -213,6 +239,18 @@
                     "type": "string",
                     "description": "internal version string of the resource"
                   },
+                  "state": {
+                    "type": "string",
+                    "description": "architecture variant: where this resource is in the composition's sequence",
+                    "enum": [
+                      "done",
+                      "waiting",
+                      "withheld",
+                      "unreadable",
+                      "unavailable",
+                      "unknown"
+                    ]
+                  },
                   "uid": {
                     "type": "string",
                     "description": "unique identifier of the resource"
@@ -223,6 +261,15 @@
                   }
                 }
               }
+            },
+            "variant": {
+              "type": "string",
+              "default": "resource",
+              "description": "resource: one node per live object, the original card. architecture: one node per resource a chart declares, drawn in the state the composition is in",
+              "enum": [
+                "resource",
+                "architecture"
+              ]
             }
           },
           "additionalProperties": false,

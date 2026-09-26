@@ -95,3 +95,24 @@ describe('Row — X8: layout maths runs on the children that survive', () => {
     expect(rendered).toEqual(['/widgets/b', '/widgets/c', '/widgets/d'])
   })
 })
+
+describe('Row — a row with nothing to show is not there', () => {
+  it('renders nothing for zero items: a template that resolves `items` to [] hides the section', () => {
+    // The composition detail page's topology row, for a composition without an architecture. An
+    // empty <div> here was one more gap in the page's vertical Flex.
+    const { container } = render(<Row resourcesRefs={refs([])} uid='r' widgetData={rowOf([])} />)
+    expect(container.innerHTML).toBe('')
+  })
+
+  it('renders nothing when every item is denied — absence, not a hole (X2)', () => {
+    const { container } = render(
+      <Row deniedRefIds={FOUR} resourcesRefs={refs([])} uid='r' widgetData={rowOf(FOUR)} />,
+    )
+    expect(container.innerHTML).toBe('')
+  })
+
+  it('still renders a row whose only item is dangling — X4 keeps its visible error', () => {
+    const { container } = render(<Row resourcesRefs={refs([])} uid='r' widgetData={rowOf(['typo'])} />)
+    expect(spans(container)).toEqual([24])
+  })
+})

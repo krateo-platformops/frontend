@@ -8,8 +8,17 @@ import type { FlowChartNodeData } from '../FlowChart'
 
 import styles from './FlowChartNodeElement.module.css'
 
-const getDaysPeriod = (isoDate: string) => {
-  const deltaMSeconds = new Date().getTime() - new Date(isoDate).getTime()
+/**
+ * "N days" since `isoDate`, or null when there is no date to count from. `date` became optional when
+ * the architecture variant loosened the item's required fields, and a missing or unparseable date
+ * rendered "NaN days".
+ */
+const getDaysPeriod = (isoDate: string | undefined): string | null => {
+  const then = isoDate ? new Date(isoDate).getTime() : Number.NaN
+  if (Number.isNaN(then)) {
+    return null
+  }
+  const deltaMSeconds = new Date().getTime() - then
   const days = Math.floor(deltaMSeconds / 24 / 60 / 60 / 1000)
 
   return days !== 1 ? `${days} days` : `${days} day`
@@ -35,6 +44,7 @@ const renderIcon = (icon: { name?: string; color?: string; message?: string }, s
 
 const FlowChartNodeElement = ({ data }: { data: FlowChartNodeData }) => {
   const { date, icon, kind, name, namespace, statusIcon, version } = data
+  const period = getDaysPeriod(date)
 
   return (
     <div className={styles.node}>
@@ -46,10 +56,14 @@ const FlowChartNodeElement = ({ data }: { data: FlowChartNodeData }) => {
           <div className={styles.body}>{kind}</div>
           <Flex align='center' className={styles.footer} gap={5}>
             {renderIcon(statusIcon || fallbackIcon, 32)}
-            <Tooltip title={formatISODate(date, true)}>
-              <div className={styles.tagFlow}>{getDaysPeriod(date)}</div>
-            </Tooltip>
-            <div className={styles.tagFlow}>{version}</div>
+            {date && period
+              ? (
+                <Tooltip title={formatISODate(date, true)}>
+                  <div className={styles.tagFlow}>{period}</div>
+                </Tooltip>
+              )
+              : null}
+            {version ? <div className={styles.tagFlow}>{version}</div> : null}
           </Flex>
         </div>
       </Space>
