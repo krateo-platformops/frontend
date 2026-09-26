@@ -205,10 +205,9 @@ export const ArchitectureCanvas = ({ model, onAddDescriptor, onLevel, onOpenFile
     body = (
       <CanvasState action={openDescriptor} title='No resources yet'>
         <p className={canvas.canvasStateText}>
-          Each resource becomes a node here, rendered by a template of its own in <code>templates/</code> — a
-          separate file, which listing the resource does not write. Add one by editing
-          {' '}<code>{ARCHITECTURE_TEMPLATE_PATH}</code> in Chart files below, or ask Autopilot to add it — placing
-          them from a palette comes later. A <code>dependsOn</code> entry from A to B says A waits for B.
+          Add a Kubernetes resource, a custom resource this cluster knows, or another blueprint from the left. Each one
+          becomes a node here and a file in <code>templates/</code>. A <code>dependsOn</code> entry from A to B in
+          {' '}<code>{ARCHITECTURE_TEMPLATE_PATH}</code> says A waits for B — drawing an edge arrives next.
         </p>
       </CanvasState>
     )

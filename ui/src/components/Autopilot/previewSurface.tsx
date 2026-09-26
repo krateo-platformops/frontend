@@ -160,6 +160,7 @@ const FileEditBlock = ({
   editable,
   isPageWidget,
   kind,
+  live,
   mode,
   path,
   style,
@@ -167,6 +168,11 @@ const FileEditBlock = ({
   content: string
   /** Only the HELD draft's files: an edit is written into whatever is held, by path. */
   editable: boolean
+  /**
+   * `content` IS the held bytes (a surface's live files), so the edit can be pinned to them. The
+   * drawer shows a one-shot payload, which need not be byte-for-byte what is held, and pins nothing.
+   */
+  live: boolean
   /** What the preview showed — the provider refuses an edit whose kind is not what it holds. */
   kind: DraftKind
   isPageWidget: boolean
@@ -188,15 +194,25 @@ const FileEditBlock = ({
   }
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(content)
+  // The held bytes the edit STARTED from. The text is the whole file, so applying it over bytes that
+  // moved in between — a node placed from the palette, the agent's write, an Undo — would silently
+  // undo that change: the file-edit bus writes what it is given. So Apply refuses once they differ,
+  // as the form editor's Apply does, and the provider checks the same pin (`expect`) on its side.
+  const [base, setBase] = useState(content)
   const [error, setError] = useState<string | null>(null)
 
   const beginEdit = () => {
     setText(current)
+    setBase(current)
     setError(null)
     setEditing(true)
   }
 
   const onApply = () => {
+    if (current !== base) {
+      setError(`${path} changed while you were editing it — nothing was written. Cancel, then Edit again to start from the held text.`)
+      return
+    }
     const result = parseFileEdit(text, isPageWidget, path)
     if (!result.ok || result.content === undefined) {
       // Deny-by-default: surface the error inline; the held bytes (current) are untouched, nothing emitted.
@@ -206,7 +222,7 @@ const FileEditBlock = ({
     // The PROVIDER decides whether it is held — the byte cap, a path it does not hold. Refused: said
     // here, the editor stays open on the person's text, and the block goes on showing the held bytes
     // (the ones a publish commits). No answer at all (no provider) keeps the old optimistic show.
-    const outcome = emitFileEdit({ content: result.content, kind, path })
+    const outcome = emitFileEdit({ content: result.content, kind, path, ...(live ? { expect: base } : {}) })
     if (outcome && !outcome.ok) {
       setError(outcome.error)
       return
@@ -393,6 +409,7 @@ export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, h
             editable={heldDraft}
             isPageWidget={isPageWidget}
             kind={isPageWidget ? 'page' : 'blueprint'}
+            live={liveFiles !== undefined}
             mode={mode}
             path={file.path}
             style={highlighterStyle}

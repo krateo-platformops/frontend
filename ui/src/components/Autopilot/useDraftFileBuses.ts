@@ -1,5 +1,5 @@
 /**
- * The provider's two held-draft write paths, in one place.
+ * The provider's held-draft write paths, in one place.
  *
  * A surface that authors — the preview drawer's Files tab, the page composer's tree — holds neither
  * the draft nor the publish gate. Both live here, in the provider. So each surface emits on a
@@ -27,7 +27,7 @@ import { createBlueprintDraftStore, type BlueprintDraftStore } from './blueprint
 import type { BlueprintGate } from './blueprintGate'
 import { clearComposeRefusals } from './composeRequest'
 import { draftHistory } from './draftHistory'
-import { pageDisplayName, pageDraftWidgets } from './pageDraft'
+import { heldKeyForDisplayedPath, pageDisplayName, pageDraftWidgets } from './pageDraft'
 import { emitPreviewApplied } from './previewApplied'
 import { buildPagePreviewPayload } from './previewBridge'
 import { openAutopilotPreview, setPreviewProblems } from './previewBus'
@@ -38,6 +38,7 @@ import { onDraftUndo } from './previewDraftUndo'
 import { onFileAdd } from './previewFileAdd'
 import { onFileEdit } from './previewFileEdit'
 import { onFileRemove } from './previewFileRemove'
+import { onFilesBatch } from './previewFilesBatch'
 import { heldDraftIdentity, recordPagePreview } from './publishCompile'
 
 /**
@@ -323,7 +324,7 @@ export const useDraftFileBuses = (
   //
   // ANSWERED EITHER WAY. The surface that made the edit shows it as held only when this says so;
   // a refusal carries the store's reason (the byte cap, a path not held), shown where it was typed.
-  useEffect(() => onFileEdit(({ content, kind, path }, respond) => {
+  useEffect(() => onFileEdit(({ content, expect, kind, path }, respond) => {
     // An edit made in a preview of the OTHER kind is not an edit of this draft — Chart.yaml and
     // values.schema.json exist in both, so the path alone would have accepted it.
     const heldKind = store.get()?.kind
@@ -335,6 +336,13 @@ export const useDraftFileBuses = (
     // leaves the tree exactly as it was, and a snapshot for one would make Undo consume a step
     // without changing anything — the control would move and the draft would not.
     const before = store.get()
+    // Pinned to the bytes it started from, like a batch: moved since, it is refused before the write,
+    // so the tree, the gate and the history are left as they were.
+    const key = before ? heldKeyForDisplayedPath(path, before) : null
+    if (before && expect !== undefined && key !== null && before.files[key] !== expect) {
+      respond({ error: `${path} changed since this edit started — nothing was written`, ok: false })
+      return
+    }
     const result = store.updateDisplayedFile(path, content)
     if (!result.ok) {
       respond({ error: result.error ?? 'the provider did not write the edit', ok: false })
@@ -346,6 +354,34 @@ export const useDraftFileBuses = (
     // The held bytes, when the store kept different ones (a chart's regenerated graph block), so the
     // surface that made the edit shows what will publish rather than what was typed.
     respond(result.content === undefined || result.content === content ? { ok: true } : { content: result.content, ok: true })
+  }), [rearm, scheduleReapply, store])
+
+  // BATCH: one composer gesture that is several files — a placed node is its template AND the
+  // rewritten descriptor. The store plans the whole change before it writes any of it, so either
+  // every file lands or none does; and it is ONE step of Undo, one re-arm, one answer. The same
+  // two refusals as a single edit come first — the other kind's draft, and a plan made from bytes
+  // that have since moved — and each leaves the tree, the gate and the history untouched.
+  useEffect(() => onFilesBatch(({ add, edit, expect, kind, remove }, respond) => {
+    const before = store.get()
+    if (!before || kind !== before.kind) {
+      respond({ error: before ? `the open draft is a ${before.kind === 'page' ? 'portal page' : 'blueprint chart'}, not the one this preview shows` : 'no draft is held', ok: false })
+      return
+    }
+    for (const [path, bytes] of Object.entries(expect ?? {})) {
+      if (!Object.prototype.hasOwnProperty.call(before.files, path) || before.files[path] !== bytes) {
+        respond({ error: `${path} changed since this was planned — nothing was written`, ok: false, path })
+        return
+      }
+    }
+    const result = store.applyFiles({ add, edit, remove })
+    if (!result.ok) {
+      respond({ error: result.error ?? 'the provider did not write the change', ok: false, ...(result.path ? { path: result.path } : {}) })
+      return
+    }
+    draftHistory.push(before)
+    rearm()
+    scheduleReapply()
+    respond({ ok: true, paths: [...Object.keys(add ?? {}), ...Object.keys(edit ?? {}), ...(remove ?? [])] })
   }), [rearm, scheduleReapply, store])
 
   // ADD: a file the composer just authored — a layout container, a new widget.

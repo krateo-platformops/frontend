@@ -37,6 +37,13 @@ export interface FileEditDetail {
    * Optional so an emitter that predates it keeps working; the drawer and the composer both send it.
    */
   kind?: DraftKind
+  /**
+   * The held bytes the edit started from. When given, the provider writes nothing if the file holds
+   * other bytes now: the edit is the whole file, so writing it would silently undo whatever changed in
+   * between (a placement, the agent's write). Optional: the drawer shows a one-shot payload and pins
+   * nothing; a surface that shows the live draft pins its edits.
+   */
+  expect?: string
 }
 
 /**

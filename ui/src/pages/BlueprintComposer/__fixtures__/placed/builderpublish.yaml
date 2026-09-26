@@ -1,0 +1,12 @@
+{{- /* krateo:placed BuilderPublish composition.krateo.io/v1-8-40 (composition) — written when it was placed; the rest of this file is yours. */}}
+apiVersion: composition.krateo.io/v1-8-40
+kind: BuilderPublish
+metadata:
+  name: {{ printf "%s-builderpublish" $.Release.Name | trunc 63 | trimSuffix "-" }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  branch: ""
+  builder: ""
+  name: ""
+  target: {}
+  # optional: credentials, files, filesBundle, git, global, pullRequest, repository, source

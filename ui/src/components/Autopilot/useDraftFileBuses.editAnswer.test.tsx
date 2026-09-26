@@ -59,6 +59,25 @@ describe('useDraftFileBuses — every edit is answered', () => {
     expect(gate.recordPreview).not.toHaveBeenCalled()
   })
 
+  it('pinned to bytes that have moved since (`expect`): refused before the write — not the bytes, not the gate, not the history', () => {
+    const store = createBlueprintDraftStore()
+    store.set(chart, 'blueprint')
+    const gate = { forget: vi.fn(), recordPreview: vi.fn() }
+    host(store, gate)
+    const next = 'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: y\n'
+    let outcome: FileEditOutcome | null = null
+    act(() => { outcome = emitFileEdit({ content: next, expect: 'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: old\n', kind: 'blueprint', path: 'templates/cm.yaml' }) })
+    expect(outcome).toEqual({ error: 'templates/cm.yaml changed since this edit started — nothing was written', ok: false })
+    expect(store.get()?.files['templates/cm.yaml']).toBe(chart['templates/cm.yaml'])
+    expect(gate.forget).not.toHaveBeenCalled()
+    expect(draftHistory.depth()).toBe(0)
+    // Pinned to the bytes it holds, it is written as any edit is.
+    act(() => { outcome = emitFileEdit({ content: next, expect: chart['templates/cm.yaml'], kind: 'blueprint', path: 'templates/cm.yaml' }) })
+    expect(outcome).toEqual({ ok: true })
+    expect(store.get()?.files['templates/cm.yaml']).toBe(next)
+    expect(draftHistory.depth()).toBe(1)
+  })
+
   it('made in a preview of the OTHER kind: refused, and says which draft is open', () => {
     const store = createBlueprintDraftStore()
     host(store, { forget: vi.fn(), recordPreview: vi.fn() })

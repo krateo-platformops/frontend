@@ -1,0 +1,110 @@
+{
+  "apiVersion": "apiextensions.k8s.io/v1",
+  "kind": "CustomResourceDefinition",
+  "metadata": {
+    "name": "repositories.github.krateo.io"
+  },
+  "spec": {
+    "group": "github.krateo.io",
+    "names": {
+      "kind": "Repository",
+      "plural": "repositories"
+    },
+    "scope": "Namespaced",
+    "versions": [
+      {
+        "name": "v2022-11-28",
+        "served": true,
+        "storage": true,
+        "schema": {
+          "openAPIV3Schema": {
+            "type": "object",
+            "properties": {
+              "spec": {
+                "type": "object",
+                "required": [
+                  "configurationRef",
+                  "name",
+                  "org"
+                ],
+                "properties": {
+                  "auto_init": {
+                    "type": "boolean"
+                  },
+                  "configurationRef": {
+                    "type": "object"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "gitignore_template": {
+                    "type": "string"
+                  },
+                  "has_issues": {
+                    "type": "boolean"
+                  },
+                  "has_projects": {
+                    "type": "boolean"
+                  },
+                  "has_wiki": {
+                    "type": "boolean"
+                  },
+                  "homepage": {
+                    "type": "string"
+                  },
+                  "license_template": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "org": {
+                    "type": "string"
+                  },
+                  "private": {
+                    "type": "boolean"
+                  },
+                  "visibility": {
+                    "type": "string"
+                  }
+                }
+              },
+              "status": {
+                "type": "object",
+                "properties": {
+                  "clone_url": {
+                    "type": "string"
+                  },
+                  "conditions": {
+                    "type": "array"
+                  },
+                  "default_branch": {
+                    "type": "string"
+                  },
+                  "full_name": {
+                    "type": "string"
+                  },
+                  "html_url": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "node_id": {
+                    "type": "string"
+                  },
+                  "ssh_url": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

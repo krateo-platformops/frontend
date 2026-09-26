@@ -34,6 +34,7 @@ import {
 import { chartIdentityProblems, chartNameProblem } from '../../pages/BlueprintComposer/chartIdentity'
 import { extractNameExpression } from '../../pages/BlueprintComposer/gateExtract'
 import { graphBlockIn } from '../../pages/BlueprintComposer/graphCompile'
+import { itemNamesMeet, readPlacedName } from '../../pages/BlueprintComposer/naming'
 
 import type { DraftKind } from './blueprintDraftStore'
 import { OAS_ATTACHMENT_MAX_BYTES, utf8ByteLength } from './oasAttachment'
@@ -120,16 +121,28 @@ const COMBINATOR_KEYWORDS = new Set(['allOf', 'anyOf', 'oneOf', 'not'])
 const combinatorProblem = (path: string, keyword: string): string =>
   `[CRDGEN-COMBINATOR] ${path}: \`${keyword}\` is valid JSON Schema but breaks CRD generation — core-provider copies type/x-kubernetes-preserve-unknown-fields into each branch, which Kubernetes forbids in a structural schema, and the CompositionDefinition wedges Ready=False. Express the constraint in the chart templates (fail) instead; see builder-publish/_files.tpl.`
 
-const crdgenDefaultsProblem = (path: string, value: unknown): string => {
-  const shape = Array.isArray(value) ? 'array' : 'object'
-  return `[CRDGEN-DEFAULTS] ${path}: non-empty ${shape} default — crdgen emits a malformed +kubebuilder:default marker and the CompositionDefinition wedges Ready=False (krateo-platformops/core-provider#46). Move the structure into values.yaml; keep schema defaults scalar.`
+const crdgenDefaultsProblem = (path: string, shape: 'object' | 'array' = 'object'): string =>
+  `[CRDGEN-DEFAULTS] ${path}: non-empty ${shape} default — crdgen emits a malformed +kubebuilder:default marker and the CompositionDefinition wedges Ready=False (krateo-platformops/core-provider#46). Move the structure into values.yaml; keep schema defaults scalar.`
+
+/**
+ * One crdgen finding in values.schema.json, located. `path` is the lint's own spelling
+ * (`properties.credentials.default`); `segments` is the same walk as keys and indexes, which an
+ * editor can follow into the text without re-parsing a dotted path (a property may be named `a.b`).
+ * `shape` says what a populated default holds; `keyword` names the combinator.
+ */
+export interface SchemaFinding {
+  code: 'CRDGEN-DEFAULTS' | 'CRDGEN-COMBINATOR'
+  path: string
+  segments: (string | number)[]
+  shape?: 'object' | 'array'
+  keyword?: string
 }
 
-/** Schema-aware walk: flags every non-empty object/array `default` at any depth. */
-const walkSchemaNode = (node: unknown, path: string, problems: string[]): void => {
+/** Schema-aware walk: flags every non-empty object/array `default` and every combinator, at any depth. */
+const walkSchemaNode = (node: unknown, path: string, segments: (string | number)[], findings: SchemaFinding[]): void => {
   if (Array.isArray(node)) {
     node.forEach((entry, index) => {
-      walkSchemaNode(entry, `${path}[${index}]`, problems)
+      walkSchemaNode(entry, `${path}[${index}]`, [...segments, index], findings)
     })
     return
   }
@@ -139,15 +152,16 @@ const walkSchemaNode = (node: unknown, path: string, problems: string[]): void =
   }
   for (const [key, value] of Object.entries(record)) {
     const at = path ? `${path}.${key}` : key
+    const atSegments = [...segments, key]
     if (COMBINATOR_KEYWORDS.has(key)) {
-      problems.push(combinatorProblem(at, key))
+      findings.push({ code: 'CRDGEN-COMBINATOR', keyword: key, path: at, segments: atSegments })
       // Reported AND still walked. Skipping the branches looked tidier and silently dropped the
       // nested-defaults coverage inside them — the branch contents do not disappear when the
       // combinator is removed, they move, so their problems are still the author's to fix.
     }
     if (VALUE_KEYWORDS.has(key)) {
       if (key === 'default' && isNonEmptyStructure(value)) {
-        problems.push(crdgenDefaultsProblem(at, value))
+        findings.push({ code: 'CRDGEN-DEFAULTS', path: at, segments: atSegments, shape: Array.isArray(value) ? 'array' : 'object' })
       }
       continue
     }
@@ -155,13 +169,29 @@ const walkSchemaNode = (node: unknown, path: string, problems: string[]): void =
       const nameMap = asRecord(value)
       if (nameMap) {
         for (const [name, child] of Object.entries(nameMap)) {
-          walkSchemaNode(child, `${at}.${name}`, problems)
+          walkSchemaNode(child, `${at}.${name}`, [...atSegments, name], findings)
         }
         continue
       }
     }
-    walkSchemaNode(value, at, problems)
+    walkSchemaNode(value, at, atSegments, findings)
   }
+}
+
+/**
+ * The crdgen findings of a values.schema.json, as data — the lint below words them, and the form
+ * editor marks and fixes them. Empty for invalid JSON: that is the lint's to name, once.
+ */
+export const schemaDefaultsFindings = (schemaText: string): SchemaFinding[] => {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(schemaText)
+  } catch {
+    return []
+  }
+  const findings: SchemaFinding[] = []
+  walkSchemaNode(parsed, '', [], findings)
+  return findings
 }
 
 /**
@@ -171,32 +201,64 @@ const walkSchemaNode = (node: unknown, path: string, problems: string[]): void =
  * schema drives BOTH the composition CRD and the create form — it must parse).
  */
 export const lintValuesSchemaDefaults = (schemaText: string): string[] => {
-  let parsed: unknown
   try {
-    parsed = JSON.parse(schemaText)
+    JSON.parse(schemaText)
   } catch (error) {
     return [`${VALUES_SCHEMA_PATH} is not valid JSON — ${error instanceof Error ? error.message : String(error)}`]
   }
-  const problems: string[] = []
-  walkSchemaNode(parsed, '', problems)
-  return problems
+  return schemaDefaultsFindings(schemaText).map((finding) => (finding.code === 'CRDGEN-COMBINATOR'
+    ? combinatorProblem(finding.path, finding.keyword ?? '')
+    : crdgenDefaultsProblem(finding.path, finding.shape)))
+}
+
+/** The keys CDC writes into `global` on every render (plumbing `InjectGlobalValues`). */
+const CDC_GLOBAL_KEYS = [
+  'compositionApiVersion', 'compositionGroup', 'compositionId', 'compositionInstalledVersion', 'compositionKind',
+  'compositionName', 'compositionNamespace', 'compositionResource', 'gracefullyPaused', 'krateoNamespace',
+]
+
+/** How a declared `global` would refuse CDC's object — or null when it takes it. */
+const globalRefusal = (schema: unknown): string | null => {
+  if (schema === false) {
+    return 'is the schema false, which accepts no value'
+  }
+  const global = asRecord(schema)
+  if (!global) {
+    return null
+  }
+  const { type } = global
+  if (type !== undefined && type !== 'object' && !(Array.isArray(type) && type.includes('object'))) {
+    return `is declared as ${JSON.stringify(type)}, not an object`
+  }
+  if (global.additionalProperties === false) {
+    const declared = asRecord(global.properties) ?? {}
+    const missing = CDC_GLOBAL_KEYS.filter((key) => !Object.prototype.hasOwnProperty.call(declared, key))
+    return missing.length ? `sets "additionalProperties": false without declaring ${missing.join(', ')}` : null
+  }
+  return null
 }
 
 /**
- * [CDC-GLOBAL] A CLOSED root that does not declare `global` — valid JSON Schema, a clean preview, a
- * green publish, merge, release and registration, and then no composition of the chart can render.
+ * [CDC-GLOBAL] A values schema that cannot take the `global` block — valid JSON Schema, a clean
+ * preview, a green publish, merge, release and registration, and then no composition of the chart
+ * can render.
  *
- * composition-dynamic-controller adds a top-level `global` block to the values of EVERY render
+ * composition-dynamic-controller adds a top-level `global` OBJECT to the values of EVERY render
  * (`internal/composition/composition.go` → plumbing `helm/utils/values.go`, which sets
  * `global` with `SetNestedField`), and Helm validates the values against this file before it
- * renders. `additionalProperties: false` at the root refuses the one key the author never wrote.
- * test-mongodb-db found it that way (ea6aa3c), five steps after the edit that caused it; the
- * blueprint-builder example schema carries the same root.
+ * renders. Two shapes refuse it:
+ *   - a CLOSED root (`additionalProperties: false`) that does not declare `global` — the one key the
+ *     author never wrote. test-mongodb-db found it that way (ea6aa3c), five steps after the edit that
+ *     caused it; the blueprint-builder example schema carries the same root.
+ *   - a `global` that IS declared, open root or closed, but not as an object CDC's can be: a string,
+ *     number, boolean or enum field of that name (the form editor refuses to add one; a hand or an
+ *     agent can still write it), or an object closed without CDC's ten keys.
  *
- * Only the ROOT: CDC injects nothing deeper, so a closed nested object is fine and stays allowed.
- * Declaring `global` under `properties` is the other way out, for an author who wants the root
- * closed. Blueprints only — see lintBlueprintDraft. Invalid JSON is not reported here: the
- * defaults lint already names it, once.
+ * Only the ROOT's `global`: CDC injects nothing deeper, so a closed nested object is fine and stays
+ * allowed. For an author who wants the root closed, declaring `global` as an OPEN object
+ * (`{ "type": "object" }`) is the way out — the controller, not the chart, decides its keys.
+ * Blueprints only — see lintBlueprintDraft. Invalid JSON is not reported here: the defaults lint
+ * already names it, once.
  */
 export const lintValuesSchemaRoot = (schemaText: string): string[] => {
   let parsed: unknown
@@ -206,14 +268,20 @@ export const lintValuesSchemaRoot = (schemaText: string): string[] => {
     return []
   }
   const root = asRecord(parsed)
-  if (!root || root.additionalProperties !== false) {
+  if (!root) {
     return []
   }
   const properties = asRecord(root.properties)
   if (properties && Object.prototype.hasOwnProperty.call(properties, 'global')) {
+    const refusal = globalRefusal(properties.global)
+    return refusal
+      ? [`[CDC-GLOBAL] ${VALUES_SCHEMA_PATH}: properties.global ${refusal} — composition-dynamic-controller adds a top-level global object to the values of every render (${CDC_GLOBAL_KEYS.slice(0, 3).join(', ')} …), so Helm's schema check refuses every composition of this chart after it is published and registered. The key is the controller's: declare it as an open object, { "type": "object" }, or remove it${root.additionalProperties === false ? ' and open the root' : ''}.`]
+      : []
+  }
+  if (root.additionalProperties !== false) {
     return []
   }
-  return [`[CDC-GLOBAL] ${VALUES_SCHEMA_PATH}: the root sets "additionalProperties": false and does not declare "global" — composition-dynamic-controller adds a top-level global block to the values of every render, so Helm's schema check refuses every composition of this chart after it is published and registered. Remove additionalProperties: false from the root, or declare "global" under properties.`]
+  return [`[CDC-GLOBAL] ${VALUES_SCHEMA_PATH}: the root sets "additionalProperties": false and does not declare "global" — composition-dynamic-controller adds a top-level global block to the values of every render, so Helm's schema check refuses every composition of this chart after it is published and registered. Remove additionalProperties: false from the root, or declare "global" under properties as an open object, { "type": "object" }.`]
 }
 
 /**
@@ -339,10 +407,36 @@ const heldFile = (files: Record<string, string>, path: string): string | undefin
   (Object.prototype.hasOwnProperty.call(files, path) ? files[path] : undefined)
 
 /**
+ * L5, per item: no item of a ranged node may be named what another node names its one object. Two
+ * DIFFERENT expressions can still meet — `<release>-deployment-%d` at item 2 is the node
+ * `deployment-2`'s `<release>-deployment-2` — and then the cluster holds one object for both and the
+ * graph block lists that name under both nodes. Read only for names of the placed shape
+ * (naming.readPlacedName), for a release short enough that neither is truncated; a name of any
+ * other shape is not second-guessed. The composer's own per-item names (`-i<n>`) never meet an id it
+ * hands out, so this is the backstop for names that reached the chart some other way.
+ */
+const itemNameProblems = (arch: ChartArchitecture): string[] => {
+  const sequenced = arch.resources.flatMap((node, idx) => (node.name && !node.lifecycle ? [{ idx, name: readPlacedName(node.name), node }] : []))
+  const problems: string[] = []
+  for (const ranged of sequenced) {
+    const item = ranged.node.forEach ? ranged.name : null
+    if (item?.marker === undefined) { continue }
+    for (const other of sequenced) {
+      if (!other.node.forEach && other.name && other.name.marker === undefined && itemNamesMeet(item, other.name.stem)) {
+        const index = other.name.stem.slice(item.stem.length + 1 + item.marker.length)
+        problems.push(`${ARCHITECTURE_TEMPLATE_PATH}: resources[${ranged.idx}].name — one object per item of ${ranged.node.forEach}, and item ${index} is named <release>-${other.name.stem}, the name resources[${other.idx}] (${other.node.id}) gives its object: the cluster would hold one object for both, and the detail page could not tell them apart. Rename one of them — in its template and here, together.`)
+      }
+    }
+  }
+  return problems
+}
+
+/**
  * The names (L1, L4, L5). The detail page finds a node's objects by name — informer-served objects
  * carry no apiVersion or kind to join on — so a sequenced node needs one, it must be the name its
- * template really gives the object, and no two sequenced nodes may share one. A template whose name
- * the scan cannot pin down (gateExtract's extractNameExpression) is not second-guessed.
+ * template really gives the object, and no two sequenced nodes may share one — not even one item of
+ * a ranged node (itemNameProblems). A template whose name the scan cannot pin down (gateExtract's
+ * extractNameExpression) is not second-guessed.
  */
 const descriptorNameProblems = (arch: ChartArchitecture, files: Record<string, string>): string[] => {
   const problems: string[] = []
@@ -371,7 +465,7 @@ const descriptorNameProblems = (arch: ChartArchitecture, files: Record<string, s
       problems.push(`${at} — the same name as resources[${first}]: the detail page tells objects apart by name, so two resources cannot share one.`)
     }
   })
-  return problems
+  return [...problems, ...itemNameProblems(arch)]
 }
 
 /**

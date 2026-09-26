@@ -86,15 +86,24 @@ export interface FileUpdateResult {
    * architecture file is held with its graph block regenerated (see `settle`).
    */
   content?: string
+  /** The one path a refusal is about, when it is about one (applyFiles). */
+  path?: string
+}
+
+/** Several files as ONE change — see `applyFiles`. A path belongs to at most one list. */
+export interface FilesChange {
+  add?: Record<string, string>
+  edit?: Record<string, string>
+  remove?: string[]
 }
 
 /**
  * A tree as the store holds it. A CHART's architecture file is regenerated on every write
  * (blueprintDraft's regenerateArchitecture): every way a held chart changes comes through here — an
- * edit in Chart files, a file the composer adds, a removal, an Undo, a Start, an agent's rendered
- * proposal — so none of them can leave the `krateo:graph` block behind its descriptor. It stays one
- * ordinary write: the gate is disarmed and a render arms it, as for any other. A page set has no
- * architecture file, and is held as given.
+ * edit in Chart files, a file the composer adds, a composer gesture's batch (a node placed, a node
+ * ranged), a removal, an Undo, a Start, an agent's rendered proposal — so none of them can leave the
+ * `krateo:graph` block behind its descriptor. It stays one ordinary write: the gate is disarmed and a
+ * render arms it, as for any other. A page set has no architecture file, and is held as given.
  */
 const settle = (files: Record<string, string>, kind: DraftKind): Record<string, string> =>
   (kind === 'blueprint' ? regenerateArchitecture(files) : files)
@@ -182,6 +191,71 @@ export interface BlueprintDraftStore {
    * believing the draft changed.
    */
   removeFile: (path: string) => FileUpdateResult
+  /**
+   * ADD, EDIT and REMOVE several files as ONE change — the composer's gestures (a placed node is its
+   * template AND a rewritten descriptor). All or nothing: every precondition `addFile`, `updateFile`
+   * and `removeFile` would check is checked FIRST, for every path, plus two of its own — a path may
+   * appear in only one list, and an empty change is refused. The 512 KiB cap is measured once, over
+   * the result. A refusal leaves the held tree exactly as it was; an acceptance announces once.
+   *
+   * The result is SETTLED like every other write (`settle`): a placement rewrites only
+   * data.architecture (planPlace's rewrapDescriptor), and the graph block compiled from it is the
+   * store's to write — so the held chart is the one a single-file save of the same descriptor would
+   * hold, and the cap measures those bytes.
+   */
+  applyFiles: (change: FilesChange) => FileUpdateResult
+}
+
+/** Own keys only: a file named `constructor` is not held because every object has one. */
+const holds = (files: Record<string, string>, path: string): boolean => Object.prototype.hasOwnProperty.call(files, path)
+
+/**
+ * Why a change cannot be applied to `files`, or null when it can. Pure, and checked in full before
+ * anything is written — that is what makes applyFiles all-or-nothing.
+ */
+const changeRefusal = (files: Record<string, string>, change: FilesChange): { error: string; path?: string } | null => {
+  const adds = Object.keys(change.add ?? {})
+  const edits = Object.keys(change.edit ?? {})
+  const removes = change.remove ?? []
+  if (!adds.length && !edits.length && !removes.length) {
+    return { error: 'the change is empty — there is nothing to write' }
+  }
+  const seen = new Set<string>()
+  for (const path of [...adds, ...edits, ...removes]) {
+    if (seen.has(path)) {
+      return { error: `"${path}" appears more than once in one change — add, edit or remove it, once`, path }
+    }
+    seen.add(path)
+  }
+  for (const path of adds) {
+    if (!path) {
+      return { error: 'a new file needs a path' }
+    }
+    if (holds(files, path)) {
+      return { error: `"${path}" is already in the draft — edit it instead`, path }
+    }
+  }
+  for (const path of edits) {
+    if (!holds(files, path)) {
+      return { error: `"${path}" is not a held file — only previewed files can be edited`, path }
+    }
+  }
+  for (const path of removes) {
+    if (!holds(files, path)) {
+      return { error: `"${path}" is not in the draft`, path }
+    }
+  }
+  return null
+}
+
+/** The tree after a change the caller has already found acceptable. `fromEntries` DEFINES each key. */
+const changedTree = (files: Record<string, string>, change: FilesChange): Record<string, string> => {
+  const dropped = new Set(change.remove ?? [])
+  return Object.fromEntries([
+    ...Object.entries(files).filter(([path]) => !dropped.has(path)).map(([path, content]) =>
+      [path, holds(change.edit ?? {}, path) ? (change.edit ?? {})[path] : content] as const),
+    ...Object.entries(change.add ?? {}),
+  ])
 }
 
 export const createBlueprintDraftStore = (onChange?: DraftChangeListener): BlueprintDraftStore => {
@@ -219,10 +293,30 @@ export const createBlueprintDraftStore = (onChange?: DraftChangeListener): Bluep
       announce()
       return { bytes, ok: true }
     },
+    applyFiles: (change) => {
+      if (!held) {
+        return { bytes: 0, error: 'no draft is held', ok: false }
+      }
+      const refusal = changeRefusal(held.files, change)
+      if (refusal) {
+        return { bytes: held.bytes, ok: false, ...refusal }
+      }
+      const nextFiles = settle(changedTree(held.files, change), held.kind)
+      const bytes = measureTreeBytes(nextFiles)
+      if (bytes > BLUEPRINT_DRAFT_MAX_BYTES) {
+        const kib = Math.ceil(bytes / 1024)
+        // Same contract as every other write: over the cap, the held tree is left EXACTLY as it was.
+        return { bytes: held.bytes, error: `the change brings the draft to ${kib} KiB — over the 512 KiB cap`, ok: false }
+      }
+      held = { bytes, files: nextFiles, kind: held.kind }
+      announce()
+      return { bytes, ok: true }
+    },
     clear: () => {
       held = null
       announce()
     },
+    get: () => held,
     removeFile: (path) => {
       if (!held) {
         return { bytes: 0, error: 'no draft is held', ok: false }
@@ -230,9 +324,8 @@ export const createBlueprintDraftStore = (onChange?: DraftChangeListener): Bluep
       if (!(path in held.files)) {
         return { bytes: held.bytes, error: `"${path}" is not in the draft`, ok: false }
       }
-      const remaining = { ...held.files }
-      delete remaining[path]
-      const nextFiles = settle(remaining, held.kind)
+      // The same tree a batch that removes only this path would hold — no `delete` on a copy.
+      const nextFiles = settle(changedTree(held.files, { remove: [path] }), held.kind)
       const bytes = measureTreeBytes(nextFiles)
       // `held.kind` carries forward, as it does for every other edit: removing a file never changes
       // WHO authored the draft.
@@ -240,7 +333,6 @@ export const createBlueprintDraftStore = (onChange?: DraftChangeListener): Bluep
       announce()
       return { bytes, ok: true }
     },
-    get: () => held,
     set: (files: Record<string, string>, kind: DraftKind) => {
       const result = createBlueprintDraft(files, kind)
       if (result.ok) {

@@ -1,0 +1,13 @@
+{{- /* krateo:placed LocalResource git.krateo.io/v1alpha1 (custom) — written when it was placed; the rest of this file is yours. */}}
+{{- range $i, $f := (include "builder-publish.files" $ | fromYamlArray) }}
+---
+apiVersion: git.krateo.io/v1alpha1
+kind: LocalResource
+metadata:
+  name: {{ printf "%s-i%d" (printf "%s-localresource" $.Release.Name | trunc 55 | trimSuffix "-") (int $i) }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  fromResource: {}
+  toRepo: {}
+  # optional: createCommitMessage, insecure, override, placeholdersToOverride, syncEnabled, unsupportedCapabilities, updateCommitMessage
+{{- end }}
