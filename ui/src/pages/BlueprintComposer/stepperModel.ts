@@ -26,15 +26,19 @@ import { levelOf, type ChartArchitecture, type DeriveResult, type ResourceClass,
 /** The name the stepper shows for the one state a chart with no sequenced resources has. */
 export const INITIAL_STATE_NAME = 'initial'
 
-/** A readiness predicate the author did not have to write: what each class means by "ready". */
+/**
+ * What "ready" means when the author wrote no `readyWhen` — said as the gate compiles it. gateGen
+ * turns a missing `readyWhen` into EXISTENCE (a bare `lookup`), and the composition detail page
+ * follows the gate, so the stepper says the same rather than promising a class's own readiness
+ * (kstatus Current, Ready=True and Synced=True) that nothing checks yet. Those become real defaults
+ * when the gate can compile them.
+ */
 export const READINESS_DEFAULTS: Record<ResourceClass, string | null> = {
-  // A composition projects its lifecycle through the two conditions every Krateo claim carries.
-  composition: 'Ready=True and Synced=True',
+  composition: 'exists (no readyWhen)',
   // A custom resource has no agreed readiness; the descriptor must say (the parser refuses a
   // `ready: true` edge onto one without it).
   custom: null,
-  // kstatus: the kind's own convention (Deployment available, Job complete, Service endpoints …).
-  native: 'kstatus Current',
+  native: 'exists (no readyWhen)',
 }
 
 /** Shown in place of a predicate when a custom resource has no readyWhen. */

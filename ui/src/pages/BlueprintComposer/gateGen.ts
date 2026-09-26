@@ -12,17 +12,26 @@
  * migrated chart keeps its hand-written gate working while it is being described, and the preview
  * verdict reports it as an unmanaged gate.
  *
- * NAMES. The descriptor does not carry object names; the gate needs them. `names` maps a resource
- * id to the Helm expression that names it (`printf "%s-repo" .Values.name | trunc 63 …`), and for a
- * `forEach` target the expression may use `$i`/`$f` from the range.
+ * NAMES come from the descriptor: each node's `name` is the Helm pipeline its template's
+ * `metadata.name` evaluates (`printf "%s-repo" .Values.name | trunc 63 …` — the lint holds the two
+ * equal), and for a `forEach` target it may use `$i`/`$f` from the range. A target without one is
+ * refused: a gate that looks up a guessed name never opens, and says nothing.
+ *
+ * THE SAME `when` AND `forEach` AS THE GRAPH BLOCK (graphCompile.ts), so the page and the gate read
+ * an edge alike. A `when` is a nil-safe `dig` — a bare `.Values.a.b` fails the render when `a` is
+ * absent — and a `forEach` is a Values path or a named helper. `$v` is the graph block's own
+ * variable and is not in scope in a template, so the values map is written inline here. The range
+ * body runs inside `with $`: inside `range`, `.` is the item, and the lookup needs the root's
+ * `.Release`.
  */
 import type { ChartArchitecture, Dependency, ResourceNode } from './architecture'
+import { forEachSource, valuesTruthy } from './graphCompile'
 
 export const GATE_BEGIN = '{{- /* krateo:gate begin — generated from architecture.yaml; edit the descriptor, not this block. */}}'
 export const GATE_END = '{{- /* krateo:gate end */}}'
 
-/** Helm expressions that name each resource, by id. Absent: the gate cannot be rendered. */
-export type NameExpressions = Record<string, string>
+/** The values map as a template reaches it. */
+const TEMPLATE_VALUES = '(.Values.AsMap)'
 
 export type GateResult = { ok: true; block: string } | { ok: false; reason: string }
 
@@ -40,7 +49,7 @@ const readyGuard = (dep: Dependency, target: ResourceNode, nameExpr: string, var
  * The preamble that sets `$gate`, followed by the `if` that the template body goes inside. The
  * caller closes it with `GATE_END` after the body (see `applyGate`).
  */
-export const renderGatePreamble = (node: ResourceNode, arch: ChartArchitecture, names: NameExpressions): GateResult => {
+export const renderGatePreamble = (node: ResourceNode, arch: ChartArchitecture): GateResult => {
   const deps = node.dependsOn ?? []
   if (!deps.length) {
     return { ok: false, reason: `"${node.id}" has no dependsOn — nothing to gate` }
@@ -51,24 +60,21 @@ export const renderGatePreamble = (node: ResourceNode, arch: ChartArchitecture, 
     if (!target) {
       return { ok: false, reason: `"${dep.ref}" is not a resource of this chart` }
     }
-    // Own keys only. A resource id is author text, and `names[id]` for `constructor`, `toString` …
-    // finds Object.prototype: a Function where the expression should be, which is truthy, so the
-    // missing name was not refused and the Function's source was spliced into the lookup. (Object.hasOwn
-    // is ES2022; this project's lib is ES2020 — the same call architecture.ts's levelOf makes.)
-    const nameExpr = Object.prototype.hasOwnProperty.call(names, target.id) ? names[target.id] : undefined
-    if (!nameExpr) {
-      return { ok: false, reason: `no name expression for "${target.id}"` }
+    // The node's own field — never an index keyed by id, where `constructor`, `toString` … found
+    // Object.prototype and spliced a Function's source into the lookup.
+    if (!target.name) {
+      return { ok: false, reason: `"${target.id}" has no name — the gate looks its object up by the name its template gives it` }
     }
-    const guard = readyGuard(dep, target, nameExpr, `$dep${idx}`)
+    const guard = readyGuard(dep, target, target.name, `$dep${idx}`)
     let body = guard
     if (dep.all) {
       if (!target.forEach) {
         return { ok: false, reason: `"${dep.ref}" is not a forEach resource, so all: true has nothing to range over` }
       }
-      body = [`{{- range $i, $f := (include "${target.forEach}" $ | fromYamlArray) -}}`, ...guard, '{{- end -}}']
+      body = [`{{- range $i, $f := (${forEachSource(target.forEach, TEMPLATE_VALUES)}) -}}`, '{{- with $ -}}', ...guard, '{{- end -}}', '{{- end -}}']
     }
     if (dep.when) {
-      body = [`{{- if ${dep.when} -}}`, ...body, '{{- end -}}']
+      body = [`{{- if ${valuesTruthy(dep.when, TEMPLATE_VALUES)} -}}`, ...body, '{{- end -}}']
     }
     lines.push(...body)
   }

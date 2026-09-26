@@ -7,6 +7,7 @@ resources:
     apiVersion: git.krateo.io/v1alpha1
     kind: LocalResource
     template: templates/localresources.yaml
+    name: printf "%s-%03d" $.Values.name (int $i) | trunc 63 | trimSuffix "-"
     forEach: builder-publish.files
     dependsOn:
       - ref: repository
@@ -21,6 +22,7 @@ resources:
     apiVersion: github.krateo.io/v2022-11-28
     kind: PullRequest
     template: templates/pullrequest.yaml
+    name: printf "%s-pr" .Values.name | trunc 63 | trimSuffix "-"
     when: .Values.pullRequest.create
     dependsOn:
       - ref: localresources
@@ -31,6 +33,7 @@ resources:
     apiVersion: git.krateo.io/v1alpha1
     kind: Repo
     template: templates/repo.yaml
+    name: printf "%s-source" .Values.name | trunc 63 | trimSuffix "-"
     when: .Values.source.url
     dependsOn:
       - ref: repository
@@ -42,6 +45,7 @@ resources:
     apiVersion: github.krateo.io/v2022-11-28
     kind: Repository
     template: templates/repository.yaml
+    name: printf "%s-repo" .Values.name | trunc 63 | trimSuffix "-"
     when: .Values.repository.create
     readyWhen: .status.default_branch
   - id: username-secret
@@ -49,4 +53,5 @@ resources:
     apiVersion: v1
     kind: Secret
     template: templates/username-secret.yaml
+    name: printf "%s-git-username" .Values.name | trunc 63 | trimSuffix "-"
     lifecycle: shim

@@ -13,11 +13,15 @@
  * NAME the levels the graph computes, so the picture and the text cannot disagree.
  *
  * WHERE IT LIVES. As the `data.architecture` block of `templates/architecture.yaml`, which renders a
- * ConfigMap per composition with `.Values` and resource names already resolved — so the composition
- * detail page can read it through snowplow `/call` under the user's own RBAC. `wrap`/`unwrap` below
- * are that packaging; everything else here works on the plain descriptor text.
+ * ConfigMap per composition — so the composition detail page can read it through snowplow `/call`
+ * under the user's own RBAC. The descriptor itself is plain text there; the generated
+ * `krateo:graph` block after it (graphCompile.ts) is what resolves `.Values` and each node's
+ * object names for the composition. `wrap`/`unwrap` below are that packaging; everything else here
+ * works on the plain descriptor text.
  */
 import { dump, load } from 'js-yaml'
+
+import { compileGraphBlock, graphBlockIn } from './graphCompile'
 
 export const ARCHITECTURE_API_VERSION = 'architecture.krateo.io/v1alpha1'
 export const ARCHITECTURE_KIND = 'ChartArchitecture'
@@ -42,6 +46,12 @@ export interface ResourceNode {
   apiVersion: string
   kind: string
   template: string
+  /**
+   * The Helm pipeline that names the object, bare — `printf "%s-repo" .Values.name | trunc 63 |
+   * trimSuffix "-"` — exactly as the template's `metadata.name` writes it. Required on a sequenced
+   * node (the lint's rule, not the parser's): the detail page finds a node's objects by it.
+   */
+  name?: string
   /** The resource renders only when this Values path is truthy. */
   when?: string
   /** The resource is rendered once per item of this list (the helper or Values path ranged over). */
@@ -90,27 +100,62 @@ const RESERVED_ID = '__proto__'
  * reads the braces as a flow mapping and the field silently becomes an object; quoted, Helm renders
  * the VALUE into the ConfigMap and the detail page reads `true` where it expected a path. Both are
  * refused with the same message, for an agent and a person alike.
+ *
+ * Each path also has a SHAPE, because the graph block compiles it: a `when` becomes a `dig` over the
+ * values map one key per segment, a `readyWhen` a walk of the live object, and a `forEach` either
+ * that `dig` (a Values path) or an `include` (a named helper, as builder-publish ranges over
+ * `builder-publish.files`). Anything else would compile to a template that does not render.
  */
-const PATH_FIELDS: Record<'when' | 'forEach' | 'readyWhen', string> = {
-  forEach: 'a bare path, e.g. .Values.files',
-  readyWhen: 'a bare jq path over the live object, e.g. .status.ready',
-  when: 'a bare path, e.g. .Values.a.b',
+const VALUES_PATH = /^\.Values(\.[A-Za-z0-9_-]+)+$/
+const STATUS_PATH = /^\.status(\.[A-Za-z0-9_-]+)+$/
+const HELPER_NAME = /^[A-Za-z0-9_-][A-Za-z0-9_.-]*$/
+
+interface FieldRule {
+  expected: string
+  /** The shape a well-formed value has. Absent: any text that is not a Helm action. */
+  shape?: (value: string) => boolean
 }
 
-const pathProblem = (value: unknown, expected: string): string | null => {
+const PATH_FIELDS: Record<'when' | 'forEach' | 'readyWhen', FieldRule> = {
+  forEach: { expected: 'a bare path (.Values.files) or a named helper (builder-publish.files)', shape: (value) => VALUES_PATH.test(value) || HELPER_NAME.test(value) },
+  readyWhen: { expected: 'a bare jq path over the live object, e.g. .status.ready', shape: (value) => STATUS_PATH.test(value) },
+  when: { expected: 'a bare path, e.g. .Values.a.b', shape: (value) => VALUES_PATH.test(value) },
+}
+
+/**
+ * `name` is a pipeline, not a path, so it has no shape to hold — but it is text Helm never
+ * evaluates in the descriptor, and the graph block splices it into an action of its own, where a
+ * brace pair or a line break would end that action early. Those are refused with the same message.
+ */
+const NAME_FIELD: FieldRule = { expected: 'a bare Helm pipeline, e.g. printf "%s-repo" .Values.name | trunc 63 | trimSuffix "-"' }
+
+const HELM_ACTION = /\{\{|\}\}|\n/
+
+/**
+ * `template` is an ACTION, not a function, so it cannot sit where a name goes: the graph block and
+ * the gate evaluate a name inside parentheses, and Helm refuses the whole chart when a `template` is
+ * there — every render fails in architecture.yaml, not at the node. `include` names the same object
+ * and can sit there; gateExtract reads `{{ template "x" . }}` as that.
+ */
+const TEMPLATE_ACTION = /^template\s/
+
+const pathProblem = (value: unknown, { expected, shape }: FieldRule): string | null => {
   if (value === undefined) { return null }
-  if (typeof value !== 'string' || value.includes('{{')) {
+  if (typeof value !== 'string' || HELM_ACTION.test(value)) {
     return `must be ${expected} — the descriptor takes only bare paths such as .Values.a.b, never a Helm action ({{ … }})`
   }
-  return null
+  return !shape || shape(value) ? null : `must be ${expected}`
 }
 
 /** Faults inside one resource's own fields that do not need the other resources to judge. */
 const fieldProblems = (entry: Record<string, unknown>, at: string): ArchitectureProblem[] => {
   const problems: ArchitectureProblem[] = []
-  for (const [field, expected] of Object.entries(PATH_FIELDS)) {
-    const message = pathProblem(entry[field], expected)
+  for (const [field, rule] of [...Object.entries(PATH_FIELDS), ['name', NAME_FIELD] as const]) {
+    const message = pathProblem(entry[field], rule)
     if (message) { problems.push({ message, path: `${at}.${field}` }) }
+  }
+  if (typeof entry.name === 'string' && TEMPLATE_ACTION.test(entry.name)) {
+    problems.push({ message: 'must name the object with include, not template — include "x" . is the same object; template is an action, and Helm refuses one where the graph block evaluates the name', path: `${at}.name` })
   }
   if (Array.isArray(entry.dependsOn)) {
     const firstAt = new Map<string, number>()
@@ -249,6 +294,7 @@ export const serializeArchitecture = (arch: ChartArchitecture): string => {
     out.apiVersion = node.apiVersion
     out.kind = node.kind
     out.template = node.template
+    if (node.name) { out.name = node.name }
     if (node.when) { out.when = node.when }
     if (node.forEach) { out.forEach = node.forEach }
     if (node.dependsOn?.length) {
@@ -347,32 +393,61 @@ export const deriveStates = (arch: ChartArchitecture): DeriveResult => {
 }
 
 /**
- * The template that carries the descriptor into the cluster: a ConfigMap per composition. The
- * block is indented verbatim, so `.Values` references inside it render with the composition's own
- * values — that is what "stored in the chart, retrieved when deployed" means in practice.
+ * The graph block for a descriptor, or null when there is none to compile: a descriptor that does
+ * not parse, or whose dependencies loop, has no levels to give it. The lint names those faults.
+ */
+export const graphBlockFor = (descriptor: string, chart: string): string | null => {
+  try {
+    const parsed = parseArchitecture(descriptor)
+    const derived = parsed.ok ? deriveStates(parsed.architecture) : null
+    return parsed.ok && derived?.ok ? compileGraphBlock(parsed.architecture, derived, chart) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The template that carries the descriptor into the cluster: a ConfigMap per composition, holding
+ * the descriptor verbatim in `data.architecture` and, after it, the generated `krateo:graph` block
+ * (graphCompile.ts) that resolves it into `data.graph` with the composition's own values.
+ *
+ * NAMED FOR THE COMPOSITION, `<compositionName>-architecture`, so the detail page can compute the
+ * name from the composition it is showing. The release name cannot be computed there: CDC hashes it
+ * whenever `safe-release-name` is on (its default). `compositionName` is in the `global` block CDC
+ * adds to every render; `helm template` and the composer's Preview have none, and fall back to the
+ * release name. No `trunc`: CDC caps the composition name at 63 characters (it is a label value),
+ * so the whole name stays far below the 253 a ConfigMap may have.
  *
  * The label value is QUOTED. Kubernetes decodes manifests as YAML 1.1, where a bare `on`, `yes`,
  * `n`, `true` or `null` is a bool or null, not a string — and a label value that is not a string
  * fails the apply. Those are all valid chart names, so the value is written as a JSON string
  * (a YAML double-quoted scalar). Unwrapping never read the label, so templates written before the
  * quoting unwrap unchanged.
+ *
+ * A FRESH wrap is `wrapAsConfigMapTemplate(unwrapFromConfigMapTemplate(x), chart)`, and it is
+ * idempotent: the descriptor goes back verbatim, and everything around it is a function of it and
+ * the chart name. `chart` is Chart.yaml's name — the lint holds the descriptor's `chart` to it. A
+ * file already held is regenerated in place instead (regenerateGraphBlock, below).
  */
 export const wrapAsConfigMapTemplate = (descriptor: string, chart: string): string => {
   const body = descriptor.trimEnd().split('\n').map((line) => `    ${line}`)
     .join('\n')
+  const graph = graphBlockFor(descriptor, chart)
   return [
     '{{- /* Rendered per composition so the detail page can read the chart architecture through',
     "       snowplow /call under the caller's own RBAC. Edit data.architecture; the composer owns the rest. */}}",
+    '{{- $g := .Values.global | default dict }}',
     'apiVersion: v1',
     'kind: ConfigMap',
     'metadata:',
-    '  name: {{ printf "%s-architecture" .Release.Name | trunc 63 | trimSuffix "-" }}',
+    '  name: {{ printf "%s-architecture" ($g.compositionName | default .Release.Name) }}',
     '  namespace: {{ .Release.Namespace }}',
     '  labels:',
     `    krateo.io/architecture: ${JSON.stringify(chart)}`,
     'data:',
     '  architecture: |',
     body,
+    ...(graph === null ? [] : [graph]),
     '',
   ].join('\n')
 }
@@ -388,4 +463,40 @@ export const unwrapFromConfigMapTemplate = (template: string): string | null => 
     out.push(line.slice(4))
   }
   return `${out.join('\n').trimEnd()}\n`
+}
+
+/** The label line the wrapper writes, whatever value it carries now. */
+const LABEL_LINE = /^(\s+krateo\.io\/architecture:)[^\n]*$/m
+
+/**
+ * REGENERATION in place: the `krateo:graph` block recompiled from the descriptor the template carries
+ * NOW, and the label set to `chart` — every other byte of the file kept, because once a chart is held
+ * the file is its author's, and a label or a comment added around the ConfigMap is theirs to keep.
+ * The draft store runs this on every write to a held chart (blueprintDraft's regenerateArchitecture),
+ * so the block follows each edit of data.architecture and of Chart.yaml's name, whoever made it.
+ *
+ * A template with NO block is written fresh around its descriptor: that is the wrapper from before
+ * the block existed, whose header declares no `$g` for the block to read and names the ConfigMap for
+ * the release, which the detail page cannot compute.
+ *
+ * The template comes back unchanged when there is nothing to compile — not ours, a descriptor that
+ * does not parse, a cycle: the lint names those, and a guessed block would hide them. `chart` null
+ * (Chart.yaml names nothing) compiles with the descriptor's own `chart`, as the lint does. Never
+ * throws: it runs inside the store's write.
+ */
+export const regenerateGraphBlock = (template: string, chart: string | null): string => {
+  try {
+    const descriptor = unwrapFromConfigMapTemplate(template)
+    const parsed = descriptor === null ? null : parseArchitecture(descriptor)
+    if (descriptor === null || !parsed?.ok) { return template }
+    const name = chart ?? parsed.architecture.chart
+    const graph = graphBlockFor(descriptor, name)
+    const current = graphBlockIn(template)
+    if (graph === null) { return template }
+    if (current === null) { return wrapAsConfigMapTemplate(descriptor, name) }
+    // Replaced by a function: the block is full of `$`, which a replacement STRING reads as patterns.
+    return template.replace(current, () => graph).replace(LABEL_LINE, (_line, key: string) => `${key} ${JSON.stringify(name)}`)
+  } catch {
+    return template
+  }
 }

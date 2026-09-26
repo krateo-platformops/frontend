@@ -12,9 +12,9 @@
  * path is shown as text with what that means — nothing renders the resource until the file exists.
  *
  * READINESS IS ALWAYS ANSWERED. A node with no `readyWhen` still has a meaning for "ready" — its
- * class default (kstatus for native, Ready and Synced for a composition) — or, for a custom
- * resource, none at all, which is what makes a `ready: true` edge onto it unsatisfiable. The panel
- * says which of the three it is rather than leaving a blank that reads as "fine".
+ * class default (existence, for a native resource or a composition: what the gate checks) — or, for
+ * a custom resource, none at all, which is what makes a `ready: true` edge onto it unsatisfiable.
+ * The panel says which of the three it is rather than leaving a blank that reads as "fine".
  *
  * THE FORM is `PreviewFormSection` — the drawer's, over the same values.schema.json — so a consumer's
  * create form is previewed one way everywhere. When there is nothing to preview, the reason is named.

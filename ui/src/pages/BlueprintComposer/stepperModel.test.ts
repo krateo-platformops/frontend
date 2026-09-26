@@ -75,7 +75,7 @@ describe('stepperModel — builder-publish, the documented machine', () => {
 })
 
 describe('stepperModel — the class default when readyWhen is omitted', () => {
-  it('native → kstatus, composition → Ready/Synced, custom → a prompt to declare one', () => {
+  it('native and composition → existence, as the gate compiles it; custom → a prompt to declare one', () => {
     const arch = empty([
       { apiVersion: 'apps/v1', class: 'native', id: 'deploy', kind: 'Deployment', template: 't/deploy.yaml' },
       { apiVersion: 'composition.krateo.io/v0-1-0', class: 'composition', id: 'db', kind: 'Postgres', template: 't/db.yaml' },
@@ -89,6 +89,7 @@ describe('stepperModel — the class default when readyWhen is omitted', () => {
         template: 't/svc.yaml',
       },
     ])
+    expect(READINESS_DEFAULTS).toEqual({ composition: 'exists (no readyWhen)', custom: null, native: 'exists (no readyWhen)' })
     expect(stepperModel(arch, machine(arch), 0).leavesWhen).toEqual([
       { from: 'deploy', predicate: READINESS_DEFAULTS.native, source: 'default', to: 'svc' },
       { from: 'db', predicate: READINESS_DEFAULTS.composition, source: 'default', to: 'svc' },

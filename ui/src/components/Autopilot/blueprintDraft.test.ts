@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { ARCHITECTURE_TEMPLATE_PATH, wrapAsConfigMapTemplate } from '../../pages/BlueprintComposer/architecture'
+import { ARCHITECTURE_TEMPLATE_PATH, unwrapFromConfigMapTemplate, wrapAsConfigMapTemplate } from '../../pages/BlueprintComposer/architecture'
 
 import {
   buildFormPreviewModel,
@@ -24,6 +24,7 @@ import {
   parseRawTemplates,
   RAW_TEMPLATES_MAX_BYTES,
   rawTemplatesByteSize,
+  regenerateArchitecture,
   stripCodeFence,
 } from './blueprintDraft'
 
@@ -298,18 +299,21 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
       'resources:',
       resources,
     ].join('\n')
-    const node = (id: string, dependsOn = '') => [
+    const node = (id: string, dependsOn = '', extra: string[] = [`    name: printf "%s-${id}" .Release.Name`]) => [
       `  - id: ${id}`,
       '    class: native',
       '    apiVersion: v1',
       '    kind: ConfigMap',
       `    template: templates/${id}.yaml`,
+      ...extra,
       ...(dependsOn ? [`    dependsOn: [{ ref: ${dependsOn} }]`] : []),
     ].join('\n')
-    const withArch = (text: string) => lintBlueprintDraft({ ...cleanDraft, [ARCHITECTURE_TEMPLATE_PATH]: text }, 'blueprint').join('\n')
+    const withArch = (text: string, more: Record<string, string> = {}) =>
+      lintBlueprintDraft({ ...cleanDraft, ...more, [ARCHITECTURE_TEMPLATE_PATH]: text }, 'blueprint').join('\n')
+    const wrapped = (...nodes: string[]) => wrapAsConfigMapTemplate(descriptor(nodes.join('\n')), 'pg-app')
 
     it('passes a well-formed, acyclic descriptor', () => {
-      expect(withArch(wrapAsConfigMapTemplate(descriptor([node('a'), node('b', 'a')].join('\n')), 'pg-app'))).toBe('')
+      expect(withArch(wrapped(node('a'), node('b', 'a')))).toBe('')
     })
 
     it('refuses a template that does not carry the descriptor where the readers look', () => {
@@ -333,7 +337,111 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
     })
 
     it('refuses a dependency cycle — a chart with one never leaves its first state', () => {
-      expect(withArch(wrapAsConfigMapTemplate(descriptor([node('a', 'b'), node('b', 'a')].join('\n')), 'pg-app'))).toMatch(/cycle \(.*→.*\)/)
+      expect(withArch(wrapped(node('a', 'b'), node('b', 'a')))).toMatch(/cycle \(.*→.*\)/)
+    })
+
+    describe('names and the graph block (L1–L5)', () => {
+      const shim = node('legacy', '', ['    lifecycle: shim'])
+
+      it('L1: a sequenced resource needs a name; a shim does not', () => {
+        const problems = withArch(wrapped(node('a'), node('b', 'a', []), shim))
+        expect(problems).toContain('resources[1].name — required on a sequenced resource')
+        expect(problems).not.toContain('resources[2]')
+      })
+
+      it('L1: when the template names its object, the problem says with what', () => {
+        const template = 'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ printf "%s-b" .Release.Name }}\n'
+        expect(withArch(wrapped(node('b', '', [])), { 'templates/b.yaml': template })).toContain('templates/b.yaml names it printf "%s-b" .Release.Name.')
+      })
+
+      it('L2: the descriptor\'s chart must be Chart.yaml\'s name — the label and the graph carry it', () => {
+        const other = wrapAsConfigMapTemplate(descriptor(node('a')).replace('chart: pg-app', 'chart: pg-other'), 'pg-app')
+        expect(withArch(other)).toContain('chart — "pg-other" is not this chart: Chart.yaml names it "pg-app"')
+      })
+
+      it('L3: the graph block must be there, and be exactly what the descriptor compiles to', () => {
+        const text = wrapped(node('a'), node('b', 'a'))
+        const absent = text.slice(0, text.indexOf('{{- /* krateo:graph begin'))
+        expect(unwrapFromConfigMapTemplate(absent)).toBe(unwrapFromConfigMapTemplate(text))
+        expect(withArch(absent)).toContain('has no krateo:graph block after data.architecture')
+        // A hand edit to the descriptor leaves the block behind…
+        const handEdited = text.replace('    name: printf "%s-b" .Release.Name', '    name: printf "%s-bee" .Release.Name')
+        expect(withArch(handEdited)).toContain('the krateo:graph block no longer matches data.architecture')
+        // …and so does a hand edit to the block itself.
+        expect(withArch(text.replace('"level" 1', '"level" 0'))).toContain('no longer matches data.architecture')
+        // Both say how it comes back, in a way a person has: any save of the chart rewrites the block.
+        expect(withArch(handEdited)).toContain('the composer rewrites it whenever the chart is saved — in Chart files, by the composer or by Autopilot. Apply any edit in Chart files to have it rewritten, or Undo.')
+        expect(withArch(wrapAsConfigMapTemplate(unwrapFromConfigMapTemplate(handEdited)!, 'pg-app'))).toBe('')
+      })
+
+      it('L3 is a backstop: a save regenerates the block, and so does the parse of a tree Autopilot proposes', () => {
+        const text = wrapped(node('a'), node('b', 'a'))
+        const tree = { ...cleanDraft, [ARCHITECTURE_TEMPLATE_PATH]: text.replace('    name: printf "%s-b" .Release.Name', '    name: printf "%s-bee" .Release.Name') }
+        expect(lintBlueprintDraft(tree, 'blueprint').join('\n')).toContain('no longer matches data.architecture')
+        // What every write to a held chart does (the store), and what previewBlueprint's arg guard does
+        // BEFORE the lint and the render, so the bytes rendered are the bytes held.
+        expect(lintBlueprintDraft(regenerateArchitecture(tree), 'blueprint')).toEqual([])
+        expect(parseRawTemplates(tree)).toEqual(regenerateArchitecture(tree))
+        // A chart renamed in Chart.yaml and in the descriptor: the block and the label follow.
+        const renamed = { ...cleanDraft, [ARCHITECTURE_TEMPLATE_PATH]: text.replace('chart: pg-app', 'chart: pg-renamed'), 'Chart.yaml': 'apiVersion: v2\nname: pg-renamed\nversion: 0.1.0\n' }
+        expect(lintBlueprintDraft(renamed, 'blueprint').join('\n')).toContain('no longer matches data.architecture')
+        expect(lintBlueprintDraft(regenerateArchitecture(renamed), 'blueprint')).toEqual([])
+        expect(regenerateArchitecture(renamed)[ARCHITECTURE_TEMPLATE_PATH]).toContain('krateo.io/architecture: "pg-renamed"')
+        // Nothing to regenerate is the same tree back.
+        expect(regenerateArchitecture(cleanDraft)).toBe(cleanDraft)
+      })
+
+      it('L3: the block is compiled with Chart.yaml\'s name, not whatever the file was wrapped with', () => {
+        expect(withArch(wrapAsConfigMapTemplate(descriptor(node('a')), 'pg-other'))).toContain('no longer matches data.architecture')
+      })
+
+      it('L4: a name must be the one its template gives the object — when the scan can tell', () => {
+        const template = (name: string) => `apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: ${name}\nspec:\n  name: not-this\n`
+        const text = wrapped(node('a'))
+        expect(withArch(text, { 'templates/a.yaml': template('{{ printf "%s-a" .Release.Name }}') })).toBe('')
+        expect(withArch(text, { 'templates/a.yaml': template('{{ printf "%s-other" .Release.Name | quote }}') }))
+          .toContain('resources[0].name — templates/a.yaml names its object printf "%s-other" .Release.Name, not printf "%s-a" .Release.Name')
+        // A variable assigned twice is not guessed at: no L4 either way.
+        const twice = '{{- $n := "x" -}}\n{{- $n = "y" -}}\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ $n }}\n'
+        expect(withArch(text, { 'templates/a.yaml': twice })).toBe('')
+      })
+
+      it('L4: inside a range or a with, the name that resolves where the block evaluates it is the one that passes', () => {
+        const scoped = (open: string, name: string) => `${open}\n---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ ${name} }}\n{{- end }}\n`
+        const templates = {
+          'templates/db.yaml': scoped('{{- with .Values.db }}', '.name'),
+          'templates/items.yaml': scoped('{{- range .Values.items }}', 'printf "%s-%s" $.Release.Name .name'),
+        }
+        const text = wrapped(
+          node('items', '', ['    name: printf "%s-%s" $.Release.Name $f.name', '    forEach: .Values.items']),
+          node('db', '', ['    name: .Values.db.name', '    when: .Values.db']),
+        )
+        expect(withArch(text, templates)).toBe('')
+      })
+
+      it('L1/L4: a template named with the template action is matched by the include form — the one the block can evaluate', () => {
+        const svc = { 'templates/svc.yaml': 'apiVersion: v1\nkind: Service\nmetadata:\n  name: {{ template "pg-app.fullname" . }}\n' }
+        expect(withArch(wrapped(node('svc', '', [])), svc)).toContain('templates/svc.yaml names it include "pg-app.fullname" .')
+        expect(withArch(wrapped(node('svc', '', ['    name: include "pg-app.fullname" .'])), svc)).toBe('')
+        expect(withArch(wrapped(node('svc', '', ['    name: template "pg-app.fullname" .'])), svc)).toContain('resources[0].name — must name the object with include, not template')
+      })
+
+      it('L5: two sequenced resources cannot share a name — the page tells objects apart by it', () => {
+        const same = ['    name: printf "%s-same" .Release.Name']
+        const problems = withArch(wrapped(node('a', '', same), node('b', 'a', same)))
+        expect(problems).toContain('resources[1].name — the same name as resources[0]')
+        expect(problems).not.toContain('resources[0].name')
+        // A shim is outside the sequence: sharing a name with one is not refused.
+        const namedShim = node('legacy', '', [...same, '    lifecycle: shim'])
+        expect(withArch(wrapped(node('a', '', same), namedShim))).toBe('')
+      })
+
+      it('NEVER throws, whatever the templates hold', () => {
+        const text = wrapped(node('a'))
+        for (const template of ['', '{{', 'kind: X\nmetadata:\n  name: {{ $ }}\n', 'kind: X\nmetadata:\n  name: "{{ .a }}-{{ .b }}"\n']) {
+          expect(() => withArch(text, { 'templates/a.yaml': template })).not.toThrow()
+        }
+      })
     })
   })
 

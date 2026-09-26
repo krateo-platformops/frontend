@@ -26,6 +26,7 @@
  */
 
 import type { ApplyResourceSetOp } from './applyResourceSet'
+import { regenerateArchitecture } from './blueprintDraft'
 import { OAS_ATTACHMENT_MAX_BYTES, utf8ByteLength } from './oasAttachment'
 import { heldKeyForDisplayedPath } from './pageDraft'
 
@@ -80,14 +81,31 @@ export interface FileUpdateResult {
   ok: boolean
   bytes: number
   error?: string
+  /**
+   * On a written edit, the bytes now held for the file — not always the ones sent: a chart's
+   * architecture file is held with its graph block regenerated (see `settle`).
+   */
+  content?: string
 }
+
+/**
+ * A tree as the store holds it. A CHART's architecture file is regenerated on every write
+ * (blueprintDraft's regenerateArchitecture): every way a held chart changes comes through here — an
+ * edit in Chart files, a file the composer adds, a removal, an Undo, a Start, an agent's rendered
+ * proposal — so none of them can leave the `krateo:graph` block behind its descriptor. It stays one
+ * ordinary write: the gate is disarmed and a render arms it, as for any other. A page set has no
+ * architecture file, and is held as given.
+ */
+const settle = (files: Record<string, string>, kind: DraftKind): Record<string, string> =>
+  (kind === 'blueprint' ? regenerateArchitecture(files) : files)
 
 /**
  * Validate + measure a parsed chart tree (the map `parseRawTemplates` already produced).
  * Over the 512 KiB TOTAL cap → not held, with a size hint. An empty map is refused (there
  * is nothing to publish).
  */
-export const createBlueprintDraft = (files: Record<string, string>, kind: DraftKind): BlueprintDraftResult => {
+export const createBlueprintDraft = (given: Record<string, string>, kind: DraftKind): BlueprintDraftResult => {
+  const files = settle(given, kind)
   const paths = Object.keys(files)
   if (paths.length === 0) {
     return { error: 'the blueprint draft is empty — draft the chart tree in the rail and preview it first', ok: false }
@@ -189,7 +207,7 @@ export const createBlueprintDraftStore = (onChange?: DraftChangeListener): Bluep
         // Silently overwriting here would make "add" a way to bypass them.
         return { bytes: held.bytes, error: `"${path}" is already in the draft — edit it instead`, ok: false }
       }
-      const nextFiles = { ...held.files, [path]: content }
+      const nextFiles = settle({ ...held.files, [path]: content }, held.kind)
       const bytes = measureTreeBytes(nextFiles)
       if (bytes > BLUEPRINT_DRAFT_MAX_BYTES) {
         const kib = Math.ceil(bytes / 1024)
@@ -212,8 +230,9 @@ export const createBlueprintDraftStore = (onChange?: DraftChangeListener): Bluep
       if (!(path in held.files)) {
         return { bytes: held.bytes, error: `"${path}" is not in the draft`, ok: false }
       }
-      const nextFiles = { ...held.files }
-      delete nextFiles[path]
+      const remaining = { ...held.files }
+      delete remaining[path]
+      const nextFiles = settle(remaining, held.kind)
       const bytes = measureTreeBytes(nextFiles)
       // `held.kind` carries forward, as it does for every other edit: removing a file never changes
       // WHO authored the draft.
@@ -241,7 +260,7 @@ export const createBlueprintDraftStore = (onChange?: DraftChangeListener): Bluep
       if (!(path in held.files)) {
         return { bytes: held.bytes, error: `"${path}" is not a held file — only previewed files can be edited`, ok: false }
       }
-      const nextFiles = { ...held.files, [path]: content }
+      const nextFiles = settle({ ...held.files, [path]: content }, held.kind)
       const bytes = measureTreeBytes(nextFiles)
       if (bytes > BLUEPRINT_DRAFT_MAX_BYTES) {
         const kib = Math.ceil(bytes / 1024)
@@ -250,7 +269,7 @@ export const createBlueprintDraftStore = (onChange?: DraftChangeListener): Bluep
       }
       held = { bytes, files: nextFiles, kind: held.kind }
       announce()
-      return { bytes, ok: true }
+      return { bytes, content: nextFiles[path], ok: true }
     },
   }
   return store

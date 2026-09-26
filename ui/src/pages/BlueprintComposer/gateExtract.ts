@@ -19,6 +19,11 @@
  * SCANNING, NOT PARSING. A Helm template is not YAML until it is rendered, so this walks lines and
  * tracks `if`/`range`/`with` … `end` nesting to know what encloses the manifest. It is deliberately
  * narrow — it recognises the idioms Krateo charts actually use — and honest about the rest.
+ *
+ * NAMES are read the same way: the expression the template's own `metadata.name` evaluates, which
+ * is what a node's `name` must say (the lint holds the two equal, and the gate looks objects up by
+ * it). One the scan cannot pin down — a variable assigned twice, text around an action, a variable
+ * it does not know, a `.` that a `range` or `with` has rebound — is left out rather than guessed.
  */
 import type { ChartArchitecture, Dependency, ResourceClass, ResourceNode } from './architecture'
 import { ARCHITECTURE_API_VERSION, ARCHITECTURE_KIND } from './architecture'
@@ -71,12 +76,20 @@ const collectVars = (lines: string[]): Map<string, string> => {
   return vars
 }
 
-const resolveValuesPath = (cond: string, vars: Map<string, string>): string | null => {
-  const found = /^(\$\w+|\.Values)((?:\.\w+)*)$/.exec(cond.trim())
-  if (!found) { return null }
-  const head = found[1] === '.Values' ? '.Values' : vars.get(found[1])
-  if (!head || !head.startsWith('.Values')) { return null }
-  return `${head}${found[2]}`
+/**
+ * Variables assigned more than once — `:=` and `=` both count. A name read through one of these
+ * depends on which assignment ran, so it is left unresolved rather than guessed.
+ */
+const reassignedVars = (lines: string[]): Set<string> => {
+  const seen = new Set<string>()
+  const again = new Set<string>()
+  for (const line of lines) {
+    for (const found of line.matchAll(/\{\{-?\s*(\$\w+)\s*:?=[^=]/g)) {
+      if (seen.has(found[1])) { again.add(found[1]) }
+      seen.add(found[1])
+    }
+  }
+  return again
 }
 
 const ACTION = /\{\{-?\s*([\s\S]*?)\s*-?\}\}/g
@@ -98,6 +111,82 @@ const scanBlocks = (lines: string[]): Block[][] => {
     }
   })
   return open
+}
+
+/** The range variables the graph block and the gate bind — any other `$var` would be undefined there. */
+const BOUND_VARS = new Set(['$i', '$f'])
+
+/**
+ * One `metadata.name` value as the Helm expression it evaluates: `{{ $repo }}` through the variable,
+ * `{{ printf … }}` as written, `{{ template "x" . }}` as the `include` that names the same object,
+ * `| quote` dropped (the name is the same string either way), and a literal as a quoted string.
+ * Null for anything else.
+ */
+const nameExpression = (raw: string, vars: Map<string, string>, reassigned: Set<string>): string | null => {
+  const value = raw.replace(/^(["'])(.*)\1$/, '$2')
+  if (!value.includes('{{')) {
+    return value ? JSON.stringify(value) : null
+  }
+  const action = /^\{\{-?\s*([^{}]*?)\s*-?\}\}$/.exec(value)
+  if (!action) { return null }
+  let expr = action[1].replace(/\s*\|\s*quote$/, '')
+  if (/^\$\w+$/.test(expr)) {
+    if (reassigned.has(expr) || !vars.has(expr)) { return null }
+    expr = (vars.get(expr) ?? '').replace(/\s*\|\s*quote$/, '')
+  }
+  // `template` is an action, not a function: it cannot sit inside the parentheses the graph block
+  // and the gate splice a name into. `include` names the same object and can. One with no argument
+  // has no `include` to be.
+  expr = expr.replace(/^template(\s+"[^"]+"\s+)/, 'include$1')
+  if (/^template\s/.test(expr)) { return null }
+  const unbound = [...expr.matchAll(/\$\w+/g)].some((found) => !BOUND_VARS.has(found[0]))
+  return expr && !unbound ? expr : null
+}
+
+/**
+ * An expression that reads `.` where it stands — `.name`, `.Values.x`, a bare `.` argument — rather
+ * than the root (`$.Values.x`) or a variable (`$f.name`).
+ */
+const DOT_RELATIVE = /(?:^|[\s(|,])\.(?!\d)/
+
+/**
+ * The first `  name:` under the `metadata:` that follows the first `kind:` — and only under it: a
+ * two-space `name:` further down belongs to another key (repository.yaml's `spec.name`).
+ *
+ * Inside a `range` or a `with`, `.` is the item or the value, not the root. The graph block and the
+ * gate evaluate a name where `.` IS the root (inside `with $`), so there the same text names nothing:
+ * a name read relative to the dot is left out, rather than held up as the one to match. The name that
+ * does resolve there (`$f.name`, `.Values.db.name`) is the author's to write.
+ */
+const metadataName = (lines: string[], vars: Map<string, string>): string | null => {
+  const kindAt = lines.findIndex((line) => /^kind:/.test(line))
+  const metaAt = kindAt < 0 ? -1 : lines.findIndex((line, idx) => idx > kindAt && /^metadata:\s*$/.test(line))
+  if (metaAt < 0) { return null }
+  const reassigned = reassignedVars(lines)
+  for (let idx = metaAt + 1; idx < lines.length; idx += 1) {
+    if (/^(---|[A-Za-z_][\w.-]*:)/.test(lines[idx])) { return null }
+    const found = /^ {2}name:\s*(.*?)\s*$/.exec(lines[idx])
+    if (found) {
+      const expr = nameExpression(found[1], vars, reassigned)
+      const rebound = scanBlocks(lines)[idx].some((block) => block.keyword !== 'if')
+      return expr && rebound && DOT_RELATIVE.test(expr) ? null : expr
+    }
+  }
+  return null
+}
+
+/** The Helm expression a template's object is named by, or null when the scan cannot pin it down. */
+export const extractNameExpression = (text: string): string | null => {
+  const lines = stripComments(text).split('\n')
+  return metadataName(lines, collectVars(lines))
+}
+
+const resolveValuesPath = (cond: string, vars: Map<string, string>): string | null => {
+  const found = /^(\$\w+|\.Values)((?:\.\w+)*)$/.exec(cond.trim())
+  if (!found) { return null }
+  const head = found[1] === '.Values' ? '.Values' : vars.get(found[1])
+  if (!head || !head.startsWith('.Values')) { return null }
+  return `${head}${found[2]}`
 }
 
 const LOOKUP = /lookup\s+"([^"]+)"\s+"([^"]+)"/g
@@ -129,6 +218,7 @@ interface Scanned {
   id: string
   apiVersion?: string
   kind?: string
+  name?: string
   when?: string
   forEach?: string
   lookups: RawLookup[]
@@ -140,6 +230,8 @@ const scanTemplate = (path: string, text: string): Scanned => {
   const open = scanBlocks(lines)
   const id = path.replace(/^templates\//, '').replace(/\.ya?ml$/, '')
   const out: Scanned = { id, lookups: [], template: path }
+  const name = metadataName(lines, vars)
+  if (name) { out.name = name }
   lines.forEach((line, idx) => {
     if (out.kind === undefined) {
       const kindMatch = /^kind:\s*(\S+)/.exec(line)
@@ -229,6 +321,7 @@ export const extractArchitecture = (chart: string, templates: Record<string, str
 
   const resources: ResourceNode[] = scanned.map((scan) => {
     const node: ResourceNode = { apiVersion: scan.apiVersion, class: classOf(scan.apiVersion), id: scan.id, kind: scan.kind, template: scan.template }
+    if (scan.name) { node.name = scan.name }
     if (scan.when) { node.when = scan.when }
     if (scan.forEach) { node.forEach = scan.forEach }
     const edges = ledger.deps.get(scan.id)

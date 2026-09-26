@@ -211,7 +211,9 @@ const FileEditBlock = ({
       setError(outcome.error)
       return
     }
-    setCurrent(result.content)
+    // What the provider HOLDS, which is not always what was typed: a chart's architecture file comes
+    // back with its graph block regenerated.
+    setCurrent(outcome?.ok && outcome.content !== undefined ? outcome.content : result.content)
     setError(null)
     setEditing(false)
   }
