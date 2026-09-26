@@ -1,0 +1,19 @@
+{{- /* krateo:placed Deployment apps/v1 (native) — written when it was placed; the rest of this file is yours. */}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ printf "%s-deployment" $.Release.Name | trunc 63 | trimSuffix "-" }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ printf "%s-deployment" $.Release.Name | trunc 63 | trimSuffix "-" }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ printf "%s-deployment" $.Release.Name | trunc 63 | trimSuffix "-" }}
+    spec:
+      containers:
+        - name: main
+          image: ""

@@ -132,12 +132,12 @@ describe('BlueprintComposer — the architecture graph', () => {
     expect(style.labelText(edges.find((edge) => edge.id === 'repo:dependsOn[0]'))).toBe('')
   })
 
-  it('zero resources: the screen-3 empty state, adapted — how to add one today — and "S1 · initial"', () => {
+  it('zero resources: the screen-3 empty state — add one from the left — and "S1 · initial"', () => {
     mount()
     hold(seededChart())
     const pane = screen.getByLabelText('Architecture')
     expect(within(pane).getByText('No resources yet')).toBeTruthy()
-    expect(within(pane).getByText(/ask Autopilot to add it/)).toBeTruthy()
+    expect(within(pane).getByText(/another blueprint from the left/)).toBeTruthy()
     expect(within(pane).getByText('0 resources')).toBeTruthy()
     expect(within(pane).getByText('S1 · initial')).toBeTruthy()
     // Nothing to lay out: no graph was drawn at all.
@@ -309,14 +309,16 @@ describe('BlueprintComposer — selecting a node (screen 5)', () => {
     expect(within(inspector).getByText(/Read-only for now/)).toBeTruthy()
   })
 
-  it('a class default answers readiness when readyWhen is omitted, and says it is the default', () => {
+  it('a class default answers readiness when readyWhen is omitted, and says it is the default — in the kind\'s own words', () => {
     mount()
     hold(builderPublishChart())
     act(() => graphDouble.click('username-secret'))
     const inspector = screen.getByLabelText('Inspector')
     expect(within(inspector).getByText('Ready when · default for this class')).toBeTruthy()
-    // What the gate checks when there is no readyWhen: that the object exists (decision D3).
+    // What the gate checks when there is no readyWhen: that the object exists (decision D3) — and,
+    // beside it, a Secret's own kstatus meaning from the palette's native table: it exists.
     expect(within(inspector).getByText('exists (no readyWhen)')).toBeTruthy()
+    expect(within(inspector).getByText('kstatus · exists')).toBeTruthy()
     expect(within(inspector).getByText('outside the sequence')).toBeTruthy()
   })
 

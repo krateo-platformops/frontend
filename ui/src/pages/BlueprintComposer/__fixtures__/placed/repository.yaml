@@ -1,0 +1,11 @@
+{{- /* krateo:placed Repository github.krateo.io/v2022-11-28 (custom) — written when it was placed; the rest of this file is yours. */}}
+apiVersion: github.krateo.io/v2022-11-28
+kind: Repository
+metadata:
+  name: {{ printf "%s-repository" $.Release.Name | trunc 63 | trimSuffix "-" }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  configurationRef: {}
+  name: ""
+  org: ""
+  # optional: auto_init, description, gitignore_template, has_issues, has_projects, has_wiki, homepage, license_template, private, visibility

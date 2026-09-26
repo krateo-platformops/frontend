@@ -1,5 +1,5 @@
 /* Blueprint Composer — a chart, its architecture graph, the machine that graph derives, and the
-   files a publish commits. Mockup screens 2, 3, 5, 8 and 9.
+   files a publish commits. Mockup screens 2, 3, 4, 5, 8, 9 and 10.
 
    TOKENS ONLY, and the mockup's own names map onto them one for one: --panel is --panelbg-color,
    --elev is --light-color, --border is --border-color, --line is --line-color, every status hue is
@@ -134,9 +134,9 @@
   width: 1px;
 }
 
-/* THE WORK AREA: the canvas column and the side column. Wraps when there is no room for both,
-   canvas first, rather than squeezing a 156px-card graph into what is left — and then scrolls as
-   one. Wide enough for both, each column scrolls itself (below). */
+/* THE WORK AREA: three panes — the palette, the canvas column and the side column (screen 3). Wraps
+   when there is no room for all three, in that order, rather than squeezing a 156px-card graph into
+   what is left — and then scrolls as one. Wide enough for all three, each scrolls itself (below). */
 .body {
   align-items: flex-start;
   display: flex;
@@ -274,6 +274,238 @@
   text-decoration: underline;
 }
 
+/* A refusal said in words under the control it is about — the error hue, never a colour alone. */
+.refusalText {
+  color: var(--error-color);
+  font-size: var(--krateo-text-caption);
+  margin: 0;
+}
+
+/* The inspector's form section: its one action, right-aligned above the form. */
+.formHead {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* An input and its button on one line — "One per item of", "Add a field". */
+.addFieldRow {
+  align-items: center;
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+/* ── The palette: the Add pane (screens 3, 4 and 5) ───────────────────────────────────────────── */
+
+/* 200px, as the mockup draws it (05:61). Its own scroller once the three panes stand side by side. */
+.palettePane {
+  flex: 0 0 200px;
+  min-height: 0;
+}
+
+.paletteBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-smd);
+  padding: var(--spacing-sm) var(--spacing-smd) var(--spacing-smd);
+}
+
+.paletteSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xsm);
+}
+
+.paletteSectionHead {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xsm);
+}
+
+/* The Form fields group sits apart from the three classes: secondary, under a rule (03:61). */
+.paletteSecondary {
+  border-top: 1px solid var(--line-color);
+  padding-top: var(--spacing-smd);
+}
+
+/* A row is a real button (C8): the kind in mono, and a faint second line under it. */
+.paletteRow {
+  align-items: flex-start;
+  background: var(--light-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-color);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxs);
+  min-width: 0;
+  padding: var(--spacing-xsm) var(--spacing-sm);
+  text-align: start;
+}
+
+.paletteRow:hover {
+  border-color: var(--primary-color);
+}
+
+.paletteRow[aria-busy='true'] {
+  cursor: progress;
+}
+
+.paletteNested {
+  margin-inline-start: var(--spacing-smd);
+}
+
+.paletteKind {
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-caption);
+  overflow-wrap: anywhere;
+}
+
+.paletteDetail {
+  color: var(--faint-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+}
+
+/* "✓ placed" — a fact, in the faint token, and the row stays a button (decision D14). */
+.placedMark {
+  color: var(--faint-color);
+}
+
+.paletteGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xsm);
+}
+
+/* A custom group: a disclosure button, closed until opened or matched by the filter. */
+.paletteGroupHead {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: var(--gray-color);
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--krateo-text-caption);
+  gap: var(--spacing-xsm);
+  padding: var(--spacing-xxs) 0;
+  text-align: start;
+}
+
+.paletteGroupHead[aria-expanded='true'] .paletteGroupName {
+  color: var(--text-color);
+}
+
+.paletteGroupName {
+  overflow-wrap: anywhere;
+}
+
+.paletteMatches {
+  color: var(--faint-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+}
+
+/* Why a class is empty — a sentence where the list would be, dashed as the mockup draws it (04:70). */
+.paletteNote {
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--gray-color);
+  font-size: var(--krateo-text-caption);
+  margin: 0;
+  padding: var(--spacing-sm) var(--spacing-smd);
+}
+
+.paletteFields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.paletteField {
+  background: var(--light-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--gray-color);
+  cursor: pointer;
+  font-size: var(--krateo-text-caption);
+  padding: var(--spacing-xxs) var(--spacing-sm);
+}
+
+.paletteField:hover {
+  border-color: var(--primary-color);
+  color: var(--text-color);
+}
+
+/* ── The form editor (screen 10) ───────────────────────────────────────────────────────────────── */
+
+.formEditor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+
+.formEditor > :first-child {
+  flex: 1 1 360px;
+}
+
+.formEditor > :last-child {
+  flex: 1 1 300px;
+}
+
+.schemaPath {
+  color: var(--primary-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-caption);
+}
+
+.schemaCode {
+  font-size: var(--krateo-text-caption);
+  overflow-x: auto;
+}
+
+.schemaText {
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-caption);
+}
+
+/* A problem's lines, marked where they are (10:69-73) — the error tint and a rule at the edge. */
+.problemLine {
+  background: var(--krateo-color-status-error-subtle);
+  border-inline-start: 2px solid var(--red-color);
+  display: block;
+}
+
+/* The refusal under the lines, in words, with its fix (10:75). */
+.schemaRefusal {
+  background: var(--krateo-color-status-error-subtle);
+  border: 1px solid var(--red-color);
+  border-radius: var(--radius-md);
+  color: var(--text-color);
+  font-size: var(--krateo-text-caption);
+  padding: var(--spacing-sm) var(--spacing-smd);
+}
+
+.schemaRefusal strong {
+  color: var(--error-color);
+}
+
+/* "Fix it for me" reads as a link inside the sentence, not a button beside it. */
+.inlineAction {
+  height: auto;
+  padding: 0;
+}
+
+.addField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
 /* ── The Start modal (screen 2) ──────────────────────────────────────────────────────────────── */
 
 .modalHeading {
@@ -350,24 +582,27 @@
 }
 
 /*
- * WIDE ENOUGH FOR BOTH COLUMNS: stop wrapping and give each its own scrollbar, so the canvas never
+ * WIDE ENOUGH FOR ALL THREE PANES: stop wrapping and give each its own scrollbar, so the canvas never
  * leaves the screen. Selecting a node reveals its template in Chart files; with one page-wide
  * scroller that reveal scrolled the canvas and the inspector away from the person who had just
- * clicked in them. Now it scrolls the files pane alone. The width is the two columns' bases (520 +
- * 300), the gap and the page padding, rounded up — not a number chosen to look like a breakpoint.
+ * clicked in them. Now it scrolls the files pane alone. The width is the three panes' bases (200 +
+ * 520 + 300), the two gaps and the page padding, rounded up — not a number chosen to look like a
+ * breakpoint.
  */
-@container blueprint-composer (min-width: 900px) {
+@container blueprint-composer (min-width: 1100px) {
   .body {
     align-items: stretch;
     flex-wrap: nowrap;
     overflow: hidden;
   }
 
+  .palettePane,
   .centre,
   .side {
     min-height: 0;
   }
 
+  .palettePane,
   .side {
     overflow-y: auto;
   }

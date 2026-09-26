@@ -1,0 +1,82 @@
+{
+  "apiVersion": "apiextensions.k8s.io/v1",
+  "kind": "CustomResourceDefinition",
+  "metadata": {
+    "name": "localresources.git.krateo.io"
+  },
+  "spec": {
+    "group": "git.krateo.io",
+    "names": {
+      "kind": "LocalResource",
+      "plural": "localresources"
+    },
+    "scope": "Namespaced",
+    "versions": [
+      {
+        "name": "v1alpha1",
+        "served": true,
+        "storage": true,
+        "schema": {
+          "openAPIV3Schema": {
+            "type": "object",
+            "properties": {
+              "spec": {
+                "type": "object",
+                "required": [
+                  "fromResource",
+                  "toRepo"
+                ],
+                "properties": {
+                  "createCommitMessage": {
+                    "type": "string"
+                  },
+                  "fromResource": {
+                    "type": "object"
+                  },
+                  "insecure": {
+                    "type": "boolean"
+                  },
+                  "override": {
+                    "type": "boolean"
+                  },
+                  "placeholdersToOverride": {
+                    "type": "array"
+                  },
+                  "syncEnabled": {
+                    "type": "boolean"
+                  },
+                  "toRepo": {
+                    "type": "object"
+                  },
+                  "unsupportedCapabilities": {
+                    "type": "boolean"
+                  },
+                  "updateCommitMessage": {
+                    "type": "string"
+                  }
+                }
+              },
+              "status": {
+                "type": "object",
+                "properties": {
+                  "conditions": {
+                    "type": "array"
+                  },
+                  "targetBranch": {
+                    "type": "string"
+                  },
+                  "targetCommitId": {
+                    "type": "string"
+                  },
+                  "templatingErrors": {
+                    "type": "array"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

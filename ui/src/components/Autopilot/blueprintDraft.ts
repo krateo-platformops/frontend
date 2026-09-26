@@ -120,16 +120,28 @@ const COMBINATOR_KEYWORDS = new Set(['allOf', 'anyOf', 'oneOf', 'not'])
 const combinatorProblem = (path: string, keyword: string): string =>
   `[CRDGEN-COMBINATOR] ${path}: \`${keyword}\` is valid JSON Schema but breaks CRD generation — core-provider copies type/x-kubernetes-preserve-unknown-fields into each branch, which Kubernetes forbids in a structural schema, and the CompositionDefinition wedges Ready=False. Express the constraint in the chart templates (fail) instead; see builder-publish/_files.tpl.`
 
-const crdgenDefaultsProblem = (path: string, value: unknown): string => {
-  const shape = Array.isArray(value) ? 'array' : 'object'
-  return `[CRDGEN-DEFAULTS] ${path}: non-empty ${shape} default — crdgen emits a malformed +kubebuilder:default marker and the CompositionDefinition wedges Ready=False (krateo-platformops/core-provider#46). Move the structure into values.yaml; keep schema defaults scalar.`
+const crdgenDefaultsProblem = (path: string, shape: 'object' | 'array' = 'object'): string =>
+  `[CRDGEN-DEFAULTS] ${path}: non-empty ${shape} default — crdgen emits a malformed +kubebuilder:default marker and the CompositionDefinition wedges Ready=False (krateo-platformops/core-provider#46). Move the structure into values.yaml; keep schema defaults scalar.`
+
+/**
+ * One crdgen finding in values.schema.json, located. `path` is the lint's own spelling
+ * (`properties.credentials.default`); `segments` is the same walk as keys and indexes, which an
+ * editor can follow into the text without re-parsing a dotted path (a property may be named `a.b`).
+ * `shape` says what a populated default holds; `keyword` names the combinator.
+ */
+export interface SchemaFinding {
+  code: 'CRDGEN-DEFAULTS' | 'CRDGEN-COMBINATOR'
+  path: string
+  segments: (string | number)[]
+  shape?: 'object' | 'array'
+  keyword?: string
 }
 
-/** Schema-aware walk: flags every non-empty object/array `default` at any depth. */
-const walkSchemaNode = (node: unknown, path: string, problems: string[]): void => {
+/** Schema-aware walk: flags every non-empty object/array `default` and every combinator, at any depth. */
+const walkSchemaNode = (node: unknown, path: string, segments: (string | number)[], findings: SchemaFinding[]): void => {
   if (Array.isArray(node)) {
     node.forEach((entry, index) => {
-      walkSchemaNode(entry, `${path}[${index}]`, problems)
+      walkSchemaNode(entry, `${path}[${index}]`, [...segments, index], findings)
     })
     return
   }
@@ -139,15 +151,16 @@ const walkSchemaNode = (node: unknown, path: string, problems: string[]): void =
   }
   for (const [key, value] of Object.entries(record)) {
     const at = path ? `${path}.${key}` : key
+    const atSegments = [...segments, key]
     if (COMBINATOR_KEYWORDS.has(key)) {
-      problems.push(combinatorProblem(at, key))
+      findings.push({ code: 'CRDGEN-COMBINATOR', keyword: key, path: at, segments: atSegments })
       // Reported AND still walked. Skipping the branches looked tidier and silently dropped the
       // nested-defaults coverage inside them — the branch contents do not disappear when the
       // combinator is removed, they move, so their problems are still the author's to fix.
     }
     if (VALUE_KEYWORDS.has(key)) {
       if (key === 'default' && isNonEmptyStructure(value)) {
-        problems.push(crdgenDefaultsProblem(at, value))
+        findings.push({ code: 'CRDGEN-DEFAULTS', path: at, segments: atSegments, shape: Array.isArray(value) ? 'array' : 'object' })
       }
       continue
     }
@@ -155,13 +168,29 @@ const walkSchemaNode = (node: unknown, path: string, problems: string[]): void =
       const nameMap = asRecord(value)
       if (nameMap) {
         for (const [name, child] of Object.entries(nameMap)) {
-          walkSchemaNode(child, `${at}.${name}`, problems)
+          walkSchemaNode(child, `${at}.${name}`, [...atSegments, name], findings)
         }
         continue
       }
     }
-    walkSchemaNode(value, at, problems)
+    walkSchemaNode(value, at, atSegments, findings)
   }
+}
+
+/**
+ * The crdgen findings of a values.schema.json, as data — the lint below words them, and the form
+ * editor marks and fixes them. Empty for invalid JSON: that is the lint's to name, once.
+ */
+export const schemaDefaultsFindings = (schemaText: string): SchemaFinding[] => {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(schemaText)
+  } catch {
+    return []
+  }
+  const findings: SchemaFinding[] = []
+  walkSchemaNode(parsed, '', [], findings)
+  return findings
 }
 
 /**
@@ -171,15 +200,14 @@ const walkSchemaNode = (node: unknown, path: string, problems: string[]): void =
  * schema drives BOTH the composition CRD and the create form — it must parse).
  */
 export const lintValuesSchemaDefaults = (schemaText: string): string[] => {
-  let parsed: unknown
   try {
-    parsed = JSON.parse(schemaText)
+    JSON.parse(schemaText)
   } catch (error) {
     return [`${VALUES_SCHEMA_PATH} is not valid JSON — ${error instanceof Error ? error.message : String(error)}`]
   }
-  const problems: string[] = []
-  walkSchemaNode(parsed, '', problems)
-  return problems
+  return schemaDefaultsFindings(schemaText).map((finding) => (finding.code === 'CRDGEN-COMBINATOR'
+    ? combinatorProblem(finding.path, finding.keyword ?? '')
+    : crdgenDefaultsProblem(finding.path, finding.shape)))
 }
 
 /**

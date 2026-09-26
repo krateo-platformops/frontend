@@ -86,6 +86,15 @@ export interface FileUpdateResult {
    * architecture file is held with its graph block regenerated (see `settle`).
    */
   content?: string
+  /** The one path a refusal is about, when it is about one (applyFiles). */
+  path?: string
+}
+
+/** Several files as ONE change — see `applyFiles`. A path belongs to at most one list. */
+export interface FilesChange {
+  add?: Record<string, string>
+  edit?: Record<string, string>
+  remove?: string[]
 }
 
 /**
@@ -182,6 +191,66 @@ export interface BlueprintDraftStore {
    * believing the draft changed.
    */
   removeFile: (path: string) => FileUpdateResult
+  /**
+   * ADD, EDIT and REMOVE several files as ONE change — the composer's gestures (a placed node is its
+   * template AND a rewritten descriptor). All or nothing: every precondition `addFile`, `updateFile`
+   * and `removeFile` would check is checked FIRST, for every path, plus two of its own — a path may
+   * appear in only one list, and an empty change is refused. The 512 KiB cap is measured once, over
+   * the result. A refusal leaves the held tree exactly as it was; an acceptance announces once.
+   */
+  applyFiles: (change: FilesChange) => FileUpdateResult
+}
+
+/** Own keys only: a file named `constructor` is not held because every object has one. */
+const holds = (files: Record<string, string>, path: string): boolean => Object.prototype.hasOwnProperty.call(files, path)
+
+/**
+ * Why a change cannot be applied to `files`, or null when it can. Pure, and checked in full before
+ * anything is written — that is what makes applyFiles all-or-nothing.
+ */
+const changeRefusal = (files: Record<string, string>, change: FilesChange): { error: string; path?: string } | null => {
+  const adds = Object.keys(change.add ?? {})
+  const edits = Object.keys(change.edit ?? {})
+  const removes = change.remove ?? []
+  if (!adds.length && !edits.length && !removes.length) {
+    return { error: 'the change is empty — there is nothing to write' }
+  }
+  const seen = new Set<string>()
+  for (const path of [...adds, ...edits, ...removes]) {
+    if (seen.has(path)) {
+      return { error: `"${path}" appears more than once in one change — add, edit or remove it, once`, path }
+    }
+    seen.add(path)
+  }
+  for (const path of adds) {
+    if (!path) {
+      return { error: 'a new file needs a path' }
+    }
+    if (holds(files, path)) {
+      return { error: `"${path}" is already in the draft — edit it instead`, path }
+    }
+  }
+  for (const path of edits) {
+    if (!holds(files, path)) {
+      return { error: `"${path}" is not a held file — only previewed files can be edited`, path }
+    }
+  }
+  for (const path of removes) {
+    if (!holds(files, path)) {
+      return { error: `"${path}" is not in the draft`, path }
+    }
+  }
+  return null
+}
+
+/** The tree after a change the caller has already found acceptable. `fromEntries` DEFINES each key. */
+const changedTree = (files: Record<string, string>, change: FilesChange): Record<string, string> => {
+  const dropped = new Set(change.remove ?? [])
+  return Object.fromEntries([
+    ...Object.entries(files).filter(([path]) => !dropped.has(path)).map(([path, content]) =>
+      [path, holds(change.edit ?? {}, path) ? (change.edit ?? {})[path] : content] as const),
+    ...Object.entries(change.add ?? {}),
+  ])
 }
 
 export const createBlueprintDraftStore = (onChange?: DraftChangeListener): BlueprintDraftStore => {
@@ -219,10 +288,30 @@ export const createBlueprintDraftStore = (onChange?: DraftChangeListener): Bluep
       announce()
       return { bytes, ok: true }
     },
+    applyFiles: (change) => {
+      if (!held) {
+        return { bytes: 0, error: 'no draft is held', ok: false }
+      }
+      const refusal = changeRefusal(held.files, change)
+      if (refusal) {
+        return { bytes: held.bytes, ok: false, ...refusal }
+      }
+      const nextFiles = changedTree(held.files, change)
+      const bytes = measureTreeBytes(nextFiles)
+      if (bytes > BLUEPRINT_DRAFT_MAX_BYTES) {
+        const kib = Math.ceil(bytes / 1024)
+        // Same contract as every other write: over the cap, the held tree is left EXACTLY as it was.
+        return { bytes: held.bytes, error: `the change brings the draft to ${kib} KiB — over the 512 KiB cap`, ok: false }
+      }
+      held = { bytes, files: nextFiles, kind: held.kind }
+      announce()
+      return { bytes, ok: true }
+    },
     clear: () => {
       held = null
       announce()
     },
+    get: () => held,
     removeFile: (path) => {
       if (!held) {
         return { bytes: 0, error: 'no draft is held', ok: false }
@@ -240,7 +329,6 @@ export const createBlueprintDraftStore = (onChange?: DraftChangeListener): Bluep
       announce()
       return { bytes, ok: true }
     },
-    get: () => held,
     set: (files: Record<string, string>, kind: DraftKind) => {
       const result = createBlueprintDraft(files, kind)
       if (result.ok) {

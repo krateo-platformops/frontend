@@ -1,0 +1,1034 @@
+{
+  "custom": {
+    "kinds": [
+      {
+        "group": "github.krateo.io",
+        "kind": "ActionsVariableOrgConfiguration",
+        "plural": "actionsvariableorgconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-actionsvariableorg",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "ActionsVariableOrg",
+        "plural": "actionsvariableorgs",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-actionsvariableorg",
+        "statusFields": [
+          "conditions",
+          "created_at",
+          "name",
+          "selected_repositories_url",
+          "updated_at"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "ActionsVariableRepoConfiguration",
+        "plural": "actionsvariablerepoconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-actionsvariablerepo",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "ActionsVariableRepo",
+        "plural": "actionsvariablerepoes",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-actionsvariablerepo",
+        "statusFields": [
+          "conditions",
+          "created_at",
+          "name",
+          "updated_at"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "kagent.dev",
+        "kind": "AgentHarness",
+        "plural": "agentharnesses",
+        "version": "v1alpha2",
+        "scope": "Namespaced",
+        "owner": "kagent-crds",
+        "statusFields": [
+          "backendRef",
+          "conditions",
+          "connection",
+          "observedGeneration"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "kagent.dev",
+        "kind": "Agent",
+        "plural": "agents",
+        "version": "v1alpha2",
+        "scope": "Namespaced",
+        "owner": "kagent-crds",
+        "statusFields": [
+          "conditions",
+          "observedGeneration"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "AutolinkConfiguration",
+        "plural": "autolinkconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-autolink",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "Autolink",
+        "plural": "autolinks",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-autolink",
+        "statusFields": [
+          "conditions",
+          "id"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "AutomatedSecurityFixes",
+        "plural": "automatedsecurityfixes",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-automatedsecurityfixes",
+        "statusFields": [
+          "conditions",
+          "enabled",
+          "paused"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "AutomatedSecurityFixesConfiguration",
+        "plural": "automatedsecurityfixesconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-automatedsecurityfixes",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "BranchProtectionConfiguration",
+        "plural": "branchprotectionconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-branchprotection",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "BranchProtection",
+        "plural": "branchprotections",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-branchprotection",
+        "statusFields": [
+          "conditions",
+          "url"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "cert-manager.io",
+        "kind": "CertificateRequest",
+        "plural": "certificaterequests",
+        "version": "v1",
+        "scope": "Namespaced",
+        "owner": null,
+        "statusFields": [
+          "ca",
+          "certificate",
+          "conditions",
+          "failureTime"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "cert-manager.io",
+        "kind": "Certificate",
+        "plural": "certificates",
+        "version": "v1",
+        "scope": "Namespaced",
+        "owner": null,
+        "statusFields": [
+          "acme",
+          "conditions",
+          "failedIssuanceAttempts",
+          "lastFailureTime",
+          "nextPrivateKeySecretName",
+          "notAfter",
+          "notBefore",
+          "renewalTime",
+          "revision"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "cert-manager.io",
+        "kind": "ClusterIssuer",
+        "plural": "clusterissuers",
+        "version": "v1",
+        "scope": "Cluster",
+        "owner": null,
+        "statusFields": [
+          "acme",
+          "conditions"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "CodeSecurityConfigConfiguration",
+        "plural": "codesecurityconfigconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-codesecurityconfig",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "CodeSecurityConfig",
+        "plural": "codesecurityconfigs",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-codesecurityconfig",
+        "statusFields": [
+          "conditions",
+          "created_at",
+          "html_url",
+          "id",
+          "target_type"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "CollaboratorConfiguration",
+        "plural": "collaboratorconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-collaborator",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "Collaborator",
+        "plural": "collaborators",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-collaborator",
+        "statusFields": [
+          "conditions",
+          "login",
+          "role_name"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "CustomProperty",
+        "plural": "customproperties",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-customproperty",
+        "statusFields": [
+          "conditions",
+          "property_name",
+          "source_type",
+          "url"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "CustomPropertyConfiguration",
+        "plural": "custompropertyconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-customproperty",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "DeployKeyConfiguration",
+        "plural": "deploykeyconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-deploykey",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "DeployKey",
+        "plural": "deploykeys",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-deploykey",
+        "statusFields": [
+          "conditions",
+          "created_at",
+          "id",
+          "url",
+          "verified"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "DeploymentBranchPolicy",
+        "plural": "deploymentbranchpolicies",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-deploymentbranchpolicy",
+        "statusFields": [
+          "conditions",
+          "id",
+          "name",
+          "node_id",
+          "type"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "DeploymentBranchPolicyConfiguration",
+        "plural": "deploymentbranchpolicyconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-deploymentbranchpolicy",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "DeploymentConfiguration",
+        "plural": "deploymentconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-deployment",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "Deployment",
+        "plural": "deployments",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-deployment",
+        "statusFields": [
+          "conditions",
+          "created_at",
+          "id",
+          "node_id",
+          "original_environment",
+          "sha",
+          "statuses_url",
+          "url"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "EnvironmentConfiguration",
+        "plural": "environmentconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-environment",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "Environment",
+        "plural": "environments",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-environment",
+        "statusFields": [
+          "conditions",
+          "created_at",
+          "html_url",
+          "id",
+          "name",
+          "node_id",
+          "updated_at"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "EnvironmentVariableConfiguration",
+        "plural": "environmentvariableconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-environmentvariable",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "EnvironmentVariable",
+        "plural": "environmentvariables",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-environmentvariable",
+        "statusFields": [
+          "conditions",
+          "created_at",
+          "name",
+          "updated_at"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "IssueConfiguration",
+        "plural": "issueconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-issue",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "cert-manager.io",
+        "kind": "Issuer",
+        "plural": "issuers",
+        "version": "v1",
+        "scope": "Namespaced",
+        "owner": null,
+        "statusFields": [
+          "acme",
+          "conditions"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "Issue",
+        "plural": "issues",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-issue",
+        "statusFields": [
+          "comments",
+          "conditions",
+          "html_url",
+          "id",
+          "node_id",
+          "number",
+          "state"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "LabelConfiguration",
+        "plural": "labelconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-label",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "Label",
+        "plural": "labels",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-label",
+        "statusFields": [
+          "conditions",
+          "default",
+          "id",
+          "name",
+          "node_id",
+          "url"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "git.krateo.io",
+        "kind": "LocalResource",
+        "plural": "localresources",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "git-provider-crd",
+        "statusFields": [
+          "conditions",
+          "targetBranch",
+          "targetCommitId",
+          "templatingErrors"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "kagent.dev",
+        "kind": "MCPServer",
+        "plural": "mcpservers",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "kagent-crds",
+        "statusFields": [
+          "conditions",
+          "observedGeneration"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "kagent.dev",
+        "kind": "Memory",
+        "plural": "memories",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "kagent-crds",
+        "statusFields": [
+          "conditions",
+          "observedGeneration"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "MilestoneConfiguration",
+        "plural": "milestoneconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-milestone",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "Milestone",
+        "plural": "milestones",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-milestone",
+        "statusFields": [
+          "closed_issues",
+          "conditions",
+          "due_on",
+          "html_url",
+          "id",
+          "node_id",
+          "number",
+          "open_issues",
+          "state"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "kagent.dev",
+        "kind": "ModelConfig",
+        "plural": "modelconfigs",
+        "version": "v1alpha2",
+        "scope": "Namespaced",
+        "owner": "kagent-crds",
+        "statusFields": [
+          "conditions",
+          "observedGeneration",
+          "secretHash"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "kagent.dev",
+        "kind": "ModelProviderConfig",
+        "plural": "modelproviderconfigs",
+        "version": "v1alpha2",
+        "scope": "Namespaced",
+        "owner": "kagent-crds",
+        "statusFields": [
+          "conditions",
+          "discoveredModels",
+          "lastDiscoveryTime",
+          "modelCount",
+          "observedGeneration",
+          "secretHash"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "OrgMembershipConfiguration",
+        "plural": "orgmembershipconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-orgmembership",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "OrgMembership",
+        "plural": "orgmemberships",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-orgmembership",
+        "statusFields": [
+          "conditions",
+          "direct_membership",
+          "state",
+          "url"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "OrgRulesetConfiguration",
+        "plural": "orgrulesetconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-orgruleset",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "OrgRuleset",
+        "plural": "orgrulesets",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-orgruleset",
+        "statusFields": [
+          "conditions",
+          "created_at",
+          "enforcement",
+          "id",
+          "name",
+          "node_id",
+          "source",
+          "source_type",
+          "target",
+          "updated_at"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "OrgWebhookConfiguration",
+        "plural": "orgwebhookconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-orgwebhook",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "OrgWebhook",
+        "plural": "orgwebhooks",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-orgwebhook",
+        "statusFields": [
+          "conditions",
+          "created_at",
+          "deliveries_url",
+          "id",
+          "ping_url",
+          "updated_at",
+          "url"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "PullRequestConfiguration",
+        "plural": "pullrequestconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-pullrequest",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "PullRequest",
+        "plural": "pullrequests",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-pullrequest",
+        "statusFields": [
+          "conditions",
+          "html_url",
+          "number",
+          "state"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "ReleaseConfiguration",
+        "plural": "releaseconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-release",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "Release",
+        "plural": "releases",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-release",
+        "statusFields": [
+          "conditions",
+          "created_at",
+          "html_url",
+          "id",
+          "node_id",
+          "upload_url"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "kagent.dev",
+        "kind": "RemoteMCPServer",
+        "plural": "remotemcpservers",
+        "version": "v1alpha2",
+        "scope": "Namespaced",
+        "owner": "kagent-crds",
+        "statusFields": [
+          "conditions",
+          "discoveredTools",
+          "observedGeneration",
+          "secretHash"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "git.krateo.io",
+        "kind": "Repo",
+        "plural": "repoes",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "git-provider-crd",
+        "statusFields": [
+          "conditions",
+          "originBranch",
+          "originCommitId",
+          "targetBranch",
+          "targetCommitId",
+          "templatingErrors"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "RepoRulesetConfiguration",
+        "plural": "reporulesetconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-reporuleset",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "RepoRuleset",
+        "plural": "reporulesets",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-reporuleset",
+        "statusFields": [
+          "conditions",
+          "created_at",
+          "enforcement",
+          "id",
+          "name",
+          "node_id",
+          "source",
+          "source_type",
+          "target",
+          "updated_at"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "Repository",
+        "plural": "repositories",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-repository",
+        "statusFields": [
+          "clone_url",
+          "conditions",
+          "default_branch",
+          "full_name",
+          "html_url",
+          "id",
+          "name",
+          "node_id",
+          "ssh_url"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "RepositoryConfiguration",
+        "plural": "repositoryconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-repository",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "RepoWebhookConfiguration",
+        "plural": "repowebhookconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-repowebhook",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "RepoWebhook",
+        "plural": "repowebhooks",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-repowebhook",
+        "statusFields": [
+          "conditions",
+          "created_at",
+          "deliveries_url",
+          "id",
+          "ping_url",
+          "updated_at",
+          "url"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "RunnerGroupConfiguration",
+        "plural": "runnergroupconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-runnergroup",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "RunnerGroup",
+        "plural": "runnergroups",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-runnergroup",
+        "statusFields": [
+          "conditions",
+          "default",
+          "hosted_runners_url",
+          "id",
+          "inherited",
+          "runners_url",
+          "selected_repositories_url"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "kagent.dev",
+        "kind": "SandboxAgent",
+        "plural": "sandboxagents",
+        "version": "v1alpha2",
+        "scope": "Namespaced",
+        "owner": "kagent-crds",
+        "statusFields": [
+          "conditions",
+          "observedGeneration"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "TeamConfiguration",
+        "plural": "teamconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-team",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "TeamMembershipConfiguration",
+        "plural": "teammembershipconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-teammembership",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "TeamMembership",
+        "plural": "teammemberships",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-teammembership",
+        "statusFields": [
+          "conditions",
+          "role",
+          "state",
+          "url"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "TeamRepoConfiguration",
+        "plural": "teamrepoconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-teamrepo",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "TeamRepo",
+        "plural": "teamrepoes",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-teamrepo",
+        "statusFields": [
+          "conditions",
+          "full_name",
+          "html_url",
+          "id",
+          "role_name"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "Team",
+        "plural": "teams",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-team",
+        "statusFields": [
+          "conditions",
+          "html_url",
+          "id",
+          "node_id",
+          "slug"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "kagent.dev",
+        "kind": "ToolServer",
+        "plural": "toolservers",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "kagent-crds",
+        "statusFields": [
+          "conditions",
+          "discoveredTools",
+          "observedGeneration"
+        ],
+        "conditions": true
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "WorkflowConfiguration",
+        "plural": "workflowconfigurations",
+        "version": "v1alpha1",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-workflow",
+        "statusFields": [],
+        "conditions": false
+      },
+      {
+        "group": "github.krateo.io",
+        "kind": "Workflow",
+        "plural": "workflows",
+        "version": "v2022-11-28",
+        "scope": "Namespaced",
+        "owner": "krateo-system/github-provider-kog-workflow",
+        "statusFields": [
+          "badge_url",
+          "conditions",
+          "html_url",
+          "id",
+          "name",
+          "path",
+          "state"
+        ],
+        "conditions": true
+      }
+    ]
+  },
+  "compositions": {
+    "items": [
+      {
+        "name": "builder-publish",
+        "namespace": "krateo-system",
+        "kind": "BuilderPublish",
+        "apiVersion": "composition.krateo.io/v1-8-40",
+        "plural": "builderpublishes",
+        "chartVersion": "1.8.40",
+        "projects": [],
+        "running": 23
+      },
+      {
+        "name": "mongodb",
+        "namespace": "krateo-system",
+        "kind": "Mongodb",
+        "apiVersion": "composition.krateo.io/v0-1-2",
+        "plural": "mongodbs",
+        "chartVersion": "0.1.2",
+        "projects": [],
+        "running": 0
+      },
+      {
+        "name": "aws-rds-stack",
+        "namespace": "krateo-system",
+        "kind": "AwsRdsStack",
+        "apiVersion": "composition.krateo.io/v0-3-0",
+        "plural": "awsrdsstacks",
+        "chartVersion": "0.3.0",
+        "projects": [],
+        "running": 3
+      }
+    ]
+  },
+  "runningPartial": true
+}

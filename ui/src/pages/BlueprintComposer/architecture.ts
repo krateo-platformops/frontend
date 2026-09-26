@@ -452,9 +452,12 @@ export const wrapAsConfigMapTemplate = (descriptor: string, chart: string): stri
   ].join('\n')
 }
 
+/** Where the `data.architecture` block header sits — the one line unwrap and rewrap both key on. */
+const BLOCK_HEADER = /^\s{2}architecture:\s*\|\n([\s\S]*)$/m
+
 /** The inverse: the descriptor text out of the template, or null when the template is not ours. */
 export const unwrapFromConfigMapTemplate = (template: string): string | null => {
-  const found = /^\s{2}architecture:\s*\|\n([\s\S]*)$/m.exec(template)
+  const found = BLOCK_HEADER.exec(template)
   if (!found) { return null }
   const out: string[] = []
   for (const line of found[1].split('\n')) {
@@ -499,4 +502,32 @@ export const regenerateGraphBlock = (template: string, chart: string | null): st
   } catch {
     return template
   }
+}
+
+/**
+ * The inverse of `unwrapFromConfigMapTemplate`, for a template that is ALREADY in the chart: the
+ * `data.architecture` block replaced by `descriptor`, and every other byte of the file kept.
+ *
+ * NOT `wrapAsConfigMapTemplate` again. The wrapper is the composer's, but the file is the author's
+ * once it is held: a label added, a comment above the ConfigMap, a second key under `data` — any of
+ * them would be thrown away by writing the wrapper fresh on every placement. The block is exactly
+ * the lines `unwrap` reads — the header, then every line indented four spaces or blank, up to the
+ * first line that is neither — and blank lines trailing it belong to what follows.
+ *
+ * Null when the template carries no block: the caller refuses, as the canvas does.
+ */
+export const rewrapDescriptor = (template: string, descriptor: string): string | null => {
+  const found = BLOCK_HEADER.exec(template)
+  if (!found) { return null }
+  const start = found.index + found[0].length - found[1].length
+  const lines = found[1].split('\n')
+  let taken = 0
+  for (const [idx, line] of lines.entries()) {
+    if (line.trim() !== '' && !line.startsWith('    ')) { break }
+    if (line.trim() !== '') { taken = idx + 1 }
+  }
+  const end = start + lines.slice(0, taken).join('\n').length
+  const body = descriptor.trimEnd().split('\n').map((line) => `    ${line}`)
+    .join('\n')
+  return `${template.slice(0, start)}${body}${template.slice(end)}`
 }
