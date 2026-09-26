@@ -295,6 +295,24 @@ const held = (files: Files): Extract<DescriptorRead, { ok: true }> | EdgeRefusal
   return read.ok ? read : refuse('descriptor', read.reason)
 }
 
+/**
+ * EVERY node's gate regenerated from the descriptor — for a tree that arrives WHOLE (Autopilot's
+ * previewBlueprint), where no edge was drawn in the composer to trigger `planEdge`. The agent
+ * declares edges and never writes a gate; without this the edges it declared were drawn on the
+ * canvas and the detail page but NOT enforced when the chart rendered. The same kernel the composer
+ * uses for one edge (gatePlan), over all nodes: idempotent, and it never touches a hand-written
+ * lookup. A refusal leaves the tree as it came — the lint and the gate report why.
+ */
+export const regenerateGates = (files: Files): Files => {
+  const read = readDescriptor(files)
+  if (!read.ok) { return files }
+  const ids = read.architecture.resources.map((node) => node.id)
+  const plan = gatePlan(files, read, read.architecture, ids, [])
+  if (!plan.ok) { return files }
+  const changed = Object.entries(plan.edit).filter(([path, text]) => files[path] !== text)
+  return changed.length ? { ...files, ...Object.fromEntries(changed) } : files
+}
+
 /** Every node with a `ready` edge onto `id` — what a change to `id`'s readiness re-gates. */
 const readyDependents = (arch: ChartArchitecture, id: string): string[] =>
   arch.resources.filter((node) => node.dependsOn?.some((dep) => dep.ref === id && dep.ready)).map((node) => node.id)
