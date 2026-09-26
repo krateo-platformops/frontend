@@ -14,11 +14,17 @@
  * legality kernel and gate generator a drawn edge goes through — so the agent cannot declare an edge
  * a person could not draw, and gets the same refusal, with the same reason.
  *
+ * GATES FOLLOW THE DESCRIPTOR. The agent writes templates WITHOUT gates (the composer owns them) and
+ * may declare an edge by rewriting the descriptor, so chartPut regenerates every node's gate over the
+ * tree it would leave — exactly what a proposed whole tree gets on ingest (parseProposedChart) — and
+ * writes all of it in the one guarded batch. A put can never strip a declared edge's gate, and a
+ * `dependsOn` added through the descriptor is enforced like a drawn one.
+ *
  * DRAFT ONLY. Nothing here reaches the cluster or a repository: a verb edits the held draft in the
  * browser, and the person still previews and publishes it. A refusal is the chip's text, so the
  * model reads why in its own turn history.
  */
-import { planEdge, type EdgeOp } from '../../pages/BlueprintComposer/planEdge'
+import { planEdge, regenerateGates, type EdgeOp } from '../../pages/BlueprintComposer/planEdge'
 
 import type { PortalActionProposal } from './actionBridge'
 import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from './blueprintDraft'
@@ -90,11 +96,20 @@ const put = (proposal: PortalActionProposal): AutopilotActionChip => {
   const held = heldChart('chartPut')
   if (!('files' in held)) { return held }
   const current = held.files[path]
-  if (current === proposal.content) { return chip('chartPut', `${path} is already exactly that — nothing changed`) }
-  const outcome = emitFilesBatch(current === undefined
-    ? { add: { [path]: proposal.content }, kind: 'blueprint' }
-    : { edit: { [path]: proposal.content }, expect: { [path]: current }, kind: 'blueprint' })
-  return written('chartPut', outcome, current === undefined ? `Added ${path}` : `Rewrote ${path}`)
+  const next = regenerateGates({ ...held.files, [path]: proposal.content })
+  const changed = Object.keys(next).filter((key) => next[key] !== held.files[key])
+  if (!changed.length) { return chip('chartPut', `${path} is already exactly that — nothing changed`) }
+  const add = Object.fromEntries(changed.filter((key) => held.files[key] === undefined).map((key) => [key, next[key]]))
+  const existing = changed.filter((key) => held.files[key] !== undefined)
+  const outcome = emitFilesBatch({
+    add,
+    edit: Object.fromEntries(existing.map((key) => [key, next[key]])),
+    expect: Object.fromEntries(existing.map((key) => [key, held.files[key]])),
+    kind: 'blueprint',
+  })
+  const regated = changed.filter((key) => key !== path)
+  const label = `${current === undefined ? 'Added' : 'Rewrote'} ${path}${regated.length ? ` (gates regenerated in ${regated.join(', ')})` : ''}`
+  return written('chartPut', outcome, label)
 }
 
 const remove = (proposal: PortalActionProposal): AutopilotActionChip => {

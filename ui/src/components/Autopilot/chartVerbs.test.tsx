@@ -24,6 +24,8 @@ afterEach(() => {
 })
 
 const LR = 'templates/localresource.yaml'
+const PR = 'templates/pullrequest.yaml'
+const ARCH = 'templates/architecture.yaml'
 
 /** The provider's buses over a store holding `files`, armed as if Preview had rendered it. */
 const mount = (files: Record<string, string> | null, kind: 'blueprint' | 'page' = 'blueprint') => {
@@ -61,6 +63,27 @@ describe('chartPut', () => {
     expect(run({ content: 'x: 1\n', path: 'templates/extra.yaml', verb: 'chartPut' })).toMatch(/^Added templates\/extra\.yaml/)
     expect(store.get()?.files['templates/extra.yaml']).toBe('x: 1\n')
     expect(run({ content: 'x: 1\n', path: 'templates/extra.yaml', verb: 'chartPut' })).toMatch(/already exactly that/)
+  })
+
+  it('keeps a declared edge\'s gate when the agent rewrites the gated template without one', () => {
+    const gated = edgeChart()
+    const ungated = applyPlan(gated, planEdge(gated, { from: 'pullrequest', op: 'remove', to: 'localresource' }))[PR]
+    expect(ungated).not.toContain(GATE_BEGIN)
+    const { store } = mount(gated)
+    const label = run({ content: `${ungated}# changed by the agent\n`, path: PR, verb: 'chartPut' })
+    expect(label).toMatch(/^Rewrote templates\/pullrequest\.yaml/)
+    const held = store.get()?.files[PR] ?? ''
+    expect(held).toContain(GATE_BEGIN)
+    expect(held).toContain('# changed by the agent')
+  })
+
+  it('gates an edge declared by rewriting the descriptor, byte for byte as drawing it', () => {
+    const gated = edgeChart()
+    const bare = applyPlan(gated, planEdge(gated, { from: 'pullrequest', op: 'remove', to: 'localresource' }))
+    const { store } = mount(bare)
+    const label = run({ content: gated[ARCH], path: ARCH, verb: 'chartPut' })
+    expect(label).toBe(`Rewrote ${ARCH} (gates regenerated in ${PR}) — Preview needed before it can be published`)
+    expect(store.get()?.files[PR]).toBe(gated[PR])
   })
 
   it('refuses a path the composer would not key, and the file the portal writes at publish', () => {
