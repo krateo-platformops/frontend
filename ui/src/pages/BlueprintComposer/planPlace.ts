@@ -64,10 +64,10 @@ export const placementCrd = (pick: PalettePick): { name: string; version: string
   return { name: `${pick.plural}.${group}`, version: versionOf(pick.apiVersion) }
 }
 
-type Read = { ok: true; architecture: ChartArchitecture; template: string } | { ok: false; reason: string }
+export type DescriptorRead = { ok: true; architecture: ChartArchitecture; template: string } | { ok: false; reason: string }
 
-/** The held descriptor, readable, or the sentence that refuses the change. */
-const readDescriptor = (files: Readonly<Record<string, string>>): Read => {
+/** The held descriptor, readable, or the sentence that refuses the change — placing's, and planEdge's. */
+export const readDescriptor = (files: Readonly<Record<string, string>>): DescriptorRead => {
   if (!holds(files, ARCHITECTURE_TEMPLATE_PATH)) {
     return { ok: false, reason: NO_DESCRIPTOR }
   }

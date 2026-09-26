@@ -1,24 +1,24 @@
 /**
- * The Inspector — mockup screens 3 and 5: the selected resource, and below it the create form this
- * chart would generate.
+ * The Inspector — mockup screens 3, 5 and 6: the selected resource, what it waits for and when it is
+ * ready — each editable through the same kernel an edge drawn on the canvas goes through (planEdge) —
+ * and below it the create form this chart would generate.
  *
- * MOSTLY READ-ONLY IN THIS STAGE, and it says so. What a node waits for and when it is ready — the
- * `ready` toggle, the `readyWhen` picker over the target's status schema — land with edge drawing
- * and `planEdge` (S4b), so that a person and the agent go through the same legality check. What IS
- * editable here is "One per item of" on a node the palette placed: its template is still the shape
- * placing wrote, so ranging it is a kernel's job, not a hand edit (planPlace's setForEach).
+ * WHAT IT WAITS FOR (5.4). Each Depends-on row says what it waits for and carries its own "Wait for
+ * readiness" switch and a remove button; "Add dependency" lists every other node, the ones an edge
+ * may not reach disabled with the reason — the keyboard's and the touch screen's route to the same
+ * pending edge a drag makes. Every change is one batch of the descriptor and the templates it re-gates.
+ *
+ * WHEN IT IS READY — its own `readyWhen`, picked from what its CRD declares (readinessOptions), or its
+ * class default — which re-gates everything that waits for it to be ready. A custom resource has no
+ * default, and the panel says so rather than leaving a blank that reads as "fine".
+ *
+ * "One per item of" is editable on a node the palette placed: its template is still the shape placing
+ * wrote, so ranging it is a kernel's job, not a hand edit (planPlace's setForEach). "Remove from chart"
+ * (D19) takes the node, its template and every edge onto it, behind a confirm.
  *
  * A TEMPLATE THE CHART DOES NOT HOLD IS SAID, not linked. A resource added by editing the
  * architecture file has no template until someone writes one, and a link to a file that is not there
  * opened nothing, silently. The path is shown as text with what that means.
- *
- * READINESS IS ALWAYS ANSWERED. A node with no `readyWhen` still has a meaning for "ready" — its
- * class default (existence, for a native resource or a composition: what the gate checks) — or, for
- * a custom resource, none at all, which is what makes a `ready: true` edge onto it unsatisfiable.
- * The panel says which of the three it is rather than leaving a blank that reads as "fine". A native
- * kind the palette knows also says its OWN kstatus meaning, in that kind's words ("available",
- * "bound"), beside what the gate checks today — never in its place: the gate compiles that meaning
- * only once it can (S4b), and until then the answer is existence.
  *
  * JUST PLACED, it says what placing did: the chart changed, so Publish is off until Preview renders
  * it again — and how many files the chart now has, with no cap to measure them against (#367).
@@ -28,7 +28,7 @@
  * out and named. "Open form editor" opens it out (screen 10). When there is nothing to preview, the
  * reason is named.
  */
-import { Button, Input } from 'antd'
+import { Button, Input, Popconfirm, Select, Switch } from 'antd'
 import { useEffect, useId, useState } from 'react'
 
 import { PreviewFormSection } from '../../components/Autopilot/previewFormSection'
@@ -37,9 +37,10 @@ import { levelOf, type ResourceNode } from './architecture'
 import { apiGroup, counted } from './architectureView'
 import styles from './BlueprintComposer.module.css'
 import { formPreviewGap } from './formPreview'
-import { nativeKindOf } from './nativeKinds'
+import type { ReadinessChoices } from './readinessOptions'
+import { defaultReadiness } from './readyWhen'
 import { formSuppressions } from './schemaEdit'
-import { MISSING_READINESS, READINESS_DEFAULTS } from './stepperModel'
+import { MISSING_READINESS } from './stepperModel'
 import { PLACED_MARKER } from './templateGen'
 
 const Field = ({ children, label }: { children: React.ReactNode; label: string }) => (
@@ -49,27 +50,99 @@ const Field = ({ children, label }: { children: React.ReactNode; label: string }
   </div>
 )
 
-const readiness = (node: ResourceNode): { label: string; value: string; note?: string; kstatus?: string } => {
+const readiness = (node: ResourceNode): { label: string; note?: string; kstatus?: boolean } => {
   if (node.readyWhen) {
-    return { label: 'Ready when', value: node.readyWhen }
+    return { label: 'Ready when' }
   }
-  const fallback = READINESS_DEFAULTS[node.class]
-  if (!fallback) {
-    return { label: 'Ready when', note: 'A custom resource has no default, so nothing can wait on its readiness until one is declared.', value: MISSING_READINESS }
+  if (defaultReadiness(node)) {
+    // A native kind the palette knows is ready by its OWN kstatus meaning — "available", "bound" —
+    // and that is what the gate waits for.
+    return { kstatus: node.class === 'native', label: 'Ready when · default for this class' }
   }
-  // A native kind the palette knows says its OWN kstatus meaning — "available", "bound" — beside
-  // the existence the gate checks today, not instead of it.
-  const native = node.class === 'native' ? nativeKindOf(node.apiVersion, node.kind) : null
-  return native
-    ? { kstatus: `kstatus · ${native.label}`, label: 'Ready when · default for this class', value: fallback }
-    : { label: 'Ready when · default for this class', value: fallback }
+  const note = node.class === 'custom'
+    ? 'A custom resource has no default, so nothing can wait on its readiness until one is declared.'
+    : `${node.kind} has no readiness the composer knows, so nothing can wait on it until one is declared.`
+  return { label: 'Ready when', note }
 }
 
-const NodeFields = ({ hasFile, levels, node, onOpenFile }: {
+/** What the node's editing asks of the composer — each answers null when written, else why not. */
+export interface NodeEditing {
+  /** Where an edge out of this node may go, and why not elsewhere. */
+  targets: { legal: string[]; refused: Record<string, string> }
+  /** Every node id, in the descriptor's order. */
+  order: string[]
+  onAddDependency: (to: string) => void
+  onSetEdgeReady: (to: string, ready: boolean) => string | null
+  onRemoveEdge: (to: string) => string | null
+  /** What the node's own Ready when can be (readinessOptions). */
+  readyWhen: ReadinessChoices
+  onSetReadyWhen: (readyWhen: string | null) => string | null
+  onRemoveNode: () => string | null
+}
+
+const DependsOn = ({ editing, node, onRefusal }: { editing: NodeEditing; node: ResourceNode; onRefusal: (reason: string | null) => void }) => {
+  // Every other node, in the descriptor's order — the ones an edge may not reach disabled, with why.
+  const listed = new Set([...editing.targets.legal, ...Object.keys(editing.targets.refused)])
+  const others = editing.order.filter((id) => listed.has(id))
+  return (
+    <Field label='Depends on'>
+      {node.dependsOn?.length ? (
+        <ul className={styles.plainList}>
+          {node.dependsOn.map((dep) => (
+            <li className={styles.dependsRow} key={dep.ref}>
+              <span className={styles.dependsText}>
+                <span className={styles.fieldValue}>{dep.ref}</span>
+                <span className={styles.fieldText}>
+                  {[
+                    dep.ready ? ' — waits until it is ready' : ' — waits until it exists',
+                    dep.all ? ', every instance' : '',
+                    dep.when ? `, only when ${dep.when} is set` : '',
+                  ].join('')}
+                </span>
+              </span>
+              <Switch
+                aria-label={`Wait for ${dep.ref} to be ready`}
+                checked={!!dep.ready}
+                disabled={!!node.lifecycle}
+                onChange={(ready) => onRefusal(editing.onSetEdgeReady(dep.ref, ready))}
+                size='small'
+              />
+              <Button aria-label={`Remove the dependency on ${dep.ref}`} onClick={() => onRefusal(editing.onRemoveEdge(dep.ref))} size='small' type='text'>✕</Button>
+            </li>
+          ))}
+        </ul>
+      ) : <span className={styles.fieldText}>nothing — it does not wait for anything</span>}
+      {others.length && !node.lifecycle ? (
+        <Select
+          aria-label='Add dependency'
+          className={styles.addDependency}
+          onChange={(to: string) => editing.onAddDependency(to)}
+          optionLabelProp='value'
+          options={others.map((id) => ({
+            disabled: !editing.targets.legal.includes(id),
+            label: (
+              <span className={styles.dependencyOption}>
+                <span>{id}</span>
+                {editing.targets.refused[id] ? <span className={styles.fieldText}>{editing.targets.refused[id]}</span> : null}
+              </span>
+            ),
+            value: id,
+          }))}
+          placeholder='Add dependency'
+          size='small'
+        />
+      ) : null}
+    </Field>
+  )
+}
+
+const NodeFields = ({ editing, hasFile, levels, node, onOpenFile, onRefusal }: {
+  editing: NodeEditing
   hasFile: (path: string) => boolean
   levels: Record<string, number> | null
   node: ResourceNode
   onOpenFile: (path: string) => void
+  onRefusal: (reason: string | null) => void
 }) => {
   const ready = readiness(node)
   const level = levels ? levelOf(levels, node.id) : undefined
@@ -79,6 +152,7 @@ const NodeFields = ({ hasFile, levels, node, onOpenFile }: {
   } else if (level !== undefined) {
     enters = `S${level + 1}`
   }
+  const current = node.readyWhen ?? (defaultReadiness(node) ? '' : null)
   return (
     <>
       <Field label='Kind'>
@@ -98,32 +172,19 @@ const NodeFields = ({ hasFile, levels, node, onOpenFile }: {
           </>
         )}
       </Field>
-      <Field label='Depends on'>
-        {node.dependsOn?.length ? (
-          <ul className={styles.plainList}>
-            {node.dependsOn.map((dep) => (
-              <li key={dep.ref}>
-                <span className={styles.fieldValue}>{dep.ref}</span>
-                <span className={styles.fieldText}>
-                  {[
-                    dep.ready ? ' — waits until it is ready' : ' — waits until it exists',
-                    dep.all ? ', every instance' : '',
-                    dep.when ? `, only when ${dep.when} is set` : '',
-                  ].join('')}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : <span className={styles.fieldText}>nothing — it does not wait for anything</span>}
-      </Field>
+      <DependsOn editing={editing} node={node} onRefusal={onRefusal} />
       <Field label={ready.label}>
-        <span className={styles.fieldValue}>{ready.value}</span>
+        <Select
+          aria-label='Ready when'
+          onChange={(value: string) => onRefusal(editing.onSetReadyWhen(value === '' ? null : value))}
+          options={editing.readyWhen.options.map((option) => ({ label: option.label, value: option.value }))}
+          placeholder={MISSING_READINESS}
+          size='small'
+          value={current ?? undefined}
+        />
+        {editing.readyWhen.sentence ? <span className={styles.fieldText}>{editing.readyWhen.sentence}</span> : null}
         {ready.note ? <span className={styles.fieldText}>{ready.note}</span> : null}
-        {ready.kstatus ? (
-          <span className={styles.fieldText}>
-            <span>{ready.kstatus}</span> — this kind&apos;s own readiness; until a readyWhen says more, the gate checks only that it exists
-          </span>
-        ) : null}
+        {ready.kstatus ? <span className={styles.fieldText}>this kind&apos;s own readiness — what a gate on it waits for</span> : null}
       </Field>
       {node.when ? (
         <Field label='When'>
@@ -195,6 +256,7 @@ const ForEachField = ({ node, onSetForEach }: { node: ResourceNode; onSetForEach
 }
 
 export const NodeInspector = ({
+  editing,
   fileCount,
   hasFile,
   levels,
@@ -207,6 +269,8 @@ export const NodeInspector = ({
   schemaText,
   templateText,
 }: {
+  /** The node's editing — its edges, its readiness, its removal (null with no node selected). */
+  editing: NodeEditing | null
   /** How many files the held chart has — the placed note says it. */
   fileCount: number
   /** Whether the held chart has this path — a template the descriptor names may not exist yet. */
@@ -232,6 +296,9 @@ export const NodeInspector = ({
 }) => {
   const formGap = formPreviewGap(schemaText)
   const placed = !!templateText?.includes(PLACED_MARKER)
+  // Why the last edit here was not written — said under the node, until the next one.
+  const [refusal, setRefusal] = useState<string | null>(null)
+  useEffect(() => { setRefusal(null) }, [node?.id])
   return (
     <section aria-label='Inspector' className={styles.pane}>
       <div className={styles.paneHead}>
@@ -246,7 +313,8 @@ export const NodeInspector = ({
             <Field label='Node'>
               <span className={styles.fieldValue}>{node.id}</span>
             </Field>
-            <NodeFields hasFile={hasFile} levels={levels} node={node} onOpenFile={onOpenFile} />
+            {editing ? <NodeFields editing={editing} hasFile={hasFile} levels={levels} node={node} onOpenFile={onOpenFile} onRefusal={setRefusal} /> : null}
+            {refusal ? <div className={styles.schemaRefusal} role='alert'>{refusal}</div> : null}
             {placed && !node.lifecycle ? <ForEachField node={node} onSetForEach={onSetForEach} /> : null}
             {placedNote ? (
               <p className={styles.note} data-testid='placed-note'>
@@ -255,10 +323,16 @@ export const NodeInspector = ({
                 {placedNote.specNote ? ` ${placedNote.specNote}, so spec is empty — fill it in Chart files.` : null}
               </p>
             ) : null}
-            <p className={styles.note}>
-              Read-only for now: what it waits for and when it is ready — change those in templates/architecture.yaml, in
-              Chart files. Drawing an edge arrives next.
-            </p>
+            {editing ? (
+              <Popconfirm
+                cancelText='Keep it'
+                okText='Remove'
+                onConfirm={() => setRefusal(editing.onRemoveNode())}
+                title={`Remove ${node.id} from the chart? Its template and every edge onto it go with it.`}
+              >
+                <Button danger size='small'>Remove from chart</Button>
+              </Popconfirm>
+            ) : null}
           </>
         ) : (
           <p className={styles.fieldText}>Select a node to see what it is, what it waits for and when it is ready. Below: the create form this chart would generate.</p>

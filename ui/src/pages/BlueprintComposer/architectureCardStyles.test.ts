@@ -39,4 +39,13 @@ describe('the architecture card — selection is not focus, and fading does not 
       expect(rulesFor(`.card[data-states~='${state}'] > *`).join('\n')).toMatch(/\bopacity\s*:/)
     }
   })
+
+  it("draws a pending edge's two ends differently from a frontier card", () => {
+    const shadow = (selector: string): string => rulesFor(selector).join('\n').match(/box-shadow\s*:\s*([^;]+)/)?.[1] ?? ''
+    const frontier = shadow(".card[data-states~='frontier']")
+    for (const end of [".card[data-states~='pendingFrom']", ".card[data-states~='pendingTo']"]) {
+      expect(shadow(end)).not.toBe('')
+      expect(shadow(end)).not.toBe(frontier)
+    }
+  })
 })

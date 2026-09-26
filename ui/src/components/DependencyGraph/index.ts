@@ -1,6 +1,7 @@
-export { default, type DependencyGraphProps } from './DependencyGraph'
+export { default, type DependencyGraphProps, type EdgeDraw } from './DependencyGraph'
 export {
   DASHED_EDGE,
+  DRAW_DEPENDENCY,
   GRAPH_LAYOUT,
   edgeMinLen,
   graphLayout,

@@ -33,8 +33,13 @@
  * rendered exactly the bytes held now — any edit turns it off again (S3 decision 2, "Preview needed").
  * Autopilot is never asked to do any of it.
  *
- * NOT YET (S4b): drawing an edge, editing what a node waits for, generating the lookup gates. Those
- * are changed today in templates/architecture.yaml in Chart files; the canvas and the machine follow.
+ * EDGES (screens 6 and 7): a drag from one card onto another, or the inspector's "Add dependency",
+ * makes a PENDING edge the edge inspector asks about — wait for readiness, and what "ready" means —
+ * and Accept writes it as one batch: the dependent's `dependsOn` in the descriptor, the target's
+ * `readyWhen`, and the generated `krateo:gate` in every template that must now wait (planEdge,
+ * useEdgeEditing). Chart files then opens the dependent's template with its gate lit. The inspector's
+ * Depends-on rows, a node's Ready when and Remove from chart go through the same kernel. Hand-written
+ * gates are left alone and listed on the Source tab.
  */
 import { Alert, Button, Popconfirm, Space, Tooltip } from 'antd'
 import { useCallback, useContext, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
@@ -51,7 +56,7 @@ import { emitDraftUndo } from '../../components/Autopilot/previewDraftUndo'
 import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
 import { emitFilesBatch } from '../../components/Autopilot/previewFilesBatch'
 import { emitPublishRequest, onPublishResult } from '../../components/Autopilot/previewPublishRequest'
-import { PreviewContent, type RestDefVerdicts } from '../../components/Autopilot/previewSurface'
+import { PreviewContent, type FileHighlight, type RestDefVerdicts } from '../../components/Autopilot/previewSurface'
 import StatusPill from '../../components/StatusPill'
 import { ConfigContext } from '../../context/ConfigContext'
 
@@ -68,11 +73,16 @@ import ArchitecturePalette, { type PlaceRefusal } from './ArchitecturePalette'
 import { architectureView, counted } from './architectureView'
 import styles from './BlueprintComposer.module.css'
 import BlueprintEmptyState from './BlueprintEmptyState'
+import type { PaletteRead } from './blueprintPalette'
+import { edgeHead, PendingEdgeInspector, RefusedMoment, WhatJustHappened } from './EdgeInspector'
 import FormEditorDrawer from './FormEditorDrawer'
+import { gateLineRanges, unmanagedGateNotes } from './gateGen'
 import { heldBlueprintPayload, lastRenderOf, renderCaption, sameFiles } from './heldBlueprintPayload'
 import NodeInspector from './NodeInspector'
 import type { PaletteRow } from './paletteModel'
-import { placementCrd, planPlace, setForEach } from './planPlace'
+import { legalEdgeTargets, planSetForEach } from './planEdge'
+import { placementCrd, planPlace } from './planPlace'
+import { readinessOptions } from './readinessOptions'
 import { renderOutcomeCopy } from './renderOutcome'
 import type { FormFieldType } from './schemaEdit'
 import { compositionKind } from './startChart'
@@ -81,6 +91,8 @@ import StatePanel from './StatePanel'
 import { stepperModel, type StepperModel } from './stepperModel'
 import { useChartRequests } from './useChartRequests'
 import { useCrdSchema } from './useCrdSchema'
+import { useEdgeEditing } from './useEdgeEditing'
+import { useStatusFields } from './useStatusFields'
 
 export const EYEBROW = 'Blueprint Builder / Compose'
 
@@ -88,6 +100,8 @@ const NOTHING: Record<string, string> = {}
 const NO_RESOURCES: ResourceNode[] = []
 
 export const CHART_CHANGED = 'The chart changed while its CRD was read — nothing was placed.'
+
+export const GATE_CAPTION = `Generated from ${ARCHITECTURE_TEMPLATE_PATH} — edit the descriptor, not this block.`
 
 type Mode = 'empty' | 'page' | 'blueprint'
 
@@ -164,6 +178,10 @@ const BlueprintComposer = () => {
   const heldChart = useRef<string | null>(null)
   const mounted = useRef(true)
   const [formEditor, setFormEditor] = useState<{ open: boolean; addType: FormFieldType | null; nonce: number }>({ addType: null, nonce: 0, open: false })
+  // What the palette may place — also where the readiness picker finds a node's CRD — and the
+  // template an accepted edge just gated, lit in Chart files.
+  const [paletteRead, setPaletteRead] = useState<PaletteRead | null>(null)
+  const [gated, setGated] = useState<string | null>(null)
 
   // The blueprint claim, released on unmount — see previewDraftChanged's claimPreviewSurface.
   useEffect(() => claimPreviewSurface('blueprint'), [])
@@ -247,17 +265,48 @@ const BlueprintComposer = () => {
   const architecture = view.status === 'ok' || view.status === 'cycle' ? view.architecture : null
   const selectedNode = architecture?.resources.find((node) => node.id === selected) ?? null
 
+  // Edges: the pending one, the drag, and what an accepted one did (screens 6 and 7).
+  const edges = useEdgeEditing({
+    architecture,
+    files,
+    filesRef,
+    onAccepted: (edge, template) => {
+      setSelected(edge.from)
+      setGated(template)
+      openFile(template)
+    },
+  })
+  const pendingTarget = architecture?.resources.find((node) => node.id === edges.pending?.to) ?? null
+  const pendingStatus = useStatusFields(pendingTarget, paletteRead, crds.read)
+  const selectedStatus = useStatusFields(selectedNode, paletteRead, crds.read)
+  const targets = useMemo(() => (architecture && selected ? legalEdgeTargets(architecture, selected) : null), [architecture, selected])
+  const sourceNotes = useMemo(() => unmanagedGateNotes(files), [files])
+  const gatedText = edges.accepted && gated ? files[gated] : undefined
+  const highlight = useMemo((): FileHighlight | null => (gated && gatedText !== undefined
+    ? { caption: GATE_CAPTION, path: gated, ranges: gateLineRanges(gatedText) }
+    : null), [gated, gatedText])
+
   // Own keys only: a template path named `constructor` is not a file this chart holds.
   const hasFile = useCallback((path: string) => Object.prototype.hasOwnProperty.call(files, path), [files])
 
+  const { cancel: cancelEdge, dismissAccepted, dismissRefusal, reset: resetEdges } = edges
+  // A discard ends every edge gesture, and retires what the last accept did.
+  useEffect(() => onDraftClose(() => {
+    resetEdges()
+    setGated(null)
+  }), [resetEdges])
+
   // A node, from the canvas: the inspector shows it, and Chart files opens its template — when the
-  // chart has one (the inspector says so when it does not).
+  // chart has one (the inspector says so when it does not). Any edge gesture is over.
   const select = useCallback((id: string) => {
     setSelected(id)
+    cancelEdge()
+    dismissAccepted()
+    dismissRefusal()
     setPlaced((last) => (last?.id === id ? last : null))
     const node = architecture?.resources.find((resource) => resource.id === id)
     if (node && hasFile(node.template)) { openFile(node.template) }
-  }, [architecture, hasFile, openFile])
+  }, [architecture, cancelEdge, dismissAccepted, dismissRefusal, hasFile, openFile])
 
   const addDescriptor = () => {
     const chart = chartYamlName(files[CHART_YAML_PATH]) ?? draftDisplayName(files)
@@ -324,9 +373,10 @@ const BlueprintComposer = () => {
     openFile(`templates/${plan.id}.yaml`)
   }, [crds, openFile, placing])
 
-  // "One per item of": the kernel's plan, one batch, and the refusal said under the field.
+  // "One per item of": the kernel's plan — its gate, and every gate on it, following (planSetForEach) —
+  // one batch, and the refusal said under the field.
   const rangeNode = (id: string, forEach: string | null): string | null => {
-    const plan = setForEach(filesRef.current, id, forEach)
+    const plan = planSetForEach(filesRef.current, id, forEach)
     if (!plan.ok) {
       return plan.reason
     }
@@ -469,15 +519,20 @@ const BlueprintComposer = () => {
       <div className={styles.body}>
         <ArchitecturePalette
           chart={name}
+          dimmed={!!edges.pending || !!edges.drawing}
           onDismissRefusal={() => setPlaceRefusal(null)}
           onFormField={openFormEditor}
           onPlace={(row) => { void place(row) }}
+          onRead={setPaletteRead}
           placing={placing?.key ?? null}
           refusal={placeRefusal}
           resources={architecture?.resources ?? NO_RESOURCES}
         />
         <div className={styles.centre}>
           <ArchitectureCanvas
+            drawing={edges.drawingStates}
+            edgeDraw={edges.edgeDraw}
+            edgeHead={edgeHead(edges)}
             model={model}
             onAddDescriptor={addDescriptor}
             onLevel={setLevel}
@@ -498,29 +553,60 @@ const BlueprintComposer = () => {
                 focusNonce={focus?.nonce}
                 focusPath={focus?.path ?? null}
                 hideDraftProblems
+                highlight={highlight}
                 liveFiles={files}
                 onVerdicts={setEditVerdicts}
                 payload={shown}
+                sourceNotes={sourceNotes}
               />
             </div>
           </section>
         </div>
         <div className={styles.side}>
           <StatePanel model={model} view={view} />
-          <NodeInspector
-            fileCount={Object.keys(files).length}
-            hasFile={hasFile}
-            levels={view.status === 'ok' ? view.derived.levels : null}
-            node={selectedNode}
-            onClear={() => { setSelected(null); setPlaced(null) }}
-            onOpenFile={openFile}
-            onOpenFormEditor={() => openFormEditor(null)}
-            onSetForEach={rangeNode}
-            // Transient: said about the node just placed, until Preview renders the chart again.
-            placedNote={placed && selectedNode?.id === placed.id && held.previewed !== true ? placed : null}
-            schemaText={files[VALUES_SCHEMA_PATH]}
-            templateText={selectedNode && hasFile(selectedNode.template) ? files[selectedNode.template] : undefined}
-          />
+          {edges.refusedMoment ? <RefusedMoment onDismiss={edges.dismissRefusal} reason={edges.refusedMoment} /> : null}
+          {edges.pending && pendingTarget ? (
+            <PendingEdgeInspector
+              key={`${edges.pending.from}→${edges.pending.to}`}
+              onAccept={edges.accept}
+              onCancel={edges.cancel}
+              pending={edges.pending}
+              plan={edges.planPending}
+              status={pendingStatus}
+              target={pendingTarget}
+            />
+          ) : null}
+          {!edges.pending && edges.accepted ? <WhatJustHappened edge={edges.accepted} onDone={edges.dismissAccepted} /> : null}
+          {edges.pending || edges.accepted ? null : (
+            <NodeInspector
+              editing={selectedNode && targets ? {
+                onAddDependency: (to) => edges.choose(selectedNode.id, to),
+                onRemoveEdge: (to) => edges.removeEdge(selectedNode.id, to),
+                onRemoveNode: () => {
+                  const refused = edges.removeNode(selectedNode.id)
+                  if (!refused) { setSelected(null) }
+                  return refused
+                },
+                onSetEdgeReady: (to, ready) => edges.setEdgeReady(selectedNode.id, to, ready),
+                onSetReadyWhen: (readyWhen) => edges.setReadyWhen(selectedNode.id, readyWhen),
+                order: architecture?.resources.map((resource) => resource.id) ?? [],
+                readyWhen: readinessOptions(selectedNode, selectedStatus),
+                targets,
+              } : null}
+              fileCount={Object.keys(files).length}
+              hasFile={hasFile}
+              levels={view.status === 'ok' ? view.derived.levels : null}
+              node={selectedNode}
+              onClear={() => { setSelected(null); setPlaced(null) }}
+              onOpenFile={openFile}
+              onOpenFormEditor={() => openFormEditor(null)}
+              onSetForEach={rangeNode}
+              // Transient: said about the node just placed, until Preview renders the chart again.
+              placedNote={placed && selectedNode?.id === placed.id && held.previewed !== true ? placed : null}
+              schemaText={files[VALUES_SCHEMA_PATH]}
+              templateText={selectedNode && hasFile(selectedNode.template) ? files[selectedNode.template] : undefined}
+            />
+          )}
         </div>
       </div>
       <FormEditorDrawer

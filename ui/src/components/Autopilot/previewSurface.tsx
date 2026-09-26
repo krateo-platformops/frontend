@@ -155,9 +155,20 @@ const RestDefEditSection = ({
  *     them into the held tree + re-arms the page/blueprint gate) and the tab reflects the updated content.
  * The held-bytes guarantee holds: the edit is a human action on the held file, never a model round-trip.
  */
+/**
+ * Lines of a file to light, with the sentence that says why — the composer's generated gate
+ * (gateGen's `gateLineRanges`), 1-based and inclusive.
+ */
+export interface FileHighlight {
+  path: string
+  ranges: { from: number; to: number }[]
+  caption: string
+}
+
 const FileEditBlock = ({
   content,
   editable,
+  highlight,
   isPageWidget,
   kind,
   live,
@@ -168,6 +179,8 @@ const FileEditBlock = ({
   content: string
   /** Only the HELD draft's files: an edit is written into whatever is held, by path. */
   editable: boolean
+  /** Lines to light in the read-only view, and why. */
+  highlight?: Pick<FileHighlight, 'caption' | 'ranges'>
   /**
    * `content` IS the held bytes (a surface's live files), so the edit can be pinned to them. The
    * drawer shows a one-shot payload, which need not be byte-for-byte what is held, and pins nothing.
@@ -265,7 +278,17 @@ const FileEditBlock = ({
         </div>
       ) : (
         <div className={styles.yaml}>
-          <SyntaxHighlighter language='yaml' showLineNumbers style={style} wrapLines wrapLongLines>
+          {highlight ? <Typography.Paragraph className={styles.gateCaption} data-testid='gate-caption'>{highlight.caption}</Typography.Paragraph> : null}
+          <SyntaxHighlighter
+            language='yaml'
+            lineProps={highlight ? (line: number) => (highlight.ranges.some((range) => line >= range.from && line <= range.to)
+              ? { className: styles.gateLine, 'data-gate': 'true' } as React.HTMLProps<HTMLElement>
+              : {}) : undefined}
+            showLineNumbers
+            style={style}
+            wrapLines
+            wrapLongLines
+          >
             {current}
           </SyntaxHighlighter>
         </div>
@@ -297,7 +320,7 @@ const FileEditBlock = ({
  */
 const fileAnchorId = (path: string): string => `preview-file-${path.replace(/[^a-zA-Z0-9]+/g, '-')}`
 
-export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, hideDraftProblems, liveFiles, onVerdicts, payload }: {
+export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, hideDraftProblems, highlight, liveFiles, onVerdicts, payload, sourceNotes }: {
   /**
    * OVERRIDES the payload's own caption, for a surface that is not the drawer.
    *
@@ -356,8 +379,18 @@ export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, h
    * was.
    */
   liveFiles?: Record<string, string>
+  /**
+   * Lines of one file to light in Files, with a caption — the Blueprint Composer's generated gate,
+   * right after an edge wrote it. Absent everywhere else.
+   */
+  highlight?: FileHighlight | null
   onVerdicts: (verdicts: RestDefVerdicts) => void
   payload: AutopilotPreviewPayload
+  /**
+   * Notes the surface adds to the Source tab — the Blueprint Composer's unmanaged gates. Said only when
+   * there are any (exception-only), and never instead of the render's own verdicts.
+   */
+  sourceNotes?: string[]
 }): React.ReactNode => {
   const { mode } = useThemeMode()
   const setEditVerdicts = onVerdicts
@@ -407,6 +440,7 @@ export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, h
           <FileEditBlock
             content={file.content}
             editable={heldDraft}
+            highlight={highlight?.path === file.path ? highlight : undefined}
             isPageWidget={isPageWidget}
             kind={isPageWidget ? 'page' : 'blueprint'}
             live={liveFiles !== undefined}
@@ -476,12 +510,20 @@ export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, h
           ))}
         </ul>
       ) : null}
+      {sourceNotes?.length ? (
+        <Alert
+          description={<ul className={styles.issueList}>{sourceNotes.map((line) => <li key={line}>{line}</li>)}</ul>}
+          message='Unmanaged gates'
+          showIcon
+          type='info'
+        />
+      ) : null}
       {/* FE-K(edit): the editable RestDefinition source (or the read-only Collapse), computed above. */}
       {sourceView}
       {/* FE-B1: the create-form half of a blueprint preview — the draft's
           values.schema.json mounted read-only through the production SchemaForm. */}
       {payload.formSchema ? <PreviewFormSection formSchema={payload.formSchema} /> : null}
-      {!items.length && !payload.error && !summary?.length && !payload.formSchema && !problems?.length && editableYaml === undefined
+      {!items.length && !payload.error && !summary?.length && !payload.formSchema && !problems?.length && editableYaml === undefined && !sourceNotes?.length
         ? <Empty description='Nothing to preview' image={Empty.PRESENTED_IMAGE_SIMPLE} />
         : null}
     </div>

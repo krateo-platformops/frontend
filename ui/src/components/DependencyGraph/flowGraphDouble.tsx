@@ -46,6 +46,8 @@ export interface FakeGraph {
   destroyed: boolean
   destroy: () => void
   draw: () => Promise<void>
+  /** An event sent to the graph, as G6's `graph.emit` — its listeners run, as they would for G's own. */
+  emit: (event: string, payload: unknown) => void
   getOptions: () => Options
   on: (event: string, handler: Handler) => void
   setEdge: (edge: unknown) => void
@@ -62,6 +64,24 @@ export interface FakeGraph {
 
 const handlers = new Map<string, Handler[]>()
 
+/** The create-edge behaviour the last render was given, as G6 would call it. */
+interface DrawBehavior {
+  key?: string
+  enable: (event: unknown) => boolean
+  onCreate: (edge: { id: string; source: string; target: string }) => unknown
+}
+
+const drawBehavior = (options: Options): DrawBehavior => {
+  const behaviors = (options.behaviors ?? []) as unknown[]
+  const found = behaviors.find((behavior): behavior is DrawBehavior => typeof behavior === 'object' && behavior !== null && (behavior as { type?: string }).type === 'create-edge')
+  if (!found) { throw new Error('no create-edge behaviour was given') }
+  return found
+}
+
+const fire = (event: string, payload: unknown): void => {
+  for (const handler of handlers.get(event) ?? []) { handler(payload) }
+}
+
 /** The states `setElementState` gave each element since the data was last replaced, as G6 holds them. */
 const liveStates = new Map<string, string[]>()
 /** The mounted card lists, redrawn when a state changes — G6 redraws the element, not the layout. */
@@ -72,16 +92,38 @@ export const graphDouble = {
   canvases: [] as HTMLCanvasElement[],
   /** Fire G6's `node:click` for a node id, as a pointer click on its card would. */
   click: (id: string): void => {
-    for (const handler of handlers.get('node:click') ?? []) { handler({ target: { id } }) }
+    fire('node:click', { target: { id } })
+  },
+  /** A whole drag from one node onto another. */
+  drawEdge: (from: string, to: string): void => {
+    if (graphDouble.startEdge(from)) { graphDouble.dropEdge(from, to) }
+  },
+  /** A drag from a node that ends on the empty canvas. */
+  drawEdgeToCanvas: (from: string): void => {
+    if (graphDouble.startEdge(from)) { graphDouble.dropEdge(from, null) }
   },
   /** How many times `draw()` — a repaint without a layout — was called. */
   draws: 0,
+  /**
+   * End the drag: on a node (`enable`, then `onCreate` — G6 adds whatever it returns), or on the canvas
+   * (`to` null: G6's cancel, which calls nothing). Then `pointerup`, as the gesture's last event.
+   */
+  dropEdge: (from: string, to: string | null): void => {
+    const behavior = drawBehavior(graphDouble.last())
+    if (to !== null && behavior.enable({ target: { id: to }, targetType: 'node', type: 'pointerup' })) {
+      const created = behavior.onCreate({ id: `${from}-${to}`, source: from, target: to })
+      if (created !== undefined) { throw new Error('create-edge would have added an edge to the graph data') }
+    }
+    fire('pointerup', { targetType: to === null ? 'canvas' : 'node' })
+  },
   /** Every `setEdge()` argument, oldest first. */
   edgeUpdates: [] as unknown[],
   /** Fire any G6 event the component listens to, as G6 would. */
   emit: (event: string): void => {
     for (const handler of handlers.get(event) ?? []) { handler({}) }
   },
+  /** Every event sent to the graph with `emit`, oldest first. */
+  emitted: [] as string[],
   /** The live graph: created by the mount effect, null again once destroyed. */
   graph: null as FakeGraph | null,
   last: (): Options => {
@@ -94,6 +136,7 @@ export const graphDouble = {
   reset: (): void => {
     graphDouble.renders.length = 0
     graphDouble.edgeUpdates.length = 0
+    graphDouble.emitted.length = 0
     graphDouble.stateUpdates.length = 0
     liveStates.clear()
     graphDouble.draws = 0
@@ -102,6 +145,11 @@ export const graphDouble = {
     graphDouble.canvases.length = 0
     handlers.clear()
   },
+  /**
+   * Start dragging an edge from a node, as G6's create-edge does at `node:dragstart`: the behaviour's
+   * `enable` is asked. Returns what it answered — false is a drag that draws nothing.
+   */
+  startEdge: (from: string): boolean => drawBehavior(graphDouble.last()).enable({ target: { id: from }, targetType: 'node', type: 'dragstart' }),
   /** Every `setElementState()` config, oldest first — a state change drawn without a layout. */
   stateUpdates: [] as Record<string, string | string[]>[],
   /** Every viewport call (`zoomTo 1`, `fitCenter`, `resize`, `translateBy x,y`), oldest first. */
@@ -133,6 +181,10 @@ const createGraph = (options: () => Options): FakeGraph => {
     draw: () => {
       graphDouble.draws += 1
       return Promise.resolve()
+    },
+    emit: (event, payload) => {
+      graphDouble.emitted.push(event)
+      fire(event, payload)
     },
     // A graph that fits its 800×360 box: placing it is a zoom and a centring, never a translate.
     fitCenter: () => logged('fitCenter'),

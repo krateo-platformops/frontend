@@ -33,6 +33,14 @@
  *     graph again. A graph at true size can also be wider than its box, so a card focused past the
  *     edge is PANNED into view — never scrolled, which moved the cards off their edges. FlowChart's
  *     behaviour is unchanged.
+ *   - EDGE DRAWING (`edgeDraw`). A drag from a node to another says "the first depends on the second":
+ *     G6's `create-edge` behaviour, added only for a caller that asks. The whole node is the handle —
+ *     a card is a <button>, and a port inside it could not be one. The drag's own first check runs
+ *     `canStart` + `onStart`; the drop reports `onDrop(source, target)` and adds NO data (the caller
+ *     decides what the edge is; data added here would be a re-layout); a drop on the source itself,
+ *     or anywhere that is not a node, is `onCancel` — G6's own cancel says nothing, so a `pointerup`
+ *     listener notices a gesture that ended without a drop. The callbacks are read through a ref, so
+ *     the options — and the layout — do not change with them.
  *   - THE GRAPH HANDLE. `graphRef` receives the G6 Graph the moment G6 creates it (`onInit`) and
  *     is cleared when it is destroyed. NOT through FlowGraph's own forwarded ref: @ant-design/graphs
  *     2.1.1's BaseGraph fills that at its commit, before @antv/graphin's mount effect has created
@@ -49,9 +57,12 @@ import { activeThemeMode, useDocumentThemeMode } from '../../theme/palette'
 
 import {
   buildGraphOptions,
+  DASHED_EDGE,
+  DRAW_DEPENDENCY,
   edgePaletteStyle,
   graphPalette,
   type EdgeAppearance,
+  type EdgeDrawBehavior,
   type EdgeStateStyles,
   type GraphEdge,
   type GraphFit,
@@ -70,6 +81,12 @@ try {
 
 /** G6's `node:click` (NodeEvent.CLICK), spelled out so this module does not depend on the enum. */
 const NODE_CLICK = 'node:click'
+
+/** A G6 element id as the string the caller knows it by — or null for anything that is not one. */
+const elementId = (value: unknown): string | null => (typeof value === 'string' || typeof value === 'number' ? String(value) : null)
+
+/** G6's CommonEvent.POINTER_UP — the end of every gesture, a drop or not. */
+const POINTER_UP = 'pointerup'
 
 /**
  * G6's GraphEvent.BEFORE_DESTROY, spelled out likewise. Not AFTER_DESTROY: `graph.destroy()`
@@ -145,6 +162,17 @@ const restyleEdges = (graph: G6.Graph, palette: GraphPalette): void => {
   void graph.draw()
 }
 
+/** Drawing an edge by dragging from one node onto another — see the header. */
+export interface EdgeDraw {
+  /** Whether a drag from this node may start an edge. */
+  canStart: (id: string) => boolean
+  onStart: (id: string) => void
+  /** Dropped on another node: `source` is where the drag began. */
+  onDrop: (source: string, target: string) => void
+  /** Dropped on the canvas, on the source itself, or nowhere a drop counts. */
+  onCancel: () => void
+}
+
 export interface DependencyGraphProps<N, E> {
   nodes: GraphNode<N>[]
   edges: GraphEdge<E>[]
@@ -166,6 +194,8 @@ export interface DependencyGraphProps<N, E> {
   edgeStates?: EdgeStateStyles
   /** How the graph meets its box — `view` (default: fill it) or `natural` (zoom 1). See the header. */
   fit?: GraphFit
+  /** Drawing an edge by drag. Absent, no drawing behaviour is added. */
+  edgeDraw?: EdgeDraw
 }
 
 interface CanvasProps {
@@ -193,6 +223,7 @@ const placeNatural = (graph: G6.Graph): void => {
 
 const DependencyGraph = <N, E = Record<string, unknown>>({
   edgeAppearance,
+  edgeDraw,
   edgeStates,
   edges,
   fit = 'view',
@@ -211,6 +242,46 @@ const DependencyGraph = <N, E = Record<string, unknown>>({
   useEffect(() => {
     clickRef.current = onNodeClick
   }, [onNodeClick])
+
+  // Edge drawing: the caller's callbacks (read through a ref, like the click), and the gesture in
+  // flight — the node it started on — between G6's first `enable` and the drop or the cancel.
+  const drawRef = useRef(edgeDraw)
+  useEffect(() => {
+    drawRef.current = edgeDraw
+  }, [edgeDraw])
+  const gesture = useRef<string | null>(null)
+  const drawing = !!edgeDraw
+  const drawBehavior = useMemo((): EdgeDrawBehavior | undefined => (drawing
+    ? {
+      // Called twice per gesture: at the drag's start (no gesture yet) and at the drop (one is). A
+      // SECOND start while one stands is G's stale drag — a press that left the canvas before its
+      // drag began is still pending, and starts with the next — never a drop: refused.
+      enable: (event) => {
+        if (gesture.current !== null) { return event.type !== 'dragstart' }
+        const id = elementId(event.target?.id)
+        if (id === null || !drawRef.current?.canStart(id)) { return false }
+        gesture.current = id
+        drawRef.current.onStart(id)
+        return true
+      },
+      key: DRAW_DEPENDENCY,
+      onCreate: (edge) => {
+        const source = gesture.current
+        gesture.current = null
+        if (source === null) { return undefined }
+        const target = elementId(edge.target)
+        if (target === null || target === source) {
+          drawRef.current?.onCancel()
+        } else {
+          drawRef.current?.onDrop(source, target)
+        }
+        return undefined
+      },
+      style: { lineDash: DASHED_EDGE },
+      trigger: 'drag',
+      type: 'create-edge',
+    }
+    : undefined), [drawing])
 
   // The graph G6 created (null before onInit and after destroy), the caller's handle as of the
   // last commit, and what detaches the graph from that handle.
@@ -244,7 +315,51 @@ const DependencyGraph = <N, E = Record<string, unknown>>({
         clickRef.current?.(String(id))
       }
     })
+    // A drag that ended with no drop on a node. G6's own drop runs in this same dispatch, before or
+    // after this listener, and reports synchronously — so by the next microtask a drop has cleared
+    // the gesture, and one still standing was a cancel.
+    graph.on(POINTER_UP, () => {
+      if (gesture.current === null) { return }
+      queueMicrotask(() => {
+        if (gesture.current === null) { return }
+        gesture.current = null
+        drawRef.current?.onCancel()
+      })
+    })
   }, [bindHandle])
+
+  // A drag released OUTSIDE the canvas: G hears no pointerup, so create-edge would keep its source
+  // (and its dashed line after the pointer) and take the NEXT drag's start for a drop. The window
+  // hears it. Once the graph has had its chance — a task later, after the drop or the cancel above —
+  // a gesture still standing is ended by a pointerup the graph is sent on its canvas: G6's own
+  // cancel, and ours.
+  useEffect(() => {
+    if (!drawing) { return undefined }
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const onUp = (): void => {
+      if (gesture.current === null) { return }
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        const graph = liveGraph.current
+        if (gesture.current !== null && graph && !graph.destroyed) { graph.emit(POINTER_UP, { targetType: 'canvas' }) }
+      }, 0)
+    }
+    // Esc mid-drag: the caller lets its drawing go, but the gesture here and create-edge's source
+    // would stand, so releasing over a card afterwards still reported a drop — a pending edge the
+    // person had just cancelled. Ended the same way, at once: a pointerup sent on the canvas.
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || gesture.current === null) { return }
+      const graph = liveGraph.current
+      if (graph && !graph.destroyed) { graph.emit(POINTER_UP, { targetType: 'canvas' }) }
+    }
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [drawing])
 
   // A caller that swaps its ref: the old one lets go, the new one gets the graph that exists.
   useEffect(() => {
@@ -257,8 +372,8 @@ const DependencyGraph = <N, E = Record<string, unknown>>({
   // options, because Graphin answers new options with a full re-layout. New data still picks up
   // the mode active then. The flip itself repaints the live graph, below.
   const options = useMemo(
-    () => buildGraphOptions({ edgeAppearance, edgeStates, edges, fit, nodeSize, nodes, palette: themed ? graphPalette(activeThemeMode()) : null, renderNode }),
-    [edgeAppearance, edgeStates, edges, fit, nodeSize, nodes, renderNode, themed],
+    () => buildGraphOptions({ edgeAppearance, edgeDraw: drawBehavior, edgeStates, edges, fit, nodeSize, nodes, palette: themed ? graphPalette(activeThemeMode()) : null, renderNode }),
+    [drawBehavior, edgeAppearance, edgeStates, edges, fit, nodeSize, nodes, renderNode, themed],
   )
 
   // NATURAL: the box, observed. A new size is a canvas resize (no layout) and a new placement; the

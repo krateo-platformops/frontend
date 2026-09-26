@@ -21,9 +21,15 @@
  *
  * GROUPS START CLOSED. 123 custom kinds in 29 groups is a list nobody reads; each group is a
  * disclosure button (`aria-expanded`), and a filter opens every group it matches.
+ *
+ * IT DIMS WHILE AN EDGE IS DRAWN (06:58): the pane is `aria-disabled` and says so, and a row does not
+ * place — one gesture at a time, and the pending edge is planned from the chart as it is.
+ *
+ * ITS READ IS THE COMPOSER'S TOO (`onRead`): the readiness picker finds a node's CRD by the plural
+ * this list carries, rather than reading the palette twice or pluralising a Kind.
  */
 import { Alert, Input } from 'antd'
-import { Fragment, useContext, useEffect, useId, useMemo, useState } from 'react'
+import { Fragment, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 
 import { ConfigContext } from '../../context/ConfigContext'
 
@@ -82,9 +88,13 @@ export interface ArchitecturePaletteProps {
   onDismissRefusal: () => void
   onPlace: (row: PaletteRow) => void
   onFormField: (type: FormFieldType) => void
+  /** An edge is being drawn or is pending: the pane dims and places nothing. */
+  dimmed?: boolean
+  /** The palette's read, once it lands — the readiness picker's source of plurals. */
+  onRead?: (read: PaletteRead) => void
 }
 
-export const ArchitecturePalette = ({ chart, onDismissRefusal, onFormField, onPlace, placing, refusal, resources }: ArchitecturePaletteProps) => {
+export const ArchitecturePalette = ({ chart, dimmed, onDismissRefusal, onFormField, onPlace, onRead, placing, refusal, resources }: ArchitecturePaletteProps) => {
   // `useContext`, not a throwing hook: the page mounts bare in tests, and a portal with no config
   // still places native kinds.
   const config = useContext(ConfigContext)?.config
@@ -96,10 +106,15 @@ export const ArchitecturePalette = ({ chart, onDismissRefusal, onFormField, onPl
   // (or, cleared, closes) every group it matches.
   const [toggled, setToggled] = useState<Record<string, boolean>>({})
 
+  // Read through a ref: a new callback is not a reason to read the palette again.
+  const readRef = useRef(onRead)
+  readRef.current = onRead
   useEffect(() => {
     let live = true
     void readBlueprintPalette(base, namespace).then((answer) => {
-      if (live) { setRead(answer) }
+      if (!live) { return }
+      setRead(answer)
+      readRef.current?.(answer)
     })
     return () => { live = false }
   }, [base, namespace])
@@ -119,7 +134,7 @@ export const ArchitecturePalette = ({ chart, onDismissRefusal, onFormField, onPl
   }
   const row = (entry: PaletteRow, nested?: boolean) => (
     <Fragment key={entry.key}>
-      <Row busy={placing === entry.key} nested={nested} onPlace={onPlace} row={entry} />
+      <Row busy={placing === entry.key} nested={nested} onPlace={(picked) => { if (!dimmed) { onPlace(picked) } }} row={entry} />
       {refusal?.key === entry.key ? <Alert closable onClose={onDismissRefusal} showIcon title={refusal.reason} type='error' /> : null}
     </Fragment>
   )
@@ -133,7 +148,14 @@ export const ArchitecturePalette = ({ chart, onDismissRefusal, onFormField, onPl
       <div className={styles.paneHead}>
         <span className={styles.paneTitle}>Add</span>
       </div>
-      <div className={styles.paletteBody}>
+      {dimmed ? <p className={styles.paletteDimmed}>Palette dims while an edge is being drawn.</p> : null}
+      {/* A group, so it can be aria-disabled — a region cannot. */}
+      <div
+        aria-disabled={dimmed ? 'true' : undefined}
+        aria-label='Palette'
+        className={dimmed ? `${styles.paletteBody} ${styles.paletteBodyDimmed}` : styles.paletteBody}
+        role='group'
+      >
         <Input
           allowClear
           aria-label='Filter by kind or group'

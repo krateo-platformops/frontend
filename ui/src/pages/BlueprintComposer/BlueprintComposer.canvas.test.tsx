@@ -107,8 +107,9 @@ describe('BlueprintComposer — the architecture graph', () => {
     hold(builderPublishChart())
     expect(graphDouble.last().autoFit).toEqual({ animation: false, type: 'center' })
     await waitFor(() => expect(graphDouble.viewport).toEqual(['zoomTo 1', 'fitCenter']))
-    // …and nothing but a layout or a resize moves them off it: the wheel scrolls the page.
-    expect(graphDouble.last().behaviors).toEqual(['drag-canvas'])
+    // …and nothing but a layout or a resize moves them off it: the wheel scrolls the page. The one
+    // other behaviour is drawing an edge (S4b), which moves nothing.
+    expect(graphDouble.last().behaviors).toEqual(['drag-canvas', expect.objectContaining({ key: 'draw-dependency', type: 'create-edge' })])
   })
 
   it('hands dagre the card box (156×72) and dashes nothing that waits for readiness', () => {
@@ -295,7 +296,7 @@ describe('BlueprintComposer — the state stepper (screen 8)', () => {
 })
 
 describe('BlueprintComposer — selecting a node (screen 5)', () => {
-  it('a click on the graph fills the inspector, read-only, with the descriptor\'s own fields', () => {
+  it('a click on the graph fills the inspector with the descriptor\'s own fields — and the ways to change them', () => {
     mount()
     hold(builderPublishChart())
     act(() => graphDouble.click('localresources'))
@@ -306,7 +307,12 @@ describe('BlueprintComposer — selecting a node (screen 5)', () => {
     expect(within(inspector).getByText('builder-publish.files')).toBeTruthy()
     expect(within(inspector).getByText(/waits until it is ready, only when \.Values\.repository\.create is set/)).toBeTruthy()
     expect(within(inspector).getByText('S3')).toBeTruthy()
-    expect(within(inspector).getByText(/Read-only for now/)).toBeTruthy()
+    // Editable now (S4b): each edge, the node's readiness, a new dependency, and the node itself.
+    expect(within(inspector).getByRole('switch', { name: 'Wait for repository to be ready' })).toBeTruthy()
+    expect(within(inspector).getByRole('button', { name: 'Remove the dependency on repo' })).toBeTruthy()
+    expect(within(inspector).getByLabelText('Add dependency')).toBeTruthy()
+    expect(within(inspector).getByRole('button', { name: 'Remove from chart' })).toBeTruthy()
+    expect(within(inspector).queryByText(/Read-only for now/)).toBeNull()
   })
 
   it('a class default answers readiness when readyWhen is omitted, and says it is the default — in the kind\'s own words', () => {
@@ -315,10 +321,10 @@ describe('BlueprintComposer — selecting a node (screen 5)', () => {
     act(() => graphDouble.click('username-secret'))
     const inspector = screen.getByLabelText('Inspector')
     expect(within(inspector).getByText('Ready when · default for this class')).toBeTruthy()
-    // What the gate checks when there is no readyWhen: that the object exists (decision D3) — and,
-    // beside it, a Secret's own kstatus meaning from the palette's native table: it exists.
-    expect(within(inspector).getByText('exists (no readyWhen)')).toBeTruthy()
+    // What the gate waits for when there is no readyWhen: the kind's own kstatus meaning, from the
+    // palette's native table — for a Secret, that it exists.
     expect(within(inspector).getByText('kstatus · exists')).toBeTruthy()
+    expect(within(inspector).getByText(/this kind's own readiness — what a gate on it waits for/)).toBeTruthy()
     expect(within(inspector).getByText('outside the sequence')).toBeTruthy()
   })
 

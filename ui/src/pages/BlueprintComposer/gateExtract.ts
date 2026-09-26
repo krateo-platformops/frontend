@@ -27,6 +27,7 @@
  */
 import type { ChartArchitecture, Dependency, ResourceClass, ResourceNode } from './architecture'
 import { ARCHITECTURE_API_VERSION, ARCHITECTURE_KIND } from './architecture'
+import { scanBlocks, stripComments, type Block } from './helmBlocks'
 
 export type LookupClass = 'dependency' | 'preflight' | 'capability' | 'self' | 'shim' | 'support' | 'unclassified'
 
@@ -45,12 +46,6 @@ export interface ExtractResult {
   findings: LookupFinding[]
 }
 
-interface Block {
-  keyword: 'if' | 'range' | 'with'
-  cond: string
-  line: number
-}
-
 const NATIVE_GROUPS = new Set(['v1', 'apps/v1', 'batch/v1', 'networking.k8s.io/v1', 'rbac.authorization.k8s.io/v1', 'policy/v1'])
 
 const classOf = (apiVersion: string): ResourceClass => {
@@ -58,12 +53,6 @@ const classOf = (apiVersion: string): ResourceClass => {
   if (apiVersion.startsWith('composition.krateo.io/')) { return 'composition' }
   return 'custom'
 }
-
-// Helm block comments (double-brace slash-star … star-slash double-brace) may span lines and talk
-// about ifs and ends in prose; they must go before any scanning. Each is replaced by the newlines
-// it spanned, so every finding still reports the line a person will find in the file.
-const stripComments = (text: string): string =>
-  text.replace(/\{\{-?\s*\/\*[\s\S]*?\*\/\s*-?\}\}/g, (comment) => '\n'.repeat((comment.match(/\n/g) ?? []).length))
 
 /** `$src := .Values.source | default dict` → `$src` = `.Values.source`. One level is all the idiom needs. */
 const collectVars = (lines: string[]): Map<string, string> => {
@@ -90,27 +79,6 @@ const reassignedVars = (lines: string[]): Set<string> => {
     }
   }
   return again
-}
-
-const ACTION = /\{\{-?\s*([\s\S]*?)\s*-?\}\}/g
-
-/** Walk the file once, keeping the stack of open blocks at every line. */
-const scanBlocks = (lines: string[]): Block[][] => {
-  const stack: Block[] = []
-  const open: Block[][] = []
-  lines.forEach((line, idx) => {
-    open.push([...stack])
-    for (const action of line.matchAll(ACTION)) {
-      const body = action[1].trim()
-      const opener = /^(if|range|with)\b\s*([\s\S]*)$/.exec(body)
-      if (opener) {
-        stack.push({ cond: opener[2].trim(), keyword: opener[1] as Block['keyword'], line: idx + 1 })
-      } else if (/^end\b/.test(body)) {
-        stack.pop()
-      }
-    }
-  })
-  return open
 }
 
 /** The range variables the graph block and the gate bind — any other `$var` would be undefined there. */
