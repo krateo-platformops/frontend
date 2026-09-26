@@ -23,19 +23,21 @@ export interface NativeKind {
   readiness: NativeReadiness
   /** The readiness, in words. */
   label: string
+  /** The plural the apiserver serves it as — status projection lists the node's objects by it. */
+  plural: string
 }
 
 /** In the mockup's order (04:44-52), which is the palette's. */
 export const NATIVE_KINDS: readonly NativeKind[] = [
-  { apiVersion: 'apps/v1', display: 'apps/v1', kind: 'Deployment', label: 'available', readiness: 'available' },
-  { apiVersion: 'apps/v1', display: 'apps/v1', kind: 'StatefulSet', label: 'ready replicas', readiness: 'readyReplicas' },
-  { apiVersion: 'v1', display: 'v1', kind: 'Service', label: 'has endpoints', readiness: 'endpoints' },
-  { apiVersion: 'v1', display: 'v1', kind: 'ConfigMap', label: 'exists', readiness: 'exists' },
-  { apiVersion: 'v1', display: 'v1', kind: 'Secret', label: 'exists', readiness: 'exists' },
-  { apiVersion: 'networking.k8s.io/v1', display: 'networking/v1', kind: 'Ingress', label: 'lb address', readiness: 'lbAddress' },
-  { apiVersion: 'v1', display: 'v1', kind: 'PersistentVolumeClaim', label: 'bound', readiness: 'bound' },
-  { apiVersion: 'batch/v1', display: 'batch/v1', kind: 'Job', label: 'complete', readiness: 'complete' },
-  { apiVersion: 'batch/v1', display: 'batch/v1', kind: 'CronJob', label: 'exists', readiness: 'exists' },
+  { apiVersion: 'apps/v1', display: 'apps/v1', kind: 'Deployment', label: 'available', plural: 'deployments', readiness: 'available' },
+  { apiVersion: 'apps/v1', display: 'apps/v1', kind: 'StatefulSet', label: 'ready replicas', plural: 'statefulsets', readiness: 'readyReplicas' },
+  { apiVersion: 'v1', display: 'v1', kind: 'Service', label: 'has endpoints', plural: 'services', readiness: 'endpoints' },
+  { apiVersion: 'v1', display: 'v1', kind: 'ConfigMap', label: 'exists', plural: 'configmaps', readiness: 'exists' },
+  { apiVersion: 'v1', display: 'v1', kind: 'Secret', label: 'exists', plural: 'secrets', readiness: 'exists' },
+  { apiVersion: 'networking.k8s.io/v1', display: 'networking/v1', kind: 'Ingress', label: 'lb address', plural: 'ingresses', readiness: 'lbAddress' },
+  { apiVersion: 'v1', display: 'v1', kind: 'PersistentVolumeClaim', label: 'bound', plural: 'persistentvolumeclaims', readiness: 'bound' },
+  { apiVersion: 'batch/v1', display: 'batch/v1', kind: 'Job', label: 'complete', plural: 'jobs', readiness: 'complete' },
+  { apiVersion: 'batch/v1', display: 'batch/v1', kind: 'CronJob', label: 'exists', plural: 'cronjobs', readiness: 'exists' },
 ]
 
 /** The table's entry for a node's apiVersion and kind, or null — a native kind the palette does not place. */

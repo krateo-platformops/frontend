@@ -54,7 +54,7 @@ describe('planPlace — the plan', () => {
       apiVersion: ARCHITECTURE_API_VERSION,
       chart: 'orders',
       kind: ARCHITECTURE_KIND,
-      resources: [{ apiVersion: 'github.krateo.io/v2022-11-28', class: 'custom', id: 'repository', kind: 'Repository', name: REPOSITORY_NAME, template: 'templates/repository.yaml' }],
+      resources: [{ apiVersion: 'github.krateo.io/v2022-11-28', class: 'custom', id: 'repository', kind: 'Repository', name: REPOSITORY_NAME, resource: 'repositories', template: 'templates/repository.yaml' }],
     })
     // Only data.architecture is rewritten: the graph block is the store's to regenerate, on this
     // write as on any other — after which the file is exactly a fresh wrap of the new descriptor.
@@ -65,7 +65,7 @@ describe('planPlace — the plan', () => {
   it('never writes readyWhen — a suggestion is offered where readiness is picked, not stored', () => {
     const plan = planPlace(seeded(), repository, repositorySpec)
     expect(plan.ok && nodesOf(plan.edit[ARCHITECTURE_TEMPLATE_PATH])[0]).toEqual({
-      apiVersion: 'github.krateo.io/v2022-11-28', class: 'custom', id: 'repository', kind: 'Repository', name: REPOSITORY_NAME, template: 'templates/repository.yaml',
+      apiVersion: 'github.krateo.io/v2022-11-28', class: 'custom', id: 'repository', kind: 'Repository', name: REPOSITORY_NAME, resource: 'repositories', template: 'templates/repository.yaml',
     })
   })
 
@@ -89,7 +89,7 @@ describe('planPlace — the plan', () => {
     })
     const files = { ...seeded(), [ARCHITECTURE_TEMPLATE_PATH]: wrapAsConfigMapTemplate(descriptor, 'orders') }
     expect(Object.keys(files)).not.toContain('templates/deployment.yaml')
-    const plan = planPlace(files, { apiVersion: 'apps/v1', cls: 'native', kind: 'Deployment' }, null)
+    const plan = planPlace(files, { apiVersion: 'apps/v1', cls: 'native', kind: 'Deployment', plural: 'deployments' }, null)
     if (!plan.ok) { throw new Error(plan.reason) }
     expect(plan.id).toBe('deployment-2')
     expect(Object.keys(plan.add)).toEqual(['templates/deployment-2.yaml'])
@@ -133,7 +133,7 @@ describe('planPlace — the plan', () => {
   })
 
   it('a native kind has no CRD to read', () => {
-    expect(placementCrd({ apiVersion: 'apps/v1', cls: 'native', kind: 'Deployment' })).toBeNull()
+    expect(placementCrd({ apiVersion: 'apps/v1', cls: 'native', kind: 'Deployment', plural: 'deployments' })).toBeNull()
     expect(placementCrd(repository)).toEqual({ name: 'repositories.github.krateo.io', version: 'v2022-11-28' })
   })
 })

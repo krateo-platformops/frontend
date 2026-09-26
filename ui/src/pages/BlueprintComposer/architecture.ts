@@ -19,6 +19,7 @@
  * object names for the composition. `wrap`/`unwrap` below are that packaging; everything else here
  * works on the plain descriptor text.
  */
+/* eslint-disable no-template-curly-in-string -- the status section's messages quote the ${ jq } syntax an expression must use. */
 import { dump, load } from 'js-yaml'
 
 import { compileGraphBlock, graphBlockIn } from './graphCompile'
@@ -48,6 +49,12 @@ export interface ResourceNode {
   kind: string
   template: string
   /**
+   * The kind's plural, as the apiserver serves it (`repositories`, `deployments`) — the palette
+   * writes it at placement. Status projection lists a node's objects by it, and a plural cannot be
+   * derived from the kind: flect's rules and every CRD's own `names.plural` differ.
+   */
+  resource?: string
+  /**
    * The Helm pipeline that names the object, bare — `printf "%s-repo" .Values.name | trunc 63 |
    * trimSuffix "-"` — exactly as the template's `metadata.name` writes it. Required on a sequenced
    * node (the lint's rule, not the parser's): the detail page finds a node's objects by it.
@@ -64,12 +71,36 @@ export interface ResourceNode {
   lifecycle?: 'shim' | 'descriptor'
 }
 
+/** A projected field's JSON-schema type (core-provider StatusFieldMapping.type; object/array keep any shape). */
+export type ProjectionType = 'string' | 'integer' | 'number' | 'boolean' | 'object' | 'array'
+
+/**
+ * One `statusDataTemplate` row an author adds: a dotted path UNDER `.status` (core-provider's
+ * `forPath`: `endpoint`, `network.host`) and the `${ jq }` that fills it.
+ */
+export interface ProjectionRow {
+  forPath: string
+  expression: string
+  type?: ProjectionType
+}
+
+/**
+ * Status projection (S12) — what the chart's CompositionDefinition projects into each composition's
+ * `.status`, from the chart's `<chart>-status` RESTAction. The architecture rows are generated; these
+ * are the author's own, plus the static `apiRef.extras` the RESTAction reads.
+ */
+export interface StatusProjection {
+  extras?: Record<string, string>
+  project?: ProjectionRow[]
+}
+
 export interface ChartArchitecture {
   apiVersion: string
   kind: string
   chart: string
   resources: ResourceNode[]
   states?: { name: string }[]
+  status?: StatusProjection
 }
 
 export interface ArchitectureProblem {
@@ -180,6 +211,78 @@ const fieldProblems = (entry: Record<string, unknown>, at: string): Architecture
 export const lifecycleRefusal = (id: string, lifecycle: string): string =>
   `"${id}" is lifecycle: ${lifecycle} — orthogonal to the sequence, so nothing can wait on it`
 
+/** A DNS-1123 label: what the apiserver serves a resource's plural as. */
+const PLURAL = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/
+
+/** A projection row's forPath: dotted keys under `.status`, written without it (`endpoint`, `network.host`). */
+const STATUS_PATH = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/
+
+/** The status fields the controller owns — core-provider refuses a forPath whose top segment is one (statusfields.go:26-34). */
+const RESERVED_STATUS = ['helmChartUrl', 'helmChartVersion', 'digest', 'previousDigest', 'managed', 'conditions', 'observedGeneration']
+
+const PROJECTION_TYPES: ProjectionType[] = ['string', 'integer', 'number', 'boolean', 'object', 'array']
+
+/** A projection expression: one `${ … }` substitution, the CDC's own syntax. */
+const JQ_SUBSTITUTION = /^\$\{[\s\S]*\}$/
+
+/**
+ * The forPaths the architecture rows write — an author row may not take one. Not `workloadHealthy`:
+ * the portal's compositions tile reads `workloadHealthy: false` as failed (portal 1.5.51), and a
+ * machine that is still moving through its states is not failing.
+ */
+export const GENERATED_STATUS_PATHS = ['architectureLevel', 'waitingOn', 'architectureReady']
+
+/** The `status:` section, or undefined when absent. Faults are appended to `problems`. */
+const parseStatus = (raw: unknown, problems: ArchitectureProblem[]): StatusProjection | undefined => {
+  if (raw === undefined) { return undefined }
+  if (!isRecord(raw)) {
+    problems.push({ message: 'must be a mapping', path: 'status' })
+    return undefined
+  }
+  const out: StatusProjection = {}
+  if (raw.extras !== undefined) {
+    if (!isRecord(raw.extras) || Object.values(raw.extras).some((value) => typeof value !== 'string')) {
+      problems.push({ message: 'must map names to strings — the static extras the RESTAction reads', path: 'status.extras' })
+    } else {
+      out.extras = raw.extras as Record<string, string>
+    }
+  }
+  if (raw.project !== undefined) {
+    if (!Array.isArray(raw.project)) {
+      problems.push({ message: 'must be a list of { forPath, expression }', path: 'status.project' })
+    } else {
+      const rows: ProjectionRow[] = []
+      raw.project.forEach((row, idx) => {
+        const at = `status.project[${idx}]`
+        if (!isRecord(row)) {
+          problems.push({ message: 'must be a mapping', path: at })
+          return
+        }
+        if (typeof row.forPath !== 'string' || !STATUS_PATH.test(row.forPath)) {
+          problems.push({ message: 'must be dotted keys under .status, written without it — e.g. endpoint or network.host', path: `${at}.forPath` })
+        } else if (GENERATED_STATUS_PATHS.includes(row.forPath)) {
+          problems.push({ message: `${row.forPath} is generated from the architecture — project another field`, path: `${at}.forPath` })
+        } else if (RESERVED_STATUS.includes(row.forPath.split('.')[0])) {
+          problems.push({ message: `${row.forPath.split('.')[0]} is the controller's own status field — core-provider refuses the CompositionDefinition`, path: `${at}.forPath` })
+        } else if (rows.some((taken) => taken.forPath === row.forPath)) {
+          problems.push({ message: `${row.forPath} is already projected — one row per field`, path: `${at}.forPath` })
+        }
+        if (row.type !== undefined && !PROJECTION_TYPES.includes(row.type as ProjectionType)) {
+          problems.push({ message: `one of ${PROJECTION_TYPES.join(' | ')}`, path: `${at}.type` })
+        }
+        if (typeof row.expression !== 'string' || !JQ_SUBSTITUTION.test(row.expression.trim())) {
+          problems.push({ message: 'must be one ${ jq } substitution — e.g. ${ .api.nodes | length }', path: `${at}.expression` })
+        }
+        if (typeof row.forPath === 'string' && typeof row.expression === 'string') {
+          rows.push({ expression: row.expression.trim(), forPath: row.forPath, ...(PROJECTION_TYPES.includes(row.type as ProjectionType) ? { type: row.type as ProjectionType } : {}) })
+        }
+      })
+      out.project = rows
+    }
+  }
+  return out
+}
+
 /** Parse the descriptor text. Every structural fault is reported by path; nothing is guessed. */
 export const parseArchitecture = (text: string): ParseResult => {
   let raw: unknown
@@ -244,6 +347,9 @@ export const parseArchitecture = (text: string): ParseResult => {
         })
       }
     }
+    if (entry.resource !== undefined && (typeof entry.resource !== 'string' || !PLURAL.test(entry.resource))) {
+      problems.push({ message: 'must be the plural the apiserver serves, lowercase — e.g. repositories', path: `${at}.resource` })
+    }
     if (entry.lifecycle !== undefined && entry.lifecycle !== 'shim' && entry.lifecycle !== 'descriptor') {
       problems.push({ message: 'shim | descriptor', path: `${at}.lifecycle` })
     }
@@ -274,6 +380,7 @@ export const parseArchitecture = (text: string): ParseResult => {
       }
     }
   }
+  const status = parseStatus(raw.status, problems)
   if (problems.length) {
     return { ok: false, problems }
   }
@@ -281,7 +388,7 @@ export const parseArchitecture = (text: string): ParseResult => {
     ? raw.states.filter(isRecord).map((state) => ({ name: typeof state.name === 'string' ? state.name : '' }))
     : undefined
   return {
-    architecture: { apiVersion: ARCHITECTURE_API_VERSION, chart: String(raw.chart), kind: ARCHITECTURE_KIND, resources, states },
+    architecture: { apiVersion: ARCHITECTURE_API_VERSION, chart: String(raw.chart), kind: ARCHITECTURE_KIND, resources, states, ...(status ? { status } : {}) },
     ok: true,
   }
 }
@@ -298,6 +405,7 @@ const resourceEntry = (node: ResourceNode): Record<string, unknown> => {
   out.apiVersion = node.apiVersion
   out.kind = node.kind
   out.template = node.template
+  if (node.resource) { out.resource = node.resource }
   if (node.name) { out.name = node.name }
   if (node.when) { out.when = node.when }
   if (node.forEach) { out.forEach = node.forEach }
@@ -327,6 +435,20 @@ export const serializeArchitecture = (arch: ChartArchitecture): string => {
   doc.chart = arch.chart
   doc.resources = resources
   if (arch.states?.length) { doc.states = arch.states }
+  if (arch.status && (arch.status.extras || arch.status.project?.length)) {
+    const status: Record<string, unknown> = {}
+    if (arch.status.extras) { status.extras = arch.status.extras }
+    if (arch.status.project?.length) {
+      status.project = arch.status.project.map((row) => {
+        const entry: Record<string, unknown> = {}
+        entry.forPath = row.forPath
+        entry.expression = row.expression
+        if (row.type) { entry.type = row.type }
+        return entry
+      })
+    }
+    doc.status = status
+  }
   return dump(doc, { lineWidth: 120, noRefs: true, sortKeys: false })
 }
 

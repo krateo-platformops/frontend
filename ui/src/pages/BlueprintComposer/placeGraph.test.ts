@@ -32,7 +32,7 @@ const HELPERS = `{{- define "${CHART}.files" -}}\n{{- toYaml (.Values.files | de
 const repository: PalettePick = { apiVersion: 'github.krateo.io/v2022-11-28', cls: 'custom', group: 'github.krateo.io', kind: 'Repository', plural: 'repositories' }
 const localResource: PalettePick = { apiVersion: 'git.krateo.io/v1alpha1', cls: 'custom', group: 'git.krateo.io', kind: 'LocalResource', plural: 'localresources' }
 const builderPublish: PalettePick = { apiVersion: 'composition.krateo.io/v1-8-40', blueprint: 'builder-publish', cls: 'composition', kind: 'BuilderPublish', plural: 'builderpublishes' }
-const deployment: PalettePick = { apiVersion: 'apps/v1', cls: 'native', kind: 'Deployment' }
+const deployment: PalettePick = { apiVersion: 'apps/v1', cls: 'native', kind: 'Deployment', plural: 'deployments' }
 
 const specOf = (crd: string, version: string) => extractCrdSpecFields(CRDS[crd], version)
 

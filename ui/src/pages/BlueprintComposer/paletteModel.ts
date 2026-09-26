@@ -118,7 +118,7 @@ const nativeRows = (query: string, counts: Map<string, number>): PaletteRow[] =>
   .filter((entry) => includes(query, entry.kind, entry.apiVersion, entry.display))
   .map((entry) => ({
     key: `native:${entry.apiVersion}/${entry.kind}`,
-    pick: { apiVersion: entry.apiVersion, cls: 'native', kind: entry.kind },
+    pick: { apiVersion: entry.apiVersion, cls: 'native', kind: entry.kind, plural: entry.plural },
     placed: counts.get(`${entry.apiVersion}|${entry.kind}`) ?? 0,
     primary: entry.kind,
     secondary: `${entry.display} · ${entry.label}`,

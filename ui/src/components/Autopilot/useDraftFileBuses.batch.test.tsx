@@ -130,7 +130,7 @@ describe('useDraftFileBuses — a files batch', () => {
   it('a placement is held as a single-file save of its descriptor is — the graph block regenerated, the chart clean', () => {
     const started = startChart({ description: '', name: 'orders', version: '0.1.0' })
     if (!started.ok) { throw new Error('fixture chart refused') }
-    const plan = planPlace(started.files, { apiVersion: 'apps/v1', cls: 'native', kind: 'Deployment' }, null)
+    const plan = planPlace(started.files, { apiVersion: 'apps/v1', cls: 'native', kind: 'Deployment', plural: 'deployments' }, null)
     if (!plan.ok) { throw new Error(plan.reason) }
     const store = createBlueprintDraftStore()
     store.set(started.files, 'blueprint')

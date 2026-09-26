@@ -125,6 +125,7 @@ describe('BlueprintComposer — the generated gate (screen 7)', () => {
       '  apiVersion: git.krateo.io/v1alpha1',
       '  kind: LocalResource',
       '  template: templates/localresource.yaml',
+      '  resource: localresources',
       '  name: printf "%s-i%d" (printf "%s-localresource" $.Release.Name | trunc 55 | trimSuffix "-") (int $i)',
       '  forEach: .Values.files',
       '  dependsOn:',
