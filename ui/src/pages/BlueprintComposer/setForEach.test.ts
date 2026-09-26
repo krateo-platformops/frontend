@@ -80,7 +80,7 @@ describe('setForEach', () => {
     it(`a native ${kind}: its selector and pod labels become per item too — exactly the template placing writes ranged`, () => {
       const started = startChart({ description: '', name: 'orders', version: '0.1.0' })
       if (!started.ok) { throw new Error('fixture refused') }
-      const placed = applied(started.files, planPlace(started.files, { apiVersion: 'apps/v1', cls: 'native', kind }, null))
+      const placed = applied(started.files, planPlace(started.files, { apiVersion: 'apps/v1', cls: 'native', kind, plural: `${kind.toLowerCase()}s` }, null))
       const id = kind.toLowerCase()
       const path = `templates/${id}.yaml`
       const plan = setForEach(placed, id, '.Values.envs')
@@ -97,7 +97,7 @@ describe('setForEach', () => {
   it('a selector the author changed is theirs: ranging leaves it as they wrote it', () => {
     const started = startChart({ description: '', name: 'orders', version: '0.1.0' })
     if (!started.ok) { throw new Error('fixture refused') }
-    const placed = applied(started.files, planPlace(started.files, { apiVersion: 'apps/v1', cls: 'native', kind: 'Deployment' }, null))
+    const placed = applied(started.files, planPlace(started.files, { apiVersion: 'apps/v1', cls: 'native', kind: 'Deployment', plural: 'deployments' }, null))
     const path = 'templates/deployment.yaml'
     const single = placedNameExpression('deployment', false)
     const edited = placed[path].replace(`      app.kubernetes.io/instance: {{ ${single} }}`, '      app: web')

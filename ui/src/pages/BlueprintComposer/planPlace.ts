@@ -35,7 +35,7 @@ import { PLACED_MARKER, placedTemplate, rangeLine } from './templateGen'
 
 /** One palette row, activated. */
 export type PalettePick =
-  | { cls: 'native'; kind: string; apiVersion: string }
+  | { cls: 'native'; kind: string; apiVersion: string; plural: string }
   | { cls: 'custom'; kind: string; apiVersion: string; plural: string; group: string }
   | { cls: 'composition'; kind: string; apiVersion: string; plural: string; blueprint: string }
 
@@ -119,7 +119,7 @@ export const planPlace = (
   const path = `templates/${id}.yaml`
   const next: ChartArchitecture = {
     ...architecture,
-    resources: [...architecture.resources, { apiVersion: pick.apiVersion, class: pick.cls, id, kind: pick.kind, name: placedNameExpression(id, false), template: path }],
+    resources: [...architecture.resources, { apiVersion: pick.apiVersion, class: pick.cls, id, kind: pick.kind, name: placedNameExpression(id, false), resource: pick.plural, template: path }],
   }
   const rewrapped = rewrapDescriptor(template, serializeArchitecture(next))
   if (rewrapped === null) {
