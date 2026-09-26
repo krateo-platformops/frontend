@@ -13,7 +13,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 
 import { getComposeRefusals } from './composeRequest'
-import { draftFingerprint } from './draftStructure'
+import { chartFingerprint, draftFingerprint } from './draftStructure'
 import { getPreviewProblems } from './previewBus'
 import { redactAutopilotContext } from './redact'
 import type { AutopilotIdentity, PageContextEnvelope, WidgetInventoryEntry } from './types'
@@ -487,6 +487,7 @@ export const buildContextDelta = (
   //    the route, the widget set, the page status or the draft — every other guard here is blind
   //    to it by construction, so collapsing would drop the only signal the turn produced.
   const sameDraft = draftFingerprint(previous.draft) === draftFingerprint(next.draft)
+    && chartFingerprint(previous.chart) === chartFingerprint(next.chart)
   const sameRefusals = JSON.stringify(previous.composeRefusals ?? null) === JSON.stringify(next.composeRefusals ?? null)
   if (sameRoute && prevEndpoints === nextEndpoints && sameStatus && sameDraft && sameRefusals
     && !next.composeRefusals?.length && !hasPrefillableForm) {

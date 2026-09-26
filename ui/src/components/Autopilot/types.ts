@@ -251,6 +251,24 @@ export interface PageContextEnvelope {
    * not been shown. See `draftStructure.ts`.
    */
   draft?: DraftSummary
+  /**
+   * The HELD CHART's files — present when the held draft is a blueprint. The page draft's sibling:
+   * `chartPut` rewrites a WHOLE file, so the model must be shown the bytes it is rewriting, or it
+   * overwrites the person's edits with its own older copy. See `summarizeChart`.
+   */
+  chart?: ChartDraftSummary
+}
+
+export interface ChartDraftSummary {
+  /** Chart.yaml's name, when it has one. */
+  name: string | null
+  /** Every file sent, in reading order (Chart.yaml, the descriptor, the schema, values, templates). */
+  files: { path: string; content: string }[]
+  /**
+   * Files held but NOT sent, and why — a file that would not survive the redactor intact, or one
+   * past the size budget. The model must not rewrite one of these: it has not seen the bytes.
+   */
+  withheld?: { path: string; reason: string }[]
 }
 
 export interface DraftNodeSummary {

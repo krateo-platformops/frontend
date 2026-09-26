@@ -14,6 +14,7 @@ import { planEdge } from '../../pages/BlueprintComposer/planEdge'
 import { createBlueprintDraftStore, type BlueprintDraftStore } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
 import { applyChartVerb, readHeldDraft } from './chartVerbs'
+import { clearComposeRefusals, getComposeRefusals } from './composeRequest'
 import { draftHistory } from './draftHistory'
 import { heldDraftIdentity } from './publishCompile'
 import { useDraftFileBuses } from './useDraftFileBuses'
@@ -21,9 +22,12 @@ import { useDraftFileBuses } from './useDraftFileBuses'
 afterEach(() => {
   cleanup()
   draftHistory.clear()
+  clearComposeRefusals()
 })
 
 const LR = 'templates/localresource.yaml'
+const PR = 'templates/pullrequest.yaml'
+const ARCH = 'templates/architecture.yaml'
 
 /** The provider's buses over a store holding `files`, armed as if Preview had rendered it. */
 const mount = (files: Record<string, string> | null, kind: 'blueprint' | 'page' = 'blueprint') => {
@@ -61,6 +65,27 @@ describe('chartPut', () => {
     expect(run({ content: 'x: 1\n', path: 'templates/extra.yaml', verb: 'chartPut' })).toMatch(/^Added templates\/extra\.yaml/)
     expect(store.get()?.files['templates/extra.yaml']).toBe('x: 1\n')
     expect(run({ content: 'x: 1\n', path: 'templates/extra.yaml', verb: 'chartPut' })).toMatch(/already exactly that/)
+  })
+
+  it('keeps a declared edge\'s gate when the agent rewrites the gated template without one', () => {
+    const gated = edgeChart()
+    const ungated = applyPlan(gated, planEdge(gated, { from: 'pullrequest', op: 'remove', to: 'localresource' }))[PR]
+    expect(ungated).not.toContain(GATE_BEGIN)
+    const { store } = mount(gated)
+    const label = run({ content: `${ungated}# changed by the agent\n`, path: PR, verb: 'chartPut' })
+    expect(label).toMatch(/^Rewrote templates\/pullrequest\.yaml/)
+    const held = store.get()?.files[PR] ?? ''
+    expect(held).toContain(GATE_BEGIN)
+    expect(held).toContain('# changed by the agent')
+  })
+
+  it('gates an edge declared by rewriting the descriptor, byte for byte as drawing it', () => {
+    const gated = edgeChart()
+    const bare = applyPlan(gated, planEdge(gated, { from: 'pullrequest', op: 'remove', to: 'localresource' }))
+    const { store } = mount(bare)
+    const label = run({ content: gated[ARCH], path: ARCH, verb: 'chartPut' })
+    expect(label).toBe(`Rewrote ${ARCH} (gates regenerated in ${PR}) — Preview needed before it can be published`)
+    expect(store.get()?.files[PR]).toBe(gated[PR])
   })
 
   it('refuses a path the composer would not key, and the file the portal writes at publish', () => {
@@ -134,6 +159,24 @@ describe('what is open', () => {
 
   it('is not a chart verb → null', () => {
     expect(applyChartVerb({ verb: 'navigate' })).toBeNull()
+  })
+})
+
+describe('the model hears how it went — a chip never leaves the browser', () => {
+  it('records a refusal for the next turn, and a write that lands clears it', () => {
+    mount(edgeChart())
+    run({ from: 'localresource', to: 'pullrequest', verb: 'chartLink' })
+    expect(getComposeRefusals()).toEqual([{ reason: expect.stringMatching(/cycle/) as string, tried: 'link localresource → pullrequest' }])
+    run({ content: 'files: []\n', path: 'values.yaml', verb: 'chartPut' })
+    expect(getComposeRefusals()).toBeNull()
+  })
+
+  it('refuses content copied from a redacted view, and says why', () => {
+    const { store } = mount(edgeChart())
+    const before = store.get()
+    expect(run({ content: 'token: [redacted-jwt]\n', path: 'values.yaml', verb: 'chartPut' })).toMatch(/"\[redacted\]" marker/)
+    expect(store.get()).toBe(before)
+    expect(getComposeRefusals()?.[0].tried).toBe('write values.yaml')
   })
 })
 
