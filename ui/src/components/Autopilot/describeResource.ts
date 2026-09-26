@@ -70,21 +70,31 @@ const fieldType = (def: Record<string, unknown>): string => {
 }
 
 /**
- * Extract the `spec` field list from a fetched CRD object. Picks the version matching
- * `version` (else the storage version, else the first served, else the first). Null when
- * the CRD has no usable spec schema (the caller renders an error).
+ * The version of a fetched CRD to read a schema at: the one named `version`; else the one both
+ * served and stored; else the first served; else the first. SERVED before stored: 38 of 46 composition
+ * CRDs on krateo-057 store a version they no longer serve (`vacuum`), whose schema describes an
+ * object nobody can create. Null when the CRD lists no versions.
+ */
+export const pickCrdVersion = (crd: unknown, version?: string): Record<string, unknown> | null => {
+  const versions: unknown[] = Array.isArray(asRecord(asRecord(crd)?.spec)?.versions) ? asRecord(asRecord(crd)?.spec)?.versions as unknown[] : []
+  const pick = versions.find((entry) => asRecord(entry)?.name === version)
+    ?? versions.find((entry) => asRecord(entry)?.served === true && asRecord(entry)?.storage === true)
+    ?? versions.find((entry) => asRecord(entry)?.served === true)
+    ?? versions[0]
+  return asRecord(pick)
+}
+
+/**
+ * Extract the `spec` field list from a fetched CRD object, at the version `pickCrdVersion` picks.
+ * Null when the CRD has no usable spec schema (the caller renders an error).
  */
 export const extractCrdSpecFields = (crd: unknown, version?: string): CrdSpecExtract | null => {
   const spec = asRecord(asRecord(crd)?.spec)
-  const versions: unknown[] = Array.isArray(spec?.versions) ? spec.versions as unknown[] : []
-  if (versions.length === 0) {
+  const pick = pickCrdVersion(crd, version)
+  if (!pick) {
     return null
   }
-  const pick = versions.find((entry) => asRecord(entry)?.name === version)
-    ?? versions.find((entry) => asRecord(entry)?.storage === true)
-    ?? versions.find((entry) => asRecord(entry)?.served === true)
-    ?? versions[0]
-  const schema = asRecord(asRecord(asRecord(pick)?.schema)?.openAPIV3Schema)
+  const schema = asRecord(asRecord(pick.schema)?.openAPIV3Schema)
   const specSchema = asRecord(asRecord(schema?.properties)?.spec)
   if (!specSchema) {
     return null

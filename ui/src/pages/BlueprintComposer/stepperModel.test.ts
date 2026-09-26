@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest'
 import { ARCHITECTURE_API_VERSION, deriveStates, parseArchitecture, serializeArchitecture, type ChartArchitecture } from './architecture'
 import { toArchitectureGraph } from './architectureGraph'
 import { extractArchitecture } from './gateExtract'
-import { INITIAL_STATE_NAME, MISSING_READINESS, READINESS_DEFAULTS, stepperModel, type DerivedMachine } from './stepperModel'
+import { conditionReadyWhen } from './readyWhen'
+import { INITIAL_STATE_NAME, MISSING_READINESS, stepperModel, type DerivedMachine } from './stepperModel'
 
 const machine = (arch: ChartArchitecture): DerivedMachine => {
   const derived = deriveStates(arch)
@@ -75,25 +76,28 @@ describe('stepperModel — builder-publish, the documented machine', () => {
 })
 
 describe('stepperModel — the class default when readyWhen is omitted', () => {
-  it('native and composition → existence, as the gate compiles it; custom → a prompt to declare one', () => {
+  it('a composition → Ready and Synced, a known native kind → its kstatus meaning, as the gate compiles them; custom → a prompt to declare one', () => {
     const arch = empty([
       { apiVersion: 'apps/v1', class: 'native', id: 'deploy', kind: 'Deployment', template: 't/deploy.yaml' },
       { apiVersion: 'composition.krateo.io/v0-1-0', class: 'composition', id: 'db', kind: 'Postgres', template: 't/db.yaml' },
       { apiVersion: 'g/v1', class: 'custom', id: 'bucket', kind: 'Bucket', template: 't/bucket.yaml' },
+      { apiVersion: 'v1', class: 'native', id: 'sa', kind: 'ServiceAccount', template: 't/sa.yaml' },
+      { apiVersion: 'g/v1', class: 'custom', id: 'queue', kind: 'Queue', readyWhen: conditionReadyWhen('Ready'), template: 't/queue.yaml' },
       {
         apiVersion: 'v1',
         class: 'native',
-        dependsOn: [{ ready: true, ref: 'deploy' }, { ready: true, ref: 'db' }, { ready: true, ref: 'bucket' }, { ref: 'deploy' }],
+        dependsOn: [{ ready: true, ref: 'deploy' }, { ready: true, ref: 'db' }, { ready: true, ref: 'bucket' }, { ready: true, ref: 'sa' }, { ready: true, ref: 'queue' }, { ref: 'deploy' }],
         id: 'svc',
         kind: 'Service',
         template: 't/svc.yaml',
       },
     ])
-    expect(READINESS_DEFAULTS).toEqual({ composition: 'exists (no readyWhen)', custom: null, native: 'exists (no readyWhen)' })
     expect(stepperModel(arch, machine(arch), 0).leavesWhen).toEqual([
-      { from: 'deploy', predicate: READINESS_DEFAULTS.native, source: 'default', to: 'svc' },
-      { from: 'db', predicate: READINESS_DEFAULTS.composition, source: 'default', to: 'svc' },
+      { from: 'deploy', predicate: 'kstatus · available', source: 'default', to: 'svc' },
+      { from: 'db', predicate: 'Ready=True and Synced=True', source: 'default', to: 'svc' },
       { from: 'bucket', predicate: MISSING_READINESS, source: 'missing', to: 'svc' },
+      { from: 'sa', predicate: MISSING_READINESS, source: 'missing', to: 'svc' },
+      { from: 'queue', predicate: '.status.conditions[type=Ready] == True', source: 'readyWhen', to: 'svc' },
     ])
   })
 })
@@ -145,7 +149,7 @@ describe('stepperModel — a resource named "constructor", from the descriptor t
       frontier: ['constructor'],
       initial: false,
       label: 'S1',
-      leavesWhen: [{ from: 'constructor', predicate: READINESS_DEFAULTS.native, source: 'default', to: 'web' }],
+      leavesWhen: [{ from: 'constructor', predicate: 'kstatus · exists', source: 'default', to: 'web' }],
       level: 0,
       lit: ['constructor'],
       name: null,

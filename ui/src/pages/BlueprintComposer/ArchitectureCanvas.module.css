@@ -270,6 +270,85 @@
   position: absolute;
 }
 
+/* ── Drawing an edge (screens 6 and 7) ──────────────────────────────────────────────────────────
+   The whole card is the handle (D9); the ports are a cue, never a target. Dependencies come in on the
+   left, dependents go out on the right — the canvas's reading direction. */
+
+.port {
+  background: var(--light-color);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  box-sizing: border-box;
+  height: 10px;
+  pointer-events: none;
+  position: absolute;
+  top: calc(50% - 5px);
+  width: 10px;
+}
+
+.portIn {
+  left: -5px;
+}
+
+.portOut {
+  right: -5px;
+}
+
+/* A card a drag may land on: dashed in the accent hue until the pointer is over it. */
+.card[data-states~='legalTarget'] {
+  border-color: var(--primary-color);
+  border-style: dashed;
+}
+
+.card[data-states~='drawSource'],
+.card[data-states~='pendingFrom'],
+.card[data-states~='pendingTo'] {
+  border-color: var(--primary-color);
+}
+
+/* The dependent's side lights where a drag starts and on a pending edge's dependent; the
+   dependency's side on the card under the pointer and on the pending edge's dependency. */
+.card[data-states~='drawSource'] .portIn,
+.card[data-states~='pendingFrom'] .portIn,
+.card[data-states~='pendingTo'] .portOut,
+.card[data-states~='legalTarget']:hover .portOut {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.card[data-states~='pendingTo'],
+.card[data-states~='legalTarget']:hover {
+  box-shadow: 0 0 0 3px var(--krateo-color-background-selected);
+}
+
+/* The pill says what the card is ready by, in the card's one remaining line: in sentence case, so it
+   fits 156px, and cut with an ellipsis rather than spilling when a readiness is long. */
+.legalPill {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  letter-spacing: 0;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-transform: none;
+}
+
+.legalIdle,
+.legalHover {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legalHover,
+.card[data-states~='legalTarget']:hover .legalIdle {
+  display: none;
+}
+
+.card[data-states~='legalTarget']:hover .legalHover {
+  display: inline;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .card,
   .card > * {

@@ -21,27 +21,13 @@
  * nothing entering, nothing withheld, no way out (`initial: true`, `total: 1`). The page renders it
  * as "S1 · initial" over an empty canvas. It is the same shape the first real resource then fills.
  */
-import { levelOf, type ChartArchitecture, type DeriveResult, type ResourceClass, type ResourceNode } from './architecture'
+import { levelOf, type ChartArchitecture, type DeriveResult, type ResourceNode } from './architecture'
+import { defaultReadiness, readyWhenPredicate } from './readyWhen'
 
 /** The name the stepper shows for the one state a chart with no sequenced resources has. */
 export const INITIAL_STATE_NAME = 'initial'
 
-/**
- * What "ready" means when the author wrote no `readyWhen` — said as the gate compiles it. gateGen
- * turns a missing `readyWhen` into EXISTENCE (a bare `lookup`), and the composition detail page
- * follows the gate, so the stepper says the same rather than promising a class's own readiness
- * (kstatus Current, Ready=True and Synced=True) that nothing checks yet. Those become real defaults
- * when the gate can compile them.
- */
-export const READINESS_DEFAULTS: Record<ResourceClass, string | null> = {
-  composition: 'exists (no readyWhen)',
-  // A custom resource has no agreed readiness; the descriptor must say (the parser refuses a
-  // `ready: true` edge onto one without it).
-  custom: null,
-  native: 'exists (no readyWhen)',
-}
-
-/** Shown in place of a predicate when a custom resource has no readyWhen. */
+/** Shown in place of a predicate when a node has no readyWhen and no class default (a custom resource). */
 export const MISSING_READINESS = 'no readyWhen — declare one'
 
 export interface LeaveCondition {
@@ -78,11 +64,16 @@ export interface StepperModel {
 
 export type DerivedMachine = Extract<DeriveResult, { ok: true }>
 
+/**
+ * What "ready" means for a node — said as the gate compiles it (readyWhen.ts): its `readyWhen`, else
+ * its class default (a composition's Ready and Synced, a known native kind's kstatus meaning), else
+ * nothing — a custom resource has no agreed readiness, and a `ready` edge onto it is refused.
+ */
 const readiness = (node: ResourceNode): Pick<LeaveCondition, 'predicate' | 'source'> => {
   if (node.readyWhen) {
-    return { predicate: node.readyWhen, source: 'readyWhen' }
+    return { predicate: readyWhenPredicate(node.readyWhen), source: 'readyWhen' }
   }
-  const fallback = READINESS_DEFAULTS[node.class]
+  const fallback = defaultReadiness(node)
   return fallback ? { predicate: fallback, source: 'default' } : { predicate: MISSING_READINESS, source: 'missing' }
 }
 

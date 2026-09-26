@@ -22,6 +22,7 @@
 import { dump, load } from 'js-yaml'
 
 import { compileGraphBlock, graphBlockIn } from './graphCompile'
+import { parseReadyWhen, READY_WHEN_EXPECTED } from './readyWhen'
 
 export const ARCHITECTURE_API_VERSION = 'architecture.krateo.io/v1alpha1'
 export const ARCHITECTURE_KIND = 'ChartArchitecture'
@@ -102,12 +103,12 @@ const RESERVED_ID = '__proto__'
  * refused with the same message, for an agent and a person alike.
  *
  * Each path also has a SHAPE, because the graph block compiles it: a `when` becomes a `dig` over the
- * values map one key per segment, a `readyWhen` a walk of the live object, and a `forEach` either
+ * values map one key per segment, a `readyWhen` a guard over the live object (readyWhen.ts: a status
+ * field, or a True condition — the two forms both Helm and jq can compile), and a `forEach` either
  * that `dig` (a Values path) or an `include` (a named helper, as builder-publish ranges over
  * `builder-publish.files`). Anything else would compile to a template that does not render.
  */
 const VALUES_PATH = /^\.Values(\.[A-Za-z0-9_-]+)+$/
-const STATUS_PATH = /^\.status(\.[A-Za-z0-9_-]+)+$/
 const HELPER_NAME = /^[A-Za-z0-9_-][A-Za-z0-9_.-]*$/
 
 interface FieldRule {
@@ -118,7 +119,7 @@ interface FieldRule {
 
 const PATH_FIELDS: Record<'when' | 'forEach' | 'readyWhen', FieldRule> = {
   forEach: { expected: 'a bare path (.Values.files) or a named helper (builder-publish.files)', shape: (value) => VALUES_PATH.test(value) || HELPER_NAME.test(value) },
-  readyWhen: { expected: 'a bare jq path over the live object, e.g. .status.ready', shape: (value) => STATUS_PATH.test(value) },
+  readyWhen: { expected: READY_WHEN_EXPECTED, shape: (value) => parseReadyWhen(value).ok },
   when: { expected: 'a bare path, e.g. .Values.a.b', shape: (value) => VALUES_PATH.test(value) },
 }
 
@@ -174,6 +175,10 @@ const fieldProblems = (entry: Record<string, unknown>, at: string): Architecture
   }
   return problems
 }
+
+/** Why nothing can wait on a lifecycle node — the parser's words, and planEdge's. */
+export const lifecycleRefusal = (id: string, lifecycle: string): string =>
+  `"${id}" is lifecycle: ${lifecycle} — orthogonal to the sequence, so nothing can wait on it`
 
 /** Parse the descriptor text. Every structural fault is reported by path; nothing is guessed. */
 export const parseArchitecture = (text: string): ParseResult => {
@@ -260,7 +265,7 @@ export const parseArchitecture = (text: string): ParseResult => {
       } else if (target.lifecycle && target !== node) {
         // A lifecycle node is outside the sequence (deriveStates skips it), so an edge onto it
         // would order nothing while reading as if it did.
-        problems.push({ message: `"${dep.ref}" is lifecycle: ${target.lifecycle} — orthogonal to the sequence, so nothing can wait on it`, path: at })
+        problems.push({ message: lifecycleRefusal(dep.ref, target.lifecycle), path: at })
       } else if (dep.ready && !target.readyWhen && target.class === 'custom') {
         problems.push({ message: `ready: true needs a readyWhen on "${dep.ref}" — a custom resource has no default`, path: at })
       }
@@ -286,31 +291,36 @@ export const parseArchitecture = (text: string): ParseResult => {
  * is built by ASSIGNMENT, not by an object literal: this repo's lint alphabetises literal keys on
  * `--fix`, and the file's key order is part of its format.
  */
+const resourceEntry = (node: ResourceNode): Record<string, unknown> => {
+  const out: Record<string, unknown> = {}
+  out.id = node.id
+  out.class = node.class
+  out.apiVersion = node.apiVersion
+  out.kind = node.kind
+  out.template = node.template
+  if (node.name) { out.name = node.name }
+  if (node.when) { out.when = node.when }
+  if (node.forEach) { out.forEach = node.forEach }
+  if (node.dependsOn?.length) {
+    out.dependsOn = node.dependsOn.map((dep) => {
+      const edge: Record<string, unknown> = {}
+      edge.ref = dep.ref
+      if (dep.ready) { edge.ready = true }
+      if (dep.all) { edge.all = true }
+      if (dep.when) { edge.when = dep.when }
+      return edge
+    })
+  }
+  if (node.readyWhen) { out.readyWhen = node.readyWhen }
+  if (node.lifecycle) { out.lifecycle = node.lifecycle }
+  return out
+}
+
+/** One resource's entry, as the descriptor serialises it — what "What just happened" shows. */
+export const serializeResource = (node: ResourceNode): string => dump([resourceEntry(node)], { lineWidth: 120, noRefs: true, sortKeys: false })
+
 export const serializeArchitecture = (arch: ChartArchitecture): string => {
-  const resources = arch.resources.map((node) => {
-    const out: Record<string, unknown> = {}
-    out.id = node.id
-    out.class = node.class
-    out.apiVersion = node.apiVersion
-    out.kind = node.kind
-    out.template = node.template
-    if (node.name) { out.name = node.name }
-    if (node.when) { out.when = node.when }
-    if (node.forEach) { out.forEach = node.forEach }
-    if (node.dependsOn?.length) {
-      out.dependsOn = node.dependsOn.map((dep) => {
-        const edge: Record<string, unknown> = {}
-        edge.ref = dep.ref
-        if (dep.ready) { edge.ready = true }
-        if (dep.all) { edge.all = true }
-        if (dep.when) { edge.when = dep.when }
-        return edge
-      })
-    }
-    if (node.readyWhen) { out.readyWhen = node.readyWhen }
-    if (node.lifecycle) { out.lifecycle = node.lifecycle }
-    return out
-  })
+  const resources = arch.resources.map(resourceEntry)
   const doc: Record<string, unknown> = {}
   doc.apiVersion = arch.apiVersion
   doc.kind = arch.kind

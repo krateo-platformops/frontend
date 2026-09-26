@@ -15,12 +15,18 @@
  * A REAL BUTTON. G6's `node:click` answers a pointer; a keyboard has no pointer, and G6 hit-tests a
  * forwarded click at its coordinates. So the card is a <button> that selects through the closure
  * the composer passes in, and Enter or Space on a focused card does exactly what a click does.
+ *
+ * THE WHOLE CARD IS THE DRAG HANDLE for drawing an edge (S4 decision D9): an interactive port cannot
+ * live inside a <button>. The two port dots — dependencies come in on the left, dependents go out on
+ * the right — are `aria-hidden` and only a cue. While an edge is drawn, a card it may land on says
+ * so ("legal target · <readiness>", "drop here · accepts" under the pointer), and nothing else lights.
  */
 import type { GraphNode } from '../../components/DependencyGraph'
 
 import styles from './ArchitectureCanvas.module.css'
 import type { ArchitectureNodeData } from './architectureGraph'
 import { apiGroup } from './architectureView'
+import { readinessShort } from './readyWhen'
 
 /** [width, height] — the card's CSS box, and so what dagre reserves per node (C19). */
 export const NODE_SIZE: [number, number] = [156, 72]
@@ -28,9 +34,13 @@ export const NODE_SIZE: [number, number] = [156, 72]
 /** What each state means, said aloud: the card's accessible name carries it, not its colour. */
 const STATE_WORDS: Record<string, string> = {
   cycle: 'part of a dependency cycle',
+  drawSource: 'drawing a dependency from here',
   frontier: 'enters in this state',
+  legalTarget: 'can be depended on',
   lit: 'renders in this state',
   orthogonal: 'outside the sequence',
+  pendingFrom: 'the dependent of the edge being added',
+  pendingTo: 'the dependency of the edge being added',
   withheld: 'withheld until a later state',
 }
 
@@ -50,7 +60,9 @@ export const ArchitectureNodeCard = ({ node, onSelect }: {
   const markers = [resource.lifecycle, resource.when ? 'optional' : null].filter((marker): marker is string => !!marker)
   // The label REPLACES the visible text as the card's name, so every marker the card shows is said
   // in it too — the ×N (one card per forEach item) and the pills — or a screen reader never hears them.
-  const heard = [`${node.id}, a ${resource.kind} (${resource.class})`, ...(resource.forEach ? ['one per item'] : []), ...markers, ...said]
+  // A card an edge may land on says what it is ready by, in the pill and in its name alike.
+  const legal = states.includes('legalTarget') ? `legal target · ${readinessShort(resource)}` : null
+  const heard = [`${node.id}, a ${resource.kind} (${resource.class})`, ...(resource.forEach ? ['one per item'] : []), ...markers, ...said, ...(legal ? [legal] : [])]
   return (
     <button
       aria-label={heard.join(', ')}
@@ -71,9 +83,20 @@ export const ArchitectureNodeCard = ({ node, onSelect }: {
         {resource.forEach ? <span className={styles.cardEach}>×N</span> : null}
       </span>
       <span className={styles.cardPills}>
-        <span className={`${styles.classPill} ${CLASS_STYLE[resource.class] ?? ''}`}>{resource.class}</span>
-        {markers.map((marker) => <span className={styles.classPill} key={marker}>{marker}</span>)}
+        {legal ? (
+          <span className={`${styles.classPill} ${styles.legalPill}`}>
+            <span className={styles.legalIdle}>{legal}</span>
+            <span className={styles.legalHover}>drop here · accepts</span>
+          </span>
+        ) : (
+          <>
+            <span className={`${styles.classPill} ${CLASS_STYLE[resource.class] ?? ''}`}>{resource.class}</span>
+            {markers.map((marker) => <span className={styles.classPill} key={marker}>{marker}</span>)}
+          </>
+        )}
       </span>
+      <span aria-hidden='true' className={`${styles.port} ${styles.portIn}`} />
+      <span aria-hidden='true' className={`${styles.port} ${styles.portOut}`} />
     </button>
   )
 }

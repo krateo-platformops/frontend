@@ -192,6 +192,25 @@ export const graphEdgeOptions = <E, >(
  */
 export type GraphFit = 'natural' | 'view'
 
+/**
+ * The edge-drawing behaviour a caller may add (DependencyGraph's `edgeDraw`): G6's `create-edge`, by
+ * drag, whose callbacks the caller owns. G6 draws a dashed line from the source while it is dragged
+ * and adds NOTHING at the drop — `onCreate` answers undefined — because what an edge means is the
+ * caller's to decide (a pending edge to accept, a refusal), and data added behind its back would be a
+ * re-layout.
+ */
+export interface EdgeDrawBehavior {
+  type: 'create-edge'
+  key: string
+  trigger: 'drag'
+  style: { lineDash: number[] }
+  enable: (event: { target?: { id?: unknown }; type?: string }) => boolean
+  onCreate: (edge: { source: unknown; target: unknown }) => undefined
+}
+
+/** The key the drawing behaviour is registered under. */
+export const DRAW_DEPENDENCY = 'draw-dependency'
+
 export interface GraphOptionsInput<N, E> {
   /** Default `view`. */
   fit?: GraphFit
@@ -203,14 +222,17 @@ export interface GraphOptionsInput<N, E> {
   palette: GraphPalette | null
   edgeAppearance?: (edge: GraphEdge<E>) => EdgeAppearance
   edgeStates?: EdgeStateStyles
+  /** Appended to the behaviours when given — absent, the behaviours are exactly C19's. */
+  edgeDraw?: EdgeDrawBehavior
 }
 
 /** Everything FlowGraph is given, from one place. */
 export const buildGraphOptions = <N, E>(input: GraphOptionsInput<N, E>): FlowGraphOptions => {
-  const { edgeAppearance, edgeStates, edges, fit = 'view', nodeSize, nodes, palette, renderNode } = input
+  const { edgeAppearance, edgeDraw, edgeStates, edges, fit = 'view', nodeSize, nodes, palette, renderNode } = input
+  const behaviors = fit === 'natural' ? NATURAL_BEHAVIORS : GRAPH_BEHAVIORS
   return {
     autoFit: fit === 'natural' ? NATURAL_AUTO_FIT : 'view',
-    behaviors: fit === 'natural' ? NATURAL_BEHAVIORS : GRAPH_BEHAVIORS,
+    behaviors: edgeDraw ? [...behaviors, edgeDraw] : behaviors,
     data: { edges: edges as G6.EdgeData[], nodes: nodes as unknown as G6.NodeData[] },
     edge: graphEdgeOptions(palette, edgeAppearance, edgeStates),
     layout: graphLayout(edges),

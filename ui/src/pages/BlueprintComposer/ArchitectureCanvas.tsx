@@ -14,6 +14,11 @@
  * them. Calling `setElementState` then would race G6's own render of the new data — so it is called
  * only when the step or the selection moves over data G6 has already drawn.
  *
+ * DRAWING AN EDGE IS A STATE TOO (screens 6 and 7). A drag from a card lights the cards it may land
+ * on, and a pending edge its two ends — element states again, never graph data, so nothing is laid
+ * out anew until the edge is accepted and the file changes. The pane head says what is going on:
+ * "Drawing: a → b" while an edge is drawn or pending, "Edge accepted" with a count after.
+ *
  * EVERY SHAPE OF THE FILE HAS A DESIGNED STATE (architectureView): no file, a file with no
  * descriptor, a descriptor the kernel refuses, a cycle, no resources yet. None of them is a crash
  * and none is a blank box — each says what is missing and what to do about it.
@@ -22,13 +27,13 @@ import type { G6 } from '@ant-design/graphs'
 import { Button } from 'antd'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
-import DependencyGraph, { type EdgeAppearance, type EdgeStateStyles, type GraphEdge, type GraphNode } from '../../components/DependencyGraph'
+import DependencyGraph, { type EdgeAppearance, type EdgeDraw, type EdgeStateStyles, type GraphEdge, type GraphNode } from '../../components/DependencyGraph'
 
 import { ARCHITECTURE_TEMPLATE_PATH } from './architecture'
 import canvas from './ArchitectureCanvas.module.css'
 import { inReadingOrder, type ArchitectureEdgeData, type ArchitectureGraph, type ArchitectureNodeData } from './architectureGraph'
 import { ArchitectureNodeCard, NODE_SIZE } from './ArchitectureNodeCard'
-import { counted, elementStates, type ArchitectureView } from './architectureView'
+import { counted, elementStates, type ArchitectureView, type DrawingStates } from './architectureView'
 import styles from './BlueprintComposer.module.css'
 import type { StepperModel } from './stepperModel'
 
@@ -49,6 +54,7 @@ export const architectureEdgeAppearance = (edge: GraphEdge<ArchitectureEdgeData>
   ({ dashed: !edge.data?.ready, label: edge.data?.all ? 'all' : undefined })
 
 const NO_CYCLE: string[] = []
+const NOT_DRAWING: DrawingStates = {}
 
 interface CanvasStateProps {
   title: string
@@ -107,13 +113,31 @@ export interface ArchitectureCanvasProps {
   onSelect: (id: string) => void
   onOpenFile: (path: string) => void
   onAddDescriptor: () => void
+  /** Drawing an edge by drag — stable, like every graph input (DependencyGraph's header). */
+  edgeDraw?: EdgeDraw
+  /** What an edge being drawn, or pending, lights. Memoised by the caller. */
+  drawing?: DrawingStates
+  /** The pane head's edge line — "Drawing: a → b", or "Edge accepted" and its count. */
+  edgeHead?: React.ReactNode
 }
 
-export const ArchitectureCanvas = ({ model, onAddDescriptor, onLevel, onOpenFile, onSelect, selected, steps, view }: ArchitectureCanvasProps) => {
+export const ArchitectureCanvas = ({
+  drawing = NOT_DRAWING,
+  edgeDraw,
+  edgeHead,
+  model,
+  onAddDescriptor,
+  onLevel,
+  onOpenFile,
+  onSelect,
+  selected,
+  steps,
+  view,
+}: ArchitectureCanvasProps) => {
   const graph: ArchitectureGraph | null = view.status === 'ok' || view.status === 'cycle' ? view.graph : null
   const cycle = view.status === 'cycle' ? view.cycle : NO_CYCLE
 
-  const states = useMemo(() => (graph ? elementStates(graph, model, selected, cycle) : {}), [cycle, graph, model, selected])
+  const states = useMemo(() => (graph ? elementStates(graph, model, selected, cycle, drawing) : {}), [cycle, drawing, graph, model, selected])
   // Read by the data builders below, which must not depend on it: a step is not new data.
   const statesRef = useRef(states)
   statesRef.current = states
@@ -206,8 +230,7 @@ export const ArchitectureCanvas = ({ model, onAddDescriptor, onLevel, onOpenFile
       <CanvasState action={openDescriptor} title='No resources yet'>
         <p className={canvas.canvasStateText}>
           Add a Kubernetes resource, a custom resource this cluster knows, or another blueprint from the left. Each one
-          becomes a node here and a file in <code>templates/</code>. A <code>dependsOn</code> entry from A to B in
-          {' '}<code>{ARCHITECTURE_TEMPLATE_PATH}</code> says A waits for B — drawing an edge arrives next.
+          becomes a node here and a file in <code>templates/</code>. Draw an edge from A to B to say A depends on B.
         </p>
       </CanvasState>
     )
@@ -224,6 +247,7 @@ export const ArchitectureCanvas = ({ model, onAddDescriptor, onLevel, onOpenFile
               DependencyGraph's header). */}
           <DependencyGraph<ArchitectureNodeData, ArchitectureEdgeData>
             edgeAppearance={architectureEdgeAppearance}
+            edgeDraw={edgeDraw}
             edgeStates={STEPPED_EDGE_STATES}
             edges={edges}
             fit='natural'
@@ -254,7 +278,7 @@ export const ArchitectureCanvas = ({ model, onAddDescriptor, onLevel, onOpenFile
         {resources === null ? null : <span className={styles.countPill}>{counted(resources, 'resource')}</span>}
         {stateCount ? <span className={styles.countPill}>{stateCount}</span> : null}
         <span className={styles.spacer} />
-        {model ? <span className={styles.eyebrow}>{model.initial ? 'States' : 'Step the machine'}</span> : null}
+        {edgeHead ?? (model ? <span className={styles.eyebrow}>{model.initial ? 'States' : 'Step the machine'}</span> : null)}
         <Stepper model={model} onLevel={onLevel} steps={steps} />
       </div>
       {body}

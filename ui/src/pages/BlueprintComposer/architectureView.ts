@@ -70,15 +70,31 @@ export const architectureView = (template: string | undefined): ArchitectureView
  *   withheld   waits for a later state        orthogonal   outside the sequence (a shim)
  *   selected   the node the inspector shows   cycle        a member of the loop that stops the machine
  *
+ * And an edge being drawn (S4b), which lights only what it touches (06:72-73):
+ *   drawSource   the node a drag started on    legalTarget   a node the edge may land on
+ *   pendingFrom  the dependent of the edge the inspector is asking about, and pendingTo its dependency
+ *   — the two ends of a pending edge are highlighted in place of a dashed edge in the graph data,
+ *   which would be a re-layout (S4 decision D10).
+ *
  * Edges: `lit` when both ends render in this state, `withheld` when the dependent waits. Nothing
  * else: an edge into a node that is lit only once its dependency is ready is still a lit edge.
  */
+/** What an edge being drawn lights: the drag's source and where it may land, or a pending edge's two ends. */
+export interface DrawingStates {
+  source?: string | null
+  legal?: readonly string[]
+  pendingFrom?: string | null
+  pendingTo?: string | null
+}
+
 export const elementStates = (
   graph: ArchitectureGraph,
   model: StepperModel | null,
   selected: string | null,
   cycle: readonly string[] = [],
+  drawing: DrawingStates = {},
 ): Record<string, string[]> => {
+  const legal = new Set(drawing.legal)
   const frontier = new Set(model?.frontier)
   const lit = new Set(model?.lit)
   const withheld = new Set(model?.withheld)
@@ -97,6 +113,10 @@ export const elementStates = (
     if (orthogonal.has(node.id) || node.data.orthogonal) { states.push('orthogonal') }
     if (looped.has(node.id)) { states.push('cycle') }
     if (node.id === selected) { states.push('selected') }
+    if (node.id === drawing.source) { states.push('drawSource') }
+    if (legal.has(node.id)) { states.push('legalTarget') }
+    if (node.id === drawing.pendingFrom) { states.push('pendingFrom') }
+    if (node.id === drawing.pendingTo) { states.push('pendingTo') }
     out[node.id] = states
   }
   for (const edge of graph.edges) {

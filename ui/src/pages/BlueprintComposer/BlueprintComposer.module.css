@@ -538,6 +538,103 @@
   font-family: var(--font-mono);
 }
 
+/* ── Edges (screens 6 and 7) ────────────────────────────────────────────────────────────────── */
+
+/* The canvas head's "Drawing: a → b" (06:60) — the one eyebrow in the accent hue while an edge is drawn. */
+.eyebrowActive {
+  color: var(--primary-color);
+}
+
+/* The palette while an edge is drawn (06:58): the rows fade, the sentence that says why does not. */
+.paletteDimmed {
+  color: var(--faint-color);
+  font-size: var(--krateo-text-caption);
+  margin: 0;
+  padding: var(--spacing-smd) var(--spacing-smd) 0;
+}
+
+.paletteBodyDimmed > * {
+  opacity: 0.6;
+}
+
+/* "Wait for readiness / off = it only has to exist" and its switch (06:84). */
+.switchRow {
+  align-items: center;
+  border: 1px solid var(--line-color);
+  border-radius: var(--radius-md);
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-smd);
+}
+
+.switchLabel {
+  color: var(--text-color);
+  font-size: var(--krateo-text-body-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* The Ready when options, one per row (06:86-91). */
+.readyOptions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.readyOption {
+  border: 1px solid var(--line-color);
+  border-radius: var(--radius-md);
+  font-size: var(--krateo-text-caption);
+  margin-inline-end: 0;
+  padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+.readyHint {
+  color: var(--gray-color);
+  margin-inline-start: var(--spacing-sm);
+}
+
+.edgeActions {
+  align-items: center;
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+/* The dependent's descriptor entry, as it is now (07:111-115). */
+.entry {
+  background: var(--background-color);
+  border: 1px solid var(--line-color);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+  margin: 0;
+  overflow-x: auto;
+  padding: var(--spacing-sm);
+  white-space: pre;
+}
+
+/* A Depends-on row: what it waits for, its switch, and its remove button. */
+.dependsRow {
+  align-items: center;
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.dependsText {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.addDependency {
+  margin-top: var(--spacing-xs);
+  width: 100%;
+}
+
+.dependencyOption {
+  display: flex;
+  flex-direction: column;
+}
+
 .derivedList {
   display: flex;
   flex-direction: column;

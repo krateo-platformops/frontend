@@ -172,8 +172,8 @@ describe('BlueprintComposer — placing (screen 5)', () => {
     expect(crdReads(fetched)).toEqual(['builderpublishes.composition.krateo.io'])
     expect(provider.store.get()?.files['templates/builderpublish.yaml']).toBe(golden('builderpublish'))
     expect(within(inspector()).getByText('BuilderPublish · composition.krateo.io/v1-8-40')).toBeTruthy()
-    // What the gate checks when there is no readyWhen (S11's decision D3): that the claim exists.
-    expect(within(inspector()).getByText('exists (no readyWhen)')).toBeTruthy()
+    // What a gate on it waits for when there is no readyWhen: a composition's class default (S4b).
+    expect(within(inspector()).getByText('Ready=True and Synced=True')).toBeTruthy()
   })
 
   it('7. the provider refuses: said in the pane, and no node appears', async () => {
@@ -232,9 +232,9 @@ describe('BlueprintComposer — placing (screen 5)', () => {
     const state = within(screen.getByLabelText('Architecture')).getByTestId('canvas-state')
     expect(within(state).getByText('No resources yet')).toBeTruthy()
     expect(state.querySelector('p:not(:first-of-type)')?.textContent?.replace(/\s+/g, ' ').trim())
-      .toBe('Add a Kubernetes resource, a custom resource this cluster knows, or another blueprint from the left. Each one becomes a node here and a file in templates/. A dependsOn entry from A to B in templates/architecture.yaml says A waits for B — drawing an edge arrives next.')
-    // No gesture this build does not have: edges are drawn in S4b.
-    expect(state.textContent).not.toMatch(/Draw an edge/)
+      .toBe('Add a Kubernetes resource, a custom resource this cluster knows, or another blueprint from the left. Each one becomes a node here and a file in templates/. Draw an edge from A to B to say A depends on B.')
+    // The copy names no file to hand-edit for an edge: drawing one is the gesture now.
+    expect(state.textContent).not.toMatch(/dependsOn entry/)
   })
 
   it('Preview, place, Undo: the bytes are the rendered ones again, but "Publish is on" does not come back', async () => {

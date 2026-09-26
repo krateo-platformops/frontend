@@ -12,6 +12,7 @@ import {
   crdNameFromArgs,
   extractCrdSpecFields,
   parseDescribeResourceArgs,
+  pickCrdVersion,
 } from './describeResource'
 
 /** A trimmed CRD like the live repocontents.github.krateo.io. */
@@ -75,6 +76,16 @@ describe('extractCrdSpecFields', () => {
 
   it('falls back to storage/served/first when the version does not match', () => {
     expect(extractCrdSpecFields(crd, 'v9')?.kind).toBe('RepoContent')
+  })
+
+  it('falls back to a SERVED version before an unserved storage one — 38 of 46 composition CRDs on 057 store `vacuum`', () => {
+    const version = (name: string, served: boolean, storage: boolean, field: string) =>
+      ({ name, schema: { openAPIV3Schema: { properties: { spec: { properties: { [field]: { type: 'string' } }, type: 'object' } } } }, served, storage })
+    const composition = { spec: { names: { kind: 'BuilderPublish' }, versions: [version('vacuum', false, true, 'stale'), version('v1-8-40', true, false, 'live')] } }
+    expect(extractCrdSpecFields(composition)?.fields.map((field) => field.name)).toEqual(['live'])
+    expect(pickCrdVersion(composition, 'v9')?.name).toBe('v1-8-40')
+    expect(pickCrdVersion({ spec: { versions: [version('a', false, false, 'x'), version('b', true, true, 'y'), version('c', true, false, 'z')] } })?.name).toBe('b')
+    expect(pickCrdVersion({ spec: { versions: [] } })).toBeNull()
   })
 
   it('returns null when there are no versions or no spec schema', () => {
