@@ -4,20 +4,15 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { parseArchitecture, type ResourceNode } from './architecture'
-import { applyGate, GATE_BEGIN, GATE_END, renderGatePreamble, unmanagedLookups, type NameExpressions } from './gateGen'
+import { applyGate, GATE_BEGIN, GATE_END, renderGatePreamble, unmanagedLookups } from './gateGen'
 
 const FIXTURE = join(__dirname, '__fixtures__', 'builder-publish')
 const parsed = parseArchitecture(readFileSync(join(FIXTURE, 'expected.architecture.yaml'), 'utf8'))
 if (!parsed.ok) { throw new Error('fixture descriptor must parse') }
 const arch = parsed.architecture
 
-// The descriptor does not carry names; the chart does. These are builder-publish's own.
-const NAMES: NameExpressions = {
-  localresources: 'printf "%s-%03d" $.Values.name (int $i) | trunc 63 | trimSuffix "-"',
-  repo: 'printf "%s-source" .Values.name | trunc 63 | trimSuffix "-"',
-  repository: 'printf "%s-repo" .Values.name | trunc 63 | trimSuffix "-"',
-}
-
+// The names are the descriptor's own now — builder-publish's, as the extractor read them from its
+// templates' metadata.name.
 const node = (id: string): ResourceNode => {
   const found = arch.resources.find((candidate) => candidate.id === id)
   if (!found) { throw new Error(`no fixture node ${id}`) }
@@ -25,57 +20,85 @@ const node = (id: string): ResourceNode => {
 }
 
 describe('renderGatePreamble — the edge compiled to the lookup the chart writes by hand', () => {
-  it('a ready edge becomes a lookup guarded on the target readyWhen, inside the edge when', () => {
-    const result = renderGatePreamble(node('localresources'), arch, NAMES)
+  it('a ready edge becomes a lookup of the node\'s own name, guarded on the target readyWhen, inside a nil-safe edge when', () => {
+    const result = renderGatePreamble(node('localresources'), arch)
     expect(result.ok).toBe(true)
     if (!result.ok) { return }
     expect(result.block.startsWith(GATE_BEGIN)).toBe(true)
-    expect(result.block).toContain('{{- if .Values.repository.create -}}')
+    // `if .Values.repository.create` fails the render when `repository` is absent; dig does not.
+    expect(result.block).toContain('{{- if not (empty (dig "repository" "create" "" (.Values.AsMap))) -}}')
+    expect(result.block).not.toContain('{{- if .Values.')
     expect(result.block).toContain('lookup "github.krateo.io/v2022-11-28" "Repository" .Release.Namespace (printf "%s-repo" .Values.name | trunc 63 | trimSuffix "-")')
     expect(result.block).toContain('dig "status" "default_branch" "" $dep0')
-    expect(result.block).toContain('{{- if .Values.source.url -}}')
+    expect(result.block).toContain('{{- if not (empty (dig "source" "url" "" (.Values.AsMap))) -}}')
     expect(result.block).toContain('dig "status" "targetCommitId" "" $dep1')
     expect(result.block.endsWith('{{- if $gate }}')).toBe(true)
   })
 
-  it('all: true over a forEach target ranges the files, as pullrequest.yaml:87-93 does', () => {
-    const result = renderGatePreamble(node('pullrequest'), arch, NAMES)
+  it('all: true over a helper forEach ranges the files, as pullrequest.yaml:87-93 does — the lookup inside `with $`', () => {
+    const result = renderGatePreamble(node('pullrequest'), arch)
     expect(result.ok).toBe(true)
     if (!result.ok) { return }
-    expect(result.block).toContain('{{- range $i, $f := (include "builder-publish.files" $ | fromYamlArray) -}}')
+    expect(result.block).toContain('{{- range $i, $f := (include "builder-publish.files" $ | fromYamlArray) -}}\n{{- with $ -}}\n')
     expect(result.block).toContain('lookup "git.krateo.io/v1alpha1" "LocalResource" .Release.Namespace (printf "%s-%03d" $.Values.name (int $i) | trunc 63 | trimSuffix "-")')
     expect(result.block).toContain('dig "status" "targetCommitId"')
+    expect(result.block).toContain('{{- end -}}\n{{- end -}}')
+  })
+
+  it('all: true over a Values-path forEach ranges the values, nil-safe — not an include of a helper that does not exist', () => {
+    const paths = parseArchitecture([
+      'apiVersion: architecture.krateo.io/v1alpha1',
+      'kind: ChartArchitecture',
+      'chart: paths',
+      'resources:',
+      '  - { id: part, class: native, apiVersion: v1, kind: ConfigMap, template: t/p.yaml, forEach: .Values.parts.list, name: printf "p-%d" $i }',
+      '  - { id: after, class: native, apiVersion: v1, kind: ConfigMap, template: t/a.yaml, name: \'"after"\', dependsOn: [{ ref: part, all: true }] }',
+    ].join('\n'))
+    if (!paths.ok) { throw new Error(JSON.stringify(paths.problems)) }
+    const result = renderGatePreamble(paths.architecture.resources[1], paths.architecture)
+    expect(result.ok).toBe(true)
+    if (!result.ok) { return }
+    expect(result.block).toContain('{{- range $i, $f := (dig "parts" "list" (list) (.Values.AsMap)) -}}')
+    expect(result.block).not.toContain('include')
+    expect(result.block).toContain('lookup "v1" "ConfigMap" .Release.Namespace (printf "p-%d" $i)')
   })
 
   it('a node with nothing to wait on has no gate', () => {
-    expect(renderGatePreamble(node('repository'), arch, NAMES)).toEqual({ ok: false, reason: '"repository" has no dependsOn — nothing to gate' })
+    expect(renderGatePreamble(node('repository'), arch)).toEqual({ ok: false, reason: '"repository" has no dependsOn — nothing to gate' })
   })
 
-  it('a missing name expression is a refusal, not a template with a hole in it', () => {
-    expect(renderGatePreamble(node('repo'), arch, {})).toEqual({ ok: false, reason: 'no name expression for "repository"' })
+  it('a target without a name is a refusal, not a template with a hole in it', () => {
+    const unnamed = { ...arch, resources: arch.resources.map((resource) => (resource.id === 'repository' ? { ...resource, name: undefined } : resource)) }
+    expect(renderGatePreamble(node('repo'), unnamed))
+      .toEqual({ ok: false, reason: '"repository" has no name — the gate looks its object up by the name its template gives it' })
   })
 
-  it('an id that is an Object.prototype name is not "named" by the prototype — still a refusal', () => {
-    // `constructor` is a legal id (a DNS label), and names['constructor'] used to find Object's own
-    // constructor: truthy, so the gate rendered `lookup … (function Object() { [native code] })`.
-    const proto = parseArchitecture([
+  it('an id that is an Object.prototype name is named by its own field, never by the prototype', () => {
+    // `constructor` is a legal id (a DNS label). An index keyed by id used to find Object's own
+    // constructor for it: truthy, so the gate rendered `lookup … (function Object() { [native code] })`.
+    const proto = (named: boolean) => parseArchitecture([
       'apiVersion: architecture.krateo.io/v1alpha1',
       'kind: ChartArchitecture',
       'chart: proto',
       'resources:',
-      '  - { id: constructor, class: native, apiVersion: v1, kind: ConfigMap, template: templates/a.yaml }',
+      `  - { id: constructor, class: native, apiVersion: v1, kind: ConfigMap, template: templates/a.yaml${named ? ', name: \'"cm-a"\'' : ''} }`,
       '  - { id: after, class: native, apiVersion: v1, kind: ConfigMap, template: templates/b.yaml, dependsOn: [{ ref: constructor }] }',
     ].join('\n'))
-    if (!proto.ok) { throw new Error(JSON.stringify(proto.problems)) }
-    const [, after] = proto.architecture.resources
-    expect(renderGatePreamble(after, proto.architecture, {})).toEqual({ ok: false, reason: 'no name expression for "constructor"' })
-    expect(renderGatePreamble(after, proto.architecture, { constructor: '"cm-a"' }).ok).toBe(true)
+    const bare = proto(false)
+    const named = proto(true)
+    if (!bare.ok || !named.ok) { throw new Error('fixture must parse') }
+    expect(renderGatePreamble(bare.architecture.resources[1], bare.architecture))
+      .toEqual({ ok: false, reason: '"constructor" has no name — the gate looks its object up by the name its template gives it' })
+    const result = renderGatePreamble(named.architecture.resources[1], named.architecture)
+    expect(result.ok).toBe(true)
+    if (!result.ok) { return }
+    expect(result.block).toContain('lookup "v1" "ConfigMap" .Release.Namespace ("cm-a")')
   })
 })
 
 describe('applyGate — owned block, never a hand-written one', () => {
   const template = '# a fresh template\n---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: x\n'
-  const preamble = renderGatePreamble(node('repo'), arch, NAMES)
+  const preamble = renderGatePreamble(node('repo'), arch)
   if (!preamble.ok) { throw new Error('preamble must render') }
 
   it('wraps the manifest between the markers and regenerates in place', () => {

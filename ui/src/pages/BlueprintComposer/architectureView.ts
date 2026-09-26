@@ -120,7 +120,7 @@ export const apiGroup = (apiVersion: string): string => {
 /**
  * One way out of a state, in words: "every localresources has .status.targetCommitId". The
  * predicate is shown as the descriptor holds it; where it is a class default or missing, the
- * sentence says so, because "Ready=True and Synced=True" read as a jq path would mislead.
+ * sentence says so, because a default ("exists (no readyWhen)") read as a jq path would mislead.
  */
 export const describeLeave = (condition: LeaveCondition): string => {
   const who = condition.all ? `every ${condition.from}` : condition.from

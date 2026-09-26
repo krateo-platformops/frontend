@@ -12,7 +12,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { deriveStates, parseArchitecture, serializeArchitecture } from './architecture'
-import { extractArchitecture } from './gateExtract'
+import { extractArchitecture, extractNameExpression } from './gateExtract'
 
 const FIXTURE = join(__dirname, '__fixtures__', 'builder-publish')
 
@@ -51,6 +51,22 @@ describe('extractArchitecture — builder-publish reproduces its own documented 
     ])
   })
 
+  it('names every node as its template\'s metadata.name does — through a variable, or inline', () => {
+    const names = Object.fromEntries(architecture.resources.map((node) => [node.id, node.name]))
+    expect(names).toEqual({
+      // Inline at localresources.yaml:100 — `$i` is the file range's own index.
+      localresources: 'printf "%s-%03d" $.Values.name (int $i) | trunc 63 | trimSuffix "-"',
+      // `$name`, set once at pullrequest.yaml:95.
+      pullrequest: 'printf "%s-pr" .Values.name | trunc 63 | trimSuffix "-"',
+      // Inline at repo.yaml:77.
+      repo: 'printf "%s-source" .Values.name | trunc 63 | trimSuffix "-"',
+      // `$repo`, set once at repository.yaml:37 — and NOT the two-space `name:` under spec at :75.
+      repository: 'printf "%s-repo" .Values.name | trunc 63 | trimSuffix "-"',
+      // `$legacyName`, set once at username-secret.yaml:25.
+      'username-secret': 'printf "%s-git-username" .Values.name | trunc 63 | trimSuffix "-"',
+    })
+  })
+
   it('serialises to the expected descriptor, byte for byte', () => {
     const expected = readFileSync(join(FIXTURE, 'expected.architecture.yaml'), 'utf8')
     expect(serializeArchitecture(architecture)).toBe(expected)
@@ -74,5 +90,35 @@ describe('extractArchitecture — builder-publish reproduces its own documented 
     ])
     // The shim never enters the sequence: it is not in any state's renders or withheld lists.
     expect(derived.states.flatMap((state) => [...state.renders, ...state.withheld])).not.toContain('username-secret')
+  })
+})
+
+describe('extractNameExpression — only what the scan can pin down', () => {
+  const doc = (head: string, name: string) => `${head}apiVersion: v1\nkind: ConfigMap\nmetadata:\n  labels:\n    a: b\n  name: ${name}\n`
+
+  it('an inline action, `| quote` dropped; a literal as the string Helm reads', () => {
+    expect(extractNameExpression(doc('', '{{ include "x.fullname" . | quote }}'))).toBe('include "x.fullname" .')
+    expect(extractNameExpression(doc('', '{{- printf "%s-a" .Release.Name -}}'))).toBe('printf "%s-a" .Release.Name')
+    expect(extractNameExpression(doc('', 'plain-name'))).toBe('"plain-name"')
+    expect(extractNameExpression(doc('', '"quoted-name"'))).toBe('"quoted-name"')
+  })
+
+  it('a variable assigned once resolves; assigned twice (:= or =) it is not guessed', () => {
+    expect(extractNameExpression(doc('{{- $n := printf "%s-a" .Release.Name -}}\n', '{{ $n }}'))).toBe('printf "%s-a" .Release.Name')
+    expect(extractNameExpression(doc('{{- $n := "a" -}}\n{{- if .Values.b }}{{- $n = "b" -}}{{- end }}\n', '{{ $n }}'))).toBeNull()
+    expect(extractNameExpression(doc('{{- $n := "a" -}}\n{{- $n := "b" -}}\n', '{{ $n }}'))).toBeNull()
+  })
+
+  it('refuses text around an action, an unknown variable, and one the graph block would not have bound', () => {
+    expect(extractNameExpression(doc('', '{{ .Release.Name }}-cm'))).toBeNull()
+    expect(extractNameExpression(doc('', '{{ $unknown }}'))).toBeNull()
+    expect(extractNameExpression(doc('{{- $base := .Release.Name -}}\n', '{{ printf "%s-a" $base }}'))).toBeNull()
+    expect(extractNameExpression(doc('', '{{ printf "%s-%d" $.Release.Name $i }}'))).toBe('printf "%s-%d" $.Release.Name $i')
+  })
+
+  it('only the name under the first object\'s metadata — nothing below it, nothing without it', () => {
+    expect(extractNameExpression('apiVersion: v1\nkind: ConfigMap\nmetadata:\n  labels: {}\nspec:\n  name: not-mine\n')).toBeNull()
+    expect(extractNameExpression('apiVersion: v1\nkind: ConfigMap\ndata:\n  name: not-mine\n')).toBeNull()
+    expect(extractNameExpression('{{- /* kind: Fake\nmetadata:\n  name: in-a-comment */}}\nkind: ConfigMap\nmetadata:\n  name: real\n')).toBe('"real"')
   })
 })

@@ -10,6 +10,7 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { lintBlueprintDraft } from '../../components/Autopilot/blueprintDraft'
 import { AUTOPILOT_PREVIEW_FILE_ADD_EVENT, type FileAddDetail } from '../../components/Autopilot/previewFileAdd'
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 
@@ -166,6 +167,9 @@ describe('BlueprintComposer — the architecture graph', () => {
     expect(adds.seen[0].path).toBe(ARCHITECTURE_TEMPLATE_PATH)
     const parsed = parseArchitecture(unwrapFromConfigMapTemplate(adds.seen[0].content) ?? '')
     expect(parsed.ok && parsed.architecture).toMatchObject({ chart: 'builder-publish', resources: [] })
+    // Written in its regenerated form — the graph block compiled from it — so it lints clean as added.
+    expect(wrapAsConfigMapTemplate(unwrapFromConfigMapTemplate(adds.seen[0].content)!, 'builder-publish')).toBe(adds.seen[0].content)
+    expect(lintBlueprintDraft({ ...agentAuthored, [ARCHITECTURE_TEMPLATE_PATH]: adds.seen[0].content }, 'blueprint')).toEqual([])
   })
 
   it('a file with no descriptor block: said, not crashed', () => {
@@ -311,7 +315,8 @@ describe('BlueprintComposer — selecting a node (screen 5)', () => {
     act(() => graphDouble.click('username-secret'))
     const inspector = screen.getByLabelText('Inspector')
     expect(within(inspector).getByText('Ready when · default for this class')).toBeTruthy()
-    expect(within(inspector).getByText('kstatus Current')).toBeTruthy()
+    // What the gate checks when there is no readyWhen: that the object exists (decision D3).
+    expect(within(inspector).getByText('exists (no readyWhen)')).toBeTruthy()
     expect(within(inspector).getByText('outside the sequence')).toBeTruthy()
   })
 

@@ -22,8 +22,17 @@
 import { load } from 'js-yaml'
 import type { JSONSchema4 } from 'json-schema'
 
-import { ARCHITECTURE_TEMPLATE_PATH, deriveStates, parseArchitecture, unwrapFromConfigMapTemplate } from '../../pages/BlueprintComposer/architecture'
+import {
+  ARCHITECTURE_TEMPLATE_PATH,
+  deriveStates,
+  graphBlockFor,
+  parseArchitecture,
+  unwrapFromConfigMapTemplate,
+  type ChartArchitecture,
+} from '../../pages/BlueprintComposer/architecture'
 import { chartIdentityProblems, chartNameProblem } from '../../pages/BlueprintComposer/chartIdentity'
+import { extractNameExpression } from '../../pages/BlueprintComposer/gateExtract'
+import { graphBlockIn } from '../../pages/BlueprintComposer/graphCompile'
 
 import type { DraftKind } from './blueprintDraftStore'
 import { OAS_ATTACHMENT_MAX_BYTES, utf8ByteLength } from './oasAttachment'
@@ -302,12 +311,76 @@ const lintChartIdentity = (chartYaml: string, kind: DraftKind): string[] => {
   })
 }
 
+/** A held file by path — own keys only: a template path is author text, and `constructor` is not a file. */
+const heldFile = (files: Record<string, string>, path: string): string | undefined =>
+  (Object.prototype.hasOwnProperty.call(files, path) ? files[path] : undefined)
+
+/**
+ * The names (L1, L4, L5). The detail page finds a node's objects by name — informer-served objects
+ * carry no apiVersion or kind to join on — so a sequenced node needs one, it must be the name its
+ * template really gives the object, and no two sequenced nodes may share one. A template whose name
+ * the scan cannot pin down (gateExtract's extractNameExpression) is not second-guessed.
+ */
+const descriptorNameProblems = (arch: ChartArchitecture, files: Record<string, string>): string[] => {
+  const problems: string[] = []
+  const firstWith = new Map<string, number>()
+  arch.resources.forEach((node, idx) => {
+    const at = `${ARCHITECTURE_TEMPLATE_PATH}: resources[${idx}].name`
+    const text = heldFile(files, node.template)
+    const templateName = text === undefined ? null : extractNameExpression(text)
+    if (!node.name) {
+      if (!node.lifecycle) {
+        const hint = templateName ? ` ${node.template} names it ${templateName}.` : ''
+        problems.push(`${at} — required on a sequenced resource: the composition detail page finds its objects by this name.${hint}`)
+      }
+      return
+    }
+    if (templateName !== null && templateName !== node.name) {
+      problems.push(`${at} — ${node.template} names its object ${templateName}, not ${node.name}: the detail page would look for an object the chart never creates.`)
+    }
+    if (node.lifecycle) {
+      return
+    }
+    const first = firstWith.get(node.name)
+    if (first === undefined) {
+      firstWith.set(node.name, idx)
+    } else {
+      problems.push(`${at} — the same name as resources[${first}]: the detail page tells objects apart by name, so two resources cannot share one.`)
+    }
+  })
+  return problems
+}
+
+const REGENERATE = 'The block is compiled from the descriptor, never written by hand: the composer regenerates the whole file from data.architecture whenever it writes the descriptor, and a hand edit to either leaves the two out of step. Regenerate it that way, or Undo to the version the composer last wrote.'
+
+/**
+ * The chart name and the graph block (L2, L3). The label and `graph.chart` carry Chart.yaml's name,
+ * which is also the one the composer compiles with, so the descriptor's `chart` must be the same.
+ * The block must be exactly what the descriptor compiles to: a stale one would publish a graph the
+ * descriptor does not describe, and the detail page would draw it.
+ */
+const descriptorGraphProblems = (arch: ChartArchitecture, descriptor: string, text: string, chartName: string | null): string[] => {
+  const problems: string[] = []
+  if (chartName !== null && arch.chart !== chartName) {
+    problems.push(`${ARCHITECTURE_TEMPLATE_PATH}: chart — "${arch.chart}" is not this chart: ${CHART_YAML_PATH} names it "${chartName}", and the ConfigMap's label and its graph carry that name.`)
+  }
+  const current = graphBlockIn(text)
+  if (current === null) {
+    problems.push(`${ARCHITECTURE_TEMPLATE_PATH} has no krateo:graph block after data.architecture — it is what resolves each node's objects for the composition detail page. ${REGENERATE}`)
+  } else if (current !== graphBlockFor(descriptor, chartName ?? arch.chart)) {
+    problems.push(`${ARCHITECTURE_TEMPLATE_PATH}: the krateo:graph block no longer matches data.architecture. ${REGENERATE}`)
+  }
+  return problems
+}
+
 /**
  * The architecture file, when the chart has one, must say something the composer and the
  * composition detail page can read: the descriptor in the ConfigMap's data.architecture, well
- * formed, and without a dependency cycle (a chart with a cycle never leaves its first state).
+ * formed, without a dependency cycle (a chart with a cycle never leaves its first state), its nodes
+ * named as their templates name them, and the graph block compiled from exactly this descriptor.
  */
-const lintDescriptor = (text: string | undefined): string[] => {
+const lintDescriptor = (files: Record<string, string>): string[] => {
+  const text = heldFile(files, ARCHITECTURE_TEMPLATE_PATH)
   if (text === undefined) {
     return []
   }
@@ -325,7 +398,13 @@ const lintDescriptor = (text: string | undefined): string[] => {
       return parsed.problems.map((problem) => `${ARCHITECTURE_TEMPLATE_PATH}: ${problem.path} — ${problem.message}`)
     }
     const derived = deriveStates(parsed.architecture)
-    return derived.ok ? [] : [`${ARCHITECTURE_TEMPLATE_PATH}: the dependencies form a cycle (${derived.cycle.join(' → ')}) — a chart with a cycle never leaves its first state.`]
+    if (!derived.ok) {
+      return [`${ARCHITECTURE_TEMPLATE_PATH}: the dependencies form a cycle (${derived.cycle.join(' → ')}) — a chart with a cycle never leaves its first state.`]
+    }
+    return [
+      ...descriptorNameProblems(parsed.architecture, files),
+      ...descriptorGraphProblems(parsed.architecture, descriptor, text, chartYamlName(heldFile(files, CHART_YAML_PATH))),
+    ]
   } catch (err) {
     return [`${ARCHITECTURE_TEMPLATE_PATH} could not be read — ${err instanceof Error ? err.message : String(err)}`]
   }
@@ -361,7 +440,7 @@ export const lintBlueprintDraft = (rawTemplates: Record<string, string>, kind: D
   } else {
     problems.push(...lintChartIdentity(rawTemplates[CHART_YAML_PATH], kind))
   }
-  problems.push(...lintDescriptor(rawTemplates[ARCHITECTURE_TEMPLATE_PATH]))
+  problems.push(...lintDescriptor(rawTemplates))
 
   // values.schema.json is REQUIRED, and this is the expensive one to learn late. core-provider
   // opens it to build the CRD and hard-errors when it is absent, so a draft without one publishes

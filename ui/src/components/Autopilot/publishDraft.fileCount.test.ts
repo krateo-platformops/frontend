@@ -34,6 +34,8 @@ const DESCRIPTOR = [
   '    apiVersion: v1',
   '    kind: ConfigMap',
   '    template: templates/cm-0.yaml',
+  // The template names its object with a literal, so the node's name is that literal as Helm reads it.
+  `    name: '"cm-0"'`,
   '',
 ].join('\n')
 
