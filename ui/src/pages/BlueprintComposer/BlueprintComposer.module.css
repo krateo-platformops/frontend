@@ -134,9 +134,9 @@
   width: 1px;
 }
 
-/* THE WORK AREA: three panes — the palette, the canvas column and the side column (screen 3). Wraps
-   when there is no room for all three, in that order, rather than squeezing a 156px-card graph into
-   what is left — and then scrolls as one. Wide enough for all three, each scrolls itself (below). */
+/* THE WORK AREA: three panes — the palette, the canvas column and the side column (screen 3). Below
+   the width in the container query at the end of this file they wrap, in that order, and scroll as
+   one; from it, each scrolls itself (below). */
 .body {
   align-items: flex-start;
   display: flex;
@@ -582,14 +582,18 @@
 }
 
 /*
- * WIDE ENOUGH FOR ALL THREE PANES: stop wrapping and give each its own scrollbar, so the canvas never
- * leaves the screen. Selecting a node reveals its template in Chart files; with one page-wide
- * scroller that reveal scrolled the canvas and the inspector away from the person who had just
- * clicked in them. Now it scrolls the files pane alone. The width is the three panes' bases (200 +
- * 520 + 300), the two gaps and the page padding, rounded up — not a number chosen to look like a
- * breakpoint.
+ * WIDE ENOUGH FOR THE PANES SIDE BY SIDE: stop wrapping and give each its own scrollbar, so the
+ * canvas never leaves the screen. Selecting a node — or placing one — reveals its template in Chart
+ * files; with one page-wide scroller that reveal scrolled the palette, the canvas and the inspector
+ * away from the person who had just clicked in them. Now it scrolls the files pane alone.
+ *
+ * From 900px — the width the two columns stood side by side from before the palette came. The
+ * palette's 200px comes out of the CANVAS COLUMN, which narrows before anything wraps (it is
+ * `min-width: 0`, and the graph pans when it does not fit), while the side column keeps its 260px
+ * minimum: at 900 the canvas still has about 400px. A container query measures the content box, so
+ * the page's padding is not part of the number.
  */
-@container blueprint-composer (min-width: 1100px) {
+@container blueprint-composer (min-width: 900px) {
   .body {
     align-items: stretch;
     flex-wrap: nowrap;

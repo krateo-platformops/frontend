@@ -23,7 +23,9 @@
  * PLACING (screens 4 and 5) is one gesture on a palette row, and one batch: the node in
  * templates/architecture.yaml and its `templates/<id>.yaml`, written together or not at all
  * (planPlace, previewFilesBatch). Like every write, it turns Publish off until Preview renders the
- * chart again. The form editor (screen 10) writes values.schema.json on the file-edit bus.
+ * chart again. A placement belongs to the draft it was made on: one whose CRD read is still on the
+ * wire when that draft is discarded or replaced is dropped when the read lands, never planned into
+ * the next chart. The form editor (screen 10) writes values.schema.json on the file-edit bus.
  *
  * WHAT IT NEVER DOES. It never reads a PAGE draft as a chart (a page set carries Chart.yaml too) —
  * it parks one, named. It never publishes: Publish asks the provider, which runs the destination
@@ -62,7 +64,7 @@ import {
   type ResourceNode,
 } from './architecture'
 import ArchitectureCanvas from './ArchitectureCanvas'
-import ArchitecturePalette from './ArchitecturePalette'
+import ArchitecturePalette, { type PlaceRefusal } from './ArchitecturePalette'
 import { architectureView, counted } from './architectureView'
 import styles from './BlueprintComposer.module.css'
 import BlueprintEmptyState from './BlueprintEmptyState'
@@ -85,6 +87,8 @@ export const EYEBROW = 'Blueprint Builder / Compose'
 const NOTHING: Record<string, string> = {}
 const NO_RESOURCES: ResourceNode[] = []
 
+export const CHART_CHANGED = 'The chart changed while its CRD was read — nothing was placed.'
+
 type Mode = 'empty' | 'page' | 'blueprint'
 
 /**
@@ -100,6 +104,10 @@ const modeOf = ({ files, kind }: DraftChangedDetail): Mode => {
   }
   return 'empty'
 }
+
+/** The chart a broadcast holds, by its Chart.yaml name ('' when it has none) — or null for no chart. */
+const chartOf = (files: Readonly<Record<string, string>>): string | null =>
+  (files === NOTHING ? null : chartYamlName(files[CHART_YAML_PATH]) ?? '')
 
 /** Why Publish is off, in the order a person would fix it — or null when it is on. */
 const publishBlocker = (held: DraftChangedDetail, rendering: boolean): string | null => {
@@ -139,17 +147,39 @@ const BlueprintComposer = () => {
   const { adopt, reset } = requests
   const undoDepth = useSyncExternalStore(draftHistory.subscribe, draftHistory.depth, draftHistory.depth)
   const blockerId = useId()
-  // Placing: the row in flight, why the last one did not land, and what the node just placed says.
-  const [placing, setPlacing] = useState<string | null>(null)
-  const [placeRefusal, setPlaceRefusal] = useState<string | null>(null)
+  // Placing: the row whose CRD is being read, why the last one did not land (said under its row),
+  // and what the node just placed says.
+  const [placing, setPlacing] = useState<PaletteRow | null>(null)
+  const [placeRefusal, setPlaceRefusal] = useState<PlaceRefusal | null>(null)
   const [placed, setPlaced] = useState<{ id: string; specNote?: string } | null>(null)
+  // What a placement plans from once its CRD read lands: the files as the LAST BROADCAST held them —
+  // kept here by the broadcast handler, not read off a render — not as they were when the row was
+  // pressed. The batch's `expect` refuses a plan made from stale bytes WITHIN one draft; it cannot
+  // tell one draft from another that holds the same descriptor (every freshly started chart does).
+  const filesRef = useRef<Readonly<Record<string, string>>>(NOTHING)
+  // So a placement also remembers WHICH draft it was made on, and is dropped when its read lands if
+  // that draft was discarded (a count of discards), replaced by another chart (the chart held, as of
+  // the last broadcast), or the page has gone.
+  const discards = useRef(0)
+  const heldChart = useRef<string | null>(null)
+  const mounted = useRef(true)
   const [formEditor, setFormEditor] = useState<{ open: boolean; addType: FormFieldType | null; nonce: number }>({ addType: null, nonce: 0, open: false })
 
   // The blueprint claim, released on unmount — see previewDraftChanged's claimPreviewSurface.
   useEffect(() => claimPreviewSurface('blueprint'), [])
 
   useEffect(() => {
-    const stop = onDraftChanged(setHeld)
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
+
+  useEffect(() => {
+    const stop = onDraftChanged((detail) => {
+      // A page draft's files are never read here, not even to count them.
+      filesRef.current = modeOf(detail) === 'blueprint' ? detail.files : NOTHING
+      heldChart.current = chartOf(filesRef.current)
+      setHeld(detail)
+    })
     requestDraftReplay()
     return stop
   }, [])
@@ -177,8 +207,10 @@ const BlueprintComposer = () => {
     setPublished({ deepLink, denial })
   }), [])
 
-  // A discard — this page's, or anyone's: nothing shown here describes what is held any more.
+  // A discard — this page's, or anyone's: nothing shown here describes what is held any more, and a
+  // placement whose CRD read is on the wire is dropped when it lands (`discards`).
   useEffect(() => onDraftClose(() => {
+    discards.current += 1
     reset()
     setSelected(null)
     setFocus(null)
@@ -186,6 +218,7 @@ const BlueprintComposer = () => {
     setEditVerdicts(null)
     setPublished(null)
     setPlaced(null)
+    setPlacing(null)
     setPlaceRefusal(null)
     setFormEditor((last) => ({ ...last, open: false }))
   }), [reset])
@@ -193,10 +226,6 @@ const BlueprintComposer = () => {
   const mode = modeOf(held)
   // A page draft's files are never read here, not even to count them.
   const files = mode === 'blueprint' ? held.files : NOTHING
-  // What a placement plans from once its CRD read lands — the files as they are THEN, not as they
-  // were when the row was pressed (the batch's `expect` refuses a plan made from stale bytes anyway).
-  const filesRef = useRef(files)
-  filesRef.current = files
 
   // The Start modal belongs to the empty page: once anything is held — the start landed, or a draft
   // arrived from elsewhere — it closes, and does not come back when that draft is discarded.
@@ -239,37 +268,55 @@ const BlueprintComposer = () => {
 
   // PLACE a palette row: the kernel's preflight (no descriptor, the chart nested into itself) before
   // any read, the CRD read for a kind that has one, then one batch. The node is selected and its
-  // template revealed.
+  // template revealed. One CRD read at a time — a second is refused in words, under its row; a native
+  // kind reads nothing and places at once, since the placement in flight plans from the files as
+  // they are when its read lands.
   const place = useCallback(async (row: PaletteRow) => {
-    if (placing) { return }
+    const crd = placementCrd(row.pick)
+    if (crd && placing) {
+      setPlaceRefusal({ key: row.key, reason: `${placing.primary} is still being placed — its CRD is being read.` })
+      return
+    }
     setPlaceRefusal(null)
     const preflight = planPlace(filesRef.current, row.pick, null)
     if (!preflight.ok) {
-      setPlaceRefusal(preflight.reason)
+      setPlaceRefusal({ key: row.key, reason: preflight.reason })
       return
     }
-    const crd = placementCrd(row.pick)
     let spec: CrdSpecExtract | null = null
     let specNote: string | undefined
     if (crd) {
-      setPlacing(row.key)
+      const discarded = discards.current
+      const chart = heldChart.current
+      setPlacing(row)
       const read = await crds.read(crd.name)
+      // Discarded, or the page has gone: nothing is placed and nothing is said — the discard (or the
+      // leaving) is what the person did, and the next chart must not open on a refusal about this one.
+      if (!mounted.current || discards.current !== discarded) { return }
       setPlacing(null)
+      // Another chart is held now (the agent's, a rename in Chart.yaml): said under the row — unless
+      // no chart is, and there is no palette to say it in.
+      if (heldChart.current !== chart) {
+        if (heldChart.current !== null) { setPlaceRefusal({ key: row.key, reason: CHART_CHANGED }) }
+        return
+      }
       spec = 'crd' in read ? extractCrdSpecFields(read.crd, crd.version) : null
+      // Two different things, never one sentence: a read that failed, and a read that answered with
+      // no spec schema at the pick's version.
       if ('error' in read) {
-        specNote = read.error
+        specNote = `Its CRD could not be read (${read.error})`
       } else if (!spec) {
-        specNote = `it declares no spec schema at ${crd.version}`
+        specNote = `Its CRD declares no spec schema at ${crd.version}`
       }
     }
     const plan = planPlace(filesRef.current, row.pick, spec, specNote)
     if (!plan.ok) {
-      setPlaceRefusal(plan.reason)
+      setPlaceRefusal({ key: row.key, reason: plan.reason })
       return
     }
     const outcome = emitFilesBatch({ add: plan.add, edit: plan.edit, expect: plan.expect, kind: 'blueprint' })
     if (!outcome?.ok) {
-      setPlaceRefusal(`Nothing was placed — ${outcome ? outcome.error : 'no provider answered, so the draft did not change'}`)
+      setPlaceRefusal({ key: row.key, reason: `Nothing was placed — ${outcome ? outcome.error : 'no provider answered, so the draft did not change'}` })
       return
     }
     setSelected(plan.id)
@@ -417,7 +464,7 @@ const BlueprintComposer = () => {
           onDismissRefusal={() => setPlaceRefusal(null)}
           onFormField={openFormEditor}
           onPlace={(row) => { void place(row) }}
-          placing={placing}
+          placing={placing?.key ?? null}
           refusal={placeRefusal}
           resources={architecture?.resources ?? NO_RESOURCES}
         />

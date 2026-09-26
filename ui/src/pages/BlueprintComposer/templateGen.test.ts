@@ -67,10 +67,16 @@ describe('placedTemplate — the header', () => {
   })
 
   it('when the CRD could not be read: spec is empty, and a second header line says why', () => {
-    const text = placedTemplate({ apiVersion: 'github.krateo.io/v2022-11-28', class: 'custom', id: 'repository', kind: 'Repository' }, { spec: repositorySpec, specNote: 'snowplow answered 403' })
+    const text = placedTemplate({ apiVersion: 'github.krateo.io/v2022-11-28', class: 'custom', id: 'repository', kind: 'Repository' }, { spec: repositorySpec, specNote: 'Its CRD could not be read (snowplow answered 403)' })
     expect(text.split('\n')[1]).toBe('{{- /* Its CRD could not be read (snowplow answered 403), so spec is empty — fill it in. */}}')
     expect(text).toContain('\nspec: {}\n')
     expect(text).not.toContain('configurationRef')
+  })
+
+  it('when the CRD was read but declares no spec schema: the header says THAT, not that the read failed', () => {
+    const text = placedTemplate({ apiVersion: 'x.io/v2', class: 'custom', id: 'x', kind: 'X' }, { spec: null, specNote: 'Its CRD declares no spec schema at v2' })
+    expect(text.split('\n')[1]).toBe('{{- /* Its CRD declares no spec schema at v2, so spec is empty — fill it in. */}}')
+    expect(text).not.toContain('could not be read')
   })
 
   it('a reason cannot close the comment early', () => {

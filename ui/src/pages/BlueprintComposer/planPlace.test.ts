@@ -72,6 +72,22 @@ describe('planPlace — the plan', () => {
     expect(handWritten.ok && Object.keys(handWritten.add)).toEqual(['templates/repository-2.yaml'])
   })
 
+  it('a template a node declares is taken even before it is written — no two nodes share one file', () => {
+    const descriptor = serializeArchitecture({
+      apiVersion: ARCHITECTURE_API_VERSION,
+      chart: 'orders',
+      kind: ARCHITECTURE_KIND,
+      resources: [{ apiVersion: 'apps/v1', class: 'native', id: 'web', kind: 'Deployment', template: 'templates/deployment.yaml' }],
+    })
+    const files = { ...seeded(), [ARCHITECTURE_TEMPLATE_PATH]: wrapAsConfigMapTemplate(descriptor, 'orders') }
+    expect(Object.keys(files)).not.toContain('templates/deployment.yaml')
+    const plan = planPlace(files, { apiVersion: 'apps/v1', cls: 'native', kind: 'Deployment' }, null)
+    if (!plan.ok) { throw new Error(plan.reason) }
+    expect(plan.id).toBe('deployment-2')
+    expect(Object.keys(plan.add)).toEqual(['templates/deployment-2.yaml'])
+    expect(nodesOf(plan.edit[ARCHITECTURE_TEMPLATE_PATH]).map((node) => node.template)).toEqual(['templates/deployment.yaml', 'templates/deployment-2.yaml'])
+  })
+
   it('REWRAPS the descriptor in the file the chart holds — every byte outside data.architecture is kept', () => {
     const files = seeded()
     const authored = files[ARCHITECTURE_TEMPLATE_PATH]

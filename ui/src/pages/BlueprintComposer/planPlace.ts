@@ -76,10 +76,15 @@ const readDescriptor = (files: Readonly<Record<string, string>>): Read => {
   }
 }
 
-/** Every id a placement must not take: the descriptor's, and the one every held `templates/<id>.yaml` implies. */
+/**
+ * Every id a placement must not take: the descriptor's, and the one every `templates/<id>.yaml`
+ * implies — held, or declared by a node whose file is not written yet. A node may name a template
+ * the chart does not hold (the inspector says so); placing a kind must not then write that file, or
+ * two nodes would share one template and the chart would render one object for both.
+ */
 const takenIds = (files: Readonly<Record<string, string>>, arch: ChartArchitecture): Set<string> => {
   const taken = new Set(arch.resources.map((node) => node.id))
-  for (const path of Object.keys(files)) {
+  for (const path of [...Object.keys(files), ...arch.resources.map((node) => node.template)]) {
     const found = /^templates\/([^/]+)\.ya?ml$/.exec(path)
     if (found) { taken.add(found[1]) }
   }
@@ -90,6 +95,7 @@ export const planPlace = (
   files: Readonly<Record<string, string>>,
   pick: PalettePick,
   spec: CrdSpecExtract | null,
+  /** Why the template's spec is empty, as a whole clause — see templateGen's header. */
   specNote?: string,
 ): PlacePlan => {
   const read = readDescriptor(files)

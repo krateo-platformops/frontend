@@ -10,6 +10,13 @@
  * TWO MODES, NOT A CODE EDITOR (decision D12): the schema is shown highlighted with its problem
  * lines marked; Edit swaps in a plain TextArea, and Apply writes it and lets the lint read it again.
  * A live-highlighting editor would be a non-antd dependency, which is a discussion of its own.
+ * Long lines scroll sideways, as the mockup's `.code` does, rather than wrap: the highlighter's
+ * wrapping lays each line out as a flex row, which splits its tokens into columns.
+ *
+ * AN EDIT OWNS THE SCHEMA until it is applied or cancelled. "Fix it for me" and "Add a field" write
+ * the held text, not the TextArea — so while editing they are not offered, and Apply is pinned to
+ * the bytes the edit started from: if the held schema changed underneath (the agent, Undo), Apply
+ * writes nothing and says so, the same way the batch bus refuses a stale plan.
  *
  * EVERY WRITE RIDES THE FILE-EDIT BUS — a fix, a field added, a hand edit — as `values.schema.json`
  * of a blueprint. The provider writes it into the held draft and forgets the chart's arming, so
@@ -45,11 +52,18 @@ const writeSchema = (content: string): string | null => {
   return outcome && !outcome.ok ? outcome.error : null
 }
 
-const ProblemBox = ({ onFix, problem }: { onFix: (problem: SchemaProblemAt) => void; problem: SchemaProblemAt }) => (
+/**
+ * The drawer's width: room for mockup 10's two panes — the schema, and a ~520px form beside it. antd
+ * caps the drawer at 100vw, so on a narrower screen it is the screen. (antd's `large` is a fixed
+ * 736px, which squeezed both panes until neither could be read.)
+ */
+const DRAWER_SIZE = 1180
+
+const ProblemBox = ({ editing, onFix, problem }: { editing: boolean; onFix: (problem: SchemaProblemAt) => void; problem: SchemaProblemAt }) => (
   <div className={styles.schemaRefusal} data-problem-box={problem.path}>
     {problem.field ? <strong>{problem.field}</strong> : null}
     {problem.field ? problem.message.slice(problem.field.length) : problem.message}
-    {problem.fixable ? (
+    {problem.fixable && !editing ? (
       <>
         {' '}
         <Button className={styles.inlineAction} onClick={() => onFix(problem)} size='small' type='link'>Fix it for me</Button>
@@ -83,6 +97,8 @@ export const FormEditorDrawer = ({ addNonce, addType, onClose, open, schemaText 
   }, [problems])
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(text)
+  // The held text the edit started from — what Apply is pinned to.
+  const [base, setBase] = useState(text)
   const [refused, setRefused] = useState<string | null>(null)
   const [fieldName, setFieldName] = useState('')
   const [fieldType, setFieldType] = useState<FormFieldType>('string')
@@ -117,11 +133,16 @@ export const FormEditorDrawer = ({ addNonce, addType, onClose, open, schemaText 
 
   const beginEdit = () => {
     setDraft(text)
+    setBase(text)
     setRefused(null)
     setEditing(true)
   }
 
   const apply = () => {
+    if (text !== base) {
+      setRefused(`${VALUES_SCHEMA_PATH} changed while you were editing it — nothing was written. Cancel, then Edit again to start from the held text.`)
+      return
+    }
     try {
       JSON.parse(draft)
     } catch (error) {
@@ -155,7 +176,7 @@ export const FormEditorDrawer = ({ addNonce, addType, onClose, open, schemaText 
       extra={count ? <StatusPill color='error' label={`${count} problem${count === 1 ? '' : 's'} · publish blocked`} /> : null}
       onClose={onClose}
       open={open}
-      size='large'
+      size={DRAWER_SIZE}
       title={<DrawerHeader title='The create form' />}
       zIndex={LAYER.DRAWER}
     >
@@ -182,7 +203,7 @@ export const FormEditorDrawer = ({ addNonce, addType, onClose, open, schemaText 
                   value={draft}
                 />
                 <Space>
-                  <Button disabled={draft === text} onClick={apply} type='primary'>Apply</Button>
+                  <Button disabled={draft === base} onClick={apply} type='primary'>Apply</Button>
                   <Button onClick={() => { setEditing(false); setRefused(null) }}>Cancel</Button>
                 </Space>
               </>
@@ -196,36 +217,39 @@ export const FormEditorDrawer = ({ addNonce, addType, onClose, open, schemaText 
                   showLineNumbers
                   style={(mode === 'dark' ? atomOneDark : lightfair) as { [key: string]: React.CSSProperties }}
                   wrapLines
-                  wrapLongLines
                 >
                   {text}
                 </SyntaxHighlighter>
               </div>
             )}
-            {problems.map((problem) => <ProblemBox key={`${problem.code}:${problem.path}`} onFix={fix} problem={problem} />)}
-            <div aria-label='Add a field' className={styles.addField} role='group'>
-              <span className={styles.eyebrow}>Add a field</span>
-              <div className={styles.addFieldRow}>
-                <Input
-                  aria-label='Field name'
-                  onChange={(event) => { setFieldName(event.target.value); setFieldRefusal(null) }}
-                  onPressEnter={addField}
-                  placeholder='e.g. region'
-                  ref={nameInput}
-                  size='small'
-                  value={fieldName}
-                />
-                <Select
-                  aria-label='Field type'
-                  onChange={setFieldType}
-                  options={FORM_FIELD_TYPES.map((field) => ({ label: field.label, value: field.type }))}
-                  size='small'
-                  value={fieldType}
-                />
-                <Button disabled={!fieldName.trim()} onClick={addField} size='small'>Add field</Button>
+            {problems.map((problem) => <ProblemBox editing={editing} key={`${problem.code}:${problem.path}`} onFix={fix} problem={problem} />)}
+            {editing ? (
+              <p className={styles.fieldText}>Add a field, and any fix, come back once this edit is applied or cancelled — they write the held schema, not this text.</p>
+            ) : (
+              <div aria-label='Add a field' className={styles.addField} role='group'>
+                <span className={styles.eyebrow}>Add a field</span>
+                <div className={styles.addFieldRow}>
+                  <Input
+                    aria-label='Field name'
+                    onChange={(event) => { setFieldName(event.target.value); setFieldRefusal(null) }}
+                    onPressEnter={addField}
+                    placeholder='e.g. region'
+                    ref={nameInput}
+                    size='small'
+                    value={fieldName}
+                  />
+                  <Select
+                    aria-label='Field type'
+                    onChange={setFieldType}
+                    options={FORM_FIELD_TYPES.map((field) => ({ label: field.label, value: field.type }))}
+                    size='small'
+                    value={fieldType}
+                  />
+                  <Button disabled={!fieldName.trim()} onClick={addField} size='small'>Add field</Button>
+                </div>
+                {fieldRefusal ? <p className={styles.refusalText} role='alert'>{fieldRefusal}</p> : null}
               </div>
-              {fieldRefusal ? <p className={styles.refusalText} role='alert'>{fieldRefusal}</p> : null}
-            </div>
+            )}
           </div>
         </section>
         <section aria-label='Create form preview' className={styles.pane}>

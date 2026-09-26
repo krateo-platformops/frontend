@@ -14,15 +14,21 @@
  * CRD of a custom kind or a blueprint is read, its row is busy and says so. A kind already in the
  * chart is marked "✓ placed" in the faint token and stays a button: a chart may hold two.
  *
+ * A REFUSAL IS SAID UNDER THE ROW THAT WAS REFUSED, not at the top of the pane: a row the person
+ * scrolled down to reach (a composition, a kind inside an open group) would otherwise be refused
+ * off-screen, and the click would seem to do nothing. Filtering or folding a group away clears it,
+ * so it never ends up under a row that is no longer shown.
+ *
  * GROUPS START CLOSED. 123 custom kinds in 29 groups is a list nobody reads; each group is a
  * disclosure button (`aria-expanded`), and a filter opens every group it matches.
  */
 import { Alert, Input } from 'antd'
-import { useContext, useEffect, useId, useMemo, useState } from 'react'
+import { Fragment, useContext, useEffect, useId, useMemo, useState } from 'react'
 
 import { ConfigContext } from '../../context/ConfigContext'
 
 import type { ResourceNode } from './architecture'
+import { counted } from './architectureView'
 import styles from './BlueprintComposer.module.css'
 import { readBlueprintPalette, type PaletteRead } from './blueprintPalette'
 import { paletteModel, rowLabel, type PaletteRow } from './paletteModel'
@@ -58,6 +64,12 @@ const Row = ({ busy, nested, onPlace, row }: { busy: boolean; nested?: boolean; 
   </button>
 )
 
+/** Why a placement did not happen — and the row it is said under. */
+export interface PlaceRefusal {
+  key: string
+  reason: string
+}
+
 export interface ArchitecturePaletteProps {
   /** The descriptor's nodes — what "✓ placed" counts. */
   resources: readonly Pick<ResourceNode, 'apiVersion' | 'kind'>[]
@@ -65,8 +77,8 @@ export interface ArchitecturePaletteProps {
   chart: string | null
   /** The row whose placement is in flight, by key. */
   placing: string | null
-  /** Why the last placement did not happen, or null. */
-  refusal: string | null
+  /** Why the last placement did not happen, and which row it was — or null. */
+  refusal: PlaceRefusal | null
   onDismissRefusal: () => void
   onPlace: (row: PaletteRow) => void
   onFormField: (type: FormFieldType) => void
@@ -99,11 +111,23 @@ export const ArchitecturePalette = ({ chart, onDismissRefusal, onFormField, onPl
   const changeFilter = (next: string) => {
     setFilter(next)
     setToggled({})
+    if (refusal) { onDismissRefusal() }
   }
-  const row = (entry: PaletteRow, nested?: boolean) =>
-    <Row busy={placing === entry.key} key={entry.key} nested={nested} onPlace={onPlace} row={entry} />
+  const toggle = (group: string) => {
+    setToggled((last) => ({ ...last, [group]: !expanded(group) }))
+    if (refusal) { onDismissRefusal() }
+  }
+  const row = (entry: PaletteRow, nested?: boolean) => (
+    <Fragment key={entry.key}>
+      <Row busy={placing === entry.key} nested={nested} onPlace={onPlace} row={entry} />
+      {refusal?.key === entry.key ? <Alert closable onClose={onDismissRefusal} showIcon title={refusal.reason} type='error' /> : null}
+    </Fragment>
+  )
 
   const { compositions, custom } = model
+  // How many groups the filter opened — no suffix at none, where "Nothing matches" or the rows speak.
+  // `custom.groups` is empty unless the custom read answered, so this is also the read's check.
+  const groupsMatch = filtering ? custom.groups.length : 0
   return (
     <section aria-label='Add' className={`${styles.pane} ${styles.palettePane}`}>
       <div className={styles.paneHead}>
@@ -116,11 +140,10 @@ export const ArchitecturePalette = ({ chart, onDismissRefusal, onFormField, onPl
           onChange={(event) => changeFilter(event.target.value)}
           placeholder='Filter by kind or group'
           size='small'
-          suffix={filtering && custom.state === 'ok' ? <span className={styles.paletteMatches}>{`${custom.groups.length} groups match`}</span> : undefined}
+          suffix={groupsMatch ? <span className={styles.paletteMatches}>{`${counted(groupsMatch, 'group')} ${groupsMatch === 1 ? 'matches' : 'match'}`}</span> : undefined}
           value={filter}
         />
         {read?.unavailable ? <p className={styles.paletteNote}>{read.unavailable}</p> : null}
-        {refusal ? <Alert closable onClose={onDismissRefusal} showIcon title={refusal} type='error' /> : null}
         {model.nothingMatches ? <p className={styles.fieldText}>{`Nothing matches “${model.filter}”.`}</p> : null}
 
         <Section count={String(model.native.length)} title='Kubernetes native'>
@@ -137,7 +160,7 @@ export const ArchitecturePalette = ({ chart, onDismissRefusal, onFormField, onPl
                 <button
                   aria-expanded={expanded(group.group)}
                   className={styles.paletteGroupHead}
-                  onClick={() => setToggled((last) => ({ ...last, [group.group]: !expanded(group.group) }))}
+                  onClick={() => toggle(group.group)}
                   type='button'
                 >
                   <span aria-hidden='true'>{expanded(group.group) ? '▾' : '▸'}</span>
@@ -148,7 +171,9 @@ export const ArchitecturePalette = ({ chart, onDismissRefusal, onFormField, onPl
               </div>
             ))}
             {custom.clusterScoped ? (
-              <p className={styles.fieldText}>{`${custom.clusterScoped} cluster-scoped kinds are not listed: a composition's resources live in its own namespace.`}</p>
+              <p className={styles.fieldText}>
+                {`${counted(custom.clusterScoped, 'cluster-scoped kind')} ${custom.clusterScoped === 1 ? 'is' : 'are'} not listed: a composition's resources live in its own namespace.`}
+              </p>
             ) : null}
           </Section>
         )}

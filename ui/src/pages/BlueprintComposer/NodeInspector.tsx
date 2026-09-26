@@ -166,7 +166,13 @@ const ForEachField = ({ node, onSetForEach }: { node: ResourceNode; onSetForEach
     setValue(node.forEach ?? '')
     setRefusal(null)
   }, [node.id, node.forEach])
-  const apply = () => setRefusal(onSetForEach(node.id, value.trim() || null))
+  // Enter on what the node already holds asks for nothing, the same as the disabled Set beside it.
+  const unchanged = value.trim() === (node.forEach ?? '')
+  const apply = () => {
+    if (!unchanged) {
+      setRefusal(onSetForEach(node.id, value.trim() || null))
+    }
+  }
   return (
     <Field label='One per item of'>
       <div className={styles.addFieldRow}>
@@ -179,7 +185,7 @@ const ForEachField = ({ node, onSetForEach }: { node: ResourceNode; onSetForEach
           size='small'
           value={value}
         />
-        <Button disabled={value.trim() === (node.forEach ?? '')} onClick={apply} size='small'>Set</Button>
+        <Button disabled={unchanged} onClick={apply} size='small'>Set</Button>
       </div>
       {refusal
         ? <span className={styles.refusalText} id={refusalId} role='alert'>{refusal}</span>
@@ -214,7 +220,10 @@ export const NodeInspector = ({
   onOpenFormEditor: () => void
   /** Range the node over a list (or stop): null when it was written, else why not. */
   onSetForEach: (id: string, forEach: string | null) => string | null
-  /** Set while the selected node is the one just placed: what the note says about it. */
+  /**
+   * Set while the selected node is the one just placed: what the note says about it. `specNote` is
+   * a whole clause — "Its CRD could not be read (…)" or "Its CRD declares no spec schema at …".
+   */
   placedNote: { specNote?: string } | null
   /** The held values.schema.json, verbatim — the form preview's input. */
   schemaText: string | undefined
@@ -243,7 +252,7 @@ export const NodeInspector = ({
               <p className={styles.note} data-testid='placed-note'>
                 Placing this node changed the chart, so publishing is off until <strong>Preview</strong> renders it again. The
                 chart has <strong>{counted(fileCount, 'file')}</strong>, and there is no cap on how many it can have.
-                {placedNote.specNote ? ` Its CRD could not be read (${placedNote.specNote}), so spec is empty — fill it in Chart files.` : null}
+                {placedNote.specNote ? ` ${placedNote.specNote}, so spec is empty — fill it in Chart files.` : null}
               </p>
             ) : null}
             <p className={styles.note}>

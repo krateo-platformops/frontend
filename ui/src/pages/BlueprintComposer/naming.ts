@@ -4,10 +4,11 @@
  * THE ID is the kind, lower-cased and reduced to `[a-z0-9-]`, because it names a file
  * (`templates/<id>.yaml`), a node the person reads on the canvas, and the suffix of every object
  * name the template renders. A second node of the same kind gets `-2`, `-3` … — never a clash with
- * an id the descriptor already holds, nor with a `templates/<id>.yaml` the chart already has (a
+ * an id the descriptor already holds, with a `templates/<id>.yaml` the chart already has (a
  * hand-written template the descriptor does not list yet is still a file a placement must not
- * overwrite). At most 40 characters, the suffix included: the rest of a 63-character object name is
- * the release's. The alphabet alone keeps `__proto__` out (architecture.ts refuses it as an id).
+ * overwrite), nor with a template path a node declares (a node whose file is not written yet has
+ * still claimed it). At most 40 characters, the suffix included: the rest of a 63-character object
+ * name is the release's. The alphabet alone keeps `__proto__` out (architecture.ts refuses it as an id).
  *
  * THE NAME EXPRESSION is the Helm the template writes into `metadata.name`: the release name and the
  * id, truncated to a DNS label. Scoped to `$`, because a template's `.` is not the root inside a
@@ -32,8 +33,8 @@ const withSuffix = (base: string, suffix: string): string =>
   `${base.slice(0, PLACED_ID_MAX - suffix.length).replace(/-+$/, '')}${suffix}`
 
 /**
- * A fresh id for a node of `kind`. `taken` is every id the descriptor holds and every id a held
- * `templates/<id>.yaml` implies.
+ * A fresh id for a node of `kind`. `taken` is every id the descriptor holds and every id a
+ * `templates/<id>.yaml` implies — held, or declared by a node.
  */
 export const placedNodeId = (kind: string, taken: ReadonlySet<string>): string => {
   const base = idBase(kind)

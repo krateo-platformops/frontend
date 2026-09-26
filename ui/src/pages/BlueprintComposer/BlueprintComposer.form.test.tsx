@@ -12,7 +12,7 @@ import { AUTOPILOT_PREVIEW_FILE_EDIT_EVENT, onFileEdit, type FileEditDetail } fr
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 
 import { MOCKUP_10_FIXED, MOCKUP_10_SCHEMA } from './__fixtures__/s4a'
-import { hold, installAntdShims, installScrollShim, listen, mount, seededChart } from './blueprintTestHarness'
+import { hold, installAntdShims, installScrollShim, listen, mount, mountWithProvider, seededChart } from './blueprintTestHarness'
 
 vi.mock('@ant-design/graphs', () => import('../../components/DependencyGraph/flowGraphDouble'))
 vi.mock('@antv/g6-extension-react', () => ({ ReactNode: vi.fn() }))
@@ -140,5 +140,42 @@ describe('BlueprintComposer — the form editor (screen 10)', () => {
     const dialog = screen.getByRole('dialog')
     act(() => { fireEvent.keyDown(dialog, { code: 'Escape', key: 'Escape' }) })
     await waitFor(() => expect(document.activeElement).toBe(trigger))
+  })
+
+  it('while editing, "Fix it for me" and "Add a field" are not offered — they would write under the open text', () => {
+    openEditor()
+    expect(within(schemaPane()).getByRole('button', { name: 'Fix it for me' })).toBeTruthy()
+    act(() => { within(schemaPane()).getByRole('button', { name: 'Edit' }).click() })
+    expect(within(schemaPane()).queryByRole('button', { name: 'Fix it for me' })).toBeNull()
+    expect(within(schemaPane()).queryByRole('group', { name: 'Add a field' })).toBeNull()
+    expect(within(schemaPane()).getByText(/Add a field, and any fix, come back once this edit is applied or cancelled/)).toBeTruthy()
+    // The problem itself is still said.
+    expect(schemaPane().querySelector('[data-problem-box="properties.credentials.default"]')).toBeTruthy()
+  })
+
+  it('Apply is pinned to the bytes the edit began from: another writer\'s schema is never overwritten', () => {
+    const provider = mountWithProvider()
+    act(() => { provider.store.set({ ...seededChart(), 'values.schema.json': MOCKUP_10_FIXED }, 'blueprint') })
+    act(() => { within(screen.getByLabelText('Inspector')).getByRole('button', { name: 'Open form editor' }).click() })
+    act(() => { within(schemaPane()).getByRole('button', { name: 'Edit' }).click() })
+    const apply = () => within(schemaPane()).getByRole<HTMLButtonElement>('button', { name: 'Apply' })
+    const other = '{ "type": "object", "properties": { "region": { "type": "string" } } }\n'
+    act(() => { provider.store.updateFile('values.schema.json', other) })
+    // Another writer's bytes underneath do not, by themselves, turn Apply on.
+    expect(apply().disabled).toBe(true)
+    act(() => { fireEvent.change(within(schemaPane()).getByLabelText('Edit values.schema.json'), { target: { value: '{ "type": "object", "properties": {} }\n' } }) })
+    act(() => { apply().click() })
+    expect(within(schemaPane()).getByText('This edit was not applied')).toBeTruthy()
+    expect(within(schemaPane()).getByText('values.schema.json changed while you were editing it — nothing was written. Cancel, then Edit again to start from the held text.')).toBeTruthy()
+    expect(provider.store.get()?.files['values.schema.json']).toBe(other)
+  })
+
+  it('the schema reads at mockup width: a wide drawer, and long lines scroll rather than split into flex columns', () => {
+    const dialog = openEditor()
+    const lines = [...schemaPane().querySelectorAll<HTMLElement>('code > span')]
+    expect(lines.length).toBeGreaterThan(10)
+    expect(lines.filter((line) => line.style.display === 'flex')).toEqual([])
+    const wrapper = dialog.closest<HTMLElement>('.ant-drawer-content-wrapper') ?? document.querySelector<HTMLElement>('.ant-drawer-content-wrapper')
+    expect(wrapper?.style.width).toBe('1180px')
   })
 })

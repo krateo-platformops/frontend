@@ -9,13 +9,15 @@ import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-libra
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { draftHistory } from '../../components/Autopilot/draftHistory'
+import { emitDraftClose } from '../../components/Autopilot/previewDraftClose'
 import { AUTOPILOT_PREVIEW_FILES_BATCH_EVENT, onFilesBatch, type FilesBatchDetail } from '../../components/Autopilot/previewFilesBatch'
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 import { invalidateAccessTokenCache } from '../../utils/getAccessToken'
 
 import { CRDS, PALETTE_STATUS, golden } from './__fixtures__/s4a'
 import { ARCHITECTURE_TEMPLATE_PATH } from './architecture'
-import { hold, installAntdShims, installScrollShim, listen, mountWithConfig, mountWithProvider, routeFetch, scrolled, seededChart, type HeldProvider } from './blueprintTestHarness'
+import { CHART_CHANGED } from './BlueprintComposer'
+import { hold, installAntdShims, installScrollShim, listen, mountWithConfig, mountWithProvider, routeFetch, scrolled, seededChart, type Answer, type HeldProvider } from './blueprintTestHarness'
 
 vi.mock('@ant-design/graphs', () => import('../../components/DependencyGraph/flowGraphDouble'))
 vi.mock('@antv/g6-extension-react', () => ({ ReactNode: vi.fn() }))
@@ -77,6 +79,29 @@ const placeRepository = async (provider: HeldProvider) => {
   await place(/^Repository · v2022-11-28/)
   return provider.store.get()?.files ?? {}
 }
+
+/** Let every pending promise and the renders they cause land. */
+const settle = () => act(async () => {
+  await new Promise((resolve) => { setTimeout(resolve, 0) })
+})
+
+/** From here on, this CRD answers only when released; the palette still answers. */
+const holdRead = (crd = 'repositories.github.krateo.io') => {
+  const held: { release: (answer: Answer) => void } = { release: () => undefined }
+  const fetched = routeFetch({
+    'name=blueprint-palette': { body: { status: PALETTE_STATUS }, status: 200 },
+    [`name=${crd}`]: () => new Promise((resolve) => { held.release = resolve }),
+  })
+  const release = async () => {
+    act(() => { held.release({ body: CRDS[crd], status: 200 }) })
+    await settle()
+  }
+  return { fetched, release }
+}
+
+/** The row's next sibling is its refusal — said under the row that was refused, not atop the pane. */
+const refusalUnder = (button: HTMLElement): string | null =>
+  (button.nextElementSibling?.getAttribute('role') === 'alert' ? button.nextElementSibling.textContent : null)
 
 describe('BlueprintComposer — placing (screen 5)', () => {
   it('1. Repository: its CRD is read by name, then EXACTLY ONE batch — the template (golden) and the descriptor', async () => {
@@ -147,7 +172,8 @@ describe('BlueprintComposer — placing (screen 5)', () => {
     hold(seededChart())
     await place(/^Deployment/)
     stop()
-    expect(within(palette()).getByRole('alert').textContent).toContain('Nothing was placed — the change brings the draft to 513 KiB — over the 512 KiB cap')
+    expect(refusalUnder(row(/^Deployment/))).toContain('Nothing was placed — the change brings the draft to 513 KiB — over the 512 KiB cap')
+    expect(within(within(palette()).getByRole('group', { name: 'Kubernetes native' })).getByRole('alert')).toBeTruthy()
     expect(screen.queryByTestId('node-card-deployment')).toBeNull()
     expect(within(inspector()).getByText(/Select a node/)).toBeTruthy()
   })
@@ -226,7 +252,130 @@ describe('BlueprintComposer — placing (screen 5)', () => {
     hold(files)
     await waitFor(() => expect(within(palette()).getByText('72 kinds · 4 groups')).toBeTruthy())
     await place(/^builder-publish/)
-    expect(within(palette()).getByRole('alert').textContent).toContain('Add templates/architecture.yaml first — the canvas has the button.')
+    expect(refusalUnder(row(/^builder-publish/))).toContain('Add templates/architecture.yaml first — the canvas has the button.')
     expect(crdReads(fetched)).toEqual([])
+  })
+
+  it('a discard while its CRD is read drops the placement: the chart started next gets nothing, is not busy, and says nothing', async () => {
+    const { provider } = await start()
+    const read = holdRead()
+    filter('Repository')
+    act(() => { row(/^Repository · v2022-11-28/).click() })
+    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    act(() => { emitDraftClose() })
+    act(() => { provider.store.set(seededChart('billing'), 'blueprint') })
+    await waitFor(() => expect(within(palette()).getByText('72 kinds · 4 groups')).toBeTruthy())
+    filter('Repository')
+    expect(row(/^Repository · v2022-11-28/).getAttribute('aria-busy')).toBeNull()
+    await read.release()
+    batches.stop()
+    expect(batches.seen).toEqual([])
+    expect(Object.keys(provider.store.get()?.files ?? {})).not.toContain('templates/repository.yaml')
+    expect(draftHistory.depth()).toBe(0)
+    expect(row(/^Repository · v2022-11-28/).getAttribute('aria-busy')).toBeNull()
+    expect(within(palette()).queryByRole('alert')).toBeNull()
+  })
+
+  it('discarded and started again under the SAME name: the old placement still does not land in it', async () => {
+    const { provider } = await start()
+    const read = holdRead()
+    filter('Repository')
+    act(() => { row(/^Repository · v2022-11-28/).click() })
+    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    act(() => { emitDraftClose() })
+    act(() => { provider.store.set(seededChart('orders'), 'blueprint') })
+    await read.release()
+    batches.stop()
+    expect(batches.seen).toEqual([])
+    expect(Object.keys(provider.store.get()?.files ?? {})).not.toContain('templates/repository.yaml')
+  })
+
+  it('a placement whose read lands after a discard does not follow the person to the next chart', async () => {
+    const { provider } = await start()
+    // A blueprint row: in view without a filter, so a refusal left under it would be seen.
+    const read = holdRead('builderpublishes.composition.krateo.io')
+    act(() => { row(/^builder-publish → BuilderPublish/).click() })
+    act(() => { emitDraftClose() })
+    await read.release()
+    act(() => { provider.store.set(seededChart('billing'), 'blueprint') })
+    await waitFor(() => expect(within(palette()).getByText('72 kinds · 4 groups')).toBeTruthy())
+    expect(row(/^builder-publish → BuilderPublish/)).toBeTruthy()
+    expect(within(palette()).queryByRole('alert')).toBeNull()
+    expect(Object.keys(provider.store.get()?.files ?? {})).not.toContain('templates/builderpublish.yaml')
+  })
+
+  it('the chart replaced while its CRD is read (no discard): nothing lands in the new one, and the row says why', async () => {
+    const { provider } = await start()
+    const read = holdRead()
+    filter('Repository')
+    act(() => { row(/^Repository · v2022-11-28/).click() })
+    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    act(() => { provider.store.set(seededChart('billing'), 'blueprint') })
+    await read.release()
+    batches.stop()
+    expect(batches.seen).toEqual([])
+    expect(Object.keys(provider.store.get()?.files ?? {})).not.toContain('templates/repository.yaml')
+    expect(refusalUnder(row(/^Repository · v2022-11-28/))).toBe(CHART_CHANGED)
+  })
+
+  it('the page left while its CRD is read: no batch is sent from the page that is gone', async () => {
+    const read = holdRead()
+    const page = mountWithConfig()
+    hold(seededChart('orders'))
+    await waitFor(() => expect(within(palette()).getByText('72 kinds · 4 groups')).toBeTruthy())
+    filter('Repository')
+    act(() => { row(/^Repository · v2022-11-28/).click() })
+    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    page.unmount()
+    await read.release()
+    batches.stop()
+    expect(batches.seen).toEqual([])
+  })
+
+  it('while a CRD is read, a native kind still places — and a second CRD kind is refused in words, under its row', async () => {
+    const { provider } = await start()
+    const read = holdRead()
+    filter('Repository')
+    act(() => { row(/^Repository · v2022-11-28/).click() })
+    filter('')
+    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    await place(/^Deployment/)
+    expect(batches.seen).toHaveLength(1)
+    expect(Object.keys(batches.seen[0].add ?? {})).toEqual(['templates/deployment.yaml'])
+    act(() => { row(/^builder-publish → BuilderPublish/).click() })
+    expect(refusalUnder(row(/^builder-publish → BuilderPublish/))).toBe('Repository is still being placed — its CRD is being read.')
+    expect(crdReads(read.fetched)).toEqual(['repositories.github.krateo.io'])
+    await read.release()
+    batches.stop()
+    expect(batches.seen).toHaveLength(2)
+    expect(Object.keys(provider.store.get()?.files ?? {})).toEqual(expect.arrayContaining(['templates/deployment.yaml', 'templates/repository.yaml']))
+  })
+
+  it('a CRD read that answers with no spec schema says so — never that it could not be read', async () => {
+    const crd = structuredClone(CRDS['repositories.github.krateo.io']) as { spec: { versions: { schema: { openAPIV3Schema: { properties: Record<string, unknown> } } }[] } }
+    for (const version of crd.spec.versions) { delete version.schema.openAPIV3Schema.properties.spec }
+    const { provider } = await start('orders', { 'repositories.github.krateo.io': { body: crd, status: 200 } })
+    await placeRepository(provider)
+    const template = provider.store.get()?.files['templates/repository.yaml'] ?? ''
+    expect(template).toContain('{{- /* Its CRD declares no spec schema at v2022-11-28, so spec is empty — fill it in. */}}')
+    expect(template).not.toContain('could not be read')
+    const note = within(inspector()).getByTestId('placed-note').textContent
+    expect(note).toContain('Its CRD declares no spec schema at v2022-11-28, so spec is empty — fill it in Chart files.')
+    expect(note).not.toContain('could not be read')
+  })
+
+  it('Enter in an unchanged "One per item of" asks for nothing — no refusal, no batch — as the disabled Set says', async () => {
+    const { provider } = await start()
+    await placeRepository(provider)
+    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const field = within(inspector()).getByLabelText('One per item of')
+    act(() => {
+      fireEvent.keyDown(field, { code: 'Enter', key: 'Enter', keyCode: 13, which: 13 })
+      fireEvent.keyUp(field, { code: 'Enter', key: 'Enter', keyCode: 13, which: 13 })
+    })
+    batches.stop()
+    expect(within(inspector()).getByRole<HTMLButtonElement>('button', { name: 'Set' }).disabled).toBe(true)
+    expect(within(inspector()).queryByRole('alert')).toBeNull()
+    expect(batches.seen).toEqual([])
   })
 })

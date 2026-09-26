@@ -15,8 +15,11 @@
  *                   is ranged over directly, anything else is a named helper whose YAML list output is
  *                   ranged over (builder-publish's `include "builder-publish.files" $`).
  *
- * WHEN THE CRD COULD NOT BE READ the node is still placed, with `spec: {}` and a second header line
- * saying why — the person's placement is not refused over a read they cannot fix from here.
+ * WHEN THE CRD GAVE NO SPEC — it could not be read, or it was read and declares no spec schema at
+ * the picked version — the node is still placed, with `spec: {}` and a second header line saying
+ * which: the person's placement is not refused over a read they cannot fix from here. The caller
+ * words the reason as a whole clause ("Its CRD could not be read (…)", "Its CRD declares no spec
+ * schema at …"), so a read that succeeded is never reported as one that failed.
  */
 import type { CrdSpecExtract, CrdSpecField } from '../../components/Autopilot/describeResource'
 
@@ -117,10 +120,10 @@ export const rangeSource = (forEach: string): string =>
 /** The line that opens a placed template's range. */
 export const rangeLine = (forEach: string): string => `{{- range $i, $f := ${rangeSource(forEach)} }}`
 
-/** The header lines — the marker, and the note when the CRD could not be read. */
+/** The header lines — the marker, and the note (a whole clause) when the CRD gave no spec. */
 export const placedHeader = (node: PlacedNode, specNote?: string): string[] => [
   comment(`${PLACED_MARKER} ${node.kind} ${node.apiVersion} (${node.class}) — written when it was placed; the rest of this file is yours.`),
-  ...(specNote ? [comment(`Its CRD could not be read (${specNote}), so spec is empty — fill it in.`)] : []),
+  ...(specNote ? [comment(`${specNote}, so spec is empty — fill it in.`)] : []),
 ]
 
 export const placedTemplate = (node: PlacedNode, { spec, specNote }: { spec: CrdSpecExtract | null; specNote?: string }): string => {

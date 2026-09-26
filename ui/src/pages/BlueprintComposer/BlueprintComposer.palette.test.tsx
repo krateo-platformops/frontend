@@ -77,7 +77,7 @@ describe('BlueprintComposer — the palette (screen 4)', () => {
     expect(groups.map((group) => group.textContent)).toEqual(['▾git.krateo.iogit-provider-crd · 2', '▾github.krateo.iogithub-provider-kog · 58'])
     expect(within(section('Custom resources')).getByText('github-provider-kog · 58')).toBeTruthy()
     expect(within(section('Custom resources')).getByText('git-provider-crd · 2')).toBeTruthy()
-    expect(within(section('Custom resources')).getByText('1 cluster-scoped kinds are not listed: a composition\'s resources live in its own namespace.')).toBeTruthy()
+    expect(within(section('Custom resources')).getByText('1 cluster-scoped kind is not listed: a composition\'s resources live in its own namespace.')).toBeTruthy()
   })
 
   it('3. the Repository row says its version and the readiness field its CRD declares', async () => {
@@ -139,7 +139,11 @@ describe('BlueprintComposer — the palette (screen 4)', () => {
     const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
     act(() => { within(section('Krateo compositions')).getByRole('button', { name: /^builder-publish/ }).click() })
     batches.stop()
-    expect(within(palette()).getByRole('alert').textContent).toContain('Nesting builder-publish into builder-publish is refused as a cycle — a blueprint cannot contain itself.')
+    // Said under the row that was refused — at the top of the pane it would be off-screen.
+    const refused = within(section('Krateo compositions')).getByRole('button', { name: /^builder-publish/ })
+    expect(refused.nextElementSibling?.getAttribute('role')).toBe('alert')
+    expect(refused.nextElementSibling?.textContent).toContain('Nesting builder-publish into builder-publish is refused as a cycle — a blueprint cannot contain itself.')
+    expect(within(section('Krateo compositions')).getByRole('alert')).toBeTruthy()
     expect(batches.seen).toEqual([])
     // Refused before any read: the CRD was never asked for.
     expect(fetched.mock.calls.map(([url]) => url).filter((url) => url.includes('customresourcedefinitions'))).toEqual([])
@@ -171,5 +175,29 @@ describe('BlueprintComposer — the palette (screen 4)', () => {
     await open()
     act(() => { fireEvent.change(within(palette()).getByLabelText('Filter by kind or group'), { target: { value: 'zzz' } }) })
     expect(within(palette()).getByText('Nothing matches “zzz”.')).toBeTruthy()
+  })
+
+  it('the match count reads as a person says it: "1 group matches", and nothing at none', async () => {
+    await open()
+    const typed = (text: string) => act(() => { fireEvent.change(within(palette()).getByLabelText('Filter by kind or group'), { target: { value: text } }) })
+    typed('cert')
+    expect(within(palette()).getByText('1 group matches')).toBeTruthy()
+    // "builder" matches a blueprint, not a custom group; "zzz" matches nothing, and says so below.
+    for (const text of ['builder', 'zzz']) {
+      typed(text)
+      expect(within(palette()).queryByText(/groups? match/)).toBeNull()
+    }
+  })
+
+  it('a refusal under a row goes when the filter changes, so it is never left under a row no longer shown', async () => {
+    await open(PALETTE_STATUS, 'builder-publish')
+    act(() => { within(section('Krateo compositions')).getByRole('button', { name: /^builder-publish/ }).click() })
+    expect(within(palette()).getByRole('alert')).toBeTruthy()
+    const typed = (text: string) => act(() => { fireEvent.change(within(palette()).getByLabelText('Filter by kind or group'), { target: { value: text } }) })
+    typed('mongo')
+    typed('')
+    // The refused row is shown again — and nothing is said under it.
+    expect(within(section('Krateo compositions')).getByRole('button', { name: /^builder-publish/ })).toBeTruthy()
+    expect(within(palette()).queryByRole('alert')).toBeNull()
   })
 })
