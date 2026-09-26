@@ -100,10 +100,10 @@ export interface FilesChange {
 /**
  * A tree as the store holds it. A CHART's architecture file is regenerated on every write
  * (blueprintDraft's regenerateArchitecture): every way a held chart changes comes through here — an
- * edit in Chart files, a file the composer adds, a removal, an Undo, a Start, an agent's rendered
- * proposal — so none of them can leave the `krateo:graph` block behind its descriptor. It stays one
- * ordinary write: the gate is disarmed and a render arms it, as for any other. A page set has no
- * architecture file, and is held as given.
+ * edit in Chart files, a file the composer adds, a composer gesture's batch (a node placed, a node
+ * ranged), a removal, an Undo, a Start, an agent's rendered proposal — so none of them can leave the
+ * `krateo:graph` block behind its descriptor. It stays one ordinary write: the gate is disarmed and a
+ * render arms it, as for any other. A page set has no architecture file, and is held as given.
  */
 const settle = (files: Record<string, string>, kind: DraftKind): Record<string, string> =>
   (kind === 'blueprint' ? regenerateArchitecture(files) : files)
@@ -197,6 +197,11 @@ export interface BlueprintDraftStore {
    * and `removeFile` would check is checked FIRST, for every path, plus two of its own — a path may
    * appear in only one list, and an empty change is refused. The 512 KiB cap is measured once, over
    * the result. A refusal leaves the held tree exactly as it was; an acceptance announces once.
+   *
+   * The result is SETTLED like every other write (`settle`): a placement rewrites only
+   * data.architecture (planPlace's rewrapDescriptor), and the graph block compiled from it is the
+   * store's to write — so the held chart is the one a single-file save of the same descriptor would
+   * hold, and the cap measures those bytes.
    */
   applyFiles: (change: FilesChange) => FileUpdateResult
 }
@@ -296,7 +301,7 @@ export const createBlueprintDraftStore = (onChange?: DraftChangeListener): Bluep
       if (refusal) {
         return { bytes: held.bytes, ok: false, ...refusal }
       }
-      const nextFiles = changedTree(held.files, change)
+      const nextFiles = settle(changedTree(held.files, change), held.kind)
       const bytes = measureTreeBytes(nextFiles)
       if (bytes > BLUEPRINT_DRAFT_MAX_BYTES) {
         const kib = Math.ceil(bytes / 1024)
@@ -319,9 +324,8 @@ export const createBlueprintDraftStore = (onChange?: DraftChangeListener): Bluep
       if (!(path in held.files)) {
         return { bytes: held.bytes, error: `"${path}" is not in the draft`, ok: false }
       }
-      const remaining = { ...held.files }
-      delete remaining[path]
-      const nextFiles = settle(remaining, held.kind)
+      // The same tree a batch that removes only this path would hold — no `delete` on a copy.
+      const nextFiles = settle(changedTree(held.files, { remove: [path] }), held.kind)
       const bytes = measureTreeBytes(nextFiles)
       // `held.kind` carries forward, as it does for every other edit: removing a file never changes
       // WHO authored the draft.

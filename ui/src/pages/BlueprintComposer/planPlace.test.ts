@@ -11,12 +11,15 @@ import {
   ARCHITECTURE_KIND,
   ARCHITECTURE_TEMPLATE_PATH,
   parseArchitecture,
+  regenerateGraphBlock,
   rewrapDescriptor,
   serializeArchitecture,
   unwrapFromConfigMapTemplate,
   wrapAsConfigMapTemplate,
   type ResourceNode,
 } from './architecture'
+import { graphBlockIn } from './graphCompile'
+import { placedNameExpression } from './naming'
 import { DESCRIPTOR_REFUSED, NO_DESCRIPTOR, placementCrd, planPlace, type PalettePick } from './planPlace'
 import { startChart } from './startChart'
 
@@ -29,6 +32,8 @@ const seeded = (name = 'orders'): Record<string, string> => {
 const repository: PalettePick = { apiVersion: 'github.krateo.io/v2022-11-28', cls: 'custom', group: 'github.krateo.io', kind: 'Repository', plural: 'repositories' }
 const builderPublish: PalettePick = { apiVersion: 'composition.krateo.io/v1-8-40', blueprint: 'builder-publish', cls: 'composition', kind: 'BuilderPublish', plural: 'builderpublishes' }
 const repositorySpec = extractCrdSpecFields(CRDS['repositories.github.krateo.io'], 'v2022-11-28')
+/** The name placing writes into the template's metadata.name — and so into the descriptor's entry. */
+const REPOSITORY_NAME = placedNameExpression('repository', false)
 
 const nodesOf = (template: string): ResourceNode[] => {
   const parsed = parseArchitecture(unwrapFromConfigMapTemplate(template) ?? '')
@@ -49,15 +54,18 @@ describe('planPlace — the plan', () => {
       apiVersion: ARCHITECTURE_API_VERSION,
       chart: 'orders',
       kind: ARCHITECTURE_KIND,
-      resources: [{ apiVersion: 'github.krateo.io/v2022-11-28', class: 'custom', id: 'repository', kind: 'Repository', template: 'templates/repository.yaml' }],
+      resources: [{ apiVersion: 'github.krateo.io/v2022-11-28', class: 'custom', id: 'repository', kind: 'Repository', name: REPOSITORY_NAME, template: 'templates/repository.yaml' }],
     })
-    expect(plan.edit[ARCHITECTURE_TEMPLATE_PATH]).toBe(wrapAsConfigMapTemplate(descriptor, 'orders'))
+    // Only data.architecture is rewritten: the graph block is the store's to regenerate, on this
+    // write as on any other — after which the file is exactly a fresh wrap of the new descriptor.
+    expect(plan.edit[ARCHITECTURE_TEMPLATE_PATH]).toBe(rewrapDescriptor(files[ARCHITECTURE_TEMPLATE_PATH], descriptor))
+    expect(regenerateGraphBlock(plan.edit[ARCHITECTURE_TEMPLATE_PATH], 'orders')).toBe(wrapAsConfigMapTemplate(descriptor, 'orders'))
   })
 
   it('never writes readyWhen — a suggestion is offered where readiness is picked, not stored', () => {
     const plan = planPlace(seeded(), repository, repositorySpec)
     expect(plan.ok && nodesOf(plan.edit[ARCHITECTURE_TEMPLATE_PATH])[0]).toEqual({
-      apiVersion: 'github.krateo.io/v2022-11-28', class: 'custom', id: 'repository', kind: 'Repository', template: 'templates/repository.yaml',
+      apiVersion: 'github.krateo.io/v2022-11-28', class: 'custom', id: 'repository', kind: 'Repository', name: REPOSITORY_NAME, template: 'templates/repository.yaml',
     })
   })
 
@@ -103,10 +111,14 @@ describe('planPlace — the plan', () => {
     expect(nodesOf(next).map((node) => node.id)).toEqual(['repository'])
   })
 
-  it('rewrapDescriptor is the inverse of unwrap: wrap(a) rewrapped with b is wrap(b)', () => {
+  it('rewrapDescriptor is the inverse of unwrap: wrap(a) rewrapped with b, its block regenerated, is wrap(b)', () => {
     const one = serializeArchitecture({ apiVersion: ARCHITECTURE_API_VERSION, chart: 'x', kind: ARCHITECTURE_KIND, resources: [] })
-    const two = serializeArchitecture({ apiVersion: ARCHITECTURE_API_VERSION, chart: 'x', kind: ARCHITECTURE_KIND, resources: [{ apiVersion: 'v1', class: 'native', id: 'a', kind: 'ConfigMap', template: 'templates/a.yaml' }] })
-    expect(rewrapDescriptor(wrapAsConfigMapTemplate(one, 'x'), two)).toBe(wrapAsConfigMapTemplate(two, 'x'))
+    const two = serializeArchitecture({ apiVersion: ARCHITECTURE_API_VERSION, chart: 'x', kind: ARCHITECTURE_KIND, resources: [{ apiVersion: 'v1', class: 'native', id: 'a', kind: 'ConfigMap', name: 'printf "%s-a" $.Release.Name', template: 'templates/a.yaml' }] })
+    const rewrapped = rewrapDescriptor(wrapAsConfigMapTemplate(one, 'x'), two) ?? ''
+    expect(unwrapFromConfigMapTemplate(rewrapped)).toBe(two)
+    // The block is not rewrap's: it stays as it was until the store regenerates it.
+    expect(graphBlockIn(rewrapped)).toBe(graphBlockIn(wrapAsConfigMapTemplate(one, 'x')))
+    expect(regenerateGraphBlock(rewrapped, 'x')).toBe(wrapAsConfigMapTemplate(two, 'x'))
     expect(rewrapDescriptor('kind: ConfigMap\n', two)).toBeNull()
   })
 

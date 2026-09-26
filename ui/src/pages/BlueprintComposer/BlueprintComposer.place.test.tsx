@@ -8,6 +8,7 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { lintBlueprintDraft } from '../../components/Autopilot/blueprintDraft'
 import { draftHistory } from '../../components/Autopilot/draftHistory'
 import { emitDraftClose } from '../../components/Autopilot/previewDraftClose'
 import { AUTOPILOT_PREVIEW_FILES_BATCH_EVENT, onFilesBatch, type FilesBatchDetail } from '../../components/Autopilot/previewFilesBatch'
@@ -18,6 +19,8 @@ import { CRDS, PALETTE_STATUS, golden } from './__fixtures__/s4a'
 import { ARCHITECTURE_TEMPLATE_PATH } from './architecture'
 import { CHART_CHANGED } from './BlueprintComposer'
 import { hold, installAntdShims, installScrollShim, listen, mountWithConfig, mountWithProvider, routeFetch, scrolled, seededChart, type Answer, type HeldProvider } from './blueprintTestHarness'
+import { graphBlockIn } from './graphCompile'
+import { placedNameExpression } from './naming'
 
 vi.mock('@ant-design/graphs', () => import('../../components/DependencyGraph/flowGraphDouble'))
 vi.mock('@antv/g6-extension-react', () => ({ ReactNode: vi.fn() }))
@@ -121,7 +124,12 @@ describe('BlueprintComposer — placing (screen 5)', () => {
     const { provider } = await start()
     const publish = () => screen.getByRole<HTMLButtonElement>('button', { name: 'Publish' })
     expect(publish().disabled).toBe(false)
-    await placeRepository(provider)
+    const files = await placeRepository(provider)
+    // The chart the provider holds is clean under every rule — the graph block regenerated from the
+    // descriptor the batch wrote, the node named as its template names its object — so the only thing
+    // between it and Publish is the render it has not had.
+    expect(lintBlueprintDraft(files, 'blueprint')).toEqual([])
+    expect(graphBlockIn(files[ARCHITECTURE_TEMPLATE_PATH])).toContain(`{{- $names = append $names (${placedNameExpression('repository', false)}) }}`)
     expect(screen.getByText('Preview needed')).toBeTruthy()
     expect(publish().disabled).toBe(true)
     const reason = document.getElementById(publish().getAttribute('aria-describedby') ?? '')
@@ -162,7 +170,8 @@ describe('BlueprintComposer — placing (screen 5)', () => {
     expect(crdReads(fetched)).toEqual(['builderpublishes.composition.krateo.io'])
     expect(provider.store.get()?.files['templates/builderpublish.yaml']).toBe(golden('builderpublish'))
     expect(within(inspector()).getByText('BuilderPublish · composition.krateo.io/v1-8-40')).toBeTruthy()
-    expect(within(inspector()).getByText('Ready=True and Synced=True')).toBeTruthy()
+    // What the gate checks when there is no readyWhen (S11's decision D3): that the claim exists.
+    expect(within(inspector()).getByText('exists (no readyWhen)')).toBeTruthy()
   })
 
   it('7. the provider refuses: said in the pane, and no node appears', async () => {

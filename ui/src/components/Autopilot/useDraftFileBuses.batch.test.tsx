@@ -13,6 +13,13 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { ARCHITECTURE_TEMPLATE_PATH } from '../../pages/BlueprintComposer/architecture'
+import { graphBlockIn } from '../../pages/BlueprintComposer/graphCompile'
+import { placedNameExpression } from '../../pages/BlueprintComposer/naming'
+import { planPlace } from '../../pages/BlueprintComposer/planPlace'
+import { startChart } from '../../pages/BlueprintComposer/startChart'
+
+import { lintBlueprintDraft } from './blueprintDraft'
 import { createBlueprintDraftStore, type BlueprintDraftStore } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
 import { draftHistory } from './draftHistory'
@@ -118,6 +125,29 @@ describe('useDraftFileBuses — a files batch', () => {
     stop()
     expect(gate.isArmed('orders')).toBe(false)
     expect(heard[heard.length - 1]?.previewed).toBe(false)
+  })
+
+  it('a placement is held as a single-file save of its descriptor is — the graph block regenerated, the chart clean', () => {
+    const started = startChart({ description: '', name: 'orders', version: '0.1.0' })
+    if (!started.ok) { throw new Error('fixture chart refused') }
+    const plan = planPlace(started.files, { apiVersion: 'apps/v1', cls: 'native', kind: 'Deployment' }, null)
+    if (!plan.ok) { throw new Error(plan.reason) }
+    const store = createBlueprintDraftStore()
+    store.set(started.files, 'blueprint')
+    host(store, { forget: vi.fn(), recordPreview: vi.fn() })
+    expect(batch({ add: plan.add, edit: plan.edit, expect: plan.expect, kind: 'blueprint' })).toMatchObject({ ok: true })
+
+    // The same two files, written one at a time through the single-file path.
+    const single = createBlueprintDraftStore()
+    single.set(started.files, 'blueprint')
+    single.addFile('templates/deployment.yaml', plan.add['templates/deployment.yaml'])
+    single.updateFile(ARCHITECTURE_TEMPLATE_PATH, plan.edit[ARCHITECTURE_TEMPLATE_PATH])
+
+    const held = store.get()?.files ?? {}
+    expect(held[ARCHITECTURE_TEMPLATE_PATH]).not.toBe(plan.edit[ARCHITECTURE_TEMPLATE_PATH])
+    expect(held[ARCHITECTURE_TEMPLATE_PATH]).toBe(single.get()?.files[ARCHITECTURE_TEMPLATE_PATH])
+    expect(graphBlockIn(held[ARCHITECTURE_TEMPLATE_PATH])).toContain(`{{- $names = append $names (${placedNameExpression('deployment', false)}) }}`)
+    expect(lintBlueprintDraft(held, 'blueprint')).toEqual([])
   })
 
   it('a PAGE batch re-arms as a page edit does — clean re-arms, lint-dirty forgets', () => {

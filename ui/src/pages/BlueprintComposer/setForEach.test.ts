@@ -8,6 +8,7 @@ import { extractCrdSpecFields } from '../../components/Autopilot/describeResourc
 
 import { CRDS, golden } from './__fixtures__/s4a'
 import { ARCHITECTURE_TEMPLATE_PATH, parseArchitecture, unwrapFromConfigMapTemplate } from './architecture'
+import { placedNameExpression } from './naming'
 import { planPlace, setForEach, type PlacePlan } from './planPlace'
 import { startChart } from './startChart'
 
@@ -24,6 +25,11 @@ const withPlaced = (): Record<string, string> => {
   const started = startChart({ description: '', name: 'orders', version: '0.1.0' })
   if (!started.ok) { throw new Error('fixture refused') }
   return applied(started.files, planPlace(started.files, localResource, extractCrdSpecFields(CRDS['localresources.git.krateo.io'], 'v1alpha1')))
+}
+
+const nameOf = (files: Record<string, string>): string | undefined => {
+  const parsed = parseArchitecture(unwrapFromConfigMapTemplate(files[ARCHITECTURE_TEMPLATE_PATH]) ?? '')
+  return parsed.ok ? parsed.architecture.resources[0].name : 'unparsed'
 }
 
 const forEachOf = (files: Record<string, string>): string | undefined => {
@@ -43,6 +49,15 @@ describe('setForEach', () => {
     expect(plan.edit[PATH]).toBe(golden('localresource.foreach-path'))
     expect(plan.expect).toEqual({ [ARCHITECTURE_TEMPLATE_PATH]: files[ARCHITECTURE_TEMPLATE_PATH], [PATH]: files[PATH] })
     expect(forEachOf(applied(files, plan))).toBe('.Values.files')
+  })
+
+  it('the descriptor\'s name follows the template\'s — per item while it ranges, single again when cleared', () => {
+    const files = withPlaced()
+    expect(nameOf(files)).toBe(placedNameExpression('localresource', false))
+    const ranged = applied(files, setForEach(files, 'localresource', '.Values.files'))
+    expect(nameOf(ranged)).toBe(placedNameExpression('localresource', true))
+    expect(ranged[PATH]).toContain(`  name: {{ ${placedNameExpression('localresource', true)} }}`)
+    expect(nameOf(applied(ranged, setForEach(ranged, 'localresource', null)))).toBe(placedNameExpression('localresource', false))
   })
 
   it('…or over a named helper', () => {
@@ -82,7 +97,12 @@ describe('setForEach', () => {
 
   it('refuses what is not a path or a helper, a node that is not there, a template that is not held, and a no-op', () => {
     const files = withPlaced()
-    expect(setForEach(files, 'localresource', '{{ .Values.files }}')).toEqual({ ok: false, reason: 'One per item of takes a bare path (.Values.files) or a named helper (builder-publish.files).' })
+    const notAPath = { ok: false, reason: 'One per item of takes a bare path (.Values.files) or a named helper (builder-publish.files).' }
+    expect(setForEach(files, 'localresource', '{{ .Values.files }}')).toEqual(notAPath)
+    // A path is a .Values path: the descriptor's parser takes no other, and `.files` would leave an
+    // architecture file the composer could not read back. A dashed key would not parse as `$.Values.a-b`.
+    expect(setForEach(files, 'localresource', '.files')).toEqual(notAPath)
+    expect(setForEach(files, 'localresource', '.Values.my-files')).toEqual(notAPath)
     expect(setForEach(files, 'nowhere', '.Values.files')).toEqual({ ok: false, reason: '"nowhere" is not a resource of this chart.' })
     const { [PATH]: _gone, ...withoutTemplate } = files
     expect(setForEach(withoutTemplate, 'localresource', '.Values.files')).toEqual({ ok: false, reason: `${PATH} is not in the chart — there is nothing to range.` })

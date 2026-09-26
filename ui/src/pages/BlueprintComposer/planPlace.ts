@@ -11,8 +11,16 @@
  * THE DESCRIPTOR IS REWRITTEN, THE FILE IS NOT. The new entry is appended and the descriptor is
  * re-serialised (the one format `serializeArchitecture` writes), then put back into the template the
  * chart already holds with `rewrapDescriptor` — so a label or a comment the author added around the
- * block survives. `readyWhen` is never written: a known kind's suggestion is offered where an edge's
- * readiness is picked (S4b), not stored as if the person had chosen it.
+ * block survives. The `krateo:graph` block after it is left as it was: it is compiled from the
+ * descriptor by the draft store on every write, a batch included (blueprintDraftStore's `settle`), so
+ * the chart held after a placement is the one a hand edit of the same descriptor would hold.
+ * `readyWhen` is never written: a known kind's suggestion is offered where an edge's readiness is
+ * picked (S4b), not stored as if the person had chosen it.
+ *
+ * THE ENTRY CARRIES ITS NAME — the expression the template's `metadata.name` writes
+ * (naming.placedNameExpression) — because a sequenced node must have one (the lint's L1), it must be
+ * the template's own (L4), and it is what the graph block evaluates to find the node's objects. Ranging
+ * a node changes the template's name to the per-item one, so `setForEach` changes the entry's with it.
  *
  * `expect` pins the bytes the plan was made from. A write that landed in between — the agent's, a
  * hand edit in Chart files — makes the provider refuse the batch instead of losing that write.
@@ -111,7 +119,7 @@ export const planPlace = (
   const path = `templates/${id}.yaml`
   const next: ChartArchitecture = {
     ...architecture,
-    resources: [...architecture.resources, { apiVersion: pick.apiVersion, class: pick.cls, id, kind: pick.kind, template: path }],
+    resources: [...architecture.resources, { apiVersion: pick.apiVersion, class: pick.cls, id, kind: pick.kind, name: placedNameExpression(id, false), template: path }],
   }
   const rewrapped = rewrapDescriptor(template, serializeArchitecture(next))
   if (rewrapped === null) {
@@ -127,8 +135,13 @@ export const planPlace = (
   }
 }
 
-/** A `forEach` the descriptor and the range can both take: a bare path, or a named helper. */
-const FOR_EACH = /^(?:\.[A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)*|[A-Za-z_][\w.-]*)$/
+/**
+ * A `forEach` the descriptor, the range and the graph block can all take: a `.Values` path whose keys
+ * are Go identifiers (the range reads it as `$.Values.a.b`, where a dash would not parse), or a named
+ * helper. A leading dot anywhere else — `.files` — is refused: the descriptor's parser takes no other
+ * path, and the plan would write a chart whose architecture file it could never read again.
+ */
+const FOR_EACH = /^(?:\.Values(?:\.[A-Za-z_]\w*)+|[A-Za-z_][\w.-]*)$/
 
 const reshaped = (path: string): string =>
   `${path} has changed shape since it was placed — set forEach in Chart files.`
@@ -165,8 +178,9 @@ const pristineParts = (template: string, id: string, current: string | undefined
 
 /**
  * Range a placed node over a list, or stop ranging it (`forEach: null`) — the descriptor's
- * `forEach` and the template's `range` and name, in one batch. Only on a template still in the shape
- * placing wrote: anything the author reshaped is theirs to change in Chart files.
+ * `forEach` and `name`, and the template's `range` and name, in one batch: the two names stay the
+ * same expression, per item or not. Only on a template still in the shape placing wrote: anything the
+ * author reshaped is theirs to change in Chart files.
  */
 export const setForEach = (files: Readonly<Record<string, string>>, id: string, forEach: string | null): PlacePlan => {
   const read = readDescriptor(files)
@@ -200,7 +214,8 @@ export const setForEach = (files: Readonly<Record<string, string>>, id: string, 
     resources: architecture.resources.map((resource) => {
       if (resource.id !== id) { return resource }
       const { forEach: _dropped, ...rest } = resource
-      return wanted ? { ...rest, forEach: wanted } : rest
+      const named = { ...rest, name: placedNameExpression(id, wanted !== null) }
+      return wanted ? { ...named, forEach: wanted } : named
     }),
   }
   const rewrapped = rewrapDescriptor(template, serializeArchitecture(next))
