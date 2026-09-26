@@ -27,7 +27,7 @@ import { createBlueprintDraftStore, type BlueprintDraftStore } from './blueprint
 import type { BlueprintGate } from './blueprintGate'
 import { clearComposeRefusals } from './composeRequest'
 import { draftHistory } from './draftHistory'
-import { pageDisplayName, pageDraftWidgets } from './pageDraft'
+import { heldKeyForDisplayedPath, pageDisplayName, pageDraftWidgets } from './pageDraft'
 import { emitPreviewApplied } from './previewApplied'
 import { buildPagePreviewPayload } from './previewBridge'
 import { openAutopilotPreview, setPreviewProblems } from './previewBus'
@@ -324,7 +324,7 @@ export const useDraftFileBuses = (
   //
   // ANSWERED EITHER WAY. The surface that made the edit shows it as held only when this says so;
   // a refusal carries the store's reason (the byte cap, a path not held), shown where it was typed.
-  useEffect(() => onFileEdit(({ content, kind, path }, respond) => {
+  useEffect(() => onFileEdit(({ content, expect, kind, path }, respond) => {
     // An edit made in a preview of the OTHER kind is not an edit of this draft — Chart.yaml and
     // values.schema.json exist in both, so the path alone would have accepted it.
     const heldKind = store.get()?.kind
@@ -336,6 +336,13 @@ export const useDraftFileBuses = (
     // leaves the tree exactly as it was, and a snapshot for one would make Undo consume a step
     // without changing anything — the control would move and the draft would not.
     const before = store.get()
+    // Pinned to the bytes it started from, like a batch: moved since, it is refused before the write,
+    // so the tree, the gate and the history are left as they were.
+    const key = before ? heldKeyForDisplayedPath(path, before) : null
+    if (before && expect !== undefined && key !== null && before.files[key] !== expect) {
+      respond({ error: `${path} changed since this edit started — nothing was written`, ok: false })
+      return
+    }
     const result = store.updateDisplayedFile(path, content)
     if (!result.ok) {
       respond({ error: result.error ?? 'the provider did not write the edit', ok: false })

@@ -11,6 +11,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { lintBlueprintDraft } from '../../components/Autopilot/blueprintDraft'
 import { draftHistory } from '../../components/Autopilot/draftHistory'
 import { emitDraftClose } from '../../components/Autopilot/previewDraftClose'
+import { AUTOPILOT_DRAFT_RENDER_REQUEST_EVENT, type DraftRenderRequestDetail } from '../../components/Autopilot/previewDraftRender'
+import { AUTOPILOT_PREVIEW_FILE_EDIT_EVENT, type FileEditDetail } from '../../components/Autopilot/previewFileEdit'
 import { AUTOPILOT_PREVIEW_FILES_BATCH_EVENT, onFilesBatch, type FilesBatchDetail } from '../../components/Autopilot/previewFilesBatch'
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 import { invalidateAccessTokenCache } from '../../utils/getAccessToken'
@@ -18,7 +20,7 @@ import { invalidateAccessTokenCache } from '../../utils/getAccessToken'
 import { CRDS, PALETTE_STATUS, golden } from './__fixtures__/s4a'
 import { ARCHITECTURE_TEMPLATE_PATH } from './architecture'
 import { CHART_CHANGED } from './BlueprintComposer'
-import { hold, installAntdShims, installScrollShim, listen, mountWithConfig, mountWithProvider, routeFetch, scrolled, seededChart, type Answer, type HeldProvider } from './blueprintTestHarness'
+import { answer, hold, installAntdShims, installScrollShim, listen, mountWithConfig, mountWithProvider, renderedPayload, routeFetch, scrolled, seededChart, type Answer, type HeldProvider } from './blueprintTestHarness'
 import { graphBlockIn } from './graphCompile'
 import { placedNameExpression } from './naming'
 
@@ -230,7 +232,50 @@ describe('BlueprintComposer — placing (screen 5)', () => {
     const state = within(screen.getByLabelText('Architecture')).getByTestId('canvas-state')
     expect(within(state).getByText('No resources yet')).toBeTruthy()
     expect(state.querySelector('p:not(:first-of-type)')?.textContent?.replace(/\s+/g, ' ').trim())
-      .toBe('Add a Kubernetes resource, a custom resource this cluster knows, or another blueprint from the left. Each one becomes a node here and a file in templates/. Draw an edge from A to B to say A depends on B.')
+      .toBe('Add a Kubernetes resource, a custom resource this cluster knows, or another blueprint from the left. Each one becomes a node here and a file in templates/. A dependsOn entry from A to B in templates/architecture.yaml says A waits for B — drawing an edge arrives next.')
+    // No gesture this build does not have: edges are drawn in S4b.
+    expect(state.textContent).not.toMatch(/Draw an edge/)
+  })
+
+  it('Preview, place, Undo: the bytes are the rendered ones again, but "Publish is on" does not come back', async () => {
+    const { provider } = await start()
+    const publish = () => screen.getByRole<HTMLButtonElement>('button', { name: 'Publish' })
+    const rendered = provider.store.get()?.files ?? {}
+    const asked = listen<DraftRenderRequestDetail>(AUTOPILOT_DRAFT_RENDER_REQUEST_EVENT)
+    act(() => { screen.getByRole('button', { name: 'Preview' }).click() })
+    asked.stop()
+    answer({ id: asked.seen[0].id, message: null, outcome: 'rendered', payload: renderedPayload(rendered, []) })
+    expect(screen.getByText(/Publish is on until the chart changes/)).toBeTruthy()
+    await place(/^Deployment/)
+    expect(screen.queryByText(/Publish is on until the chart changes/)).toBeNull()
+    act(() => { screen.getByRole('button', { name: 'Undo' }).click() })
+    // Undo is a write: the chart is disarmed, though its bytes are the ones Preview rendered.
+    expect(provider.store.get()?.files).toEqual(rendered)
+    expect(publish().disabled).toBe(true)
+    expect(screen.getByText('Preview needed')).toBeTruthy()
+    expect(screen.queryByText(/Publish is on until the chart changes/)).toBeNull()
+  })
+
+  it('an edit left open on the architecture file is not applied over a placement made meanwhile', async () => {
+    const { provider } = await start()
+    const block = () => document.getElementById('preview-file-templates-architecture-yaml') as HTMLElement
+    const editor = () => within(block()).getByLabelText<HTMLTextAreaElement>(`Edit ${ARCHITECTURE_TEMPLATE_PATH}`)
+    act(() => { within(block()).getByRole('button', { name: 'Edit' }).click() })
+    act(() => { fireEvent.change(editor(), { target: { value: editor().value.replace('resources: []', 'resources: []\nstates:\n  - { name: ready }') } }) })
+    await place(/^Deployment/)
+    const placed = provider.store.get()?.files ?? {}
+    expect(placed[ARCHITECTURE_TEMPLATE_PATH]).toContain('id: deployment')
+    const edits = listen<FileEditDetail>(AUTOPILOT_PREVIEW_FILE_EDIT_EVENT)
+    act(() => { within(block()).getByRole('button', { name: 'Apply edits' }).click() })
+    edits.stop()
+    // Nothing is sent: the text started from the file as it was before the placement.
+    expect(edits.seen).toEqual([])
+    expect(within(block()).getByRole('alert').textContent)
+      .toContain(`${ARCHITECTURE_TEMPLATE_PATH} changed while you were editing it — nothing was written. Cancel, then Edit again to start from the held text.`)
+    // The node stays in the descriptor beside its template, and the person's text stays open.
+    expect(provider.store.get()?.files).toEqual(placed)
+    expect(editor().value).toContain('- { name: ready }')
+    expect(draftHistory.depth()).toBe(1)
   })
 
   it('while its CRD is read, the row is busy and says so', async () => {

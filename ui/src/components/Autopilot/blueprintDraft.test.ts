@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ARCHITECTURE_TEMPLATE_PATH, unwrapFromConfigMapTemplate, wrapAsConfigMapTemplate } from '../../pages/BlueprintComposer/architecture'
+import { placedNameExpression } from '../../pages/BlueprintComposer/naming'
 
 import {
   buildFormPreviewModel,
@@ -434,6 +435,25 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
         // A shim is outside the sequence: sharing a name with one is not refused.
         const namedShim = node('legacy', '', [...same, '    lifecycle: shim'])
         expect(withArch(wrapped(node('a', '', same), namedShim))).toBe('')
+      })
+
+      it('L5, per item: no item of a ranged node may be named what another node names its one object', () => {
+        const single = (id: string) => [`    name: ${placedNameExpression(id, false)}`]
+        const ranged = (name: string) => [`    name: ${name}`, '    forEach: .Values.envs']
+        // The bare index S4a first wrote: item 2 of `web` is `<release>-web-2`, which `web-2` names its object.
+        const bare = 'printf "%s-%d" (printf "%s-web" $.Release.Name | trunc 56 | trimSuffix "-") (int $i)'
+        expect(withArch(wrapped(node('web', '', ranged(bare)), node('web-2', '', single('web-2')))))
+          .toContain('resources[0].name — one object per item of .Values.envs, and item 2 is named <release>-web-2, the name resources[1] (web-2) gives its object')
+        // Whichever of the two comes first in the descriptor.
+        expect(withArch(wrapped(node('web-10', '', single('web-10')), node('web', '', ranged(bare)))))
+          .toContain('resources[1].name — one object per item of .Values.envs, and item 10 is named <release>-web-10, the name resources[0] (web-10) gives its object')
+        // The composer's own per-item name never meets an id it hands out…
+        expect(withArch(wrapped(node('web', '', ranged(placedNameExpression('web', true))), node('web-2', '', single('web-2'))))).toBe('')
+        // …only a name written to meet it; and a name that is not an index (`-02`, `-2x`) is no item.
+        expect(withArch(wrapped(node('web', '', ranged(placedNameExpression('web', true))), node('web-i0', '', single('web-i0'))))).toContain('item 0 is named <release>-web-i0')
+        expect(withArch(wrapped(node('web', '', ranged(bare)), node('web-02', '', single('web-02')), node('web-2x', '', single('web-2x'))))).toBe('')
+        // A shim is outside the sequence, as for L5 itself.
+        expect(withArch(wrapped(node('web', '', ranged(bare)), node('web-2', '', [...single('web-2'), '    lifecycle: shim'])))).toBe('')
       })
 
       it('NEVER throws, whatever the templates hold', () => {

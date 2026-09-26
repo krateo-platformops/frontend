@@ -147,7 +147,7 @@ describe('addFormField', () => {
       .toBe('{\n  "type": "object",\n  "properties": { "on": { "type": "boolean" } }\n}\n')
   })
 
-  it('refuses a duplicate, a name that is not one, the two reserved names, and a schema it cannot read', () => {
+  it('refuses a duplicate, a name that is not one, the create form\'s own two names, and a schema it cannot read', () => {
     const text = '{"type":"object","properties":{"region":{"type":"string"}}}'
     expect(addFormField(text, { name: 'region', type: 'string' })).toEqual({ ok: false, reason: '"region" is already a field of this form.' })
     expect(addFormField(text, { name: 'name', type: 'string' })).toEqual({ ok: false, reason: '"name" is reserved — the create form always asks for the composition\'s name and namespace itself.' })
@@ -159,5 +159,19 @@ describe('addFormField', () => {
     expect(addFormField('{"type":', { name: 'x', type: 'string' })).toEqual({ ok: false, reason: 'values.schema.json is not valid JSON — fix it before adding a field.' })
     expect(addFormField('[]', { name: 'x', type: 'string' }).ok).toBe(false)
     expect(addFormField('{"properties":[]}', { name: 'x', type: 'string' }).ok).toBe(false)
+  })
+
+  it('refuses "global", of every type the form adds — CDC writes an object there on every render', () => {
+    const text = '{"type":"object","properties":{"region":{"type":"string"}}}'
+    for (const type of ['string', 'number', 'boolean', 'enum'] as const) {
+      expect(addFormField(text, { name: 'global', type })).toEqual({
+        ok: false,
+        reason: '"global" is reserved — composition-dynamic-controller adds a global block of its own to the values of every render, so a field by that name would fail every composition.',
+      })
+    }
+    // Only the exact key: a field that merely starts with it is the author's.
+    expect(addFormField(text, { name: 'globalRegion', type: 'string' }).ok).toBe(true)
+    // …and a name the prototype carries is not "reserved".
+    expect(addFormField(text, { name: 'constructor', type: 'string' }).ok).toBe(true)
   })
 })

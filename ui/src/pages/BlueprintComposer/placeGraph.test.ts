@@ -61,6 +61,19 @@ const nodeOf = (store: Store, id: string): ResourceNode | undefined => {
   return parsed.ok ? parsed.architecture.resources.find((node) => node.id === id) : undefined
 }
 
+/**
+ * What Helm evaluates a placed name to, for release `release` and item `index` — `printf`, Sprig's
+ * `trunc` and `trimSuffix "-"` (one dash), for the two shapes naming.ts writes.
+ */
+const evaluate = (expression: string, release: string, index: number): string => {
+  const trimmed = (text: string, width: string) => text.slice(0, Number(width)).replace(/-$/, '')
+  const single = /^printf "%s-([^"%]+)" \$\.Release\.Name \| trunc (\d+) \| trimSuffix "-"$/.exec(expression)
+  if (single) { return trimmed(`${release}-${single[1]}`, single[2]) }
+  const item = /^printf "%s-([^"%]*)%d" \(printf "%s-([^"%]+)" \$\.Release\.Name \| trunc (\d+) \| trimSuffix "-"\) \(int \$i\)$/.exec(expression)
+  if (item) { return `${trimmed(`${release}-${item[2]}`, item[3])}-${item[1]}${index}` }
+  throw new Error(`not a placed name: ${expression}`)
+}
+
 /** The block's line that collects a single node's names. */
 const namesLine = (name: string): string => `{{- $names = append $names (${name}) }}`
 
@@ -111,6 +124,33 @@ describe('a placement regenerates the graph block and names its objects', () => 
       expect(lintBlueprintDraft(files(store), 'blueprint')).toEqual([])
     })
   }
+
+  it('two Deployments, the first ranged: no item of it is named what the second names its object', () => {
+    const store = heldChart()
+    apply(store, planPlace(files(store), deployment, null))
+    apply(store, planPlace(files(store), deployment, null))
+    apply(store, setForEach(files(store), 'deployment', '.Values.envs'))
+    const ranged = nodeOf(store, 'deployment')?.name ?? ''
+    const second = nodeOf(store, 'deployment-2')?.name ?? ''
+    // The names as the templates write them — what the cluster gets.
+    expect(extractNameExpression(files(store)['templates/deployment.yaml'])).toBe(ranged)
+    expect(extractNameExpression(files(store)['templates/deployment-2.yaml'])).toBe(second)
+    const items = Array.from({ length: 12 }, (_, index) => evaluate(ranged, 'orders-1', index))
+    expect(items.slice(0, 3)).toEqual(['orders-1-deployment-i0', 'orders-1-deployment-i1', 'orders-1-deployment-i2'])
+    expect(evaluate(second, 'orders-1', 0)).toBe('orders-1-deployment-2')
+    expect(items).not.toContain(evaluate(second, 'orders-1', 0))
+    expect(lintBlueprintDraft(files(store), 'blueprint')).toEqual([])
+
+    // A chart whose ranged name is the bare index — S4a's first form, or one the agent writes — is
+    // refused by the lint (L5, per item), since item 2 would be deployment-2's object.
+    const bare = 'printf "%s-%d" (printf "%s-deployment" $.Release.Name | trunc 56 | trimSuffix "-") (int $i)'
+    const rewritten = Object.fromEntries(Object.entries(files(store)).map(([path, text]) => [path, text.split(ranged).join(bare)]))
+    store.set(rewritten, 'blueprint')
+    expect(evaluate(bare, 'orders-1', 2)).toBe(evaluate(second, 'orders-1', 0))
+    expect(lintBlueprintDraft(files(store), 'blueprint')).toEqual([
+      `${ARCHITECTURE_TEMPLATE_PATH}: resources[0].name — one object per item of .Values.envs, and item 2 is named <release>-deployment-2, the name resources[1] (deployment-2) gives its object: the cluster would hold one object for both, and the detail page could not tell them apart. Rename one of them — in its template and here, together.`,
+    ])
+  })
 
   it('two of a kind, and one of each class, in one chart: every name distinct (L5) and the chart clean', () => {
     const store = heldChart()

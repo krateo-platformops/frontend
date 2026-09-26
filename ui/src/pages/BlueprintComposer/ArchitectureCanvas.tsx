@@ -206,7 +206,8 @@ export const ArchitectureCanvas = ({ model, onAddDescriptor, onLevel, onOpenFile
       <CanvasState action={openDescriptor} title='No resources yet'>
         <p className={canvas.canvasStateText}>
           Add a Kubernetes resource, a custom resource this cluster knows, or another blueprint from the left. Each one
-          becomes a node here and a file in <code>templates/</code>. Draw an edge from A to B to say A depends on B.
+          becomes a node here and a file in <code>templates/</code>. A <code>dependsOn</code> entry from A to B in
+          {' '}<code>{ARCHITECTURE_TEMPLATE_PATH}</code> says A waits for B — drawing an edge arrives next.
         </p>
       </CanvasState>
     )

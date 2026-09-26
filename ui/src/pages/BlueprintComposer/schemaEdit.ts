@@ -327,6 +327,18 @@ export const fixPopulatedDefault = (text: string, path: string): SchemaEditResul
 
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 
+/**
+ * Names the create form's fields cannot take, each with its own reason. `global` is not the form's
+ * own: composition-dynamic-controller adds a `global` OBJECT to the values of every render, so a
+ * string, number, boolean or enum field by that name passes the lint and Preview (which render with
+ * no globals) and then fails Helm's schema check for every composition of the published chart.
+ */
+const RESERVED: Readonly<Record<string, string>> = {
+  global: '"global" is reserved — composition-dynamic-controller adds a global block of its own to the values of every render, so a field by that name would fail every composition.',
+  name: '"name" is reserved — the create form always asks for the composition\'s name and namespace itself.',
+  namespace: '"namespace" is reserved — the create form always asks for the composition\'s name and namespace itself.',
+}
+
 const FIELD_SCHEMA: Record<FormFieldType, string> = {
   boolean: '{ "type": "boolean" }',
   enum: '{ "type": "string", "enum": ["option-1"] }',
@@ -339,8 +351,8 @@ export const addFormField = (text: string, field: { name: string; type: FormFiel
   if (!FIELD_NAME.test(name)) {
     return { ok: false, reason: `"${name}" is not a field name — letters, digits and underscores, starting with a letter or an underscore.` }
   }
-  if (name === 'name' || name === 'namespace') {
-    return { ok: false, reason: `"${name}" is reserved — the create form always asks for the composition's name and namespace itself.` }
+  if (own(RESERVED, name)) {
+    return { ok: false, reason: RESERVED[name] }
   }
   let parsed: unknown
   let root: JsonNode

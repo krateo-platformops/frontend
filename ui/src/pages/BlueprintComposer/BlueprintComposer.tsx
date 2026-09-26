@@ -349,6 +349,18 @@ const BlueprintComposer = () => {
 
   const shown = useMemo(() => heldBlueprintPayload(files, requests.lastRender), [files, requests.lastRender])
 
+  // A "rendered" answer says Publish is on UNTIL THE CHART CHANGES — so once the held files move away
+  // from the ones it rendered, it is closed for good. Every write to a chart disarms it, an Undo
+  // included, so held bytes that come BACK to the rendered ones (place, then Undo) are not armed
+  // again, and the answer must not come back with them beside a disabled Publish. Measured like the
+  // Source caption (the files the render was of), never by the gate broadcast, which can arrive after
+  // the answer it arms.
+  const renderedAway = requests.outcome?.outcome === 'rendered' && !!requests.lastRender?.files && !sameFiles(requests.lastRender.files, files)
+  const { dismiss } = requests
+  useEffect(() => {
+    if (renderedAway) { dismiss() }
+  }, [dismiss, renderedAway])
+
   if (mode !== 'blueprint' || !shown) {
     return (
       <div className={styles.page}>
@@ -377,12 +389,8 @@ const BlueprintComposer = () => {
   const meta = [chartYamlVersion(files[CHART_YAML_PATH]), name ? compositionKind(name) : null].filter(Boolean).join(' · ')
   const rendering = requests.pending !== null
   const blocker = publishBlocker(held, rendering)
-  // A "rendered" answer says Publish is on UNTIL THE CHART CHANGES — so once the held files differ
-  // from the ones it rendered it is no longer true, and beside the disabled Publish and the
-  // "Preview needed" pill it contradicted them. Measured like the Source caption (the files the
-  // render was of), not by the gate broadcast, which can arrive after the answer it arms.
-  const renderStale = !!requests.lastRender?.files && !sameFiles(requests.lastRender.files, files)
-  const outcome = requests.outcome && !(requests.outcome.outcome === 'rendered' && renderStale) ? renderOutcomeCopy(requests.outcome) : null
+  // …and not shown in the one frame before that effect dismisses it.
+  const outcome = requests.outcome && !renderedAway ? renderOutcomeCopy(requests.outcome) : null
 
   return (
     <div className={styles.page}>

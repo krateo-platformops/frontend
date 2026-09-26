@@ -11,6 +11,7 @@ import { ARCHITECTURE_TEMPLATE_PATH, parseArchitecture, unwrapFromConfigMapTempl
 import { placedNameExpression } from './naming'
 import { planPlace, setForEach, type PlacePlan } from './planPlace'
 import { startChart } from './startChart'
+import { placedTemplate } from './templateGen'
 
 const localResource = { apiVersion: 'git.krateo.io/v1alpha1', cls: 'custom' as const, group: 'git.krateo.io', kind: 'LocalResource', plural: 'localresources' }
 const PATH = 'templates/localresource.yaml'
@@ -73,6 +74,37 @@ describe('setForEach', () => {
     expect(forEachOf(cleared)).toBeUndefined()
     // …and a range can be moved from one list to another.
     expect(setForEach(ranged, 'localresource', 'builder-publish.files').ok).toBe(true)
+  })
+
+  for (const kind of ['Deployment', 'StatefulSet']) {
+    it(`a native ${kind}: its selector and pod labels become per item too — exactly the template placing writes ranged`, () => {
+      const started = startChart({ description: '', name: 'orders', version: '0.1.0' })
+      if (!started.ok) { throw new Error('fixture refused') }
+      const placed = applied(started.files, planPlace(started.files, { apiVersion: 'apps/v1', cls: 'native', kind }, null))
+      const id = kind.toLowerCase()
+      const path = `templates/${id}.yaml`
+      const plan = setForEach(placed, id, '.Values.envs')
+      if (!plan.ok) { throw new Error(plan.reason) }
+      expect(plan.edit[path]).toBe(placedTemplate({ apiVersion: 'apps/v1', class: 'native', forEach: '.Values.envs', id, kind }, { spec: null }))
+      expect(plan.edit[path]).toContain(`        app.kubernetes.io/instance: {{ ${placedNameExpression(id, true)} }}`)
+      expect(plan.edit[path]).not.toContain(placedNameExpression(id, false))
+      // …and cleared, the template placing wrote, byte for byte.
+      const ranged = applied(placed, plan)
+      expect(applied(ranged, setForEach(ranged, id, null))[path]).toBe(placed[path])
+    })
+  }
+
+  it('a selector the author changed is theirs: ranging leaves it as they wrote it', () => {
+    const started = startChart({ description: '', name: 'orders', version: '0.1.0' })
+    if (!started.ok) { throw new Error('fixture refused') }
+    const placed = applied(started.files, planPlace(started.files, { apiVersion: 'apps/v1', cls: 'native', kind: 'Deployment' }, null))
+    const path = 'templates/deployment.yaml'
+    const single = placedNameExpression('deployment', false)
+    const edited = placed[path].replace(`      app.kubernetes.io/instance: {{ ${single} }}`, '      app: web')
+    const plan = setForEach({ ...placed, [path]: edited }, 'deployment', '.Values.envs')
+    if (!plan.ok) { throw new Error(plan.reason) }
+    expect(plan.edit[path]).toContain('    matchLabels:\n      app: web\n')
+    expect(plan.edit[path]).toContain(`        app.kubernetes.io/instance: {{ ${placedNameExpression('deployment', true)} }}`)
   })
 
   it('spec values the author filled in are kept — only the shape has to be placing\'s', () => {

@@ -4,7 +4,7 @@
 apiVersion: git.krateo.io/v1alpha1
 kind: LocalResource
 metadata:
-  name: {{ printf "%s-%d" (printf "%s-localresource" $.Release.Name | trunc 56 | trimSuffix "-") (int $i) }}
+  name: {{ printf "%s-i%d" (printf "%s-localresource" $.Release.Name | trunc 55 | trimSuffix "-") (int $i) }}
   namespace: {{ $.Release.Namespace }}
 spec:
   fromResource: {}

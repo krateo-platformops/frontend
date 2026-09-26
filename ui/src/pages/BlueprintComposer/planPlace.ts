@@ -154,7 +154,7 @@ const COMMENT_LINE = /^\{\{-?\s*\/\*[\s\S]*?\*\/\s*-?\}\}$/
  * wrote — else null. The spec may have been filled in; the SHAPE may not have changed: one document,
  * no `if`, `range` or `with` of the author's, and the name line placing wrote.
  */
-const pristineParts = (template: string, id: string, current: string | undefined): { header: string[]; body: string[]; nameAt: number } | null => {
+const pristineParts = (template: string, id: string, current: string | undefined): { header: string[]; body: string[] } | null => {
   const lines = template.replace(/\n+$/, '').split('\n')
   let start = 0
   while (start < lines.length && COMMENT_LINE.test(lines[start])) { start += 1 }
@@ -173,14 +173,15 @@ const pristineParts = (template: string, id: string, current: string | undefined
     if (body[idx].startsWith('  name:')) { nameAt = idx }
   }
   if (nameAt < 0 || body[nameAt] !== `  name: {{ ${placedNameExpression(id, !!current)} }}`) { return null }
-  return { body, header, nameAt }
+  return { body, header }
 }
 
 /**
  * Range a placed node over a list, or stop ranging it (`forEach: null`) — the descriptor's
  * `forEach` and `name`, and the template's `range` and name, in one batch: the two names stay the
- * same expression, per item or not. Only on a template still in the shape placing wrote: anything the
- * author reshaped is theirs to change in Chart files.
+ * same expression, per item or not, and the template comes out exactly as placing would have written
+ * it ranged (or not). Only on a template still in the shape placing wrote: anything the author
+ * reshaped is theirs to change in Chart files.
  */
 export const setForEach = (files: Readonly<Record<string, string>>, id: string, forEach: string | null): PlacePlan => {
   const read = readDescriptor(files)
@@ -206,8 +207,12 @@ export const setForEach = (files: Readonly<Record<string, string>>, id: string, 
   if (!parts) {
     return { ok: false, reason: reshaped(node.template) }
   }
-  const body = [...parts.body]
-  body[parts.nameAt] = `  name: {{ ${placedNameExpression(id, wanted !== null)} }}`
+  // Every use of the node's name moves with it, not only `metadata.name`: a Deployment's selector
+  // and pod labels carry it too (templateGen's nativeSpec), and left single they would give every item
+  // one selector — controllers that overlap. A line the author changed no longer carries it, and stays.
+  const was = `{{ ${placedNameExpression(id, !!node.forEach)} }}`
+  const now = `{{ ${placedNameExpression(id, wanted !== null)} }}`
+  const body = parts.body.map((line) => line.split(was).join(now))
   const document = wanted ? [rangeLine(wanted), '---', ...body, '{{- end }}'] : body
   const next: ChartArchitecture = {
     ...architecture,

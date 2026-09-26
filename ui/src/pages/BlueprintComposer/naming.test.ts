@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { PLACED_ID_MAX, placedNameExpression, placedNodeId } from './naming'
+import { PLACED_ID_MAX, itemNamesMeet, placedNameExpression, placedNodeId, readPlacedName } from './naming'
 
 describe('placedNodeId', () => {
   it('is the kind, lower-cased', () => {
@@ -46,8 +46,45 @@ describe('placedNameExpression', () => {
     expect(placedNameExpression('repository', false)).toBe('printf "%s-repository" $.Release.Name | trunc 63 | trimSuffix "-"')
   })
 
-  it('names each item of a range by its index, the prefix truncated first so the index still fits', () => {
+  it('names each item of a range by its index as -i<n>, the prefix truncated first so "-i" and six digits still fit', () => {
     expect(placedNameExpression('localresource', true))
-      .toBe('printf "%s-%d" (printf "%s-localresource" $.Release.Name | trunc 56 | trimSuffix "-") (int $i)')
+      .toBe('printf "%s-i%d" (printf "%s-localresource" $.Release.Name | trunc 55 | trimSuffix "-") (int $i)')
+  })
+})
+
+describe('readPlacedName / itemNamesMeet — the placed shape, read back for the lint', () => {
+  it('reads a single name and a per-item one, whatever the marker; anything else is not read', () => {
+    expect(readPlacedName(placedNameExpression('deployment-2', false))).toEqual({ stem: 'deployment-2' })
+    expect(readPlacedName(placedNameExpression('deployment', true))).toEqual({ marker: 'i', stem: 'deployment' })
+    // The bare-index form S4a first wrote — and an agent or a hand may still write.
+    expect(readPlacedName('printf "%s-%d" (printf "%s-deployment" $.Release.Name | trunc 56 | trimSuffix "-") (int $i)'))
+      .toEqual({ marker: '', stem: 'deployment' })
+    expect(readPlacedName('printf "%s-app" .Values.name')).toBeNull()
+    expect(readPlacedName('include "orders.fullname" .')).toBeNull()
+  })
+
+  it('an item meets a single name only at <stem>-<marker><index>, the index as %d writes it', () => {
+    expect(itemNamesMeet({ marker: '', stem: 'deployment' }, 'deployment-2')).toBe(true)
+    expect(itemNamesMeet({ marker: '', stem: 'deployment' }, 'deployment-0')).toBe(true)
+    expect(itemNamesMeet({ marker: '', stem: 'deployment' }, 'deployment-02')).toBe(false)
+    expect(itemNamesMeet({ marker: '', stem: 'deployment' }, 'deployment-2x')).toBe(false)
+    expect(itemNamesMeet({ marker: '', stem: 'deployment' }, 'deployment')).toBe(false)
+    expect(itemNamesMeet({ marker: 'i', stem: 'deployment' }, 'deployment-2')).toBe(false)
+    expect(itemNamesMeet({ marker: 'i', stem: 'deployment' }, 'deployment-i2')).toBe(true)
+  })
+
+  it('no id placedNodeId hands out is ever an item name of another placed node of its kind', () => {
+    const taken = new Set<string>()
+    for (let count = 0; count < 30; count += 1) {
+      taken.add(placedNodeId('Deployment', taken))
+    }
+    for (const ranged of taken) {
+      const item = readPlacedName(placedNameExpression(ranged, true))
+      for (const other of taken) {
+        const single = readPlacedName(placedNameExpression(other, false))
+        expect({ meet: item?.marker !== undefined && !!single && itemNamesMeet(item, single.stem), other, ranged })
+          .toEqual({ meet: false, other, ranged })
+      }
+    }
   })
 })
