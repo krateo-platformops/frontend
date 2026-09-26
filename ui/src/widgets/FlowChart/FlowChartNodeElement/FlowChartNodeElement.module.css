@@ -2,6 +2,7 @@
   background: var(--light-color);
   border: solid 1px var(--border-color);
   border-radius: 50px;
+
   /* border-box so padding + border are INSIDE the 400px, not added to it. Without this the card
      painted 422px against a box FlowChart.tsx reserves as 400px, and the 22px difference was drawn
      over the edges leaving the node. Geometry is declared once, in FlowChart.tsx `size`. */

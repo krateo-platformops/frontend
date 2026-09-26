@@ -1,4 +1,10 @@
 .headerEllipsis {
+  /* Petrol: mono UPPERCASE column headers (instrument-panel telemetry labels). */
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-sm);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.08em;
+
   /* 100%, not a fixed 400px. The old clamp truncated headers INDEPENDENTLY of fitContent — a
      second, invisible truncation source underneath the table-level one, which is how the agents
      inventory lost "What it is for" / "Model" / "Owner" even with room to spare. At 100% the
@@ -8,13 +14,8 @@
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  /* Petrol: mono UPPERCASE column headers (instrument-panel telemetry labels). */
-  font-family: var(--font-mono);
-  font-size: var(--krateo-text-label-sm);
-  font-weight: var(--font-weight-medium);
-  letter-spacing: 0.08em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 /* `bar` cell — the reconciliation-rail gauge (Progress fill in the state colour + an
@@ -29,12 +30,12 @@
    .ant-progress-track); both names are listed so this renders on antd 5 and antd 6. */
 .railBar :global(.ant-progress-rail),
 .railBar :global(.ant-progress-inner) {
-  border-radius: 2px;
-  position: relative;
   /* Desired-vs-actual: the trail (remainder, right of the cyan converged fill) carries a
      state-coloured diagonal HATCH (--rail-rem, set inline per row). At 100% the fill covers it. */
   background-color: color-mix(in srgb, var(--rail-rem, transparent) 20%, transparent);
   background-image: repeating-linear-gradient(-45deg, var(--rail-rem, transparent) 0 2px, transparent 2px 5px);
+  border-radius: 2px;
+  position: relative;
 }
 
 .railBar :global(.ant-progress-track),
@@ -44,14 +45,14 @@
 
 .railBar :global(.ant-progress-rail)::after,
 .railBar :global(.ant-progress-inner)::after {
+  background: var(--primary-color);
+  bottom: -2px;
+  box-shadow: 0 0 5px 1px var(--primary-color);
   content: '';
   position: absolute;
-  top: -2px;
-  bottom: -2px;
   right: 0;
+  top: -2px;
   width: 2px;
-  background: var(--primary-color);
-  box-shadow: 0 0 5px 1px var(--primary-color);
 }
 
 /* `conditions` cell — the row's real status.conditions as small wrapping pills. */

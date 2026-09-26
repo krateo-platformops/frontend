@@ -76,6 +76,7 @@ import BlueprintEmptyState from './BlueprintEmptyState'
 import type { PaletteRead } from './blueprintPalette'
 import { edgeHead, PendingEdgeInspector, RefusedMoment, WhatJustHappened } from './EdgeInspector'
 import FormEditorDrawer from './FormEditorDrawer'
+import { GateDriftAction } from './GateDriftAction'
 import { gateLineRanges, unmanagedGateNotes } from './gateGen'
 import { heldBlueprintPayload, lastRenderOf, renderCaption, sameFiles } from './heldBlueprintPayload'
 import NodeInspector from './NodeInspector'
@@ -501,6 +502,7 @@ const BlueprintComposer = () => {
           {blocker ? <span className={styles.srOnly} id={blockerId}>{blocker}</span> : null}
         </div>
         <DraftProblemsAlert problems={held.problems ?? []} />
+        <GateDriftAction files={files} />
         {outcome ? (
           <Alert
             closable

@@ -1,5 +1,6 @@
 /* Page Composer — the authoring surface as a page rather than a drawer.
    Spacing follows the design-system tokens; no raw px, per design/lint/lint-css-tokens.py. */
+
 /*
  * A CONTAINER, and the height the columns measure against.
  *
@@ -9,25 +10,25 @@
  * the lint stops a sixth `@media` width appearing, and this adds none.
  */
 .page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md);
-  min-height: 0;
   /* border-box or the 16px of padding is ADDED to the 100% and the page overflows by exactly that,
      which reads as a stray 32px scrollbar rather than as a box-model mistake. */
   box-sizing: border-box;
-  height: 100%;
-  overflow: hidden;
   container-name: composer;
   container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: var(--spacing-md);
 }
 
 .head {
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
   gap: var(--spacing-xsm);
-  flex: 0 0 auto;
 }
 
 /* Publish and Close sit under the description rather than beside the title: the head is a column,
@@ -59,15 +60,16 @@
    open. The bases are ordered palette < structure < canvas, so the palette is the last thing
    squeezed and the canvas the first thing grown. */
 .build {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-md);
   align-items: flex-start;
-  min-height: 0;
+  display: flex;
+
   /* The builder row owns the scrollbar, not the document — that is what keeps the page one screen
      tall while the columns are still free to wrap. Overridden at width, where each column scrolls
      itself instead. */
   flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -83,11 +85,11 @@
  * of itself — which is the whole defect, reintroduced one level down.
  */
 .centre {
-  flex: 3 1 420px;
-  min-width: 0;
-  min-height: 0;
   display: flex;
+  flex: 3 1 420px;
   flex-direction: column;
+  min-height: 0;
+  min-width: 0;
 }
 
 .centre > .canvas {
@@ -104,13 +106,13 @@
 
 /* Wide enough to grab, quiet enough to ignore. The hit area is the padding, not the rule. */
 .split {
-  flex: 0 0 auto;
-  padding-block: var(--spacing-xs);
-  cursor: row-resize;
   background-clip: content-box;
   background-color: var(--krateo-color-border-subtle);
-  border: 0;
   block-size: var(--spacing-smd);
+  border: 0;
+  cursor: row-resize;
+  flex: 0 0 auto;
+  padding-block: var(--spacing-xs);
 }
 
 .split:hover,
@@ -120,6 +122,7 @@
 }
 
 /* Narrow and non-greedy: it is a source of things, not a place to work. */
+
 /*
  * THE PALETTE SCROLLS ITSELF. Measured on krateo-057 it was 16,793px tall — 300 items, 5 containers
  * and 295 widgets the cluster already carries — beside a 120px canvas. Three consequences followed
@@ -140,29 +143,29 @@
  * Builder.io all make.
  */
 .palette {
-  flex: 0 1 200px;
-  min-width: 170px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xsm);
   border: 1px solid var(--border-color, rgb(0 0 0 / 10%));
   border-radius: var(--border-radius, 8px);
-  padding: var(--spacing-sm);
+  display: flex;
+  flex: 0 1 200px;
+  flex-direction: column;
+  gap: var(--spacing-xsm);
   max-height: min(60vh, 640px);
+  min-width: 170px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  padding: var(--spacing-sm);
 }
 
 /* Grows first and hardest. min-width:0 so a deeply nested page scrolls inside its own frame
    instead of pushing the other two columns off the row. */
 .canvas {
-  flex: 3 1 420px;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xsm);
   border: 1px solid var(--border-color, rgb(0 0 0 / 10%));
   border-radius: var(--border-radius, 8px);
+  display: flex;
+  flex: 3 1 420px;
+  flex-direction: column;
+  gap: var(--spacing-xsm);
+  min-width: 0;
   padding: var(--spacing-sm);
 }
 
@@ -181,27 +184,27 @@
 }
 
 .tree {
-  flex: 1 1 320px;
   border: 1px solid var(--border-color, rgb(0 0 0 / 10%));
   border-radius: var(--border-radius, 8px);
-  padding: var(--spacing-sm);
   display: flex;
+  flex: 1 1 320px;
   flex-direction: column;
   gap: var(--spacing-xsm);
+  padding: var(--spacing-sm);
 }
 
 .treeHead {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
+  display: flex;
   gap: var(--spacing-xsm);
+  justify-content: space-between;
 }
 
-.counts { display: inline-flex; align-items: center; gap: var(--spacing-xsm); }
+.counts { align-items: center; display: inline-flex; gap: var(--spacing-xsm); }
 
 /* One row of the tree: name, kind, and the two badges that carry the meaning — `data` for an
    apiRef-bound widget, `placed` for one that exists on the cluster and is only referenced. */
-.node { display: inline-flex; align-items: center; gap: var(--spacing-xsm); }
+.node { align-items: center; display: inline-flex; gap: var(--spacing-xsm); }
 
 .kindTag { opacity: .75; }
 
@@ -220,6 +223,7 @@
  */
 @media (hover: hover) and (pointer: fine) {
   .nodeActions { opacity: 0; transition: opacity .12s ease-in-out; }
+
   .node:hover .nodeActions,
   .node:focus-within .nodeActions { opacity: 1; }
 }
@@ -234,15 +238,15 @@
  * the canvas already gives by redrawing.
  */
 .announce {
-  position: absolute;
-  width: 1px;
+  border: 0;
+  clip-path: inset(50%);
   height: 1px;
   margin: -1px;
-  padding: 0;
   overflow: hidden;
-  clip-path: inset(50%);
+  padding: 0;
+  position: absolute;
   white-space: nowrap;
-  border: 0;
+  width: 1px;
 }
 
 /*
@@ -259,21 +263,21 @@
  * dark surface and a border alone does not lift it off one.
  */
 .dragChip {
-  display: inline-flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-xsm) var(--spacing-smd);
-  transform: translate(var(--spacing-smd), var(--spacing-sm));
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  line-height: 1.2;
-  white-space: nowrap;
-  color: var(--krateo-color-text-default);
   background: var(--krateo-color-background-elevated);
   border: 2px solid var(--krateo-color-border-focus);
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-lg);
+  color: var(--krateo-color-text-default);
+  display: inline-flex;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  gap: var(--spacing-sm);
+  line-height: 1.2;
+  padding: var(--spacing-xsm) var(--spacing-smd);
   pointer-events: none;
+  transform: translate(var(--spacing-smd), var(--spacing-sm));
+  white-space: nowrap;
 }
 
 /*

@@ -125,8 +125,8 @@
      Horizontal padding is left at antd's default; other Card consumers (marketplace,
      detail, chart, activity cards) don't get .statCard so they're unchanged. */
   &.statCard :global(.ant-card-body) {
-    padding-top: var(--spacing-smd);
     padding-bottom: var(--spacing-smd);
+    padding-top: var(--spacing-smd);
   }
 
   .header {
@@ -174,8 +174,8 @@
        (replaces antd's processing-blue ripple). Sits right after the title text. */
     .liveBadge {
       align-items: center;
-      background: rgba(52, 214, 200, 0.08);
-      border: 1px solid rgba(52, 214, 200, 0.3);
+      background: rgb(52 214 200 / 8%);
+      border: 1px solid rgb(52 214 200 / 30%);
       border-radius: var(--radius-sm);
       display: inline-flex;
       flex: 0 0 auto;
@@ -214,16 +214,16 @@
     font-size: var(--krateo-text-body);
     height: 34px;
     justify-content: center;
-    position: absolute;
-    right: 18px;
-    top: 18px;
-    width: 34px;
-    z-index: 1;
 
     /* #69 §0.8: the floated icon is a DECORATIVE category glyph, not a control. Make it
        inert so it never reads as (or behaves like) a clickable affordance — no hover/cursor
        target, and clicks pass through to the card beneath. */
     pointer-events: none;
+    position: absolute;
+    right: 18px;
+    top: 18px;
+    width: 34px;
+    z-index: 1;
   }
 }
 
@@ -260,8 +260,8 @@
    colour follow the antd status (processing=cyan / warning=amber / error=crimson). */
 .statusBadge {
   align-items: center;
-  background: rgba(52, 214, 200, 0.08);
-  border: 1px solid rgba(52, 214, 200, 0.3);
+  background: rgb(52 214 200 / 8%);
+  border: 1px solid rgb(52 214 200 / 30%);
   border-radius: var(--radius-sm);
   display: inline-flex;
   flex: 0 0 auto;
@@ -285,16 +285,16 @@
   }
 
   &:has(:global(.ant-badge-status-warning)) {
-    background: rgba(242, 163, 60, 0.08);
-    border-color: rgba(242, 163, 60, 0.3);
+    background: rgb(242 163 60 / 8%);
+    border-color: rgb(242 163 60 / 30%);
 
     :global(.ant-badge-status-dot) { background: var(--amber-color); box-shadow: 0 0 5px 1px var(--amber-color); }
     :global(.ant-badge-status-text) { color: var(--amber-color); }
   }
 
   &:has(:global(.ant-badge-status-error)) {
-    background: rgba(242, 84, 91, 0.08);
-    border-color: rgba(242, 84, 91, 0.3);
+    background: rgb(242 84 91 / 8%);
+    border-color: rgb(242 84 91 / 30%);
 
     :global(.ant-badge-status-dot) { background: var(--red-color); box-shadow: 0 0 5px 1px var(--red-color); }
     :global(.ant-badge-status-text) { color: var(--red-color); }

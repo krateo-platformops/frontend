@@ -14,6 +14,7 @@
 .shellMain {
   flex: 1;
   min-width: 0;
+
   /* The nested antd Layout's Sider has a fixed pixel width (an inline style, not CSS) that
      can't shrink. When the rail is open on a narrow viewport there isn't enough room for
      both, and without a clip here the overflow spills rightward, visually on top of the
@@ -109,13 +110,13 @@
    over the inline `style` width from JS on any viewport narrower than these breakpoints,
    so a stale persisted rail width (dragged wide on a bigger screen) can never overflow the
    shell or crush main content to nothing. `.full` is exempt — 100% is the intended width there. */
-@media (max-width: 1024px) {
+@media (width <= 1024px) {
   .apRail.open:not(.full) {
     max-width: calc(100vw - 200px);
   }
 }
 
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .apRail.open:not(.full) {
     max-width: calc(100vw - 64px);
   }
@@ -138,6 +139,7 @@
   display: flex;
   flex: none;
   gap: var(--spacing-sm);
+
   /* #86 §0.10: shared header-height token — the rail header now tracks the main header (was a
      hardcoded 64px that only coincidentally matched). Fallback 64px for the pre-paint window. */
   height: var(--header-h, 64px);
@@ -148,6 +150,7 @@
   align-items: center;
   color: var(--dark-color);
   display: flex;
+
   /* #86 §0.10 Release C (fedepini): bring the rail header title in line with the shared DrawerHeader
      tier — the body/UI font at the default 16px tier, NOT the condensed display font at 14px, so the
      docked rail reads as part of the same drawer-chrome family as the three overlay Drawers. */
@@ -259,8 +262,7 @@
   display: flex;
   flex: none;
   flex-direction: column;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden auto;
   padding: var(--spacing-smd) 0;
   transition: width var(--motion-mid, 0.2s) ease, padding var(--motion-mid, 0.2s) ease, border-color var(--motion-mid, 0.2s) ease;
   width: 0;

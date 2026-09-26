@@ -7,6 +7,7 @@
   color: var(--faint-color);
   cursor: pointer;
   display: flex;
+
   /* #80 §0.11: was a FIXED `width: 280px` with no responsive handling, so at narrow widths it
      collided with the tenant/project switcher. Now it can shrink (flex-basis 280 + min-width:0),
      and its parent `.headerRight` yields the space (Shell.module.css). Below a breakpoint the label
@@ -25,7 +26,7 @@
    shrink from a 220px basis but only down to a 180px floor (min-width), so it never degrades into a
    sliver. Measured header slack in this band is ~234px@1180 → ~16px@960, which the 220 basis + the
    header's own gap:16px absorb without the two clusters ever overlapping. */
-@media (max-width: 1180px) {
+@media (width <= 1180px) {
   .triggerLabel {
     display: none;
   }
@@ -41,7 +42,7 @@
    flex-grow:0 + flex-shrink:0 with matching min/max width means it can never be crushed (the old
    `width:36px` alone was defeated by the inherited min-width:0 and crushed to ~2px). The ⌘K palette
    is still reachable by the keyboard shortcut. Everything still fits at this width (room to ~700). */
-@media (max-width: 960px) {
+@media (width <= 960px) {
   .kbd {
     display: none;
   }

@@ -15,7 +15,7 @@
 
 /* Section header — mono uppercase eyebrow over a hairline (groups a nested object's properties). */
 .sectionTitle {
-  border-bottom: 1px solid var(--border-color, rgba(230, 237, 243, 0.1));
+  border-bottom: 1px solid var(--border-color, rgb(230 237 243 / 10%));
   color: var(--gray-color);
   font-family: var(--font-mono);
   font-size: var(--krateo-text-label-sm);

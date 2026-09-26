@@ -23,6 +23,7 @@
    the small Select from controlHeightSM, and the Select inflates further once project pills are
    selected. Pin both to one deliberate height HERE (scoped to the header, so tags/selects elsewhere
    are untouched) so the left-cluster pair reads as a matched control group. */
+
 /* #86 §0.2: the tenant Tag + Projects Select were rigid (fixed height only, no shrink), so only the
    search box adapted at narrow widths while these stayed pinned to content width and collided. Let
    them yield: min-width:0 + flex-shrink so they participate in the header's shrink, and the tenant
@@ -31,10 +32,12 @@
   align-items: center;
   display: inline-flex;
   flex-shrink: 1;
+
   /* #86 Release C (fedepini): match the header SEARCH trigger's 36px (CommandPalette.module.css), not
      just the Select — all three controls share the header row, so 24px vs 36px read as a real
      mismatch next to the search box. */
   height: 36px;
+
   /* #86 header-flex rework (live-validated): cap the tenant tag deterministically so a longer tenant
      name (custom Theme CR) can't widen the left cluster unbounded — it ellipsises past 145px (≈ the
      natural width of "⬡ krateo-enterprise"). NB the WORKING layout is the grow chain (.headerLeft +
@@ -55,14 +58,16 @@
    rest; the "All projects" placeholder ellipsises. */
 .headerLeft :global(.ant-select-sm) {
   flex-shrink: 1;
-  /* #86 Release C (fedepini): 36px to match the header search trigger + the tenant Tag above. */
-  min-height: 36px;
+
   /* #86 header-flex rework (live-validated): a deterministic CEILING so the Projects select can NEVER
      balloon toward ~520px again — even if a future edit gives it flex-grow (proven live: with the
      inner .ant-flex growing + Select.tsx `flex:0 1 170px`, the select settles ~170px; adding grow was
      capped at 240 by this max-width instead of ballooning). This defends the exact failure mode that
      forced 4 prior cuts, without changing the working grow-based layout. */
   max-width: 240px;
+
+  /* #86 Release C (fedepini): 36px to match the header search trigger + the tenant Tag above. */
+  min-height: 36px;
   min-width: 0;
 }
 
@@ -82,6 +87,7 @@
 .headerRight {
   align-items: center;
   display: flex;
+
   /* #80 §0.11: allow the utility cluster to yield horizontal space so the search trigger inside it
      (flex:0 1 280px, min-width:0) absorbs the shrink and stops overlapping `.headerLeft`. The
      fixed-size icon buttons + the Autopilot/user controls hold their min-content size, so only the

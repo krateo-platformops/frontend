@@ -22,7 +22,6 @@
  */
 import { useCallback, useEffect, useRef } from 'react'
 
-import { lintBlueprintDraft } from './blueprintDraft'
 import { createBlueprintDraftStore, type BlueprintDraftStore } from './blueprintDraftStore'
 import type { BlueprintGate } from './blueprintGate'
 import { clearComposeRefusals } from './composeRequest'
@@ -39,6 +38,7 @@ import { onFileAdd } from './previewFileAdd'
 import { onFileEdit } from './previewFileEdit'
 import { onFileRemove } from './previewFileRemove'
 import { onFilesBatch } from './previewFilesBatch'
+import { lintHeldDraft } from './proposedChart'
 import { heldDraftIdentity, recordPagePreview } from './publishCompile'
 
 /**
@@ -61,7 +61,7 @@ export const heldDraftDetail = (
 ): DraftChangedDetail => ({
   files: held?.files ?? {},
   kind: held?.kind ?? null,
-  problems: held ? lintBlueprintDraft(held.files, held.kind) : [],
+  problems: held ? lintHeldDraft(held.files, held.kind) : [],
   ...(isArmed ? { previewed: held ? isArmed(heldDraftIdentity(held)) : false } : {}),
 })
 
@@ -309,7 +309,7 @@ export const useDraftFileBuses = (
   const rearm = useCallback(() => {
     const held = store.get()
     const identity = identityOf(held)
-    if (held && (held.kind === 'blueprint' || lintBlueprintDraft(held.files, held.kind).length > 0)) {
+    if (held && (held.kind === 'blueprint' || lintHeldDraft(held.files, held.kind).length > 0)) {
       gate.forget?.(identity)
       return
     }

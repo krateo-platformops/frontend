@@ -364,7 +364,7 @@
 }
 
 .secItem:hover {
-  background: color-mix(in srgb, currentColor 7%, transparent);
+  background: color-mix(in srgb, currentcolor 7%, transparent);
   color: var(--text-color);
 }
 
@@ -408,8 +408,8 @@
    mark ON the field label rather than a second label beside it — the field name must stay the
    thing the eye lands on. */
 .agentTag {
-  margin-inline-start: var(--spacing-xsm);
   font-size: var(--krateo-text-label-xs);
   line-height: 16px;
+  margin-inline-start: var(--spacing-xsm);
   vertical-align: middle;
 }

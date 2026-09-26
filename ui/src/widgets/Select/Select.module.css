@@ -13,23 +13,23 @@
 
 /* ── option rows (left amber-fill checkbox + mono name) ── */
 .checkOption {
-  display: flex;
   align-items: center;
+  display: flex;
   gap: var(--spacing-sm);
 }
 
 .checkBox {
-  width: 14px;
-  height: 14px;
-  flex: none;
-  display: inline-flex;
   align-items: center;
-  justify-content: center;
   border: 1px solid var(--gray-color);
   border-radius: 3px;
-  font-size: var(--krateo-text-label-xs);
-  line-height: 1;
   color: var(--light-color);
+  display: inline-flex;
+  flex: none;
+  font-size: var(--krateo-text-label-xs);
+  height: 14px;
+  justify-content: center;
+  line-height: 1;
+  width: 14px;
 }
 
 .checkBoxOn {
@@ -55,8 +55,8 @@
  * the name amber when on (mockup .p-row.on) */
 .checkPopup :global(.ant-select-item-option-selected:not(.ant-select-item-option-disabled)) {
   background-color: transparent;
-  font-weight: inherit;
   color: var(--primary-color);
+  font-weight: inherit;
 }
 
 /* keyboard/hover row → a faint amber wash instead of antd's default grey */
@@ -66,36 +66,36 @@
 
 /* ── the §02 switcher panel chrome (header → master row → [menu] → apply → footer) ── */
 .panelHead {
+  color: var(--gray-color);
   font-family: var(--font-mono);
   font-size: var(--krateo-text-label-sm);
   font-weight: var(--font-weight-medium);
   letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--gray-color);
   padding: var(--spacing-xxs) var(--spacing-xsm) var(--spacing-sm);
+  text-transform: uppercase;
 }
 
 .panelHr {
-  height: 1px;
   background-color: var(--border-color);
+  height: 1px;
   margin: 0 var(--spacing-xxs) var(--spacing-xsm);
 }
 
 /* master "All projects" row — matches an option row's metrics; lives outside antd's list */
 .masterRow {
-  display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  width: 100%;
-  padding: var(--spacing-xsm) var(--spacing-smd);
-  margin-bottom: var(--spacing-xs);
-  border: none;
   background: transparent;
+  border: none;
   border-radius: 4px;
-  cursor: pointer;
   color: var(--text-color);
+  cursor: pointer;
+  display: flex;
   font: inherit;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+  padding: var(--spacing-xsm) var(--spacing-smd);
   text-align: left;
+  width: 100%;
 }
 
 .masterRow:hover {
@@ -107,10 +107,10 @@
 }
 
 .optionCount {
-  margin-left: auto;
+  color: var(--gray-color);
   font-family: var(--font-mono);
   font-size: var(--krateo-text-label-sm);
-  color: var(--gray-color);
+  margin-left: auto;
 }
 
 .masterOn .optionCount {
@@ -119,19 +119,19 @@
 
 .panelApply {
   display: flex;
-  justify-content: flex-end;
   gap: var(--spacing-sm);
+  justify-content: flex-end;
   padding: var(--spacing-sm) var(--spacing-xsm) var(--spacing-xxs);
 }
 
 .panelFoot {
+  border-top: 1px solid var(--border-color);
+  color: var(--gray-color);
   font-family: var(--font-mono);
   font-size: var(--krateo-text-label-xs);
   line-height: 1.55;
-  color: var(--gray-color);
-  padding: var(--spacing-sm) var(--spacing-xsm) var(--spacing-xxs);
   margin-top: var(--spacing-xs);
-  border-top: 1px solid var(--border-color);
+  padding: var(--spacing-sm) var(--spacing-xsm) var(--spacing-xxs);
 }
 
 .panelFoot b {
@@ -140,6 +140,7 @@
 }
 
 /* ── trigger chip (mockup .proj-chip) ── */
+
 /* #86 §0.1 (Release C, corrected live): the "All projects" text read ~10px above the 36px control's
    centre. The real cause is the multi-select ROOT defaulting to `align-items: flex-start` (so multiple
    selected-tag rows stack from the top) — which top-aligns the single placeholder too. Centring the
@@ -157,23 +158,23 @@
 
 /* selected namespaces → amber pills in the trigger (mockup .ptag) */
 .ptag {
-  display: inline-flex;
   align-items: center;
-  gap: var(--spacing-xs);
-  font-family: var(--font-mono);
-  font-size: var(--krateo-text-label-xs);
-  color: var(--primary-color);
   background-color: color-mix(in srgb, var(--primary-color) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--primary-color) 32%, transparent);
   border-radius: 3px;
-  padding: var(--spacing-xxs) var(--spacing-xsm);
+  color: var(--primary-color);
+  display: inline-flex;
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+  gap: var(--spacing-xs);
   margin-inline-end: var(--spacing-xs);
+  padding: var(--spacing-xxs) var(--spacing-xsm);
 }
 
 .ptagClose {
   cursor: pointer;
-  opacity: 0.7;
   font-size: var(--krateo-text-label-xs);
+  opacity: 0.7;
 }
 
 .ptagClose:hover {
@@ -182,12 +183,12 @@
 
 /* the "+N" overflow indicator → a solid amber pill (mockup .pill) */
 .pill {
+  background-color: var(--primary-color);
+  border-radius: 8px;
+  color: var(--light-color);
   font-family: var(--font-mono);
   font-size: var(--krateo-text-label-xs);
   font-weight: 600;
   line-height: 1;
-  color: var(--light-color);
-  background-color: var(--primary-color);
-  border-radius: 8px;
   padding: var(--spacing-xxs) var(--spacing-xsm);
 }

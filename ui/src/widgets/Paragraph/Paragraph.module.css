@@ -68,6 +68,7 @@ h5.paragraph {
 .paragraph:has(strong) {
   font-size: 26px;
   font-weight: var(--font-weight-bold, 600);
+
   /* 1.2, matching the level:N path above — both were 1.1 for Barlow Condensed's condensed line
      box, and T5 retired that face. Keeping the two paths on the same ratio is the point: a page
      title should not change height depending on whether it arrived as `strong: true` or

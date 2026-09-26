@@ -713,3 +713,11 @@
     overflow-y: auto;
   }
 }
+
+/* Declared-vs-gated drift: the regenerate action under the lint that refuses it. */
+.driftRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}

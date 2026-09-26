@@ -50,7 +50,7 @@
 /* itemTemplate.subPrimaryTextMono — render the sub-line (e.g. an event's involvedObject
    `Kind/name` ref) as a small mono bordered pill, per the mockup `.event` ref chip. */
 .refPill {
-  border: 1px solid var(--border-color, rgba(230, 237, 243, 0.16));
+  border: 1px solid var(--border-color, rgb(230 237 243 / 16%));
   border-radius: var(--radius-sm);
   color: var(--gray-color);
   display: inline-block;
@@ -66,16 +66,16 @@
 }
 
 .clickable:hover {
-  background-color: color-mix(in srgb, currentColor 6%, transparent);
+  background-color: color-mix(in srgb, currentcolor 6%, transparent);
 }
 
 /* `?spotlight=<name>` highlight — a global-search hit for a not-yet-installed blueprint routes
    to /marketplace?q=…&spotlight=… ; the matched tile gets an amber ring + a brief attention
    pulse (the "mouse-over" cue), settling into a persistent amber ring. */
 .spotlight {
+  animation: spotlightPulse 1.1s ease-in-out 2;
   border-color: var(--primary-color) !important;
   box-shadow: 0 0 0 1px var(--primary-color), 0 0 14px 2px color-mix(in srgb, var(--primary-color) 45%, transparent);
-  animation: spotlightPulse 1.1s ease-in-out 2;
 }
 
 @keyframes spotlightPulse {
@@ -121,25 +121,25 @@
    names are listed so the hatch + tick render on antd 5 and antd 6. */
 .railBar :global(.ant-progress-rail),
 .railBar :global(.ant-progress-inner) {
-  border-radius: 2px;
-  position: relative;
   /* Desired-vs-actual: the trail (un-filled remainder, right of the cyan converged fill)
      carries a state-coloured diagonal HATCH (--rail-rem = drift magenta / pending amber /
      fail crimson, set inline per row). At 100% the fill covers it → no hatch on healthy rows. */
   background-color: color-mix(in srgb, var(--rail-rem, transparent) 20%, transparent);
   background-image: repeating-linear-gradient(-45deg, var(--rail-rem, transparent) 0 2px, transparent 2px 5px);
+  border-radius: 2px;
+  position: relative;
 }
 
 .railBar :global(.ant-progress-rail)::after,
 .railBar :global(.ant-progress-inner)::after {
+  background: var(--primary-color);
+  bottom: -2px;
+  box-shadow: 0 0 5px 1px var(--primary-color);
   content: '';
   position: absolute;
-  top: -2px;
-  bottom: -2px;
   right: 0;
+  top: -2px;
   width: 2px;
-  background: var(--primary-color);
-  box-shadow: 0 0 5px 1px var(--primary-color);
 }
 
 /* Tree row (itemTemplate.rowVariant: tree) — detail Relations "composed children":
@@ -229,6 +229,7 @@
   display: flex;
   flex: 1;
   flex-direction: column;
+
   /* a touch more air so the category tag + version badge read as their own line under the
      name rather than crowding it (issue #75 §0.3). */
   gap: var(--spacing-xsm);
@@ -267,7 +268,7 @@
 
 /* Version badge — bordered mono pill (mockup `.ver-badge`). */
 .verBadge {
-  border: 1px solid var(--border-color, rgba(230, 237, 243, 0.16));
+  border: 1px solid var(--border-color, rgb(230 237 243 / 16%));
   border-radius: var(--radius-sm);
   color: var(--gray-color);
   flex: none;
@@ -287,11 +288,11 @@
 /* 2-line clamped description body — grows to push the footer to the card bottom. */
 .cardDesc {
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
   color: var(--gray-color);
   display: -webkit-box;
   flex: 1;
   font-size: var(--krateo-text-body-sm);
+  -webkit-line-clamp: 2;
   line-height: 1.5;
   min-height: 3em;
   overflow: hidden;
@@ -300,7 +301,7 @@
 /* Top-bordered footer: provider (left) + action buttons (right) — mockup `.card-foot`. */
 .cardFoot {
   align-items: center;
-  border-top: 1px solid var(--border-color, rgba(230, 237, 243, 0.1));
+  border-top: 1px solid var(--border-color, rgb(230 237 243 / 10%));
   display: flex;
   gap: var(--spacing-sm, 8px);
   margin-top: auto;
