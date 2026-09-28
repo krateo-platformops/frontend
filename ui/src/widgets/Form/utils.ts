@@ -166,3 +166,19 @@ export const narrowAgentDraft = (
 
   return Object.fromEntries(entries)
 }
+
+/**
+ * What a Form whose schema has no fields should say, when the schema itself says it: its title and
+ * description. The create form of a blueprint whose kind core-provider has not generated yet
+ * (portal blueprint-formdef) is one — an info message, not the "nothing to render" error. Null when
+ * the schema says nothing, which stays that error: a Form with neither fields nor a reason is a
+ * broken widget.
+ */
+export const fieldlessSchemaMessage = (schema: JSONSchema4 | undefined): { title: string; description?: string } | null => {
+  const title = typeof schema?.title === 'string' && schema.title.trim() ? schema.title : null
+  const description = typeof schema?.description === 'string' && schema.description.trim() ? schema.description : undefined
+  if (!title && !description) {
+    return null
+  }
+  return { title: title ?? 'Nothing to fill in yet', ...(description ? { description } : {}) }
+}

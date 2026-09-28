@@ -18,7 +18,7 @@ import { useDrawerContext } from '../Drawer/DrawerContext'
 import styles from './Form.module.css'
 import type { Form as WidgetType } from './Form.type'
 import { SchemaForm } from './SchemaFields'
-import { getDefaultsFromSchema, narrowAgentDraft } from './utils'
+import { fieldlessSchemaMessage, getDefaultsFromSchema, narrowAgentDraft } from './utils'
 
 export type FormWidgetData = WidgetType['spec']['widgetData']
 
@@ -472,6 +472,15 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   }
 
   if (!jsonSchema?.properties && !items?.length) {
+    // A schema with no fields that SAYS why is content, not a broken widget (fieldlessSchemaMessage).
+    const message = fieldlessSchemaMessage(jsonSchema)
+    if (message) {
+      return (
+        <div className={styles.message}>
+          <Result status='info' subTitle={message.description} title={message.title} />
+        </div>
+      )
+    }
     return (
       <div className={styles.message}>
         <Result
