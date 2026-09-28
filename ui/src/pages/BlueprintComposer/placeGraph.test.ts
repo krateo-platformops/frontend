@@ -13,7 +13,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { lintBlueprintDraft } from '../../components/Autopilot/blueprintDraft'
+import { lintBlueprintDraft, regenerateArchitecture } from '../../components/Autopilot/blueprintDraft'
 import { createBlueprintDraftStore } from '../../components/Autopilot/blueprintDraftStore'
 import { extractCrdSpecFields } from '../../components/Autopilot/describeResource'
 
@@ -24,6 +24,10 @@ import { graphBlockIn } from './graphCompile'
 import { placedNameExpression } from './naming'
 import { planPlace, setForEach, type PalettePick, type PlacePlan } from './planPlace'
 import { startChart } from './startChart'
+
+/** The chart lint, less the empty-image placeholder a placed workload starts with (asserted separately). */
+const lintBesidesPlaceholders = (chart: Record<string, string>): string[] =>
+  lintBlueprintDraft(chart, 'blueprint').filter((problem) => !problem.includes('a container image is empty'))
 
 const CHART = 'orders'
 /** The helper a helper-ranged node ranges over — a chart's own, as builder-publish's `builder-publish.files` is. */
@@ -98,7 +102,7 @@ describe('a placement regenerates the graph block and names its objects', () => 
       // Exactly the file a single-file save of the same descriptor holds: a fresh wrap of it.
       const descriptor = unwrapFromConfigMapTemplate(files(store)[ARCHITECTURE_TEMPLATE_PATH]) ?? ''
       expect(files(store)[ARCHITECTURE_TEMPLATE_PATH]).toBe(wrapAsConfigMapTemplate(descriptor, CHART))
-      expect(lintBlueprintDraft(files(store), 'blueprint')).toEqual([])
+      expect(lintBesidesPlaceholders(files(store))).toEqual([])
     })
   }
 
@@ -115,13 +119,13 @@ describe('a placement regenerates the graph block and names its objects', () => 
       expect(nodeOf(store, 'localresource')).toMatchObject({ forEach, name })
       expect(extractNameExpression(files(store)['templates/localresource.yaml'])).toBe(name)
       expect(graphBlockIn(files(store)[ARCHITECTURE_TEMPLATE_PATH])).toContain(`{{- ${range} }}{{- with $ }}${namesLine(name)}{{- end }}{{- end }}`)
-      expect(lintBlueprintDraft(files(store), 'blueprint')).toEqual([])
+      expect(lintBesidesPlaceholders(files(store))).toEqual([])
 
       // …and cleared again: the single name back in both, still clean.
       apply(store, setForEach(files(store), 'localresource', null))
       expect(nodeOf(store, 'localresource')?.name).toBe(placedNameExpression('localresource', false))
       expect(graphBlockIn(files(store)[ARCHITECTURE_TEMPLATE_PATH])).toContain(namesLine(placedNameExpression('localresource', false)))
-      expect(lintBlueprintDraft(files(store), 'blueprint')).toEqual([])
+      expect(lintBesidesPlaceholders(files(store))).toEqual([])
     })
   }
 
@@ -139,7 +143,7 @@ describe('a placement regenerates the graph block and names its objects', () => 
     expect(items.slice(0, 3)).toEqual(['orders-1-deployment-i0', 'orders-1-deployment-i1', 'orders-1-deployment-i2'])
     expect(evaluate(second, 'orders-1', 0)).toBe('orders-1-deployment-2')
     expect(items).not.toContain(evaluate(second, 'orders-1', 0))
-    expect(lintBlueprintDraft(files(store), 'blueprint')).toEqual([])
+    expect(lintBesidesPlaceholders(files(store))).toEqual([])
 
     // A chart whose ranged name is the bare index — S4a's first form, or one the agent writes — is
     // refused by the lint (L5, per item), since item 2 would be deployment-2's object.
@@ -147,7 +151,7 @@ describe('a placement regenerates the graph block and names its objects', () => 
     const rewritten = Object.fromEntries(Object.entries(files(store)).map(([path, text]) => [path, text.split(ranged).join(bare)]))
     store.set(rewritten, 'blueprint')
     expect(evaluate(bare, 'orders-1', 2)).toBe(evaluate(second, 'orders-1', 0))
-    expect(lintBlueprintDraft(files(store), 'blueprint')).toEqual([
+    expect(lintBesidesPlaceholders(files(store))).toEqual([
       `${ARCHITECTURE_TEMPLATE_PATH}: resources[0].name — one object per item of .Values.envs, and item 2 is named <release>-deployment-2, the name resources[1] (deployment-2) gives its object: the cluster would hold one object for both, and the detail page could not tell them apart. Rename one of them — in its template and here, together.`,
     ])
   })
@@ -161,6 +165,23 @@ describe('a placement regenerates the graph block and names its objects', () => 
     for (const id of ['repository', 'repository-2', 'deployment', 'builderpublish']) {
       expect(block).toContain(namesLine(placedNameExpression(id, false)))
     }
-    expect(lintBlueprintDraft(files(store), 'blueprint')).toEqual([])
+    expect(lintBesidesPlaceholders(files(store))).toEqual([])
+  })
+})
+
+describe('the empty-image placeholder', () => {
+  it('a placed Deployment starts with an empty image, and the lint names it by file and line until it is set', () => {
+    // A gated workload is never rendered by Preview (lookup is nil there), so without this rule the
+    // placeholder previews, publishes, installs clean and is refused only once a gate opens (057).
+    const started = startChart({ description: '', name: 'orders', version: '0.1.0' })
+    if (!started.ok) { throw new Error('fixture refused') }
+    const plan = planPlace(started.files, { apiVersion: 'apps/v1', cls: 'native', kind: 'Deployment', plural: 'deployments' }, null)
+    if (!plan.ok) { throw new Error(plan.reason) }
+    // As the store holds it: the graph block regenerated on every write (settle).
+    const placed = regenerateArchitecture({ ...started.files, ...plan.add, ...plan.edit })
+    expect(lintBlueprintDraft(placed, 'blueprint')).toEqual([expect.stringMatching(/^templates\/deployment\.yaml:\d+: a container image is empty/) as string])
+    const imaged = { ...placed, 'templates/deployment.yaml': placed['templates/deployment.yaml'].replace('image: ""', 'image: nginx:1.27') }
+    expect(lintBlueprintDraft(imaged, 'blueprint')).toEqual([])
+    expect(lintBlueprintDraft({ ...placed, 'templates/deployment.yaml': placed['templates/deployment.yaml'].replace('image: ""', "image: ''") }, 'blueprint')).toHaveLength(1)
   })
 })

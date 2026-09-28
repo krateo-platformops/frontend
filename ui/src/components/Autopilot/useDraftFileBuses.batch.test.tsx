@@ -28,6 +28,10 @@ import { emitFilesBatch, type FilesBatchDetail, type FilesBatchOutcome } from '.
 import { heldDraftIdentity } from './publishCompile'
 import { createBroadcastingDraftStore, useDraftFileBuses } from './useDraftFileBuses'
 
+/** The chart lint, less the empty-image placeholder a placed workload starts with (asserted separately). */
+const lintBesidesPlaceholders = (chart: Record<string, string>): string[] =>
+  lintBlueprintDraft(chart, 'blueprint').filter((problem) => !problem.includes('a container image is empty'))
+
 afterEach(() => {
   cleanup()
   draftHistory.clear()
@@ -147,7 +151,7 @@ describe('useDraftFileBuses — a files batch', () => {
     expect(held[ARCHITECTURE_TEMPLATE_PATH]).not.toBe(plan.edit[ARCHITECTURE_TEMPLATE_PATH])
     expect(held[ARCHITECTURE_TEMPLATE_PATH]).toBe(single.get()?.files[ARCHITECTURE_TEMPLATE_PATH])
     expect(graphBlockIn(held[ARCHITECTURE_TEMPLATE_PATH])).toContain(`{{- $names = append $names (${placedNameExpression('deployment', false)}) }}`)
-    expect(lintBlueprintDraft(held, 'blueprint')).toEqual([])
+    expect(lintBesidesPlaceholders(held)).toEqual([])
   })
 
   it('a PAGE batch re-arms as a page edit does — clean re-arms, lint-dirty forgets', () => {
