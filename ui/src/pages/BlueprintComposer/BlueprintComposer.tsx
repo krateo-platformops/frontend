@@ -74,6 +74,7 @@ import { architectureView, counted } from './architectureView'
 import styles from './BlueprintComposer.module.css'
 import BlueprintEmptyState from './BlueprintEmptyState'
 import type { PaletteRead } from './blueprintPalette'
+import { ConditionsStrip } from './ConditionsStrip'
 import { edgeHead, PendingEdgeInspector, RefusedMoment, WhatJustHappened } from './EdgeInspector'
 import FormEditorDrawer from './FormEditorDrawer'
 import { GateDriftAction } from './GateDriftAction'
@@ -86,11 +87,12 @@ import { placementCrd, planPlace } from './planPlace'
 import { readinessOptions } from './readinessOptions'
 import { renderOutcomeCopy } from './renderOutcome'
 import type { FormFieldType } from './schemaEdit'
-import { compositionKind } from './startChart'
+import { compositionKind, VALUES_YAML_PATH } from './startChart'
 import StartChartModal from './StartChartModal'
 import StatePanel from './StatePanel'
 import { stepperModel, type StepperModel } from './stepperModel'
 import { useChartRequests } from './useChartRequests'
+import { useConditions } from './useConditions'
 import { useCrdSchema } from './useCrdSchema'
 import { useEdgeEditing } from './useEdgeEditing'
 import { useStatusFields } from './useStatusFields'
@@ -259,13 +261,17 @@ const BlueprintComposer = () => {
   // Keyed on the file's TEXT (a string), not on `files` — see architectureView's header.
   const architectureText = files[ARCHITECTURE_TEMPLATE_PATH]
   const view = useMemo(() => architectureView(architectureText), [architectureText])
+  // Conditions (screens 8b/8c): the machine the values select — the full view for the canvas's
+  // layout, the variant for the stepper and the state panel.
+  const machine = useConditions(view, files[VALUES_YAML_PATH])
+  const stepView = machine.view
   const steps = useMemo((): StepperModel[] => {
-    if (view.status !== 'ok') {
+    if (stepView.status !== 'ok') {
       return []
     }
-    const total = Math.max(1, view.derived.states.length)
-    return Array.from({ length: total }, (_, index) => stepperModel(view.architecture, view.derived, index))
-  }, [view])
+    const total = Math.max(1, stepView.derived.states.length)
+    return Array.from({ length: total }, (_, index) => stepperModel(stepView.architecture, stepView.derived, index))
+  }, [stepView])
   const model = steps.length ? steps[Math.min(level, steps.length - 1)] : null
   const architecture = view.status === 'ok' || view.status === 'cycle' ? view.architecture : null
   const selectedNode = architecture?.resources.find((node) => node.id === selected) ?? null
@@ -541,6 +547,8 @@ const BlueprintComposer = () => {
         />
         <div className={styles.centre}>
           <ArchitectureCanvas
+            absent={machine.absent}
+            conditions={<ConditionsStrip conditions={machine.conditions} onChange={machine.set} onReset={machine.reset} positions={machine.positions} />}
             drawing={edges.drawingStates}
             edgeDraw={edges.edgeDraw}
             edgeHead={edgeHead(edges)}
@@ -574,7 +582,7 @@ const BlueprintComposer = () => {
           </section>
         </div>
         <div className={styles.side} ref={side}>
-          <StatePanel model={model} view={view} />
+          <StatePanel model={model} variant={machine.variant} view={stepView} />
           {edges.refusedMoment ? <RefusedMoment onDismiss={edges.dismissRefusal} reason={edges.refusedMoment} /> : null}
           {edges.pending && pendingTarget ? (
             <PendingEdgeInspector

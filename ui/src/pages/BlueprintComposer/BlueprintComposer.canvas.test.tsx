@@ -212,6 +212,40 @@ describe('BlueprintComposer — the state stepper (screen 8)', () => {
     expect(statesOf('username-secret')).toEqual(['orthogonal'])
   })
 
+  it('Conditions (8b/8c): the machine values.yaml selects, switched without editing, and without a re-layout', () => {
+    mount()
+    const chart = { ...builderPublishChart(), 'values.yaml': 'repository:\n  create: true\nsource:\n  url: ""\npullRequest:\n  create: true\n' }
+    hold(chart)
+    const strip = screen.getByRole('group', { name: 'Conditions' })
+    expect(within(strip).getByText('.Values.source.url')).toBeTruthy()
+    expect(within(strip).getAllByText('values.yaml leaves it empty')).toHaveLength(1)
+    // The default variant: source.url is empty, so repo is not rendered and the machine has three states.
+    const steps = () => within(screen.getByRole('group', { name: 'States of the machine' })).getAllByRole('button')
+    expect(steps()).toHaveLength(3)
+    expect(statesOf('repo')).toEqual(['absent'])
+    const panel = screen.getByTestId('state-panel')
+    expect(within(panel).getByText('repository.create set · source.url empty · pullRequest.create set')).toBeTruthy()
+    expect(within(panel).getByText('repo')).toBeTruthy()
+    const renders = graphDouble.renders.length
+    const before = { ...chart }
+    // Switch it on: the seed Repo joins the machine, four states, nothing laid out again, no file written.
+    const [, set] = within(strip).getAllByText('set')
+    act(() => { fireEvent.click(set) })
+    expect(steps()).toHaveLength(4)
+    expect(statesOf('repo')).not.toContain('absent')
+    expect(graphDouble.renders).toHaveLength(renders)
+    expect(chart).toEqual(before)
+    act(() => { fireEvent.click(within(strip).getByRole('button', { name: 'Back to the default' })) })
+    expect(steps()).toHaveLength(3)
+    expect(within(strip).queryByRole('button', { name: 'Back to the default' })).toBeNull()
+  })
+
+  it('a chart without when shows no Conditions strip', () => {
+    mount()
+    hold(chartWith([native('a'), native('b', [{ ref: 'a' }])]))
+    expect(screen.queryByRole('group', { name: 'Conditions' })).toBeNull()
+  })
+
   it('stepping sets ELEMENT STATES on the live graph and does NOT lay it out again', () => {
     mount()
     hold(builderPublishChart())
