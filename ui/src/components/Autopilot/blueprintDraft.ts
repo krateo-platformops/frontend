@@ -543,6 +543,25 @@ const lintDescriptor = (files: Record<string, string>): string[] => {
  * would apply one kind's rules to every caller that forgot the other; a required argument makes
  * each caller say what it is linting.
  */
+/** A container `image:` left empty — the placeholder a placed workload starts with (templateGen). */
+const EMPTY_IMAGE = /^\s*(?:-\s+)?image:\s*(?:""|'')?\s*(?:#.*)?$/
+
+/**
+ * Every template line whose container image is still EMPTY. Placing a native workload writes
+ * `image: ""` for the person to fill in, and nothing else notices it is still empty: a Deployment
+ * behind a dependency gate is never rendered by Preview (a `lookup` is nil there), so the chart
+ * previews, publishes, releases and installs clean, and the apiserver refuses it only once a
+ * composition's gate opens — "spec.template.spec.containers[0].image: Required value", seen on
+ * krateo-057 with the Blueprint Builder's end-to-end chart. Said here, where the author can fix it.
+ */
+const lintEmptyImages = (files: Record<string, string>): string[] =>
+  Object.keys(files)
+    .filter((path) => path.startsWith('templates/') && /\.ya?ml$/.test(path))
+    .sort()
+    .flatMap((path) => files[path].split('\n').flatMap((line, idx) => (EMPTY_IMAGE.test(line)
+      ? [`${path}:${idx + 1}: a container image is empty — set one (or a value such as {{ .Values.image }}) before previewing; the apiserver refuses a workload without it, and a gated one is not rendered by Preview to show you.`]
+      : [])))
+
 export const lintBlueprintDraft = (rawTemplates: Record<string, string>, kind: DraftKind): string[] => {
   const bytes = rawTemplatesByteSize(rawTemplates)
   if (bytes > RAW_TEMPLATES_MAX_BYTES) {
@@ -562,6 +581,9 @@ export const lintBlueprintDraft = (rawTemplates: Record<string, string>, kind: D
     problems.push(...lintChartIdentity(rawTemplates[CHART_YAML_PATH], kind))
   }
   problems.push(...lintDescriptor(rawTemplates))
+  if (kind === 'blueprint') {
+    problems.push(...lintEmptyImages(rawTemplates))
+  }
 
   // values.schema.json is REQUIRED, and this is the expensive one to learn late. core-provider
   // opens it to build the CRD and hard-errors when it is absent, so a draft without one publishes
