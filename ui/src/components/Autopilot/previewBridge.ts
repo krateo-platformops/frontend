@@ -11,9 +11,14 @@
  * namespace,yaml}], valuesSchema?, error?}. A response carrying {error} is CONTENT (a
  * bad chart is data — the drawer shows the error string); an unreachable/failed
  * service is likewise surfaced as preview text, never a throw.
+ *
+ * An inline draft also carries `lookupStubs` — stand-ins for what its gates wait for, built from
+ * its descriptor (previewStubs.ts) — so gated resources render; the service then reports each
+ * lookup it answered in `lookups`. A service that predates them ignores the field.
  */
 import { dump, load, loadAll } from 'js-yaml'
 
+import { previewLookupStubs, type LookupCall } from '../../pages/BlueprintComposer/previewStubs'
 import { getAccessToken } from '../../utils/getAccessToken'
 
 import type { PortalActionProposal } from './actionBridge'
@@ -42,6 +47,8 @@ export interface HelmRenderResult {
   error?: string
   objects: PreviewObjectEntry[]
   valuesSchema?: unknown
+  /** Every lookup the chart made, when the render was given stand-ins — which gates they opened. */
+  lookups?: LookupCall[]
 }
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
@@ -164,7 +171,23 @@ const normalizeRenderedObject = (entry: unknown): PreviewObjectEntry => {
  * transports: the direct render service (`callHelmRender`, the response JSON) and the
  * server-side RA (`callBlueprintRenderRA`, the RESTAction's resolved `.status`). The RA
  * jq filter emits EXACTLY this shape, so one normalizer serves both. */
-interface RenderContractBody { error?: unknown; objects?: unknown; valuesSchema?: unknown }
+interface RenderContractBody { error?: unknown; lookups?: unknown; objects?: unknown; valuesSchema?: unknown }
+
+/** The service's lookups report, kept only as far as it is well formed. */
+const normalizeLookups = (value: unknown): LookupCall[] | undefined => {
+  if (!Array.isArray(value)) { return undefined }
+  return value.flatMap((entry) => {
+    const record = asRecord(entry)
+    if (!record || typeof record.kind !== 'string' || typeof record.apiVersion !== 'string') { return [] }
+    return [{
+      apiVersion: record.apiVersion,
+      kind: record.kind,
+      name: typeof record.name === 'string' ? record.name : '',
+      namespace: typeof record.namespace === 'string' ? record.namespace : '',
+      stubbed: record.stubbed === true,
+    }]
+  })
+}
 
 /** Normalize the shared `{objects, valuesSchema?, error?}` contract body into a
  * HelmRenderResult. An `{error}` string is CONTENT (a bad chart is data → objects:[]);
@@ -174,18 +197,30 @@ const toHelmRenderResult = (body: RenderContractBody | null): HelmRenderResult =
     return { error: body.error, objects: [] }
   }
   const objects = Array.isArray(body?.objects) ? body.objects.map(normalizeRenderedObject) : []
-  return { objects, ...(body?.valuesSchema === undefined ? {} : { valuesSchema: body.valuesSchema }) }
+  const lookups = normalizeLookups(body?.lookups)
+  return {
+    objects,
+    ...(body?.valuesSchema === undefined ? {} : { valuesSchema: body.valuesSchema }),
+    ...(lookups ? { lookups } : {}),
+  }
+}
+
+/** The render request both transports send: the one chart source, values, and — for an inline
+ * draft whose descriptor declares edges — the stand-ins that open its gates. */
+const renderRequestBody = (args: BlueprintPreviewArgs): Record<string, unknown> => {
+  const lookupStubs = args.rawTemplates ? previewLookupStubs(args.rawTemplates) : []
+  return {
+    ...(args.rawTemplates ? { rawTemplates: args.rawTemplates } : { chart: args.chart }),
+    values: args.values ?? {},
+    ...(lookupStubs.length ? { lookupStubs } : {}),
+  }
 }
 
 /** Serialize the previewBlueprint args into the RA's `?extras` envelope — the SAME
  * exactly-one-of source contract, forwarded by snowplow into the RA's jq dict, where the
  * `blueprint-render` payload step rebuilds the render service body server-side. Exactly
  * ONE of `chart` | `rawTemplates` (the parser guarantees it), plus `values` (default {}). */
-export const buildBlueprintRenderExtras = (args: BlueprintPreviewArgs): string =>
-  JSON.stringify({
-    ...(args.rawTemplates ? { rawTemplates: args.rawTemplates } : { chart: args.chart }),
-    values: args.values ?? {},
-  })
+export const buildBlueprintRenderExtras = (args: BlueprintPreviewArgs): string => JSON.stringify(renderRequestBody(args))
 
 /**
  * POST the chart source + values to the render service and normalize the response —
@@ -203,10 +238,7 @@ export const buildBlueprintRenderExtras = (args: BlueprintPreviewArgs): string =
 export const callHelmRender = async (renderBaseUrl: string, args: BlueprintPreviewArgs): Promise<HelmRenderResult> => {
   try {
     const response = await fetch(`${renderBaseUrl.replace(/\/+$/, '')}/render`, {
-      body: JSON.stringify({
-        ...(args.rawTemplates ? { rawTemplates: args.rawTemplates } : { chart: args.chart }),
-        values: args.values ?? {},
-      }),
+      body: JSON.stringify(renderRequestBody(args)),
       headers: { 'Content-Type': 'application/json', ...authHeader() },
       method: 'POST',
     })

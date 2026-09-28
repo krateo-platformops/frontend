@@ -7,6 +7,8 @@
  * only when it rendered (a published chart's dry run, or a draft that failed to render, is looked at,
  * not held), while the composer previews the draft the provider already holds.
  */
+import { standInSummary } from '../../pages/BlueprintComposer/previewStubs'
+
 import { buildFormSchemaText } from './blueprintDraft'
 import type { HelmRenderResult } from './previewBridge'
 import type { AutopilotPreviewPayload } from './previewBus'
@@ -28,6 +30,9 @@ export interface BlueprintPreviewInput {
 
 export const buildBlueprintPreviewPayload = ({ caption, held, name, rawTemplates, rendered }: BlueprintPreviewInput): AutopilotPreviewPayload => {
   const formSchema = buildFormSchemaText(rawTemplates, rendered?.valuesSchema, rendered?.error)
+  // Which gates the render opened with stand-ins, and which stayed shut — said beside the objects,
+  // so nothing a stand-in let through reads as having been checked against the cluster.
+  const summary = rendered && !rendered.error ? standInSummary(rendered.lookups) : []
   return {
     builder: held ? 'blueprint' : 'inspect',
     caption: caption ?? BLUEPRINT_PREVIEW_CAPTION,
@@ -41,6 +46,7 @@ export const buildBlueprintPreviewPayload = ({ caption, held, name, rawTemplates
     ...(rawTemplates ? { publishTarget: { base: 'main', note: 'merged, CI publishes it as a versioned OCI Helm chart', repo: name } } : {}),
     ...(formSchema ? { formSchema } : {}),
     objects: rendered?.objects ?? [],
+    ...(summary.length ? { summary } : {}),
     title: `Blueprint preview — ${name}`,
   }
 }

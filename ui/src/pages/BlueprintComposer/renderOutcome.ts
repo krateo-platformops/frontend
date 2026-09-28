@@ -32,6 +32,9 @@ const COPY: Record<DraftRenderResultDetail['outcome'], (detail: DraftRenderResul
     type: 'warning',
   }),
   rendered: (detail) => ({
+    // Which gates Preview opened with stand-ins, when it did: a render that includes gated
+    // resources says so where the person reads the verdict, not only in Source.
+    ...(detail.payload?.summary?.length ? { lines: detail.payload.summary } : {}),
     title: `Rendered ${counted(detail.payload?.objects?.length ?? 0, 'object')} — read them in Source. Publish is on until the chart changes.`,
     type: 'success',
   }),
