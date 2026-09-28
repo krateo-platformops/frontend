@@ -80,7 +80,24 @@ export const ociChartLocation = (owner: string, name: string): string | null => 
  * the header says so, because this file is what someone reads on the branch and wonders whether to
  * apply.
  */
-export const blueprintCompositionDefinition = (name: string, owner: string, repo: string, version: string): string | null => {
+/**
+ * The status projection's two spec fields, indented under `spec:` (S12). The RESTAction they name is
+ * status-projection.json's, applied by Install beside this file — the file itself cannot apply it.
+ */
+const projectionSpec = (projection: { apiRef: object; statusDataTemplate: readonly object[] }): string =>
+  dump({ apiRef: projection.apiRef, statusDataTemplate: projection.statusDataTemplate }, { lineWidth: -1, noRefs: true, sortKeys: false })
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => `  ${line}\n`)
+    .join('')
+
+export const blueprintCompositionDefinition = (
+  name: string,
+  owner: string,
+  repo: string,
+  version: string,
+  projection?: { apiRef: object; statusDataTemplate: readonly object[] } | null,
+): string | null => {
   const url = ociChartLocation(owner, name)
   if (!url) {
     return null
@@ -101,7 +118,7 @@ spec:
   chart:
     url: ${url}
     version: ${release}
-`
+${projection ? projectionSpec(projection) : ''}`
 }
 
 /**

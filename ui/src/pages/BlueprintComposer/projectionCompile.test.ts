@@ -12,7 +12,8 @@ import { describe, expect, it } from 'vitest'
 import { edgeChart } from './__fixtures__/s4b'
 import { ARCHITECTURE_TEMPLATE_PATH, parseArchitecture, serializeArchitecture, unwrapFromConfigMapTemplate, type ChartArchitecture } from './architecture'
 import { S11_ARCH_STEP_FILTER, S11_OBJECT_FILTER, S11_TOP_FILTER } from './architectureStateJq'
-import { ARCHITECTURE_ROWS, compileProjection, statusRestActionPath } from './projectionCompile'
+import { ARCHITECTURE_ROWS, compileProjection, PROJECTION_BUNDLE_PATH, projectionForFiles } from './projectionCompile'
+import { blueprintCompositionDefinition } from './startChart'
 
 interface Step { name: string; path: string; verb: string; dependsOn?: unknown; endpointRef?: unknown; filter: string; errorKey: string; continueOnError: boolean }
 interface RestAction { apiVersion: string; kind: string; metadata: { name: string; namespace: string }; spec: { api: Step[]; filter: string } }
@@ -83,10 +84,21 @@ describe('the <chart>-status RESTAction', () => {
     expect(ra.spec.api.every((step) => step.continueOnError)).toBe(true)
   })
 
-  it('is byte-stable, and commits at the chart root as restaction.<chart>-status.yaml', () => {
+  it('is byte-stable, and bundles as JSON — the one form the portal\'s jq can read back', () => {
     expect(compileProjection(archOf(edgeChart()))).toEqual(compileProjection(archOf(edgeChart())))
-    expect(statusRestActionPath('orders')).toBe('restaction.orders-status.yaml')
-    expect(compiled(archOf(edgeChart())).path).toBe('restaction.orders-status.yaml')
+    expect(PROJECTION_BUNDLE_PATH).toBe('status-projection.json')
+    const out = compiled(archOf(edgeChart()))
+    const bundle = JSON.parse(out.bundle) as { apiRef: unknown; restaction: RestAction; statusDataTemplate: unknown }
+    expect(bundle.apiRef).toEqual(out.apiRef)
+    expect(bundle.statusDataTemplate).toEqual(out.statusDataTemplate)
+    expect(bundle.restaction).toEqual(out.ra)
+  })
+
+  it('a held chart projects when its descriptor compiles, and not otherwise — never refusing a publish', () => {
+    expect(projectionForFiles(edgeChart())?.apiRef.name).toBe('orders-status')
+    expect(projectionForFiles({ 'Chart.yaml': 'name: x' })).toBeNull()
+    const files = edgeChart()
+    expect(projectionForFiles({ ...files, 'templates/architecture.yaml': files['templates/architecture.yaml'].replace(/\n\s*resource: repositories/, '') })).toBeNull()
   })
 })
 
@@ -154,5 +166,17 @@ describe('the descriptor\'s status: section and resource field', () => {
 
   it('refuses a plural the apiserver could not serve', () => {
     expect(problems(base('').replace('resource: configmaps', 'resource: ConfigMaps'))[0]).toMatch(/resource: must be the plural/)
+  })
+})
+
+describe('the CompositionDefinition a projecting chart publishes', () => {
+  it('carries apiRef and statusDataTemplate under spec — and one without a projection is unchanged', () => {
+    const projection = projectionForFiles(edgeChart())
+    const withIt = load(blueprintCompositionDefinition('orders', 'krateo-blueprints', 'orders', '0.1.0', projection) ?? '') as { spec: Record<string, unknown> }
+    expect(withIt.spec.chart).toEqual({ url: 'oci://ghcr.io/krateo-blueprints/charts/orders', version: '0.1.0' })
+    expect(withIt.spec.apiRef).toEqual({ name: 'orders-status', namespace: 'krateo-system' })
+    expect(withIt.spec.statusDataTemplate).toEqual([...ARCHITECTURE_ROWS])
+    expect(blueprintCompositionDefinition('orders', 'krateo-blueprints', 'orders', '0.1.0')).toBe(blueprintCompositionDefinition('orders', 'krateo-blueprints', 'orders', '0.1.0', null))
+    expect(blueprintCompositionDefinition('orders', 'krateo-blueprints', 'orders', '0.1.0')).not.toContain('apiRef')
   })
 })

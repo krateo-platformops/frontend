@@ -21,7 +21,7 @@
 /* eslint-disable no-template-curly-in-string -- the compiled RESTAction and statusDataTemplate ARE literal ${ jq } substitutions (snowplow and CDC syntax). */
 import { dump } from 'js-yaml'
 
-import type { ChartArchitecture, ProjectionRow, ProjectionType } from './architecture'
+import { ARCHITECTURE_TEMPLATE_PATH, parseArchitecture, unwrapFromConfigMapTemplate, type ChartArchitecture, type ProjectionRow, type ProjectionType } from './architecture'
 import { S11_ARCH_STEP_FILTER, S11_TOP_FILTER } from './architectureStateJq'
 
 /** Where the RESTAction lives — the CompositionDefinition's namespace (decision D1 in the S12 spec). */
@@ -29,8 +29,14 @@ export const STATUS_RESTACTION_NAMESPACE = 'krateo-system'
 
 export const statusRestActionName = (chart: string): string => `${chart}-status`
 
-/** The chart-root file the RESTAction is committed as — never under templates/, never rendered with the chart. */
-export const statusRestActionPath = (chart: string): string => `restaction.${statusRestActionName(chart)}.yaml`
+/**
+ * The chart-root file a publish commits the projection as — never under templates/, never packaged
+ * (the builder scaffold's .helmignore). JSON, not YAML: the portal's Install step reads it from the
+ * publish claim with snowplow's jq, which parses JSON (`fromjson`) and has no YAML parser. It holds
+ * the RESTAction Install applies next to the CompositionDefinition (decision D1), and the apiRef and
+ * rows that CompositionDefinition carries.
+ */
+export const PROJECTION_BUNDLE_PATH = 'status-projection.json'
 
 /** A row as the CompositionDefinition carries it. */
 export interface StatusFieldMapping {
@@ -42,9 +48,10 @@ export interface StatusFieldMapping {
 export type ProjectionCompile =
   | {
     ok: true
-    /** The RESTAction manifest, as the chart-root file holds it. */
+    /** The RESTAction manifest, as YAML — for reading. */
     restaction: string
-    path: string
+    /** status-projection.json: { apiRef, statusDataTemplate, restaction } — what a publish commits. */
+    bundle: string
     apiRef: { name: string; namespace: string; extras?: Record<string, string> }
     statusDataTemplate: StatusFieldMapping[]
   }
@@ -170,9 +177,24 @@ export const compileProjection = (arch: ChartArchitecture): ProjectionCompile =>
   const extras = arch.status?.extras
   return {
     apiRef: { name, namespace: STATUS_RESTACTION_NAMESPACE, ...(extras && Object.keys(extras).length ? { extras } : {}) },
+    bundle: `${JSON.stringify({ apiRef: { name, namespace: STATUS_RESTACTION_NAMESPACE, ...(extras && Object.keys(extras).length ? { extras } : {}) }, restaction: manifest, statusDataTemplate: [...ARCHITECTURE_ROWS, ...author] }, null, 2)}\n`,
     ok: true,
-    path: statusRestActionPath(arch.chart),
     restaction: dump(manifest, { lineWidth: -1, noRefs: true, sortKeys: false }),
     statusDataTemplate: [...ARCHITECTURE_ROWS, ...author.map((row) => ({ ...row }))],
   }
+}
+
+/**
+ * The projection a held chart publishes, or null when it publishes none — no descriptor, one that
+ * does not parse (the lint says why), or one that cannot compile (a node with no `resource`: an
+ * agent-authored or migrated chart). Additive by design: a chart without a projection still
+ * publishes and registers exactly as before; it simply projects no architecture state.
+ */
+export const projectionForFiles = (files: Readonly<Record<string, string>>): Extract<ProjectionCompile, { ok: true }> | null => {
+  const template = files[ARCHITECTURE_TEMPLATE_PATH]
+  if (!template) { return null }
+  const parsed = parseArchitecture(unwrapFromConfigMapTemplate(template) ?? '')
+  if (!parsed.ok) { return null }
+  const compiled = compileProjection(parsed.architecture)
+  return compiled.ok ? compiled : null
 }

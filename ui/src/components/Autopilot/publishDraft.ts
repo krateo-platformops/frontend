@@ -19,6 +19,7 @@
  */
 import type { Config } from '../../context/ConfigContext'
 import { publishNameProblem } from '../../pages/BlueprintComposer/chartIdentity'
+import { PROJECTION_BUNDLE_PATH, projectionForFiles } from '../../pages/BlueprintComposer/projectionCompile'
 import { blueprintCompositionDefinition } from '../../pages/BlueprintComposer/startChart'
 
 import type { PortalActionProposal } from './actionBridge'
@@ -66,7 +67,7 @@ const registrationFile = (isPage: boolean, slug: string, owner: string, repo: st
     return pageCompositionDefinition(slug, owner, repo)
   }
   const version = chartYamlVersion(files[CHART_YAML_PATH])
-  return version ? blueprintCompositionDefinition(slug, owner, repo, version) : null
+  return version ? blueprintCompositionDefinition(slug, owner, repo, version, projectionForFiles(files)) : null
 }
 
 /**
@@ -148,9 +149,14 @@ export const runDraftPublish = async (
   // registers it. It lands because the builder scaffold carries none: the claim never overwrites a
   // file the seed already put there. (A blueprint used to publish without one at all.)
   const registration = registrationFile(isPage, slug, dest.owner || bt.owner, dest.repo || destRepo, held.files)
-  const publishFiles = registration
-    ? { ...held.files, [REGISTRATION_PATH]: registration }
-    : held.files
+  // A blueprint whose descriptor compiles a status projection (S12) also commits the bundle Install
+  // applies: the <chart>-status RESTAction and the apiRef + rows its CompositionDefinition carries.
+  const projection = isPage ? null : projectionForFiles(held.files)
+  const publishFiles = {
+    ...held.files,
+    ...(registration ? { [REGISTRATION_PATH]: registration } : {}),
+    ...(projection ? { [PROJECTION_BUNDLE_PATH]: projection.bundle } : {}),
+  }
 
   // The claim commits each path VERBATIM (builder-publish only splits it into basename + dir), so
   // the full repo path is this caller's job — and both builders now hand it chart-relative keys,
