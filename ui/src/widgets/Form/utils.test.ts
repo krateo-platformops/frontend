@@ -1,7 +1,7 @@
 import type { JSONSchema4 } from 'json-schema'
 import { describe, expect, it } from 'vitest'
 
-import { getDefaultsFromSchema, getOptionsFromEnum, narrowAgentDraft } from './utils'
+import { fieldlessSchemaMessage, getDefaultsFromSchema, getOptionsFromEnum, narrowAgentDraft } from './utils'
 
 describe('getDefaultsFromSchema', () => {
   it('collects scalar defaults and omits properties without one', () => {
@@ -106,5 +106,22 @@ describe('narrowAgentDraft — what the agent may fill', () => {
   it('returns undefined for no draft, so the form keeps its own initial values', () => {
     expect(narrowAgentDraft(null, schema, [])).toBeUndefined()
     expect(narrowAgentDraft(undefined, schema, [])).toBeUndefined()
+  })
+})
+
+describe('fieldlessSchemaMessage — a Form with no fields that says why', () => {
+  it('is the schema\'s own title and description', () => {
+    expect(fieldlessSchemaMessage({ description: 'Its kind has not been generated yet.', title: 'This blueprint is still being registered', type: 'object' }))
+      .toEqual({ description: 'Its kind has not been generated yet.', title: 'This blueprint is still being registered' })
+  })
+
+  it('titles a description-only schema', () => {
+    expect(fieldlessSchemaMessage({ description: 'Reload in a minute.', type: 'object' })).toEqual({ description: 'Reload in a minute.', title: 'Nothing to fill in yet' })
+  })
+
+  it('is null when the schema says nothing — that stays the broken-widget error', () => {
+    expect(fieldlessSchemaMessage({ type: 'object' })).toBeNull()
+    expect(fieldlessSchemaMessage({ title: '  ', type: 'object' })).toBeNull()
+    expect(fieldlessSchemaMessage(undefined)).toBeNull()
   })
 })
