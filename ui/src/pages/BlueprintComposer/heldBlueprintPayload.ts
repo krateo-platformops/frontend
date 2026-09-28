@@ -35,12 +35,15 @@ export interface LastRender {
   error?: string
   /** The tree that was rendered, when the answer carried it — what "stale" is measured against. */
   files?: Record<string, string>
+  /** What the render said about its stand-ins (previewStubs.ts) — kept with the objects they explain. */
+  summary?: string[]
 }
 
 /** A render result's payload, reduced to what the Source tab shows and what it was a render of. */
-export const lastRenderOf = (payload: Pick<AutopilotPreviewPayload, 'error' | 'files' | 'objects'>): LastRender => ({
+export const lastRenderOf = (payload: Pick<AutopilotPreviewPayload, 'error' | 'files' | 'objects' | 'summary'>): LastRender => ({
   objects: payload.objects ?? [],
   ...(payload.error ? { error: payload.error } : {}),
+  ...(payload.summary?.length ? { summary: payload.summary } : {}),
   ...(payload.files ? { files: Object.fromEntries(payload.files.map((file) => [file.path, file.content])) } : {}),
 })
 
@@ -78,5 +81,6 @@ export const heldBlueprintPayload = (
   const payload = buildBlueprintPreviewPayload({ caption, held: true, name: draftDisplayName(files), rawTemplates: files, rendered })
   // The inspector owns the form preview — see the header.
   const { formSchema: _formSchema, ...shown } = payload
-  return shown
+  // The rebuild has no lookups to derive them from, so the render's own lines ride along.
+  return render?.summary?.length ? { ...shown, summary: render.summary } : shown
 }

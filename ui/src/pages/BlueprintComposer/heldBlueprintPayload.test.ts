@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { BLUEPRINT_PREVIEW_CAPTION } from '../../components/Autopilot/blueprintPreviewPayload'
+import { BLUEPRINT_PREVIEW_CAPTION, buildBlueprintPreviewPayload } from '../../components/Autopilot/blueprintPreviewPayload'
 
 import {
   FAILED_RENDER_CAPTION,
@@ -46,6 +46,28 @@ describe('heldBlueprintPayload', () => {
     expect(heldBlueprintPayload(files, { objects: [OBJECT] })?.objects).toEqual([OBJECT])
     expect(heldBlueprintPayload(files, { error: 'template: bad', objects: [] })?.error).toBe('template: bad')
   })
+
+  it('keeps what the render said about its stand-ins through the rebuild', () => {
+    const rendered = buildBlueprintPreviewPayload({
+      held: true,
+      name: 'builder-publish',
+      rawTemplates: files,
+      rendered: { lookups: [{ apiVersion: 'v1', kind: 'ConfigMap', name: 'c', namespace: 'ns', stubbed: true }], objects: [OBJECT] },
+    })
+    expect(rendered.summary).toHaveLength(1)
+    const kept = lastRenderOf(rendered)
+    expect(heldBlueprintPayload(files, kept)?.summary).toEqual(rendered.summary)
+  })
+
+  it('a failed render says nothing about stand-ins', () => {
+    const failed = buildBlueprintPreviewPayload({
+      held: true,
+      name: 'builder-publish',
+      rawTemplates: files,
+      rendered: { error: 'template: bad', lookups: [{ apiVersion: 'v1', kind: 'ConfigMap', name: 'c', namespace: 'ns', stubbed: true }], objects: [] },
+    })
+    expect(failed).not.toHaveProperty('summary')
+  })
 })
 
 describe('the Source caption, measured against the files the render was OF', () => {
@@ -80,6 +102,11 @@ describe('renderOutcomeCopy — the answer, in the person\'s words', () => {
   it('rendered counts the objects', () => {
     expect(renderOutcomeCopy({ id: 'x', message: null, outcome: 'rendered', payload: { objects: [OBJECT, OBJECT], title: 't' } }))
       .toEqual({ title: 'Rendered 2 objects — read them in Source. Publish is on until the chart changes.', type: 'success' })
+  })
+
+  it('rendered with stand-ins says which gates it opened, under the count', () => {
+    const summary = ['Gates opened for this preview: …']
+    expect(renderOutcomeCopy({ id: 'x', message: null, outcome: 'rendered', payload: { objects: [OBJECT], summary, title: 't' } }).lines).toEqual(summary)
   })
 
   it('failed points at Source; refused lists the problems; stale is the same sentence everywhere', () => {
