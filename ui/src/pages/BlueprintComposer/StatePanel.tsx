@@ -42,7 +42,13 @@ const Field = ({ children, label }: { children: React.ReactNode; label: string }
   </div>
 )
 
-export const StatePanel = ({ model, view }: { model: StepperModel | null; view: ArchitectureView }) => {
+/** The variant a Conditions strip selected (screens 8b/8c): its name, and what it keeps out. */
+export interface StateVariant {
+  label: string
+  absent: readonly string[]
+}
+
+export const StatePanel = ({ model, variant, view }: { model: StepperModel | null; variant?: StateVariant | null; view: ArchitectureView }) => {
   if (view.status !== 'ok' || !model) {
     return (
       <section aria-label='State' className={styles.pane}>
@@ -85,12 +91,22 @@ export const StatePanel = ({ model, view }: { model: StepperModel | null; view: 
         <span className={styles.fieldText}>{`of ${counted(model.total, 'state')}`}</span>
       </div>
       <div className={styles.section} data-testid='state-panel'>
+        {variant ? (
+          <Field label='Variant'>
+            <span className={styles.fieldValue}>{variant.label}</span>
+          </Field>
+        ) : null}
         <Field label='Renders'>
           <span className={styles.fieldValue}>{model.lit.length ? named(architecture, model.lit) : 'nothing yet'}</span>
         </Field>
         {model.frontier.length && !model.initial ? (
           <Field label='Enters in this state'>
             <span className={styles.fieldValue}>{named(architecture, model.frontier)}</span>
+          </Field>
+        ) : null}
+        {variant?.absent.length ? (
+          <Field label='Not rendered'>
+            <span className={styles.fieldValue}>{variant.absent.join(' · ')}</span>
           </Field>
         ) : null}
         <Field label='Withheld'>

@@ -248,6 +248,36 @@
   opacity: 0.7;
 }
 
+/* NOT RENDERED in this variant — a condition switched off keeps it out (screen 8c). Dashed, like an
+   optional resource, and fainter than a withheld one: it is not waiting for anything. The content
+   fades, never the card, so the focus ring keeps its contrast (the rule above). */
+.card[data-states~='absent'] {
+  background: transparent;
+  border-color: var(--line-color);
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.card[data-states~='absent'] > * {
+  opacity: 0.45;
+}
+
+/* The Conditions strip under the pane head (screens 8b/8c). */
+.conditions {
+  align-items: center;
+  border-bottom: 1px solid var(--line-color);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xsm) var(--spacing-smd);
+}
+
+.condition {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--spacing-xsm);
+}
+
 .card[data-states~='cycle'] {
   border-color: var(--error-color);
   box-shadow: 0 0 0 3px var(--krateo-color-status-error-subtle);

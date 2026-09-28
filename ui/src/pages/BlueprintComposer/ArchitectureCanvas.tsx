@@ -41,7 +41,7 @@ import type { StepperModel } from './stepperModel'
  * How an edge looks as the machine steps — width and opacity only; colours stay the palette's.
  * An edge inside what renders is drawn heavier; an edge into a withheld resource fades with it.
  */
-export const STEPPED_EDGE_STATES: EdgeStateStyles = { lit: { lineWidth: 2 }, withheld: { opacity: 0.35 } }
+export const STEPPED_EDGE_STATES: EdgeStateStyles = { absent: { opacity: 0.15 }, lit: { lineWidth: 2 }, withheld: { opacity: 0.35 } }
 
 /**
  * An existence-only edge is dashed (DASHED_EDGE's meaning); a readiness edge is solid. The one label
@@ -55,6 +55,7 @@ export const architectureEdgeAppearance = (edge: GraphEdge<ArchitectureEdgeData>
 
 const NO_CYCLE: string[] = []
 const NOT_DRAWING: DrawingStates = {}
+const NONE_ABSENT: readonly string[] = []
 
 interface CanvasStateProps {
   title: string
@@ -119,9 +120,15 @@ export interface ArchitectureCanvasProps {
   drawing?: DrawingStates
   /** The pane head's edge line — "Drawing: a → b", or "Edge accepted" and its count. */
   edgeHead?: React.ReactNode
+  /** Nodes a switched-off condition keeps out of this variant (conditions.ts) — drawn absent. */
+  absent?: readonly string[]
+  /** The Conditions strip, under the head (screens 8b/8c); null when the chart has none. */
+  conditions?: React.ReactNode
 }
 
 export const ArchitectureCanvas = ({
+  absent = NONE_ABSENT,
+  conditions,
   drawing = NOT_DRAWING,
   edgeDraw,
   edgeHead,
@@ -137,7 +144,7 @@ export const ArchitectureCanvas = ({
   const graph: ArchitectureGraph | null = view.status === 'ok' || view.status === 'cycle' ? view.graph : null
   const cycle = view.status === 'cycle' ? view.cycle : NO_CYCLE
 
-  const states = useMemo(() => (graph ? elementStates(graph, model, selected, cycle, drawing) : {}), [cycle, drawing, graph, model, selected])
+  const states = useMemo(() => (graph ? elementStates(graph, model, selected, cycle, drawing, absent) : {}), [absent, cycle, drawing, graph, model, selected])
   // Read by the data builders below, which must not depend on it: a step is not new data.
   const statesRef = useRef(states)
   statesRef.current = states
@@ -281,6 +288,7 @@ export const ArchitectureCanvas = ({
         {edgeHead ?? (model ? <span className={styles.eyebrow}>{model.initial ? 'States' : 'Step the machine'}</span> : null)}
         <Stepper model={model} onLevel={onLevel} steps={steps} />
       </div>
+      {conditions}
       {body}
       {model && !model.initial ? (
         <div className={styles.paneFoot}>

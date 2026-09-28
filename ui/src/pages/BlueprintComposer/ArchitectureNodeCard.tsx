@@ -33,6 +33,7 @@ export const NODE_SIZE: [number, number] = [156, 72]
 
 /** What each state means, said aloud: the card's accessible name carries it, not its colour. */
 const STATE_WORDS: Record<string, string> = {
+  absent: 'not rendered — its condition is off',
   cycle: 'part of a dependency cycle',
   drawSource: 'drawing a dependency from here',
   frontier: 'enters in this state',

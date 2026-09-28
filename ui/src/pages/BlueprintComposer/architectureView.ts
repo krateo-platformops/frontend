@@ -93,8 +93,11 @@ export const elementStates = (
   selected: string | null,
   cycle: readonly string[] = [],
   drawing: DrawingStates = {},
+  absent: readonly string[] = [],
 ): Record<string, string[]> => {
   const legal = new Set(drawing.legal)
+  // Kept out by a condition switched off (conditions.ts): not rendered at all — never "waiting".
+  const keptOut = new Set(absent)
   const frontier = new Set(model?.frontier)
   const lit = new Set(model?.lit)
   const withheld = new Set(model?.withheld)
@@ -103,7 +106,9 @@ export const elementStates = (
   const out: Record<string, string[]> = {}
   for (const node of graph.nodes) {
     const states: string[] = []
-    if (frontier.has(node.id)) {
+    if (keptOut.has(node.id)) {
+      states.push('absent')
+    } else if (frontier.has(node.id)) {
       states.push('frontier')
     } else if (lit.has(node.id)) {
       states.push('lit')
@@ -120,7 +125,9 @@ export const elementStates = (
     out[node.id] = states
   }
   for (const edge of graph.edges) {
-    if (withheld.has(edge.target)) {
+    if (keptOut.has(edge.source) || keptOut.has(edge.target)) {
+      out[edge.id] = ['absent']
+    } else if (withheld.has(edge.target)) {
       out[edge.id] = ['withheld']
     } else if (lit.has(edge.source) && lit.has(edge.target)) {
       out[edge.id] = ['lit']
