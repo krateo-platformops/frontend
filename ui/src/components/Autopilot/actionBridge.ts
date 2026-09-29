@@ -562,6 +562,8 @@ const composeRefusal = (verb: string, result: ComposeResult, fallback: string): 
 export const useAutopilotActionBridge = (
   beforePreviewApply?: () => Promise<unknown>,
   afterPreviewApply?: (widgets: Record<string, unknown>[]) => unknown,
+  // An agent proposal that edits the held draft: the draft's record may then name the thread.
+  onAgentDraftProposal?: () => void,
 ) => {
   const { handleAction, handleActionSet } = useHandleAction()
   const queryClient = useQueryClient()
@@ -588,6 +590,9 @@ export const useAutopilotActionBridge = (
   // bridge drives, so a write reached through runAction / patchField / applyResourceSet is
   // audited as agent-originated; read-only verbs carry it harmlessly (no write → no record).
   const apply = useCallback(async (proposal: PortalActionProposal, origin?: WriteOrigin): Promise<AutopilotActionChip | null> => {
+    if (origin?.actor === 'agent' && (isComposeVerb(proposal.verb) || proposal.verb === 'previewBlueprint' || proposal.verb === 'previewPage')) {
+      onAgentDraftProposal?.()
+    }
     // runAction: drive a REAL on-screen control (Sync/Pause/Edit/Delete) through the
     // SAME useHandleAction dispatcher the button uses — never a synthesized call. On a
     // mutating verb, requireConfirmation is FORCED (never trusted from the model), so the
@@ -811,7 +816,7 @@ export const useAutopilotActionBridge = (
       : undefined
     return (await spec.apply(proposal, { frontendNamespace, handleAction, renderBaseUrl, routePatterns, snowplowBaseUrl, ...(sandboxWriter ? { sandboxWriter } : {}) }))
       ?? refused(proposal.verb)
-  }, [afterPreviewApply, beforePreviewApply, frontendNamespace, handleAction, handleActionSet, previewPageSession, queryClient, renderBaseUrl, routePatterns, sandboxNamespace, snowplowBaseUrl])
+  }, [afterPreviewApply, beforePreviewApply, frontendNamespace, onAgentDraftProposal, handleAction, handleActionSet, previewPageSession, queryClient, renderBaseUrl, routePatterns, sandboxNamespace, snowplowBaseUrl])
 
   // A discarded draft's live render goes with it: the teardown session taken unconditionally.
   const discardSandbox = useCallback(async (): Promise<void> => {

@@ -202,15 +202,39 @@ describe('write-ahead and lifecycle', () => {
     expect(labelsOf(calls[0])[LABEL_STATE]).toBe('published')
   })
 
-  it('the thread a record was first saved from is kept', async () => {
+  it('the Autopilot thread that first changed the draft is kept', async () => {
     const { autosave, calls, store } = setup()
     autosave.setThreadId('thread-a')
+    autosave.noteAgentChange()
     store.set(chart(), 'blueprint')
     await elapse()
     autosave.setThreadId('thread-b')
     store.updateFile('values.yaml', 'x: 1\n')
     await elapse()
     expect(calls.map((call) => bodyOf(call)?.threadId)).toEqual(['thread-a', 'thread-a'])
+  })
+
+  it('a draft composed by hand names no thread, though the rail has one open (E2E on krateo-057)', async () => {
+    const { autosave, calls, store } = setup()
+    autosave.setThreadId('thread-open-in-the-rail')
+    store.set(chart(), 'blueprint')
+    await elapse()
+    store.updateFile('values.yaml', 'x: 1\n')
+    await elapse()
+    expect(calls.map((call) => bodyOf(call)?.threadId)).toEqual([undefined, undefined])
+  })
+
+  it('an agent change later in a hand-composed draft attributes it from then on', async () => {
+    const { autosave, calls, store } = setup()
+    autosave.setThreadId('thread-a')
+    store.set(chart(), 'blueprint')
+    await elapse()
+    autosave.noteAgentChange()
+    store.updateFile('values.yaml', 'x: 1\n')
+    await elapse()
+    store.updateFile('values.yaml', 'x: 2\n')
+    await elapse()
+    expect(calls.map((call) => bodyOf(call)?.threadId)).toEqual([undefined, 'thread-a', 'thread-a'])
   })
 
   it('a page is filed under its slug', async () => {
