@@ -156,7 +156,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   const reachable = enabled && flagAvailable && (useEcho || probeOk)
 
   const { collect } = useAutopilotContext()
-  const { apply, discardSandbox } = useAutopilotActionBridge()
+  const { apply, discardSandbox, sandboxWriter } = useAutopilotActionBridge()
 
   const [open, setOpen] = useState(false)
   // The DURABLE conversation (transcript + thread identity) is held in a module-level
@@ -802,7 +802,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // See useDraftFileBuses for why they are two buses and why `addFile` is separate from updateFile.
   useDraftFileBuses(blueprintStore, blueprintGate, heldDraftIdentity, previewStartedDraft, discardSandbox)
   // A person starting and rendering a chart (the Blueprint Composer) — see useBlueprintAuthoringBuses.
-  useBlueprintAuthoringBuses(blueprintStore, blueprintGate, config)
+  useBlueprintAuthoringBuses(blueprintStore, blueprintGate, config, sandboxWriter)
 
   /**
    * PUBLISH, asked for by a person rather than proposed by the model.

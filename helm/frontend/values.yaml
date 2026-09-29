@@ -332,65 +332,10 @@ config:
 # frontend keeps the v1 source-only drawer).
 previewSandbox:
   enabled: false
-  # The sandbox namespace: DURABLE chart-owned infra (quota + author RBAC +
-  # live in it); only the draft CRs churn. Deliberately outside every
+  # The sandbox namespace: DURABLE chart-owned infra (the author RBAC lives in
+  # it); only the drafts churn. Deliberately outside every
   # composition's render target, so drafts can never orphan a Helm release.
   namespace: krateo-preview
-  # Draft time-to-live: stamped on the namespace as the krateo.io/ttl label and
-  # Per-kind object-count quota. Kubernetes has NO aggregate object count across
-  # a CRD group, so one count/<plural>.<group> entry is generated per widget
-  # plural listed below (modest defaults: runaway-agent bound, not capacity).
-  quota:
-    perWidgetKind: 200
-    restactions: 50
-  # The widget plurals (group widgets.templates.krateo.io) — mirrors the 43 CRDs
-  # in crds-subchart/templates. Drives the generated quota entries and the
-  # quota. A NEW widget kind => append its plural here (the author Role
-  # needs no change: it grants the whole group via resource wildcard '*').
-  widgetPlurals:
-    - alerts
-    - badges
-    - barcharts
-    - breadcrumbs
-    - buttongroups
-    - buttons
-    - cards
-    - checkboxes
-    - cols
-    - datepickers
-    - descriptions
-    - dividers
-    - filters
-    - flexes
-    - flowcharts
-    - forms
-    - images
-    - inputnumbers
-    - inputs
-    - layouts
-    - linecharts
-    - listies
-    - markdowns
-    - menus
-    - paragraphs
-    - piecharts
-    - progresses
-    - qrcodes
-    - radios
-    - rangepickers
-    - results
-    - rows
-    - selects
-    - sliders
-    - statistics
-    - steps
-    - switches
-    - tables
-    - tabs
-    - tags
-    - themes
-    - uploads
-    - yamlviewers
   # RoleBinding subjects granted author rights (full CRUD on widget CRs and
   # restactions) INSIDE the sandbox namespace only. Non-admin cohorts are
   # fail-closed without an entry here (verified live: snowplow skips cohorts

@@ -25,9 +25,9 @@ import { draftDisplayName } from './blueprintDraft'
 import type { BlueprintDraftStore } from './blueprintDraftStore'
 import type { BlueprintGate } from './blueprintGate'
 import { buildBlueprintPreviewPayload } from './blueprintPreviewPayload'
+import { renderBlueprint, type SandboxWriter } from './blueprintRenderSandbox'
 import { clearComposeRefusals } from './composeRequest'
 import { draftHistory } from './draftHistory'
-import { callBlueprintRenderRA } from './previewBridge'
 import { type DraftRenderResultDetail, emitDraftRenderResult, onChartStart, onDraftRenderRequest } from './previewDraftRender'
 import { lintHeldDraft } from './proposedChart'
 import { heldDraftIdentity } from './publishCompile'
@@ -38,6 +38,7 @@ export const useBlueprintAuthoringBuses = (
   store: BlueprintDraftStore,
   gate: Pick<BlueprintGate, 'forget' | 'recordPreview'>,
   config: Config | undefined,
+  sandboxWriter?: SandboxWriter,
 ): void => {
   const render = useCallback(async (id: string): Promise<void> => {
     // Read at request time, not at mount: the provider mounts before the config is complete.
@@ -61,7 +62,7 @@ export const useBlueprintAuthoringBuses = (
       answer({ message: RENDER_NOT_CONFIGURED, outcome: 'unavailable' })
       return
     }
-    const rendered = await callBlueprintRenderRA(snowplowBaseUrl, frontendNamespace, { rawTemplates: held.files })
+    const rendered = await renderBlueprint(snowplowBaseUrl, frontendNamespace, { rawTemplates: held.files }, sandboxWriter)
     if (store.get() !== held) {
       answer({ message: 'The chart changed while it was rendering — preview it again.', outcome: 'stale' })
       return
@@ -74,7 +75,7 @@ export const useBlueprintAuthoringBuses = (
     }
     gate.recordPreview(identity)
     answer({ message: null, outcome: 'rendered', payload })
-  }, [config, gate, store])
+  }, [config, gate, sandboxWriter, store])
 
   useEffect(() => onDraftRenderRequest(({ id }) => { void render(id) }), [render])
 

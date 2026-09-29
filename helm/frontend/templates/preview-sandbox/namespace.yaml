@@ -1,9 +1,10 @@
 {{- /*
 Preview sandbox namespace (w4 portal-builder spec, Addendum A).
 
-DURABLE chart-owned infra: the namespace, its quota, the author RBAC and the TTL
-quota live here; only the DRAFT widget/RESTAction CRs applied by the frontend
-(previewPage v2) churn inside it. No composition ever renders into this
+DURABLE chart-owned infra: the namespace and the author RBAC live here; only the
+drafts churn inside it — the page builder's widget/RESTAction CRs (previewPage v2) and
+the Blueprint Composer's one-ConfigMap draft charts, each removed by the preview that
+wrote it. No composition ever renders into this
 namespace, so drafts can never orphan a Helm release (the hand-applied-CRs
 hazard does not apply by construction).
 

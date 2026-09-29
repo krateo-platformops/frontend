@@ -36,12 +36,12 @@
  */
 import { DRAFT_REJECTED_CAPTION, draftDisplayName, lintBlueprintDraft } from './blueprintDraft'
 import { buildBlueprintPreviewPayload } from './blueprintPreviewPayload'
+import { renderBlueprint } from './blueprintRenderSandbox'
 import { buildDescribeResourcePayload, crdNameFromArgs, extractCrdSpecFields, parseDescribeResourceArgs } from './describeResource'
 import {
   buildPagePreviewPayload,
   buildRestDefPreviewPayload,
   buildUpgradeImpactPayload,
-  callBlueprintRenderRA,
   callDescribeResourceCRD,
   callHelmRender,
   callUpgradeImpactRA,
@@ -105,7 +105,7 @@ export const previewBlueprintSpec: VerbSpec = {
     }
     // PREFER the RA (server-side render); DIRECT fetch is the config-absent fallback.
     const rendered = canUseRA
-      ? await callBlueprintRenderRA(deps.snowplowBaseUrl!, deps.frontendNamespace!, args)
+      ? await renderBlueprint(deps.snowplowBaseUrl!, deps.frontendNamespace!, args, deps.sandboxWriter)
       : await callHelmRender(deps.renderBaseUrl!, args)
     // HELD only when an inline draft rendered — the same rule recordBlueprintPreview applies. A
     // published chart's dry run, or a draft that failed to render, is looked at, not held.

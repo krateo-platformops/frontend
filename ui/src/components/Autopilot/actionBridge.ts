@@ -22,6 +22,7 @@ import { type RouteObject } from 'react-router'
 import { useConfigContext } from '../../context/ConfigContext'
 import { useRoutesContext } from '../../context/RoutesContext'
 import type { WriteOrigin } from '../../hooks/provenance'
+import type { SetDispatchOptions } from '../../hooks/runRestSet'
 import { useHandleAction } from '../../hooks/useHandleActions'
 import type { ResourcesRefs, WidgetAction } from '../../types/Widget'
 
@@ -793,7 +794,12 @@ export const useAutopilotActionBridge = () => {
     }
     // A verb's own handler also returns null when IT cannot act — a runAction whose target control
     // is not mounted, a navigate to an unregistered route. Same silence, same answer.
-    return (await spec.apply(proposal, { frontendNamespace, handleAction, renderBaseUrl, routePatterns, snowplowBaseUrl }))
+    // The sandbox writer carries THIS turn's origin, so a preview's draft write is audited as the
+    // agent's, like previewPage v2's.
+    const sandboxWriter = sandboxNamespace
+      ? { handleActionSet: (ops: Parameters<typeof handleActionSet>[0], options?: SetDispatchOptions) => handleActionSet(ops, origin, options), sandboxNamespace }
+      : undefined
+    return (await spec.apply(proposal, { frontendNamespace, handleAction, renderBaseUrl, routePatterns, snowplowBaseUrl, ...(sandboxWriter ? { sandboxWriter } : {}) }))
       ?? refused(proposal.verb)
   }, [frontendNamespace, handleAction, handleActionSet, previewPageSession, queryClient, renderBaseUrl, routePatterns, sandboxNamespace, snowplowBaseUrl])
 
@@ -810,5 +816,11 @@ export const useAutopilotActionBridge = () => {
     })
   }, [handleActionSet, previewPageSession, sandboxNamespace])
 
-  return { apply, discardSandbox }
+  // A person's Preview in the Blueprint Composer writes its draft chart through the same fabric,
+  // with no agent origin: the audit record names the human.
+  const sandboxWriter = useMemo(() => (sandboxNamespace
+    ? { handleActionSet: (ops: Parameters<typeof handleActionSet>[0], options?: SetDispatchOptions) => handleActionSet(ops, undefined, options), sandboxNamespace }
+    : undefined), [handleActionSet, sandboxNamespace])
+
+  return { apply, discardSandbox, sandboxWriter }
 }
