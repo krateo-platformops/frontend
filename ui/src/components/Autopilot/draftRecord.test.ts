@@ -46,7 +46,7 @@ describe('draftRecordName', () => {
 
 describe('treeHash', () => {
   it('is equal for equal trees, whatever the key order, and differs on any edit', () => {
-    const same = treeHash({ 'Chart.yaml': body.files['Chart.yaml'], 'values.yaml': '{}\n' })
+    const same = treeHash(Object.fromEntries(Object.entries(body.files).reverse()))
     expect(treeHash(body.files)).toBe(same)
     expect(treeHash({ ...body.files, 'values.yaml': 'a: 1\n' })).not.toBe(same)
     expect(treeHash(body.files)).toMatch(/^[0-9a-f]{16}$/)
@@ -60,6 +60,13 @@ describe('the record ConfigMap', () => {
     expect(cm.metadata.labels[LABEL_PURPOSE]).toBe('draft-record')
     expect(cm.metadata.labels[LABEL_OWNER]).toBe('admin')
     expect(readDraftRecord(cm)).toEqual(body)
+  })
+
+  it('labels whether the tree is the one Preview rendered, for listings that cannot hash', () => {
+    const label = (b: DraftRecordBody) => (draftRecordConfigMap('ns', 'admin', b) as { metadata: { labels: Record<string, string> } }).metadata.labels['krateo.io/draft-previewed']
+    expect(label(body)).toBe('false')
+    expect(label({ ...body, renderedHash: treeHash(body.files) })).toBe('true')
+    expect(label({ ...body, renderedHash: treeHash({ ...body.files, 'values.yaml': 'a: 1\n' }) })).toBe('false')
   })
 
   it('reads anything that is not a restorable record as null, never a throw', () => {

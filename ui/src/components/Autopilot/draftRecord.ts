@@ -15,7 +15,7 @@
  * The record:
  *   name         draft-<kind>-<owner>-<slug>, a DNS-1123 name within 63 characters
  *   labels       krateo.io/purpose=draft-record, krateo.io/draft-owner, krateo.io/draft-kind,
- *                krateo.io/draft-state
+ *                krateo.io/draft-state, krateo.io/draft-previewed ("true"|"false")
  *   annotations  krateo.io/draft-name (the display name), krateo.io/draft-updated-at
  *   data         draft.json = DraftRecordBody (below)
  */
@@ -29,6 +29,8 @@ export const LABEL_PURPOSE = 'krateo.io/purpose'
 export const LABEL_OWNER = 'krateo.io/draft-owner'
 export const LABEL_KIND = 'krateo.io/draft-kind'
 export const LABEL_STATE = 'krateo.io/draft-state'
+/** "true" when the tree is exactly the one the last Preview rendered — for listings, which cannot hash. */
+export const LABEL_PREVIEWED = 'krateo.io/draft-previewed'
 export const ANNOTATION_NAME = 'krateo.io/draft-name'
 export const ANNOTATION_UPDATED = 'krateo.io/draft-updated-at'
 
@@ -105,6 +107,7 @@ export const draftRecordConfigMap = (
     labels: {
       [LABEL_KIND]: body.kind,
       [LABEL_OWNER]: owner,
+      [LABEL_PREVIEWED]: String(body.renderedHash !== undefined && body.renderedHash === treeHash(body.files)),
       [LABEL_PURPOSE]: DRAFT_RECORD_PURPOSE,
       [LABEL_STATE]: body.state,
     },
