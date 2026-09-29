@@ -37,6 +37,11 @@ const rowNavProps = (to: string | undefined, go: (path: string) => void) => {
   return {
     onClick: activate,
     onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => {
+      // Only a key aimed at the ROW activates it. A control inside the row — the row-actions
+      // kebab, a card's action button — bubbles its own Enter/Space here, and handling it would
+      // navigate AND preventDefault the control's click away: Enter on "⋮" opened the row instead
+      // of the menu. The control keeps its key; the row keeps its own.
+      if (event.target !== event.currentTarget) { return }
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault()
         activate()
