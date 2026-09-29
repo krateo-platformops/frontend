@@ -63,6 +63,12 @@ export interface PreviewPageV2Deps {
    * mid-apply has already stored what it was previewing (useDraftAutosave.flush). Never throws.
    */
   beforeApply?: () => Promise<unknown>
+  /**
+   * The preview SUCCEEDED: every draft applied and the root warmed up. Called once, with the widgets
+   * as proposed, so the draft record can record the tree that rendered (useDraftAutosave
+   * .markPageApplied). Never on a blocked or failed preview. Must not throw.
+   */
+  afterApply?: (widgets: Record<string, unknown>[]) => unknown
 }
 
 /**
@@ -360,6 +366,7 @@ export const applyPreviewPageV2 = async (
 
   // A live preview supersedes any earlier rejection — clear the self-correction signal.
   setPreviewProblems(null)
+  deps.afterApply?.(widgets)
 
   // 4-5. RENDER + arm the epoch-guarded drawer-close teardown.
   const epoch = deps.session.record(buildSandboxTeardownOps(applied, deps.sandboxNamespace))

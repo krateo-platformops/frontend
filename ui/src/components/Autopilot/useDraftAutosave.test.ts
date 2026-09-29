@@ -21,8 +21,9 @@ import type { WriteOp } from '../BlastRadius/buildBlastRadius'
 import { CHART_YAML_PATH } from './blueprintDraft'
 import { createBlueprintDraftStore } from './blueprintDraftStore'
 import type { SandboxWriter } from './blueprintRenderSandbox'
-import { LABEL_PREVIEWED, LABEL_STATE, readDraftRecord, treeHash } from './draftRecord'
+import { DRAFT_RECORD_VERSION, type DraftRecordBody, LABEL_PREVIEWED, LABEL_STATE, readDraftRecord, treeHash } from './draftRecord'
 import { draftSaveStatus } from './draftSaveStatus'
+import { pageDraftFiles, pageDraftWidgets } from './pageDraft'
 import { createDraftAutosave, DRAFT_AUTOSAVE_DEBOUNCE_MS } from './useDraftAutosave'
 import { createBroadcastingDraftStore } from './useDraftFileBuses'
 
@@ -217,6 +218,69 @@ describe('write-ahead and lifecycle', () => {
     store.set({ 'templates/flex.page-orders.yaml': 'kind: Flex\nmetadata:\n  name: page-orders\n' }, 'page')
     await elapse()
     expect((calls[0].payload?.metadata as { name: string }).name).toBe('draft-page-diego-braga-orders')
+  })
+})
+
+describe('resume — seedFromRecord', () => {
+  const stored = (): DraftRecordBody => ({
+    files: chart(),
+    kind: 'blueprint',
+    name: 'demo-chart',
+    publish: { prUrl: 'https://github.com/acme/demo-chart/pull/1', repo: 'acme/demo-chart' },
+    renderedHash: treeHash(chart()),
+    state: 'published',
+    threadId: 'thread-original',
+    updatedAt: '2026-09-28T09:00:00Z',
+    version: DRAFT_RECORD_VERSION,
+  })
+
+  it('seeded then edited: ONE PUT (no POST, no 409) that keeps state, publish and threadId, and recomputes previewed', async () => {
+    const { autosave, calls, store } = setup()
+    autosave.setThreadId('thread-now')
+    autosave.seedFromRecord(stored())
+    store.set(chart(), 'blueprint')
+    await elapse()
+    // Holding exactly what the record stores is not a change: nothing is written.
+    expect(calls).toHaveLength(0)
+    store.updateFile('values.yaml', 'edited: after-resume\n')
+    await elapse()
+    expect(calls.map((call) => call.verb)).toEqual(['PUT'])
+    expect(bodyOf(calls[0])).toMatchObject({
+      publish: { prUrl: 'https://github.com/acme/demo-chart/pull/1', repo: 'acme/demo-chart' },
+      renderedHash: treeHash(chart()),
+      state: 'published',
+      threadId: 'thread-original',
+    })
+    expect(labelsOf(calls[0])[LABEL_PREVIEWED]).toBe('false')
+    // Undo back to the rendered tree: previewed again.
+    store.set(chart(), 'blueprint')
+    await elapse()
+    expect(labelsOf(calls[1])[LABEL_PREVIEWED]).toBe('true')
+  })
+})
+
+describe('page live preview — markPageApplied', () => {
+  const pageWidgets = (): Record<string, unknown>[] => [
+    { apiVersion: 'widgets.templates.krateo.io/v1beta1', kind: 'Flex', metadata: { name: 'page-orders' }, spec: { widgetData: { items: [] } } },
+  ]
+
+  it('the HELD page applied (a person\'s draft): its record is saved now, previewed', async () => {
+    const { autosave, calls, store } = setup()
+    const files = pageDraftFiles(pageWidgets())!
+    store.set({ ...files, 'Chart.yaml': 'apiVersion: v2\nname: orders\nversion: 0.0.0\n' }, 'page')
+    await autosave.markPageApplied(pageDraftWidgets(store.get()!.files))
+    expect(calls).toHaveLength(1)
+    expect(bodyOf(calls[0])?.renderedHash).toBe(treeHash(store.get()!.files))
+    expect(labelsOf(calls[0])[LABEL_PREVIEWED]).toBe('true')
+  })
+
+  it('an agent\'s page applied BEFORE it is held: the hash waits, and the save of the held page carries it', async () => {
+    const { autosave, calls, store } = setup()
+    await autosave.markPageApplied(pageWidgets())
+    expect(calls).toHaveLength(0)
+    store.set(pageDraftFiles(pageWidgets())!, 'page')
+    await elapse()
+    expect(labelsOf(calls[0])[LABEL_PREVIEWED]).toBe('true')
   })
 })
 

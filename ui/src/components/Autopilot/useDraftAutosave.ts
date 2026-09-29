@@ -54,7 +54,7 @@ import {
   treeHash,
 } from './draftRecord'
 import { draftSaveStatus } from './draftSaveStatus'
-import { pageRootSlug } from './pageDraft'
+import { pageDraftFiles, pageDraftWidgets, pageRootSlug } from './pageDraft'
 
 /** How long edits settle before the record is written. The plan's "~2 s". */
 export const DRAFT_AUTOSAVE_DEBOUNCE_MS = 2000
@@ -92,6 +92,19 @@ export interface DraftAutosave {
   /** A Preview rendered exactly this tree: record its hash, and save. Null (nothing held): a no-op. */
   markRendered: (held: BlueprintDraftHeld | null) => Promise<void>
   /**
+   * A page's live preview APPLIED these widgets (previewPageV2's afterApply). The tree they are is
+   * the held page when the held page is what was applied (a person's draft, re-applied on edit); or
+   * the tree an agent's proposal is about to be held as (recordPagePreview runs after the apply).
+   * Either way its hash is recorded, so a page draft is not "Preview needed" forever.
+   */
+  markPageApplied: (widgets: readonly Record<string, unknown>[]) => Promise<void>
+  /**
+   * RESUME: prime this tab's memory of a record from what it stored — renderedHash, state, publish,
+   * threadId, and that it EXISTS (the first save is a PUT, no POST/409 round trip). Call it just
+   * before the record's files go into the store, so the save that change schedules keeps them.
+   */
+  seedFromRecord: (body: DraftRecordBody) => void
+  /**
    * A publish of this draft LANDED: mark its record published — `<owner>/<repo>` from the claim it
    * wrote, and the change-request link when there is one — and save.
    */
@@ -117,6 +130,10 @@ export const publishedTo = (claim: PublishedClaim, deepLink: string | null | und
 })
 
 const keyOf = (held: Pick<BlueprintDraftHeld, 'files' | 'kind'>): string => `${held.kind}:${draftRecordDisplayName(held)}`
+
+/** What a save carries besides updatedAt — an identical one is skipped. */
+const fingerprintOf = (files: Record<string, string>, meta: RecordMeta): string =>
+  JSON.stringify([treeHash(files), meta.renderedHash, meta.threadId, meta.state, meta.publish])
 
 export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAutosave => {
   const debounceMs = options.debounceMs ?? DRAFT_AUTOSAVE_DEBOUNCE_MS
@@ -179,7 +196,7 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
     }
     const displayName = draftRecordDisplayName(held)
     const { kind }: { kind: DraftKind } = held
-    const fingerprint = JSON.stringify([treeHash(held.files), meta.renderedHash, meta.threadId, meta.state, meta.publish])
+    const fingerprint = fingerprintOf(held.files, meta)
     if (meta.created && meta.saved === fingerprint) {
       return
     }
@@ -245,6 +262,24 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
     }, debounceMs)
   }
 
+  /**
+   * Record a rendered tree's hash on its record. Saved NOW when it is the held draft; otherwise the
+   * hash waits in this tab's memory for the store change that holds it (an agent's page proposal is
+   * held only after its apply), whose save carries it.
+   */
+  const markRenderedTree = (tree: Pick<BlueprintDraftHeld, 'files' | 'kind'>): Promise<void> => {
+    const key = keyOf(tree)
+    metaOf(key).renderedHash = treeHash(tree.files)
+    if (!writer || !latest || keyOf(latest) !== key) {
+      return chain
+    }
+    if (pending && keyOf(pending) === key) {
+      cancelTimer()
+      pending = null
+    }
+    return enqueue(latest)
+  }
+
   const onHeldChange: DraftChangeListener = (held) => {
     const previous = latest
     latest = held
@@ -277,6 +312,11 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
       }
       return chain
     },
+    markPageApplied: (widgets) => {
+      const sameWidgets = latest?.kind === 'page' && JSON.stringify(pageDraftWidgets(latest.files)) === JSON.stringify(widgets)
+      const files = sameWidgets && latest ? latest.files : pageDraftFiles(widgets)
+      return files ? markRenderedTree({ files, kind: 'page' }) : chain
+    },
     markPublished: (held, claim, deepLink) => {
       const meta = metaOf(keyOf(held))
       meta.state = 'published'
@@ -287,18 +327,18 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
       }
       return writer ? enqueue(latest && keyOf(latest) === keyOf(held) ? latest : held) : chain
     },
-    markRendered: (held) => {
-      if (!held) {
-        return chain
-      }
-      metaOf(keyOf(held)).renderedHash = treeHash(held.files)
-      if (pending && keyOf(pending) === keyOf(held)) {
-        cancelTimer()
-        pending = null
-      }
-      return writer ? enqueue(latest && keyOf(latest) === keyOf(held) ? latest : held) : chain
-    },
+    markRendered: (held) => (held ? markRenderedTree(held) : chain),
     onHeldChange,
+    seedFromRecord: (body) => {
+      const meta = metaOf(keyOf(body))
+      meta.created = true
+      meta.state = body.state
+      meta.renderedHash = body.renderedHash
+      meta.threadId = body.threadId
+      meta.publish = body.publish
+      // What the record already holds: holding it again is not a change worth a write.
+      meta.saved = fingerprintOf(body.files, meta)
+    },
     setThreadId: (id) => { threadId = id ?? undefined },
     setWriter: (next) => {
       const was = writer

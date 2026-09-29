@@ -44,8 +44,10 @@ export const useBlueprintAuthoringBuses = (
    * The draft-record autosave: flushed BEFORE the render writes anything (write-ahead — a tab killed
    * mid-Preview has already stored the chart), and told of a render that succeeded so the record
    * carries the hash Publish re-arms on after a Resume. Optional: absent, Preview is unchanged.
+   * RESUME calls `seedFromRecord(body)` on it immediately before `store.set(body.files, body.kind)`,
+   * so the record's renderedHash/state/publish/threadId survive the resume's first save.
    */
-  autosave?: Pick<DraftAutosave, 'flush' | 'markRendered'>,
+  autosave?: Pick<DraftAutosave, 'flush' | 'markRendered' | 'seedFromRecord'>,
 ): void => {
   const render = useCallback(async (id: string): Promise<void> => {
     // Read at request time, not at mount: the provider mounts before the config is complete.
