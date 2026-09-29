@@ -33,6 +33,21 @@ describe('LiveActivity — the strip', () => {
     expect(stateOf('get_resource')).toBe('done')
   })
 
+  it('the label keeps its width; a long request takes what is left', () => {
+    // CSS modules resolve to their class names under vitest, so this pins WHICH element carries the
+    // no-shrink rule. Swapped, the long brief kept its width and "asking core-provider-agent" was
+    // squeezed into a one-letter column (the V2 blueprint take, frontend 1.6.76).
+    render(<LiveActivity evidence={[entry({
+      agent: 'core-provider-agent',
+      id: 'd1',
+      kind: 'delegation',
+      request: 'Please author and validate a blueprint named catalog-service that deploys a Deployment',
+      tool: 'transfer_to_core_provider_agent',
+    })]} />)
+    expect(screen.getByText('asking core-provider-agent').className).toContain('apLiveActLabel')
+    expect(screen.getByText(/Please author and validate/).className).toContain('apLiveActRequest')
+  })
+
   it('marks a failed call as FAILED, not merely done', () => {
     render(<LiveActivity evidence={[entry({ done: true, failed: true, id: 'a', tool: 'apply' })]} />)
     expect(stateOf('apply')).toBe('failed')

@@ -80,8 +80,8 @@ export const LiveActivity = ({ answering, evidence }: {
         : recent.map((entry) => (
           <div className={styles.apLiveActRow} data-state={activityState(entry)} key={entry.id}>
             <span className={styles.apLiveActMark} />
-            <span className={styles.apEvTool}>{activityLabel(entry)}</span>
-            {entry.request ? <span className={styles.apEvMeta}>{entry.request}</span> : null}
+            <span className={`${styles.apEvTool} ${styles.apLiveActLabel}`}>{activityLabel(entry)}</span>
+            {entry.request ? <span className={`${styles.apEvMeta} ${styles.apLiveActRequest}`}>{entry.request}</span> : null}
           </div>
         ))}
     </div>
