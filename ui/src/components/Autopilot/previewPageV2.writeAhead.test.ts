@@ -1,6 +1,6 @@
 /**
  * WRITE-AHEAD for a page's live preview: `beforeApply` (the draft-record flush) runs, and settles,
- * before the preview's FIRST sandbox write — the sweep — so a tab killed mid-apply has already stored
+ * before the preview's FIRST sandbox write, so a tab killed mid-apply has already stored
  * the page it was previewing. A blocked preview (validation) writes nothing and saves nothing.
  *
  * Kept apart from previewPageV2.test.ts so this seam's test does not ride on that file's fixtures.

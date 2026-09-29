@@ -62,6 +62,11 @@ export interface TreeNode {
   /** True when the CR reads its data from a RESTAction (`spec.apiRef`) — the data-bound half. */
   bound: boolean
   /**
+   * The RESTAction its `spec.apiRef` names, or null. This is where a RESTAction appears in the
+   * composer: beside the widget that reads it, never as a node of its own (see buildObjectTree).
+   */
+  dataSource: string | null
+  /**
    * What this container says it is for: its own `spec.widgetData.allowedResources`.
    *
    * `null` when the key is absent; an array otherwise, and EMPTY is the normal state — the CRD
@@ -128,6 +133,7 @@ interface ParsedObject {
   kind: string | null
   path: string
   bound: boolean
+  dataSource: string | null
   namespace: string | null
   allowedResources: readonly string[] | null
   /** Whether that list was grown by the composer rather than declared — see the TreeNode field. */
@@ -227,11 +233,13 @@ const parseObject = (path: string, content: string): ParsedObject | null => {
   const annotations = asRecord(meta?.annotations)
   const allowedDerived = annotations?.[DERIVED_ALLOWED_ANNOTATION] === 'derived'
   const declared = widgetData?.allowedResources
+  const apiRefName = asRecord(spec?.apiRef)?.name
   return {
     allowedDerived,
     allowedResources: Array.isArray(declared) ? declared.filter((entry): entry is string => typeof entry === 'string') : null,
     bound: Boolean(spec?.apiRef),
     children,
+    dataSource: typeof apiRefName === 'string' && apiRefName ? apiRefName : null,
     kind: typeof root?.kind === 'string' ? root.kind : null,
     name,
     namespace: typeof meta?.namespace === 'string' ? meta.namespace : null,
@@ -239,15 +247,26 @@ const parseObject = (path: string, content: string): ParsedObject | null => {
   }
 }
 
+/** The data-source kind: read BY widgets, never placed IN a container. */
+export const RESTACTION_KIND = 'RESTAction'
+
 /**
  * Build the forest. Roots are the objects nothing else references — normally exactly one (the page)
  * plus any orphan a half-finished edit left behind, which is worth SEEING rather than hiding.
+ *
+ * RESTACTIONS ARE NOT NODES. Nothing places one (no `resourcesRefs` entry names it), so it used to
+ * come out as a ROOT and the canvas drew it as a box above the page, as if it were layout — see the
+ * Portal Builder V2 recording, where the agent's `…-pods` RESTAction sat on the canvas beside the
+ * page's Flex. A RESTAction is a data source: it is shown on the widget that reads it
+ * (`dataSource`, from that widget's apiRef) and stays a file in Files. Leaving it out of `objects`
+ * also stops it SHADOWING a widget: bind-data names the query and the table alike, and objects are
+ * keyed by name, so whichever file came last took the other's place.
  */
 export const buildObjectTree = (files: Record<string, string>): TreeNode[] => {
   const objects = new Map<string, ParsedObject>()
   for (const [path, content] of Object.entries(files)) {
     const parsed = parseObject(path, content)
-    if (parsed) {
+    if (parsed && parsed.kind !== RESTACTION_KIND) {
       objects.set(parsed.name, parsed)
     }
   }
@@ -272,10 +291,10 @@ export const buildObjectTree = (files: Record<string, string>): TreeNode[] => {
     const object = objects.get(name)
     if (!object) {
       // Referenced but not in the draft: an existing cluster widget being placed.
-      return { allowedDerived: false, allowedResources: null, bound: false, children: [], drafted: false, kind: null, name, namespace, parentPath, path: null, position, refId, resource, slot }
+      return { allowedDerived: false, allowedResources: null, bound: false, children: [], dataSource: null, drafted: false, kind: null, name, namespace, parentPath, path: null, position, refId, resource, slot }
     }
     if (seen.has(name)) {
-      return { allowedDerived: object.allowedDerived, allowedResources: object.allowedResources, bound: object.bound, children: [], drafted: true, kind: object.kind, name, namespace, parentPath, path: object.path, position, refId, resource, slot }
+      return { allowedDerived: object.allowedDerived, allowedResources: object.allowedResources, bound: object.bound, children: [], dataSource: object.dataSource, drafted: true, kind: object.kind, name, namespace, parentPath, path: object.path, position, refId, resource, slot }
     }
     const nextSeen = new Set(seen).add(name)
     return {
@@ -283,6 +302,7 @@ export const buildObjectTree = (files: Record<string, string>): TreeNode[] => {
       allowedResources: object.allowedResources,
       bound: object.bound,
       children: object.children.map((child, index) => toNode(child, index, nextSeen, object.path)),
+      dataSource: object.dataSource,
       drafted: true,
       kind: object.kind,
       name,

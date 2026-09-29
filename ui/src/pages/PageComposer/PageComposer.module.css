@@ -307,4 +307,14 @@
   .centre {
     height: 100%;
   }
+
+  /* THE RESULT TAKES WHAT THE CANVAS LEAVES, NOT WHAT ITS CONTENT ASKS FOR. With a basis of `auto`
+     the result's basis was its content, and flex-shrink is weighted by basis: open Files (a few
+     thousand pixels of YAML) and the canvas gave up almost all of its --split share, down to a
+     ~90px strip (Portal Builder recording, dark theme). A zero basis leaves the canvas at exactly
+     --split and lets the result scroll the rest. Only here, where .centre has a definite height —
+     in the wrapped layout it has none, and a zero basis there would collapse the result. */
+  .centre > .result {
+    flex-basis: 0;
+  }
 }

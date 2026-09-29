@@ -10,11 +10,12 @@
  *     source alongside → a mutating chip;
  *   - drawer close → best-effort DELETE teardown of the applied drafts, ONCE, and
  *     a STALE close (payload superseded by a fresh preview) is a no-op;
- *   - a fresh preview SWEEPS the previous drafts first (latest wins, no 409);
+ *   - a fresh preview UPDATES the drafts it keeps in place (never deletes one), creates the new
+ *     ones, and deletes only the names that left the set — after the rest landed;
  *   - apply failure → applied drafts rolled back (best-effort), the failure shown
  *     AS drawer content, a graceful chip — never a crash;
  *   - OWNER-SCOPED names: every sandbox name carries the caller's owner tag, so two people
- *     previewing the same page never sweep, reclaim or tear down each other's objects — and the
+ *     previewing the same page never overwrite, adopt or tear down each other's objects — and the
  *     rename never reaches the drawer's files or the held draft a publish writes.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -26,7 +27,7 @@ import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { resetKindCacheForTests } from './kindResolver'
 import { openAutopilotPreview } from './previewBus'
 import type { AutopilotPreviewPayload } from './previewBus'
-import { applyPreviewPageV2, type PreviewPageV2Deps } from './previewPageV2'
+import { applyPreviewPageV2, mergePatchOf, type PreviewPageV2Deps } from './previewPageV2'
 import { createPreviewPageSession, ownerTagOf, primeDraftKinds, sandboxDraftName, WIDGETS_API_VERSION } from './previewSandbox'
 import { recordPagePreview } from './publishCompile'
 
@@ -153,20 +154,36 @@ describe('previewPage v2 — deny + validation gates (nothing applied)', () => {
   })
 })
 
+const verbsOf = (handleActionSet: ReturnType<typeof vi.fn>): string[] =>
+  handleActionSet.mock.calls.flatMap(([ops]) => (ops as WriteOp[]).map((op) => op.verb))
+const opsOf = (handleActionSet: ReturnType<typeof vi.fn>): WriteOp[] =>
+  handleActionSet.mock.calls.flatMap(([ops]) => ops as WriteOp[])
+
+/** The root with a second child listed — what a drop into the page looks like. */
+const flexRootWith = (...names: string[]): Record<string, unknown> => ({
+  kind: 'Flex',
+  metadata: { name: 'page-preview-draft', namespace: 'krateo-system' },
+  spec: {
+    resourcesRefs: {
+      items: names.map((name, index) => ({ allowed: true, apiVersion: WIDGETS_API_VERSION, id: `p${index}`, name, namespace: 'krateo-system', resource: 'paragraphs', verb: 'GET' })),
+    },
+    widgetData: { allowedResources: ['paragraphs'], items: names.map((_, index) => ({ resourceRefId: `p${index}` })) },
+  },
+})
+const paragraphNamed = (name: string, text = 'Draft paragraph'): Record<string, unknown> => ({
+  kind: 'Paragraph',
+  metadata: { name },
+  spec: { widgetData: { text } },
+})
+
 describe('previewPage v2 — the happy path (apply → live drawer → teardown on close)', () => {
-  it('SWEEPS the names it is about to write, then applies them — silent, sandbox-confined', async () => {
+  it('a FIRST preview creates every draft — one silent, sandbox-confined POST set, nothing deleted', async () => {
     const { deps, handleActionSet } = makeDeps()
 
     const chip = await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
 
-    // TWO dispatches now: the pre-sweep always fires, because it is derived from the targets this
-    // apply is about to create rather than from what this session remembers. That is what makes a
-    // re-used name idempotent after a crash — see the DELETE assertions below.
-    expect(handleActionSet).toHaveBeenCalledTimes(2)
-    const [sweepOps] = handleActionSet.mock.calls[0] as [WriteOp[], unknown]
-    expect(sweepOps.every((op) => op.verb === 'DELETE')).toBe(true)
-    expect(sweepOps).toHaveLength(2)
-    const [ops, options] = handleActionSet.mock.calls[1] as [WriteOp[], unknown]
+    expect(handleActionSet).toHaveBeenCalledTimes(1)
+    const [ops, options] = handleActionSet.mock.calls[0] as [WriteOp[], unknown]
     expect(options).toEqual({ silent: true, skipConfirmForSandbox: SANDBOX })
     expect(ops.map((op) => op.verb)).toEqual(['POST', 'POST'])
     expect(ops[0].path).toContain('resource=flexes')
@@ -198,72 +215,152 @@ describe('previewPage v2 — the happy path (apply → live drawer → teardown 
 
     payload.onClose?.()
 
-    // sweep + apply + teardown
-    expect(handleActionSet).toHaveBeenCalledTimes(3)
-    const [teardown, options] = handleActionSet.mock.calls[2] as [WriteOp[], unknown]
+    // apply + teardown
+    expect(handleActionSet).toHaveBeenCalledTimes(2)
+    const [teardown, options] = handleActionSet.mock.calls[1] as [WriteOp[], unknown]
     expect(teardown.map((op) => op.verb)).toEqual(['DELETE', 'DELETE'])
     expect(teardown.map(nameParam)).toEqual([scoped('page-preview-draft'), scoped('preview-draft-title')])
     expect(options).toEqual({ silent: true, skipConfirmForSandbox: SANDBOX })
 
     payload.onClose?.()
-    expect(handleActionSet).toHaveBeenCalledTimes(3)
+    expect(handleActionSet).toHaveBeenCalledTimes(2)
   })
 
-  it('a FRESH preview sweeps the previous drafts first; the STALE drawer-close is a no-op', async () => {
+  it('a FRESH preview updates the previous drafts in place; the STALE drawer-close is a no-op', async () => {
     const { deps, handleActionSet } = makeDeps()
     await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
     const stalePayload = openedPayload()
 
     await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
 
-    // sweep+apply #1, then sweep+apply #2.
-    expect(handleActionSet).toHaveBeenCalledTimes(4)
-    const [sweep] = handleActionSet.mock.calls[2] as [WriteOp[]]
-    expect(sweep.every((op) => op.verb === 'DELETE')).toBe(true)
+    expect(handleActionSet).toHaveBeenCalledTimes(2)
+    const [second] = handleActionSet.mock.calls[1] as [WriteOp[]]
+    expect(second.map((op) => op.verb)).toEqual(['PATCH', 'PATCH'])
 
     // The stale drawer's close must NOT delete the fresh preview's drafts.
     stalePayload.onClose?.()
-    expect(handleActionSet).toHaveBeenCalledTimes(4)
+    expect(handleActionSet).toHaveBeenCalledTimes(2)
 
-    // The fresh drawer's close does.
+    // The fresh drawer's close does — and the preview after it creates again.
     openedPayload(1).onClose?.()
-    expect(handleActionSet).toHaveBeenCalledTimes(5)
+    expect(handleActionSet).toHaveBeenCalledTimes(3)
+    await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
+    const [afterClose] = handleActionSet.mock.calls[3] as [WriteOp[]]
+    expect(afterClose.map((op) => op.verb)).toEqual(['POST', 'POST'])
   })
 
-  it('ADOPTS a crashed session\'s orphans — re-used names are swept even with nothing recorded', async () => {
-    // THE BUG THIS EXISTS FOR. Teardown fires only on drawer-close, so a killed tab or a crashed
-    // rail never records it. Its drafts survive under deterministic names (page-<slug>,
-    // <name>-card...), the next preview POSTs the same names, the apiserver answers 409, and the
-    // drawer silently falls back to the source view — reported as "Applying the drafts to the
-    // preview sandbox failed" or mislabelled upstream as a validation error. A 144-minute-old orphan
-    // from a killed recorder blocked every live preview during the V4 demo.
-    //
-    // A FRESH deps is exactly that situation: session state empty, orphans on the cluster. The sweep
-    // must still cover the names about to be written, because it is derived from the apply targets
-    // rather than from what anyone remembers.
-    const { deps, handleActionSet } = makeDeps()
-    // nothing recorded — the post-crash state
+  it('ADOPTS a crashed session\'s orphans — a re-used name is updated in place, never deleted', async () => {
+    // A killed tab or a crashed rail never tears down: its drafts survive under deterministic,
+    // owner-scoped names, and a FRESH deps (nothing recorded) is exactly that situation. The POST
+    // meets the orphan (409) and the orphan is patched where it stands. A 144-minute-old orphan once
+    // blocked every live preview of the V4 demo, so the 409 must never be the end of the preview.
+    const { deps, handleActionSet } = makeDeps((ops) => ops.map((op, index) => (
+      op.verb === 'POST'
+        ? { index, message: `"${(op.payload as { metadata: { name: string } }).metadata.name}" already exists`, ok: false, status: 409 }
+        : { index, message: 'OK', ok: true, status: 200 })))
     expect(deps.session.take()).toHaveLength(0)
 
-    await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
+    const chip = await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
 
-    const [sweep] = handleActionSet.mock.calls[0] as [WriteOp[]]
-    expect(sweep.every((op) => op.verb === 'DELETE')).toBe(true)
-    // The very names the apply is about to create — so the POST cannot collide with an orphan.
-    expect(sweep.map(nameParam)).toEqual([scoped('page-preview-draft'), scoped('preview-draft-title')])
-
-    const [applyOps] = handleActionSet.mock.calls[1] as [WriteOp[]]
-    expect(applyOps.every((op) => op.verb === 'POST')).toBe(true)
-    // Every name POSTed was swept first. That equality IS the no-409 guarantee.
-    const swept = sweep.map(nameParam).sort()
-    const posted = applyOps.map((op) => (op.payload as { metadata: { name: string } }).metadata.name).sort()
-    expect(swept).toEqual(posted)
+    expect(chip?.label).not.toContain('failed')
+    expect(openedPayload().liveEndpoint).toBeDefined()
+    expect(verbsOf(handleActionSet)).not.toContain('DELETE')
+    const patched = opsOf(handleActionSet).filter((op) => op.verb === 'PATCH').map(nameParam)
+    expect(patched).toEqual([scoped('page-preview-draft'), scoped('preview-draft-title')])
   })
 
   it('honors the proposal label on the chip', async () => {
     const { deps } = makeDeps()
     const chip = await applyPreviewPageV2(proposalOf([flexRoot()], 'preview the postgres page'), deps)
     expect(chip?.label).toBe('preview the postgres page')
+  })
+})
+
+/**
+ * THE "NOT FOUND" FLASH, from the Portal Builder recordings. Each drop or bind in the composer
+ * re-applies the whole page, and the apply used to DELETE every name before POSTing it again. The
+ * Rendered tab, mounted on the same root and refetched by the sweep's own write, showed "Not found"
+ * cards for seconds — for the PageHeader too, which no edit had touched.
+ */
+describe('previewPage v2 — an edit never deletes a widget it keeps', () => {
+  it('adding a widget POSTs only the new one (first) and PATCHes the rest; nothing is deleted', async () => {
+    const { deps, handleActionSet } = makeDeps()
+    await applyPreviewPageV2(proposalOf([flexRootWith('preview-draft-title'), paragraphNamed('preview-draft-title')]), deps)
+    handleActionSet.mockClear()
+
+    await applyPreviewPageV2(proposalOf([
+      flexRootWith('preview-draft-title', 'preview-draft-more'),
+      paragraphNamed('preview-draft-title'),
+      paragraphNamed('preview-draft-more'),
+    ]), deps)
+
+    expect(verbsOf(handleActionSet)).not.toContain('DELETE')
+    const ops = opsOf(handleActionSet)
+    // The new child exists before the container that lists it is updated.
+    expect(ops.map((op) => op.verb)).toEqual(['POST', 'PATCH', 'PATCH'])
+    expect((ops[0].payload as { metadata: { name: string } }).metadata.name).toBe(scoped('preview-draft-more'))
+    expect(ops.slice(1).map(nameParam)).toEqual([scoped('page-preview-draft'), scoped('preview-draft-title')])
+  })
+
+  it('removing a widget deletes ONLY it, and only after the container stopped listing it', async () => {
+    const { deps, handleActionSet } = makeDeps()
+    await applyPreviewPageV2(proposalOf([
+      flexRootWith('preview-draft-title', 'preview-draft-more'),
+      paragraphNamed('preview-draft-title'),
+      paragraphNamed('preview-draft-more'),
+    ]), deps)
+    handleActionSet.mockClear()
+
+    await applyPreviewPageV2(proposalOf([flexRootWith('preview-draft-title'), paragraphNamed('preview-draft-title')]), deps)
+
+    const ops = opsOf(handleActionSet)
+    expect(ops.map((op) => op.verb)).toEqual(['PATCH', 'PATCH', 'DELETE'])
+    expect(nameParam(ops[2])).toBe(scoped('preview-draft-more'))
+  })
+
+  it('the in-place update removes a field the edit removed (merge patch nulls it)', async () => {
+    const { deps, handleActionSet } = makeDeps()
+    const titled = { ...paragraph(), spec: { widgetData: { strong: true, text: 'Draft paragraph' } } }
+    await applyPreviewPageV2(proposalOf([flexRoot(), titled]), deps)
+    handleActionSet.mockClear()
+
+    await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
+
+    const patch = opsOf(handleActionSet).find((op) => nameParam(op) === scoped('preview-draft-title'))
+    expect(patch?.verb).toBe('PATCH')
+    expect((patch?.payload as { spec: { widgetData: Record<string, unknown> } }).spec.widgetData)
+      .toEqual({ strong: null, text: 'Draft paragraph' })
+  })
+
+  it('an update whose object is gone (the TTL janitor) creates it instead', async () => {
+    let calls = 0
+    const { deps, handleActionSet } = makeDeps((ops) => {
+      calls += 1
+      // 2nd dispatch = the re-apply's PATCH set: the root is gone.
+      return calls === 2 && ops[0].verb === 'PATCH'
+        ? [{ index: 0, message: 'flexes "x" not found', ok: false, status: 404 }]
+        : ops.map((_, index) => ({ index, message: 'OK', ok: true, status: 200 }))
+    })
+    await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
+
+    const chip = await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
+
+    expect(chip?.label).not.toContain('failed')
+    expect(verbsOf(handleActionSet).slice(2)).toEqual(['PATCH', 'PATCH', 'POST', 'PATCH'])
+    expect(verbsOf(handleActionSet)).not.toContain('DELETE')
+  })
+})
+
+describe('mergePatchOf', () => {
+  it('nulls keys only the previous object had, recurses objects, replaces arrays whole', () => {
+    expect(mergePatchOf(
+      { a: 1, list: [2], nested: { keep: true } },
+      { a: 0, gone: 'x', list: [1, 2, 3], nested: { dropped: 1, keep: false } },
+    )).toEqual({ a: 1, gone: null, list: [2], nested: { dropped: null, keep: true } })
+  })
+
+  it('with no previous object, is the object itself', () => {
+    expect(mergePatchOf({ a: 1 }, undefined)).toEqual({ a: 1 })
   })
 })
 
@@ -274,7 +371,7 @@ describe('previewPage v2 — apply failure (graceful, rolled back, never a crash
     const chip = await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
 
     // Only the apply dispatch — nothing landed, so nothing to tear down.
-    expect(handleActionSet).toHaveBeenCalledTimes(2)
+    expect(handleActionSet).toHaveBeenCalledTimes(1)
     expect(chip?.label).toBe(`preview apply failed — Flex/${scoped('page-preview-draft')}: admission webhook denied`)
     expect(chip?.readOnly).toBe(false)
     const payload = openedPayload()
@@ -293,50 +390,15 @@ describe('previewPage v2 — apply failure (graceful, rolled back, never a crash
 
     expect(chip?.label).toBe(`preview apply failed — Paragraph/${scoped('preview-draft-title')}: quota exceeded`)
     // apply, then the rollback of the ONE landed draft.
-    expect(handleActionSet).toHaveBeenCalledTimes(3)
-    const [rollback] = handleActionSet.mock.calls[2] as [WriteOp[]]
+    expect(handleActionSet).toHaveBeenCalledTimes(2)
+    const [rollback] = handleActionSet.mock.calls[1] as [WriteOp[]]
     expect(rollback).toHaveLength(1)
     expect(rollback[0].verb).toBe('DELETE')
     expect(nameParam(rollback[0])).toBe(scoped('page-preview-draft'))
     expect(openedPayload().error).toContain('quota exceeded')
   })
 
-  /**
-   * RE-PREVIEWING THE SAME DRAFT. Three takes of a demo lost their live render to this, and none of
-   * the tests above could see it: every one of them previews ONCE.
-   *
-   * The second apply POSTs names the first apply created. The apiserver answers 409 "… already
-   * exists", and the failure path then tears down the drafts that HAD landed — so the second preview
-   * does not merely fail, it destroys the working render the first one produced. The sweep is meant
-   * to prevent the 409 and, when its DELETE is refused, silently does not: `handleActionSet` resolves
-   * with {ok:false} rather than throwing, and the old sweep discarded its results.
-   *
-   * So the 409 is reclaimed where it is detected. The third case is the one that matters most: a
-   * name we cannot free must STILL fail, and must fail naming what is in the way.
-   */
-  it('a 409 on re-apply is RECLAIMED: delete that name, retry once, preview succeeds', async () => {
-    let posts = 0
-    const { deps, handleActionSet } = makeDeps((ops) => {
-      if (ops[0].verb !== 'POST') {
-        return ops.map((_, index) => ({ index, message: 'OK', ok: true, status: 200 }))
-      }
-      posts += 1
-
-      return posts === 1
-        ? ops.map((_, index) => ({ index, message: 'tables.widgets.templates.krateo.io "x" already exists', ok: false, status: 409 }))
-        : ops.map((_, index) => ({ index, message: 'OK', ok: true, status: 201 }))
-    })
-
-    const chip = await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
-
-    expect(chip?.label).not.toContain('failed')
-    expect(openedPayload().error).toBeUndefined()
-    expect(openedPayload().liveEndpoint).toBeDefined()
-    const verbs = handleActionSet.mock.calls.map(([ops]) => (ops as WriteOp[])[0].verb)
-    expect(verbs).toContain('DELETE')
-  })
-
-  it('a 409 whose DELETE is REFUSED still fails, reporting what is in the way', async () => {
+  it('a 409 whose in-place update is REFUSED still fails, reporting what is in the way', async () => {
     const { deps } = makeDeps((ops) => (
       ops[0].verb === 'POST'
         ? ops.map((_, index) => ({ index, message: 'tables "pods-table" already exists', ok: false, status: 409 }))
@@ -347,6 +409,7 @@ describe('previewPage v2 — apply failure (graceful, rolled back, never a crash
 
     expect(chip?.label).toContain('already exists')
     expect(openedPayload().error).toContain('already exists')
+    expect(openedPayload().error).toContain('forbidden')
     expect(openedPayload().liveEndpoint).toBeUndefined()
   })
 
@@ -377,7 +440,7 @@ describe('previewPage v2 — apply failure (graceful, rolled back, never a crash
 
 describe('previewPage v2 — owner-scoped names (two people, one page)', () => {
   /**
-   * Every name a run dispatched, by verb — the sweep, the POSTs, any reclaim, the teardown. A POST
+   * Every name a run dispatched, by verb — the POSTs, the in-place PATCHes, the teardown. A POST
    * goes to the collection, so its name is the payload's; a DELETE names its object in the path.
    */
   const nameOf = (op: WriteOp): string | null =>
@@ -386,10 +449,10 @@ describe('previewPage v2 — owner-scoped names (two people, one page)', () => {
     new Set(handleActionSet.mock.calls.flatMap(([ops]) => (ops as WriteOp[]).filter((op) => op.verb === verb).map(nameOf))
       .filter((name): name is string => name !== null))
 
-  it('alice\'s sweep, apply, 409 reclaim and teardown never name one of bob\'s objects for the same page', async () => {
-    // THE COLLISION. Both preview `page-preview-draft`. The sweep is derived from the names this
-    // apply writes and the reclaim deletes whatever holds a name — so with unscoped names alice's
-    // preview deleted bob's live one. The POSTs answer 409 first, to drive the reclaim too.
+  it('alice\'s apply, 409 adoption and teardown never name one of bob\'s objects for the same page', async () => {
+    // THE COLLISION. Both preview `page-preview-draft`. A 409 is adopted by patching whatever holds
+    // the name, and the close deletes by name — so with unscoped names alice's preview would have
+    // overwritten, then deleted, bob's live one. The POSTs answer 409 first, to drive the adoption.
     const run = async (owner: string) => {
       loginAs(owner)
       let posts = 0
@@ -398,7 +461,7 @@ describe('previewPage v2 — owner-scoped names (two people, one page)', () => {
           return ops.map((_, index) => ({ index, message: 'OK', ok: true, status: 200 }))
         }
         posts += 1
-        // Two refusals: the chunk's, then the reclaim's first retry — so the reclaim's DELETE fires.
+        // Two refusals: the chunk's first POST, then the resumed chunk's — each adopted by a PATCH.
         return posts <= 2
           ? ops.map((_, index) => ({ index, message: 'already exists', ok: false, status: 409 }))
           : ops.map((_, index) => ({ index, message: 'OK', ok: true, status: 201 }))
@@ -410,17 +473,17 @@ describe('previewPage v2 — owner-scoped names (two people, one page)', () => {
     const alice = await run('alice')
     const bob = await run('bob')
 
-    const bobWrites = namesBy(bob, 'POST')
+    const bobWrites = new Set([...namesBy(bob, 'POST'), ...namesBy(bob, 'PATCH')])
     const aliceDeletes = namesBy(alice, 'DELETE')
     expect(bobWrites.size).toBe(2)
-    // alice deleted things — the sweep, the reclaim and the close all fired…
+    // alice deleted things — the close fired…
     expect(aliceDeletes.size).toBeGreaterThan(0)
     // …and not one of them is a name bob wrote.
     for (const name of bobWrites) {
       expect(aliceDeletes.has(name)).toBe(false)
     }
     // Every name alice touched carries alice's tag, and no other.
-    for (const name of [...namesBy(alice, 'POST'), ...aliceDeletes]) {
+    for (const name of [...namesBy(alice, 'POST'), ...namesBy(alice, 'PATCH'), ...aliceDeletes]) {
       expect(name.endsWith(`-${ownerTagOf('alice')}`)).toBe(true)
     }
   })

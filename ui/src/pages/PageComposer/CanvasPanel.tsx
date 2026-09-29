@@ -257,8 +257,9 @@ const Frame = ({ airborne, depth, draggingId, legal, node, onSelect }: {
           {node.kind ?? 'unresolved'}
         </Text>
         <Text style={{ fontSize: 12 }} type='secondary'>{node.name}</Text>
+        {/* The RESTAction shows HERE, on the widget that reads it — never as a frame of its own. */}
         {node.bound ? (
-          <Tooltip title='reads its data from a RESTAction (spec.apiRef)'>
+          <Tooltip title={node.dataSource ? `reads its data from the RESTAction ${node.dataSource} (spec.apiRef)` : 'reads its data from a RESTAction (spec.apiRef)'}>
             <Tag color='cyan'>data</Tag>
           </Tooltip>
         ) : null}
