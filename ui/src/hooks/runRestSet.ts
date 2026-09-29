@@ -47,6 +47,13 @@ export interface SetDispatchOptions {
    * per-item results and post-write query invalidation are UNAFFECTED.
    */
   silent?: boolean
+  /**
+   * Skip the post-write query invalidation. For a write NOTHING ON SCREEN READS — a draft record's
+   * autosave, every ~2 s while someone edits. Invalidating every query on each of those would
+   * refetch every widget on the page for a ConfigMap none of them shows. The confirm gate,
+   * provenance record and per-item results are UNAFFECTED.
+   */
+  skipRevalidate?: boolean
 }
 
 /**
@@ -189,7 +196,7 @@ export const runRestSet = async (ops: readonly WriteOp[], ctx: RunRestSetContext
 
   // Converge the UI after any applied write — same immediate + staggered background
   // re-invalidation runRest uses (snowplow's informer read can lag the write).
-  if (results.some((result) => result.ok)) {
+  if (!options?.skipRevalidate && results.some((result) => result.ok)) {
     await ctx.invalidateQueries()
     for (const ms of POST_WRITE_REVALIDATE_DELAYS_MS) {
       const timer = setTimeout(() => { void ctx.invalidateQueries() }, ms)

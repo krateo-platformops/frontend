@@ -39,6 +39,7 @@ const deps = (applied: AutopilotActionChip | null) => {
   store.set(seeded(), 'blueprint')
   const apply = vi.fn(() => Promise.resolve(applied))
   const track = vi.fn()
+  const markPublished = vi.fn(() => Promise.resolve())
   return {
     apply,
     deps: {
@@ -46,9 +47,12 @@ const deps = (applied: AutopilotActionChip | null) => {
       blueprintGate: { evaluate: () => ({ allowed: true, reason: null }) },
       blueprintStore: store,
       builderTargets: { blueprint: { owner: 'krateo-blueprints', repo: 'builder-publish' }, blueprintTemplate: { owner: '', repo: '' }, page: { owner: 'krateo-platformops', repo: 'portal' } },
+      markPublished,
       origin: { prompt: null, sessionId: null },
       track,
     } as unknown as PersonPublishDeps,
+    markPublished,
+    store,
     track,
   }
 }
@@ -81,5 +85,22 @@ describe('runPersonPublish — "published" only when the claim was written', () 
     expect(answer.denial).toBe('Not published — the claim was refused: HTTP 403 — builderpublishes.builder.krateo.io is forbidden')
     expect(answer.deepLink).toBeNull()
     expect(track).not.toHaveBeenCalled()
+  })
+
+  it('a landed claim marks the draft\'s RECORD published, with the claim and the change-request link', async () => {
+    const { deps: publishDeps, markPublished, store } = deps(LANDED)
+    const held = store.get()
+    const answer = await runPersonPublish(publishDeps, 'publishBlueprint')
+    expect(markPublished).toHaveBeenCalledTimes(1)
+    expect(markPublished).toHaveBeenCalledWith(held, expect.objectContaining({ publishName: 'builder-publish' }), answer.deepLink)
+  })
+
+  it('a declined or refused publish leaves the record open', async () => {
+    const declined = deps(null)
+    await runPersonPublish(declined.deps, 'publishBlueprint')
+    const refused = deps({ ...LANDED, failure: 'HTTP 403' })
+    await runPersonPublish(refused.deps, 'publishBlueprint')
+    expect(declined.markPublished).not.toHaveBeenCalled()
+    expect(refused.markPublished).not.toHaveBeenCalled()
   })
 })

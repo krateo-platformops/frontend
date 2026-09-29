@@ -554,7 +554,11 @@ const composeRefusal = (verb: string, result: ComposeResult, fallback: string): 
   return refused(verb, result.where?.length ? `${reason} — it would fit in ${result.where.join(', ')}` : reason)
 }
 
-export const useAutopilotActionBridge = () => {
+/**
+ * `beforePreviewApply` is the draft-record WRITE-AHEAD (useDraftAutosave.flush): a live page preview
+ * runs it before its first sandbox write. Optional — absent, previews behave exactly as before.
+ */
+export const useAutopilotActionBridge = (beforePreviewApply?: () => Promise<unknown>) => {
   const { handleAction, handleActionSet } = useHandleAction()
   const queryClient = useQueryClient()
   const { routes } = useRoutesContext()
@@ -781,6 +785,7 @@ export const useAutopilotActionBridge = () => {
         sessionId: origin?.agentSessionId ?? 'unattributed',
         // A.2.35 warm-up gate: hold the drawer until the root's serve resolves all children.
         ...(snowplowBaseUrl ? { snowplowBaseUrl } : {}),
+        ...(beforePreviewApply ? { beforeApply: beforePreviewApply } : {}),
       })) ?? refused('previewPage')
     }
 
@@ -801,7 +806,7 @@ export const useAutopilotActionBridge = () => {
       : undefined
     return (await spec.apply(proposal, { frontendNamespace, handleAction, renderBaseUrl, routePatterns, snowplowBaseUrl, ...(sandboxWriter ? { sandboxWriter } : {}) }))
       ?? refused(proposal.verb)
-  }, [frontendNamespace, handleAction, handleActionSet, previewPageSession, queryClient, renderBaseUrl, routePatterns, sandboxNamespace, snowplowBaseUrl])
+  }, [beforePreviewApply, frontendNamespace, handleAction, handleActionSet, previewPageSession, queryClient, renderBaseUrl, routePatterns, sandboxNamespace, snowplowBaseUrl])
 
   // A discarded draft's live render goes with it: the teardown session taken unconditionally.
   const discardSandbox = useCallback(async (): Promise<void> => {

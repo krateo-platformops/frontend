@@ -35,6 +35,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncE
 
 import { emitComposeResult, onComposeRequest } from '../../components/Autopilot/composeRequest'
 import { draftHistory } from '../../components/Autopilot/draftHistory'
+import DraftSaveIndicator, { useCloseDraftCopy } from '../../components/Autopilot/DraftSaveIndicator'
 import { AUTOPILOT_PREVIEW_EVENT, isPageDraftPayload } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { claimPreviewSurface, onDraftChanged, requestDraftReplay } from '../../components/Autopilot/previewDraftChanged'
@@ -381,6 +382,8 @@ const PageComposer = () => {
   // person who pressed the button is looking at this page, and sending them to the conversation to
   // find out what happened is the coupling this whole surface exists to remove.
   const [publishing, setPublishing] = useState(false)
+  // Whether Close draft keeps the page (its record is stored) — the confirm says which.
+  const closeCopy = useCloseDraftCopy('page')
   const [outcome, setOutcome] = useState<{ denial: string | null; deepLink: string | null } | null>(null)
   const publishId = useRef<string | null>(null)
   /** The result panel, so the header can take you to it without anyone hunting for it. */
@@ -729,6 +732,8 @@ const PageComposer = () => {
         {shown && !parkedBlueprint
           ? (
             <Space className={styles.actions}>
+              {/* The draft record's autosave: Saving…, Saved · HH:MM, or Not saved — and why. */}
+              <DraftSaveIndicator kind='page' />
               {/*
                 THE PREVIEW IS TWENTY SCREENS DOWN, and build-above/result-below is still the right
                 reading order — a page builder that put the render between the palette and the
@@ -758,11 +763,12 @@ const PageComposer = () => {
               <Button loading={publishing} onClick={publish} type='primary'>
                 {publishing ? 'Publishing…' : 'Publish'}
               </Button>
+              {/* Close keeps a draft that has a record, and discards one that has none — useCloseDraftCopy. */}
               <Popconfirm
                 cancelText='Keep editing'
-                okText='Discard'
+                okText={closeCopy.okText}
                 onConfirm={closeDraft}
-                title='Discard this draft? The sandbox and its unpublished files are deleted.'
+                title={closeCopy.title}
               >
                 <Button>Close draft</Button>
               </Popconfirm>

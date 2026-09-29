@@ -58,6 +58,11 @@ export interface PreviewPageV2Deps {
   handleActionSet: (ops: readonly WriteOp[], options?: SetDispatchOptions) => Promise<WriteOpResult[] | null>
   /** snowplow base URL for the A.2.35 warm-up gate (absent → the gate is skipped). */
   snowplowBaseUrl?: string
+  /**
+   * WRITE-AHEAD: save the held draft's record before the sandbox is touched, so a tab killed
+   * mid-apply has already stored what it was previewing (useDraftAutosave.flush). Never throws.
+   */
+  beforeApply?: () => Promise<unknown>
 }
 
 /**
@@ -282,6 +287,7 @@ export const applyPreviewPageV2 = async (
   //
   // session.take() is still swept: it clears a previous preview of a DIFFERENT page in this tab,
   // whose names this apply will not otherwise touch.
+  await deps.beforeApply?.().catch(() => undefined)
   await dispatchBestEffort(
     [...deps.session.take(), ...buildSandboxTeardownOps(targets, deps.sandboxNamespace)],
     deps,

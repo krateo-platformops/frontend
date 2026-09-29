@@ -22,7 +22,7 @@
  */
 import { useCallback, useEffect, useRef } from 'react'
 
-import { createBlueprintDraftStore, type BlueprintDraftStore } from './blueprintDraftStore'
+import { createBlueprintDraftStore, type BlueprintDraftStore, type DraftChangeListener } from './blueprintDraftStore'
 import type { BlueprintGate } from './blueprintGate'
 import { clearComposeRefusals } from './composeRequest'
 import { draftHistory } from './draftHistory'
@@ -79,7 +79,15 @@ export const heldDraftDetail = (
  * Side-effect free at construction: the provider builds this in a useState initializer, which
  * StrictMode runs twice. The gate's own announcements are wired by useDraftFileBuses, in an effect.
  */
-export const createBroadcastingDraftStore = (gate?: Pick<BlueprintGate, 'forget' | 'isArmed'>): BlueprintDraftStore => {
+export const createBroadcastingDraftStore = (
+  gate?: Pick<BlueprintGate, 'forget' | 'isArmed'>,
+  /**
+   * Also told of every change — the draft-record autosave (useDraftAutosave). Here, at the store's
+   * one listener, rather than on the window broadcast: the broadcast also fires for replays and gate
+   * changes, where the tree did not move, and a record save is only owed when it did.
+   */
+  onHeldChange?: DraftChangeListener,
+): BlueprintDraftStore => {
   const isArmed = gate ? (identity: string | null) => gate.isArmed(identity) : undefined
   let heldIdentity: string | null = null
   return createBlueprintDraftStore((held) => {
@@ -89,6 +97,7 @@ export const createBroadcastingDraftStore = (gate?: Pick<BlueprintGate, 'forget'
     }
     heldIdentity = identity
     emitDraftChanged(heldDraftDetail(held, isArmed))
+    onHeldChange?.(held)
   })
 }
 

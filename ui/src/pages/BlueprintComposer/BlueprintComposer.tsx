@@ -49,6 +49,7 @@ import { resolveBuilderTarget } from '../../components/Autopilot/builderTargets'
 import { extractCrdSpecFields, type CrdSpecExtract } from '../../components/Autopilot/describeResource'
 import { draftHistory } from '../../components/Autopilot/draftHistory'
 import { DraftProblemsAlert } from '../../components/Autopilot/DraftProblemsAlert'
+import DraftSaveIndicator, { useCloseDraftCopy } from '../../components/Autopilot/DraftSaveIndicator'
 import { AUTOPILOT_PREVIEW_EVENT, isBlueprintDraftPayload, type AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { claimPreviewSurface, onDraftChanged, requestDraftReplay, type DraftChangedDetail } from '../../components/Autopilot/previewDraftChanged'
 import { emitDraftClose, onDraftClose } from '../../components/Autopilot/previewDraftClose'
@@ -168,6 +169,8 @@ const BlueprintComposer = () => {
   const { adopt, reset } = requests
   const undoDepth = useSyncExternalStore(draftHistory.subscribe, draftHistory.depth, draftHistory.depth)
   const blockerId = useId()
+  // Whether Close draft keeps the chart (its record is stored) — the confirm says which.
+  const closeCopy = useCloseDraftCopy('blueprint')
   // Placing: the row whose CRD is being read, why the last one did not land (said under its row),
   // and what the node just placed says.
   const [placing, setPlacing] = useState<PaletteRow | null>(null)
@@ -470,6 +473,8 @@ const BlueprintComposer = () => {
             </h1>
           </div>
           <span className={styles.spacer} />
+          {/* The draft record's autosave: Saving…, Saved · HH:MM, or Not saved — and why. */}
+          <DraftSaveIndicator kind='blueprint' />
           {/* A count, with no cap to measure it against (frontend#367). */}
           <span className={styles.countPill} title='Files held in the draft'>{counted(Object.keys(files).length, 'file')}</span>
           {/* The EXCEPTION only (status indicators are exception-only): nothing marks a chart whose
@@ -494,13 +499,13 @@ const BlueprintComposer = () => {
                 </Button>
               </span>
             </Tooltip>
-            {/* Confirmed rather than immediate: the draft is not recoverable, and nothing else in
-                view says so. A REAL discard — the provider drops the held draft, not only this view. */}
+            {/* Confirmed rather than immediate. The provider drops the held draft, not only this view;
+                whether the draft stays stored (close) or goes (discard) is useCloseDraftCopy's to say. */}
             <Popconfirm
               cancelText='Keep editing'
-              okText='Discard'
+              okText={closeCopy.okText}
               onConfirm={emitDraftClose}
-              title='Discard this chart draft? Its unpublished files are deleted.'
+              title={closeCopy.title}
             >
               <Button>Close draft</Button>
             </Popconfirm>
