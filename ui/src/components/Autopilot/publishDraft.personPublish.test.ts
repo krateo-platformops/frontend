@@ -21,10 +21,18 @@ vi.mock('./builderClaimPublish', () => ({
   })),
 }))
 
+// Pass-through spy: the headless form still resolves its prefills, and the call says who asked.
+vi.mock('./publishTargetForm', async (importOriginal) => {
+  const actual = await importOriginal<typeof PublishTargetFormModule>()
+  return { ...actual, askPublishDestination: vi.fn(actual.askPublishDestination) }
+})
+
 import { startChart } from '../../pages/BlueprintComposer/startChart'
 
 import { createBlueprintDraftStore } from './blueprintDraftStore'
-import { runPersonPublish, type PersonPublishDeps } from './publishDraft'
+import { runDraftPublish, runPersonPublish, type PersonPublishDeps } from './publishDraft'
+import { askPublishDestination } from './publishTargetForm'
+import type * as PublishTargetFormModule from './publishTargetForm'
 import type { AutopilotActionChip } from './types'
 
 /** A chart exactly as Start seeds it — clean under the lint, so only the apply decides. */
@@ -102,5 +110,21 @@ describe('runPersonPublish — "published" only when the claim was written', () 
     await runPersonPublish(refused.deps, 'publishBlueprint')
     expect(declined.markPublished).not.toHaveBeenCalled()
     expect(refused.markPublished).not.toHaveBeenCalled()
+  })
+})
+
+describe('the destination form is told who asked for the publish', () => {
+  const initiatorOf = () => vi.mocked(askPublishDestination).mock.calls.at(-1)?.[5]
+
+  it('a person\'s Publish button asks as a person — the form must not say Autopilot pushes it', async () => {
+    const { deps: publishDeps } = deps(LANDED)
+    await runPersonPublish(publishDeps, 'publishBlueprint')
+    expect(initiatorOf()).toBe('person')
+  })
+
+  it('the agent\'s publish verb asks as Autopilot', async () => {
+    const { deps: publishDeps } = deps(LANDED)
+    await runDraftPublish(publishDeps, { label: 'Publish it', verb: 'publishBlueprint' })
+    expect(initiatorOf()).toBe('autopilot')
   })
 })

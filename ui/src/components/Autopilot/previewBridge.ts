@@ -23,7 +23,7 @@ import { getAccessToken } from '../../utils/getAccessToken'
 
 import type { PortalActionProposal } from './actionBridge'
 import { restDefImmutabilityWarnings, validateRestDefinitionDraft } from './kogMapping'
-import { pageDraftFiles, pageDraftSlug, pagePublishPath } from './pageDraft'
+import { pageDraftFiles, pageDraftSlug, pagePublishPath, pageRootSlug } from './pageDraft'
 import { setPreviewProblems, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
 import { parseProposedChart } from './proposedChart'
 
@@ -315,6 +315,25 @@ export const callBlueprintRenderRA = async (
 export const PAGE_PREVIEW_CAPTION
   = 'Source preview — the proposed widget CRs exactly as they would be submitted. Nothing is applied; live in-page rendering of drafts is a follow-up.'
 
+/**
+ * The repository a page publish proposes: the page's own slug, the `<slug>` of its `page-<slug>`
+ * root. The strip says what the destination form will prefill, so it reads the slug the SAME way
+ * publishDraft does (pageRootSlug over the held files).
+ *
+ * It said `portal` — left over from when every page was a file in the one portal chart. A page set
+ * is its own chart with its own repository now (#163), so the strip promised `portal` while the form
+ * beside it proposed `demo-pb-04`. Null when the set has no page root: nothing can publish it.
+ */
+export const pagePublishRepo = (widgets: Record<string, unknown>[]): string | null => {
+  const files = pageDraftFiles(widgets)
+  return files ? pageRootSlug(files) : null
+}
+
+const pagePublishTarget = (widgets: Record<string, unknown>[]): Pick<AutopilotPreviewPayload, 'publishTarget'> => {
+  const repo = pagePublishRepo(widgets)
+  return repo ? { publishTarget: { base: 'main', repo } } : {}
+}
+
 export const buildPagePreviewPayload = (widgets: Record<string, unknown>[]): AutopilotPreviewPayload => ({
   // A set the store cannot hold as a page — no page-<slug> root — is looked at, not held: its files
   // must not be editable (an edit writes into whatever IS held), and no composer may adopt it.
@@ -338,7 +357,7 @@ export const buildPagePreviewPayload = (widgets: Record<string, unknown>[]): Aut
     ...(typeof widget.apiVersion === 'string' && widget.apiVersion ? { apiVersion: widget.apiVersion } : {}),
     yaml: toYamlString(widget),
   })),
-  publishTarget: { base: 'main', repo: 'portal' },
+  ...pagePublishTarget(widgets),
   title: `Page preview — ${widgets.length} proposed widget${widgets.length === 1 ? '' : 's'}`,
 })
 

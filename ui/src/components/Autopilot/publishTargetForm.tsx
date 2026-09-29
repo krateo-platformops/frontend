@@ -33,7 +33,16 @@ export interface PublishTargetRequest extends PublishTarget {
    * form refuses any other name, with the reason, as it is typed. Absent: any repository is taken.
    */
   requiredRepo?: string
+  /**
+   * WHO ASKED FOR THIS PUBLISH — a person's Publish button, or Autopilot's publish verb. The form
+   * says so, because the copy used to name Autopilot on every page publish, including one a person
+   * built and published by hand. Neither of them pushes anything: the claim this confirms is what
+   * Krateo reconciles into the branch and the change request. Absent reads as a person.
+   */
+  initiator?: PublishInitiator
 }
+
+export type PublishInitiator = 'autopilot' | 'person'
 
 /** The artifact a page / blueprint publish is FOR: its slug, and whether its new repo is seeded. */
 export interface PublishArtifact {
@@ -51,9 +60,19 @@ const KIND_NOUN: Record<PublishTargetRequest['kind'], string> = {
 /** The write-gate blurb for the artifact kind — what a publish of THIS kind actually commits. */
 const KIND_BLURB: Record<PublishTargetRequest['kind'], string> = {
   blueprint: 'The Helm chart tree (Chart.yaml, values.schema.json, templates/) is pushed to a branch and opened as a change request into the base branch — once merged, CI publishes it as a versioned OCI chart. Nothing merges without your review.',
-  page: 'Autopilot pushes to a branch and opens a change request into the base branch — nothing merges without your review. Confirm the destination, or point it somewhere else.',
+  page: 'Krateo pushes the page to a branch and opens a change request into the base branch. Nothing merges without your review.',
   restdef: 'The RestDefinition (and, for a pasted spec, its OpenAPI ConfigMap) is pushed to a branch and opened as a change request into the base branch — once merged, the controller provider reconciles it and the new API kind becomes available. The kind no longer lands live on publish; it waits for the request to merge. Nothing merges without your review.',
 }
+
+/**
+ * Said first when Autopilot, not a person, started the publish. The blurbs above are true for
+ * either initiator — they say what Krateo does once the destination is confirmed — so only this
+ * line depends on who asked.
+ */
+export const initiatorLine = (req: Pick<PublishTargetRequest, 'initiator' | 'kind'>): string | null =>
+  (req.initiator === 'autopilot'
+    ? `Autopilot asked to publish this ${KIND_NOUN[req.kind]}. Nothing is written until you confirm the destination.`
+    : null)
 
 type PendingResolve = (target: PublishTarget | null) => void
 type Handler = (req: PublishTargetRequest) => Promise<PublishTarget | null>
@@ -109,8 +128,10 @@ export const askPublishDestination = (
   defaultRepo: string,
   defaultOwner = 'krateo-blueprints',
   artifact?: PublishArtifact,
+  initiator: PublishInitiator = 'autopilot',
 ): Promise<PublishTarget | null> => requestPublishTarget({
   base: typeof proposal.base === 'string' && proposal.base ? proposal.base : 'main',
+  initiator,
   kind,
   owner: typeof proposal.owner === 'string' && proposal.owner ? proposal.owner : defaultOwner,
   repo: artifact?.slug || (typeof proposal.repo === 'string' && proposal.repo ? proposal.repo : defaultRepo),
@@ -198,6 +219,9 @@ export const PublishTargetFormHost = () => {
       zIndex={ABOVE_PREVIEW_DRAWER_Z_INDEX}
     >
       <div data-testid='publish-target-form'>
+        {pending && initiatorLine(pending.req) ? (
+          <Typography.Paragraph data-testid='publish-initiator' type='secondary'>{initiatorLine(pending.req)}</Typography.Paragraph>
+        ) : null}
         <Typography.Paragraph type='secondary'>
           {/* Name the artifact at the write gate: what a publish of THIS kind actually commits. */}
           {pending ? KIND_BLURB[pending.req.kind] : KIND_BLURB.page}
@@ -211,12 +235,9 @@ export const PublishTargetFormHost = () => {
               krateo-057: a publish to krateo-blueprints/demo-destination rendered
               `publish-team-health-repo` with `auto_init: true`.
 
-              It also contradicted the compose-page form one panel away, whose own field help reads
-              "Created automatically if it does not exist yet." Two opposite claims about the same
-              action in the same product is worse than either one alone. */}
-          The repository is <strong>created if it doesn&rsquo;t exist</strong>. Publishing pushes a
-          branch to it and opens a change request into the base branch below — nothing merges without
-          your review.
+              ONE SENTENCE, SAID ONCE. It used to go on to repeat the blurb above — branch, change
+              request, "nothing merges without your review" — so the form said each of those twice. */}
+          The repository is <strong>created if it doesn&rsquo;t exist</strong>.
         </Typography.Paragraph>
         <Form form={form} layout='vertical'>
           <Form.Item label='Repository owner' name='owner' rules={[{ message: 'the owner/org (or GitLab group) is required', required: true }]}>

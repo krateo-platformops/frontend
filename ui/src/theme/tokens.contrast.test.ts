@@ -12,6 +12,7 @@
  * per-mode label colour.
  */
 
+import { theme as antdTheme } from 'antd'
 import { describe, expect, it } from 'vitest'
 
 import { color, colorDark, lightTheme, darkTheme } from './tokens'
@@ -61,12 +62,12 @@ describe('Primary CTA button — WCAG AA contrast (Brand v2 blue)', () => {
   })
 
   it('lightTheme.components.Button does NOT override colorTextLightSolid (keeps white on Sovereign)', () => {
-    const btn = lightTheme.components?.Button as Record<string, unknown> | undefined
+    const btn = lightTheme.components?.Button
     expect(btn?.colorTextLightSolid).toBeUndefined()
   })
 
   it('darkTheme.components.Button sets colorTextLightSolid = dark ink (surface #141414)', () => {
-    const btn = darkTheme.components?.Button as Record<string, unknown> | undefined
+    const btn = darkTheme.components?.Button
     expect(btn?.colorTextLightSolid).toBe(colorDark.panelbg)
   })
 
@@ -201,5 +202,41 @@ describe('Status and de-emphasised icons — WCAG non-text contrast ≥ 3:1', ()
 
   it('warning follows the mode — a fixed literal cannot', () => {
     expect(colorDark.warning).not.toBe(color.warning)
+  })
+})
+
+/**
+ * Preset Tag ink on its own fill — the blue ramps in the dark theme.
+ *
+ * A preset Tag (`<Tag color='blue'>`) paints antd's `<color>7` on `<color>1`. Under the dark
+ * algorithm those come from the seed, and antd's stock `geekblue` seed gave #5273E0 on #131629:
+ * 4.16:1, below AA for the 12px tags the composer uses ("Publishes to", "data", "1 data"). The dark
+ * theme now seeds the blue ramps from colorDark; the light theme keeps antd's stock ramps untouched.
+ */
+describe('Preset blue Tags — WCAG AA ink on fill', () => {
+  const PRESETS = ['blue', 'geekblue', 'cyan'] as const
+  const ink = (map: Record<string, unknown>, preset: string) => String(map[`${preset}7`])
+  const fill = (map: Record<string, unknown>, preset: string) => String(map[`${preset}1`])
+
+  PRESETS.forEach((preset) => {
+    it(`dark: ${preset} tag ink on its fill passes AA >= 4.5:1`, () => {
+      const tokens = antdTheme.getDesignToken(darkTheme) as unknown as Record<string, unknown>
+      expect(contrastRatio(ink(tokens, preset), fill(tokens, preset))).toBeGreaterThanOrEqual(4.5)
+      // And on the surface it sits on, for a tag whose fill is barely distinct from it.
+      expect(contrastRatio(ink(tokens, preset), colorDark.panelbg)).toBeGreaterThanOrEqual(4.5)
+    })
+  })
+
+  it('dark: the blue ramps are seeded from the dark palette', () => {
+    expect(darkTheme.token?.blue).toBe(colorDark.blue)
+    expect(darkTheme.token?.geekblue).toBe(colorDark.primary)
+  })
+
+  it('light: the preset ramps are antd\'s own — unchanged', () => {
+    expect(lightTheme.token?.blue).toBeUndefined()
+    expect(lightTheme.token?.geekblue).toBeUndefined()
+    const tokens = antdTheme.getDesignToken(lightTheme) as unknown as Record<string, unknown>
+    expect(ink(tokens, 'blue').toLowerCase()).toBe('#0958d9')
+    expect(ink(tokens, 'geekblue').toLowerCase()).toBe('#1d39c4')
   })
 })
