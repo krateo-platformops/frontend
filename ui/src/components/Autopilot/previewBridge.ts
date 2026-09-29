@@ -207,7 +207,7 @@ const toHelmRenderResult = (body: RenderContractBody | null): HelmRenderResult =
 
 /** The render request both transports send: the one chart source, values, and — for an inline
  * draft whose descriptor declares edges — the stand-ins that open its gates. */
-const renderRequestBody = (args: BlueprintPreviewArgs): Record<string, unknown> => {
+export const renderRequestBody = (args: BlueprintPreviewArgs): Record<string, unknown> => {
   const lookupStubs = args.rawTemplates ? previewLookupStubs(args.rawTemplates) : []
   return {
     ...(args.rawTemplates ? { rawTemplates: args.rawTemplates } : { chart: args.chart }),
@@ -268,24 +268,31 @@ export const callHelmRender = async (renderBaseUrl: string, args: BlueprintPrevi
  * directly in `.status`). EVERY failure mode resolves into `{error}` content — never a
  * throw — exactly like `callHelmRender`, so the drawer path is identical.
  */
-export const callBlueprintRenderRA = async (
+/**
+ * GET one render RESTAction through snowplow `/call` and normalize its `.status` into a
+ * HelmRenderResult — `blueprint-render` (the chart in ?extras) and `blueprint-render-draft` (a
+ * ConfigMap named in ?extras, blueprintRenderSandbox.ts) share it. Never throws: a non-2xx or an
+ * unreachable snowplow is `{error}` content.
+ */
+export const callRenderRestAction = async (
   snowplowBaseUrl: string,
   namespace: string,
-  args: BlueprintPreviewArgs,
+  restAction: string,
+  extras: string,
 ): Promise<HelmRenderResult> => {
   try {
     const url = new URL(`${snowplowBaseUrl.replace(/\/+$/, '')}/call`)
     url.searchParams.set('resource', 'restactions')
     url.searchParams.set('apiVersion', 'templates.krateo.io/v1')
-    url.searchParams.set('name', 'blueprint-render')
+    url.searchParams.set('name', restAction)
     url.searchParams.set('namespace', namespace)
-    url.searchParams.set('extras', buildBlueprintRenderExtras(args))
+    url.searchParams.set('extras', extras)
     const response = await fetch(url.toString(), { headers: { ...authHeader() } })
     if (!response.ok) {
-      // A RA transport failure (RBAC 403, the RA not installed 404, snowplow 5xx) — the
-      // render service {error} would have been a 200 with .status.error, so a non-2xx here
-      // is genuinely the RA path failing. Surface it as content, never a throw.
-      return { error: `blueprint-render RESTAction responded ${response.status}`, objects: [] }
+      // A RA transport failure (RBAC 403, the RA not installed 404, snowplow 5xx, the gateway's 431
+      // for a URL past its header limit) — the render service {error} would have been a 200 with
+      // .status.error, so a non-2xx here is genuinely the RA path failing. Content, never a throw.
+      return { error: `${restAction} RESTAction responded ${response.status}`, objects: [] }
     }
     // snowplow resolves a RESTAction with its jq filter output placed DIRECTLY in .status
     // (not .status.widgetData — that is the widget shape). The filter emits the render
@@ -294,9 +301,15 @@ export const callBlueprintRenderRA = async (
     const status = asRecord(cr?.status) as RenderContractBody | null
     return toHelmRenderResult(status)
   } catch (error) {
-    return { error: `blueprint-render RESTAction unreachable — ${error instanceof Error ? error.message : String(error)}`, objects: [] }
+    return { error: `${restAction} RESTAction unreachable — ${error instanceof Error ? error.message : String(error)}`, objects: [] }
   }
 }
+
+export const callBlueprintRenderRA = async (
+  snowplowBaseUrl: string,
+  namespace: string,
+  args: BlueprintPreviewArgs,
+): Promise<HelmRenderResult> => callRenderRestAction(snowplowBaseUrl, namespace, 'blueprint-render', buildBlueprintRenderExtras(args))
 
 /** Why previewPage is a SOURCE preview (see previewHandlers.ts for the full rationale). */
 export const PAGE_PREVIEW_CAPTION

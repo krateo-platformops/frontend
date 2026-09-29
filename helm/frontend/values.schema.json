@@ -464,32 +464,6 @@
           "description": "Chart-owned durable namespace for draft CRs (quota and author RBAC live in it). Drafts are KEPT, not swept \u2014 the Portal Builder lists in-flight previews so a person can resume one. When enabled, the rendered config.json PREVIEW_SANDBOX_NAMESPACE is forced to this value.",
           "default": "krateo-preview"
         },
-        "quota": {
-          "type": "object",
-          "title": "Draft object-count quota",
-          "additionalProperties": false,
-          "properties": {
-            "perWidgetKind": {
-              "type": "integer",
-              "title": "Max drafts per widget kind",
-              "description": "Hard count/<plural>.widgets.templates.krateo.io per plural in widgetPlurals (k8s has no aggregate count across a CRD group).",
-              "default": 200
-            },
-            "restactions": {
-              "type": "integer",
-              "title": "Max draft RESTActions",
-              "default": 50
-            }
-          }
-        },
-        "widgetPlurals": {
-          "type": "array",
-          "title": "Widget plurals",
-          "description": "Plurals of the widgets.templates.krateo.io kinds (mirrors crds-subchart). Drives the generated quota entries; the author Role uses the group wildcard and needs no change for new kinds.",
-          "items": {
-            "type": "string"
-          }
-        },
         "authors": {
           "type": "array",
           "title": "Author subjects",

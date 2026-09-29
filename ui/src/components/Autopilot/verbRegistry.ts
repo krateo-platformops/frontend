@@ -21,6 +21,7 @@ import { matchPath } from 'react-router'
 import type { ResourcesRefs, WidgetAction } from '../../types/Widget'
 
 import type { PortalActionProposal } from './actionBridge'
+import type { SandboxWriter } from './blueprintRenderSandbox'
 import type { AutopilotActionChip } from './types'
 
 /** navigate needs no page refs; openDrawer/openModal will pass resolved refs. */
@@ -52,6 +53,9 @@ export interface VerbDeps {
    * when the RA transport is not available. Absent AND no RA transport → previewBlueprint
    * degrades to a graceful "unavailable" chip. */
   renderBaseUrl?: string
+  /** previewBlueprint's draft transport: write the chart into the preview sandbox and render it
+   * by name (blueprintRenderSandbox.ts). Absent — no sandbox configured — the chart rides ?extras. */
+  sandboxWriter?: SandboxWriter
 }
 
 /** A declarative verb: its side-effect class, a shape guard, and its dispatch handler. */
