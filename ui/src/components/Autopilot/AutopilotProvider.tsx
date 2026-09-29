@@ -22,6 +22,7 @@ import { AgentDraftProvider } from './agentDraft'
 import type { ApprovalDecision, ApprovalGovernor, ApprovalPause } from './approval'
 import { createApprovalGovernor, summarizeApprovalTools } from './approval'
 import { useAskDeepLink } from './askDeepLink'
+import type { BlueprintDraftHeld } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
 import { trackPublishStatus } from './builderClaimPublish'
 import { useBuilderTargets } from './builderTargets'
@@ -45,7 +46,9 @@ import { a2aAuthHeader, createEchoTransport, createKagentTransport } from './tra
 import type { AutopilotActionChip, AutopilotFrame, AutopilotMessage, AutopilotTransport, EvidenceEntry, PageContextEnvelope, TurnModality } from './types'
 import { buildContextDelta, useAutopilotContext } from './useAutopilotContext'
 import { useBlueprintAuthoringBuses } from './useBlueprintAuthoringBuses'
+import { createDraftAutosave, useDraftAutosave } from './useDraftAutosave'
 import { createBroadcastingDraftStore, useDraftFileBuses } from './useDraftFileBuses'
+import { useDraftResumeBus } from './useDraftResumeBus'
 import { autopilotSpeakBackStore } from './voice/speak/speakBackStore'
 import { stopVoice } from './voiceWiring'
 
@@ -156,7 +159,11 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   const reachable = enabled && flagAvailable && (useEcho || probeOk)
 
   const { collect } = useAutopilotContext()
-  const { apply, discardSandbox, sandboxWriter } = useAutopilotActionBridge()
+  // DRAFT RECORDS: the held draft autosaved to the sandbox (useDraftAutosave). Built before the bridge
+  // and the store, because each is handed a piece of it at construction — the bridge its write-ahead
+  // (a live page preview flushes the record before it applies), the store its change listener.
+  const [draftAutosave] = useState(() => createDraftAutosave())
+  const { apply, discardSandbox, sandboxWriter } = useAutopilotActionBridge(draftAutosave.flush, draftAutosave.markPageApplied)
 
   const [open, setOpen] = useState(false)
   // The DURABLE conversation (transcript + thread identity) is held in a module-level
@@ -205,7 +212,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // composer is a route), so it re-reads from the broadcast rather than computing against stale bytes.
   // The broadcast says WHO holds the draft and, for a blueprint, what the lint thinks of it — built
   // by the same helper the replay uses, so the two emitters cannot disagree.
-  const [blueprintStore] = useState(() => createBroadcastingDraftStore(blueprintGate))
+  const [blueprintStore] = useState(() => createBroadcastingDraftStore(blueprintGate, draftAutosave.onHeldChange))
 
   const abortRef = useRef<(() => void) | null>(null)
   const approvalRef = useRef<{ governor: ApprovalGovernor; pause: ApprovalPause } | null>(null)
@@ -333,11 +340,15 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       const pushChip = (chip: AutopilotActionChip | null) => {
         if (chip) { chips.push(chip) }
       }
-      const pushPublishOutcome = async (compiled: PublishCompileResult, label: string | undefined, deepLink: string | null = null) => {
+      // `held`: the draft a publishBlueprint/publishPage publishes — its record is marked published
+      // when the claim LANDED (a chip without a failure), and not otherwise.
+      const pushPublishOutcome = async (compiled: PublishCompileResult, label: string | undefined, deepLink: string | null = null, held: BlueprintDraftHeld | null = null) => {
         if (compiled.denial !== null) {
           chips.push({ label: compiled.denial, readOnly: true, verb: 'applyResourceSet' })
         } else if (compiled.ops) {
-          pushChip(await apply({ label, ops: compiled.ops, verb: 'applyResourceSet' }, origin))
+          const chip = await apply({ label, ops: compiled.ops, verb: 'applyResourceSet' }, origin)
+          pushChip(chip)
+          if (held && compiled.claim && chip && !chip.failure) { void draftAutosave.markPublished(held, compiled.claim, deepLink) }
           if (deepLink) {
             // Option A: the branch is pushed; the human opens the PR/MR in their own SCM.
             chips.push({ label: 'Open change request', readOnly: true, url: deepLink, verb: 'openChangeRequest' })
@@ -356,11 +367,12 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       } else if (proposal.verb === 'publishBlueprint' || proposal.verb === 'publishPage') {
         // The publish itself lives in publishDraft.runDraftPublish, so the agent's verb and the
         // composer's Publish button take the SAME path — one destination form, one gate, one cap.
+        const heldAtPublish = blueprintStore.get()
         const { compiled, deepLink } = await runDraftPublish(
           { blueprintGate, blueprintStore, builderTargets, config, origin },
           proposal,
         )
-        await pushPublishOutcome(compiled, proposal.label, deepLink)
+        await pushPublishOutcome(compiled, proposal.label, deepLink, heldAtPublish)
       } else if (proposal.verb === 'publishRestDef') {
         // The controller builder publishes through the same BuilderPublish claim as every builder. The
         // dispatch (destination form + KOG preview gate + compile) is factored into dispatchKogPublish.
@@ -417,7 +429,10 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
             // HOLDS the previewed tree and arms the blueprint gate for its Chart.yaml name. The rule
             // lives in `recordBlueprintPreview` beside its page twin, so a preview a person starts
             // from the composer arms the same gate this proposal does.
-            recordBlueprintPreview(proposal.rawTemplates, !blueprintChipRendered(chip), blueprintStore, blueprintGate)
+            // A chart held because it rendered: its record carries the hash of the tree that did.
+            if (recordBlueprintPreview(proposal.rawTemplates, !blueprintChipRendered(chip), blueprintStore, blueprintGate)) {
+              void draftAutosave.markRendered(blueprintStore.get())
+            }
           } else if (proposal.verb === 'previewPage') {
             // FE-P2: an APPLIED previewPage holds its widget CRs as a page draft + arms the shared
             // gate (recordPagePreview) — a page publish (into krateo-platformops/portal) is then
@@ -521,7 +536,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     // otherwise never learn the answer proposes changing something (FR 71). The store decides
     // whether anything is actually said: a typed turn is always silent.
     autopilotSpeakBackStore.speakAnswer({ actions: chips, id: assistantId, modality, text: cleanedText })
-  }, [apply, blueprintGate, blueprintStore, builderTargets, config, oasStore, previewGate, sessionId, setMessages])
+  }, [apply, blueprintGate, blueprintStore, builderTargets, config, draftAutosave, oasStore, previewGate, sessionId, setMessages])
 
   const applyFrame = useCallback((assistantId: string, frame: AutopilotFrame, modality: TurnModality) => {
     switch (frame.kind) {
@@ -802,7 +817,11 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // See useDraftFileBuses for why they are two buses and why `addFile` is separate from updateFile.
   useDraftFileBuses(blueprintStore, blueprintGate, heldDraftIdentity, previewStartedDraft, discardSandbox)
   // A person starting and rendering a chart (the Blueprint Composer) — see useBlueprintAuthoringBuses.
-  useBlueprintAuthoringBuses(blueprintStore, blueprintGate, config, sandboxWriter)
+  useBlueprintAuthoringBuses(blueprintStore, blueprintGate, config, sandboxWriter, draftAutosave)
+  // The draft record's writer (absent without a sandbox: autosave off) and the thread it came from.
+  useDraftAutosave(draftAutosave, sandboxWriter, sessionId)
+  // A person resuming a stored draft or adopting a legacy page set, and the legacy Discard — see useDraftResumeBus.
+  useDraftResumeBus(blueprintStore, blueprintGate, { autosave: draftAutosave, sandboxWriter, switchToThread })
 
   /**
    * PUBLISH, asked for by a person rather than proposed by the model.
@@ -828,6 +847,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
           blueprintStore,
           builderTargets,
           config,
+          markPublished: draftAutosave.markPublished,
           origin: { prompt: null, sessionId: null },
           track: (claim) => trackPublishStatus(config, claim, setMessages, randomId),
         },
@@ -835,7 +855,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       )
       emitPublishResult({ ...answer, id })
     })()
-  }), [apply, blueprintGate, blueprintStore, builderTargets, config, oasStore, previewGate, setMessages])
+  }), [apply, blueprintGate, blueprintStore, builderTargets, config, draftAutosave, oasStore, previewGate, setMessages])
 
   const toggle = useCallback(() => setOpen((prev) => !prev), [])
   const closeTour = useCallback(() => setTourOpen(false), [])

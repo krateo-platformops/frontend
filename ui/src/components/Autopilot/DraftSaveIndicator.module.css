@@ -1,0 +1,20 @@
+/* The autosave status beside the composer title: data about the draft, so mono (the header pills'
+   face), 12px, and coloured only by what it says — success when stored, error when not. */
+.indicator {
+  align-items: center;
+  color: var(--gray-color);
+  display: inline-flex;
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-caption);
+  gap: var(--spacing-xs);
+  white-space: nowrap;
+}
+
+.saved {
+  color: var(--green-color);
+}
+
+.error {
+  color: var(--error-color);
+  white-space: normal;
+}

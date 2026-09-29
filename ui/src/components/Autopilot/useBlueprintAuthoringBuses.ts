@@ -31,6 +31,7 @@ import { draftHistory } from './draftHistory'
 import { type DraftRenderResultDetail, emitDraftRenderResult, onChartStart, onDraftRenderRequest } from './previewDraftRender'
 import { lintHeldDraft } from './proposedChart'
 import { heldDraftIdentity } from './publishCompile'
+import type { DraftAutosave } from './useDraftAutosave'
 
 export const RENDER_NOT_CONFIGURED = 'This portal has no chart render configured (the blueprint-render RESTAction needs the snowplow URL and the frontend namespace), so the chart cannot be previewed here. It is still held.'
 
@@ -39,6 +40,14 @@ export const useBlueprintAuthoringBuses = (
   gate: Pick<BlueprintGate, 'forget' | 'recordPreview'>,
   config: Config | undefined,
   sandboxWriter?: SandboxWriter,
+  /**
+   * The draft-record autosave: flushed BEFORE the render writes anything (write-ahead — a tab killed
+   * mid-Preview has already stored the chart), and told of a render that succeeded so the record
+   * carries the hash Publish re-arms on after a Resume. Optional: absent, Preview is unchanged.
+   * RESUME calls `seedFromRecord(body)` on it immediately before `store.set(body.files, body.kind)`,
+   * so the record's renderedHash/state/publish/threadId survive the resume's first save.
+   */
+  autosave?: Pick<DraftAutosave, 'flush' | 'markRendered' | 'seedFromRecord'>,
 ): void => {
   const render = useCallback(async (id: string): Promise<void> => {
     // Read at request time, not at mount: the provider mounts before the config is complete.
@@ -62,6 +71,7 @@ export const useBlueprintAuthoringBuses = (
       answer({ message: RENDER_NOT_CONFIGURED, outcome: 'unavailable' })
       return
     }
+    await autosave?.flush()
     const rendered = await renderBlueprint(snowplowBaseUrl, frontendNamespace, { rawTemplates: held.files }, sandboxWriter)
     if (store.get() !== held) {
       answer({ message: 'The chart changed while it was rendering — preview it again.', outcome: 'stale' })
@@ -74,8 +84,9 @@ export const useBlueprintAuthoringBuses = (
       return
     }
     gate.recordPreview(identity)
+    void autosave?.markRendered(held)
     answer({ message: null, outcome: 'rendered', payload })
-  }, [config, gate, sandboxWriter, store])
+  }, [autosave, config, gate, sandboxWriter, store])
 
   useEffect(() => onDraftRenderRequest(({ id }) => { void render(id) }), [render])
 

@@ -35,6 +35,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncE
 
 import { emitComposeResult, onComposeRequest } from '../../components/Autopilot/composeRequest'
 import { draftHistory } from '../../components/Autopilot/draftHistory'
+import DraftSaveIndicator, { useCloseDraftCopy } from '../../components/Autopilot/DraftSaveIndicator'
 import { AUTOPILOT_PREVIEW_EVENT, isPageDraftPayload } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { claimPreviewSurface, onDraftChanged, requestDraftReplay } from '../../components/Autopilot/previewDraftChanged'
@@ -47,6 +48,7 @@ import { LIVE_PREVIEW_CAPTION_INLINE } from '../../components/Autopilot/previewP
 import { emitPublishRequest, onPublishResult } from '../../components/Autopilot/previewPublishRequest'
 import { PreviewContent } from '../../components/Autopilot/previewSurface'
 import type { RestDefVerdicts } from '../../components/Autopilot/previewSurface'
+import { useDraftResume } from '../../components/Autopilot/useDraftResume'
 import { ConfigContext } from '../../context/ConfigContext'
 
 import CanvasPanel from './CanvasPanel'
@@ -381,6 +383,8 @@ const PageComposer = () => {
   // person who pressed the button is looking at this page, and sending them to the conversation to
   // find out what happened is the coupling this whole surface exists to remove.
   const [publishing, setPublishing] = useState(false)
+  // Whether Close draft keeps the page (its record is stored) — the confirm says which.
+  const closeCopy = useCloseDraftCopy('page')
   const [outcome, setOutcome] = useState<{ denial: string | null; deepLink: string | null } | null>(null)
   const publishId = useRef<string | null>(null)
   /** The result panel, so the header can take you to it without anyone hunting for it. */
@@ -687,6 +691,17 @@ const PageComposer = () => {
     setFocusPath(null)
   }), [])
 
+  // `?resume=<record>` (Your drafts) and `?adopt=<page-slug>` (Unowned drafts), read as the person
+  // and held by the provider (useDraftResume). The resumed page's live render is re-applied there and
+  // arrives on the preview bus like any other; what this view kept about the draft before it goes.
+  const onResumed = () => {
+    setEditVerdicts(null)
+    setFocusPath(null)
+    setOutcome(null)
+    setMoveError(null)
+  }
+  const resumed = useDraftResume({ allowAdopt: true, kind: 'page', onResumed, sandboxNamespace: previewSandboxNamespace, snowplowBaseUrl })
+
   // What the body shows: the adopted preview, or — for a page held from before this view mounted —
   // one built from the held files, rather than "No draft open" over a draft that is there.
   const shown = useMemo(() => payload ?? (parkedBlueprint ? null : heldPagePayload(files)), [files, parkedBlueprint, payload])
@@ -729,6 +744,8 @@ const PageComposer = () => {
         {shown && !parkedBlueprint
           ? (
             <Space className={styles.actions}>
+              {/* The draft record's autosave: Saving…, Saved · HH:MM, or Not saved — and why. */}
+              <DraftSaveIndicator kind='page' />
               {/*
                 THE PREVIEW IS TWENTY SCREENS DOWN, and build-above/result-below is still the right
                 reading order — a page builder that put the render between the palette and the
@@ -758,17 +775,19 @@ const PageComposer = () => {
               <Button loading={publishing} onClick={publish} type='primary'>
                 {publishing ? 'Publishing…' : 'Publish'}
               </Button>
+              {/* Close keeps a draft that has a record, and discards one that has none — useCloseDraftCopy. */}
               <Popconfirm
                 cancelText='Keep editing'
-                okText='Discard'
+                okText={closeCopy.okText}
                 onConfirm={closeDraft}
-                title='Discard this draft? The sandbox and its unpublished files are deleted.'
+                title={closeCopy.title}
               >
                 <Button>Close draft</Button>
               </Popconfirm>
             </Space>
           )
           : null}
+        {resumed}
         {moveError
           ? (
             <Alert

@@ -554,7 +554,15 @@ const composeRefusal = (verb: string, result: ComposeResult, fallback: string): 
   return refused(verb, result.where?.length ? `${reason} — it would fit in ${result.where.join(', ')}` : reason)
 }
 
-export const useAutopilotActionBridge = () => {
+/**
+ * `beforePreviewApply` is the draft-record WRITE-AHEAD (useDraftAutosave.flush): a live page preview
+ * runs it before its first sandbox write. `afterPreviewApply` hears a live page preview that
+ * SUCCEEDED (useDraftAutosave.markPageApplied). Both optional — absent, previews behave as before.
+ */
+export const useAutopilotActionBridge = (
+  beforePreviewApply?: () => Promise<unknown>,
+  afterPreviewApply?: (widgets: Record<string, unknown>[]) => unknown,
+) => {
   const { handleAction, handleActionSet } = useHandleAction()
   const queryClient = useQueryClient()
   const { routes } = useRoutesContext()
@@ -781,6 +789,8 @@ export const useAutopilotActionBridge = () => {
         sessionId: origin?.agentSessionId ?? 'unattributed',
         // A.2.35 warm-up gate: hold the drawer until the root's serve resolves all children.
         ...(snowplowBaseUrl ? { snowplowBaseUrl } : {}),
+        ...(beforePreviewApply ? { beforeApply: beforePreviewApply } : {}),
+        ...(afterPreviewApply ? { afterApply: afterPreviewApply } : {}),
       })) ?? refused('previewPage')
     }
 
@@ -801,7 +811,7 @@ export const useAutopilotActionBridge = () => {
       : undefined
     return (await spec.apply(proposal, { frontendNamespace, handleAction, renderBaseUrl, routePatterns, snowplowBaseUrl, ...(sandboxWriter ? { sandboxWriter } : {}) }))
       ?? refused(proposal.verb)
-  }, [frontendNamespace, handleAction, handleActionSet, previewPageSession, queryClient, renderBaseUrl, routePatterns, sandboxNamespace, snowplowBaseUrl])
+  }, [afterPreviewApply, beforePreviewApply, frontendNamespace, handleAction, handleActionSet, previewPageSession, queryClient, renderBaseUrl, routePatterns, sandboxNamespace, snowplowBaseUrl])
 
   // A discarded draft's live render goes with it: the teardown session taken unconditionally.
   const discardSandbox = useCallback(async (): Promise<void> => {

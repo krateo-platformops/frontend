@@ -60,6 +60,17 @@ export interface PreviewPageV2Deps {
   handleActionSet: (ops: readonly WriteOp[], options?: SetDispatchOptions) => Promise<WriteOpResult[] | null>
   /** snowplow base URL for the A.2.35 warm-up gate (absent → the gate is skipped). */
   snowplowBaseUrl?: string
+  /**
+   * WRITE-AHEAD: save the held draft's record before the sandbox is touched, so a tab killed
+   * mid-apply has already stored what it was previewing (useDraftAutosave.flush). Never throws.
+   */
+  beforeApply?: () => Promise<unknown>
+  /**
+   * The preview SUCCEEDED: every draft applied and the root warmed up. Called once, with the widgets
+   * as proposed, so the draft record can record the tree that rendered (useDraftAutosave
+   * .markPageApplied). Never on a blocked or failed preview. Must not throw.
+   */
+  afterApply?: (widgets: Record<string, unknown>[]) => unknown
 }
 
 /**
@@ -291,6 +302,7 @@ export const applyPreviewPageV2 = async (
   //
   // session.take() is still swept: it clears a previous preview of a DIFFERENT page in this tab,
   // whose names this apply will not otherwise touch.
+  await deps.beforeApply?.().catch(() => undefined)
   await dispatchBestEffort(
     [...deps.session.take(), ...buildSandboxTeardownOps(targets, deps.sandboxNamespace)],
     deps,
@@ -363,6 +375,7 @@ export const applyPreviewPageV2 = async (
 
   // A live preview supersedes any earlier rejection — clear the self-correction signal.
   setPreviewProblems(null)
+  deps.afterApply?.(widgets)
 
   // 4-5. RENDER + arm the epoch-guarded drawer-close teardown.
   const epoch = deps.session.record(buildSandboxTeardownOps(applied, deps.sandboxNamespace))

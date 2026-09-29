@@ -49,6 +49,7 @@ import { resolveBuilderTarget } from '../../components/Autopilot/builderTargets'
 import { extractCrdSpecFields, type CrdSpecExtract } from '../../components/Autopilot/describeResource'
 import { draftHistory } from '../../components/Autopilot/draftHistory'
 import { DraftProblemsAlert } from '../../components/Autopilot/DraftProblemsAlert'
+import DraftSaveIndicator, { useCloseDraftCopy } from '../../components/Autopilot/DraftSaveIndicator'
 import { AUTOPILOT_PREVIEW_EVENT, isBlueprintDraftPayload, type AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { claimPreviewSurface, onDraftChanged, requestDraftReplay, type DraftChangedDetail } from '../../components/Autopilot/previewDraftChanged'
 import { emitDraftClose, onDraftClose } from '../../components/Autopilot/previewDraftClose'
@@ -57,6 +58,7 @@ import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
 import { emitFilesBatch } from '../../components/Autopilot/previewFilesBatch'
 import { emitPublishRequest, onPublishResult } from '../../components/Autopilot/previewPublishRequest'
 import { PreviewContent, type FileHighlight, type RestDefVerdicts } from '../../components/Autopilot/previewSurface'
+import { useDraftResume } from '../../components/Autopilot/useDraftResume'
 import StatusPill from '../../components/StatusPill'
 import { ConfigContext } from '../../context/ConfigContext'
 
@@ -168,6 +170,8 @@ const BlueprintComposer = () => {
   const { adopt, reset } = requests
   const undoDepth = useSyncExternalStore(draftHistory.subscribe, draftHistory.depth, draftHistory.depth)
   const blockerId = useId()
+  // Whether Close draft keeps the chart (its record is stored) — the confirm says which.
+  const closeCopy = useCloseDraftCopy('blueprint')
   // Placing: the row whose CRD is being read, why the last one did not land (said under its row),
   // and what the node just placed says.
   const [placing, setPlacing] = useState<PaletteRow | null>(null)
@@ -232,21 +236,19 @@ const BlueprintComposer = () => {
     setPublished({ deepLink, denial })
   }), [])
 
-  // A discard — this page's, or anyone's: nothing shown here describes what is held any more, and a
-  // placement whose CRD read is on the wire is dropped when it lands (`discards`).
-  useEffect(() => onDraftClose(() => {
+  // A discard (this page's, or anyone's) or a `?resume=` that replaced the draft (useDraftResume): nothing
+  // shown describes what is held any more; a placement whose CRD read is on the wire is dropped (`discards`).
+  const forgetShown = useCallback(() => {
     discards.current += 1
     reset()
-    setSelected(null)
-    setFocus(null)
-    setLevel(0)
-    setEditVerdicts(null)
-    setPublished(null)
-    setPlaced(null)
-    setPlacing(null)
-    setPlaceRefusal(null)
+    setSelected(null); setFocus(null)
+    setLevel(0); setEditVerdicts(null)
+    setPublished(null); setPlaced(null)
+    setPlacing(null); setPlaceRefusal(null)
     setFormEditor((last) => ({ ...last, open: false }))
-  }), [reset])
+  }, [reset])
+  useEffect(() => onDraftClose(forgetShown), [forgetShown])
+  const resumed = useDraftResume({ kind: 'blueprint', onResumed: forgetShown, sandboxNamespace: api?.PREVIEW_SANDBOX_NAMESPACE, snowplowBaseUrl: api?.SNOWPLOW_API_BASE_URL })
 
   const mode = modeOf(held)
   // A page draft's files are never read here, not even to count them.
@@ -254,9 +256,7 @@ const BlueprintComposer = () => {
 
   // The Start modal belongs to the empty page: once anything is held — the start landed, or a draft
   // arrived from elsewhere — it closes, and does not come back when that draft is discarded.
-  useEffect(() => {
-    if (mode !== 'empty') { setStartOpen(false) }
-  }, [mode])
+  useEffect(() => setStartOpen((open) => open && mode === 'empty'), [mode])
 
   // Keyed on the file's TEXT (a string), not on `files` — see architectureView's header.
   const architectureText = files[ARCHITECTURE_TEMPLATE_PATH]
@@ -438,6 +438,7 @@ const BlueprintComposer = () => {
             moves through — then publish the whole set as one change request.
           </p>
         </header>
+        {resumed}
         <BlueprintEmptyState onDiscard={emitDraftClose} onStart={() => setStartOpen(true)} parkedPage={mode === 'page'} />
         <StartChartModal
           onCancel={() => setStartOpen(false)}
@@ -470,6 +471,8 @@ const BlueprintComposer = () => {
             </h1>
           </div>
           <span className={styles.spacer} />
+          {/* The draft record's autosave: Saving…, Saved · HH:MM, or Not saved — and why. */}
+          <DraftSaveIndicator kind='blueprint' />
           {/* A count, with no cap to measure it against (frontend#367). */}
           <span className={styles.countPill} title='Files held in the draft'>{counted(Object.keys(files).length, 'file')}</span>
           {/* The EXCEPTION only (status indicators are exception-only): nothing marks a chart whose
@@ -494,19 +497,20 @@ const BlueprintComposer = () => {
                 </Button>
               </span>
             </Tooltip>
-            {/* Confirmed rather than immediate: the draft is not recoverable, and nothing else in
-                view says so. A REAL discard — the provider drops the held draft, not only this view. */}
+            {/* Confirmed rather than immediate. The provider drops the held draft, not only this view;
+                whether the draft stays stored (close) or goes (discard) is useCloseDraftCopy's to say. */}
             <Popconfirm
               cancelText='Keep editing'
-              okText='Discard'
+              okText={closeCopy.okText}
               onConfirm={emitDraftClose}
-              title='Discard this chart draft? Its unpublished files are deleted.'
+              title={closeCopy.title}
             >
               <Button>Close draft</Button>
             </Popconfirm>
           </Space>
           {blocker ? <span className={styles.srOnly} id={blockerId}>{blocker}</span> : null}
         </div>
+        {resumed}
         <DraftProblemsAlert problems={held.problems ?? []} />
         <GateDriftAction files={files} />
         {outcome ? (

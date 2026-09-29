@@ -37,6 +37,7 @@ import { lintHeldDraft } from './proposedChart'
 import { heldDraftIdentity, type PublishCompileResult } from './publishCompile'
 import { askPublishDestination } from './publishTargetForm'
 import type { AutopilotActionChip } from './types'
+import type { DraftAutosave } from './useDraftAutosave'
 
 export interface PublishDraftDeps {
   blueprintGate: ReturnType<typeof createBlueprintGate>
@@ -191,6 +192,8 @@ export interface PersonPublishDeps extends PublishDraftDeps {
   apply: (ops: ApplyResourceSetOp[]) => Promise<AutopilotActionChip | null>
   /** Watch the claim's LocalResources in the rail. */
   track: (claim: PublishStatusClaim) => void
+  /** Mark the published draft's record published (useDraftAutosave). Optional: absent, no record is kept. */
+  markPublished?: DraftAutosave['markPublished']
 }
 
 /**
@@ -210,6 +213,9 @@ export const runPersonPublish = async (
   deps: PersonPublishDeps,
   verb: PublishRequestDetail['verb'],
 ): Promise<Omit<PublishResultDetail, 'id'>> => {
+  // The draft being published, as it is NOW: the destination form is a wait, and its record is the
+  // one that was asked to publish.
+  const held = deps.blueprintStore.get()
   const { compiled, deepLink } = await runDraftPublish(deps, { label: 'Publish', verb })
   if (compiled.denial !== null) {
     return { deepLink: null, denial: compiled.denial }
@@ -226,6 +232,10 @@ export const runPersonPublish = async (
   if (applied.failure) {
     return { deepLink: null, denial: `Not published — the claim was refused: ${applied.failure}` }
   }
-  if (compiled.claim) { deps.track(compiled.claim) }
+  if (compiled.claim) {
+    deps.track(compiled.claim)
+    // LANDED, so the draft's record says so — "published, awaiting merge", with where it went.
+    if (held) { void deps.markPublished?.(held, compiled.claim, deepLink) }
+  }
   return { deepLink, denial: null }
 }

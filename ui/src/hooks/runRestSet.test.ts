@@ -241,6 +241,18 @@ describe('runRestSet — SetDispatchOptions (previewPage v2 sandbox relaxation)'
     expect(ctx.invalidateQueries).toHaveBeenCalledTimes(1)
   })
 
+  it('skipRevalidate (a draft record\'s autosave): the write lands, nothing on screen is refetched', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(fakeResponse(true, 201, '{"message":"created"}')))
+    vi.stubGlobal('fetch', fetchMock)
+    const ctx = makeCtx()
+
+    const results = await runRestSet(SANDBOX_OPS, ctx, undefined, { skipConfirmForSandbox: 'krateo-preview', skipRevalidate: true })
+
+    expect(results?.every((result) => result.ok)).toBe(true)
+    expect(ctx.invalidateQueries).not.toHaveBeenCalled()
+    expect(ctx.registerCleanup).not.toHaveBeenCalled()
+  })
+
   it('ANY op outside the named namespace falls back to the FULL gate (confirm runs; decline = nothing)', async () => {
     const fetchMock = vi.fn(() => Promise.resolve(fakeResponse(true, 200)))
     vi.stubGlobal('fetch', fetchMock)

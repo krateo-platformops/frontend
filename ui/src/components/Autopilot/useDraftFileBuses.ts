@@ -22,7 +22,7 @@
  */
 import { useCallback, useEffect, useRef } from 'react'
 
-import { createBlueprintDraftStore, type BlueprintDraftStore } from './blueprintDraftStore'
+import { createBlueprintDraftStore, type BlueprintDraftStore, type DraftChangeListener } from './blueprintDraftStore'
 import type { BlueprintGate } from './blueprintGate'
 import { clearComposeRefusals } from './composeRequest'
 import { draftHistory } from './draftHistory'
@@ -32,6 +32,7 @@ import { buildPagePreviewPayload } from './previewBridge'
 import { openAutopilotPreview, setPreviewProblems } from './previewBus'
 import { type DraftChangedDetail, emitDraftChanged, onDraftReplayRequest } from './previewDraftChanged'
 import { emitDraftClose, onDraftClose } from './previewDraftClose'
+import { onDraftReapply } from './previewDraftResume'
 import { onDraftStart } from './previewDraftStart'
 import { onDraftUndo } from './previewDraftUndo'
 import { onFileAdd } from './previewFileAdd'
@@ -79,7 +80,15 @@ export const heldDraftDetail = (
  * Side-effect free at construction: the provider builds this in a useState initializer, which
  * StrictMode runs twice. The gate's own announcements are wired by useDraftFileBuses, in an effect.
  */
-export const createBroadcastingDraftStore = (gate?: Pick<BlueprintGate, 'forget' | 'isArmed'>): BlueprintDraftStore => {
+export const createBroadcastingDraftStore = (
+  gate?: Pick<BlueprintGate, 'forget' | 'isArmed'>,
+  /**
+   * Also told of every change — the draft-record autosave (useDraftAutosave). Here, at the store's
+   * one listener, rather than on the window broadcast: the broadcast also fires for replays and gate
+   * changes, where the tree did not move, and a record save is only owed when it did.
+   */
+  onHeldChange?: DraftChangeListener,
+): BlueprintDraftStore => {
   const isArmed = gate ? (identity: string | null) => gate.isArmed(identity) : undefined
   let heldIdentity: string | null = null
   return createBlueprintDraftStore((held) => {
@@ -89,6 +98,7 @@ export const createBroadcastingDraftStore = (gate?: Pick<BlueprintGate, 'forget'
     }
     heldIdentity = identity
     emitDraftChanged(heldDraftDetail(held, isArmed))
+    onHeldChange?.(held)
   })
 }
 
@@ -452,6 +462,17 @@ export const useDraftFileBuses = (
     setPreviewProblems(null)
     store.clear()
   }), [gate, identityOf, runApply, store])
+
+  // RE-APPLY, asked for: a resumed draft (useDraftResumeBus) put a tree in the store that no edit
+  // produced, so nothing above scheduled its live preview. Through the same loop, so it queues
+  // behind an apply already on the wire; `discardPrevious` first takes down the render of the page
+  // the resume replaced — the teardown a discard would queue, without the discard.
+  useEffect(() => onDraftReapply(({ discardPrevious }) => {
+    if (discardPrevious) {
+      discardQueued.current = true
+    }
+    void runApply()
+  }), [runApply])
 
   // REPLAY: a surface that mounted AFTER the draft was seeded missed the store's broadcast, so it
   // asks and we answer on the same bus. Answering with an empty map when nothing is held is
