@@ -20,8 +20,11 @@
  * Pure module: builds a payload and fires the preview bus. No network, no writes, no module state.
  */
 
+import { getUserInfo } from '../../utils/getUserInfo'
+
+import { draftOwner } from './draftRecord'
 import { openAutopilotPreview } from './previewBus'
-import { buildSandboxWidgetEndpoint, draftGvrOf, primeDraftKinds } from './previewSandbox'
+import { buildSandboxWidgetEndpoint, draftGvrOf, primeDraftKinds, sandboxDraftName } from './previewSandbox'
 
 /** The query parameter the drafts table's rowNavigateTo carries (`/portal-builder?resume=<slug>`). */
 export const RESUME_PARAM = 'resume'
@@ -65,8 +68,10 @@ export const resumePreviewDraft = async (
     return false
   }
   // The page ENTRY is the `page-<slug>` root Flex — the same identity previewPageV2 mounts and the
-  // publish gate keys on. Nothing else is a page.
-  const root = { gvr, kind: 'Flex', name: `page-${slug}` }
+  // publish gate keys on. Nothing else is a page. In the sandbox it carries the owner's tag, and the
+  // owner is the person resuming: their own page, never a colleague's under the same slug. Scoping
+  // is idempotent, so a slug a listing read off an already-scoped name is not tagged twice.
+  const root = { gvr, kind: 'Flex', name: sandboxDraftName(`page-${slug}`, draftOwner(getUserInfo().username)) }
   openAutopilotPreview({
     caption: RESUME_CAPTION,
     liveEndpoint: buildSandboxWidgetEndpoint(root, sandboxNamespace),

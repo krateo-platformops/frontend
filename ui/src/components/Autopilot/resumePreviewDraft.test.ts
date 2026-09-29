@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { resetKindCacheForTests } from './kindResolver'
 import { AUTOPILOT_PREVIEW_EVENT } from './previewBus'
+import { sandboxDraftName } from './previewSandbox'
 import { RESUME_PARAM, resumePreviewDraft, resumeSlugFrom } from './resumePreviewDraft'
 
 const SNOWPLOW = 'http://snowplow.test'
@@ -32,7 +33,10 @@ const captureOpen = (): { last: Record<string, unknown> | null; off: () => void 
   return sink
 }
 
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  vi.restoreAllMocks()
+  localStorage.removeItem('K_user')
+})
 
 describe('resumeSlugFrom — what the drafts table hands back', () => {
   it('reads the slug the rowNavigateTo carries', () => {
@@ -65,10 +69,29 @@ describe('resumePreviewDraft — opens the draft that is already there', () => {
 
     const payload = sink.last!
     expect(payload.title).toBe('Draft — fleet-overview')
-    // The page ENTRY is the root Flex — the same identity the apply path mounts.
-    expect(String(payload.liveEndpoint)).toContain('name=page-fleet-overview')
+    // The page ENTRY is the root Flex — the same identity the apply path mounts, owner-scoped the
+    // same way (no one logged in reads as the kernel's `unknown` owner).
+    expect(String(payload.liveEndpoint)).toContain(`name=${sandboxDraftName('page-fleet-overview', 'unknown')}&`)
     expect(String(payload.liveEndpoint)).toContain(`namespace=${SANDBOX}`)
     expect(String(payload.liveEndpoint)).toContain('resource=flexes')
+    sink.off()
+  })
+
+  it('resumes the CALLER\'S page — never a colleague\'s preview of the same slug', async () => {
+    const sink = captureOpen()
+    localStorage.setItem('K_user', JSON.stringify({ user: { username: 'alice' } }))
+    await resumePreviewDraft('fleet-overview', SANDBOX, SNOWPLOW)
+    const alice = String(sink.last!.liveEndpoint)
+    localStorage.setItem('K_user', JSON.stringify({ user: { username: 'bob' } }))
+    await resumePreviewDraft('fleet-overview', SANDBOX, SNOWPLOW)
+    const bob = String(sink.last!.liveEndpoint)
+
+    expect(alice).toContain(`name=${sandboxDraftName('page-fleet-overview', 'alice')}&`)
+    expect(bob).toContain(`name=${sandboxDraftName('page-fleet-overview', 'bob')}&`)
+    expect(alice).not.toBe(bob)
+    // A slug read off an already-scoped name is not tagged twice.
+    await resumePreviewDraft(sandboxDraftName('page-fleet-overview', 'bob').replace(/^page-/, ''), SANDBOX, SNOWPLOW)
+    expect(String(sink.last!.liveEndpoint)).toBe(bob)
     sink.off()
   })
 

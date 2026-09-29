@@ -8,8 +8,8 @@
  * The flow (each step falls back to a graceful chip + the source drawer, never a crash):
  *   1. VALIDATE (A.2.1): every draft against its co-located widget schema (ajv) —
  *      any failure → the v1 source drawer WITH the verdicts; garbage is never applied.
- *   2. REWRITE (A.2.2): namespace FORCED to the sandbox, preview labels stamped,
- *      in-set refs re-pointed (previewSandbox.rewriteDraftsForSandbox).
+ *   2. REWRITE (A.2.2): namespace FORCED to the sandbox, names OWNER-SCOPED, preview + owner
+ *      labels stamped, in-set refs re-pointed (previewSandbox.rewriteDraftsForSandbox).
  *   3. SWEEP + APPLY (A.2.3): best-effort DELETE of every name this apply is about to write
  *      (latest wins, re-used names never 409 — including after a crash that left orphans under
  *      those names), plus this tab's previous preview, then ordered POST chunks (≤10 ops)
@@ -27,9 +27,11 @@
 
 import type { SetDispatchOptions, WriteOp, WriteOpResult } from '../../hooks/runRestSet'
 import { getAccessToken } from '../../utils/getAccessToken'
+import { getUserInfo } from '../../utils/getUserInfo'
 
 import type { PortalActionProposal } from './actionBridge'
 import { type ApplyResourceSetOp, buildSetOpPath, isApplySetAllowed } from './applyResourceSet'
+import { draftOwner } from './draftRecord'
 import { buildPagePreviewPayload, parsePagePreviewArgs } from './previewBridge'
 import { openAutopilotPreview, setPreviewProblems } from './previewBus'
 import {
@@ -176,8 +178,9 @@ const dispatchBestEffort = async (ops: readonly ApplyResourceSetOp[], deps: Prev
  * The sweep was supposed to prevent it and silently did not (see dispatchSilent). Rather than trust
  * a sweep whose result nobody checked, a 409 is now resolved where it is detected: delete that one
  * name, CONFIRM the delete came back ok, and retry the create once. Idempotent by construction
- * instead of by assumption — and it holds for someone else's orphan under the same name just as
- * well as for our own, because it reclaims by name rather than by provenance.
+ * instead of by assumption. It reclaims by name rather than by provenance, which is safe only
+ * because the name IS the provenance: sandbox names are owner-scoped (sandboxDraftName), so the
+ * only object that can occupy one is this person's own — never a colleague's preview of the page.
  *
  * One retry, never a loop: a 409 that survives its own delete is a different fault (a finalizer, a
  * controller recreating it) and must surface rather than spin.
@@ -244,13 +247,17 @@ export const applyPreviewPageV2 = async (
     return blockedChip(`preview blocked — ${problems.length} validation error${problems.length === 1 ? '' : 's'}`)
   }
 
-  // 2. REWRITE — sandbox namespace forced, labels stamped, in-set refs re-pointed.
-  const rewritten = rewriteDraftsForSandbox(widgets, deps.sandboxNamespace, deps.sessionId)
+  // 2. REWRITE — sandbox namespace forced, names owner-scoped, labels stamped, in-set refs
+  // re-pointed. The owner is the caller's, so every name below — the sweep's, the POSTs', a 409
+  // reclaim's, the root the drawer mounts — is one only THIS person could have written: the
+  // sandbox is shared, and a sweep derived from `targets` would otherwise delete a colleague's
+  // live preview of the same page.
+  const rewritten = rewriteDraftsForSandbox(widgets, deps.sandboxNamespace, deps.sessionId, draftOwner(getUserInfo().username))
   const targets = draftTargetsOf(rewritten)
   const root = rootDraftTargetOf(targets)
   if (!root) {
     openAutopilotPreview({
-      ...buildPagePreviewPayload(rewritten),
+      ...buildPagePreviewPayload(widgets),
       caption: 'The draft set has no `page-<slug>` root Flex — the page ENTRY (its INIT) is undefined, so nothing was applied. Author the root Flex named page-<slug> listing the children and preview again.',
     })
 
@@ -275,10 +282,12 @@ export const applyPreviewPageV2 = async (
   // orphan from a killed recorder blocked every subsequent live preview during the V4 demo.
   //
   // Deriving the sweep from `targets` — the exact kinds and names this apply is about to create —
-  // makes re-use idempotent no matter who wrote them or whether anyone is left to remember. A
-  // crashed preview is therefore ADOPTED by the next one rather than blocking it: the drafts are
-  // state to resume, not garbage that happens to be in the way. Orphans of OTHER pages are left
-  // alone, because nothing about them is in the way.
+  // makes re-use idempotent whichever of this person's tabs wrote them, and whether or not anyone is
+  // left to remember. A crashed preview is therefore ADOPTED by the next one rather than blocking it:
+  // the drafts are state to resume, not garbage that happens to be in the way. Orphans of OTHER
+  // pages are left alone, because nothing about them is in the way — and so are OTHER PEOPLE'S
+  // previews of this same page, because the names are owner-scoped (sandboxDraftName) and this
+  // sweep cannot spell one of theirs.
   //
   // session.take() is still swept: it clears a previous preview of a DIFFERENT page in this tab,
   // whose names this apply will not otherwise touch.
@@ -337,7 +346,7 @@ export const applyPreviewPageV2 = async (
     await dispatchBestEffort(buildSandboxTeardownOps(applied, deps.sandboxNamespace), deps)
 
     openAutopilotPreview({
-      ...buildPagePreviewPayload(rewritten),
+      ...buildPagePreviewPayload(widgets),
       caption: 'Applying the drafts to the preview sandbox failed — the drafts that had landed were removed (best-effort).',
       error: failure,
     })
@@ -357,8 +366,13 @@ export const applyPreviewPageV2 = async (
 
   // 4-5. RENDER + arm the epoch-guarded drawer-close teardown.
   const epoch = deps.session.record(buildSandboxTeardownOps(applied, deps.sandboxNamespace))
+  // The payload's files are built from the drafts AS AUTHORED, not from `rewritten`. They are
+  // shown as the publish write set, at the paths a publish writes, and the Files tab edits the held
+  // draft by those paths: built from the sandbox copy, every path would carry the owner tag, name a
+  // file the held draft does not have, and promise a publish of names that exist only in the
+  // sandbox. The live render is the sandbox copy; the source beside it is the page.
   openAutopilotPreview({
-    ...buildPagePreviewPayload(rewritten),
+    ...buildPagePreviewPayload(widgets),
     caption: LIVE_PREVIEW_CAPTION,
     liveEndpoint: buildSandboxWidgetEndpoint(root, deps.sandboxNamespace),
     onClose: () => {

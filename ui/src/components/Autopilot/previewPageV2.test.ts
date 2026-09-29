@@ -12,24 +12,41 @@
  *     a STALE close (payload superseded by a fresh preview) is a no-op;
  *   - a fresh preview SWEEPS the previous drafts first (latest wins, no 409);
  *   - apply failure → applied drafts rolled back (best-effort), the failure shown
- *     AS drawer content, a graceful chip — never a crash.
+ *     AS drawer content, a graceful chip — never a crash;
+ *   - OWNER-SCOPED names: every sandbox name carries the caller's owner tag, so two people
+ *     previewing the same page never sweep, reclaim or tear down each other's objects — and the
+ *     rename never reaches the drawer's files or the held draft a publish writes.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { WriteOp, WriteOpResult } from '../../hooks/runRestSet'
 
 import type { PortalActionProposal } from './actionBridge'
+import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { resetKindCacheForTests } from './kindResolver'
 import { openAutopilotPreview } from './previewBus'
 import type { AutopilotPreviewPayload } from './previewBus'
 import { applyPreviewPageV2, type PreviewPageV2Deps } from './previewPageV2'
-import { createPreviewPageSession, primeDraftKinds, WIDGETS_API_VERSION } from './previewSandbox'
+import { createPreviewPageSession, ownerTagOf, primeDraftKinds, sandboxDraftName, WIDGETS_API_VERSION } from './previewSandbox'
+import { recordPagePreview } from './publishCompile'
 
 vi.mock('./previewBus', () => ({ openAutopilotPreview: vi.fn(), setPreviewProblems: vi.fn() }))
 
 const openPreviewMock = vi.mocked(openAutopilotPreview)
 
 const SANDBOX = 'krateo-preview'
+
+/**
+ * Who is logged in. The owner is read from the login payload (getUserInfo → `K_user`), and these
+ * tests run without a DOM, so localStorage is a stub whose user each test can switch.
+ */
+const storage = new Map<string, string>()
+const loginAs = (username: string): void => {
+  storage.set('K_user', JSON.stringify({ user: { username } }))
+}
+/** The sandbox name of a draft previewed by alice — the default login below. */
+const scoped = (name: string, owner = 'alice'): string => sandboxDraftName(name, owner)
+const nameParam = (op: WriteOp): string | null => new URL(op.path, 'https://x').searchParams.get('name')
 
 const flexRoot = (): Record<string, unknown> => ({
   kind: 'Flex',
@@ -80,6 +97,13 @@ const PLURALS: Record<string, string> = {
 beforeEach(async () => {
   vi.clearAllMocks()
   resetKindCacheForTests()
+  storage.clear()
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => storage.get(key) ?? null,
+    removeItem: (key: string) => { storage.delete(key) },
+    setItem: (key: string, value: string) => { storage.set(key, value) },
+  })
+  loginAs('alice')
   vi.stubGlobal('fetch', vi.fn((url: string) => {
     const kind = new URL(url).searchParams.get('kind') ?? ''
     const plural = PLURALS[kind]
@@ -152,11 +176,12 @@ describe('previewPage v2 — the happy path (apply → live drawer → teardown 
     expect(posted.metadata.namespace).toBe(SANDBOX)
     expect(posted.metadata.labels['krateo.io/purpose']).toBe('preview-draft')
     expect(posted.metadata.labels['krateo.io/preview-session']).toBe('s_test')
+    expect(posted.metadata.labels['krateo.io/draft-owner']).toBe('alice')
 
     // The drawer renders the ROOT draft's REAL served endpoint + the rewritten source.
     const payload = openedPayload()
     expect(payload.liveEndpoint).toBe(
-      `/call?resource=flexes&apiVersion=widgets.templates.krateo.io/v1beta1&name=page-preview-draft&namespace=${SANDBOX}`,
+      `/call?resource=flexes&apiVersion=widgets.templates.krateo.io/v1beta1&name=${scoped('page-preview-draft')}&namespace=${SANDBOX}`,
     )
     expect(payload.title).toContain('Page preview (live)')
     expect(payload.objects).toHaveLength(2)
@@ -177,8 +202,7 @@ describe('previewPage v2 — the happy path (apply → live drawer → teardown 
     expect(handleActionSet).toHaveBeenCalledTimes(3)
     const [teardown, options] = handleActionSet.mock.calls[2] as [WriteOp[], unknown]
     expect(teardown.map((op) => op.verb)).toEqual(['DELETE', 'DELETE'])
-    expect(teardown[0].path).toContain('name=page-preview-draft')
-    expect(teardown[1].path).toContain('name=preview-draft-title')
+    expect(teardown.map(nameParam)).toEqual([scoped('page-preview-draft'), scoped('preview-draft-title')])
     expect(options).toEqual({ silent: true, skipConfirmForSandbox: SANDBOX })
 
     payload.onClose?.()
@@ -226,13 +250,12 @@ describe('previewPage v2 — the happy path (apply → live drawer → teardown 
     const [sweep] = handleActionSet.mock.calls[0] as [WriteOp[]]
     expect(sweep.every((op) => op.verb === 'DELETE')).toBe(true)
     // The very names the apply is about to create — so the POST cannot collide with an orphan.
-    expect(sweep[0].path).toContain('name=page-preview-draft')
-    expect(sweep[1].path).toContain('name=preview-draft-title')
+    expect(sweep.map(nameParam)).toEqual([scoped('page-preview-draft'), scoped('preview-draft-title')])
 
     const [applyOps] = handleActionSet.mock.calls[1] as [WriteOp[]]
     expect(applyOps.every((op) => op.verb === 'POST')).toBe(true)
     // Every name POSTed was swept first. That equality IS the no-409 guarantee.
-    const swept = sweep.map((op) => new URL(op.path, 'https://x').searchParams.get('name')).sort()
+    const swept = sweep.map(nameParam).sort()
     const posted = applyOps.map((op) => (op.payload as { metadata: { name: string } }).metadata.name).sort()
     expect(swept).toEqual(posted)
   })
@@ -252,7 +275,7 @@ describe('previewPage v2 — apply failure (graceful, rolled back, never a crash
 
     // Only the apply dispatch — nothing landed, so nothing to tear down.
     expect(handleActionSet).toHaveBeenCalledTimes(2)
-    expect(chip?.label).toBe('preview apply failed — Flex/page-preview-draft: admission webhook denied')
+    expect(chip?.label).toBe(`preview apply failed — Flex/${scoped('page-preview-draft')}: admission webhook denied`)
     expect(chip?.readOnly).toBe(false)
     const payload = openedPayload()
     expect(payload.error).toContain('admission webhook denied')
@@ -268,13 +291,13 @@ describe('previewPage v2 — apply failure (graceful, rolled back, never a crash
 
     const chip = await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
 
-    expect(chip?.label).toBe('preview apply failed — Paragraph/preview-draft-title: quota exceeded')
+    expect(chip?.label).toBe(`preview apply failed — Paragraph/${scoped('preview-draft-title')}: quota exceeded`)
     // apply, then the rollback of the ONE landed draft.
     expect(handleActionSet).toHaveBeenCalledTimes(3)
     const [rollback] = handleActionSet.mock.calls[2] as [WriteOp[]]
     expect(rollback).toHaveLength(1)
     expect(rollback[0].verb).toBe('DELETE')
-    expect(rollback[0].path).toContain('name=page-preview-draft')
+    expect(nameParam(rollback[0])).toBe(scoped('page-preview-draft'))
     expect(openedPayload().error).toContain('quota exceeded')
   })
 
@@ -349,5 +372,94 @@ describe('previewPage v2 — apply failure (graceful, rolled back, never a crash
     const chip = await applyPreviewPageV2(proposalOf([flexRoot()]), deps)
     expect(chip?.label).toBe('preview apply failed — the write set was not dispatched')
     expect(openedPayload().error).toBe('the write set was not dispatched')
+  })
+})
+
+describe('previewPage v2 — owner-scoped names (two people, one page)', () => {
+  /**
+   * Every name a run dispatched, by verb — the sweep, the POSTs, any reclaim, the teardown. A POST
+   * goes to the collection, so its name is the payload's; a DELETE names its object in the path.
+   */
+  const nameOf = (op: WriteOp): string | null =>
+    (op.verb === 'POST' ? (op.payload as { metadata?: { name?: string } } | undefined)?.metadata?.name ?? null : nameParam(op))
+  const namesBy = (handleActionSet: ReturnType<typeof vi.fn>, verb: string): Set<string> =>
+    new Set(handleActionSet.mock.calls.flatMap(([ops]) => (ops as WriteOp[]).filter((op) => op.verb === verb).map(nameOf))
+      .filter((name): name is string => name !== null))
+
+  it('alice\'s sweep, apply, 409 reclaim and teardown never name one of bob\'s objects for the same page', async () => {
+    // THE COLLISION. Both preview `page-preview-draft`. The sweep is derived from the names this
+    // apply writes and the reclaim deletes whatever holds a name — so with unscoped names alice's
+    // preview deleted bob's live one. The POSTs answer 409 first, to drive the reclaim too.
+    const run = async (owner: string) => {
+      loginAs(owner)
+      let posts = 0
+      const { deps, handleActionSet } = makeDeps((ops) => {
+        if (ops[0].verb !== 'POST') {
+          return ops.map((_, index) => ({ index, message: 'OK', ok: true, status: 200 }))
+        }
+        posts += 1
+        // Two refusals: the chunk's, then the reclaim's first retry — so the reclaim's DELETE fires.
+        return posts <= 2
+          ? ops.map((_, index) => ({ index, message: 'already exists', ok: false, status: 409 }))
+          : ops.map((_, index) => ({ index, message: 'OK', ok: true, status: 201 }))
+      })
+      await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), deps)
+      openPreviewMock.mock.calls.at(-1)?.[0].onClose?.()
+      return handleActionSet
+    }
+    const alice = await run('alice')
+    const bob = await run('bob')
+
+    const bobWrites = namesBy(bob, 'POST')
+    const aliceDeletes = namesBy(alice, 'DELETE')
+    expect(bobWrites.size).toBe(2)
+    // alice deleted things — the sweep, the reclaim and the close all fired…
+    expect(aliceDeletes.size).toBeGreaterThan(0)
+    // …and not one of them is a name bob wrote.
+    for (const name of bobWrites) {
+      expect(aliceDeletes.has(name)).toBe(false)
+    }
+    // Every name alice touched carries alice's tag, and no other.
+    for (const name of [...namesBy(alice, 'POST'), ...aliceDeletes]) {
+      expect(name.endsWith(`-${ownerTagOf('alice')}`)).toBe(true)
+    }
+  })
+
+  it('each person\'s drawer mounts their OWN root', async () => {
+    loginAs('alice')
+    await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), makeDeps().deps)
+    loginAs('bob')
+    await applyPreviewPageV2(proposalOf([flexRoot(), paragraph()]), makeDeps().deps)
+
+    expect(openedPayload(0).liveEndpoint).toContain(`name=${scoped('page-preview-draft', 'alice')}&`)
+    expect(openedPayload(1).liveEndpoint).toContain(`name=${scoped('page-preview-draft', 'bob')}&`)
+  })
+
+  it('the rename never leaks: the drawer\'s files and the held draft a publish writes carry the AUTHORED names', async () => {
+    // A publish commits the HELD draft's files (publishDraft → heldPublishFiles(held.files)), and
+    // the held draft is recorded from the proposal's widgets (recordPagePreview), never from the
+    // sandbox copy. The drawer's Files tab is shown as that write set and edits it by path — so its
+    // paths must be the held keys, not sandbox names.
+    const widgets = [flexRoot(), paragraph()]
+    const { deps, handleActionSet } = makeDeps()
+    await applyPreviewPageV2(proposalOf(widgets), deps)
+    const tag = ownerTagOf('alice')
+    // The sandbox DID get the scoped names…
+    expect([...namesBy(handleActionSet, 'POST')].every((name) => name.endsWith(`-${tag}`))).toBe(true)
+
+    // …the drawer did not.
+    const payload = openedPayload()
+    for (const file of payload.files ?? []) {
+      expect(file.path).not.toContain(tag)
+      expect(file.content).not.toContain(tag)
+    }
+
+    // …and neither does the held draft, recorded exactly as the provider records it.
+    const store = createBlueprintDraftStore()
+    recordPagePreview(widgets, store, { recordPreview: vi.fn() })
+    const held = store.get()
+    expect(held).not.toBeNull()
+    expect(JSON.stringify(held?.files)).not.toContain(tag)
+    expect(Object.keys(held?.files ?? {})).toEqual(expect.arrayContaining((payload.files ?? []).map((file) => file.path)))
   })
 })
