@@ -67,7 +67,7 @@ const toDataNode = (
       {node.kind ? <Tag className={styles.kindTag}>{node.kind}</Tag> : null}
       {node.bound
         ? (
-          <Tooltip title='Reads its data from a RESTAction — spec.apiRef'>
+          <Tooltip title={node.dataSource ? `Reads its data from the RESTAction ${node.dataSource} — spec.apiRef` : 'Reads its data from a RESTAction — spec.apiRef'}>
             <Tag color='blue'>data</Tag>
           </Tooltip>
         )

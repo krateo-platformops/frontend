@@ -21,6 +21,7 @@ const node = (over: Partial<TreeNode> = {}): TreeNode => ({
   allowedResources: null,
   bound: false,
   children: [],
+  dataSource: null,
   drafted: true,
   kind: 'Table',
   name: 'pods',

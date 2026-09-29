@@ -82,7 +82,37 @@ describe('buildObjectTree', () => {
 
     const [bound, statik] = tree[0].children
     expect(bound.bound).toBe(true)
+    expect(bound.dataSource).toBe('some-restaction')
     expect(statik.bound).toBe(false)
+    expect(statik.dataSource).toBeNull()
+  })
+
+  it('a RESTAction is a data source, not a node — never a root beside the page', () => {
+    // The Portal Builder V2 recording: nothing places a RESTAction, so it came out as a second
+    // ROOT and the canvas drew it above the page as if it were layout.
+    const restAction = 'kind: RESTAction\napiVersion: templates.krateo.io/v1\nmetadata:\n  name: some-restaction\nspec:\n  api: []'
+    const tree = buildObjectTree({
+      'p.yaml': cr('Flex', 'page-x', { children: [['t', 'bound-table']] }),
+      'ra.yaml': restAction,
+      't.yaml': cr('Table', 'bound-table', { apiRef: true }),
+    })
+
+    expect(tree.map((node) => node.name)).toEqual(['page-x'])
+    expect(flattenTree(tree).some((node) => node.kind === 'RESTAction')).toBe(false)
+    // It shows where it belongs: on the widget that reads it.
+    expect(tree[0].children[0].dataSource).toBe('some-restaction')
+  })
+
+  it('a RESTAction named like its widget no longer shadows it (bind-data names both alike)', () => {
+    const restAction = 'kind: RESTAction\napiVersion: templates.krateo.io/v1\nmetadata:\n  name: pods\nspec:\n  api: []'
+    // The RESTAction's file sorts AFTER the table's, so a map keyed by name kept the RESTAction.
+    const tree = buildObjectTree({
+      'p.yaml': cr('Flex', 'page-x', { children: [['t', 'pods']] }),
+      't.yaml': cr('Table', 'pods', { apiRef: true }),
+      'z-restaction.pods.yaml': restAction,
+    })
+
+    expect(tree[0].children[0].kind).toBe('Table')
   })
 
   it('omits a file that is mid-edit rather than throwing', () => {

@@ -101,6 +101,20 @@ describe('CanvasPanel — the projection', () => {
     expect(screen.getByText('data')).toBeTruthy()
   })
 
+  it('never draws the page\'s RESTAction as a frame — it is data, shown on the widget that reads it', () => {
+    const restAction = 'kind: RESTAction\napiVersion: templates.krateo.io/v1\nmetadata:\n  name: some-restaction\n  namespace: krateo-system\nspec:\n  api: []'
+    render(<CanvasPanel files={{
+      'templates/flex.page-demo.yaml': cr('Flex', 'page-demo', [['t', 'bound-table']]),
+      'templates/restaction.some-restaction.yaml': restAction,
+      'templates/table.bound-table.yaml': cr('Table', 'bound-table', [], true),
+    }}
+    />)
+
+    expect(screen.queryByText('RESTAction')).toBeNull()
+    expect(screen.queryByText('some-restaction')).toBeNull()
+    expect(screen.getByText('data')).toBeTruthy()
+  })
+
   it('says so plainly when there is no page root', () => {
     render(<CanvasPanel files={{}} />)
     expect(screen.getByText(/no page root/i)).toBeTruthy()

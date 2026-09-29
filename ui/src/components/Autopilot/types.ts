@@ -285,7 +285,16 @@ export interface DraftNodeSummary {
   resource?: string
   /** True when the node is referenced but not carried in the draft: an existing cluster widget. */
   external?: true
+  /** The RESTAction this widget reads (its `spec.apiRef.name`), when it reads one. */
+  dataSource?: string
   children?: DraftNodeSummary[]
+}
+
+/** A RESTAction the draft carries. It is data, not layout, so it is never one of `roots`. */
+export interface DraftDataSourceSummary {
+  name: string
+  /** Drafted widgets whose apiRef names it. Empty means an orphan: nothing on the page reads it. */
+  usedBy: string[]
 }
 
 export interface DraftSummary {
@@ -295,6 +304,10 @@ export interface DraftSummary {
   roots: DraftNodeSummary[]
   /** Present only when MAX_NODES bit — the tree shown is partial and must not be read as complete. */
   truncated?: true
+  /** Every RESTAction in the draft, with who reads it. Absent when the draft carries none. */
+  dataSources?: DraftDataSourceSummary[]
+  /** Present only when the data-source cap bit — the list is partial. Independent of `truncated`. */
+  dataSourcesTruncated?: true
 }
 
 // ────────────────────────────────────────────────────────────────────────────

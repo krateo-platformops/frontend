@@ -94,7 +94,16 @@ const Table = ({ deniedRefIds, resourcesRefs, serverPagination, uid, widgetData 
         dataIndex: valueKey,
         // With fitContent, truncate an overflowing cell (full text on hover) instead of widening the
         // table — this is what lets the table fit the container without a horizontal scrollbar.
-        ellipsis: fitContent ? { showTitle: true } : undefined,
+        //
+        // A VIRTUAL table truncates too, because its rows must not grow taller than antd's row
+        // estimate (listItemHeight). The virtual list corrects "scroll jump" by adding
+        // (measured height − estimate) to scrollTop when the first row is measured alone, and a
+        // wrapped pod name made that row ~60px taller: the list opened scrolled down, the first row
+        // half under the header (Portal Builder recordings, krateo-system pods). A one-line row is
+        // never taller than the estimate, so the correction can only clamp to 0. Virtual tables
+        // already fit the container (antd treats a non-numeric scroll.x as 1), so column widths do
+        // not move; only a cell that used to wrap is now cut, with the full text on hover.
+        ellipsis: fitContent || virtual ? { showTitle: true } : undefined,
         key: `${uid}-col-${index}`,
         // Per-column sizing, straight through to antd (ColumnType.width / .minWidth). Both optional:
         // undefined leaves antd's own sizing exactly as it was, so no existing table moves.
