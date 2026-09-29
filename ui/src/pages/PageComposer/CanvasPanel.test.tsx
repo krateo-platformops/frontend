@@ -172,7 +172,7 @@ describe('CanvasPanel — dragging', () => {
     // drop" had no answer you could look up.
     const files = { ...draft(), 'templates/flex.page-demo.yaml': cr('Flex', 'page-demo', [['r', 'row-one'], ['p', 'para-one']], false, ['rows']) }
     render(<CanvasPanel files={files} />)
-    expect(frame('page-demo').textContent).toContain('rows only')
+    expect(frame('page-demo').textContent).toContain('accepts rows only')
     expect(frame('row-one').textContent).not.toContain('only')
   })
 

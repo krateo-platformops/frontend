@@ -491,6 +491,15 @@ export const darkTheme: ThemeConfig = {
     fontFamily: typography.family,
     motionDurationMid: motion.mid,
     motionDurationSlow: motion.slow,
+    // THE BLUE PRESET RAMPS, SEEDED FROM THE DARK PALETTE. antd's dark algorithm builds each preset
+    // colour's ramp from its seed, and a preset Tag paints `<color>7` ink on a `<color>1` fill. The
+    // stock seeds (#1677FF, #2F54EB) are tuned for a white ground; on this one the ink came out
+    // #3C89E8 on #111A2C (4.91:1, `blue`) and #5273E0 on #131629 (4.16:1, `geekblue`, below AA),
+    // which is why "data" in the object tree and the "Publishes to" chip read faint in the dark
+    // theme. Seeded from the brand blues instead they measure 7.16:1 and 7.91:1. Dark only: the
+    // light theme keeps antd's stock ramps. Pinned by tokens.contrast.test.ts.
+    blue: colorDark.blue,
+    geekblue: colorDark.primary,
   },
   components: buildComponents(colorDark, 'dark'),
 }

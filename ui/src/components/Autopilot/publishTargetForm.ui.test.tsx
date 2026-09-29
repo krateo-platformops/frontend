@@ -105,6 +105,19 @@ describe('the publish-destination gate stacks above the preview drawer', () => {
     expect(note.textContent, 'the old, false precondition must not come back').not.toMatch(/must already exist/i)
   })
 
+  it('says each thing once — the precondition no longer repeats the branch / change-request blurb', async () => {
+    render(<PublishTargetFormHost />)
+    await act(() => {
+      void requestPublishTarget({ base: 'main', initiator: 'person', kind: 'page', owner: 'krateo-blueprints', repo: 'demo-pb-04' })
+      return Promise.resolve()
+    })
+    const form = await screen.findByTestId('publish-target-form')
+    const text = form.textContent ?? ''
+    const count = (pattern: RegExp) => (text.match(pattern) ?? []).length
+    expect(count(/created if it doesn’t exist/gi)).toBe(1)
+    expect(count(/change request/gi)).toBe(1)
+    expect(count(/nothing merges without your review/gi)).toBe(1)
+  })
   it('does NOT throw the publish away on Escape (frontend#279)', async () => {
     // onCancel resolves the awaited destination as null, which aborts the whole publish and sends
     // the user back to re-preview. antd fires onCancel for Escape and for the mask as well as for
@@ -267,5 +280,33 @@ describe('a seeded destination is named for its chart', () => {
       await Promise.resolve()
     })
     await waitFor(() => expect(settled).toEqual({ base: 'main', owner: 'acme', repo: 'team-pages' }))
+  })
+})
+
+describe('the publish-destination form names who does what', () => {
+  it('a page a PERSON publishes does not say Autopilot pushes it', async () => {
+    // pbx/publish1.png: a page built by hand, Publish clicked, and the form said
+    // "Autopilot pushes to a branch…". Autopilot was not involved, and it never pushes anyway.
+    render(<PublishTargetFormHost />)
+    await act(() => {
+      void askPublishDestination({}, 'page', 'portal', 'krateo-blueprints', { seeded: true, slug: 'demo-pb-04' }, 'person')
+      return Promise.resolve()
+    })
+    const form = await screen.findByTestId('publish-target-form')
+    expect(form.textContent).not.toMatch(/Autopilot/)
+    expect(form.textContent).toMatch(/Krateo pushes the page to a branch/)
+    expect(screen.queryByTestId('publish-initiator')).toBeNull()
+  })
+
+  it('a publish AUTOPILOT asked for says so, and that nothing is written until the person confirms', async () => {
+    render(<PublishTargetFormHost />)
+    await act(() => {
+      void askPublishDestination({}, 'page', 'portal', 'krateo-blueprints', { seeded: true, slug: 'demo-pb-04' }, 'autopilot')
+      return Promise.resolve()
+    })
+    const line = await screen.findByTestId('publish-initiator')
+    expect(line.textContent).toBe('Autopilot asked to publish this page. Nothing is written until you confirm the destination.')
+    // Krateo does the push either way.
+    expect(screen.getByTestId('publish-target-form').textContent).toMatch(/Krateo pushes the page to a branch/)
   })
 })

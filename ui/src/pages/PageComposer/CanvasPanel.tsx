@@ -42,6 +42,7 @@ import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { Empty, Tag, Tooltip, Typography } from 'antd'
 import { Fragment, useMemo } from 'react'
 
+import { containerTag } from './containerTag'
 import { gapDropId, nodeDragId, wellDropId } from './dndIds'
 import type { DragPayload, DropPayload } from './dndIds'
 import { legalTargets } from './dropTargets'
@@ -280,9 +281,9 @@ const Frame = ({ airborne, depth, draggingId, legal, node, onSelect }: {
           have started — so "why did that not drop" had no answer you could look up. A non-empty
           declaration is a statement of intent and belongs on the frame beside the other tags.
         */}
-        {container && node.allowedResources?.length ? (
-          <Tooltip title='its widgetData.allowedResources — edit the file in Files to change it'>
-            <Tag>{node.allowedResources.join(', ')} only</Tag>
+        {container && containerTag(node) ? (
+          <Tooltip title='its widgetData.allowedResources, as written by an author — edit the file in Files to change it'>
+            <Tag>{containerTag(node)}</Tag>
           </Tooltip>
         ) : null}
       </div>

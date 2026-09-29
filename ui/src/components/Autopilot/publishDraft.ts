@@ -35,7 +35,7 @@ import { isPageDraft, pageCompositionDefinition, pageRootSlug } from './pageDraf
 import type { PublishRequestDetail, PublishResultDetail } from './previewPublishRequest'
 import { lintHeldDraft } from './proposedChart'
 import { heldDraftIdentity, type PublishCompileResult } from './publishCompile'
-import { askPublishDestination } from './publishTargetForm'
+import { askPublishDestination, type PublishInitiator } from './publishTargetForm'
 import type { AutopilotActionChip } from './types'
 import type { DraftAutosave } from './useDraftAutosave'
 
@@ -46,6 +46,8 @@ export interface PublishDraftDeps {
   config: Config | undefined
   /** Authorship provenance stamped onto every op — who and what caused the write. */
   origin: AuthorshipOrigin
+  /** Who asked for this publish — the destination form says so. Absent: the agent's verb. */
+  initiator?: PublishInitiator
 }
 
 export interface PublishDraftOutcome {
@@ -128,7 +130,7 @@ export const runDraftPublish = async (
   // bare repo has no release workflow, so it can never be released or registered. Null when no
   // template is configured — the claim then omits `source` and the repo is auto-init'd bare.
   const sourceUrl = builderTemplateUrl(isPage ? builderTargets.pageTemplate : builderTargets.blueprintTemplate, config?.api.AUTOPILOT_GIT_HOST)
-  const dest = await askPublishDestination(proposal, builder, destRepo, bt.owner, slug ? { seeded: sourceUrl !== null, slug } : undefined)
+  const dest = await askPublishDestination(proposal, builder, destRepo, bt.owner, slug ? { seeded: sourceUrl !== null, slug } : undefined, deps.initiator ?? 'autopilot')
 
   if (!dest) {
     return { compiled: { denial: 'publish cancelled — destination not confirmed', ops: null }, deepLink: null }
@@ -216,7 +218,7 @@ export const runPersonPublish = async (
   // The draft being published, as it is NOW: the destination form is a wait, and its record is the
   // one that was asked to publish.
   const held = deps.blueprintStore.get()
-  const { compiled, deepLink } = await runDraftPublish(deps, { label: 'Publish', verb })
+  const { compiled, deepLink } = await runDraftPublish({ ...deps, initiator: 'person' }, { label: 'Publish', verb })
   if (compiled.denial !== null) {
     return { deepLink: null, denial: compiled.denial }
   }
