@@ -69,6 +69,13 @@
   background-color: color-mix(in srgb, currentcolor 6%, transparent);
 }
 
+/* `rowActionsDisplay: buttons`: antd lays a horizontal item out as meta → actions → extra, which
+   would put the buttons between the name and its time/state. The row's verbs close the row. */
+.actionsLast :global(.ant-list-item-action) {
+  margin-inline-start: var(--spacing-md);
+  order: 1;
+}
+
 /* `?spotlight=<name>` highlight — a global-search hit for a not-yet-installed blueprint routes
    to /marketplace?q=…&spotlight=… ; the matched tile gets an amber ring + a brief attention
    pulse (the "mouse-over" cue), settling into a persistent amber ring. */

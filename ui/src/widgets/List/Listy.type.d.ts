@@ -249,7 +249,7 @@ export interface Listy {
           subSecondaryText?: 'text' | 'datetime' | 'relative'
         }
         /**
-         * per-row action controls rendered as a kebab (⋯) menu on each row; each entry references an action id from widgetData.actions and is fired with the row's data as the action payload (customPayload). Distinct from navigateTo (whole-row click).
+         * per-row action controls rendered on each row as a kebab (⋯) menu or as buttons (see rowActionsDisplay); each entry references an action id from widgetData.actions and is fired with the row's data as the action payload (customPayload). Distinct from navigateTo (whole-row click).
          */
         rowActions?: {
           /**
@@ -269,6 +269,10 @@ export interface Listy {
            */
           danger?: boolean
         }[]
+        /**
+         * how the default rowVariant presents rowActions: menu (a kebab (⋯) at the row's end, default) | buttons (antd Buttons at the row's end, in declared order: the first primary, the rest default, a danger entry as danger). The whole-row click (navigateTo) is unchanged either way. The card rowVariant always renders buttons.
+         */
+        rowActionsDisplay?: 'menu' | 'buttons'
       }
       /**
        * optional SSE endpoint to stream items from (Krateo extension)

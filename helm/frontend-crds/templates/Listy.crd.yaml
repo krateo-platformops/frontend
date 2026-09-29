@@ -570,7 +570,7 @@ spec:
                           description: '{dot.path} to the row''s main label.'
                           type: string
                         rowActions:
-                          description: per-row action controls rendered as a kebab (⋯) menu on each row; each entry references an action id from widgetData.actions and is fired with the row's data as the action payload (customPayload). Distinct from navigateTo (whole-row click).
+                          description: per-row action controls rendered on each row as a kebab (⋯) menu or as buttons (see rowActionsDisplay); each entry references an action id from widgetData.actions and is fired with the row's data as the action payload (customPayload). Distinct from navigateTo (whole-row click).
                           items:
                             properties:
                               actionId:
@@ -590,6 +590,12 @@ spec:
                               - label
                             type: object
                           type: array
+                        rowActionsDisplay:
+                          description: 'how the default rowVariant presents rowActions: menu (a kebab (⋯) at the row''s end, default) | buttons (antd Buttons at the row''s end, in declared order: the first primary, the rest default, a danger entry as danger). The whole-row click (navigateTo) is unchanged either way. The card rowVariant always renders buttons.'
+                          enum:
+                            - menu
+                            - buttons
+                          type: string
                         rowVariant:
                           description: 'row layout: default (antd List.Item.Meta — avatar + stacked title/description) | tree (tight single-line mono Relations row: connector + status dot + primaryText + muted inline subPrimaryText + right-aligned colored secondaryText) | card (full antd Card tile — icon-tile + name + version badge (subPrimaryText) + category tag (secondaryText) + description + a footer of rowActions as visible buttons — the Marketplace catalog grid) | chip (compact navigable filter pill — primaryText label + optional count, solid/amber when the item''s active flag is set — the data-driven Marketplace facet chips)'
                           enum:
