@@ -25,8 +25,9 @@
  * preview calls it before it applies anything, so a tab killed mid-preview has already stored the
  * tree the preview was of.
  *
- * WHAT THIS TAB KNOWS, KEPT. `renderedHash` (set by a successful Preview), `threadId` (the thread the
- * draft was first saved from), `state` and `publish` (set by a publish that landed) are held here per
+ * WHAT THIS TAB KNOWS, KEPT. `renderedHash` (set by a successful Preview), `threadId` (the Autopilot
+ * thread that first changed the draft — set only after `noteAgentChange`, so a draft composed by hand
+ * never claims a thread just because the rail has one open), `state` and `publish` (set by a publish that landed) are held here per
  * record and written with every save; `updatedAt` is the save's own time.
  *
  * NOTHING HERE DELETES. Closing the held draft is not discarding it: the record stays, listed in
@@ -87,6 +88,8 @@ export interface DraftAutosave {
   setWriter: (writer: SandboxWriter | undefined) => void
   /** The current Autopilot thread; latched onto a record the first time it is saved. */
   setThreadId: (threadId: string | null | undefined) => void
+  /** An Autopilot proposal just changed (or is about to change) the held draft: the next save may name the thread. */
+  noteAgentChange: () => void
   /** Save the held draft NOW (write-ahead). Resolves when every queued save has landed or failed. Never throws. */
   flush: () => Promise<void>
   /** A Preview rendered exactly this tree: record its hash, and save. Null (nothing held): a no-op. */
@@ -142,6 +145,8 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
 
   let writer: SandboxWriter | undefined
   let threadId: string | undefined
+  /** Set by noteAgentChange, spent by the next save: only an agent's change attributes a draft to the thread. */
+  let agentChanged = false
   /** The held draft as the store last announced it. */
   let latest: BlueprintDraftHeld | null = null
   /** The draft a debounce timer is waiting to save. */
@@ -191,9 +196,10 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
     }
     const key = keyOf(held)
     const meta = metaOf(key)
-    if (meta.threadId === undefined && threadId) {
+    if (meta.threadId === undefined && threadId && agentChanged) {
       meta.threadId = threadId
     }
+    agentChanged = false
     const displayName = draftRecordDisplayName(held)
     const { kind }: { kind: DraftKind } = held
     const fingerprint = fingerprintOf(held.files, meta)
@@ -328,6 +334,7 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
       return writer ? enqueue(latest && keyOf(latest) === keyOf(held) ? latest : held) : chain
     },
     markRendered: (held) => (held ? markRenderedTree(held) : chain),
+    noteAgentChange: () => { agentChanged = true },
     onHeldChange,
     seedFromRecord: (body) => {
       const meta = metaOf(keyOf(body))

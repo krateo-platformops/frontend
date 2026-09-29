@@ -163,7 +163,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // and the store, because each is handed a piece of it at construction — the bridge its write-ahead
   // (a live page preview flushes the record before it applies), the store its change listener.
   const [draftAutosave] = useState(() => createDraftAutosave())
-  const { apply, discardSandbox, sandboxWriter } = useAutopilotActionBridge(draftAutosave.flush, draftAutosave.markPageApplied)
+  const { apply, discardSandbox, sandboxWriter } = useAutopilotActionBridge(draftAutosave.flush, draftAutosave.markPageApplied, draftAutosave.noteAgentChange)
 
   const [open, setOpen] = useState(false)
   // The DURABLE conversation (transcript + thread identity) is held in a module-level
