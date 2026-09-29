@@ -145,3 +145,60 @@ describe('ListView — rowActionsDisplay', () => {
     expect(focusables).toEqual([rowOf(container), ...actionButtons(container)])
   })
 })
+
+/**
+ * The row's own Enter/Space handler used to take a key from ANY control inside the row: it
+ * navigated and preventDefault-ed the control's activation away, so Enter on the "⋮" trigger opened
+ * the row instead of the menu, and Enter on a clickable card's action button navigated instead of
+ * running the action. The row now handles only keys aimed at itself.
+ */
+describe('ListView — a key on a control inside a row belongs to the control', () => {
+  afterEach(() => {
+    cleanup()
+    navigateSpy.mockClear()
+    handleActionSpy.mockClear()
+  })
+
+  it('Enter on the row-actions kebab is not taken by the row', () => {
+    const { container } = renderList('menu')
+    const [kebab] = actionButtons(container)
+    kebab.focus()
+    const event = fireEvent.keyDown(kebab, { key: 'Enter' })
+
+    expect(navigateSpy).not.toHaveBeenCalled()
+    expect(event).toBe(true)
+  })
+
+  it.each(['Enter', ' '])('%j on the row itself still navigates', (key) => {
+    const { container } = renderList('menu')
+    const row = rowOf(container)
+    row.focus()
+    const event = fireEvent.keyDown(row, { key })
+
+    expect(navigateSpy).toHaveBeenCalledWith('/row/draft-a')
+    expect(event).toBe(false)
+  })
+
+  it('Enter on a clickable card\'s action button is not taken by the card', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <App>
+          <ListView
+            actions={actions}
+            itemTemplate={{ navigateTo: '/row/{name}', primaryText: '{name}', rowActions, rowVariant: 'card' }}
+            items={[{ name: 'draft-a' }]}
+            rowKey='card-keys-test'
+          />
+        </App>
+      </MemoryRouter>,
+    )
+    expect(container.querySelector('[role="button"][tabindex="0"]')).not.toBeNull()
+    // The real <button>: the clickable card is role="button" too, and its name includes "Resume".
+    const resume = [...container.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.textContent === 'Resume') as HTMLButtonElement
+    resume.focus()
+    const event = fireEvent.keyDown(resume, { key: 'Enter' })
+
+    expect(navigateSpy).not.toHaveBeenCalled()
+    expect(event).toBe(true)
+  })
+})
