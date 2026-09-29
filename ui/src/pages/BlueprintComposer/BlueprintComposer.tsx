@@ -58,6 +58,7 @@ import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
 import { emitFilesBatch } from '../../components/Autopilot/previewFilesBatch'
 import { emitPublishRequest, onPublishResult } from '../../components/Autopilot/previewPublishRequest'
 import { PreviewContent, type FileHighlight, type RestDefVerdicts } from '../../components/Autopilot/previewSurface'
+import { useDraftResume } from '../../components/Autopilot/useDraftResume'
 import StatusPill from '../../components/StatusPill'
 import { ConfigContext } from '../../context/ConfigContext'
 
@@ -235,21 +236,19 @@ const BlueprintComposer = () => {
     setPublished({ deepLink, denial })
   }), [])
 
-  // A discard — this page's, or anyone's: nothing shown here describes what is held any more, and a
-  // placement whose CRD read is on the wire is dropped when it lands (`discards`).
-  useEffect(() => onDraftClose(() => {
+  // A discard (this page's, or anyone's) or a `?resume=` that replaced the draft (useDraftResume): nothing
+  // shown describes what is held any more; a placement whose CRD read is on the wire is dropped (`discards`).
+  const forgetShown = useCallback(() => {
     discards.current += 1
     reset()
-    setSelected(null)
-    setFocus(null)
-    setLevel(0)
-    setEditVerdicts(null)
-    setPublished(null)
-    setPlaced(null)
-    setPlacing(null)
-    setPlaceRefusal(null)
+    setSelected(null); setFocus(null)
+    setLevel(0); setEditVerdicts(null)
+    setPublished(null); setPlaced(null)
+    setPlacing(null); setPlaceRefusal(null)
     setFormEditor((last) => ({ ...last, open: false }))
-  }), [reset])
+  }, [reset])
+  useEffect(() => onDraftClose(forgetShown), [forgetShown])
+  const resumed = useDraftResume({ kind: 'blueprint', onResumed: forgetShown, sandboxNamespace: api?.PREVIEW_SANDBOX_NAMESPACE, snowplowBaseUrl: api?.SNOWPLOW_API_BASE_URL })
 
   const mode = modeOf(held)
   // A page draft's files are never read here, not even to count them.
@@ -257,9 +256,7 @@ const BlueprintComposer = () => {
 
   // The Start modal belongs to the empty page: once anything is held — the start landed, or a draft
   // arrived from elsewhere — it closes, and does not come back when that draft is discarded.
-  useEffect(() => {
-    if (mode !== 'empty') { setStartOpen(false) }
-  }, [mode])
+  useEffect(() => setStartOpen((open) => open && mode === 'empty'), [mode])
 
   // Keyed on the file's TEXT (a string), not on `files` — see architectureView's header.
   const architectureText = files[ARCHITECTURE_TEMPLATE_PATH]
@@ -441,6 +438,7 @@ const BlueprintComposer = () => {
             moves through — then publish the whole set as one change request.
           </p>
         </header>
+        {resumed}
         <BlueprintEmptyState onDiscard={emitDraftClose} onStart={() => setStartOpen(true)} parkedPage={mode === 'page'} />
         <StartChartModal
           onCancel={() => setStartOpen(false)}
@@ -512,6 +510,7 @@ const BlueprintComposer = () => {
           </Space>
           {blocker ? <span className={styles.srOnly} id={blockerId}>{blocker}</span> : null}
         </div>
+        {resumed}
         <DraftProblemsAlert problems={held.problems ?? []} />
         <GateDriftAction files={files} />
         {outcome ? (

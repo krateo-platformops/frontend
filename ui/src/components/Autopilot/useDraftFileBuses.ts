@@ -32,6 +32,7 @@ import { buildPagePreviewPayload } from './previewBridge'
 import { openAutopilotPreview, setPreviewProblems } from './previewBus'
 import { type DraftChangedDetail, emitDraftChanged, onDraftReplayRequest } from './previewDraftChanged'
 import { emitDraftClose, onDraftClose } from './previewDraftClose'
+import { onDraftReapply } from './previewDraftResume'
 import { onDraftStart } from './previewDraftStart'
 import { onDraftUndo } from './previewDraftUndo'
 import { onFileAdd } from './previewFileAdd'
@@ -461,6 +462,17 @@ export const useDraftFileBuses = (
     setPreviewProblems(null)
     store.clear()
   }), [gate, identityOf, runApply, store])
+
+  // RE-APPLY, asked for: a resumed draft (useDraftResumeBus) put a tree in the store that no edit
+  // produced, so nothing above scheduled its live preview. Through the same loop, so it queues
+  // behind an apply already on the wire; `discardPrevious` first takes down the render of the page
+  // the resume replaced — the teardown a discard would queue, without the discard.
+  useEffect(() => onDraftReapply(({ discardPrevious }) => {
+    if (discardPrevious) {
+      discardQueued.current = true
+    }
+    void runApply()
+  }), [runApply])
 
   // REPLAY: a surface that mounted AFTER the draft was seeded missed the store's broadcast, so it
   // asks and we answer on the same bus. Answering with an empty map when nothing is held is

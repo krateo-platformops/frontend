@@ -48,6 +48,7 @@ import { buildContextDelta, useAutopilotContext } from './useAutopilotContext'
 import { useBlueprintAuthoringBuses } from './useBlueprintAuthoringBuses'
 import { createDraftAutosave, useDraftAutosave } from './useDraftAutosave'
 import { createBroadcastingDraftStore, useDraftFileBuses } from './useDraftFileBuses'
+import { useDraftResumeBus } from './useDraftResumeBus'
 import { autopilotSpeakBackStore } from './voice/speak/speakBackStore'
 import { stopVoice } from './voiceWiring'
 
@@ -819,6 +820,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   useBlueprintAuthoringBuses(blueprintStore, blueprintGate, config, sandboxWriter, draftAutosave)
   // The draft record's writer (absent without a sandbox: autosave off) and the thread it came from.
   useDraftAutosave(draftAutosave, sandboxWriter, sessionId)
+  // A person resuming a stored draft or adopting a legacy page set, and the legacy Discard — see useDraftResumeBus.
+  useDraftResumeBus(blueprintStore, blueprintGate, { autosave: draftAutosave, sandboxWriter, switchToThread })
 
   /**
    * PUBLISH, asked for by a person rather than proposed by the model.

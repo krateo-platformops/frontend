@@ -48,6 +48,7 @@ import { LIVE_PREVIEW_CAPTION_INLINE } from '../../components/Autopilot/previewP
 import { emitPublishRequest, onPublishResult } from '../../components/Autopilot/previewPublishRequest'
 import { PreviewContent } from '../../components/Autopilot/previewSurface'
 import type { RestDefVerdicts } from '../../components/Autopilot/previewSurface'
+import { useDraftResume } from '../../components/Autopilot/useDraftResume'
 import { ConfigContext } from '../../context/ConfigContext'
 
 import CanvasPanel from './CanvasPanel'
@@ -690,6 +691,17 @@ const PageComposer = () => {
     setFocusPath(null)
   }), [])
 
+  // `?resume=<record>` (Your drafts) and `?adopt=<page-slug>` (Unowned drafts), read as the person
+  // and held by the provider (useDraftResume). The resumed page's live render is re-applied there and
+  // arrives on the preview bus like any other; what this view kept about the draft before it goes.
+  const onResumed = () => {
+    setEditVerdicts(null)
+    setFocusPath(null)
+    setOutcome(null)
+    setMoveError(null)
+  }
+  const resumed = useDraftResume({ allowAdopt: true, kind: 'page', onResumed, sandboxNamespace: previewSandboxNamespace, snowplowBaseUrl })
+
   // What the body shows: the adopted preview, or — for a page held from before this view mounted —
   // one built from the held files, rather than "No draft open" over a draft that is there.
   const shown = useMemo(() => payload ?? (parkedBlueprint ? null : heldPagePayload(files)), [files, parkedBlueprint, payload])
@@ -775,6 +787,7 @@ const PageComposer = () => {
             </Space>
           )
           : null}
+        {resumed}
         {moveError
           ? (
             <Alert
