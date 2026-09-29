@@ -63,7 +63,7 @@ describe('the record ConfigMap', () => {
   })
 
   it('labels whether the tree is the one Preview rendered, for listings that cannot hash', () => {
-    const label = (b: DraftRecordBody) => (draftRecordConfigMap('ns', 'admin', b) as { metadata: { labels: Record<string, string> } }).metadata.labels['krateo.io/draft-previewed']
+    const label = (record: DraftRecordBody) => (draftRecordConfigMap('ns', 'admin', record) as { metadata: { labels: Record<string, string> } }).metadata.labels['krateo.io/draft-previewed']
     expect(label(body)).toBe('false')
     expect(label({ ...body, renderedHash: treeHash(body.files) })).toBe('true')
     expect(label({ ...body, renderedHash: treeHash({ ...body.files, 'values.yaml': 'a: 1\n' }) })).toBe('false')
