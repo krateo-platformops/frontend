@@ -22,7 +22,7 @@
  * the moment either changed — the same argument that keeps `planMove`/`planAdd` the one kernel for
  * a drag and a proposal alike.
  */
-import { buildObjectTree, flattenTree } from '../../pages/PageComposer/objectTree'
+import { buildObjectTree, flattenTree, listDataSources } from '../../pages/PageComposer/objectTree'
 import type { TreeNode } from '../../pages/PageComposer/objectTree'
 
 import { CHART_YAML_PATH, chartYamlName, VALUES_SCHEMA_PATH } from './blueprintDraft'
@@ -36,6 +36,13 @@ import type { ChartDraftSummary, DraftNodeSummary, DraftSummary, PageContextEnve
  * it bites, the summary says so rather than silently presenting a truncation as the whole page.
  */
 const MAX_NODES = 80
+
+/**
+ * Cap on the RESTActions listed — its OWN budget, not MAX_NODES. A RESTAction is not a node of the
+ * tree (the tree is layout), so a page at the node cap must still say which data sources back it,
+ * and an orphan must still be visible. A page carries a handful; past the cap the summary says so.
+ */
+const MAX_DATA_SOURCES = 20
 
 /**
  * Summarize depth-first against a shared budget.
@@ -65,6 +72,7 @@ const summarizeNodes = (nodes: readonly TreeNode[], budget: { left: number }): D
       ...(!node.allowedDerived && node.allowedResources?.length ? { allows: node.allowedResources } : {}),
       ...(children.length ? { children } : {}),
       ...(node.drafted ? {} : { external: true as const }),
+      ...(node.dataSource ? { dataSource: node.dataSource } : {}),
       kind: node.kind,
       name: node.name,
       ...(node.resource ? { resource: node.resource } : {}),
@@ -85,7 +93,8 @@ export const summarizeDraft = (held: BlueprintDraftHeld | null): DraftSummary | 
     return undefined
   }
   const roots = buildObjectTree(held.files)
-  if (!roots.length) {
+  const dataSources = listDataSources(held.files)
+  if (!roots.length && !dataSources.length) {
     return undefined
   }
   const budget = { left: MAX_NODES }
@@ -96,6 +105,10 @@ export const summarizeDraft = (held: BlueprintDraftHeld | null): DraftSummary | 
     // Compare against what the draft ACTUALLY holds, so the flag tracks what was cut rather than
     // how the budget happened to be spent.
     ...(flattenTree(roots).length > MAX_NODES ? { truncated: true as const } : {}),
+    // RESTActions are not in `roots` (they are data, not layout). Listed here, orphans included, so
+    // the model still sees which data source backs a widget and that an unread one exists.
+    ...(dataSources.length ? { dataSources: dataSources.slice(0, MAX_DATA_SOURCES) } : {}),
+    ...(dataSources.length > MAX_DATA_SOURCES ? { dataSourcesTruncated: true as const } : {}),
   }
 }
 
@@ -171,5 +184,7 @@ export const draftFingerprint = (draft: DraftSummary | undefined): string => {
   }
   const walk = (nodes: readonly DraftNodeSummary[]): string =>
     nodes.map((node) => `${node.name}:${node.kind ?? ''}[${walk(node.children ?? [])}]`).join(',')
-  return walk(draft.roots)
+  // Which RESTAction backs which widget is structure too: a bind or an orphaned query changes it.
+  const data = (draft.dataSources ?? []).map(({ name, usedBy }) => `${name}<${usedBy.join(',')}>`).join(',')
+  return data ? `${walk(draft.roots)}|${data}` : walk(draft.roots)
 }

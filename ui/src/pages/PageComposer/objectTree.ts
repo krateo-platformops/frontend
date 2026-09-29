@@ -321,6 +321,31 @@ export const buildObjectTree = (files: Record<string, string>): TreeNode[] => {
     .map((object) => toNode({ name: object.name, namespace: object.namespace, refId: null, resource: null }, null, new Set(), null))
 }
 
+/** One RESTAction the draft carries, and the drafted widgets whose apiRef names it. */
+export interface DataSource {
+  name: string
+  /** Widget CR names reading it, in file order. Empty for an orphan nothing reads. */
+  usedBy: string[]
+}
+
+/**
+ * Every RESTAction in the draft, with who reads it — the other half of what `buildObjectTree`
+ * leaves out. The tree is layout, so RESTActions are not nodes there; this is where a reader that
+ * needs them (the agent's draft summary) finds them, orphans included. Same parser, so the two
+ * views cannot disagree about what a file declares.
+ */
+export const listDataSources = (files: Record<string, string>): DataSource[] => {
+  const parsed = Object.entries(files)
+    .map(([path, content]) => parseObject(path, content))
+    .filter((object): object is ParsedObject => object !== null)
+  return parsed
+    .filter((object) => object.kind === RESTACTION_KIND)
+    .map(({ name }) => ({
+      name,
+      usedBy: parsed.filter((object) => object.kind !== RESTACTION_KIND && object.dataSource === name).map((object) => object.name),
+    }))
+}
+
 /** Every node, depth-first — for counting, searching, and scrolling the Files tab to a selection. */
 export const flattenTree = (nodes: readonly TreeNode[]): TreeNode[] =>
   nodes.flatMap((node) => [node, ...flattenTree(node.children)])

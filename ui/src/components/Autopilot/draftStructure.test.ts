@@ -133,6 +133,59 @@ describe('summarizeDraft', () => {
   })
 })
 
+/**
+ * RESTACTIONS ARE NOT LAYOUT, BUT THE AGENT MUST STILL SEE THEM. The composer's tree leaves them out
+ * (they were drawn as canvas boxes), and this summary is built from that tree — so they ride beside
+ * it: on the widget that reads one, and as a list of every RESTAction with who reads it.
+ */
+describe('summarizeDraft — data sources', () => {
+  const restAction = (name: string): string =>
+    `kind: RESTAction\napiVersion: templates.krateo.io/v1\nmetadata:\n  name: ${name}\n  namespace: krateo-system\nspec:\n  api: []`
+  const boundTable = (name: string, source: string): string =>
+    `${cr('Table', name)}\n  apiRef:\n    name: ${source}\n    namespace: krateo-system`
+  const bound = {
+    'templates/card.card-b.yaml': cr('Card', 'card-b', ['pods-table']),
+    'templates/flex.page-x.yaml': cr('Flex', 'page-x', ['card-b']),
+    'templates/restaction.pods.yaml': restAction('pods'),
+    'templates/table.pods-table.yaml': boundTable('pods-table', 'pods'),
+  }
+
+  it('a bound widget names its RESTAction, and the RESTAction names who reads it', () => {
+    const summary = summarizeDraft(held(bound))
+    const table = summary?.roots[0].children?.[0].children?.[0]
+    expect(table).toMatchObject({ dataSource: 'pods', kind: 'Table', name: 'pods-table' })
+    expect(summary?.dataSources).toEqual([{ name: 'pods', usedBy: ['pods-table'] }])
+    // Still data, not layout: never a root.
+    expect(summary?.roots.map((root) => root.name)).toEqual(['page-x'])
+  })
+
+  it('an ORPHAN RESTAction is listed with no readers, not silently dropped', () => {
+    const summary = summarizeDraft(held({ ...bound, 'templates/restaction.unused.yaml': restAction('unused') }))
+    expect(summary?.dataSources).toContainEqual({ name: 'unused', usedBy: [] })
+    expect(summary?.dataSourcesTruncated).toBeUndefined()
+  })
+
+  it('has its own cap, independent of the node budget, and says when it bit', () => {
+    const many: Record<string, string> = { ...page }
+    for (let index = 0; index < 25; index += 1) {
+      many[`templates/restaction.q${index}.yaml`] = restAction(`q${index}`)
+    }
+    const summary = summarizeDraft(held(many))
+    expect(summary?.dataSources).toHaveLength(20)
+    expect(summary?.dataSourcesTruncated).toBe(true)
+    expect(summary?.truncated).toBeUndefined()
+  })
+
+  it('a draft with no RESTAction carries no dataSources key', () => {
+    expect(summarizeDraft(held(page))).not.toHaveProperty('dataSources')
+  })
+
+  it('binding a widget changes the fingerprint, so the agent is re-sent the draft', () => {
+    const unbound = { ...bound, 'templates/table.pods-table.yaml': cr('Table', 'pods-table') }
+    expect(draftFingerprint(summarizeDraft(held(unbound)))).not.toBe(draftFingerprint(summarizeDraft(held(bound))))
+  })
+})
+
 describe('withHeldDraft', () => {
   const envelope: PageContextEnvelope = { route: '/portal-builder/compose', widgets: [] }
 
