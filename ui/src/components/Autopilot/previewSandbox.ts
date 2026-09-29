@@ -22,6 +22,7 @@ import Ajv, { type ValidateFunction } from 'ajv'
 import { getResourceEndpoint } from '../../utils/utils'
 
 import { type ApplyResourceSetGvr, type ApplyResourceSetOp, MAX_APPLY_SET_OPS } from './applyResourceSet'
+import { LABEL_OWNER } from './draftRecord'
 import { pluralOf, primeKinds } from './kindResolver'
 
 /** The widget-CR coordinates every draft is normalized to (the live CRD group/version). */
@@ -40,6 +41,8 @@ export const RESTACTIONS_PLURAL = 'restactions'
 export const PREVIEW_PURPOSE_LABEL = 'krateo.io/purpose'
 export const PREVIEW_PURPOSE_VALUE = 'preview-draft'
 export const PREVIEW_SESSION_LABEL = 'krateo.io/preview-session'
+/** Whose preview a sandbox CR is — the draft-record kernel's owner label, the same key and value. */
+export const PREVIEW_OWNER_LABEL = LABEL_OWNER
 
 /** DNS-1123 name (same class applyResourceSet's path-segment guard enforces). */
 const DNS1123 = /^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$/
@@ -229,6 +232,68 @@ export const validatePageDrafts = async (
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Owner-scoped sandbox names — two people previewing the same page never collide
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Kubernetes' name ceiling we hold every sandbox name to (a DNS-1123 label, so it also fits a label value). */
+const MAX_SANDBOX_NAME = 63
+
+/** FNV-1a, 32-bit, as 8 hex characters. Not a security hash — it only has to spread names apart. */
+const hash8 = (text: string): string => {
+  let hash = 0x811c9dc5
+  for (let index = 0; index < text.length; index += 1) {
+    hash = Math.imul(hash ^ text.charCodeAt(index), 0x01000193) >>> 0
+  }
+  return hash.toString(16).padStart(8, '0')
+}
+
+/**
+ * The tag every sandbox name of this owner ends in: 8 hex characters of the owner.
+ *
+ * WHY A HASH AND NOT THE OWNER ITSELF. The owner is already on the object, readable and queryable,
+ * as the `krateo.io/draft-owner` label — the name's only job is to be DIFFERENT from every other
+ * owner's. A raw-owner suffix cannot promise that: `x` by `alice-bob` and `x-alice` by `bob` both
+ * come out `x-alice-bob`, because a suffix has no delimiter the owner cannot also contain. And the
+ * owner can be 40 characters, which would leave a page slug 22. A fixed-width tag has neither
+ * problem: it always takes 9 characters, and the SET of names one owner can produce (everything
+ * ending in their tag) is disjoint from another owner's whenever the two tags differ — 32 bits, so
+ * a clash needs tens of thousands of users before it is even plausible.
+ */
+export const ownerTagOf = (owner: string): string => hash8(`owner:${owner}`)
+
+/**
+ * The name a draft gets in the sandbox: `<name>-<owner tag>`, a DNS-1123 name within 63 characters.
+ *
+ * THE PROBLEM IT SOLVES. Draft names are derived from the page (`page-<slug>`, `<name>-card`, …),
+ * so two people previewing `my-page` wrote the SAME names into the one shared sandbox. The pre-apply
+ * sweep deletes every name it is about to write, whoever wrote it; the 409 reclaim deletes whatever
+ * is in the way, whoever put it there. Both are right for a crashed tab of one's OWN and were wrong
+ * for a colleague's live preview, which vanished mid-edit. Scoping the name makes both safe without
+ * changing either: they only ever name what this owner could have written.
+ *
+ * TRUNCATION KEEPS BOTH GUARANTEES. A name too long for `<name>-<tag>` is cut, and the cut is
+ * followed by a hash of the FULL name before the owner tag — `<first 45>-<hash of name>-<tag>` — so
+ * two long names sharing a prefix stay distinct within one owner's set, and the owner tag is never
+ * the part that gets cut. The name keeps its readable head (the `page-` prefix the root is found
+ * by survives any cut).
+ *
+ * IDEMPOTENT: a name already ending in this owner's tag is returned as-is, so scoping twice — a
+ * resume handed a name that was already scoped — cannot stack tags.
+ */
+export const sandboxDraftName = (name: string, owner: string): string => {
+  const tag = `-${ownerTagOf(owner)}`
+  if (name.endsWith(tag)) {
+    return name
+  }
+  if (name.length + tag.length <= MAX_SANDBOX_NAME) {
+    return `${name}${tag}`
+  }
+  const nameHash = `-${hash8(name)}`
+  const head = name.slice(0, MAX_SANDBOX_NAME - nameHash.length - tag.length).replace(/[-.]+$/, '')
+  return `${head}${nameHash}${tag}`
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // The A.2.2 rewrite — namespace forced to the sandbox, labels stamped, refs fixed
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -236,19 +301,28 @@ export const validatePageDrafts = async (
  * Rewrite every draft for the sandbox (A.2.2). Pure — returns NEW objects:
  *   - `metadata.namespace` is FORCED to the sandbox (whatever the model emitted; the
  *     agent cannot steer a draft elsewhere);
- *   - labels stamped: `krateo.io/purpose=preview-draft` + the per-thread session id;
+ *   - `metadata.name` is OWNER-SCOPED (`sandboxDraftName`) — the sandbox is shared, and two
+ *     people previewing the same page must not write, sweep or reclaim each other's objects;
+ *   - labels stamped: `krateo.io/purpose=preview-draft`, the per-thread session id, and
+ *     `krateo.io/draft-owner` (the draft-record kernel's owner, so a listing can filter by it);
  *   - `apiVersion` normalized to the kind's real coordinates;
- *   - `spec.resourcesRefs.items[]` and `spec.apiRef` entries that point at OTHER
- *     drafts IN THIS SET (matched by resource/name, and by RESTAction name for
- *     apiRef) are rewritten to the sandbox too — refs into real namespaces (e.g.
- *     reusing a live krateo-system RESTAction) are left intact; reads stay
- *     RBAC-gated per-user anyway.
+ *   - `spec.resourcesRefs.items[]`, `spec.resourcesRefsTemplate[].template` and `spec.apiRef`
+ *     entries that point at OTHER drafts IN THIS SET (matched by resource/name, and by
+ *     RESTAction name for apiRef) are re-pointed to the sandbox AND to the scoped name — a
+ *     ref that followed the namespace but not the rename would resolve to nothing, and the
+ *     page would render empty. Refs into real namespaces (e.g. reusing a live krateo-system
+ *     RESTAction) are left intact; reads stay RBAC-gated per-user anyway.
+ *
+ * The rename exists ONLY here, in the copy that is applied. The held draft — what the Files tab
+ * shows and what a publish writes — is built from the drafts as authored, never from this output.
  * Call AFTER validatePageDrafts (kinds/names are assumed well-formed here).
  */
 export const rewriteDraftsForSandbox = (
   drafts: readonly Record<string, unknown>[],
   sandboxNamespace: string,
   sessionId: string,
+  /** `draftOwner(username)` — the kernel's sanitized owner (draftRecord.ts). */
+  owner: string,
 ): Record<string, unknown>[] => {
   // The set's own identities: "<plural>/<name>" for ref-items, RESTAction names for apiRef.
   const draftKeys = new Set<string>()
@@ -273,23 +347,36 @@ export const rewriteDraftsForSandbox = (
     const labels = asRecord(metadata.labels) ?? {}
     draft.metadata = {
       ...metadata,
-      labels: { ...labels, [PREVIEW_PURPOSE_LABEL]: PREVIEW_PURPOSE_VALUE, [PREVIEW_SESSION_LABEL]: sessionId },
+      labels: {
+        ...labels,
+        [PREVIEW_OWNER_LABEL]: owner,
+        [PREVIEW_PURPOSE_LABEL]: PREVIEW_PURPOSE_VALUE,
+        [PREVIEW_SESSION_LABEL]: sessionId,
+      },
+      ...(isNonEmptyString(metadata.name) ? { name: sandboxDraftName(metadata.name, owner) } : {}),
       namespace: sandboxNamespace,
+    }
+    // A ref naming a draft in this set follows it: into the sandbox, and to its scoped name.
+    const repoint = (ref: Record<string, unknown> | null): void => {
+      if (ref && isNonEmptyString(ref.resource) && isNonEmptyString(ref.name) && draftKeys.has(`${ref.resource}/${ref.name}`)) {
+        ref.namespace = sandboxNamespace
+        ref.name = sandboxDraftName(ref.name, owner)
+      }
     }
     const spec = asRecord(draft.spec)
     if (spec) {
       const refs = asRecord(spec.resourcesRefs)
       if (refs && Array.isArray(refs.items)) {
-        for (const entry of refs.items) {
-          const item = asRecord(entry)
-          if (item && isNonEmptyString(item.resource) && isNonEmptyString(item.name) && draftKeys.has(`${item.resource}/${item.name}`)) {
-            item.namespace = sandboxNamespace
-          }
-        }
+        refs.items.forEach((entry) => { repoint(asRecord(entry)) })
+      }
+      // The per-item template is a ref too: a literal name in it resolves exactly like an item's.
+      if (Array.isArray(spec.resourcesRefsTemplate)) {
+        spec.resourcesRefsTemplate.forEach((entry) => { repoint(asRecord(asRecord(entry)?.template)) })
       }
       const apiRef = asRecord(spec.apiRef)
       if (apiRef && isNonEmptyString(apiRef.name) && restActionNames.has(apiRef.name)) {
         apiRef.namespace = sandboxNamespace
+        apiRef.name = sandboxDraftName(apiRef.name, owner)
       }
     }
 
@@ -343,6 +430,10 @@ export const chunkSetOps = (ops: readonly ApplyResourceSetOp[]): ApplyResourceSe
  * first widget" used to mount a lone child as the whole preview — the silent one-widget
  * page). No page-* root Flex → there is NO page entry to mount; the caller falls back to
  * the source drawer with the actionable message.
+ *
+ * Read on the REWRITTEN targets, so the entry is the owner-scoped `page-<slug>-<tag>` and the live
+ * endpoint built from it (buildSandboxWidgetEndpoint) is this owner's page, not a colleague's. The
+ * `page-` prefix is what finds it, and `sandboxDraftName` never cuts a name's head.
  */
 export const rootDraftTargetOf = (targets: readonly DraftTarget[]): DraftTarget | null =>
   targets.find(({ kind, name }) => kind === 'Flex' && name.startsWith('page-')) ?? null

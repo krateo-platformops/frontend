@@ -329,7 +329,7 @@
                 },
                 "rowActions": {
                   "type": "array",
-                  "description": "per-row action controls rendered as a kebab (\u22ef) menu on each row; each entry references an action id from widgetData.actions and is fired with the row's data as the action payload (customPayload). Distinct from navigateTo (whole-row click).",
+                  "description": "per-row action controls rendered on each row as a kebab (\u22ef) menu or as buttons (see rowActionsDisplay); each entry references an action id from widgetData.actions and is fired with the row's data as the action payload (customPayload). Distinct from navigateTo (whole-row click).",
                   "items": {
                     "type": "object",
                     "additionalProperties": false,
@@ -356,6 +356,14 @@
                       }
                     }
                   }
+                },
+                "rowActionsDisplay": {
+                  "type": "string",
+                  "enum": [
+                    "menu",
+                    "buttons"
+                  ],
+                  "description": "how the default rowVariant presents rowActions: menu (a kebab (\u22ef) at the row's end, default) | buttons (antd Buttons at the row's end, in declared order: the first primary, the rest default, a danger entry as danger). The whole-row click (navigateTo) is unchanged either way. The card rowVariant always renders buttons."
                 }
               }
             },

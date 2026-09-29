@@ -103,6 +103,12 @@ export interface ItemTemplate {
    * from `navigateTo`, which is the whole-row click.
    */
   rowActions?: RowAction[]
+  /**
+   * How the default row presents `rowActions`: `menu` (the kebab, default) or `buttons` —
+   * antd Buttons at the row's end, first primary, for lists whose rows each carry a verb the
+   * person came to do (e.g. Resume / Discard on a draft). The whole-row click is unchanged.
+   */
+  rowActionsDisplay?: 'menu' | 'buttons'
   /** Per-row horizontal Progress bar — the reconciliation-rail row. */
   bar?: BarSpec
   /** At-a-glance status glyph (top-right of the `card` rowVariant) — e.g. a blueprint's Ready condition. */

@@ -1,6 +1,6 @@
 import type { IconProp } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { Avatar, Card, List as AntdList, Button, Dropdown, Progress, Tag, Tooltip, Typography } from 'antd'
+import { Avatar, Card, List as AntdList, Button, Dropdown, Progress, Space, Tag, Tooltip, Typography } from 'antd'
 import useApp from 'antd/es/app/useApp'
 import type { ListGridType } from 'antd/es/list'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
@@ -318,7 +318,34 @@ export const ListView = ({
         }
 
         const rowActions = itemTemplate.rowActions ?? []
-        const kebab = rowActions.length
+
+        // `rowActionsDisplay: buttons` — the verbs sit on the row as antd Buttons instead of behind
+        // the kebab, for lists whose every row carries something the person came to do (Resume /
+        // Discard on a draft). One List.Item action slot holding a Space, not one slot per button:
+        // antd draws a split bar between action slots, which reads as a divider between two verbs.
+        const rowButtons = rowActions.length && itemTemplate.rowActionsDisplay === 'buttons'
+          ? (
+            <Space key='row-actions' size='small'>
+              {rowActions.map((rowAction, actionIndex) => (
+                <Button
+                  danger={rowAction.danger}
+                  icon={rowAction.icon ? <FontAwesomeIcon icon={rowAction.icon as IconProp} /> : undefined}
+                  key={rowAction.actionId}
+                  // Neither a click nor the Enter/Space that activates the button may reach the row:
+                  // the row's own onKeyDown would navigate and preventDefault the button's click away.
+                  onClick={(event) => { event.stopPropagation(); void fireRowAction(rowAction.actionId, item) }}
+                  onKeyDown={(event) => { event.stopPropagation() }}
+                  size='middle'
+                  type={actionIndex === 0 ? 'primary' : 'default'}
+                >
+                  {rowAction.label}
+                </Button>
+              ))}
+            </Space>
+          )
+          : null
+
+        const kebab = rowActions.length && !rowButtons
           ? (
             <Dropdown
               key='row-actions'
@@ -347,6 +374,7 @@ export const ListView = ({
             </Dropdown>
           )
           : null
+        const rowActionControl = rowButtons ?? kebab
 
         // Reconciliation-rail row: the mockup's desired-vs-actual gauge. The FILL is cyan
         // (the CONVERGED %), and the un-filled remainder carries a state-coloured diagonal
@@ -375,8 +403,8 @@ export const ListView = ({
 
         return (
           <AntdList.Item
-            actions={kebab ? [kebab] : undefined}
-            className={row.navigateTo ? styles.clickable : undefined}
+            actions={rowActionControl ? [rowActionControl] : undefined}
+            className={[row.navigateTo ? styles.clickable : '', rowButtons ? styles.actionsLast : ''].filter(Boolean).join(' ') || undefined}
             extra={
               (row.secondaryText || row.subSecondaryText)
                 ? (

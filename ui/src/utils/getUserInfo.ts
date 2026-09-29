@@ -16,7 +16,15 @@ export type UserInfo = {
 }
 
 export const getUserInfo = (): UserInfo => {
-  const raw = localStorage.getItem('K_user')
+  // Storage can be missing (a non-browser runtime) or throw on access (a private window, storage
+  // blocked by policy). No identity is the honest answer there — never an exception out of a read
+  // that callers make on the way to something else (a draft's owner, a preview's names).
+  let raw: string | null = null
+  try {
+    raw = typeof localStorage === 'undefined' ? null : localStorage.getItem('K_user')
+  } catch {
+    return {}
+  }
   if (!raw) {
     return {}
   }
