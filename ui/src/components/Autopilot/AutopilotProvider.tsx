@@ -30,7 +30,6 @@ import { autopilotConversationStore } from './conversationStore'
 import { withHeldDraft } from './draftStructure'
 import { recordToolFrame } from './evidence'
 import { useAutopilotShortcut } from './keyboardShortcut'
-import { dispatchKogPublish } from './kogPublishDispatch'
 import { createOasAttachmentStore, type OasAttachmentResult } from './oasAttachment'
 import { isPageDraft, pageRootSlug } from './pageDraft'
 import { PREVIEW_SELF_CORRECTION_NUDGE } from './previewBus'
@@ -39,7 +38,7 @@ import { buildKogPublishNudge, createPreviewGate, hydrateRestDefinitionOps } fro
 import { emitPublishResult, onPublishRequest } from './previewPublishRequest'
 import { AutopilotPreviewDrawer } from './previewSurface'
 import { blueprintChipRendered, compilePublishOps, heldDraftIdentity, recordBlueprintPreview, recordPagePreview, type PublishCompileResult } from './publishCompile'
-import { runDraftPublish, runPersonPublish } from './publishDraft'
+import { publishDraft, publisherOfVerb, runPersonPublish } from './publishDraft'
 import { PublishTargetFormHost } from './publishTargetForm'
 import type { ThreadSummary } from './sessionHistoryStore'
 import { a2aAuthHeader, createEchoTransport, createKagentTransport } from './transport'
@@ -364,26 +363,23 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         setAgentDraft(proposal.values ?? {})
         setDraftNonce((nonce) => nonce + 1)
         chips.push({ label: proposal.label ?? 'drafted the create form', readOnly: true, verb: 'prefillForm' })
-      } else if (proposal.verb === 'publishBlueprint' || proposal.verb === 'publishPage') {
-        // The publish itself lives in publishDraft.runDraftPublish, so the agent's verb and the
-        // composer's Publish button take the SAME path — one destination form, one gate, one cap.
-        const heldAtPublish = blueprintStore.get()
-        const { compiled, deepLink } = await runDraftPublish(
-          { blueprintGate, blueprintStore, builderTargets, config, origin },
+      } else if (publisherOfVerb(proposal.verb)) {
+        // Every builder's publish verb (the Builder that allows it names its publisher) takes
+        // publishDraft, the same path as a composer's Publish button — one destination form, one gate,
+        // one claim. The controller's reads the KOG preview gate and the held OAS document; the
+        // others publish the held draft, whose record is marked when the claim lands (`held`).
+        const { compiled, deepLink, held: heldAtPublish } = await publishDraft(
+          {
+            blueprintGate,
+            blueprintStore,
+            builderTargets,
+            config,
+            controller: { oasText: oasStore.get()?.text ?? null, origin: { prompt: lastUserTextRef.current, sessionId }, previewGate },
+            origin,
+          },
           proposal,
         )
-        await pushPublishOutcome(compiled, proposal.label, deepLink, heldAtPublish)
-      } else if (proposal.verb === 'publishRestDef') {
-        // The controller builder publishes through the same BuilderPublish claim as every builder. The
-        // dispatch (destination form + KOG preview gate + compile) is factored into dispatchKogPublish.
-        const { compiled, deepLink } = await dispatchKogPublish(proposal, {
-          config,
-          kogTarget: builderTargets.kog,
-          oasText: oasStore.get()?.text ?? null,
-          origin: { prompt: lastUserTextRef.current, sessionId },
-          previewGate,
-        })
-        await pushPublishOutcome(compiled, proposal.label, deepLink)
+        await pushPublishOutcome(compiled, proposal.label, deepLink, heldAtPublish ?? null)
       } else if (proposal.verb === 'applyResourceSet') {
         // Publish path, enforced HERE (finalize is the single entry point for model
         // proposals). Host-side checks BEFORE the bridge ever dispatches — a denial is the
@@ -826,7 +822,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   /**
    * PUBLISH, asked for by a person rather than proposed by the model.
    *
-   * The same `runDraftPublish` the verb branch calls, so there is exactly one destination form,
+   * The same `publishDraft` the verb branch calls, so there is exactly one destination form,
    * one gate evaluation and one file cap — a UI publish that took a shortcut past the gate would
    * be a way to ship un-previewed bytes. `apply` still raises the blast-radius confirm, so this
    * button proposes a write; it does not perform one. The answer (runPersonPublish) carries no

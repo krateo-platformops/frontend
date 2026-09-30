@@ -16,7 +16,18 @@
  * apply it, because applying is what raises the blast-radius confirm — a human decision that
  * belongs to the surface that asked, not to this function. The agent's never-submit guarantee is
  * untouched: the model can still only ever get as far as a compiled set a person then confirms.
+ *
+ * DRIVEN BY THE BUILDER (T2, frontend#408). Nothing here switches on page vs blueprint. The publish
+ * verb names the Builder that allows it (`spec.verbs.allowed`); that Builder's `spec.publish.builder`
+ * picks the PUBLISHER (the registration file, the projection bundle), its `spec.draftKind` picks the
+ * draft-kind plugin (the branch slug and the words a denial uses), and its `targetKey`/`templateKey`
+ * pick the destination and the seed. The controller (KOG) publish, which used to be a separate
+ * dispatch module (kogPublishDispatch.ts), is the third publisher here: one module, one claim,
+ * whatever the builder, entered through `publishDraft`.
  */
+import { builderRegistry } from '../../builders/builderRegistry'
+import type { BuilderSpec, PublishBuilder } from '../../builders/builderSpec'
+import { draftKindOf, draftKindPlugin } from '../../builders/draftKinds'
 import type { Config } from '../../context/ConfigContext'
 import { publishNameProblem } from '../../pages/BlueprintComposer/chartIdentity'
 import { PROJECTION_BUNDLE_PATH, projectionForFiles } from '../../pages/BlueprintComposer/projectionCompile'
@@ -26,18 +37,31 @@ import type { PortalActionProposal } from './actionBridge'
 import type { ApplyResourceSetOp } from './applyResourceSet'
 import type { AuthorshipOrigin } from './authorship'
 import { CHART_YAML_PATH, chartYamlVersion } from './blueprintDraft'
-import { heldPublishFiles, type BlueprintDraftStore } from './blueprintDraftStore'
+import { heldPublishFiles, type BlueprintDraftHeld, type BlueprintDraftStore } from './blueprintDraftStore'
 import type { createBlueprintGate } from './blueprintGate'
 import { buildClaimPublish } from './builderClaimPublish'
 import type { PublishStatusClaim } from './builderPublishStatus'
-import { builderTemplateUrl, type useBuilderTargets } from './builderTargets'
-import { isPageDraft, pageCompositionDefinition, pageRootSlug } from './pageDraft'
+import { builderTargetFor, builderTemplateUrl, type useBuilderTargets } from './builderTargets'
+import { kogCompositionDefinition } from './kogChart'
+import { REST_DEFINITION_GVR } from './kogMapping'
+import { kogPublishFiles, resolveKogPublishDraft } from './kogPublish'
+import { pageCompositionDefinition } from './pageDraft'
+import type { PreviewGate } from './previewGate'
 import type { PublishRequestDetail, PublishResultDetail } from './previewPublishRequest'
 import { lintHeldDraft } from './proposedChart'
 import { heldDraftIdentity, type PublishCompileResult } from './publishCompile'
-import { askPublishDestination, type PublishInitiator } from './publishTargetForm'
+import { askPublishDestination, type PublishInitiator, type PublishTargetRequest } from './publishTargetForm'
 import type { AutopilotActionChip } from './types'
 import type { DraftAutosave } from './useDraftAutosave'
+
+/** What the controller publisher reads, beyond the shared deps. */
+export interface ControllerPublishCtx {
+  previewGate: PreviewGate
+  /** oasStore.get()?.text ?? null — the held OAS document, committed in the paste case. */
+  oasText: string | null
+  /** The controller publish's own provenance: the agent turn's session and prompt. */
+  origin: AuthorshipOrigin
+}
 
 export interface PublishDraftDeps {
   blueprintGate: ReturnType<typeof createBlueprintGate>
@@ -48,30 +72,81 @@ export interface PublishDraftDeps {
   origin: AuthorshipOrigin
   /** Who asked for this publish — the destination form says so. Absent: the agent's verb. */
   initiator?: PublishInitiator
+  /** What the controller publisher reads. Absent (a composer's button), a controller publish is refused. */
+  controller?: ControllerPublishCtx
 }
 
 export interface PublishDraftOutcome {
   compiled: PublishCompileResult
   deepLink: string | null
+  /**
+   * The held draft this publish was OF, read before the destination form waited — the record a
+   * landed claim marks published. Null for a publisher that publishes no held draft (the controller).
+   */
+  held?: BlueprintDraftHeld | null
 }
 
 /** Where the registration file is committed: the repo root, beside the chart it names. */
 export const REGISTRATION_PATH = 'compositiondefinition.yaml'
 
 /**
- * The CompositionDefinition a publish commits, by builder — or null when there is no owner to put
- * in its url. A page set's version is the release's placeholder (its Chart.yaml's is too); a
+ * A held-draft PUBLISHER — what differs between the builders that publish the draft the provider
+ * holds, keyed by the Builder's `spec.publish.builder`.
+ *
+ * `registration` is the CompositionDefinition a publish commits, or null when there is no owner to
+ * put in its url. A page set's version is the release's placeholder (its Chart.yaml's is too); a
  * blueprint's is Chart.yaml's own, literally, because a merge releases exactly that version. The
  * lint has already refused a blueprint without a version, so the null there is unreachable rather
- * than a silent skip.
+ * than a silent skip. `projection` is the status-projection bundle (S12) committed beside it: the
+ * <chart>-status RESTAction and the apiRef + rows its CompositionDefinition carries.
  */
-const registrationFile = (isPage: boolean, slug: string, owner: string, repo: string, files: Record<string, string>): string | null => {
-  if (isPage) {
-    return pageCompositionDefinition(slug, owner, repo)
-  }
-  const version = chartYamlVersion(files[CHART_YAML_PATH])
-  return version ? blueprintCompositionDefinition(slug, owner, repo, version, projectionForFiles(files)) : null
+interface DraftPublisher {
+  /** Which destination form asks where it goes. */
+  formKind: PublishTargetRequest['kind']
+  registration: (slug: string, owner: string, repo: string, files: Record<string, string>) => string | null
+  projection: (files: Record<string, string>) => { bundle: string } | null
 }
+
+const DRAFT_PUBLISHERS: Partial<Record<PublishBuilder, DraftPublisher>> = {
+  blueprint: {
+    formKind: 'blueprint',
+    projection: (files) => projectionForFiles(files),
+    registration: (slug, owner, repo, files) => {
+      const version = chartYamlVersion(files[CHART_YAML_PATH])
+      return version ? blueprintCompositionDefinition(slug, owner, repo, version, projectionForFiles(files)) : null
+    },
+  },
+  page: {
+    formKind: 'page',
+    projection: () => null,
+    registration: (slug, owner, repo) => pageCompositionDefinition(slug, owner, repo),
+  },
+}
+
+/**
+ * Publish verbs no Builder declares YET, and the publisher each runs. `publishRestDef` is the
+ * controller's until the Controller Builder (T8) lists it in its `verbs.allowed`; then this entry
+ * goes and the Builder names it like every other.
+ */
+const UNDECLARED_PUBLISH_VERBS: Readonly<Record<string, PublishBuilder>> = { publishRestDef: 'controller' }
+
+/** The Builder whose `verbs.allowed` carries this verb, or undefined. */
+const builderOfVerb = (verb: string): BuilderSpec | undefined => builderRegistry.get({ verb })?.spec
+
+/**
+ * The publisher a verb runs — the `spec.publish.builder` of the Builder that allows it — or null when
+ * the verb publishes nothing. What the provider asks before it treats a proposal as a publish.
+ */
+export const publisherOfVerb = (verb: string): PublishBuilder | null => {
+  const declared = builderOfVerb(verb)?.publish.builder
+  if (declared && DRAFT_PUBLISHERS[declared]) {
+    return declared
+  }
+  return Object.prototype.hasOwnProperty.call(UNDECLARED_PUBLISH_VERBS, verb) ? UNDECLARED_PUBLISH_VERBS[verb] : null
+}
+
+const denied = (denial: string, held?: BlueprintDraftHeld | null): PublishDraftOutcome =>
+  ({ compiled: { denial, ops: null }, deepLink: null, ...(held !== undefined ? { held } : {}) })
 
 /**
  * FE-BP6/BP7 — frontend-constructs-ops (blueprint + its near-identical PAGE variant, unified).
@@ -90,14 +165,20 @@ export const runDraftPublish = async (
   proposal: PortalActionProposal,
 ): Promise<PublishDraftOutcome> => {
   const { blueprintGate, blueprintStore, builderTargets, config, origin } = deps
-  const isPage = proposal.verb === 'publishPage'
   const held = blueprintStore.get()
+  const builder = builderOfVerb(proposal.verb)
+  const publisher = builder ? DRAFT_PUBLISHERS[builder.publish.builder] : undefined
+  if (!builder || !publisher) {
+    return denied(`denied — no builder publishes a held draft with ${proposal.verb}`, held)
+  }
+  // The verb's draft kind: how its drafts are named, and what a denial calls them.
+  const kind = draftKindPlugin(builder.draftKind)
   const identity = heldDraftIdentity(held)
-  // The BRANCH slug: a page derives it from its page-<slug> root; a blueprint reuses the identity.
-  const pageSlug = held && isPageDraft(held) ? pageRootSlug(held.files) : null
-  const slug = isPage ? pageSlug : identity
-  const builder = isPage ? 'page' : 'blueprint'
-  const bt = isPage ? builderTargets.page : builderTargets.blueprint
+  // The BRANCH slug, named the way the verb's draft kind names a draft (a page by its page-<slug>
+  // root, a chart by its Chart.yaml name).
+  const slug = held ? kind.publishSlug(held.files) : null
+  // The destination, by the install-config key the Builder names.
+  const bt = builderTargetFor(builderTargets, builder.publish.targetKey)
   // PER-ARTIFACT repos (#163), now for BOTH builders. It used to be blueprint-only: a blueprint got
   // its own repo named for the chart, while every page went to the one configured portal-chart repo,
   // because every page WAS a file in that one chart. A page set is its own chart now, so the same
@@ -109,40 +190,34 @@ export const runDraftPublish = async (
   // The VERB must match what is held. Everything below derives builder, slug and destination from
   // the verb alone, and the gate is keyed by name, so publishBlueprint over a held PAGE compiled a
   // blueprint claim out of page files — refused by name instead.
-  if (held && isPage !== (held.kind === 'page')) {
-    const heldKind = held.kind === 'page' ? 'a portal page' : 'a blueprint chart'
-    return { compiled: { denial: `denied — the open draft is ${heldKind}, and ${proposal.verb} publishes ${isPage ? 'a portal page' : 'a blueprint chart'}. Publish it from the ${held.kind === 'page' ? 'page' : 'blueprint'} composer.`, ops: null }, deepLink: null }
+  if (held && held.kind !== builder.draftKind) {
+    const heldNouns = draftKindOf(held.kind).nouns
+    return denied(`denied — the open draft is ${heldNouns.artifact}, and ${proposal.verb} publishes ${kind.nouns.artifact}. Publish it from the ${heldNouns.composer} composer.`, held)
   }
   // A draft that fails the chart lint is refused BY NAME, before anyone is asked where to send it.
   // Its gate is already disarmed (a dirty hand edit forgets the arming), but that refusal says
   // "preview first" — the wrong reason, since previewing again cannot help until the file is fixed.
   const lintProblems = held ? lintHeldDraft(held.files, held.kind) : []
   if (lintProblems.length) {
-    return { compiled: { denial: `denied — the draft fails the chart lint: ${lintProblems.join('; ')}`, ops: null }, deepLink: null }
+    return denied(`denied — the draft fails the chart lint: ${lintProblems.join('; ')}`, held)
   }
   // A valid chart can still be unpublishable: the claim is named for it, and core-provider refuses a
   // long claim name at admission — the LAST step, after the person confirmed. Said here, first.
   const claimProblem = slug ? publishNameProblem(slug) : null
   if (claimProblem) {
-    return { compiled: { denial: `denied — "${slug}" cannot be published through the builder: ${claimProblem}. Rename it in Chart.yaml${isPage ? ' (a page set is named for its page slug)' : ''}.`, ops: null }, deepLink: null }
+    return denied(`denied — "${slug}" cannot be published through the builder: ${claimProblem}. Rename it in Chart.yaml${kind.nouns.renameHint}.`, held)
   }
   // SEED the new repository from the builder's template, for EITHER builder: a composed chart in a
   // bare repo has no release workflow, so it can never be released or registered. Null when no
   // template is configured — the claim then omits `source` and the repo is auto-init'd bare.
-  const sourceUrl = builderTemplateUrl(isPage ? builderTargets.pageTemplate : builderTargets.blueprintTemplate, config?.api.AUTOPILOT_GIT_HOST)
-  const dest = await askPublishDestination(proposal, builder, destRepo, bt.owner, slug ? { seeded: sourceUrl !== null, slug } : undefined, deps.initiator ?? 'autopilot')
+  const sourceUrl = builderTemplateUrl(builderTargetFor(builderTargets, builder.publish.templateKey), config?.api.AUTOPILOT_GIT_HOST)
+  const dest = await askPublishDestination(proposal, publisher.formKind, destRepo, bt.owner, slug ? { seeded: sourceUrl !== null, slug } : undefined, deps.initiator ?? 'autopilot')
 
   if (!dest) {
-    return { compiled: { denial: 'publish cancelled — destination not confirmed', ops: null }, deepLink: null }
+    return denied('publish cancelled — destination not confirmed', held)
   }
   if (!held || !slug || !identity) {
-    return {
-      compiled: {
-        denial: `denied — no previewed ${isPage ? 'portal page' : 'blueprint'} to publish (draft + preview a ${isPage ? 'page-<slug>' : 'chart'} first)`,
-        ops: null,
-      },
-      deepLink: null,
-    }
+    return denied(`denied — no previewed ${kind.nouns.previewed} to publish (draft + preview a ${kind.nouns.previewFirst} first)`, held)
   }
 
   // THE REGISTRATION FILE, for BOTH builders, written at publish time because it is the one file
@@ -151,10 +226,8 @@ export const runDraftPublish = async (
   // the chart releases to OCI and nothing installs it — inert until a CompositionDefinition
   // registers it. It lands because the builder scaffold carries none: the claim never overwrites a
   // file the seed already put there. (A blueprint used to publish without one at all.)
-  const registration = registrationFile(isPage, slug, dest.owner || bt.owner, dest.repo || destRepo, held.files)
-  // A blueprint whose descriptor compiles a status projection (S12) also commits the bundle Install
-  // applies: the <chart>-status RESTAction and the apiRef + rows its CompositionDefinition carries.
-  const projection = isPage ? null : projectionForFiles(held.files)
+  const registration = publisher.registration(slug, dest.owner || bt.owner, dest.repo || destRepo, held.files)
+  const projection = publisher.projection(held.files)
   const publishFiles = {
     ...held.files,
     ...(registration ? { [REGISTRATION_PATH]: registration } : {}),
@@ -176,7 +249,7 @@ export const runDraftPublish = async (
   // held-draft byte cap enforces that before anything reaches here.
   const files = heldPublishFiles(publishFiles)
   const res = await buildClaimPublish({
-    builder,
+    builder: builder.publish.builder,
     config,
     dest,
     files,
@@ -186,7 +259,85 @@ export const runDraftPublish = async (
     slug,
     sourceUrl,
   })
+  return { compiled: res.compiled, deepLink: res.deepLink, held }
+}
+
+/**
+ * The CONTROLLER (KOG) publisher — formerly kogPublishDispatch.ts, absorbed so every builder
+ * publishes from this one module. Given the last previewed RestDefinition + the held OAS document, it
+ * asks the destination form, then compiles one BuilderPublish claim over the controller's chart
+ * files — the same claim every builder publishes through. The KOG preview gate (a synthetic probe,
+ * since the claim writes no restdefinitions op) enforces preview-before-publish. No React, no chips.
+ */
+export const dispatchKogPublish = async (
+  proposal: { base?: string; owner?: string; repo?: string },
+  ctx: ControllerPublishCtx & { config: Config | undefined; kogTarget: { owner: string; repo: string } },
+): Promise<PublishDraftOutcome> => {
+  const resolution = resolveKogPublishDraft(ctx.previewGate.lastDraft(), ctx.oasText)
+  // The DESTINATION is user-owned: a proper form asks (fence coords are prefills); cancel → denied.
+  // PER-ARTIFACT repos (#163): each controller/RestDefinition gets its OWN repo named for the kind —
+  // so the repo prefill is the resolved kind, with the OWNER from install config (ctx.kogTarget.owner).
+  const destRepo = resolution.held?.kind || ctx.kogTarget.repo
+  const restDefTarget = await askPublishDestination(proposal, 'restdef', destRepo, ctx.kogTarget.owner)
+  // Probe the KOG preview gate against the RESOLVED draft (the claim writes no restdefinitions op,
+  // so the gate sees the draft via a synthetic probe op).
+  const gateProbe: ApplyResourceSetOp[] | undefined = resolution.held
+    ? [{ gvr: { ...REST_DEFINITION_GVR }, namespace: 'krateo-system', payload: resolution.held.draft, verb: 'POST' }]
+    : undefined
+  if (!restDefTarget) {
+    return denied('publish cancelled — destination not confirmed')
+  }
+  if (resolution.missingOasDocument) {
+    return denied('denied — the previewed mapping uses a configmap:// oasPath but no OpenAPI document is attached; paste the document in the rail first (it is held client-side and committed at publish), or preview a URL oasPath.')
+  }
+  if (!resolution.held) {
+    return denied('denied — no previewed RestDefinition to publish (previewRestDef a mapping first)')
+  }
+
+  // THE REGISTRATION FILE, written at publish time because it is the one file that depends on the
+  // DESTINATION: its OCI url is `<owner>/charts/<kind>`, and the owner is only settled once the
+  // human confirms it in the blast-radius dialog. Without it the controller chart releases to OCI
+  // and nothing installs it — core-provider generates the CRD from values.schema.json and serves it,
+  // and only then can a claim create the RestDefinition that makes oasgen materialise the real kind.
+  const kogOwner = restDefTarget.owner || ctx.kogTarget.owner
+  const publishFiles = kogOwner
+    ? [
+      ...kogPublishFiles(resolution.held),
+      { content: kogCompositionDefinition(resolution.held.kind, kogOwner), path: REGISTRATION_PATH },
+    ]
+    : kogPublishFiles(resolution.held)
+  // SCM-agnostic: the RestDefinition (+ OAS ConfigMap) chart → ONE BuilderPublish claim.
+  const res = await buildClaimPublish({
+    builder: 'controller',
+    config: ctx.config,
+    dest: restDefTarget,
+    files: publishFiles,
+    gate: () => ctx.previewGate.evaluate(gateProbe),
+    namespace: 'krateo-system',
+    origin: ctx.origin,
+    slug: resolution.held.kind,
+  })
   return { compiled: res.compiled, deepLink: res.deepLink }
+}
+
+/**
+ * THE ONE PUBLISH ENTRY, for any builder's publish verb. The verb's publisher (publisherOfVerb)
+ * decides: the controller's reads its preview gate and OAS document, every other publishes the held
+ * draft. `held` on the outcome is the draft the publish was of — null for the controller's.
+ */
+export const publishDraft = async (deps: PublishDraftDeps, proposal: PortalActionProposal): Promise<PublishDraftOutcome> => {
+  if (publisherOfVerb(proposal.verb) !== 'controller') {
+    return runDraftPublish(deps, proposal)
+  }
+  if (!deps.controller) {
+    return denied(`denied — ${proposal.verb} publishes a previewed RestDefinition, which only Autopilot holds`, null)
+  }
+  const outcome = await dispatchKogPublish(proposal, {
+    ...deps.controller,
+    config: deps.config,
+    kogTarget: builderTargetFor(deps.builderTargets, 'AUTOPILOT_KOG_BUILDER_REPO'),
+  })
+  return { ...outcome, held: null }
 }
 
 export interface PersonPublishDeps extends PublishDraftDeps {
@@ -201,7 +352,7 @@ export interface PersonPublishDeps extends PublishDraftDeps {
 /**
  * A PERSON'S Publish, end to end — the composer's button, answered on the publish-result bus.
  *
- * The same `runDraftPublish` the agent's verb takes, then the same `apply`, which raises the
+ * The same `publishDraft` the agent's verb takes, then the same `apply`, which raises the
  * blast-radius confirm: this proposes a write, a person answers it. Lifted out of the provider so
  * the ANSWER can be tested, because the answer is what the composer believes.
  *
@@ -215,10 +366,9 @@ export const runPersonPublish = async (
   deps: PersonPublishDeps,
   verb: PublishRequestDetail['verb'],
 ): Promise<Omit<PublishResultDetail, 'id'>> => {
-  // The draft being published, as it is NOW: the destination form is a wait, and its record is the
-  // one that was asked to publish.
-  const held = deps.blueprintStore.get()
-  const { compiled, deepLink } = await runDraftPublish({ ...deps, initiator: 'person' }, { label: 'Publish', verb })
+  // The draft being published, as it is NOW (the destination form is a wait): the publish reads it
+  // before asking, and its record is the one that was asked to publish.
+  const { compiled, deepLink, held } = await publishDraft({ ...deps, initiator: 'person' }, { label: 'Publish', verb })
   if (compiled.denial !== null) {
     return { deepLink: null, denial: compiled.denial }
   }

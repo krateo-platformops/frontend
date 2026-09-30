@@ -81,6 +81,25 @@ export const resolveBuilderTargets = (api: BuilderTargetSlugs | undefined): Buil
   pageTemplate: resolveBuilderTarget(api?.AUTOPILOT_PAGE_BUILDER_TEMPLATE),
 })
 
+/**
+ * Which resolved target each install-config key fills. A Builder names its destination by config key
+ * (`spec.publish.targetKey` / `templateKey`, never an owner/repo — ADR 0001), and this is how the engine
+ * reads the target that key resolved to.
+ */
+const TARGET_OF_KEY: Record<keyof BuilderTargetSlugs, keyof BuilderTargets> = {
+  AUTOPILOT_BLUEPRINT_BUILDER_REPO: 'blueprint',
+  AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE: 'blueprintTemplate',
+  AUTOPILOT_KOG_BUILDER_REPO: 'kog',
+  AUTOPILOT_PAGE_BUILDER_REPO: 'page',
+  AUTOPILOT_PAGE_BUILDER_TEMPLATE: 'pageTemplate',
+}
+
+/** The target a Builder's config key resolved to — empty for a key this frontend does not resolve. */
+export const builderTargetFor = (targets: BuilderTargets, key: string): BuilderTarget =>
+  (Object.prototype.hasOwnProperty.call(TARGET_OF_KEY, key)
+    ? targets[TARGET_OF_KEY[key as keyof BuilderTargetSlugs]]
+    : { owner: '', repo: '' })
+
 /** Resolve the builders' publish destinations from install config, memoized on the slugs. */
 export const useBuilderTargets = (config: Config | undefined): BuilderTargets => {
   const blueprintSlug = config?.api.AUTOPILOT_BLUEPRINT_BUILDER_REPO
