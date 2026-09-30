@@ -30,6 +30,8 @@ plain-semver tag.
 - [release](./release.md) — how a release ships (tag → image + both charts on GHCR) and
   the CRD-sync seam.
 - [log](./log.md) — curated history.
+- [adr/](./adr/0001-builders-as-crs.md) — architecture decisions; 0001 declares builders as
+  `Builder` CRs that name code plugins.
 - [llms.txt](./llms.txt) — the version-pinned agent index of this bundle.
 
 ## The deep corpus (code-adjacent, authoritative for internals)
