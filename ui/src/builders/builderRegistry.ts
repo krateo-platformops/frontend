@@ -65,20 +65,58 @@ const matches = (builder: Builder, query: BuilderQuery): boolean => {
 }
 
 export interface BuilderRegistry {
-  /** The Builder answering the query, or undefined when none does. */
+  /**
+   * The ONE Builder answering the query, or undefined when none does — or when several do: which of
+   * two Builders owns a verb (or a draft kind, a route, a name) is never decided by load order.
+   */
   get: (query: BuilderQuery) => Builder | undefined
   /** Every Builder, in load order. */
   all: () => readonly Builder[]
-  /** Why a Builder that was offered could not be used — one sentence each. */
+  /** Why a Builder that was offered could not be used, or a key two Builders claim — one sentence each. */
   problems: () => readonly string[]
+  /** Why a verb has no Builder: the sentence naming the Builders that BOTH allow it, or null. */
+  verbProblem: (verb: string) => string | null
+}
+
+const describeQuery = (query: BuilderQuery): string => {
+  if ('draftKind' in query) { return `the draft kind "${query.draftKind}"` }
+  if ('name' in query) { return `the name "${query.name}"` }
+  if ('route' in query) { return `the route ${query.route}` }
+  return `the verb ${query.verb}`
+}
+
+/** The sentence for a key several Builders claim, or null when at most one does. */
+const ambiguity = (builders: readonly Builder[], query: BuilderQuery): string | null => {
+  const claimants = builders.filter((builder) => matches(builder, query))
+  return claimants.length > 1
+    ? `${claimants.map((builder) => builder.metadata.name).join(' and ')} ${claimants.length === 2 ? 'both' : 'all'} declare ${describeQuery(query)}, so no builder answers for it — one Builder must own it.`
+    : null
+}
+
+/** Every key two or more Builders claim, as one sentence each. */
+const collisions = (builders: readonly Builder[]): string[] => {
+  const queries: BuilderQuery[] = builders.flatMap((builder) => [
+    { draftKind: builder.spec.draftKind },
+    { name: builder.metadata.name },
+    { route: builder.spec.route },
+    ...builder.spec.verbs.allowed.map((verb) => ({ verb })),
+  ])
+  return [...new Set(queries.map((query) => ambiguity(builders, query)).filter((problem): problem is string => problem !== null))]
 }
 
 /** A registry over a given set — the engine's own, or a test's stub Builders. */
-export const createBuilderRegistry = (loaded: Loaded): BuilderRegistry => ({
-  all: () => loaded.builders,
-  get: (query) => loaded.builders.find((builder) => matches(builder, query)),
-  problems: () => loaded.problems,
-})
+export const createBuilderRegistry = (loaded: Loaded): BuilderRegistry => {
+  const problems = [...loaded.problems, ...collisions(loaded.builders)]
+  return {
+    all: () => loaded.builders,
+    get: (query) => {
+      const found = loaded.builders.filter((builder) => matches(builder, query))
+      return found.length === 1 ? found[0] : undefined
+    },
+    problems: () => problems,
+    verbProblem: (verb) => ambiguity(loaded.builders, { verb }),
+  }
+}
 
 let active: BuilderRegistry = createBuilderRegistry(loadBuilders())
 
@@ -87,6 +125,7 @@ export const builderRegistry: BuilderRegistry = {
   all: () => active.all(),
   get: (query) => active.get(query),
   problems: () => active.problems(),
+  verbProblem: (verb) => active.verbProblem(verb),
 }
 
 /**

@@ -41,7 +41,7 @@ import { parseBuilder, type Builder } from './builderSpec'
 const FIXTURE = join(__dirname, 'fixtures', 'blueprint-builder.builder.yaml')
 
 /**
- * The stub: a chart builder that is neither of today's. Its publish verb is `publishStub`, it lints
+ * The stub: a chart builder that is neither of today's. Its publish verb is `publishPage` (crossed: a chart builder), it lints
  * with `chart-lint` only, it has no summarizer, and — deliberately crossed — its destination is the
  * PAGE builder's config key while its seed is the blueprint template's.
  */
@@ -58,7 +58,7 @@ const stubBuilder = (): Builder => {
       lint: ['chart-lint'],
       publish: { ...(spec.publish as object), targetKey: 'AUTOPILOT_PAGE_BUILDER_REPO' },
       route: '/stub-builder/compose',
-      verbs: { allowed: ['chartPut', 'publishStub'] },
+      verbs: { allowed: ['chartPut', 'previewBlueprint', 'publishPage'] },
     },
   })
   if (!parsed.ok) { throw new Error(`stub Builder refused: ${parsed.problems.join('; ')}`) }
@@ -102,10 +102,11 @@ describe('a stub Builder drives the engine, start → edit → preview → publi
     expect(builderRegistry.all().map((builder) => builder.metadata.name)).toEqual(['stub-builder'])
   })
 
-  it('verbs come from the spec: publishStub publishes, publishBlueprint no longer does', () => {
-    expect(publisherOfVerb('publishStub')).toBe('blueprint')
+  it('verbs come from the spec: its publishPage publishes a chart; publishBlueprint and its other verbs publish nothing', () => {
+    expect(publisherOfVerb('publishPage')).toBe('blueprint')
     expect(publisherOfVerb('publishBlueprint')).toBeNull()
-    expect(publisherOfVerb('publishPage')).toBeNull()
+    expect(publisherOfVerb('chartPut')).toBeNull()
+    expect(publisherOfVerb('previewBlueprint')).toBeNull()
   })
 
   it('publishes only after a preview, to the destination and seed its keys name, with its registration', async () => {
@@ -123,7 +124,7 @@ describe('a stub Builder drives the engine, start → edit → preview → publi
     expect(lintHeldDraft(store.get()!.files, 'blueprint')).toEqual([])
 
     // PUBLISH BEFORE PREVIEW: the render-hash gate refuses — nothing previewed this tree.
-    const early = await publishDraft(deps, { verb: 'publishStub' })
+    const early = await publishDraft(deps, { verb: 'publishPage' })
     expect(early.compiled.ops).toBeNull()
     expect(early.compiled.denial).toMatch(/preview/i)
 
@@ -132,7 +133,7 @@ describe('a stub Builder drives the engine, start → edit → preview → publi
 
     // PUBLISH: one claim, to the stub's destination key (the page target's owner) and seeded from its
     // template key, carrying the registration file its publisher writes.
-    const outcome = await publishDraft(deps, { verb: 'publishStub' })
+    const outcome = await publishDraft(deps, { verb: 'publishPage' })
     expect(outcome.compiled.denial).toBeNull()
     expect(outcome.held?.files['values.yaml']).toContain('# edited')
     const claim = outcome.compiled.ops?.[0]

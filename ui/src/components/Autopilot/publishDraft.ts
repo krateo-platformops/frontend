@@ -130,14 +130,29 @@ const DRAFT_PUBLISHERS: Partial<Record<PublishBuilder, DraftPublisher>> = {
  */
 const UNDECLARED_PUBLISH_VERBS: Readonly<Record<string, PublishBuilder>> = { publishRestDef: 'controller' }
 
-/** The Builder whose `verbs.allowed` carries this verb, or undefined. */
-const builderOfVerb = (verb: string): BuilderSpec | undefined => builderRegistry.get({ verb })?.spec
+/**
+ * The verbs that PUBLISH — the frontend's own list, not the Builder's. A Builder's `verbs.allowed`
+ * also carries its compose, chart and preview verbs; being allowed by a Builder says which builder a
+ * verb belongs to, never that it publishes. Only a verb in this set AND in a Builder's allowed list is
+ * that Builder's publish verb.
+ */
+export const PUBLISH_VERBS: ReadonlySet<string> = new Set(['publishPage', 'publishBlueprint', 'publishRestDef'])
+
+/** The Builder whose `verbs.allowed` carries this PUBLISH verb, or undefined (not a publish verb, or none/several allow it). */
+const builderOfVerb = (verb: string): BuilderSpec | undefined => {
+  if (!PUBLISH_VERBS.has(verb)) { return undefined }
+  const spec = builderRegistry.get({ verb })?.spec
+  return spec?.verbs.allowed.includes(verb) ? spec : undefined
+}
 
 /**
  * The publisher a verb runs — the `spec.publish.builder` of the Builder that allows it — or null when
  * the verb publishes nothing. What the provider asks before it treats a proposal as a publish.
  */
 export const publisherOfVerb = (verb: string): PublishBuilder | null => {
+  if (!PUBLISH_VERBS.has(verb)) {
+    return null
+  }
   const declared = builderOfVerb(verb)?.publish.builder
   if (declared && DRAFT_PUBLISHERS[declared]) {
     return declared
@@ -169,7 +184,7 @@ export const runDraftPublish = async (
   const builder = builderOfVerb(proposal.verb)
   const publisher = builder ? DRAFT_PUBLISHERS[builder.publish.builder] : undefined
   if (!builder || !publisher) {
-    return denied(`denied — no builder publishes a held draft with ${proposal.verb}`, held)
+    return denied(`denied — ${builderRegistry.verbProblem(proposal.verb) ?? `no builder publishes a held draft with ${proposal.verb}`}`, held)
   }
   // The verb's draft kind: how its drafts are named, and what a denial calls them.
   const kind = draftKindPlugin(builder.draftKind)

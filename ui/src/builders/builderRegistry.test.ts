@@ -6,11 +6,13 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import type { DraftKind } from '../components/Autopilot/blueprintDraftStore'
-import { isBuilderPayload, payloadAppliesCrs } from '../components/Autopilot/previewBus'
+import { createBlueprintDraftStore, type DraftKind } from '../components/Autopilot/blueprintDraftStore'
+import { draftKindOfPayload, isBuilderPayload, payloadAppliesCrs } from '../components/Autopilot/previewBus'
 import { composerModeOf } from '../components/Autopilot/previewDraftChanged'
+import { publishDraft, publisherOfVerb, type PublishDraftDeps } from '../components/Autopilot/publishDraft'
 
-import { builderOf, builderRegistry, findBuilderOf } from './builderRegistry'
+import { builderOf, builderRegistry, createBuilderRegistry, findBuilderOf, swapBuildersForTest } from './builderRegistry'
+import type { Builder } from './builderSpec'
 import { draftKindNames, draftKindOf, findDraftKindPlugin } from './draftKinds'
 import { builderRefusals } from './pluginRegistry'
 
@@ -77,5 +79,48 @@ describe('builderRegistry — the fixtures, loaded', () => {
   it('refuses a draft-kind plugin by name, never by prototype', () => {
     expect(findDraftKindPlugin('toString')).toBeUndefined()
     expect(findDraftKindPlugin('Page')).toBeUndefined()
+  })
+
+  it('a payload that SPELLS the legacy kind is held by none — the legacy kind is said only by absence', () => {
+    expect(draftKindOfPayload({ builder: 'page' as never })).toBeNull()
+    expect(draftKindOfPayload({})).toBe('page')
+  })
+})
+
+describe('builderRegistry — a verb two Builders allow', () => {
+  /** The portal builder, and a chart builder that ALSO allows publishPage. */
+  const clash = (): Builder[] => {
+    const portal = builderRegistry.get({ name: 'portal-builder' })
+    const blueprint = builderRegistry.get({ name: 'blueprint-builder' })
+    if (!portal || !blueprint) { throw new Error('fixtures missing') }
+    const other: Builder = {
+      ...blueprint,
+      metadata: { name: 'other-builder' },
+      spec: { ...blueprint.spec, route: '/other-builder/compose', verbs: { allowed: ['chartPut', 'publishPage'] } },
+    }
+    return [portal, other]
+  }
+
+  it('answers no Builder for it, and says why — load order never decides', () => {
+    const registry = createBuilderRegistry({ builders: clash(), problems: [] })
+    expect(registry.get({ verb: 'publishPage' })).toBeUndefined()
+    expect(registry.get({ verb: 'chartPut' })?.metadata.name).toBe('other-builder')
+    const sentence = 'portal-builder and other-builder both declare the verb publishPage, so no builder answers for it — one Builder must own it.'
+    expect(registry.verbProblem('publishPage')).toBe(sentence)
+    expect(registry.verbProblem('chartPut')).toBeNull()
+    expect(registry.problems()).toEqual([sentence])
+  })
+
+  it('a publish of the contested verb is denied with that sentence', async () => {
+    const restore = swapBuildersForTest(clash())
+    try {
+      expect(publisherOfVerb('publishPage')).toBeNull()
+      const store = createBlueprintDraftStore()
+      const outcome = await publishDraft({ blueprintStore: store } as unknown as PublishDraftDeps, { verb: 'publishPage' })
+      expect(outcome.compiled.ops).toBeNull()
+      expect(outcome.compiled.denial).toBe('denied — portal-builder and other-builder both declare the verb publishPage, so no builder answers for it — one Builder must own it.')
+    } finally {
+      restore()
+    }
   })
 })

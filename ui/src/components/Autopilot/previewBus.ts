@@ -119,6 +119,11 @@ export const openAutopilotPreview = (payload: AutopilotPreviewPayload): void => 
  * name no Builder's draft kind, so they are held by none.
  */
 export const draftKindOfPayload = (payload: Pick<AutopilotPreviewPayload, 'builder'>): DraftKind | null => {
+  // The legacy kind is said ONLY by absence, as it always was: a payload that spells it out is not
+  // one any verb emits, and is held by no composer rather than adopted as that kind's draft.
+  if ((payload.builder as string | undefined) === LEGACY_PAYLOAD_DRAFT_KIND) {
+    return null
+  }
   const kind = payload.builder ?? LEGACY_PAYLOAD_DRAFT_KIND
   return findBuilderOf(kind) ? (kind as DraftKind) : null
 }

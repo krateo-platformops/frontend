@@ -37,8 +37,9 @@ import { onRestDefEdit } from './previewEditBus'
 import { buildKogPublishNudge, createPreviewGate, hydrateRestDefinitionOps } from './previewGate'
 import { emitPublishResult, onPublishRequest } from './previewPublishRequest'
 import { AutopilotPreviewDrawer } from './previewSurface'
+import { routeProposal } from './proposalRoute'
 import { blueprintChipRendered, compilePublishOps, heldDraftIdentity, recordBlueprintPreview, recordPagePreview, type PublishCompileResult } from './publishCompile'
-import { publishDraft, publisherOfVerb, runPersonPublish } from './publishDraft'
+import { publishDraft, runPersonPublish } from './publishDraft'
 import { PublishTargetFormHost } from './publishTargetForm'
 import type { ThreadSummary } from './sessionHistoryStore'
 import { a2aAuthHeader, createEchoTransport, createKagentTransport } from './transport'
@@ -357,13 +358,14 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
           if (compiled.claim) { trackPublishStatus(config, compiled.claim, setMessages, randomId) }
         }
       }
-      if (proposal.verb === 'prefillForm') {
+      const route = routeProposal(proposal.verb)
+      if (route === 'prefillForm') {
         // prefillForm sets provider state (not a dispatcher action): the mounted Form merges these into
         // its values; the user still reviews + submits via the form's own gate. Autopilot never submits.
         setAgentDraft(proposal.values ?? {})
         setDraftNonce((nonce) => nonce + 1)
         chips.push({ label: proposal.label ?? 'drafted the create form', readOnly: true, verb: 'prefillForm' })
-      } else if (publisherOfVerb(proposal.verb)) {
+      } else if (route === 'publish') {
         // Every builder's publish verb (the Builder that allows it names its publisher) takes
         // publishDraft, the same path as a composer's Publish button — one destination form, one gate,
         // one claim. The controller's reads the KOG preview gate and the held OAS document; the
@@ -380,7 +382,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
           proposal,
         )
         await pushPublishOutcome(compiled, proposal.label, deepLink, heldAtPublish ?? null)
-      } else if (proposal.verb === 'applyResourceSet') {
+      } else if (route === 'applyResourceSet') {
         // Publish path, enforced HERE (finalize is the single entry point for model
         // proposals). Host-side checks BEFORE the bridge ever dispatches — a denial is the
         // standard denied chip (nothing dispatched, readOnly/honest):
