@@ -23,11 +23,12 @@
 
 import { isMutatingVerb } from '../components/BlastRadius/buildBlastRadius'
 import type { WidgetAction } from '../types/Widget'
+import { omitSecretPaths, secretValuesOf } from '../utils/secretFields'
 import { getResourceRef } from '../utils/utils'
 
 import { runRestSet, type WriteOp } from './runRestSet'
 import type { ActionContext, ActionRuntime } from './useHandleActions'
-import { buildPayload, interpolateRedirectUrl, updateNameNamespace } from './useHandleActions'
+import { buildPayloadDetailed, interpolateRedirectUrl, updateNameNamespace } from './useHandleActions'
 
 export const runRestOps = async (
   action: WidgetAction & { type: 'rest' },
@@ -36,6 +37,8 @@ export const runRestOps = async (
 ): Promise<void> => {
   const { fanOutPath, onEventNavigateTo, onSuccessNavigateTo, ops = [] } = action
   const { customPayload } = runtime
+  // Only when the form has secret fields: their values, scrubbed from each op's outcome message.
+  const secrets = runtime.secretPaths?.length ? secretValuesOf(customPayload, runtime.secretPaths) : undefined
 
   const fail = (description: string): void => {
     ctx.message.destroy()
@@ -87,11 +90,11 @@ export const runRestOps = async (
     const { path: refPath, payloadBase, verb } = targets[index]
     const opAction = { ...action, payload: op.payload, payloadToOverride: op.payloadToOverride }
     // eslint-disable-next-line no-await-in-loop -- payloads build sequentially to keep op order deterministic
-    const payload = await buildPayload(opAction, payloadBase, customPayload, ctx.resolveJq)
+    const { payload, secretTargets } = await buildPayloadDetailed(opAction, payloadBase, customPayload, ctx.resolveJq, runtime.secretPaths)
     const name = payload?.metadata?.name
     const namespace = payload?.metadata?.namespace
     const path = (name ?? namespace) ? updateNameNamespace(refPath, name, namespace) : refPath
-    writeOps.push({ path, payload, verb })
+    writeOps.push({ maskTargets: secretTargets, path, payload, verb, ...(secrets ? { secretValues: secrets } : {}) })
   }
 
   // runRestSet owns the gate, dispatch, set toast, provenance and cache re-invalidation.
@@ -102,7 +105,7 @@ export const runRestOps = async (
 
   ctx.closeDrawer()
   if (onSuccessNavigateTo) {
-    const target = interpolateRedirectUrl(customPayload ?? {}, onSuccessNavigateTo) ?? onSuccessNavigateTo
+    const target = interpolateRedirectUrl(omitSecretPaths(customPayload ?? {}, runtime.secretPaths ?? []), onSuccessNavigateTo) ?? onSuccessNavigateTo
     void ctx.navigate(target)
   }
 }

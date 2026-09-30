@@ -239,3 +239,73 @@ describe('SchemaFields — rows for lists of objects and typed maps', () => {
     await vi.waitFor(() => expect(document.body.textContent).toContain('columns is required'))
   })
 })
+
+describe('SchemaFields — secret fields render as a password control', () => {
+  /* eslint-disable sort-keys/sort-keys-fix */
+  const SECRET_SCHEMA: JSONSchema4 = {
+    properties: {
+      username: { title: 'Username', type: 'string' },
+      password: { format: 'password', title: 'Password', type: 'string' },
+      apiKey: { title: 'API key', type: 'string', writeOnly: true },
+      // a secret wins over enum: its value is never offered back
+      pin: { enum: ['1234'], format: 'password', title: 'PIN', type: 'string' },
+    },
+    required: ['username', 'password', 'apiKey', 'pin'],
+    type: 'object',
+  }
+  /* eslint-enable sort-keys/sort-keys-fix */
+
+  const inputFor = (container: HTMLElement, id: string) => container.querySelector<HTMLInputElement>(`input#${id}`)
+
+  it('format: password and writeOnly: true both render antd Input.Password (masked)', () => {
+    const { container } = render(<AntdForm><SchemaFields schema={SECRET_SCHEMA} /></AntdForm>)
+    for (const id of ['password', 'apiKey', 'pin']) {
+      const input = inputFor(container, id)
+      expect(input?.type).toBe('password')
+      expect(input?.getAttribute('autocomplete')).toBe('new-password')
+      expect(input?.closest('.ant-input-password')).toBeTruthy()
+    }
+    // a plain string is still a plain text input
+    expect(inputFor(container, 'username')?.type).toBe('text')
+    // the enum on a secret did not become a Select
+    expect(container.querySelector('.ant-select')).toBeNull()
+  })
+
+  it('a list, a map and a nullable string of secrets are masked too — never a tags Select or JSON box', () => {
+    const { container, getAllByText } = render(
+      <AntdForm initialValues={{ creds: { admin: 'map-secret' }, tokens: ['list-secret'] }}>
+        <SchemaFields
+          schema={{
+            properties: {
+              creds: { additionalProperties: { format: 'password', type: 'string' }, title: 'Creds', type: 'object' },
+              maybe: { format: 'password', title: 'Maybe', type: ['string', 'null'] },
+              tokens: { items: { format: 'password', type: 'string' }, title: 'Tokens', type: 'array' },
+            },
+            required: ['creds', 'maybe', 'tokens'],
+            type: 'object',
+          }}
+        />
+      </AntdForm>,
+    )
+    expect(container.querySelector('.ant-select')).toBeNull()
+    expect(container.querySelector('textarea')).toBeNull()
+    expect(inputFor(container, 'maybe')?.type).toBe('password')
+    const masked = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="password"]')).map((input) => input.value)
+    expect(masked).toEqual(expect.arrayContaining(['map-secret', 'list-secret']))
+    expect(container.textContent).not.toContain('list-secret')
+    expect(getAllByText('Add entry')).toHaveLength(2)
+  })
+
+  it('still submits the typed value under the same name', async () => {
+    const onFinish = vi.fn()
+    const { container, getByText } = render(
+      <AntdForm onFinish={onFinish}>
+        <SchemaFields schema={{ properties: { password: { format: 'password', type: 'string' } }, type: 'object' }} />
+        <button type='submit'>submit</button>
+      </AntdForm>,
+    )
+    fireEvent.change(inputFor(container, 'password')!, { target: { value: 'hunter2' } })
+    fireEvent.click(getByText('submit'))
+    await vi.waitFor(() => { expect(onFinish).toHaveBeenCalledWith({ password: 'hunter2' }) })
+  })
+})

@@ -12,6 +12,7 @@ import WidgetRenderer from '../../components/WidgetRenderer'
 import { useHandleAction } from '../../hooks/useHandleActions'
 import type { WidgetProps } from '../../types/Widget'
 import { carryScopeParams } from '../../utils/navigation'
+import { maskSecretPaths, omitSecretPaths, secretFieldPaths } from '../../utils/secretFields'
 import { getEndpointUrl } from '../../utils/utils'
 import { useDrawerContext } from '../Drawer/DrawerContext'
 
@@ -173,7 +174,9 @@ export const ReviewSummary = ({ agentKeys, schema, values }: {
   values: Record<string, unknown>
 }): React.ReactNode => {
   const authored = new Set(agentKeys ?? [])
-  const items = Object.entries(values)
+  // A secret field (`format: password` / `writeOnly`) is confirmed as present, never redisplayed.
+  const shown = maskSecretPaths(values, secretFieldPaths(schema))
+  const items = Object.entries(shown)
     .filter(([key]) => key !== '__owner')
     .filter(([, value]) => value !== undefined && value !== null && value !== '' && !(Array.isArray(value) && value.length === 0))
     .sort(([keyA], [keyB]) => reviewFieldOrder(keyA) - reviewFieldOrder(keyB))
@@ -272,6 +275,11 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
     }
   }, [draftStorageKey])
 
+  // The form's SECRET fields (`format: password` / `writeOnly: true`). Only ever typed by the
+  // human: never prefilled (schema default, initialValues, a refetch, a saved draft, an Autopilot
+  // draft), never saved to a local draft, and never sent to /jq (handed to the action below).
+  const secretPaths = useMemo(() => secretFieldPaths(jsonSchema), [jsonSchema])
+
   // Filter the Autopilot draft to the form's REAL field names (top-level schema properties). The model
   // is told to use exact field names, but an invented or "closest-match" key would otherwise be held in
   // the form store by setFieldsValue while the chip still claims "drafted the form" — a value landing
@@ -283,10 +291,14 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   // agent-fills-human-submits is that the human reviews what was filled; a field they were never
   // shown is outside that review by construction. Dropped silently rather than refused: the
   // model is not told which fields are hidden, so writing one is a mistake to absorb, not an
-  // attack to report — and the remaining fields still fill correctly.
+  // attack to report — and the remaining fields still fill correctly. A SECRET field is dropped
+  // too (see secretPaths above): the agent never supplies a credential.
   const safeAgentDraft = useMemo<Record<string, unknown> | undefined>(
-    () => narrowAgentDraft(agentDraft, jsonSchema?.properties, propertiesToHide),
-    [agentDraft, jsonSchema, propertiesToHide],
+    () => {
+      const narrowed = narrowAgentDraft(agentDraft, jsonSchema?.properties, propertiesToHide)
+      return narrowed ? omitSecretPaths(narrowed, secretPaths) : narrowed
+    },
+    [agentDraft, jsonSchema, propertiesToHide, secretPaths],
   )
 
   // Effective initial values = schema defaults < explicit initialValues < the resumed localStorage
@@ -297,9 +309,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
       const base = jsonSchema
         ? { ...getDefaultsFromSchema(jsonSchema), ...initialValues, ...savedDraft }
         : { ...(initialValues ?? {}), ...savedDraft }
-      return safeAgentDraft ? { ...base, ...safeAgentDraft } : base
+      return omitSecretPaths(safeAgentDraft ? { ...base, ...safeAgentDraft } : base, secretPaths)
     },
-    [jsonSchema, initialValues, savedDraft, safeAgentDraft],
+    [jsonSchema, initialValues, savedDraft, safeAgentDraft, secretPaths],
   )
 
   // Apply an Autopilot draft IMPERATIVELY. Seeding it through `initialValues` (above) does NOT work
@@ -413,7 +425,8 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   // whenever the CR sets draftActionId (the button gate) and a draft key is present.
   const onDraft = (draftActionId && draftStorageKey)
     ? () => {
-      const values = convertDayjsToISOString(form.getFieldsValue(true) as Record<string, unknown>)
+      // A secret never goes to browser storage — a resumed draft asks for it again.
+      const values = omitSecretPaths(convertDayjsToISOString(form.getFieldsValue(true) as Record<string, unknown>), secretPaths)
       delete values.__owner
       try {
         localStorage.setItem(draftStorageKey, JSON.stringify(values))
@@ -456,7 +469,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
 
     const values = convertDayjsToISOString(formValues)
 
-    await handleAction(effectiveAction, resourcesRefs, values, widget, undefined, deniedRefIds)
+    await handleAction(effectiveAction, resourcesRefs, values, widget, undefined, deniedRefIds, secretPaths)
   }
 
   // On a validated submit: with review-before-submit on and still editing, capture the

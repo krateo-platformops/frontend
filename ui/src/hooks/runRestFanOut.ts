@@ -18,10 +18,11 @@
 
 import { isMutatingVerb } from '../components/BlastRadius/buildBlastRadius'
 import type { ResourceRef, WidgetAction } from '../types/Widget'
+import { omitSecretPaths, secretValuesOf } from '../utils/secretFields'
 
 import { runRestSet, type WriteOp } from './runRestSet'
 import type { ActionContext, ActionRuntime } from './useHandleActions'
-import { buildPayload, interpolateRedirectUrl, updateNameNamespace } from './useHandleActions'
+import { buildPayloadDetailed, interpolateRedirectUrl, updateNameNamespace } from './useHandleActions'
 
 export const runRestFanOut = async (
   action: WidgetAction & { type: 'rest' },
@@ -31,6 +32,8 @@ export const runRestFanOut = async (
 ): Promise<void> => {
   const { fanOutPath = '', onEventNavigateTo, onSuccessNavigateTo } = action
   const { customPayload } = runtime
+  // Only when the form has secret fields: their values, scrubbed from each op's outcome message.
+  const secrets = runtime.secretPaths?.length ? secretValuesOf(customPayload, runtime.secretPaths) : undefined
   const { verb } = resourceRef
 
   const fail = (description: string): void => {
@@ -64,11 +67,11 @@ export const runRestFanOut = async (
   for (const element of elements) {
     const perOpValues = { ...customPayload, [fanOutPath]: element }
     // eslint-disable-next-line no-await-in-loop -- payloads build sequentially to keep op order deterministic
-    const payload = await buildPayload(action, resourceRef.payload, perOpValues, ctx.resolveJq)
+    const { payload, secretTargets } = await buildPayloadDetailed(action, resourceRef.payload, perOpValues, ctx.resolveJq, runtime.secretPaths)
     const name = payload?.metadata?.name
     const namespace = payload?.metadata?.namespace
     const path = (name ?? namespace) ? updateNameNamespace(resourceRef.path, name, namespace) : resourceRef.path
-    ops.push({ path, payload, verb })
+    ops.push({ maskTargets: secretTargets, path, payload, verb, ...(secrets ? { secretValues: secrets } : {}) })
   }
 
   // runRestSet owns the gate, dispatch, set toast, provenance and cache re-invalidation.
@@ -79,7 +82,7 @@ export const runRestFanOut = async (
 
   ctx.closeDrawer()
   if (onSuccessNavigateTo) {
-    const target = interpolateRedirectUrl(customPayload ?? {}, onSuccessNavigateTo) ?? onSuccessNavigateTo
+    const target = interpolateRedirectUrl(omitSecretPaths(customPayload ?? {}, runtime.secretPaths ?? []), onSuccessNavigateTo) ?? onSuccessNavigateTo
     void ctx.navigate(target)
   }
 }

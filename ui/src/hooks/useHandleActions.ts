@@ -1,6 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
 import useApp from 'antd/es/app/useApp'
-import { merge, set } from 'lodash'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
@@ -11,6 +10,20 @@ import type { ResourceRef, ResourcesRefs, Widget, WidgetAction } from '../types/
 import { getAccessToken } from '../utils/getAccessToken'
 import { useResolveJqExpression } from '../utils/jq-expression'
 import { navigateOrExternal } from '../utils/navigation'
+import { omitSecretPaths, redactSecretValues, secretValuesOf, type SecretPath } from '../utils/secretFields'
+import { SecretExpressionError } from '../utils/secretJq'
+import type { RestApiResponse } from '../utils/types'
+import { getHeadersObject, getResourceRef } from '../utils/utils'
+import { closeDrawer, openDrawer } from '../widgets/Drawer/Drawer'
+import { openModal } from '../widgets/Modal/Modal'
+
+import type { BlastRadius, BlastRadiusSet } from './blastRadius.types'
+import { buildPayloadDetailed, templateJqInput } from './buildPayload'
+import { buildConfirmModalProps, confirmWithTimeout } from './confirmModalProps'
+import { recordProvenance, stampAgentCreated, type WriteOrigin } from './provenance'
+import { runRestFanOut } from './runRestFanOut'
+import { runRestOps } from './runRestOps'
+import { runRestSet, type SetDispatchOptions, type WriteOp, type WriteOpResult } from './runRestSet'
 
 /**
  * How long a blast-radius confirm may sit unanswered before it DENIES.
@@ -21,18 +34,6 @@ import { navigateOrExternal } from '../utils/navigation'
  * Autopilot component tree to do it. If one moves, move the other.
  */
 const CONFIRM_TIMEOUT_MS = 5 * 60 * 1000
-import { pruneEmptyObjects } from '../utils/pruneEmptyObjects'
-import type { Payload, RestApiResponse } from '../utils/types'
-import { getHeadersObject, getResourceRef } from '../utils/utils'
-import { closeDrawer, openDrawer } from '../widgets/Drawer/Drawer'
-import { openModal } from '../widgets/Modal/Modal'
-
-import type { BlastRadius, BlastRadiusSet } from './blastRadius.types'
-import { buildConfirmModalProps, confirmWithTimeout } from './confirmModalProps'
-import { recordProvenance, stampAgentCreated, type WriteOrigin } from './provenance'
-import { runRestFanOut } from './runRestFanOut'
-import { runRestOps } from './runRestOps'
-import { runRestSet, type SetDispatchOptions, type WriteOp, type WriteOpResult } from './runRestSet'
 
 interface EventData {
   involvedObject: {
@@ -165,47 +166,8 @@ export const parseJsonResponse = (text: string): RestApiResponse => {
   return text.trim() ? (JSON.parse(text) as RestApiResponse) : {}
 }
 
-export const buildPayload = async (
-  action: WidgetAction & {type: 'rest'},
-  resourcePayload: object,
-  customPayload: Record<string, unknown> | undefined,
-  resolveJq: (expression: string, values: Record<string, unknown>) => Promise<string>
-): Promise<Payload> => {
-  const { payload, payloadToOverride } = action
-  // 1. the action payload is the starting object
-  let finalPayload = payload ?? {}
-
-  // 2. the action payload and the referenced resource payload are merged
-  finalPayload = merge({}, payload, resourcePayload)
-
-  if (payloadToOverride && payloadToOverride.length > 0 && customPayload) {
-    // 3. the values defined in payloadToOverride are interpolated
-    const overridePromises = payloadToOverride.map(async ({ name, value }) => {
-      let resolvedValue: unknown = value
-
-      if (typeof value === 'string' && value.startsWith('${')) {
-        resolvedValue = await resolveJq(value, { json: customPayload })
-      }
-
-      return { name, resolvedValue }
-    })
-
-    const resolvedOverrides = await Promise.all(overridePromises)
-
-    // 4. the interpolated values replace the original values
-    for (const { name, resolvedValue } of resolvedOverrides) {
-      set(finalPayload, name, resolvedValue)
-    }
-  }
-
-  // 5. Drop empty-plain-object (`{}`) leaves. The schema-driven Form seeds `{}` for every
-  //    unfilled nested-object branch — for a k8s UNION field (probe handlers exec|httpGet|
-  //    tcpSocket|grpc are oneOf) that emits the unpopulated branches as `{}` next to the
-  //    populated one, which k8s rejects ("may not specify more than 1 handler type"). Pruning
-  //    keeps only the populated branch. Runs LAST so a payloadToOverride that set an object
-  //    value is still respected. See pruneEmptyObjects for the safety rationale.
-  return pruneEmptyObjects(finalPayload)
-}
+// buildPayload moved to ./buildPayload (max-lines); re-exported for its existing importers.
+export { buildPayload, buildPayloadDetailed, templateJqInput } from './buildPayload'
 
 /** Per-invocation data for an action (the widget instance it fires from). */
 export interface ActionRuntime {
@@ -219,6 +181,11 @@ export interface ActionRuntime {
    */
   deniedRefIds?: string[]
   customPayload?: Record<string, unknown>
+  /**
+   * The submitting form's SECRET fields (`format: password` / `writeOnly`), as paths into
+   * `customPayload`. They are never sent to `/jq` — see buildPayload and utils/secretJq.ts.
+   */
+  secretPaths?: readonly SecretPath[]
   widget?: Widget
   /** W0-3 origin tag: who initiated the write. Absent = a hand-clicked control ({actor:'human'});
    * the Autopilot bridge sets actor:'agent' + the session/prompt context it holds. */
@@ -310,6 +277,12 @@ const runRest = async (
 ): Promise<void> => {
   const { errorMessage, headers = [], onEventNavigateTo, onSuccessNavigateTo, successMessage } = action
   const { customPayload } = runtime
+  // The form's secret fields and — only when it has any — their VALUES, to scrub from everything
+  // but the write itself: template inputs, toasts, the audit outcome. Undefined = no secret
+  // fields = every path below behaves exactly as it always has.
+  const secretPaths = runtime.secretPaths ?? []
+  const secrets = secretPaths.length > 0 ? secretValuesOf(customPayload, secretPaths) : undefined
+  const scrub = <T>(text: T): T => (secrets ? redactSecretValues(text, secrets) : text)
   const { verb } = resourceRef
 
   // W3-2: `ops` routes the whole submit through the set fabric — N DISTINCT writes
@@ -345,7 +318,7 @@ const runRest = async (
 
   // Build the request body BEFORE the gate so the blast-radius diff shows the real create /
   // update body the write will send (not the pre-override ref payload).
-  const builtPayload = await buildPayload(action, resourceRef.payload, customPayload, ctx.resolveJq)
+  const { payload: builtPayload, secretTargets } = await buildPayloadDetailed(action, resourceRef.payload, customPayload, ctx.resolveJq, runtime.secretPaths)
   // A17: an object the agent created is identifiable as such. Stamped HERE — before the gate —
   // so the label appears in the blast-radius diff the human confirms, rather than being added to
   // the body afterwards. No-op for human-originated writes and for every verb but POST.
@@ -360,7 +333,7 @@ const runRest = async (
   // logged verbatim on the audit record (reused, never rebuilt). undefined = read-only ref.
   let radius: BlastRadius | undefined
   if (isMutatingVerb(verb)) {
-    radius = buildBlastRadius({ path: resourceRef.path, payload, verb })
+    radius = buildBlastRadius({ maskTargets: secretTargets, path: resourceRef.path, payload, verb })
     if (!(await ctx.confirm(radius))) {
       ctx.setLoading(false)
 
@@ -389,7 +362,7 @@ const runRest = async (
     let description = `Timeout waiting for event ${onEventNavigateTo.eventReason}`
     if (errorMessage) {
       description = errorMessage.startsWith('${')
-        ? await ctx.resolveJq(errorMessage, { json: payload, response: jsonResponse })
+        ? await ctx.resolveJq(errorMessage, templateJqInput(payload, secretTargets, jsonResponse, {}, secrets))
         : errorMessage
     }
 
@@ -410,7 +383,7 @@ const runRest = async (
     })
 
     const loadingMessage = onEventNavigateTo.loadingMessage
-      ? await ctx.resolveJq(onEventNavigateTo.loadingMessage, { json: payload, response: jsonResponse })
+      ? await ctx.resolveJq(onEventNavigateTo.loadingMessage, templateJqInput(payload, secretTargets, jsonResponse, {}, secrets))
       : 'Waiting for resource and redirecting...'
 
     ctx.message.loading(loadingMessage, eventTimeoutSeconds)
@@ -435,15 +408,11 @@ const runRest = async (
         const redirectUrl = await (async () => {
           // if it starts with ${ resolve via the JQ endpoint, otherwise use the legacy method
           if (onEventNavigateTo.url.startsWith('${')) {
-            return ctx.resolveJq(onEventNavigateTo.url, {
-              event: eventData,
-              json: payload,
-              response: jsonResponse,
-            })
+            return ctx.resolveJq(onEventNavigateTo.url, templateJqInput(payload, secretTargets, jsonResponse, { event: eventData }, secrets))
           }
 
           if (customPayload) {
-            return interpolateRedirectUrl(customPayload, onEventNavigateTo.url)
+            return interpolateRedirectUrl(omitSecretPaths(customPayload, secretPaths), onEventNavigateTo.url)
           }
 
           return onEventNavigateTo.url
@@ -463,11 +432,7 @@ const runRest = async (
         let successDescription = 'The action has been executed successfully'
         if (successMessage) {
           successDescription = successMessage.startsWith('${')
-            ? await ctx.resolveJq(successMessage, {
-              event: eventData,
-              json: payload,
-              response: jsonResponse,
-            })
+            ? await ctx.resolveJq(successMessage, templateJqInput(payload, secretTargets, jsonResponse, { event: eventData }, secrets))
             : successMessage
         }
 
@@ -525,7 +490,7 @@ const runRest = async (
     // The request itself failed (network error / timeout abort) — still an attempted write:
     // record it (fire-and-forget, best-effort), then rethrow to the dispatcher's catch.
     if (radius) {
-      recordProvenance(ctx, runtime.origin, radius, { message: error instanceof Error ? error.message : String(error), ok: false, status: 0 }, requestedAt)
+      recordProvenance(ctx, runtime.origin, radius, { message: scrub(error instanceof Error ? error.message : String(error)), ok: false, status: 0 }, requestedAt)
     }
     throw error
   })
@@ -541,14 +506,14 @@ const runRest = async (
   // carrying the radius the human confirmed. Fire-and-forget inside recordProvenance (void,
   // never awaited): it can never block, delay, or fail the primary write.
   if (radius) {
-    recordProvenance(ctx, runtime.origin, radius, { message: jsonResponse.message ?? '', ok: res.ok, status: res.status }, requestedAt)
+    recordProvenance(ctx, runtime.origin, radius, { message: secrets ? scrub(jsonResponse.reason ?? `HTTP ${res.status}`) : jsonResponse.message ?? '', ok: res.ok, status: res.status }, requestedAt)
   }
 
   if (!res.ok) {
-    let description = jsonResponse.message
+    let description = scrub(jsonResponse.message)
     if (errorMessage) {
       description = errorMessage.startsWith('${')
-        ? await ctx.resolveJq(errorMessage, { json: payload, response: jsonResponse })
+        ? await ctx.resolveJq(errorMessage, templateJqInput(payload, secretTargets, jsonResponse, {}, secrets))
         : errorMessage
     }
 
@@ -591,7 +556,7 @@ const runRest = async (
     let description = `Successfully ${actionName} ${resourceName} in ${resourceNamespace}`
     if (successMessage) {
       description = successMessage.startsWith('${')
-        ? await ctx.resolveJq(successMessage, { json: payload, response: jsonResponse })
+        ? await ctx.resolveJq(successMessage, templateJqInput(payload, secretTargets, jsonResponse, {}, secrets))
         : successMessage
     }
 
@@ -599,7 +564,7 @@ const runRest = async (
     // OBJECT (no `.message` field), so `jsonResponse.message` is usually undefined, and antd renders
     // a title-less (effectively invisible) toast. Fall back to a verb-aware headline so every widget
     // action reliably shows a titled success toast.
-    const successTitle = jsonResponse.message || `Successfully ${actionName}`
+    const successTitle = scrub(jsonResponse.message) || `Successfully ${actionName}`
     ctx.notification.success({ description, message: successTitle, placement: 'bottomLeft' })
   }
 
@@ -609,7 +574,7 @@ const runRest = async (
     ctx.closeDrawer()
 
     const onSuccessUrl = onSuccessNavigateTo.startsWith('${')
-      ? await ctx.resolveJq(onSuccessNavigateTo, { json: payload, response: jsonResponse })
+      ? await ctx.resolveJq(onSuccessNavigateTo, templateJqInput(payload, secretTargets, jsonResponse, {}, secrets))
       : onSuccessNavigateTo
 
     if (onSuccessUrl) {
@@ -698,11 +663,14 @@ export const dispatchAction = async (action: WidgetAction, runtime: ActionRuntim
     }
   } catch (error) {
     ctx.message.destroy()
-    ctx.notification.error({
-      description: `Unhandled error: ${error instanceof Error ? error.message : String(error)}`,
-      message: 'Error while executing the action',
-      placement: 'bottomLeft',
-    })
+    // A refused secret-bearing override is a definition problem, stated as such — nothing was sent.
+    ctx.notification.error(error instanceof SecretExpressionError
+      ? { description: error.message, message: 'Not submitted — a secret field would have left the browser', placement: 'bottomLeft' }
+      : {
+        description: `Unhandled error: ${error instanceof Error ? error.message : String(error)}`,
+        message: 'Error while executing the action',
+        placement: 'bottomLeft',
+      })
   } finally {
     ctx.setLoading(false)
   }
@@ -798,9 +766,11 @@ export const useHandleAction = () => {
     // X2 — the caller's `deniedRefIds` prop. Optional so a call site that has none behaves exactly
     // as before: an absent ref is still reported as a broken definition, which is correct when
     // nothing was filtered.
-    deniedRefIds?: string[]
+    deniedRefIds?: string[],
+    // The submitting Form's secret fields (utils/secretFields.ts); only the Form passes them.
+    secretPaths?: readonly SecretPath[]
   ) => {
-    await dispatchAction(action, { customPayload, deniedRefIds, origin, resourcesRefs, widget }, buildCtx())
+    await dispatchAction(action, { customPayload, deniedRefIds, origin, resourcesRefs, secretPaths, widget }, buildCtx())
   }
 
   /**

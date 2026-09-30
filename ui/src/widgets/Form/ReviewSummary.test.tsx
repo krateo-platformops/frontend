@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
+import type { JSONSchema4 } from 'json-schema'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { ReviewSummary, agentAuthoredKeys } from './Form'
@@ -87,5 +88,33 @@ describe('agentAuthoredKeys — the mark survives a second prefill, not a human 
 
     expect(agentAuthoredKeys(authored, { cfg: { x: 1 }, tags: ['a', 'b'] }).sort()).toEqual(['cfg', 'tags'])
     expect(agentAuthoredKeys(authored, { cfg: { x: 1 }, tags: ['a'] })).toEqual(['cfg'])
+  })
+})
+
+describe('ReviewSummary — secret fields are masked, never redisplayed', () => {
+  const schema = {
+    properties: {
+      apiKey: { title: 'API key', type: 'string', writeOnly: true },
+      auth: { properties: { token: { format: 'password', type: 'string' } }, type: 'object' },
+      password: { format: 'password', title: 'Password', type: 'string' },
+      username: { title: 'Username', type: 'string' },
+    },
+    type: 'object',
+  } as JSONSchema4
+
+  it('shows a mask in place of each secret, nested ones included', () => {
+    const { container } = render(
+      <ReviewSummary
+        schema={schema}
+        values={{ apiKey: 'k-123', auth: { token: 'tok-456' }, password: 'hunter2', username: 'alice' }}
+      />,
+    )
+    const text = container.textContent ?? ''
+    expect(text).not.toContain('hunter2')
+    expect(text).not.toContain('k-123')
+    expect(text).not.toContain('tok-456')
+    expect(text).toContain('alice')
+    expect(screen.getAllByText('••••••')).toHaveLength(2)
+    expect(text).toContain('{"token":"••••••"}')
   })
 })

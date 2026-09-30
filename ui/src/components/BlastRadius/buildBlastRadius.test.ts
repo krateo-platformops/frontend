@@ -268,3 +268,46 @@ describe('buildBlastRadiusSet — the aggregated W0-4 set radius', () => {
     expect(op.namespace).toBe('')
   })
 })
+
+describe('the confirm never shows a secret in clear', () => {
+  const SECRET_BODY = {
+    apiVersion: 'v1',
+    kind: 'Secret',
+    metadata: { name: 'alice-password', namespace: 'krateo-system' },
+    stringData: { password: 'hunter2', username: 'alice' },
+    type: 'kubernetes.io/basic-auth',
+  }
+  const path = '/call?apiVersion=v1&resource=secrets&namespace=krateo-system'
+
+  it('scalar POST of a Secret: stringData values masked in the create diff, keys kept', () => {
+    const radius = buildBlastRadius({ path, payload: SECRET_BODY, verb: 'POST' })
+    expect(JSON.stringify(radius)).not.toContain('hunter2')
+    expect(radius.diff).toEqual({ after: { ...SECRET_BODY, stringData: { password: '••••••', username: '••••••' } }, kind: 'create' })
+    // the name the human confirms is still there
+    expect(radius.name).toBe('alice-password')
+  })
+
+  it('PATCH / DELETE of a Secret: before and after masked', () => {
+    const update = buildBlastRadius({ before: { ...SECRET_BODY, data: { password: 'aHVudGVyMg==' } }, path, payload: SECRET_BODY, verb: 'PATCH' })
+    expect(JSON.stringify(update)).not.toContain('hunter2')
+    expect(JSON.stringify(update)).not.toContain('aHVudGVyMg==')
+    const removal = buildBlastRadius({ path, payload: SECRET_BODY, verb: 'DELETE' })
+    expect(JSON.stringify(removal)).not.toContain('hunter2')
+  })
+
+  it('any kind: a value resolved from a secret form field is masked by its override path', () => {
+    const body = { kind: 'Database', metadata: { name: 'db' }, spec: { adminPassword: 'hunter2', size: 'm' } }
+    const radius = buildBlastRadius({ maskTargets: ['spec.adminPassword'], path: '/apis/db.io/v1/databases', payload: body, verb: 'POST' })
+    expect(JSON.stringify(radius)).not.toContain('hunter2')
+    expect(JSON.stringify(radius)).toContain('"size":"m"')
+  })
+
+  it('set: every op preview masked (the user-create Secret + User pair)', () => {
+    const set = buildBlastRadiusSet([
+      { path, payload: SECRET_BODY, verb: 'POST' },
+      { maskTargets: ['spec.pin'], path: '/apis/x.io/v1/things', payload: { kind: 'Thing', spec: { pin: '1234' } }, verb: 'POST' },
+    ])
+    expect(JSON.stringify(set)).not.toContain('hunter2')
+    expect(JSON.stringify(set)).not.toContain('1234')
+  })
+})

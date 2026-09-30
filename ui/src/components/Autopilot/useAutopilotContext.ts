@@ -10,7 +10,10 @@
  */
 
 import { useQueryClient } from '@tanstack/react-query'
+import type { JSONSchema4 } from 'json-schema'
 import { useCallback } from 'react'
+
+import { isWildcardSegment, secretFieldPaths } from '../../utils/secretFields'
 
 import { getComposeRefusals } from './composeRequest'
 import { chartFingerprint, draftFingerprint } from './draftStructure'
@@ -180,7 +183,17 @@ const formFieldNames = (widgetData: Record<string, unknown> | undefined): string
     }
   }
   const properties = asRecord(schema?.properties)
-  return properties ? Object.keys(properties) : undefined
+  // Names only, never values — and not even the name of a SECRET field (`format: password` /
+  // `writeOnly`): the Form never accepts an Autopilot value for one, so offering it would only
+  // invite the model to invent a credential.
+  if (!properties) {
+    return undefined
+  }
+  // A field that IS a secret, or a list / map of them (`[key, '*']`, `[key, '{*}']`).
+  const secretKeys = new Set(secretFieldPaths(schema as JSONSchema4)
+    .filter((path) => path.length === 1 || (path.length === 2 && isWildcardSegment(path[1])))
+    .map((path) => path[0]))
+  return Object.keys(properties).filter((key) => !secretKeys.has(key))
 }
 
 /** Runnable actions on an action-bearing widget (Button), with each action's verb
