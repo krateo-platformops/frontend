@@ -50,7 +50,8 @@ Everything that is behaviour, it **names**: plugins the frontend ships, looked u
 - **Parser:** `ui/src/builders/builderSpec.ts` is the typed mirror of the CRD. It turns
   whatever the cluster returns into a `Builder` or a list of sentences, and never throws.
 - **Descriptors:** `ui/src/builders/fixtures/{portal,blueprint}-builder.builder.yaml` describe
-  today's two builders. They are fixtures until the engine reads them (T2).
+  today's two builders. Since T2 the engine reads them, statically imported through the one seam
+  `ui/src/builders/builderRegistry.ts`, until Builders are read from the cluster.
 
 ### Why its own group, next to the widgets
 
@@ -159,8 +160,12 @@ builder meant to stop.
   The fixtures test also holds today's descriptors to the constants the composers still
   hardcode: the byte cap, the registration path, the config keys, the routes, the preview
   RESTAction and the verbs.
-- **Reading Builders needs RBAC.** Before T2 reads Builders over `/call`, the portal's
+- **Reading Builders needs RBAC.** Before the engine reads Builders over `/call`, the portal's
   authenticated-user role needs `get`/`list` on `builders.builders.templates.krateo.io`. A
   denial is content ("you may not read this builder"), never a blank page.
-- **Until T2, the CRD is inert.** It ships and validates, the descriptors parse and resolve,
-  and nothing reads them.
+- **Since T2, the engine reads the fixtures, not the cluster.** `builderRegistry.ts` is the one
+  place that changes when Builders are listed over `/call`. Per-builder wording and naming that the
+  CRD does not carry (a draft's display name, "a portal page") are draft-kind plugins keyed by
+  `spec.draftKind` (`ui/src/builders/draftKinds.ts`).
+- **Until T2, the CRD was inert.** It ships and validates, the descriptors parse and resolve,
+  and nothing read them.
