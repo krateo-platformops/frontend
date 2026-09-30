@@ -7,8 +7,9 @@
 # over the controller workbench (useControllerWorkbench). A controller draft is held, autosaved as
 # `draft-controller-<owner>-<slug>`, resumed, linted and published by the same engine code as the others.
 #
-# WHAT IS STILL DECLARED ONLY: preview.restActionRef. Nothing calls controller-render-draft until T9
-# (frontend#413); until then Preview says so plainly, and Publish stays off behind the preview gate.
+# PREVIEW RUNS IT TOO (T9, frontend#413): preview.restActionRef is the RESTAction the provider calls
+# (useBlueprintAuthoringBuses → pages/ControllerComposer/controllerRender.ts), and only a render with
+# CRDs and zero problems arms Publish.
 apiVersion: builders.templates.krateo.io/v1alpha1
 kind: Builder
 metadata:
@@ -60,7 +61,9 @@ spec:
   inspector:
     plugin: restdef-mapping
   # frontend#405: a controller preview RENDERS (oasgen-render generates the CRDs), it never applies.
-  # The MODE is read (an edit disarms Publish); the RESTAction is not called until T9 (frontend#413).
+  # The MODE is read (an edit disarms Publish); Preview writes the draft (RestDefinitions + the OAS
+  # documents, `draft.json`) into the preview sandbox and calls this RESTAction by name over /call
+  # (T9, frontend#413; portal#277).
   preview:
     mode: render
     restActionRef:

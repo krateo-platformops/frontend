@@ -10,7 +10,11 @@
  *   - A render LINTS FIRST: a lint-dirty chart sends nothing anywhere and is disarmed.
  *   - A render goes through the `blueprint-render` RESTAction over snowplow /call ONLY, under the
  *     person's own credential. Never the direct render-service fallback the agent's verb keeps for old
- *     installs: that is a browser fetch outside /call, which builder surfaces must not make.
+ *     installs: that is a browser fetch outside /call, which builder surfaces must not make. A
+ *     CONTROLLER renders the same way through its Builder's `controller-render-draft` (T9,
+ *     frontend#413; pages/ControllerComposer/controllerRender.ts), and has no fallback at all.
+ *   - A controller START with no Kind placed renders nothing — there is nothing to generate yet — and
+ *     says what to do next instead of sending an empty draft to be refused.
  *   - A render ARMS only on success, and only if the draft is still the one it rendered — an edit that
  *     lands while the request is on the wire makes the result stale, and nothing is armed.
  *   - Every outcome is answered, by id, on the render-result bus; nothing opens the drawer. The
@@ -19,10 +23,14 @@
  */
 import { useCallback, useEffect } from 'react'
 
+import { findBuilderOf } from '../../builders/builderRegistry'
 import type { Config } from '../../context/ConfigContext'
+import { readController } from '../../pages/ControllerComposer/controllerChart'
+import { CONTROLLER_STARTED, controllerPreviewPayload } from '../../pages/ControllerComposer/controllerPreviewPayload'
+import { renderController } from '../../pages/ControllerComposer/controllerRender'
 
 import { draftDisplayName } from './blueprintDraft'
-import type { BlueprintDraftStore } from './blueprintDraftStore'
+import type { BlueprintDraftHeld, BlueprintDraftStore } from './blueprintDraftStore'
 import type { BlueprintGate } from './blueprintGate'
 import { buildBlueprintPreviewPayload } from './blueprintPreviewPayload'
 import { renderBlueprint, type SandboxWriter } from './blueprintRenderSandbox'
@@ -34,11 +42,16 @@ import { heldDraftIdentity } from './publishCompile'
 import type { DraftAutosave } from './useDraftAutosave'
 
 /**
- * A controller is HELD by a start and never rendered here: its render (oasgen-render, through the
- * controller-render-draft RESTAction) is T9's (frontend#413). Said plainly — as the answer to a
- * start and to every Preview — rather than faking a render, and nothing is armed: Publish stays off.
+ * A controller renders through the RESTAction its Builder names (controller-render-draft, portal#277)
+ * over snowplow /call, from a ConfigMap written into the preview sandbox — so it needs all three. An
+ * install missing any of them says so, and nothing is armed.
  */
-export const CONTROLLER_PREVIEW_UNAVAILABLE = 'A controller preview is not available in this portal yet — the controller render arrives with frontend#413. The controller is held and saved as you edit it; Publish stays off until a preview has rendered it.'
+export const CONTROLLER_RENDER_NOT_CONFIGURED = 'This portal has no controller preview configured (the controller-render-draft RESTAction needs the snowplow URL, the frontend namespace and the preview sandbox), so the controller cannot be previewed here. It is still held; Publish stays off.'
+
+/** The answer to a controller start with no Kind yet — defined beside the copy that shows it as info. */
+export { CONTROLLER_STARTED }
+
+export const CONTROLLER_RENDER_FAILED = 'The controller did not render, so it cannot be published yet.'
 
 export const RENDER_NOT_CONFIGURED = 'This portal has no chart render configured (the blueprint-render RESTAction needs the snowplow URL and the frontend namespace), so the chart cannot be previewed here. It is still held.'
 
@@ -56,6 +69,67 @@ export const useBlueprintAuthoringBuses = (
    */
   autosave?: Pick<DraftAutosave, 'flush' | 'markRendered' | 'seedFromRecord'>,
 ): void => {
+  /**
+   * THE CONTROLLER'S PREVIEW (T9, frontend#413) — the same rules as a chart's: lint first, write-ahead
+   * flush, the render over /call as the person, stale if the draft moved, and ARMED only by a positive
+   * render with zero problems. The render is controllerRender.ts's: draft.json into the sandbox, the
+   * Builder's preview RESTAction by name, the ConfigMap deleted. Every other answer forgets the arming.
+   */
+  const renderHeldController = useCallback(async (held: BlueprintDraftHeld, answer: (detail: Omit<DraftRenderResultDetail, 'id'>) => void): Promise<void> => {
+    const snowplowBaseUrl = config?.api.SNOWPLOW_API_BASE_URL
+    const frontendNamespace = config?.params.FRONTEND_NAMESPACE
+    const identity = heldDraftIdentity(held)
+    const problems = lintHeldDraft(held.files, held.kind)
+    if (problems.length) {
+      gate.forget(identity)
+      answer({ message: 'Fix these before previewing — nothing was sent to the cluster.', outcome: 'refused', problems })
+      return
+    }
+    const restActionRef = findBuilderOf(held.kind)?.preview.restActionRef
+    if (!snowplowBaseUrl || !frontendNamespace || !sandboxWriter || !restActionRef) {
+      gate.forget(identity)
+      answer({ message: CONTROLLER_RENDER_NOT_CONFIGURED, outcome: 'unavailable' })
+      return
+    }
+    await autosave?.flush()
+    const model = readController(held.files)
+    const name = model.name ?? draftDisplayName(held.files)
+    const verdict = await renderController(
+      held.files,
+      { namespace: restActionRef.namespace ?? frontendNamespace, restAction: restActionRef.name, snowplowBaseUrl },
+      sandboxWriter,
+      name,
+    )
+    if (store.get() !== held) {
+      answer({ message: 'The controller changed while it was rendering — preview it again.', outcome: 'stale' })
+      return
+    }
+    if (verdict.outcome === 'refused') {
+      gate.forget(identity)
+      answer({ message: verdict.message, outcome: 'refused', problems: verdict.problems })
+      return
+    }
+    if (verdict.outcome === 'unavailable') {
+      gate.forget(identity)
+      answer({ message: verdict.message, outcome: 'unavailable' })
+      return
+    }
+    const payload = controllerPreviewPayload(held.files, model, name, {
+      files: held.files,
+      objects: verdict.render.objects,
+      ...(verdict.render.problems.length ? { problems: verdict.render.problems } : {}),
+      ...(verdict.render.warnings.length ? { renderedWarnings: verdict.render.warnings } : {}),
+    })
+    if (verdict.outcome === 'failed') {
+      gate.forget(identity)
+      answer({ message: CONTROLLER_RENDER_FAILED, outcome: 'failed', payload, problems: verdict.render.problems })
+      return
+    }
+    gate.recordPreview(identity)
+    void autosave?.markRendered(held)
+    answer({ message: null, outcome: 'rendered', payload })
+  }, [autosave, config, gate, sandboxWriter, store])
+
   const render = useCallback(async (id: string): Promise<void> => {
     // Read at request time, not at mount: the provider mounts before the config is complete.
     const snowplowBaseUrl = config?.api.SNOWPLOW_API_BASE_URL
@@ -63,7 +137,7 @@ export const useBlueprintAuthoringBuses = (
     const answer = (detail: Omit<DraftRenderResultDetail, 'id'>): void => emitDraftRenderResult({ id, ...detail })
     const held = store.get()
     if (held?.kind === 'controller') {
-      answer({ message: CONTROLLER_PREVIEW_UNAVAILABLE, outcome: 'unavailable' })
+      await renderHeldController(held, answer)
       return
     }
     if (!held || held.kind !== 'blueprint') {
@@ -97,7 +171,7 @@ export const useBlueprintAuthoringBuses = (
     gate.recordPreview(identity)
     void autosave?.markRendered(held)
     answer({ message: null, outcome: 'rendered', payload })
-  }, [autosave, config, gate, sandboxWriter, store])
+  }, [autosave, config, gate, renderHeldController, sandboxWriter, store])
 
   useEffect(() => onDraftRenderRequest(({ id }) => { void render(id) }), [render])
 
@@ -114,6 +188,10 @@ export const useBlueprintAuthoringBuses = (
     const set = store.set(files, kind)
     if (!set.ok) {
       emitDraftRenderResult({ id, message: set.error, outcome: 'refused' })
+      return
+    }
+    if (kind === 'controller' && !readController(files).kinds.length) {
+      emitDraftRenderResult({ id, message: CONTROLLER_STARTED, outcome: 'unavailable' })
       return
     }
     void render(id)

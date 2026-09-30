@@ -12,8 +12,11 @@
  * EVERY WRITE IS ONE FILES BATCH of the controller draft kind, pinned to the bytes it was planned from,
  * and — like every write — it turns Publish off until Preview renders the controller again.
  *
- * PREVIEW. The provider answers it: until the controller render ships (T9, frontend#413) that answer
- * is "not available yet", said plainly — nothing is faked, nothing is armed, Publish stays off.
+ * PREVIEW. The provider answers it (T9, frontend#413): oasgen-render generates each Kind's CRD through
+ * controller-render-draft, and only a render with CRDs and zero problems arms Publish. The last render
+ * is drawn by controllerPreviewPayload — Rendered (the create forms), Chart files, Source (the CRDs,
+ * or the problems) — and said to be old once the files move on. An unavailable render service is said
+ * as it is; nothing is faked.
  */
 import { Alert } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -24,7 +27,6 @@ import type { AutopilotPreviewPayload } from '../../components/Autopilot/preview
 import { emitDraftClose, onDraftClose } from '../../components/Autopilot/previewDraftClose'
 import { emitFilesBatch } from '../../components/Autopilot/previewFilesBatch'
 import { lockedFor, usePublishedLocks } from '../../components/Autopilot/publishedLocks'
-import { renderOutcomeCopy } from '../BlueprintComposer/renderOutcome'
 import { useChartRequests } from '../BlueprintComposer/useChartRequests'
 
 import {
@@ -36,17 +38,13 @@ import {
   planToggleField,
   readController,
   type CompareScope,
-  type ControllerModel,
   type ControllerPlan,
 } from './controllerChart'
 import ControllerEmptyState from './ControllerEmptyState'
+import { CONTROLLER_FILES_CAPTION, controllerOutcomeCopy, controllerPreviewPayload } from './controllerPreviewPayload'
 import { classifyOperation, type RestAction } from './operationMapping'
 import { operationsInGroup } from './paletteModel'
 import StartControllerModal from './StartControllerModal'
-
-export const CONTROLLER_FILES_CAPTION = 'Chart files is the tree the change request commits — each Kind is its RestDefinition, and the OpenAPI document rides in its ConfigMap. Edit a file in place; the canvas and the inspector read it back.'
-
-export const RENDERED_PLACEHOLDER = 'The create form of each generated Kind appears here once Preview can render the controller (frontend#413). Nothing has been rendered.'
 
 /** Why a gesture did not land, and where it is said: under a palette group, or on the canvas/inspector. */
 export interface ControllerRefusal {
@@ -54,12 +52,6 @@ export interface ControllerRefusal {
   key: string
   reason: string
 }
-
-const verbLine = (model: ControllerModel): string[] => model.kinds.map((entry) => {
-  const resource = (entry.restDefinition.spec as { resource?: { verbsDescription?: { action?: string; method?: string; path?: string }[] } } | undefined)?.resource
-  const verbs = (resource?.verbsDescription ?? []).map((verb) => `${verb.action} ${verb.method} ${verb.path}`)
-  return `${entry.kind} → ${verbs.length ? verbs.join(' · ') : 'no verbs yet'}`
-})
 
 export const useControllerWorkbench = (host: HostDraft) => {
   const { builder, files, kind, mode, openFile } = host
@@ -143,21 +135,13 @@ export const useControllerWorkbench = (host: HostDraft) => {
   const edit = (plan: ControllerPlan) => { write(plan, 'inspector', inspectorKey) }
 
   const name = model.name ?? draftDisplayName(files)
-  const shown = useMemo((): AutopilotPreviewPayload | null => (mode === 'own' && Object.keys(files).length ? {
-    builder: 'controller',
-    caption: CONTROLLER_FILES_CAPTION,
-    files: Object.entries(files).map(([path, content]) => ({ content, path })),
-    filesLabel: 'Chart files',
-    // Chart files first: the Rendered tab has nothing to show until Preview can render (T9).
-    initialTab: 'files',
-    objects: [],
-    publishTarget: { base: 'main', note: 'merged, CI publishes it as a versioned OCI Helm chart', repo: name },
-    renderedPlaceholder: RENDERED_PLACEHOLDER,
-    summary: verbLine(model),
-    title: `Controller — ${name}`,
-  } : null), [files, mode, model, name])
+  // The held files with the last render (its CRDs, forms, problems) — said to be old once they differ.
+  const { lastRender } = requests
+  const shown = useMemo((): AutopilotPreviewPayload | null => (mode === 'own' && Object.keys(files).length
+    ? controllerPreviewPayload(files, model, name, lastRender)
+    : null), [files, lastRender, mode, model, name])
 
-  const outcome = requests.outcome ? renderOutcomeCopy(requests.outcome) : null
+  const outcome = requests.outcome ? controllerOutcomeCopy(requests.outcome) : null
   const kinds = model.kinds.map((entry) => entry.kind)
   const meta = [model.version, kinds.length ? kinds.join(', ') : null, model.group || null].filter(Boolean).join(' · ')
 
@@ -209,7 +193,8 @@ export const useControllerWorkbench = (host: HostDraft) => {
         />
       </>
     ),
-    files: { caption: CONTROLLER_FILES_CAPTION },
+    // What the tabs hold, and whether the render they show is old or failed (controllerPreviewPayload).
+    files: { caption: shown?.caption ?? CONTROLLER_FILES_CAPTION },
     kind,
     notices: outcome ? (
       <Alert
@@ -218,7 +203,7 @@ export const useControllerWorkbench = (host: HostDraft) => {
         onClose={requests.dismiss}
         showIcon
         title={outcome.title}
-        type={outcome.type === 'warning' && requests.outcome?.outcome === 'unavailable' ? 'info' : outcome.type}
+        type={outcome.type}
       />
     ) : null,
     onResumed: forgetShown,

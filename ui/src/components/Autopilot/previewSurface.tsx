@@ -534,6 +534,16 @@ export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, h
     </div>
   )
 
+  // A payload that NAMES the tab to open on moves the pane there when that name changes — the
+  // Controller Builder's Preview turning Chart files into Rendered once there is a form to show.
+  // Declared before the reveal below, so a file selected in the same render still wins.
+  const { initialTab } = payload
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab)
+    }
+  }, [initialTab])
+
   // The unified tab set — the same shape for BOTH builders: [Rendered (live) if a sandbox endpoint] →
   // [Files: the committed source tree with paths] → [Source: rendered output / CRs + validation].
   // Reveal the selected file: switch to Files and scroll it into view.
@@ -562,11 +572,42 @@ export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, h
     return () => cancelAnimationFrame(frame)
   }, [focusedPath, focusNonce])
 
+  // The Controller Builder's Rendered tab: the create form of each CRD its preview generated, with
+  // what the render applies anyway said above them. Without forms, the placeholder says why.
+  let renderedBody: React.ReactNode = null
+  if (payload.renderedForms?.length) {
+    renderedBody = (
+      <div className={styles.body}>
+        {payload.renderedWarnings?.length ? (
+          <Alert
+            description={<ul className={styles.issueList}>{payload.renderedWarnings.map((line) => <li key={line}>{line}</li>)}</ul>}
+            message='Generated with warnings — the controller applies these as they are'
+            showIcon
+            type='warning'
+          />
+        ) : null}
+        {payload.renderedForms.map((form) => (form.undrawn ? (
+          <section data-testid='autopilot-form-undrawn' key={form.crd}>
+            <Typography.Title level={5}>{`${form.kind} — create form`}</Typography.Title>
+            <Typography.Paragraph type='secondary'>{form.undrawn}</Typography.Paragraph>
+          </section>
+        ) : (
+          <PreviewFormSection
+            caption={`Read-only — generated from ${form.crd}, the CRD oasgen-render generated (nothing applied to the cluster). Nothing is submitted.`}
+            formSchema={form.schema}
+            key={form.crd}
+            title={`${form.kind} — create form`}
+          />
+        )))}
+      </div>
+    )
+  } else if (payload.renderedPlaceholder) {
+    // A render that has not happened says so where it would be, rather than leaving the tab out.
+    renderedBody = <div className={styles.body}><Empty description={payload.renderedPlaceholder} image={Empty.PRESENTED_IMAGE_SIMPLE} /></div>
+  }
+
   const tabs = [
-    // A render that is not wired yet says so where it would be, rather than leaving the tab out.
-    ...(payload.renderedPlaceholder
-      ? [{ children: <div className={styles.body}><Empty description={payload.renderedPlaceholder} image={Empty.PRESENTED_IMAGE_SIMPLE} /></div>, key: 'rendered', label: 'Rendered' }]
-      : []),
+    ...(renderedBody ? [{ children: renderedBody, key: 'rendered', label: 'Rendered' }] : []),
     ...(payload.liveEndpoint
       // The REAL renderer on the REAL served endpoint: snowplow resolves the sandbox drafts
       // (templates, apiRef data, children) like any page; its own loading/error states are honest.

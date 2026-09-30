@@ -23,6 +23,8 @@ export const STALE_OUTCOME = 'The chart changed while it rendered — preview ag
 
 const COPY: Record<DraftRenderResultDetail['outcome'], (detail: DraftRenderResultDetail) => OutcomeCopy> = {
   failed: (detail) => ({
+    // A controller preview's failure is a list of problems (controller-render-draft) — said here too.
+    ...(detail.problems?.length ? { lines: detail.problems } : {}),
     title: `${detail.message ?? 'The chart did not render, so it cannot be published yet.'} The render error is in Source.`,
     type: 'error',
   }),

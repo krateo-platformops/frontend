@@ -66,7 +66,7 @@ export const oasConfigMapName = (name: string): string => `${name}-oas`
 export const oasConfigMapKey = (format: OasFormat): string => (format === 'json' ? 'openapi.json' : 'openapi.yaml')
 export const restDefinitionPath = (kind: string): string => `templates/restdefinition-${kind.toLowerCase()}.yaml`
 export const RESTDEFINITION_PATH = /^templates\/restdefinition-[a-z0-9-]+\.yaml$/
-const CONFIGMAP_PATH = /^templates\/configmap-oas-[a-z0-9-]+\.yaml$/
+export const CONFIGMAP_PATH = /^templates\/configmap-oas-[a-z0-9-]+\.yaml$/
 
 export const toYaml = (value: unknown): string => dump(value, { lineWidth: -1, noRefs: true, sortKeys: false })
 
@@ -77,6 +77,37 @@ export const toYaml = (value: unknown): string => dump(value, { lineWidth: -1, n
 const HELM_LITERAL_OPEN = '{{`{{`}}'
 export const escapeHelm = (text: string): string => text.split('{{').join(HELM_LITERAL_OPEN)
 export const unescapeHelm = (text: string): string => text.split(HELM_LITERAL_OPEN).join('{{')
+/**
+ * True when a document text still carries a Helm action once its escaped literals are set aside —
+ * a hand edit like `{{ fail "boom" }}`. Helm would evaluate it at install, while the preview sends the
+ * text as it is, so what the preview rendered would not be what installs.
+ */
+export const carriesHelmAction = (text: string): boolean => text.split(HELM_LITERAL_OPEN).join('').includes('{{')
+
+/** The registration file a publish writes at the repository root (publishDraft.ts REGISTRATION_PATH). */
+const REGISTRATION_FILE = 'compositiondefinition.yaml'
+
+/**
+ * The files a controller chart is made of. Anything else would be committed and installed without
+ * ever going through the preview's render — so it is refused, by path, instead.
+ */
+export const isControllerChartPath = (path: string): boolean =>
+  path === CHART_YAML_PATH || /^values[^/]*$/.test(path) || RESTDEFINITION_PATH.test(path) || CONFIGMAP_PATH.test(path) || path === REGISTRATION_FILE
+
+/** Each OAS ConfigMap data key that carries a Helm action, as a sentence naming the file and key. */
+export const helmActionProblems = (files: Readonly<Record<string, string>>): string[] =>
+  Object.keys(files).filter((path) => CONFIGMAP_PATH.test(path)).sort()
+    .flatMap((path) => {
+      let data: Record<string, unknown>
+      try {
+        data = asRecord(asRecord(load(files[path]))?.data) ?? {}
+      } catch {
+        return []
+      }
+      return Object.entries(data)
+        .filter(([, text]) => typeof text === 'string' && carriesHelmAction(text))
+        .map(([key]) => `${path}: data.${key} carries a Helm template action ({{ … }}) — the document must be literal, since Helm would evaluate it at install and the preview does not. Write a literal {{ as {{\`{{\`}}.`)
+    })
 
 // ── naming ──────────────────────────────────────────────────────────────────────────────────────
 
@@ -374,6 +405,9 @@ export const lintControllerDraft = (files: Readonly<Record<string, string>>, loc
     const model = readController(files)
     return [
       ...lockedChanges(files, locked),
+      ...Object.keys(files).filter((path) => !isControllerChartPath(path)).sort()
+        .map((path) => `${path}: a controller chart holds only Chart.yaml, values*, templates/restdefinition-<kind>.yaml and templates/configmap-oas-<name>.yaml — this file would be published without the preview ever rendering it. Remove it.`),
+      ...helmActionProblems(files),
       ...(model.specProblem ? [model.specProblem] : []),
       ...foreignServers(model),
       ...model.unreadable.map(({ path, reason }) => `${path}: ${reason}`),
