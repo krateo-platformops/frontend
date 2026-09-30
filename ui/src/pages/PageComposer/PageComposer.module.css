@@ -318,3 +318,21 @@
     flex-basis: 0;
   }
 }
+
+/* What a disabled Publish's tooltip hangs on — a disabled button fires no pointer events of its own. */
+.tooltipAnchor {
+  display: inline-flex;
+}
+
+/* Read aloud, never drawn: why Publish is off, for a reader that cannot hover a tooltip. */
+.srOnly {
+  border: 0;
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}

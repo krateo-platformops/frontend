@@ -7045,6 +7045,891 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > parked: a
                   "Discard page draft""
 `;
 
+exports[`Blueprint Composer — a chart held BEFORE it mounts (review of #427) > own: held and armed by the provider first, then the composer mounts and replays it 1`] = `
+"<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
+  <div class="_page_396249">
+    <header class="_head_396249">
+      <div class="_titleRow_396249">
+        <div class="_titleBlock_396249">
+          <span class="_eyebrow_396249">
+            "Blueprint Builder / Compose"
+          <h1 class="_title_396249">
+            "builder-publish"
+            <span class="_titleMeta_396249">
+              "0.1.0 · BuilderPublish"
+        <span class="_spacer_396249">
+        <span class="_countPill_396249" title="Files held in the draft">
+          "4 files"
+        <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+          <div class="ant-space-item">
+            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <span>
+                "Preview"
+          <div class="ant-space-item">
+            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" disabled="" type="button">
+              <span>
+                "Undo"
+          <div class="ant-space-item">
+            <span class="_tooltipAnchor_396249">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-primary ant-btn-color-primary ant-btn-variant-solid" type="button">
+                <span>
+                  "Publish"
+          <div class="ant-space-item">
+            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <span>
+                "Close draft"
+    <div class="_body_396249">
+      <section aria-label="Add" class="_pane_396249 _palettePane_396249">
+        <div class="_paneHead_396249">
+          <span class="_paneTitle_396249">
+            "Add"
+        <div aria-label="Palette" class="_paletteBody_396249" role="group">
+          <span class="ant-input-affix-wrapper ant-input-affix-wrapper-sm css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var">
+            <input aria-label="Filter by kind or group" class="ant-input ant-input-sm css-dev-only-do-not-override-12q6fii" placeholder="Filter by kind or group" type="text" value="">
+            <span class="ant-input-suffix">
+              <button class="ant-input-clear-icon ant-input-clear-icon-hidden" type="button">
+                <span aria-label="close-circle" class="anticon anticon-close-circle" role="img">
+                  <svg aria-hidden="true" data-icon="close-circle" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M512 64c247.4 0 448 200.6 448 448S759.4 960 512 960 64 759.4 64 512 264.6 64 512 64zm127.98 274.82h-.04l-.08.06L512 466.75 384.14 338.88c-.04-.05-.06-.06-.08-.06a.12.12 0 00-.07 0c-.03 0-.05.01-.09.05l-45.02 45.02a.2.2 0 00-.05.09.12.12 0 000 .07v.02a.27.27 0 00.06.06L466.75 512 338.88 639.86c-.05.04-.06.06-.06.08a.12.12 0 000 .07c0 .03.01.05.05.09l45.02 45.02a.2.2 0 00.09.05.12.12 0 00.07 0c.02 0 .04-.01.08-.05L512 557.25l127.86 127.87c.04.04.06.05.08.05a.12.12 0 00.07 0c.03 0 .05-.01.09-.05l45.02-45.02a.2.2 0 00.05-.09.12.12 0 000-.07v-.02a.27.27 0 00-.05-.06L557.25 512l127.87-127.86c.04-.04.05-.06.05-.08a.12.12 0 000-.07c0-.03-.01-.05-.05-.09l-45.02-45.02a.2.2 0 00-.09-.05.12.12 0 00-.07 0z">
+          <div aria-labelledby="id2" class="_paletteSection_396249" role="group">
+            <div class="_paletteSectionHead_396249">
+              <span class="_eyebrow_396249" id="id2">
+                "Kubernetes native"
+              <span class="_countPill_396249">
+                "9"
+            <button aria-label="Deployment · apps/v1 · available" class="_paletteRow_396249" data-row="native:apps/v1/Deployment" type="button">
+              <span class="_paletteKind_396249">
+                "Deployment"
+              <span class="_paletteDetail_396249">
+                "apps/v1 · available"
+            <button aria-label="StatefulSet · apps/v1 · ready replicas" class="_paletteRow_396249" data-row="native:apps/v1/StatefulSet" type="button">
+              <span class="_paletteKind_396249">
+                "StatefulSet"
+              <span class="_paletteDetail_396249">
+                "apps/v1 · ready replicas"
+            <button aria-label="Service · v1 · has endpoints" class="_paletteRow_396249" data-row="native:v1/Service" type="button">
+              <span class="_paletteKind_396249">
+                "Service"
+              <span class="_paletteDetail_396249">
+                "v1 · has endpoints"
+            <button aria-label="ConfigMap · v1 · exists" class="_paletteRow_396249" data-row="native:v1/ConfigMap" type="button">
+              <span class="_paletteKind_396249">
+                "ConfigMap"
+              <span class="_paletteDetail_396249">
+                "v1 · exists"
+            <button aria-label="Secret · v1 · exists" class="_paletteRow_396249" data-row="native:v1/Secret" type="button">
+              <span class="_paletteKind_396249">
+                "Secret"
+              <span class="_paletteDetail_396249">
+                "v1 · exists"
+            <button aria-label="Ingress · networking/v1 · lb address" class="_paletteRow_396249" data-row="native:networking.k8s.io/v1/Ingress" type="button">
+              <span class="_paletteKind_396249">
+                "Ingress"
+              <span class="_paletteDetail_396249">
+                "networking/v1 · lb address"
+            <button aria-label="PersistentVolumeClaim · v1 · bound" class="_paletteRow_396249" data-row="native:v1/PersistentVolumeClaim" type="button">
+              <span class="_paletteKind_396249">
+                "PersistentVolumeClaim"
+              <span class="_paletteDetail_396249">
+                "v1 · bound"
+            <button aria-label="Job · batch/v1 · complete" class="_paletteRow_396249" data-row="native:batch/v1/Job" type="button">
+              <span class="_paletteKind_396249">
+                "Job"
+              <span class="_paletteDetail_396249">
+                "batch/v1 · complete"
+            <button aria-label="CronJob · batch/v1 · exists" class="_paletteRow_396249" data-row="native:batch/v1/CronJob" type="button">
+              <span class="_paletteKind_396249">
+                "CronJob"
+              <span class="_paletteDetail_396249">
+                "batch/v1 · exists"
+          <div aria-busy="true" aria-labelledby="id3" class="_paletteSection_396249" role="group">
+            <div class="_paletteSectionHead_396249">
+              <span class="_eyebrow_396249" id="id3">
+                "Custom resources"
+            <p class="_fieldText_396249">
+              "Listing what you may place…"
+          <div aria-busy="true" aria-labelledby="id4" class="_paletteSection_396249" role="group">
+            <div class="_paletteSectionHead_396249">
+              <span class="_eyebrow_396249" id="id4">
+                "Krateo compositions"
+            <p class="_fieldText_396249">
+              "Listing what you may place…"
+          <div class="_paletteSecondary_396249">
+            <div aria-labelledby="id5" class="_paletteSection_396249" role="group">
+              <div class="_paletteSectionHead_396249">
+                <span class="_eyebrow_396249" id="id5">
+                  "Form fields"
+              <div class="_paletteFields_396249">
+                <button class="_paletteField_396249" type="button">
+                  "String"
+                <button class="_paletteField_396249" type="button">
+                  "Number"
+                <button class="_paletteField_396249" type="button">
+                  "Boolean"
+                <button class="_paletteField_396249" type="button">
+                  "Enum"
+      <div class="_centre_396249">
+        <section aria-label="Architecture" class="_pane_396249">
+          <div class="_paneHead_396249">
+            <span class="_paneTitle_396249">
+              "Architecture"
+            <span class="_countPill_396249">
+              "0 resources"
+            <span class="_countPill_396249">
+              "1 state"
+            <span class="_spacer_396249">
+            <span class="_eyebrow_396249">
+              "States"
+            <span class="_countPill_396249">
+              "S1 · initial"
+          <div class="_canvasState_abb674" data-testid="canvas-state">
+            <div class="_canvasStateBody_abb674">
+              <div aria-hidden="true" class="_canvasGlyph_abb674">
+              <p class="_canvasStateTitle_abb674">
+                "No resources yet"
+              <p class="_canvasStateText_abb674">
+                "Add a Kubernetes resource, a custom resource this cluster knows, or another blueprint from the left. Each one becomes a node here and a file in"
+                <code>
+                  "templates/"
+                ". Draw an edge from A to B to say A depends on B."
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+                <span>
+                  "Open templates/architecture.yaml"
+        <section aria-label="Chart files and Source" class="_pane_396249 _filesPane_396249">
+          <div class="_section_396249">
+            <div class="_body_7a73aa">
+              <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
+                "Chart files is the tree the change request commits — edit a file in place. Source fills when you press Preview: the chart rendered by helm as a dry run, nothing applied to the cluster."
+              <div class="_target_7a73aa">
+                <span class="ant-tag ant-tag-filled ant-tag-geekblue css-dev-only-do-not-override-12q6fii css-var-id1">
+                  "Publishes to"
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                  <code>
+                    "builder-publish"
+                <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
+                  "· change request into"
+                  "main"
+                <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
+                  "·"
+                  "merged, CI publishes it as a versioned OCI Helm chart"
+                <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
+                  "· you confirm the destination at publish"
+              <div class="ant-tabs ant-tabs-top css-dev-only-do-not-override-12q6fii css-var-id1 ant-tabs-css-var">
+                <div aria-orientation="horizontal" class="ant-tabs-nav" role="tablist">
+                  <div class="ant-tabs-nav-wrap">
+                    <div class="ant-tabs-nav-list" style="transform: translate(0px, 0px);">
+                      <div class="ant-tabs-tab ant-tabs-tab-active" data-node-key="id6">
+                        <div aria-controls="id8" aria-selected="true" class="ant-tabs-tab-btn" id="id7" role="tab" tabindex="0">
+                          "Chart files"
+                      <div class="ant-tabs-tab" data-node-key="id9">
+                        <div aria-controls="id11" aria-selected="false" class="ant-tabs-tab-btn" id="id10" role="tab" tabindex="-1">
+                          "Source"
+                      <div class="ant-tabs-ink-bar ant-tabs-ink-bar-animated">
+                  <div class="ant-tabs-nav-operations ant-tabs-nav-operations-hidden">
+                    <button aria-controls="id12" aria-expanded="false" aria-haspopup="listbox" class="ant-tabs-nav-more" id="id13" style="visibility: hidden; order: 1;" type="button">
+                      <span aria-label="ellipsis" class="anticon anticon-ellipsis" role="img">
+                        <svg aria-hidden="true" data-icon="ellipsis" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                          <path d="M176 511a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0z">
+                <div class="ant-tabs-body-holder">
+                  <div class="ant-tabs-body ant-tabs-body-top">
+                    <div aria-hidden="false" aria-labelledby="id7" class="ant-tabs-content ant-tabs-content-active" id="id8" role="tabpanel" tabindex="0">
+                      <div class="_body_7a73aa">
+                        <div id="id14">
+                          <div class="_file_7a73aa">
+                            <div class="_fileHead_7a73aa">
+                              <div class="_filePath_7a73aa">
+                                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <code>
+                                    "Chart.yaml"
+                              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                                <span>
+                                  "Edit"
+                            <div class="_yaml_7a73aa">
+                              <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
+                                <code class="language-yaml" style="white-space: pre-wrap;">
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "1"
+                                    <span class="hljs-attr">
+                                      "apiVersion:"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "v2"
+                                    <span>
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "2"
+                                    <span>
+                                    <span class="hljs-attr">
+                                      "name:"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "builder-publish"
+                                    <span>
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "3"
+                                    <span>
+                                    <span class="hljs-attr">
+                                      "type:"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "application"
+                                    <span>
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "4"
+                                    <span>
+                                    <span class="hljs-attr">
+                                      "version:"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "0.1"
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ".0"
+                                    <span>
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "5"
+                        <div id="id15">
+                          <div class="_file_7a73aa">
+                            <div class="_fileHead_7a73aa">
+                              <div class="_filePath_7a73aa">
+                                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <code>
+                                    "templates/architecture.yaml"
+                              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                                <span>
+                                  "Edit"
+                            <div class="_yaml_7a73aa">
+                              <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
+                                <code class="language-yaml" style="white-space: pre-wrap;">
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "1"
+                                    <span>
+                                      "{{"
+                                    <span style="color: rgb(37, 198, 198);">
+                                      "-"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "/*"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "Rendered"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "per"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "composition"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "so"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "the"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "detail"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "page"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "can"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "read"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "the"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "chart"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "architecture"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "through"
+                                    <span>
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "2"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "snowplow"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "/call"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "under"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "the"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "caller's"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "own"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "RBAC."
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "Edit"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "data.architecture;"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "the"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "composer"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "owns"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "the"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "rest."
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "*/"
+                                    <span>
+                                      "}}"
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "3"
+                                    <span>
+                                      "{{"
+                                    <span style="color: rgb(37, 198, 198);">
+                                      "-"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "$g"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ":="
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ".Values.global"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "|"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "default"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "dict"
+                                    <span>
+                                      "}}"
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "4"
+                                    <span>
+                                    <span class="hljs-attr">
+                                      "apiVersion:"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "v1"
+                                    <span>
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "5"
+                                    <span>
+                                    <span class="hljs-attr">
+                                      "kind:"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "ConfigMap"
+                                    <span>
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "6"
+                                    <span>
+                                    <span class="hljs-attr">
+                                      "metadata:"
+                                    <span>
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "7"
+                                    <span>
+                                    <span class="hljs-attr">
+                                      "name:"
+                                    <span>
+                                      "{{"
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "printf"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ""%s-architecture""
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "($g.compositionName"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "|"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "default"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ".Release.Name)"
+                                    <span>
+                                      "}}"
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "8"
+                                    <span>
+                                    <span class="hljs-attr">
+                                      "namespace:"
+                                    <span>
+                                      "{{"
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ".Release.Namespace"
+                                    <span>
+                                      "}}"
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "9"
+                                    <span>
+                                    <span class="hljs-attr">
+                                      "labels:"
+                                    <span>
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "10"
+                                    <span>
+                                    <span class="hljs-attr">
+                                      "krateo.io/architecture:"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ""builder-publish""
+                                    <span>
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "11"
+                                    <span>
+                                    <span class="hljs-attr">
+                                      "data:"
+                                    <span>
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "12"
+                                    <span>
+                                    <span class="hljs-attr">
+                                      "architecture:"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "|"
+                                  <span style="display: block; color: rgb(66, 134, 244);">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "13"
+                                    "apiVersion: architecture.krateo.io/v1alpha1"
+                                  <span style="display: block; color: rgb(66, 134, 244);">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "14"
+                                    "kind: ChartArchitecture"
+                                  <span style="display: block; color: rgb(66, 134, 244);">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "15"
+                                    "chart: builder-publish"
+                                  <span style="display: block; color: rgb(66, 134, 244);">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "16"
+                                    "resources: []"
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "17"
+                                    <span style="color: rgb(66, 134, 244);">
+                                    <span>
+                                      "{{"
+                                    <span style="color: rgb(37, 198, 198);">
+                                      "-"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "/*"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "krateo:graph"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "begin"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "—"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "generated"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "from"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "data.architecture;"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "edit"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "the"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "descriptor"
+                                    <span>
+                                      ","
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "not"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "this"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "block."
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "*/"
+                                    <span>
+                                      "}}"
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "18"
+                                    <span>
+                                      "{{"
+                                    <span style="color: rgb(37, 198, 198);">
+                                      "-"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "$v"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ":="
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ".Values.AsMap"
+                                    <span>
+                                      "}}"
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "19"
+                                    <span>
+                                      "{{"
+                                    <span style="color: rgb(37, 198, 198);">
+                                      "-"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "$nodes"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ":="
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "list"
+                                    <span>
+                                      "}}"
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "20"
+                                    <span>
+                                      "{{"
+                                    <span style="color: rgb(37, 198, 198);">
+                                      "-"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "$names"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ":="
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "list"
+                                    <span>
+                                      "}}"
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "21"
+                                    <span>
+                                    <span class="hljs-attr">
+                                      "graph:"
+                                    <span>
+                                      "{{"
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "dict"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ""v""
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "1"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ""chart""
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ""builder-publish""
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ""states""
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "(list)"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ""composition""
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "(dict"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ""apiVersion""
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "($g.compositionApiVersion"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "|"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "default"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      """"
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ")"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ""resource""
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "($g.compositionResource"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "|"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "default"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      """"
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ")"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ""name""
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "($g.compositionName"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "|"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "default"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      """"
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ")"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ""namespace""
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ".Release.Namespace"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ""uid""
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "($g.compositionId"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "|"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "default"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      """"
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "))"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ""nodes""
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "$nodes"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "|"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "toJson"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "|"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "quote"
+                                    <span>
+                                      "}}"
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "22"
+                                    <span>
+                                      "{{"
+                                    <span style="color: rgb(37, 198, 198);">
+                                      "-"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "/*"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "krateo:graph"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "end"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      "*/"
+                                    <span>
+                                      "}}"
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "23"
+                        <div id="id16">
+                          <div class="_file_7a73aa">
+                            <div class="_fileHead_7a73aa">
+                              <div class="_filePath_7a73aa">
+                                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <code>
+                                    "values.schema.json"
+                              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                                <span>
+                                  "Edit"
+                            <div class="_yaml_7a73aa">
+                              <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
+                                <code class="language-yaml" style="white-space: pre-wrap;">
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "1"
+                                    <span>
+                                      "{"
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "2"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ""$schema""
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ":"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ""http://json-schema.org/draft-07/schema#""
+                                    <span>
+                                      ","
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "3"
+                                    <span>
+                                    <span class="hljs-attr">
+                                      ""type":"
+                                    <span>
+                                    <span style="color: rgb(66, 134, 244);">
+                                      ""object""
+                                    <span>
+                                      ","
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "4"
+                                    <span>
+                                    <span class="hljs-attr">
+                                      ""properties":"
+                                    <span>
+                                      "{}"
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "5"
+                                    "}"
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "6"
+                        <div id="id17">
+                          <div class="_file_7a73aa">
+                            <div class="_fileHead_7a73aa">
+                              <div class="_filePath_7a73aa">
+                                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <code>
+                                    "values.yaml"
+                              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                                <span>
+                                  "Edit"
+                            <div class="_yaml_7a73aa">
+                              <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
+                                <code class="language-yaml" style="white-space: pre-wrap;">
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "1"
+                                    <span style="color: rgb(136, 136, 136);">
+                                      "# Defaults for this blueprint. Every field placed in values.schema.json gets its default here."
+                                    <span>
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "2"
+                                    "{}"
+                                  <span style="display: block;">
+                                    <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
+                                      "3"
+      <div class="_side_396249">
+        <section aria-label="State" class="_pane_396249">
+          <div class="_paneHead_396249">
+            <span class="_paneTitle_396249">
+              "State S1"
+            <span class="_countPill_396249">
+              "initial"
+            <span class="_spacer_396249">
+            <span class="_fieldText_396249">
+              "of 1 state"
+          <div class="_section_396249" data-testid="state-panel">
+            <div class="_field_396249">
+              <span class="_eyebrow_396249">
+                "Renders"
+              <span class="_fieldValue_396249">
+                "nothing yet"
+            <div class="_field_396249">
+              <span class="_eyebrow_396249">
+                "Withheld"
+              <span class="_fieldValue_396249">
+                "nothing"
+            <div class="_field_396249">
+              <span class="_eyebrow_396249">
+                "Leaves when"
+              <span class="_fieldText_396249">
+                "Nothing yet — the chart has no resources in its sequence."
+        <section aria-label="Inspector" class="_pane_396249" tabindex="-1">
+          <div class="_paneHead_396249">
+            <span class="_paneTitle_396249">
+              "Inspector"
+            <span class="_spacer_396249">
+          <div class="_section_396249" data-testid="inspector">
+            <p class="_fieldText_396249">
+              "Select a node to see what it is, what it waits for and when it is ready. Below: the create form this chart would generate."
+            <div class="_formHead_396249">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm" type="button">
+                <span>
+                  "Open form editor"
+            <p class="_dashedNote_396249">
+              "The form is empty because values.schema.json has no properties yet.""
+`;
+
 exports[`Page Composer — DOM structure, unchanged by the host > empty: nothing held 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_23a8e0">

@@ -41,6 +41,7 @@ import { createBlueprintGate } from '../../components/Autopilot/blueprintGate'
 import type { BuilderTargets } from '../../components/Autopilot/builderTargets'
 import { draftHistory } from '../../components/Autopilot/draftHistory'
 import { callBlueprintRenderRA } from '../../components/Autopilot/previewBridge'
+import { emitDraftChanged } from '../../components/Autopilot/previewDraftChanged'
 import { emitPublishResult, onPublishRequest } from '../../components/Autopilot/previewPublishRequest'
 import { heldDraftIdentity } from '../../components/Autopilot/publishCompile'
 import { runPersonPublish } from '../../components/Autopilot/publishDraft'
@@ -50,7 +51,7 @@ import { createBroadcastingDraftStore, useDraftFileBuses } from '../../component
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 import { ConfigContext } from '../../context/ConfigContext'
 import { ThemeModeProvider } from '../../context/ThemeModeContext'
-import { installAntdShims, installScrollShim } from '../../pages/BlueprintComposer/blueprintTestHarness'
+import { installAntdShims, installScrollShim, seededChart } from '../../pages/BlueprintComposer/blueprintTestHarness'
 import { swapBuildersForTest } from '../builderRegistry'
 import { parseBuilder, type Builder } from '../builderSpec'
 
@@ -236,6 +237,39 @@ describe('a stub Builder, end to end in the composer host', () => {
       render(<AntdApp><ComposerHost builder={pending} /></AntdApp>)
       expect(screen.getByText('The Stub Builder cannot be shown by this frontend.')).toBeTruthy()
       expect(screen.getAllByText(/is not shipped in this frontend yet/)).toHaveLength(3)
+    } finally {
+      back()
+    }
+  })
+
+  it('a Builder allowing TWO person-publish verbs: Publish stays off, and says why — no verb is guessed', () => {
+    const both = stubBuilder()
+    both.spec.verbs = { allowed: ['previewBlueprint', 'publishBlueprint', 'publishPage'] }
+    const back = swapBuildersForTest([both])
+    try {
+      mountAtRoute()
+      act(() => emitDraftChanged({ files: seededChart(), kind: 'blueprint', previewed: true, problems: [] }))
+      const publish = publishButton()
+      expect(publish.disabled).toBe(true)
+      const reason = document.getElementById(publish.getAttribute('aria-describedby') ?? '')
+      expect(reason?.textContent).toBe('The Stub Builder allows publishPage and publishBlueprint — a Builder publishes with one verb, so nothing here is published until it names one.')
+    } finally {
+      back()
+    }
+  })
+
+  it('the split frame: a Publish that is off gives its reason, as the panes frame does', () => {
+    const raw = yaml.load(readFileSync(join(__dirname, '..', 'fixtures', 'portal-builder.builder.yaml'), 'utf8')) as { spec: Record<string, unknown> }
+    const parsed = parseBuilder({ ...raw, metadata: { name: 'stub-pages' }, spec: { ...raw.spec, label: 'Stub Pages', route: '/stub-pages/compose', verbs: { allowed: ['composeAdd', 'previewPage'] } } })
+    if (!parsed.ok) { throw new Error(parsed.problems.join('; ')) }
+    const back = swapBuildersForTest([parsed.builder])
+    try {
+      render(<AntdApp><ThemeModeProvider><ComposerHost builder={parsed.builder} /></ThemeModeProvider></AntdApp>)
+      act(() => emitDraftChanged({ files: { 'flex.page-x.yaml': 'kind: Flex\napiVersion: widgets.templates.krateo.io/v1beta1\nmetadata:\n  name: page-x\n  namespace: krateo-system\nspec:\n  widgetData:\n    allowedResources: []\n    items: []\n  resourcesRefs:\n    items: []\n' }, kind: 'page' }))
+      const publish = publishButton()
+      expect(publish.disabled).toBe(true)
+      const reason = document.getElementById(publish.getAttribute('aria-describedby') ?? '')
+      expect(reason?.textContent).toBe('The Stub Pages allows no publish verb, so nothing here can be published.')
     } finally {
       back()
     }

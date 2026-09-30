@@ -135,7 +135,7 @@ describe.each(FIXTURES)('the %s Builder', (name) => {
 
   it('is served at its route, one per Builder — a composer not built yet: not yet', () => {
     const shell = readFileSync(join(__dirname, '..', 'context', 'RoutesContext.tsx'), 'utf8')
-    expect(shell).toContain('...builderRoutes()')
+    expect(shell).toContain('...builderRoutes(STATIC_PATHS)')
     // Flips when T8 ships the Controller Builder's plugins: then drop it from COMPOSER_PENDING.
     expect(builderRoutes().map((route) => route.path).includes(parsed(name).spec.route)).toBe(!COMPOSER_PENDING.has(name))
   })

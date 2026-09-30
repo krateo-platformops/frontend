@@ -153,11 +153,7 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
 
   useEffect(() => claimPreviewSurface(kind), [kind])
 
-  useEffect(() => {
-    const stop = onDraftChanged(setHeld)
-    requestDraftReplay()
-    return stop
-  }, [])
+  useEffect(() => onDraftChanged(setHeld), [])
 
   // The answer to OUR publish, ignoring any other surface's.
   useEffect(() => onPublishResult(({ deepLink, denial, id }) => {
@@ -199,7 +195,22 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
   const workbench = parts.workbench.useWorkbench(host)
   workbenchRef.current = workbench
 
-  const publishVerb = useMemo(() => PERSON_PUBLISH_VERBS.find((verb) => spec.verbs.allowed.includes(verb)) ?? null, [spec])
+  // The replay is asked for AFTER every listener is on — the host's above, and the workbench's, which
+  // its hook declared just now. The provider answers a replay synchronously, so a listener registered
+  // in a later effect would miss the draft that was held before this page mounted (a workbench that
+  // plans from the last broadcast would then plan against nothing). Effects run in declaration order.
+  useEffect(() => { requestDraftReplay() }, [])
+
+  // The ONE person-publish verb the Builder allows. None, or more than one, and Publish stays off with
+  // the reason — which of two publish verbs a Builder meant is never guessed.
+  const publishVerbs = useMemo(() => PERSON_PUBLISH_VERBS.filter((verb) => spec.verbs.allowed.includes(verb)), [spec])
+  const publishVerb = publishVerbs.length === 1 ? publishVerbs[0] : null
+  let verbRefusal: string | null = null
+  if (!publishVerbs.length) {
+    verbRefusal = `The ${spec.label} allows no publish verb, so nothing here can be published.`
+  } else if (publishVerbs.length > 1) {
+    verbRefusal = `The ${spec.label} allows ${publishVerbs.join(' and ')} — a Builder publishes with one verb, so nothing here is published until it names one.`
+  }
   const publish = () => {
     if (!publishVerb) { return }
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -274,12 +285,22 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
               <DraftSaveIndicator kind={kind} />
               {previewButton}
               {undoButton}
-              <Button disabled={!publishVerb} loading={publishing} onClick={publish} type='primary'>
-                {publishing ? 'Publishing…' : 'Publish'}
-              </Button>
+              {verbRefusal ? (
+                // Off, and why — the same anchor and read-aloud reason as the panes frame's gate.
+                <Tooltip title={verbRefusal}>
+                  <span className={styles.tooltipAnchor}>
+                    <Button aria-describedby={blockerId} disabled type='primary'>Publish</Button>
+                  </span>
+                </Tooltip>
+              ) : (
+                <Button loading={publishing} onClick={publish} type='primary'>
+                  {publishing ? 'Publishing…' : 'Publish'}
+                </Button>
+              )}
               {closeButton}
             </Space>
           ) : null}
+          {shown && verbRefusal ? <span className={styles.srOnly} id={blockerId}>{verbRefusal}</span> : null}
           {resumed}
           {workbench.notices}
           {publishedAlert}
@@ -326,8 +347,8 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
   // Why Publish is off, in the order a person would fix it — or null when it is on.
   const problems = held.problems?.length ?? 0
   let blocker: string | null = null
-  if (!publishVerb) {
-    blocker = `The ${spec.label} allows no publish verb, so nothing here can be published.`
+  if (verbRefusal) {
+    blocker = verbRefusal
   } else if (rendering) {
     blocker = 'Wait for the preview to finish.'
   } else if (problems) {

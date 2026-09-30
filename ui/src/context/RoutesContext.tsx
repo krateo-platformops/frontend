@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import React, { createContext, useCallback, useContext, useState } from 'react'
 import { useParams, type NonIndexRouteObject, type RouteObject } from 'react-router'
 
-import { builderRoutes } from '../builders/host/builderRoutes'
+import { builderRoutes, mergeShellChildren } from '../builders/host/builderRoutes'
 import ShellRoute from '../components/Shell'
 import WidgetPage from '../components/WidgetPage'
 import Auth from '../pages/Auth/Auth'
@@ -43,6 +43,9 @@ const RoutesContext = createContext<RoutesContextType | undefined>(undefined)
 // Dynamic routes are inserted into the shell's children by registerRoutes.
 const SHELL_ROUTE_ID = 'shell'
 
+/** The paths the app serves itself — no Builder's route may take one. */
+const STATIC_PATHS = ['/login', '/auth', '/logout', '/profile', '*']
+
 const defaultRoutes: RouteObject[] = [
   { element: <Login />, path: '/login' },
   { element: <Auth />, path: '/auth' },
@@ -55,8 +58,9 @@ const defaultRoutes: RouteObject[] = [
       // /blueprint-builder/compose today. STATIC children of the shell, like /profile, rather than
       // CR-driven widget pages: a composer is React (drag and drop, a live graph, a multi-file draft
       // with undo), and what IS configuration about it is its Builder CR, not widgetData. The `*`
-      // fallthrough below keeps every CR-driven page unaffected.
-      ...builderRoutes(),
+      // fallthrough below keeps every CR-driven page unaffected. A Builder never takes a path the
+      // shell serves itself, and the navigation's routes replace a builder route at the same path.
+      ...builderRoutes(STATIC_PATHS),
       { element: <WidgetPage />, path: '*' },
     ],
     element: <ShellRoute />,
@@ -158,15 +162,10 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // The shell is the pathless layout route (non-index: it has children).
       const shell = prevRoutes[shellIndex] as NonIndexRouteObject
       const children = shell.children ?? []
-      const existingPaths = new Set(children.map((child) => child.path))
-      const freshRoutes = newRoutes.filter((route) => !existingPaths.has(route.path))
-      if (freshRoutes.length === 0) { return prevRoutes }
-
-      // Keep the '*' catch-all last among the shell's children.
-      const splatIndex = children.findIndex((child) => child.path === '*')
-      const mergedChildren = splatIndex === -1
-        ? [...children, ...freshRoutes]
-        : [...children.slice(0, splatIndex), ...freshRoutes, ...children.slice(splatIndex)]
+      // A path already served is kept — except a builder route, which the portal's own replaces;
+      // the '*' catch-all stays last (mergeShellChildren).
+      const mergedChildren = mergeShellChildren(children, newRoutes)
+      if (mergedChildren === children) { return prevRoutes }
 
       const updatedRoutes = [...prevRoutes]
       updatedRoutes[shellIndex] = { ...shell, children: mergedChildren }

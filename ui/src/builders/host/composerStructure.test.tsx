@@ -21,13 +21,22 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { act, cleanup, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
+import { App as AntdApp } from 'antd'
+import { useState } from 'react'
+import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { createBlueprintGate } from '../../components/Autopilot/blueprintGate'
 import { emitDraftChanged } from '../../components/Autopilot/previewDraftChanged'
 import { AUTOPILOT_DRAFT_RENDER_REQUEST_EVENT, type DraftRenderRequestDetail } from '../../components/Autopilot/previewDraftRender'
 import { AUTOPILOT_PUBLISH_REQUEST_EVENT, emitPublishResult, type PublishRequestDetail } from '../../components/Autopilot/previewPublishRequest'
+import { heldDraftIdentity } from '../../components/Autopilot/publishCompile'
+import { createBroadcastingDraftStore, useDraftFileBuses } from '../../components/Autopilot/useDraftFileBuses'
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
+import { ConfigContext } from '../../context/ConfigContext'
+import { ThemeModeProvider } from '../../context/ThemeModeContext'
+import BlueprintComposer from '../../pages/BlueprintComposer/BlueprintComposer'
 import {
   answer,
   builderPublishChart,
@@ -142,6 +151,33 @@ describe('Blueprint Composer — DOM structure, unchanged by the host', () => {
     expect(page(container)).toMatchSnapshot('published')
     renders.stop()
     publishes.stop()
+  })
+})
+
+describe('Blueprint Composer — a chart held BEFORE it mounts (review of #427)', () => {
+  it('own: held and armed by the provider first, then the composer mounts and replays it', () => {
+    const held: { show: () => void; store: ReturnType<typeof createBroadcastingDraftStore> | null; gate: ReturnType<typeof createBlueprintGate> | null } = { gate: null, show: () => undefined, store: null }
+    const Page = () => {
+      const [gate] = useState(() => createBlueprintGate())
+      const [store] = useState(() => createBroadcastingDraftStore(gate))
+      const [composer, setComposer] = useState(false)
+      useDraftFileBuses(store, gate, heldDraftIdentity)
+      Object.assign(held, { gate, show: () => setComposer(true), store })
+      return composer ? <BlueprintComposer /> : null
+    }
+    const { container } = render(
+      <AntdApp>
+        <MemoryRouter>
+          <ConfigContext.Provider value={{ config: { api: { AUTOPILOT_BLUEPRINT_BUILDER_REPO: 'krateo-blueprints/blueprints' } } } as never}>
+            <ThemeModeProvider><Page /></ThemeModeProvider>
+          </ConfigContext.Provider>
+        </MemoryRouter>
+      </AntdApp>,
+    )
+    act(() => { held.store?.set(seededChart(), 'blueprint') })
+    act(() => { held.gate?.recordPreview('builder-publish') })
+    act(() => { held.show() })
+    expect(page(container)).toMatchSnapshot()
   })
 })
 
