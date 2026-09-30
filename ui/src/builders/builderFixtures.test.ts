@@ -1,10 +1,10 @@
 /**
  * The page and blueprint Builder CRs describe what the composers do TODAY.
  *
- * Nothing reads the fixtures yet (T2 wires the engine), so the only thing keeping them true is this
- * file: each must parse, validate against the CRD the chart ships, name only plugins, checks and
- * verbs this frontend has, and agree with the constants the composers still hardcode. A change to
- * either side then fails here instead of the day the engine starts reading the CR.
+ * The engine reads the fixtures (builderRegistry.ts, T2), and this file keeps them true: each must
+ * parse, validate against the CRD the chart ships, name only plugins, checks and verbs this frontend
+ * has, and agree with the constants the composers still hardcode. A change to either side then fails
+ * here instead of in the engine.
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'

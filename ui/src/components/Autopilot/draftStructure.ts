@@ -22,6 +22,7 @@
  * the moment either changed — the same argument that keeps `planMove`/`planAdd` the one kernel for
  * a drag and a proposal alike.
  */
+import { findBuilderOf } from '../../builders/builderRegistry'
 import { buildObjectTree, flattenTree, listDataSources } from '../../pages/PageComposer/objectTree'
 import type { TreeNode } from '../../pages/PageComposer/objectTree'
 
@@ -82,14 +83,20 @@ const summarizeNodes = (nodes: readonly TreeNode[], budget: { left: number }): D
 }
 
 /**
- * The structural summary of a held PAGE draft, or undefined when there is nothing to describe.
- *
- * Pages only: a blueprint draft is a Helm chart, its files are templates rather than widget CRs,
- * and `buildObjectTree` would find no containment in them. Reporting an empty tree for one would
- * read as "your draft is empty", which is worse than saying nothing.
+ * Whether the held draft's Builder names this summarizer (`spec.summarizer.plugin`). Each summarizer
+ * describes only the drafts whose Builder chose it: a chart's files are templates rather than widget
+ * CRs, and `buildObjectTree` would find no containment in them — an empty tree reads as "your draft is
+ * empty", which is worse than saying nothing.
+ */
+const namedBy = (plugin: string, held: BlueprintDraftHeld | null): held is BlueprintDraftHeld =>
+  held !== null && findBuilderOf(held.kind)?.summarizer?.plugin === plugin
+
+/**
+ * `page-tree` — the structural summary of a held draft whose Builder names it (the Portal Builder's
+ * page), or undefined when there is nothing to describe.
  */
 export const summarizeDraft = (held: BlueprintDraftHeld | null): DraftSummary | undefined => {
-  if (!held || held.kind !== 'page') {
+  if (!namedBy('page-tree', held)) {
     return undefined
   }
   const roots = buildObjectTree(held.files)
@@ -122,8 +129,8 @@ const MAX_CHART_BYTES = 96 * 1024
 const READING_ORDER = [CHART_YAML_PATH, 'templates/architecture.yaml', VALUES_SCHEMA_PATH, 'values.yaml']
 
 /**
- * The held CHART, for the agent that edits it with chartPut / chartDelete / chartLink. Undefined
- * unless the held draft is a blueprint.
+ * `chart-files` — the held CHART, for the agent that edits it with chartPut / chartDelete / chartLink.
+ * Undefined unless the held draft's Builder names this summarizer (the Blueprint Builder's chart).
  *
  * AN ARRAY, NOT A PATH-KEYED MAP. The redactor replaces the value of every key that CONTAINS a
  * credential word, so `{"templates/username-secret.yaml": …}` would reach the model as
@@ -132,7 +139,7 @@ const READING_ORDER = [CHART_YAML_PATH, 'templates/architecture.yaml', VALUES_SC
  * sent altered, for the same reason: the model must only ever rewrite bytes it was shown exactly.
  */
 export const summarizeChart = (held: BlueprintDraftHeld | null): ChartDraftSummary | undefined => {
-  if (!held || held.kind !== 'blueprint') {
+  if (!namedBy('chart-files', held)) {
     return undefined
   }
   const paths = Object.keys(held.files).sort((left, right) => {

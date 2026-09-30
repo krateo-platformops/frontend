@@ -26,10 +26,13 @@
  * leaves the browser, so that entry is the only way the model learns why. The model reads the bytes
  * it rewrites from the envelope's `chart` (summarizeChart).
  */
+import { findBuilderOf } from '../../builders/builderRegistry'
+import { draftKindOf } from '../../builders/draftKinds'
 import { planEdge, regenerateGates, type EdgeOp } from '../../pages/BlueprintComposer/planEdge'
 
 import type { PortalActionProposal } from './actionBridge'
 import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from './blueprintDraft'
+import type { DraftKind } from './blueprintDraftStore'
 import { recordChartOutcome } from './composeRequest'
 import { type DraftChangedDetail, onDraftChanged, requestDraftReplay } from './previewDraftChanged'
 import { emitFilesBatch } from './previewFilesBatch'
@@ -87,6 +90,12 @@ export const readHeldDraft = (): DraftChangedDetail | null => {
   return held
 }
 
+/** The held draft a chart verb may write — its files, and the kind every write is filed under. */
+interface HeldChart {
+  files: Record<string, string>
+  kind: DraftKind
+}
+
 /** A chart-relative path spelled the way the composer keys a tree, or why not. */
 const pathProblem = (path: unknown): string | null => {
   if (typeof path !== 'string' || !path.trim()) { return 'a path is required' }
@@ -96,12 +105,21 @@ const pathProblem = (path: unknown): string | null => {
   return null
 }
 
-const heldChart = (verb: string): { files: Record<string, string> } | AutopilotActionChip => {
+/**
+ * VERB GATING, by the held draft's Builder: a chart verb runs only against a draft whose Builder
+ * allows it (`spec.verbs.allowed`). A draft of another kind is named, by its draft-kind plugin, as
+ * what it is; no draft at all is told to propose one.
+ */
+const heldChart = (verb: string): HeldChart | AutopilotActionChip => {
   const held = readHeldDraft()
-  if (!held || held.kind !== 'blueprint') {
-    return refusal(verb, held?.kind === 'page' ? 'the open draft is a portal page, not a chart' : 'no chart is open — propose one with previewBlueprint first')
+  const builder = findBuilderOf(held?.kind)
+  if (!held?.kind || !builder) {
+    return refusal(verb, 'no chart is open — propose one with previewBlueprint first')
   }
-  return { files: held.files }
+  if (!builder.verbs.allowed.includes(verb)) {
+    return refusal(verb, `the open draft is ${draftKindOf(held.kind).nouns.artifact}, not a chart`)
+  }
+  return { files: held.files, kind: held.kind }
 }
 
 const written = (verb: string, outcome: ReturnType<typeof emitFilesBatch>, label: string): AutopilotActionChip => {
@@ -133,7 +151,7 @@ const put = (proposal: PortalActionProposal): AutopilotActionChip => {
     add,
     edit: Object.fromEntries(existing.map((key) => [key, next[key]])),
     expect: Object.fromEntries(existing.map((key) => [key, held.files[key]])),
-    kind: 'blueprint',
+    kind: held.kind,
   })
   const regated = changed.filter((key) => key !== path)
   const label = `${current === undefined ? 'Added' : 'Rewrote'} ${path}${regated.length ? ` (gates regenerated in ${regated.join(', ')})` : ''}`
@@ -148,7 +166,7 @@ const remove = (proposal: PortalActionProposal): AutopilotActionChip => {
   const held = heldChart('chartDelete')
   if (!('files' in held)) { return held }
   if (held.files[path] === undefined) { return refusal('chartDelete', `${path} is not in the chart`) }
-  return written('chartDelete', emitFilesBatch({ expect: { [path]: held.files[path] }, kind: 'blueprint', remove: [path] }), `Deleted ${path}`)
+  return written('chartDelete', emitFilesBatch({ expect: { [path]: held.files[path] }, kind: held.kind, remove: [path] }), `Deleted ${path}`)
 }
 
 const link = (proposal: PortalActionProposal): AutopilotActionChip => {
@@ -167,7 +185,7 @@ const link = (proposal: PortalActionProposal): AutopilotActionChip => {
   const label = proposal.unlink
     ? `Removed ${from} → ${to}`
     : `${from} now waits for ${to}${op.op === 'add' && op.ready ? ' to be ready' : ' to exist'}${plan.regated.length ? ` (also re-gates ${plan.regated.join(', ')})` : ''}`
-  return written('chartLink', emitFilesBatch({ edit: plan.edit, expect: plan.expect, kind: 'blueprint' }), label)
+  return written('chartLink', emitFilesBatch({ edit: plan.edit, expect: plan.expect, kind: held.kind }), label)
 }
 
 const run = (proposal: PortalActionProposal): AutopilotActionChip | null => {

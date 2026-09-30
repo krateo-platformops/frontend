@@ -47,7 +47,7 @@
  *
  * NOTE ON buildKogPublishOps (item #30): the KOG builder's PRIMARY publish path is the
  * `publishRestDef` verb, which commits the controller chart through the same BuilderPublish claim
- * as the blueprint/page builders (kogPublish.ts / kogPublishDispatch.ts) — the generated kind waits
+ * as the blueprint/page builders (kogPublish.ts / publishDraft.ts) — the generated kind waits
  * for a change request to merge, it does not land live. buildKogPublishOps (this direct 2-op cluster write) is RETAINED as a defense-in-depth
  * fallback: the model is now prompted to emit `publishRestDef`, but if it still emits the old
  * direct-write applyResourceSet on restdefinitions, finalize's applyResourceSet branch (KOG

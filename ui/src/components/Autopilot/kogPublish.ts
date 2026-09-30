@@ -3,7 +3,7 @@
  *
  * A `publishRestDef` commits the held, previewed RestDefinition as its own chart — Chart.yaml,
  * values, schema, the RestDefinition template and (paste case) the OAS ConfigMap — through the
- * SAME BuilderPublish claim every builder uses (see kogPublishDispatch / builderClaimPublish).
+ * SAME BuilderPublish claim every builder uses (see publishDraft / builderClaimPublish).
  * It once had a second route: a host-built github.krateo.io GitRef / RepoContent / PullRequest op
  * set. That legacy GitHub path was removed 2026-09-25; the claim is the only way a builder publishes.
  *

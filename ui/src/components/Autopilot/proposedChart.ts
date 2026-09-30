@@ -8,6 +8,7 @@
  * WHY HERE, not in blueprintDraft: the gate kernel lives with the composer's other kernels, and
  * planPlace already imports blueprintDraft; calling it from there would close an import cycle.
  */
+import { builderOf } from '../../builders/builderRegistry'
 import { ARCHITECTURE_TEMPLATE_PATH } from '../../pages/BlueprintComposer/architecture'
 import { gateDrift, regenerateGates } from '../../pages/BlueprintComposer/planEdge'
 
@@ -20,14 +21,23 @@ export const parseProposedChart = (value: unknown): Record<string, string> | nul
 }
 
 /**
- * The chart lint for a HELD draft — the person's copy, which Chart files can edit by hand: the
- * composer's rules (lintBlueprintDraft) plus one problem per template whose gate has drifted from
- * the descriptor (gateDrift). A drifted gate renders a different order than the graph shows, so it
- * refuses Preview and Publish like any other lint problem until the gates are regenerated.
+ * The lints a Builder may name (`spec.lint`; pluginRegistry's check table lists the same names).
+ * `chart-lint` is the composer's rules (lintBlueprintDraft); `gate-drift` is one problem per template
+ * whose gate has drifted from the descriptor (gateDrift). A drifted gate renders a different order
+ * than the graph shows, so it refuses Preview and Publish like any other lint problem until the
+ * gates are regenerated.
  */
-export const lintHeldDraft = (files: Record<string, string>, kind: DraftKind): string[] => [
-  ...lintBlueprintDraft(files, kind),
-  ...(kind === 'blueprint'
-    ? gateDrift(files).map((path) => `${path}: its dependency gate does not match ${ARCHITECTURE_TEMPLATE_PATH} — regenerate the gates, or undo the edit that changed it.`)
-    : []),
-]
+const LINTS: Record<string, (files: Record<string, string>, kind: DraftKind) => string[]> = {
+  'chart-lint': (files, kind) => lintBlueprintDraft(files, kind),
+  'gate-drift': (files) => gateDrift(files).map((path) => `${path}: its dependency gate does not match ${ARCHITECTURE_TEMPLATE_PATH} — regenerate the gates, or undo the edit that changed it.`),
+}
+
+/**
+ * The lint for a HELD draft — the person's copy, which Chart files can edit by hand: exactly the
+ * lints its Builder names, in `spec.lint` order. A name this build has no lint for is never skipped
+ * silently (a check not run would let through a draft its builder meant to stop): it is a problem.
+ */
+export const lintHeldDraft = (files: Record<string, string>, kind: DraftKind): string[] =>
+  builderOf(kind).lint.flatMap((name) => (Object.prototype.hasOwnProperty.call(LINTS, name)
+    ? LINTS[name](files, kind)
+    : [`this frontend has no lint named "${name}", so the draft cannot be checked the way its builder asks`]))

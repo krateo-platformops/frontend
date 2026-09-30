@@ -1,9 +1,10 @@
 # The Portal Builder, DECLARED — today's /portal-builder/compose as a Builder CR (T1, frontend#407).
 #
-# A FIXTURE, NOT YET WIRED. Nothing reads this: PageComposer still hardcodes every value below, and
-# builderFixtures.test.ts only proves the declaration parses, validates against the CRD and names
-# plugins this frontend ships. It lives here until the portal chart ships it (T2 wires the engine
-# to read it). Each value names the code it describes, so a change to either shows as a disagreement.
+# THE ENGINE READS THIS (T2, frontend#408): builderRegistry.ts imports it statically — the draft
+# store, preview dispatch, lint, publish and verb gating take their per-builder values from here. It
+# lives in the bundle until Builders are read from the cluster over /call (a later task, needing RBAC).
+# builderFixtures.test.ts proves it parses, validates against the CRD and names plugins this frontend
+# ships. Each value names the code it describes, so a change to either shows as a disagreement.
 apiVersion: builders.templates.krateo.io/v1alpha1
 kind: Builder
 metadata:

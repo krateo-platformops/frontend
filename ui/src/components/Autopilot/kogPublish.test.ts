@@ -17,8 +17,8 @@ vi.mock('./builderClaimPublish', () => ({
 
 import { buildClaimPublish } from './builderClaimPublish'
 import { kogPublishFiles, resolveKogPublishDraft } from './kogPublish'
-import { dispatchKogPublish } from './kogPublishDispatch'
 import type { PreviewGate } from './previewGate'
+import { dispatchKogPublish } from './publishDraft'
 
 /** A URL-oasPath RestDefinition draft (the URL-first case). */
 const URL_DRAFT: Record<string, unknown> = {
