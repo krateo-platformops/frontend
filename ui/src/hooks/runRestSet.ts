@@ -21,6 +21,7 @@
  */
 
 import { buildBlastRadiusSet, parseTargetFromPath, type WriteOp } from '../components/BlastRadius/buildBlastRadius'
+import { redactSecretValues } from '../utils/secretFields'
 
 import { recordProvenance, type WriteOrigin } from './provenance'
 import type { ActionContext } from './useHandleActions'
@@ -106,9 +107,12 @@ const dispatchOp = async (op: WriteOp, index: number, ctx: RunRestSetContext): P
       method: op.verb,
     })
     const body = parseJsonResponse(await res.text())
-    return { index, message: body.message ?? (res.ok ? 'OK' : `HTTP ${res.status}`), ok: res.ok, status: res.status }
+    const message = body.message ?? (res.ok ? 'OK' : `HTTP ${res.status}`)
+    // A form with secret fields: an apiserver message can quote the value ("Invalid value: …").
+    return { index, message: op.secretValues ? redactSecretValues(message, op.secretValues) : message, ok: res.ok, status: res.status }
   } catch (error) {
-    return { index, message: error instanceof Error ? error.message : String(error), ok: false, status: 0 }
+    const message = error instanceof Error ? error.message : String(error)
+    return { index, message: op.secretValues ? redactSecretValues(message, op.secretValues) : message, ok: false, status: 0 }
   }
 }
 
@@ -155,13 +159,16 @@ export const runRestSet = async (ops: readonly WriteOp[], ctx: RunRestSetContext
   }
 
   const failed = results.find((result) => !result.ok)
+  // With secret fields in play the AUDIT RECORD (a cluster object) keeps only the HTTP status of a
+  // failure — never the apiserver's message, even scrubbed. The toast keeps the scrubbed message.
+  const auditDetail = (result: WriteOpResult): string => (ops.some((op) => op.secretValues) ? `HTTP ${result.status}` : result.message)
 
   // W0-3 provenance: ONE AuditRecord per SET (count = ops.length; the summary lists every
   // op) — never per op — emitted after the set resolves (full success OR stop-on-first-
   // error). The gated set radius is reused verbatim. Fire-and-forget inside
   // recordProvenance; a declined confirm returned above, so it records NOTHING.
   recordProvenance(ctx, origin, radius, failed
-    ? { message: `op ${failed.index + 1} of ${ops.length} (${opLabel(radius.ops[failed.index])}) failed: ${failed.message}`, ok: false, status: failed.status }
+    ? { message: `op ${failed.index + 1} of ${ops.length} (${opLabel(radius.ops[failed.index])}) failed: ${auditDetail(failed)}`, ok: false, status: failed.status }
     : { message: `all ${ops.length} writes applied in order`, ok: true, status: results[results.length - 1]?.status ?? 0 },
   requestedAt)
 

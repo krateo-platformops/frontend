@@ -5,6 +5,8 @@ import type { JSONSchema4 } from 'json-schema'
 import { cloneElement, isValidElement, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
 
+import { isSecretArrayNode, isSecretSchemaNode } from '../../utils/secretFields'
+
 import styles from './Form.module.css'
 import type { SuggestionGroup } from './utils'
 import { getOptionsFromEnum, getSuggestionGroups, suggestionSearchText } from './utils'
@@ -118,6 +120,38 @@ const MapRowsInput = ({ onChange, value, valueSchema }: {
   )
 }
 
+/** A map whose values are secret strings (`additionalProperties: { type: string, format: password }`). */
+const isSecretMapNode = (node: JSONSchema4): boolean =>
+  node.type === 'object' && !node.properties && typeof node.additionalProperties === 'object'
+  && isSecretSchemaNode(node.additionalProperties)
+
+/**
+ * Editor for a list of SECRET strings (`items: { format: password }`): one masked input per entry
+ * — where a plain string list is a tags Select that would show every value as a chip.
+ */
+const SecretListInput = ({ onChange, value }: { onChange?: (next: string[] | undefined) => void; value?: unknown }): React.ReactNode => {
+  const entries = Array.isArray(value) ? value.map((entry) => (typeof entry === 'string' ? entry : '')) : []
+  const commit = (next: string[]) => { onChange?.(next.length ? next : undefined) }
+  return (
+    <>
+      {entries.map((entry, index) => (
+        <Space align='baseline' className={styles.mapRow} key={index}>
+          <Input.Password
+            aria-label={`entry ${index + 1}`}
+            autoComplete='new-password'
+            onChange={(event) => { commit(entries.map((each, i) => (i === index ? event.target.value : each))) }}
+            value={entry}
+          />
+          <MinusCircleOutlined aria-label={`Remove entry ${index + 1}`} onClick={() => { commit(entries.filter((_, i) => i !== index)) }} />
+        </Space>
+      ))}
+      <Button block icon={<PlusOutlined />} onClick={() => { onChange?.([...entries, '']) }} type='dashed'>
+        Add entry
+      </Button>
+    </>
+  )
+}
+
 /**
  * Turns normalised suggestion groups into antd options.
  *
@@ -168,6 +202,21 @@ const isTypedMap = (node: JSONSchema4): boolean => {
 
 /** Renders an antd form control for a single schema node (the schema-driven control). */
 const controlFor = (node: JSONSchema4): React.ReactNode => {
+  // A SECRET (`format: password` / `writeOnly: true`) is checked FIRST: whatever else the node
+  // carries, its value is never shown in clear or offered back — no suggestions, no enum list.
+  // `new-password` keeps the browser from autofilling a stored credential into a form that
+  // creates one. See utils/secretFields.ts for everything else a secret field is kept out of.
+  if (isSecretSchemaNode(node)) {
+    return <Input.Password autoComplete='new-password' />
+  }
+  // …and a list or a map OF secrets, before the tags Select / JSON textarea that would show them.
+  if (isSecretArrayNode(node)) {
+    return <SecretListInput />
+  }
+  if (isSecretMapNode(node)) {
+    return <MapRowsInput valueSchema={{ format: 'password', type: 'string' }} />
+  }
+
   // SUGGESTIONS BEFORE EVERYTHING ELSE, and deliberately so: they are an OPEN catalogue, so the
   // control they produce must still accept a value that is not in the list. A node may carry
   // both `enum` and suggestions only by authoring mistake — `enum` would then silently win and

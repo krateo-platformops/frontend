@@ -190,3 +190,24 @@ describe('resource identity survives the redactor unchanged', () => {
     expect((safe as unknown as Record<string, unknown>).token).toBe('[redacted]')
   })
 })
+
+describe('summarizeWidget — a Form\'s field inventory', () => {
+  const schema = {
+    properties: {
+      apiKey: { type: 'string', writeOnly: true },
+      password: { format: 'password', type: 'string' },
+      username: { type: 'string' },
+    },
+    type: 'object',
+  }
+
+  it.each([
+    ['schema', { schema }],
+    ['stringSchema', { stringSchema: JSON.stringify(schema) }],
+  ])('names the fields, never a secret one (via %s) — and never any value', (_via, widgetData) => {
+    const widget = { kind: 'Form', metadata: { name: 'f' }, status: { widgetData: { ...widgetData, initialValues: { password: 'seeded' } } } }
+    const entry = summarizeWidget('/call?resource=forms&name=f', cached(widget), undefined)
+    expect(entry.fields).toEqual(['username'])
+    expect(JSON.stringify(entry)).not.toContain('seeded')
+  })
+})

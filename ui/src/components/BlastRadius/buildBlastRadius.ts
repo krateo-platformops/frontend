@@ -20,6 +20,7 @@
 
 import type { BlastRadius, BlastRadiusDiff, BlastRadiusSet, Gvr, MutatingVerb } from '../../hooks/blastRadius.types'
 import { COLLECTION_POST_NAME } from '../../hooks/callPath'
+import { maskSecretMaterialForDisplay } from '../../utils/secretFields'
 
 /** The apiserver verbs the gate governs. GET (read) never produces a BlastRadius. */
 const MUTATING_VERBS: readonly MutatingVerb[] = ['POST', 'PUT', 'PATCH', 'DELETE']
@@ -134,7 +135,11 @@ const resolveCluster = (payload: unknown, override: string | undefined): string 
 }
 
 /** Build the verb-specific diff (create/update/delete) from payload + optional current object. */
-const buildDiff = (verb: MutatingVerb, payload: unknown, before: unknown): BlastRadiusDiff => {
+const buildDiff = (verb: MutatingVerb, rawPayload: unknown, rawBefore: unknown, maskTargets?: readonly string[]): BlastRadiusDiff => {
+  // What the human is SHOWN: a Secret's data/stringData and any value resolved from a secret form
+  // field are masked (keys kept). The write itself sends the real body; this is display only.
+  const payload = maskSecretMaterialForDisplay(rawPayload, maskTargets)
+  const before = maskSecretMaterialForDisplay(rawBefore)
   if (verb === 'POST') {
     return { after: payload, kind: 'create' }
   }
@@ -160,6 +165,8 @@ export interface BuildBlastRadiusInput {
   writeSet?: readonly unknown[]
   /** Explicit target cluster override (else derived from the payload's targetRef, else 'local'). */
   cluster?: string
+  /** lodash paths in `payload` holding a value resolved from a secret form field — masked in the diff. */
+  maskTargets?: readonly string[]
 }
 
 /**
@@ -171,6 +178,13 @@ export interface WriteOp {
   verb: MutatingVerb
   path: string
   payload?: unknown
+  /** lodash paths in `payload` holding a value resolved from a secret form field — masked in the confirm. */
+  maskTargets?: readonly string[]
+  /**
+   * The submitting form's secret VALUES, present only when it has secret fields: the outcome
+   * message (toast, audit) is scrubbed of them, and the audit keeps only the status.
+   */
+  secretValues?: readonly string[]
 }
 
 /**
@@ -183,7 +197,7 @@ export interface WriteOp {
 export const buildBlastRadiusSet = (ops: readonly WriteOp[]): BlastRadiusSet => ({
   count: ops.length,
   kind: 'set',
-  ops: ops.map(({ path, payload, verb }) => {
+  ops: ops.map(({ maskTargets, path, payload, verb }) => {
     const parsed = parseTargetFromPath(path)
     const name = readString(payload, 'metadata.name') ?? parsed?.name
     return {
@@ -192,7 +206,7 @@ export const buildBlastRadiusSet = (ops: readonly WriteOp[]): BlastRadiusSet => 
       namespace: readString(payload, 'metadata.namespace') ?? parsed?.namespace ?? '',
       verb,
       ...(name ? { name } : {}),
-      ...(payload === undefined ? {} : { payloadPreview: payload }),
+      ...(payload === undefined ? {} : { payloadPreview: maskSecretMaterialForDisplay(payload, maskTargets) }),
     }
   }),
 })
@@ -203,7 +217,7 @@ export const buildBlastRadiusSet = (ops: readonly WriteOp[]): BlastRadiusSet => 
  * and, later, the W0-3 audit payload. Pure: same inputs → same output, no side effects.
  */
 export const buildBlastRadius = (input: BuildBlastRadiusInput): BlastRadius => {
-  const { before, cluster, path, payload, verb, writeSet } = input
+  const { before, cluster, maskTargets, path, payload, verb, writeSet } = input
   const parsed = parseTargetFromPath(path)
   const gvr: Gvr = parsed?.gvr ?? { group: '', resource: '', version: '' }
   // Prefer the object name the payload carries (create-form metadata.name) over the ref path's,
@@ -215,7 +229,7 @@ export const buildBlastRadius = (input: BuildBlastRadiusInput): BlastRadius => {
   return {
     cluster: resolveCluster(payload, cluster),
     count,
-    diff: buildDiff(verb, payload, before),
+    diff: buildDiff(verb, payload, before, maskTargets),
     gvr,
     namespace,
     verb,
