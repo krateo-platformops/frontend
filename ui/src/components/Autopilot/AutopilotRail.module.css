@@ -1192,9 +1192,13 @@
 /* THE LABEL NEVER SHRINKS. It sat in a flex row beside the request text, both shrinkable, and the
    request — a long delegation brief — won: "asking core-provider-agent" was squeezed into a column
    one letter wide, on camera, in the V2 blueprint take. The label keeps its width; the request takes
-   what is left, or wraps onto its own line under a narrow rail. */
+   what is left, or wraps onto its own line under a narrow rail.
+   The row's gap is --spacing-xxs (2px): right between the state mark and the label, but not between
+   the label and a mono brief beside it. At 10px those read as one word ("frontend-agentBuild a page…",
+   the Portal Builder V2 take on 1.6.78), so the label owns the wider separation. */
 .apLiveActLabel {
   flex: 0 0 auto;
+  margin-inline-end: var(--spacing-sm);
   white-space: nowrap;
 }
 
