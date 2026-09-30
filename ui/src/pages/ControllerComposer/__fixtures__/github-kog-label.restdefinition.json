@@ -1,0 +1,48 @@
+{
+  "apiVersion": "ogen.krateo.io/v1alpha1",
+  "kind": "RestDefinition",
+  "metadata": {
+    "name": "github-provider-kog-label",
+    "namespace": "krateo-system"
+  },
+  "spec": {
+    "oasPath": "configmap://krateo-system/github-provider-kog-label/label.yaml",
+    "resource": {
+      "additionalStatusFields": [
+        "id",
+        "node_id",
+        "url",
+        "default"
+      ],
+      "compareScope": "updatable",
+      "configurationFields": [],
+      "identifiers": [
+        "name"
+      ],
+      "kind": "Label",
+      "verbsDescription": [
+        {
+          "action": "create",
+          "method": "POST",
+          "path": "/repos/{owner}/{repo}/labels"
+        },
+        {
+          "action": "get",
+          "method": "GET",
+          "path": "/repos/{owner}/{repo}/labels/{name}"
+        },
+        {
+          "action": "update",
+          "method": "PATCH",
+          "path": "/repos/{owner}/{repo}/labels/{name}"
+        },
+        {
+          "action": "delete",
+          "method": "DELETE",
+          "path": "/repos/{owner}/{repo}/labels/{name}"
+        }
+      ]
+    },
+    "resourceGroup": "github.krateo.io"
+  }
+}
