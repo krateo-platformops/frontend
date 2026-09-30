@@ -25,11 +25,12 @@
  */
 import { useEffect, useRef } from 'react'
 
+import { findBuilderOf } from '../../builders/builderRegistry'
+import { draftKindOf } from '../../builders/draftKinds'
 import type { SetDispatchOptions } from '../../hooks/runRestSet'
 
 import { legacyDeleteOps, type SandboxTarget } from './adoptLegacyPage'
 import { MAX_APPLY_SET_OPS } from './applyResourceSet'
-import { draftDisplayName } from './blueprintDraft'
 import type { BlueprintDraftStore } from './blueprintDraftStore'
 import type { BlueprintGate } from './blueprintGate'
 import type { SandboxWriter } from './blueprintRenderSandbox'
@@ -37,14 +38,25 @@ import { clearComposeRefusals } from './composeRequest'
 import { autopilotConversationStore } from './conversationStore'
 import { draftHistory } from './draftHistory'
 import { treeHash } from './draftRecord'
-import { pageRootSlug } from './pageDraft'
 import { emitDraftReapply, emitDraftResumeResult, emitLegacyDiscardResult, onDraftResume, onLegacyDiscard } from './previewDraftResume'
 import { heldDraftIdentity } from './publishCompile'
 import type { DraftAutosave } from './useDraftAutosave'
 
-/** The name a person knows the held draft by: a chart's Chart.yaml name, a page's slug. */
-export const heldDraftName = (held: NonNullable<ReturnType<BlueprintDraftStore['get']>>): string =>
-  (held.kind === 'page' ? pageRootSlug(held.files) ?? 'the open page' : draftDisplayName(held.files))
+/**
+ * The name a person knows the held draft by — a chart's or a controller's Chart.yaml name, a page's
+ * slug — from the draft-kind plugin its Builder names; "the open <kind>" when the files carry none.
+ */
+export const heldDraftName = (held: NonNullable<ReturnType<BlueprintDraftStore['get']>>): string => {
+  const plugin = draftKindOf(held.kind)
+  return plugin.publishSlug(held.files) ?? `the open ${plugin.nouns.short}`
+}
+
+/**
+ * Whether a draft of this kind is previewed LIVE in the sandbox (its Builder's `preview.mode:
+ * sandbox-apply`, the page): its render is rebuilt from the record on resume, and torn down when it
+ * is replaced. A rendered kind (blueprint, controller) has nothing live to re-apply.
+ */
+const appliesLive = (kind: string | undefined): boolean => findBuilderOf(kind)?.preview.mode === 'sandbox-apply'
 
 /**
  * DELETE sandbox objects through the audited writer, in sets of MAX_APPLY_SET_OPS (the dispatcher's
@@ -131,7 +143,7 @@ export const useDraftResumeBus = (
     const relinkThread = depsRef.current.relinkThread ?? (switchToThread ? relinkThreadWith(switchToThread) : undefined)
     // First: a thread switch resets every arming (teardownThread), and must not reset this one's.
     const relinked = record.threadId && relinkThread ? relinkThread(record.threadId) : false
-    const replacedPage = open?.kind === 'page'
+    const replacedPage = appliesLive(open?.kind)
     if (open) {
       gate.forget(heldDraftIdentity(open))
     }
@@ -154,7 +166,7 @@ export const useDraftResumeBus = (
       gate.forget(identity)
     }
     const finish = (retireError?: string): void => {
-      if (record.kind === 'page' || replacedPage) {
+      if (appliesLive(record.kind) || replacedPage) {
         emitDraftReapply({ discardPrevious: replacedPage })
       }
       emitDraftResumeResult({ id, outcome: 'resumed', previewed, relinked, ...(retireError ? { retireError } : {}) })

@@ -11,6 +11,9 @@
  */
 import { CheckOutlined } from '@ant-design/icons'
 
+import { findBuilderOf } from '../../builders/builderRegistry'
+import { findDraftKindPlugin } from '../../builders/draftKinds'
+
 import type { DraftKind } from './blueprintDraftStore'
 import styles from './DraftSaveIndicator.module.css'
 import { draftKeptOnClose, type DraftSaveStatus, useDraftSaveStatus } from './draftSaveStatus'
@@ -57,21 +60,29 @@ const DraftSaveIndicator = ({ kind }: { kind: DraftKind }) => {
  * The Close-draft confirm's words. CLOSE IS NOT DISCARD when the draft has a record: it stays stored,
  * to resume from the drafts list, and only its preview goes. Without one (no sandbox, or the last
  * save failed) the files go with the close — and the confirm must still say that.
+ *
+ * BY THE BUILDER'S PREVIEW MODE (T3, frontend#409), not by a fixed pair of kinds: a draft previewed
+ * by applying it into the sandbox (the page) loses its sandbox preview; one previewed by a render (a
+ * blueprint chart, a controller) loses its render, and is named by its draft-kind plugin's word.
  */
-const CLOSE_COPY: Record<DraftKind, { kept: string; lost: string }> = {
-  blueprint: {
-    kept: 'Close this chart draft? It stays saved in your drafts; only its preview is removed.',
-    lost: 'Discard this chart draft? Its unpublished files are deleted.',
-  },
-  page: {
-    kept: 'Close this draft? It stays saved in your drafts; only its sandbox preview is removed.',
-    lost: 'Discard this draft? The sandbox and its unpublished files are deleted.',
-  },
+export const closeDraftCopy = (kind: DraftKind): { kept: string; lost: string } => {
+  if (findBuilderOf(kind)?.preview.mode === 'sandbox-apply') {
+    return {
+      kept: 'Close this draft? It stays saved in your drafts; only its sandbox preview is removed.',
+      lost: 'Discard this draft? The sandbox and its unpublished files are deleted.',
+    }
+  }
+  const noun = findDraftKindPlugin(kind)?.nouns.short ?? 'draft'
+  return {
+    kept: `Close this ${noun} draft? It stays saved in your drafts; only its preview is removed.`,
+    lost: `Discard this ${noun} draft? Its unpublished files are deleted.`,
+  }
 }
 
 export const useCloseDraftCopy = (kind: DraftKind): { okText: string; title: string } => {
   const kept = draftKeptOnClose(useDraftSaveStatus(), kind)
-  return kept ? { okText: 'Close draft', title: CLOSE_COPY[kind].kept } : { okText: 'Discard', title: CLOSE_COPY[kind].lost }
+  const copy = closeDraftCopy(kind)
+  return kept ? { okText: 'Close draft', title: copy.kept } : { okText: 'Discard', title: copy.lost }
 }
 
 export default DraftSaveIndicator

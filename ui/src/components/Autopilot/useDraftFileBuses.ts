@@ -22,6 +22,9 @@
  */
 import { useCallback, useEffect, useRef } from 'react'
 
+import { findBuilderOf } from '../../builders/builderRegistry'
+import { draftKindOf } from '../../builders/draftKinds'
+
 import { createBlueprintDraftStore, type BlueprintDraftStore, type DraftChangeListener } from './blueprintDraftStore'
 import type { BlueprintGate } from './blueprintGate'
 import { clearComposeRefusals } from './composeRequest'
@@ -315,11 +318,14 @@ export const useDraftFileBuses = (
    * renamed chart that was never rendered, or a gate that no longer matches its descriptor. Only a
    * render re-arms it — the person's Preview or the agent's previewBlueprint — so what publishes is
    * what was last rendered. A page stays lint-gated: its edits are ajv-verdicted where they are made.
+   *
+   * BY PREVIEW MODE (T3, frontend#409): "render-gated" is every draft whose Builder previews by a
+   * render (`preview.mode: render` — the blueprint, the controller), not the blueprint by name.
    */
   const rearm = useCallback(() => {
     const held = store.get()
     const identity = identityOf(held)
-    if (held && (held.kind === 'blueprint' || lintHeldDraft(held.files, held.kind).length > 0)) {
+    if (held && (findBuilderOf(held.kind)?.preview.mode === 'render' || lintHeldDraft(held.files, held.kind).length > 0)) {
       gate.forget?.(identity)
       return
     }
@@ -339,7 +345,7 @@ export const useDraftFileBuses = (
     // values.schema.json exist in both, so the path alone would have accepted it.
     const heldKind = store.get()?.kind
     if (kind && kind !== heldKind) {
-      respond({ error: heldKind ? `the open draft is a ${heldKind === 'page' ? 'portal page' : 'blueprint chart'}, not the one this preview shows` : 'no draft is held', ok: false })
+      respond({ error: heldKind ? `the open draft is ${draftKindOf(heldKind).nouns.artifact}, not the one this preview shows` : 'no draft is held', ok: false })
       return
     }
     // Captured BEFORE the call and pushed only if it was accepted: a refused or over-cap edit
@@ -374,7 +380,7 @@ export const useDraftFileBuses = (
   useEffect(() => onFilesBatch(({ add, edit, expect, kind, remove }, respond) => {
     const before = store.get()
     if (!before || kind !== before.kind) {
-      respond({ error: before ? `the open draft is a ${before.kind === 'page' ? 'portal page' : 'blueprint chart'}, not the one this preview shows` : 'no draft is held', ok: false })
+      respond({ error: before ? `the open draft is ${draftKindOf(before.kind).nouns.artifact}, not the one this preview shows` : 'no draft is held', ok: false })
       return
     }
     for (const [path, bytes] of Object.entries(expect ?? {})) {

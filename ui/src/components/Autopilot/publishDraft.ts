@@ -124,11 +124,13 @@ const DRAFT_PUBLISHERS: Partial<Record<PublishBuilder, DraftPublisher>> = {
 }
 
 /**
- * Publish verbs no Builder declares YET, and the publisher each runs. `publishRestDef` is the
- * controller's until the Controller Builder (T8) lists it in its `verbs.allowed`; then this entry
- * goes and the Builder names it like every other.
+ * The publishers this frontend RUNS: the held-draft ones (DRAFT_PUBLISHERS) and the controller's
+ * (dispatchKogPublish). A Builder naming any other `publish.builder` publishes nothing here.
+ *
+ * Every publish verb now has a Builder: `publishRestDef` is the Controller Builder's (T3,
+ * frontend#409), so there is no longer a table of verbs published without one.
  */
-const UNDECLARED_PUBLISH_VERBS: Readonly<Record<string, PublishBuilder>> = { publishRestDef: 'controller' }
+const runsPublisher = (builder: PublishBuilder): boolean => builder === 'controller' || DRAFT_PUBLISHERS[builder] !== undefined
 
 /**
  * The verbs that PUBLISH — the frontend's own list, not the Builder's. A Builder's `verbs.allowed`
@@ -154,10 +156,7 @@ export const publisherOfVerb = (verb: string): PublishBuilder | null => {
     return null
   }
   const declared = builderOfVerb(verb)?.publish.builder
-  if (declared && DRAFT_PUBLISHERS[declared]) {
-    return declared
-  }
-  return Object.prototype.hasOwnProperty.call(UNDECLARED_PUBLISH_VERBS, verb) ? UNDECLARED_PUBLISH_VERBS[verb] : null
+  return declared && runsPublisher(declared) ? declared : null
 }
 
 const denied = (denial: string, held?: BlueprintDraftHeld | null): PublishDraftOutcome =>

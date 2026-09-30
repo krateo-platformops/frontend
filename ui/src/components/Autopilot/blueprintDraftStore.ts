@@ -25,6 +25,8 @@
  * it, exactly like the OAS store).
  */
 
+import { isDraftKind, type DraftKindName } from '../../builders/draftKinds'
+
 import type { ApplyResourceSetOp } from './applyResourceSet'
 import { regenerateArchitecture } from './blueprintDraft'
 import { OAS_ATTACHMENT_MAX_BYTES, utf8ByteLength } from './oasAttachment'
@@ -47,8 +49,14 @@ export const BLUEPRINT_DRAFT_MAX_BYTES = OAS_ATTACHMENT_MAX_BYTES
  * blueprint ops under the wrong builder — none of it erroring, all of it wrong.
  *
  * A fact the writer knows should be recorded, not re-derived downstream from a coincidence.
+ *
+ * THE BUILDER'S DRAFT KIND (T3, frontend#409). A kind is a Builder's `spec.draftKind` — page,
+ * blueprint, controller, and whatever a later Builder declares — typed by the draft-kind plugins this
+ * build ships (builders/draftKinds.ts). DENY BY DEFAULT: the store holds a draft only under a kind
+ * that has a plugin AND a loaded Builder declaring it (`isDraftKind`); any other is refused, never
+ * held under a guess.
  */
-export type DraftKind = 'page' | 'blueprint'
+export type DraftKind = DraftKindName
 
 /** A held chart tree: the verbatim `{path: content}` map, its total UTF-8 byte size, and who wrote it. */
 /**
@@ -114,6 +122,11 @@ const settle = (files: Record<string, string>, kind: DraftKind): Record<string, 
  * is nothing to publish).
  */
 export const createBlueprintDraft = (given: Record<string, string>, kind: DraftKind): BlueprintDraftResult => {
+  // A kind from data (a record, a bus) is typed only by its producer's promise: check it here, where
+  // every draft is held.
+  if (!isDraftKind(kind)) {
+    return { error: `no builder declares the draft kind "${String(kind)}" — a draft is held only under a kind a loaded Builder declares`, ok: false }
+  }
   const files = settle(given, kind)
   const paths = Object.keys(files)
   if (paths.length === 0) {

@@ -25,6 +25,8 @@
  * answer comes back from `emitFilesBatch` itself. Pure module: one event name, a dispatch/subscribe
  * pair. No React, no module state.
  */
+import { isDraftKind } from '../../builders/draftKinds'
+
 import type { DraftKind } from './blueprintDraftStore'
 
 export const AUTOPILOT_PREVIEW_FILES_BATCH_EVENT = 'autopilotPreviewFilesBatch'
@@ -57,7 +59,7 @@ const isStringMap = (value: unknown): value is Record<string, string> =>
 /** The shape a listener may trust. Anything else is not a batch, and is not delivered. */
 const isBatch = (detail: FilesBatchRequest | null | undefined): detail is FilesBatchRequest =>
   !!detail
-  && (detail.kind === 'blueprint' || detail.kind === 'page')
+  && isDraftKind(detail.kind)
   && (detail.add === undefined || isStringMap(detail.add))
   && (detail.edit === undefined || isStringMap(detail.edit))
   && (detail.expect === undefined || isStringMap(detail.expect))

@@ -21,6 +21,7 @@
  */
 
 import { builderRegistry } from '../../builders/builderRegistry'
+import { isDraftKind } from '../../builders/draftKinds'
 
 import type { DraftKind } from './blueprintDraftStore'
 
@@ -106,12 +107,19 @@ export const onDraftReplayRequest = (handler: () => void): (() => void) => {
  * AutopilotProvider, the composer is a route — which is the same reason the buses above exist.
  */
 /*
- * PER KIND. There are two composers — pages and blueprints — and each can show only its own kind of
- * draft. A single kind-blind counter meant a mounted blueprint composer made the drawer defer every
- * PAGE preview to a surface that cannot show it (shown nowhere), while its own chart previews still
- * opened the drawer over it. A claim names the kind it can show; the drawer defers only that kind.
+ * PER KIND. There is one composer per Builder — pages, blueprints, controllers, and any later one —
+ * and each can show only its own kind of draft. A single kind-blind counter meant a mounted blueprint
+ * composer made the drawer defer every PAGE preview to a surface that cannot show it (shown nowhere),
+ * while its own chart previews still opened the drawer over it. A claim names the kind it can show;
+ * the drawer defers only that kind.
+ *
+ * KEYED BY THE BUILDER'S DRAFT KIND (T3, frontend#409), not a fixed pair: the counters are created on
+ * a first claim, and a kind no loaded Builder declares (isDraftKind) is never claimed nor heard — deny
+ * by default, so a stray event cannot make the drawer defer to a composer that does not exist.
  */
-const composerMounted: Record<DraftKind, number> = { blueprint: 0, page: 0 }
+const composerMounted = new Map<DraftKind, number>()
+
+const mountedCount = (kind: DraftKind): number => composerMounted.get(kind) ?? 0
 
 /**
  * A CLAIM IS ANNOUNCED, not only recorded. Deferring the NEXT preview is half of "one surface per
@@ -124,20 +132,26 @@ const composerMounted: Record<DraftKind, number> = { blueprint: 0, page: 0 }
  */
 export const AUTOPILOT_PREVIEW_CLAIMED_EVENT = 'autopilotPreviewSurfaceClaimed'
 
-/** Claim the preview surface for `kind` for as long as that composer is mounted. Returns the release fn. */
+/**
+ * Claim the preview surface for `kind` for as long as that composer is mounted. Returns the release
+ * fn. A kind no loaded Builder declares claims nothing (the release is a no-op).
+ */
 export const claimPreviewSurface = (kind: DraftKind): (() => void) => {
-  composerMounted[kind] += 1
+  if (!isDraftKind(kind)) {
+    return () => undefined
+  }
+  composerMounted.set(kind, mountedCount(kind) + 1)
   window.dispatchEvent(new CustomEvent<DraftKind>(AUTOPILOT_PREVIEW_CLAIMED_EVENT, { detail: kind }))
   return () => {
-    composerMounted[kind] = Math.max(0, composerMounted[kind] - 1)
+    composerMounted.set(kind, Math.max(0, mountedCount(kind) - 1))
   }
 }
 
 /** The drawer's side: hear each claim, by kind. Returns the unsubscribe fn. */
 export const onPreviewSurfaceClaimed = (handler: (kind: DraftKind) => void): (() => void) => {
   const listener = (event: Event): void => {
-    const { detail } = event as CustomEvent<DraftKind>
-    if (detail === 'page' || detail === 'blueprint') {
+    const { detail } = event as CustomEvent<unknown>
+    if (isDraftKind(detail)) {
       handler(detail)
     }
   }
@@ -146,7 +160,7 @@ export const onPreviewSurfaceClaimed = (handler: (kind: DraftKind) => void): (()
 }
 
 /** True while a mounted composer owns incoming previews of `kind` — the drawer defers those to it. */
-export const previewSurfaceClaimed = (kind: DraftKind | null): boolean => kind !== null && composerMounted[kind] > 0
+export const previewSurfaceClaimed = (kind: DraftKind | null): boolean => kind !== null && mountedCount(kind) > 0
 
 /** Whose draft a broadcast holds, from one composer's side: its Builder's (`own`), another's (`parked`), or none. */
 export type ComposerMode = 'empty' | 'own' | 'parked'

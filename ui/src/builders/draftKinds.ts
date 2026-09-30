@@ -15,7 +15,7 @@
 import { draftDisplayName } from '../components/Autopilot/blueprintDraft'
 import { pageRootSlug } from '../components/Autopilot/pageDraft'
 
-import { builderOf } from './builderRegistry'
+import { builderOf, findBuilderOf } from './builderRegistry'
 
 export interface DraftKindNouns {
   /** The artifact with its article: "a portal page". */
@@ -47,10 +47,15 @@ export interface DraftKindPlugin {
   nouns: DraftKindNouns
 }
 
+/*
+ * Each entry reaches its helpers through an arrow, never by value: blueprintDraftStore imports this
+ * module, and a helper module that (transitively) imports the store would otherwise be read here
+ * before it finished evaluating.
+ */
 const DRAFT_KINDS = {
   blueprint: {
     description: 'a Helm chart, named by its Chart.yaml',
-    displayName: draftDisplayName,
+    displayName: (files) => draftDisplayName(files),
     nouns: {
       artifact: 'a blueprint chart',
       composer: 'blueprint',
@@ -59,7 +64,26 @@ const DRAFT_KINDS = {
       renameHint: '',
       short: 'chart',
     },
-    publishSlug: draftDisplayName,
+    publishSlug: (files) => draftDisplayName(files),
+  },
+  /*
+   * The Controller Builder's draft (T3, frontend#409): a chart of RestDefinitions and their OAS
+   * ConfigMaps, seeded from builder-scaffold (frontend#405, "A controller is a chart") — so it is
+   * named by its Chart.yaml exactly as a blueprint is, and its record is
+   * `draft-controller-<owner>-<chart name>`.
+   */
+  controller: {
+    description: 'a controller chart — RestDefinitions and their OpenAPI documents — named by its Chart.yaml',
+    displayName: (files) => draftDisplayName(files),
+    nouns: {
+      artifact: 'a controller',
+      composer: 'controller',
+      previewFirst: 'controller',
+      previewed: 'controller',
+      renameHint: '',
+      short: 'controller',
+    },
+    publishSlug: (files) => draftDisplayName(files),
   },
   page: {
     description: 'a portal page set, named by its templates/flex.page-<slug>.yaml root',
@@ -72,9 +96,15 @@ const DRAFT_KINDS = {
       renameHint: ' (a page set is named for its page slug)',
       short: 'page',
     },
-    publishSlug: pageRootSlug,
+    publishSlug: (files) => pageRootSlug(files),
   },
 } satisfies Record<string, DraftKindPlugin>
+
+/**
+ * The draft kinds this build has a plugin for — the type every held draft's `kind` is. A value of
+ * this type is not yet a kind that may be HELD: that needs a Builder declaring it too (`isDraftKind`).
+ */
+export type DraftKindName = keyof typeof DRAFT_KINDS
 
 /** The draft kinds this frontend has a plugin for. */
 export const draftKindNames = (): string[] => Object.keys(DRAFT_KINDS).sort()
@@ -87,6 +117,16 @@ export const findDraftKindPlugin = (draftKind: string | null | undefined): Draft
   (typeof draftKind === 'string' && Object.prototype.hasOwnProperty.call(DRAFT_KINDS, draftKind)
     ? (DRAFT_KINDS as Record<string, DraftKindPlugin>)[draftKind]
     : undefined)
+
+/**
+ * THE DENY-BY-DEFAULT CHECK for a draft kind that arrived as data — a record read back, a bus
+ * detail, a store write: true only when this build has a draft-kind plugin for it AND exactly one
+ * loaded Builder declares it as its `spec.draftKind`. A kind with a plugin but no Builder (the
+ * Builder was not loaded) is as unheld as one nobody has heard of: nothing could preview, lint,
+ * publish or resume it.
+ */
+export const isDraftKind = (kind: unknown): kind is DraftKindName =>
+  typeof kind === 'string' && findDraftKindPlugin(kind) !== undefined && findBuilderOf(kind) !== undefined
 
 /**
  * The plugin for a draft kind this build's DraftKind type names. Throws only for a kind with no entry,

@@ -111,11 +111,29 @@ export type PluginImplementation<S extends PluginSlot> = Registry[S][PluginName<
 
 export type PluginResolution<S extends PluginSlot> =
   | { ok: true; slot: S; name: PluginName<S>; description: string; implementation: PluginImplementation<S> }
-  | { ok: false; slot: S; name: string; refusal: string }
+  | { ok: false; slot: S; name: string; refusal: string; pending?: true }
+
+/**
+ * NAMED, NOT SHIPPED — the Controller Builder's plugins (T3, frontend#409). Its Builder is loaded so
+ * its drafts are held, saved, resumed and published by the engine, and it names these three; the
+ * code behind them is T8's. Listing them here does not make them resolve: each is still a REFUSAL,
+ * worded as "not shipped yet" rather than "unknown", so the composer says what is coming instead of
+ * suggesting the Builder is wrong. T8 moves each into its slot's table above and deletes it here.
+ */
+const PENDING: Record<PluginSlot, Readonly<Record<string, string>>> = {
+  canvas: { 'restdef-graph': 'the controller\'s Kinds and their configuration, as a graph (Controller Builder)' },
+  inspector: { 'restdef-mapping': 'the selected Kind: its verbs, identifiers and auth, mapped to the OpenAPI document (Controller Builder)' },
+  palette: { openapi: 'the held OpenAPI document\'s operations, grouped by resource path (Controller Builder)' },
+  parser: {},
+  summarizer: {},
+}
 
 const own = (table: object, name: string): boolean => Object.prototype.hasOwnProperty.call(table, name)
 
 const listed = (names: readonly string[]): string => (names.length ? names.join(', ') : 'none')
+
+/** The names a Builder may already declare for a slot whose code is not shipped yet, sorted. */
+export const pendingPluginNames = (slot: PluginSlot): string[] => Object.keys(PENDING[slot]).sort()
 
 /** The registered names for a slot, sorted — what a refusal offers instead. */
 export const pluginNames = <S extends PluginSlot>(slot: S): PluginName<S>[] =>
@@ -127,6 +145,15 @@ export const pluginNames = <S extends PluginSlot>(slot: S): PluginName<S>[] =>
  */
 export const resolvePlugin = <S extends PluginSlot>(slot: S, name: string): PluginResolution<S> => {
   const table: Record<string, PluginEntry<unknown>> = REGISTRY[slot]
+  if (typeof name === 'string' && !own(table, name) && own(PENDING[slot], name)) {
+    return {
+      name,
+      ok: false,
+      pending: true,
+      refusal: `The ${slot} plugin "${name}" — ${PENDING[slot][name]} — is not shipped in this frontend yet: it comes with the Controller Builder composer (frontend#405, T8), so the builder's ${slot} cannot be shown.`,
+      slot,
+    }
+  }
   if (typeof name !== 'string' || !own(table, name)) {
     return {
       name: String(name),
