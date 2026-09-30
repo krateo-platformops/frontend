@@ -2,13 +2,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import React, { createContext, useCallback, useContext, useState } from 'react'
 import { useParams, type NonIndexRouteObject, type RouteObject } from 'react-router'
 
+import { builderRoutes } from '../builders/host/builderRoutes'
 import ShellRoute from '../components/Shell'
 import WidgetPage from '../components/WidgetPage'
 import Auth from '../pages/Auth/Auth'
-import BlueprintComposer from '../pages/BlueprintComposer'
 import Login from '../pages/Login'
 import Logout from '../pages/Logout'
-import PageComposer from '../pages/PageComposer'
 import Profile from '../pages/Profile'
 import type { ResourceRef } from '../types/Widget'
 
@@ -51,17 +50,13 @@ const defaultRoutes: RouteObject[] = [
   {
     children: [
       { element: <Profile />, path: '/profile' },
-      // The Portal Builder's authoring surface. A STATIC child of the shell, like /profile, rather
-      // than a CR-driven page: it renders the preview surface (live render + per-file editor +
-      // RestDefinition editor) that until now only Autopilot could open, and that is React, not
-      // widgetData. Making it a widget kind would have cost a 4-piece release — frontend image,
-      // portal template, generated CRD and installer pin — for no gain, since nothing about it is
-      // configurable from a CR. The `*` fallthrough below keeps every CR-driven page unaffected.
-      { element: <PageComposer />, path: '/portal-builder/compose' },
-      // The Blueprint Builder's, for the same reasons: React, not widgetData, and nothing about it
-      // is configurable from a CR — a frontend image is the whole release. The entry CTA that links
-      // here lives on /blueprint-builder in the portal chart and ships after a tag carrying this.
-      { element: <BlueprintComposer />, path: '/blueprint-builder/compose' },
+      // The builders' authoring surfaces: one route per Builder, at its `spec.route`, each the
+      // composer host (builders/host/builderRoutes.tsx) — /portal-builder/compose and
+      // /blueprint-builder/compose today. STATIC children of the shell, like /profile, rather than
+      // CR-driven widget pages: a composer is React (drag and drop, a live graph, a multi-file draft
+      // with undo), and what IS configuration about it is its Builder CR, not widgetData. The `*`
+      // fallthrough below keeps every CR-driven page unaffected.
+      ...builderRoutes(),
       { element: <WidgetPage />, path: '*' },
     ],
     element: <ShellRoute />,

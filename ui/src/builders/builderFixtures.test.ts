@@ -24,6 +24,7 @@ import { PROJECTION_BUNDLE_PATH } from '../pages/BlueprintComposer/projectionCom
 import { SLUG_PATTERN } from '../pages/PageComposer/startDraft'
 
 import { parseBuilder, type Builder } from './builderSpec'
+import { builderRoutes } from './host/builderRoutes'
 import { builderRefusals, resolvePlugin } from './pluginRegistry'
 
 const ROOT = join(__dirname, '..', '..', '..')
@@ -132,10 +133,11 @@ describe.each(FIXTURES)('the %s Builder', (name) => {
     expect(read).toContain(spec.publish.templateKey)
   })
 
-  it('is served at a route the shell registers (a composer not built yet: not yet)', () => {
-    const routes = readFileSync(join(__dirname, '..', 'context', 'RoutesContext.tsx'), 'utf8')
-    // Flips when T8 registers the Controller Builder's route: then drop it from COMPOSER_PENDING.
-    expect(routes.includes(`path: '${parsed(name).spec.route}'`)).toBe(!COMPOSER_PENDING.has(name))
+  it('is served at its route, one per Builder — a composer not built yet: not yet', () => {
+    const shell = readFileSync(join(__dirname, '..', 'context', 'RoutesContext.tsx'), 'utf8')
+    expect(shell).toContain('...builderRoutes()')
+    // Flips when T8 ships the Controller Builder's plugins: then drop it from COMPOSER_PENDING.
+    expect(builderRoutes().map((route) => route.path).includes(parsed(name).spec.route)).toBe(!COMPOSER_PENDING.has(name))
   })
 })
 

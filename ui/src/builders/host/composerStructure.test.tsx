@@ -65,7 +65,8 @@ const outline = (root: Element): string => {
   const idOf = (raw: string): string => raw.split(/\s+/).filter(Boolean).map((one) => {
     if (!ids.has(one)) { ids.set(one, `id${ids.size + 1}`) }
     return ids.get(one) as string
-  }).join(' ')
+  })
+    .join(' ')
   const lines: string[] = []
   const walk = (node: Node, depth: number) => {
     const pad = '  '.repeat(depth)
@@ -78,7 +79,7 @@ const outline = (root: Element): string => {
     const element = node as Element
     const attrs = [...element.attributes]
       .map((attr) => ({ name: attr.name, value: ID_ATTRS.has(attr.name) ? idOf(attr.value) : attr.value.replace(REACT_ID, (raw) => idOf(raw)) }))
-      .sort((a, b) => a.name.localeCompare(b.name))
+      .sort((left, right) => left.name.localeCompare(right.name))
       .map(({ name, value }) => `${name}="${value}"`)
     lines.push(`${pad}<${element.tagName.toLowerCase()}${attrs.length ? ` ${attrs.join(' ')}` : ''}>`)
     element.childNodes.forEach((child) => walk(child, depth + 1))

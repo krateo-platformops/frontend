@@ -1,24 +1,21 @@
 import { describe, expect, it } from 'vitest'
 
 import { summarizeChart, summarizeDraft } from '../components/Autopilot/draftStructure'
-import ArchitectureCanvas from '../pages/BlueprintComposer/ArchitectureCanvas'
-import ArchitecturePalette from '../pages/BlueprintComposer/ArchitecturePalette'
-import NodeInspector from '../pages/BlueprintComposer/NodeInspector'
-import CanvasPanel from '../pages/PageComposer/CanvasPanel'
-import ObjectTreePanel from '../pages/PageComposer/ObjectTreePanel'
-import PalettePanel from '../pages/PageComposer/PalettePanel'
+import { architectureGraphCanvas, kindsPalette, nodeInspector } from '../pages/BlueprintComposer/blueprintSlots'
+import { objectTreeInspector, pageGridCanvas, widgetsPalette } from '../pages/PageComposer/pageSlots'
 
+import type { SlotPlugin } from './host/hostTypes'
 import { checkNames, pendingPluginNames, pluginNames, resolveCheck, resolvePlugin, type PluginSlot } from './pluginRegistry'
 
 describe('the plugin registry', () => {
   it('registers today\'s composer pieces under their names', () => {
     const expected: [PluginSlot, string, unknown][] = [
-      ['palette', 'widgets', PalettePanel],
-      ['palette', 'kinds', ArchitecturePalette],
-      ['canvas', 'page-grid', CanvasPanel],
-      ['canvas', 'architecture-graph', ArchitectureCanvas],
-      ['inspector', 'object-tree', ObjectTreePanel],
-      ['inspector', 'node', NodeInspector],
+      ['palette', 'widgets', widgetsPalette],
+      ['palette', 'kinds', kindsPalette],
+      ['canvas', 'page-grid', pageGridCanvas],
+      ['canvas', 'architecture-graph', architectureGraphCanvas],
+      ['inspector', 'object-tree', objectTreeInspector],
+      ['inspector', 'node', nodeInspector],
       ['summarizer', 'page-tree', summarizeDraft],
       ['summarizer', 'chart-files', summarizeChart],
     ]
@@ -27,6 +24,20 @@ describe('the plugin registry', () => {
       expect(resolved.ok, `${slot}/${name}`).toBe(true)
       if (resolved.ok) { expect(resolved.implementation).toBe(implementation) }
     }
+  })
+
+  it('gives each slot plugin the draft kind it draws, and each canvas its frame', () => {
+    const kinds = (['palette', 'canvas', 'inspector'] as const).flatMap((slot) => pluginNames(slot).map((name: string) => {
+      const resolved = resolvePlugin(slot, name)
+      return resolved.ok ? `${slot}/${name}:${(resolved.implementation as SlotPlugin).kind}` : `${slot}/${name}:refused`
+    }))
+    expect(kinds.sort()).toEqual([
+      'canvas/architecture-graph:blueprint', 'canvas/page-grid:page',
+      'inspector/node:blueprint', 'inspector/object-tree:page',
+      'palette/kinds:blueprint', 'palette/widgets:page',
+    ])
+    expect(architectureGraphCanvas.frame).toBe('panes')
+    expect(pageGridCanvas.frame).toBe('split')
   })
 
   it('ships no parser yet, and says so', () => {
