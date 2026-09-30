@@ -39,10 +39,11 @@
  */
 import { useEffect } from 'react'
 
+import { builderRegistry } from '../../builders/builderRegistry'
+import { draftKindOf } from '../../builders/draftKinds'
 import { getUserInfo } from '../../utils/getUserInfo'
 
 import { buildSetOpPath } from './applyResourceSet'
-import { draftDisplayName } from './blueprintDraft'
 import type { BlueprintDraftHeld, DraftChangeListener, DraftKind } from './blueprintDraftStore'
 import type { SandboxWriter } from './blueprintRenderSandbox'
 import {
@@ -55,7 +56,7 @@ import {
   treeHash,
 } from './draftRecord'
 import { draftSaveStatus } from './draftSaveStatus'
-import { pageDraftFiles, pageDraftWidgets, pageRootSlug } from './pageDraft'
+import { pageDraftFiles, pageDraftWidgets } from './pageDraft'
 
 /** How long edits settle before the record is written. The plan's "~2 s". */
 export const DRAFT_AUTOSAVE_DEBOUNCE_MS = 2000
@@ -63,11 +64,20 @@ export const DRAFT_AUTOSAVE_DEBOUNCE_MS = 2000
 const CONFIGMAPS = { group: '', resource: 'configmaps', version: 'v1' }
 
 /**
- * The name a record is filed under: a chart's Chart.yaml name, a page's slug — the same names the
- * builders show. A rename is a different record; the old one stays, as a draft of the old name.
+ * The name a record is filed under — the same name the builder shows (a chart's Chart.yaml name, a
+ * page's slug), from the draft-kind plugin its Builder names. A rename is a different record; the
+ * old one stays, as a draft of the old name.
  */
 export const draftRecordDisplayName = (held: Pick<BlueprintDraftHeld, 'files' | 'kind'>): string =>
-  (held.kind === 'page' ? (pageRootSlug(held.files) ?? 'draft') : draftDisplayName(held.files))
+  draftKindOf(held.kind).displayName(held.files)
+
+/**
+ * The draft kind whose Builder previews by APPLYING the draft's CRs to the sandbox (`preview.mode:
+ * sandbox-apply`) — the kind a live apply (`markPageApplied`) records as rendered. Undefined when no
+ * Builder previews that way. A Builder's draftKind is a DraftKind here: the fixtures test holds them.
+ */
+const sandboxAppliedKind = (): DraftKind | undefined =>
+  builderRegistry.all().find((builder) => builder.spec.preview.mode === 'sandbox-apply')?.spec.draftKind as DraftKind | undefined
 
 /** What this tab knows about one record beyond its files. */
 interface RecordMeta {
@@ -319,9 +329,11 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
       return chain
     },
     markPageApplied: (widgets) => {
-      const sameWidgets = latest?.kind === 'page' && JSON.stringify(pageDraftWidgets(latest.files)) === JSON.stringify(widgets)
+      const kind = sandboxAppliedKind()
+      if (!kind) { return chain }
+      const sameWidgets = latest?.kind === kind && JSON.stringify(pageDraftWidgets(latest.files)) === JSON.stringify(widgets)
       const files = sameWidgets && latest ? latest.files : pageDraftFiles(widgets)
-      return files ? markRenderedTree({ files, kind: 'page' }) : chain
+      return files ? markRenderedTree({ files, kind }) : chain
     },
     markPublished: (held, claim, deepLink) => {
       const meta = metaOf(keyOf(held))

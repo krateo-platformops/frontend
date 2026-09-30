@@ -16,6 +16,8 @@
  * a draft they are handed. A null from `readDraftRecord`, a 403 and a 404 are all content — a
  * sentence where the draft would have been — never a crash.
  */
+import { builderOf } from '../../builders/builderRegistry'
+import { draftKindOf } from '../../builders/draftKinds'
 import { getAccessToken } from '../../utils/getAccessToken'
 
 import type { DraftKind } from './blueprintDraftStore'
@@ -104,11 +106,11 @@ export const readDraftRecordByName = async (
 
 /**
  * Where a record of this kind is resumed. A record opened in the OTHER composer is not loaded
- * there — a page tree in the Blueprint Composer is parked, not drawn — so it says where to go.
+ * there — a page tree in the Blueprint Composer is parked, not drawn — so it says where to go: the
+ * label of the Builder that declares the record's draft kind, and the artifact its plugin names.
  */
-export const wrongComposerMessage = (record: Pick<DraftRecordBody, 'kind' | 'name'>): string => (record.kind === 'page'
-  ? `${record.name} is a portal page draft — resume it from the Portal Builder.`
-  : `${record.name} is a blueprint chart draft — resume it from the Blueprint Builder.`)
+export const wrongComposerMessage = (record: Pick<DraftRecordBody, 'kind' | 'name'>): string =>
+  `${record.name} is ${draftKindOf(record.kind).nouns.artifact} draft — resume it from the ${builderOf(record.kind).label}.`
 
 const pad = (value: number): string => String(value).padStart(2, '0')
 
@@ -135,7 +137,7 @@ export const restoredBannerCopy = (
   resumed: { kind: DraftKind; updatedAt: string; previewed: boolean; everPreviewed: boolean; relinked: boolean },
   now?: Date,
 ): { title: string; body: string } => {
-  const sentences = [`The ${resumed.kind === 'page' ? 'page' : 'chart'} is exactly as you left it, and Undo starts here.`]
+  const sentences = [`The ${draftKindOf(resumed.kind).nouns.short} is exactly as you left it, and Undo starts here.`]
   if (!resumed.previewed) {
     sentences.push(resumed.everPreviewed
       ? 'It changed after its last Preview, so preview it again before publishing.'
