@@ -24,6 +24,29 @@ describe('builderRegistry — the fixtures, loaded', () => {
     expect(builderRegistry.all().map((builder) => builder.metadata.name)).toEqual(['portal-builder', 'blueprint-builder', 'controller-builder'])
   })
 
+  it('the shipped fixtures claim no key twice, and the rail\'s publishRestDef is the Controller Builder\'s', () => {
+    // A duplicated draftKind, route, name or verb is a problem sentence here, and the registry then
+    // answers NO Builder for that key: drafts of that kind would stop being held, or the rail's
+    // publish would publish nothing. Both must fail CI rather than a page.
+    expect(builderRegistry.problems()).toEqual([])
+    const keys = builderRegistry.all().flatMap((builder) => [
+      `draftKind:${builder.spec.draftKind}`,
+      `route:${builder.spec.route}`,
+      `name:${builder.metadata.name}`,
+      ...builder.spec.verbs.allowed.map((verb) => `verb:${verb}`),
+    ])
+    expect(keys.filter((key, index) => keys.indexOf(key) !== index)).toEqual([])
+    expect(publisherOfVerb('publishRestDef')).toBe('controller')
+  })
+
+  it('a second Builder declaring the controller draft kind is a problem, and the kind is then held by none', () => {
+    const controller = builderRegistry.get({ name: 'controller-builder' })!
+    const twin: Builder = { ...controller, metadata: { name: 'twin-builder' }, spec: { ...controller.spec, route: '/twin-builder/compose', verbs: { allowed: [] } } }
+    const registry = createBuilderRegistry({ builders: [...builderRegistry.all(), twin], problems: [] })
+    expect(registry.problems()).toEqual(['controller-builder and twin-builder both declare the draft kind "controller", so no builder answers for it — one Builder must own it.'])
+    expect(registry.get({ draftKind: 'controller' })).toBeUndefined()
+  })
+
   it('every builder it loads names only plugins and checks this frontend ships — or, for the controller, ones pending T8', () => {
     for (const builder of builderRegistry.all()) {
       if (builder.metadata.name === 'controller-builder') { continue }
