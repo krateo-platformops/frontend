@@ -1,0 +1,215 @@
+openapi: 3.0.3
+info:
+  version: 2022-11-28
+  title: GitHub v3 REST API - Repositories
+servers:
+  - url: https://api.github.com
+paths:
+  # CREATE is org-scoped. GitHub has a second create endpoint, POST /user/repos, for
+  # user-owned repos; it is deliberately NOT modelled here, because a RestDefinition has one
+  # create verb and a resource cannot choose between two paths. Krateo destinations are
+  # org-owned. See docs/usage.md if a user-owned variant is ever needed.
+  "/orgs/{org}/repos":
+    post:
+      summary: Create an organization repository
+      operationId: repos/create-in-org
+      parameters:
+        - $ref: '#/components/parameters/org'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                homepage:
+                  type: string
+                private:
+                  type: boolean
+                visibility:
+                  type: string
+                has_issues:
+                  type: boolean
+                has_wiki:
+                  type: boolean
+                has_projects:
+                  type: boolean
+                # CREATE-ONLY, and load-bearing for a Krateo destination repository.
+                # A repo created with auto_init=false has no commit and therefore no default
+                # branch, so a GitRef or RepoContent aimed at it fails until someone pushes by
+                # hand. Leave this true unless the caller really wants an empty repo.
+                auto_init:
+                  type: boolean
+                  default: true
+                gitignore_template:
+                  type: string
+                license_template:
+                  type: string
+      responses:
+        '201':
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+  # GET/PATCH/DELETE address the repo as /repos/{owner}/{repo} upstream. The parameters are
+  # named `org` and `name` here ON PURPOSE: the same two CR fields then serve the create path
+  # (/orgs/{org}/repos) and the create body (`name`), so the generated CRD carries ONE pair of
+  # fields instead of an `org`/`owner` duplicate the author has to keep in sync.
+  "/repos/{org}/{name}":
+    get:
+      summary: Get a repository
+      operationId: repos/get
+      parameters:
+        - $ref: '#/components/parameters/org'
+        - $ref: '#/components/parameters/name'
+      responses:
+        '200':
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+    patch:
+      summary: Update a repository
+      operationId: repos/update
+      parameters:
+        - $ref: '#/components/parameters/org'
+        - $ref: '#/components/parameters/name'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                # `name` IS accepted by GitHub's PATCH — and is DELIBERATELY NOT MODELLED HERE.
+                #
+                # Including it put `name` in the `updatable` compare set, which made renaming a
+                # repository something drift reconciliation would do on its own. Two ways that bit
+                # in production on krateo-057 (2026-09-10):
+                #
+                #   GitHub REDIRECTS a renamed repo. `krateo-platformops/krateo-oas` is now
+                #   `krateo-platformops/oas`; the observe GET follows the redirect and reports
+                #   name=oas, the spec still says krateo-oas, so the comparison saw drift and
+                #   issued a PATCH — which GitHub answered 307, and the controller surfaced as
+                #   `update failed: unexpected status: 307`. The error was the good outcome: had
+                #   the redirect been followed, the reconcile would have RENAMED a live repository
+                #   back to a stale name nobody asked for.
+                #
+                # `name` remains a path parameter and a create-body field, so creating and
+                # addressing a repository are unaffected. Only reconciling a rename is gone, and
+                # it should be: renaming is a deliberate act, not drift.
+                description:
+                  type: string
+                homepage:
+                  type: string
+                # `private` and `visibility` ARE accepted by GitHub's PATCH — and are DELIBERATELY
+                # NOT MODELLED HERE. Exposure is honoured at CREATE and ignored afterwards.
+                #
+                # In the PATCH body they sit in the `updatable` compare set, which makes "change
+                # this repository's exposure" something drift reconciliation decides on its own.
+                # Consumers render a Repository on every composition and core-provider's default
+                # UpgradePolicy is Automatic, so a consumer changing its rendered value does not
+                # only affect repositories created afterwards — the next reconcile PATCHes the ones
+                # that already exist.
+                #
+                # Caught in review of portal#227 (this repo's #11), which flips builder-publish's
+                # destination repos public because a GHCR package inherits the visibility of the
+                # repo that published it. Its PR body said "existing ones keep their visibility";
+                # with these two fields compared that was false, and merging it would have flipped
+                # live private repositories public on the next reconcile. There is no undo — forks,
+                # clones, caches and search indexing survive a flip back.
+                #
+                # Dropping them from the body does more than un-compare them. The outgoing body is
+                # filtered to the fields the operation declares (rest-dynamic-controller,
+                # builder.go processFields), so a PATCH triggered by `description` drift carries no
+                # visibility field either, and GitHub's PATCH is partial — omitting it leaves the
+                # repository as it is.
+                #
+                # Both remain CREATE-body fields, so `spec.private`/`spec.visibility` still exist on
+                # the CRD — oasgen builds the spec from the create body plus path/query params,
+                # never from the update body — and are still honoured at create. The CRD does not
+                # change. Which repositories are public is a decision their owner makes, not one a
+                # chart version bump makes for them.
+                has_issues:
+                  type: boolean
+                has_wiki:
+                  type: boolean
+                has_projects:
+                  type: boolean
+                default_branch:
+                  type: string
+                archived:
+                  type: boolean
+      responses:
+        '200':
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+components:
+  securitySchemes:
+    accessToken:
+      type: http
+      scheme: bearer
+  parameters:
+    org:
+      name: org
+      in: path
+      required: true
+      schema:
+        type: string
+    name:
+      name: name
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    Repository:
+      type: object
+      properties:
+        id:
+          type: integer
+        node_id:
+          type: string
+        name:
+          type: string
+        full_name:
+          type: string
+        html_url:
+          type: string
+        # clone_url / ssh_url are what a downstream GitRef, RepoContent or CI job actually
+        # needs to reach the repository, so they are surfaced on status.
+        clone_url:
+          type: string
+        ssh_url:
+          type: string
+        default_branch:
+          type: string
+        private:
+          type: boolean
+        visibility:
+          type: string
+        description:
+          type: string
+        homepage:
+          type: string
+        has_issues:
+          type: boolean
+        has_wiki:
+          type: boolean
+        has_projects:
+          type: boolean
+        archived:
+          type: boolean
+security:
+  - accessToken: []
