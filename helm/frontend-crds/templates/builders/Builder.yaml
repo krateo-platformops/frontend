@@ -1,0 +1,384 @@
+# The Builder CRD — a builder (Portal Builder, Blueprint Builder, Controller Builder) DECLARED as a
+# custom resource that names code plugins the frontend ships. See docs/adr/0001-builders-as-crs.md.
+#
+# HAND-WRITTEN, AND DELIBERATELY OUTSIDE THE WIDGET GENERATOR'S REACH. Every *.crd.yaml directly
+# under templates/ is generated from a widget's *.schema.json (ui/scripts/gen-crds.ts), and three
+# jobs glob exactly that pattern: crd-drift fails a chart CRD the generator does not produce, the
+# release-tag `crds` job deletes and re-copies them, and gen-widget-kinds turns each into a
+# placeable widget kind. A Builder is not a widget, so it lives in this subdirectory, under a name
+# none of those globs match. Helm renders subdirectories of templates/ like any other template.
+#
+# ITS OWN GROUP, NOT widgets.templates.krateo.io. snowplow dispatches /call by group: that group is
+# resolved as a widget (widgetData, resourcesRefs, apiRef), and every CRD in the `widgets` category
+# is offered by the Portal Builder's palette. A Builder is configuration the frontend reads, so it
+# must reach it as a plain apiserver passthrough under the caller's identity, and never be
+# placeable on a page.
+#
+# STRICT. No x-kubernetes-preserve-unknown-fields anywhere and no `default:` on any key: an
+# unknown field is pruned, a missing required one is refused at admission, and every value is
+# what the author wrote (the installer applies chart defaults live, so a schema default here
+# would be a second, silent source of truth).
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: builders.builders.templates.krateo.io
+spec:
+  group: builders.templates.krateo.io
+  names:
+    categories:
+      - krateo
+      - builders
+    kind: Builder
+    listKind: BuilderList
+    plural: builders
+    singular: builder
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .spec.route
+          name: ROUTE
+          type: string
+        - jsonPath: .spec.draftKind
+          name: DRAFT-KIND
+          type: string
+        - jsonPath: .spec.preview.mode
+          name: PREVIEW
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: AGE
+          type: date
+      name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          description: A builder, declared. Everything a composer does that is configuration lives here; everything that is behaviour is a named plugin the frontend ships, referenced by name and refused by name when this frontend does not ship it.
+          properties:
+            apiVersion:
+              type: string
+            kind:
+              type: string
+            metadata:
+              type: object
+            spec:
+              properties:
+                canvas:
+                  description: The canvas plugin — what the draft is drawn and edited as.
+                  properties:
+                    plugin:
+                      description: A canvas plugin name the frontend registers (e.g. page-grid, architecture-graph).
+                      maxLength: 63
+                      pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+                      type: string
+                  required:
+                    - plugin
+                  type: object
+                draftKind:
+                  description: The draft kind this builder holds. It is the `krateo.io/draft-kind` label and the `draft-<kind>-` prefix of every draft record, so it must stay short and DNS-safe.
+                  maxLength: 20
+                  pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+                  type: string
+                files:
+                  description: The held draft's file layout.
+                  properties:
+                    heldBytes:
+                      description: Cap on the held tree (UTF-8 bytes of paths and contents) at every edit. Absent, the start cap (start.maxDraftBytes) applies.
+                      format: int64
+                      maximum: 1048576
+                      minimum: 1
+                      type: integer
+                    locked:
+                      description: Paths the author and the agent never write — the portal writes them at publish (the registration file, a status-projection bundle).
+                      items:
+                        maxLength: 253
+                        minLength: 1
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: set
+                    required:
+                      description: Paths a draft cannot do without — deleting one is refused by name.
+                      items:
+                        maxLength: 253
+                        minLength: 1
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: set
+                  required:
+                    - locked
+                    - required
+                  type: object
+                gates:
+                  description: Publish gates, by name (e.g. preview-before-publish, publish-name). Each is code; an unknown name is refused, never skipped.
+                  items:
+                    maxLength: 63
+                    pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+                    type: string
+                  type: array
+                  x-kubernetes-list-type: set
+                inspector:
+                  description: The inspector plugin — what the selected part of the draft is edited in.
+                  properties:
+                    plugin:
+                      description: An inspector plugin name the frontend registers (e.g. object-tree, node).
+                      maxLength: 63
+                      pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+                      type: string
+                  required:
+                    - plugin
+                  type: object
+                label:
+                  description: The builder's name as a person reads it.
+                  maxLength: 63
+                  minLength: 1
+                  type: string
+                lint:
+                  description: Draft lints, by name (e.g. chart-lint, gate-drift). A failing lint refuses Preview and Publish. Each is code; an unknown name is refused, never skipped.
+                  items:
+                    maxLength: 63
+                    pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+                    type: string
+                  type: array
+                  x-kubernetes-list-type: set
+                palette:
+                  description: The palette — what can be placed on the canvas, and where the list of it comes from.
+                  properties:
+                    plugin:
+                      description: A palette plugin name the frontend registers (e.g. widgets, kinds).
+                      maxLength: 63
+                      pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+                      type: string
+                    restActionRef:
+                      description: The RESTAction the palette lists from, run as the person. Absent, the plugin reads its source itself (the widgets palette lists snowplow's widget category).
+                      properties:
+                        name:
+                          maxLength: 253
+                          minLength: 1
+                          type: string
+                        namespace:
+                          description: Absent, the frontend's own namespace.
+                          maxLength: 63
+                          minLength: 1
+                          type: string
+                      required:
+                        - name
+                      type: object
+                  required:
+                    - plugin
+                  type: object
+                parser:
+                  description: An import parser plugin (e.g. an OpenAPI document into a draft). Absent, the builder imports nothing.
+                  properties:
+                    plugin:
+                      maxLength: 63
+                      pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+                      type: string
+                  required:
+                    - plugin
+                  type: object
+                portal:
+                  description: Where the builder's own portal pages find its drafts and what it has shipped.
+                  properties:
+                    deliverablesRestActionRef:
+                      description: The RESTAction that lists what this builder has published. Absent, the builder has no deliverables listing.
+                      properties:
+                        name:
+                          maxLength: 253
+                          minLength: 1
+                          type: string
+                        namespace:
+                          description: Absent, the frontend's own namespace.
+                          maxLength: 63
+                          minLength: 1
+                          type: string
+                      required:
+                        - name
+                      type: object
+                    draftsCard:
+                      description: The Card widget on the builder's hub page that lists this builder's drafts.
+                      properties:
+                        name:
+                          maxLength: 253
+                          minLength: 1
+                          type: string
+                        namespace:
+                          description: Absent, the frontend's own namespace.
+                          maxLength: 63
+                          minLength: 1
+                          type: string
+                      required:
+                        - name
+                      type: object
+                  required:
+                    - draftsCard
+                  type: object
+                preview:
+                  description: How a held draft is previewed.
+                  properties:
+                    mode:
+                      description: sandbox-apply writes the draft's resources into the preview sandbox and renders them live; render sends the draft to a RESTAction that renders it without applying anything.
+                      enum:
+                        - sandbox-apply
+                        - render
+                      type: string
+                    restActionRef:
+                      description: The RESTAction a render preview calls. Required when mode is render.
+                      properties:
+                        name:
+                          maxLength: 253
+                          minLength: 1
+                          type: string
+                        namespace:
+                          description: Absent, the frontend's own namespace.
+                          maxLength: 63
+                          minLength: 1
+                          type: string
+                      required:
+                        - name
+                      type: object
+                  required:
+                    - mode
+                  type: object
+                  x-kubernetes-validations:
+                    - message: a render preview names the RESTAction that renders it (preview.restActionRef)
+                      rule: self.mode != 'render' || has(self.restActionRef)
+                publish:
+                  description: Where and how a draft is published — one BuilderPublish claim.
+                  properties:
+                    builder:
+                      description: The BuilderPublish claim's builder.
+                      enum:
+                        - page
+                        - blueprint
+                        - controller
+                      type: string
+                    registration:
+                      description: The file that registers the published chart, written at publish because it names the destination.
+                      properties:
+                        kind:
+                          enum:
+                            - CompositionDefinition
+                          type: string
+                        path:
+                          maxLength: 253
+                          minLength: 1
+                          type: string
+                      required:
+                        - kind
+                        - path
+                      type: object
+                    targetKey:
+                      description: The install-config key (config.api) holding the destination owner/repo. The destination is an install concern, never a value in this resource.
+                      maxLength: 63
+                      pattern: ^[A-Z][A-Z0-9_]*$
+                      type: string
+                    templateKey:
+                      description: The install-config key (config.api) holding the template repository a new destination is seeded from.
+                      maxLength: 63
+                      pattern: ^[A-Z][A-Z0-9_]*$
+                      type: string
+                  required:
+                    - builder
+                    - registration
+                    - targetKey
+                    - templateKey
+                  type: object
+                route:
+                  description: The portal route the builder's composer is served at.
+                  maxLength: 253
+                  pattern: ^(/[a-z0-9]+(-[a-z0-9]+)*)+$
+                  type: string
+                start:
+                  description: What a person is asked to start a new draft.
+                  properties:
+                    fields:
+                      description: The start form's fields, in order. Every value is a string; what a value must satisfy beyond `pattern` is the builder's own validation.
+                      items:
+                        properties:
+                          help:
+                            maxLength: 253
+                            type: string
+                          initialValue:
+                            description: What the field holds when the form opens (a value the author wrote, not a schema default).
+                            maxLength: 253
+                            type: string
+                          label:
+                            maxLength: 63
+                            minLength: 1
+                            type: string
+                          name:
+                            maxLength: 63
+                            pattern: ^[a-z][a-zA-Z0-9]*$
+                            type: string
+                          pattern:
+                            description: A regular expression the whole value must match.
+                            maxLength: 253
+                            minLength: 1
+                            type: string
+                          placeholder:
+                            maxLength: 253
+                            type: string
+                          required:
+                            type: boolean
+                        required:
+                          - label
+                          - name
+                          - required
+                        type: object
+                      maxItems: 16
+                      minItems: 1
+                      type: array
+                      x-kubernetes-list-map-keys:
+                        - name
+                      x-kubernetes-list-type: map
+                    maxDraftBytes:
+                      description: Cap on a started draft (UTF-8 bytes of paths and contents).
+                      format: int64
+                      maximum: 1048576
+                      minimum: 1
+                      type: integer
+                  required:
+                    - fields
+                    - maxDraftBytes
+                  type: object
+                summarizer:
+                  description: The plugin that describes the held draft to Autopilot. Absent, Autopilot is told nothing about the draft's structure.
+                  properties:
+                    plugin:
+                      maxLength: 63
+                      pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+                      type: string
+                  required:
+                    - plugin
+                  type: object
+                verbs:
+                  description: The Autopilot verbs this builder accepts. Deny-by-default — a verb not listed is refused while this builder's draft is open.
+                  properties:
+                    allowed:
+                      items:
+                        maxLength: 63
+                        pattern: ^[a-z][a-zA-Z]*$
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: set
+                  required:
+                    - allowed
+                  type: object
+              required:
+                - canvas
+                - draftKind
+                - files
+                - gates
+                - inspector
+                - label
+                - lint
+                - palette
+                - portal
+                - preview
+                - publish
+                - route
+                - start
+                - verbs
+              type: object
+          required:
+            - spec
+          type: object
+      served: true
+      storage: true

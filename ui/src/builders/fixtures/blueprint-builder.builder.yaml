@@ -1,0 +1,90 @@
+# The Blueprint Builder, DECLARED — today's /blueprint-builder/compose as a Builder CR (T1, frontend#407).
+#
+# A FIXTURE, NOT YET WIRED. Nothing reads this: BlueprintComposer still hardcodes every value below,
+# and builderFixtures.test.ts only proves the declaration parses, validates against the CRD and
+# names plugins this frontend ships. It lives here until the portal chart ships it (T2 wires the
+# engine to read it). Each value names the code it describes.
+apiVersion: builders.templates.krateo.io/v1alpha1
+kind: Builder
+metadata:
+  name: blueprint-builder
+spec:
+  label: Blueprint Builder
+  # RoutesContext.tsx: the static shell child.
+  route: /blueprint-builder/compose
+  # draftRecord.ts: `draft-blueprint-<owner>-<slug>`, label krateo.io/draft-kind=blueprint.
+  draftKind: blueprint
+  # StartChartModal.tsx + startChart.ts (validateStartChart stays the builder's code).
+  start:
+    fields:
+      - name: name
+        label: Chart name
+        required: true
+        help: Lower-case, dashes. It becomes the repository name and the OCI chart name.
+        placeholder: builder-publish
+      - name: version
+        label: Version
+        required: true
+        initialValue: '0.1.0'
+      - name: description
+        label: Description
+        required: false
+        placeholder: What a consumer gets when they install it
+    # blueprintDraftStore.ts BLUEPRINT_DRAFT_MAX_BYTES.
+    maxDraftBytes: 524288
+  # blueprintPalette.ts: the portal's blueprint-palette RESTAction, run as the person over /call.
+  palette:
+    plugin: kinds
+    restActionRef:
+      name: blueprint-palette
+  canvas:
+    plugin: architecture-graph
+  inspector:
+    plugin: node
+  # draftStructure.ts summarizeChart — the chart's files Autopilot is told.
+  summarizer:
+    plugin: chart-files
+  # blueprintRenderSandbox.ts: the chart is written to the sandbox and rendered by name; nothing is applied.
+  preview:
+    mode: render
+    restActionRef:
+      name: blueprint-render-draft
+  files:
+    # chartVerbs.ts REQUIRED — deleting one is refused by name.
+    required:
+      - Chart.yaml
+      - values.schema.json
+      - templates/architecture.yaml
+    # publishDraft.ts REGISTRATION_PATH and projectionCompile.ts PROJECTION_BUNDLE_PATH.
+    locked:
+      - compositiondefinition.yaml
+      - status-projection.json
+    heldBytes: 524288
+  # proposedChart.ts lintHeldDraft(files, 'blueprint'): the chart lint plus template gate drift.
+  lint:
+    - chart-lint
+    - gate-drift
+  gates:
+    - preview-before-publish
+    - publish-name
+  publish:
+    builder: blueprint
+    targetKey: AUTOPILOT_BLUEPRINT_BUILDER_REPO
+    templateKey: AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE
+    registration:
+      kind: CompositionDefinition
+      path: compositiondefinition.yaml
+  # chartVerbs.ts CHART_VERBS, previewBlueprint, publishBlueprint.
+  verbs:
+    allowed:
+      - chartPut
+      - chartDelete
+      - chartLink
+      - previewBlueprint
+      - publishBlueprint
+  # The portal chart's /blueprint-builder hub.
+  portal:
+    draftsCard:
+      name: blueprint-builder-drafts-card
+    deliverablesRestActionRef:
+      name: blueprint-builder-deliverables

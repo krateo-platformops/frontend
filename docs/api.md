@@ -28,6 +28,13 @@ is `Listy` because Kubernetes reserves `List`.
 - **Per-kind reference** (every `widgetData` property, generated):
   [ui/docs/widgets-api-reference.md](../ui/docs/widgets-api-reference.md).
 
+The same chart also ships one CRD that is **not** a widget: `Builder`
+(`builders.templates.krateo.io/v1alpha1`, hand-written at
+[templates/builders/Builder.yaml](../helm/frontend-crds/templates/builders/Builder.yaml)).
+A Builder declares a builder, such as the Portal or Blueprint Builder, and names the code
+plugins the frontend ships. See [ADR 0001](./adr/0001-builders-as-crs.md). Nothing reads
+it yet.
+
 ### The shared widget spec model
 
 Every widget `spec` has the same five properties (full semantics:
