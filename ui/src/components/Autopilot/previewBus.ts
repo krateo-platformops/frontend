@@ -93,6 +93,8 @@ export interface AutopilotPreviewPayload {
    * (T9, frontend#413) draws the create form of the generated CRD there. Absent: no such tab.
    */
   renderedPlaceholder?: string
+  /** The tab the files pane opens on, when not its first — a builder whose first tab is still empty. */
+  initialTab?: 'files' | 'source'
 }
 
 /** The LAST previewPage's validation verdicts — held here so the CONTEXT COLLECTOR can

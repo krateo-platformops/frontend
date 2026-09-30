@@ -147,6 +147,25 @@ export const listOperations = (doc: OasDocument): OasOperation[] => {
   return operations
 }
 
+/**
+ * A YAML anchor used as an alias parses to ONE object shared by several parents — the shape of a
+ * "billion laughs" document, whose serialization is exponential. JSON never shares, so any node met
+ * twice is an alias. Walked by identity, so the walk itself is linear in the distinct nodes.
+ */
+export const sharesNodes = (value: unknown): boolean => {
+  const seen = new Set<object>()
+  const stack: unknown[] = [value]
+  while (stack.length) {
+    const node = stack.pop()
+    if (node === null || typeof node !== 'object') { continue }
+    if (seen.has(node)) { return true }
+    seen.add(node)
+    const children: unknown[] = Array.isArray(node) ? (node as unknown[]) : Object.values(node)
+    stack.push(...children)
+  }
+  return false
+}
+
 /** The `openapi` field as text — an unquoted `openapi: 3.1` is a YAML float, and still names 3.1. */
 const versionOf = (doc: OasDocument): string | null => {
   if (typeof doc.openapi === 'number') {
@@ -236,6 +255,11 @@ export const parseOas = (text: string): OasParseResult => {
   }
   if (values.length === 0) {
     return { error: 'The spec is empty.', line: null, ok: false }
+  }
+  // Before anything walks or writes a document out: an alias-sharing tree is refused unread (a
+  // "billion laughs" document serializes exponentially).
+  if (values.some(sharesNodes)) {
+    return { error: 'The spec uses YAML anchors and aliases, which this builder does not expand — a document that reuses nodes can grow without bound when written out. Expand them (or convert the document to JSON) first.', line: null, ok: false }
   }
   const documents: OasImport[] = []
   for (const [index, value] of values.entries()) {

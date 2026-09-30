@@ -26,12 +26,12 @@ import {
   readController,
   restDefinitionPath,
   SPEC_BUDGET_BYTES,
-  startController,
   unescapeHelm,
-  validateStartController,
+  lockedSnapshot,
+  withServers,
   type ControllerPlan,
-  type StartControllerInput,
 } from './controllerChart'
+import { apiGroupProblem, baseUrlProblem, readSpec, serverRewriteSentence, SPEC_TEXT_MAX_BYTES, startController, validateStartController, type StartControllerInput } from './controllerStart'
 
 const PETSTORE = readFileSync(join(__dirname, '__fixtures__', 'petstore-v3.openapi.json'), 'utf8')
 
@@ -171,5 +171,122 @@ describe('registration', () => {
     expect(text).toContain('generates Store in petstore.example.io')
     expect(load(text as string)).toMatchObject({ kind: 'CompositionDefinition', metadata: { name: 'petstore' }, spec: { chart: { version: '0.1.0' } } })
     expect(controllerCompositionDefinition('petstore', '', 'petstore', '0.1.0', files)).toBeNull()
+  })
+})
+
+// ── review of #428 ────────────────────────────────────────────────────────────────────────────────
+
+/** Petstore with a path-level and an operation-level server that point elsewhere. */
+const withForeignServers = (): string => {
+  const doc = JSON.parse(PETSTORE) as { paths: Record<string, Record<string, unknown>> }
+  doc.paths['/pet'].servers = [{ url: 'https://attacker.example' }]
+  ;(doc.paths['/pet/{petId}'].get as Record<string, unknown>).servers = [{ url: 'https://{tenant}.elsewhere.example', variables: { tenant: { default: 'x' } } }]
+  return JSON.stringify(doc)
+}
+
+describe('item 3 — the base URL is the only destination', () => {
+  it('rewrites EVERY servers list — root, path, operation — and says which', () => {
+    const text = withForeignServers()
+    const reading = readSpec(text, 'https://petstore3.swagger.io/api/v3')
+    expect(serverRewriteSentence(reading.oas!.doc, 'https://petstore3.swagger.io/api/v3'))
+      .toBe('The document names its own servers beside the root (paths./pet.servers, paths./pet/{petId}.get.servers); each is rewritten to https://petstore3.swagger.io/api/v3, so every request — and its credential — goes only there.')
+    const result = startController(input({ spec: text }))
+    if (!result.ok) { throw new Error(JSON.stringify(result.problems)) }
+    const { doc } = readController(result.files).spec!.oas
+    const paths = doc.paths as Record<string, Record<string, Record<string, unknown>>>
+    expect(doc.servers).toEqual([{ url: 'https://petstore3.swagger.io/api/v3' }])
+    expect(paths['/pet'].servers).toEqual([{ url: 'https://petstore3.swagger.io/api/v3' }])
+    expect(paths['/pet/{petId}'].get.servers).toEqual([{ url: 'https://petstore3.swagger.io/api/v3' }])
+    expect(JSON.stringify(doc)).not.toContain('attacker')
+    expect(lintControllerDraft(result.files)).toEqual([])
+  })
+
+  it('the lint names a foreign server a hand edit put back', () => {
+    const files = started()
+    const path = oasConfigMapPath('petstore')
+    const edited = { ...files, [path]: files[path].replace('"servers": [\n', '"servers": [\n      { "url": "https://attacker.example" },\n') }
+    expect(lintControllerDraft(edited).join('\n')).toMatch(/servers names https:\/\/attacker\.example, not the base URL/)
+  })
+
+  it('refuses a base URL with a variable, or braces anywhere', () => {
+    expect(baseUrlProblem('https://{host}/api')).toMatch(/variable/)
+    expect(baseUrlProblem('https://api.example/{v}')).toMatch(/variable/)
+    expect(baseUrlProblem('https://api.example/v3')).toBeNull()
+    expect(withServers({ paths: {} }, '')).toEqual({ paths: {} })
+  })
+})
+
+describe('item 5 — huge and bomb specs', () => {
+  it('does not parse text over 8 MiB', () => {
+    const reading = readSpec(`${'#'.repeat(SPEC_TEXT_MAX_BYTES)}\nopenapi: 3.0.0\n`)
+    expect(reading.oas).toBeNull()
+    expect(reading.error).toMatch(/over the 8 MiB this builder reads/)
+  })
+
+  it('refuses YAML anchors and aliases (the billion-laughs shape) before writing anything out', () => {
+    const bomb = ['openapi: 3.0.0', 'info: { title: b, version: "1" }', 'x-a: &a [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]', 'x-b: &b [*a, *a, *a, *a, *a, *a, *a, *a, *a, *a]', 'x-c: &c [*b, *b, *b, *b, *b, *b, *b, *b, *b, *b]', 'x-d: [*c, *c, *c, *c, *c, *c, *c, *c, *c, *c]', 'paths: {}'].join('\n')
+    const reading = readSpec(bomb)
+    expect(reading.oas).toBeNull()
+    expect(reading.error).toMatch(/YAML anchors and aliases/)
+  })
+
+  it('a caller that has the reading passes it in, and nothing is parsed again', () => {
+    const reading = readSpec(PETSTORE, 'https://petstore3.swagger.io/api/v3')
+    const forged = { ...reading, error: 'from the reading' }
+    expect(validateStartController(input(), forged).find((problem) => problem.field === 'spec')?.message).toBe('from the reading')
+  })
+})
+
+describe('item 6 — locked once published', () => {
+  const placed = () => {
+    let files = apply(started(), planPlaceGroup(started(), 'pet'))
+    files = apply(files, planSetVerb(files, restDefinitionPath('Pet'), 'findby', { method: 'GET', path: '/pet/findByStatus' }))
+    return files
+  }
+
+  it('a published Kind refuses a change to a locked field, with the screen-11 sentence; a free field still changes', () => {
+    const files = placed()
+    const locked = lockedSnapshot(files)
+    const path = restDefinitionPath('Pet')
+    expect(locked[path]).toMatchObject({ identifiers: ['id'], kind: 'Pet', resourceGroup: 'petstore.example.io' })
+    const identifier = planToggleField(files, path, 'identifiers', 'name', locked)
+    expect(identifier).toEqual({ ok: false, reason: 'cannot update Pet in place: identifiers is locked once published (["id"] → ["id","name"]). Changing it means deleting the RestDefinition — and every Pet it serves — and recreating it; undo the change, or place a new Kind instead.' })
+    const reasonOf = (plan: ControllerPlan): string => (plan.ok ? '' : plan.reason)
+    expect(reasonOf(planToggleField(files, path, 'additionalStatusFields', 'status', locked))).toMatch(/^cannot update Pet in place: additionalStatusFields is locked/)
+    expect(reasonOf(planToggleConfigurationField(files, path, { actions: ['delete'], in: 'header', name: 'api_key' }, locked))).toMatch(/configurationFields is locked/)
+    expect(planCompareScope(files, path, 'fullSpec', locked).ok).toBe(true)
+    // Not published: the same edit lands.
+    expect(planToggleField(files, path, 'identifiers', 'name').ok).toBe(true)
+  })
+
+  it('the lint refuses a hand edit to a locked field of a published Kind', () => {
+    const files = placed()
+    const locked = lockedSnapshot(files)
+    const path = restDefinitionPath('Pet')
+    const edited = { ...files, [path]: files[path].replace('resourceGroup: petstore.example.io', 'resourceGroup: other.example.io') }
+    expect(lintControllerDraft(edited, locked)).toContain('cannot update Pet in place: resourceGroup is locked once published ("petstore.example.io" → "other.example.io"). Changing it means deleting the RestDefinition — and every Pet it serves — and recreating it; undo the change, or place a new Kind instead.')
+    expect(lintControllerDraft(edited)).not.toContain(expect.stringMatching(/cannot update/))
+  })
+})
+
+describe('item 7 — reserved API groups', () => {
+  it.each([
+    ['core.krateo.io', /Krateo system group/],
+    ['widgets.templates.krateo.io', /Krateo system group/],
+    ['builders.templates.krateo.io', /Krateo system group/],
+    ['composition.krateo.io', /Krateo system group/],
+    ['ogen.krateo.io', /Krateo system group/],
+    ['krateo.io', /Krateo system group/],
+    ['apps.k8s.io', /reserved for Kubernetes/],
+    ['cluster.x-k8s.io', /reserved for Kubernetes/],
+    ['core', /Kubernetes core group/],
+    ['', /core \(empty\) group/],
+  ])('%s is refused, and the sentence says why', (group, reason) => {
+    expect(apiGroupProblem(group)).toMatch(reason)
+  })
+
+  it('a group of your own, even under a krateo subdomain nobody reserved, is taken', () => {
+    expect(apiGroupProblem('petstore.example.io')).toBeNull()
+    expect(apiGroupProblem('github.acme.io')).toBeNull()
   })
 })

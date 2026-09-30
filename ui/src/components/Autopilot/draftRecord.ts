@@ -56,7 +56,11 @@ export interface DraftRecordBody {
   /** The Autopilot thread that produced it, when one did. */
   threadId?: string
   state: DraftState
-  publish?: { repo: string; prUrl?: string }
+  /**
+   * Where it was published — and, for a draft kind whose plugin has one, the snapshot of what that
+   * publish locked (publishedLocks.ts): opaque here, read back only by that kind's code.
+   */
+  publish?: { repo: string; prUrl?: string; locked?: Record<string, Record<string, unknown>> }
 }
 
 /**

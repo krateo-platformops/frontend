@@ -178,20 +178,6 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                           <path d="M176 511a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0z">
                 <div class="ant-tabs-body-holder">
                   <div class="ant-tabs-body ant-tabs-body-top">
-                    <div aria-hidden="true" aria-labelledby="id4" class="ant-tabs-content ant-tabs-content-hidden" id="id5" role="tabpanel" tabindex="-1">
-                      <div class="_body_7a73aa">
-                        <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
-                          <div class="ant-empty-image">
-                            <svg height="41" viewBox="0 0 64 41" width="64" xmlns="http://www.w3.org/2000/svg">
-                              <title>
-                                "No data"
-                              <g fill="none" fill-rule="evenodd" transform="translate(0 1)">
-                                <ellipse cx="32" cy="33" fill="#f2f2f2" rx="32" ry="7">
-                                <g fill-rule="nonzero" stroke="#d8d8d8">
-                                  <path d="M55 12.8 44.9 1.3Q44 0 42.9 0H21.1q-1.2 0-2 1.3L9 12.8V22h46z">
-                                  <path d="M41.6 16c0-1.7 1-3 2.2-3H55v18.1c0 2.2-1.3 3.9-3 3.9H12c-1.7 0-3-1.7-3-3.9V13h11.2c1.2 0 2.2 1.3 2.2 3s1 2.9 2.2 2.9h14.8c1.2 0 2.2-1.4 2.2-3" fill="#f6f6f6">
-                          <div class="ant-empty-description">
-                            "The create form of each generated Kind appears here once Preview can render the controller (frontend#413). Nothing has been rendered."
                     <div aria-hidden="false" aria-labelledby="id7" class="ant-tabs-content ant-tabs-content-active" id="id8" role="tabpanel" tabindex="0">
                       <div class="_body_7a73aa">
                         <div id="id14">
@@ -727,20 +713,6 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                           <path d="M176 511a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0z">
                 <div class="ant-tabs-body-holder">
                   <div class="ant-tabs-body ant-tabs-body-top">
-                    <div aria-hidden="true" aria-labelledby="id4" class="ant-tabs-content ant-tabs-content-hidden" id="id5" role="tabpanel" tabindex="-1">
-                      <div class="_body_7a73aa">
-                        <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
-                          <div class="ant-empty-image">
-                            <svg height="41" viewBox="0 0 64 41" width="64" xmlns="http://www.w3.org/2000/svg">
-                              <title>
-                                "No data"
-                              <g fill="none" fill-rule="evenodd" transform="translate(0 1)">
-                                <ellipse cx="32" cy="33" fill="#f2f2f2" rx="32" ry="7">
-                                <g fill-rule="nonzero" stroke="#d8d8d8">
-                                  <path d="M55 12.8 44.9 1.3Q44 0 42.9 0H21.1q-1.2 0-2 1.3L9 12.8V22h46z">
-                                  <path d="M41.6 16c0-1.7 1-3 2.2-3H55v18.1c0 2.2-1.3 3.9-3 3.9H12c-1.7 0-3-1.7-3-3.9V13h11.2c1.2 0 2.2 1.3 2.2 3s1 2.9 2.2 2.9h14.8c1.2 0 2.2-1.4 2.2-3" fill="#f6f6f6">
-                          <div class="ant-empty-description">
-                            "The create form of each generated Kind appears here once Preview can render the controller (frontend#413). Nothing has been rendered."
                     <div aria-hidden="false" aria-labelledby="id7" class="ant-tabs-content ant-tabs-content-active" id="id8" role="tabpanel" tabindex="0">
                       <div class="_body_7a73aa">
                         <div id="id14">
@@ -1193,11 +1165,11 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                 <div aria-orientation="horizontal" class="ant-tabs-nav" role="tablist">
                   <div class="ant-tabs-nav-wrap">
                     <div class="ant-tabs-nav-list" style="transform: translate(0px, 0px);">
-                      <div class="ant-tabs-tab ant-tabs-tab-active" data-node-key="id3">
-                        <div aria-controls="id5" aria-selected="true" class="ant-tabs-tab-btn" id="id4" role="tab" tabindex="0">
+                      <div class="ant-tabs-tab" data-node-key="id3">
+                        <div aria-controls="id5" aria-selected="false" class="ant-tabs-tab-btn" id="id4" role="tab" tabindex="-1">
                           "Rendered"
-                      <div class="ant-tabs-tab" data-node-key="id6">
-                        <div aria-controls="id8" aria-selected="false" class="ant-tabs-tab-btn" id="id7" role="tab" tabindex="-1">
+                      <div class="ant-tabs-tab ant-tabs-tab-active" data-node-key="id6">
+                        <div aria-controls="id8" aria-selected="true" class="ant-tabs-tab-btn" id="id7" role="tab" tabindex="0">
                           "Chart files"
                       <div class="ant-tabs-tab" data-node-key="id9">
                         <div aria-controls="id11" aria-selected="false" class="ant-tabs-tab-btn" id="id10" role="tab" tabindex="-1">
@@ -1210,20 +1182,60 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                           <path d="M176 511a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0z">
                 <div class="ant-tabs-body-holder">
                   <div class="ant-tabs-body ant-tabs-body-top">
-                    <div aria-hidden="false" aria-labelledby="id4" class="ant-tabs-content ant-tabs-content-active" id="id5" role="tabpanel" tabindex="0">
+                    <div aria-hidden="false" aria-labelledby="id7" class="ant-tabs-content ant-tabs-content-active" id="id8" role="tabpanel" tabindex="0">
                       <div class="_body_7a73aa">
-                        <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
-                          <div class="ant-empty-image">
-                            <svg height="41" viewBox="0 0 64 41" width="64" xmlns="http://www.w3.org/2000/svg">
-                              <title>
-                                "No data"
-                              <g fill="none" fill-rule="evenodd" transform="translate(0 1)">
-                                <ellipse cx="32" cy="33" fill="#f2f2f2" rx="32" ry="7">
-                                <g fill-rule="nonzero" stroke="#d8d8d8">
-                                  <path d="M55 12.8 44.9 1.3Q44 0 42.9 0H21.1q-1.2 0-2 1.3L9 12.8V22h46z">
-                                  <path d="M41.6 16c0-1.7 1-3 2.2-3H55v18.1c0 2.2-1.3 3.9-3 3.9H12c-1.7 0-3-1.7-3-3.9V13h11.2c1.2 0 2.2 1.3 2.2 3s1 2.9 2.2 2.9h14.8c1.2 0 2.2-1.4 2.2-3" fill="#f6f6f6">
-                          <div class="ant-empty-description">
-                            "The create form of each generated Kind appears here once Preview can render the controller (frontend#413). Nothing has been rendered."
+                        <div id="id14">
+                          <div class="_file_7a73aa">
+                            <div class="_fileHead_7a73aa">
+                              <div class="_filePath_7a73aa">
+                                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <code>
+                                    "Chart.yaml"
+                              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                                <span>
+                                  "Edit"
+                            <div class="_yaml_7a73aa">
+                              <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
+                                …9 lines
+                        <div id="id15">
+                          <div class="_file_7a73aa">
+                            <div class="_fileHead_7a73aa">
+                              <div class="_filePath_7a73aa">
+                                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <code>
+                                    "templates/configmap-oas-petstore.yaml"
+                              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                                <span>
+                                  "Edit"
+                            <div class="_yaml_7a73aa">
+                              <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
+                                …1280 lines
+                        <div id="id16">
+                          <div class="_file_7a73aa">
+                            <div class="_fileHead_7a73aa">
+                              <div class="_filePath_7a73aa">
+                                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <code>
+                                    "values.schema.json"
+                              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                                <span>
+                                  "Edit"
+                            <div class="_yaml_7a73aa">
+                              <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
+                                …14 lines
+                        <div id="id17">
+                          <div class="_file_7a73aa">
+                            <div class="_fileHead_7a73aa">
+                              <div class="_filePath_7a73aa">
+                                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <code>
+                                    "values.yaml"
+                              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                                <span>
+                                  "Edit"
+                            <div class="_yaml_7a73aa">
+                              <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
+                                …4 lines
       <div class="_side_396249">
         <section aria-label="Inspector" class="_pane_396249" tabindex="-1">
           <div class="_paneHead_396249">

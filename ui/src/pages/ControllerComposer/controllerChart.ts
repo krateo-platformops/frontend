@@ -30,15 +30,13 @@
  */
 import { dump, load } from 'js-yaml'
 
-import { CHART_YAML_PATH, VALUES_SCHEMA_PATH, chartYamlName, chartYamlVersion } from '../../components/Autopilot/blueprintDraft'
+import { CHART_YAML_PATH, chartYamlName, chartYamlVersion } from '../../components/Autopilot/blueprintDraft'
 import { BLUEPRINT_DRAFT_MAX_BYTES } from '../../components/Autopilot/blueprintDraftStore'
-import { kogValuesSchema } from '../../components/Autopilot/kogChart'
-import { KOG_MANAGED_BY_LABEL, REST_DEFINITION_KIND } from '../../components/Autopilot/kogMapping'
+import { REST_DEFINITION_KIND } from '../../components/Autopilot/kogMapping'
 import { asRecord, isNonEmptyString } from '../../components/Autopilot/kogRestDefSchema'
-import { utf8ByteLength } from '../../components/Autopilot/oasAttachment'
-import { chartIdentityProblems, publishNameProblem } from '../BlueprintComposer/chartIdentity'
 
-import { type OasDocument, type OasFormat, type OasImport, parseOas, serializeOas, trimOas } from './oasImport'
+import { IMMUTABLE_REST_DEF_FIELDS, immutableFieldDiff } from './immutableDiff'
+import { OAS_METHODS, type OasDocument, type OasFormat, type OasImport, parseOas } from './oasImport'
 import { inferOperationMapping, type OperationMapping, type RestAction, VERB_ORDER, type VerbConflict } from './operationMapping'
 import { operationsInGroup } from './paletteModel'
 import { buildRestDefinition, type ControllerValidation, validateControllerRestDefinition } from './restDefinitionBuild'
@@ -70,7 +68,7 @@ export const restDefinitionPath = (kind: string): string => `templates/restdefin
 export const RESTDEFINITION_PATH = /^templates\/restdefinition-[a-z0-9-]+\.yaml$/
 const CONFIGMAP_PATH = /^templates\/configmap-oas-[a-z0-9-]+\.yaml$/
 
-const toYaml = (value: unknown): string => dump(value, { lineWidth: -1, noRefs: true, sortKeys: false })
+export const toYaml = (value: unknown): string => dump(value, { lineWidth: -1, noRefs: true, sortKeys: false })
 
 /**
  * `{{` in a document is text, not a template action — escaped the way Go templates spell a literal,
@@ -98,166 +96,46 @@ export const pluralOf = (kind: string): string => {
   return `${lower}s`
 }
 
-// ── start ───────────────────────────────────────────────────────────────────────────────────────
+// ── servers ─────────────────────────────────────────────────────────────────────────────────────
 
-export interface StartControllerInput {
-  name: string
-  apiGroup: string
-  /** The OpenAPI document's text, however it arrived (pasted, uploaded, read from a URL). */
-  spec: string
-  baseUrl: string
-  /** For a document over the budget: the paths to keep. Null: keep the whole document. */
-  paths: string[] | null
-}
-
-export type StartControllerField = 'name' | 'apiGroup' | 'spec' | 'baseUrl' | 'paths'
-
-export interface StartControllerProblem {
-  field: StartControllerField
-  message: string
-}
-
-/** A DNS subdomain with at least one dot — what the generated CRDs' group must be. */
-const GROUP_PATTERN = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)+$/
-const URL_PATTERN = /^https?:\/\/[^\s/?#]+[^\s]*$/
-
-export const apiGroupProblem = (raw: string): string | null => {
-  const group = raw.trim()
-  if (!group) { return 'Required — the API group the Kinds are served in.' }
-  if (group.length > 253 || !GROUP_PATTERN.test(group)) {
-    return 'A DNS subdomain with at least one dot, lower-case (e.g. petstore.example.io) — the generated CRDs are refused otherwise.'
-  }
-  return null
-}
-
-export const baseUrlProblem = (raw: string): string | null => {
-  const url = raw.trim()
-  if (!url) { return 'Required — the URL the controller sends every request to.' }
-  return URL_PATTERN.test(url) ? null : 'An absolute http(s) URL (e.g. https://petstore3.swagger.io/api/v3).'
-}
-
-/** What the start modal shows about the document, once it reads. */
-export interface SpecReading {
-  oas: OasImport | null
-  /** The one sentence a paste that does not read gets (with its line, when the parser named one). */
-  error: string | null
-  /** The document as it would be held, with `servers` set to the base URL — before any trim. */
-  bytes: number
-  overBudget: boolean
-}
-
-const withServers = (doc: OasDocument, baseUrl: string): OasDocument =>
-  (baseUrl.trim() ? { ...doc, servers: [{ url: baseUrl.trim() }] } : doc)
-
-export const readSpec = (text: string, baseUrl = ''): SpecReading => {
-  if (!text.trim()) {
-    return { bytes: 0, error: null, oas: null, overBudget: false }
-  }
-  const parsed = parseOas(text)
-  if (!parsed.ok) {
-    return { bytes: utf8ByteLength(text), error: parsed.error, oas: null, overBudget: false }
-  }
-  if (parsed.documents.length !== 1) {
-    return { bytes: utf8ByteLength(text), error: `The spec holds ${parsed.documents.length} documents; a controller reads one — paste one of them.`, oas: null, overBudget: false }
-  }
-  const [oas] = parsed.documents
-  const bytes = utf8ByteLength(serializeOas(withServers(oas.doc, baseUrl), oas.format))
-  return { bytes, error: null, oas, overBudget: bytes > SPEC_BUDGET_BYTES }
-}
-
-/** The document a start holds: servers set to the base URL, trimmed to the chosen paths when asked. */
-const heldDocument = (oas: OasImport, input: StartControllerInput): { doc: OasDocument; bytes: number } => {
-  const doc = withServers(oas.doc, input.baseUrl)
-  if (!input.paths) {
-    return { bytes: utf8ByteLength(serializeOas(doc, oas.format)), doc }
-  }
-  const trimmed = trimOas(doc, input.paths, oas.format)
-  return { bytes: trimmed.bytes, doc: trimmed.doc }
-}
-
-export const validateStartController = (input: StartControllerInput): StartControllerProblem[] => {
-  const problems: StartControllerProblem[] = []
-  const name = input.name.trim()
-  const nameProblems = chartIdentityProblems({ name, version: CONTROLLER_START_VERSION }).filter((problem) => problem.field === 'name')
-  if (nameProblems.length) {
-    problems.push({ field: 'name', message: nameProblems[0].message })
-  } else {
-    const publish = publishNameProblem(name)
-    if (publish) { problems.push({ field: 'name', message: publish }) }
-  }
-  const group = apiGroupProblem(input.apiGroup)
-  if (group) { problems.push({ field: 'apiGroup', message: group }) }
-  const reading = readSpec(input.spec, input.baseUrl)
-  if (!input.spec.trim()) {
-    problems.push({ field: 'spec', message: 'Required — paste the OpenAPI 3.x document, upload it, or read it from a URL.' })
-  } else if (reading.error) {
-    problems.push({ field: 'spec', message: reading.error })
-  } else if (reading.oas) {
-    if (reading.overBudget && !input.paths) {
-      problems.push({ field: 'paths', message: `The document is ${Math.ceil(reading.bytes / 1024)} KiB, over the ${Math.floor(SPEC_BUDGET_BYTES / 1024)} KiB a draft can hold beside its chart — choose the paths this controller serves.` })
-    } else if (input.paths) {
-      if (!input.paths.length) {
-        problems.push({ field: 'paths', message: 'Choose at least one path.' })
-      } else {
-        const { bytes } = heldDocument(reading.oas, input)
-        if (bytes > SPEC_BUDGET_BYTES) {
-          problems.push({ field: 'paths', message: `Trimmed to these paths it is still ${Math.ceil(bytes / 1024)} KiB — over ${Math.floor(SPEC_BUDGET_BYTES / 1024)} KiB. Choose fewer.` })
-        }
-      }
+/**
+ * Every `servers` list the document carries — the root one, and each path item's and operation's.
+ * rest-dynamic-controller lets an operation's (or its path's) `servers[0]` override the root, so a
+ * base URL written only at the root would send those requests, and the credential with them, to
+ * whatever host the document names. Each is listed by where it is: `servers`, `paths./x.servers`,
+ * `paths./x.get.servers`.
+ */
+export const serverLocations = (doc: OasDocument): string[] => {
+  const found: string[] = []
+  if (doc.servers !== undefined) { found.push('servers') }
+  for (const [path, value] of Object.entries(asRecord(doc.paths) ?? {})) {
+    const item = asRecord(value)
+    if (!item) { continue }
+    if (item.servers !== undefined) { found.push(`paths.${path}.servers`) }
+    for (const method of OAS_METHODS) {
+      if (asRecord(item[method])?.servers !== undefined) { found.push(`paths.${path}.${method}.servers`) }
     }
   }
-  const base = baseUrlProblem(input.baseUrl)
-  if (base) { problems.push({ field: 'baseUrl', message: base }) }
-  return problems
+  return found
 }
 
-/** Chart.yaml in the order Helm's own files read — built by assignment, since the order is the file's. */
-const chartYaml = (name: string, group: string, baseUrl: string, title: string): string => {
-  const chart: Record<string, unknown> = {}
-  chart.apiVersion = 'v2'
-  chart.name = name
-  chart.description = title ? `Krateo controller for ${title}, served in ${group}.` : `Krateo controller, served in ${group}.`
-  chart.type = 'application'
-  chart.version = CONTROLLER_START_VERSION
-  const annotations: Record<string, string> = {}
-  annotations[GROUP_ANNOTATION] = group
-  annotations[BASE_URL_ANNOTATION] = baseUrl
-  chart.annotations = annotations
-  return toYaml(chart)
-}
-
-const VALUES_YAML = '# This controller chart ships its RestDefinitions and the OpenAPI document they read.\n'
-  + '# Nothing is parameterised: every manifest is created in the release namespace.\n'
-  + '{}\n'
-
-/** The ConfigMap template carrying the document, verbatim, under the key its format names. */
-export const oasConfigMapYaml = (name: string, doc: OasDocument, format: OasFormat): string => {
-  const configMap: Record<string, unknown> = {}
-  configMap.apiVersion = 'v1'
-  configMap.kind = 'ConfigMap'
-  configMap.metadata = { labels: { ...KOG_MANAGED_BY_LABEL }, name: oasConfigMapName(name), namespace: RELEASE_NAMESPACE }
-  configMap.data = { [oasConfigMapKey(format)]: escapeHelm(serializeOas(doc, format)) }
-  return toYaml(configMap)
-}
-
-export type StartControllerResult =
-  | { ok: true; files: Record<string, string> }
-  | { ok: false; problems: StartControllerProblem[] }
-
-export const startController = (input: StartControllerInput): StartControllerResult => {
-  const problems = validateStartController(input)
-  const reading = readSpec(input.spec, input.baseUrl)
-  if (problems.length || !reading.oas) {
-    return { ok: false, problems: problems.length ? problems : [{ field: 'spec', message: 'The spec did not read.' }] }
-  }
-  const name = input.name.trim()
-  const { doc } = heldDocument(reading.oas, input)
-  const files: Record<string, string> = {}
-  files[CHART_YAML_PATH] = chartYaml(name, input.apiGroup.trim(), input.baseUrl.trim(), reading.oas.summary.title)
-  files[VALUES_YAML_PATH] = VALUES_YAML
-  files[VALUES_SCHEMA_PATH] = kogValuesSchema(name)
-  files[oasConfigMapPath(name)] = oasConfigMapYaml(name, doc, reading.oas.format)
-  return { files, ok: true }
+/** The document with EVERY servers list — root, path, operation — set to the base URL alone. */
+export const withServers = (doc: OasDocument, baseUrl: string): OasDocument => {
+  const url = baseUrl.trim()
+  if (!url) { return doc }
+  const servers = [{ url }]
+  const paths = Object.fromEntries(Object.entries(asRecord(doc.paths) ?? {}).map(([path, value]) => {
+    const item = asRecord(value)
+    if (!item) { return [path, value] }
+    const next: Record<string, unknown> = { ...item }
+    if (item.servers !== undefined) { next.servers = servers }
+    for (const method of OAS_METHODS) {
+      const operation = asRecord(item[method])
+      if (operation?.servers !== undefined) { next[method] = { ...operation, servers } }
+    }
+    return [path, next]
+  }))
+  return { ...doc, ...(doc.paths !== undefined ? { paths } : {}), servers }
 }
 
 // ── reading a held draft ────────────────────────────────────────────────────────────────────────
@@ -395,16 +273,109 @@ export const readController = (files: Readonly<Record<string, string>>): Control
   }
 }
 
+// ── locked once published ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * What a PUBLISHED controller's RestDefinitions said about their CEL-immutable fields
+ * (immutableDiff.ts: kind, resourceGroup, identifiers, configurationFields, additionalStatusFields,
+ * excludedSpecFields), by path. Taken when a publish lands and kept on the draft record, so a
+ * resumed draft still knows what it may no longer change.
+ */
+export type LockedSnapshot = Record<string, Record<string, unknown>>
+
+const LOCKED_RESOURCE_FIELDS = IMMUTABLE_REST_DEF_FIELDS.filter((field) => field !== 'resourceGroup')
+
+export const lockedSnapshot = (files: Readonly<Record<string, string>>): LockedSnapshot => {
+  const snapshot: LockedSnapshot = {}
+  for (const path of Object.keys(files).filter((entry) => RESTDEFINITION_PATH.test(entry))) {
+    try {
+      const spec = asRecord(asRecord(load(files[path]))?.spec)
+      const resource = asRecord(spec?.resource) ?? {}
+      snapshot[path] = {
+        resourceGroup: spec?.resourceGroup,
+        ...Object.fromEntries(LOCKED_RESOURCE_FIELDS.filter((field) => resource[field] !== undefined).map((field) => [field, resource[field]])),
+      }
+    } catch {
+      // A file that does not read locks nothing it could be compared against.
+    }
+  }
+  return snapshot
+}
+
+/** The published RestDefinition as immutableFieldDiff reads it, rebuilt from the snapshot. */
+const publishedSkeleton = (locked: Record<string, unknown>): Record<string, unknown> => ({
+  spec: {
+    resource: Object.fromEntries(LOCKED_RESOURCE_FIELDS.filter((field) => locked[field] !== undefined).map((field) => [field, locked[field]])),
+    resourceGroup: locked.resourceGroup,
+  },
+})
+
+const show = (value: unknown): string => (value === undefined ? 'unset' : JSON.stringify(value))
+
+/** The sentence a change to a locked field is refused with (the mockup's screen 11). */
+export const lockedSentence = (kind: string, field: string, before: unknown, after: unknown): string =>
+  `cannot update ${kind} in place: ${field} is locked once published (${show(before)} → ${show(after)}). Changing it means deleting the RestDefinition — and every ${kind} it serves — and recreating it; undo the change, or place a new Kind instead.`
+
+/** Each locked field a held RestDefinition changed since it was published, as refusal sentences. */
+const lockedChangesOf = (path: string, restDefinition: Record<string, unknown>, locked: LockedSnapshot | null | undefined): string[] => {
+  const baseline = locked?.[path]
+  if (!baseline) { return [] }
+  const published = publishedSkeleton(baseline)
+  const held = asRecord(asRecord(restDefinition.spec)?.resource)?.kind
+  let kind = typeof held === 'string' ? held : 'this Kind'
+  if (typeof baseline.kind === 'string') { kind = baseline.kind }
+  return immutableFieldDiff(published, restDefinition).map((change) => lockedSentence(kind, change.field, change.before, change.after))
+}
+
+/** Every locked-field change the held draft carries, one sentence each. */
+export const lockedChanges = (files: Readonly<Record<string, string>>, locked: LockedSnapshot | null | undefined): string[] => {
+  if (!locked) { return [] }
+  return Object.keys(locked).flatMap((path) => {
+    if (!Object.prototype.hasOwnProperty.call(files, path)) { return [] }
+    try {
+      const restDefinition = asRecord(load(files[path]))
+      return restDefinition ? lockedChangesOf(path, restDefinition, locked) : []
+    } catch {
+      return []
+    }
+  })
+}
+
+/**
+ * Every servers entry the HELD document names that is not the base URL — a hand edit in Chart files
+ * that would send some operation's requests, and its credential, to another host.
+ */
+const foreignServers = (model: ControllerModel): string[] => {
+  if (!model.spec) { return [] }
+  const { doc } = model.spec.oas
+  const urlsAt = (where: string): unknown => {
+    if (where === 'servers') { return doc.servers }
+    const [, path, method] = /^paths\.(.+?)\.(?:(get|put|post|delete|options|head|patch|trace)\.)?servers$/.exec(where) ?? []
+    const item = asRecord(asRecord(doc.paths)?.[path ?? ''])
+    return method ? asRecord(item?.[method])?.servers : item?.servers
+  }
+  return serverLocations(doc).flatMap((where) => {
+    const list = urlsAt(where)
+    const urls = Array.isArray(list) ? list.map((entry) => asRecord(entry)?.url) : []
+    const foreign = urls.filter((url) => url !== model.baseUrl)
+    return foreign.length || !urls.length
+      ? [`${model.spec?.path ?? 'the document'}: ${where} names ${foreign.map((url) => String(url)).join(', ') || 'no URL'}, not the base URL ${model.baseUrl || '(unset)'} — the controller would send those requests, and their credential, elsewhere.`]
+      : []
+  })
+}
+
 /**
  * The chart lint's controller half: the document reads, every Kind reads, no Kind is left with a
  * conflict nobody settled, and T7's validator passes every RestDefinition. Never throws — it runs
  * inside the draft broadcast.
  */
-export const lintControllerDraft = (files: Readonly<Record<string, string>>): string[] => {
+export const lintControllerDraft = (files: Readonly<Record<string, string>>, locked?: LockedSnapshot | null): string[] => {
   try {
     const model = readController(files)
     return [
+      ...lockedChanges(files, locked),
       ...(model.specProblem ? [model.specProblem] : []),
+      ...foreignServers(model),
       ...model.unreadable.map(({ path, reason }) => `${path}: ${reason}`),
       ...model.kinds.flatMap((entry) => [
         ...entry.conflicts.map((conflict) => `${entry.kind}: ${conflict.sentence.replace(/ — choose one\.$/, '')} — choose one in the inspector, or leave ${conflict.action} out.`),
@@ -479,6 +450,7 @@ const planMutation = (
   files: Readonly<Record<string, string>>,
   path: string,
   mutate: (restDefinition: Record<string, unknown>, resource: Record<string, unknown>) => string | null,
+  locked?: LockedSnapshot | null,
 ): ControllerPlan => {
   if (!Object.prototype.hasOwnProperty.call(files, path)) {
     return { ok: false, reason: `${path} is not held any more.` }
@@ -497,6 +469,11 @@ const planMutation = (
   const refused = mutate(restDefinition, resource)
   if (refused) {
     return { ok: false, reason: refused }
+  }
+  // Published: a change to a locked field is REFUSED, not merely labelled — the apiserver would.
+  const [lockedRefusal] = lockedChangesOf(path, restDefinition, locked)
+  if (lockedRefusal) {
+    return { ok: false, reason: lockedRefusal }
   }
   return { edit: { [path]: toYaml(restDefinition) }, expect: { [path]: files[path] }, ok: true, path }
 }
@@ -536,6 +513,7 @@ export const planSetVerb = (
   path: string,
   action: RestAction,
   choice: { method: string; path: string } | null,
+  locked?: LockedSnapshot | null,
 ): ControllerPlan => {
   const model = readController(files)
   const held = model.kinds.find((entry) => entry.path === path)
@@ -559,7 +537,7 @@ export const planSetVerb = (
     resource.verbsDescription = ordered([...others, { action, method: choice.method.toUpperCase(), path: choice.path, ...(suggestions.length ? { fieldMapping: suggestions } : {}) }])
     setAnnotation(restDefinition, OMITTED_ANNOTATION, omitted.join(','))
     return null
-  })
+  }, locked)
 }
 
 /** Toggle one entry of a string list on the resource (identifiers, additionalStatusFields). */
@@ -568,20 +546,21 @@ export const planToggleField = (
   path: string,
   list: 'identifiers' | 'additionalStatusFields',
   field: string,
+  locked?: LockedSnapshot | null,
 ): ControllerPlan => planMutation(files, path, (_restDefinition, resource) => {
   const current = Array.isArray(resource[list]) ? (resource[list] as unknown[]).filter(isNonEmptyString) : []
   const next = current.includes(field) ? current.filter((entry) => entry !== field) : [...current, field]
   setOrDrop(resource, list, next)
   return null
-})
+}, locked)
 
 export type CompareScope = 'fullSpec' | 'identifiersAndStatus' | 'updatable'
 
-export const planCompareScope = (files: Readonly<Record<string, string>>, path: string, scope: CompareScope | null): ControllerPlan =>
+export const planCompareScope = (files: Readonly<Record<string, string>>, path: string, scope: CompareScope | null, locked?: LockedSnapshot | null): ControllerPlan =>
   planMutation(files, path, (_restDefinition, resource) => {
     setOrDrop(resource, 'compareScope', scope)
     return null
-  })
+  }, locked)
 
 /**
  * Toggle a parameter as a CONFIGURATION field: read from the Kind's <Kind>Configuration instead of
@@ -591,6 +570,7 @@ export const planToggleConfigurationField = (
   files: Readonly<Record<string, string>>,
   path: string,
   parameter: { name: string; in: string; actions: string[] },
+  locked?: LockedSnapshot | null,
 ): ControllerPlan => planMutation(files, path, (_restDefinition, resource) => {
   const current = Array.isArray(resource.configurationFields) ? (resource.configurationFields as unknown[]).map((entry) => asRecord(entry) ?? {}) : []
   const matches = (entry: Record<string, unknown>) => {
@@ -602,7 +582,7 @@ export const planToggleConfigurationField = (
     : [...current, { fromOpenAPI: { in: parameter.in, name: parameter.name }, fromRestDefinition: { actions: [...parameter.actions] } }]
   setOrDrop(resource, 'configurationFields', next)
   return null
-})
+}, locked)
 
 /** Remove a Kind: its RestDefinition goes. */
 export const planRemoveKind = (files: Readonly<Record<string, string>>, path: string): ControllerPlan =>
@@ -634,7 +614,8 @@ export const controllerCompositionDefinition = (
   return `# REGISTERS this controller: core-provider pulls the chart and serves it as a composition. Installing
 # one creates its RestDefinitions, and oasgen-provider then generates ${served}
 # (v1alpha1), each with a <Kind>Configuration that names the credential Secret.
-# Register it from the portal once release ${version.trim()} is green (builder deliverables -> Register).
+# Once release ${version.trim()} is green, register it from the portal: Controller Builder -> your controllers
+# -> Register; Install then creates a composition of it, which applies the RestDefinitions (portal#275).
 # The same file is attached to https://github.com/${who}/${repo.trim()}/releases/tag/${version.trim()}.
 apiVersion: core.krateo.io/v1alpha1
 kind: CompositionDefinition

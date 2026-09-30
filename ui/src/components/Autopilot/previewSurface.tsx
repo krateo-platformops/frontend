@@ -592,7 +592,7 @@ export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, h
           <Typography.Text type='secondary'>· you confirm the destination at publish</Typography.Text>
         </div>
       ) : null}
-      <Tabs activeKey={activeTab ?? tabs[0]?.key} items={tabs} onChange={setActiveTab} />
+      <Tabs activeKey={activeTab ?? (tabs.some((tab) => tab.key === payload.initialTab) ? payload.initialTab : tabs[0]?.key)} items={tabs} onChange={setActiveTab} />
     </div>
   )
 }

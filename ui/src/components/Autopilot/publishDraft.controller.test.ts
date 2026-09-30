@@ -20,7 +20,8 @@ vi.mock('./builderClaimPublish', () => ({
   buildClaimPublish: vi.fn(() => Promise.resolve({ branch: 'builder/x', compiled: { denial: null, ops: [] }, deepLink: null })),
 }))
 
-import { planPlaceGroup, planSetVerb, restDefinitionPath, startController, type ControllerPlan } from '../../pages/ControllerComposer/controllerChart'
+import { planPlaceGroup, planSetVerb, restDefinitionPath, type ControllerPlan } from '../../pages/ControllerComposer/controllerChart'
+import { startController } from '../../pages/ControllerComposer/controllerStart'
 
 import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { buildClaimPublish } from './builderClaimPublish'

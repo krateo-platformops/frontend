@@ -31,6 +31,8 @@ const LOCKED = 'Locked once published'
 
 interface InspectorProps {
   kind: ControllerKind | null
+  /** What this Kind's last publish locked, when it was published — its immutable fields, as published. */
+  locked: Record<string, unknown> | null
   model: ControllerModel
   refusal: ControllerRefusal | null
   onClear: () => void
@@ -242,6 +244,13 @@ export const KindInspector = (props: InspectorProps) => {
           </Popconfirm>
         </Space>
       </div>
+      {props.locked ? (
+        <Alert
+          showIcon
+          title={`${kind.kind} is published: its kind, group, identifiers, configuration fields and status fields cannot change in place — a change to one is refused.`}
+          type='info'
+        />
+      ) : null}
       {refusal ? <Alert closable onClose={props.onDismissRefusal} showIcon title={refusal.reason} type='error' /> : null}
       {errors.length ? (
         <Alert description={<ul>{errors.map((line) => <li key={line}>{line}</li>)}</ul>} showIcon title={`${kind.kind} would be rejected — ${errors.length} ${errors.length === 1 ? 'problem' : 'problems'}`} type='error' />

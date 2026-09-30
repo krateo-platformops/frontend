@@ -13,8 +13,9 @@ import { ARCHITECTURE_TEMPLATE_PATH } from '../../pages/BlueprintComposer/archit
 import { gateDrift, regenerateGates } from '../../pages/BlueprintComposer/planEdge'
 import { lintControllerDraft } from '../../pages/ControllerComposer/controllerChart'
 
-import { lintBlueprintDraft, parseRawTemplates } from './blueprintDraft'
+import { CHART_YAML_PATH, chartYamlName, lintBlueprintDraft, parseRawTemplates } from './blueprintDraft'
 import type { DraftKind } from './blueprintDraftStore'
+import { lockedFor, publishedLocks } from './publishedLocks'
 
 export const parseProposedChart = (value: unknown): Record<string, string> | null => {
   const tree = parseRawTemplates(value)
@@ -32,7 +33,9 @@ export const parseProposedChart = (value: unknown): Record<string, string> | nul
 const LINTS: Record<string, (files: Record<string, string>, kind: DraftKind) => string[]> = {
   'chart-lint': (files, kind) => lintBlueprintDraft(files, kind),
   'gate-drift': (files) => gateDrift(files).map((path) => `${path}: its dependency gate does not match ${ARCHITECTURE_TEMPLATE_PATH} — regenerate the gates, or undo the edit that changed it.`),
-  'restdef-validate': (files) => lintControllerDraft(files),
+  // A published controller's locked fields (publishedLocks) are refused here too, so a hand edit in
+  // Chart files cannot publish what the apiserver would reject as an update.
+  'restdef-validate': (files, kind) => lintControllerDraft(files, lockedFor(publishedLocks.get(), kind, chartYamlName(files[CHART_YAML_PATH]))),
 }
 
 /**

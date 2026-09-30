@@ -25,10 +25,51 @@ import type { StartField } from '../../builders/builderSpec'
 import type { DraftRenderResultDetail } from '../../components/Autopilot/previewDraftRender'
 import styles from '../BlueprintComposer/BlueprintComposer.module.css'
 
-import { readSpec, SPEC_BUDGET_BYTES, startController, validateStartController, type StartControllerField, type StartControllerInput } from './controllerChart'
+import { SPEC_BUDGET_BYTES } from './controllerChart'
+import {
+  readSpec, serverRewriteSentence, SPEC_TEXT_MAX_BYTES, startController, validateStartController,
+  type StartControllerField, type StartControllerInput,
+} from './controllerStart'
 import { trimOas } from './oasImport'
 
 type Source = 'paste' | 'upload' | 'url'
+
+/** How long a URL read may take before it is abandoned. */
+export const SPEC_FETCH_TIMEOUT_MS = 20_000
+
+/**
+ * Read a document from a URL, as nobody: no cookies or credentials ride along (`credentials: 'omit'`).
+ * A declared Content-Length over the cap is refused before the body is read; a body that turns out
+ * larger is refused too; and the whole read is abandoned after SPEC_FETCH_TIMEOUT_MS.
+ */
+export const readSpecUrl = async (url: string, timeoutMs = SPEC_FETCH_TIMEOUT_MS): Promise<{ text: string } | { problem: string }> => {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  const cap = `${SPEC_TEXT_MAX_BYTES / 1024 / 1024} MiB`
+  try {
+    const response = await fetch(url, { credentials: 'omit', signal: controller.signal })
+    if (!response.ok) {
+      return { problem: `The URL answered ${response.status} — paste or upload the document instead.` }
+    }
+    const declared = Number(response.headers.get('content-length') ?? NaN)
+    if (Number.isFinite(declared) && declared > SPEC_TEXT_MAX_BYTES) {
+      controller.abort()
+      return { problem: `The URL serves ${Math.ceil(declared / 1024 / 1024)} MiB — over the ${cap} this builder reads. Nothing more was downloaded.` }
+    }
+    const text = await response.text()
+    if (text.length > SPEC_TEXT_MAX_BYTES) {
+      return { problem: `The URL served more than ${cap} — over what this builder reads.` }
+    }
+    return { text }
+  } catch (error) {
+    if (controller.signal.aborted) {
+      return { problem: `The URL did not answer within ${Math.round(timeoutMs / 1000)} s — paste or upload the document instead.` }
+    }
+    return { problem: `This browser could not read the URL (${error instanceof Error ? error.message : String(error)}) — the server may not allow it. Paste or upload the document instead.` }
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 const kib = (bytes: number): string => `${Math.max(1, Math.ceil(bytes / 1024))} KiB`
 const counted = (count: number, noun: string): string => `${count} ${noun}${count === 1 ? '' : 's'}`
@@ -53,7 +94,8 @@ export const StartControllerModal = ({ fields, onCancel, onStart, open, pending,
   const label = (name: string, fallback: string): string => field(name)?.label ?? fallback
 
   const spec = useMemo(() => readSpec(input.spec, input.baseUrl), [input.spec, input.baseUrl])
-  const problems = validateStartController(input)
+  // Parsed once per text or base URL — never again per keystroke in another field.
+  const problems = useMemo(() => validateStartController(input, spec), [input, spec])
   const problemFor = (key: StartControllerField): string | undefined => {
     const typed = key === 'paths' ? input.spec.trim() !== '' : String(input[key] ?? '').trim() !== ''
     return submitted || typed ? problems.find((problem) => problem.field === key)?.message : undefined
@@ -72,21 +114,17 @@ export const StartControllerModal = ({ fields, onCancel, onStart, open, pending,
       return
     }
     setReading({ busy: true, from: null, problem: null })
-    try {
-      const response = await fetch(target)
-      if (!response.ok) {
-        setReading({ busy: false, from: null, problem: `The URL answered ${response.status} — paste or upload the document instead.` })
-        return
-      }
-      setSpec(await response.text(), target)
-    } catch (error) {
-      setReading({ busy: false, from: null, problem: `This browser could not read the URL (${error instanceof Error ? error.message : String(error)}) — the server may not allow it. Paste or upload the document instead.` })
+    const answer = await readSpecUrl(target)
+    if ('text' in answer) {
+      setSpec(answer.text, target)
+    } else {
+      setReading({ busy: false, from: null, problem: answer.problem })
     }
   }
 
   const submit = () => {
     setSubmitted(true)
-    const result = startController(input)
+    const result = startController(input, spec)
     if (result.ok) {
       onStart(result.files)
     }
@@ -98,6 +136,7 @@ export const StartControllerModal = ({ fields, onCancel, onStart, open, pending,
   const trimmed = spec.oas && input.paths ? trimOas(spec.oas.doc, input.paths, spec.oas.format) : null
   const specProblem = problemFor('spec') ?? reading.problem ?? undefined
   const specHelp = specProblem ?? (reading.from ? `Read from ${reading.from}.` : field('spec')?.help)
+  const rewritten = spec.oas ? serverRewriteSentence(spec.oas.doc, input.baseUrl) : null
 
   return (
     <Modal
@@ -182,6 +221,10 @@ export const StartControllerModal = ({ fields, onCancel, onStart, open, pending,
               <Upload
                 accept='.json,.yaml,.yml'
                 beforeUpload={(file) => {
+                  if (file.size > SPEC_TEXT_MAX_BYTES) {
+                    setReading({ busy: false, from: null, problem: `${file.name} is ${Math.ceil(file.size / 1024 / 1024)} MiB — over the ${SPEC_TEXT_MAX_BYTES / 1024 / 1024} MiB this builder reads.` })
+                    return false
+                  }
                   void file.text().then((text) => setSpec(text, file.name))
                   return false
                 }}
@@ -239,6 +282,7 @@ export const StartControllerModal = ({ fields, onCancel, onStart, open, pending,
           />
         </Form.Item>
       </Form>
+      {rewritten ? <Alert showIcon title={rewritten} type='info' /> : null}
       <div className={styles.derivedList}>
         <span className={styles.eyebrow}>Derived — read before you commit to the name</span>
         <div className={styles.derived}>
@@ -267,7 +311,7 @@ export const StartControllerModal = ({ fields, onCancel, onStart, open, pending,
         />
       ) : (
         <p className={styles.infoNote}>
-          The draft is held in this browser until you publish. Nothing reaches the cluster before the change request.
+          The draft is saved in your drafts as you work. Nothing is published before the change request.
         </p>
       )}
     </Modal>

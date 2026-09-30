@@ -30,13 +30,14 @@ import { createBlueprintGate } from '../../components/Autopilot/blueprintGate'
 import { emitDraftChanged } from '../../components/Autopilot/previewDraftChanged'
 import { lintHeldDraft } from '../../components/Autopilot/proposedChart'
 import { heldDraftIdentity } from '../../components/Autopilot/publishCompile'
+import { publishedLocks } from '../../components/Autopilot/publishedLocks'
 import { CONTROLLER_PREVIEW_UNAVAILABLE, useBlueprintAuthoringBuses } from '../../components/Autopilot/useBlueprintAuthoringBuses'
 import { createBroadcastingDraftStore, useDraftFileBuses } from '../../components/Autopilot/useDraftFileBuses'
 import { ConfigContext } from '../../context/ConfigContext'
 import { ThemeModeProvider } from '../../context/ThemeModeContext'
 import { installAntdShims } from '../PageComposer/composerTestHarness'
 
-import { readController, RESTDEFINITION_PATH } from './controllerChart'
+import { lockedSnapshot, readController, RESTDEFINITION_PATH } from './controllerChart'
 import ControllerComposer from './ControllerComposer'
 import { DRAG_GROUP } from './ControllerPalette'
 import { validateControllerRestDefinition } from './restDefinitionBuild'
@@ -48,6 +49,7 @@ beforeAll(() => {
   Element.prototype.scrollIntoView = () => undefined
 })
 afterEach(() => {
+  publishedLocks.set(null)
   cleanup()
   act(() => emitDraftChanged({ files: {}, kind: null }))
 })
@@ -242,4 +244,32 @@ describe('petstore, authored in the UI with no rail', () => {
     expect(screen.getByText(/A blueprint chart draft is open in this thread\. The Controller Builder edits controllers/)).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Open it in the Blueprint Builder' }).getAttribute('href')).toBe('/blueprint-builder/compose')
   })
+
+  it('review of #428: the modal says what it rewrites and what happens to the draft; Chart files opens first; a published Kind refuses a locked change', () => {
+    const { store } = mount()
+    act(() => { screen.getByRole('button', { name: 'Start a controller' }).click() })
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('The draft is saved in your drafts as you work. Nothing is published before the change request.')).toBeTruthy()
+    const doc = JSON.parse(PETSTORE) as { paths: Record<string, Record<string, unknown>> }
+    doc.paths['/pet'].servers = [{ url: 'https://attacker.example' }]
+    type('Controller name', 'petstore')
+    type('API group', 'petstore.example.io')
+    type('OpenAPI spec', JSON.stringify(doc))
+    type('Base URL the controller calls', 'https://petstore3.swagger.io/api/v3')
+    expect(within(dialog).getByText(/names its own servers beside the root \(paths\.\/pet\.servers\); each is rewritten to https:\/\/petstore3\.swagger\.io\/api\/v3/)).toBeTruthy()
+    act(() => { within(dialog).getByRole('button', { name: 'Start' }).click() })
+
+    // Chart files is the tab the files pane opens on, while Rendered has nothing to show.
+    expect(screen.getByRole('tab', { selected: true }).textContent).toBe('Chart files')
+
+    // Place pet, then its publish lands (the lock the autosave keeps): a locked field refuses.
+    act(() => { screen.getByRole('button', { name: 'Place pet as a Kind' }).click() })
+    act(() => { publishedLocks.set({ kind: 'controller', locked: lockedSnapshot(store.get()!.files), name: 'petstore' }) })
+    const inspector = within(screen.getByRole('region', { name: 'Inspector' }))
+    expect(inspector.getByText(/Pet is published: its kind, group, identifiers, configuration fields and status fields cannot change in place/)).toBeTruthy()
+    const before = store.get()!.files
+    act(() => { fireEvent.click(inspector.getByRole('checkbox', { name: /^name/ })) })
+    expect(inspector.getByText(/^cannot update Pet in place: identifiers is locked once published \(\["id"\] → \["id","name"\]\)/)).toBeTruthy()
+    expect(store.get()!.files).toBe(before)
+  }, 120_000)
 })

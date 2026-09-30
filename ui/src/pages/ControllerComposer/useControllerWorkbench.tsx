@@ -23,6 +23,7 @@ import { draftDisplayName } from '../../components/Autopilot/blueprintDraft'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { emitDraftClose, onDraftClose } from '../../components/Autopilot/previewDraftClose'
 import { emitFilesBatch } from '../../components/Autopilot/previewFilesBatch'
+import { lockedFor, usePublishedLocks } from '../../components/Autopilot/publishedLocks'
 import { renderOutcomeCopy } from '../BlueprintComposer/renderOutcome'
 import { useChartRequests } from '../BlueprintComposer/useChartRequests'
 
@@ -69,6 +70,9 @@ export const useControllerWorkbench = (host: HostDraft) => {
   const { reset } = requests
 
   const model = useMemo(() => readController(files), [files])
+  // Published: what the apiserver would refuse to change in place (publishedLocks).
+  const locks = usePublishedLocks()
+  const locked = lockedFor(locks, kind, model.name)
   const selectedKind = model.kinds.find((entry) => entry.path === selected) ?? null
 
   const forgetShown = useCallback(() => {
@@ -130,10 +134,10 @@ export const useControllerWorkbench = (host: HostDraft) => {
       setRefusal({ key: path, reason: `${operation.key} is not a verb of ${target.kind}: ${classified.reason}.`, where: 'canvas' })
       return
     }
-    if (write(planSetVerb(files, path, classified.action, { method: operation.method, path: operation.path }), 'canvas', path)) {
+    if (write(planSetVerb(files, path, classified.action, { method: operation.method, path: operation.path }, locked), 'canvas', path)) {
       setSelected(path)
     }
-  }, [files, model, write])
+  }, [files, locked, model, write])
 
   const inspectorKey = selectedKind?.path ?? ''
   const edit = (plan: ControllerPlan) => { write(plan, 'inspector', inspectorKey) }
@@ -144,6 +148,8 @@ export const useControllerWorkbench = (host: HostDraft) => {
     caption: CONTROLLER_FILES_CAPTION,
     files: Object.entries(files).map(([path, content]) => ({ content, path })),
     filesLabel: 'Chart files',
+    // Chart files first: the Rendered tab has nothing to show until Preview can render (T9).
+    initialTab: 'files',
     objects: [],
     publishTarget: { base: 'main', note: 'merged, CI publishes it as a versioned OCI Helm chart', repo: name },
     renderedPlaceholder: RENDERED_PLACEHOLDER,
@@ -167,17 +173,18 @@ export const useControllerWorkbench = (host: HostDraft) => {
     },
     inspector: {
       kind: selectedKind,
+      locked: selectedKind && locked?.[selectedKind.path] ? locked[selectedKind.path] : null,
       model,
       onClear: () => select(null),
-      onCompareScope: (scope: CompareScope | null) => edit(planCompareScope(files, inspectorKey, scope)),
+      onCompareScope: (scope: CompareScope | null) => edit(planCompareScope(files, inspectorKey, scope, locked)),
       onDismissRefusal: () => setRefusal(null),
       onOpenFile: openFile,
       onRemove: () => {
         if (write(planRemoveKind(files, inspectorKey), 'inspector', inspectorKey)) { setSelected(null) }
       },
-      onSetVerb: (action: RestAction, choice: { method: string; path: string } | null) => edit(planSetVerb(files, inspectorKey, action, choice)),
-      onToggleConfigurationField: (parameter: { name: string; in: string; actions: string[] }) => edit(planToggleConfigurationField(files, inspectorKey, parameter)),
-      onToggleField: (list: 'identifiers' | 'additionalStatusFields', field: string) => edit(planToggleField(files, inspectorKey, list, field)),
+      onSetVerb: (action: RestAction, choice: { method: string; path: string } | null) => edit(planSetVerb(files, inspectorKey, action, choice, locked)),
+      onToggleConfigurationField: (parameter: { name: string; in: string; actions: string[] }) => edit(planToggleConfigurationField(files, inspectorKey, parameter, locked)),
+      onToggleField: (list: 'identifiers' | 'additionalStatusFields', field: string) => edit(planToggleField(files, inspectorKey, list, field, locked)),
       refusal: refusal?.where === 'inspector' ? refusal : null,
     },
     palette: {
