@@ -26,6 +26,7 @@ import { dump } from 'js-yaml'
 import { pageDraftSlug } from '../../components/Autopilot/pageDraft'
 
 import type { GeneratedFile } from './generateBinding'
+import { WIDGET_KINDS } from './widgetKinds.generated'
 
 const RESTACTION_API_VERSION = 'templates.krateo.io/v1'
 const DUMP = { lineWidth: -1, noRefs: true } as const
@@ -188,6 +189,41 @@ export const normalizeExpression = (expression: string): string => {
   }
 
   return /^\$\{[\s\S]*\}$/.test(trimmed) ? trimmed : `\${ ${trimmed} }`
+}
+
+/** The widget kind a held file declares, read from its top-level `kind:` line. */
+export const widgetKindOf = (widgetYaml: string): string | null =>
+  widgetYaml.match(/^kind:\s*['"]?([A-Za-z][A-Za-z0-9]*)['"]?\s*$/m)?.[1] ?? null
+
+/**
+ * The widgetData paths a template row may fill for a kind, and the one it starts on.
+ *
+ * WHY THE DEFAULT IS PER KIND. The row used to start on `dataSource` for every widget, because the
+ * only thing bind-data ever filled was a Table. A PieChart has no `dataSource` — its records are
+ * `data` — and snowplow writes whatever path it is given, so a pie bound with the default row
+ * rendered empty with nothing anywhere saying why. The CRD already names the field; it is read
+ * from the generated table, the same one the create form uses.
+ *
+ * The data-bearing field comes first (`dataSource`, then `data`), then the kind's other arrays,
+ * then everything else, so the list opens on what a binding usually fills.
+ */
+export const dataPathsFor = (kind: string | null): { paths: string[]; initial: string } => {
+  const properties = (WIDGET_KINDS[kind ?? '']?.schema as { properties?: Record<string, { type?: string }> } | undefined)?.properties
+  if (!properties) {
+    return { initial: 'dataSource', paths: [] }
+  }
+  // Composition plumbing, never filled from a query: the children a container may hold, and the
+  // live-refresh watch list.
+  const keys = Object.keys(properties).filter((key) => key !== 'allowedResources' && key !== 'watch')
+  const rank = (key: string): number => {
+    if (key === 'dataSource') { return 0 }
+    if (key === 'data') { return 1 }
+    return properties[key]?.type === 'array' ? 2 : 3
+  }
+  const paths = [...keys].sort((left, right) => rank(left) - rank(right) || left.localeCompare(right))
+  const initial = paths.find((key) => rank(key) < 2) ?? ''
+
+  return { initial, paths }
 }
 
 /** Refuse what the CRD or the renderer will reject; say nothing about the jq itself. */

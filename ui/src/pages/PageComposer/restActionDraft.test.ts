@@ -10,8 +10,8 @@ import { load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
 import {
-  generateRestAction, normalizeExpression, setApiRef, setDataTemplate, setRefsTemplate,
-  validateDataTemplate, validateRefsTemplate, validateRestAction,
+  dataPathsFor, generateRestAction, normalizeExpression, setApiRef, setDataTemplate, setRefsTemplate,
+  validateDataTemplate, validateRefsTemplate, validateRestAction, widgetKindOf,
 } from './restActionDraft'
 import type { RestActionInput } from './restActionDraft'
 
@@ -276,5 +276,30 @@ describe('resourcesRefsTemplate — generating a page’s CHILDREN from data', (
       iterator: '.items[]',
       template: { apiVersion: 'widgets.templates.krateo.io/v1beta1', id: '.id', name: '.name', resource: 'cards' },
     }])).toBeNull()
+  })
+})
+
+describe('the widgetData path a template row starts on', () => {
+  it('is the KIND\'s data field — a pie\'s records are `data`, not a Table\'s `dataSource`', () => {
+    expect(dataPathsFor('PieChart').initial).toBe('data')
+    expect(dataPathsFor('BarChart').initial).toBe('data')
+    expect(dataPathsFor('Table').initial).toBe('dataSource')
+  })
+
+  it('offers the kind\'s own fields, data field first, without the composition plumbing', () => {
+    const { paths } = dataPathsFor('PieChart')
+    expect(paths[0]).toBe('data')
+    expect(paths).toContain('colorMap')
+    expect(paths).not.toContain('watch')
+    expect(dataPathsFor('Table').paths).not.toContain('allowedResources')
+  })
+
+  it('falls back to dataSource for a kind it does not know', () => {
+    expect(dataPathsFor(null)).toEqual({ initial: 'dataSource', paths: [] })
+  })
+
+  it('reads the kind from the held file', () => {
+    expect(widgetKindOf('apiVersion: widgets.templates.krateo.io/v1beta1\nkind: PieChart\nmetadata:\n  name: p\n')).toBe('PieChart')
+    expect(widgetKindOf('metadata:\n  kind: nested\n')).toBeNull()
   })
 })

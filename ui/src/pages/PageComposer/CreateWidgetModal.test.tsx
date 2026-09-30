@@ -14,7 +14,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { installAntdShims } from './composerTestHarness'
-import { CreateWidgetModal, requiredSchema } from './CreateWidgetModal'
+import { createSchema, CreateWidgetModal, PALETTE_NAMES, requiredSchema } from './CreateWidgetModal'
 import { WIDGET_KINDS } from './widgetKinds.generated'
 
 /*
@@ -178,5 +178,110 @@ describe('a required LIST left untouched', () => {
     expect(shown).toContain('xField')
     // …and `data`, the required LIST, is no longer named among what is missing.
     expect(shown).not.toContain('data, xField')
+  })
+})
+
+/**
+ * AN ARRAY OF OBJECTS GETS ROWS — a Table's `columns` rendered as an empty box.
+ *
+ * `controlFor` sent every array whose items were not strings to the JSON textarea, so the create
+ * form showed `columns` with no inputs at all: nothing said a column is a `title` and a
+ * `valueKey`. The fix is in the schema renderer, not here, so it holds for every kind whose field
+ * is an array of declared objects — pinned on two of them.
+ */
+describe('a list of declared objects', () => {
+  const mount = (kind: string) => {
+    const onCreate = vi.fn()
+    render(<CreateWidgetModal onCancel={vi.fn()} onCreate={onCreate} open widgetKind={kind} />)
+    fireEvent.change(screen.getByPlaceholderText('fleet-throughput'), { target: { value: 'a-widget' } })
+    return onCreate
+  }
+  const type = (id: string, value: string) => {
+    const input = document.querySelector(`#${id}`)
+    expect(input, `#${id} is rendered`).toBeTruthy()
+    fireEvent.change(input as Element, { target: { value } })
+  }
+
+  it('Table columns: add rows, fill each column\'s own fields, remove one', () => {
+    const onCreate = mount('Table')
+    fireEvent.click(screen.getByText('Add columns'))
+    fireEvent.click(screen.getByText('Add columns'))
+    fireEvent.click(screen.getByText('Add columns'))
+    type('columns_0_title', 'Pod')
+    type('columns_0_valueKey', 'pod')
+    type('columns_1_title', 'Scratch')
+    type('columns_1_valueKey', 'scratch')
+    type('columns_2_title', 'Verdict')
+    type('columns_2_valueKey', 'verdict')
+    fireEvent.click(screen.getByLabelText('Remove columns 2'))
+    fireEvent.click(screen.getByText('Create'))
+
+    expect(onCreate).toHaveBeenCalledWith({
+      name: 'a-widget',
+      widgetData: {
+        allowedResources: [],
+        columns: [{ title: 'Pod', valueKey: 'pod' }, { title: 'Verdict', valueKey: 'verdict' }],
+      },
+    })
+  })
+
+  it('names a row missing a field its item schema requires', () => {
+    const onCreate = mount('Table')
+    fireEvent.click(screen.getByText('Add columns'))
+    type('columns_0_title', 'Pod')
+    fireEvent.click(screen.getByText('Create'))
+    expect(onCreate).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain('columns 1 needs valueKey')
+  })
+
+  it('Breadcrumb items get the same rows — the fix is the renderer\'s, not the Table\'s', () => {
+    const onCreate = mount('Breadcrumb')
+    fireEvent.click(screen.getByText('Add items'))
+    type('items_0_title', 'Home')
+    type('items_0_href', '/')
+    fireEvent.click(screen.getByText('Create'))
+
+    expect(onCreate).toHaveBeenCalledWith({ name: 'a-widget', widgetData: { items: [{ href: '/', title: 'Home' }] } })
+  })
+
+  it('an item with NO declared fields stays JSON — a chart\'s `data` records', () => {
+    mount('PieChart')
+    expect(screen.queryByText('Add data')).toBeNull()
+  })
+})
+
+describe('PieChart colorMap', () => {
+  it('is offered as key → palette-name rows, the names read from the theme tokens', () => {
+    const schema = createSchema('PieChart')
+    const values = (schema?.properties?.colorMap?.additionalProperties ?? {}) as { enum?: string[] }
+    expect(values.enum).toEqual([...PALETTE_NAMES])
+    for (const name of ['red', 'orange', 'green', 'gray']) {
+      expect(PALETTE_NAMES).toContain(name)
+    }
+    // Only the pie gets it; the required-only form is unchanged for everything else.
+    expect(createSchema('BarChart')).toEqual(requiredSchema('BarChart'))
+  })
+
+  it('writes the map the rows describe', async () => {
+    const onCreate = vi.fn()
+    render(<CreateWidgetModal onCancel={vi.fn()} onCreate={onCreate} open widgetKind='PieChart' />)
+    fireEvent.change(screen.getByPlaceholderText('fleet-throughput'), { target: { value: 'sizing-pie' } })
+    fireEvent.change(document.querySelector('#angleField') as Element, { target: { value: 'count' } })
+    fireEvent.change(document.querySelector('#colorField') as Element, { target: { value: 'verdict' } })
+
+    fireEvent.click(screen.getByText('Add entry'))
+    fireEvent.change(screen.getByLabelText('key 1'), { target: { value: 'Oversized' } })
+    const select = screen.getByLabelText('value 1').closest('.ant-select')
+    fireEvent.mouseDown(select?.querySelector('.ant-select-content') as Element)
+    // Searched rather than scrolled to: the list is every token name, and antd virtualises it.
+    fireEvent.change(select?.querySelector('input') as Element, { target: { value: 'orange' } })
+    await vi.runOnlyPendingTimersAsync()
+    fireEvent.click(document.querySelector('.ant-select-item-option[title="orange"]') as Element)
+    fireEvent.click(screen.getByText('Create'))
+
+    expect(onCreate).toHaveBeenCalledWith({
+      name: 'sizing-pie',
+      widgetData: { angleField: 'count', colorField: 'verdict', colorMap: { Oversized: 'orange' }, data: [] },
+    })
   })
 })

@@ -7,7 +7,7 @@
  * still mounted, so it validates and submits its value exactly like a flat field. `hide`
  * still omits a property from either partition.
  */
-import { cleanup, fireEvent, render } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { Form as AntdForm } from 'antd'
 import type { JSONSchema4 } from 'json-schema'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -38,7 +38,7 @@ beforeAll(() => {
     disconnect = noop
     observe = noop
     unobserve = noop
-  } as unknown as typeof ResizeObserver
+  }
 })
 
 // A deliberately NON-alphabetical property order (required interleaved with optional) — the
@@ -167,5 +167,75 @@ describe('SchemaFields — Advanced/required partition (FRM1)', () => {
       expect(onFinish).toHaveBeenCalledTimes(1)
     })
     expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ name: 'demo', region: 'eu-west', size: 'large' }))
+  })
+})
+
+/**
+ * REPEATABLE ROWS — an array of declared objects, and a map with a typed value.
+ *
+ * Both used to fall through to the JSON textarea, which in a form reads as an empty box with no
+ * hint of the fields inside: a Table's `columns` in the composer's create form, a list of objects
+ * in any blueprint form. The item schema is right there, so each item is a row of its own fields.
+ */
+describe('SchemaFields — rows for lists of objects and typed maps', () => {
+  const ROWS: JSONSchema4 = {
+    properties: {
+      columns: {
+        items: {
+          properties: { title: { type: 'string' }, valueKey: { type: 'string' } },
+          required: ['title', 'valueKey'],
+          type: 'object',
+        },
+        type: 'array',
+      },
+      labels: { additionalProperties: { type: 'string' }, type: 'object' },
+      records: { items: { type: 'object', 'x-kubernetes-preserve-unknown-fields': true }, type: 'array' },
+    },
+    required: ['columns', 'labels', 'records'],
+    type: 'object',
+  }
+
+  const mount = (onFinish = vi.fn()) => {
+    render(
+      <AntdForm onFinish={onFinish}>
+        <SchemaFields schema={ROWS} />
+        <button type='submit'>submit</button>
+      </AntdForm>,
+    )
+    return onFinish
+  }
+
+  it('submits the rows as an array of objects and the map as an object', async () => {
+    const onFinish = mount()
+    fireEvent.click(screen.getByText('Add columns'))
+    fireEvent.change(document.getElementById('columns_0_title') as Element, { target: { value: 'Pod' } })
+    fireEvent.change(document.getElementById('columns_0_valueKey') as Element, { target: { value: 'pod' } })
+    fireEvent.click(screen.getByText('Add entry'))
+    fireEvent.change(screen.getByLabelText('key 1'), { target: { value: 'team' } })
+    fireEvent.change(screen.getByLabelText('value 1'), { target: { value: 'platform' } })
+    fireEvent.change(screen.getByPlaceholderText('{ } — JSON (key/value map)'), { target: { value: '[{"a":1}]' } })
+    fireEvent.click(screen.getByText('submit'))
+
+    await vi.waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1))
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({
+      columns: [{ title: 'Pod', valueKey: 'pod' }],
+      labels: { team: 'platform' },
+      records: [{ a: 1 }],
+    }))
+  })
+
+  it('a row keeps its item schema\'s required fields — a blank valueKey does not submit', async () => {
+    const onFinish = mount()
+    fireEvent.click(screen.getByText('Add columns'))
+    fireEvent.change(document.getElementById('columns_0_title') as Element, { target: { value: 'Pod' } })
+    fireEvent.click(screen.getByText('submit'))
+    await vi.waitFor(() => expect(document.body.textContent).toContain('valueKey is required'))
+    expect(onFinish).not.toHaveBeenCalled()
+  })
+
+  it('a required list with no rows says so', async () => {
+    mount()
+    fireEvent.click(screen.getByText('submit'))
+    await vi.waitFor(() => expect(document.body.textContent).toContain('columns is required'))
   })
 })

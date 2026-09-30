@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { buildObjectTree, draftNamespace, flattenTree } from './objectTree'
+import { buildObjectTree, draftActions, draftNamespace, flattenTree } from './objectTree'
 
 const cr = (kind: string, name: string, opts: {
   apiRef?: boolean
@@ -279,5 +279,24 @@ describe('draftNamespace ignores Helm templates', () => {
     const tpl = '\'{{ include "page.tierNamespace" (dict "ctx" . "tier" "common") }}\''
     const files = Object.fromEntries([file('a', tpl), file('b', tpl), file('c', 'krateo-system')])
     expect(draftNamespace(files)).toBe('krateo-system')
+  })
+})
+
+describe('draftActions — the RESTActions a Data modal can reuse without a publish', () => {
+  const action = (name: string, namespace: string) =>
+    `apiVersion: templates.krateo.io/v1\nkind: RESTAction\nmetadata:\n  name: ${name}\n  namespace: ${namespace}\nspec:\n  filter: .\n`
+
+  it('lists only RESTActions, sorted, and resolves no template into a namespace', () => {
+    const files = {
+      'templates/broken.yaml': 'kind: RESTAction\n  : : not yaml',
+      'templates/restaction.fleet.yaml': action('fleet', 'krateo-system'),
+      'templates/restaction.pod-sizing.yaml': action('pod-sizing', `'{{ include "page.tierNamespace" (dict "ctx" . "tier" "common") }}'`),
+      'templates/table.pods.yaml': cr('Table', 'pods'),
+    }
+    expect(draftActions(files)).toEqual([
+      { name: 'fleet', namespace: 'krateo-system' },
+      // A templated namespace is the chart's instruction, not a place — null, for the caller.
+      { name: 'pod-sizing', namespace: null },
+    ])
   })
 })
