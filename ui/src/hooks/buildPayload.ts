@@ -3,7 +3,7 @@
  * templates — both kept free of a form's SECRET fields on everything sent to snowplow's `/jq`.
  * Lives apart from useHandleActions.ts (which re-exports it) only for the max-lines budget.
  */
-import { cloneDeep, merge, set, unset } from 'lodash'
+import { cloneDeep, merge, set, toPath, unset } from 'lodash'
 
 import type { WidgetAction } from '../types/Widget'
 import { pruneEmptyObjects } from '../utils/pruneEmptyObjects'
@@ -44,7 +44,7 @@ export const buildPayloadDetailed = async (
       const plan = planOverride(name, value, customPayload, secretPaths)
       // A secret never becomes identity: metadata is the object's name (the /call URL, the toast,
       // the audit record, every list that shows it), its labels and annotations.
-      if (plan.mode === 'local' && plan.touchesSecret && (name === 'metadata' || name.startsWith('metadata.') || name.startsWith('metadata['))) {
+      if (plan.mode === 'local' && plan.touchesSecret && toPath(name)[0] === 'metadata') {
         throw new SecretExpressionError(name, referencedSecretFields(value, secretPaths).map(secretFieldLabel), 'would put into the object\'s metadata')
       }
       return { expression: value, plan }

@@ -18,7 +18,7 @@
 
 import { isMutatingVerb } from '../components/BlastRadius/buildBlastRadius'
 import type { ResourceRef, WidgetAction } from '../types/Widget'
-import { omitSecretPaths, secretValuesOf } from '../utils/secretFields'
+import { ANY_ITEM, omitSecretPaths, secretValuesOf } from '../utils/secretFields'
 
 import { runRestSet, type WriteOp } from './runRestSet'
 import type { ActionContext, ActionRuntime } from './useHandleActions'
@@ -62,12 +62,17 @@ export const runRestFanOut = async (
     return
   }
 
+  // The element replaces the array field, so a row secret `[fanOutPath, '*', …]` is, for each op,
+  // `[fanOutPath, …]` — rewritten here so `.json.<fanOutPath>.<field>` is matched exactly.
+  const opSecretPaths = (runtime.secretPaths ?? []).map((path) =>
+    (path[0] === fanOutPath && path[1] === ANY_ITEM ? [path[0], ...path.slice(2)] : path))
+
   // One op per element: the element replaces the array field for THIS op's interpolation.
   const ops: WriteOp[] = []
   for (const element of elements) {
     const perOpValues = { ...customPayload, [fanOutPath]: element }
     // eslint-disable-next-line no-await-in-loop -- payloads build sequentially to keep op order deterministic
-    const { payload, secretTargets } = await buildPayloadDetailed(action, resourceRef.payload, perOpValues, ctx.resolveJq, runtime.secretPaths)
+    const { payload, secretTargets } = await buildPayloadDetailed(action, resourceRef.payload, perOpValues, ctx.resolveJq, opSecretPaths)
     const name = payload?.metadata?.name
     const namespace = payload?.metadata?.namespace
     const path = (name ?? namespace) ? updateNameNamespace(resourceRef.path, name, namespace) : resourceRef.path

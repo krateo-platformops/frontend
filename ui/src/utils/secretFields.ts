@@ -285,11 +285,12 @@ export const secretValuesOf = (values: unknown, paths: readonly SecretPath[]): s
       return existing
     })
   }
-  const all = found.filter((value) => value !== '').flatMap((value) => [value, base64Of(value)])
+  // as typed, base64 (a Secret's `data`), and JSON-escaped (an apiserver message quoting it: `ab\"cd`)
+  const all = found.filter((value) => value !== '').flatMap((value) => [value, base64Of(value), JSON.stringify(value).slice(1, -1)])
   return [...new Set(all.filter((value): value is string => !!value))]
 }
 
-/** A secret shorter than this is only redacted where a string IS the secret, not inside one. */
+/** A secret shorter than this is redacted only where a string IS it, or quotes it as a whole token. */
 const MIN_SUBSTRING_SECRET = 4
 
 /**
@@ -306,7 +307,11 @@ export const redactSecretValues = <T>(value: T, secrets: readonly string[]): T =
     if (longest.includes(text)) {
       return SECRET_MASK
     }
-    return longest.reduce((acc, secret) => (secret.length >= MIN_SUBSTRING_SECRET ? acc.split(secret).join(SECRET_MASK) : acc), text)
+    return longest.reduce((acc, secret) => (secret.length >= MIN_SUBSTRING_SECRET
+      ? acc.split(secret).join(SECRET_MASK)
+      // too short to replace inside words — but a whole QUOTED token (`Invalid value: "x9!"`) is it
+      : acc.split(`"${secret}"`).join(`"${SECRET_MASK}"`).split(`'${secret}'`)
+        .join(`'${SECRET_MASK}'`)), text)
   }
   const walk = (node: unknown): unknown => {
     if (typeof node === 'string') {

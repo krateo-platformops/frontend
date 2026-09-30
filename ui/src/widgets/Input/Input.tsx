@@ -1,7 +1,9 @@
 import { Form, Input as AntdInput } from 'antd'
+import { useEffect } from 'react'
 import { useSearchParams } from 'react-router'
 
 import type { WidgetProps } from '../../types/Widget'
+import { useRegisterSecretField } from '../Form/secretFieldsRegistry'
 
 import type { Input as WidgetType } from './Input.type'
 
@@ -20,6 +22,17 @@ export type InputWidgetData = WidgetType['spec']['widgetData']
 const Input = ({ uid, widgetData }: WidgetProps<InputWidgetData>) => {
   const { allowClear, defaultValue, disabled, label, maxLength, name, placeholder, queryParam, required, size, type } = widgetData
   const [searchParams, setSearchParams] = useSearchParams()
+  // A password field is a SECRET of the enclosing composable Form: registered so the Form keeps it
+  // out of drafts, the review, /jq and the audit (see Form/secretFieldsRegistry.ts), and never
+  // prefilled — neither from `defaultValue` nor from the Form's initialValues.
+  const isSecret = type === 'password' && !queryParam
+  useRegisterSecretField(isSecret && name ? [name] : undefined)
+  const form = Form.useFormInstance() as ReturnType<typeof Form.useFormInstance> | undefined
+  useEffect(() => {
+    if (isSecret && name && form && !form.isFieldTouched(name)) {
+      form.setFieldValue(name, undefined)
+    }
+  }, [form, isSecret, name])
 
   if (queryParam) {
     const committed = searchParams.get(queryParam) ?? ''
@@ -60,7 +73,7 @@ const Input = ({ uid, widgetData }: WidgetProps<InputWidgetData>) => {
 
   return (
     <Form.Item
-      initialValue={defaultValue}
+      initialValue={isSecret ? undefined : defaultValue}
       key={uid}
       label={label}
       name={name}
@@ -68,6 +81,7 @@ const Input = ({ uid, widgetData }: WidgetProps<InputWidgetData>) => {
     >
       <AntdInput
         allowClear={allowClear}
+        autoComplete={isSecret ? 'new-password' : undefined}
         disabled={disabled}
         maxLength={maxLength}
         placeholder={placeholder}

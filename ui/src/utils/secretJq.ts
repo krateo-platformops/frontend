@@ -144,7 +144,12 @@ export const evaluateLocalExpression = (expression: LocalExpression, values: Rec
 export const pathsOverlap = (path: readonly string[], secretPath: SecretPath): boolean => {
   const length = Math.min(path.length, secretPath.length)
   for (let index = 0; index < length; index += 1) {
-    if (!isWildcardSegment(secretPath[index]) && secretPath[index] !== path[index]) {
+    const segment = secretPath[index]
+    // `*` is an array item: it matches an INDEX only, never a named key (`.json.users.name` is not
+    // `users[].password` — a fan-out rewrites its row paths first, see runRestFanOut). `{*}` is any
+    // map key.
+    const matches = segment === ANY_ITEM ? /^\d+$/.test(path[index]) : segment === ANY_VALUE || segment === path[index]
+    if (!matches) {
       return false
     }
   }
@@ -239,6 +244,11 @@ export const opaqueAccess = (expression: string): string | null => {
   }
   if (/\.\s*"json"|\[\s*"json"\s*\]/.test(expression)) {
     return 'reaches the form by a quoted name'
+  }
+  // `."password"` / `["password"]`: an escaped quoted key spells a name the name check
+  // cannot read.
+  if (/(?:\.|\[)\s*"(?:[^"\\]|\\.)*\\(?:[^"\\]|\\.)*"/.test(expression)) {
+    return 'uses an escaped quoted key'
   }
   // String literals blanked: what is left is code.
   const code = expression.replace(/"(?:[^"\\]|\\.)*"/g, '""')

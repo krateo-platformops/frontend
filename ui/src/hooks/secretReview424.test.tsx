@@ -269,3 +269,74 @@ describe('no secrets → /jq bodies byte-identical to before', () => {
     expect(jqBodies()).toEqual([JSON.stringify({ data: { json: values }, query: ' .json.a ' }), JSON.stringify({ data: { json: values }, query: ' .json ' })])
   })
 })
+
+/* Second review (c538398): each probe below FAILS on c538398. */
+
+describe('N1 — metadata is refused however lodash spells the path', () => {
+  it.each(['["metadata"].name', '[metadata].name', '[\'metadata\'].labels.x', 'metadata'])('%s', async (name) => {
+    await expect(buildPayload(
+      { headers: [], id: 'a', payloadToOverride: [{ name, value: '${ .json.password }' }], resourceRefId: 'r', type: 'rest' },
+      {}, { password: TYPED }, realResolveJq, [['password']],
+    )).rejects.toThrow(SecretExpressionError)
+  })
+
+  it('end-to-end: nothing is dispatched, so no URL, confirm or AuditRecord carries it', async () => {
+    const ctx = makeCtx()
+    await dispatchAction(dbAction({ payloadToOverride: [{ name: '["metadata"].name', value: '${ .json.password }' }, { name: 'metadata.namespace', value: 'ns1' }] }),
+      { customPayload: { password: TYPED }, resourcesRefs: dbRef, secretPaths: [['password']] }, ctx)
+    expect(requests).toHaveLength(0)
+    expect(ctx.confirm).not.toHaveBeenCalled()
+  })
+})
+
+describe('N2 — `*` is an array index, never a named key', () => {
+  it('fan-out: metadata.name from a row\'s non-secret field is allowed; the row secret is masked', async () => {
+    vi.stubGlobal('fetch', respondWith(true, { kind: 'Database', metadata: { name: 'alice' } }))
+    const ctx = makeCtx()
+    await dispatchAction(dbAction({ fanOutPath: 'users',
+      payloadToOverride: [
+        { name: 'metadata.name', value: '${ .json.users.name }' },
+        { name: 'metadata.namespace', value: 'ns1' },
+        { name: 'spec.password', value: '${ .json.users.password }' },
+      ] }), { customPayload: { users: [{ name: 'alice', password: TYPED }] }, resourcesRefs: dbRef, secretPaths: [['users', '*', 'password']] }, ctx)
+    expect((ctx.notification.error as unknown as ReturnType<typeof vi.fn>).mock.calls).toEqual([])
+    const radius = JSON.stringify((ctx.confirm as unknown as ReturnType<typeof vi.fn>).mock.calls)
+    expect(radius).toContain('alice')
+    expect(radius).not.toContain(TYPED)
+    expect(jqBodies()).toEqual([])
+    expect(requests.find((request) => request.url.includes('resource=databases'))?.body).toContain(TYPED)
+  })
+
+  it('a named sibling of a list secret is not treated as secret', () => {
+    const plan = planOverride('x', '${ .json.users.name }', { users: { name: 'n' } }, [['users', '*', 'password']])
+    expect(plan).toMatchObject({ mode: 'local', touchesSecret: false })
+  })
+})
+
+describe('N4 — an escaped quoted key is refused, never a silent null', () => {
+  it.each(['${ .json."pass\\u0077ord" }', '${ .json.spec."pass\\u0077ord" }', '${ .json["pass\\u0077ord"] }'])('%s', (expression) => {
+    expect(() => planOverride('x', expression, { password: TYPED, spec: {} }, [['password'], ['spec', 'password']])).toThrow(SecretExpressionError)
+  })
+})
+
+describe('N5 — toasts: JSON-escaped and short secrets', () => {
+  const lastErrorDescription = (ctx: ActionContext): string =>
+    ((ctx.notification.error as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as { description: string }).description
+
+  it('a secret with a quote, quoted Go-style by the apiserver', async () => {
+    const typed = ['ab"cd', 'efgh'].join('-')
+    vi.stubGlobal('fetch', respondWith(false, { code: 422, kind: 'Status', message: `Invalid value: "${JSON.stringify(typed).slice(1, -1)}"`, reason: 'Invalid' }))
+    const ctx = makeCtx()
+    await dispatchAction(dbAction({}), { customPayload: { password: typed }, resourcesRefs: dbRef, secretPaths: [['password']] }, ctx)
+    expect(lastErrorDescription(ctx)).not.toContain('cd-efgh')
+  })
+
+  it('a secret shorter than 4, as a whole quoted token', async () => {
+    const typed = ['x9', '!'].join('')
+    vi.stubGlobal('fetch', respondWith(false, { code: 422, kind: 'Status', message: `Invalid value: "${typed}": too short`, reason: 'Invalid' }))
+    const ctx = makeCtx()
+    await dispatchAction(dbAction({}), { customPayload: { password: typed }, resourcesRefs: dbRef, secretPaths: [['password']] }, ctx)
+    expect(lastErrorDescription(ctx)).not.toContain(typed)
+    expect(lastErrorDescription(ctx)).toContain('too short')
+  })
+})

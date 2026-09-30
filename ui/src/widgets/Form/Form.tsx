@@ -12,13 +12,14 @@ import WidgetRenderer from '../../components/WidgetRenderer'
 import { useHandleAction } from '../../hooks/useHandleActions'
 import type { WidgetProps } from '../../types/Widget'
 import { carryScopeParams } from '../../utils/navigation'
-import { maskSecretPaths, omitSecretPaths, secretFieldPaths } from '../../utils/secretFields'
+import { maskSecretPaths, omitSecretPaths, secretFieldPaths, type SecretPath } from '../../utils/secretFields'
 import { getEndpointUrl } from '../../utils/utils'
 import { useDrawerContext } from '../Drawer/DrawerContext'
 
 import styles from './Form.module.css'
 import type { Form as WidgetType } from './Form.type'
 import { SchemaForm } from './SchemaFields'
+import { SecretFieldsContext, type SecretFieldsRegistry } from './secretFieldsRegistry'
 import { fieldlessSchemaMessage, getDefaultsFromSchema, narrowAgentDraft } from './utils'
 
 export type FormWidgetData = WidgetType['spec']['widgetData']
@@ -168,14 +169,16 @@ export const agentAuthoredKeys = (
   }
 })
 
-export const ReviewSummary = ({ agentKeys, schema, values }: {
+export const ReviewSummary = ({ agentKeys, schema, secretPaths, values }: {
   agentKeys?: readonly string[]
   schema?: JSONSchema4
+  /** secret fields beyond the schema's own (a composable Form's password Inputs) */
+  secretPaths?: readonly SecretPath[]
   values: Record<string, unknown>
 }): React.ReactNode => {
   const authored = new Set(agentKeys ?? [])
   // A secret field (`format: password` / `writeOnly`) is confirmed as present, never redisplayed.
-  const shown = maskSecretPaths(values, secretFieldPaths(schema))
+  const shown = maskSecretPaths(values, [...secretFieldPaths(schema), ...(secretPaths ?? [])])
   const items = Object.entries(shown)
     .filter(([key]) => key !== '__owner')
     .filter(([, value]) => value !== undefined && value !== null && value !== '' && !(Array.isArray(value) && value.length === 0))
@@ -278,7 +281,16 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   // The form's SECRET fields (`format: password` / `writeOnly: true`). Only ever typed by the
   // human: never prefilled (schema default, initialValues, a refetch, a saved draft, an Autopilot
   // draft), never saved to a local draft, and never sent to /jq (handed to the action below).
-  const secretPaths = useMemo(() => secretFieldPaths(jsonSchema), [jsonSchema])
+  // A composable Form (`items`) learns its secret fields from its child widgets — a password
+  // Input registers itself (secretFieldsRegistry.ts).
+  const [widgetSecretPaths, setWidgetSecretPaths] = useState<SecretPath[]>([])
+  const secretRegistry = useMemo<SecretFieldsRegistry>(() => ({
+    register: (path) => {
+      setWidgetSecretPaths((current) => [...current, path])
+      return () => { setWidgetSecretPaths((current) => current.filter((each) => each !== path)) }
+    },
+  }), [])
+  const secretPaths = useMemo(() => [...secretFieldPaths(jsonSchema), ...widgetSecretPaths], [jsonSchema, widgetSecretPaths])
 
   // Filter the Autopilot draft to the form's REAL field names (top-level schema properties). The model
   // is told to use exact field names, but an invented or "closest-match" key would otherwise be held in
@@ -563,14 +575,18 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
         >
           {jsonSchema?.properties
             ? <SchemaForm hide={propertiesToHide} schema={jsonSchema} />
-            : items?.map(({ resourceRefId }, index) => {
-              const endpoint = getEndpointUrl(resourceRefId, resourcesRefs)
-              return endpoint ? <WidgetRenderer key={`${formId}-${index}`} widgetEndpoint={endpoint} /> : null
-            })}
+            : (
+              <SecretFieldsContext.Provider value={secretRegistry}>
+                {items?.map(({ resourceRefId }, index) => {
+                  const endpoint = getEndpointUrl(resourceRefId, resourcesRefs)
+                  return endpoint ? <WidgetRenderer key={`${formId}-${index}`} widgetEndpoint={endpoint} /> : null
+                })}
+              </SecretFieldsContext.Provider>
+            )}
         </AntdForm>
       </div>
 
-      {reviewing && reviewValues ? <ReviewSummary agentKeys={agentAuthoredKeys(agentAuthoredRef.current, reviewValues)} schema={jsonSchema} values={reviewValues} /> : null}
+      {reviewing && reviewValues ? <ReviewSummary agentKeys={agentAuthoredKeys(agentAuthoredRef.current, reviewValues)} schema={jsonSchema} secretPaths={widgetSecretPaths} values={reviewValues} /> : null}
 
       <div className={styles.extra}>{footer}</div>
     </div>
