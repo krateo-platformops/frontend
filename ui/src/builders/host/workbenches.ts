@@ -1,10 +1,11 @@
 /**
  * The workbenches the composer host mounts, by a Builder's `spec.draftKind` (T4, frontend#410) — see
  * hostTypes.ts for what a workbench is. Deny by default, like pluginRegistry: only an own key
- * resolves, and a draft kind with none (the controller's, until T8) is a sentence, never a blank composer.
+ * resolves, and a draft kind with none is a sentence, never a blank composer.
  */
 import type { DraftKind } from '../../components/Autopilot/blueprintDraftStore'
 import { useBlueprintWorkbench } from '../../pages/BlueprintComposer/useBlueprintWorkbench'
+import { useControllerWorkbench } from '../../pages/ControllerComposer/useControllerWorkbench'
 import { usePageWorkbench } from '../../pages/PageComposer/usePageWorkbench'
 
 import type { WorkbenchPlugin } from './hostTypes'
@@ -15,6 +16,12 @@ const WORKBENCHES = {
     description: 'a chart: its resources as a graph, their dependency gates, the states it steps through',
     summary: 'Author a chart and the file that describes it — its resources, what depends on what, and the states it moves through — then publish the whole set as one change request.',
     useWorkbench: useBlueprintWorkbench,
+  },
+  controller: {
+    allowAdopt: false,
+    description: 'a controller: an OpenAPI document mapped to Kinds, one RestDefinition each, and the auth they use',
+    summary: 'Map an OpenAPI document to Kinds — each resource group a Kind, its operations its verbs — then publish the controller chart as one change request.',
+    useWorkbench: useControllerWorkbench,
   },
   page: {
     // `?adopt=` takes over a legacy page set (Unowned drafts); charts have no legacy form.

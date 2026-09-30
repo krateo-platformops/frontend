@@ -14,6 +14,7 @@
  */
 import { draftDisplayName } from '../components/Autopilot/blueprintDraft'
 import { pageRootSlug } from '../components/Autopilot/pageDraft'
+import { lockedSnapshot } from '../pages/ControllerComposer/controllerChart'
 
 import { builderOf, findBuilderOf } from './builderRegistry'
 
@@ -45,6 +46,11 @@ export interface DraftKindPlugin {
    */
   publishSlug: (files: Record<string, string>) => string | null
   nouns: DraftKindNouns
+  /**
+   * The fields a PUBLISHED draft of this kind may no longer change (CEL-immutable once installed),
+   * snapshotted when a publish lands and kept on its record. Absent: nothing is locked by a publish.
+   */
+  lockedSnapshot?: (files: Record<string, string>) => Record<string, Record<string, unknown>>
 }
 
 /*
@@ -75,6 +81,8 @@ const DRAFT_KINDS = {
   controller: {
     description: 'a controller chart — RestDefinitions and their OpenAPI documents — named by its Chart.yaml',
     displayName: (files) => draftDisplayName(files),
+    // A RestDefinition's kind, group, identifiers, configuration and status fields are CEL-immutable.
+    lockedSnapshot: (files) => lockedSnapshot(files),
     nouns: {
       artifact: 'a controller',
       composer: 'controller',

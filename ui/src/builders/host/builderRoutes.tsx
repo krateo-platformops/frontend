@@ -7,7 +7,7 @@
  * WHICH BUILDERS GET NO ROUTE:
  *
  * - A COMPOSER NOT BUILT YET. A Builder whose palette, canvas and inspector are all PENDING plugins
- *   (pluginRegistry: named, their code due in a later release — today the Controller Builder's, T8) is
+ *   (pluginRegistry: named, their code due in a later release — none today) is
  *   loaded so the engine holds, saves and publishes its drafts, but has no composer to show. Its route
  *   appears by itself once those plugins ship. A Builder naming an UNKNOWN plugin is still mounted, and
  *   the host says what is wrong with it — that one is a mistake to see.

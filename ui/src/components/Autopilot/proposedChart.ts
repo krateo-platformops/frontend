@@ -11,9 +11,11 @@
 import { builderOf } from '../../builders/builderRegistry'
 import { ARCHITECTURE_TEMPLATE_PATH } from '../../pages/BlueprintComposer/architecture'
 import { gateDrift, regenerateGates } from '../../pages/BlueprintComposer/planEdge'
+import { lintControllerDraft } from '../../pages/ControllerComposer/controllerChart'
 
-import { lintBlueprintDraft, parseRawTemplates } from './blueprintDraft'
+import { CHART_YAML_PATH, chartYamlName, lintBlueprintDraft, parseRawTemplates } from './blueprintDraft'
 import type { DraftKind } from './blueprintDraftStore'
+import { lockedFor, publishedLocks } from './publishedLocks'
 
 export const parseProposedChart = (value: unknown): Record<string, string> | null => {
   const tree = parseRawTemplates(value)
@@ -25,11 +27,15 @@ export const parseProposedChart = (value: unknown): Record<string, string> | nul
  * `chart-lint` is the composer's rules (lintBlueprintDraft); `gate-drift` is one problem per template
  * whose gate has drifted from the descriptor (gateDrift). A drifted gate renders a different order
  * than the graph shows, so it refuses Preview and Publish like any other lint problem until the
- * gates are regenerated.
+ * gates are regenerated. `restdef-validate` is the controller's (lintControllerDraft): the OpenAPI
+ * document reads, no verb conflict is left unsettled, and T7's validator passes every RestDefinition.
  */
 const LINTS: Record<string, (files: Record<string, string>, kind: DraftKind) => string[]> = {
   'chart-lint': (files, kind) => lintBlueprintDraft(files, kind),
   'gate-drift': (files) => gateDrift(files).map((path) => `${path}: its dependency gate does not match ${ARCHITECTURE_TEMPLATE_PATH} — regenerate the gates, or undo the edit that changed it.`),
+  // A published controller's locked fields (publishedLocks) are refused here too, so a hand edit in
+  // Chart files cannot publish what the apiserver would reject as an update.
+  'restdef-validate': (files, kind) => lintControllerDraft(files, lockedFor(publishedLocks.get(), kind, chartYamlName(files[CHART_YAML_PATH]))),
 }
 
 /**

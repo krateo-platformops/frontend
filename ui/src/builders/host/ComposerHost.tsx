@@ -60,7 +60,7 @@ const NOTHING_HELD: DraftChangedDetail = { files: NOTHING, kind: null, problems:
  * The verbs a PERSON's Publish may send (previewPublishRequest). A Builder's publish verb is the one
  * of these its `verbs.allowed` names; the provider then asks the Builder that allows it.
  */
-const PERSON_PUBLISH_VERBS: readonly PublishRequestDetail['verb'][] = ['publishPage', 'publishBlueprint']
+const PERSON_PUBLISH_VERBS: readonly PublishRequestDetail['verb'][] = ['publishPage', 'publishBlueprint', 'publishRestDef']
 
 const counted = (count: number, noun: string): string => `${count} ${noun}${count === 1 ? '' : 's'}`
 const capitalized = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1)

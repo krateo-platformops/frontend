@@ -43,6 +43,7 @@ const BUILDER_KEYS: Record<keyof BuilderTargetSlugs, true> = {
   AUTOPILOT_BLUEPRINT_BUILDER_REPO: true,
   AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE: true,
   AUTOPILOT_KOG_BUILDER_REPO: true,
+  AUTOPILOT_KOG_BUILDER_TEMPLATE: true,
   AUTOPILOT_PAGE_BUILDER_REPO: true,
   AUTOPILOT_PAGE_BUILDER_TEMPLATE: true,
 }
@@ -50,8 +51,24 @@ const BUILDER_KEYS: Record<keyof BuilderTargetSlugs, true> = {
 /** What the installer deploys for a key: the config block's default map, which the per-key default must agree with. */
 const deployed = (key: string): unknown => schema.properties.config.default[key]
 
+/**
+ * Keys added once core-provider was known to copy schema defaults into the composition spec, where a
+ * default freezes the value over values.yaml (scripts/gen-config-schema.py NO_DEFAULT). Typed, never
+ * defaulted: an absent key falls through to values.yaml at helm render.
+ */
+const UNDEFAULTED = new Set(['AUTOPILOT_KOG_BUILDER_TEMPLATE'])
+
 describe('the builder keys the frontend reads have schema defaults, in step with values.yaml', () => {
-  it.each(Object.keys(BUILDER_KEYS))('%s is declared, defaulted and agrees with values.yaml', (key) => {
+  it.each([...UNDEFAULTED])('%s is declared and typed, carries NO default, and values.yaml sets it', (key) => {
+    const property = schema.properties.config.properties[key] as { default?: unknown; type?: string } | undefined
+    expect(property, `${key} is not in values.schema.json — run python3 scripts/gen-config-schema.py`).toBeDefined()
+    expect(property?.type).toBe('string')
+    expect(property).not.toHaveProperty('default')
+    expect(schema.properties.config.default).not.toHaveProperty(key)
+    expect(values.config[key]).toBe('krateo-blueprints/builder-scaffold')
+  })
+
+  it.each(Object.keys(BUILDER_KEYS).filter((key) => !UNDEFAULTED.has(key)))('%s is declared, defaulted and agrees with values.yaml', (key) => {
     const property = schema.properties.config.properties[key]
     expect(property, `${key} is not in values.schema.json — run python3 scripts/gen-config-schema.py`).toBeDefined()
     expect(property.default).toBe(values.config[key])

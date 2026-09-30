@@ -1,6 +1,6 @@
 /**
- * The page and blueprint Builder CRs describe what the composers do TODAY; the controller's
- * describes the builder the engine holds drafts for while its composer is built (T3 → T8).
+ * The three Builder CRs describe what the composers do TODAY — the controller's since its composer
+ * shipped (T8, frontend#412).
  *
  * The engine reads the fixtures (builderRegistry.ts, T2), and this file keeps them true: each must
  * parse, validate against the CRD the chart ships, name only plugins, checks and verbs this frontend
@@ -32,10 +32,10 @@ const CRD_PATH = join(ROOT, 'helm', 'frontend-crds', 'templates', 'builders', 'B
 const FIXTURES = ['portal-builder', 'blueprint-builder', 'controller-builder']
 
 /**
- * The Controller Builder's composer is T8's: until then it names three plugins this build lists as
- * PENDING (a "not shipped yet" refusal) and its route is not in the shell.
+ * Builders whose composer is not built yet: they name plugins this build lists as PENDING (a "not
+ * shipped yet" refusal) and have no route in the shell. None since T8 shipped the Controller Builder's.
  */
-const COMPOSER_PENDING = new Set(['controller-builder'])
+const COMPOSER_PENDING = new Set<string>([])
 
 type Schema = Record<string, unknown>
 
@@ -136,7 +136,7 @@ describe.each(FIXTURES)('the %s Builder', (name) => {
   it('is served at its route, one per Builder — a composer not built yet: not yet', () => {
     const shell = readFileSync(join(__dirname, '..', 'context', 'RoutesContext.tsx'), 'utf8')
     expect(shell).toContain('...builderRoutes(STATIC_PATHS)')
-    // Flips when T8 ships the Controller Builder's plugins: then drop it from COMPOSER_PENDING.
+    // A Builder in COMPOSER_PENDING has no route until its plugins ship.
     expect(builderRoutes().map((route) => route.path).includes(parsed(name).spec.route)).toBe(!COMPOSER_PENDING.has(name))
   })
 })
@@ -165,6 +165,9 @@ describe('what each fixture says about its own builder', () => {
     expect(spec.preview).toEqual({ mode: 'render', restActionRef: { name: 'controller-render-draft' } })
     expect(spec.publish.builder).toBe('controller')
     expect(spec.publish.targetKey).toBe('AUTOPILOT_KOG_BUILDER_REPO')
+    expect(spec.publish.templateKey).toBe('AUTOPILOT_KOG_BUILDER_TEMPLATE')
+    expect(spec.lint).toEqual(['chart-lint', 'restdef-validate'])
+    expect(spec.start.fields.map((field) => [field.name, field.required])).toEqual([['name', true], ['apiGroup', true], ['spec', true], ['baseUrl', true]])
     expect(spec.verbs.allowed).toContain('publishRestDef')
     expect([spec.palette.plugin, spec.canvas.plugin, spec.inspector.plugin]).toEqual(['openapi', 'restdef-graph', 'restdef-mapping'])
     expect(spec.portal.draftsCard.name).toBe('controller-builder-drafts-card')

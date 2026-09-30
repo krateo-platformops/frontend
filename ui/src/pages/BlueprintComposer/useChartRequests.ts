@@ -21,6 +21,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import type { DraftKind } from '../../components/Autopilot/blueprintDraftStore'
 import {
   emitChartStart,
   emitDraftRenderRequest,
@@ -42,7 +43,8 @@ export interface ChartRequests {
   /** The provider's refusal of the last start. */
   startRefusal: DraftRenderResultDetail | null
   lastRender: LastRender | null
-  start: (files: Record<string, string>) => void
+  /** Start a draft of these files — a blueprint chart unless another draft kind is named. */
+  start: (files: Record<string, string>, kind?: DraftKind) => void
   preview: () => void
   adopt: (render: LastRender) => void
   dismiss: () => void
@@ -84,9 +86,9 @@ export const useChartRequests = (): ChartRequests => {
     return id
   }, [])
 
-  const start = useCallback((files: Record<string, string>) => {
+  const start = useCallback((files: Record<string, string>, kind?: DraftKind) => {
     setStartRefusal(null)
-    emitChartStart({ files, id: ask('start') })
+    emitChartStart({ files, id: ask('start'), ...(kind ? { kind } : {}) })
   }, [ask])
 
   const preview = useCallback(() => {

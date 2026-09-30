@@ -1,104 +1,101 @@
 # The Controller Builder, DECLARED — the third builder, the first written for the engine rather than
-# migrated onto it (T3, frontend#409; the Builder CR the approved mockup shows, frontend#406).
+# migrated onto it (T3, frontend#409; its composer T8, frontend#412).
 #
-# WHAT THE ENGINE READS FROM IT TODAY (T3): builderRegistry.ts loads it beside the page and blueprint
-# Builders. From it the engine takes the draft kind (a controller draft is held, autosaved as
-# `draft-controller-<owner>-<slug>`, resumed and discarded by the same code), the preview MODE (render:
-# an edit disarms Publish), the lint list (run on a held controller draft's edits), the label (named in
-# refusals), and `verbs.allowed` (publishRestDef is this Builder's publish verb).
+# THE ENGINE RUNS IT (T8): builderRegistry.ts loads it beside the page and blueprint Builders, and the
+# composer host mounts it at its route with the plugins it names — the `openapi` palette, the
+# `restdef-graph` canvas and the `restdef-mapping` inspector (pages/ControllerComposer/controllerSlots),
+# over the controller workbench (useControllerWorkbench). A controller draft is held, autosaved as
+# `draft-controller-<owner>-<slug>`, resumed, linted and published by the same engine code as the others.
 #
-# WHAT IS DECLARED BUT NOT WIRED YET — each is T8's (T9 for the preview RESTAction):
-#   - route: no /controller-builder/compose in the shell (builderFixtures.test.ts pins that);
-#   - palette, canvas, inspector: pluginRegistry.ts lists them as PENDING, a "not shipped yet" refusal;
-#   - start: no start modal reads these fields;
-#   - preview.restActionRef: nothing calls controller-render-draft yet (T9, frontend#413);
-#   - publish.targetKey / templateKey / registration, files, gates: publishRestDef runs
-#     kogPublish.ts dispatchKogPublish, which publishes Autopilot's previewed RestDefinition to the
-#     fixed AUTOPILOT_KOG_BUILDER_REPO key with no source template, and reads none of these.
+# WHAT IS STILL DECLARED ONLY: preview.restActionRef. Nothing calls controller-render-draft until T9
+# (frontend#413); until then Preview says so plainly, and Publish stays off behind the preview gate.
 apiVersion: builders.templates.krateo.io/v1alpha1
 kind: Builder
 metadata:
   name: controller-builder
 spec:
   label: Controller Builder
-  # Not served yet: T8 registers the route (builderFixtures.test.ts).
+  # builderRoutes.tsx serves it: its three plugins ship.
   route: /controller-builder/compose
   # draftRecord.ts: `draft-controller-<owner>-<slug>`, label krateo.io/draft-kind=controller. The
   # portal's my-drafts lists it (portal.draftBuilders, portal#274).
   draftKind: controller
-  # The mockup's start modal: a name, an API group, and the OpenAPI document (pasted, uploaded or by
-  # URL). Declared only: no start modal reads these until T8.
+  # StartControllerModal.tsx reads these labels, helps and placeholders; controllerChart.ts
+  # validateStartController holds what a value means (a name core-provider can serve, a DNS group, a
+  # document that reads as OpenAPI 3.x, an absolute base URL).
   start:
     fields:
       - name: name
         label: Controller name
         required: true
         help: Lower-case, dashes. It becomes the chart, the repository and the CompositionDefinition name.
-        placeholder: github-provider
+        placeholder: petstore
       - name: apiGroup
         label: API group
         required: true
-        help: The group of the Kinds the controller serves.
-        placeholder: github.ogen.krateo.io
+        help: The group the Kinds are served in, as <group>/v1alpha1.
+        placeholder: petstore.example.io
       - name: spec
-        label: OpenAPI document
+        label: OpenAPI spec
         required: true
-        help: Paste it, upload it, or give its URL.
+        help: Paste it, upload it, or read it from a URL. It is held in the chart's ConfigMap, verbatim.
       - name: baseUrl
-        label: Base URL
-        required: false
-        help: Overrides the document's servers entry.
-        placeholder: https://api.github.com
+        label: Base URL the controller calls
+        required: true
+        help: Written into the document's servers entry — every request the controller sends goes here.
+        placeholder: https://petstore3.swagger.io/api/v3
     # Mirrors blueprintDraftStore.ts BLUEPRINT_DRAFT_MAX_BYTES, which is what the store enforces for
     # every draft kind; the store does not read this value.
     maxDraftBytes: 524288
-  # PENDING (T8), over T7's oasImport.ts / paletteModel.ts: the spec's operations by resource path.
+  # controllerSlots.tsx `openapi`: the held document's operations, grouped by resource path
+  # (T7's paletteModel.ts).
   palette:
     plugin: openapi
-  # PENDING (T8): the Kinds and their configuration, as a graph.
+  # controllerSlots.tsx `restdef-graph`: the Kinds and, when the document declares security schemes,
+  # the Configuration they authenticate through.
   canvas:
     plugin: restdef-graph
-  # PENDING (T8), over T7's operationMapping.ts / restDefinitionBuild.ts: verbs, identifiers, auth.
+  # controllerSlots.tsx `restdef-mapping`: verbs, identifiers, status fields, auth (T7's
+  # operationMapping.ts / restDefinitionBuild.ts).
   inspector:
     plugin: restdef-mapping
   # frontend#405: a controller preview RENDERS (oasgen-render generates the CRDs), it never applies.
-  # The MODE is read today (an edit disarms Publish); the RESTAction is not called until T9.
+  # The MODE is read (an edit disarms Publish); the RESTAction is not called until T9 (frontend#413).
   preview:
     mode: render
     restActionRef:
       name: controller-render-draft
-  # A controller is a chart: N RestDefinitions plus the OAS ConfigMaps (frontend#405). Declared only:
-  # no engine code enforces this layout for a controller until T8.
+  # A controller is a chart: N templates/restdefinition-<kind>.yaml plus
+  # templates/configmap-oas-<name>.yaml (controllerChart.ts), registered by a CompositionDefinition.
   files:
     required:
       - Chart.yaml
       - values.yaml
       - values.schema.json
-    # publishDraft.ts REGISTRATION_PATH.
+    # publishDraft.ts REGISTRATION_PATH, written at publish.
     locked:
       - compositiondefinition.yaml
     heldBytes: 524288
-  # proposedChart.ts lintHeldDraft(files, 'controller'): run on a held controller draft's edits today;
-  # the controller publish (dispatchKogPublish) does not run it until T8.
+  # proposedChart.ts lintHeldDraft(files, 'controller'): the chart lint, then the controller's own —
+  # the document reads, no verb conflict is unsettled, T7's validator passes every RestDefinition.
   lint:
     - chart-lint
-  # Declared only: dispatchKogPublish keeps its own preview gate and reads none of these until T8.
+    - restdef-validate
   gates:
     - preview-before-publish
     - publish-name
-  # `builder: controller` is read today: it is what publishRestDef resolves to. The rest is declared
-  # only: dispatchKogPublish publishes to the fixed AUTOPILOT_KOG_BUILDER_REPO key, with no source
-  # template and its own registration file, whatever targetKey, templateKey and registration say.
-  # T8 publishes the held tree from these.
+  # publishDraft.ts runDraftPublish: the held tree, one BuilderPublish claim to a repository named for
+  # the controller under AUTOPILOT_KOG_BUILDER_REPO's owner, seeded from AUTOPILOT_KOG_BUILDER_TEMPLATE
+  # (krateo-blueprints/builder-scaffold), with compositiondefinition.yaml written at publish.
   publish:
     builder: controller
     targetKey: AUTOPILOT_KOG_BUILDER_REPO
-    templateKey: AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE
+    templateKey: AUTOPILOT_KOG_BUILDER_TEMPLATE
     registration:
       kind: CompositionDefinition
       path: compositiondefinition.yaml
-  # actionBridge.ts previewRestDef, publishRestDef — publishRestDef is this Builder's, no longer an
-  # undeclared publish verb (publishDraft.ts).
+  # actionBridge.ts previewRestDef, publishRestDef — publishRestDef is this Builder's publish verb, for
+  # the composer's Publish and the rail's alike.
   verbs:
     allowed:
       - previewRestDef

@@ -12,6 +12,7 @@
  * for a render. A render that fails — or a render service that is not configured — leaves the
  * person's chart held and unarmed, never lost.
  */
+import type { DraftKind } from './blueprintDraftStore'
 import type { AutopilotPreviewPayload } from './previewBus'
 
 export const AUTOPILOT_CHART_START_EVENT = 'autopilotChartStart'
@@ -22,6 +23,8 @@ export const AUTOPILOT_DRAFT_RENDER_RESULT_EVENT = 'autopilotDraftRenderResult'
 export interface ChartStartDetail {
   id: string
   files: Record<string, string>
+  /** The draft kind the files are — a blueprint chart when absent (every start before T8). */
+  kind?: DraftKind
 }
 
 /** Render the held chart draft (the composer's Preview). Answered by a render result with the same id. */

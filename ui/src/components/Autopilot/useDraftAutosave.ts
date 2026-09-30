@@ -40,7 +40,7 @@
 import { useEffect } from 'react'
 
 import { builderRegistry } from '../../builders/builderRegistry'
-import { draftKindOf, isDraftKind } from '../../builders/draftKinds'
+import { draftKindOf, findDraftKindPlugin, isDraftKind } from '../../builders/draftKinds'
 import { getUserInfo } from '../../utils/getUserInfo'
 
 import { buildSetOpPath } from './applyResourceSet'
@@ -57,6 +57,7 @@ import {
 } from './draftRecord'
 import { draftSaveStatus } from './draftSaveStatus'
 import { pageDraftFiles, pageDraftWidgets } from './pageDraft'
+import { publishedLocks } from './publishedLocks'
 
 /** How long edits settle before the record is written. The plan's "~2 s". */
 export const DRAFT_AUTOSAVE_DEBOUNCE_MS = 2000
@@ -88,7 +89,7 @@ interface RecordMeta {
   renderedHash?: string
   threadId?: string
   state: DraftState
-  publish?: { repo: string; prUrl?: string }
+  publish?: DraftRecordBody['publish']
   /** What the last landed write carried — an identical save is skipped. */
   saved?: string
 }
@@ -340,7 +341,10 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
     markPublished: (held, claim, deepLink) => {
       const meta = metaOf(keyOf(held))
       meta.state = 'published'
-      meta.publish = publishedTo(claim, deepLink)
+      // What this publish LOCKED (a controller's immutable RestDefinition fields), kept on the record.
+      const locked = findDraftKindPlugin(held.kind)?.lockedSnapshot?.(held.files)
+      meta.publish = { ...publishedTo(claim, deepLink), ...(locked && Object.keys(locked).length ? { locked } : {}) }
+      publishedLocks.set(locked && Object.keys(locked).length ? { kind: held.kind, locked, name: draftRecordDisplayName(held) } : null)
       if (pending && keyOf(pending) === keyOf(held)) {
         cancelTimer()
         pending = null
@@ -357,6 +361,8 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
       meta.renderedHash = body.renderedHash
       meta.threadId = body.threadId
       meta.publish = body.publish
+      // A published record brings back what its publish locked; any other resume clears the last one.
+      publishedLocks.set(body.state === 'published' && body.publish?.locked ? { kind: body.kind, locked: body.publish.locked, name: body.name } : null)
       // What the record already holds: holding it again is not a change worth a write.
       meta.saved = fingerprintOf(body.files, meta)
     },

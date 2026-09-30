@@ -32,6 +32,7 @@ import type { Config } from '../../context/ConfigContext'
 import { publishNameProblem } from '../../pages/BlueprintComposer/chartIdentity'
 import { PROJECTION_BUNDLE_PATH, projectionForFiles } from '../../pages/BlueprintComposer/projectionCompile'
 import { blueprintCompositionDefinition } from '../../pages/BlueprintComposer/startChart'
+import { controllerCompositionDefinition } from '../../pages/ControllerComposer/controllerChart'
 
 import type { PortalActionProposal } from './actionBridge'
 import type { ApplyResourceSetOp } from './applyResourceSet'
@@ -116,6 +117,20 @@ const DRAFT_PUBLISHERS: Partial<Record<PublishBuilder, DraftPublisher>> = {
       return version ? blueprintCompositionDefinition(slug, owner, repo, version, projectionForFiles(files)) : null
     },
   },
+  /*
+   * A controller the Controller Builder composed (T8, frontend#412): the HELD tree — its
+   * RestDefinitions and the ConfigMap carrying the document they read — exactly like a blueprint,
+   * registered at publish with Chart.yaml's version. The rail's legacy dispatchKogPublish (a previewed
+   * RestDefinition plus the OAS attachment) is reached only when no controller draft is held.
+   */
+  controller: {
+    formKind: 'controller',
+    projection: () => null,
+    registration: (slug, owner, repo, files) => {
+      const version = chartYamlVersion(files[CHART_YAML_PATH])
+      return version ? controllerCompositionDefinition(slug, owner, repo, version, files) : null
+    },
+  },
   page: {
     formKind: 'page',
     projection: () => null,
@@ -124,8 +139,9 @@ const DRAFT_PUBLISHERS: Partial<Record<PublishBuilder, DraftPublisher>> = {
 }
 
 /**
- * The publishers this frontend RUNS: the held-draft ones (DRAFT_PUBLISHERS) and the controller's
- * (dispatchKogPublish). A Builder naming any other `publish.builder` publishes nothing here.
+ * The publishers this frontend RUNS: the held-draft ones (DRAFT_PUBLISHERS — the controller's among
+ * them) and the rail's legacy controller publish (dispatchKogPublish). A Builder naming any other
+ * `publish.builder` publishes nothing here.
  *
  * Every publish verb now has a Builder: `publishRestDef` is the Controller Builder's (T3,
  * frontend#409), so there is no longer a table of verbs published without one.
@@ -336,15 +352,23 @@ export const dispatchKogPublish = async (
 
 /**
  * THE ONE PUBLISH ENTRY, for any builder's publish verb. The verb's publisher (publisherOfVerb)
- * decides: the controller's reads its preview gate and OAS document, every other publishes the held
- * draft. `held` on the outcome is the draft the publish was of — null for the controller's.
+ * decides, and every publisher publishes the HELD draft — the controller's included, since the
+ * Controller Builder composes one (T8, frontend#412).
+ *
+ * THE ONE EXCEPTION is the rail's legacy controller publish: with no controller draft held, an
+ * Autopilot `publishRestDef` still commits the RestDefinition it previewed and the OAS document
+ * attached in the rail (dispatchKogPublish). A PERSON's Publish never reaches it — the oasStore and
+ * previewGate.lastDraft are not a publish source for a person: runPersonPublish passes no
+ * `controller` context, so a person with nothing held is told there is nothing previewed to publish.
+ * `held` on the outcome is the draft the publish was of — null for the rail's legacy publish.
  */
 export const publishDraft = async (deps: PublishDraftDeps, proposal: PortalActionProposal): Promise<PublishDraftOutcome> => {
   if (publisherOfVerb(proposal.verb) !== 'controller') {
     return runDraftPublish(deps, proposal)
   }
-  if (!deps.controller) {
-    return denied(`denied — ${proposal.verb} publishes a previewed RestDefinition, which only Autopilot holds`, null)
+  const heldKind = deps.blueprintStore.get()?.kind
+  if (heldKind === 'controller' || deps.initiator === 'person' || !deps.controller) {
+    return runDraftPublish(deps, proposal)
   }
   const outcome = await dispatchKogPublish(proposal, {
     ...deps.controller,

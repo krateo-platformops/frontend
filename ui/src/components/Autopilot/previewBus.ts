@@ -41,7 +41,7 @@ export interface AutopilotPreviewPayload {
    * the held draft's lint, and a discard closes it — none of which is true of a preview nothing
    * holds, whose edits would land in whatever draft happened to be held under the same file names.
    */
-  builder?: 'blueprint' | 'restdef' | 'inspect'
+  builder?: 'blueprint' | 'controller' | 'restdef' | 'inspect'
   /** Drawer title, named by the verb (e.g. "Blueprint preview — aws-vpc"). */
   title: string
   /** One-line qualifier under the title (e.g. "source preview — not a live render"). */
@@ -88,6 +88,13 @@ export interface AutopilotPreviewPayload {
   editRestDef?: boolean
   /** The RestDefinition kind the editable source belongs to (headline for the edit section). */
   restDefKind?: string
+  /**
+   * A "Rendered" tab that says why nothing is rendered yet — the Controller Builder's until its render
+   * (T9, frontend#413) draws the create form of the generated CRD there. Absent: no such tab.
+   */
+  renderedPlaceholder?: string
+  /** The tab the files pane opens on, when not its first — a builder whose first tab is still empty. */
+  initialTab?: 'files' | 'source'
 }
 
 /** The LAST previewPage's validation verdicts — held here so the CONTEXT COLLECTOR can

@@ -51,6 +51,11 @@ export interface BuilderTargets {
    */
   blueprintTemplate: BuilderTarget
   kog: BuilderTarget
+  /**
+   * Template repo a NEW controller repository is SEEDED from (T8, frontend#412) — builder-scaffold, as
+   * for the other two: a controller is a chart too, and needs the same release workflow.
+   */
+  kogTemplate: BuilderTarget
   page: BuilderTarget
   /**
    * Template repo a NEW page-set repository is SEEDED from — a destination's starting content, not
@@ -60,11 +65,12 @@ export interface BuilderTargets {
   pageTemplate: BuilderTarget
 }
 
-/** The install-config slugs the builder targets are resolved from — `config.api`'s five keys. */
+/** The install-config slugs the builder targets are resolved from — `config.api`'s six keys. */
 export type BuilderTargetSlugs = Pick<Config['api'],
   | 'AUTOPILOT_BLUEPRINT_BUILDER_REPO'
   | 'AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE'
   | 'AUTOPILOT_KOG_BUILDER_REPO'
+  | 'AUTOPILOT_KOG_BUILDER_TEMPLATE'
   | 'AUTOPILOT_PAGE_BUILDER_REPO'
   | 'AUTOPILOT_PAGE_BUILDER_TEMPLATE'>
 
@@ -77,6 +83,7 @@ export const resolveBuilderTargets = (api: BuilderTargetSlugs | undefined): Buil
   blueprint: resolveBuilderTarget(api?.AUTOPILOT_BLUEPRINT_BUILDER_REPO),
   blueprintTemplate: resolveBuilderTarget(api?.AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE),
   kog: resolveBuilderTarget(api?.AUTOPILOT_KOG_BUILDER_REPO),
+  kogTemplate: resolveBuilderTarget(api?.AUTOPILOT_KOG_BUILDER_TEMPLATE),
   page: resolveBuilderTarget(api?.AUTOPILOT_PAGE_BUILDER_REPO),
   pageTemplate: resolveBuilderTarget(api?.AUTOPILOT_PAGE_BUILDER_TEMPLATE),
 })
@@ -90,6 +97,7 @@ const TARGET_OF_KEY: Record<keyof BuilderTargetSlugs, keyof BuilderTargets> = {
   AUTOPILOT_BLUEPRINT_BUILDER_REPO: 'blueprint',
   AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE: 'blueprintTemplate',
   AUTOPILOT_KOG_BUILDER_REPO: 'kog',
+  AUTOPILOT_KOG_BUILDER_TEMPLATE: 'kogTemplate',
   AUTOPILOT_PAGE_BUILDER_REPO: 'page',
   AUTOPILOT_PAGE_BUILDER_TEMPLATE: 'pageTemplate',
 }
@@ -105,15 +113,17 @@ export const useBuilderTargets = (config: Config | undefined): BuilderTargets =>
   const blueprintSlug = config?.api.AUTOPILOT_BLUEPRINT_BUILDER_REPO
   const blueprintTemplateSlug = config?.api.AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE
   const kogSlug = config?.api.AUTOPILOT_KOG_BUILDER_REPO
+  const kogTemplateSlug = config?.api.AUTOPILOT_KOG_BUILDER_TEMPLATE
   const pageSlug = config?.api.AUTOPILOT_PAGE_BUILDER_REPO
   const pageTemplateSlug = config?.api.AUTOPILOT_PAGE_BUILDER_TEMPLATE
   return useMemo(() => resolveBuilderTargets({
     AUTOPILOT_BLUEPRINT_BUILDER_REPO: blueprintSlug,
     AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE: blueprintTemplateSlug,
     AUTOPILOT_KOG_BUILDER_REPO: kogSlug,
+    AUTOPILOT_KOG_BUILDER_TEMPLATE: kogTemplateSlug,
     AUTOPILOT_PAGE_BUILDER_REPO: pageSlug,
     AUTOPILOT_PAGE_BUILDER_TEMPLATE: pageTemplateSlug,
-  }), [blueprintSlug, blueprintTemplateSlug, kogSlug, pageSlug, pageTemplateSlug])
+  }), [blueprintSlug, blueprintTemplateSlug, kogSlug, kogTemplateSlug, pageSlug, pageTemplateSlug])
 }
 
 /**

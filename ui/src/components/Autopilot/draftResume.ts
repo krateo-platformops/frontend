@@ -105,12 +105,16 @@ export const readDraftRecordByName = async (
 }
 
 /**
- * Where a record of this kind is resumed. A record opened in the OTHER composer is not loaded
- * there — a page tree in the Blueprint Composer is parked, not drawn — so it says where to go: the
- * label of the Builder that declares the record's draft kind, and the artifact its plugin names.
+ * Where a record of this kind is resumed. A record opened in another composer is not loaded there —
+ * a page tree in the Blueprint Composer is parked, not drawn — so it says where to go: the label and
+ * the ROUTE of the Builder that declares the record's draft kind, and the artifact its plugin names.
+ * Every Builder this frontend loads has a composer at its route now — the Controller Builder's since
+ * T8 (frontend#412) — so the route is somewhere to go, not a promise.
  */
-export const wrongComposerMessage = (record: Pick<DraftRecordBody, 'kind' | 'name'>): string =>
-  `${record.name} is ${draftKindOf(record.kind).nouns.artifact} draft — resume it from the ${builderOf(record.kind).label}.`
+export const wrongComposerMessage = (record: Pick<DraftRecordBody, 'kind' | 'name'>): string => {
+  const builder = builderOf(record.kind)
+  return `${record.name} is ${draftKindOf(record.kind).nouns.artifact} draft — resume it from the ${builder.label}, at ${builder.route}.`
+}
 
 const pad = (value: number): string => String(value).padStart(2, '0')
 

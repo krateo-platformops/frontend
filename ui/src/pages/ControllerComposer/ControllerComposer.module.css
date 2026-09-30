@@ -1,0 +1,203 @@
+/* The Controller Composer's own rules (T8, frontend#412): the Resources canvas and its 156×72 Kind
+   cards, the Configuration node and the edges to it, and the inspector's verbs table. Everything
+   else — the panes, their heads, the palette rows, the derived list — is the panes frame's
+   (BlueprintComposer.module.css), shared on purpose. Tokens only. */
+
+/* ── The Resources canvas ──────────────────────────────────────────────────────────────────────── */
+
+.canvas {
+  min-height: 240px;
+  position: relative;
+}
+
+.canvas[data-drop='true'] {
+  background: var(--krateo-color-background-selected);
+  outline: 1px dashed var(--primary-color);
+}
+
+.graph {
+  position: relative;
+}
+
+.edges {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.edge {
+  fill: none;
+  stroke: var(--border-color);
+  stroke-width: 1.5;
+}
+
+.canvasEmpty {
+  align-items: center;
+  box-sizing: border-box;
+  color: var(--gray-color);
+  display: flex;
+  flex-direction: column;
+  font-size: var(--krateo-text-body-sm);
+  gap: var(--spacing-sm);
+  justify-content: center;
+  min-height: 240px;
+  padding: var(--spacing-lg);
+  text-align: center;
+}
+
+.canvasEmptyTitle {
+  color: var(--text-color);
+  font-size: var(--krateo-text-body);
+  font-weight: var(--font-weight-bold);
+  margin: 0;
+}
+
+/* ── The Kind card — 156×72 ────────────────────────────────────────────────────────────────────── */
+
+.card {
+  background: var(--light-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-sizing: border-box;
+  color: var(--text-color);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-family);
+  gap: var(--spacing-xxs);
+  height: 72px;
+  padding: var(--spacing-sm) var(--spacing-smd);
+  position: absolute;
+  text-align: start;
+  transition: background-color var(--motion-fast) ease-in-out, border-color var(--motion-fast) ease-in-out;
+  width: 156px;
+}
+
+.card[aria-pressed='true'] {
+  background: var(--krateo-color-background-selected);
+  border-color: var(--primary-color);
+}
+
+.card[data-drop='true'] {
+  border-color: var(--primary-color);
+  border-style: dashed;
+}
+
+/* A Kind with a verb nobody settled — the exception, marked; a settled Kind is not. */
+.card[data-conflict='true'] {
+  border-color: var(--warning-color);
+}
+
+.configCard {
+  border-style: dashed;
+  cursor: default;
+}
+
+.cardEyebrow,
+.cardTitle,
+.cardVerbs {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardEyebrow {
+  color: var(--gray-color);
+  font-size: var(--krateo-text-label-xs);
+  letter-spacing: 0.04em;
+}
+
+.cardTitle {
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-body-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.cardVerbs {
+  color: var(--gray-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+}
+
+.cardConflict {
+  color: var(--warning-color);
+}
+
+/* ── The palette's operation rows ──────────────────────────────────────────────────────────────── */
+
+.operation {
+  align-items: baseline;
+  border-radius: var(--radius-sm);
+  cursor: grab;
+  display: flex;
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-caption);
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xxs) var(--spacing-sm) var(--spacing-xxs) var(--spacing-md);
+}
+
+.operation:hover {
+  background: var(--krateo-color-background-selected);
+}
+
+.method {
+  color: var(--gray-color);
+  flex: 0 0 auto;
+  min-width: 48px;
+}
+
+.groupActions {
+  align-items: center;
+  display: flex;
+  gap: var(--spacing-xs);
+  justify-content: space-between;
+}
+
+/* ── The inspector ─────────────────────────────────────────────────────────────────────────────── */
+
+.verbs {
+  border-collapse: collapse;
+  font-size: var(--krateo-text-caption);
+  width: 100%;
+}
+
+.verbs th {
+  color: var(--gray-color);
+  font-weight: var(--font-weight-medium);
+  padding: var(--spacing-xxs) var(--spacing-xs);
+  text-align: start;
+}
+
+.verbs td {
+  border-top: 1px solid var(--line-color);
+  padding: var(--spacing-xs);
+  vertical-align: top;
+}
+
+.verbAction {
+  font-family: var(--font-mono);
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxs);
+}
+
+.checkList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxs);
+}
+
+.reason {
+  color: var(--gray-color);
+  display: block;
+  font-size: var(--krateo-text-label-xs);
+}
+
+.lockNote {
+  color: var(--gray-color);
+  font-size: var(--krateo-text-label-xs);
+  margin-inline-start: var(--spacing-xs);
+}

@@ -228,6 +228,12 @@ config:
   #   builder-prs lists are built from the file commits, which never happen.
   AUTOPILOT_PAGE_BUILDER_TEMPLATE: krateo-blueprints/builder-scaffold
   AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE: krateo-blueprints/builder-scaffold
+  # The Controller Builder's seed (frontend#412): a controller is a chart too — its RestDefinitions and
+  #   the OpenAPI ConfigMap they read — so it is seeded from the same scaffold, for the same release
+  #   workflow. Set it to "" on a self-hosted SCM without a mirror, like the two above.
+  #   NO schema default (scripts/gen-config-schema.py NO_DEFAULT): core-provider copies schema
+  #   defaults into the composition spec, where a default freezes the value over this file.
+  AUTOPILOT_KOG_BUILDER_TEMPLATE: krateo-blueprints/builder-scaffold
   # BLUEPRINT / KOG(controller) — PER-ARTIFACT repos (#163): each blueprint / RestDefinition gets its
   #   OWN repo named for the artifact. Here the OWNER segment is what matters (the org new repos land
   #   in); the REPO segment is only a fallback prefill that the per-artifact name overrides. The

@@ -47,19 +47,11 @@ describe('builderRegistry — the fixtures, loaded', () => {
     expect(registry.get({ draftKind: 'controller' })).toBeUndefined()
   })
 
-  it('every builder it loads names only plugins and checks this frontend ships — or, for the controller, ones pending T8', () => {
+  it('every builder it loads names only plugins and checks this frontend ships — the controller\'s too, since T8', () => {
     for (const builder of builderRegistry.all()) {
-      if (builder.metadata.name === 'controller-builder') { continue }
-      expect(builderRefusals(builder.spec)).toEqual([])
+      expect(builderRefusals(builder.spec), builder.metadata.name).toEqual([])
     }
-    const controller = builderRegistry.get({ name: 'controller-builder' })
-    expect(controller).toBeDefined()
-    // Exactly its three composer plugins, each refused as NOT SHIPPED YET — never as unknown.
-    const refusals = builderRefusals(controller!.spec)
-    expect(refusals).toHaveLength(3)
-    for (const refusal of refusals) { expect(refusal).toMatch(/is not shipped in this frontend yet: it comes with the Controller Builder composer/) }
-    expect([...pendingPluginNames('palette'), ...pendingPluginNames('canvas'), ...pendingPluginNames('inspector')])
-      .toEqual([controller!.spec.palette.plugin, controller!.spec.canvas.plugin, controller!.spec.inspector.plugin])
+    expect([...pendingPluginNames('palette'), ...pendingPluginNames('canvas'), ...pendingPluginNames('inspector')]).toEqual([])
   })
 
   it('answers by draft kind, route, name and verb', () => {

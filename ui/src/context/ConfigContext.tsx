@@ -102,6 +102,8 @@ export interface Config {
      * Absent/empty/malformed → no seeding. */
     AUTOPILOT_PAGE_BUILDER_TEMPLATE?: string
     AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE?: string
+    /** The Controller Builder's seed (T8, frontend#412) — builder-scaffold, like the other two. */
+    AUTOPILOT_KOG_BUILDER_TEMPLATE?: string
     /* SCM-agnostic publishing (git-provider LocalResource path). The builder publish targets are
      * install config; these two say WHICH SCM flavour + host so the frontend builds the right
      * change-request deep link + citation URLs (the write itself is scm-blind, done by git-provider).

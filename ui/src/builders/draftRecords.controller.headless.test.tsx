@@ -219,7 +219,7 @@ describe('Resume and Discard, for a controller', () => {
   })
 
   it('opened in another composer, it says where it resumes — by the Controller Builder\'s label', () => {
-    expect(wrongComposerMessage(record())).toBe('github-provider is a controller draft — resume it from the Controller Builder.')
+    expect(wrongComposerMessage(record())).toBe('github-provider is a controller draft — resume it from the Controller Builder, at /controller-builder/compose.')
     expect(restoredBannerCopy({ everPreviewed: false, kind: 'controller', previewed: false, relinked: false, updatedAt: NOW.toISOString() }, NOW).body)
       .toBe('The controller is exactly as you left it, and Undo starts here. It has not been previewed yet, so preview it before publishing.')
   })

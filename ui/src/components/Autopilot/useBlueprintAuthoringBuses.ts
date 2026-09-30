@@ -33,6 +33,13 @@ import { lintHeldDraft } from './proposedChart'
 import { heldDraftIdentity } from './publishCompile'
 import type { DraftAutosave } from './useDraftAutosave'
 
+/**
+ * A controller is HELD by a start and never rendered here: its render (oasgen-render, through the
+ * controller-render-draft RESTAction) is T9's (frontend#413). Said plainly — as the answer to a
+ * start and to every Preview — rather than faking a render, and nothing is armed: Publish stays off.
+ */
+export const CONTROLLER_PREVIEW_UNAVAILABLE = 'A controller preview is not available in this portal yet — the controller render arrives with frontend#413. The controller is held and saved as you edit it; Publish stays off until a preview has rendered it.'
+
 export const RENDER_NOT_CONFIGURED = 'This portal has no chart render configured (the blueprint-render RESTAction needs the snowplow URL and the frontend namespace), so the chart cannot be previewed here. It is still held.'
 
 export const useBlueprintAuthoringBuses = (
@@ -55,6 +62,10 @@ export const useBlueprintAuthoringBuses = (
     const frontendNamespace = config?.params.FRONTEND_NAMESPACE
     const answer = (detail: Omit<DraftRenderResultDetail, 'id'>): void => emitDraftRenderResult({ id, ...detail })
     const held = store.get()
+    if (held?.kind === 'controller') {
+      answer({ message: CONTROLLER_PREVIEW_UNAVAILABLE, outcome: 'unavailable' })
+      return
+    }
     if (!held || held.kind !== 'blueprint') {
       answer({ message: 'No chart draft is open to preview.', outcome: 'refused' })
       return
@@ -90,7 +101,7 @@ export const useBlueprintAuthoringBuses = (
 
   useEffect(() => onDraftRenderRequest(({ id }) => { void render(id) }), [render])
 
-  useEffect(() => onChartStart(({ files, id }) => {
+  useEffect(() => onChartStart(({ files, id, kind = 'blueprint' }) => {
     if (store.get()) {
       emitDraftRenderResult({ id, message: 'A draft is already open in this thread — discard it before starting another.', outcome: 'refused' })
       return
@@ -100,7 +111,7 @@ export const useBlueprintAuthoringBuses = (
     clearComposeRefusals()
     draftHistory.clear()
     gate.forget(draftDisplayName(files))
-    const set = store.set(files, 'blueprint')
+    const set = store.set(files, kind)
     if (!set.ok) {
       emitDraftRenderResult({ id, message: set.error, outcome: 'refused' })
       return
