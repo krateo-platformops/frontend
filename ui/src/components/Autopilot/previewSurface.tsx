@@ -586,14 +586,19 @@ export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, h
             type='warning'
           />
         ) : null}
-        {payload.renderedForms.map((form) => (
+        {payload.renderedForms.map((form) => (form.undrawn ? (
+          <section data-testid='autopilot-form-undrawn' key={form.crd}>
+            <Typography.Title level={5}>{`${form.kind} — create form`}</Typography.Title>
+            <Typography.Paragraph type='secondary'>{form.undrawn}</Typography.Paragraph>
+          </section>
+        ) : (
           <PreviewFormSection
             caption={`Read-only — generated from ${form.crd}, the CRD oasgen-render generated (nothing applied to the cluster). Nothing is submitted.`}
             formSchema={form.schema}
             key={form.crd}
             title={`${form.kind} — create form`}
           />
-        ))}
+        )))}
       </div>
     )
   } else if (payload.renderedPlaceholder) {

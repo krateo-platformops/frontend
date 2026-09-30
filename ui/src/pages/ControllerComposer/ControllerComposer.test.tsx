@@ -579,10 +579,13 @@ describe('T9 — Preview renders the controller through controller-render-draft'
     mountWired()
     authorPetstore()
     await preview()
-    await waitFor(() => expect(screen.getByText(`${CONTROLLER_RENDER_FAILED} The render error is in Source.`)).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(`${CONTROLLER_RENDER_FAILED} Its problems are in Source.`)).toBeTruthy())
     expect(publishButton().disabled).toBe(true)
     expect(screen.getAllByText(FINDING).length).toBeGreaterThan(0)
     expect(screen.getByText(CONTROLLER_FAILED_CAPTION)).toBeTruthy()
+    // Review of #430: the pane lands where the caption points — Source, with the problems alert.
+    expect(screen.getByRole('tab', { selected: true }).textContent).toBe('Source')
+    expect(screen.getByText('Validation errors — publishing this draft would be rejected')).toBeTruthy()
     // Nothing rendered: Rendered says why, Source carries the problems alert.
     act(() => { fireEvent.click(screen.getByRole('tab', { name: 'Rendered' })) })
     expect(screen.getByText(RENDERED_FAILED_PLACEHOLDER)).toBeTruthy()
@@ -597,6 +600,8 @@ describe('T9 — Preview renders the controller through controller-render-draft'
     await preview()
     await waitFor(() => expect(screen.getByText(DOWN)).toBeTruthy())
     expect(publishButton().disabled).toBe(true)
+    // Review of #430: a render that could not run is a warning; only CONTROLLER_STARTED is info.
+    expect(screen.getByText(DOWN).closest('[role="alert"]')?.className).toContain('ant-alert-warning')
     // No fake success: nothing rendered, nothing in Rendered.
     expect(screen.queryByText(/— create form$/)).toBeNull()
 

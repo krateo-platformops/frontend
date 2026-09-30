@@ -99,7 +99,7 @@ export interface AutopilotPreviewPayload {
    * preview a blueprint's values.schema.json is (PreviewFormSection). Takes the tab over from
    * `renderedPlaceholder` when there is at least one.
    */
-  renderedForms?: { kind: string; crd: string; schema: string }[]
+  renderedForms?: { kind: string; crd: string; schema: string; undrawn?: string }[]
   /** Said above the rendered forms: what the render applies anyway (a skipped security scheme). */
   renderedWarnings?: string[]
   /** The tab the files pane opens on, when not its first — a builder whose first tab is still empty. */

@@ -13,7 +13,9 @@
  * the Blueprint Composer's Source follows.
  */
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
+import type { DraftRenderResultDetail } from '../../components/Autopilot/previewDraftRender'
 import { sameFiles, type LastRender } from '../BlueprintComposer/heldBlueprintPayload'
+import { renderOutcomeCopy, type OutcomeCopy } from '../BlueprintComposer/renderOutcome'
 
 import type { ControllerModel } from './controllerChart'
 import { renderedForms } from './controllerRender'
@@ -50,6 +52,34 @@ const placeholderOf = (render: LastRender | null): string => {
   return render.problems?.length ? RENDERED_FAILED_PLACEHOLDER : RENDERED_NO_FORM_PLACEHOLDER
 }
 
+const initialTabOf = (hasForms: boolean, render: LastRender | null): AutopilotPreviewPayload['initialTab'] => {
+  if (hasForms) { return 'rendered' }
+  return render?.problems?.length ? 'source' : 'files'
+}
+
+/** The Preview answer's notice, in the controller's words (renderOutcomeCopy speaks of a chart). */
+export const CONTROLLER_STALE_OUTCOME = 'The controller changed while it rendered — preview again.'
+
+/** The answer to a controller start with no Kind yet: held, and what Preview needs first. */
+export const CONTROLLER_STARTED = 'The controller is held and saved as you edit it. Place a Kind from the palette, then press Preview — oasgen-render generates its CRD. Publish stays off until a preview has rendered the controller.'
+
+export const controllerOutcomeCopy = (detail: DraftRenderResultDetail): OutcomeCopy => {
+  const copy = renderOutcomeCopy(detail)
+  switch (detail.outcome) {
+    case 'stale':
+      return { ...copy, title: CONTROLLER_STALE_OUTCOME }
+    case 'rendered':
+      return { ...copy, title: copy.title.replace('Publish is on until the chart changes.', 'Publish is on until the controller changes.') }
+    case 'failed':
+      return { ...copy, title: `${detail.message ?? 'The controller did not render, so it cannot be published yet.'} Its problems are in Source.` }
+    case 'unavailable':
+      // A start with nothing to render yet is guidance, not a warning; a render that could not run is one.
+      return detail.message === CONTROLLER_STARTED ? { ...copy, type: 'info' } : copy
+    default:
+      return copy
+  }
+}
+
 export const controllerPreviewPayload = (
   files: Record<string, string>,
   model: ControllerModel,
@@ -62,8 +92,9 @@ export const controllerPreviewPayload = (
     caption: captionOf(files, render),
     files: Object.entries(files).map(([path, content]) => ({ content, path })),
     filesLabel: 'Chart files',
-    // Rendered first once it has a form to show; Chart files while it has none.
-    initialTab: forms.length ? 'rendered' : 'files',
+    // Rendered once it has a form to show; Source after a failed preview (where its caption points);
+    // Chart files before any.
+    initialTab: initialTabOf(forms.length > 0, render),
     objects: render?.objects ?? [],
     ...(render?.problems?.length ? { problems: render.problems } : {}),
     publishTarget: { base: 'main', note: 'merged, CI publishes it as a versioned OCI Helm chart', repo: name },

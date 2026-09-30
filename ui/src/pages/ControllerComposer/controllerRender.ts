@@ -38,7 +38,15 @@ import { asRecord } from '../../components/Autopilot/kogRestDefSchema'
 import { callRestActionStatus } from '../../components/Autopilot/previewBridge'
 import type { PreviewObjectEntry } from '../../components/Autopilot/previewBus'
 
-import { CONFIGMAP_PATH, readController, RELEASE_NAMESPACE, toYaml, unescapeHelm } from './controllerChart'
+import {
+  carriesHelmAction,
+  CONFIGMAP_PATH,
+  helmActionProblems,
+  readController,
+  RELEASE_NAMESPACE,
+  toYaml,
+  unescapeHelm,
+} from './controllerChart'
 
 /** The key the controller draft rides in, as controller-render-draft reads it. */
 export const CONTROLLER_DRAFT_KEY = 'draft.json'
@@ -104,12 +112,13 @@ const chartDocuments = (files: Readonly<Record<string, string>>, namespace: stri
       continue
     }
     for (const [key, text] of Object.entries(asRecord(configMap?.data) ?? {})) {
-      if (typeof text === 'string') {
+      if (typeof text === 'string' && !carriesHelmAction(text)) {
         docs[`configmap://${cmNamespace}/${name}/${key}`] = unescapeHelm(text)
       }
     }
   }
-  return { docs, problems }
+  // A document Helm would still evaluate is not the document the preview would send: refused by file.
+  return { docs, problems: [...problems, ...helmActionProblems(files)] }
 }
 
 /**
@@ -177,11 +186,41 @@ export const readControllerRender = (status: Record<string, unknown> | null): Co
   return { objects, problems, warnings: sentences(status?.warnings) }
 }
 
+const STILL_HELD = 'The controller is still held; Publish stays off.'
+
+/**
+ * Why the /call itself failed, by status — each is a different thing to fix, and none is the
+ * controller: 403 is the person's RBAC on the RESTAction, 404 a portal without it, 5xx snowplow or the
+ * server behind it, and no answer at all snowplow unreachable.
+ */
+export const transportSentence = (failure: { error: string; httpStatus?: number }, restAction: string): string => {
+  const status = failure.httpStatus
+  if (status === 403) {
+    return `${failure.error} — you may not call the ${restAction} RESTAction (RBAC): your role needs get on restactions/${restAction}. Ask an admin to grant it. ${STILL_HELD}`
+  }
+  if (status === 404) {
+    return `${failure.error} — this portal cannot preview a controller without its ${restAction} RESTAction (portal#277). ${STILL_HELD}`
+  }
+  if (status !== undefined && status >= 500) {
+    return `${failure.error} — snowplow, or the server behind it, failed while resolving the preview; this is not a problem with the controller. Try Preview again shortly. ${STILL_HELD}`
+  }
+  return `${failure.error} — the preview could not be asked for, so nothing was rendered. ${STILL_HELD}`
+}
+
+/** controller-render-draft could not read back the ConfigMap this preview wrote (its `draftError`). */
+const DRAFT_UNREADABLE = /^the controller draft could not be read\b/
+
 /** The verdict on one render: armed only on at least one CRD and no problem at all. */
 export const controllerVerdict = (render: ControllerRender): ControllerRenderAnswer => {
   const missing = render.problems.filter((problem) => SERVICE_MISSING.test(problem))
   if (missing.length) {
     return { message: missing.join(' '), outcome: 'unavailable' }
+  }
+  // The sandbox ConfigMap not readable as the person is the sandbox's (its RBAC, or it went away),
+  // not the controller's — nothing in the controller would fix it.
+  const unreadable = render.problems.filter((problem) => DRAFT_UNREADABLE.test(problem))
+  if (unreadable.length) {
+    return { message: `${unreadable.join(' ')} — the preview sandbox ConfigMap could not be read back as you, so nothing was rendered; this is the sandbox's access, not the controller. ${STILL_HELD}`, outcome: 'unavailable' }
   }
   if (render.problems.length) {
     return { outcome: 'failed', render: { ...render, objects: [] } }
@@ -218,7 +257,7 @@ export const renderController = async (
   const draft = {
     body: built.draft,
     key: CONTROLLER_DRAFT_KEY,
-    name: sandboxDraftName(CONTROLLER_PREVIEW_PREFIX, controllerName, nonce),
+    name: sandboxDraftName(CONTROLLER_PREVIEW_PREFIX, controllerName, nonce, 'controller'),
     purpose: CONTROLLER_PURPOSE_LABEL,
   }
   const answered = await withSandboxDraft(writer, draft, (ref) =>
@@ -230,10 +269,7 @@ export const renderController = async (
     }
   }
   if ('error' in answered.value) {
-    return {
-      message: `${answered.value.error} — this portal cannot preview a controller without its ${target.restAction} RESTAction (portal#277). The controller is still held; Publish stays off.`,
-      outcome: 'unavailable',
-    }
+    return { message: transportSentence(answered.value, target.restAction), outcome: 'unavailable' }
   }
   if (!answered.value.status) {
     return { message: `${target.restAction} answered nothing, so the controller was not rendered. It is still held; Publish stays off.`, outcome: 'unavailable' }
@@ -248,8 +284,40 @@ export interface RenderedForm {
   kind: string
   /** The CRD's name, e.g. `pets.petstore.example.io`. */
   crd: string
-  /** The raw JSON schema string buildFormPreviewModel reads. */
+  /** The raw JSON schema string buildFormPreviewModel reads — empty when the form is not drawn. */
   schema: string
+  /** Why no form is drawn for this Kind (its schema nests past MAX_FORM_DEPTH), said in its place. */
+  undrawn?: string
+}
+
+/**
+ * How deep a create form is drawn. The form renders every nested object as a group inside its
+ * parent; past this, it stops being a form a person can read (and a recursive-looking API can nest
+ * far past it), so the Kind is named with why instead.
+ */
+export const MAX_FORM_DEPTH = 12
+
+const CHILD_SCHEMAS = ['items', 'additionalProperties', 'not'] as const
+const LIST_SCHEMAS = ['allOf', 'anyOf', 'oneOf'] as const
+
+/** The nesting depth of a schema, counted to `limit + 1` at most (so a huge schema is not walked whole). */
+export const schemaDepth = (schema: unknown, limit: number = MAX_FORM_DEPTH): number => {
+  const walk = (node: unknown, depth: number): number => {
+    const record = asRecord(node)
+    if (!record || depth > limit) { return depth }
+    const children: unknown[] = [
+      ...Object.values(asRecord(record.properties) ?? {}),
+      ...CHILD_SCHEMAS.map((key) => record[key]),
+      ...LIST_SCHEMAS.flatMap((key) => (Array.isArray(record[key]) ? record[key] as unknown[] : [])),
+    ].filter((child) => asRecord(child))
+    let deepest = depth
+    for (const child of children) {
+      deepest = Math.max(deepest, walk(child, depth + 1))
+      if (deepest > limit) { break }
+    }
+    return deepest
+  }
+  return walk(schema, 1)
 }
 
 /**
@@ -271,5 +339,9 @@ export const renderedForms = (objects: readonly PreviewObjectEntry[]): RenderedF
   const kind = asRecord(spec?.names)?.kind
   if (!specSchema || typeof kind !== 'string' || !kind) { return [] }
   const metadataName = asRecord(crd?.metadata)?.name
-  return [{ crd: object.name ?? (typeof metadataName === 'string' && metadataName ? metadataName : kind), kind, schema: JSON.stringify(specSchema) }]
+  const name = object.name ?? (typeof metadataName === 'string' && metadataName ? metadataName : kind)
+  if (schemaDepth(specSchema) > MAX_FORM_DEPTH) {
+    return [{ crd: name, kind, schema: '', undrawn: `${kind}'s spec is too deeply nested to draw a form (more than ${MAX_FORM_DEPTH} levels) — its schema is in Source.` }]
+  }
+  return [{ crd: name, kind, schema: JSON.stringify(specSchema) }]
 })

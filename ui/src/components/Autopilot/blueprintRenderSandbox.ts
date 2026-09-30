@@ -51,10 +51,10 @@ const CONFIGMAPS = { group: '', resource: 'configmaps', version: 'v1' }
 
 const slug = (text: string): string => text.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '')
 
-/** `<prefix>-<name>-<nonce>`, a DNS-1123 name within 63 characters. */
-export const sandboxDraftName = (prefix: string, draftName: string, nonce: string): string => {
+/** `<prefix>-<name>-<nonce>`, a DNS-1123 name within 63 characters; `fallback` names a nameless draft. */
+export const sandboxDraftName = (prefix: string, draftName: string, nonce: string, fallback = 'chart'): string => {
   const tail = `-${slug(nonce).slice(0, 8) || 'x'}`
-  const head = `${prefix}-${slug(draftName) || 'chart'}`.slice(0, 63 - tail.length).replace(/-+$/, '')
+  const head = `${prefix}-${slug(draftName) || fallback}`.slice(0, 63 - tail.length).replace(/-+$/, '')
   return `${head}${tail}`
 }
 

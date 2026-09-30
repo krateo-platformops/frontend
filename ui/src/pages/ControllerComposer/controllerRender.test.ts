@@ -8,13 +8,16 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import type { SandboxWriter } from '../../components/Autopilot/blueprintRenderSandbox'
+import { sandboxDraftName, type SandboxWriter } from '../../components/Autopilot/blueprintRenderSandbox'
+import { lintHeldDraft } from '../../components/Autopilot/proposedChart'
 import type { WriteOp } from '../../components/BlastRadius/buildBlastRadius'
 
-import { planPlaceGroup, restDefinitionPath, type ControllerPlan } from './controllerChart'
+import { planPlaceGroup, readController, restDefinitionPath, type ControllerPlan } from './controllerChart'
+import { CONTROLLER_STALE_OUTCOME, CONTROLLER_STARTED, controllerOutcomeCopy, controllerPreviewPayload } from './controllerPreviewPayload'
 import {
   controllerDraftJson,
   controllerVerdict,
+  MAX_FORM_DEPTH,
   readControllerRender,
   renderController,
   renderedForms,
@@ -152,5 +155,80 @@ describe('renderController — no fallback, no fake success', () => {
     const answer = await renderController(started(), TARGET, sandbox, 'petstore')
     expect(answer).toMatchObject({ outcome: 'refused', problems: ['No Kind is placed yet — place one from the palette, then preview the controller.'] })
     expect(ops).toEqual([])
+  })
+})
+
+describe('review of #430', () => {
+  const CM = 'templates/configmap-oas-petstore.yaml'
+  const failing = (): Record<string, string> => {
+    const files = withStore()
+    return { ...files, [CM]: files[CM].replace('Swagger Petstore - OpenAPI 3.0', 'Petstore {{ fail \\"boom\\" }}') }
+  }
+
+  it('1. a Helm action left in the OAS text is refused by the lint (Publish blocked) and by the preview, naming the file', async () => {
+    const files = failing()
+    expect(files[CM]).toContain('{{ fail')
+    const sentence = `${CM}: data.openapi.json carries a Helm template action ({{ … }})`
+    expect(lintHeldDraft(files, 'controller').some((problem) => problem.startsWith(sentence))).toBe(true)
+    const built = controllerDraftJson(files, SANDBOX)
+    expect(!built.ok && built.problems.some((problem) => problem.startsWith(sentence))).toBe(true)
+    // Nothing reaches the sandbox.
+    const { ops, sandbox } = writer()
+    expect(await renderController(files, TARGET, sandbox, 'petstore')).toMatchObject({ outcome: 'refused' })
+    expect(ops).toEqual([])
+    // The escaped literal is still fine.
+    const escaped = { ...withStore(), [CM]: withStore()[CM].replace('Swagger Petstore - OpenAPI 3.0', 'Petstore {{`{{`}}v3}}') }
+    expect(lintHeldDraft(escaped, 'controller')).toEqual([])
+  })
+
+  it('2. a file outside the controller chart is refused by the lint, by path; the registration file is not', () => {
+    const files = { ...withStore(), 'README.md': '# x\n', 'templates/deployment.yaml': 'kind: Deployment\n' }
+    const problems = lintHeldDraft(files, 'controller')
+    expect(problems.filter((problem) => /published without the preview ever rendering it/.test(problem)).map((problem) => problem.split(':')[0])).toEqual(['README.md', 'templates/deployment.yaml'])
+    expect(lintHeldDraft({ ...withStore(), 'compositiondefinition.yaml': 'kind: CompositionDefinition\n' }, 'controller')).toEqual([])
+  })
+
+  it('3. /call 403 is RBAC, 5xx is snowplow, 404 the missing RESTAction; an unreadable sandbox ConfigMap is unavailable', async () => {
+    const at = async (status: number) => {
+      vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve(null), ok: false, status })))
+      const answer = await renderController(withStore(), TARGET, writer().sandbox, 'petstore')
+      expect(answer.outcome).toBe('unavailable')
+      return answer.outcome === 'unavailable' ? answer.message : ''
+    }
+    expect(await at(403)).toMatch(/^controller-render-draft RESTAction responded 403 — you may not call the controller-render-draft RESTAction \(RBAC\)/)
+    expect(await at(503)).toMatch(/^controller-render-draft RESTAction responded 503 — snowplow, or the server behind it, failed .*not a problem with the controller/)
+    expect(await at(404)).toMatch(/\(portal#277\)/)
+    for (const message of [await at(403), await at(503), await at(404)]) {
+      expect(message).toMatch(/Publish stays off\.$/)
+    }
+    const unreadable = controllerVerdict({ objects: [], problems: ['the controller draft could not be read: configmaps "ctl-preview-petstore-x" is forbidden'], warnings: [] })
+    expect(unreadable.outcome).toBe('unavailable')
+    expect(unreadable.outcome === 'unavailable' && unreadable.message).toMatch(/preview sandbox ConfigMap could not be read back as you/)
+  })
+
+  it('4. the controller\'s own words: stale, started as info, a failed render opens on Source, a nameless draft is a controller', () => {
+    expect(controllerOutcomeCopy({ id: 'x', message: 'The controller changed while it was rendering — preview it again.', outcome: 'stale' }).title).toBe(CONTROLLER_STALE_OUTCOME)
+    expect(controllerOutcomeCopy({ id: 'x', message: CONTROLLER_STARTED, outcome: 'unavailable' }).type).toBe('info')
+    expect(controllerOutcomeCopy({ id: 'x', message: 'Controller preview needs oasgen-render …', outcome: 'unavailable' }).type).toBe('warning')
+    expect(controllerOutcomeCopy({ id: 'x', message: 'The controller did not render, so it cannot be published yet.', outcome: 'failed' }).title).toBe('The controller did not render, so it cannot be published yet. Its problems are in Source.')
+    const files = withStore()
+    const failed = controllerPreviewPayload(files, readController(files), 'petstore', { files, objects: [], problems: ['x: boom'] })
+    expect(failed.initialTab).toBe('source')
+    expect(failed.caption).toMatch(/its problems are in Source/)
+    expect(sandboxDraftName('ctl-preview', '', 'n0nce', 'controller')).toBe('ctl-preview-controller-n0nce')
+  })
+
+  it('5. a spec too deep to draw is said to be, in the Rendered tab — not "no spec schema"', () => {
+    let deep: Record<string, unknown> = { type: 'string' }
+    for (let level = 0; level < MAX_FORM_DEPTH + 2; level += 1) {
+      deep = { properties: { next: deep }, type: 'object' }
+    }
+    const [form] = renderedForms([{ kind: 'CustomResourceDefinition', name: 'repos.github.example.io', yaml: crd('Repo', deep) }])
+    expect(form).toMatchObject({ kind: 'Repo', schema: '' })
+    expect(form.undrawn).toMatch(/too deeply nested to draw a form/)
+    const files = withStore()
+    const payload = controllerPreviewPayload(files, readController(files), 'petstore', { files, objects: [{ kind: 'CustomResourceDefinition', name: 'repos.github.example.io', yaml: crd('Repo', deep) }] })
+    expect(payload.renderedForms?.[0].undrawn).toMatch(/too deeply nested to draw a form/)
+    expect(payload.renderedPlaceholder).toBeUndefined()
   })
 })

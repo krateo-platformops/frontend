@@ -280,7 +280,7 @@ export const callRestActionStatus = async (
   namespace: string,
   restAction: string,
   extras: string,
-): Promise<{ status: Record<string, unknown> | null } | { error: string }> => {
+): Promise<{ status: Record<string, unknown> | null } | { error: string; httpStatus?: number }> => {
   try {
     const url = new URL(`${snowplowBaseUrl.replace(/\/+$/, '')}/call`)
     url.searchParams.set('resource', 'restactions')
@@ -293,7 +293,7 @@ export const callRestActionStatus = async (
       // A RA transport failure (RBAC 403, the RA not installed 404, snowplow 5xx, the gateway's 431
       // for a URL past its header limit) — the render service {error} would have been a 200 with
       // .status.error, so a non-2xx here is genuinely the RA path failing. Content, never a throw.
-      return { error: `${restAction} RESTAction responded ${response.status}` }
+      return { error: `${restAction} RESTAction responded ${response.status}`, httpStatus: response.status }
     }
     const cr = await response.json().catch(() => null) as { status?: unknown } | null
     return { status: asRecord(cr?.status) }

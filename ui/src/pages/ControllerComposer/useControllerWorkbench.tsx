@@ -27,7 +27,6 @@ import type { AutopilotPreviewPayload } from '../../components/Autopilot/preview
 import { emitDraftClose, onDraftClose } from '../../components/Autopilot/previewDraftClose'
 import { emitFilesBatch } from '../../components/Autopilot/previewFilesBatch'
 import { lockedFor, usePublishedLocks } from '../../components/Autopilot/publishedLocks'
-import { renderOutcomeCopy } from '../BlueprintComposer/renderOutcome'
 import { useChartRequests } from '../BlueprintComposer/useChartRequests'
 
 import {
@@ -42,7 +41,7 @@ import {
   type ControllerPlan,
 } from './controllerChart'
 import ControllerEmptyState from './ControllerEmptyState'
-import { CONTROLLER_FILES_CAPTION, controllerPreviewPayload } from './controllerPreviewPayload'
+import { CONTROLLER_FILES_CAPTION, controllerOutcomeCopy, controllerPreviewPayload } from './controllerPreviewPayload'
 import { classifyOperation, type RestAction } from './operationMapping'
 import { operationsInGroup } from './paletteModel'
 import StartControllerModal from './StartControllerModal'
@@ -142,7 +141,7 @@ export const useControllerWorkbench = (host: HostDraft) => {
     ? controllerPreviewPayload(files, model, name, lastRender)
     : null), [files, lastRender, mode, model, name])
 
-  const outcome = requests.outcome ? renderOutcomeCopy(requests.outcome) : null
+  const outcome = requests.outcome ? controllerOutcomeCopy(requests.outcome) : null
   const kinds = model.kinds.map((entry) => entry.kind)
   const meta = [model.version, kinds.length ? kinds.join(', ') : null, model.group || null].filter(Boolean).join(' · ')
 
@@ -204,7 +203,7 @@ export const useControllerWorkbench = (host: HostDraft) => {
         onClose={requests.dismiss}
         showIcon
         title={outcome.title}
-        type={outcome.type === 'warning' && requests.outcome?.outcome === 'unavailable' ? 'info' : outcome.type}
+        type={outcome.type}
       />
     ) : null,
     onResumed: forgetShown,

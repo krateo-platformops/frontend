@@ -26,7 +26,7 @@ import { useCallback, useEffect } from 'react'
 import { findBuilderOf } from '../../builders/builderRegistry'
 import type { Config } from '../../context/ConfigContext'
 import { readController } from '../../pages/ControllerComposer/controllerChart'
-import { controllerPreviewPayload } from '../../pages/ControllerComposer/controllerPreviewPayload'
+import { CONTROLLER_STARTED, controllerPreviewPayload } from '../../pages/ControllerComposer/controllerPreviewPayload'
 import { renderController } from '../../pages/ControllerComposer/controllerRender'
 
 import { draftDisplayName } from './blueprintDraft'
@@ -48,8 +48,8 @@ import type { DraftAutosave } from './useDraftAutosave'
  */
 export const CONTROLLER_RENDER_NOT_CONFIGURED = 'This portal has no controller preview configured (the controller-render-draft RESTAction needs the snowplow URL, the frontend namespace and the preview sandbox), so the controller cannot be previewed here. It is still held; Publish stays off.'
 
-/** The answer to a controller start with no Kind yet: held, and what Preview needs first. */
-export const CONTROLLER_STARTED = 'The controller is held and saved as you edit it. Place a Kind from the palette, then press Preview — oasgen-render generates its CRD. Publish stays off until a preview has rendered the controller.'
+/** The answer to a controller start with no Kind yet — defined beside the copy that shows it as info. */
+export { CONTROLLER_STARTED }
 
 export const CONTROLLER_RENDER_FAILED = 'The controller did not render, so it cannot be published yet.'
 
