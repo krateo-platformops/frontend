@@ -413,3 +413,23 @@
   margin-inline-start: var(--spacing-xsm);
   vertical-align: middle;
 }
+
+/* Repeatable rows — an array of objects (one Card per item) and a typed map (key → value). */
+.listRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.mapRow {
+  display: flex;
+  margin-bottom: var(--spacing-sm);
+}
+
+.mapRow > :global(.ant-space-item):first-child {
+  flex: 1;
+}
+
+.mapRowFields {
+  width: 100%;
+}

@@ -25,6 +25,7 @@ import { Alert, Form, Input, Modal, Typography } from 'antd'
 import type { JSONSchema4 } from 'json-schema'
 import { useEffect, useState } from 'react'
 
+import { color } from '../../theme/tokens'
 import { SchemaForm } from '../../widgets/Form/SchemaFields'
 
 import { DNS_1123 } from './composeAuthoring'
@@ -52,6 +53,96 @@ export const requiredSchema = (widgetKind: string): JSONSchema4 | null => {
   }
 }
 
+/**
+ * The names a PieChart `colorMap` value may take — every key `getColorCode` resolves, which is what
+ * PieChart calls on each value. Read from the token table itself, so a colour added there is
+ * offered here with no change; a name outside it renders as the fallback ink, never as the colour
+ * the author meant, which is why the choice is closed.
+ */
+export const PALETTE_NAMES: readonly string[] = Object.keys(color)
+
+/**
+ * Optional fields a kind's create form asks for as well, each with the schema the form should use.
+ *
+ * Kept to fields whose value comes from a vocabulary the author cannot see from the CRD: `colorMap`
+ * is `additionalProperties: {type: string}` there, and the strings that work are the theme's token
+ * names. Offered in the form's Advanced section, as every optional field is.
+ */
+const CREATE_EXTRAS: Record<string, Record<string, (node: JSONSchema4) => JSONSchema4>> = {
+  PieChart: {
+    colorMap: (node) => ({
+      ...node,
+      additionalProperties: {
+        ...(typeof node.additionalProperties === 'object' ? node.additionalProperties : {}),
+        enum: [...PALETTE_NAMES],
+        type: 'string',
+      },
+    }),
+  },
+}
+
+/** What the create form renders: the required fields, plus the kind's `CREATE_EXTRAS`. */
+export const createSchema = (widgetKind: string): JSONSchema4 | null => {
+  const base = requiredSchema(widgetKind)
+  const extras = CREATE_EXTRAS[widgetKind]
+  const properties = ((WIDGET_KINDS[widgetKind]?.schema as unknown as JSONSchema4 | undefined)?.properties ?? {}) as Record<string, JSONSchema4>
+  const added = Object.entries(extras ?? {}).filter(([field]) => field in properties)
+  if (!added.length) {
+    return base
+  }
+  return {
+    properties: {
+      ...(base?.properties ?? {}),
+      ...Object.fromEntries(added.map(([field, shape]) => [field, shape(properties[field])])),
+    },
+    required: [...((base?.required as string[] | undefined) ?? [])],
+    type: 'object',
+  }
+}
+
+/**
+ * Drop what the form holds but the author never said: an `undefined` field, and a list row added
+ * and left blank. js-yaml refuses to dump `undefined`, and an empty row is not a column.
+ */
+const prune = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(prune).filter((entry) => entry !== undefined
+      && !(typeof entry === 'object' && entry !== null && !Array.isArray(entry) && !Object.keys(entry).length))
+  }
+  if (typeof value === 'object' && value !== null) {
+    return Object.fromEntries(Object.entries(value)
+      .map(([key, entry]) => [key, prune(entry)] as const)
+      .filter(([, entry]) => entry !== undefined && entry !== null && entry !== ''))
+  }
+  return value
+}
+
+/**
+ * A list row missing a field its ITEM schema requires, named — "columns 2 needs valueKey". The
+ * rows are CRD objects in their own right, and the strict CRD rejects a column without a
+ * `valueKey` at apply, far from the form that could have said so.
+ */
+const incompleteRow = (widgetKind: string, widgetData: Record<string, unknown>): string | null => {
+  const properties = ((WIDGET_KINDS[widgetKind]?.schema as unknown as JSONSchema4 | undefined)?.properties ?? {}) as Record<string, JSONSchema4>
+  for (const [field, rows] of Object.entries(widgetData)) {
+    const items = properties[field]?.items
+    const needed = items && !Array.isArray(items) && Array.isArray(items.required) ? items.required : []
+    if (!Array.isArray(rows) || !needed.length) {
+      continue
+    }
+    for (const [index, row] of rows.entries()) {
+      const missing = needed.filter((key) => {
+        const present = (row as Record<string, unknown>)?.[key]
+        return present === undefined || present === null || present === ''
+      })
+      if (missing.length) {
+        return `${field} ${index + 1} needs ${missing.join(', ')} — the CRD rejects a row without it`
+      }
+    }
+  }
+  return null
+}
+
 export const CreateWidgetModal = ({ onCancel, onCreate, open, widgetKind }: {
   onCancel: () => void
   /** The authored widget: the name both objects take, and the widgetData the CRD asked for. */
@@ -74,11 +165,12 @@ export const CreateWidgetModal = ({ onCancel, onCreate, open, widgetKind }: {
   if (!widgetKind) {
     return null
   }
-  const schema = requiredSchema(widgetKind)
+  const schema = createSchema(widgetKind)
 
   const submit = () => {
     const values = form.getFieldsValue() as Record<string, unknown> & { krateoName?: string }
-    const { krateoName, ...widgetData } = values
+    const { krateoName, ...held } = values
+    const widgetData = prune(held) as Record<string, unknown>
     const name = (krateoName ?? '').trim()
     if (!DNS_1123.test(name)) {
       setError('name must be lower-case letters, digits and dashes — it becomes the CR\'s name')
@@ -114,6 +206,11 @@ export const CreateWidgetModal = ({ onCancel, onCreate, open, widgetKind }: {
     if (missing.length) {
       // Named rather than counted: "3 fields are required" sends someone hunting for which three.
       setError(`${widgetKind} requires ${missing.join(', ')} — the CRD rejects it without them`)
+      return
+    }
+    const rowError = incompleteRow(widgetKind, widgetData)
+    if (rowError) {
+      setError(rowError)
       return
     }
     onCreate({ name, widgetData })

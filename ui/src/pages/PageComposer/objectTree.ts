@@ -346,6 +346,33 @@ export const listDataSources = (files: Record<string, string>): DataSource[] => 
     }))
 }
 
+/** One RESTAction the draft carries, as an `apiRef` picker needs it. */
+export interface DraftAction {
+  name: string
+  /**
+   * The namespace its file declares, or null when that is a Helm template. A page draft writes
+   * `{{ include "page.tierNamespace" ... }}` into every object, which is a chart's instruction and
+   * not a place an apiRef can name — so the caller resolves it exactly as it does for a RESTAction
+   * written in the Data modal, rather than copying the include into the widget.
+   */
+  namespace: string | null
+}
+
+/**
+ * The RESTActions the held draft authors — the ones "Use one that exists" could not see.
+ *
+ * That picker listed the CLUSTER through snowplow `/list`, and a RESTAction written in this draft
+ * is not on the cluster until the page publishes. So a second widget could not reuse the query the
+ * first one's data came from: the author had to open Files and hand-write the apiRef. Same parser
+ * as the tree, so a file the tree can read is a file this offers.
+ */
+export const draftActions = (files: Record<string, string>): DraftAction[] =>
+  Object.entries(files)
+    .map(([path, content]) => parseObject(path, content))
+    .filter((object): object is ParsedObject => object?.kind === RESTACTION_KIND)
+    .map(({ name, namespace }) => ({ name, namespace: namespace && !namespace.includes('{{') ? namespace : null }))
+    .sort((left, right) => left.name.localeCompare(right.name))
+
 /** Every node, depth-first — for counting, searching, and scrolling the Files tab to a selection. */
 export const flattenTree = (nodes: readonly TreeNode[]): TreeNode[] =>
   nodes.flatMap((node) => [node, ...flattenTree(node.children)])

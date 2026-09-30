@@ -595,6 +595,7 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
       {dataTarget?.path && files[dataTarget.path]
         ? (
           <DataBindingModal
+            files={files}
             namespace={placeNamespace}
             onCancel={() => setDataTarget(null)}
             onDone={({ restAction, widgetYaml }) => {

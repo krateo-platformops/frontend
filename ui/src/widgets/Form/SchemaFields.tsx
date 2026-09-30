@@ -1,7 +1,9 @@
-import { Form as AntdForm, AutoComplete, Collapse, Input, InputNumber, Select, Switch } from 'antd'
+import { CloseOutlined, MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
+import { Form as AntdForm, AutoComplete, Button, Card, Collapse, Input, InputNumber, Select, Space, Switch } from 'antd'
 import type { DefaultOptionType } from 'antd/es/select'
 import type { JSONSchema4 } from 'json-schema'
-import { useState } from 'react'
+import { cloneElement, isValidElement, useEffect, useState } from 'react'
+import type { ReactElement } from 'react'
 
 import styles from './Form.module.css'
 import type { SuggestionGroup } from './utils'
@@ -46,6 +48,76 @@ const JsonValueInput = ({ onChange, value }: { onChange?: (next: unknown) => voi
   )
 }
 
+/** A control's onChange argument as a value: an input's event carries it in `target.value`. */
+const valueOf = (arg: unknown): unknown => {
+  const target = (arg as { target?: { value?: unknown } } | null)?.target
+  return target && 'value' in target ? target.value : arg
+}
+
+/**
+ * Editor for a MAP whose values have a schema — `type: object` with `additionalProperties: {…}`
+ * and no `properties`, e.g. a PieChart's `colorMap` (category → palette name).
+ *
+ * It was the JSON textarea, because a map has no fixed keys for a form to name. But the VALUE is
+ * typed, often closed, and a textarea makes the author type `{"Healthy":"green"}` from memory of a
+ * vocabulary the schema already carries. So each entry is a row — key, then the value's own
+ * control (an enum becomes a Select) — the shape antd's dynamic-form rows use. The submitted value
+ * is still the plain object; a row with no key is not an entry, and no entries is no value.
+ */
+const MapRowsInput = ({ onChange, value, valueSchema }: {
+  onChange?: (next: Record<string, unknown> | undefined) => void
+  value?: Record<string, unknown>
+  valueSchema: JSONSchema4
+}): React.ReactNode => {
+  const [rows, setRows] = useState<Array<{ key: string; value: unknown }>>(() =>
+    Object.entries(value ?? {}).map(([key, entry]) => ({ key, value: entry })))
+
+  // A form reset (a fresh create) clears the value from outside; the rows follow it. Only an
+  // outside change can produce this state — while any row has a key, the value this emits is set.
+  useEffect(() => {
+    if (value === undefined && rows.some((row) => row.key.trim())) {
+      setRows([])
+    }
+  }, [rows, value])
+
+  const commit = (next: Array<{ key: string; value: unknown }>) => {
+    setRows(next)
+    const entries = next.filter((row) => row.key.trim())
+    onChange?.(entries.length ? Object.fromEntries(entries.map((row) => [row.key.trim(), row.value])) : undefined)
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define
+  const control = controlFor(valueSchema)
+
+  return (
+    <>
+      {rows.map((row, index) => (
+        <Space align='baseline' className={styles.mapRow} key={index}>
+          <Space.Compact className={styles.mapRowFields}>
+            <Input
+              aria-label={`key ${index + 1}`}
+              onChange={(event) => commit(rows.map((each, i) => (i === index ? { ...each, key: event.target.value } : each)))}
+              placeholder='key'
+              value={row.key}
+            />
+            {isValidElement(control)
+              ? cloneElement(control as ReactElement<Record<string, unknown>>, {
+                'aria-label': `value ${index + 1}`,
+                onChange: (next: unknown) => commit(rows.map((each, i) => (i === index ? { ...each, value: valueOf(next) } : each))),
+                value: row.value,
+              })
+              : null}
+          </Space.Compact>
+          <MinusCircleOutlined aria-label={`Remove entry ${index + 1}`} onClick={() => commit(rows.filter((_, i) => i !== index))} />
+        </Space>
+      ))}
+      <Button block icon={<PlusOutlined />} onClick={() => setRows([...rows, { key: '', value: undefined }])} type='dashed'>
+        Add entry
+      </Button>
+    </>
+  )
+}
+
 /**
  * Turns normalised suggestion groups into antd options.
  *
@@ -86,6 +158,13 @@ const suggestionOptions = (groups: SuggestionGroup[]): DefaultOptionType[] => {
 /** Substring match over a suggestion's flattened search text (see `suggestionOptions`). */
 const filterSuggestion = (input: string, option?: DefaultOptionType): boolean =>
   typeof option?.title === 'string' && option.title.includes(input.trim().toLowerCase())
+
+/** A map with a schema for its values and no fixed keys — edited as key → value rows. */
+const isTypedMap = (node: JSONSchema4): boolean => {
+  const values = node.additionalProperties
+  return node.type === 'object' && !node.properties && typeof values === 'object'
+    && typeof values.type === 'string' && values.type !== 'object' && values.type !== 'array'
+}
 
 /** Renders an antd form control for a single schema node (the schema-driven control). */
 const controlFor = (node: JSONSchema4): React.ReactNode => {
@@ -151,11 +230,27 @@ const controlFor = (node: JSONSchema4): React.ReactNode => {
   if (node.type === 'array' && !Array.isArray(node.items) && node.items?.type === 'string') {
     return <Select allowClear mode='tags' placeholder='Add values…' style={{ width: '100%' }} />
   }
+  if (isTypedMap(node)) {
+    return <MapRowsInput valueSchema={node.additionalProperties as JSONSchema4} />
+  }
   if (node.type === 'object' || node.type === 'array') { return <JsonValueInput /> }
   return <Input />
 }
 
 const isGroup = (node: JSONSchema4): boolean => node.type === 'object' && !!node.properties
+
+/**
+ * An array whose items are objects with DECLARED fields — a Table's `columns` ({title, valueKey,
+ * …}), a Breadcrumb's `items` ({title, href}).
+ *
+ * These fell through to the JSON textarea, which in a create form reads as an empty box: nothing
+ * in it says a column has a `title` and a `valueKey`, so the Table's columns had to be written
+ * elsewhere. An item with no declared fields (`x-kubernetes-preserve-unknown-fields` records, a
+ * chart's `data`) stays JSON — there is nothing to build a row from.
+ */
+const isObjectList = (node: JSONSchema4): boolean =>
+  node.type === 'array' && !!node.items && !Array.isArray(node.items)
+  && node.items.type === 'object' && !!node.items.properties
 
 /**
  * One COHERENT header for every property — the property's human `title` (the label the blueprint
@@ -183,8 +278,11 @@ interface SchemaFieldsProps {
   schema: JSONSchema4
   /** top-level property names to omit (e.g. legacy CustomForm `propertiesToHide`) */
   hide?: string[]
-  /** parent path — antd `Form.Item` name for nested objects (e.g. ['spec', 'size']) */
-  namePath?: string[]
+  /**
+   * parent path — antd `Form.Item` name for nested objects (e.g. ['spec', 'size']). A NUMBER is a
+   * list row's index inside a `Form.List`, which antd resolves relative to the list.
+   */
+  namePath?: Array<string | number>
 }
 
 /**
@@ -193,8 +291,51 @@ interface SchemaFieldsProps {
  * are preserved verbatim regardless of which partition (required up-front or Advanced
  * collapse) the property lands in, so submission + validation are identical to a flat render.
  */
-function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: string[], isRequired: boolean): React.ReactNode {
+function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: Array<string | number>, isRequired: boolean): React.ReactNode {
   const path = [...namePath, key]
+
+  if (isObjectList(node)) {
+    const itemSchema = node.items as JSONSchema4
+    const label = typeof node.title === 'string' && node.title.trim() ? node.title : key
+    return (
+      <div className={styles.group} key={path.join('.')}>
+        {fieldHeader(key, node, isRequired)}
+        <div className={styles.groupBody}>
+          {/* antd's dynamic nested form: one Card per row, its fields rendered from the ITEM
+              schema by the same renderer (so each row gets the required / Advanced split too),
+              named relative to the list. Removing and adding rows is the list's own op. */}
+          <AntdForm.List
+            name={path}
+            // A required list keeps the rule the JSON editor had: something must be in it. A
+            // form that submits without validating (the composer's create form) is unaffected.
+            rules={isRequired
+              ? [{ validator: (_rule, rows?: unknown[]) => (rows?.length ? Promise.resolve() : Promise.reject(new Error(`${key} is required`))) }]
+              : undefined}
+          >
+            {(fields, { add, remove }, { errors }) => (
+              <div className={styles.listRows}>
+                {fields.map((field) => (
+                  <Card
+                    extra={<Button aria-label={`Remove ${label} ${field.name + 1}`} icon={<CloseOutlined />} onClick={() => remove(field.name)} size='small' type='text' />}
+                    key={field.key}
+                    size='small'
+                    title={`${label} ${field.name + 1}`}
+                  >
+                    {/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
+                    <SchemaFields hide={[]} namePath={[field.name]} schema={itemSchema} />
+                  </Card>
+                ))}
+                <Button block icon={<PlusOutlined />} onClick={() => add()} type='dashed'>
+                  Add {label}
+                </Button>
+                <AntdForm.ErrorList errors={errors} />
+              </div>
+            )}
+          </AntdForm.List>
+        </div>
+      </div>
+    )
+  }
 
   if (isGroup(node)) {
     return (
