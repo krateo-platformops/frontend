@@ -492,6 +492,15 @@
   }
 }
 
+/* claim check (claimCheck.ts): the antd warning Alert(s) under a reply that claimed an action this
+   turn did not perform. Spacing only — the Alert itself carries the theme's warning treatment. */
+.apClaim {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
 /* read-only action chip (Phase 2 surface; rendered when a message carries one) */
 .apAct {
   align-items: center;

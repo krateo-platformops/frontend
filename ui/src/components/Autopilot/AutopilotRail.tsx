@@ -26,6 +26,7 @@ import type { ApprovalPause } from './approval'
 import { useAutopilot } from './AutopilotProvider'
 import styles from './AutopilotRail.module.css'
 import AutopilotTour from './AutopilotTour'
+import { ClaimNotice } from './ClaimNotice'
 import { autopilotComposerDraftStore } from './composerDraftStore'
 import { describeArgs, deriveSessionsBase, fetchDelegationEvidence, NO_DELEGATION_SESSION, serializeEvidence, summarizeEvidence } from './evidence'
 import { useRailFocusTrap } from './focusTrap'
@@ -172,7 +173,7 @@ const EvidencePanel = ({ evidence }: { evidence: EvidenceEntry[] }) => {
   )
 }
 
-const MessageBubble = ({ message }: { message: AutopilotMessage }) => {
+const MessageBubble = ({ message, onRetryClaims, streaming }: { message: AutopilotMessage; onRetryClaims: (messageId: string) => void; streaming: boolean }) => {
   if (message.role === 'user') {
     return <div className={`${styles.apMsg} ${styles.apMsgUser}`}>{message.text}</div>
   }
@@ -195,6 +196,7 @@ const MessageBubble = ({ message }: { message: AutopilotMessage }) => {
           {action.readOnly ? <span className={styles.apActRo}>read-only</span> : null}
         </div>
       ))}
+      <ClaimNotice disabled={streaming} message={message} onRetry={onRetryClaims} />
       {message.streaming ? <LiveActivity answering={message.text.length > 0} evidence={message.evidence ?? []} /> : null}
       {message.evidence && !message.streaming ? <EvidencePanel evidence={message.evidence} /> : null}
     </div>
@@ -364,7 +366,7 @@ const getStoredRailWidth = (): number => {
 }
 
 const AutopilotRail = () => {
-  const { approvePending, attachOasDocument, clearOasAttachment, collect, denyPending, enabled, messages, newThread, oasAttachment, open, pendingApproval, restored, send, sessionId, sessions, setOpen, stop, streaming, switchToThread } = useAutopilot()
+  const { approvePending, attachOasDocument, clearOasAttachment, collect, denyPending, enabled, messages, newThread, oasAttachment, open, pendingApproval, restored, retryClaims, send, sessionId, sessions, setOpen, stop, streaming, switchToThread } = useAutopilot()
   const { config } = useConfigContext()
   // The composer draft + its PROVENANCE (purely dictated vs touched by the keyboard) live in
   // a module-level store, not `useState`: a routerVersion remount used to wipe a half-written
@@ -692,7 +694,7 @@ const AutopilotRail = () => {
                   </div>
                 </div>
               ) : (
-                messages.map((message) => <MessageBubble key={message.id} message={message} />)
+                messages.map((message) => <MessageBubble key={message.id} message={message} onRetryClaims={retryClaims} streaming={streaming} />)
               )}
 
               {pendingApproval ? (

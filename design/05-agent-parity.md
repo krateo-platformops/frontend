@@ -455,6 +455,17 @@ silence. Splitting that null into denied-vs-declined is what remains.
 
 The unmounted-control case is the same silent-failure shape as P10’s inert row and A13’s renamed action id, and it is the one most likely to be read as the agent ignoring the request.
 
+> **The mirror case — the agent SAYS it acted and nothing did.** Observed on krateo-057 (1.6.81):
+> "I have authored and previewed the pod-sizing-23 page in the live sandbox drawer", with no
+> previewPage ever reaching the frontend. A18 makes the portal say when a verb did not run; it
+> cannot help when no verb arrived at all. The **claim check** closes that: `finalize` compares the
+> reply's explicit first-person past/perfect claims (preview, publish, apply, compose, chart — one
+> table row each in `claimCheck.ts` `CLAIM_RULES`) with the actions the turn actually ran and how
+> each ended, and the rail adds an antd warning `Alert` under the reply — the reply's text is never
+> altered. A refused, failed, declined or cap-dropped action does not back a claim of success.
+> Offers, questions, futures, negations and conditionals never match; the notice is only useful
+> while it is never wrong. Countable as the `autopilot.claim.unbacked` span.
+
 *Evidence: verified `actionBridge.ts:397-408` · `verbRegistry.ts:129-141`*
 
 ### A19 — The agent leaves the page’s own state and the cluster as it found them, minus what it was asked to change.

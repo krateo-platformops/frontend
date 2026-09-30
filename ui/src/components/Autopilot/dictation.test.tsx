@@ -57,6 +57,7 @@ const baseValue = {
   pendingApproval: null,
   reachable: true,
   restored: false,
+  retryClaims: vi.fn(),
   send: vi.fn(),
   sessionId: 's-current',
   sessions: vi.fn((): ThreadSummary[] => []),
