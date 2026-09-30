@@ -79,7 +79,8 @@ const outline = (root: Element): string => {
   const walk = (node: Node, depth: number) => {
     const pad = '  '.repeat(depth)
     if (node.nodeType === Node.TEXT_NODE) {
-      const text = (node.textContent ?? '').replace(/\s+/g, ' ').trim()
+      // The save indicator's time is local wall-clock time: masked, so the snapshot is the same in every TZ.
+      const text = (node.textContent ?? '').replace(/\s+/g, ' ').trim().replace(/\bSaved · \d{1,2}:\d{2}\b/g, 'Saved · HH:MM')
       if (text) { lines.push(`${pad}"${text}"`) }
       return
     }
