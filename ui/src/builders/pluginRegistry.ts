@@ -14,23 +14,18 @@
  * plugin would have been. It never throws: a Builder is data from the cluster, and a CR written for a
  * newer frontend than this one is content to report, not a crash.
  *
- * REGISTRATION ONLY (T1, frontend#407). Nothing resolves through this table yet — PageComposer and
- * BlueprintComposer still mount these components directly. T2's engine will mount them from here,
- * and will give each slot the one props contract its plugins share; until then an implementation is
- * typed as exactly the component it is, which is what a registration can honestly promise.
+ * MOUNTED FROM HERE (T4, frontend#410). ComposerHost resolves a Builder's palette, canvas and
+ * inspector through this table and renders them. Every one of those takes the one props contract its
+ * slot shares (host/hostTypes.ts `SlotProps`: the workbench of the Builder's draft kind), names the
+ * draft kind it draws, and a canvas also names the frame it sits in (host/frames.ts).
  */
-import type { ComponentType } from 'react'
-
 import type { BlueprintDraftHeld } from '../components/Autopilot/blueprintDraftStore'
 import { summarizeChart, summarizeDraft } from '../components/Autopilot/draftStructure'
-import ArchitectureCanvas from '../pages/BlueprintComposer/ArchitectureCanvas'
-import ArchitecturePalette from '../pages/BlueprintComposer/ArchitecturePalette'
-import NodeInspector from '../pages/BlueprintComposer/NodeInspector'
-import CanvasPanel from '../pages/PageComposer/CanvasPanel'
-import ObjectTreePanel from '../pages/PageComposer/ObjectTreePanel'
-import PalettePanel from '../pages/PageComposer/PalettePanel'
+import { architectureGraphCanvas, kindsPalette, nodeInspector } from '../pages/BlueprintComposer/blueprintSlots'
+import { objectTreeInspector, pageGridCanvas, widgetsPalette } from '../pages/PageComposer/pageSlots'
 
 import type { BuilderSpec } from './builderSpec'
+import type { CanvasPlugin, SlotPlugin } from './host/hostTypes'
 
 export type PluginSlot = 'palette' | 'canvas' | 'inspector' | 'parser' | 'summarizer'
 
@@ -49,35 +44,35 @@ interface PluginEntry<I> {
 const PALETTES = {
   kinds: {
     description: 'the custom and native kinds a chart can hold, from a RESTAction run as the person (Blueprint Builder)',
-    implementation: ArchitecturePalette,
+    implementation: kindsPalette,
   },
   widgets: {
     description: 'containers to create and the widgets this person may list, to place on a page (Portal Builder)',
-    implementation: PalettePanel,
+    implementation: widgetsPalette,
   },
-} satisfies Record<string, PluginEntry<ComponentType<never>>>
+} satisfies Record<string, PluginEntry<SlotPlugin>>
 
 const CANVASES = {
   'architecture-graph': {
     description: 'the chart\'s resources as a dependency graph, stepped through its derived states (Blueprint Builder)',
-    implementation: ArchitectureCanvas,
+    implementation: architectureGraphCanvas,
   },
   'page-grid': {
     description: 'the page\'s widgets as nested drop frames (Portal Builder)',
-    implementation: CanvasPanel,
+    implementation: pageGridCanvas,
   },
-} satisfies Record<string, PluginEntry<ComponentType<never>>>
+} satisfies Record<string, PluginEntry<CanvasPlugin>>
 
 const INSPECTORS = {
   node: {
     description: 'the selected resource: what it waits for, when it is ready, and its create form (Blueprint Builder)',
-    implementation: NodeInspector,
+    implementation: nodeInspector,
   },
   'object-tree': {
     description: 'the page draft as the containment tree it is, with its data sources (Portal Builder)',
-    implementation: ObjectTreePanel,
+    implementation: objectTreeInspector,
   },
-} satisfies Record<string, PluginEntry<ComponentType<never>>>
+} satisfies Record<string, PluginEntry<SlotPlugin>>
 
 /** None yet: the first is the Controller Builder's OpenAPI import (T7). */
 const PARSERS = {} satisfies Record<string, PluginEntry<ParserPlugin>>

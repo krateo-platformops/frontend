@@ -492,7 +492,7 @@ describe('the placement check asks about one widget', () => {
     // right for the palette, which can afford seven seconds because nothing is waiting on it.
     // cwd-relative, not import.meta.url: this suite runs under jsdom, where import.meta.url is
     // an http URL and readFileSync rejects it ("The URL must be of scheme file").
-    const source = readFileSync('src/pages/PageComposer/PageComposer.tsx', 'utf-8')
+    const source = readFileSync('src/pages/PageComposer/usePageWorkbench.tsx', 'utf-8')
     expect(source).toContain('widgetExists(')
     expect(source).not.toContain('listPlaceableWidgets')
   })
