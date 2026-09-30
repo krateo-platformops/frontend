@@ -6,7 +6,17 @@
  * mounted overlay), so the pure verb handlers can open UI without holding React state.
  */
 
+import { builderRegistry, findBuilderOf } from '../../builders/builderRegistry'
+
+import type { DraftKind } from './blueprintDraftStore'
+
 export const AUTOPILOT_PREVIEW_EVENT = 'openAutopilotPreview'
+
+/**
+ * The draft kind of a payload with no `builder`: every page payload predates the field, and the page
+ * composer adopts exactly those (see `builder` below).
+ */
+export const LEGACY_PAYLOAD_DRAFT_KIND: DraftKind = 'page'
 
 /** One previewed object: its identity headline + its YAML source. */
 export interface PreviewObjectEntry {
@@ -100,21 +110,33 @@ export const openAutopilotPreview = (payload: AutopilotPreviewPayload): void => 
   window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, { detail: payload }))
 }
 
-/** True for a payload the page composer owns: a page draft (the only kind with no `builder`). */
-export const isPageDraftPayload = (payload: Pick<AutopilotPreviewPayload, 'builder'>): boolean => payload.builder === undefined
+/**
+ * The draft kind a payload shows, or null for an inspection (a payload nothing holds).
+ *
+ * A payload names its draft kind in `builder`; a Builder that declares that draftKind holds it. An
+ * ABSENT `builder` is the draft kind every payload carried before the field existed
+ * (LEGACY_PAYLOAD_DRAFT_KIND) — the protocol's default, not a builder switch. `restdef` and `inspect`
+ * name no Builder's draft kind, so they are held by none.
+ */
+export const draftKindOfPayload = (payload: Pick<AutopilotPreviewPayload, 'builder'>): DraftKind | null => {
+  const kind = payload.builder ?? LEGACY_PAYLOAD_DRAFT_KIND
+  return findBuilderOf(kind) ? (kind as DraftKind) : null
+}
 
 /** True when the payload shows the draft the provider holds — what a Files-tab edit writes into. */
 export const isHeldDraftPayload = (payload: Pick<AutopilotPreviewPayload, 'builder'>): boolean =>
-  payload.builder === undefined || payload.builder === 'blueprint'
+  draftKindOfPayload(payload) !== null
 
-/** True for a payload the blueprint composer owns: a chart draft the provider holds. */
-export const isBlueprintDraftPayload = (payload: Pick<AutopilotPreviewPayload, 'builder'>): boolean =>
-  payload.builder === 'blueprint'
-
-/** Which composer a payload belongs to — the kind of held draft it shows — or null for an inspection. */
-export const draftKindOfPayload = (payload: Pick<AutopilotPreviewPayload, 'builder'>): 'page' | 'blueprint' | null => {
-  if (isPageDraftPayload(payload)) {
-    return 'page'
-  }
-  return isBlueprintDraftPayload(payload) ? 'blueprint' : null
+/** True for a payload the composer hosting the Builder named `builderName` owns — that Builder's held draft. */
+export const isBuilderPayload = (payload: Pick<AutopilotPreviewPayload, 'builder'>, builderName: string): boolean => {
+  const kind = draftKindOfPayload(payload)
+  return kind !== null && kind === builderRegistry.get({ name: builderName })?.spec.draftKind
 }
+
+/**
+ * Whether a payload's files are the CRs its Builder APPLIES to the preview sandbox (`preview.mode:
+ * sandbox-apply`), so a Files-tab edit must parse as a CR; otherwise they are chart templates, parsed
+ * as YAML only.
+ */
+export const payloadAppliesCrs = (payload: Pick<AutopilotPreviewPayload, 'builder'>): boolean =>
+  findBuilderOf(draftKindOfPayload(payload))?.preview.mode === 'sandbox-apply'

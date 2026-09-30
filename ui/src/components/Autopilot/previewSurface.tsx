@@ -33,7 +33,7 @@ import WidgetRenderer from '../WidgetRenderer'
 import type { DraftKind } from './blueprintDraftStore'
 import { DraftProblemsAlert } from './DraftProblemsAlert'
 import { parseFileEdit, parseRestDefEdit } from './previewBridge'
-import { AUTOPILOT_PREVIEW_EVENT, draftKindOfPayload, isHeldDraftPayload, isPageDraftPayload, openAutopilotPreview, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
+import { AUTOPILOT_PREVIEW_EVENT, draftKindOfPayload, isHeldDraftPayload, openAutopilotPreview, payloadAppliesCrs, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
 import { onPreviewSurfaceClaimed, previewSurfaceClaimed } from './previewDraftChanged'
 import { onDraftClose } from './previewDraftClose'
 import { emitRestDefEdit } from './previewEditBus'
@@ -430,7 +430,7 @@ export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, h
   // A page's files are widget CRs (require the apiVersion/kind/metadata.name shape); a blueprint's are
   // Helm chart templates (YAML-parse-only) — distinguished by what the payload says it IS, not by its
   // tab label: a label is copy, and keying the edit parser on copy is how a chart got a page's rules.
-  const isPageWidget = isPageDraftPayload(payload)
+  const isPageWidget = payloadAppliesCrs(payload)
   // …and editable at all only when the payload IS the held draft. A preview nothing holds — a draft
   // that failed its render — has files too, and an edit to its Chart.yaml would land in the held one.
   const heldDraft = isHeldDraftPayload(payload)

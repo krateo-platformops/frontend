@@ -36,7 +36,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncE
 import { emitComposeResult, onComposeRequest } from '../../components/Autopilot/composeRequest'
 import { draftHistory } from '../../components/Autopilot/draftHistory'
 import DraftSaveIndicator, { useCloseDraftCopy } from '../../components/Autopilot/DraftSaveIndicator'
-import { AUTOPILOT_PREVIEW_EVENT, isPageDraftPayload } from '../../components/Autopilot/previewBus'
+import { AUTOPILOT_PREVIEW_EVENT, isBuilderPayload } from '../../components/Autopilot/previewBus'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
 import { claimPreviewSurface, onDraftChanged, requestDraftReplay } from '../../components/Autopilot/previewDraftChanged'
 import { emitDraftClose, onDraftClose } from '../../components/Autopilot/previewDraftClose'
@@ -406,7 +406,7 @@ const PageComposer = () => {
       // Only a PAGE preview is ours. The drawer defers to this page for exactly those and opens for
       // everything else, so adopting a chart or an inspection here would take it from the one
       // surface that can show it — and hand this one a payload it would render under page rules.
-      if (!isPageDraftPayload(event.detail)) {
+      if (!isBuilderPayload(event.detail, 'portal-builder')) {
         return
       }
       adopted.current = event.detail
@@ -661,7 +661,7 @@ const PageComposer = () => {
    * rather than leaving a dead endpoint mounted.
    */
   /**
-   * Publish — the same `runDraftPublish` the agent's verb takes, asked for by a person.
+   * Publish — the same `publishDraft` the agent's verb takes, asked for by a person.
    *
    * The destination form and the blast-radius confirm both still run, so this button PROPOSES the
    * write; it does not perform one. What it removes is the detour: until now the only way to ship

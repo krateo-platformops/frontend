@@ -20,6 +20,8 @@
  * Pure module: one event name, a dispatch/subscribe pair. No React, no module state.
  */
 
+import { builderRegistry } from '../../builders/builderRegistry'
+
 import type { DraftKind } from './blueprintDraftStore'
 
 export const AUTOPILOT_DRAFT_CHANGED_EVENT = 'autopilotDraftChanged'
@@ -145,3 +147,22 @@ export const onPreviewSurfaceClaimed = (handler: (kind: DraftKind) => void): (()
 
 /** True while a mounted composer owns incoming previews of `kind` — the drawer defers those to it. */
 export const previewSurfaceClaimed = (kind: DraftKind | null): boolean => kind !== null && composerMounted[kind] > 0
+
+/** Whose draft a broadcast holds, from one composer's side: its Builder's (`own`), another's (`parked`), or none. */
+export type ComposerMode = 'empty' | 'own' | 'parked'
+
+/**
+ * WHOSE DRAFT IS HELD, for the composer hosting the Builder named `builderName`. `kind` on the
+ * broadcast says: a draft of that Builder's draftKind is drawn, a draft of any other kind is parked.
+ * A detail with no `kind` is a legacy emitter, which only ever held page drafts — so files with no
+ * kind are parked too (a null kind is no legacy emitter: nothing is held).
+ */
+export const composerModeOf = ({ files, kind }: Pick<DraftChangedDetail, 'files' | 'kind'>, builderName: string): ComposerMode => {
+  if (kind && kind === builderRegistry.get({ name: builderName })?.spec.draftKind) {
+    return 'own'
+  }
+  if (kind) {
+    return 'parked'
+  }
+  return kind === undefined && Object.keys(files).length > 0 ? 'parked' : 'empty'
+}

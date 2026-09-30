@@ -50,8 +50,8 @@ import { extractCrdSpecFields, type CrdSpecExtract } from '../../components/Auto
 import { draftHistory } from '../../components/Autopilot/draftHistory'
 import { DraftProblemsAlert } from '../../components/Autopilot/DraftProblemsAlert'
 import DraftSaveIndicator, { useCloseDraftCopy } from '../../components/Autopilot/DraftSaveIndicator'
-import { AUTOPILOT_PREVIEW_EVENT, isBlueprintDraftPayload, type AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
-import { claimPreviewSurface, onDraftChanged, requestDraftReplay, type DraftChangedDetail } from '../../components/Autopilot/previewDraftChanged'
+import { AUTOPILOT_PREVIEW_EVENT, isBuilderPayload, type AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
+import { claimPreviewSurface, composerModeOf, onDraftChanged, requestDraftReplay, type DraftChangedDetail } from '../../components/Autopilot/previewDraftChanged'
 import { emitDraftClose, onDraftClose } from '../../components/Autopilot/previewDraftClose'
 import { emitDraftUndo } from '../../components/Autopilot/previewDraftUndo'
 import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
@@ -108,21 +108,11 @@ export const CHART_CHANGED = 'The chart changed while its CRD was read — nothi
 
 export const GATE_CAPTION = `Generated from ${ARCHITECTURE_TEMPLATE_PATH} — edit the descriptor, not this block.`
 
-type Mode = 'empty' | 'page' | 'blueprint'
-
 /**
- * WHOSE DRAFT IS HELD. `kind` on the broadcast says; a detail with no `kind` is a legacy emitter,
- * which only ever held pages — so files with no kind read as a page, and are parked.
+ * The Builder this composer hosts, by name. WHOSE DRAFT IS HELD is the engine's answer for it
+ * (composerModeOf): its draft kind is drawn (`own`), any other held draft is parked.
  */
-const modeOf = ({ files, kind }: DraftChangedDetail): Mode => {
-  if (kind === 'blueprint') {
-    return 'blueprint'
-  }
-  if (kind === 'page' || (kind === undefined && Object.keys(files).length > 0)) {
-    return 'page'
-  }
-  return 'empty'
-}
+const BUILDER = 'blueprint-builder'
 
 /** The chart a broadcast holds, by its Chart.yaml name ('' when it has none) — or null for no chart. */
 const chartOf = (files: Readonly<Record<string, string>>): string | null =>
@@ -205,7 +195,7 @@ const BlueprintComposer = () => {
   useEffect(() => {
     const stop = onDraftChanged((detail) => {
       // A page draft's files are never read here, not even to count them.
-      filesRef.current = modeOf(detail) === 'blueprint' ? detail.files : NOTHING
+      filesRef.current = composerModeOf(detail, BUILDER) === 'own' ? detail.files : NOTHING
       heldChart.current = chartOf(filesRef.current)
       setHeld(detail)
     })
@@ -218,7 +208,7 @@ const BlueprintComposer = () => {
   useEffect(() => {
     const onPreview = (event: Event): void => {
       const payload = (event as CustomEvent<AutopilotPreviewPayload>).detail
-      if (payload && isBlueprintDraftPayload(payload)) {
+      if (payload && isBuilderPayload(payload, BUILDER)) {
         adopt(lastRenderOf(payload))
       }
     }
@@ -250,9 +240,9 @@ const BlueprintComposer = () => {
   useEffect(() => onDraftClose(forgetShown), [forgetShown])
   const resumed = useDraftResume({ kind: 'blueprint', onResumed: forgetShown, sandboxNamespace: api?.PREVIEW_SANDBOX_NAMESPACE, snowplowBaseUrl: api?.SNOWPLOW_API_BASE_URL })
 
-  const mode = modeOf(held)
+  const mode = composerModeOf(held, BUILDER)
   // A page draft's files are never read here, not even to count them.
-  const files = mode === 'blueprint' ? held.files : NOTHING
+  const files = mode === 'own' ? held.files : NOTHING
 
   // The Start modal belongs to the empty page: once anything is held — the start landed, or a draft
   // arrived from elsewhere — it closes, and does not come back when that draft is discarded.
@@ -403,7 +393,7 @@ const BlueprintComposer = () => {
   const openFormEditor = (addType: FormFieldType | null) =>
     setFormEditor((last) => ({ addType, nonce: last.nonce + 1, open: true }))
 
-  // Publish — the same runDraftPublish the agent's verb takes, asked for by a person. It PROPOSES
+  // Publish — the same publishDraft the agent's verb takes, asked for by a person. It PROPOSES
   // the write: the destination form and the blast-radius confirm still run, and a person answers.
   const publish = () => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -427,7 +417,7 @@ const BlueprintComposer = () => {
     if (renderedAway) { dismiss() }
   }, [dismiss, renderedAway])
 
-  if (mode !== 'blueprint' || !shown) {
+  if (mode !== 'own' || !shown) {
     return (
       <div className={styles.page}>
         <header className={styles.head}>
@@ -439,7 +429,7 @@ const BlueprintComposer = () => {
           </p>
         </header>
         {resumed}
-        <BlueprintEmptyState onDiscard={emitDraftClose} onStart={() => setStartOpen(true)} parkedPage={mode === 'page'} />
+        <BlueprintEmptyState onDiscard={emitDraftClose} onStart={() => setStartOpen(true)} parkedPage={mode === 'parked'} />
         <StartChartModal
           onCancel={() => setStartOpen(false)}
           onStart={requests.start}
