@@ -13,21 +13,53 @@ import { publishDraft, publisherOfVerb, type PublishDraftDeps } from '../compone
 
 import { builderOf, builderRegistry, createBuilderRegistry, findBuilderOf, swapBuildersForTest } from './builderRegistry'
 import type { Builder } from './builderSpec'
-import { draftKindNames, draftKindOf, findDraftKindPlugin } from './draftKinds'
-import { builderRefusals } from './pluginRegistry'
+import { draftKindNames, draftKindOf, findDraftKindPlugin, isDraftKind } from './draftKinds'
+import { builderRefusals, pendingPluginNames } from './pluginRegistry'
 
-const DRAFT_KINDS: DraftKind[] = ['page', 'blueprint']
+const DRAFT_KINDS: DraftKind[] = ['page', 'blueprint', 'controller']
 
 describe('builderRegistry — the fixtures, loaded', () => {
-  it('loads both builders, with no problem', () => {
+  it('loads the three builders, with no problem', () => {
     expect(builderRegistry.problems()).toEqual([])
-    expect(builderRegistry.all().map((builder) => builder.metadata.name)).toEqual(['portal-builder', 'blueprint-builder'])
+    expect(builderRegistry.all().map((builder) => builder.metadata.name)).toEqual(['portal-builder', 'blueprint-builder', 'controller-builder'])
   })
 
-  it('every builder it loads names only plugins and checks this frontend ships', () => {
+  it('the shipped fixtures claim no key twice, and the rail\'s publishRestDef is the Controller Builder\'s', () => {
+    // A duplicated draftKind, route, name or verb is a problem sentence here, and the registry then
+    // answers NO Builder for that key: drafts of that kind would stop being held, or the rail's
+    // publish would publish nothing. Both must fail CI rather than a page.
+    expect(builderRegistry.problems()).toEqual([])
+    const keys = builderRegistry.all().flatMap((builder) => [
+      `draftKind:${builder.spec.draftKind}`,
+      `route:${builder.spec.route}`,
+      `name:${builder.metadata.name}`,
+      ...builder.spec.verbs.allowed.map((verb) => `verb:${verb}`),
+    ])
+    expect(keys.filter((key, index) => keys.indexOf(key) !== index)).toEqual([])
+    expect(publisherOfVerb('publishRestDef')).toBe('controller')
+  })
+
+  it('a second Builder declaring the controller draft kind is a problem, and the kind is then held by none', () => {
+    const controller = builderRegistry.get({ name: 'controller-builder' })!
+    const twin: Builder = { ...controller, metadata: { name: 'twin-builder' }, spec: { ...controller.spec, route: '/twin-builder/compose', verbs: { allowed: [] } } }
+    const registry = createBuilderRegistry({ builders: [...builderRegistry.all(), twin], problems: [] })
+    expect(registry.problems()).toEqual(['controller-builder and twin-builder both declare the draft kind "controller", so no builder answers for it — one Builder must own it.'])
+    expect(registry.get({ draftKind: 'controller' })).toBeUndefined()
+  })
+
+  it('every builder it loads names only plugins and checks this frontend ships — or, for the controller, ones pending T8', () => {
     for (const builder of builderRegistry.all()) {
+      if (builder.metadata.name === 'controller-builder') { continue }
       expect(builderRefusals(builder.spec)).toEqual([])
     }
+    const controller = builderRegistry.get({ name: 'controller-builder' })
+    expect(controller).toBeDefined()
+    // Exactly its three composer plugins, each refused as NOT SHIPPED YET — never as unknown.
+    const refusals = builderRefusals(controller!.spec)
+    expect(refusals).toHaveLength(3)
+    for (const refusal of refusals) { expect(refusal).toMatch(/is not shipped in this frontend yet: it comes with the Controller Builder composer/) }
+    expect([...pendingPluginNames('palette'), ...pendingPluginNames('canvas'), ...pendingPluginNames('inspector')])
+      .toEqual([controller!.spec.palette.plugin, controller!.spec.canvas.plugin, controller!.spec.inspector.plugin])
   })
 
   it('answers by draft kind, route, name and verb', () => {
@@ -38,9 +70,16 @@ describe('builderRegistry — the fixtures, loaded', () => {
     expect(builderRegistry.get({ verb: 'chartPut' })?.metadata.name).toBe('blueprint-builder')
   })
 
+  it('the controller: its draft kind, its route and its publish verb are the Controller Builder\'s', () => {
+    expect(builderRegistry.get({ draftKind: 'controller' })?.metadata.name).toBe('controller-builder')
+    expect(builderRegistry.get({ route: '/controller-builder/compose' })?.metadata.name).toBe('controller-builder')
+    expect(builderRegistry.get({ verb: 'publishRestDef' })?.metadata.name).toBe('controller-builder')
+    expect(builderRegistry.get({ verb: 'previewRestDef' })?.metadata.name).toBe('controller-builder')
+  })
+
   it('answers undefined — never a throw — for what no Builder declares', () => {
-    expect(builderRegistry.get({ draftKind: 'controller' })).toBeUndefined()
-    expect(builderRegistry.get({ verb: 'publishRestDef' })).toBeUndefined()
+    expect(builderRegistry.get({ draftKind: 'workflow' })).toBeUndefined()
+    expect(builderRegistry.get({ verb: 'publishWorkflow' })).toBeUndefined()
     expect(findBuilderOf(undefined)).toBeUndefined()
     expect(findBuilderOf(null)).toBeUndefined()
   })
@@ -51,6 +90,26 @@ describe('builderRegistry — the fixtures, loaded', () => {
       expect(() => draftKindOf(kind)).not.toThrow()
     }
     expect(draftKindNames()).toEqual([...DRAFT_KINDS].sort())
+  })
+
+  it('isDraftKind is deny-by-default: a plugin AND a loaded Builder, nothing else', () => {
+    for (const kind of DRAFT_KINDS) { expect(isDraftKind(kind), kind).toBe(true) }
+    for (const kind of ['workflow', 'Page', 'toString', '__proto__', '', null, undefined, 7, {}]) {
+      expect(isDraftKind(kind), JSON.stringify(kind)).toBe(false)
+    }
+    // A kind with a plugin whose Builder is not loaded is not held either.
+    const portal = builderRegistry.get({ name: 'portal-builder' })!
+    const restore = swapBuildersForTest([portal])
+    try {
+      expect(isDraftKind('page')).toBe(true)
+      expect(isDraftKind('controller')).toBe(false)
+      expect(createBlueprintDraftStore().set({ 'Chart.yaml': 'name: x\nversion: 0.1.0\n' }, 'controller')).toEqual({
+        error: 'no builder declares the draft kind "controller" — a draft is held only under a kind a loaded Builder declares',
+        ok: false,
+      })
+    } finally {
+      restore()
+    }
   })
 
   it('a draft kind no Builder declares is said loudly', () => {

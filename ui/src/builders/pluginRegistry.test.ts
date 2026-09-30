@@ -8,7 +8,7 @@ import CanvasPanel from '../pages/PageComposer/CanvasPanel'
 import ObjectTreePanel from '../pages/PageComposer/ObjectTreePanel'
 import PalettePanel from '../pages/PageComposer/PalettePanel'
 
-import { checkNames, pluginNames, resolveCheck, resolvePlugin, type PluginSlot } from './pluginRegistry'
+import { checkNames, pendingPluginNames, pluginNames, resolveCheck, resolvePlugin, type PluginSlot } from './pluginRegistry'
 
 describe('the plugin registry', () => {
   it('registers today\'s composer pieces under their names', () => {
@@ -44,6 +44,21 @@ describe('the plugin registry', () => {
       refusal: 'This frontend has no canvas plugin named "restdef-mapping", so the builder\'s canvas cannot be shown. The Builder names a plugin this build does not ship; the canvas plugins it does ship are: architecture-graph, page-grid.',
       slot: 'canvas',
     })
+  })
+
+  it('the Controller Builder\'s plugins are PENDING: named, refused as not shipped yet, and only in their own slot', () => {
+    expect(pendingPluginNames('palette')).toEqual(['openapi'])
+    expect(pendingPluginNames('canvas')).toEqual(['restdef-graph'])
+    expect(pendingPluginNames('inspector')).toEqual(['restdef-mapping'])
+    for (const [slot, name] of [['palette', 'openapi'], ['canvas', 'restdef-graph'], ['inspector', 'restdef-mapping']] as const) {
+      const resolved = resolvePlugin(slot, name)
+      expect(resolved).toMatchObject({ name, ok: false, pending: true, slot })
+      if (!resolved.ok) { expect(resolved.refusal).toMatch(/is not shipped in this frontend yet: it comes with the Controller Builder composer \(frontend#405, T8\)/) }
+    }
+    // Pending is not "registered": the names a slot SHIPS are unchanged, and another slot's pending
+    // name is as unknown as any.
+    expect(pluginNames('inspector')).toEqual(['node', 'object-tree'])
+    expect(resolvePlugin('palette', 'restdef-mapping')).not.toHaveProperty('pending')
   })
 
   it('is deny-by-default: no prototype key, no other slot\'s name, no near match resolves', () => {

@@ -17,6 +17,7 @@ import { load } from 'js-yaml'
 
 import { parseBuilder, type Builder, type BuilderSpec } from './builderSpec'
 import blueprintBuilderYaml from './fixtures/blueprint-builder.builder.yaml?raw'
+import controllerBuilderYaml from './fixtures/controller-builder.builder.yaml?raw'
 import portalBuilderYaml from './fixtures/portal-builder.builder.yaml?raw'
 
 /** Every Builder this frontend runs, and the problems of any that did not parse. */
@@ -32,7 +33,11 @@ interface Loaded {
 const loadBuilders = (): Loaded => {
   const builders: Builder[] = []
   const problems: string[] = []
-  for (const [source, text] of [['portal-builder.builder.yaml', portalBuilderYaml], ['blueprint-builder.builder.yaml', blueprintBuilderYaml]] as const) {
+  for (const [source, text] of [
+    ['portal-builder.builder.yaml', portalBuilderYaml],
+    ['blueprint-builder.builder.yaml', blueprintBuilderYaml],
+    ['controller-builder.builder.yaml', controllerBuilderYaml],
+  ] as const) {
     let raw: unknown
     try {
       raw = load(text)

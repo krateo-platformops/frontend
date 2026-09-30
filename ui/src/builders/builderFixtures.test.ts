@@ -1,5 +1,6 @@
 /**
- * The page and blueprint Builder CRs describe what the composers do TODAY.
+ * The page and blueprint Builder CRs describe what the composers do TODAY; the controller's
+ * describes the builder the engine holds drafts for while its composer is built (T3 → T8).
  *
  * The engine reads the fixtures (builderRegistry.ts, T2), and this file keeps them true: each must
  * parse, validate against the CRD the chart ships, name only plugins, checks and verbs this frontend
@@ -23,11 +24,17 @@ import { PROJECTION_BUNDLE_PATH } from '../pages/BlueprintComposer/projectionCom
 import { SLUG_PATTERN } from '../pages/PageComposer/startDraft'
 
 import { parseBuilder, type Builder } from './builderSpec'
-import { builderRefusals } from './pluginRegistry'
+import { builderRefusals, resolvePlugin } from './pluginRegistry'
 
 const ROOT = join(__dirname, '..', '..', '..')
 const CRD_PATH = join(ROOT, 'helm', 'frontend-crds', 'templates', 'builders', 'Builder.yaml')
-const FIXTURES = ['portal-builder', 'blueprint-builder']
+const FIXTURES = ['portal-builder', 'blueprint-builder', 'controller-builder']
+
+/**
+ * The Controller Builder's composer is T8's: until then it names three plugins this build lists as
+ * PENDING (a "not shipped yet" refusal) and its route is not in the shell.
+ */
+const COMPOSER_PENDING = new Set(['controller-builder'])
 
 type Schema = Record<string, unknown>
 
@@ -89,12 +96,21 @@ describe.each(FIXTURES)('the %s Builder', (name) => {
     expect(ok).toBe(true)
   })
 
-  it('names only plugins and checks this frontend ships', () => {
-    expect(builderRefusals(parsed(name).spec)).toEqual([])
+  it('names only plugins and checks this frontend ships (or, for a composer not built yet, lists as pending)', () => {
+    const { spec } = parsed(name)
+    if (!COMPOSER_PENDING.has(name)) {
+      expect(builderRefusals(spec)).toEqual([])
+      return
+    }
+    // Every check it names is shipped; every plugin it names is pending, never unknown.
+    for (const [slot, plugin] of [['palette', spec.palette.plugin], ['canvas', spec.canvas.plugin], ['inspector', spec.inspector.plugin]] as const) {
+      expect(resolvePlugin(slot, plugin), `${slot}/${plugin}`).toMatchObject({ ok: false, pending: true })
+    }
+    expect(builderRefusals(spec).every((refusal) => /not shipped in this frontend yet/.test(refusal))).toBe(true)
   })
 
   it('allows only verbs the action bridge knows', () => {
-    const known = new Set([...COMPOSE_VERBS, ...CHART_VERBS, 'previewPage', 'previewBlueprint', 'publishPage', 'publishBlueprint'])
+    const known = new Set([...COMPOSE_VERBS, ...CHART_VERBS, 'previewPage', 'previewBlueprint', 'publishPage', 'publishBlueprint', 'previewRestDef', 'publishRestDef'])
     expect(parsed(name).spec.verbs.allowed.filter((verb) => !known.has(verb))).toEqual([])
   })
 
@@ -116,9 +132,10 @@ describe.each(FIXTURES)('the %s Builder', (name) => {
     expect(read).toContain(spec.publish.templateKey)
   })
 
-  it('is served at a route the shell registers', () => {
+  it('is served at a route the shell registers (a composer not built yet: not yet)', () => {
     const routes = readFileSync(join(__dirname, '..', 'context', 'RoutesContext.tsx'), 'utf8')
-    expect(routes).toContain(`path: '${parsed(name).spec.route}'`)
+    // Flips when T8 registers the Controller Builder's route: then drop it from COMPOSER_PENDING.
+    expect(routes.includes(`path: '${parsed(name).spec.route}'`)).toBe(!COMPOSER_PENDING.has(name))
   })
 })
 
@@ -137,5 +154,17 @@ describe('what each fixture says about its own builder', () => {
     expect(spec.publish.builder).toBe('blueprint')
     expect(spec.preview).toEqual({ mode: 'render', restActionRef: { name: DRAFT_RENDER_RESTACTION } })
     expect(spec.files.locked).toContain(PROJECTION_BUNDLE_PATH)
+  })
+
+  it('the Controller Builder: controller drafts, a render preview through controller-render-draft, publishRestDef', () => {
+    const { spec } = parsed('controller-builder')
+    expect(spec.route).toBe('/controller-builder/compose')
+    expect(spec.draftKind).toBe('controller')
+    expect(spec.preview).toEqual({ mode: 'render', restActionRef: { name: 'controller-render-draft' } })
+    expect(spec.publish.builder).toBe('controller')
+    expect(spec.publish.targetKey).toBe('AUTOPILOT_KOG_BUILDER_REPO')
+    expect(spec.verbs.allowed).toContain('publishRestDef')
+    expect([spec.palette.plugin, spec.canvas.plugin, spec.inspector.plugin]).toEqual(['openapi', 'restdef-graph', 'restdef-mapping'])
+    expect(spec.portal.draftsCard.name).toBe('controller-builder-drafts-card')
   })
 })

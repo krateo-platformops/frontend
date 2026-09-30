@@ -1,0 +1,109 @@
+# The Controller Builder, DECLARED — the third builder, the first written for the engine rather than
+# migrated onto it (T3, frontend#409; the Builder CR the approved mockup shows, frontend#406).
+#
+# WHAT THE ENGINE READS FROM IT TODAY (T3): builderRegistry.ts loads it beside the page and blueprint
+# Builders. From it the engine takes the draft kind (a controller draft is held, autosaved as
+# `draft-controller-<owner>-<slug>`, resumed and discarded by the same code), the preview MODE (render:
+# an edit disarms Publish), the lint list (run on a held controller draft's edits), the label (named in
+# refusals), and `verbs.allowed` (publishRestDef is this Builder's publish verb).
+#
+# WHAT IS DECLARED BUT NOT WIRED YET — each is T8's (T9 for the preview RESTAction):
+#   - route: no /controller-builder/compose in the shell (builderFixtures.test.ts pins that);
+#   - palette, canvas, inspector: pluginRegistry.ts lists them as PENDING, a "not shipped yet" refusal;
+#   - start: no start modal reads these fields;
+#   - preview.restActionRef: nothing calls controller-render-draft yet (T9, frontend#413);
+#   - publish.targetKey / templateKey / registration, files, gates: publishRestDef runs
+#     kogPublish.ts dispatchKogPublish, which publishes Autopilot's previewed RestDefinition to the
+#     fixed AUTOPILOT_KOG_BUILDER_REPO key with no source template, and reads none of these.
+apiVersion: builders.templates.krateo.io/v1alpha1
+kind: Builder
+metadata:
+  name: controller-builder
+spec:
+  label: Controller Builder
+  # Not served yet: T8 registers the route (builderFixtures.test.ts).
+  route: /controller-builder/compose
+  # draftRecord.ts: `draft-controller-<owner>-<slug>`, label krateo.io/draft-kind=controller. The
+  # portal's my-drafts lists it (portal.draftBuilders, portal#274).
+  draftKind: controller
+  # The mockup's start modal: a name, an API group, and the OpenAPI document (pasted, uploaded or by
+  # URL). Declared only: no start modal reads these until T8.
+  start:
+    fields:
+      - name: name
+        label: Controller name
+        required: true
+        help: Lower-case, dashes. It becomes the chart, the repository and the CompositionDefinition name.
+        placeholder: github-provider
+      - name: apiGroup
+        label: API group
+        required: true
+        help: The group of the Kinds the controller serves.
+        placeholder: github.ogen.krateo.io
+      - name: spec
+        label: OpenAPI document
+        required: true
+        help: Paste it, upload it, or give its URL.
+      - name: baseUrl
+        label: Base URL
+        required: false
+        help: Overrides the document's servers entry.
+        placeholder: https://api.github.com
+    # Mirrors blueprintDraftStore.ts BLUEPRINT_DRAFT_MAX_BYTES, which is what the store enforces for
+    # every draft kind; the store does not read this value.
+    maxDraftBytes: 524288
+  # PENDING (T8), over T7's oasImport.ts / paletteModel.ts: the spec's operations by resource path.
+  palette:
+    plugin: openapi
+  # PENDING (T8): the Kinds and their configuration, as a graph.
+  canvas:
+    plugin: restdef-graph
+  # PENDING (T8), over T7's operationMapping.ts / restDefinitionBuild.ts: verbs, identifiers, auth.
+  inspector:
+    plugin: restdef-mapping
+  # frontend#405: a controller preview RENDERS (oasgen-render generates the CRDs), it never applies.
+  # The MODE is read today (an edit disarms Publish); the RESTAction is not called until T9.
+  preview:
+    mode: render
+    restActionRef:
+      name: controller-render-draft
+  # A controller is a chart: N RestDefinitions plus the OAS ConfigMaps (frontend#405). Declared only:
+  # no engine code enforces this layout for a controller until T8.
+  files:
+    required:
+      - Chart.yaml
+      - values.yaml
+      - values.schema.json
+    # publishDraft.ts REGISTRATION_PATH.
+    locked:
+      - compositiondefinition.yaml
+    heldBytes: 524288
+  # proposedChart.ts lintHeldDraft(files, 'controller'): run on a held controller draft's edits today;
+  # the controller publish (dispatchKogPublish) does not run it until T8.
+  lint:
+    - chart-lint
+  # Declared only: dispatchKogPublish keeps its own preview gate and reads none of these until T8.
+  gates:
+    - preview-before-publish
+    - publish-name
+  # `builder: controller` is read today: it is what publishRestDef resolves to. The rest is declared
+  # only: dispatchKogPublish publishes to the fixed AUTOPILOT_KOG_BUILDER_REPO key, with no source
+  # template and its own registration file, whatever targetKey, templateKey and registration say.
+  # T8 publishes the held tree from these.
+  publish:
+    builder: controller
+    targetKey: AUTOPILOT_KOG_BUILDER_REPO
+    templateKey: AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE
+    registration:
+      kind: CompositionDefinition
+      path: compositiondefinition.yaml
+  # actionBridge.ts previewRestDef, publishRestDef — publishRestDef is this Builder's, no longer an
+  # undeclared publish verb (publishDraft.ts).
+  verbs:
+    allowed:
+      - previewRestDef
+      - publishRestDef
+  # The portal chart's /controller-builder hub (portal#274).
+  portal:
+    draftsCard:
+      name: controller-builder-drafts-card

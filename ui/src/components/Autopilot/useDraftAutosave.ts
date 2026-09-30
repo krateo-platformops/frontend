@@ -7,7 +7,7 @@
  * last debounce window of edits.
  *
  * THE SEAM. `createBlueprintDraftStore(onChange)` fires after every mutation that changed the held
- * tree, for BOTH kinds — the one place every write path (a Files-tab edit, a composer batch, Undo,
+ * tree, for EVERY draft kind — the one place every write path (a Files-tab edit, a composer batch, Undo,
  * an agent proposal, a start, a close) already passes through. `onHeldChange` is handed to it by the
  * provider, so no path can change the draft without the autosave hearing about it.
  *
@@ -40,7 +40,7 @@
 import { useEffect } from 'react'
 
 import { builderRegistry } from '../../builders/builderRegistry'
-import { draftKindOf } from '../../builders/draftKinds'
+import { draftKindOf, isDraftKind } from '../../builders/draftKinds'
 import { getUserInfo } from '../../utils/getUserInfo'
 
 import { buildSetOpPath } from './applyResourceSet'
@@ -74,10 +74,12 @@ export const draftRecordDisplayName = (held: Pick<BlueprintDraftHeld, 'files' | 
 /**
  * The draft kind whose Builder previews by APPLYING the draft's CRs to the sandbox (`preview.mode:
  * sandbox-apply`) — the kind a live apply (`markPageApplied`) records as rendered. Undefined when no
- * Builder previews that way. A Builder's draftKind is a DraftKind here: the fixtures test holds them.
+ * Builder previews that way — or whose draftKind this build cannot hold (isDraftKind), never a cast.
  */
-const sandboxAppliedKind = (): DraftKind | undefined =>
-  builderRegistry.all().find((builder) => builder.spec.preview.mode === 'sandbox-apply')?.spec.draftKind as DraftKind | undefined
+const sandboxAppliedKind = (): DraftKind | undefined => {
+  const kind = builderRegistry.all().find((builder) => builder.spec.preview.mode === 'sandbox-apply')?.spec.draftKind
+  return isDraftKind(kind) ? kind : undefined
+}
 
 /** What this tab knows about one record beyond its files. */
 interface RecordMeta {

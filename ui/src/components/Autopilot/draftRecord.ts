@@ -13,12 +13,15 @@
  * `ownerOf` exactly as `draftOwner` does here (the sanitizer is written so both can).
  *
  * The record:
- *   name         draft-<kind>-<owner>-<slug>, a DNS-1123 name within 63 characters
+ *   name         draft-<kind>-<owner>-<slug>, a DNS-1123 name within 63 characters; <kind> is the
+ *                Builder's spec.draftKind (page, blueprint, controller, …)
  *   labels       krateo.io/purpose=draft-record, krateo.io/draft-owner, krateo.io/draft-kind,
  *                krateo.io/draft-state, krateo.io/draft-previewed ("true"|"false")
  *   annotations  krateo.io/draft-name (the display name), krateo.io/draft-updated-at
  *   data         draft.json = DraftRecordBody (below)
  */
+import { isDraftKind } from '../../builders/draftKinds'
+
 import type { DraftKind } from './blueprintDraftStore'
 
 export const DRAFT_RECORD_PURPOSE = 'draft-record'
@@ -133,7 +136,9 @@ export const readDraftRecord = (configMap: unknown): DraftRecordBody | null => {
     return null
   }
   if (!isRecord(body) || body.version !== DRAFT_RECORD_VERSION) { return null }
-  if (body.kind !== 'page' && body.kind !== 'blueprint') { return null }
+  // Any kind a loaded Builder declares (page, blueprint, controller, …) — and only those: a record of
+  // a kind nothing here could preview, publish or resume is not handed out as a draft.
+  if (!isDraftKind(body.kind)) { return null }
   if (typeof body.name !== 'string' || !isRecord(body.files)) { return null }
   if (!Object.values(body.files).every((content) => typeof content === 'string')) { return null }
   if (body.state !== 'open' && body.state !== 'published') { return null }
