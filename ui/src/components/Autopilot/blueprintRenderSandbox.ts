@@ -51,20 +51,27 @@ const CONFIGMAPS = { group: '', resource: 'configmaps', version: 'v1' }
 
 const slug = (text: string): string => text.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '')
 
-/** `bp-preview-<chart>-<nonce>`, a DNS-1123 name within 63 characters. */
-export const draftChartName = (chartName: string, nonce: string): string => {
+/** `<prefix>-<name>-<nonce>`, a DNS-1123 name within 63 characters. */
+export const sandboxDraftName = (prefix: string, draftName: string, nonce: string): string => {
   const tail = `-${slug(nonce).slice(0, 8) || 'x'}`
-  const head = `bp-preview-${slug(chartName) || 'chart'}`.slice(0, 63 - tail.length).replace(/-+$/, '')
+  const head = `${prefix}-${slug(draftName) || 'chart'}`.slice(0, 63 - tail.length).replace(/-+$/, '')
   return `${head}${tail}`
 }
 
-/** The ConfigMap one render writes: the render body, whole, under one key. */
-export const draftChartConfigMap = (name: string, namespace: string, body: Record<string, unknown>): Record<string, unknown> => ({
+/** `bp-preview-<chart>-<nonce>`, a DNS-1123 name within 63 characters. */
+export const draftChartName = (chartName: string, nonce: string): string => sandboxDraftName('bp-preview', chartName, nonce)
+
+/** The ConfigMap one render writes: the render body, whole, under one key, labelled for what it previews. */
+export const sandboxDraftConfigMap = (name: string, namespace: string, key: string, purpose: string, body: unknown): Record<string, unknown> => ({
   apiVersion: 'v1',
-  data: { [DRAFT_CHART_KEY]: JSON.stringify(body) },
+  data: { [key]: JSON.stringify(body) },
   kind: 'ConfigMap',
-  metadata: { labels: { 'krateo.io/purpose': DRAFT_PURPOSE_LABEL }, name, namespace },
+  metadata: { labels: { 'krateo.io/purpose': purpose }, name, namespace },
 })
+
+/** The ConfigMap a chart render writes: the render body, whole, under one key. */
+export const draftChartConfigMap = (name: string, namespace: string, body: Record<string, unknown>): Record<string, unknown> =>
+  sandboxDraftConfigMap(name, namespace, DRAFT_CHART_KEY, DRAFT_PURPOSE_LABEL, body)
 
 const writeOp = (op: ApplyResourceSetOp): WriteOp => ({
   path: buildSetOpPath(op),
@@ -72,7 +79,47 @@ const writeOp = (op: ApplyResourceSetOp): WriteOp => ({
   ...(op.payload === undefined ? {} : { payload: op.payload }),
 })
 
-const randomNonce = (): string => Math.random().toString(36).slice(2, 10)
+export const randomNonce = (): string => Math.random().toString(36).slice(2, 10)
+
+/** One draft to render by name: the ConfigMap's name, the key its body rides in, and its purpose label. */
+export interface SandboxDraft {
+  name: string
+  key: string
+  purpose: string
+  body: unknown
+}
+
+/**
+ * The three steps every sandbox render takes — WRITE the draft as one ConfigMap in the sandbox (the
+ * audited set fabric, confined there, so the confirm is skipped), RENDER it by name, DELETE it
+ * whatever the render answered. `written: false` (with why) when the write was refused: nothing was
+ * rendered, and the caller decides what that means for its builder.
+ */
+export const withSandboxDraft = async <T>(
+  writer: SandboxWriter,
+  draft: SandboxDraft,
+  render: (ref: { name: string; namespace: string }) => Promise<T>,
+): Promise<{ written: true; value: T } | { written: false; reason: string }> => {
+  const namespace = writer.sandboxNamespace
+  const { name } = draft
+  const options: SetDispatchOptions = { silent: true, skipConfirmForSandbox: namespace }
+  const written = await writer.handleActionSet([writeOp({
+    gvr: CONFIGMAPS,
+    namespace,
+    payload: sandboxDraftConfigMap(name, namespace, draft.key, draft.purpose, draft.body),
+    verb: 'POST',
+  })], options)
+  if (!written?.length || !written.every((result) => result.ok)) {
+    const refused = written?.find((result) => !result.ok)
+    return { reason: refused ? `${refused.status} ${refused.message}`.trim() : 'the write was not dispatched', written: false }
+  }
+  try {
+    return { value: await render({ name, namespace }), written: true }
+  } finally {
+    // Whatever the render answered, the draft does not outlive it.
+    await writer.handleActionSet([writeOp({ gvr: CONFIGMAPS, name, namespace, verb: 'DELETE' })], options).catch(() => null)
+  }
+}
 
 /**
  * Render an inline draft through the sandbox. Null when that path is not available — the caller
@@ -88,29 +135,17 @@ export const renderDraftViaSandbox = async (
   if (!args.rawTemplates) {
     return null
   }
-  const namespace = writer.sandboxNamespace
   const chartName = typeof args.rawTemplates['Chart.yaml'] === 'string'
     ? (/^name:\s*["']?([^"'\s]+)/m.exec(args.rawTemplates['Chart.yaml'])?.[1] ?? 'chart')
     : 'chart'
-  const name = draftChartName(chartName, nonce)
-  const options: SetDispatchOptions = { silent: true, skipConfirmForSandbox: namespace }
-  const written = await writer.handleActionSet([writeOp({
-    gvr: CONFIGMAPS,
-    namespace,
-    payload: draftChartConfigMap(name, namespace, renderRequestBody(args)),
-    verb: 'POST',
-  })], options)
-  if (!written?.length || !written.every((result) => result.ok)) {
+  const draft = { body: renderRequestBody(args), key: DRAFT_CHART_KEY, name: draftChartName(chartName, nonce), purpose: DRAFT_PURPOSE_LABEL }
+  const answered = await withSandboxDraft(writer, draft, (ref) =>
+    callRenderRestAction(snowplowBaseUrl, frontendNamespace, DRAFT_RENDER_RESTACTION, JSON.stringify(ref)))
+  if (!answered.written) {
     return null
   }
-  try {
-    const rendered = await callRenderRestAction(snowplowBaseUrl, frontendNamespace, DRAFT_RENDER_RESTACTION, JSON.stringify({ name, namespace }))
-    // The RESTAction itself missing or refused (an older portal): not a render — fall back.
-    return /^blueprint-render-draft RESTAction (responded|unreachable)/.test(rendered.error ?? '') ? null : rendered
-  } finally {
-    // Whatever the render answered, the draft does not outlive it.
-    await writer.handleActionSet([writeOp({ gvr: CONFIGMAPS, name, namespace, verb: 'DELETE' })], options).catch(() => null)
-  }
+  // The RESTAction itself missing or refused (an older portal): not a render — fall back.
+  return /^blueprint-render-draft RESTAction (responded|unreachable)/.test(answered.value.error ?? '') ? null : answered.value
 }
 
 /**

@@ -269,17 +269,18 @@ export const callHelmRender = async (renderBaseUrl: string, args: BlueprintPrevi
  * throw — exactly like `callHelmRender`, so the drawer path is identical.
  */
 /**
- * GET one render RESTAction through snowplow `/call` and normalize its `.status` into a
- * HelmRenderResult — `blueprint-render` (the chart in ?extras) and `blueprint-render-draft` (a
- * ConfigMap named in ?extras, blueprintRenderSandbox.ts) share it. Never throws: a non-2xx or an
- * unreachable snowplow is `{error}` content.
+ * GET one RESTAction through snowplow `/call`, under the caller's own credential, and hand back its
+ * resolved `.status` — snowplow places a RESTAction's jq filter output DIRECTLY there (not
+ * `.status.widgetData`, the widget shape). Never throws: a non-2xx or an unreachable snowplow is
+ * `{error}`, named for the RESTAction. The render RESTActions (below) and the controller's
+ * (pages/ControllerComposer/controllerRender.ts) share it.
  */
-export const callRenderRestAction = async (
+export const callRestActionStatus = async (
   snowplowBaseUrl: string,
   namespace: string,
   restAction: string,
   extras: string,
-): Promise<HelmRenderResult> => {
+): Promise<{ status: Record<string, unknown> | null } | { error: string }> => {
   try {
     const url = new URL(`${snowplowBaseUrl.replace(/\/+$/, '')}/call`)
     url.searchParams.set('resource', 'restactions')
@@ -292,17 +293,30 @@ export const callRenderRestAction = async (
       // A RA transport failure (RBAC 403, the RA not installed 404, snowplow 5xx, the gateway's 431
       // for a URL past its header limit) — the render service {error} would have been a 200 with
       // .status.error, so a non-2xx here is genuinely the RA path failing. Content, never a throw.
-      return { error: `${restAction} RESTAction responded ${response.status}`, objects: [] }
+      return { error: `${restAction} RESTAction responded ${response.status}` }
     }
-    // snowplow resolves a RESTAction with its jq filter output placed DIRECTLY in .status
-    // (not .status.widgetData — that is the widget shape). The filter emits the render
-    // contract body verbatim.
     const cr = await response.json().catch(() => null) as { status?: unknown } | null
-    const status = asRecord(cr?.status) as RenderContractBody | null
-    return toHelmRenderResult(status)
+    return { status: asRecord(cr?.status) }
   } catch (error) {
-    return { error: `${restAction} RESTAction unreachable — ${error instanceof Error ? error.message : String(error)}`, objects: [] }
+    return { error: `${restAction} RESTAction unreachable — ${error instanceof Error ? error.message : String(error)}` }
   }
+}
+
+/**
+ * GET one render RESTAction through snowplow `/call` and normalize its `.status` into a
+ * HelmRenderResult — `blueprint-render` (the chart in ?extras) and `blueprint-render-draft` (a
+ * ConfigMap named in ?extras, blueprintRenderSandbox.ts) share it. Never throws: a non-2xx or an
+ * unreachable snowplow is `{error}` content.
+ */
+export const callRenderRestAction = async (
+  snowplowBaseUrl: string,
+  namespace: string,
+  restAction: string,
+  extras: string,
+): Promise<HelmRenderResult> => {
+  const answered = await callRestActionStatus(snowplowBaseUrl, namespace, restAction, extras)
+  // The filter emits the render contract body verbatim.
+  return 'error' in answered ? { error: answered.error, objects: [] } : toHelmRenderResult(answered.status)
 }
 
 export const callBlueprintRenderRA = async (

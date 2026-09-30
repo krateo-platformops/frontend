@@ -89,12 +89,21 @@ export interface AutopilotPreviewPayload {
   /** The RestDefinition kind the editable source belongs to (headline for the edit section). */
   restDefKind?: string
   /**
-   * A "Rendered" tab that says why nothing is rendered yet — the Controller Builder's until its render
-   * (T9, frontend#413) draws the create form of the generated CRD there. Absent: no such tab.
+   * A "Rendered" tab that says why nothing is rendered in it — the Controller Builder's before Preview
+   * (or after a preview that failed). Absent, and no `renderedForms`: no such tab.
    */
   renderedPlaceholder?: string
+  /**
+   * The Controller Builder's "Rendered" tab (T9, frontend#413): the create form of each CRD its
+   * preview generated — `schema` is the CRD's `spec` schema, drawn read-only through the same form
+   * preview a blueprint's values.schema.json is (PreviewFormSection). Takes the tab over from
+   * `renderedPlaceholder` when there is at least one.
+   */
+  renderedForms?: { kind: string; crd: string; schema: string }[]
+  /** Said above the rendered forms: what the render applies anyway (a skipped security scheme). */
+  renderedWarnings?: string[]
   /** The tab the files pane opens on, when not its first — a builder whose first tab is still empty. */
-  initialTab?: 'files' | 'source'
+  initialTab?: 'files' | 'rendered' | 'source'
 }
 
 /** The LAST previewPage's validation verdicts — held here so the CONTEXT COLLECTOR can

@@ -66,7 +66,7 @@ export const oasConfigMapName = (name: string): string => `${name}-oas`
 export const oasConfigMapKey = (format: OasFormat): string => (format === 'json' ? 'openapi.json' : 'openapi.yaml')
 export const restDefinitionPath = (kind: string): string => `templates/restdefinition-${kind.toLowerCase()}.yaml`
 export const RESTDEFINITION_PATH = /^templates\/restdefinition-[a-z0-9-]+\.yaml$/
-const CONFIGMAP_PATH = /^templates\/configmap-oas-[a-z0-9-]+\.yaml$/
+export const CONFIGMAP_PATH = /^templates\/configmap-oas-[a-z0-9-]+\.yaml$/
 
 export const toYaml = (value: unknown): string => dump(value, { lineWidth: -1, noRefs: true, sortKeys: false })
 

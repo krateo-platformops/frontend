@@ -1,5 +1,767 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`T9 — Preview renders the controller through controller-render-draft > OK: lint → draft.json into the sandbox → controller-render-draft over /call → Publish ARMED; Rendered is each Kind's create form, Source the CRDs > rendered 1`] = `
+"<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
+  <div class="_page_396249">
+    <header class="_head_396249">
+      <div class="_titleRow_396249">
+        <div class="_titleBlock_396249">
+          <span class="_eyebrow_396249">
+            "Controller Builder / Compose"
+          <h1 class="_title_396249">
+            "petstore"
+            <span class="_titleMeta_396249">
+              "0.1.0 · Pet, Store · petstore.example.io"
+        <span class="_spacer_396249">
+        <span aria-live="polite" class="_indicator_314ebb _saved_314ebb" role="status">
+          <span aria-hidden="true" aria-label="check" class="anticon anticon-check" role="img">
+            <svg aria-hidden="true" data-icon="check" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+              <path d="M912 190h-69.9c-9.8 0-19.1 4.5-25.1 12.2L404.7 724.5 207 474a32 32 0 00-25.1-12.2H112c-6.7 0-10.4 7.7-6.3 12.9l273.9 347c12.8 16.2 37.4 16.2 50.3 0l488.4-618.9c4.1-5.1.4-12.8-6.3-12.8z">
+          "Saved · 12:00"
+        <span class="_countPill_396249" title="Files held in the draft">
+          "6 files"
+        <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+          <div class="ant-space-item">
+            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <span>
+                "Preview"
+          <div class="ant-space-item">
+            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <span>
+                "Undo"
+          <div class="ant-space-item">
+            <span class="_tooltipAnchor_396249">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-primary ant-btn-color-primary ant-btn-variant-solid" type="button">
+                <span>
+                  "Publish"
+          <div class="ant-space-item">
+            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <span>
+                "Close draft"
+      <div class="ant-alert ant-alert-success ant-alert-outlined ant-alert-with-description css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
+        <span class="ant-alert-icon">
+          <span aria-label="check-circle" class="anticon anticon-check-circle" role="img">
+            <svg aria-hidden="true" data-icon="check-circle" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+              <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm193.5 301.7l-210.6 292a31.8 31.8 0 01-51.7 0L318.5 484.9c-3.8-5.3 0-12.7 6.5-12.7h46.9c10.2 0 19.9 4.9 25.9 13.3l71.2 98.8 157.2-218c6-8.3 15.6-13.3 25.9-13.3H699c6.5 0 10.3 7.4 6.5 12.7z">
+        <div class="ant-alert-section">
+          <div class="ant-alert-title">
+            "Rendered 3 objects — read them in Source. Publish is on until the chart changes."
+          <div class="ant-alert-description">
+            <ul>
+              <li>
+                "Pet → create POST /pet · get GET /pet/{petId} · findby GET /pet/findByStatus · update PUT /pet · delete DELETE /pet/{petId}"
+              <li>
+                "Store → create POST /store/order · get GET /store/order/{orderId} · findby GET /store/inventory · delete DELETE /store/order/{orderId}"
+        <button class="ant-alert-close-icon" tabindex="0" type="button">
+          <span aria-label="close" class="anticon anticon-close" role="img">
+            <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+              <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z">
+    <div class="_body_396249">
+      <section aria-label="Add" class="_pane_396249 _palettePane_396249">
+        <div class="_paneHead_396249">
+          <span class="_paneTitle_396249">
+            "Add"
+        <div aria-label="Palette" class="_paletteBody_396249" role="group">
+          <span class="ant-input-affix-wrapper ant-input-affix-wrapper-sm css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var">
+            <input aria-label="Filter by path or operation" class="ant-input ant-input-sm css-dev-only-do-not-override-12q6fii" placeholder="Filter by path or operation" type="text" value="">
+            <span class="ant-input-suffix">
+              <button class="ant-input-clear-icon ant-input-clear-icon-hidden" type="button">
+                <span aria-label="close-circle" class="anticon anticon-close-circle" role="img">
+                  <svg aria-hidden="true" data-icon="close-circle" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M512 64c247.4 0 448 200.6 448 448S759.4 960 512 960 64 759.4 64 512 264.6 64 512 64zm127.98 274.82h-.04l-.08.06L512 466.75 384.14 338.88c-.04-.05-.06-.06-.08-.06a.12.12 0 00-.07 0c-.03 0-.05.01-.09.05l-45.02 45.02a.2.2 0 00-.05.09.12.12 0 000 .07v.02a.27.27 0 00.06.06L466.75 512 338.88 639.86c-.05.04-.06.06-.06.08a.12.12 0 000 .07c0 .03.01.05.05.09l45.02 45.02a.2.2 0 00.09.05.12.12 0 00.07 0c.02 0 .04-.01.08-.05L512 557.25l127.86 127.87c.04.04.06.05.08.05a.12.12 0 00.07 0c.03 0 .05-.01.09-.05l45.02-45.02a.2.2 0 00.05-.09.12.12 0 000-.07v-.02a.27.27 0 00-.05-.06L557.25 512l127.87-127.86c.04-.04.05-.06.05-.08a.12.12 0 000-.07c0-.03-.01-.05-.05-.09l-45.02-45.02a.2.2 0 00-.09-.05.12.12 0 00-.07 0z">
+          <div class="_paletteSection_396249">
+            <div class="_paletteSectionHead_396249">
+              <span class="_eyebrow_396249">
+                "Operations"
+              <span class="_countPill_396249">
+                "19 operations · 3 groups"
+            <div class="_paletteGroup_396249" data-group="pet" draggable="false">
+              <div class="_groupActions_9029c5">
+                <button aria-expanded="false" class="_paletteGroupHead_396249" type="button">
+                  <span aria-hidden="true">
+                    "▸"
+                  <span class="_paletteGroupName_396249">
+                    "/pet"
+                  <span class="_countPill_396249">
+                    "8"
+                <span class="_placedMark_396249">
+                  "✓ Pet"
+            <div class="_paletteGroup_396249" data-group="store" draggable="false">
+              <div class="_groupActions_9029c5">
+                <button aria-expanded="false" class="_paletteGroupHead_396249" type="button">
+                  <span aria-hidden="true">
+                    "▸"
+                  <span class="_paletteGroupName_396249">
+                    "/store"
+                  <span class="_countPill_396249">
+                    "4"
+                <span class="_placedMark_396249">
+                  "✓ Store"
+            <div class="_paletteGroup_396249" data-group="user" draggable="true">
+              <div class="_groupActions_9029c5">
+                <button aria-expanded="false" class="_paletteGroupHead_396249" type="button">
+                  <span aria-hidden="true">
+                    "▸"
+                  <span class="_paletteGroupName_396249">
+                    "/user"
+                  <span class="_countPill_396249">
+                    "7"
+                <button aria-label="Place user as a Kind" class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                  <span>
+                    "Place"
+          <p class="_note_396249">
+            "Drag a group onto Resources to map it as a Kind; drag one operation onto a Kind to make it one of its verbs."
+      <div class="_centre_396249">
+        <section aria-label="Resources" class="_pane_396249">
+          <div class="_paneHead_396249">
+            <span class="_paneTitle_396249">
+              "Resources"
+            <span class="_countPill_396249">
+              "2 Kinds"
+          <div aria-label="Resources canvas — drop a resource group here to map it as a Kind" class="_canvas_9029c5" role="region">
+            <div class="_graph_9029c5" style="height: 200px;">
+              <svg aria-hidden="true" class="_edges_9029c5" height="200" width="440">
+                <path class="_edge_9029c5" d="M 172 52 C 220 52, 220 100, 268 100">
+                <path class="_edge_9029c5" d="M 172 148 C 220 148, 220 100, 268 100">
+              <button aria-label="Pet — create, get, findby, update, delete" aria-pressed="false" class="_card_9029c5" style="left: 16px; top: 16px;" type="button">
+                <span class="_cardEyebrow_9029c5">
+                  "Pet · petstore.example.io"
+                <span class="_cardTitle_9029c5">
+                  "pets"
+                <span class="_cardVerbs_9029c5">
+                  "create · get · findby · update · delete"
+              <button aria-label="Store — create, get, findby, delete" aria-pressed="true" class="_card_9029c5" style="left: 16px; top: 112px;" type="button">
+                <span class="_cardEyebrow_9029c5">
+                  "Store · petstore.example.io"
+                <span class="_cardTitle_9029c5">
+                  "stores"
+                <span class="_cardVerbs_9029c5">
+                  "create · get · findby · delete"
+              <div class="_card_9029c5 _configCard_9029c5" style="left: 268px; top: 64px;">
+                <span class="_cardEyebrow_9029c5">
+                  "Configuration · petstore.example.io"
+                <span class="_cardTitle_9029c5">
+                  "authentication"
+                <span class="_cardVerbs_9029c5">
+                  "api_key"
+        <section aria-label="Controller files and Source" class="_pane_396249 _filesPane_396249">
+          <div class="_section_396249">
+            <div class="_body_7a73aa">
+              <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
+                "Rendered is the create form of each Kind oasgen-render generated; Source is the CRDs themselves — rendered, nothing applied to the cluster. Chart files is the tree the change request commits."
+              <div class="_target_7a73aa">
+                <span class="ant-tag ant-tag-filled ant-tag-geekblue css-dev-only-do-not-override-12q6fii css-var-id1">
+                  "Publishes to"
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                  <code>
+                    "petstore"
+                <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
+                  "· change request into"
+                  "main"
+                <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
+                  "·"
+                  "merged, CI publishes it as a versioned OCI Helm chart"
+                <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
+                  "· you confirm the destination at publish"
+              <div class="ant-tabs ant-tabs-top css-dev-only-do-not-override-12q6fii css-var-id1 ant-tabs-css-var">
+                <div aria-orientation="horizontal" class="ant-tabs-nav" role="tablist">
+                  <div class="ant-tabs-nav-wrap">
+                    <div class="ant-tabs-nav-list" style="transform: translate(0px, 0px);">
+                      <div class="ant-tabs-tab ant-tabs-tab-active" data-node-key="id2">
+                        <div aria-controls="id4" aria-selected="true" class="ant-tabs-tab-btn" id="id3" role="tab" tabindex="0">
+                          "Rendered"
+                      <div class="ant-tabs-tab" data-node-key="id5">
+                        <div aria-controls="id7" aria-selected="false" class="ant-tabs-tab-btn" id="id6" role="tab" tabindex="-1">
+                          "Chart files"
+                      <div class="ant-tabs-tab" data-node-key="id8">
+                        <div aria-controls="id10" aria-selected="false" class="ant-tabs-tab-btn" id="id9" role="tab" tabindex="-1">
+                          "Source"
+                      <div class="ant-tabs-ink-bar ant-tabs-ink-bar-animated" style="width: 0px; left: 0px; transform: translateX(-50%);">
+                  <div class="ant-tabs-nav-operations ant-tabs-nav-operations-hidden">
+                    <button aria-controls="id11" aria-expanded="false" aria-haspopup="listbox" class="ant-tabs-nav-more" id="id12" style="visibility: hidden; order: 1;" type="button">
+                      <span aria-label="ellipsis" class="anticon anticon-ellipsis" role="img">
+                        <svg aria-hidden="true" data-icon="ellipsis" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                          <path d="M176 511a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0z">
+                <div class="ant-tabs-body-holder">
+                  <div class="ant-tabs-body ant-tabs-body-top">
+                    <div aria-hidden="false" aria-labelledby="id3" class="ant-tabs-content ant-tabs-content-active" id="id4" role="tabpanel" tabindex="0">
+                      <div class="_body_7a73aa">
+                        <div class="ant-alert ant-alert-warning ant-alert-outlined ant-alert-with-description css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
+                          <span class="ant-alert-icon">
+                            <span aria-label="exclamation-circle" class="anticon anticon-exclamation-circle" role="img">
+                              <svg aria-hidden="true" data-icon="exclamation-circle" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                                <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm-32 232c0-4.4 3.6-8 8-8h48c4.4 0 8 3.6 8 8v272c0 4.4-3.6 8-8 8h-48c-4.4 0-8-3.6-8-8V296zm32 440a48.01 48.01 0 010-96 48.01 48.01 0 010 96z">
+                          <div class="ant-alert-section">
+                            <div class="ant-alert-title">
+                              "Generated with warnings — the controller applies these as they are"
+                            <div class="ant-alert-description">
+                              <ul class="_issueList_7a73aa">
+                                <li>
+                                  "krateo-preview/petstore-pet: security scheme not supported, skipped: petstore_auth (type: oauth2, in: )"
+                        <section data-testid="autopilot-form-preview">
+                          <h5 class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                            "Pet — create form"
+                          <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
+                            "Read-only — generated from pets.petstore.example.io, the CRD oasgen-render generated (nothing applied to the cluster). Nothing is submitted."
+                          <form class="ant-form ant-form-vertical css-var-id1 ant-form-css-var css-dev-only-do-not-override-12q6fii">
+                            <div class="_sectioned_745dfe">
+                              <nav class="_secNav_745dfe">
+                                <button class="_secItem_745dfe _secActive_745dfe _secSynthetic_745dfe" type="button">
+                                  "Top-level values"
+                                <button class="_secItem_745dfe" type="button">
+                                  "configurationRef"
+                              <div class="_secBody_745dfe">
+                                <div>
+                                  <div class="ant-form-item _field_745dfe css-var-id1 ant-form-css-var css-dev-only-do-not-override-12q6fii ant-form-item-vertical">
+                                    <div class="ant-row ant-form-item-row css-dev-only-do-not-override-12q6fii css-var-id1">
+                                      <div class="ant-col ant-col-24 ant-form-item-label css-dev-only-do-not-override-12q6fii css-var-id1">
+                                        <label class="ant-form-item-required ant-form-item-no-colon" for="id13">
+                                          <span class="_fieldLabel_745dfe">
+                                            <span class="_fieldName_745dfe">
+                                              "Name"
+                                              <span class="_req_745dfe">
+                                                "*"
+                                      <div class="ant-col ant-col-24 ant-form-item-control css-dev-only-do-not-override-12q6fii css-var-id1">
+                                        <div class="ant-form-item-control-input">
+                                          <div class="ant-form-item-control-input-content">
+                                            <span class="ant-input-affix-wrapper ant-input-disabled ant-input-affix-wrapper-disabled css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var">
+                                              <input aria-required="true" class="ant-input ant-input-disabled css-dev-only-do-not-override-12q6fii" disabled="" id="id13" type="text" value="">
+                                              <span class="ant-input-suffix">
+                                  <div class="ant-form-item _field_745dfe css-var-id1 ant-form-css-var css-dev-only-do-not-override-12q6fii ant-form-item-vertical">
+                                    <div class="ant-row ant-form-item-row css-dev-only-do-not-override-12q6fii css-var-id1">
+                                      <div class="ant-col ant-col-24 ant-form-item-label css-dev-only-do-not-override-12q6fii css-var-id1">
+                                        <label class="ant-form-item-required ant-form-item-no-colon" for="id14">
+                                          <span class="_fieldLabel_745dfe">
+                                            <span class="_fieldName_745dfe">
+                                              "Namespace"
+                                              <span class="_req_745dfe">
+                                                "*"
+                                      <div class="ant-col ant-col-24 ant-form-item-control css-dev-only-do-not-override-12q6fii css-var-id1">
+                                        <div class="ant-form-item-control-input">
+                                          <div class="ant-form-item-control-input-content">
+                                            <span class="ant-input-affix-wrapper ant-input-disabled ant-input-affix-wrapper-disabled css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var">
+                                              <input aria-required="true" class="ant-input ant-input-disabled css-dev-only-do-not-override-12q6fii" disabled="" id="id14" type="text" value="">
+                                              <span class="ant-input-suffix">
+                                  <div class="ant-collapse ant-collapse-icon-placement-start _advanced_745dfe css-dev-only-do-not-override-12q6fii css-var-id1">
+                                    <div class="ant-collapse-item">
+                                      <div aria-disabled="false" aria-expanded="false" class="ant-collapse-header" role="button" tabindex="0">
+                                        <div class="ant-collapse-expand-icon">
+                                          <span aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow" role="img">
+                                            <svg aria-hidden="true" data-icon="right" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                                              <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z">
+                                        <span class="ant-collapse-title">
+                                          "Advanced · 2 settings"
+                                      <div class="ant-collapse-panel ant-collapse-panel-inactive" style="display: none;">
+                                        <div class="ant-collapse-body">
+                                          <div class="ant-form-item _field_745dfe css-var-id1 ant-form-css-var css-dev-only-do-not-override-12q6fii ant-form-item-vertical">
+                                            <div class="ant-row ant-form-item-row css-dev-only-do-not-override-12q6fii css-var-id1">
+                                              <div class="ant-col ant-col-24 ant-form-item-label css-dev-only-do-not-override-12q6fii css-var-id1">
+                                                <label class="ant-form-item-no-colon" for="id15">
+                                                  <span class="_fieldLabel_745dfe">
+                                                    <span class="_fieldName_745dfe">
+                                                      "photoUrls"
+                                              <div class="ant-col ant-col-24 ant-form-item-control css-dev-only-do-not-override-12q6fii css-var-id1">
+                                                <div class="ant-form-item-control-input">
+                                                  <div class="ant-form-item-control-input-content">
+                                                    <div class="ant-select ant-select-outlined ant-select-in-form-item css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-multiple ant-select-show-arrow ant-select-disabled ant-select-show-search" style="width: 100%;">
+                                                      <div class="ant-select-content">
+                                                        <div class="ant-select-content-item ant-select-content-item-prefix" style="opacity: 1;">
+                                                          <div class="ant-select-placeholder">
+                                                            "Add values…"
+                                                        <div class="ant-select-content-item ant-select-content-item-suffix" style="opacity: 1;">
+                                                          <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" autocomplete="new-password" class="ant-select-input" disabled="" id="id15" role="combobox" style="--select-input-width: 0;" type="text" value="">
+                                                      <div class="ant-select-suffix">
+                                                        <span aria-label="down" class="anticon anticon-down" role="img">
+                                                          <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                                                            <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
+                                          <div class="ant-form-item _field_745dfe css-var-id1 ant-form-css-var css-dev-only-do-not-override-12q6fii ant-form-item-vertical">
+                                            <div class="ant-row ant-form-item-row css-dev-only-do-not-override-12q6fii css-var-id1">
+                                              <div class="ant-col ant-col-24 ant-form-item-label css-dev-only-do-not-override-12q6fii css-var-id1">
+                                                <label class="ant-form-item-no-colon" for="id16">
+                                                  <span class="_fieldLabel_745dfe">
+                                                    <span class="_fieldName_745dfe">
+                                                      "status"
+                                              <div class="ant-col ant-col-24 ant-form-item-control css-dev-only-do-not-override-12q6fii css-var-id1">
+                                                <div class="ant-form-item-control-input">
+                                                  <div class="ant-form-item-control-input-content">
+                                                    <div class="ant-select ant-select-outlined ant-select-in-form-item css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow ant-select-disabled ant-select-show-search" style="width: 100%;">
+                                                      <div class="ant-select-content">
+                                                        <div class="ant-select-placeholder">
+                                                          "Select…"
+                                                        <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" autocomplete="new-password" class="ant-select-input" disabled="" id="id16" role="combobox" type="text" value="">
+                                                      <div class="ant-select-suffix">
+                                                        <span aria-label="down" class="anticon anticon-down" role="img">
+                                                          <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                                                            <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
+                                <div style="display: none;">
+                                  <div class="ant-collapse ant-collapse-icon-placement-start _advanced_745dfe css-dev-only-do-not-override-12q6fii css-var-id1">
+                                    <div class="ant-collapse-item">
+                                      <div aria-disabled="false" aria-expanded="false" class="ant-collapse-header" role="button" tabindex="0">
+                                        <div class="ant-collapse-expand-icon">
+                                          <span aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow" role="img">
+                                            <svg aria-hidden="true" data-icon="right" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                                              <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z">
+                                        <span class="ant-collapse-title">
+                                          "Advanced · 1 setting"
+                                      <div class="ant-collapse-panel ant-collapse-panel-inactive" style="display: none;">
+                                        <div class="ant-collapse-body">
+                                          <div class="ant-form-item _field_745dfe css-var-id1 ant-form-css-var css-dev-only-do-not-override-12q6fii ant-form-item-vertical">
+                                            <div class="ant-row ant-form-item-row css-dev-only-do-not-override-12q6fii css-var-id1">
+                                              <div class="ant-col ant-col-24 ant-form-item-label css-dev-only-do-not-override-12q6fii css-var-id1">
+                                                <label class="ant-form-item-no-colon" for="id17">
+                                                  <span class="_fieldLabel_745dfe">
+                                                    <span class="_fieldName_745dfe">
+                                                      "name"
+                                              <div class="ant-col ant-col-24 ant-form-item-control css-dev-only-do-not-override-12q6fii css-var-id1">
+                                                <div class="ant-form-item-control-input">
+                                                  <div class="ant-form-item-control-input-content">
+                                                    <input class="ant-input ant-input-disabled css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var" disabled="" id="id17" type="text" value="">
+                        <section data-testid="autopilot-form-preview">
+                          <h5 class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                            "Store — create form"
+                          <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
+                            "Read-only — generated from stores.petstore.example.io, the CRD oasgen-render generated (nothing applied to the cluster). Nothing is submitted."
+                          <form class="ant-form ant-form-vertical css-var-id1 ant-form-css-var css-dev-only-do-not-override-12q6fii">
+                            <div class="ant-form-item _field_745dfe css-var-id1 ant-form-css-var css-dev-only-do-not-override-12q6fii ant-form-item-vertical">
+                              <div class="ant-row ant-form-item-row css-dev-only-do-not-override-12q6fii css-var-id1">
+                                <div class="ant-col ant-col-24 ant-form-item-label css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <label class="ant-form-item-required ant-form-item-no-colon" for="id13">
+                                    <span class="_fieldLabel_745dfe">
+                                      <span class="_fieldName_745dfe">
+                                        "Name"
+                                        <span class="_req_745dfe">
+                                          "*"
+                                <div class="ant-col ant-col-24 ant-form-item-control css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <div class="ant-form-item-control-input">
+                                    <div class="ant-form-item-control-input-content">
+                                      <span class="ant-input-affix-wrapper ant-input-disabled ant-input-affix-wrapper-disabled css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var">
+                                        <input aria-required="true" class="ant-input ant-input-disabled css-dev-only-do-not-override-12q6fii" disabled="" id="id13" type="text" value="">
+                                        <span class="ant-input-suffix">
+                            <div class="ant-form-item _field_745dfe css-var-id1 ant-form-css-var css-dev-only-do-not-override-12q6fii ant-form-item-vertical">
+                              <div class="ant-row ant-form-item-row css-dev-only-do-not-override-12q6fii css-var-id1">
+                                <div class="ant-col ant-col-24 ant-form-item-label css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <label class="ant-form-item-required ant-form-item-no-colon" for="id14">
+                                    <span class="_fieldLabel_745dfe">
+                                      <span class="_fieldName_745dfe">
+                                        "Namespace"
+                                        <span class="_req_745dfe">
+                                          "*"
+                                <div class="ant-col ant-col-24 ant-form-item-control css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <div class="ant-form-item-control-input">
+                                    <div class="ant-form-item-control-input-content">
+                                      <span class="ant-input-affix-wrapper ant-input-disabled ant-input-affix-wrapper-disabled css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var">
+                                        <input aria-required="true" class="ant-input ant-input-disabled css-dev-only-do-not-override-12q6fii" disabled="" id="id14" type="text" value="">
+                                        <span class="ant-input-suffix">
+                            <div class="ant-collapse ant-collapse-icon-placement-start _advanced_745dfe css-dev-only-do-not-override-12q6fii css-var-id1">
+                              <div class="ant-collapse-item">
+                                <div aria-disabled="false" aria-expanded="false" class="ant-collapse-header" role="button" tabindex="0">
+                                  <div class="ant-collapse-expand-icon">
+                                    <span aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow" role="img">
+                                      <svg aria-hidden="true" data-icon="right" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                                        <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z">
+                                  <span class="ant-collapse-title">
+                                    "Advanced · 1 setting"
+                                <div class="ant-collapse-panel ant-collapse-panel-inactive" style="display: none;">
+                                  <div class="ant-collapse-body">
+                                    <div class="ant-form-item _field_745dfe css-var-id1 ant-form-css-var css-dev-only-do-not-override-12q6fii ant-form-item-vertical">
+                                      <div class="ant-row ant-form-item-row css-dev-only-do-not-override-12q6fii css-var-id1">
+                                        <div class="ant-col ant-col-24 ant-form-item-label css-dev-only-do-not-override-12q6fii css-var-id1">
+                                          <label class="ant-form-item-no-colon" for="id18">
+                                            <span class="_fieldLabel_745dfe">
+                                              <span class="_fieldName_745dfe">
+                                                "quantity"
+                                        <div class="ant-col ant-col-24 ant-form-item-control css-dev-only-do-not-override-12q6fii css-var-id1">
+                                          <div class="ant-form-item-control-input">
+                                            <div class="ant-form-item-control-input-content">
+                                              <div class="ant-input-number ant-input-number-mode-input css-var-id1 ant-input-number-css-var css-dev-only-do-not-override-12q6fii ant-input-number-outlined ant-input-number-in-form-item ant-input-number-without-controls ant-input-number-disabled" style="width: 100%;">
+                                                <input autocomplete="off" class="ant-input-number-input" disabled="" id="id18" role="spinbutton" step="1" value="">
+                        <section data-testid="autopilot-form-preview">
+                          <h5 class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                            "PetConfiguration — create form"
+                          <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
+                            "Read-only — generated from petconfigurations.petstore.example.io, the CRD oasgen-render generated (nothing applied to the cluster). Nothing is submitted."
+                          <form class="ant-form ant-form-vertical css-var-id1 ant-form-css-var css-dev-only-do-not-override-12q6fii">
+                            <div class="ant-form-item _field_745dfe css-var-id1 ant-form-css-var css-dev-only-do-not-override-12q6fii ant-form-item-vertical">
+                              <div class="ant-row ant-form-item-row css-dev-only-do-not-override-12q6fii css-var-id1">
+                                <div class="ant-col ant-col-24 ant-form-item-label css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <label class="ant-form-item-required ant-form-item-no-colon" for="id13">
+                                    <span class="_fieldLabel_745dfe">
+                                      <span class="_fieldName_745dfe">
+                                        "Name"
+                                        <span class="_req_745dfe">
+                                          "*"
+                                <div class="ant-col ant-col-24 ant-form-item-control css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <div class="ant-form-item-control-input">
+                                    <div class="ant-form-item-control-input-content">
+                                      <span class="ant-input-affix-wrapper ant-input-disabled ant-input-affix-wrapper-disabled css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var">
+                                        <input aria-required="true" class="ant-input ant-input-disabled css-dev-only-do-not-override-12q6fii" disabled="" id="id13" type="text" value="">
+                                        <span class="ant-input-suffix">
+                            <div class="ant-form-item _field_745dfe css-var-id1 ant-form-css-var css-dev-only-do-not-override-12q6fii ant-form-item-vertical">
+                              <div class="ant-row ant-form-item-row css-dev-only-do-not-override-12q6fii css-var-id1">
+                                <div class="ant-col ant-col-24 ant-form-item-label css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <label class="ant-form-item-required ant-form-item-no-colon" for="id14">
+                                    <span class="_fieldLabel_745dfe">
+                                      <span class="_fieldName_745dfe">
+                                        "Namespace"
+                                        <span class="_req_745dfe">
+                                          "*"
+                                <div class="ant-col ant-col-24 ant-form-item-control css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <div class="ant-form-item-control-input">
+                                    <div class="ant-form-item-control-input-content">
+                                      <span class="ant-input-affix-wrapper ant-input-disabled ant-input-affix-wrapper-disabled css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var">
+                                        <input aria-required="true" class="ant-input ant-input-disabled css-dev-only-do-not-override-12q6fii" disabled="" id="id14" type="text" value="">
+                                        <span class="ant-input-suffix">
+                            <div class="ant-collapse ant-collapse-icon-placement-start _advanced_745dfe css-dev-only-do-not-override-12q6fii css-var-id1">
+                              <div class="ant-collapse-item">
+                                <div aria-disabled="false" aria-expanded="false" class="ant-collapse-header" role="button" tabindex="0">
+                                  <div class="ant-collapse-expand-icon">
+                                    <span aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow" role="img">
+                                      <svg aria-hidden="true" data-icon="right" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                                        <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z">
+                                  <span class="ant-collapse-title">
+                                    "Advanced · 1 setting"
+                                <div class="ant-collapse-panel ant-collapse-panel-inactive" style="display: none;">
+                                  <div class="ant-collapse-body">
+                                    <div class="ant-form-item _field_745dfe css-var-id1 ant-form-css-var css-dev-only-do-not-override-12q6fii ant-form-item-vertical">
+                                      <div class="ant-row ant-form-item-row css-dev-only-do-not-override-12q6fii css-var-id1">
+                                        <div class="ant-col ant-col-24 ant-form-item-label css-dev-only-do-not-override-12q6fii css-var-id1">
+                                          <label class="ant-form-item-no-colon" for="id19">
+                                            <span class="_fieldLabel_745dfe">
+                                              <span class="_fieldName_745dfe">
+                                                "authentication"
+                                        <div class="ant-col ant-col-24 ant-form-item-control css-dev-only-do-not-override-12q6fii css-var-id1">
+                                          <div class="ant-form-item-control-input">
+                                            <div class="ant-form-item-control-input-content">
+                                              <textarea class="ant-input css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var ant-input-disabled" disabled="" placeholder="{ } — JSON (key/value map)" style="font-family: var(--font-mono, monospace); overflow-y: hidden; resize: none;">
+                    <div aria-hidden="true" aria-labelledby="id6" class="ant-tabs-content ant-tabs-content-hidden" id="id7" role="tabpanel" tabindex="-1">
+                      <div class="_body_7a73aa">
+                        <div id="id20">
+                          <div class="_file_7a73aa">
+                            <div class="_fileHead_7a73aa">
+                              <div class="_filePath_7a73aa">
+                                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <code>
+                                    "Chart.yaml"
+                              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                                <span>
+                                  "Edit"
+                            <div class="_yaml_7a73aa">
+                              <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
+                                …9 lines
+                        <div id="id21">
+                          <div class="_file_7a73aa">
+                            <div class="_fileHead_7a73aa">
+                              <div class="_filePath_7a73aa">
+                                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <code>
+                                    "templates/configmap-oas-petstore.yaml"
+                              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                                <span>
+                                  "Edit"
+                            <div class="_yaml_7a73aa">
+                              <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
+                                …1280 lines
+                        <div id="id22">
+                          <div class="_file_7a73aa">
+                            <div class="_fileHead_7a73aa">
+                              <div class="_filePath_7a73aa">
+                                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <code>
+                                    "templates/restdefinition-pet.yaml"
+                              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                                <span>
+                                  "Edit"
+                            <div class="_yaml_7a73aa">
+                              <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
+                                …37 lines
+                        <div id="id23">
+                          <div class="_file_7a73aa">
+                            <div class="_fileHead_7a73aa">
+                              <div class="_filePath_7a73aa">
+                                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <code>
+                                    "templates/restdefinition-store.yaml"
+                              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                                <span>
+                                  "Edit"
+                            <div class="_yaml_7a73aa">
+                              <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
+                                …34 lines
+                        <div id="id24">
+                          <div class="_file_7a73aa">
+                            <div class="_fileHead_7a73aa">
+                              <div class="_filePath_7a73aa">
+                                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <code>
+                                    "values.schema.json"
+                              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                                <span>
+                                  "Edit"
+                            <div class="_yaml_7a73aa">
+                              <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
+                                …14 lines
+                        <div id="id25">
+                          <div class="_file_7a73aa">
+                            <div class="_fileHead_7a73aa">
+                              <div class="_filePath_7a73aa">
+                                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
+                                  <code>
+                                    "values.yaml"
+                              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                                <span>
+                                  "Edit"
+                            <div class="_yaml_7a73aa">
+                              <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
+                                …4 lines
+      <div class="_side_396249">
+        <section aria-label="Inspector" class="_pane_396249" tabindex="-1">
+          <div class="_paneHead_396249">
+            <span class="_paneTitle_396249">
+              "Inspector"
+            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+              <span>
+                "Clear"
+          <div class="_section_396249">
+            <span class="_eyebrow_396249">
+              "petstore.example.io/v1alpha1 · stores"
+              <span class="_lockNote_9029c5">
+                "· Kind and group: locked once published"
+            <span class="_fieldValue_396249 _mono_396249">
+              "Store"
+            <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+              <div class="ant-space-item">
+                <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm" type="button">
+                  <span>
+                    "Open file"
+              <div class="ant-space-item">
+                <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlined ant-btn-sm" type="button">
+                  <span>
+                    "Remove Kind"
+          <div class="_section_396249">
+            <span class="_eyebrow_396249">
+              "Verbs"
+            <table class="_verbs_9029c5">
+              <thead>
+                <tr>
+                  <th>
+                    "Verb"
+                  <th>
+                    "Operation"
+                  <th>
+                    "From"
+              <tbody>
+                <tr data-verb="create">
+                  <td class="_verbAction_9029c5">
+                    "create"
+                  <td>
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                      <div class="ant-select-content ant-select-content-has-value" title="POST /store/order">
+                        "POST /store/order"
+                        <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for create" autocomplete="new-password" class="ant-select-input" id="id26" readonly="" role="combobox" type="text" value="">
+                      <div class="ant-select-suffix">
+                        <span aria-label="down" class="anticon anticon-down" role="img">
+                          <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                            <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
+                  <td>
+                    <span class="_reason_9029c5">
+                      "inferred"
+                <tr data-verb="get">
+                  <td class="_verbAction_9029c5">
+                    "get"
+                  <td>
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                      <div class="ant-select-content ant-select-content-has-value" title="GET /store/order/{orderId}">
+                        "GET /store/order/{orderId}"
+                        <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for get" autocomplete="new-password" class="ant-select-input" id="id26" readonly="" role="combobox" type="text" value="">
+                      <div class="ant-select-suffix">
+                        <span aria-label="down" class="anticon anticon-down" role="img">
+                          <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                            <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
+                  <td>
+                    <span class="_reason_9029c5">
+                      "inferred"
+                <tr data-verb="findby">
+                  <td class="_verbAction_9029c5">
+                    "findby"
+                  <td>
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                      <div class="ant-select-content ant-select-content-has-value" title="GET /store/inventory">
+                        "GET /store/inventory"
+                        <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for findby" autocomplete="new-password" class="ant-select-input" id="id26" readonly="" role="combobox" type="text" value="">
+                      <div class="ant-select-suffix">
+                        <span aria-label="down" class="anticon anticon-down" role="img">
+                          <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                            <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
+                  <td>
+                    <span class="_reason_9029c5">
+                      "inferred"
+                <tr data-verb="update">
+                  <td class="_verbAction_9029c5">
+                    "update"
+                  <td>
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                      <div class="ant-select-content">
+                        <div class="ant-select-placeholder">
+                          "not mapped"
+                        <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for update" autocomplete="new-password" class="ant-select-input" id="id26" readonly="" role="combobox" type="text" value="">
+                      <div class="ant-select-suffix">
+                        <span aria-label="down" class="anticon anticon-down" role="img">
+                          <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                            <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
+                  <td>
+                    <span class="_reason_9029c5">
+                      "—"
+                <tr data-verb="delete">
+                  <td class="_verbAction_9029c5">
+                    "delete"
+                  <td>
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                      <div class="ant-select-content ant-select-content-has-value" title="DELETE /store/order/{orderId}">
+                        "DELETE /store/order/{orderId}"
+                        <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for delete" autocomplete="new-password" class="ant-select-input" id="id26" readonly="" role="combobox" type="text" value="">
+                      <div class="ant-select-suffix">
+                        <span aria-label="down" class="anticon anticon-down" role="img">
+                          <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                            <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
+                  <td>
+                    <span class="_reason_9029c5">
+                      "inferred"
+          <div class="_section_396249">
+            <span class="_eyebrow_396249">
+              "Identifiers"
+              <span class="_lockNote_9029c5">
+                "· Locked once published"
+            <span class="_reason_9029c5">
+              "From the GET response — how the controller finds the resource it made."
+            <div class="_checkList_9029c5">
+              <label class="ant-checkbox-wrapper ant-checkbox-wrapper-checked css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii ant-checkbox-checked">
+                  <input checked="" class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "id"
+                  <span class="_reason_9029c5">
+                    "the get path's {orderId} stands for it"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "petId"
+                  <span class="_reason_9029c5">
+                    "a scalar field of the get response"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "quantity"
+                  <span class="_reason_9029c5">
+                    "a scalar field of the get response"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "shipDate"
+                  <span class="_reason_9029c5">
+                    "a scalar field of the get response"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "status"
+                  <span class="_reason_9029c5">
+                    "a scalar field of the get response"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "complete"
+                  <span class="_reason_9029c5">
+                    "a scalar field of the get response"
+          <div class="_section_396249">
+            <span class="_eyebrow_396249">
+              "Status fields"
+              <span class="_lockNote_9029c5">
+                "· Locked once published"
+            <div class="_checkList_9029c5">
+              <p class="_fieldText_396249">
+                "The GET response returns nothing the create body does not send."
+          <div class="_section_396249">
+            <span class="_eyebrow_396249">
+              "Compare scope"
+            <div class="ant-select ant-select-sm ant-select-outlined css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+              <div class="ant-select-content ant-select-content-has-value" title="Not set — the controller default">
+                "Not set — the controller default"
+                <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Compare scope" autocomplete="new-password" class="ant-select-input" id="id26" readonly="" role="combobox" type="text" value="">
+              <div class="ant-select-suffix">
+                <span aria-label="down" class="anticon anticon-down" role="img">
+                  <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
+          <div class="_section_396249">
+            <span class="_eyebrow_396249">
+              "Auth"
+            <ul class="_plainList_396249">
+              <li data-scheme="petstore_auth">
+                <span class="_mono_396249">
+                  "petstore_auth"
+                "(oauth2) —"
+                "skipped: oauth2 is not generated: the controller has no token flow, so the generated Configuration would have no credentials field"
+              <li data-scheme="api_key">
+                <span class="_mono_396249">
+                  "api_key"
+                "(apiKey) —"
+                "used: the StoreConfiguration carries authentication.apiKey"
+            <p class="_note_396249">
+              "The credential is never held in this chart. A StoreConfiguration you create names the Secret it is read from (a secretRef — tokenRef, or usernameRef and passwordRef), and each Store points at it."
+            <span class="_eyebrow_396249">
+              "Configuration fields"
+            <p class="_fieldText_396249">
+              "No header or query parameter on this Kind's verbs."
+          <div class="_section_396249">
+            <span class="_eyebrow_396249">
+              "Advanced"
+            <div class="ant-collapse ant-collapse-icon-placement-start ant-collapse-ghost ant-collapse-small css-dev-only-do-not-override-12q6fii css-var-id1">
+              <div class="ant-collapse-item">
+                <div aria-disabled="false" aria-expanded="false" class="ant-collapse-header" role="button" tabindex="0">
+                  <div class="ant-collapse-expand-icon">
+                    <span aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow" role="img">
+                      <svg aria-hidden="true" data-icon="right" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                        <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z">
+                  <span class="ant-collapse-title">
+                    "Findby and pagination"
+              <div class="ant-collapse-item">
+                <div aria-disabled="false" aria-expanded="false" class="ant-collapse-header" role="button" tabindex="0">
+                  <div class="ant-collapse-expand-icon">
+                    <span aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow" role="img">
+                      <svg aria-hidden="true" data-icon="right" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                        <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z">
+                  <span class="ant-collapse-title">
+                    "Field mapping"
+              <div class="ant-collapse-item">
+                <div aria-disabled="false" aria-expanded="false" class="ant-collapse-header" role="button" tabindex="0">
+                  <div class="ant-collapse-expand-icon">
+                    <span aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow" role="img">
+                      <svg aria-hidden="true" data-icon="right" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                        <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z">
+                  <span class="ant-collapse-title">
+                    "Async"
+              <div class="ant-collapse-item">
+                <div aria-disabled="false" aria-expanded="false" class="ant-collapse-header" role="button" tabindex="0">
+                  <div class="ant-collapse-expand-icon">
+                    <span aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow" role="img">
+                      <svg aria-hidden="true" data-icon="right" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                        <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z">
+                  <span class="ant-collapse-title">
+                    "Spec per verb"
+            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+              <span>
+                "Edit in the RestDefinition file""
+`;
+
 exports[`petstore, authored in the UI with no rail > start → place pet and store → settle the findby conflict → auth → a chart tree T7's validator passes > auth 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_396249">
@@ -45,7 +807,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
               <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm32 664c0 4.4-3.6 8-8 8h-48c-4.4 0-8-3.6-8-8V456c0-4.4 3.6-8 8-8h48c4.4 0 8 3.6 8 8v272zm-32-344a48.01 48.01 0 010-96 48.01 48.01 0 010 96z">
         <div class="ant-alert-section">
           <div class="ant-alert-title">
-            "A controller preview is not available in this portal yet — the controller render arrives with frontend#413. The controller is held and saved as you edit it; Publish stays off until a preview has rendered it."
+            "The controller is held and saved as you edit it. Place a Kind from the palette, then press Preview — oasgen-render generates its CRD. Publish stays off until a preview has rendered the controller."
         <button class="ant-alert-close-icon" tabindex="0" type="button">
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -585,7 +1347,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
               <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm32 664c0 4.4-3.6 8-8 8h-48c-4.4 0-8-3.6-8-8V456c0-4.4 3.6-8 8-8h48c4.4 0 8 3.6 8 8v272zm-32-344a48.01 48.01 0 010-96 48.01 48.01 0 010 96z">
         <div class="ant-alert-section">
           <div class="ant-alert-title">
-            "A controller preview is not available in this portal yet — the controller render arrives with frontend#413. The controller is held and saved as you edit it; Publish stays off until a preview has rendered it."
+            "The controller is held and saved as you edit it. Place a Kind from the palette, then press Preview — oasgen-render generates its CRD. Publish stays off until a preview has rendered the controller."
         <button class="ant-alert-close-icon" tabindex="0" type="button">
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -1069,7 +1831,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
               <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm32 664c0 4.4-3.6 8-8 8h-48c-4.4 0-8-3.6-8-8V456c0-4.4 3.6-8 8-8h48c4.4 0 8 3.6 8 8v272zm-32-344a48.01 48.01 0 010-96 48.01 48.01 0 010 96z">
         <div class="ant-alert-section">
           <div class="ant-alert-title">
-            "A controller preview is not available in this portal yet — the controller render arrives with frontend#413. The controller is held and saved as you edit it; Publish stays off until a preview has rendered it."
+            "The controller is held and saved as you edit it. Place a Kind from the palette, then press Preview — oasgen-render generates its CRD. Publish stays off until a preview has rendered the controller."
         <button class="ant-alert-close-icon" tabindex="0" type="button">
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">

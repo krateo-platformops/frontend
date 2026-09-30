@@ -36,7 +36,14 @@ const fieldLabel = (schema: unknown, key: string): string => {
  * consumer would get for them — the chart would not register — so each is left out of the form and
  * named on a disabled line of its own instead of being drawn as if it were fine (mockup 10:87).
  */
-export const PreviewFormSection = ({ formSchema, suppressed = [] }: { formSchema: string; suppressed?: string[] }) => {
+export const PreviewFormSection = ({ caption = FORM_PREVIEW_CAPTION, formSchema, suppressed = [], title = FORM_PREVIEW_TITLE }: {
+  formSchema: string
+  suppressed?: string[]
+  /** The heading — a controller's names the Kind the form creates. */
+  title?: string
+  /** What the form is generated from — a controller's is a generated CRD, not a values.schema.json. */
+  caption?: string
+}) => {
   const model = buildFormPreviewModel(formSchema)
   if (!model) {
     return null
@@ -44,8 +51,8 @@ export const PreviewFormSection = ({ formSchema, suppressed = [] }: { formSchema
   const withheld = suppressed.filter((key) => key !== 'name' && key !== 'namespace')
   return (
     <section data-testid='autopilot-form-preview'>
-      <Typography.Title level={5}>{FORM_PREVIEW_TITLE}</Typography.Title>
-      <Typography.Paragraph type='secondary'>{FORM_PREVIEW_CAPTION}</Typography.Paragraph>
+      <Typography.Title level={5}>{title}</Typography.Title>
+      <Typography.Paragraph type='secondary'>{caption}</Typography.Paragraph>
       <AntdForm disabled layout='vertical'>
         <SchemaForm hide={[...model.hidden, ...withheld]} schema={model.schema} />
       </AntdForm>

@@ -37,13 +37,19 @@ export interface LastRender {
   files?: Record<string, string>
   /** What the render said about its stand-ins (previewStubs.ts) — kept with the objects they explain. */
   summary?: string[]
+  /** The sentences that failed the render — a controller preview's (controller-render-draft `problems`). */
+  problems?: string[]
+  /** What the render applies anyway — a controller preview's skipped security schemes. */
+  renderedWarnings?: string[]
 }
 
 /** A render result's payload, reduced to what the Source tab shows and what it was a render of. */
-export const lastRenderOf = (payload: Pick<AutopilotPreviewPayload, 'error' | 'files' | 'objects' | 'summary'>): LastRender => ({
+export const lastRenderOf = (payload: Pick<AutopilotPreviewPayload, 'error' | 'files' | 'objects' | 'problems' | 'renderedWarnings' | 'summary'>): LastRender => ({
   objects: payload.objects ?? [],
   ...(payload.error ? { error: payload.error } : {}),
   ...(payload.summary?.length ? { summary: payload.summary } : {}),
+  ...(payload.problems?.length ? { problems: payload.problems } : {}),
+  ...(payload.renderedWarnings?.length ? { renderedWarnings: payload.renderedWarnings } : {}),
   ...(payload.files ? { files: Object.fromEntries(payload.files.map((file) => [file.path, file.content])) } : {}),
 })
 
