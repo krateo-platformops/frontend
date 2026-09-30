@@ -108,12 +108,16 @@ builder meant to stop.
 ## What stays code
 
 - **Plugins:** the palette, canvas, inspector, parser and summarizer implementations.
-  - Registered today: palette `widgets` and `kinds`; canvas `page-grid` and
-    `architecture-graph`; inspector `object-tree` and `node`; summarizer `page-tree` and
-    `chart-files`.
-  - No parser yet. The first is the Controller Builder's OpenAPI import (T7).
+  - Registered today: palette `widgets`, `kinds` and `openapi`; canvas `page-grid`,
+    `architecture-graph` and `restdef-graph`; inspector `object-tree`, `node` and
+    `restdef-mapping`; summarizer `page-tree` and `chart-files`. The three controller plugins
+    shipped with the Controller Builder's composer (T8, frontend#412).
+  - No parser plugin yet: the Controller Builder reads its OpenAPI document with T7's kernel
+    (`oasImport.ts`) inside its own start modal and workbench.
 - **Lints and gates:**
-  - Lints: `chart-lint` (`lintBlueprintDraft`) and `gate-drift`.
+  - Lints: `chart-lint` (`lintBlueprintDraft`), `gate-drift`, and `restdef-validate`
+    (`lintControllerDraft`: the OpenAPI document reads, no verb conflict is unsettled, and T7's
+    validator passes every RestDefinition).
   - Gates: `preview-before-publish` (the render-hash gate) and `publish-name`.
   - A Builder chooses which lints and gates apply. It cannot define new ones.
 - **Start-value validation beyond `required` and `pattern`:** for example `chartNameProblem`
@@ -146,7 +150,7 @@ builder meant to stop.
    its test (`builderSpec.test.ts` fails if the two disagree on keys or required keys), then
    release. Frontend and CRD move in one tag.
 5. **Leaving `v1alpha1`:**
-   - the Controller Builder (T8) runs on the engine from its CR;
+   - the Controller Builder runs on the engine from its CR (done, T8);
    - the Portal and Blueprint Builders (T13, T14) have migrated;
    - no field has changed meaning for one release.
 

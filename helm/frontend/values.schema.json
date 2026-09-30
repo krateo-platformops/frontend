@@ -592,6 +592,10 @@
           "title": "Autopilot Blueprint Builder Template",
           "default": "krateo-blueprints/builder-scaffold"
         },
+        "AUTOPILOT_KOG_BUILDER_TEMPLATE": {
+          "type": "string",
+          "title": "Autopilot Kog Builder Template"
+        },
         "AUTOPILOT_BLUEPRINT_BUILDER_REPO": {
           "type": "string",
           "title": "Autopilot Blueprint Builder Repo",

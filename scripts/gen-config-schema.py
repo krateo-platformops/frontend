@@ -62,11 +62,22 @@ def json_type(key: str, value: object) -> str:
     return "string"
 
 
-schema["properties"]["config"]["properties"] = {
-    key: {"type": json_type(key, value), "title": title_for(key), "default": value}
-    for key, value in config.items()
-}
-schema["properties"]["config"]["default"] = dict(config)
+# Keys added AFTER the installer began copying schema defaults into the composition CR: typed, never
+# defaulted. core-provider copies a schema default into the composition spec, where it becomes a
+# silent live override that freezes the value and ignores values.yaml (the 2026-09-29 Autopilot 405
+# outage). Without a default, an absent key falls through to values.yaml at helm render.
+NO_DEFAULT = {"AUTOPILOT_KOG_BUILDER_TEMPLATE"}
+
+
+def prop(key: str, value: object) -> dict:
+    entry = {"type": json_type(key, value), "title": title_for(key)}
+    if key not in NO_DEFAULT:
+        entry["default"] = value
+    return entry
+
+
+schema["properties"]["config"]["properties"] = {key: prop(key, value) for key, value in config.items()}
+schema["properties"]["config"]["default"] = {key: value for key, value in config.items() if key not in NO_DEFAULT}
 
 (CHART / "values.schema.json").write_text(json.dumps(schema, indent=2) + "\n")
 print("regenerated config schema from values.yaml:", list(config.keys()))

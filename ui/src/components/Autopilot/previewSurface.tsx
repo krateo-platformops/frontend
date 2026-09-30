@@ -447,7 +447,7 @@ export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, h
             editable={heldDraft}
             highlight={highlight?.path === file.path ? highlight : undefined}
             isPageWidget={isPageWidget}
-            kind={isPageWidget ? 'page' : 'blueprint'}
+            kind={isPageWidget ? 'page' : (draftKindOfPayload(payload) ?? 'blueprint')}
             live={liveFiles !== undefined}
             mode={mode}
             path={file.path}
@@ -563,6 +563,10 @@ export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, h
   }, [focusedPath, focusNonce])
 
   const tabs = [
+    // A render that is not wired yet says so where it would be, rather than leaving the tab out.
+    ...(payload.renderedPlaceholder
+      ? [{ children: <div className={styles.body}><Empty description={payload.renderedPlaceholder} image={Empty.PRESENTED_IMAGE_SIMPLE} /></div>, key: 'rendered', label: 'Rendered' }]
+      : []),
     ...(payload.liveEndpoint
       // The REAL renderer on the REAL served endpoint: snowplow resolves the sandbox drafts
       // (templates, apiRef data, children) like any page; its own loading/error states are honest.

@@ -81,6 +81,7 @@ const TARGETS: BuilderTargets = {
   blueprint: { owner: 'stub-org', repo: '<chart>' },
   blueprintTemplate: { owner: 'krateo-blueprints', repo: 'builder-scaffold' },
   kog: { owner: '', repo: '' },
+  kogTemplate: { owner: '', repo: '' },
   page: { owner: '', repo: '' },
   pageTemplate: { owner: '', repo: '' },
 }
@@ -226,17 +227,17 @@ describe('a stub Builder, end to end in the composer host', () => {
     }
   })
 
-  it('a Builder whose composer is not built yet (every plugin PENDING) gets no route; mounted directly, it says so', () => {
-    const pending = stubBuilder()
-    pending.spec.palette = { plugin: 'openapi' }
-    pending.spec.canvas = { plugin: 'restdef-graph' }
-    pending.spec.inspector = { plugin: 'restdef-mapping' }
-    const back = swapBuildersForTest([pending])
+  it('the Controller Builder\'s plugins on a blueprint Builder: routed (they ship), and refused by kind when mounted', () => {
+    const crossed = stubBuilder()
+    crossed.spec.palette = { plugin: 'openapi' }
+    crossed.spec.canvas = { plugin: 'restdef-graph' }
+    crossed.spec.inspector = { plugin: 'restdef-mapping' }
+    const back = swapBuildersForTest([crossed])
     try {
-      expect(builderRoutes()).toEqual([])
-      render(<AntdApp><ComposerHost builder={pending} /></AntdApp>)
+      expect(builderRoutes().map((route) => route.path)).toEqual([crossed.spec.route])
+      render(<AntdApp><ComposerHost builder={crossed} /></AntdApp>)
       expect(screen.getByText('The Stub Builder cannot be shown by this frontend.')).toBeTruthy()
-      expect(screen.getAllByText(/is not shipped in this frontend yet/)).toHaveLength(3)
+      expect(screen.getAllByText(/draws controller drafts, and this Builder's draft kind is "blueprint"/)).toHaveLength(3)
     } finally {
       back()
     }

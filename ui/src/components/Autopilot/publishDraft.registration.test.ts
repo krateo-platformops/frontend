@@ -30,6 +30,7 @@ const targets = (over: Partial<BuilderTargets> = {}): BuilderTargets => ({
   blueprint: { owner: 'Krateo-Blueprints', repo: '<chart>' },
   blueprintTemplate: SCAFFOLD,
   kog: NONE,
+  kogTemplate: NONE,
   page: { owner: 'acme', repo: 'portal' },
   pageTemplate: SCAFFOLD,
   ...over,

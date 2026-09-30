@@ -22,6 +22,7 @@
 import type { BlueprintDraftHeld } from '../components/Autopilot/blueprintDraftStore'
 import { summarizeChart, summarizeDraft } from '../components/Autopilot/draftStructure'
 import { architectureGraphCanvas, kindsPalette, nodeInspector } from '../pages/BlueprintComposer/blueprintSlots'
+import { openapiPalette, restdefGraphCanvas, restdefMappingInspector } from '../pages/ControllerComposer/controllerSlots'
 import { objectTreeInspector, pageGridCanvas, widgetsPalette } from '../pages/PageComposer/pageSlots'
 
 import type { BuilderSpec } from './builderSpec'
@@ -46,6 +47,10 @@ const PALETTES = {
     description: 'the custom and native kinds a chart can hold, from a RESTAction run as the person (Blueprint Builder)',
     implementation: kindsPalette,
   },
+  openapi: {
+    description: 'the held OpenAPI document\'s operations, grouped by resource path (Controller Builder)',
+    implementation: openapiPalette,
+  },
   widgets: {
     description: 'containers to create and the widgets this person may list, to place on a page (Portal Builder)',
     implementation: widgetsPalette,
@@ -61,6 +66,10 @@ const CANVASES = {
     description: 'the page\'s widgets as nested drop frames (Portal Builder)',
     implementation: pageGridCanvas,
   },
+  'restdef-graph': {
+    description: 'the controller\'s Kinds and the Configuration they authenticate through (Controller Builder)',
+    implementation: restdefGraphCanvas,
+  },
 } satisfies Record<string, PluginEntry<CanvasPlugin>>
 
 const INSPECTORS = {
@@ -71,6 +80,10 @@ const INSPECTORS = {
   'object-tree': {
     description: 'the page draft as the containment tree it is, with its data sources (Portal Builder)',
     implementation: objectTreeInspector,
+  },
+  'restdef-mapping': {
+    description: 'the selected Kind: its verbs, identifiers and auth, mapped to the OpenAPI document (Controller Builder)',
+    implementation: restdefMappingInspector,
   },
 } satisfies Record<string, PluginEntry<SlotPlugin>>
 
@@ -109,16 +122,17 @@ export type PluginResolution<S extends PluginSlot> =
   | { ok: false; slot: S; name: string; refusal: string; pending?: true }
 
 /**
- * NAMED, NOT SHIPPED — the Controller Builder's plugins (T3, frontend#409). Its Builder is loaded so
- * its drafts are held, saved, resumed and published by the engine, and it names these three; the
- * code behind them is T8's. Listing them here does not make them resolve: each is still a REFUSAL,
- * worded as "not shipped yet" rather than "unknown", so the composer says what is coming instead of
- * suggesting the Builder is wrong. T8 moves each into its slot's table above and deletes it here.
+ * NAMED, NOT SHIPPED — a plugin a Builder may already name whose code comes in a later release. Such
+ * a name is still a REFUSAL, worded as "not shipped yet" rather than "unknown", so the composer says
+ * what is coming instead of suggesting the Builder is wrong — and a Builder whose palette, canvas and
+ * inspector are ALL pending gets no route (builderRoutes.tsx). Empty today: the Controller Builder's
+ * three (openapi, restdef-graph, restdef-mapping) were the first to wait here, and shipped in T8
+ * (frontend#412). A plugin moves from here into its slot's table above when its code ships.
  */
 const PENDING: Record<PluginSlot, Readonly<Record<string, string>>> = {
-  canvas: { 'restdef-graph': 'the controller\'s Kinds and their configuration, as a graph (Controller Builder)' },
-  inspector: { 'restdef-mapping': 'the selected Kind: its verbs, identifiers and auth, mapped to the OpenAPI document (Controller Builder)' },
-  palette: { openapi: 'the held OpenAPI document\'s operations, grouped by resource path (Controller Builder)' },
+  canvas: {},
+  inspector: {},
+  palette: {},
   parser: {},
   summarizer: {},
 }
@@ -145,7 +159,7 @@ export const resolvePlugin = <S extends PluginSlot>(slot: S, name: string): Plug
       name,
       ok: false,
       pending: true,
-      refusal: `The ${slot} plugin "${name}" — ${PENDING[slot][name]} — is not shipped in this frontend yet: it comes with the Controller Builder composer (frontend#405, T8), so the builder's ${slot} cannot be shown.`,
+      refusal: `The ${slot} plugin "${name}" — ${PENDING[slot][name]} — is not shipped in this frontend yet, so the builder's ${slot} cannot be shown.`,
       slot,
     }
   }
@@ -181,6 +195,7 @@ const CHECKS = {
   lint: {
     'chart-lint': 'blueprintDraft.lintBlueprintDraft: chart identity, values.schema.json defaults and root, the byte cap',
     'gate-drift': 'proposedChart.lintHeldDraft: each template\'s dependency gate matches templates/architecture.yaml',
+    'restdef-validate': 'controllerChart.lintControllerDraft: the OpenAPI document reads, no verb conflict is left unsettled, and every RestDefinition passes the oasgen 0.23 shape and the OAS cross-check',
   },
 } as const
 

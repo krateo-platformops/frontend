@@ -18,8 +18,8 @@ export const AUTOPILOT_PUBLISH_RESULT_EVENT = 'autopilotPublishResult'
 export interface PublishRequestDetail {
   /** Correlates the result. The caller generates it and ignores answers that are not its own. */
   id: string
-  /** `publishPage` or `publishBlueprint` — the same verbs the model emits. */
-  verb: 'publishPage' | 'publishBlueprint'
+  /** `publishPage`, `publishBlueprint` or `publishRestDef` — the same verbs the model emits. */
+  verb: 'publishPage' | 'publishBlueprint' | 'publishRestDef'
 }
 
 export interface PublishResultDetail {

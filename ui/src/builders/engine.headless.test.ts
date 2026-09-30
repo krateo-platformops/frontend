@@ -69,6 +69,7 @@ const TARGETS: BuilderTargets = {
   blueprint: { owner: 'blueprint-org', repo: '<chart>' },
   blueprintTemplate: { owner: 'krateo-blueprints', repo: 'builder-scaffold' },
   kog: { owner: '', repo: '' },
+  kogTemplate: { owner: '', repo: '' },
   page: { owner: 'stub-org', repo: 'stub-repo' },
   pageTemplate: { owner: 'page-org', repo: 'page-scaffold' },
 }
@@ -168,7 +169,7 @@ describe('a stub Builder drives the engine, start → edit → preview → publi
   })
 
   it('the words come from the spec: a refusal names the stub\'s label', () => {
-    expect(wrongComposerMessage({ kind: 'blueprint', name: 'orders-api' })).toBe('orders-api is a blueprint chart draft — resume it from the Stub Builder.')
+    expect(wrongComposerMessage({ kind: 'blueprint', name: 'orders-api' })).toBe('orders-api is a blueprint chart draft — resume it from the Stub Builder, at /stub-builder/compose.')
   })
 
   it('the summarizer is the spec\'s: the stub names none, so Autopilot is told no chart', () => {

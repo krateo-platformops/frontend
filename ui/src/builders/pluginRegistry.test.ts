@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { summarizeChart, summarizeDraft } from '../components/Autopilot/draftStructure'
 import { architectureGraphCanvas, kindsPalette, nodeInspector } from '../pages/BlueprintComposer/blueprintSlots'
+import { openapiPalette, restdefGraphCanvas, restdefMappingInspector } from '../pages/ControllerComposer/controllerSlots'
 import { objectTreeInspector, pageGridCanvas, widgetsPalette } from '../pages/PageComposer/pageSlots'
 
 import type { SlotPlugin } from './host/hostTypes'
@@ -12,6 +13,9 @@ describe('the plugin registry', () => {
     const expected: [PluginSlot, string, unknown][] = [
       ['palette', 'widgets', widgetsPalette],
       ['palette', 'kinds', kindsPalette],
+      ['palette', 'openapi', openapiPalette],
+      ['canvas', 'restdef-graph', restdefGraphCanvas],
+      ['inspector', 'restdef-mapping', restdefMappingInspector],
       ['canvas', 'page-grid', pageGridCanvas],
       ['canvas', 'architecture-graph', architectureGraphCanvas],
       ['inspector', 'object-tree', objectTreeInspector],
@@ -32,11 +36,12 @@ describe('the plugin registry', () => {
       return resolved.ok ? `${slot}/${name}:${(resolved.implementation as SlotPlugin).kind}` : `${slot}/${name}:refused`
     }))
     expect(kinds.sort()).toEqual([
-      'canvas/architecture-graph:blueprint', 'canvas/page-grid:page',
-      'inspector/node:blueprint', 'inspector/object-tree:page',
-      'palette/kinds:blueprint', 'palette/widgets:page',
+      'canvas/architecture-graph:blueprint', 'canvas/page-grid:page', 'canvas/restdef-graph:controller',
+      'inspector/node:blueprint', 'inspector/object-tree:page', 'inspector/restdef-mapping:controller',
+      'palette/kinds:blueprint', 'palette/openapi:controller', 'palette/widgets:page',
     ])
     expect(architectureGraphCanvas.frame).toBe('panes')
+    expect(restdefGraphCanvas.frame).toBe('panes')
     expect(pageGridCanvas.frame).toBe('split')
   })
 
@@ -52,23 +57,21 @@ describe('the plugin registry', () => {
     expect(resolved).toEqual({
       name: 'restdef-mapping',
       ok: false,
-      refusal: 'This frontend has no canvas plugin named "restdef-mapping", so the builder\'s canvas cannot be shown. The Builder names a plugin this build does not ship; the canvas plugins it does ship are: architecture-graph, page-grid.',
+      refusal: 'This frontend has no canvas plugin named "restdef-mapping", so the builder\'s canvas cannot be shown. The Builder names a plugin this build does not ship; the canvas plugins it does ship are: architecture-graph, page-grid, restdef-graph.',
       slot: 'canvas',
     })
   })
 
-  it('the Controller Builder\'s plugins are PENDING: named, refused as not shipped yet, and only in their own slot', () => {
-    expect(pendingPluginNames('palette')).toEqual(['openapi'])
-    expect(pendingPluginNames('canvas')).toEqual(['restdef-graph'])
-    expect(pendingPluginNames('inspector')).toEqual(['restdef-mapping'])
-    for (const [slot, name] of [['palette', 'openapi'], ['canvas', 'restdef-graph'], ['inspector', 'restdef-mapping']] as const) {
-      const resolved = resolvePlugin(slot, name)
-      expect(resolved).toMatchObject({ name, ok: false, pending: true, slot })
-      if (!resolved.ok) { expect(resolved.refusal).toMatch(/is not shipped in this frontend yet: it comes with the Controller Builder composer \(frontend#405, T8\)/) }
+  it('the Controller Builder\'s plugins SHIP (T8): nothing is pending, and each resolves only in its own slot', () => {
+    for (const slot of ['palette', 'canvas', 'inspector', 'parser', 'summarizer'] as const) {
+      expect(pendingPluginNames(slot), slot).toEqual([])
     }
-    // Pending is not "registered": the names a slot SHIPS are unchanged, and another slot's pending
-    // name is as unknown as any.
-    expect(pluginNames('inspector')).toEqual(['node', 'object-tree'])
+    for (const [slot, name] of [['palette', 'openapi'], ['canvas', 'restdef-graph'], ['inspector', 'restdef-mapping']] as const) {
+      expect(resolvePlugin(slot, name)).toMatchObject({ name, ok: true, slot })
+    }
+    expect(pluginNames('inspector')).toEqual(['node', 'object-tree', 'restdef-mapping'])
+    // Another slot's name is as unknown as any — never pending, never resolved.
+    expect(resolvePlugin('palette', 'restdef-mapping')).toMatchObject({ ok: false })
     expect(resolvePlugin('palette', 'restdef-mapping')).not.toHaveProperty('pending')
   })
 
@@ -88,7 +91,7 @@ describe('the plugin registry', () => {
 
 describe('the check names', () => {
   it('knows the lints and gates the composers run today', () => {
-    expect(checkNames('lint')).toEqual(['chart-lint', 'gate-drift'])
+    expect(checkNames('lint')).toEqual(['chart-lint', 'gate-drift', 'restdef-validate'])
     expect(checkNames('gate')).toEqual(['preview-before-publish', 'publish-name'])
   })
 
