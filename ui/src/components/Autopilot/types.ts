@@ -271,6 +271,10 @@ export interface ControllerDraftSummary {
   name: string | null
   /** The API group every Kind is served in. */
   apiGroup: string
+  /** `<group>/v1alpha1` — the version is pinned whatever the document's info.version says (servedVersion.ts). */
+  servedAs?: string
+  /** The vendor's own info.version, kept on Chart.yaml when it was not v1alpha1. */
+  sourceSpecVersion?: string
   /** The URL every request the controller sends goes to. */
   baseUrl: string
   /**
@@ -306,6 +310,19 @@ export interface ControllerKindSummary {
   identifierCandidates?: string[]
   statusFields?: string[]
   statusFieldCandidates?: string[]
+  /** Fields the generated spec leaves out (status carries them) — controllerSetExcludedFields. */
+  excludedSpecFields?: string[]
+  /**
+   * Where each path parameter a verb needs is read from (`status.metadata.id`). `confirm` — the binding
+   * is ambiguous or one segment is named two ways: settle it with controllerBindId, from `choices`.
+   */
+  pathIds?: { param: string; field: string; confirm?: string; choices?: string[] }[]
+  /** The findby's envelope has two or more arrays: name one with controllerSetItemsPath. */
+  itemsPathChoices?: string[]
+  itemsPath?: string
+  /** Header / query parameters that may move to the Configuration (`*` = every verb) — controllerSetConfigurationFields. */
+  configurationCandidates?: { name: string; in: string; actions: string[] }[]
+  configurationFields?: { name: string; in: string }[]
   /** True when it was published: its CEL-immutable fields are locked. */
   published?: true
 }

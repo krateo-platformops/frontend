@@ -8,6 +8,10 @@
  *   controllerSetIdentifiers   {kind, identifiers: [...]}
  *   controllerSetStatusFields  {kind, statusFields: [...]}
  *   controllerRemoveKind       {kind}
+ *   controllerBindId           {kind, param, field}                 (round 2: a path id's source, confirmed)
+ *   controllerSetExcludedFields {kind, excludedFields: [...]}       (round 2: what spec leaves out)
+ *   controllerSetItemsPath     {kind, itemsPath | null}             (round 2: a findby envelope's collection)
+ *   controllerSetConfigurationFields {kind, configurationFields: [{name, in}]} (round 2: beyond auth)
  *
  * plus `previewRestDef` with no RestDefinition, which renders the HELD controller (previewHeldController,
  * reached from previewHandlers.ts), and `publishRestDef`, which publishes it (publishDraft.ts).
@@ -37,13 +41,19 @@
 import { findBuilderOf } from '../../builders/builderRegistry'
 import { draftKindOf } from '../../builders/draftKinds'
 import {
+  configurationCandidates,
   type ControllerKind,
+  exclusionCandidates,
   type ControllerModel,
   type ControllerPlan,
   heldVerb,
+  pathIdBindings,
+  planBindPathParam,
   planPlaceGroup,
   planRemoveKind,
+  planSetItemsPath,
   planSetVerb,
+  planToggleConfigurationField,
   planToggleField,
   readController,
 } from '../../pages/ControllerComposer/controllerChart'
@@ -74,6 +84,10 @@ export const CONTROLLER_VERBS = new Set([
   'controllerSetIdentifiers',
   'controllerSetStatusFields',
   'controllerRemoveKind',
+  'controllerBindId',
+  'controllerSetExcludedFields',
+  'controllerSetItemsPath',
+  'controllerSetConfigurationFields',
 ])
 
 export const isControllerVerb = (verb: string): boolean => CONTROLLER_VERBS.has(verb)
@@ -191,7 +205,10 @@ const kindLine = (files: Record<string, string>, path: string): string => {
     return set ? [`${action} ${operationLine(set)}`] : []
   })
   const conflicts = entry.conflicts.map((conflict) => `${conflict.action} is a conflict (${conflict.candidates.map(operationLine).join(' or ')}) — settle it with controllerMapVerb`)
-  return [`verbs: ${listed(verbs)}`, ...conflicts].join('; ')
+  const ids = pathIdBindings(entry).map((binding) => (binding.confirm
+    ? `{${binding.param}} is read from ${binding.field} but waits for a confirm (${binding.choices.join(' or ')}) — settle it with controllerBindId`
+    : `{${binding.param}} is read from ${binding.field}`))
+  return [`verbs: ${listed(verbs)}`, ...conflicts, ...ids].join('; ')
 }
 
 // ── start ───────────────────────────────────────────────────────────────────────────────────────
@@ -326,7 +343,7 @@ const mapVerb = (proposal: PortalActionProposal): AutopilotActionChip => {
   return writePlan(verb, tried, plan, plan.ok ? `${label} — ${kindLine(after, kind.path)}` : label)
 }
 
-type FieldList = 'identifiers' | 'additionalStatusFields'
+type FieldList = 'identifiers' | 'additionalStatusFields' | 'excludedSpecFields'
 
 const currentList = (kind: ControllerKind, list: FieldList): string[] => {
   const value = (kind.restDefinition.spec as { resource?: Record<string, unknown> } | undefined)?.resource?.[list]
@@ -390,6 +407,124 @@ const removeVerb = (proposal: PortalActionProposal): AutopilotActionChip => {
   return writePlan(verb, tried, planRemoveKind(held.files, kind.path), `Removed ${kind.kind} (${kind.path}); its resource group ${kind.group} can be placed again`)
 }
 
+// ── round 2: ids, excluded fields, itemsPath, configuration ─────────────────────────────────────────
+
+/**
+ * controllerBindId {kind, param, field} — the inspector's Path ids: read a path parameter from `field`
+ * (`status.metadata.id`, `spec.name`) on every verb that carries it, and CONFIRM the binding. The only
+ * way an ambiguous id (`{keyId}`: keyId or id) or a segment named two ways is settled — the lint holds
+ * Publish until then, for the agent as for the person.
+ */
+const bindIdVerb = (proposal: PortalActionProposal): AutopilotActionChip => {
+  const verb = 'controllerBindId'
+  const param = str(proposal.param).replace(/^\{|\}$/g, '')
+  const field = str(proposal.field)
+  const tried = `bind ${String(proposal.kind)} {${param || '?'}} to ${field || '?'}`
+  if (!param || !field) {
+    return refuse(verb, tried, 'name the path parameter (param) and the field it is read from (field: status.<field> or spec.<field>)')
+  }
+  const held = heldController(verb)
+  if (typeof held === 'string') { return refuse(verb, tried, held) }
+  const kind = kindNamed(held.model, proposal.kind)
+  if (typeof kind === 'string') { return refuse(verb, tried, kind) }
+  const plan = planBindPathParam(held.files, kind.path, param, field, held.locked)
+  const after = plan.ok ? { ...held.files, ...(plan.edit ?? {}) } : held.files
+  return writePlan(verb, tried, plan, plan.ok ? `${kind.kind} reads {${param}} from ${field} (confirmed) — ${kindLine(after, kind.path)}` : '')
+}
+
+/**
+ * controllerSetExcludedFields {kind, excludedFields: [...]} — the WHOLE list of fields the generated spec
+ * leaves out, as the inspector's toggles would get there (each its own plan, locks and all).
+ */
+const setExcludedVerb = (proposal: PortalActionProposal): AutopilotActionChip => {
+  const verb = 'controllerSetExcludedFields'
+  const tried = `set ${String(proposal.kind)} excluded spec fields`
+  const raw = proposal.excludedFields
+  if (!Array.isArray(raw) || raw.some((field) => typeof field !== 'string' || !field.trim())) {
+    return refuse(verb, tried, 'excludedFields must be the whole list, as field names (an empty list clears it)')
+  }
+  const wanted = [...new Set(raw.map((field: string) => field.trim()))]
+  const held = heldController(verb)
+  if (typeof held === 'string') { return refuse(verb, tried, held) }
+  const kind = kindNamed(held.model, proposal.kind)
+  if (typeof kind === 'string') { return refuse(verb, tried, kind) }
+  // The inspector's own candidates (a field already excluded may stay, or be dropped): nothing else.
+  const offered = exclusionCandidates(kind, held.model).map((candidate) => candidate.field)
+  const current = currentList(kind, 'excludedSpecFields')
+  const unknown = wanted.filter((field) => !offered.includes(field) && !current.includes(field))
+  if (unknown.length) {
+    return refuse(verb, tried, `${unknown.join(', ')} is not a field ${kind.kind}'s spec could leave out — the candidates are what a status binding reads and what create sends: ${listed(offered)}`)
+  }
+  const plan = planSetList(held, kind, 'excludedSpecFields', wanted)
+  if (!plan) {
+    return done(verb, tried, `${kind.kind} excluded spec fields are already ${listed(wanted)} — nothing changed`)
+  }
+  return writePlan(verb, tried, plan, `${kind.kind} spec leaves out: ${listed(wanted)}`)
+}
+
+/** controllerSetItemsPath {kind, itemsPath | null} — name the findby envelope's collection (`.data`), or clear it. */
+const setItemsPathVerb = (proposal: PortalActionProposal): AutopilotActionChip => {
+  const verb = 'controllerSetItemsPath'
+  const itemsPath = proposal.itemsPath === null ? null : str(proposal.itemsPath)
+  const tried = `set ${String(proposal.kind)} findby itemsPath to ${itemsPath ?? 'nothing'}`
+  if (itemsPath === '') {
+    return refuse(verb, tried, 'name the envelope property holding the collection (itemsPath: ".data"), or itemsPath: null to clear it')
+  }
+  const held = heldController(verb)
+  if (typeof held === 'string') { return refuse(verb, tried, held) }
+  const kind = kindNamed(held.model, proposal.kind)
+  if (typeof kind === 'string') { return refuse(verb, tried, kind) }
+  const plan = planSetItemsPath(held.files, kind.path, itemsPath, held.locked)
+  const after = plan.ok ? { ...held.files, ...(plan.edit ?? {}) } : held.files
+  return writePlan(verb, tried, plan, plan.ok ? `${kind.kind} findby itemsPath: ${itemsPath ?? 'cleared'} — ${kindLine(after, kind.path)}` : '')
+}
+
+/**
+ * controllerSetConfigurationFields {kind, configurationFields: [{name, in}]} — the WHOLE list of header /
+ * query parameters read from the <Kind>Configuration instead of every resource's spec. Each must be a
+ * parameter of the Kind's verbs (configurationCandidates), and takes the verbs the inspector would give
+ * it (`*` when every verb carries it) — the agent names parameters, never actions.
+ */
+const setConfigurationVerb = (proposal: PortalActionProposal): AutopilotActionChip => {
+  const verb = 'controllerSetConfigurationFields'
+  const tried = `set ${String(proposal.kind)} configuration fields`
+  const raw = proposal.configurationFields
+  const valid = Array.isArray(raw) && raw.every((entry) => typeof entry === 'object' && entry !== null && typeof (entry as { name?: unknown }).name === 'string' && typeof (entry as { in?: unknown }).in === 'string')
+  if (!valid) {
+    return refuse(verb, tried, 'configurationFields must be the whole list, as [{name, in}] (in: header or query); an empty list clears it')
+  }
+  const held = heldController(verb)
+  if (typeof held === 'string') { return refuse(verb, tried, held) }
+  const kind = kindNamed(held.model, proposal.kind)
+  if (typeof kind === 'string') { return refuse(verb, tried, kind) }
+  const candidates = configurationCandidates(held.model, kind)
+  const wanted = (raw as { name: string; in: string }[]).map((entry) => ({ in: entry.in.trim(), name: entry.name.trim() }))
+  const unknown = wanted.filter((entry) => !candidates.some((candidate) => candidate.name === entry.name && candidate.in === entry.in))
+  if (unknown.length) {
+    return refuse(verb, tried, `${unknown.map((entry) => `${entry.name} (${entry.in})`).join(', ')} is not a header or query parameter of ${kind.kind}'s verbs (its parameters: ${listed(candidates.map((entry) => `${entry.name} (${entry.in})`))})`)
+  }
+  const resource = (kind.restDefinition.spec as { resource?: Record<string, unknown> } | undefined)?.resource ?? {}
+  const current = (Array.isArray(resource.configurationFields) ? resource.configurationFields : [])
+    .map((entry) => (entry as { fromOpenAPI?: { name?: string; in?: string } }).fromOpenAPI ?? {})
+  const same = (left: { name?: string; in?: string }, right: { name?: string; in?: string }) => left.name === right.name && left.in === right.in
+  const toggles = [
+    ...current.filter((entry) => !wanted.some((want) => same(want, entry))),
+    ...wanted.filter((entry) => !current.some((have) => same(have, entry))),
+  ]
+  if (!toggles.length) {
+    return done(verb, tried, `${kind.kind} configuration fields are already ${listed(wanted.map((entry) => entry.name))} — nothing changed`)
+  }
+  let { files } = held
+  for (const toggle of toggles) {
+    const candidate = candidates.find((entry) => same(entry, toggle))
+    const plan = planToggleConfigurationField(files, kind.path, { actions: candidate?.actions ?? ['*'], in: String(toggle.in), name: String(toggle.name) }, held.locked)
+    if (!plan.ok) { return writePlan(verb, tried, plan, '') }
+    files = { ...files, ...(plan.edit ?? {}) }
+  }
+  const plan: ControllerPlan = { edit: { [kind.path]: files[kind.path] }, expect: { [kind.path]: held.files[kind.path] }, ok: true, path: kind.path }
+  return writePlan(verb, tried, plan, `${kind.kind} reads ${listed(wanted.map((entry) => `${entry.name} (${entry.in})`))} from its Configuration`)
+}
+
 // ── preview ─────────────────────────────────────────────────────────────────────────────────────
 
 /** Ask the provider to render the held draft, and wait for its answer. */
@@ -449,3 +584,7 @@ registerDraftVerb(draftVerb('controllerMapVerb', (proposal) => Promise.resolve(m
 registerDraftVerb(draftVerb('controllerSetIdentifiers', (proposal) => Promise.resolve(setListVerb(proposal, 'controllerSetIdentifiers'))))
 registerDraftVerb(draftVerb('controllerSetStatusFields', (proposal) => Promise.resolve(setListVerb(proposal, 'controllerSetStatusFields'))))
 registerDraftVerb(draftVerb('controllerRemoveKind', (proposal) => Promise.resolve(removeVerb(proposal))))
+registerDraftVerb(draftVerb('controllerBindId', (proposal) => Promise.resolve(bindIdVerb(proposal))))
+registerDraftVerb(draftVerb('controllerSetExcludedFields', (proposal) => Promise.resolve(setExcludedVerb(proposal))))
+registerDraftVerb(draftVerb('controllerSetItemsPath', (proposal) => Promise.resolve(setItemsPathVerb(proposal))))
+registerDraftVerb(draftVerb('controllerSetConfigurationFields', (proposal) => Promise.resolve(setConfigurationVerb(proposal))))

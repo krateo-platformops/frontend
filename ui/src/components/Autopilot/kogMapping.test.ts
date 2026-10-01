@@ -5,7 +5,9 @@
  *     findby-only fields, requestFieldMapping exactly-one-of, DNS names);
  *   - restDefImmutabilityWarnings surfaces every CEL-immutable field the draft sets;
  *   - the oasgen 0.23.0 fields (fieldMapping, transforms, async, pagination, headers/queries,
- *     status-code lists, compareScope, apiRefs) validate, and unknown keys are rejected.
+ *     status-code lists, compareScope, apiRefs) validate, and unknown keys are rejected;
+ *   - the 0.25 fields (findby itemsPath, a verb's oasPath, pageNumber pagination, a body
+ *     continuation token) validate, and restDefinitionWarnings flags a request-direction jq.
  * Fixtures mirror the oasgen samples (mlflow URL path; a github-style configmap path).
  */
 import { describe, expect, it } from 'vitest'
@@ -15,6 +17,7 @@ import {
   restDefImmutabilityWarnings,
   validateRestDefinitionDraft,
 } from './kogMapping'
+import { restDefinitionWarnings } from './kogRestDefVerbs'
 
 /** The oasgen mlflow sample (URL-first path), verbatim shape. */
 const mlflowDraft = {
@@ -66,7 +69,7 @@ const repoDraft = {
 const withDraft = (mutate: (draft: typeof repoDraft) => void): Record<string, unknown> => {
   const clone = JSON.parse(JSON.stringify(repoDraft)) as typeof repoDraft
   mutate(clone)
-  return clone as unknown as Record<string, unknown>
+  return clone
 }
 
 describe('parseOasPath — exactly the two live-CRD forms', () => {
@@ -141,8 +144,8 @@ describe('validateRestDefinitionDraft — mirrors the live CRD shape', () => {
   it('enforces the verb enums (uppercase methods) and the required path', () => {
     const errors = validateRestDefinitionDraft(withDraft((draft) => {
       draft.spec.resource.verbsDescription = [
-        { action: 'list', method: 'GET', path: '/x' } as never,
-        { action: 'get', method: 'get', path: '/x' } as never,
+        { action: 'list', method: 'GET', path: '/x' },
+        { action: 'get', method: 'get', path: '/x' },
         { action: 'get', method: 'GET' } as never,
       ]
     }))
@@ -157,7 +160,7 @@ describe('validateRestDefinitionDraft — mirrors the live CRD shape', () => {
     const errors = validateRestDefinitionDraft(withDraft((draft) => {
       draft.spec.resource.verbsDescription = [
         { action: 'create', identifiersMatchPolicy: 'AND', method: 'POST', pagination: { type: 'continuationToken' }, path: '/x' } as never,
-        { action: 'findby', identifiersMatchPolicy: 'XOR', method: 'GET', path: '/x' } as never,
+        { action: 'findby', identifiersMatchPolicy: 'XOR', method: 'GET', path: '/x' },
       ]
     }))
     expect(errors).toEqual(expect.arrayContaining([
@@ -430,6 +433,73 @@ describe('restDefImmutabilityWarnings — the CEL-immutable fields, surfaced BEF
     expect(restDefImmutabilityWarnings({})).toEqual([
       'immutable once generated: resource.kind — changing it later means delete + recreate',
       'immutable once generated: resourceGroup',
+    ])
+  })
+})
+
+describe('validateRestDefinitionDraft — up to oasgen 0.25 (the live CRD on krateo-057, v0-25-1)', () => {
+  const withVerb = (index: number, patch: Record<string, unknown>): Record<string, unknown> => withDraft((draft) => {
+    Object.assign(draft.spec.resource.verbsDescription[index], patch)
+  })
+  const PAGE_NUMBER = { maxPages: 50, request: { pageIn: 'query', pagePath: 'page', pageSize: 100, sizeIn: 'query', sizePath: 'per_page', startPage: 1 }, response: { header: { matches: 'rel="next"', name: 'Link' } } }
+
+  it('findby itemsPath is accepted on findby, refused elsewhere; a verb oasPath takes the two URI forms', () => {
+    expect(validateRestDefinitionDraft(withVerb(2, { itemsPath: '.values', oasPath: 'configmap://krateo-system/repo-oas-v11/openapi.yaml' }))).toEqual([])
+    expect(validateRestDefinitionDraft(withVerb(1, { itemsPath: '.values', oasPath: 'file:///tmp/x.yaml' }))).toEqual(expect.arrayContaining([
+      'verbsDescription[1]: itemsPath can only be set on a findby action',
+      'verbsDescription[1].oasPath must be configmap://<namespace>/<name>/<key> or http(s)://…',
+    ]))
+  })
+
+  it('pagination pageNumber: a full block validates; the CEL rules and the runtime pageSize rule are enforced', () => {
+    expect(validateRestDefinitionDraft(withVerb(2, { pagination: { pageNumber: PAGE_NUMBER, type: 'pageNumber' } }))).toEqual([])
+    expect(validateRestDefinitionDraft(withVerb(2, { pagination: { type: 'pageNumber' } })))
+      .toContainEqual('verbsDescription[2].pagination: pageNumber must be set when type is pageNumber')
+    expect(validateRestDefinitionDraft(withVerb(2, {
+      pagination: { continuationToken: { request: { tokenIn: 'query', tokenPath: 'next' }, response: { tokenIn: 'body', tokenPath: '.next' } }, pageNumber: PAGE_NUMBER, type: 'continuationToken' },
+    }))).toEqual(['verbsDescription[2].pagination: pageNumber must not be set when type is continuationToken'])
+    const errors = validateRestDefinitionDraft(withVerb(2, {
+      pagination: {
+        pageNumber: { maxPages: 5000, request: { pageIn: 'header', pagePath: 'page' }, response: { body: { totalItemsPath: '.total', totalPagesPath: '.pages' }, header: { name: 'Link' } } },
+        type: 'pageNumber',
+      },
+    }))
+    expect(errors).toEqual(expect.arrayContaining([
+      'verbsDescription[2].pagination.pageNumber.maxPages must be between 1 and 1000',
+      'verbsDescription[2].pagination.pageNumber.request.pageIn must be one of query',
+      'verbsDescription[2].pagination.pageNumber.request.startPage is required (1 for most APIs, 0 for 0-based ones)',
+      'verbsDescription[2].pagination.pageNumber.response: declare at most one of header or body — two ways to recognise the last page cannot both be authoritative',
+      'verbsDescription[2].pagination.pageNumber.response.header.matches is required',
+      'verbsDescription[2].pagination.pageNumber.response.body: declare exactly one of totalPagesPath or totalItemsPath',
+      'verbsDescription[2].pagination.pageNumber.response.body.totalItemsPath needs verbsDescription[2].pagination.pageNumber.request.pageSize — the number of pages is derived from items per page',
+    ]))
+  })
+
+  it('continuationToken: the response token may be in the body (0.25), the request token only in the query', () => {
+    const token = (response: string) => withVerb(2, { pagination: { continuationToken: { request: { tokenIn: 'query', tokenPath: 'cursor' }, response: { tokenIn: response, tokenPath: '.next' } }, type: 'continuationToken' } })
+    expect(validateRestDefinitionDraft(token('body'))).toEqual([])
+    expect(validateRestDefinitionDraft(token('header'))).toEqual([])
+    expect(validateRestDefinitionDraft(token('query'))).toEqual(['verbsDescription[2].pagination.continuationToken.response.tokenIn must be one of header|body'])
+  })
+})
+
+describe('restDefinitionWarnings — what a valid RestDefinition still gets wrong at runtime', () => {
+  it('warns on a jq valueMapping in the REQUEST direction only (oasgen ≤0.25.1 ignores it there)', () => {
+    const jq = { jq: { inline: '. | tostring' }, type: 'jq' }
+    const draft = withDraft((clone) => {
+      Object.assign(clone.spec.resource.verbsDescription[1], {
+        fieldMapping: [
+          { inCustomResource: 'spec.name', inPath: 'repo', valueMapping: jq },
+          { inCustomResource: 'spec.visibility', inQuery: 'visibility', valueMapping: { aliases: [{ apiValue: 'public', customResourceValue: 'Public' }], type: 'alias' } },
+          { inBody: 'topics', inCustomResource: 'spec.topics', valueMapping: jq },
+          { inCustomResource: 'status.size', inResponse: 'size', valueMapping: jq },
+        ],
+      })
+    })
+    expect(validateRestDefinitionDraft(draft)).toEqual([])
+    expect(restDefinitionWarnings(draft)).toEqual([
+      'verbsDescription[1] (get).fieldMapping[0]: valueMapping type jq on inPath repo — oasgen ≤0.25.1 ignores it; the request goes out without the field.',
+      'verbsDescription[1] (get).fieldMapping[2]: valueMapping type jq on inBody topics — oasgen ≤0.25.1 ignores it; the request goes out without the field.',
     ])
   })
 })

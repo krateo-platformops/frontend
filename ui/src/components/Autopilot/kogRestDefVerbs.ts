@@ -1,9 +1,10 @@
 /**
- * T11b — the per-verb and resource-level validators for the oasgen-provider 0.23.0
- * RestDefinition fields (fieldMapping, request/responseTransform, notFoundBody, async,
- * pagination, headers/queries, the status-code lists, compareScope and the
- * observe/create/update/deleteApiRef delegations), composed by kogMapping's
- * validateRestDefinitionDraft. Pure: no React, no network.
+ * T11b — the per-verb and resource-level validators for the oasgen-provider RestDefinition
+ * fields (fieldMapping, request/responseTransform, notFoundBody, async, pagination — 0.25's
+ * pageNumber included — itemsPath, a verb's oasPath, headers/queries, the status-code lists,
+ * compareScope and the observe/create/update/deleteApiRef delegations), composed by
+ * kogMapping's validateRestDefinitionDraft; and the WARNINGS a valid RestDefinition still earns
+ * (restDefinitionWarnings). Pure: no React, no network.
  */
 
 import {
@@ -21,7 +22,9 @@ import {
   REST_DEF_ASYNC_MODES,
   REST_DEF_COMPARE_SCOPES,
   REST_DEF_METHODS,
+  REST_DEF_PAGINATION_TYPES,
   REST_DEF_VALUE_MAPPING_TYPES,
+  parseOasPath,
   requiredStringErrors,
   stringListErrors,
   unknownFieldErrors,
@@ -172,35 +175,130 @@ const fieldMappingErrors = (value: unknown, at: string): string[] => {
   return errors
 }
 
-/** One {tokenIn, tokenPath} side of continuationToken pagination (request: query, response: header). */
-const tokenLocationErrors = (value: unknown, tokenIn: string, at: string): string[] => {
+/** One {tokenIn, tokenPath} side of continuationToken pagination (request: query; response: header|body since 0.25). */
+const tokenLocationErrors = (value: unknown, tokenIn: readonly string[], at: string): string[] => {
   const location = asRecord(value)
   if (!location) {
     return [`${at} is required ({tokenIn, tokenPath})`]
   }
   return [
     ...unknownFieldErrors(location, KNOWN_KEYS.tokenLocation, at),
-    ...enumErrors(location.tokenIn, [tokenIn], `${at}.tokenIn`, true),
+    ...enumErrors(location.tokenIn, tokenIn, `${at}.tokenIn`, true),
     ...requiredStringErrors(location, 'tokenPath', at),
   ]
 }
 
-/** pagination{type continuationToken, continuationToken{request, response}} (the findby-only rule is the caller's). */
+/** An optional integer with bounds (the CRD's minimum / maximum). */
+const boundedIntegerErrors = (record: Record<string, unknown>, field: string, at: string, minimum: number, maximum?: number): string[] => {
+  const value = record[field]
+  if (value === undefined) { return [] }
+  if (typeof value !== 'number' || !Number.isInteger(value)) { return [`${at}.${field} must be an integer`] }
+  if (value < minimum || (maximum !== undefined && value > maximum)) {
+    return [`${at}.${field} must be ${maximum === undefined ? `at least ${minimum}` : `between ${minimum} and ${maximum}`}`]
+  }
+  return []
+}
+
+/** pageNumber.response: header{name, matches} or body{totalPagesPath xor totalItemsPath} — never both. */
+const pageNumberResponseErrors = (value: unknown, request: Record<string, unknown> | null, at: string, requestAt: string): string[] => {
+  const response = asRecord(value)
+  if (!response) {
+    return [`${at}: must be an object ({header} or {body})`]
+  }
+  const errors = [...unknownFieldErrors(response, KNOWN_KEYS.pageNumberResponse, at)]
+  if (response.header !== undefined && response.body !== undefined) {
+    errors.push(`${at}: declare at most one of header or body — two ways to recognise the last page cannot both be authoritative`)
+  }
+  if (response.header !== undefined) {
+    const header = asRecord(response.header)
+    errors.push(...(header
+      ? [...unknownFieldErrors(header, KNOWN_KEYS.pageNumberHeader, `${at}.header`), ...requiredStringErrors(header, 'name', `${at}.header`), ...requiredStringErrors(header, 'matches', `${at}.header`)]
+      : [`${at}.header: must be an object ({name, matches})`]))
+  }
+  if (response.body !== undefined) {
+    const body = asRecord(response.body)
+    if (!body) {
+      errors.push(`${at}.body: must be an object ({totalPagesPath} or {totalItemsPath})`)
+      return errors
+    }
+    errors.push(
+      ...unknownFieldErrors(body, KNOWN_KEYS.pageNumberBody, `${at}.body`),
+      ...optionalStringErrors(body, 'totalPagesPath', `${at}.body`),
+      ...optionalStringErrors(body, 'totalItemsPath', `${at}.body`),
+    )
+    if ((body.totalPagesPath !== undefined) === (body.totalItemsPath !== undefined)) {
+      errors.push(`${at}.body: declare exactly one of totalPagesPath or totalItemsPath`)
+    }
+    if (body.totalItemsPath !== undefined && request && request.pageSize === undefined) {
+      errors.push(`${at}.body.totalItemsPath needs ${requestAt}.pageSize — the number of pages is derived from items per page`)
+    }
+  }
+  return errors
+}
+
+/**
+ * pageNumber{maxPages 1..1000, request{pageIn query, pagePath, startPage ≥0, pageSize ≥1, sizeIn query,
+ * sizePath}, response{header | body}} — the 0.25 CRD, CEL included. totalItemsPath without
+ * request.pageSize is refused too: the controller fails that walk at runtime (page_number.go).
+ */
+const pageNumberErrors = (value: unknown, at: string): string[] => {
+  const pageNumber = asRecord(value)
+  if (!pageNumber) {
+    return [`${at}: must be an object ({maxPages, request, response})`]
+  }
+  const errors = [...unknownFieldErrors(pageNumber, KNOWN_KEYS.pageNumber, at)]
+  errors.push(...(pageNumber.maxPages === undefined
+    ? [`${at}.maxPages is required (1–1000) — the author states how far a search may walk`]
+    : boundedIntegerErrors(pageNumber, 'maxPages', at, 1, 1000)))
+  const request = asRecord(pageNumber.request)
+  const requestAt = `${at}.request`
+  if (!request) {
+    errors.push(`${requestAt} is required ({pageIn, pagePath, startPage})`)
+  } else {
+    errors.push(
+      ...unknownFieldErrors(request, KNOWN_KEYS.pageNumberRequest, requestAt),
+      ...enumErrors(request.pageIn, ['query'], `${requestAt}.pageIn`, true),
+      ...requiredStringErrors(request, 'pagePath', requestAt),
+      ...(request.startPage === undefined ? [`${requestAt}.startPage is required (1 for most APIs, 0 for 0-based ones)`] : boundedIntegerErrors(request, 'startPage', requestAt, 0)),
+      ...boundedIntegerErrors(request, 'pageSize', requestAt, 1),
+      ...enumErrors(request.sizeIn, ['query'], `${requestAt}.sizeIn`),
+      ...optionalStringErrors(request, 'sizePath', requestAt),
+    )
+  }
+  if (pageNumber.response !== undefined) {
+    errors.push(...pageNumberResponseErrors(pageNumber.response, request, `${at}.response`, requestAt))
+  }
+  return errors
+}
+
+/** The one block a pagination type names, and not the other (the CRD's four CEL rules). */
+const paginationBlockErrors = (pagination: Record<string, unknown>, at: string): string[] => {
+  const errors: string[] = []
+  if (pagination.type === 'continuationToken') {
+    if (pagination.continuationToken === undefined) { errors.push(`${at}: continuationToken must be set when type is continuationToken`) }
+    if (pagination.pageNumber !== undefined) { errors.push(`${at}: pageNumber must not be set when type is continuationToken`) }
+  }
+  if (pagination.type === 'pageNumber') {
+    if (pagination.pageNumber === undefined) { errors.push(`${at}: pageNumber must be set when type is pageNumber`) }
+    if (pagination.continuationToken !== undefined) { errors.push(`${at}: continuationToken must not be set when type is pageNumber`) }
+  }
+  return errors
+}
+
+/** pagination{type continuationToken|pageNumber, and the block its type names} (the findby-only rule is the caller's). */
 const paginationErrors = (value: unknown, at: string): string[] => {
   if (value === undefined) {
     return []
   }
   const pagination = asRecord(value)
   if (!pagination) {
-    return [`${at}: must be an object ({type, continuationToken})`]
+    return [`${at}: must be an object ({type, continuationToken|pageNumber})`]
   }
   const errors = [
     ...unknownFieldErrors(pagination, KNOWN_KEYS.pagination, at),
-    ...enumErrors(pagination.type, ['continuationToken'], `${at}.type`, true),
+    ...enumErrors(pagination.type, REST_DEF_PAGINATION_TYPES, `${at}.type`, true),
+    ...paginationBlockErrors(pagination, at),
   ]
-  if (pagination.type === 'continuationToken' && pagination.continuationToken === undefined) {
-    errors.push(`${at}: continuationToken must be set when type is continuationToken`)
-  }
   if (pagination.continuationToken !== undefined) {
     const token = asRecord(pagination.continuationToken)
     const tokenAt = `${at}.continuationToken`
@@ -209,10 +307,13 @@ const paginationErrors = (value: unknown, at: string): string[] => {
     } else {
       errors.push(
         ...unknownFieldErrors(token, KNOWN_KEYS.continuationToken, tokenAt),
-        ...tokenLocationErrors(token.request, 'query', `${tokenAt}.request`),
-        ...tokenLocationErrors(token.response, 'header', `${tokenAt}.response`),
+        ...tokenLocationErrors(token.request, ['query'], `${tokenAt}.request`),
+        ...tokenLocationErrors(token.response, ['header', 'body'], `${tokenAt}.response`),
       )
     }
+  }
+  if (pagination.pageNumber !== undefined) {
+    errors.push(...pageNumberErrors(pagination.pageNumber, `${at}.pageNumber`))
   }
   return errors
 }
@@ -302,6 +403,18 @@ export const validateVerbEntry = (entry: unknown, index: number): string[] => {
   if (verb.action !== 'findby' && verb.pagination !== undefined) {
     errors.push(`${at}: pagination can only be set on a findby action`)
   }
+  // itemsPath (0.25): the property holding a findby ENVELOPE's collection — read by the generator and
+  // the controller alike, so it means nothing on another verb.
+  if (verb.itemsPath !== undefined && verb.action !== 'findby') {
+    errors.push(`${at}: itemsPath can only be set on a findby action`)
+  }
+  if (verb.itemsPath !== undefined && !isNonEmptyString(verb.itemsPath)) {
+    errors.push(`${at}.itemsPath must be a non-empty string (e.g. .values)`)
+  }
+  // oasPath (0.25): this verb's own document, in the same two URI forms as spec.oasPath.
+  if (verb.oasPath !== undefined && !parseOasPath(verb.oasPath)) {
+    errors.push(`${at}.oasPath must be configmap://<namespace>/<name>/<key> or http(s)://…`)
+  }
   if (verb.identifiersMatchPolicy !== undefined && verb.identifiersMatchPolicy !== 'AND' && verb.identifiersMatchPolicy !== 'OR') {
     errors.push(`${at}: identifiersMatchPolicy must be AND or OR`)
   }
@@ -374,4 +487,28 @@ export const resourceRuleErrors = (resource: Record<string, unknown>): string[] 
     errors.push(...apiRefErrors(resource[field], field))
   }
   return errors
+}
+
+/** The request-direction anchors of a fieldMapping entry. */
+const REQUEST_ANCHORS = ['inPath', 'inQuery', 'inBody'] as const
+
+/**
+ * What a VALID RestDefinition still does wrong at runtime — warnings, never errors (the apiserver
+ * accepts it). Today: a `valueMapping` of type jq on a REQUEST-direction fieldMapping entry
+ * (inPath / inQuery / inBody). oasgen ≤0.25.1 ignores it there, so the request goes out without the
+ * field. A jq valueMapping on an inResponse entry is applied, and is never warned about.
+ */
+export const restDefinitionWarnings = (draft: Record<string, unknown>): string[] => {
+  const resource = asRecord(asRecord(draft.spec)?.resource)
+  const verbs: unknown[] = Array.isArray(resource?.verbsDescription) ? resource.verbsDescription : []
+  return verbs.flatMap((entry, index) => {
+    const verb = asRecord(entry)
+    const mappings: unknown[] = Array.isArray(verb?.fieldMapping) ? verb.fieldMapping : []
+    return mappings.flatMap((raw, mappingIndex) => {
+      const mapping = asRecord(raw)
+      const anchor = REQUEST_ANCHORS.find((key) => mapping?.[key] !== undefined)
+      if (!mapping || !anchor || asRecord(mapping.valueMapping)?.type !== 'jq') { return [] }
+      return [`verbsDescription[${index}] (${String(verb?.action)}).fieldMapping[${mappingIndex}]: valueMapping type jq on ${anchor} ${String(mapping[anchor])} — oasgen ≤0.25.1 ignores it; the request goes out without the field.`]
+    })
+  })
 }

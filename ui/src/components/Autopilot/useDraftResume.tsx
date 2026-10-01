@@ -139,7 +139,7 @@ export const useDraftResume = ({ allowAdopt, kind, onResumed, sandboxNamespace, 
       body: copy.body,
       title: asked.adopted ? `Adopted ${asked.record.name} into your drafts — last changed ${savedWhen(asked.record.updatedAt)}.` : copy.title,
       type: 'restored',
-      ...(result.retireError ? { warning: result.retireError } : {}),
+      ...(result.retireError || result.updated ? { warning: [result.updated, result.retireError].filter(Boolean).join(' ') } : {}),
     })
     onResumedRef.current?.()
   }), [])

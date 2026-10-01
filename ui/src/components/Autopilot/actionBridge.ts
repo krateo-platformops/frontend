@@ -308,6 +308,14 @@ export interface PortalActionProposal {
   /** controllerSetIdentifiers / controllerSetStatusFields: the WHOLE list, by field name. */
   identifiers?: string[]
   statusFields?: string[]
+  /** controllerBindId: the path parameter (`keyId`); the CR field it is read from (`status.id`) rides `field` above. */
+  param?: string
+  /** controllerSetExcludedFields: the WHOLE list of fields the generated spec leaves out. */
+  excludedFields?: string[]
+  /** controllerSetItemsPath: the findby envelope's collection (`.data`), or null to clear it. */
+  itemsPath?: string | null
+  /** controllerSetConfigurationFields: the WHOLE list of header / query parameters read from the Configuration. */
+  configurationFields?: { name: string; in: string }[]
 }
 
 /** One spotlight step in a guided tour: a semantic anchor + popover copy. */

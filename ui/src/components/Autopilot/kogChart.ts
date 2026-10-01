@@ -31,6 +31,7 @@
  *
  * Pure module: no React, no network, no module state.
  */
+import { CDC_GLOBAL_KEYS } from './blueprintDraft'
 
 /**
  * values.schema.json IS the generated CRD's spec — core-provider reads this file and turns it into
@@ -47,8 +48,15 @@
  * registered through a CompositionDefinition (controllerCompositionDefinition), composition-dynamic-
  * controller adds a top-level `global` block to the values of every render, and a closed root that
  * does not declare it refuses that block, so no claim of the controller could render (the same
- * defect, and the same fix, as pageValuesSchema). Left open, because the controller decides which
- * keys it carries.
+ * defect, and the same fix, as pageValuesSchema).
+ *
+ * `global` is CLOSED too (frontend#405 round 2, from core-provider): core-provider's crdgen turns an
+ * open object into `x-kubernetes-preserve-unknown-fields: true` on spec.global, which is exactly the
+ * schemaless hole a generated CRD should not have. So it declares the ten keys CDC writes
+ * (plumbing helm/utils/values.go InjectGlobalValues — every one a string, gracefullyPaused included)
+ * and nothing else, with no `default:` anywhere. A key a later CDC adds must be added here — the
+ * list is the blueprint lint's own (blueprintDraft.ts CDC_GLOBAL_KEYS), and
+ * generatedValuesSchemas.test.ts validates the block CDC sends against this schema.
  */
 export const kogValuesSchema = (kind: string): string => `${JSON.stringify({
   $schema: 'http://json-schema.org/draft-07/schema#',
@@ -56,7 +64,9 @@ export const kogValuesSchema = (kind: string): string => `${JSON.stringify({
   description: `Krateo API Builder — the ${kind} controller.`,
   properties: {
     global: {
+      additionalProperties: false,
       description: 'Set by composition-dynamic-controller on every render (composition name, namespace, kind, ...); not for a deployer to fill in.',
+      properties: Object.fromEntries(CDC_GLOBAL_KEYS.map((key) => [key, { type: 'string' }])),
       type: 'object',
     },
   },

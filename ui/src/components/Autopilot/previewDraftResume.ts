@@ -41,12 +41,13 @@ export interface DraftResumeDetail {
  *   resumed — held; Undo starts here. `previewed`: Publish is armed (the record's renderedHash is
  *             the restored tree's). `relinked`: the Autopilot thread it came from was found and
  *             switched to. `retireError`: an adoption held the tree but could not remove the old
- *             objects, and says why.
+ *             objects, and says why. `updated`: holding the record rewrote it to the current format
+ *             (an unpublished controller's document pinned to v1alpha1) — said, never saved silently.
  *   held    — a draft is open; nothing changed. `held` names it for the replace prompt.
  *   refused — nothing changed, and `message` says why (the tree is over the draft cap).
  */
 export type DraftResumeResultDetail =
-  | { id: string; outcome: 'resumed'; previewed: boolean; relinked: boolean; retireError?: string }
+  | { id: string; outcome: 'resumed'; previewed: boolean; relinked: boolean; retireError?: string; updated?: string }
   | { id: string; outcome: 'held'; held: { kind: DraftKind; name: string; previewed: boolean } }
   | { id: string; outcome: 'refused'; message: string }
 

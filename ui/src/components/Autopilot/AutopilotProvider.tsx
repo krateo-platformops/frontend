@@ -453,7 +453,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     // re-prompt for the SAME action as a fenced directive. Restricted to the KNOWN portal verbs so a real
     // tool typo is never swallowed. Returns early (an errored turn proposes nothing to tour).
     if (!toRun.length && recoveryCountRef.current < 1) {
-      const toolNotFound = /\bTool ['"`]?(navigate|setExtras|openDrawer|openModal|prefillForm|runAction|previewBlueprint|previewPage|previewRestDef|explainUpgradeImpact|describeResource|patchField|applyResourceSet|publishRestDef|controllerStart|controllerPlace|controllerMapVerb|controllerSetIdentifiers|controllerSetStatusFields|controllerRemoveKind)['"`]? (?:is |was )?not found/i.exec(cleanedText)
+      const toolNotFound = /\bTool ['"`]?(navigate|setExtras|openDrawer|openModal|prefillForm|runAction|previewBlueprint|previewPage|previewRestDef|explainUpgradeImpact|describeResource|patchField|applyResourceSet|publishRestDef|controllerStart|controllerPlace|controllerMapVerb|controllerSetIdentifiers|controllerSetStatusFields|controllerRemoveKind|controllerBindId|controllerSetExcludedFields|controllerSetItemsPath|controllerSetConfigurationFields)['"`]? (?:is |was )?not found/i.exec(cleanedText)
       if (toolNotFound) {
         recoveryCountRef.current += 1
         const [, verb] = toolNotFound

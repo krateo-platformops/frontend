@@ -1,0 +1,179 @@
+# A CONSTRUCTED fixture, Aruba-shaped (frontend#405 round 2) — not Aruba's document. It carries what a
+# real KOG provider author met across 34 RestDefinitions: a project-scoped collection, a server-assigned
+# id returned NESTED in the create response (metadata.id), the same item parameter named differently by
+# two verbs ({dbaasId} on get/update, {id} on delete), ACTION endpoints under the item (poweron,
+# password), a findby envelope with ONE array, and non-auth parameters (api-version header, filter /
+# sort / limit / offset on the findby).
+openapi: 3.0.1
+info:
+  title: Aruba-like Database Provider
+  version: 1.1.0
+servers:
+  - url: https://api.example-cloud.test
+security:
+  - bearerAuth: []
+paths:
+  /projects/{projectId}/providers/Aruba.Database/dbaas:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+      - $ref: '#/components/parameters/apiVersion'
+    post:
+      operationId: dbaasCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DbaasRequest'
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DbaasResponse'
+    get:
+      operationId: dbaasList
+      parameters:
+        - { name: filter, in: query, schema: { type: string } }
+        - { name: sort, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: offset, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: the page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DbaasList'
+  /projects/{projectId}/providers/Aruba.Database/dbaas/{dbaasId}:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+      - $ref: '#/components/parameters/apiVersion'
+      - { name: dbaasId, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: dbaasGet
+      responses:
+        '200':
+          description: the database
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DbaasResponse'
+    put:
+      operationId: dbaasUpdate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DbaasRequest'
+      responses:
+        '200':
+          description: updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DbaasResponse'
+  /projects/{projectId}/providers/Aruba.Database/dbaas/{id}:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+      - $ref: '#/components/parameters/apiVersion'
+      - { name: id, in: path, required: true, schema: { type: string } }
+    delete:
+      operationId: dbaasDelete
+      responses:
+        '204':
+          description: deleted
+  /projects/{projectId}/providers/Aruba.Database/dbaas/{dbaasId}/poweron:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+      - { name: dbaasId, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: dbaasPowerOn
+      responses:
+        '202':
+          description: accepted
+  /projects/{projectId}/providers/Aruba.Database/dbaas/{dbaasId}/password:
+    parameters:
+      - $ref: '#/components/parameters/projectId'
+      - { name: dbaasId, in: path, required: true, schema: { type: string } }
+    put:
+      operationId: dbaasSetPassword
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password: { type: string }
+      responses:
+        '204':
+          description: set
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    projectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string }
+    apiVersion:
+      name: api-version
+      in: header
+      required: true
+      schema: { type: string }
+  schemas:
+    Metadata:
+      type: object
+      required: [name]
+      properties:
+        id: { type: string, readOnly: true }
+        name: { type: string }
+        uri: { type: string, readOnly: true }
+        location:
+          type: object
+          properties:
+            value: { type: string }
+    DbaasRequest:
+      type: object
+      required: [metadata, properties]
+      properties:
+        metadata:
+          type: object
+          required: [name]
+          properties:
+            name: { type: string }
+            location:
+              type: object
+              properties:
+                value: { type: string }
+        properties:
+          type: object
+          properties:
+            engine: { type: string }
+            flavor: { type: string }
+    DbaasResponse:
+      type: object
+      properties:
+        metadata:
+          $ref: '#/components/schemas/Metadata'
+        properties:
+          type: object
+          properties:
+            engine: { type: string }
+            flavor: { type: string }
+        status:
+          type: object
+          properties:
+            state: { type: string }
+    DbaasList:
+      type: object
+      properties:
+        total: { type: integer }
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/DbaasResponse'

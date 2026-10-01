@@ -7,7 +7,8 @@
  *   Rendered     — the create form of each CRD oasgen-render generated (renderedForms), with what the
  *                  render applies anyway (a skipped security scheme) said above them
  *   Chart files  — the tree the change request commits
- *   Source       — the generated CRDs; a failed preview's problems in the problems alert
+ *   Source       — the generated CRDs; a failed preview's problems in the problems alert; first, the
+ *                  API the Kinds are served under (`<group>/v1alpha1`, pinned) and each Kind's notices
  *
  * A render that no longer describes the files is kept on screen and said to be old — the same rule
  * the Blueprint Composer's Source follows.
@@ -19,6 +20,7 @@ import { renderOutcomeCopy, type OutcomeCopy } from '../BlueprintComposer/render
 
 import type { ControllerModel } from './controllerChart'
 import { renderedForms } from './controllerRender'
+import { servedAsText } from './servedVersion'
 
 export const CONTROLLER_FILES_CAPTION = 'Chart files is the tree the change request commits — each Kind is its RestDefinition, and the OpenAPI document rides in its ConfigMap. Edit a file in place; the canvas and the inspector read it back.'
 
@@ -40,6 +42,25 @@ const verbLine = (model: ControllerModel): string[] => model.kinds.map((entry) =
   const verbs = (resource?.verbsDescription ?? []).map((verb) => `${verb.action} ${verb.method} ${verb.path}`)
   return `${entry.kind} → ${verbs.length ? verbs.join(' · ') : 'no verbs yet'}`
 })
+
+/**
+ * The line the Source tab opens with (round 2): the API the Kinds are served under — pinned to
+ * v1alpha1 whatever the vendor's info.version says (servedVersion.ts).
+ */
+export const servedAsLine = (model: ControllerModel): string | null => {
+  if (!model.group) { return null }
+  return `Served as ${servedAsText(model.group, model.servedVersion, model.sourceVersion)}`
+}
+
+/**
+ * What each Kind does that a person should know though nothing refuses it (restDefinitionBuild.ts
+ * controllerNotices): a jq valueMapping oasgen ignores on a request, a Kind whose status comes from the
+ * findby envelope because it has no get. Said above the forms and in Source.
+ */
+export const controllerPreviewNotices = (model: ControllerModel): string[] =>
+  model.kinds.flatMap((entry) => (entry.validation?.warnings ?? [])
+    .filter((line) => !line.startsWith('security scheme ') && !line.startsWith('no security scheme'))
+    .map((line) => (line.startsWith(entry.kind) ? line : `${entry.kind}: ${line}`)))
 
 const captionOf = (files: Record<string, string>, render: LastRender | null): string => {
   if (!render) { return CONTROLLER_FILES_CAPTION }
@@ -87,6 +108,9 @@ export const controllerPreviewPayload = (
   render: LastRender | null,
 ): AutopilotPreviewPayload => {
   const forms = render && !render.problems?.length ? renderedForms(render.objects) : []
+  const served = servedAsLine(model)
+  const notices = controllerPreviewNotices(model)
+  const renderedWarnings = [...(render?.renderedWarnings ?? []), ...notices]
   return {
     builder: 'controller',
     caption: captionOf(files, render),
@@ -99,8 +123,8 @@ export const controllerPreviewPayload = (
     ...(render?.problems?.length ? { problems: render.problems } : {}),
     publishTarget: { base: 'main', note: 'merged, CI publishes it as a versioned OCI Helm chart', repo: name },
     ...(forms.length ? { renderedForms: forms } : { renderedPlaceholder: placeholderOf(render) }),
-    ...(render?.renderedWarnings?.length ? { renderedWarnings: render.renderedWarnings } : {}),
-    summary: verbLine(model),
+    ...(renderedWarnings.length ? { renderedWarnings } : {}),
+    summary: [...(served ? [served] : []), ...verbLine(model), ...notices],
     title: `Controller — ${name}`,
   }
 }

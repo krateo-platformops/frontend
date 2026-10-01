@@ -2,15 +2,18 @@
  * W4 KOG-BUILDER (FE-K1) — the PURE RestDefinition mapper/validation module.
  *
  * Mirrors the LIVE `restdefinitions.ogen.krateo.io` v1alpha1 CRD (the binding
- * contract, dumped from krateo-057 — deployed oasgen-provider 0.23.0):
+ * contract, dumped from krateo-057 — oasgen-provider 0.23.0 first, re-read at 0.25 (v0-25-1)):
  *   - spec.oasPath (required), pattern `configmap://<ns>/<name>/<key>` OR `http(s)://…`
  *     (ns/name `[a-z0-9-]+`, key `[a-zA-Z0-9._-]+`)
  *   - spec.resourceGroup (required, CEL-immutable `self == oldSelf`)
  *   - spec.resource.kind (required, CEL-immutable) + spec.resource.verbsDescription[]
  *     (required): each {action ∈ create|update|get|delete|findby, method ∈ GET|POST|
- *     PUT|DELETE|PATCH, path required}; identifiersMatchPolicy (enum AND|OR) and
- *     pagination{type continuationToken, continuationToken{request{tokenIn query},
- *     response{tokenIn header}}} are findby-only (CEL); requestFieldMapping[] (deprecated)
+ *     PUT|DELETE|PATCH, path required}; identifiersMatchPolicy (enum AND|OR),
+ *     pagination{type continuationToken|pageNumber, continuationToken{request{tokenIn
+ *     query}, response{tokenIn header|body}} | pageNumber{maxPages, request{pageIn,
+ *     pagePath, startPage, …}, response{header|body}}} and (0.25) itemsPath — the property
+ *     of a findby ENVELOPE holding the collection — are findby-only (CEL, itemsPath by
+ *     contract); (0.25) a verb's own oasPath, in spec.oasPath's two URI forms; requestFieldMapping[] (deprecated)
  *     entries require inCustomResource plus EXACTLY ONE of inPath|inQuery|inBody (CEL);
  *     fieldMapping[] entries require EXACTLY ONE of inPath|inQuery|inBody|inResponse, with
  *     an optional valueMapping{type alias|jq}, a request-only resolver{type secretRef} and

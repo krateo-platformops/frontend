@@ -3,32 +3,61 @@
  *
  *   - VERBS — each verb's operation, and whether the inference put it there (inferred) or a person did
  *     (confirmed). A verb two operations both look like is a CONFLICT, shown as a choice between them
- *     (or leaving the verb out) and never resolved for the person.
- *   - IDENTIFIERS — from the GET response (T7's candidates, with why each is one); STATUS FIELDS — what
- *     the server assigns; COMPARE SCOPE. The kind, the group and the identifiers are LOCKED once
+ *     (or leaving the verb out) and never resolved for the person. What is not a verb is said, the
+ *     ACTIONS (a sub-path of an item or of the collection) apart from the rest.
+ *   - PATH IDS (round 2) — where each get/update/delete reads its id parameter from: status when the
+ *     create returns it (the KOG baseline), spec when the person chooses it. An ambiguous one (keyId or
+ *     id), or one segment named two ways, waits for a CONFIRM here — the lint holds Publish until then.
+ *   - IDENTIFIERS — from the GET response (or one findby item, with no get), nested fields included;
+ *     STATUS FIELDS — what the server assigns; EXCLUDED FROM SPEC — what status carries instead;
+ *     COMPARE SCOPE. The served version, kind, group, identifiers and the lists are LOCKED once
  *     published (CEL-immutable: changing one means deleting every resource of the Kind) — marked.
- *   - AUTH — every security scheme of the document, generated or skipped and why; the credential is a
- *     Secret a <Kind>Configuration names, never a value in this chart; and which parameters move to
- *     the Configuration instead of every resource's spec.
+ *   - FINDBY — an envelope with two arrays needs its itemsPath named (oasgen never guesses).
+ *   - AUTH — the document's security schemes, generated or skipped and why; the credential is a Secret
+ *     a <Kind>Configuration names, never a value in this chart; and which parameters — an api-version
+ *     header on every verb, a findby's filter or page size — move to the Configuration instead of
+ *     every resource's spec.
  *   - ADVANCED — findby and pagination, fieldMapping, async, and what each verb's body carries: read
  *     here, edited in the file.
- *   - What T7's validator says about the RestDefinition as it will be installed.
+ *   - What T7's validator says about the RestDefinition as it will be installed, and its notices.
  */
 import { Alert, Button, Checkbox, Collapse, Popconfirm, Radio, Select, Space } from 'antd'
 
 import { countNoun } from '../../utils/utils'
 import styles from '../BlueprintComposer/BlueprintComposer.module.css'
 
-import { heldVerb, pluralOf, type CompareScope, type ControllerKind, type ControllerModel } from './controllerChart'
+import {
+  configurationCandidates,
+  exclusionCandidates,
+  heldItemsPath,
+  heldVerb,
+  pathIdBindings,
+  pluralOf,
+  SERVED_VERSION,
+  type CompareScope,
+  type ControllerKind,
+  type ControllerModel,
+} from './controllerChart'
 import own from './ControllerComposer.module.css'
 import { securitySchemeSupport, type OasOperation } from './oasImport'
-import { requestBodySchema, schemaProperties, VERB_ORDER, type FieldCandidate, type RestAction } from './operationMapping'
+import {
+  envelopeArrays,
+  requestBodySchema,
+  schemaProperties,
+  successResponseSchema,
+  VERB_ORDER,
+  type FieldCandidate,
+  type RestAction,
+} from './operationMapping'
 import { operationsInGroup } from './paletteModel'
+import { crdVersionName, publishedBeforePinning, servedAsText } from './servedVersion'
 import type { ControllerRefusal } from './useControllerWorkbench'
 
 const OMIT = '__omit__'
 
 const LOCKED = 'Locked once published'
+
+export type FieldList = 'identifiers' | 'additionalStatusFields' | 'excludedSpecFields'
 
 interface InspectorProps {
   kind: ControllerKind | null
@@ -36,14 +65,16 @@ interface InspectorProps {
   locked: Record<string, unknown> | null
   model: ControllerModel
   refusal: ControllerRefusal | null
+  onBindPathParam: (param: string, field: string) => void
   onClear: () => void
   onCompareScope: (scope: CompareScope | null) => void
   onDismissRefusal: () => void
   onOpenFile: (path: string | null) => void
   onRemove: () => void
+  onSetItemsPath: (itemsPath: string | null) => void
   onSetVerb: (action: RestAction, choice: { method: string; path: string } | null) => void
   onToggleConfigurationField: (parameter: { name: string; in: string; actions: string[] }) => void
-  onToggleField: (list: 'identifiers' | 'additionalStatusFields', field: string) => void
+  onToggleField: (list: FieldList, field: string) => void
 }
 
 const resourceOf = (kind: ControllerKind): Record<string, unknown> =>
@@ -67,21 +98,9 @@ const Section = ({ children, locked, title }: { children: React.ReactNode; locke
   </div>
 )
 
-/** Header and query parameters of the Kind's verbs — what may move to its Configuration. */
-const configurationParameters = (model: ControllerModel, kind: ControllerKind): { name: string; in: string; actions: string[] }[] => {
-  const found = new Map<string, { name: string; in: string; actions: string[] }>()
-  for (const action of VERB_ORDER) {
-    const verb = heldVerb(kind.restDefinition, action)
-    const operation = verb ? model.spec?.oas.operations.find((entry) => entry.method === verb.method && entry.path === verb.path) : undefined
-    for (const parameter of operation?.parameters ?? []) {
-      if (parameter.in !== 'header' && parameter.in !== 'query') { continue }
-      const key = `${parameter.in}:${parameter.name}`
-      const entry = found.get(key) ?? { actions: [], in: parameter.in, name: parameter.name }
-      entry.actions.push(action)
-      found.set(key, entry)
-    }
-  }
-  return [...found.values()]
+/** `example.io/v1alpha1`, and the vendor's version when the document came with another. */
+const servedAs = (model: ControllerModel): string => {
+  return servedAsText(model.group, model.servedVersion, model.sourceVersion)
 }
 
 const VerbRow = ({ action, kind, onSetVerb, operations }: {
@@ -147,6 +166,62 @@ const VerbRow = ({ action, kind, onSetVerb, operations }: {
   )
 }
 
+/** Each path parameter a held verb binds to a CR field: where it is read from, and — when ambiguous — the confirm. */
+const PathIds = ({ kind, onBindPathParam }: { kind: ControllerKind; onBindPathParam: InspectorProps['onBindPathParam'] }) => {
+  const bindings = pathIdBindings(kind)
+  if (!bindings.length) {
+    return <p className={styles.fieldText}>No verb reads a path parameter from the resource: each one is a spec field of the same name.</p>
+  }
+  return (
+    <div className={own.checkList}>
+      {bindings.map((binding) => (
+        <div data-binding={binding.param} key={binding.param}>
+          <Space wrap>
+            <span className={styles.mono}>{`{${binding.param}} →`}</span>
+            <Select
+              aria-label={`Where {${binding.param}} is read from`}
+              className={styles.mono}
+              onChange={(value: string) => onBindPathParam(binding.param, value)}
+              options={binding.choices.map((choice) => ({ label: choice, value: choice }))}
+              popupMatchSelectWidth={false}
+              size='small'
+              value={binding.field}
+            />
+            {binding.confirm ? <Button onClick={() => onBindPathParam(binding.param, binding.field)} size='small' type='primary'>Confirm</Button> : null}
+          </Space>
+          <span className={own.reason}>{binding.confirm ?? `${binding.reason} — ${binding.actions.join(', ')}`}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** The findby's envelope: two or more arrays and oasgen refuses to guess — the person names the collection. */
+const FindbyItems = ({ kind, model, onSetItemsPath }: { kind: ControllerKind; model: ControllerModel; onSetItemsPath: InspectorProps['onSetItemsPath'] }) => {
+  const findby = heldVerb(kind.restDefinition, 'findby')
+  const doc = model.spec?.oas.doc
+  const arrays = findby && doc ? envelopeArrays(doc, successResponseSchema(doc, findby.method, findby.path)) : []
+  const held = heldItemsPath(kind.restDefinition)
+  if (arrays.length < 2 && !held) { return null }
+  return (
+    <Section title='Findby items'>
+      <span className={own.reason}>
+        {`The findby response is an envelope with ${countNoun(arrays.length, 'array')} (${arrays.join(', ')}). oasgen does not guess which holds the collection — name it.`}
+      </span>
+      <Select
+        aria-label='itemsPath'
+        className={styles.mono}
+        onChange={(value: string) => onSetItemsPath(value || null)}
+        options={[...arrays.map((name) => ({ label: `.${name}`, value: `.${name}` })), { label: 'Not set', value: '' }]}
+        placeholder='choose the collection'
+        popupMatchSelectWidth={false}
+        size='small'
+        value={held ?? undefined}
+      />
+    </Section>
+  )
+}
+
 const Advanced = ({ kind, model }: { kind: ControllerKind; model: ControllerModel }) => {
   const resource = resourceOf(kind)
   const verbs = Array.isArray(resource.verbsDescription) ? (resource.verbsDescription as Record<string, unknown>[]) : []
@@ -164,6 +239,7 @@ const Advanced = ({ kind, model }: { kind: ControllerKind; model: ControllerMode
         {
           children: lines(findby ? [
             `identifiersMatchPolicy: ${typeof findby.identifiersMatchPolicy === 'string' ? findby.identifiersMatchPolicy : 'not set (AND)'}`,
+            `itemsPath: ${typeof findby.itemsPath === 'string' ? findby.itemsPath : 'not set'}`,
             `pagination: ${findby.pagination ? JSON.stringify(findby.pagination) : 'not set'}`,
           ] : []),
           key: 'findby',
@@ -171,7 +247,7 @@ const Advanced = ({ kind, model }: { kind: ControllerKind; model: ControllerMode
         },
         {
           children: lines(verbs.flatMap((verb) => (Array.isArray(verb.fieldMapping)
-            ? (verb.fieldMapping as Record<string, unknown>[]).map((entry) => `${String(verb.action)}: ${Object.entries(entry).map(([key, value]) => `${key}=${String(value)}`).join(', ')}`)
+            ? (verb.fieldMapping as Record<string, unknown>[]).map((entry) => `${String(verb.action)}: ${Object.entries(entry).map(([key, value]) => `${key}=${typeof value === 'string' ? value : JSON.stringify(value)}`).join(', ')}`)
             : []))),
           key: 'fieldMapping',
           label: 'Field mapping',
@@ -195,6 +271,8 @@ const Advanced = ({ kind, model }: { kind: ControllerKind; model: ControllerMode
   )
 }
 
+const NO_CREDENTIALS = 'no security scheme in the spec is supported, so the generated Configuration has no credentials field'
+
 export const KindInspector = (props: InspectorProps) => {
   const { kind, model, refusal } = props
   if (!kind) {
@@ -206,7 +284,7 @@ export const KindInspector = (props: InspectorProps) => {
           <p className={styles.fieldText}>Select a Kind on Resources to map its verbs, identifiers and auth.</p>
           <div className={styles.derivedList}>
             <div className={styles.derived}><span className={styles.derivedLabel}>Spec</span><span className={styles.derivedValue}>{oas ? `${oas.summary.title || 'untitled'} · OpenAPI ${oas.summary.version} · ${countNoun(oas.summary.operations, 'operation')}` : '—'}</span></div>
-            <div className={styles.derived}><span className={styles.derivedLabel}>Served as</span><span className={styles.derivedValue}>{model.group ? `${model.group}/v1alpha1` : '—'}</span></div>
+            <div className={styles.derived}><span className={styles.derivedLabel}>Served as</span><span className={styles.derivedValue}>{model.group ? servedAs(model) : '—'}</span></div>
             <div className={styles.derived}><span className={styles.derivedLabel}>Calls</span><span className={styles.derivedValue}>{model.baseUrl || '—'}</span></div>
           </div>
         </div>
@@ -217,14 +295,22 @@ export const KindInspector = (props: InspectorProps) => {
   const operations = model.spec ? operationsInGroup(model.spec.oas.operations, kind.group) : []
   const identifiers = stringList(resource.identifiers)
   const statusFields = stringList(resource.additionalStatusFields)
+  const excluded = stringList(resource.excludedSpecFields)
   const configured = (Array.isArray(resource.configurationFields) ? resource.configurationFields as Record<string, unknown>[] : [])
     .map((entry) => entry.fromOpenAPI as { name?: string; in?: string } | undefined)
   const schemes = model.spec ? securitySchemeSupport(model.spec.oas.doc) : []
-  const parameters = configurationParameters(model, kind)
+  const parameters = configurationCandidates(model, kind)
   const errors = kind.validation?.errors ?? []
-  // Each skipped scheme is said once, in Auth, with its reason; what is left is the one about all of them.
-  const warnings = (kind.validation?.warnings ?? []).filter((line) => !line.startsWith('security scheme '))
+  // Each skipped scheme is said once, in Auth, with its reason; the one about all of them has its own alert.
+  const unsupported = kind.validation?.warnings.some((line) => line === NO_CREDENTIALS) ?? false
+  const notices = (kind.validation?.warnings ?? []).filter((line) => !line.startsWith('security scheme ') && line !== NO_CREDENTIALS)
   const compareScope = typeof resource.compareScope === 'string' ? resource.compareScope : undefined
+  const mapping = kind.held ?? kind.inference
+  const unmapped = kind.inference?.unmapped ?? []
+  const actions = unmapped.filter((entry) => entry.category === 'action')
+  const others = unmapped.filter((entry) => entry.category !== 'action')
+  const statusFrom = mapping?.verbs.get || !mapping?.verbs.findby ? 'the GET response' : 'one findby item (there is no get)'
+  const oas = model.spec?.oas
 
   return (
     <section aria-label='Inspector' className={styles.pane} tabIndex={-1}>
@@ -234,10 +320,16 @@ export const KindInspector = (props: InspectorProps) => {
       </div>
       <div className={styles.section}>
         <span className={styles.eyebrow}>
-          {`${model.group}/v1alpha1 · ${pluralOf(kind.kind)}`}
-          <span className={own.lockNote}>{`· Kind and group: ${LOCKED.toLowerCase()}`}</span>
+          {`${model.group}/${model.servedVersion ? crdVersionName(model.servedVersion) : SERVED_VERSION} · ${pluralOf(kind.kind)}`}
+          <span className={own.lockNote}>{`· Kind, group and version: ${LOCKED.toLowerCase()}`}</span>
         </span>
         <span className={`${styles.fieldValue} ${styles.mono}`}>{kind.kind}</span>
+        {publishedBeforePinning(model.servedVersion)
+          ? <span className={own.reason}>{`Served as ${servedAs(model)} — its manifests are written against that version, so it stays.`}</span>
+          : null}
+        {!publishedBeforePinning(model.servedVersion) && model.sourceVersion
+          ? <span className={own.reason}>{`Served as ${SERVED_VERSION} whatever the vendor calls its release — the document says ${model.sourceVersion}.`}</span>
+          : null}
         <Space wrap>
           <Button onClick={() => props.onOpenFile(kind.path)} size='small'>Open file</Button>
           <Popconfirm cancelText='Keep it' okText='Remove' onConfirm={props.onRemove} title={`Remove ${kind.kind}? Its RestDefinition leaves the chart.`}>
@@ -248,7 +340,7 @@ export const KindInspector = (props: InspectorProps) => {
       {props.locked ? (
         <Alert
           showIcon
-          title={`${kind.kind} is published: its kind, group, identifiers, configuration fields and status fields cannot change in place — a change to one is refused.`}
+          title={`${kind.kind} is published: its kind, group, served version, identifiers, configuration fields, status fields and excluded fields cannot change in place — a change to one is refused.`}
           type='info'
         />
       ) : null}
@@ -256,7 +348,8 @@ export const KindInspector = (props: InspectorProps) => {
       {errors.length ? (
         <Alert description={<ul>{errors.map((line) => <li key={line}>{line}</li>)}</ul>} showIcon title={`${kind.kind} would be rejected — ${errors.length} ${errors.length === 1 ? 'problem' : 'problems'}`} type='error' />
       ) : null}
-      {warnings.length ? <Alert description={<ul>{warnings.map((line) => <li key={line}>{line}</li>)}</ul>} showIcon title='The generated Configuration has no credentials field' type='warning' /> : null}
+      {unsupported ? <Alert showIcon title='The generated Configuration has no credentials field' type='warning' /> : null}
+      {notices.length ? <Alert description={<ul>{notices.map((line) => <li key={line}>{line}</li>)}</ul>} showIcon title='Accepted, but it does not work the way it reads' type='warning' /> : null}
 
       <Section title='Verbs'>
         <table className={own.verbs}>
@@ -265,15 +358,25 @@ export const KindInspector = (props: InspectorProps) => {
             {VERB_ORDER.map((action) => <VerbRow action={action} key={action} kind={kind} onSetVerb={props.onSetVerb} operations={operations} />)}
           </tbody>
         </table>
-        {kind.inference?.unmapped.length ? (
-          <p className={styles.note}>{`Not a verb: ${kind.inference.unmapped.map((entry) => `${entry.key} (${entry.reason})`).join('; ')}.`}</p>
+        {actions.length ? (
+          <p className={styles.note}>{`Not a verb — an action: ${actions.map((entry) => entry.key).join('; ')}. A sub-path of an item or of the collection is never a lifecycle verb.`}</p>
+        ) : null}
+        {others.length ? (
+          <p className={styles.note}>{`Not a verb: ${others.map((entry) => `${entry.key} (${entry.reason})`).join('; ')}.`}</p>
         ) : null}
       </Section>
 
+      <Section title='Path ids'>
+        <span className={own.reason}>Where each verb reads its id from — status when the create returns it, spec when the person chooses it.</span>
+        <PathIds kind={kind} onBindPathParam={props.onBindPathParam} />
+      </Section>
+
+      <FindbyItems kind={kind} model={model} onSetItemsPath={props.onSetItemsPath} />
+
       <Section locked title='Identifiers'>
-        <span className={own.reason}>From the GET response — how the controller finds the resource it made.</span>
+        <span className={own.reason}>{`From ${statusFrom} — how the controller finds the resource it made.`}</span>
         <div className={own.checkList}>
-          {withHeld(kind.inference?.identifierCandidates ?? [], identifiers).map((candidate) => (
+          {withHeld(mapping?.identifierCandidates ?? [], identifiers).map((candidate) => (
             <Checkbox checked={identifiers.includes(candidate.field)} key={candidate.field} onChange={() => props.onToggleField('identifiers', candidate.field)}>
               <span className={styles.mono}>{candidate.field}</span>
               <span className={own.reason}>{candidate.reason}</span>
@@ -284,13 +387,26 @@ export const KindInspector = (props: InspectorProps) => {
 
       <Section locked title='Status fields'>
         <div className={own.checkList}>
-          {withHeld(kind.inference?.statusFieldCandidates ?? [], statusFields).map((candidate) => (
+          {withHeld(mapping?.statusFieldCandidates ?? [], statusFields).map((candidate) => (
             <Checkbox checked={statusFields.includes(candidate.field)} key={candidate.field} onChange={() => props.onToggleField('additionalStatusFields', candidate.field)}>
               <span className={styles.mono}>{candidate.field}</span>
               <span className={own.reason}>{candidate.reason}</span>
             </Checkbox>
           ))}
-          {!(kind.inference?.statusFieldCandidates.length || statusFields.length) ? <p className={styles.fieldText}>The GET response returns nothing the create body does not send.</p> : null}
+          {!(mapping?.statusFieldCandidates.length || statusFields.length) ? <p className={styles.fieldText}>{`${statusFrom === 'the GET response' ? 'The GET response' : 'The findby item'} returns nothing the create body does not send.`}</p> : null}
+        </div>
+      </Section>
+
+      <Section locked title='Excluded from spec'>
+        <span className={own.reason}>What the person is not asked for — status carries it, or the API sets it.</span>
+        <div className={own.checkList}>
+          {withHeld(exclusionCandidates(kind, model), excluded).map((candidate) => (
+            <Checkbox checked={excluded.includes(candidate.field)} key={candidate.field} onChange={() => props.onToggleField('excludedSpecFields', candidate.field)}>
+              <span className={styles.mono}>{candidate.field}</span>
+              <span className={own.reason}>{candidate.reason}</span>
+            </Checkbox>
+          ))}
+          {!(exclusionCandidates(kind, model).length || excluded.length) ? <p className={styles.fieldText}>There is no create body to leave fields out of.</p> : null}
         </div>
       </Section>
 
@@ -310,6 +426,7 @@ export const KindInspector = (props: InspectorProps) => {
       </Section>
 
       <Section title='Auth'>
+        {oas ? <span className={own.reason}>{`Decided by the document — ${oas.summary.title || 'untitled'}${model.sourceVersion ? ` ${model.sourceVersion}` : ''} — not assumed for the controller.`}</span> : null}
         {schemes.length ? (
           <ul className={styles.plainList}>
             {schemes.map((scheme) => (
@@ -334,7 +451,9 @@ export const KindInspector = (props: InspectorProps) => {
                 onChange={() => props.onToggleConfigurationField(parameter)}
               >
                 <span className={styles.mono}>{`${parameter.name} (${parameter.in})`}</span>
-                <span className={own.reason}>{`read from the Configuration for ${parameter.actions.join(', ')}, not from each ${kind.kind}`}</span>
+                <span className={own.reason}>
+                  {`read from the Configuration for ${parameter.actions[0] === '*' ? 'every verb' : parameter.actions.join(', ')}, not from each ${kind.kind}${parameter.nonAuth ? '' : ' — the document\'s apiKey'}`}
+                </span>
               </Checkbox>
             ))}
           </div>

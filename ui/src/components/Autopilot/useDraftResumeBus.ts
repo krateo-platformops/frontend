@@ -28,6 +28,7 @@ import { useEffect, useRef } from 'react'
 import { findBuilderOf } from '../../builders/builderRegistry'
 import { draftKindOf } from '../../builders/draftKinds'
 import type { SetDispatchOptions } from '../../hooks/runRestSet'
+import { pinnedOnResumeSentence } from '../../pages/ControllerComposer/servedVersion'
 
 import { legacyDeleteOps, type SandboxTarget } from './adoptLegacyPage'
 import { MAX_APPLY_SET_OPS } from './applyResourceSet'
@@ -165,11 +166,17 @@ export const useDraftResumeBus = (
     } else {
       gate.forget(identity)
     }
+    // An UNPUBLISHED controller saved before its document was pinned is held pinned (the store's
+    // settle): the tree changed, and the autosave will write it — so the person is told, not surprised.
+    // A published one is never pinned, so holding it changes nothing.
+    const updated = record.kind === 'controller' && treeHash(set.held.files) !== treeHash(record.files)
+      ? pinnedOnResumeSentence(set.held.files)
+      : null
     const finish = (retireError?: string): void => {
       if (appliesLive(record.kind) || replacedPage) {
         emitDraftReapply({ discardPrevious: replacedPage })
       }
-      emitDraftResumeResult({ id, outcome: 'resumed', previewed, relinked, ...(retireError ? { retireError } : {}) })
+      emitDraftResumeResult({ id, outcome: 'resumed', previewed, relinked, ...(retireError ? { retireError } : {}), ...(updated ? { updated } : {}) })
     }
     if (!retire?.length) {
       finish()

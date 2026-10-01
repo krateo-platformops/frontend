@@ -20,13 +20,14 @@ vi.mock('./builderClaimPublish', () => ({
   buildClaimPublish: vi.fn(() => Promise.resolve({ branch: 'builder/x', compiled: { denial: null, ops: [] }, deepLink: null })),
 }))
 
-import { planPlaceGroup, planSetVerb, restDefinitionPath, type ControllerPlan } from '../../pages/ControllerComposer/controllerChart'
+import { oasConfigMapPath, planPlaceGroup, planSetVerb, restDefinitionPath, type ControllerPlan } from '../../pages/ControllerComposer/controllerChart'
 import { startController } from '../../pages/ControllerComposer/controllerStart'
 
 import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { buildClaimPublish } from './builderClaimPublish'
 import type { BuilderTargets } from './builderTargets'
 import { NOTHING_HELD_CONTROLLER, publishDraft, REGISTRATION_PATH, type PublishDraftDeps } from './publishDraft'
+import { publishedLocks } from './publishedLocks'
 
 const PETSTORE = readFileSync(join(__dirname, '..', '..', 'pages', 'ControllerComposer', '__fixtures__', 'petstore-v3.openapi.json'), 'utf8')
 const SCAFFOLD = { owner: 'krateo-blueprints', repo: 'builder-scaffold' }
@@ -52,7 +53,11 @@ const petstore = (settled = true): Record<string, string> => {
   const started = startController({ apiGroup: 'petstore.example.io', baseUrl: 'https://petstore3.swagger.io/api/v3', name: 'petstore', paths: null, spec: PETSTORE })
   if (!started.ok) { throw new Error(JSON.stringify(started.problems)) }
   let files = apply(started.files, planPlaceGroup(started.files, 'pet'))
-  if (settled) { files = apply(files, planSetVerb(files, restDefinitionPath('Pet'), 'findby', { method: 'GET', path: '/pet/findByStatus' })) }
+  if (settled) {
+    files = apply(files, planSetVerb(files, restDefinitionPath('Pet'), 'findby', { method: 'GET', path: '/pet/findByStatus' }))
+    // The collection PUT is offered as the update and confirmed, as a person does in the verbs table.
+    files = apply(files, planSetVerb(files, restDefinitionPath('Pet'), 'update', { method: 'PUT', path: '/pet' }))
+  }
   return apply(files, planPlaceGroup(files, 'store'))
 }
 
@@ -122,6 +127,17 @@ describe('a person publishes the held controller', () => {
     const outcome = await publishDraft(deps(petstore(), { blueprintGate: { evaluate } as never }), { verb: 'publishRestDef' })
     expect(outcome.compiled.denial).toBe('denied — preview first: a controller "petstore" has not rendered since it last changed. Preview it (previewRestDef) — a render with no problems arms publishing.')
     expect(buildClaimPublish).not.toHaveBeenCalled()
+  })
+
+  it('a published controller whose served version is unknown is refused, in its own words, though it lints and previews', async () => {
+    publishedLocks.set({ kind: 'controller', locked: { [oasConfigMapPath('petstore')]: { servedVersionUnknown: true } }, name: 'petstore' })
+    try {
+      const outcome = await publishDraft(deps(petstore(), { initiator: 'person' }), { verb: 'publishRestDef' })
+      expect(outcome.compiled.denial).toBe(`denied — ${oasConfigMapPath('petstore')}: the served version is unknown — this controller was published before its version was pinned, and the document changed since it rendered. Set its info.version to the version the cluster serves (see the published CRD) and preview again.`)
+      expect(buildClaimPublish).not.toHaveBeenCalled()
+    } finally {
+      publishedLocks.set(null)
+    }
   })
 
   it('a controller with a verb nobody settled is refused BY NAME, before anyone is asked where it goes', async () => {

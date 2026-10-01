@@ -27,12 +27,14 @@
 
 import { registryUnavailable } from '../../builders/builderRegistry'
 import { isDraftKind, type DraftKindName } from '../../builders/draftKinds'
+import { lockedServedVersion, pinServedVersion, servedVersionUnknown } from '../../pages/ControllerComposer/servedVersion'
 import { countNoun } from '../../utils/utils'
 
 import type { ApplyResourceSetOp } from './applyResourceSet'
-import { regenerateArchitecture } from './blueprintDraft'
+import { draftDisplayName, regenerateArchitecture } from './blueprintDraft'
 import { OAS_ATTACHMENT_MAX_BYTES, utf8ByteLength } from './oasAttachment'
 import { heldKeyForDisplayedPath } from './pageDraft'
+import { lockedFor, publishedLocks } from './publishedLocks'
 
 /** The substitution-token key. In an op payload the token is EXACTLY `{"$fileContent": "<path>"}`. */
 export const FILE_CONTENT_KEY = '$fileContent'
@@ -114,9 +116,22 @@ export interface FilesChange {
  * ranged), a removal, an Undo, a Start, an agent's rendered proposal — so none of them can leave the
  * `krateo:graph` block behind its descriptor. It stays one ordinary write: the gate is disarmed and a
  * render arms it, as for any other. A page set has no architecture file, and is held as given.
+ *
+ * A CONTROLLER's OpenAPI document is held with info.version pinned to v1alpha1 (servedVersion.ts
+ * pinServedVersion) — here, for the same reason: every write passes this point, so no gesture, agent
+ * verb or hand edit can hold a document whose version would move the API its Kinds are served under.
+ * A controller that was PUBLISHED (publishedLocks names it — set by the record's resume before its
+ * files are held) is held to the version it was published under instead: its lock says which, so a
+ * re-import or a hand edit is put back. One whose published version is unknown is left as it is, for
+ * Publish to refuse.
  */
-const settle = (files: Record<string, string>, kind: DraftKind): Record<string, string> =>
-  (kind === 'blueprint' ? regenerateArchitecture(files) : files)
+const settle = (files: Record<string, string>, kind: DraftKind): Record<string, string> => {
+  if (kind === 'blueprint') { return regenerateArchitecture(files) }
+  if (kind !== 'controller') { return files }
+  const locked = lockedFor(publishedLocks.get(), kind, draftDisplayName(files))
+  if (!locked) { return pinServedVersion(files) }
+  return pinServedVersion(files, (path) => (servedVersionUnknown(locked, path) ? null : lockedServedVersion(locked, path) ?? undefined))
+}
 
 /**
  * Validate + measure a parsed chart tree (the map `parseRawTemplates` already produced).

@@ -211,8 +211,8 @@ export const lintValuesSchemaDefaults = (schemaText: string): string[] => {
     : crdgenDefaultsProblem(finding.path, finding.shape)))
 }
 
-/** The keys CDC writes into `global` on every render (plumbing `InjectGlobalValues`). */
-const CDC_GLOBAL_KEYS = [
+/** The keys CDC writes into `global` on every render (plumbing `InjectGlobalValues`) — every one a string. */
+export const CDC_GLOBAL_KEYS = [
   'compositionApiVersion', 'compositionGroup', 'compositionId', 'compositionInstalledVersion', 'compositionKind',
   'compositionName', 'compositionNamespace', 'compositionResource', 'gracefullyPaused', 'krateoNamespace',
 ]

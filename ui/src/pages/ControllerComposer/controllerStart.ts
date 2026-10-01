@@ -12,7 +12,9 @@
  *   - a caller that has already read the spec passes the reading in, so a keystroke in another field
  *     does not parse the document again;
  *   - a document read from a URL (the modal's URL tab and the agent's controllerStart alike) is read as
- *     nobody, capped at SPEC_TEXT_MAX_BYTES and abandoned after SPEC_FETCH_TIMEOUT_MS (readSpecUrl).
+ *     nobody, capped at SPEC_TEXT_MAX_BYTES and abandoned after SPEC_FETCH_TIMEOUT_MS (readSpecUrl);
+ *   - the document's info.version is held as v1alpha1 — the version every Kind is served under — and
+ *     the vendor's own is kept on Chart.yaml (servedVersion.ts; the store re-pins it on every write).
  */
 import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from '../../components/Autopilot/blueprintDraft'
 import { kogValuesSchema } from '../../components/Autopilot/kogChart'
@@ -36,6 +38,7 @@ import {
   withServers,
 } from './controllerChart'
 import { type OasDocument, type OasFormat, type OasImport, parseOas, serializeOas, trimOas } from './oasImport'
+import { pinDocVersion, SERVED_VERSION, SERVED_VERSION_COMMENT, SOURCE_SPEC_VERSION_ANNOTATION, specInfoVersion } from './servedVersion'
 import { urlCredentialProblem } from './urlCredential'
 
 // ── start ───────────────────────────────────────────────────────────────────────────────────────
@@ -198,7 +201,7 @@ export const validateStartController = (input: StartControllerInput, reading: Sp
 }
 
 /** Chart.yaml in the order Helm's own files read — built by assignment, since the order is the file's. */
-const chartYaml = (name: string, group: string, baseUrl: string, title: string): string => {
+const chartYaml = (name: string, group: string, baseUrl: string, title: string, sourceVersion: string | null): string => {
   const chart: Record<string, unknown> = {}
   chart.apiVersion = 'v2'
   chart.name = name
@@ -208,6 +211,8 @@ const chartYaml = (name: string, group: string, baseUrl: string, title: string):
   const annotations: Record<string, string> = {}
   annotations[GROUP_ANNOTATION] = group
   annotations[BASE_URL_ANNOTATION] = baseUrl
+  // The vendor's info.version: the held document says v1alpha1 (servedVersion.ts), this says what it was.
+  if (sourceVersion && sourceVersion !== SERVED_VERSION) { annotations[SOURCE_SPEC_VERSION_ANNOTATION] = sourceVersion }
   chart.annotations = annotations
   return toYaml(chart)
 }
@@ -216,14 +221,18 @@ const VALUES_YAML = '# This controller chart ships its RestDefinitions and the O
   + '# Nothing is parameterised: every manifest is created in the release namespace.\n'
   + '{}\n'
 
-/** The ConfigMap template carrying the document, verbatim, under the key its format names. */
+/**
+ * The ConfigMap template carrying the document under the key its format names — verbatim but for two
+ * rewrites: its servers (the base URL) and its info.version, pinned to v1alpha1 (servedVersion.ts),
+ * which the comment at its head explains to whoever opens the file.
+ */
 export const oasConfigMapYaml = (name: string, doc: OasDocument, format: OasFormat): string => {
   const configMap: Record<string, unknown> = {}
   configMap.apiVersion = 'v1'
   configMap.kind = 'ConfigMap'
   configMap.metadata = { labels: { ...KOG_MANAGED_BY_LABEL }, name: oasConfigMapName(name), namespace: RELEASE_NAMESPACE }
-  configMap.data = { [oasConfigMapKey(format)]: escapeHelm(serializeOas(doc, format)) }
-  return toYaml(configMap)
+  configMap.data = { [oasConfigMapKey(format)]: escapeHelm(serializeOas(pinDocVersion(doc), format)) }
+  return `${SERVED_VERSION_COMMENT}\n${toYaml(configMap)}`
 }
 
 export type StartControllerResult =
@@ -238,7 +247,7 @@ export const startController = (input: StartControllerInput, reading: SpecReadin
   const name = input.name.trim()
   const { doc } = heldDocument(reading.oas, input)
   const files: Record<string, string> = {}
-  files[CHART_YAML_PATH] = chartYaml(name, input.apiGroup.trim(), input.baseUrl.trim(), reading.oas.summary.title)
+  files[CHART_YAML_PATH] = chartYaml(name, input.apiGroup.trim(), input.baseUrl.trim(), reading.oas.summary.title, specInfoVersion(reading.oas.doc))
   files[VALUES_YAML_PATH] = VALUES_YAML
   files[VALUES_SCHEMA_PATH] = kogValuesSchema(name)
   files[oasConfigMapPath(name)] = oasConfigMapYaml(name, doc, reading.oas.format)
@@ -309,4 +318,13 @@ export const readSpecUrl = async (url: string, timeoutMs = SPEC_FETCH_TIMEOUT_MS
   } finally {
     clearTimeout(timer)
   }
+}
+
+/** The Start modal's "served as" line: `<group>/v1alpha1`, and what the document's own version was. */
+export const servedAsSentence = (group: string, doc: OasDocument | null): string => {
+  const source = doc ? specInfoVersion(doc) : null
+  const served = `${group.trim() || '<group>'}/${SERVED_VERSION}`
+  return source && source !== SERVED_VERSION
+    ? `${served} — pinned: the document says ${source}, and a vendor bump must not move the served version (kept as ${SOURCE_SPEC_VERSION_ANNOTATION})`
+    : served
 }
