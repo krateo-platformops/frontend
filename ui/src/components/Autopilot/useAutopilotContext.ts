@@ -16,7 +16,7 @@ import { useCallback } from 'react'
 import { isWildcardSegment, secretFieldPaths } from '../../utils/secretFields'
 
 import { getComposeRefusals } from './composeRequest'
-import { chartFingerprint, draftFingerprint } from './draftStructure'
+import { chartFingerprint, controllerFingerprint, draftFingerprint } from './draftStructure'
 import { getPreviewProblems } from './previewBus'
 import { redactAutopilotContext } from './redact'
 import type { AutopilotIdentity, PageContextEnvelope, WidgetInventoryEntry } from './types'
@@ -501,6 +501,7 @@ export const buildContextDelta = (
   //    to it by construction, so collapsing would drop the only signal the turn produced.
   const sameDraft = draftFingerprint(previous.draft) === draftFingerprint(next.draft)
     && chartFingerprint(previous.chart) === chartFingerprint(next.chart)
+    && controllerFingerprint(previous.controller) === controllerFingerprint(next.controller)
   const sameRefusals = JSON.stringify(previous.composeRefusals ?? null) === JSON.stringify(next.composeRefusals ?? null)
   if (sameRoute && prevEndpoints === nextEndpoints && sameStatus && sameDraft && sameRefusals
     && !next.composeRefusals?.length && !hasPrefillableForm) {

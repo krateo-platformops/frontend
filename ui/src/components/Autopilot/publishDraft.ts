@@ -21,9 +21,13 @@
  * verb names the Builder that allows it (`spec.verbs.allowed`); that Builder's `spec.publish.builder`
  * picks the PUBLISHER (the registration file, the projection bundle), its `spec.draftKind` picks the
  * draft-kind plugin (the branch slug and the words a denial uses), and its `targetKey`/`templateKey`
- * pick the destination and the seed. The controller (KOG) publish, which used to be a separate
- * dispatch module (kogPublishDispatch.ts), is the third publisher here: one module, one claim,
- * whatever the builder, entered through `publishDraft`.
+ * pick the destination and the seed. The controller is the third publisher here: one module, one
+ * claim, whatever the builder, entered through `publishDraft`.
+ *
+ * EVERY PUBLISHER PUBLISHES A HELD DRAFT (frontend#429). The rail's legacy controller publish — the
+ * last previewed RestDefinition plus the OpenAPI document attached in the rail (dispatchKogPublish) —
+ * is gone: Autopilot starts and edits a controller draft through the Controller Builder's verbs
+ * (controllerVerbs.ts) and publishes the held, previewed draft like a person does.
  */
 import { builderRegistry, registryUnavailable } from '../../builders/builderRegistry'
 import type { BuilderSpec, PublishBuilder } from '../../builders/builderSpec'
@@ -43,26 +47,13 @@ import type { createBlueprintGate } from './blueprintGate'
 import { buildClaimPublish } from './builderClaimPublish'
 import type { PublishStatusClaim } from './builderPublishStatus'
 import { builderTargetFor, builderTemplateUrl, type useBuilderTargets } from './builderTargets'
-import { kogCompositionDefinition } from './kogChart'
-import { REST_DEFINITION_GVR } from './kogMapping'
-import { kogPublishFiles, resolveKogPublishDraft } from './kogPublish'
 import { pageCompositionDefinition } from './pageDraft'
-import type { PreviewGate } from './previewGate'
 import type { PublishRequestDetail, PublishResultDetail } from './previewPublishRequest'
 import { lintHeldDraft } from './proposedChart'
 import { heldDraftIdentity, type PublishCompileResult } from './publishCompile'
 import { askPublishDestination, type PublishInitiator, type PublishTargetRequest } from './publishTargetForm'
 import type { AutopilotActionChip } from './types'
 import type { DraftAutosave } from './useDraftAutosave'
-
-/** What the controller publisher reads, beyond the shared deps. */
-export interface ControllerPublishCtx {
-  previewGate: PreviewGate
-  /** oasStore.get()?.text ?? null — the held OAS document, committed in the paste case. */
-  oasText: string | null
-  /** The controller publish's own provenance: the agent turn's session and prompt. */
-  origin: AuthorshipOrigin
-}
 
 export interface PublishDraftDeps {
   blueprintGate: ReturnType<typeof createBlueprintGate>
@@ -73,22 +64,28 @@ export interface PublishDraftDeps {
   origin: AuthorshipOrigin
   /** Who asked for this publish — the destination form says so. Absent: the agent's verb. */
   initiator?: PublishInitiator
-  /** What the controller publisher reads. Absent (a composer's button), a controller publish is refused. */
-  controller?: ControllerPublishCtx
 }
 
 export interface PublishDraftOutcome {
   compiled: PublishCompileResult
   deepLink: string | null
-  /**
-   * The held draft this publish was OF, read before the destination form waited — the record a
-   * landed claim marks published. Null for a publisher that publishes no held draft (the controller).
-   */
+  /** The held draft this publish was OF, read before the destination form waited — the record a landed claim marks published. */
   held?: BlueprintDraftHeld | null
 }
 
 /** Where the registration file is committed: the repo root, beside the chart it names. */
 export const REGISTRATION_PATH = 'compositiondefinition.yaml'
+
+/** A controller publish with no draft held — what to do instead, for the agent and a person alike. */
+export const NOTHING_HELD_CONTROLLER = 'denied — no controller draft is open, so there is nothing to publish. Start one first (controllerStart, or Start in the Controller Builder), place its Kinds and settle every verb conflict, then preview it; publishRestDef publishes the held, previewed controller.'
+
+/** The claim a publish writes, as the preview gate is asked about it before the destination form. */
+const PUBLISH_PROBE: ApplyResourceSetOp = {
+  gvr: { group: 'composition.krateo.io', resource: 'builderpublishes', version: 'v1alpha1' },
+  namespace: 'krateo-system',
+  payload: {},
+  verb: 'POST',
+}
 
 /**
  * A held-draft PUBLISHER — what differs between the builders that publish the draft the provider
@@ -118,10 +115,10 @@ const DRAFT_PUBLISHERS: Partial<Record<PublishBuilder, DraftPublisher>> = {
     },
   },
   /*
-   * A controller the Controller Builder composed (T8, frontend#412): the HELD tree — its
-   * RestDefinitions and the ConfigMap carrying the document they read — exactly like a blueprint,
-   * registered at publish with Chart.yaml's version. The rail's legacy dispatchKogPublish (a previewed
-   * RestDefinition plus the OAS attachment) is reached only when no controller draft is held.
+   * A controller the Controller Builder composed (T8, frontend#412) — by a person, or by Autopilot
+   * through the controller verbs (frontend#429): the HELD tree — its RestDefinitions and the ConfigMap
+   * carrying the document they read — exactly like a blueprint, registered at publish with Chart.yaml's
+   * version.
    */
   controller: {
     formKind: 'controller',
@@ -139,14 +136,10 @@ const DRAFT_PUBLISHERS: Partial<Record<PublishBuilder, DraftPublisher>> = {
 }
 
 /**
- * The publishers this frontend RUNS: the held-draft ones (DRAFT_PUBLISHERS — the controller's among
- * them) and the rail's legacy controller publish (dispatchKogPublish). A Builder naming any other
- * `publish.builder` publishes nothing here.
- *
- * Every publish verb now has a Builder: `publishRestDef` is the Controller Builder's (T3,
- * frontend#409), so there is no longer a table of verbs published without one.
+ * The publishers this frontend RUNS: the held-draft ones (DRAFT_PUBLISHERS). A Builder naming any
+ * other `publish.builder` publishes nothing here.
  */
-const runsPublisher = (builder: PublishBuilder): boolean => builder === 'controller' || DRAFT_PUBLISHERS[builder] !== undefined
+const runsPublisher = (builder: PublishBuilder): boolean => DRAFT_PUBLISHERS[builder] !== undefined
 
 /**
  * The verbs that PUBLISH — the frontend's own list, not the Builder's. A Builder's `verbs.allowed`
@@ -237,6 +230,13 @@ export const runDraftPublish = async (
   if (claimProblem) {
     return denied(`denied — "${slug}" cannot be published through the builder: ${claimProblem}. Rename it in Chart.yaml${kind.nouns.renameHint}.`, held)
   }
+  // PREVIEW FIRST, said before anyone is asked where it goes — and in the held draft's own words. The
+  // claim's gate would refuse it anyway, but only after the destination form, and with the blueprint's
+  // preview verb whatever the draft was. The probe is the claim the publish would write.
+  if (held && identity && !blueprintGate.evaluate([PUBLISH_PROBE], identity).allowed) {
+    const previewVerb = builder.verbs.allowed.find((verb) => verb.startsWith('preview')) ?? 'Preview'
+    return denied(`denied — preview first: ${kind.nouns.artifact} "${identity}" has not rendered since it last changed. Preview it (${previewVerb}) — a render with no problems arms publishing.`, held)
+  }
   // SEED the new repository from the builder's template, for EITHER builder: a composed chart in a
   // bare repo has no release workflow, so it can never be released or registered. Null when no
   // template is configured — the claim then omits `source` and the repo is auto-init'd bare.
@@ -293,89 +293,37 @@ export const runDraftPublish = async (
 }
 
 /**
- * The CONTROLLER (KOG) publisher — formerly kogPublishDispatch.ts, absorbed so every builder
- * publishes from this one module. Given the last previewed RestDefinition + the held OAS document, it
- * asks the destination form, then compiles one BuilderPublish claim over the controller's chart
- * files — the same claim every builder publishes through. The KOG preview gate (a synthetic probe,
- * since the claim writes no restdefinitions op) enforces preview-before-publish. No React, no chips.
+ * THE ONE PUBLISH ENTRY, for any builder's publish verb. The verb's publisher (publisherOfVerb)
+ * decides, and every publisher publishes the HELD draft — the controller's included, whether a person
+ * composed it or Autopilot did through the controller verbs (frontend#429).
+ *
+ * A controller publish with NOTHING held is refused before anything is asked: there is no other
+ * source. (It used to fall back to the rail's last previewed RestDefinition and its attached OpenAPI
+ * document — retired with the controller verbs.) The sentence tells the agent what to do instead.
  */
-export const dispatchKogPublish = async (
-  proposal: { base?: string; owner?: string; repo?: string },
-  ctx: ControllerPublishCtx & { config: Config | undefined; kogTarget: { owner: string; repo: string } },
-): Promise<PublishDraftOutcome> => {
-  const resolution = resolveKogPublishDraft(ctx.previewGate.lastDraft(), ctx.oasText)
-  // The DESTINATION is user-owned: a proper form asks (fence coords are prefills); cancel → denied.
-  // PER-ARTIFACT repos (#163): each controller/RestDefinition gets its OWN repo named for the kind —
-  // so the repo prefill is the resolved kind, with the OWNER from install config (ctx.kogTarget.owner).
-  const destRepo = resolution.held?.kind || ctx.kogTarget.repo
-  const restDefTarget = await askPublishDestination(proposal, 'restdef', destRepo, ctx.kogTarget.owner)
-  // Probe the KOG preview gate against the RESOLVED draft (the claim writes no restdefinitions op,
-  // so the gate sees the draft via a synthetic probe op).
-  const gateProbe: ApplyResourceSetOp[] | undefined = resolution.held
-    ? [{ gvr: { ...REST_DEFINITION_GVR }, namespace: 'krateo-system', payload: resolution.held.draft, verb: 'POST' }]
-    : undefined
-  if (!restDefTarget) {
-    return denied('publish cancelled — destination not confirmed')
+export const publishDraft = async (deps: PublishDraftDeps, proposal: PortalActionProposal): Promise<PublishDraftOutcome> => {
+  if (publisherOfVerb(proposal.verb) === 'controller' && !deps.blueprintStore.get()) {
+    return denied(NOTHING_HELD_CONTROLLER, null)
   }
-  if (resolution.missingOasDocument) {
-    return denied('denied — the previewed mapping uses a configmap:// oasPath but no OpenAPI document is attached; paste the document in the rail first (it is held client-side and committed at publish), or preview a URL oasPath.')
-  }
-  if (!resolution.held) {
-    return denied('denied — no previewed RestDefinition to publish (previewRestDef a mapping first)')
-  }
-
-  // THE REGISTRATION FILE, written at publish time because it is the one file that depends on the
-  // DESTINATION: its OCI url is `<owner>/charts/<kind>`, and the owner is only settled once the
-  // human confirms it in the blast-radius dialog. Without it the controller chart releases to OCI
-  // and nothing installs it — core-provider generates the CRD from values.schema.json and serves it,
-  // and only then can a claim create the RestDefinition that makes oasgen materialise the real kind.
-  const kogOwner = restDefTarget.owner || ctx.kogTarget.owner
-  const publishFiles = kogOwner
-    ? [
-      ...kogPublishFiles(resolution.held),
-      { content: kogCompositionDefinition(resolution.held.kind, kogOwner), path: REGISTRATION_PATH },
-    ]
-    : kogPublishFiles(resolution.held)
-  // SCM-agnostic: the RestDefinition (+ OAS ConfigMap) chart → ONE BuilderPublish claim.
-  const res = await buildClaimPublish({
-    builder: 'controller',
-    config: ctx.config,
-    dest: restDefTarget,
-    files: publishFiles,
-    gate: () => ctx.previewGate.evaluate(gateProbe),
-    namespace: 'krateo-system',
-    origin: ctx.origin,
-    slug: resolution.held.kind,
-  })
-  return { compiled: res.compiled, deepLink: res.deepLink }
+  return runDraftPublish(deps, proposal)
 }
 
 /**
- * THE ONE PUBLISH ENTRY, for any builder's publish verb. The verb's publisher (publisherOfVerb)
- * decides, and every publisher publishes the HELD draft — the controller's included, since the
- * Controller Builder composes one (T8, frontend#412).
- *
- * THE ONE EXCEPTION is the rail's legacy controller publish: with no controller draft held, an
- * Autopilot `publishRestDef` still commits the RestDefinition it previewed and the OAS document
- * attached in the rail (dispatchKogPublish). A PERSON's Publish never reaches it — the oasStore and
- * previewGate.lastDraft are not a publish source for a person: runPersonPublish passes no
- * `controller` context, so a person with nothing held is told there is nothing previewed to publish.
- * `held` on the outcome is the draft the publish was of — null for the rail's legacy publish.
+ * The NARRATED-PUBLISH recovery nudge: the person approved a publish, the model said so in prose and
+ * emitted no publish fence, so nothing was proposed and no confirm opened. The nudge names the HELD
+ * draft's own publish verb — the one its Builder allows — with its destination's prefills, so a held
+ * controller is nudged to publishRestDef, never another builder's verb. Null when the held draft's
+ * Builder publishes nothing this frontend runs.
  */
-export const publishDraft = async (deps: PublishDraftDeps, proposal: PortalActionProposal): Promise<PublishDraftOutcome> => {
-  if (publisherOfVerb(proposal.verb) !== 'controller') {
-    return runDraftPublish(deps, proposal)
+export const narratedPublishNudge = (held: BlueprintDraftHeld, heldName: string, targets: ReturnType<typeof useBuilderTargets>): string | null => {
+  const builder = builderRegistry.get({ draftKind: held.kind })?.spec
+  const verb = builder?.verbs.allowed.find((allowed) => PUBLISH_VERBS.has(allowed) && publisherOfVerb(allowed) !== null)
+  if (!builder || !verb) {
+    return null
   }
-  const heldKind = deps.blueprintStore.get()?.kind
-  if (heldKind === 'controller' || deps.initiator === 'person' || !deps.controller) {
-    return runDraftPublish(deps, proposal)
-  }
-  const outcome = await dispatchKogPublish(proposal, {
-    ...deps.controller,
-    config: deps.config,
-    kogTarget: builderTargetFor(deps.builderTargets, 'AUTOPILOT_KOG_BUILDER_REPO'),
-  })
-  return { ...outcome, held: null }
+  const target = builderTargetFor(targets, builder.publish.targetKey)
+  const scalarVerb = `{"verb":"${verb}","owner":"${target.owner}","repo":"${target.repo}","base":"main"}`
+  return `You approved publishing \`${heldName}\` but your reply contained NO portal-action fence, so nothing was proposed and no confirm dialog opened. Do NOT say the user "will be asked to confirm" — EMITTING the fence is ITSELF what opens the blast-radius dialog. Re-issue the PUBLISH step NOW as a single fenced \`\`\`portal-action block containing ONLY this one scalar verb: ${scalarVerb}. The portal commits the held ${draftKindPlugin(builder.draftKind).nouns.short} as ONE publish claim — a branch with its files, and a change request for review — you do NOT write any of that yourself.`
 }
 
 export interface PersonPublishDeps extends PublishDraftDeps {

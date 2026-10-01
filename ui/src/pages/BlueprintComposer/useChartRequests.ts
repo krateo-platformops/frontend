@@ -17,12 +17,15 @@
  * THE LAST RENDER is what the Source tab shows: the objects (or the error) of the most recent
  * preview of the held chart, whoever asked for it. The agent's previewBlueprint of the held draft
  * arrives on the preview bus instead, and the composer hands it to `adopt` — the drawer defers that
- * preview to this page while it is mounted, so if this page did not show it nobody would.
+ * preview to this page while it is mounted, so if this page did not show it nobody would. The agent's
+ * previewRestDef of a held controller arrives on the render-result bus under an agent id
+ * (AGENT_RENDER_ID_PREFIX), and its render is adopted the same way.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { DraftKind } from '../../components/Autopilot/blueprintDraftStore'
 import {
+  AGENT_RENDER_ID_PREFIX,
   emitChartStart,
   emitDraftRenderRequest,
   onDraftRenderResult,
@@ -61,6 +64,13 @@ export const useChartRequests = (): ChartRequests => {
 
   useEffect(() => onDraftRenderResult((detail) => {
     const mine = asked.current
+    // The AGENT's preview of the held draft (controllerVerbs.ts) renders the same draft this page
+    // shows, so its render is shown too — the Source tab is "the last render of the held draft,
+    // whoever asked". Its outcome is the agent's chip, not this page's alert.
+    if (detail.id.startsWith(AGENT_RENDER_ID_PREFIX) && detail.payload) {
+      setLastRender(lastRenderOf(detail.payload))
+      return
+    }
     if (!mine || mine.id !== detail.id) {
       return
     }

@@ -293,12 +293,18 @@ describe('previewRestDef — structured source preview, zero network', () => {
     expect(chip?.label).toMatch(/^preview blocked — \d+ validation error/)
   })
 
-  it('denies malformed args (missing / non-object / empty draft): null, no drawer', async () => {
+  it('denies malformed args (non-object / empty draft): null, no drawer', async () => {
     const deps = makeDeps()
-    expect(previewRestDefSpec.argSchema(asProposal('previewRestDef', {}))).toBe(false)
-    expect(await previewRestDefSpec.apply(asProposal('previewRestDef', {}), deps)).toBeNull()
+    expect(previewRestDefSpec.argSchema(asProposal('previewRestDef', { restDefinition: 'kind: RestDefinition' }))).toBe(false)
     expect(await previewRestDefSpec.apply(asProposal('previewRestDef', { restDefinition: 'kind: RestDefinition' }), deps)).toBeNull()
     expect(await previewRestDefSpec.apply(asProposal('previewRestDef', { restDefinition: {} }), deps)).toBeNull()
+    expect(openPreviewMock).not.toHaveBeenCalled()
+  })
+
+  it('a BARE previewRestDef previews the held controller — with none held, it is told to start one (frontend#429)', async () => {
+    expect(previewRestDefSpec.argSchema(asProposal('previewRestDef', {}))).toBe(true)
+    const chip = await previewRestDefSpec.apply(asProposal('previewRestDef', {}), makeDeps())
+    expect(chip?.label).toMatch(/^previewRestDef — this portal did not run it \(no controller draft is open — start one with controllerStart/)
     expect(openPreviewMock).not.toHaveBeenCalled()
   })
 })

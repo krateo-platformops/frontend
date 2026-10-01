@@ -36,7 +36,6 @@ import { parseFileEdit, parseRestDefEdit } from './previewBridge'
 import { AUTOPILOT_PREVIEW_EVENT, draftKindOfPayload, isHeldDraftPayload, openAutopilotPreview, payloadAppliesCrs, type AutopilotPreviewPayload, type PreviewObjectEntry } from './previewBus'
 import { onPreviewSurfaceClaimed, previewSurfaceClaimed } from './previewDraftChanged'
 import { onDraftClose } from './previewDraftClose'
-import { emitRestDefEdit } from './previewEditBus'
 import { emitFileEdit } from './previewFileEdit'
 import { PreviewFormSection } from './previewFormSection'
 import styles from './previewSurface.module.css'
@@ -79,13 +78,12 @@ export interface RestDefVerdicts {
 }
 
 /**
- * FE-K(edit) — the EDITABLE RestDefinition source. The user edits the held draft's YAML in place;
- * "Apply edits" re-validates client-side (parseRestDefEdit, the SAME pipeline the preview built) and:
- *   - a parse/CRD error → the verdicts update to show the exact errors, the gate is NOT re-armed;
- *   - a clean draft     → the edited draft is emitted on the edit bus (the provider re-arms the
- *                         preview gate with the edited bytes), and a "held for publish" note shows.
- * The held-bytes guarantee holds: the edit is a human action on the held YAML, never a model round-trip.
- * `onVerdicts` lifts the current verdicts up so the shared Alert blocks reflect the LATEST edit.
+ * FE-K(edit) — the EDITABLE source of an INSPECTED RestDefinition. The user edits its YAML in place;
+ * "Apply edits" re-validates client-side (parseRestDefEdit, the SAME pipeline the preview built) and
+ * the verdicts update to the edit. It is an inspection: nothing is held and nothing can publish it — a
+ * RestDefinition is never written live (frontend#429); a controller is authored in the Controller
+ * Builder and published as a chart. `onVerdicts` lifts the verdicts up so the shared Alert blocks
+ * reflect the LATEST edit.
  */
 const RestDefEditSection = ({
   initialYaml,
@@ -107,17 +105,12 @@ const RestDefEditSection = ({
     // Lift the fresh verdicts so the drawer's Alert blocks (problems/immutability/summary) update.
     onVerdicts({ problems: result.problems, summary: result.summary, warnings: result.warnings })
     setApplied({ ok: result.ok })
-    // Only a CLEAN edit re-arms the gate — an invalid edit arms nothing (deny-by-default, exactly
-    // as an invalid model draft never arms the gate). The provider re-validates once more before recording.
-    if (result.ok && result.draft) {
-      emitRestDefEdit(result.draft)
-    }
   }
 
   // The apply-status line: absent before any apply, a success/danger note after (no nested ternary).
   let status: React.ReactNode = null
   if (applied?.ok) {
-    status = <Typography.Text type='success'>Valid — held for publish</Typography.Text>
+    status = <Typography.Text type='success'>Valid — an inspection: a controller is published from the Controller Builder</Typography.Text>
   } else if (applied) {
     status = <Typography.Text type='danger'>Fix the errors above, then apply again</Typography.Text>
   }
@@ -126,7 +119,7 @@ const RestDefEditSection = ({
     <div className={styles.edit}>
       <div className={styles.editHead}>
         <Typography.Text strong>Edit source</Typography.Text>
-        <Typography.Text type='secondary'>· {restDefKind} — edited here, held for publish (never retyped by the model)</Typography.Text>
+        <Typography.Text type='secondary'>· {restDefKind} — edited here to check it; nothing is held for publish</Typography.Text>
       </div>
       <Input.TextArea
         aria-label='RestDefinition source'

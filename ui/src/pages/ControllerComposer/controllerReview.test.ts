@@ -15,8 +15,7 @@ import { lockedFor, publishedLocks } from '../../components/Autopilot/publishedL
 import { createDraftAutosave } from '../../components/Autopilot/useDraftAutosave'
 
 import { controllerCompositionDefinition, planPlaceGroup, restDefinitionPath, type ControllerPlan } from './controllerChart'
-import { SPEC_TEXT_MAX_BYTES, startController } from './controllerStart'
-import { readSpecUrl } from './StartControllerModal'
+import { readSpecUrl, SPEC_TEXT_MAX_BYTES, startController } from './controllerStart'
 
 const PETSTORE = readFileSync(join(__dirname, '__fixtures__', 'petstore-v3.openapi.json'), 'utf8')
 

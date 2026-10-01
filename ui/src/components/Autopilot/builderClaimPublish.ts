@@ -37,8 +37,7 @@ export interface ClaimPublishResult {
  * Build + compile one builder's SCM-agnostic publish. `dest` is the user-confirmed destination from
  * the publish form (owner→namespace, repo, base) — it overrides the install-config target so the
  * human's choice always wins. `gate` returns the preview-gate verdict for the claim op set
- * (blueprint/page: blueprintGate, which now arms on `builderpublishes`; controller: the KOG gate via
- * a synthetic probe). The install-level git connection + credentials are NOT here — the composition
+ * (blueprintGate, which arms on `builderpublishes` for every builder's held draft). The install-level git connection + credentials are NOT here — the composition
  * supplies them, so a token never rides in the claim.
  */
 export const buildClaimPublish = async (args: {

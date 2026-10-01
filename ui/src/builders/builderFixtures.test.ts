@@ -21,6 +21,7 @@ import { BLUEPRINT_DRAFT_MAX_BYTES } from '../components/Autopilot/blueprintDraf
 import { DRAFT_RENDER_RESTACTION } from '../components/Autopilot/blueprintRenderSandbox'
 import { resolveBuilderTargets } from '../components/Autopilot/builderTargets'
 import { CHART_VERBS } from '../components/Autopilot/chartVerbs'
+import { CONTROLLER_VERBS } from '../components/Autopilot/controllerVerbs'
 import { REGISTRATION_PATH } from '../components/Autopilot/publishDraft'
 import { PROJECTION_BUNDLE_PATH } from '../pages/BlueprintComposer/projectionCompile'
 import { SLUG_PATTERN } from '../pages/PageComposer/startDraft'
@@ -113,7 +114,7 @@ describe.each(FIXTURES)('the %s Builder', (name) => {
   })
 
   it('allows only verbs the action bridge knows', () => {
-    const known = new Set([...COMPOSE_VERBS, ...CHART_VERBS, 'previewPage', 'previewBlueprint', 'publishPage', 'publishBlueprint', 'previewRestDef', 'publishRestDef'])
+    const known = new Set([...COMPOSE_VERBS, ...CHART_VERBS, ...CONTROLLER_VERBS, 'previewPage', 'previewBlueprint', 'publishPage', 'publishBlueprint', 'previewRestDef', 'publishRestDef'])
     expect(parsed(name).spec.verbs.allowed.filter((verb) => !known.has(verb))).toEqual([])
   })
 
@@ -185,7 +186,7 @@ describe('what each fixture says about its own builder', () => {
  */
 const PORTAL_CHART_SHA256: Record<string, string> = {
   'blueprint-builder.builder.yaml': '650e4e2b65d5648e4ccb580410cbb57c5755f67c7b1c7cfb1b0fc7a51229681a',
-  'controller-builder.builder.yaml': 'c75b3fdbb499228470277d3e976870ec208afe78589873ad3f5b7aeff99c95d9',
+  'controller-builder.builder.yaml': '5674fd6fd2505343f2ac9346894452fa2e384fd43ecf41a26bd07fe414f36420',
   'portal-builder.builder.yaml': 'd42b69006a7aebb342f90c7c7663dfa6767f34dc5e874320353cbf9e88f02612',
 }
 

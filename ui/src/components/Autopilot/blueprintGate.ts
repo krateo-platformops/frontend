@@ -1,7 +1,7 @@
 /**
  * W4 BLUEPRINT-BUILDER (FE-BP2) — the blueprint PREVIEW GATE.
  *
- * THE RULE (the blueprint analogue of the KOG previewGate, see previewGate.ts): an
+ * THE RULE (now the only preview gate — the KOG one went with RestDefinition writes, frontend#429): an
  * `applyResourceSet` that writes a blueprint PUBLISH resource — the BuilderPublish
  * claim (`builderpublishes`) or the REGISTER `compositiondefinitions` (core.krateo.io)
  * — is DENIED unless a `previewBlueprint`
@@ -9,17 +9,14 @@
  * preview-before-publish deterministically on the host: the prompt teaches the
  * workflow, but prompts decay across a thread — the gate does not.
  *
- * WHY MATCH ON THE HELD DRAFT'S CHART NAME (not an in-payload identity like the KOG
- * gate does): a RestDefinition CR carries its own {kind, resourceGroup} identity in
- * its payload, but a blueprint publish (a claim, or a register CompositionDefinition)
+ * WHY MATCH ON THE HELD DRAFT'S CHART NAME (not an in-payload identity): a blueprint publish (a claim, or a register CompositionDefinition)
  * does NOT carry the Chart.yaml name in a single
  * reliable field. The held draft (blueprintDraftStore, FE-BP1) IS the source of the
  * published bytes, so its Chart.yaml name (blueprintDraft.draftDisplayName) is the
  * authoritative identity of what is being published. Matching the previewed name
  * against the currently-held draft therefore also guarantees published == previewed.
  *
- * Owned by AutopilotProvider (thread-scoped), evaluated BEFORE dispatch alongside the
- * KOG previewGate; reset on newThread. A denial produces the standard denied chip
+ * Owned by AutopilotProvider (thread-scoped), evaluated BEFORE dispatch; reset on newThread. A denial produces the standard denied chip
  * (nothing dispatched). Defense-in-depth ON TOP of the blast-radius confirm.
  *
  * NOTE ON SCOPE: `compositiondefinitions` is also how a normal marketplace Install

@@ -83,6 +83,8 @@ const REDACTION_MARKER = /\[redacted(-jwt)?\]/
  * same tick (useDraftFileBuses). Null when the provider is not mounted.
  */
 export const readHeldDraft = (): DraftChangedDetail | null => {
+  // No window (a server-side or non-DOM caller) means no provider, and so no held draft.
+  if (typeof window === 'undefined') { return null }
   let held: DraftChangedDetail | null = null
   const stop = onDraftChanged((detail) => { held = detail })
   requestDraftReplay()

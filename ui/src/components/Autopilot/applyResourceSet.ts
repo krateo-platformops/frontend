@@ -96,6 +96,18 @@ export const isGitWriteTarget = (gvr: ApplyResourceSetGvr): boolean =>
   gvr.group === GITHUB_GIT_WRITE_GROUP && GIT_WRITE_RESOURCES.includes(gvr.resource)
 
 /**
+ * RestDefinitions are never written through a set (frontend#429). A RestDefinition written live
+ * would skip everything the Controller Builder enforces — the reserved API groups, the base-URL
+ * rewrite of every `servers` entry, conflict settlement, the lint and the oasgen render — so a
+ * controller is authored through the Controller Builder's verbs and published as a chart. Any group:
+ * the plural is what oasgen serves, and a look-alike group is no safer.
+ */
+export const isRestDefinitionTarget = (gvr: ApplyResourceSetGvr | undefined): boolean => gvr?.resource === 'restdefinitions'
+
+/** The sentence a set writing a RestDefinition is refused with. */
+export const RESTDEFINITION_WRITE_DENIAL = 'denied — RestDefinitions are not written through applyResourceSet: author controllers through the Controller Builder (controllerStart, controllerPlace, controllerMapVerb, previewRestDef), then publish the held controller with publishRestDef.'
+
+/**
  * True when the op targets the NEVER-HAND-APPLY surface (widget CRs / RESTActions —
  * the objects the portal composition renders from the chart). These are writable
  * through the set fabric ONLY into the configured preview sandbox namespace (A.3).
@@ -160,7 +172,7 @@ export const isSetOpAllowed = (op: ApplyResourceSetOp | undefined, sandboxNamesp
   if (name !== undefined && (typeof name !== 'string' || !isPathSegment(name))) {
     return false
   }
-  if (!isSetOpGroupAllowed(gvr) || isGitWriteTarget(gvr)) {
+  if (!isSetOpGroupAllowed(gvr) || isGitWriteTarget(gvr) || isRestDefinitionTarget(gvr)) {
     return false
   }
 

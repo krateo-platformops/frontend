@@ -24,13 +24,13 @@ const configMap = (data: Record<string, unknown>): ApplyResourceSetOp => ({
 
 describe('compilePublishOps — the $fileContent token', () => {
   it('refuses a set that carries it, naming the publish verbs', () => {
-    const result = compilePublishOps([configMap({ chart: { $fileContent: 'Chart.yaml' } })], ALLOW, ALLOW, null, origin)
+    const result = compilePublishOps([configMap({ chart: { $fileContent: 'Chart.yaml' } })], ALLOW, null, origin)
     expect(result.ops).toBeNull()
     expect(result.denial).toMatch(/publishBlueprint/)
   })
 
   it('compiles a set without it as before', () => {
-    const result = compilePublishOps([configMap({ key: 'value' })], ALLOW, ALLOW, null, origin)
+    const result = compilePublishOps([configMap({ key: 'value' })], ALLOW, null, origin)
     expect(result.denial).toBeNull()
     expect(result.ops).toHaveLength(1)
   })
@@ -45,7 +45,7 @@ describe('compilePublishOps — a hand-written git-write set', () => {
       payload: { spec: { content: 'x', path: 'Chart.yaml' } },
       verb: 'POST',
     }
-    const result = compilePublishOps([repoContent], ALLOW, ALLOW, null, origin)
+    const result = compilePublishOps([repoContent], ALLOW, null, origin)
     expect(result.ops).toBeNull()
     expect(result.denial).toMatch(/publishBlueprint/)
   })

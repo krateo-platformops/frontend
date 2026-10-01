@@ -19,6 +19,13 @@ export const AUTOPILOT_CHART_START_EVENT = 'autopilotChartStart'
 export const AUTOPILOT_DRAFT_RENDER_REQUEST_EVENT = 'autopilotDraftRenderRequest'
 export const AUTOPILOT_DRAFT_RENDER_RESULT_EVENT = 'autopilotDraftRenderResult'
 
+/**
+ * The id prefix of a start or render the AGENT asked for (controllerVerbs.ts). A mounted composer
+ * shows the render it answers — it is a render of the draft the composer holds — while the outcome
+ * belongs to the agent's chip.
+ */
+export const AGENT_RENDER_ID_PREFIX = 'agent-render-'
+
 /** Start a chart draft from these files (the composer's Start). Answered by a render result with the same id. */
 export interface ChartStartDetail {
   id: string

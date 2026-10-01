@@ -150,7 +150,7 @@ describe('the remembered destination is per kind', () => {
     // 1. Confirm a KOG mapping into the registry repo — the answer worth remembering.
     let kog: Promise<unknown> = Promise.resolve()
     await act(async () => {
-      kog = requestPublishTarget({ base: 'main', kind: 'restdef', owner: 'krateo-platformops', repo: 'krateo-oas' })
+      kog = requestPublishTarget({ base: 'main', kind: 'controller', owner: 'krateo-platformops', repo: 'krateo-oas' })
       await Promise.resolve()
     })
     await waitFor(() => expect(screen.getByTestId('publish-target-form')).toBeTruthy())

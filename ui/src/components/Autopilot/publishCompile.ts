@@ -9,7 +9,7 @@
  * Plus the held-draft identity helpers the finalize branches share. No React, no network.
  */
 
-import { isGitWriteTarget, type ApplyResourceSetOp } from './applyResourceSet'
+import { isGitWriteTarget, isRestDefinitionTarget, RESTDEFINITION_WRITE_DENIAL, type ApplyResourceSetOp } from './applyResourceSet'
 import { stampAuthorship, type AuthorshipOrigin } from './authorship'
 import { draftDisplayName, lintBlueprintDraft } from './blueprintDraft'
 import { opsCarryFileContentToken, type BlueprintDraftHeld, type BlueprintDraftStore } from './blueprintDraftStore'
@@ -20,7 +20,7 @@ import { substituteOasAttachment, type OasAttachment } from './oasAttachment'
 import { isPageDraft, pageDisplayName, pageDraftFiles } from './pageDraft'
 import { parseProposedChart } from './proposedChart'
 
-/** A preview-gate verdict shape (both the KOG and blueprint gates match this). */
+/** A preview-gate verdict shape (the blueprint gate's). */
 export type GateVerdict = { allowed: true } | { allowed: false; reason: string }
 
 /** The compiled publish set, or the first denial reason (nothing dispatched). */
@@ -32,19 +32,21 @@ export interface PublishCompileResult {
 }
 
 /**
- * The model-emitted applyResourceSet compile pipeline. Order: both preview gates, the $fileContent
+ * The model-emitted applyResourceSet compile pipeline. Order: the RestDefinition refusal, the preview
+ * gate, the git-write and $fileContent
  * refusal, the $oasAttachment substitution (held bytes replace the token), then the host authorship
  * stamp. Any failure short-circuits to a denial with NO compiled ops.
  */
 export const compilePublishOps = (
   ops: readonly ApplyResourceSetOp[] | undefined,
-  kogVerdict: GateVerdict,
   blueprintVerdict: GateVerdict,
   oasAttachment: OasAttachment | null,
   origin: AuthorshipOrigin,
 ): PublishCompileResult => {
-  if (!kogVerdict.allowed) {
-    return { denial: kogVerdict.reason, ops: null }
+  // Refused by name before any gate: a RestDefinition is authored in the Controller Builder and
+  // published as a chart, never written live (frontend#429). The apply-set kernel refuses it too.
+  if ((ops ?? []).some((op) => isRestDefinitionTarget(op?.gvr))) {
+    return { denial: RESTDEFINITION_WRITE_DENIAL, ops: null }
   }
   if (!blueprintVerdict.allowed) {
     return { denial: blueprintVerdict.reason, ops: null }
@@ -71,8 +73,7 @@ export const compilePublishOps = (
  * The publish-compile step every builder uses. The op set is a SINGLE BuilderPublish claim carrying
  * the held files verbatim — no token to substitute (the composition splits each path into fileName +
  * toRepo.path and git-provider commits the bytes). A preview gate enforces preview-before-publish
- * (blueprint/page: blueprintGate, armed on the claim's `builderpublishes` resource; controller: the
- * KOG preview gate via a synthetic probe), then the authorship stamp lands on the claim envelope.
+ * (blueprintGate, armed on the claim's `builderpublishes` resource, for every builder's held draft), then the authorship stamp lands on the claim envelope.
  */
 export const compileClaimPublish = (
   ops: ApplyResourceSetOp[],
