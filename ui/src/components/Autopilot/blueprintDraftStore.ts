@@ -27,7 +27,7 @@
 
 import { registryUnavailable } from '../../builders/builderRegistry'
 import { isDraftKind, type DraftKindName } from '../../builders/draftKinds'
-import { pinServedVersion } from '../../pages/ControllerComposer/servedVersion'
+import { lockedServedVersion, pinServedVersion, servedVersionUnknown } from '../../pages/ControllerComposer/servedVersion'
 import { countNoun } from '../../utils/utils'
 
 import type { ApplyResourceSetOp } from './applyResourceSet'
@@ -121,13 +121,16 @@ export interface FilesChange {
  * pinServedVersion) — here, for the same reason: every write passes this point, so no gesture, agent
  * verb or hand edit can hold a document whose version would move the API its Kinds are served under.
  * A controller that was PUBLISHED (publishedLocks names it — set by the record's resume before its
- * files are held) keeps the version it was published under: its lock says which, and the lint holds it.
+ * files are held) is held to the version it was published under instead: its lock says which, so a
+ * re-import or a hand edit is put back. One whose published version is unknown is left as it is, for
+ * Publish to refuse.
  */
 const settle = (files: Record<string, string>, kind: DraftKind): Record<string, string> => {
   if (kind === 'blueprint') { return regenerateArchitecture(files) }
   if (kind !== 'controller') { return files }
-  const published = lockedFor(publishedLocks.get(), kind, draftDisplayName(files)) !== null
-  return pinServedVersion(files, { published })
+  const locked = lockedFor(publishedLocks.get(), kind, draftDisplayName(files))
+  if (!locked) { return pinServedVersion(files) }
+  return pinServedVersion(files, (path) => (servedVersionUnknown(locked, path) ? null : lockedServedVersion(locked, path) ?? undefined))
 }
 
 /**

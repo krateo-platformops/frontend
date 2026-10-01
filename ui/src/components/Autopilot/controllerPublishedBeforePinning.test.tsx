@@ -10,7 +10,10 @@
  *      controllers are pinned;
  *   2. resuming it writes nothing (the record is not dirtied); an UNPUBLISHED old record is pinned and
  *      the Resume says "Updated to the current format";
- *   3. re-picking an id verb of a published Kind keeps its binding and touches no locked list.
+ *   3. re-picking an id verb of a published Kind keeps its binding and touches no locked list;
+ *   4. (second review) a published record with NO lock at all is completed too; the held document is
+ *      trusted only while it is the tree that rendered — otherwise the version is unknown and Publish
+ *      is refused until a Preview; and a published document is held to its locked version.
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -19,6 +22,7 @@ import { act, cleanup, render } from '@testing-library/react'
 import { load } from 'js-yaml'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { draftKindPlugin } from '../../builders/draftKinds'
 import type { SetDispatchOptions, WriteOpResult } from '../../hooks/runRestSet'
 import {
   completeLockedSnapshot,
@@ -81,7 +85,7 @@ const resumeLive = async (record: DraftRecordBody) => {
   act(() => { emitDraftResume({ id: 'r1', record }) })
   await vi.advanceTimersByTimeAsync(DRAFT_AUTOSAVE_DEBOUNCE_MS * 2)
   stop()
-  return { calls, results, store }
+  return { autosave, calls, results, store }
 }
 
 const versionOf = (files: Record<string, string>): string | null => readController(files).servedVersion
@@ -108,11 +112,12 @@ describe('1 — a controller published before pinning keeps the version it serve
 
   it('its lock is completed from the held document — the version that was actually published', () => {
     const record = live()
-    const completed = completeLockedSnapshot(record.publish?.locked as LockedSnapshot, record.files)
+    const completed = completeLockedSnapshot(record.publish?.locked as LockedSnapshot, record.files, true)
     expect(completed[CONFIGMAP]).toEqual({ servedVersion: '1.0.27' })
     expect(completed[PET]).toEqual(record.publish?.locked?.[PET])
     // A lock that already names one is left as it is.
-    expect(completeLockedSnapshot(completed, record.files)).toBe(completed)
+    expect(completeLockedSnapshot(completed, record.files, true)).toBe(completed)
+    expect(completeLockedSnapshot(completed, record.files, false)).toBe(completed)
   })
 
   it('Resume holds it UNPINNED, writes nothing, says nothing about a format update — and the lint passes', async () => {
@@ -132,13 +137,13 @@ describe('1 — a controller published before pinning keeps the version it serve
     expect(servedAsText(model.group, model.servedVersion, model.sourceVersion)).toBe('petstore.example.io/v1-0-27 (published before v1alpha1 pinning)')
   })
 
-  it('a later edit is not pinned either — and moving the version (even to v1alpha1) is refused by the lock', async () => {
+  it('a later edit never moves the version — the store puts it back, and a tree that moved it is refused by the lock', async () => {
     const record = live()
     const { store } = await resumeLive(record)
     const held = store.get()?.files ?? {}
-    store.updateFile(CONFIGMAP, held[CONFIGMAP].replace('"version": "1.0.27"', '"version": "v1alpha1"'))
-    const edited = store.get()?.files ?? {}
-    expect(versionOf(edited)).toBe('v1alpha1')
+    const edited = { ...held, [CONFIGMAP]: held[CONFIGMAP].replace('"version": "1.0.27"', '"version": "v1alpha1"') }
+    store.updateFile(CONFIGMAP, edited[CONFIGMAP])
+    expect(versionOf(store.get()?.files ?? {})).toBe('1.0.27')
     expect(lintControllerDraft(edited, publishedLocks.get()?.locked)).toContain(`cannot update the controller in place: the version its Kinds are served under is locked once published ("1.0.27" → "v1alpha1"). oasgen-provider would serve a new version and prune the published one, breaking every manifest written against it — set ${CONFIGMAP}'s info.version back to 1.0.27.`)
   })
 })
@@ -159,7 +164,7 @@ describe('2 — Resume never dirties a draft silently', () => {
 describe('3 — re-picking an id verb of a published Kind', () => {
   it('the live (spec-sourced) Pet: re-picking get keeps {petId} → spec.id and changes no locked list', () => {
     const { files, publish } = live()
-    const locked = completeLockedSnapshot(publish?.locked as LockedSnapshot, files)
+    const locked = completeLockedSnapshot(publish?.locked as LockedSnapshot, files, true)
     const plan = planSetVerb(files, PET, 'get', { method: 'GET', path: '/pet/{petId}' }, locked)
     expect(plan.ok).toBe(true)
     const { resource } = (load(plan.ok ? plan.edit?.[PET] ?? '' : '') as { spec: { resource: Record<string, unknown> } }).spec
@@ -180,5 +185,50 @@ describe('3 — re-picking an id verb of a published Kind', () => {
     expect(plan).toMatchObject({ ok: true })
     const { resource } = (load(plan.ok ? plan.edit?.[PET] ?? '' : '') as { spec: { resource: Record<string, unknown> } }).spec
     expect(resource.excludedSpecFields).toBeUndefined()
+  })
+})
+
+describe('4 — second review: the state decides, the rendered tree is trusted, the lock is held', () => {
+  const bumped = (files: Record<string, string>, version: string): Record<string, string> =>
+    ({ ...files, [CONFIGMAP]: files[CONFIGMAP].replace('"version": "1.0.27"', `"version": "${version}"`) })
+
+  it('a PUBLISHED record saved before locks were kept (no publish.locked) is completed, not pinned', async () => {
+    const record = live()
+    const { calls, store } = await resumeLive({ ...record, publish: { repo: record.publish?.repo ?? '' } })
+    expect(versionOf(store.get()?.files ?? {})).toBe('1.0.27')
+    expect(publishedLocks.get()?.locked).toEqual({ [CONFIGMAP]: { servedVersion: '1.0.27' } })
+    expect(calls).toEqual([])
+  })
+
+  it('a record whose ConfigMap changed since it rendered: no guess — unpinned, Preview allowed, Publish refused, a Preview completes it', async () => {
+    const record = live()
+    const { autosave, store } = await resumeLive({ ...record, files: bumped(record.files, '1.0.28') })
+    // Held as it was saved, its version neither guessed (1.0.28) nor pinned (v1alpha1).
+    expect(versionOf(store.get()?.files ?? {})).toBe('1.0.28')
+    const locked = publishedLocks.get()?.locked ?? null
+    expect(locked?.[CONFIGMAP]).toEqual({ servedVersionUnknown: true })
+    // The lint passes, so Preview can run; Publish says why not.
+    expect(lintControllerDraft(store.get()?.files ?? {}, locked)).toEqual([])
+    expect(draftKindPlugin('controller').publishProblems?.(store.get()?.files ?? {}, locked)).toEqual([
+      `${CONFIGMAP}: the served version is unknown — this controller was published before its version was pinned, and the document changed since it rendered. Set its info.version to the version the cluster serves (see the published CRD) and preview again.`,
+    ])
+    // The person sets the version the cluster serves; the store leaves it as typed; a Preview locks it.
+    store.updateFile(CONFIGMAP, bumped(record.files, '1.0.27')[CONFIGMAP])
+    expect(versionOf(store.get()?.files ?? {})).toBe('1.0.27')
+    await act(async () => { await autosave.markRendered(store.get()) })
+    expect(publishedLocks.get()?.locked[CONFIGMAP]).toEqual({ servedVersion: '1.0.27' })
+    expect(draftKindPlugin('controller').publishProblems?.(store.get()?.files ?? {}, publishedLocks.get()?.locked ?? null)).toEqual([])
+  })
+
+  it('a published document is HELD to its locked version: a re-import or a hand edit is put back', async () => {
+    const record = live()
+    const { store } = await resumeLive(record)
+    store.updateFile(CONFIGMAP, bumped(record.files, '1.0.28')[CONFIGMAP])
+    expect(versionOf(store.get()?.files ?? {})).toBe('1.0.27')
+    expect(store.set(bumped(record.files, 'v1alpha1'), 'controller').ok).toBe(true)
+    expect(versionOf(store.get()?.files ?? {})).toBe('1.0.27')
+    // Held to a pre-pinning version: no v1alpha1 comment, nothing recorded on Chart.yaml.
+    expect(store.get()?.files[CONFIGMAP].startsWith('#')).toBe(false)
+    expect(store.get()?.files['Chart.yaml']).toBe(record.files['Chart.yaml'])
   })
 })

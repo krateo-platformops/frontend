@@ -288,7 +288,18 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
    */
   const markRenderedTree = (tree: Pick<BlueprintDraftHeld, 'files' | 'kind'>): Promise<void> => {
     const key = keyOf(tree)
-    metaOf(key).renderedHash = treeHash(tree.files)
+    const meta = metaOf(key)
+    meta.renderedHash = treeHash(tree.files)
+    // A published draft's lock left incomplete (the held tree had changed since it rendered) is
+    // completed from the tree that has now rendered — what the person set the version to.
+    const lock = publishedLocks.get()
+    const completed = lock && lock.kind === tree.kind && lock.name === draftRecordDisplayName(tree)
+      ? findDraftKindPlugin(tree.kind)?.completeLocked?.(lock.locked, tree.files, true)
+      : undefined
+    if (lock && completed && completed !== lock.locked) {
+      publishedLocks.set({ ...lock, locked: completed })
+      if (meta.publish) { meta.publish = { ...meta.publish, locked: completed } }
+    }
     if (!writer || !latest || keyOf(latest) !== key) {
       return chain
     }
@@ -361,10 +372,15 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
       meta.renderedHash = body.renderedHash
       meta.threadId = body.threadId
       // A published record brings back what its publish locked — COMPLETED by its draft kind from the
-      // files it holds (a controller published before its served version was locked: the held document
-      // is what was published, so its version is the lock's). Any other resume clears the last lock.
-      const recorded = body.state === 'published' ? body.publish?.locked : undefined
-      const locked = recorded ? findDraftKindPlugin(body.kind)?.completeLocked?.(recorded, body.files) ?? recorded : undefined
+      // files it holds (a controller published before its served version was locked: when the held tree
+      // is still the one that rendered, its document is what was published, so its version is the
+      // lock's; otherwise the version is unknown). The STATE decides, not the lock: a record published
+      // before locks were kept at all is completed from nothing. Any other resume clears the last lock.
+      const plugin = findDraftKindPlugin(body.kind)
+      const trusted = !!body.renderedHash && body.renderedHash === treeHash(body.files)
+      const recorded = body.state === 'published' ? body.publish?.locked ?? {} : undefined
+      const completed = recorded ? plugin?.completeLocked?.(recorded, body.files, trusted) ?? recorded : undefined
+      const locked = completed && Object.keys(completed).length ? completed : undefined
       meta.publish = body.publish && locked ? { ...body.publish, locked } : body.publish
       publishedLocks.set(locked ? { kind: body.kind, locked, name: body.name } : null)
       // What the record already holds: holding it again is not a change worth a write. The completed

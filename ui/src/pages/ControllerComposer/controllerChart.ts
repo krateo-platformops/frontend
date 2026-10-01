@@ -38,7 +38,7 @@ import { CHART_YAML_PATH } from '../../components/Autopilot/blueprintDraft'
 import { BLUEPRINT_DRAFT_MAX_BYTES } from '../../components/Autopilot/blueprintDraftStore'
 import { asRecord, isNonEmptyString } from '../../components/Autopilot/kogRestDefSchema'
 
-import { lockedChangesOf, lockedChanges, lockedServedVersion, type LockedSnapshot } from './controllerLocks'
+import { lockedChangesOf, lockedChanges, type LockedSnapshot } from './controllerLocks'
 import {
   CONFIRMED_ANNOTATION,
   confirmedOf,
@@ -72,7 +72,9 @@ import {
   escapeHelm,
   HELM_LITERAL_OPEN,
   SERVED_VERSION,
+  lockedServedVersion,
   servedVersionProblems,
+  servedVersionUnknown,
   unescapeHelm,
 } from './servedVersion'
 import { shownUrl, urlCredentialProblem } from './urlCredential'
@@ -226,7 +228,7 @@ export const lintControllerDraft = (files: Readonly<Record<string, string>>, loc
         .map((path) => `${path}: a controller chart holds only Chart.yaml, values*, templates/restdefinition-<kind>.yaml and templates/configmap-oas-<name>.yaml — this file would be published without the preview ever rendering it. Remove it.`),
       ...helmActionProblems(files),
       ...(model.specProblem ? [model.specProblem] : []),
-      ...(model.spec ? servedVersionProblems(model.spec.path, model.spec.oas.doc, lockedServedVersion(locked, model.spec.path) !== null) : []),
+      ...(model.spec ? servedVersionProblems(model.spec.path, model.spec.oas.doc, lockedServedVersion(locked, model.spec.path) !== null || servedVersionUnknown(locked, model.spec.path)) : []),
       ...foreignServers(model),
       ...model.unreadable.map(({ path, reason }) => `${path}: ${reason}`),
       ...model.kinds.flatMap((entry) => [

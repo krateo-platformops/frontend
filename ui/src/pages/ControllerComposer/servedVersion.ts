@@ -23,10 +23,12 @@
  * ConfigMap carries a comment saying why its document says v1alpha1. What a publish LOCKS is the
  * ConfigMap's info.version (controllerLocks.ts lockedSnapshot), like the kind and the group.
  *
- * ONLY A CONTROLLER NEVER PUBLISHED IS PINNED. One published before this pinning existed serves its
- * vendor's version (`1.0.27` → `v1-0-27`), and its manifests are written against that: pinning it
- * would move them. Its lock (completed from the held document when the record predates the
- * servedVersion lock) keeps the published version, and `pinServedVersion` leaves it alone.
+ * ONLY A CONTROLLER NEVER PUBLISHED IS PINNED TO v1alpha1. One published before this pinning existed
+ * serves its vendor's version (`1.0.27` → `v1-0-27`), and its manifests are written against that:
+ * pinning it would move them. Its lock (completed from the held document when the record predates
+ * the servedVersion lock and the held tree is still the rendered one) names the published version,
+ * and `pinServedVersion` holds the document to THAT. When the held tree changed since it rendered,
+ * the version is unknown: the document is left alone and Publish is refused until a Preview.
  *
  * WHEN oasgen GROWS A FIELD FOR IT. oasgen may add `spec.resource.version` to the RestDefinition (the
  * version stated on the resource instead of read from the document). When it ships, switch HERE:
@@ -75,10 +77,10 @@ export const specInfoVersion = (doc: unknown): string | null => {
   return typeof version === 'string' ? version : null
 }
 
-/** The document with info.version set to the served version (info created when absent). */
-export const pinDocVersion = <T extends Record<string, unknown>>(doc: T): T => ({
+/** The document with info.version set to the served version, or to `version` (info created when absent). */
+export const pinDocVersion = <T extends Record<string, unknown>>(doc: T, version: string = SERVED_VERSION): T => ({
   ...doc,
-  info: { ...(asRecord(doc.info) ?? {}), version: SERVED_VERSION },
+  info: { ...(asRecord(doc.info) ?? {}), version },
 })
 
 /** Parse a document text the way it was written: JSON when it opens with `{`, YAML otherwise. */
@@ -95,8 +97,8 @@ const parseDocument = (text: string): { doc: Record<string, unknown>; json: bool
 /** A ConfigMap's text with the comment at its head, once. */
 const withComment = (text: string): string => (text.startsWith(SERVED_VERSION_COMMENT) ? text : `${SERVED_VERSION_COMMENT}\n${text}`)
 
-/** One ConfigMap pinned: its new text and the versions it carried, or null when nothing needed pinning. */
-const pinConfigMap = (text: string): { text: string; sources: string[] } | null => {
+/** One ConfigMap pinned to `target`: its new text and the versions it carried, or null when nothing needed pinning. */
+const pinConfigMap = (text: string, target: string): { text: string; sources: string[] } | null => {
   let configMap: Record<string, unknown> | null
   try {
     configMap = asRecord(load(text))
@@ -113,13 +115,15 @@ const pinConfigMap = (text: string): { text: string; sources: string[] } | null 
     // Only an OpenAPI document is touched — any other key the ConfigMap carries is left alone.
     if (!parsed || (parsed.doc.openapi === undefined && parsed.doc.swagger === undefined)) { continue }
     const version = specInfoVersion(parsed.doc)
-    if (version === SERVED_VERSION) { continue }
+    if (version === target) { continue }
     sources.push(version ?? '')
-    const pinned = pinDocVersion(parsed.doc)
+    const pinned = pinDocVersion(parsed.doc, target)
     nextData[key] = escapeHelm(parsed.json ? `${JSON.stringify(pinned, null, 2)}\n` : yaml(pinned))
   }
   if (!sources.length) { return null }
-  return { sources, text: withComment(yaml({ ...configMap, data: nextData })) }
+  const pinnedText = yaml({ ...configMap, data: nextData })
+  // The comment explains v1alpha1; a document held to a pre-pinning published version carries none.
+  return { sources, text: target === SERVED_VERSION ? withComment(pinnedText) : pinnedText }
 }
 
 /** Chart.yaml with the source-version annotation set (unchanged text when it already says so, or does not read). */
@@ -141,17 +145,26 @@ const annotateChart = (text: string, source: string): string => {
  * THE one function: every held OAS ConfigMap's document says info.version v1alpha1, and the version it
  * said before is kept on Chart.yaml. A tree that needs nothing is returned as the same object, byte for
  * byte; a ConfigMap that does not read is left for the lint to name.
+ *
+ * PUBLISHED: `lockedVersion` names the version a ConfigMap's document was published under, and the
+ * document is held to THAT (a re-import or a hand edit is put back), with nothing kept on Chart.yaml
+ * unless it is v1alpha1. `null` — published, but which version is unknown — leaves the document alone
+ * for Publish to refuse; `undefined` — never published — pins it to v1alpha1.
  */
-export const pinServedVersion = (files: Record<string, string>, options: { published?: boolean } = {}): Record<string, string> => {
-  // Published: the version it was published under is locked, whatever it is — never pinned.
-  if (options.published) { return files }
+export const pinServedVersion = (
+  files: Record<string, string>,
+  lockedVersion: (configMapPath: string) => string | null | undefined = () => undefined,
+): Record<string, string> => {
   let next: Record<string, string> | null = null
   let source: string | null = null
   for (const path of Object.keys(files).filter((entry) => CONFIGMAP_PATH.test(entry)).sort()) {
-    const pinned = pinConfigMap(files[path])
+    const locked = lockedVersion(path)
+    if (locked === null) { continue }
+    const target = locked ?? SERVED_VERSION
+    const pinned = pinConfigMap(files[path], target)
     if (!pinned) { continue }
     next = { ...(next ?? files), [path]: pinned.text }
-    source = source ?? pinned.sources.find((entry) => entry !== '') ?? null
+    if (target === SERVED_VERSION) { source = source ?? pinned.sources.find((entry) => entry !== '') ?? null }
   }
   if (!next) { return files }
   if (source !== null && typeof next[CHART_YAML] === 'string') {
@@ -208,3 +221,21 @@ export const servedAsText = (group: string, heldVersion: string | null, sourceVe
   }
   return sourceVersion ? `${group}/${SERVED_VERSION} (the document says ${sourceVersion}; pinned)` : `${group}/${SERVED_VERSION}`
 }
+
+// ── what a publish locked (controllerLocks.ts keeps the lock; these read it, and stay leaf-safe) ──
+
+/** A controller's lock as controllerLocks.ts snapshots it, by path. */
+type ServedVersionLock = Readonly<Record<string, Record<string, unknown>>> | null | undefined
+
+/** On a lock's ConfigMap entry: published before the served version was locked, and the held tree no longer proves which. */
+export const SERVED_VERSION_UNKNOWN = 'servedVersionUnknown'
+
+/** The version the lock holds a document's Kinds to, or null when the controller was never published (or it is unknown). */
+export const lockedServedVersion = (locked: ServedVersionLock, configMapPath: string): string | null => {
+  const value = locked?.[configMapPath]?.servedVersion
+  return typeof value === 'string' ? value : null
+}
+
+/** True when the lock says the document was published but its served version is not known. */
+export const servedVersionUnknown = (locked: ServedVersionLock, configMapPath: string): boolean =>
+  locked?.[configMapPath]?.[SERVED_VERSION_UNKNOWN] === true

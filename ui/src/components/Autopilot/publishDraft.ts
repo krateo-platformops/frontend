@@ -51,6 +51,7 @@ import { pageCompositionDefinition } from './pageDraft'
 import type { PublishRequestDetail, PublishResultDetail } from './previewPublishRequest'
 import { lintHeldDraft } from './proposedChart'
 import { heldDraftIdentity, type PublishCompileResult } from './publishCompile'
+import { lockedFor, publishedLocks } from './publishedLocks'
 import { askPublishDestination, type PublishInitiator, type PublishTargetRequest } from './publishTargetForm'
 import type { AutopilotActionChip } from './types'
 import type { DraftAutosave } from './useDraftAutosave'
@@ -223,6 +224,15 @@ export const runDraftPublish = async (
   const lintProblems = held ? lintHeldDraft(held.files, held.kind) : []
   if (lintProblems.length) {
     return denied(`denied — the draft fails the chart lint: ${lintProblems.join('; ')}`, held)
+  }
+  // Lint-clean, and previewable, but not publishable under what its last publish locked (a controller
+  // whose published served version is unknown): said before anyone is asked where it goes.
+  const heldKind = held ? draftKindOf(held.kind) : null
+  const lockProblems = held && heldKind?.publishProblems
+    ? heldKind.publishProblems(held.files, lockedFor(publishedLocks.get(), held.kind, heldKind.displayName(held.files)))
+    : []
+  if (lockProblems.length) {
+    return denied(`denied — ${lockProblems.join('; ')}`, held)
   }
   // A valid chart can still be unpublishable: the claim is named for it, and core-provider refuses a
   // long claim name at admission — the LAST step, after the person confirmed. Said here, first.

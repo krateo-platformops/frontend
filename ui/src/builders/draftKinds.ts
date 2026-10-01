@@ -14,7 +14,7 @@
  */
 import { draftDisplayName } from '../components/Autopilot/blueprintDraft'
 import { pageRootSlug } from '../components/Autopilot/pageDraft'
-import { completeLockedSnapshot, lockedSnapshot } from '../pages/ControllerComposer/controllerChart'
+import { completeLockedSnapshot, lockedSnapshot, servedVersionUnknownProblems } from '../pages/ControllerComposer/controllerChart'
 
 import { builderOf, findBuilderOf } from './builderRegistry'
 
@@ -53,9 +53,15 @@ export interface DraftKindPlugin {
   lockedSnapshot?: (files: Record<string, string>) => Record<string, Record<string, unknown>>
   /**
    * A record's lock, completed from the files it holds when it predates a field this build locks (a
-   * controller published before its served version was locked). Absent: the lock is used as stored.
+   * controller published before its served version was locked). `trusted`: the files are still the
+   * tree that rendered, so they say what was published. Absent: the lock is used as stored.
    */
-  completeLocked?: (locked: Record<string, Record<string, unknown>>, files: Record<string, string>) => Record<string, Record<string, unknown>>
+  completeLocked?: (locked: Record<string, Record<string, unknown>>, files: Record<string, string>, trusted: boolean) => Record<string, Record<string, unknown>>
+  /**
+   * Why a draft of this kind, lint-clean and previewed, still cannot be published under its lock (a
+   * controller whose published served version is unknown). Absent: nothing beyond the lint.
+   */
+  publishProblems?: (files: Record<string, string>, locked: Record<string, Record<string, unknown>> | null) => string[]
 }
 
 /*
@@ -86,7 +92,7 @@ const DRAFT_KINDS = {
   controller: {
     // A RestDefinition's kind, group, identifiers, configuration and status fields are CEL-immutable,
     // and the version its Kinds are served under is the published document's info.version.
-    completeLocked: (locked, files) => completeLockedSnapshot(locked, files),
+    completeLocked: (locked, files, trusted) => completeLockedSnapshot(locked, files, trusted),
     description: 'a controller chart — RestDefinitions and their OpenAPI documents — named by its Chart.yaml',
     displayName: (files) => draftDisplayName(files),
     lockedSnapshot: (files) => lockedSnapshot(files),
@@ -98,6 +104,7 @@ const DRAFT_KINDS = {
       renameHint: '',
       short: 'controller',
     },
+    publishProblems: (files, locked) => servedVersionUnknownProblems(files, locked),
     publishSlug: (files) => draftDisplayName(files),
   },
   page: {
