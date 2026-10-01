@@ -11,6 +11,7 @@ import { createElement } from 'react'
 
 import BlastRadiusConfirm, { VERB_INTENT } from '../components/BlastRadius/BlastRadiusConfirm'
 import { LAYER } from '../theme/layers'
+import { countNoun } from '../utils/utils'
 
 import type { BlastRadius, BlastRadiusSet } from './blastRadius.types'
 
@@ -57,7 +58,7 @@ export const buildConfirmModalProps = (
     && (isSet ? radius.ops.some((op) => op.irreversible) : radius.verb === 'DELETE')
   let title = radius ? 'Confirm write' : 'Are you sure?'
   if (isSet) {
-    title = `Confirm ${radius.count} writes`
+    title = `Confirm ${countNoun(radius.count, 'write')}`
   }
 
   // P18: the button names the outcome it confirms. This is the ONE gate every mutating write
@@ -67,7 +68,7 @@ export const buildConfirmModalProps = (
   // the two cannot drift: the body says "delete", the button says "Confirm delete".
   let okText = 'Confirm'
   if (isSet) {
-    okText = `Confirm ${radius.count} writes`
+    okText = `Confirm ${countNoun(radius.count, 'write')}`
   } else if (radius) {
     okText = `Confirm ${VERB_INTENT[radius.verb]}`
   }

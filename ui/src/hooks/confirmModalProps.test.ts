@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { confirmWithTimeout } from './confirmModalProps'
+import type { BlastRadiusSet, BlastRadiusSetOp } from './blastRadius.types'
+import { buildConfirmModalProps, confirmWithTimeout } from './confirmModalProps'
 
 /**
  * The blast-radius confirm is the last gate before a portal write, and after the UI-parity work
@@ -71,5 +72,22 @@ describe('confirmWithTimeout — the gate denies on silence', () => {
     await timedOut
     expect(settled).toEqual(['ok', 'timeout'])
     vi.useRealTimers()
+  })
+})
+
+describe('buildConfirmModalProps — the set count agrees with its noun', () => {
+  const op: BlastRadiusSetOp = { gvr: { group: 'apps', resource: 'deployments', version: 'v1' }, irreversible: false, namespace: 'demo', verb: 'POST' }
+  const noop = () => undefined
+
+  it('reads "Confirm 1 write" — never "1 writes" — on a single-op set, title and button', () => {
+    const props = buildConfirmModalProps({ count: 1, kind: 'set', ops: [op] } satisfies BlastRadiusSet, noop, noop)
+    expect(props.title).toBe('Confirm 1 write')
+    expect(props.okText).toBe('Confirm 1 write')
+  })
+
+  it('reads "Confirm 2 writes" on a two-op set, title and button', () => {
+    const props = buildConfirmModalProps({ count: 2, kind: 'set', ops: [op, op] } satisfies BlastRadiusSet, noop, noop)
+    expect(props.title).toBe('Confirm 2 writes')
+    expect(props.okText).toBe('Confirm 2 writes')
   })
 })

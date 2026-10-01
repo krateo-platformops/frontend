@@ -22,6 +22,7 @@ import lightfair from 'react-syntax-highlighter/dist/esm/styles/hljs/lightfair.j
 
 import { useThemeMode } from '../../context/ThemeModeContext'
 import type { BlastRadius, BlastRadiusDiff, BlastRadiusSet, BlastRadiusSetOp, Gvr } from '../../hooks/blastRadius.types'
+import { countNoun } from '../../utils/utils'
 
 import styles from './BlastRadiusConfirm.module.css'
 
@@ -123,7 +124,7 @@ const humanizeOp = (op: BlastRadiusSetOp): string | null => {
       const files = Array.isArray(spec?.files) ? spec.files.length : 0
       const where = repo ? ` to ${repo}` : ''
       const onBranch = branch ? ` on ${branch}` : ''
-      const count = files ? ` (${files} file${files === 1 ? '' : 's'})` : ''
+      const count = files ? ` (${countNoun(files, 'file')})` : ''
       return `Open a change request${where}${onBranch}${count}`
     }
     default:
@@ -137,7 +138,7 @@ const claimPublishMeta = (op: BlastRadiusSetOp): string => {
   const spec = (payload?.spec && typeof payload.spec === 'object' ? payload.spec as Record<string, unknown> : undefined)
   const files = Array.isArray(spec?.files) ? spec.files.length : 0
   const branch = typeof spec?.branch === 'string' ? spec.branch : ''
-  return [files ? `${files} file${files === 1 ? '' : 's'}` : '', branch ? `→ ${branch}` : ''].filter(Boolean).join(' ')
+  return [files ? countNoun(files, 'file') : '', branch ? `→ ${branch}` : ''].filter(Boolean).join(' ')
 }
 
 /** True when the radius is the aggregated W0-4 set shape (vs a scalar write). */
@@ -171,9 +172,9 @@ const SetView = ({ radius }: { radius: BlastRadiusSet }) => {
   const files = radius.ops.filter((op) => op.gvr.resource === 'repocontents').length
   const prs = radius.ops.filter((op) => op.gvr.resource === 'pullrequests').length
   const publishMeta = claimOp ? claimPublishMeta(claimOp) : [
-    branches ? `${branches} branch` : '',
-    files ? `${files} file${files === 1 ? '' : 's'}` : '',
-    prs ? `${prs} change request` : '',
+    branches ? countNoun(branches, 'branch', 'branches') : '',
+    files ? countNoun(files, 'file') : '',
+    prs ? countNoun(prs, 'change request') : '',
   ].filter(Boolean).join(' · ')
 
   return (
@@ -187,7 +188,7 @@ const SetView = ({ radius }: { radius: BlastRadiusSet }) => {
         <>
           <div className={styles.headline}>
             <span className={styles.verb} data-verb='SET'>SET</span>
-            <span className={styles.intent}>apply {radius.count} objects, in order</span>
+            <span className={styles.intent}>apply {countNoun(radius.count, 'object')}, in order</span>
           </div>
           <dl className={styles.facts}>
             <div className={styles.factRow}>
