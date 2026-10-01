@@ -244,15 +244,16 @@ describe('the edit verbs — the inspector\'s and the palette\'s plans', () => {
 
   it('with nothing held, every edit verb says to start a controller first', async () => {
     mount()
-    const labels = await Promise.all([
+    // One at a time: each runs inside its own act(), and overlapping acts are not supported.
+    for (const proposal of [
       { group: 'pet', verb: 'controllerPlace' },
       { kind: 'Pet', omit: true, restAction: 'findby', verb: 'controllerMapVerb' },
       { identifiers: ['id'], kind: 'Pet', verb: 'controllerSetIdentifiers' },
       { kind: 'Pet', statusFields: [], verb: 'controllerSetStatusFields' },
       { kind: 'Pet', verb: 'controllerRemoveKind' },
-    ].map(async (proposal) => [proposal.verb, await run(proposal)]))
-    for (const [verb, label] of labels) {
-      expect(label, verb).toBe(`${verb} — this portal did not run it (${NO_CONTROLLER_HELD})`)
+    ]) {
+      // eslint-disable-next-line no-await-in-loop -- sequential is the point: one act() at a time.
+      expect(await run(proposal), proposal.verb).toBe(`${proposal.verb} — this portal did not run it (${NO_CONTROLLER_HELD})`)
     }
   })
 
