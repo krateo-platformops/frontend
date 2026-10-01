@@ -1,5 +1,5 @@
 /**
- * What an address no route serves shows when the Builders could NOT be read from the cluster.
+ * What a builder's address (isBuilderPath) shows when the Builders could NOT be read from the cluster.
  *
  * A builder's route only exists once its Builder CR is read (clusterBuilders.ts), so after a failed
  * read /portal-builder/compose and its siblings are addresses nothing serves. A bare 404 there would
@@ -16,7 +16,7 @@ const BuildersUnavailable = ({ reason }: { reason: string }) => (
     subTitle={(
       <>
         <p>{`${BUILDERS_UNAVAILABLE_TITLE}: ${reason}`}</p>
-        <p>A builder&apos;s page opens only once they can be read. Any other address here does not exist.</p>
+        <p>This builder&apos;s page opens once they can be read.</p>
       </>
     )}
     title={BUILDERS_UNAVAILABLE_TITLE}

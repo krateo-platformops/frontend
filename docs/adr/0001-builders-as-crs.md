@@ -172,12 +172,19 @@ builder meant to stop.
   `/call` cannot list a collection (its GET needs a `name`), and `/list` lists every GVR in the
   category with the caller's own client, like the Portal Builder's widget picker.
 - **The engine reads the cluster, with no fallback.** After sign-in the shell lists the Builders
-  once (cached for the session, read again on the next sign-in); until the answer arrives, paths no
-  route serves show a loading state, then each Builder is routed. A failed read (snowplow down, a
-  403, the CRD or its CRs missing) leaves no Builder running, and those paths say
-  "Builders could not be read from the cluster: <reason>". A Builder that does not parse, or names
-  a plugin this frontend lacks, is a problem sentence; the others still load. Per-builder wording
-  and naming that the CRD does not carry (a draft's display name, "a portal page") are draft-kind
-  plugins keyed by `spec.draftKind` (`ui/src/builders/draftKinds.ts`).
+  once per signed-in user (keyed on the username, so a token refresh does not read again), with a
+  15 s timeout. Until the answer arrives, paths no route serves show a loading state; then each
+  Builder is routed. The router is rebuilt only when the set of (name, route) changes, and a
+  re-read's spec reaches each composer without a remount.
+- **A failed read leaves no Builder running.** Snowplow down, a timeout, a 403, the CRD or its CRs
+  missing: a builder's address (a hub prefix, or a route a Builder declared earlier in the tab)
+  then says "Builders could not be read from the cluster: <reason>", and any other unknown address
+  stays a plain 404. Every failure but a 403 is retried with a bounded backoff (and on the next
+  mount, under the same cap). A re-read that fails while Builders are loaded keeps them and shows
+  the error as a banner. A Builder that does not parse, or names a plugin this frontend lacks, is a
+  problem sentence; the others still load. While the registry is loading or failed, the engine's
+  deny sentences blame the read, not the Builders. Per-builder wording and naming that the CRD does
+  not carry (a draft's display name, "a portal page") are draft-kind plugins keyed by
+  `spec.draftKind` (`ui/src/builders/draftKinds.ts`).
 - **Until T2, the CRD was inert.** It ships and validates, the descriptors parse and resolve,
   and nothing read them.

@@ -25,7 +25,7 @@
  * dispatch module (kogPublishDispatch.ts), is the third publisher here: one module, one claim,
  * whatever the builder, entered through `publishDraft`.
  */
-import { builderRegistry } from '../../builders/builderRegistry'
+import { builderRegistry, registryUnavailable } from '../../builders/builderRegistry'
 import type { BuilderSpec, PublishBuilder } from '../../builders/builderSpec'
 import { draftKindOf, draftKindPlugin } from '../../builders/draftKinds'
 import type { Config } from '../../context/ConfigContext'
@@ -199,7 +199,7 @@ export const runDraftPublish = async (
   const builder = builderOfVerb(proposal.verb)
   const publisher = builder ? DRAFT_PUBLISHERS[builder.publish.builder] : undefined
   if (!builder || !publisher) {
-    return denied(`denied — ${builderRegistry.verbProblem(proposal.verb) ?? `no builder publishes a held draft with ${proposal.verb}`}`, held)
+    return denied(`denied — ${builderRegistry.verbProblem(proposal.verb) ?? registryUnavailable() ?? `no builder publishes a held draft with ${proposal.verb}`}`, held)
   }
   // The verb's draft kind: how its drafts are named, and what a denial calls them.
   const kind = draftKindPlugin(builder.draftKind)

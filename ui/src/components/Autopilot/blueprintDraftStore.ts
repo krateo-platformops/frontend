@@ -25,6 +25,7 @@
  * it, exactly like the OAS store).
  */
 
+import { registryUnavailable } from '../../builders/builderRegistry'
 import { isDraftKind, type DraftKindName } from '../../builders/draftKinds'
 
 import type { ApplyResourceSetOp } from './applyResourceSet'
@@ -125,7 +126,7 @@ export const createBlueprintDraft = (given: Record<string, string>, kind: DraftK
   // A kind from data (a record, a bus) is typed only by its producer's promise: check it here, where
   // every draft is held.
   if (!isDraftKind(kind)) {
-    return { error: `no builder declares the draft kind "${String(kind)}" — a draft is held only under a kind a loaded Builder declares`, ok: false }
+    return { error: registryUnavailable() ? `no draft can be held yet: ${registryUnavailable()}` : `no builder declares the draft kind "${String(kind)}" — a draft is held only under a kind a loaded Builder declares`, ok: false }
   }
   const files = settle(given, kind)
   const paths = Object.keys(files)

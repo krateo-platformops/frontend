@@ -78,3 +78,25 @@ describe('RoutesContext — the builder routes follow the cluster read', () => {
     expect(shellPaths()).toEqual(expect.arrayContaining(BUILDER_PATHS))
   })
 })
+
+describe('RoutesContext — a re-read with the same Builders never rebuilds the router', () => {
+  it('neither `loading` nor a re-install of the same (name, route) set touches the routes or routerVersion', () => {
+    mount()
+    const { routes } = context!
+    const version = context!.routerVersion
+    act(() => { markBuildersLoading() })
+    act(() => { installBuilders(fixtureBuilders()) })
+    // A RouterProvider remount (routerVersion) would drop Autopilot's held draft and its streams.
+    expect(context!.routerVersion).toBe(version)
+    expect(context!.routes).toBe(routes)
+  })
+
+  it('a changed set does rebuild them', () => {
+    mount()
+    const version = context!.routerVersion
+    const [portal, blueprint] = fixtureBuilders().builders
+    act(() => { installBuilders({ builders: [portal, blueprint], problems: [] }) })
+    expect(shellPaths()).toEqual(['/profile', '/portal-builder/compose', '/blueprint-builder/compose', '*'])
+    expect(context!.routerVersion).toBeGreaterThan(version)
+  })
+})

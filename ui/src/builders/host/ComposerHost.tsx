@@ -44,6 +44,7 @@ import { useDraftResume } from '../../components/Autopilot/useDraftResume'
 import StatusPill from '../../components/StatusPill'
 import { ConfigContext } from '../../context/ConfigContext'
 import { SplitDivider } from '../../pages/PageComposer/SplitDivider'
+import { registryUnavailable } from '../builderRegistry'
 import type { Builder } from '../builderSpec'
 import { findDraftKindPlugin, type DraftKindNouns } from '../draftKinds'
 import { builderRefusals, resolvePlugin } from '../pluginRegistry'
@@ -441,7 +442,15 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
 export const ComposerHost = ({ builder, name }: { builder: Builder | undefined; name?: string }) => {
   const resolved = useMemo(() => (builder ? resolveParts(builder) : null), [builder])
   if (!builder || !resolved) {
-    return <Refused label={name ?? 'builder'} problems={[`No Builder named "${name ?? ''}" is loaded, so there is nothing to compose with.`]} />
+    const unavailable = registryUnavailable()
+    return (
+      <Refused
+        label={name ?? 'builder'}
+        problems={[unavailable
+          ? `No Builder named "${name ?? ''}" can be shown: ${unavailable}.`
+          : `No Builder named "${name ?? ''}" is loaded, so there is nothing to compose with.`]}
+      />
+    )
   }
   if (!resolved.ok) {
     return <Refused label={builder.spec.label} problems={resolved.problems} />

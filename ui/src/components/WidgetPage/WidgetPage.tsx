@@ -2,7 +2,7 @@ import { useIsFetching } from '@tanstack/react-query'
 import { useSyncExternalStore } from 'react'
 import { useLocation } from 'react-router'
 
-import { buildersStatus, subscribeBuilders } from '../../builders/builderRegistry'
+import { buildersStatus, isBuilderPath, subscribeBuilders } from '../../builders/builderRegistry'
 import BuildersUnavailable from '../../builders/host/BuildersUnavailable'
 import { useRoutesContext } from '../../context/RoutesContext'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
@@ -66,13 +66,15 @@ export const WidgetPage = ({ defaultWidgetEndpoint }: { defaultWidgetEndpoint?: 
     const routesPopulated = menuRoutes.length > 0
     const isHomeRedirect = location.pathname === '/'
     // The same holds for the Builders: until their read answers, this path may be a builder route not
-    // mounted YET (/portal-builder/compose right after sign-in) — loading, not a 404 flash.
+    // mounted YET (/portal-builder/compose right after sign-in) — loading, not a 404 flash. Bounded:
+    // the read gives up after its timeout (clusterBuilders.ts), and the status is then `failed`.
     const buildersPending = builders.state === 'idle' || builders.state === 'loading'
     if (isFetchingRoutes || !routesPopulated || isHomeRedirect || buildersPending) {
       return <WidgetLoading />
     }
-    // A failed read means no builder route exists: say why, rather than blaming the address.
-    if (builders.state === 'failed') {
+    // A failed read means no builder route exists: on a builder's address, say why rather than blame
+    // the address. Every other unknown address is a plain 404, whatever happened to the Builders.
+    if (builders.state === 'failed' && isBuilderPath(location.pathname)) {
       return <BuildersUnavailable reason={builders.reason} />
     }
     return <Page404 />

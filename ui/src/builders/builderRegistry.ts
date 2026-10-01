@@ -117,29 +117,44 @@ let active: BuilderRegistry = createBuilderRegistry({ builders: [], problems: []
 
 /**
  * Where the cluster read stands. `failed` carries the sentence the builder routes show; `loaded` may
- * still carry problems (a Builder that did not parse), which the registry's `problems()` lists.
+ * still carry problems (a Builder that did not parse), which the registry's `problems()` lists, and a
+ * `lastError` — a RE-READ for the same person that failed while the Builders read earlier stay in use.
  */
 export type BuildersStatus =
   | { state: 'idle' }
   | { state: 'loading' }
-  | { state: 'loaded' }
+  | { state: 'loaded'; lastError?: string }
   | { state: 'failed'; reason: string }
 
 let status: BuildersStatus = { state: 'idle' }
-/** Bumped on every change, so a subscriber re-reads the routes even when the state name is the same. */
-let version = 0
 const listeners = new Set<() => void>()
 
 const notify = () => {
-  version += 1
   listeners.forEach((listener) => { listener() })
 }
+
+/**
+ * The paths builders have been served at: the routes of every Builder this tab has loaded, kept
+ * through a later failure, plus the three hubs this frontend ships Builders for — so a failure on a
+ * fresh tab can still tell a builder's address from any other unknown one.
+ */
+export const BUILDER_HUB_PREFIXES: readonly string[] = ['/portal-builder', '/blueprint-builder', '/controller-builder']
+const knownPrefixes = new Set<string>(BUILDER_HUB_PREFIXES)
+
+const prefixOf = (route: string): string => `/${route.split('/').filter(Boolean)[0] ?? ''}`
+
+/** True for an address under a builder's route prefix (`/portal-builder`, `/portal-builder/…`). */
+export const isBuilderPath = (pathname: string): boolean =>
+  [...knownPrefixes].some((prefix) => prefix !== '/' && (pathname === prefix || pathname.startsWith(`${prefix}/`)))
 
 /** The current read status — `useSyncExternalStore`'s snapshot (a stable object until it changes). */
 export const buildersStatus = (): BuildersStatus => status
 
-/** A number that changes whenever the registry or its status does. */
-export const buildersVersion = (): number => version
+/**
+ * The registry object itself — a snapshot that changes ONLY when the Builders do (a load, a failure
+ * that empties them), never on a status change such as `loading`. What route consumers subscribe to.
+ */
+export const currentBuilderRegistry = (): BuilderRegistry => active
 
 /** Hear every change of the Builders or their status. Returns the unsubscribe. */
 export const subscribeBuilders = (listener: () => void): (() => void) => {
@@ -156,6 +171,7 @@ export const markBuildersLoading = (): void => {
 /** The read answered: these Builders (and these problems) are what the engine runs now. */
 export const installBuilders = (loaded: Loaded): void => {
   active = createBuilderRegistry(loaded)
+  loaded.builders.forEach((builder) => { knownPrefixes.add(prefixOf(builder.spec.route)) })
   status = { state: 'loaded' }
   notify()
 }
@@ -168,6 +184,31 @@ export const failBuilders = (reason: string): void => {
   active = createBuilderRegistry({ builders: [], problems: [] })
   status = { reason, state: 'failed' }
   notify()
+}
+
+/**
+ * A RE-READ for the same person failed: the Builders already loaded keep running (the registry is
+ * untouched), and the reason is kept as `lastError` for the composers to mention. Only when nothing is
+ * loaded is it a plain failure.
+ */
+export const noteBuildersRereadFailed = (reason: string): void => {
+  if (status.state !== 'loaded') {
+    failBuilders(reason)
+    return
+  }
+  status = { lastError: reason, state: 'loaded' }
+  notify()
+}
+
+/**
+ * Why the registry cannot answer at all right now, or null when it holds what the cluster said — so a
+ * deny sentence blames the read ("still loading", "could not be read") rather than the Builders.
+ */
+export const registryUnavailable = (): string | null => {
+  if (status.state === 'idle' || status.state === 'loading') {
+    return active.all().length ? null : 'the Builders are still loading from the cluster'
+  }
+  return status.state === 'failed' ? `the Builders could not be read from the cluster (${status.reason.replace(/\.$/, '')})` : null
 }
 
 /** The registry every engine module reads. */
@@ -203,7 +244,10 @@ export const swapBuildersForTest = (builders: readonly Builder[]): (() => void) 
 export const builderOf = (draftKind: string): BuilderSpec => {
   const builder = builderRegistry.get({ draftKind })
   if (!builder) {
-    throw new Error(`No Builder declares the draft kind "${draftKind}" — every draft kind needs one, and the Builders are read from the cluster.`)
+    const unavailable = registryUnavailable()
+    throw new Error(unavailable
+      ? `No Builder answers for the draft kind "${draftKind}": ${unavailable}.`
+      : `No Builder declares the draft kind "${draftKind}" — every draft kind needs one, and the Builders are read from the cluster.`)
   }
   return builder.spec
 }

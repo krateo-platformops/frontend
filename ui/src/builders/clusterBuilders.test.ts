@@ -9,10 +9,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Config } from '../context/ConfigContext'
 import { invalidateAccessTokenCache } from '../utils/getAccessToken'
 
-import { builderRegistry, buildersStatus, installBuilders } from './builderRegistry'
+import { builderOf, builderRegistry, buildersStatus, failBuilders, installBuilders, markBuildersLoading, noteBuildersRereadFailed, registryUnavailable } from './builderRegistry'
 import {
   BUILDER_CATEGORY,
   ensureBuildersLoaded,
+  READ_TIMEOUT_MS,
+  RETRY_DELAYS_MS,
   readClusterBuilders,
   resetBuildersReadForTest,
   resolveBuildersNamespace,
@@ -30,8 +32,8 @@ const answer = (status: number, body: unknown): Response =>
 
 const stub = (response: Response | Error) => vi.fn(() => (response instanceof Error ? Promise.reject(response) : Promise.resolve(response)))
 
-const signIn = (token: string) => {
-  localStorage.setItem('K_user', JSON.stringify({ accessToken: token }))
+const signIn = (token: string, username?: string) => {
+  localStorage.setItem('K_user', JSON.stringify({ accessToken: token, ...(username ? { user: { username } } : {}) }))
   invalidateAccessTokenCache()
 }
 
@@ -60,6 +62,15 @@ describe('readClusterBuilders — the read itself', () => {
     expect(Object.fromEntries(parsed.searchParams)).toEqual({ category: BUILDER_CATEGORY, ns: NS })
     expect(init.method ?? 'GET').toBe('GET')
     expect(init.headers).toEqual({ Authorization: 'Bearer token-a' })
+    // Bounded: the read gives up after READ_TIMEOUT_MS instead of waiting on a snowplow forever.
+    expect(init.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('a read that times out is one sentence, never a throw', async () => {
+    const timeout = Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' })
+    const read = await readClusterBuilders(BASE, NS, stub(timeout))
+    expect(!read.ok && read.reason).toBe(`snowplow did not answer within ${READ_TIMEOUT_MS / 1000} s. Reload the page to retry.`)
+    expect(!read.ok && read.transient).toBe(true)
   })
 
   it('success: the three Builders load with no problem', async () => {
@@ -92,9 +103,9 @@ describe('readClusterBuilders — the read itself', () => {
 
   it.each([
     ['a 403', stub(answer(403, { message: 'forbidden' })), /you may not list Builders in krateo-system \(403\)/],
-    ['a 401', stub(answer(401, {})), /session was not accepted \(401\)/],
-    ['a 500', stub(answer(500, {})), /snowplow answered 500 when listing Builders in krateo-system/],
-    ['snowplow unreachable', stub(new TypeError('Failed to fetch')), /snowplow could not be reached \(Failed to fetch\)/],
+    ['a 401', stub(answer(401, {})), /session was not accepted \(401\) — sign in again\. Reload the page to retry\.$/],
+    ['a 500', stub(answer(500, {})), /snowplow answered 500 when listing Builders in krateo-system\. Reload the page to retry\.$/],
+    ['snowplow unreachable', stub(new TypeError('Failed to fetch')), /snowplow could not be reached \(Failed to fetch\)\. Reload the page to retry\.$/],
     ['a body that is not a list', stub(answer(200, { items: [] })), /shape this frontend does not understand/],
     ['an empty list (the CRD or its CRs missing)', stub(answer(200, [])), /no Builder is installed in krateo-system/],
   ])('failed: %s is one sentence, never a throw', async (_label, fetchImpl, reason) => {
@@ -180,5 +191,94 @@ describe('ensureBuildersLoaded — the registry, populated after the read', () =
     await old
     expect(buildersStatus()).toMatchObject({ state: 'failed' })
     expect(names()).toEqual([])
+  })
+})
+
+describe('ensureBuildersLoaded — identity, not token; a re-read never drops what is loaded', () => {
+  it('a session resume (new token, same user) does not read again — and so cannot empty the registry', async () => {
+    signIn('token-a', 'alice')
+    const ok = vi.fn(() => Promise.resolve(answer(200, fixtureItems())))
+    await ensureBuildersLoaded(config(), ok)
+    signIn('token-refreshed', 'alice')
+    const failing = stub(answer(503, {}))
+    await ensureBuildersLoaded(config(), failing)
+    expect(failing).not.toHaveBeenCalled()
+    expect(buildersStatus()).toEqual({ state: 'loaded' })
+    expect(names()).toEqual(['portal-builder', 'blueprint-builder', 'controller-builder'])
+  })
+
+  it('another user signing in reads again', async () => {
+    signIn('token-a', 'alice')
+    const fetchImpl = vi.fn(() => Promise.resolve(answer(200, fixtureItems())))
+    await ensureBuildersLoaded(config(), fetchImpl)
+    signIn('token-b', 'bob')
+    await ensureBuildersLoaded(config(), fetchImpl)
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('a failed re-read while Builders are loaded keeps them, and records the error beside them', () => {
+    installBuilders(fixtureBuilders())
+    noteBuildersRereadFailed('snowplow answered 503.')
+    expect(names()).toEqual(['portal-builder', 'blueprint-builder', 'controller-builder'])
+    expect(buildersStatus()).toEqual({ lastError: 'snowplow answered 503.', state: 'loaded' })
+  })
+})
+
+describe('ensureBuildersLoaded — a transient failure recovers, a 403 does not retry', () => {
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }) })
+  afterEach(() => { vi.useRealTimers() })
+
+  it('a 503 is retried after the first backoff, and the Builders then load', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(answer(503, {}))
+      .mockResolvedValueOnce(answer(200, fixtureItems()))
+    await ensureBuildersLoaded(config(), fetchImpl)
+    expect(buildersStatus()).toMatchObject({ state: 'failed' })
+    await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0])
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+    expect(buildersStatus()).toEqual({ state: 'loaded' })
+    expect(names()).toHaveLength(3)
+  })
+
+  it('retries are capped, and a remount past the cap does not read again', async () => {
+    const fetchImpl = vi.fn(() => Promise.resolve(answer(503, {})))
+    await ensureBuildersLoaded(config(), fetchImpl)
+    // Each retry is scheduled only once the one before it answered: one step per backoff, in order.
+    await RETRY_DELAYS_MS.reduce(async (previous, delay) => {
+      await previous
+      await vi.advanceTimersByTimeAsync(delay)
+    }, Promise.resolve())
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(fetchImpl).toHaveBeenCalledTimes(1 + RETRY_DELAYS_MS.length)
+    await ensureBuildersLoaded(config(), fetchImpl)
+    expect(fetchImpl).toHaveBeenCalledTimes(1 + RETRY_DELAYS_MS.length)
+  })
+
+  it('a remount while a retry is pending does not read twice', async () => {
+    const fetchImpl = vi.fn(() => Promise.resolve(answer(503, {})))
+    await ensureBuildersLoaded(config(), fetchImpl)
+    await ensureBuildersLoaded(config(), fetchImpl)
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('a 403 is not retried — by a timer or by a remount', async () => {
+    const fetchImpl = vi.fn(() => Promise.resolve(answer(403, {})))
+    await ensureBuildersLoaded(config(), fetchImpl)
+    await vi.advanceTimersByTimeAsync(60_000)
+    await ensureBuildersLoaded(config(), fetchImpl)
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('deny sentences blame the read, not the Builders, while it cannot answer', () => {
+  it('loading: "still loading"; failed: "could not be read"; loaded: nothing to blame', () => {
+    failBuilders('snowplow answered 503.')
+    expect(registryUnavailable()).toBe('the Builders could not be read from the cluster (snowplow answered 503)')
+    expect(() => builderOf('page')).toThrow('No Builder answers for the draft kind "page": the Builders could not be read from the cluster (snowplow answered 503).')
+    markBuildersLoading()
+    expect(registryUnavailable()).toBe('the Builders are still loading from the cluster')
+    expect(() => builderOf('page')).toThrow('still loading')
+    installBuilders(fixtureBuilders())
+    expect(registryUnavailable()).toBeNull()
   })
 })

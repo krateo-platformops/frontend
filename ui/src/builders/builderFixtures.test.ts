@@ -137,7 +137,8 @@ describe.each(FIXTURES)('the %s Builder', (name) => {
 
   it('is served at its route, one per Builder — a composer not built yet: not yet', () => {
     const shell = readFileSync(join(__dirname, '..', 'context', 'RoutesContext.tsx'), 'utf8')
-    expect(shell).toContain('replaceBuilderRoutes(children, builderRoutes(STATIC_PATHS))')
+    expect(shell).toContain('builderRoutes(STATIC_PATHS)')
+    expect(shell).toContain('replaceBuilderRoutes(children, fresh)')
     // A Builder in COMPOSER_PENDING has no route until its plugins ship.
     expect(builderRoutes().map((route) => route.path).includes(parsed(name).spec.route)).toBe(!COMPOSER_PENDING.has(name))
   })

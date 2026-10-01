@@ -26,8 +26,8 @@ import { act, render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { failBuilders, installBuilders, markBuildersLoading } from '../../builders/builderRegistry'
-import { fixtureBuilders } from '../../builders/fixtures/fixtureBuilders'
+import { failBuilders, installBuilders, markBuildersLoading, parseBuilderItems } from '../../builders/builderRegistry'
+import { fixtureItems, fixtureBuilders } from '../../builders/fixtures/fixtureBuilders'
 import type { AppRoute } from '../../context/RoutesContext'
 
 import WidgetPage from './WidgetPage'
@@ -192,5 +192,40 @@ describe('WidgetPage — a builder route not mounted yet, or never', () => {
 
     act(() => { failBuilders('snowplow could not be reached (Failed to fetch).') })
     expect(getByText('Builders could not be read from the cluster: snowplow could not be reached (Failed to fetch).')).not.toBeNull()
+  })
+})
+
+describe('WidgetPage — the failure sentence is for builder addresses only', () => {
+  afterEach(() => {
+    act(() => { installBuilders(fixtureBuilders()) })
+  })
+
+  it('any other unknown address stays a plain 404 when the read failed', () => {
+    mockMenuRoutes = [route('/dashboard')]
+    act(() => { failBuilders('snowplow did not answer within 15 s. Reload the page to retry.') })
+    const { queryByTestId, queryByText } = renderAt('/this-page-does-not-exist')
+
+    expect(queryByTestId('page-404')).not.toBeNull()
+    expect(queryByText(/Builders could not be read/)).toBeNull()
+  })
+
+  it('an address under any of the three hub prefixes gets the sentence', () => {
+    mockMenuRoutes = [route('/dashboard')]
+    act(() => { failBuilders('snowplow answered 503.') })
+    for (const path of ['/controller-builder/compose', '/blueprint-builder']) {
+      const { getAllByText, unmount } = renderAt(path)
+      expect(getAllByText(/Builders could not be read from the cluster: snowplow answered 503\./).length).toBeGreaterThan(0)
+      unmount()
+    }
+  })
+
+  it('a route a Builder declared earlier in this tab counts as a builder address after a failure', () => {
+    mockMenuRoutes = [route('/dashboard')]
+    const [item] = fixtureItems() as Record<string, Record<string, unknown>>[]
+    const custom = parseBuilderItems([{ ...item, metadata: { name: 'ops-builder' }, spec: { ...item.spec, route: '/ops-builder/compose' } }])
+    act(() => { installBuilders(custom) })
+    act(() => { failBuilders('snowplow answered 503.') })
+    const { getAllByText } = renderAt('/ops-builder/compose')
+    expect(getAllByText(/Builders could not be read from the cluster/).length).toBeGreaterThan(0)
   })
 })

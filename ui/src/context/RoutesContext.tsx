@@ -1,9 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query'
-import React, { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useParams, type NonIndexRouteObject, type RouteObject } from 'react-router'
 
-import { buildersVersion, subscribeBuilders } from '../builders/builderRegistry'
-import { builderRoutes, mergeShellChildren, replaceBuilderRoutes } from '../builders/host/builderRoutes'
+import { currentBuilderRegistry, subscribeBuilders } from '../builders/builderRegistry'
+import { builderRoutes, builderRoutesSignature, mergeShellChildren, replaceBuilderRoutes } from '../builders/host/builderRoutes'
 import ShellRoute from '../components/Shell'
 import WidgetPage from '../components/WidgetPage'
 import Auth from '../pages/Auth/Auth'
@@ -132,23 +132,31 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const queryClient = useQueryClient()
 
-  // The Builders arrive after sign-in, from the cluster: re-mount the builder routes whenever the
-  // registry changes (a load, a failure that empties it, a new sign-in's list).
-  const builders = useSyncExternalStore(subscribeBuilders, buildersVersion)
+  // The Builders arrive after sign-in, from the cluster. Subscribed to the REGISTRY OBJECT, which
+  // changes only when the Builders do — never on a `loading` status. And the routes are replaced only
+  // when the set of (id, path) they mount changes: rebuilding them bumps routerVersion, a full
+  // RouterProvider remount that would drop Autopilot's held draft and its streams. A re-read with the
+  // same Builders reaches each composer through BuilderRouteHost instead.
+  const registry = useSyncExternalStore(subscribeBuilders, currentBuilderRegistry)
+  const mountedSignature = useRef('')
   useEffect(() => {
+    const fresh = builderRoutes(STATIC_PATHS)
+    const signature = builderRoutesSignature(fresh)
+    if (signature === mountedSignature.current) { return }
+    mountedSignature.current = signature
     setRoutes((prevRoutes) => {
       const shellIndex = prevRoutes.findIndex((route) => route.id === SHELL_ROUTE_ID)
       if (shellIndex === -1) { return prevRoutes }
       const shell = prevRoutes[shellIndex] as NonIndexRouteObject
       const children = shell.children ?? []
-      const replaced = replaceBuilderRoutes(children, builderRoutes(STATIC_PATHS))
+      const replaced = replaceBuilderRoutes(children, fresh)
       if (replaced === children) { return prevRoutes }
       const updatedRoutes = [...prevRoutes]
       updatedRoutes[shellIndex] = { ...shell, children: replaced }
       setRouterVersion((prev) => prev + 1)
       return updatedRoutes
     })
-  }, [builders])
+  }, [registry])
 
   // The Menu re-derives its `routes` array on every render (its buildNavModel
   // memo depends on a useQueries.combine output whose reference changes each
