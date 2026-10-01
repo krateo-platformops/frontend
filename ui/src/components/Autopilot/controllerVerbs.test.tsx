@@ -24,7 +24,7 @@ vi.mock('./builderClaimPublish', () => ({
   buildClaimPublish: vi.fn(() => Promise.resolve({ branch: 'builder/x', compiled: { denial: null, ops: [] }, deepLink: null })),
 }))
 
-import { builderRegistry } from '../../builders/builderRegistry'
+import { builderRegistry, swapBuildersForTest } from '../../builders/builderRegistry'
 import type { Config } from '../../context/ConfigContext'
 import { lockedSnapshot, restDefinitionPath } from '../../pages/ControllerComposer/controllerChart'
 import { renderController } from '../../pages/ControllerComposer/controllerRender'
@@ -32,6 +32,7 @@ import type * as ControllerRenderModule from '../../pages/ControllerComposer/con
 
 import type { PortalActionProposal } from './actionBridge'
 import { isComposeVerb } from './actionBridge'
+import { isApplySetAllowed, RESTDEFINITION_WRITE_DENIAL } from './applyResourceSet'
 import { createBlueprintDraftStore, type BlueprintDraftStore } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
 import { buildClaimPublish } from './builderClaimPublish'
@@ -42,7 +43,7 @@ import { draftHistory } from './draftHistory'
 import { controllerFingerprint, summarizeController, withHeldDraft } from './draftStructure'
 import { previewRestDefSpec } from './previewHandlers'
 import { routeProposal } from './proposalRoute'
-import { heldDraftIdentity } from './publishCompile'
+import { compilePublishOps, heldDraftIdentity } from './publishCompile'
 import { NOTHING_HELD_CONTROLLER, publishDraft, type PublishDraftDeps } from './publishDraft'
 import { publishedLocks } from './publishedLocks'
 import { buildContextDelta, serializePageContext } from './useAutopilotContext'
@@ -395,5 +396,107 @@ describe('the envelope — summarizer controller-model', () => {
     expect(controllerFingerprint(after.controller)).not.toBe(controllerFingerprint(before.controller))
     expect(buildContextDelta(after, before)).toContain('<page_context>\nThe following')
     expect(buildContextDelta(after, after)).toMatch(/^<page_context>\nUnchanged/)
+  })
+})
+
+describe('review fixes — the closed bypasses', () => {
+  const RESTDEF = {
+    apiVersion: 'ogen.krateo.io/v1alpha1',
+    kind: 'RestDefinition',
+    metadata: { name: 'refund', namespace: 'krateo-system' },
+    spec: { oasPath: 'https://api.example.com/openapi.json', resource: { identifiers: ['id'], kind: 'Refund', verbsDescription: [{ action: 'get', method: 'GET', path: '/refunds' }] }, resourceGroup: 'composition.krateo.io' },
+  }
+  const write = [{ gvr: { group: 'ogen.krateo.io', resource: 'restdefinitions', version: 'v1alpha1' }, namespace: 'krateo-system', payload: RESTDEF, verb: 'POST' as const }]
+
+  it('an inline previewRestDef arms nothing, and a RestDefinition set is refused by name and by the kernel', async () => {
+    const { gate } = mount()
+    // The inspection still opens (nothing held), but it is not a draft and arms no gate.
+    expect(await preview({ restDefinition: RESTDEF })).toMatch(/RestDefinition preview/)
+    expect(gate.isArmed('refund')).toBe(false)
+    // The write that would have followed it: refused before any confirm, whatever any gate says.
+    expect(compilePublishOps(write, { allowed: true }, null, { prompt: null, sessionId: null })).toEqual({ denial: RESTDEFINITION_WRITE_DENIAL, ops: null })
+    expect(RESTDEFINITION_WRITE_DENIAL).toMatch(/author controllers through the Controller Builder/)
+    expect(isApplySetAllowed(write)).toBe(false)
+    expect(isApplySetAllowed([{ ...write[0], gvr: { group: 'lookalike.krateo.io', resource: 'restdefinitions', version: 'v1' } }])).toBe(false)
+  })
+
+  it('a verb the Controller Builder does not allow is refused as such — not as a wrong-kind draft', async () => {
+    const controller = builderRegistry.all().find((builder) => builder.spec.draftKind === 'controller')
+    const others = builderRegistry.all().filter((builder) => builder !== controller)
+    if (!controller) { throw new Error('no controller Builder loaded in the test registry') }
+    mount()
+    await run(START)
+    const restore = swapBuildersForTest([...others, { ...controller, spec: { ...controller.spec, verbs: { allowed: ['previewRestDef', 'publishRestDef'] } } }])
+    try {
+      expect(await run({ group: 'pet', verb: 'controllerPlace' })).toBe('controllerPlace — this portal did not run it (the Controller Builder on this cluster does not allow controllerPlace — it is not in the Builder\'s verbs.allowed)')
+    } finally {
+      restore()
+    }
+  })
+
+  it('controllerStart is gated on verbs.allowed too', async () => {
+    const controller = builderRegistry.all().find((builder) => builder.spec.draftKind === 'controller')
+    const others = builderRegistry.all().filter((builder) => builder !== controller)
+    if (!controller) { throw new Error('no controller Builder loaded in the test registry') }
+    const { store } = mount()
+    const restore = swapBuildersForTest([...others, { ...controller, spec: { ...controller.spec, verbs: { allowed: ['previewRestDef', 'publishRestDef'] } } }])
+    try {
+      expect(await run(START)).toMatch(/does not allow controllerStart — it is not in the Builder's verbs\.allowed/)
+      expect(store.get()).toBeNull()
+    } finally {
+      restore()
+    }
+  })
+
+  it('a base URL carrying a credential is refused, and the credential is echoed nowhere', async () => {
+    const { store } = mount()
+    for (const baseUrl of ['https://alice:s3cr3t-value@petstore.example/api', 'https://petstore.example/api?API_KEY=s3cr3t-value', 'https://petstore.example/api?X-Amz-Signature=s3cr3t-value']) {
+      // eslint-disable-next-line no-await-in-loop -- one act() at a time.
+      const label = await run({ ...START, baseUrl })
+      expect(label, baseUrl).toMatch(/baseUrl: The URL( carries a user name or password|'s query carries a credential-like parameter)/)
+      expect(label).not.toContain('s3cr3t-value')
+      expect(JSON.stringify(refusals())).not.toContain('s3cr3t-value')
+    }
+    expect(store.get()).toBeNull()
+  })
+
+  it('a spec URL carrying a credential is never fetched', async () => {
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    mount()
+    const label = await run({ ...START, specText: undefined, specUrl: 'https://specs.example/petstore.json?token=s3cr3t-value' })
+    expect(label).toMatch(/credential-like parameter \(token\)/)
+    expect(label).not.toContain('s3cr3t-value')
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('a spec URL body is streamed, counted and abandoned past 8 MiB — with no redirect followed and no referrer sent', async () => {
+    const chunk = new Uint8Array(1024 * 1024).fill(0x20)
+    let pulled = 0
+    const body = new ReadableStream<Uint8Array>({
+      pull: (controller) => {
+        pulled += 1
+        controller.enqueue(chunk)
+      },
+    })
+    const fetchSpy = vi.fn(() => Promise.resolve(new Response(body, { status: 200 })))
+    vi.stubGlobal('fetch', fetchSpy)
+    mount()
+    const label = await run({ ...START, specText: undefined, specUrl: 'https://specs.example/endless.json' })
+    expect(label).toMatch(/The URL served more than 8 MiB/)
+    expect(pulled).toBeLessThan(12)
+    expect(fetchSpy).toHaveBeenCalledWith('https://specs.example/endless.json', expect.objectContaining({ credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer' }))
+  })
+
+  it('a base URL hand-edited to carry a credential is masked on the envelope and named by the lint', async () => {
+    const { store } = mount()
+    await run(START)
+    const held = store.get()
+    if (!held) { throw new Error('nothing held') }
+    const files = { ...held.files, 'Chart.yaml': held.files['Chart.yaml'].replace('https://petstore3.swagger.io/api/v3', 'https://petstore3.swagger.io/api/v3?apikey=s3cr3t-value') }
+    const summary = summarizeController({ ...held, files })
+    expect(JSON.stringify(summary)).not.toContain('s3cr3t-value')
+    expect(summary?.baseUrl).toBe('(a URL carrying a credential, not shown)')
+    expect(summary?.problems?.some((problem) => /Chart\.yaml: the base URL — The URL's query carries a credential-like parameter \(apikey\)/.test(problem))).toBe(true)
   })
 })

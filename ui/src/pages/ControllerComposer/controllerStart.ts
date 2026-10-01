@@ -36,6 +36,7 @@ import {
   withServers,
 } from './controllerChart'
 import { type OasDocument, type OasFormat, type OasImport, parseOas, serializeOas, trimOas } from './oasImport'
+import { urlCredentialProblem } from './urlCredential'
 
 // ── start ───────────────────────────────────────────────────────────────────────────────────────
 
@@ -101,6 +102,8 @@ export const baseUrlProblem = (raw: string): string | null => {
   const url = raw.trim()
   if (!url) { return 'Required — the URL the controller sends every request to.' }
   if (/[{}]/.test(url)) { return 'A server URL with a variable ({…}) is not a destination — write the URL the controller calls, with no braces.' }
+  const credential = urlCredentialProblem(url)
+  if (credential) { return credential }
   return URL_PATTERN.test(url) ? null : 'An absolute http(s) URL (e.g. https://petstore3.swagger.io/api/v3).'
 }
 
@@ -248,16 +251,26 @@ export const startController = (input: StartControllerInput, reading: SpecReadin
 export const SPEC_FETCH_TIMEOUT_MS = 20_000
 
 /**
- * Read a document from a URL, as nobody: no cookies or credentials ride along (`credentials: 'omit'`).
- * A declared Content-Length over the cap is refused before the body is read; a body that turns out
- * larger is refused too; and the whole read is abandoned after SPEC_FETCH_TIMEOUT_MS.
+ * Read a document from a URL, as nobody: no cookies or credentials ride along (`credentials: 'omit'`),
+ * no referrer is sent (`referrerPolicy: 'no-referrer'`), and a redirect is refused rather than
+ * followed (`redirect: 'error'`) — the URL read is the one that was given. A URL that carries a
+ * credential of its own (user:pass@, a key or token in the query) is refused before anything is sent.
+ * A declared Content-Length over the cap is refused before the body is read; the body itself is
+ * STREAMED with a byte counter and abandoned the moment it passes SPEC_TEXT_MAX_BYTES, so a server
+ * that lies about its length, or sends none, never makes this read more than the cap. The whole read
+ * is abandoned after SPEC_FETCH_TIMEOUT_MS.
  */
 export const readSpecUrl = async (url: string, timeoutMs = SPEC_FETCH_TIMEOUT_MS): Promise<{ text: string } | { problem: string }> => {
+  const credential = urlCredentialProblem(url)
+  if (credential) {
+    return { problem: credential }
+  }
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   const cap = `${SPEC_TEXT_MAX_BYTES / 1024 / 1024} MiB`
+  const over = { problem: `The URL served more than ${cap} — over what this builder reads. Nothing more was downloaded.` }
   try {
-    const response = await fetch(url, { credentials: 'omit', signal: controller.signal })
+    const response = await fetch(url, { credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer', signal: controller.signal })
     if (!response.ok) {
       return { problem: `The URL answered ${response.status} — paste or upload the document instead.` }
     }
@@ -266,16 +279,33 @@ export const readSpecUrl = async (url: string, timeoutMs = SPEC_FETCH_TIMEOUT_MS
       controller.abort()
       return { problem: `The URL serves ${Math.ceil(declared / 1024 / 1024)} MiB — over the ${cap} this builder reads. Nothing more was downloaded.` }
     }
-    const text = await response.text()
-    if (text.length > SPEC_TEXT_MAX_BYTES) {
-      return { problem: `The URL served more than ${cap} — over what this builder reads.` }
+    const reader = response.body?.getReader()
+    if (!reader) {
+      // No stream to count (a runtime without ReadableStream bodies): the text, measured after.
+      const text = await response.text()
+      return utf8ByteLength(text) > SPEC_TEXT_MAX_BYTES ? over : { text }
     }
-    return { text }
+    const decoder = new TextDecoder()
+    let bytes = 0
+    let text = ''
+    for (;;) {
+      // eslint-disable-next-line no-await-in-loop -- a stream is read chunk by chunk, counting as it goes.
+      const { done, value } = await reader.read()
+      if (done) { break }
+      bytes += value.byteLength
+      if (bytes > SPEC_TEXT_MAX_BYTES) {
+        controller.abort()
+        void reader.cancel().catch(() => undefined)
+        return over
+      }
+      text += decoder.decode(value, { stream: true })
+    }
+    return { text: text + decoder.decode() }
   } catch (error) {
     if (controller.signal.aborted) {
       return { problem: `The URL did not answer within ${Math.round(timeoutMs / 1000)} s — paste or upload the document instead.` }
     }
-    return { problem: `This browser could not read the URL (${error instanceof Error ? error.message : String(error)}) — the server may not allow it. Paste or upload the document instead.` }
+    return { problem: `This browser could not read the URL (${error instanceof Error ? error.message : String(error)}) — the server may not allow it, or it redirected, which is not followed. Paste or upload the document instead.` }
   } finally {
     clearTimeout(timer)
   }

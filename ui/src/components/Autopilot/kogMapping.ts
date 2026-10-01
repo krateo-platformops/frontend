@@ -33,40 +33,25 @@
  *     fieldMapping.defaultIfAbsent, so the apiserver PRUNES any other unknown key — a
  *     silent loss. Every object level therefore rejects keys the schema does not name.
  *
- * Three pure surfaces, no React and no network:
+ * Two pure surfaces, no React and no network:
  *   1. validateRestDefinitionDraft — error lines for the preview drawer (empty = the
- *      draft matches the live CRD shape and is publishable).
+ *      draft matches the live CRD shape).
  *   2. restDefImmutabilityWarnings — the CEL-immutable fields PRESENT in the draft,
  *      as warning lines (a wrong first publish means delete + recreate).
- *   3. buildKogPublishOps — LEGACY the URL-first DIRECT-WRITE publish plan: ONE op (POST
- *      restdefinitions, oasPath = http(s) URL) or TWO ordered ops (POST configmaps carrying
- *      the `{"$oasAttachment": true}` substitution token, then POST restdefinitions with
- *      oasPath = configmap://…) in the applyResourceSet ops[] shape. The OAS document
- *      itself is NEVER built here — FE-K2 substitutes the held verbatim bytes at
- *      publish-payload compile time, so the doc never round-trips the model.
  *
- * NOTE ON buildKogPublishOps (item #30): the KOG builder's PRIMARY publish path is the
- * `publishRestDef` verb, which publishes the HELD controller draft (composed in the Controller
- * Builder, by a person or by Autopilot's controller verbs) through the same BuilderPublish claim as the
- * blueprint/page builders (publishDraft.ts) — the generated kind waits
- * for a change request to merge, it does not land live. buildKogPublishOps (this direct 2-op cluster write) is RETAINED as a defense-in-depth
- * fallback: the model is now prompted to emit `publishRestDef`, but if it still emits the old
- * direct-write applyResourceSet on restdefinitions, finalize's applyResourceSet branch (KOG
- * preview gate + hydrateRestDefinitionOps) still handles it correctly. It is no longer the
- * demoed path. Its unit tests stay green as a shape contract.
+ * The direct-write publish plan (buildKogPublishOps: POST restdefinitions through
+ * applyResourceSet) is gone (frontend#429): a RestDefinition is never written live. A controller is
+ * authored in the Controller Builder and published as a chart through `publishRestDef`.
  */
 
-import type { ApplyResourceSetOp } from './applyResourceSet'
-import { asRecord, isNonEmptyString, KNOWN_KEYS, type OasPathRef, parseOasPath, unknownFieldErrors } from './kogRestDefSchema'
+import { asRecord, isNonEmptyString, KNOWN_KEYS, parseOasPath, unknownFieldErrors } from './kogRestDefSchema'
 import { resourceRuleErrors, validateVerbEntry } from './kogRestDefVerbs'
-import { OAS_ATTACHMENT_KEY } from './oasAttachment'
 
 /** The RestDefinition GVK/GVR the builder emits (the live CRD's coordinates). */
 export const REST_DEFINITION_API_VERSION = 'ogen.krateo.io/v1alpha1'
 export const REST_DEFINITION_KIND = 'RestDefinition'
-export const REST_DEFINITION_GVR = { group: 'ogen.krateo.io', resource: 'restdefinitions', version: 'v1alpha1' } as const
 
-/** The label stamped on the builder's ConfigMap so an orphan (op-2 failure) is findable. */
+/** The label stamped on a controller chart's OAS ConfigMap (controllerStart.ts), so it is findable. */
 export const KOG_MANAGED_BY_LABEL: Record<string, string> = { 'krateo.io/managed-by': 'kog-builder' }
 
 /** The CRD enums, oasPath parser and 0.23 validators live beside this module (split for size). */
@@ -221,56 +206,4 @@ export const restDefImmutabilityWarnings = (draft: Record<string, unknown>): str
     }
   }
   return warnings
-}
-
-/** The publish plan: the ordered applyResourceSet ops, or the validation errors. */
-export type KogPublishPlan =
-  | { ok: true; ops: ApplyResourceSetOp[] }
-  | { ok: false; errors: string[] }
-
-/**
- * Build the publish ops[] for a validated draft — the applyResourceSet shapes the
- * whole KOG flow rides (ONE aggregated blast-radius confirm, sequential dispatch):
- *   - URL oasPath (URL-first, the recommended path): ONE op — POST restdefinitions.
- *     No ConfigMap at all; oasgen fetches the URL itself.
- *   - configmap:// oasPath (paste path): TWO ordered ops — POST configmaps FIRST
- *     (name/namespace/key taken from the oasPath so they can never drift apart, the
- *     kog-builder label, and `{"$oasAttachment": true}` as the data value — the
- *     FE-K2 token substituted with the held verbatim document at compile time,
- *     never model-echoed) — then POST restdefinitions.
- * An invalid draft builds NOTHING (all-or-nothing, same posture as the set kernel).
- */
-export const buildKogPublishOps = (draft: Record<string, unknown>): KogPublishPlan => {
-  const errors = validateRestDefinitionDraft(draft)
-  if (errors.length) {
-    return { errors, ok: false }
-  }
-  const metadata = asRecord(draft.metadata)
-  const spec = asRecord(draft.spec)
-  const namespace = metadata?.namespace as string
-  const name = metadata?.name as string
-  const oasPath = parseOasPath(spec?.oasPath) as OasPathRef
-  const restDefinitionOp: ApplyResourceSetOp = {
-    gvr: { ...REST_DEFINITION_GVR },
-    name,
-    namespace,
-    payload: draft,
-    verb: 'POST',
-  }
-  if (oasPath.form === 'url') {
-    return { ok: true, ops: [restDefinitionOp] }
-  }
-  const configMapOp: ApplyResourceSetOp = {
-    gvr: { group: '', resource: 'configmaps', version: 'v1' },
-    name: oasPath.name,
-    namespace: oasPath.namespace,
-    payload: {
-      apiVersion: 'v1',
-      data: { [oasPath.key]: { [OAS_ATTACHMENT_KEY]: true } },
-      kind: 'ConfigMap',
-      metadata: { labels: { ...KOG_MANAGED_BY_LABEL }, name: oasPath.name, namespace: oasPath.namespace },
-    },
-    verb: 'POST',
-  }
-  return { ok: true, ops: [configMapOp, restDefinitionOp] }
 }

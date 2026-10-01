@@ -114,16 +114,34 @@ interface HeldController {
 }
 
 /**
+ * Why the Controller Builder this portal runs does not allow `verb`, or null when it does. A verb a
+ * Builder does not list in `verbs.allowed` is refused even though this frontend implements it — the
+ * Builder CR on the cluster decides which verbs Autopilot may use.
+ */
+const verbNotAllowed = (verb: string): string | null => {
+  const builder = findBuilderOf('controller')
+  if (!builder) {
+    return 'this portal runs no Controller Builder (none was listed from the cluster), so there is nothing to author a controller in'
+  }
+  return builder.verbs.allowed.includes(verb)
+    ? null
+    : `the Controller Builder on this cluster does not allow ${verb} — it is not in the Builder's verbs.allowed`
+}
+
+/**
  * The held controller a verb may edit, or why not: no draft at all, or a draft whose Builder does not
  * allow the verb (named by its draft-kind plugin as what it is).
  */
 const heldController = (verb: string, held: DraftChangedDetail | null = readHeldDraft()): HeldController | string => {
-  const builder = findBuilderOf(held?.kind)
-  if (!held?.kind || !builder) {
+  if (!held?.kind) {
     return NO_CONTROLLER_HELD
   }
-  if (!builder.verbs.allowed.includes(verb)) {
+  if (held.kind !== 'controller') {
     return `the open draft is ${draftKindOf(held.kind).nouns.artifact}, not a controller — ${verb} edits a controller draft`
+  }
+  const allowed = verbNotAllowed(verb)
+  if (allowed) {
+    return allowed
   }
   const model = readController(held.files)
   return { files: held.files, locked: lockedFor(publishedLocks.get(), held.kind, model.name), model }
@@ -212,7 +230,7 @@ const readSource = async (proposal: PortalActionProposal, deps: Pick<VerbDeps, '
   }
   if (url) {
     if (!/^https?:\/\//.test(url)) {
-      return { problem: `specUrl must be an absolute http(s) URL, not "${url}"` }
+      return { problem: 'specUrl must be an absolute http(s) URL' }
     }
     const read = await readSpecUrl(url)
     return 'text' in read ? { from: url, text: read.text } : { problem: read.problem }
@@ -224,6 +242,10 @@ const startVerb = async (proposal: PortalActionProposal, deps: Pick<VerbDeps, 'r
   const verb = 'controllerStart'
   const name = str(proposal.name)
   const tried = `start controller ${name || '(unnamed)'}`
+  const notAllowed = verbNotAllowed(verb)
+  if (notAllowed) {
+    return refuse(verb, tried, notAllowed)
+  }
   // Same precondition as the modal's empty page: a start never discards a held draft.
   const held = readHeldDraft()
   if (held?.kind) {

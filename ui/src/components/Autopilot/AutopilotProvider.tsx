@@ -33,8 +33,6 @@ import { recordToolFrame } from './evidence'
 import { useAutopilotShortcut } from './keyboardShortcut'
 import { createOasAttachmentStore, type OasAttachmentResult } from './oasAttachment'
 import { PREVIEW_SELF_CORRECTION_NUDGE } from './previewBus'
-import { onRestDefEdit } from './previewEditBus'
-import { createPreviewGate, hydrateRestDefinitionOps } from './previewGate'
 import { emitPublishResult, onPublishRequest } from './previewPublishRequest'
 import { AutopilotPreviewDrawer } from './previewSurface'
 import { routeProposal } from './proposalRoute'
@@ -199,10 +197,6 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // decision paths. Exactly one pause can be pending at a time — kagent aggregates all
   // paused tool calls of a turn into one input-required task status.
   const [pendingApproval, setPendingApproval] = useState<ApprovalPause | null>(null)
-  // W4 KOG (FE-K3): the thread-scoped PREVIEW GATE — records every applied
-  // previewRestDef and denies an applyResourceSet that writes restdefinitions unless
-  // a matching (kind+resourceGroup) draft was previewed this thread. Reset on newThread.
-  const [previewGate] = useState(createPreviewGate)
   const [oasHeld, setOasHeld] = useState<{ bytes: number } | null>(null)
   // W4 BLUEPRINT-BUILDER: the thread-scoped BLUEPRINT preview gate (FE-BP2) records every
   // previewed chart name and denies a blueprint publish (the BuilderPublish claim / a register
@@ -386,8 +380,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         // Publish path, enforced HERE (finalize is the single entry point for model
         // proposals). Host-side checks BEFORE the bridge ever dispatches — a denial is the
         // standard denied chip (nothing dispatched, readOnly/honest):
-        //  1a. KOG PREVIEW GATE (FE-K3): a set writing restdefinitions needs a matching
-        //      (kind+resourceGroup) previewRestDef this thread.
+        //  1a. NO RESTDEFINITIONS (frontend#429): a set writing one is refused by name — a
+        //      controller is authored in the Controller Builder and published as a chart.
         //  1b. BLUEPRINT PREVIEW GATE (FE-BP2): a blueprint publish (a BuilderPublish claim /
         //      a register CompositionDefinition) needs the CURRENTLY-HELD draft previewed.
         //  2a. $oasAttachment substitution (FE-K2): the held OAS replaces the token.
@@ -403,8 +397,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         // (heldDraftIdentity); the SAME store and gate serve both (FE-P2 reuses FE-BP1/BP2).
         const heldChartName = heldDraftIdentity(held)
         const { denial, ops: compiledOps } = compilePublishOps(
-          hydrateRestDefinitionOps(proposal.ops, previewGate.lastDraft()),
-          previewGate.evaluate(proposal.ops),
+          proposal.ops,
           blueprintGate.evaluate(proposal.ops, heldChartName),
           oasStore.get(),
           { prompt: lastUserTextRef.current, sessionId },
@@ -418,11 +411,9 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         const chip = await apply(proposal, origin)
         if (chip) {
           chips.push(chip)
-          // W4 KOG (FE-K3): an APPLIED previewRestDef (chip ⇒ the drawer opened on a
-          // parseable draft) arms the preview gate for that draft's kind+resourceGroup.
-          if (proposal.verb === 'previewRestDef') {
-            previewGate.recordPreview(proposal.restDefinition)
-          } else if (proposal.verb === 'previewBlueprint') {
+          // An inline previewRestDef arms NOTHING (frontend#429): it is an inspection, and a
+          // RestDefinition is never written live — the held controller's own preview arms its publish.
+          if (proposal.verb === 'previewBlueprint') {
             // FE-BP1/BP2: an APPLIED, lint-clean, SUCCESSFULLY RENDERED inline-draft previewBlueprint
             // HOLDS the previewed tree and arms the blueprint gate for its Chart.yaml name. The rule
             // lives in `recordBlueprintPreview` beside its page twin, so a preview a person starts
@@ -514,7 +505,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     // otherwise never learn the answer proposes changing something (FR 71). The store decides
     // whether anything is actually said: a typed turn is always silent.
     autopilotSpeakBackStore.speakAnswer({ actions: chips, id: assistantId, modality, text: cleanedText })
-  }, [apply, blueprintGate, blueprintStore, builderTargets, config, draftAutosave, oasStore, previewGate, sessionId, setMessages])
+  }, [apply, blueprintGate, blueprintStore, builderTargets, config, draftAutosave, oasStore, sessionId, setMessages])
 
   const applyFrame = useCallback((assistantId: string, frame: AutopilotFrame, modality: TurnModality) => {
     switch (frame.kind) {
@@ -723,10 +714,9 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     // Clear any pending form draft and re-key (bump nonce) so the form reverts to base.
     setAgentDraft(null)
     setDraftNonce((nonce) => nonce + 1)
-    // W4 KOG + BLUEPRINT: the preview GATES are THREAD-scoped — a new thread forgets every
+    // The preview GATE is THREAD-scoped — a new thread forgets every
     // recorded preview, so publish is denied again until the draft is re-previewed. That is the
     // deny-by-default posture, and it is entirely carried by the gates.
-    previewGate.reset()
     blueprintGate.reset()
     oasStore.clear()
     setOasHeld(null)
@@ -742,7 +732,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     // a re-preview, which is where the security posture actually lives; the draft is visible in
     // the Files tab either way, and the surfaces already offer an explicit Close draft for when
     // someone means to discard it.
-  }, [blueprintGate, oasStore, previewGate, transport])
+  }, [blueprintGate, oasStore, transport])
 
   const newThread = useCallback(() => {
     teardownThread()
@@ -779,13 +769,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     setOasHeld(null)
   }, [oasStore])
 
-  // FE-K(edit): the preview drawer lets the user EDIT the previewed RestDefinition source and
-  // apply it. An accepted edit arrives here on the edit bus; recording it into the preview gate
-  // re-arms the gate with the edited draft and makes it the LAST draft — so a restdefinitions write
-  // (hydrateRestDefinitionOps(previewGate.lastDraft())) commits the EDITED bytes. recordPreview
-  // re-validates once more (deny-by-default: an invalid edit arms nothing), and the drawer only
-  // emits a clean edit anyway, so the held bytes are exactly the human-edited bytes.
-  useEffect(() => onRestDefEdit(({ draft }) => previewGate.recordPreview(draft)), [previewGate])
+  // FE-K(edit): an edit to an inspected RestDefinition in the drawer arms nothing any more — a
+  // RestDefinition is never written live (frontend#429), so there is no write for it to unlock.
 
   // A person's draft gets the live render a proposal gets — `apply` IS the `previewPage` verb, so
   // same deps, sandbox carve-out and kernel. Why it matters: see useDraftFileBuses.

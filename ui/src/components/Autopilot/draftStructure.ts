@@ -25,6 +25,7 @@
 import { findBuilderOf } from '../../builders/builderRegistry'
 import { heldVerb, readController } from '../../pages/ControllerComposer/controllerChart'
 import { VERB_ORDER } from '../../pages/ControllerComposer/operationMapping'
+import { shownUrl } from '../../pages/ControllerComposer/urlCredential'
 import { buildObjectTree, flattenTree, listDataSources } from '../../pages/PageComposer/objectTree'
 import type { TreeNode } from '../../pages/PageComposer/objectTree'
 
@@ -240,7 +241,8 @@ export const summarizeController = (held: BlueprintDraftHeld | null, state: Held
   }
   return {
     apiGroup: model.group,
-    baseUrl: model.baseUrl,
+    // A base URL hand-edited to carry a credential is never sent; the lint names the problem.
+    baseUrl: model.baseUrl ? shownUrl(model.baseUrl) : '',
     groups,
     kinds,
     name: model.name,

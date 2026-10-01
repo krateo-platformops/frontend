@@ -40,6 +40,7 @@ import { OAS_METHODS, type OasDocument, type OasFormat, type OasImport, parseOas
 import { inferOperationMapping, type OperationMapping, type RestAction, VERB_ORDER, type VerbConflict } from './operationMapping'
 import { operationsInGroup } from './paletteModel'
 import { buildRestDefinition, type ControllerValidation, validateControllerRestDefinition } from './restDefinitionBuild'
+import { shownUrl, urlCredentialProblem } from './urlCredential'
 
 export const VALUES_YAML_PATH = 'values.yaml'
 /** The first version of every controller: Chart.yaml's, literally, and what its release is tagged. */
@@ -390,7 +391,7 @@ const foreignServers = (model: ControllerModel): string[] => {
     const urls = Array.isArray(list) ? list.map((entry) => asRecord(entry)?.url) : []
     const foreign = urls.filter((url) => url !== model.baseUrl)
     return foreign.length || !urls.length
-      ? [`${model.spec?.path ?? 'the document'}: ${where} names ${foreign.map((url) => String(url)).join(', ') || 'no URL'}, not the base URL ${model.baseUrl || '(unset)'} — the controller would send those requests, and their credential, elsewhere.`]
+      ? [`${model.spec?.path ?? 'the document'}: ${where} names ${foreign.map(shownUrl).join(', ') || 'no URL'}, not the base URL ${model.baseUrl ? shownUrl(model.baseUrl) : '(unset)'} — the controller would send those requests, and their credential, elsewhere.`]
       : []
   })
 }
@@ -405,6 +406,7 @@ export const lintControllerDraft = (files: Readonly<Record<string, string>>, loc
     const model = readController(files)
     return [
       ...lockedChanges(files, locked),
+      ...(model.baseUrl && urlCredentialProblem(model.baseUrl) ? [`Chart.yaml: the base URL — ${urlCredentialProblem(model.baseUrl) ?? ''}`] : []),
       ...Object.keys(files).filter((path) => !isControllerChartPath(path)).sort()
         .map((path) => `${path}: a controller chart holds only Chart.yaml, values*, templates/restdefinition-<kind>.yaml and templates/configmap-oas-<name>.yaml — this file would be published without the preview ever rendering it. Remove it.`),
       ...helmActionProblems(files),

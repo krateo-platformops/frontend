@@ -23,7 +23,6 @@ import { buildPagePreviewPayload, buildRestDefPreviewPayload, toYamlString } fro
 import { AUTOPILOT_PREVIEW_EVENT, openAutopilotPreview } from './previewBus'
 import { claimPreviewSurface, emitDraftChanged } from './previewDraftChanged'
 import { emitDraftClose } from './previewDraftClose'
-import { AUTOPILOT_PREVIEW_EDIT_EVENT, type RestDefEditDetail } from './previewEditBus'
 import { AUTOPILOT_PREVIEW_FILE_EDIT_EVENT, type FileEditDetail } from './previewFileEdit'
 import { AutopilotPreviewDrawer } from './previewSurface'
 
@@ -65,13 +64,6 @@ const cleanDraft = {
   },
 }
 
-/** Capture the LAST draft emitted on the edit bus (or null). Returns the un-listen fn. */
-const captureEmits = (sink: { last: Record<string, unknown> | null }): (() => void) => {
-  const listener = (event: Event): void => { sink.last = (event as CustomEvent<RestDefEditDetail>).detail.draft }
-  window.addEventListener(AUTOPILOT_PREVIEW_EDIT_EVENT, listener)
-  return () => window.removeEventListener(AUTOPILOT_PREVIEW_EDIT_EVENT, listener)
-}
-
 describe('AutopilotPreviewDrawer — editable RestDefinition source', () => {
   it('renders the editable source textarea seeded with the draft YAML', async () => {
     const view = render(<AutopilotPreviewDrawer />)
@@ -82,43 +74,26 @@ describe('AutopilotPreviewDrawer — editable RestDefinition source', () => {
     expect(area.value).toContain('resourceGroup: github.ogen.krateo.io')
   })
 
-  it('a CLEAN edit emits the edited draft on the edit bus and clears the error Alert', async () => {
-    const sink: { last: Record<string, unknown> | null } = { last: null }
-    const off = captureEmits(sink)
+  it('a CLEAN edit re-validates and clears the error Alert — and is an inspection, held for nothing (frontend#429)', async () => {
     const view = render(<AutopilotPreviewDrawer />)
     openAutopilotPreview(buildRestDefPreviewPayload(cleanDraft))
     const area = await waitFor(() => view.getByLabelText('RestDefinition source') as HTMLTextAreaElement)
-
-    // A human edit of the held YAML: rename the path (still a valid draft).
     const edited = { ...cleanDraft, spec: { ...cleanDraft.spec, resource: { ...cleanDraft.spec.resource, verbsDescription: [{ action: 'get', method: 'GET', path: '/repositories' }] } } }
     fireEvent.change(area, { target: { value: toYamlString(edited) } })
     fireEvent.click(view.getByRole('button', { name: 'Apply edits' }))
-
-    // The edited draft rode the bus — byte-for-byte what the human typed (the held-bytes guarantee).
-    await waitFor(() => expect(sink.last).not.toBeNull())
-    const spec = sink.last?.spec as { resource?: { verbsDescription?: { path?: string }[] } }
-    expect(spec?.resource?.verbsDescription?.[0]?.path).toBe('/repositories')
+    await waitFor(() => expect(view.getByText('Valid — an inspection: a controller is published from the Controller Builder')).toBeTruthy())
     expect(view.queryByText(/publishing this draft would be rejected/i)).toBeNull()
-    expect(view.getByText('Valid — held for publish')).toBeTruthy()
-    off()
+    expect(view.queryByText('Valid — held for publish')).toBeNull()
   })
 
-  it('a CRD-INVALID edit shows the validation Alert and does NOT emit (the gate stays un-armed)', async () => {
-    const sink: { last: Record<string, unknown> | null } = { last: null }
-    const off = captureEmits(sink)
+  it('a CRD-INVALID edit shows the validation Alert', async () => {
     const view = render(<AutopilotPreviewDrawer />)
     openAutopilotPreview(buildRestDefPreviewPayload(cleanDraft))
     const area = await waitFor(() => view.getByLabelText('RestDefinition source') as HTMLTextAreaElement)
-
-    // Break the draft: lowercase method — a live-CRD enum violation that would 422 at publish.
     const broken = { ...cleanDraft, spec: { ...cleanDraft.spec, resource: { ...cleanDraft.spec.resource, verbsDescription: [{ action: 'get', method: 'get', path: '/repos' }] } } }
     fireEvent.change(area, { target: { value: toYamlString(broken) } })
     fireEvent.click(view.getByRole('button', { name: 'Apply edits' }))
-
     await waitFor(() => expect(view.getByText(/publishing this draft would be rejected/i)).toBeTruthy())
-    // NOTHING was emitted — an invalid edit never re-arms the preview gate (deny-by-default).
-    expect(sink.last).toBeNull()
-    off()
   })
 
   it('a non-editable preview renders the read-only YAML (no editable textarea)', async () => {

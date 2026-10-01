@@ -4,20 +4,14 @@
  *   - validateRestDefinitionDraft mirrors the live CRD (required fields, enums,
  *     findby-only fields, requestFieldMapping exactly-one-of, DNS names);
  *   - restDefImmutabilityWarnings surfaces every CEL-immutable field the draft sets;
- *   - buildKogPublishOps compiles the 1-op (URL-first) / 2-op (ConfigMap + RestDefinition,
- *     $oasAttachment token) publish plans — and the built ops pass the set kernel.
  *   - the oasgen 0.23.0 fields (fieldMapping, transforms, async, pagination, headers/queries,
  *     status-code lists, compareScope, apiRefs) validate, and unknown keys are rejected.
  * Fixtures mirror the oasgen samples (mlflow URL path; a github-style configmap path).
  */
 import { describe, expect, it } from 'vitest'
 
-import { isApplySetAllowed } from './applyResourceSet'
 import {
-  buildKogPublishOps,
-  KOG_MANAGED_BY_LABEL,
   parseOasPath,
-  REST_DEFINITION_GVR,
   restDefImmutabilityWarnings,
   validateRestDefinitionDraft,
 } from './kogMapping'
@@ -437,60 +431,5 @@ describe('restDefImmutabilityWarnings — the CEL-immutable fields, surfaced BEF
       'immutable once generated: resource.kind — changing it later means delete + recreate',
       'immutable once generated: resourceGroup',
     ])
-  })
-})
-
-describe('buildKogPublishOps — the URL-first 1-op / paste 2-op publish plans', () => {
-  it('URL oasPath → ONE op: POST restdefinitions (no ConfigMap at all)', () => {
-    const plan = buildKogPublishOps(mlflowDraft)
-    expect(plan.ok).toBe(true)
-    if (!plan.ok) {
-      return
-    }
-    expect(plan.ops).toEqual([{
-      gvr: REST_DEFINITION_GVR,
-      name: 'mlflow-experiments',
-      namespace: 'krateo-system',
-      payload: mlflowDraft,
-      verb: 'POST',
-    }])
-    expect(isApplySetAllowed(plan.ops)).toBe(true)
-  })
-
-  it('configmap:// oasPath → TWO ordered ops: ConfigMap (with the $oasAttachment token) FIRST', () => {
-    const plan = buildKogPublishOps(repoDraft as unknown as Record<string, unknown>)
-    expect(plan.ok).toBe(true)
-    if (!plan.ok) {
-      return
-    }
-    expect(plan.ops).toHaveLength(2)
-    const [configMapOp, restDefOp] = plan.ops
-    expect(configMapOp).toMatchObject({
-      gvr: { group: '', resource: 'configmaps', version: 'v1' },
-      name: 'repo-oas',
-      namespace: 'krateo-system',
-      verb: 'POST',
-    })
-    // name/namespace/key are derived FROM the oasPath — they can never drift apart
-    expect(configMapOp.payload).toEqual({
-      apiVersion: 'v1',
-      data: { 'openapi.yaml': { $oasAttachment: true } },
-      kind: 'ConfigMap',
-      metadata: { labels: KOG_MANAGED_BY_LABEL, name: 'repo-oas', namespace: 'krateo-system' },
-    })
-    expect(restDefOp).toMatchObject({ gvr: REST_DEFINITION_GVR, name: 'repo', namespace: 'krateo-system', verb: 'POST' })
-    expect(restDefOp.payload).toBe(repoDraft)
-    expect(isApplySetAllowed(plan.ops)).toBe(true)
-  })
-
-  it('an invalid draft builds NOTHING (all-or-nothing) and returns the validation errors', () => {
-    const plan = buildKogPublishOps(withDraft((draft) => {
-      draft.spec.oasPath = 'ftp://nope'
-    }))
-    expect(plan.ok).toBe(false)
-    if (plan.ok) {
-      return
-    }
-    expect(plan.errors).toContainEqual(expect.stringContaining('spec.oasPath must be configmap://'))
   })
 })
