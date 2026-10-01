@@ -1,7 +1,7 @@
 /**
- * publishTargetForm — the publish-destination kind extension (item #30 adds 'restdef').
- * Headless-path coverage: with no mounted host, askPublishDestination resolves the prefills
- * (byte-identical non-interactive behavior), for EVERY kind in the union including the new one.
+ * publishTargetForm — the publish-destination kinds (the rail's 'restdef' kind went with its legacy
+ * publish, frontend#429). Headless-path coverage: with no mounted host, askPublishDestination resolves
+ * the prefills (byte-identical non-interactive behavior), for EVERY kind in the union.
  */
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -12,7 +12,7 @@ afterEach(() => {
 })
 
 describe('askPublishDestination — headless resolves the prefills, per kind', () => {
-  const kinds: PublishTargetRequest['kind'][] = ['page', 'blueprint', 'restdef']
+  const kinds: PublishTargetRequest['kind'][] = ['page', 'blueprint', 'controller']
 
   it('resolves the default repo for each kind when the proposal omits coords', async () => {
     const targets = await Promise.all(kinds.map((kind) => askPublishDestination({}, kind, `default-${kind}-repo`)))
@@ -21,25 +21,25 @@ describe('askPublishDestination — headless resolves the prefills, per kind', (
     })
   })
 
-  it('restdef kind: prefers the proposal coords over the default when supplied', async () => {
-    const target = await askPublishDestination({ base: 'develop', owner: 'acme', repo: 'my-oas' }, 'restdef', 'krateo-oas')
+  it('controller kind: prefers the proposal coords over the default when supplied', async () => {
+    const target = await askPublishDestination({ base: 'develop', owner: 'acme', repo: 'my-oas' }, 'controller', 'krateo-oas')
     expect(target).toEqual({ base: 'develop', owner: 'acme', repo: 'my-oas' })
   })
 
-  it('restdef kind falls back to krateo-oas as its default repo', async () => {
-    const target = await askPublishDestination({}, 'restdef', 'krateo-oas')
+  it('controller kind falls back to the default repo it is given', async () => {
+    const target = await askPublishDestination({}, 'controller', 'krateo-oas')
     expect(target?.repo).toBe('krateo-oas')
   })
 
   it('honors a per-builder default owner when the proposal omits one (KOG/oas → krateo-platformops)', async () => {
     // Regression guard for the #105 mis-repoint: the KOG registry lives in krateo-platformops,
-    // NOT krateo-blueprints (which has no krateo-oas repo). The restdef/page callers pass this owner.
-    const target = await askPublishDestination({}, 'restdef', 'krateo-oas', 'krateo-platformops')
+    // NOT krateo-blueprints (which has no krateo-oas repo). The controller/page callers pass this owner.
+    const target = await askPublishDestination({}, 'controller', 'krateo-oas', 'krateo-platformops')
     expect(target).toEqual({ base: 'main', owner: 'krateo-platformops', repo: 'krateo-oas' })
   })
 
   it('a proposal owner still wins over the per-builder default owner', async () => {
-    const target = await askPublishDestination({ owner: 'acme' }, 'restdef', 'krateo-oas', 'krateo-platformops')
+    const target = await askPublishDestination({ owner: 'acme' }, 'controller', 'krateo-oas', 'krateo-platformops')
     expect(target?.owner).toBe('acme')
   })
 })
@@ -58,7 +58,7 @@ describe('askPublishDestination — a page or blueprint names its own repository
   })
 
   it('without an artifact (a KOG mapping), the proposal\'s repo still wins as before', async () => {
-    const target = await askPublishDestination({ repo: 'my-oas' }, 'restdef', 'krateo-oas', 'krateo-platformops')
+    const target = await askPublishDestination({ repo: 'my-oas' }, 'controller', 'krateo-oas', 'krateo-platformops')
     expect(target?.repo).toBe('my-oas')
   })
 })

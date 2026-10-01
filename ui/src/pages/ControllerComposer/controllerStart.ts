@@ -10,7 +10,9 @@
  *     parser (oasImport sharesNodes), and one whose written-out size is over ten times its text is
  *     refused rather than held;
  *   - a caller that has already read the spec passes the reading in, so a keystroke in another field
- *     does not parse the document again.
+ *     does not parse the document again;
+ *   - a document read from a URL (the modal's URL tab and the agent's controllerStart alike) is read as
+ *     nobody, capped at SPEC_TEXT_MAX_BYTES and abandoned after SPEC_FETCH_TIMEOUT_MS (readSpecUrl).
  */
 import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from '../../components/Autopilot/blueprintDraft'
 import { kogValuesSchema } from '../../components/Autopilot/kogChart'
@@ -238,4 +240,43 @@ export const startController = (input: StartControllerInput, reading: SpecReadin
   files[VALUES_SCHEMA_PATH] = kogValuesSchema(name)
   files[oasConfigMapPath(name)] = oasConfigMapYaml(name, doc, reading.oas.format)
   return { files, ok: true }
+}
+
+// ── reading a document from a URL ─────────────────────────────────────────────────────────────────
+
+/** How long a URL read may take before it is abandoned. */
+export const SPEC_FETCH_TIMEOUT_MS = 20_000
+
+/**
+ * Read a document from a URL, as nobody: no cookies or credentials ride along (`credentials: 'omit'`).
+ * A declared Content-Length over the cap is refused before the body is read; a body that turns out
+ * larger is refused too; and the whole read is abandoned after SPEC_FETCH_TIMEOUT_MS.
+ */
+export const readSpecUrl = async (url: string, timeoutMs = SPEC_FETCH_TIMEOUT_MS): Promise<{ text: string } | { problem: string }> => {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  const cap = `${SPEC_TEXT_MAX_BYTES / 1024 / 1024} MiB`
+  try {
+    const response = await fetch(url, { credentials: 'omit', signal: controller.signal })
+    if (!response.ok) {
+      return { problem: `The URL answered ${response.status} — paste or upload the document instead.` }
+    }
+    const declared = Number(response.headers.get('content-length') ?? NaN)
+    if (Number.isFinite(declared) && declared > SPEC_TEXT_MAX_BYTES) {
+      controller.abort()
+      return { problem: `The URL serves ${Math.ceil(declared / 1024 / 1024)} MiB — over the ${cap} this builder reads. Nothing more was downloaded.` }
+    }
+    const text = await response.text()
+    if (text.length > SPEC_TEXT_MAX_BYTES) {
+      return { problem: `The URL served more than ${cap} — over what this builder reads.` }
+    }
+    return { text }
+  } catch (error) {
+    if (controller.signal.aborted) {
+      return { problem: `The URL did not answer within ${Math.round(timeoutMs / 1000)} s — paste or upload the document instead.` }
+    }
+    return { problem: `This browser could not read the URL (${error instanceof Error ? error.message : String(error)}) — the server may not allow it. Paste or upload the document instead.` }
+  } finally {
+    clearTimeout(timer)
+  }
 }

@@ -20,7 +20,7 @@
  * draft kind it draws, and a canvas also names the frame it sits in (host/frames.ts).
  */
 import type { BlueprintDraftHeld } from '../components/Autopilot/blueprintDraftStore'
-import { summarizeChart, summarizeDraft } from '../components/Autopilot/draftStructure'
+import { type HeldDraftState, summarizeChart, summarizeController, summarizeDraft } from '../components/Autopilot/draftStructure'
 import { architectureGraphCanvas, kindsPalette, nodeInspector } from '../pages/BlueprintComposer/blueprintSlots'
 import { openapiPalette, restdefGraphCanvas, restdefMappingInspector } from '../pages/ControllerComposer/controllerSlots'
 import { objectTreeInspector, pageGridCanvas, widgetsPalette } from '../pages/PageComposer/pageSlots'
@@ -33,8 +33,9 @@ export type PluginSlot = 'palette' | 'canvas' | 'inspector' | 'parser' | 'summar
 /** An import parser: source text in, a held tree out — or a sentence saying why not. */
 export type ParserPlugin = (source: string) => { files: Record<string, string> } | { refusal: string }
 
-/** What Autopilot is told about the held draft, or undefined when there is nothing to say. */
-export type SummarizerPlugin = (held: BlueprintDraftHeld | null) => object | undefined
+/** What Autopilot is told about the held draft, or undefined when there is nothing to say. `state` is
+ *  what the provider knows that the files do not say — whether the held draft's preview stands. */
+export type SummarizerPlugin = (held: BlueprintDraftHeld | null, state?: HeldDraftState) => object | undefined
 
 interface PluginEntry<I> {
   /** One line: what the plugin is, for a refusal's list of what IS available and for the ADR. */
@@ -94,6 +95,10 @@ const SUMMARIZERS = {
   'chart-files': {
     description: 'the held chart\'s files, in reading order, within a byte budget',
     implementation: summarizeChart,
+  },
+  'controller-model': {
+    description: 'the held controller: its document\'s resource groups, each Kind\'s verbs and unsettled conflicts, its identifiers and status fields, the publish lint and the preview state (Controller Builder)',
+    implementation: summarizeController,
   },
   'page-tree': {
     description: 'the held page\'s widget tree and the RESTActions behind it',

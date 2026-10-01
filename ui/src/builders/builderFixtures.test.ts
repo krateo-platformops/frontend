@@ -21,6 +21,7 @@ import { BLUEPRINT_DRAFT_MAX_BYTES } from '../components/Autopilot/blueprintDraf
 import { DRAFT_RENDER_RESTACTION } from '../components/Autopilot/blueprintRenderSandbox'
 import { resolveBuilderTargets } from '../components/Autopilot/builderTargets'
 import { CHART_VERBS } from '../components/Autopilot/chartVerbs'
+import { CONTROLLER_VERBS } from '../components/Autopilot/controllerVerbs'
 import { REGISTRATION_PATH } from '../components/Autopilot/publishDraft'
 import { PROJECTION_BUNDLE_PATH } from '../pages/BlueprintComposer/projectionCompile'
 import { SLUG_PATTERN } from '../pages/PageComposer/startDraft'
@@ -113,7 +114,7 @@ describe.each(FIXTURES)('the %s Builder', (name) => {
   })
 
   it('allows only verbs the action bridge knows', () => {
-    const known = new Set([...COMPOSE_VERBS, ...CHART_VERBS, 'previewPage', 'previewBlueprint', 'publishPage', 'publishBlueprint', 'previewRestDef', 'publishRestDef'])
+    const known = new Set([...COMPOSE_VERBS, ...CHART_VERBS, ...CONTROLLER_VERBS, 'previewPage', 'previewBlueprint', 'publishPage', 'publishBlueprint', 'previewRestDef', 'publishRestDef'])
     expect(parsed(name).spec.verbs.allowed.filter((verb) => !known.has(verb))).toEqual([])
   })
 

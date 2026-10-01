@@ -25,8 +25,8 @@ export interface PublishTarget {
 }
 
 export interface PublishTargetRequest extends PublishTarget {
-  /** What is being published — labels the form (a page, a blueprint chart, a controller chart, or the rail's KOG API mapping). */
-  kind: 'page' | 'blueprint' | 'controller' | 'restdef'
+  /** What is being published — labels the form (a page, a blueprint chart, or a controller chart). */
+  kind: 'page' | 'blueprint' | 'controller'
   /**
    * The ONLY repository this publish may name — the artifact's slug — set when the destination is
    * seeded from a builder template. A seeded repository is one chart's (seededRepoProblem), so the
@@ -55,7 +55,6 @@ const KIND_NOUN: Record<PublishTargetRequest['kind'], string> = {
   blueprint: 'blueprint',
   controller: 'controller',
   page: 'page',
-  restdef: 'API mapping',
 }
 
 /** The write-gate blurb for the artifact kind — what a publish of THIS kind actually commits. */
@@ -63,7 +62,6 @@ const KIND_BLURB: Record<PublishTargetRequest['kind'], string> = {
   blueprint: 'The Helm chart tree (Chart.yaml, values.schema.json, templates/) is pushed to a branch and opened as a change request into the base branch — once merged, CI publishes it as a versioned OCI chart. Nothing merges without your review.',
   controller: 'The controller chart (Chart.yaml, its RestDefinitions and the OpenAPI ConfigMap they read, and the CompositionDefinition that registers it) is pushed to a branch and opened as a change request into the base branch — once merged, CI publishes it as a versioned OCI chart, and registering it lets a composition install the Kinds. Nothing merges without your review.',
   page: 'Krateo pushes the page to a branch and opens a change request into the base branch. Nothing merges without your review.',
-  restdef: 'The RestDefinition (and, for a pasted spec, its OpenAPI ConfigMap) is pushed to a branch and opened as a change request into the base branch — once merged, the controller provider reconciles it and the new API kind becomes available. The kind no longer lands live on publish; it waits for the request to merge. Nothing merges without your review.',
 }
 
 /**

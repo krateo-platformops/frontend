@@ -36,6 +36,8 @@ import { applyResourceSet, type ApplyResourceSetOp, type ApplyResourceSetProposa
 import { applyChartVerb, isChartVerb } from './chartVerbs'
 import { requestCompose } from './composeRequest'
 import type { ComposeResult } from './composeRequest'
+// The controller verbs register themselves into DRAFT_VERB_REGISTRY on load (controllerVerbs.ts).
+import { isControllerVerb } from './controllerVerbs'
 import { applyPatchField, type PatchFieldProposal } from './patchField'
 // Import the preview handlers module for its side effect: it registers previewBlueprint /
 // previewPage into READONLY_VERB_REGISTRY on load, so they are present before any apply().
@@ -48,7 +50,7 @@ import './previewHandlers'
 import { applyPreviewPageV2, discardPreviewSandbox } from './previewPageV2'
 import { createPreviewPageSession } from './previewSandbox'
 import type { AutopilotActionChip } from './types'
-import { READONLY_VERB_REGISTRY } from './verbRegistry'
+import { DRAFT_VERB_REGISTRY, READONLY_VERB_REGISTRY } from './verbRegistry'
 
 const MUTATING_VERBS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
@@ -285,6 +287,27 @@ export interface PortalActionProposal {
   readyWhen?: string | null
   /** chartLink: remove the edge instead of adding it. */
   unlink?: boolean
+  /** controllerStart (controllerVerbs.ts): the API group the Kinds are served in, and the base URL
+   *  every request goes to (`name` above names the controller). */
+  apiGroup?: string
+  baseUrl?: string
+  /** controllerStart: exactly one source for the OpenAPI document — a URL the browser reads as
+   *  nobody, the document's text, or the document the person attached in the rail. */
+  specUrl?: string
+  specText?: string
+  specAttached?: boolean
+  /** controllerStart: for a document over the draft budget, the paths this controller serves. */
+  paths?: string[]
+  /** controllerPlace: the document's resource group to place as a Kind (`pet`, `store`). */
+  group?: string
+  /** controllerMapVerb: which verb of the Kind (`kind` above) — create, get, findby, update, delete —
+   *  and the operation it maps to (`method` + `path` above), or `omit: true` to leave it out. */
+  restAction?: string
+  method?: string
+  omit?: boolean
+  /** controllerSetIdentifiers / controllerSetStatusFields: the WHOLE list, by field name. */
+  identifiers?: string[]
+  statusFields?: string[]
 }
 
 /** One spotlight step in a guided tour: a semantic anchor + popover copy. */
@@ -403,8 +426,10 @@ export const sanitizeChatText = (text: string): string => {
 /** The verbs that edit the HELD DRAFT rather than the page. */
 export const COMPOSE_VERBS = new Set(['composeMove', 'composeAdd', 'composeBind'])
 
-// A chart verb edits the held draft too (chartVerbs.ts), so it is authoring in the same sense.
-export const isComposeVerb = (verb: string): boolean => COMPOSE_VERBS.has(verb) || isChartVerb(verb)
+// A chart verb and a controller verb edit the held draft too (chartVerbs.ts, controllerVerbs.ts), so
+// they are authoring in the same sense: a reply may start a controller, place a Kind and settle its
+// conflict, in that order.
+export const isComposeVerb = (verb: string): boolean => COMPOSE_VERBS.has(verb) || isChartVerb(verb) || isControllerVerb(verb)
 
 /**
  * The proposals to apply, in order.
@@ -564,6 +589,8 @@ export const useAutopilotActionBridge = (
   afterPreviewApply?: (widgets: Record<string, unknown>[]) => unknown,
   // An agent proposal that edits the held draft: the draft's record may then name the thread.
   onAgentDraftProposal?: () => void,
+  // The OpenAPI document attached in the rail — controllerStart {specAttached: true} reads it.
+  readAttachedSpec?: () => string | null,
 ) => {
   const { handleAction, handleActionSet } = useHandleAction()
   const queryClient = useQueryClient()
@@ -799,6 +826,18 @@ export const useAutopilotActionBridge = (
       })) ?? refused('previewPage')
     }
 
+    // DRAFT verbs (verbRegistry DRAFT_VERB_REGISTRY — the controller verbs): they edit the held draft
+    // through the composer's own kernels and buses, and never reach the apiserver. Deny-by-default as
+    // below: only a registered `draft` entry runs here, and its handler checks the held draft's Builder.
+    const draftSpec = DRAFT_VERB_REGISTRY[proposal.verb]
+    if (draftSpec?.sideEffect === 'draft') {
+      if (!draftSpec.argSchema(proposal)) {
+        return refused(proposal.verb)
+      }
+      return (await draftSpec.apply(proposal, { frontendNamespace, handleAction, routePatterns, snowplowBaseUrl, ...(readAttachedSpec ? { readAttachedSpec } : {}) }))
+        ?? refused(proposal.verb)
+    }
+
     // Deny-by-default via the DATA in READONLY_VERB_REGISTRY: a verb absent from the
     // registry — OR any entry declaring sideEffect:'write' — returns null (denied) and
     // never reaches a dispatch. Only a registered `read` verb whose argSchema matches is
@@ -816,7 +855,7 @@ export const useAutopilotActionBridge = (
       : undefined
     return (await spec.apply(proposal, { frontendNamespace, handleAction, renderBaseUrl, routePatterns, snowplowBaseUrl, ...(sandboxWriter ? { sandboxWriter } : {}) }))
       ?? refused(proposal.verb)
-  }, [afterPreviewApply, beforePreviewApply, frontendNamespace, onAgentDraftProposal, handleAction, handleActionSet, previewPageSession, queryClient, renderBaseUrl, routePatterns, sandboxNamespace, snowplowBaseUrl])
+  }, [afterPreviewApply, beforePreviewApply, frontendNamespace, onAgentDraftProposal, handleAction, handleActionSet, previewPageSession, queryClient, readAttachedSpec, renderBaseUrl, routePatterns, sandboxNamespace, snowplowBaseUrl])
 
   // A discarded draft's live render goes with it: the teardown session taken unconditionally.
   const discardSandbox = useCallback(async (): Promise<void> => {

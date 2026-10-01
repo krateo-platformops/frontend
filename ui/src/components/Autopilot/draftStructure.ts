@@ -23,13 +23,17 @@
  * a drag and a proposal alike.
  */
 import { findBuilderOf } from '../../builders/builderRegistry'
+import { heldVerb, readController } from '../../pages/ControllerComposer/controllerChart'
+import { VERB_ORDER } from '../../pages/ControllerComposer/operationMapping'
 import { buildObjectTree, flattenTree, listDataSources } from '../../pages/PageComposer/objectTree'
 import type { TreeNode } from '../../pages/PageComposer/objectTree'
 
 import { CHART_YAML_PATH, chartYamlName, VALUES_SCHEMA_PATH } from './blueprintDraft'
 import type { BlueprintDraftHeld } from './blueprintDraftStore'
+import { lintHeldDraft } from './proposedChart'
+import { lockedFor, publishedLocks } from './publishedLocks'
 import { redactValue } from './redact'
-import type { ChartDraftSummary, DraftNodeSummary, DraftSummary, PageContextEnvelope } from './types'
+import type { ChartDraftSummary, ControllerDraftSummary, ControllerKindSummary, DraftNodeSummary, DraftSummary, PageContextEnvelope } from './types'
 
 /**
  * Cap on the nodes described. A hand-built page is a dozen nodes and a generated one rarely more;
@@ -163,14 +167,104 @@ export const summarizeChart = (held: BlueprintDraftHeld | null): ChartDraftSumma
   return { files, name: chartYamlName(held.files[CHART_YAML_PATH]), ...(withheld.length ? { withheld } : {}) }
 }
 
+/** What the provider knows about the held draft that its files do not say. */
+export interface HeldDraftState {
+  /** Whether the gate is armed for it — its last preview stands. Absent: not reported. */
+  previewed?: boolean
+}
+
+/** Budgets for the controller summary — what does not fit is said to be cut, never silently dropped. */
+const MAX_GROUPS = 40
+const MAX_OPERATIONS_PER_GROUP = 16
+const MAX_PROBLEMS = 15
+
+const names = (value: unknown): string[] => (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [])
+
+/**
+ * `controller-model` — the HELD CONTROLLER, for the agent that edits it with the controller verbs
+ * (controllerVerbs.ts). Undefined unless the held draft's Builder names this summarizer.
+ *
+ * DERIVED FROM THE FILES, by the composer's own reader (readController) and the publish lint
+ * (lintHeldDraft) — the same model the palette, canvas and inspector draw, so the agent and the person
+ * are told the same thing. NO FILE BYTES: the agent edits a controller by naming groups, Kinds, verbs
+ * and operations, never by rewriting a file, so the document (which can be hundreds of KiB) never
+ * rides the envelope; its resource groups and operations do, within a budget. Every value is a name, a
+ * method and a path, or a lint sentence — and the redactor still runs over all of it last.
+ */
+export const summarizeController = (held: BlueprintDraftHeld | null, state: HeldDraftState = {}): ControllerDraftSummary | undefined => {
+  if (!namedBy('controller-model', held)) {
+    return undefined
+  }
+  const model = readController(held.files)
+  const locked = lockedFor(publishedLocks.get(), held.kind, model.name)
+  const operations = model.spec?.oas.operations ?? []
+  const groupNames = [...new Set(operations.map((operation) => operation.group))].sort()
+  const groups = groupNames.slice(0, MAX_GROUPS).map((group) => {
+    const keys = operations.filter((operation) => operation.group === group).map((operation) => operation.key)
+    const placedAs = model.kinds.find((entry) => entry.group === group)?.kind
+    return {
+      group,
+      operations: keys.slice(0, MAX_OPERATIONS_PER_GROUP),
+      ...(placedAs ? { placedAs } : {}),
+      ...(keys.length > MAX_OPERATIONS_PER_GROUP ? { more: keys.length - MAX_OPERATIONS_PER_GROUP } : {}),
+    }
+  })
+  const kinds = model.kinds.map((entry): ControllerKindSummary => {
+    const resource = (entry.restDefinition.spec as { resource?: Record<string, unknown> } | undefined)?.resource ?? {}
+    const statusFields = names(resource.additionalStatusFields)
+    const identifierCandidates = entry.inference?.identifierCandidates.map((candidate) => candidate.field) ?? []
+    const statusFieldCandidates = entry.inference?.statusFieldCandidates.map((candidate) => candidate.field) ?? []
+    return {
+      file: entry.path,
+      group: entry.group,
+      identifiers: names(resource.identifiers),
+      kind: entry.kind,
+      verbs: VERB_ORDER.flatMap((action) => {
+        const set = heldVerb(entry.restDefinition, action)
+        return set ? [{ operation: `${set.method} ${set.path}`, restAction: action }] : []
+      }),
+      ...(entry.omitted.length ? { omitted: [...entry.omitted] } : {}),
+      ...(entry.conflicts.length
+        ? { conflicts: entry.conflicts.map((conflict) => ({ candidates: conflict.candidates.map((candidate) => `${candidate.method} ${candidate.path}`), restAction: conflict.action })) }
+        : {}),
+      ...(identifierCandidates.length ? { identifierCandidates } : {}),
+      ...(statusFields.length ? { statusFields } : {}),
+      ...(statusFieldCandidates.length ? { statusFieldCandidates } : {}),
+      ...(locked?.[entry.path] ? { published: true as const } : {}),
+    }
+  })
+  const problems = lintHeldDraft(held.files, held.kind)
+  let preview: ControllerDraftSummary['preview'] = 'unknown'
+  if (state.previewed !== undefined) {
+    preview = state.previewed ? 'armed' : 'needed'
+  }
+  return {
+    apiGroup: model.group,
+    baseUrl: model.baseUrl,
+    groups,
+    kinds,
+    name: model.name,
+    preview,
+    ...(groupNames.length > MAX_GROUPS ? { groupsTruncated: true as const } : {}),
+    ...(model.specProblem ? { documentProblem: model.specProblem } : {}),
+    ...(problems.length ? { problems: problems.slice(0, MAX_PROBLEMS) } : {}),
+    ...(problems.length > MAX_PROBLEMS ? { problemsTruncated: true as const } : {}),
+  }
+}
+
 /** The envelope the collector produced, plus the draft the collector cannot see. */
 export const withHeldDraft = (
   envelope: PageContextEnvelope,
   held: BlueprintDraftHeld | null,
+  state: HeldDraftState = {},
 ): PageContextEnvelope => {
   const draft = summarizeDraft(held)
   if (draft) {
     return { ...envelope, draft }
+  }
+  const controller = summarizeController(held, state)
+  if (controller) {
+    return { ...envelope, controller }
   }
   const chart = summarizeChart(held)
   return chart ? { ...envelope, chart } : envelope
@@ -178,6 +272,9 @@ export const withHeldDraft = (
 
 /** "Is this the same chart as last turn" — the bytes, since a chart verb addresses them. */
 export const chartFingerprint = (chart: ChartDraftSummary | undefined): string => (chart ? JSON.stringify(chart) : '')
+
+/** "Is this the same controller as last turn" — its whole summary: a verb, a conflict or the preview moved. */
+export const controllerFingerprint = (controller: ControllerDraftSummary | undefined): string => (controller ? JSON.stringify(controller) : '')
 
 /**
  * A cheap identity for "is this the same draft as last turn". Names, kinds and containment only —

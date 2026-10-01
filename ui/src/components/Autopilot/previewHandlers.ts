@@ -27,9 +27,10 @@
  *     data, resourcesRefs). An in-memory "render" would either fetch (violating
  *     read-only zero-network) or fake the resolution — so the fallback is honest
  *     source, and live draft rendering is a documented follow-up.
- *   - previewRestDef {restDefinition:<CR draft>}: pure client-side parsing — the
- *     draft's YAML plus a summary of the mapped verbs/paths (action · METHOD path),
- *     kind/group and identifiers. No network, no crdgen (v1 = structured source).
+ *   - previewRestDef {}: with a controller draft held, the Controller Builder's Preview of it
+ *     (controller-render-draft over /call; a clean render arms publishRestDef). With nothing held,
+ *     {restDefinition:<CR>} is an inspection only — the YAML plus a summary of the mapped
+ *     verbs/paths, pure client-side parsing, no network — and publishes nothing.
  *
  * Malformed args are DENIED (argSchema false / apply → null), matching every other
  * registry verb — never a crash, never a partial dispatch.
@@ -37,6 +38,8 @@
 import { DRAFT_REJECTED_CAPTION, draftDisplayName, lintBlueprintDraft } from './blueprintDraft'
 import { buildBlueprintPreviewPayload } from './blueprintPreviewPayload'
 import { renderBlueprint } from './blueprintRenderSandbox'
+import { readHeldDraft } from './chartVerbs'
+import { holdsController, previewHeldController } from './controllerVerbs'
 import { buildDescribeResourcePayload, crdNameFromArgs, extractCrdSpecFields, parseDescribeResourceArgs } from './describeResource'
 import {
   buildPagePreviewPayload,
@@ -155,11 +158,21 @@ export const previewPageSpec: VerbSpec = {
 }
 
 /**
- * previewRestDef → the RestDefinition draft's YAML + a client-side summary of its
- * mapped verbs/paths. Pure parsing, no network; v1 of the KOG-builder preview gate.
+ * previewRestDef — with a CONTROLLER DRAFT HELD (frontend#429), the Controller Builder's Preview of it,
+ * exactly as the composer's button runs it (previewHeldController: lint, then controller-render-draft
+ * over /call as the person; only a clean render arms publishRestDef). Any RestDefinition the proposal
+ * carries is ignored then: the held draft is what publishes, so it is what is previewed.
+ *
+ * With NOTHING held: an inline `restDefinition` is still shown as an INSPECTION — its YAML and a
+ * client-side summary of its mapped verbs/paths, pure parsing, no network — but it is not a draft and
+ * nothing can publish it. A bare previewRestDef with nothing held is told to start a controller.
  */
 export const previewRestDefSpec: VerbSpec = {
   apply: (proposal) => {
+    const held = readHeldDraft()
+    if (holdsController(held) || proposal.restDefinition === undefined) {
+      return previewHeldController(held)
+    }
     const restDefinition = parseRestDefPreviewArgs(proposal)
     if (!restDefinition) {
       return Promise.resolve(null)
@@ -176,7 +189,8 @@ export const previewRestDefSpec: VerbSpec = {
       : proposal.label ?? payload.title
     return Promise.resolve({ label, readOnly: true, verb: 'previewRestDef' })
   },
-  argSchema: (proposal) => parseRestDefPreviewArgs(proposal) !== null,
+  // Bare (no restDefinition): the held controller. A restDefinition that is there must parse.
+  argSchema: (proposal) => proposal.restDefinition === undefined || parseRestDefPreviewArgs(proposal) !== null,
   name: 'previewRestDef',
   sideEffect: 'read',
 }

@@ -112,8 +112,16 @@ builder meant to stop.
 - **Plugins:** the palette, canvas, inspector, parser and summarizer implementations.
   - Registered today: palette `widgets`, `kinds` and `openapi`; canvas `page-grid`,
     `architecture-graph` and `restdef-graph`; inspector `object-tree`, `node` and
-    `restdef-mapping`; summarizer `page-tree` and `chart-files`. The three controller plugins
-    shipped with the Controller Builder's composer (T8, frontend#412).
+    `restdef-mapping`; summarizer `page-tree`, `chart-files` and `controller-model`. The three
+    controller slot plugins shipped with the Controller Builder's composer (T8, frontend#412);
+    `controller-model` with Autopilot's controller verbs (frontend#429).
+- **Agent verbs:** a Builder's `verbs.allowed` names which verbs Autopilot may use on its drafts;
+  what each verb does is code, routed through the same kernels a person's gestures use. The
+  Blueprint Builder's chart verbs (`chartPut`, `chartDelete`, `chartLink`) and the Controller
+  Builder's controller verbs (`controllerStart`, `controllerPlace`, `controllerMapVerb`,
+  `controllerSetIdentifiers`, `controllerSetStatusFields`, `controllerRemoveKind`) are the two
+  families. Both are draft-only and deny-by-default: a verb runs only if this frontend registers
+  it and the held draft's Builder allows it.
   - No parser plugin yet: the Controller Builder reads its OpenAPI document with T7's kernel
     (`oasImport.ts`) inside its own start modal and workbench.
 - **Lints and gates:**

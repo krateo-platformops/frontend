@@ -15,6 +15,15 @@
  *
  * Adding a read-only verb (e.g. the Wave-4 previewBlueprint / previewPage /
  * previewRestDef) is now a one-line entry — see `previewHandlers.ts`.
+ *
+ * DRAFT VERBS (frontend#429) are the third class, in their own table (DRAFT_VERB_REGISTRY): a verb
+ * that edits the HELD draft in the browser — the bytes a person is composing — through the same
+ * kernels and the same files-batch bus the composer's own gestures use. It never reaches the
+ * apiserver, a repository or a publish: the person still previews and publishes. Deny-by-default
+ * holds here too — a verb is a draft verb only when it is registered in that table with
+ * `sideEffect:'draft'`, and the Builder of the held draft must also allow it (`verbs.allowed`),
+ * which each verb's own handler checks before it writes. The controller verbs (controllerVerbs.ts)
+ * are registered there.
  */
 import { matchPath } from 'react-router'
 
@@ -56,13 +65,20 @@ export interface VerbDeps {
   /** previewBlueprint's draft transport: write the chart into the preview sandbox and render it
    * by name (blueprintRenderSandbox.ts). Absent — no sandbox configured — the chart rides ?extras. */
   sandboxWriter?: SandboxWriter
+  /** The OpenAPI document a person attached in the rail (the provider's OAS store), verbatim — what
+   * controllerStart reads when it is asked to start from the attachment rather than a URL or text,
+   * so the model never has to reproduce the document. Absent or null: nothing is attached. */
+  readAttachedSpec?: () => string | null
 }
 
 /** A declarative verb: its side-effect class, a shape guard, and its dispatch handler. */
 export interface VerbSpec {
   name: string
-  /** Only `read` verbs are ever executed via the registry path; `write` is denied here. */
-  sideEffect: 'read' | 'write'
+  /**
+   * `read` verbs run from READONLY_VERB_REGISTRY; `draft` verbs run from DRAFT_VERB_REGISTRY and
+   * edit only the held draft; `write` is denied in both.
+   */
+  sideEffect: 'read' | 'draft' | 'write'
   /** Cheap shape check on the proposal — a mismatch short-circuits `apply` to null. */
   argSchema: (proposal: PortalActionProposal) => boolean
   apply: (proposal: PortalActionProposal, deps: VerbDeps) => Promise<AutopilotActionChip | null>
@@ -166,4 +182,19 @@ export const isReadOnlyVerb = (verb: string): boolean => READONLY_VERB_REGISTRY[
 /** Register a read-only verb spec (used by previewHandlers to seed the preview verbs). */
 export const registerReadOnlyVerb = (spec: VerbSpec): void => {
   READONLY_VERB_REGISTRY[spec.name] = spec
+}
+
+/**
+ * The DRAFT verb registry (frontend#429): verbs that edit the held draft through the composer's own
+ * kernels and buses. Deny-by-default, like the read table: only a `draft` entry registered here runs
+ * through it — an absent verb, or an entry declaring any other side effect, is refused at the bridge.
+ */
+export const DRAFT_VERB_REGISTRY: Record<string, VerbSpec> = {}
+
+/** True iff the verb is a registered DRAFT verb. */
+export const isDraftVerb = (verb: string): boolean => DRAFT_VERB_REGISTRY[verb]?.sideEffect === 'draft'
+
+/** Register a draft verb spec (controllerVerbs.ts seeds the controller verbs on load). */
+export const registerDraftVerb = (spec: VerbSpec): void => {
+  DRAFT_VERB_REGISTRY[spec.name] = spec
 }

@@ -26,20 +26,20 @@ import type { BlueprintDraftHeld } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
 import { trackPublishStatus } from './builderClaimPublish'
 import { useBuilderTargets } from './builderTargets'
+import { recordChartOutcome } from './composeRequest'
 import { autopilotConversationStore } from './conversationStore'
 import { withHeldDraft } from './draftStructure'
 import { recordToolFrame } from './evidence'
 import { useAutopilotShortcut } from './keyboardShortcut'
 import { createOasAttachmentStore, type OasAttachmentResult } from './oasAttachment'
-import { isPageDraft, pageRootSlug } from './pageDraft'
 import { PREVIEW_SELF_CORRECTION_NUDGE } from './previewBus'
 import { onRestDefEdit } from './previewEditBus'
-import { buildKogPublishNudge, createPreviewGate, hydrateRestDefinitionOps } from './previewGate'
+import { createPreviewGate, hydrateRestDefinitionOps } from './previewGate'
 import { emitPublishResult, onPublishRequest } from './previewPublishRequest'
 import { AutopilotPreviewDrawer } from './previewSurface'
 import { routeProposal } from './proposalRoute'
 import { blueprintChipRendered, compilePublishOps, heldDraftIdentity, recordBlueprintPreview, recordPagePreview, type PublishCompileResult } from './publishCompile'
-import { publishDraft, runPersonPublish } from './publishDraft'
+import { narratedPublishNudge, publishDraft, runPersonPublish } from './publishDraft'
 import { PublishTargetFormHost } from './publishTargetForm'
 import type { ThreadSummary } from './sessionHistoryStore'
 import { a2aAuthHeader, createEchoTransport, createKagentTransport } from './transport'
@@ -163,7 +163,14 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // and the store, because each is handed a piece of it at construction — the bridge its write-ahead
   // (a live page preview flushes the record before it applies), the store its change listener.
   const [draftAutosave] = useState(() => createDraftAutosave())
-  const { apply, discardSandbox, sandboxWriter } = useAutopilotActionBridge(draftAutosave.flush, draftAutosave.markPageApplied, draftAutosave.noteAgentChange)
+  // W4 KOG (FE-K2): the held OAS attachment. The store keeps the verbatim pasted
+  // document OUTSIDE the page-context path (collect()/redactor never touch it, the
+  // collected context does not grow); `oasHeld` mirrors only its SIZE for the rail. Built before the
+  // bridge: controllerStart {specAttached: true} starts a controller from it, so the model never has
+  // to reproduce the document (frontend#429).
+  const [oasStore] = useState(createOasAttachmentStore)
+  const readAttachedSpec = useCallback(() => oasStore.get()?.text ?? null, [oasStore])
+  const { apply, discardSandbox, sandboxWriter } = useAutopilotActionBridge(draftAutosave.flush, draftAutosave.markPageApplied, draftAutosave.noteAgentChange, readAttachedSpec)
 
   const [open, setOpen] = useState(false)
   // The DURABLE conversation (transcript + thread identity) is held in a module-level
@@ -196,10 +203,6 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // previewRestDef and denies an applyResourceSet that writes restdefinitions unless
   // a matching (kind+resourceGroup) draft was previewed this thread. Reset on newThread.
   const [previewGate] = useState(createPreviewGate)
-  // W4 KOG (FE-K2): the held OAS attachment. The store keeps the verbatim pasted
-  // document OUTSIDE the page-context path (collect()/redactor never touch it, the
-  // collected context does not grow); `oasHeld` mirrors only its SIZE for the rail.
-  const [oasStore] = useState(createOasAttachmentStore)
   const [oasHeld, setOasHeld] = useState<{ bytes: number } | null>(null)
   // W4 BLUEPRINT-BUILDER: the thread-scoped BLUEPRINT preview gate (FE-BP2) records every
   // previewed chart name and denies a blueprint publish (the BuilderPublish claim / a register
@@ -368,19 +371,16 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       } else if (route === 'publish') {
         // Every builder's publish verb (the Builder that allows it names its publisher) takes
         // publishDraft, the same path as a composer's Publish button — one destination form, one gate,
-        // one claim. The controller's reads the KOG preview gate and the held OAS document; the
-        // others publish the held draft, whose record is marked when the claim lands (`held`).
+        // one claim — and publishes the HELD draft, whose record is marked when the claim lands (`held`).
         const { compiled, deepLink, held: heldAtPublish } = await publishDraft(
-          {
-            blueprintGate,
-            blueprintStore,
-            builderTargets,
-            config,
-            controller: { oasText: oasStore.get()?.text ?? null, origin: { prompt: lastUserTextRef.current, sessionId }, previewGate },
-            origin,
-          },
+          { blueprintGate, blueprintStore, builderTargets, config, origin },
           proposal,
         )
+        // A refusal reaches the model the way a draft verb's does — a chip never leaves the browser.
+        // Not a cancel: that is the person's answer, and nothing for the agent to correct.
+        if (compiled.denial !== null && !compiled.denial.startsWith('publish cancelled')) {
+          recordChartOutcome(`publish with ${proposal.verb}`, compiled.denial)
+        }
         await pushPublishOutcome(compiled, proposal.label, deepLink, heldAtPublish ?? null)
       } else if (route === 'applyResourceSet') {
         // Publish path, enforced HERE (finalize is the single entry point for model
@@ -462,7 +462,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     // re-prompt for the SAME action as a fenced directive. Restricted to the KNOWN portal verbs so a real
     // tool typo is never swallowed. Returns early (an errored turn proposes nothing to tour).
     if (!toRun.length && recoveryCountRef.current < 1) {
-      const toolNotFound = /\bTool ['"`]?(navigate|setExtras|openDrawer|openModal|prefillForm|runAction|previewBlueprint|previewPage|previewRestDef|explainUpgradeImpact|describeResource|patchField|applyResourceSet)['"`]? (?:is |was )?not found/i.exec(cleanedText)
+      const toolNotFound = /\bTool ['"`]?(navigate|setExtras|openDrawer|openModal|prefillForm|runAction|previewBlueprint|previewPage|previewRestDef|explainUpgradeImpact|describeResource|patchField|applyResourceSet|publishRestDef|controllerStart|controllerPlace|controllerMapVerb|controllerSetIdentifiers|controllerSetStatusFields|controllerRemoveKind)['"`]? (?:is |was )?not found/i.exec(cleanedText)
       if (toolNotFound) {
         recoveryCountRef.current += 1
         const [, verb] = toolNotFound
@@ -473,38 +473,18 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         return
       }
 
-      // NARRATED-PUBLISH TRAMPOLINE: the model approved-published in PROSE but emitted no
-      // applyResourceSet fence (the exact rail-publish stall) — so nothing was proposed and no
-      // blast-radius dialog opened. If the user's last message was an approval AND a previewed
-      // blueprint draft is held, re-prompt ONCE to emit STEP A (emitting the fence IS the gate).
+      // NARRATED-PUBLISH TRAMPOLINE: the model approved-published in PROSE but emitted no publish
+      // fence (the exact rail-publish stall) — so nothing was proposed and no blast-radius dialog
+      // opened. If the user's last message was an approval AND a previewed draft is held, re-prompt
+      // ONCE to emit the held draft's own publish verb (emitting the fence IS the gate).
       const held = blueprintStore.get()
       const heldName = heldDraftIdentity(held)
       const approvedPublish = /\b(publish|open the (?:pull request|pr|merge request|mr)|go ahead|do it|approve|proceed|looks good|ship it)\b/i.test(lastUserTextRef.current)
-      if (held && heldName && approvedPublish) {
+      const nudge = held && heldName && approvedPublish ? narratedPublishNudge(held, heldName, builderTargets) : null
+      if (nudge) {
         recoveryCountRef.current += 1
         setMessages((prev) => prev.map((message) => (message.id === assistantId ? { ...message, text: '↻ One moment — preparing the change request…' } : message)))
-        // Re-issue the scalar publish verb that matches the held draft: a page draft → publishPage
-        // (FE-BP7), a blueprint chart → publishBlueprint (FE-BP6). The host turns either into ONE
-        // BuilderPublish claim; the model never writes the publish objects itself.
-        const pageSlug = isPageDraft(held) ? pageRootSlug(held.files) : null
-        const scalarVerb = pageSlug
-          ? `{"verb":"publishPage","owner":"${builderTargets.page.owner}","repo":"${builderTargets.page.repo}","base":"main"}`
-          : `{"verb":"publishBlueprint","owner":"${builderTargets.blueprint.owner}","repo":"${builderTargets.blueprint.repo}","base":"main"}`
-        const what = pageSlug ? 'the held page' : 'the held chart'
-        const nudge = `You approved publishing \`${heldName}\` but your reply contained NO portal-action fence, so nothing was proposed and no confirm dialog opened. Do NOT say the user "will be asked to confirm" — EMITTING the fence is ITSELF what opens the blast-radius dialog. Re-issue the PUBLISH step NOW as a single fenced \`\`\`portal-action block containing ONLY this one scalar verb: ${scalarVerb}. The portal commits ${what} as ONE publish claim — a branch with its files, and a change request for review — you do NOT write any of that yourself.`
         setTimeout(() => sendRef.current?.(nudge, { modality, recovery: true }), 0)
-        return
-      }
-
-      // NARRATED-KOG-PUBLISH TRAMPOLINE: same stall class, RestDefinition variant — a previewed
-      // API mapping was approved in prose but no applyResourceSet fence followed. The gate holds
-      // the previewed draft; the nudge (previewGate.buildKogPublishNudge) rebuilds the exact op
-      // shape (2-op $oasAttachment paste case / 1-op URL case) so the re-prompt is mechanical.
-      const lastRestDef = previewGate.lastDraft()
-      if (lastRestDef && approvedPublish) {
-        recoveryCountRef.current += 1
-        setMessages((prev) => prev.map((message) => (message.id === assistantId ? { ...message, text: '↻ One moment — opening the confirm…' } : message)))
-        setTimeout(() => sendRef.current?.(buildKogPublishNudge(lastRestDef, Boolean(oasStore.get()), builderTargets.kog), { modality, recovery: true }), 0)
         return
       }
     }
@@ -677,7 +657,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     const modality: TurnModality = opts?.modality ?? 'text'
 
     // The collector reads the live widget cache and cannot see the held draft; the store is here.
-    const envelope = withHeldDraft(collect(), blueprintStore.get())
+    const heldNow = blueprintStore.get()
+    const envelope = withHeldDraft(collect(), heldNow, { previewed: blueprintGate.isArmed(heldDraftIdentity(heldNow)) })
     const baseContext = buildContextDelta(envelope, autopilotConversationStore.getLastEnvelope())
     autopilotConversationStore.setLastEnvelope(envelope)
 
@@ -693,7 +674,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     setStreaming(true)
 
     abortRef.current = transport.send({ context: baseContext, contextId, sessionId, text: trimmed }, { onFrame: (frame) => applyFrame(assistantId, frame, modality) })
-  }, [applyFrame, blueprintStore, collect, contextId, sessionId, setMessages, streaming, transport])
+  }, [applyFrame, blueprintGate, blueprintStore, collect, contextId, sessionId, setMessages, streaming, transport])
 
   // Keep the finalize-side recovery trampoline pointing at the CURRENT send closure.
   useEffect(() => { sendRef.current = send }, [send])
@@ -800,8 +781,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
 
   // FE-K(edit): the preview drawer lets the user EDIT the previewed RestDefinition source and
   // apply it. An accepted edit arrives here on the edit bus; recording it into the preview gate
-  // re-arms the gate with the edited draft and makes it the LAST draft — so the subsequent KOG
-  // publish (resolveKogPublishDraft(previewGate.lastDraft())) commits the EDITED bytes. recordPreview
+  // re-arms the gate with the edited draft and makes it the LAST draft — so a restdefinitions write
+  // (hydrateRestDefinitionOps(previewGate.lastDraft())) commits the EDITED bytes. recordPreview
   // re-validates once more (deny-by-default: an invalid edit arms nothing), and the drawer only
   // emits a clean edit anyway, so the held bytes are exactly the human-edited bytes.
   useEffect(() => onRestDefEdit(({ draft }) => previewGate.recordPreview(draft)), [previewGate])
@@ -853,7 +834,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       )
       emitPublishResult({ ...answer, id })
     })()
-  }), [apply, blueprintGate, blueprintStore, builderTargets, config, draftAutosave, oasStore, previewGate, setMessages])
+  }), [apply, blueprintGate, blueprintStore, builderTargets, config, draftAutosave, setMessages])
 
   const toggle = useCallback(() => setOpen((prev) => !prev), [])
   const closeTour = useCallback(() => setTourOpen(false), [])

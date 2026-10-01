@@ -257,6 +257,57 @@ export interface PageContextEnvelope {
    * overwrites the person's edits with its own older copy. See `summarizeChart`.
    */
   chart?: ChartDraftSummary
+  /**
+   * The HELD CONTROLLER — present when the held draft is a controller (summarizer `controller-model`,
+   * frontend#429): the document's resource groups, each placed Kind's verbs, its unsettled conflicts
+   * with their candidates, its identifiers and status fields, the publish lint, and whether a preview
+   * stands. What the controller verbs address. See `summarizeController`.
+   */
+  controller?: ControllerDraftSummary
+}
+
+export interface ControllerDraftSummary {
+  /** Chart.yaml's name — the controller, its repository and its CompositionDefinition. */
+  name: string | null
+  /** The API group every Kind is served in. */
+  apiGroup: string
+  /** The URL every request the controller sends goes to. */
+  baseUrl: string
+  /**
+   * `armed`: the last preview rendered the draft as it is now, so publishRestDef may publish it.
+   * `needed`: it changed since (or never rendered) — previewRestDef first. `unknown`: not reported.
+   */
+  preview: 'armed' | 'needed' | 'unknown'
+  /** The document's resource groups — what controllerPlace places — with their operations. */
+  groups: { group: string; placedAs?: string; operations: string[]; more?: number }[]
+  /** More groups than the budget: the rest are not listed. */
+  groupsTruncated?: true
+  /** Why the document cannot be read, when it cannot. */
+  documentProblem?: string
+  kinds: ControllerKindSummary[]
+  /** The publish lint (lintHeldDraft): empty means nothing stops a publish but the preview. */
+  problems?: string[]
+  problemsTruncated?: true
+}
+
+export interface ControllerKindSummary {
+  kind: string
+  /** The RestDefinition's file. */
+  file: string
+  /** The resource group it was placed from. */
+  group: string
+  /** The verbs set: create/get/findby/update/delete → `METHOD path`. */
+  verbs: { restAction: string; operation: string }[]
+  /** Verbs left out on purpose. */
+  omitted?: string[]
+  /** Verbs two or more operations look like, with every candidate — settled only by controllerMapVerb. */
+  conflicts?: { restAction: string; candidates: string[] }[]
+  identifiers: string[]
+  identifierCandidates?: string[]
+  statusFields?: string[]
+  statusFieldCandidates?: string[]
+  /** True when it was published: its CEL-immutable fields are locked. */
+  published?: true
 }
 
 export interface ChartDraftSummary {

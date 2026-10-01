@@ -18,6 +18,8 @@ import { pageChartYaml, pageValuesSchema } from './pageDraft'
 import { runDraftPublish, type PublishDraftDeps } from './publishDraft'
 
 const deps = (store: ReturnType<typeof createBlueprintDraftStore>): PublishDraftDeps => ({
+  // Previewed: the publish asks the gate before the destination form; the lint is what is under test.
+  blueprintGate: { evaluate: () => ({ allowed: true }) },
   blueprintStore: store,
   // No template configured for either builder — a real install's state before the scaffold existed.
   builderTargets: {
