@@ -22,10 +22,12 @@
  * (menuRoutes, isFetchingRoutes, location). WidgetRenderer is stubbed so a
  * resolved route renders an identifiable marker instead of touching the network.
  */
-import { render } from '@testing-library/react'
+import { act, render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { failBuilders, installBuilders, markBuildersLoading, parseBuilderItems } from '../../builders/builderRegistry'
+import { fixtureItems, fixtureBuilders } from '../../builders/fixtures/fixtureBuilders'
 import type { AppRoute } from '../../context/RoutesContext'
 
 import WidgetPage from './WidgetPage'
@@ -155,5 +157,75 @@ describe('WidgetPage — post-login 404-flash guard', () => {
     expect(queryByTestId('widget-content')).not.toBeNull()
     expect(queryByTestId('page-404')).toBeNull()
     expect(queryByTestId('widget-loading')).toBeNull()
+  })
+})
+
+describe('WidgetPage — a builder route not mounted yet, or never', () => {
+  afterEach(() => {
+    act(() => { installBuilders(fixtureBuilders()) })
+  })
+
+  it('shows the loading skeleton (NOT 404) for a path while the Builders are still being read — no 404 flash on /portal-builder/compose', () => {
+    mockMenuRoutes = [route('/dashboard')]
+    act(() => { markBuildersLoading() })
+    const { queryByTestId } = renderAt('/portal-builder/compose')
+
+    expect(queryByTestId('widget-loading')).not.toBeNull()
+    expect(queryByTestId('page-404')).toBeNull()
+  })
+
+  it('says the Builders could not be read, with the reason, instead of a 404 when the read failed', () => {
+    mockMenuRoutes = [route('/dashboard')]
+    act(() => { failBuilders('you may not list Builders in krateo-system (403).') })
+    const { getByText, queryByTestId } = renderAt('/portal-builder/compose')
+
+    expect(getByText('Builders could not be read from the cluster: you may not list Builders in krateo-system (403).')).not.toBeNull()
+    expect(queryByTestId('page-404')).toBeNull()
+    expect(queryByTestId('widget-loading')).toBeNull()
+  })
+
+  it('turns from loading into the sentence when the read fails while the page is open', () => {
+    mockMenuRoutes = [route('/dashboard')]
+    act(() => { markBuildersLoading() })
+    const { getByText, queryByTestId } = renderAt('/portal-builder/compose')
+    expect(queryByTestId('widget-loading')).not.toBeNull()
+
+    act(() => { failBuilders('snowplow could not be reached (Failed to fetch).') })
+    expect(getByText('Builders could not be read from the cluster: snowplow could not be reached (Failed to fetch).')).not.toBeNull()
+  })
+})
+
+describe('WidgetPage — the failure sentence is for builder addresses only', () => {
+  afterEach(() => {
+    act(() => { installBuilders(fixtureBuilders()) })
+  })
+
+  it('any other unknown address stays a plain 404 when the read failed', () => {
+    mockMenuRoutes = [route('/dashboard')]
+    act(() => { failBuilders('snowplow did not answer within 15 s. Reload the page to retry.') })
+    const { queryByTestId, queryByText } = renderAt('/this-page-does-not-exist')
+
+    expect(queryByTestId('page-404')).not.toBeNull()
+    expect(queryByText(/Builders could not be read/)).toBeNull()
+  })
+
+  it('an address under any of the three hub prefixes gets the sentence', () => {
+    mockMenuRoutes = [route('/dashboard')]
+    act(() => { failBuilders('snowplow answered 503.') })
+    for (const path of ['/controller-builder/compose', '/blueprint-builder']) {
+      const { getAllByText, unmount } = renderAt(path)
+      expect(getAllByText(/Builders could not be read from the cluster: snowplow answered 503\./).length).toBeGreaterThan(0)
+      unmount()
+    }
+  })
+
+  it('a route a Builder declared earlier in this tab counts as a builder address after a failure', () => {
+    mockMenuRoutes = [route('/dashboard')]
+    const [item] = fixtureItems() as Record<string, Record<string, unknown>>[]
+    const custom = parseBuilderItems([{ ...item, metadata: { name: 'ops-builder' }, spec: { ...item.spec, route: '/ops-builder/compose' } }])
+    act(() => { installBuilders(custom) })
+    act(() => { failBuilders('snowplow answered 503.') })
+    const { getAllByText } = renderAt('/ops-builder/compose')
+    expect(getAllByText(/Builders could not be read from the cluster/).length).toBeGreaterThan(0)
   })
 })

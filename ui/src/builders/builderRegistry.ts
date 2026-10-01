@@ -1,57 +1,47 @@
 /**
- * The Builders the composer engine runs — THE ONE SEAM where they are loaded (T2, frontend#408).
+ * The Builders the composer engine runs — THE ONE SEAM where they are held (T2, frontend#408).
  *
- * WHERE THEY COME FROM TODAY. The in-repo fixtures, imported statically and parsed with the same
- * `parseBuilder` a cluster read will use. Reading Builder CRs over snowplow `/call` needs `get`/`list`
- * on builders.builders.templates.krateo.io for the portal's authenticated-user role (ADR 0001,
- * Consequences), which is a later task. When it lands, `loadBuilders` is the only function that
- * changes: every engine module asks `builderRegistry.get(...)`, never a fixture.
+ * WHERE THEY COME FROM. The Builder CRs on the cluster, listed AS THE SIGNED-IN PERSON over snowplow
+ * (clusterBuilders.ts, ADR 0001) and parsed here with `parseBuilder`. Nothing is bundled: the YAML
+ * under ./fixtures is test data and the source the portal chart's CRs are copied from, never a
+ * fallback. A failed read leaves the registry EMPTY and its status `failed`, with the sentence the
+ * builder routes show — a bundled copy answering instead would hide a broken cluster source.
+ *
+ * ASYNC. Until the list resolves the status is `idle`/`loading` and the registry is empty; the shell
+ * shows a loading state on any path it cannot route yet, then mounts one route per Builder
+ * (RoutesContext). The list is cached for the session and read again when the person signs in.
  *
  * WHAT THE ENGINE ASKS. A Builder by its draft kind (the held draft's `kind`), its route, its name, or
- * a verb it allows. Each answer is the parsed Builder or undefined — never a throw, because once the
- * source is the cluster an absent Builder is content ("no builder declares this"), not a crash.
- * `builderOf(kind)` is the one exception, for a draft kind this build's own DraftKind type names: the
- * fixtures test proves each has a Builder, so a miss there is a build defect, said loudly.
+ * a verb it allows. Each answer is the parsed Builder or undefined — never a throw, because an absent
+ * Builder is content ("no builder declares this"), not a crash. `builderOf(kind)` is the one exception,
+ * for a HELD draft's kind: a draft is only held inside a composer, which only mounts once its Builder
+ * loaded, so a miss there is a defect, said loudly.
  */
-import { load } from 'js-yaml'
-
 import { parseBuilder, type Builder, type BuilderSpec } from './builderSpec'
-import blueprintBuilderYaml from './fixtures/blueprint-builder.builder.yaml?raw'
-import controllerBuilderYaml from './fixtures/controller-builder.builder.yaml?raw'
-import portalBuilderYaml from './fixtures/portal-builder.builder.yaml?raw'
 
 /** Every Builder this frontend runs, and the problems of any that did not parse. */
-interface Loaded {
+export interface Loaded {
   builders: readonly Builder[]
   problems: readonly string[]
 }
 
 /**
- * THE SWITCH POINT. Today: the fixtures shipped in this bundle. Later: the Builder CRs listed over
- * /call as the person, with a denial turned into a problem sentence rather than an empty registry.
+ * Parse what the cluster listed: each item a Builder CR. One that does not parse is a problem sentence
+ * naming it; the others still load.
  */
-const loadBuilders = (): Loaded => {
+export const parseBuilderItems = (items: readonly unknown[]): Loaded => {
   const builders: Builder[] = []
   const problems: string[] = []
-  for (const [source, text] of [
-    ['portal-builder.builder.yaml', portalBuilderYaml],
-    ['blueprint-builder.builder.yaml', blueprintBuilderYaml],
-    ['controller-builder.builder.yaml', controllerBuilderYaml],
-  ] as const) {
-    let raw: unknown
-    try {
-      raw = load(text)
-    } catch (error) {
-      problems.push(`${source} is not YAML: ${error instanceof Error ? error.message : String(error)}`)
-      continue
-    }
-    const parsed = parseBuilder(raw)
+  items.forEach((item, index) => {
+    const metadata = (typeof item === 'object' && item !== null ? (item as { metadata?: { name?: unknown } }).metadata : undefined)
+    const source = typeof metadata?.name === 'string' && metadata.name ? `Builder ${metadata.name}` : `Builder #${index + 1}`
+    const parsed = parseBuilder(item)
     if (parsed.ok) {
       builders.push(parsed.builder)
     } else {
       problems.push(...parsed.problems.map((problem) => `${source}: ${problem}`))
     }
-  }
+  })
   return { builders, problems }
 }
 
@@ -123,7 +113,103 @@ export const createBuilderRegistry = (loaded: Loaded): BuilderRegistry => {
   }
 }
 
-let active: BuilderRegistry = createBuilderRegistry(loadBuilders())
+let active: BuilderRegistry = createBuilderRegistry({ builders: [], problems: [] })
+
+/**
+ * Where the cluster read stands. `failed` carries the sentence the builder routes show; `loaded` may
+ * still carry problems (a Builder that did not parse), which the registry's `problems()` lists, and a
+ * `lastError` — a RE-READ for the same person that failed while the Builders read earlier stay in use.
+ */
+export type BuildersStatus =
+  | { state: 'idle' }
+  | { state: 'loading' }
+  | { state: 'loaded'; lastError?: string }
+  | { state: 'failed'; reason: string }
+
+let status: BuildersStatus = { state: 'idle' }
+const listeners = new Set<() => void>()
+
+const notify = () => {
+  listeners.forEach((listener) => { listener() })
+}
+
+/**
+ * The paths builders have been served at: the routes of every Builder this tab has loaded, kept
+ * through a later failure, plus the three hubs this frontend ships Builders for — so a failure on a
+ * fresh tab can still tell a builder's address from any other unknown one.
+ */
+export const BUILDER_HUB_PREFIXES: readonly string[] = ['/portal-builder', '/blueprint-builder', '/controller-builder']
+const knownPrefixes = new Set<string>(BUILDER_HUB_PREFIXES)
+
+const prefixOf = (route: string): string => `/${route.split('/').filter(Boolean)[0] ?? ''}`
+
+/** True for an address under a builder's route prefix (`/portal-builder`, `/portal-builder/…`). */
+export const isBuilderPath = (pathname: string): boolean =>
+  [...knownPrefixes].some((prefix) => prefix !== '/' && (pathname === prefix || pathname.startsWith(`${prefix}/`)))
+
+/** The current read status — `useSyncExternalStore`'s snapshot (a stable object until it changes). */
+export const buildersStatus = (): BuildersStatus => status
+
+/**
+ * The registry object itself — a snapshot that changes ONLY when the Builders do (a load, a failure
+ * that empties them), never on a status change such as `loading`. What route consumers subscribe to.
+ */
+export const currentBuilderRegistry = (): BuilderRegistry => active
+
+/** Hear every change of the Builders or their status. Returns the unsubscribe. */
+export const subscribeBuilders = (listener: () => void): (() => void) => {
+  listeners.add(listener)
+  return () => { listeners.delete(listener) }
+}
+
+/** The read started: the registry keeps what it holds until the answer arrives. */
+export const markBuildersLoading = (): void => {
+  status = { state: 'loading' }
+  notify()
+}
+
+/** The read answered: these Builders (and these problems) are what the engine runs now. */
+export const installBuilders = (loaded: Loaded): void => {
+  active = createBuilderRegistry(loaded)
+  loaded.builders.forEach((builder) => { knownPrefixes.add(prefixOf(builder.spec.route)) })
+  status = { state: 'loaded' }
+  notify()
+}
+
+/**
+ * The read failed: NO Builder runs, and `reason` is said on the builder routes. Never a fallback to
+ * bundled specs — that would mask the broken source.
+ */
+export const failBuilders = (reason: string): void => {
+  active = createBuilderRegistry({ builders: [], problems: [] })
+  status = { reason, state: 'failed' }
+  notify()
+}
+
+/**
+ * A RE-READ for the same person failed: the Builders already loaded keep running (the registry is
+ * untouched), and the reason is kept as `lastError` for the composers to mention. Only when nothing is
+ * loaded is it a plain failure.
+ */
+export const noteBuildersRereadFailed = (reason: string): void => {
+  if (status.state !== 'loaded') {
+    failBuilders(reason)
+    return
+  }
+  status = { lastError: reason, state: 'loaded' }
+  notify()
+}
+
+/**
+ * Why the registry cannot answer at all right now, or null when it holds what the cluster said — so a
+ * deny sentence blames the read ("still loading", "could not be read") rather than the Builders.
+ */
+export const registryUnavailable = (): string | null => {
+  if (status.state === 'idle' || status.state === 'loading') {
+    return active.all().length ? null : 'the Builders are still loading from the cluster'
+  }
+  return status.state === 'failed' ? `the Builders could not be read from the cluster (${status.reason.replace(/\.$/, '')})` : null
+}
 
 /** The registry every engine module reads. */
 export const builderRegistry: BuilderRegistry = {
@@ -135,23 +221,33 @@ export const builderRegistry: BuilderRegistry = {
 
 /**
  * Swap the Builders the engine runs — for a headless test driving a stub Builder through the engine.
- * Returns the restore. Not for product code: the product's one source is `loadBuilders`.
+ * Returns the restore. Not for product code: the product's one source is the cluster read
+ * (clusterBuilders.ts `loadClusterBuilders`).
  */
 export const swapBuildersForTest = (builders: readonly Builder[]): (() => void) => {
   const previous = active
+  const previousStatus = status
   active = createBuilderRegistry({ builders, problems: [] })
-  return () => { active = previous }
+  status = { state: 'loaded' }
+  notify()
+  return () => {
+    active = previous
+    status = previousStatus
+    notify()
+  }
 }
 
 /**
- * The spec of the Builder a held draft's kind names. Throws only for a kind no Builder declares — a
- * kind this build's DraftKind type names but its fixtures do not, which builderFixtures.test.ts
- * refuses first.
+ * The spec of the Builder a held draft's kind names. Throws only for a kind no loaded Builder
+ * declares: a draft is held only inside the composer its Builder mounted, so a miss is a defect.
  */
 export const builderOf = (draftKind: string): BuilderSpec => {
   const builder = builderRegistry.get({ draftKind })
   if (!builder) {
-    throw new Error(`No Builder declares the draft kind "${draftKind}" — every draft kind needs one (ui/src/builders/fixtures).`)
+    const unavailable = registryUnavailable()
+    throw new Error(unavailable
+      ? `No Builder answers for the draft kind "${draftKind}": ${unavailable}.`
+      : `No Builder declares the draft kind "${draftKind}" — every draft kind needs one, and the Builders are read from the cluster.`)
   }
   return builder.spec
 }

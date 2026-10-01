@@ -2,6 +2,7 @@ import { Avatar } from 'antd'
 import { useEffect } from 'react'
 import { Outlet } from 'react-router'
 
+import { ensureBuildersLoaded } from '../../builders/clusterBuilders'
 import { useConfigContext } from '../../context/ConfigContext'
 import Drawer from '../../widgets/Drawer'
 import Modal from '../../widgets/Modal'
@@ -74,6 +75,14 @@ export const ShellRoute = () => {
       window.location.replace('/login')
     }
   }, [])
+
+  // The Builders are read from the cluster AS THE SIGNED-IN PERSON, once per sign-in: the shell mounts
+  // after every sign-in, and a remount with the same session is a no-op (clusterBuilders.ts).
+  useEffect(() => {
+    if (localStorage.getItem('K_user')) {
+      void ensureBuildersLoaded(config)
+    }
+  }, [config])
 
   return (
     <ShellSlotsProvider value={{ content: <><div className={styles.contentCrumb}><Breadcrumb /></div><Outlet /></>, header: <HeaderChrome />, siderFooter: <SiderFooter /> }}>

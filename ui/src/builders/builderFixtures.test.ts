@@ -2,12 +2,14 @@
  * The three Builder CRs describe what the composers do TODAY — the controller's since its composer
  * shipped (T8, frontend#412).
  *
- * The engine reads the fixtures (builderRegistry.ts, T2), and this file keeps them true: each must
- * parse, validate against the CRD the chart ships, name only plugins, checks and verbs this frontend
- * has, and agree with the constants the composers still hardcode. A change to either side then fails
- * here instead of in the engine.
+ * The engine reads these Builders from the cluster (clusterBuilders.ts); the portal chart ships them,
+ * copied byte-identical from the fixtures here. This file keeps them true: each must parse, validate
+ * against the CRD the chart ships, name only plugins, checks and verbs this frontend has, and agree
+ * with the constants the composers still hardcode. A change to either side then fails here instead of
+ * in the engine — and a change to a fixture's bytes fails the pin below until the portal copy moves.
  */
-import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import Ajv from 'ajv'
@@ -135,7 +137,8 @@ describe.each(FIXTURES)('the %s Builder', (name) => {
 
   it('is served at its route, one per Builder — a composer not built yet: not yet', () => {
     const shell = readFileSync(join(__dirname, '..', 'context', 'RoutesContext.tsx'), 'utf8')
-    expect(shell).toContain('...builderRoutes(STATIC_PATHS)')
+    expect(shell).toContain('builderRoutes(STATIC_PATHS)')
+    expect(shell).toContain('replaceBuilderRoutes(children, fresh)')
     // A Builder in COMPOSER_PENDING has no route until its plugins ship.
     expect(builderRoutes().map((route) => route.path).includes(parsed(name).spec.route)).toBe(!COMPOSER_PENDING.has(name))
   })
@@ -171,5 +174,46 @@ describe('what each fixture says about its own builder', () => {
     expect(spec.verbs.allowed).toContain('publishRestDef')
     expect([spec.palette.plugin, spec.canvas.plugin, spec.inspector.plugin]).toEqual(['openapi', 'restdef-graph', 'restdef-mapping'])
     expect(spec.portal.draftsCard.name).toBe('controller-builder-drafts-card')
+  })
+})
+
+/**
+ * THE PORTAL CHART'S COPY. The portal chart ships these three CRs byte for byte (the fixtures are their
+ * source), and the frontend runs what the cluster holds. A fixture edited here without the portal copy
+ * moving would leave CI describing Builders the cluster does not run — so each file's sha256 is pinned.
+ * Changing a fixture means changing its pin AND copying the new bytes into the portal chart.
+ */
+const PORTAL_CHART_SHA256: Record<string, string> = {
+  'blueprint-builder.builder.yaml': '650e4e2b65d5648e4ccb580410cbb57c5755f67c7b1c7cfb1b0fc7a51229681a',
+  'controller-builder.builder.yaml': 'c75b3fdbb499228470277d3e976870ec208afe78589873ad3f5b7aeff99c95d9',
+  'portal-builder.builder.yaml': 'd42b69006a7aebb342f90c7c7663dfa6767f34dc5e874320353cbf9e88f02612',
+}
+
+const isTestOnly = (path: string): boolean =>
+  /\.test\.tsx?$/.test(path) || /testHarness\.tsx?$/i.test(path) || path.includes(join('src', 'test'))
+
+describe('the fixtures are the portal chart\'s Builder CRs, and test data only', () => {
+  it('each file\'s bytes are the ones pinned for the portal chart\'s copy', () => {
+    const sums = Object.fromEntries(readdirSync(join(__dirname, 'fixtures'))
+      .filter((file) => file.endsWith('.builder.yaml'))
+      .map((file) => [file, createHash('sha256').update(readFileSync(join(__dirname, 'fixtures', file))).digest('hex')]))
+    expect(sums).toEqual(PORTAL_CHART_SHA256)
+  })
+
+  it('no product module imports them — a failed cluster read is never answered by a bundled Builder', () => {
+    const offenders: string[] = []
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name)
+        if (entry.isDirectory()) {
+          if (path !== join(__dirname, 'fixtures')) { walk(path) }
+          continue
+        }
+        if (!/\.tsx?$/.test(entry.name) || isTestOnly(path)) { continue }
+        if (/from '[^']*(fixtures\/fixtureBuilders|\.builder\.yaml)/.test(readFileSync(path, 'utf8'))) { offenders.push(path) }
+      }
+    }
+    walk(join(__dirname, '..'))
+    expect(offenders).toEqual([])
   })
 })

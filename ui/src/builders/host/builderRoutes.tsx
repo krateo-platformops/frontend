@@ -17,12 +17,14 @@
  *   route the portal's navigation registers later REPLACES a builder route at the same path
  *   (mergeShellChildren): a Builder CR cannot shadow the portal's own pages.
  *
- * Read when the shell's routes are built: the registry is the bundle's fixtures until Builders are
- * listed from the cluster, and then this is where a refreshed list would be re-read.
+ * Read whenever the registry changes: the Builders are listed from the cluster after sign-in
+ * (clusterBuilders.ts), and RoutesContext re-mounts the builder routes with `replaceBuilderRoutes`.
  */
+import { Alert } from 'antd'
+import { useSyncExternalStore } from 'react'
 import type { RouteObject } from 'react-router'
 
-import { builderRegistry } from '../builderRegistry'
+import { builderRegistry, buildersStatus, subscribeBuilders } from '../builderRegistry'
 import type { Builder, BuilderSpec } from '../builderSpec'
 import { resolvePlugin } from '../pluginRegistry'
 
@@ -45,10 +47,38 @@ const unambiguous = (builder: Builder): boolean =>
   && builderRegistry.get({ route: builder.spec.route }) === builder
   && builderRegistry.get({ draftKind: builder.spec.draftKind }) === builder
 
+const lastErrorOf = (): string | undefined => {
+  const status = buildersStatus()
+  return status.state === 'loaded' ? status.lastError : undefined
+}
+
+/**
+ * A builder route's element: the composer for the Builder of that NAME, looked up live. The route is
+ * mounted once per (name, route) and never rebuilt for a re-read (RoutesContext), so a re-read that
+ * changes the Builder's spec reaches the composer here, as a prop, without remounting the router. It
+ * re-renders only when that Builder object or a re-read error changes — never on `loading`.
+ */
+export const BuilderRouteHost = ({ name }: { name: string }) => {
+  const builder = useSyncExternalStore(subscribeBuilders, () => builderRegistry.get({ name }))
+  const lastError = useSyncExternalStore(subscribeBuilders, lastErrorOf)
+  return (
+    <>
+      {lastError
+        ? <Alert banner showIcon title={`The Builders could not be read again from the cluster: ${lastError} The ones read earlier are still in use.`} type='warning' />
+        : null}
+      <ComposerHost builder={builder} name={name} />
+    </>
+  )
+}
+
+/** What the mounted builder routes are: each route's id and path. Equal signatures, equal routes. */
+export const builderRoutesSignature = (routes: readonly RouteObject[]): string =>
+  routes.map((route) => `${route.id ?? ''}@${route.path ?? ''}`).sort().join('|')
+
 export const builderRoutes = (reserved: readonly string[] = []): RouteObject[] => builderRegistry.all()
   .filter((builder) => !composerPending(builder.spec) && unambiguous(builder) && !reserved.includes(builder.spec.route))
   .map((builder) => ({
-    element: <ComposerHost builder={builder} key={builder.metadata.name} />,
+    element: <BuilderRouteHost key={builder.metadata.name} name={builder.metadata.name} />,
     id: `${BUILDER_ROUTE_ID}${builder.metadata.name}`,
     path: builder.spec.route,
   }))
@@ -69,4 +99,18 @@ export const mergeShellChildren = (children: readonly RouteObject[], incoming: r
   }
   const splat = kept.findIndex((route) => route.path === '*')
   return splat === -1 ? [...kept, ...fresh] : [...kept.slice(0, splat), ...fresh, ...kept.slice(splat)]
+}
+
+/**
+ * The shell's children with the builder routes REPLACED by `fresh`: every route a previous Builder
+ * list mounted is dropped, then `fresh` is merged in like any incoming route — so a navigation route
+ * already at a Builder's path still wins (mergeShellChildren). Returns `children` itself when there
+ * were no builder routes and none arrive.
+ */
+export const replaceBuilderRoutes = (children: readonly RouteObject[], fresh: readonly RouteObject[]): RouteObject[] => {
+  const stripped = children.filter((route) => !route.id?.startsWith(BUILDER_ROUTE_ID))
+  if (stripped.length === children.length && !fresh.length) {
+    return children as RouteObject[]
+  }
+  return mergeShellChildren(stripped, fresh)
 }

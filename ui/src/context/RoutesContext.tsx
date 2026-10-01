@@ -1,8 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query'
-import React, { createContext, useCallback, useContext, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useParams, type NonIndexRouteObject, type RouteObject } from 'react-router'
 
-import { builderRoutes, mergeShellChildren } from '../builders/host/builderRoutes'
+import { currentBuilderRegistry, subscribeBuilders } from '../builders/builderRegistry'
+import { builderRoutes, builderRoutesSignature, mergeShellChildren, replaceBuilderRoutes } from '../builders/host/builderRoutes'
 import ShellRoute from '../components/Shell'
 import WidgetPage from '../components/WidgetPage'
 import Auth from '../pages/Auth/Auth'
@@ -53,14 +54,15 @@ const defaultRoutes: RouteObject[] = [
   {
     children: [
       { element: <Profile />, path: '/profile' },
-      // The builders' authoring surfaces: one route per Builder, at its `spec.route`, each the
-      // composer host (builders/host/builderRoutes.tsx) — /portal-builder/compose and
-      // /blueprint-builder/compose today. STATIC children of the shell, like /profile, rather than
-      // CR-driven widget pages: a composer is React (drag and drop, a live graph, a multi-file draft
-      // with undo), and what IS configuration about it is its Builder CR, not widgetData. The `*`
-      // fallthrough below keeps every CR-driven page unaffected. A Builder never takes a path the
-      // shell serves itself, and the navigation's routes replace a builder route at the same path.
-      ...builderRoutes(STATIC_PATHS),
+      // The builders' authoring surfaces are inserted HERE once the Builder CRs are read from the
+      // cluster (builders/clusterBuilders.ts → the RoutesProvider effect below): one route per
+      // Builder, at its `spec.route`, each the composer host (builders/host/builderRoutes.tsx) —
+      // /portal-builder/compose, /blueprint-builder/compose, /controller-builder/compose. Shell
+      // children like /profile rather than CR-driven widget pages: a composer is React (drag and drop,
+      // a live graph, a multi-file draft with undo), and what IS configuration about it is its Builder
+      // CR, not widgetData. Until the read answers, the `*` fallthrough shows a loading state rather
+      // than a 404 (WidgetPage); if it fails, the sentence saying why. A Builder never takes a path
+      // the shell serves itself, and the navigation's routes replace a builder route at the same path.
       { element: <WidgetPage />, path: '*' },
     ],
     element: <ShellRoute />,
@@ -129,6 +131,32 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isLoading] = useState(false)
 
   const queryClient = useQueryClient()
+
+  // The Builders arrive after sign-in, from the cluster. Subscribed to the REGISTRY OBJECT, which
+  // changes only when the Builders do — never on a `loading` status. And the routes are replaced only
+  // when the set of (id, path) they mount changes: rebuilding them bumps routerVersion, a full
+  // RouterProvider remount that would drop Autopilot's held draft and its streams. A re-read with the
+  // same Builders reaches each composer through BuilderRouteHost instead.
+  const registry = useSyncExternalStore(subscribeBuilders, currentBuilderRegistry)
+  const mountedSignature = useRef('')
+  useEffect(() => {
+    const fresh = builderRoutes(STATIC_PATHS)
+    const signature = builderRoutesSignature(fresh)
+    if (signature === mountedSignature.current) { return }
+    mountedSignature.current = signature
+    setRoutes((prevRoutes) => {
+      const shellIndex = prevRoutes.findIndex((route) => route.id === SHELL_ROUTE_ID)
+      if (shellIndex === -1) { return prevRoutes }
+      const shell = prevRoutes[shellIndex] as NonIndexRouteObject
+      const children = shell.children ?? []
+      const replaced = replaceBuilderRoutes(children, fresh)
+      if (replaced === children) { return prevRoutes }
+      const updatedRoutes = [...prevRoutes]
+      updatedRoutes[shellIndex] = { ...shell, children: replaced }
+      setRouterVersion((prev) => prev + 1)
+      return updatedRoutes
+    })
+  }, [registry])
 
   // The Menu re-derives its `routes` array on every render (its buildNavModel
   // memo depends on a useQueries.combine output whose reference changes each

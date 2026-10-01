@@ -577,6 +577,10 @@
           "title": "Preview Sandbox Namespace",
           "default": ""
         },
+        "BUILDERS_NAMESPACE": {
+          "type": "string",
+          "title": "Builders Namespace"
+        },
         "AUTOPILOT_PAGE_BUILDER_REPO": {
           "type": "string",
           "title": "Autopilot Page Builder Repo",

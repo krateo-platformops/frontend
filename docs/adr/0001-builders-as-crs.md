@@ -49,9 +49,11 @@ Everything that is behaviour, it **names**: plugins the frontend ships, looked u
   names.
 - **Parser:** `ui/src/builders/builderSpec.ts` is the typed mirror of the CRD. It turns
   whatever the cluster returns into a `Builder` or a list of sentences, and never throws.
-- **Descriptors:** `ui/src/builders/fixtures/{portal,blueprint}-builder.builder.yaml` describe
-  today's two builders. Since T2 the engine reads them, statically imported through the one seam
-  `ui/src/builders/builderRegistry.ts`, until Builders are read from the cluster.
+- **Descriptors:** `ui/src/builders/fixtures/{portal,blueprint,controller}-builder.builder.yaml`
+  describe today's three builders. The portal chart ships them as CRs in `BUILDERS_NAMESPACE`
+  (krateo-system), copied byte-identical (a test pins each file's sha256). The frontend reads the
+  CRs from the cluster (`ui/src/builders/clusterBuilders.ts`) into the one seam
+  `ui/src/builders/builderRegistry.ts`; the fixtures are test data and never bundled.
 
 ### Why its own group, next to the widgets
 
@@ -164,12 +166,25 @@ builder meant to stop.
   The fixtures test also holds today's descriptors to the constants the composers still
   hardcode: the byte cap, the registration path, the config keys, the routes, the preview
   RESTAction and the verbs.
-- **Reading Builders needs RBAC.** Before the engine reads Builders over `/call`, the portal's
-  authenticated-user role needs `get`/`list` on `builders.builders.templates.krateo.io`. A
-  denial is content ("you may not read this builder"), never a blank page.
-- **Since T2, the engine reads the fixtures, not the cluster.** `builderRegistry.ts` is the one
-  place that changes when Builders are listed over `/call`. Per-builder wording and naming that the
-  CRD does not carry (a draft's display name, "a portal page") are draft-kind plugins keyed by
+- **Reading Builders needs RBAC.** The engine lists Builders as the signed-in person, so the
+  portal's authenticated-user role needs `get`/`list` on `builders.builders.templates.krateo.io`
+  in `BUILDERS_NAMESPACE`. The read is snowplow `GET /list?category=builders&ns=<namespace>`:
+  `/call` cannot list a collection (its GET needs a `name`), and `/list` lists every GVR in the
+  category with the caller's own client, like the Portal Builder's widget picker.
+- **The engine reads the cluster, with no fallback.** After sign-in the shell lists the Builders
+  once per signed-in user (keyed on the username, so a token refresh does not read again), with a
+  15 s timeout. Until the answer arrives, paths no route serves show a loading state; then each
+  Builder is routed. The router is rebuilt only when the set of (name, route) changes, and a
+  re-read's spec reaches each composer without a remount.
+- **A failed read leaves no Builder running.** Snowplow down, a timeout, a 403, the CRD or its CRs
+  missing: a builder's address (a hub prefix, or a route a Builder declared earlier in the tab)
+  then says "Builders could not be read from the cluster: <reason>", and any other unknown address
+  stays a plain 404. Every failure but a 403 is retried with a bounded backoff (and on the next
+  mount, under the same cap). A re-read that fails while Builders are loaded keeps them and shows
+  the error as a banner. A Builder that does not parse, or names a plugin this frontend lacks, is a
+  problem sentence; the others still load. While the registry is loading or failed, the engine's
+  deny sentences blame the read, not the Builders. Per-builder wording and naming that the CRD does
+  not carry (a draft's display name, "a portal page") are draft-kind plugins keyed by
   `spec.draftKind` (`ui/src/builders/draftKinds.ts`).
 - **Until T2, the CRD was inert.** It ships and validates, the descriptors parse and resolve,
   and nothing read them.
