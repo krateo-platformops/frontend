@@ -182,6 +182,13 @@ config:
   # previewSandbox.enabled is true: the chart then overrides this key in the rendered
   # config.json with previewSandbox.namespace, so config and provisioning cannot drift.
   PREVIEW_SANDBOX_NAMESPACE: ""
+  # The namespace the Builder CRs (builders.builders.templates.krateo.io — the Portal, Blueprint and
+  #   Controller Builders) live in. The portal chart ships them there; the frontend lists them as the
+  #   signed-in person (snowplow /list?category=builders) and runs only what it reads. Empty = no
+  #   builder can open, and the builder routes say so — there is no bundled fallback.
+  #   NO schema default (scripts/gen-config-schema.py NO_DEFAULT): core-provider copies schema
+  #   defaults into the composition spec, where a default freezes the value over this file.
+  BUILDERS_NAMESPACE: krateo-system
   # Autopilot builder publish DESTINATIONS — the "owner/repo" slug each authoring builder publishes
   # against. Config-driven so an org/repo rename is an install-values change, NOT a frontend image
   # rebuild (the krateo org migration braghettos → krateo-platformops proved that). The frontend has

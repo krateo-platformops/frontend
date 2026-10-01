@@ -22,10 +22,12 @@
  * (menuRoutes, isFetchingRoutes, location). WidgetRenderer is stubbed so a
  * resolved route renders an identifiable marker instead of touching the network.
  */
-import { render } from '@testing-library/react'
+import { act, render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { failBuilders, installBuilders, markBuildersLoading } from '../../builders/builderRegistry'
+import { fixtureBuilders } from '../../builders/fixtures/fixtureBuilders'
 import type { AppRoute } from '../../context/RoutesContext'
 
 import WidgetPage from './WidgetPage'
@@ -155,5 +157,40 @@ describe('WidgetPage — post-login 404-flash guard', () => {
     expect(queryByTestId('widget-content')).not.toBeNull()
     expect(queryByTestId('page-404')).toBeNull()
     expect(queryByTestId('widget-loading')).toBeNull()
+  })
+})
+
+describe('WidgetPage — a builder route not mounted yet, or never', () => {
+  afterEach(() => {
+    act(() => { installBuilders(fixtureBuilders()) })
+  })
+
+  it('shows the loading skeleton (NOT 404) for a path while the Builders are still being read — no 404 flash on /portal-builder/compose', () => {
+    mockMenuRoutes = [route('/dashboard')]
+    act(() => { markBuildersLoading() })
+    const { queryByTestId } = renderAt('/portal-builder/compose')
+
+    expect(queryByTestId('widget-loading')).not.toBeNull()
+    expect(queryByTestId('page-404')).toBeNull()
+  })
+
+  it('says the Builders could not be read, with the reason, instead of a 404 when the read failed', () => {
+    mockMenuRoutes = [route('/dashboard')]
+    act(() => { failBuilders('you may not list Builders in krateo-system (403).') })
+    const { getByText, queryByTestId } = renderAt('/portal-builder/compose')
+
+    expect(getByText('Builders could not be read from the cluster: you may not list Builders in krateo-system (403).')).not.toBeNull()
+    expect(queryByTestId('page-404')).toBeNull()
+    expect(queryByTestId('widget-loading')).toBeNull()
+  })
+
+  it('turns from loading into the sentence when the read fails while the page is open', () => {
+    mockMenuRoutes = [route('/dashboard')]
+    act(() => { markBuildersLoading() })
+    const { getByText, queryByTestId } = renderAt('/portal-builder/compose')
+    expect(queryByTestId('widget-loading')).not.toBeNull()
+
+    act(() => { failBuilders('snowplow could not be reached (Failed to fetch).') })
+    expect(getByText('Builders could not be read from the cluster: snowplow could not be reached (Failed to fetch).')).not.toBeNull()
   })
 })

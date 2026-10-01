@@ -1,5 +1,19 @@
 import { configure } from '@testing-library/react'
 
+import { installBuilders } from '../builders/builderRegistry'
+import { fixtureBuilders } from '../builders/fixtures/fixtureBuilders'
+
+/**
+ * THE BUILDERS EVERY TEST RUNS AGAINST, injected — never fetched.
+ *
+ * The product reads the Builder CRs from the cluster after sign-in (builders/clusterBuilders.ts), so
+ * the registry starts empty. Engine and composer suites drive the three Builders this repository
+ * authors, so they are installed here from the fixtures the portal chart's CRs are copied from. A
+ * test of the cluster read itself stubs `fetch` and installs its own answer; one driving a stub
+ * Builder swaps it in (swapBuildersForTest).
+ */
+installBuilders(fixtureBuilders())
+
 /**
  * Testing Library's async budget, set explicitly because its default is not survivable here.
  *

@@ -1,6 +1,7 @@
 /**
  * Page Composer — the Portal Builder's authoring surface: its Builder
- * (builders/fixtures/portal-builder.builder.yaml), mounted by the composer host.
+ * CR (read from the cluster; authored as builders/fixtures/portal-builder.builder.yaml), mounted by
+ * the composer host.
  *
  * WHAT IT IS NOW (T4, frontend#410). The page, its header, the split and the files pane are
  * ComposerHost's; the page editor is the page workbench (usePageWorkbench) drawn by the `widgets`

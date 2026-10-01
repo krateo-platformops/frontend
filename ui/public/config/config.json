@@ -7,7 +7,8 @@
     "EVENTS_PUSH_API_BASE_URL": "http://localhost:30083",
     "INIT": "/call?resource=navmenus&apiVersion=widgets.templates.krateo.io/v1beta1&name=sidebar-nav-menu&namespace=krateo-system",
     "OTEL_COLLECTOR_URL": "",
-    "RENDER_API_BASE_URL": ""
+    "RENDER_API_BASE_URL": "",
+    "BUILDERS_NAMESPACE": "krateo-system"
   },
   "params": {
     "FRONTEND_NAMESPACE": "krateo-system",

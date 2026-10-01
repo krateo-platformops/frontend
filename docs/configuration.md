@@ -60,6 +60,7 @@ defaults:
 | `SNOWPLOW_IDENTITY_INJECTION` | `""` | String-typed rollout flag (installer plumbing emits strings only): `""` = legacy identity-extras behavior (safe hold-off); `"true"` = snowplow injects identity server-side. Never set `"false"` (JS truthiness trap — documented in `values.yaml`). |
 | `PROVENANCE_ENABLED` | `""` | `"true"` emits one best-effort `AuditRecord` CR per gated portal write; needs the AuditRecord CRD. |
 | `PREVIEW_SANDBOX_NAMESPACE` | `""` | The namespace draft widget CRs are applied into for live preview. **Do not set by hand when `previewSandbox.enabled`** — the chart then forces it to `previewSandbox.namespace` so config and provisioning cannot drift. |
+| `BUILDERS_NAMESPACE` | `krateo-system` | The namespace the Builder CRs (Portal, Blueprint, Controller Builders) live in. The frontend lists them as the signed-in user (snowplow `/list?category=builders`), so that user needs `get`/`list` on `builders.builders.templates.krateo.io` there. Empty, or a failed read, means no builder opens and the builder routes say why; there is no bundled fallback. No schema default (see `NO_DEFAULT`). |
 
 The SPA additionally understands optional keys not in the chart defaults —
 `WIDGET_LIVE_REFRESH_ENABLED` (default on), `RENDER_API_BASE_URL`,

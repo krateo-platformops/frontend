@@ -1,6 +1,7 @@
 /**
  * Blueprint Composer — the Blueprint Builder's authoring surface: its Builder
- * (builders/fixtures/blueprint-builder.builder.yaml), mounted by the composer host.
+ * CR (read from the cluster; authored as builders/fixtures/blueprint-builder.builder.yaml), mounted
+ * by the composer host.
  *
  * WHAT IT IS NOW (T4, frontend#410). The page, its header and its files pane are ComposerHost's; the
  * chart editor is the blueprint workbench (useBlueprintWorkbench) drawn by the `kinds` palette, the

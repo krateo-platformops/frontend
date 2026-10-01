@@ -17,8 +17,8 @@
  *   route the portal's navigation registers later REPLACES a builder route at the same path
  *   (mergeShellChildren): a Builder CR cannot shadow the portal's own pages.
  *
- * Read when the shell's routes are built: the registry is the bundle's fixtures until Builders are
- * listed from the cluster, and then this is where a refreshed list would be re-read.
+ * Read whenever the registry changes: the Builders are listed from the cluster after sign-in
+ * (clusterBuilders.ts), and RoutesContext re-mounts the builder routes with `replaceBuilderRoutes`.
  */
 import type { RouteObject } from 'react-router'
 
@@ -69,4 +69,18 @@ export const mergeShellChildren = (children: readonly RouteObject[], incoming: r
   }
   const splat = kept.findIndex((route) => route.path === '*')
   return splat === -1 ? [...kept, ...fresh] : [...kept.slice(0, splat), ...fresh, ...kept.slice(splat)]
+}
+
+/**
+ * The shell's children with the builder routes REPLACED by `fresh`: every route a previous Builder
+ * list mounted is dropped, then `fresh` is merged in like any incoming route — so a navigation route
+ * already at a Builder's path still wins (mergeShellChildren). Returns `children` itself when there
+ * were no builder routes and none arrive.
+ */
+export const replaceBuilderRoutes = (children: readonly RouteObject[], fresh: readonly RouteObject[]): RouteObject[] => {
+  const stripped = children.filter((route) => !route.id?.startsWith(BUILDER_ROUTE_ID))
+  if (stripped.length === children.length && !fresh.length) {
+    return children as RouteObject[]
+  }
+  return mergeShellChildren(stripped, fresh)
 }

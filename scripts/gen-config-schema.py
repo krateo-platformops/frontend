@@ -66,7 +66,7 @@ def json_type(key: str, value: object) -> str:
 # defaulted. core-provider copies a schema default into the composition spec, where it becomes a
 # silent live override that freezes the value and ignores values.yaml (the 2026-09-29 Autopilot 405
 # outage). Without a default, an absent key falls through to values.yaml at helm render.
-NO_DEFAULT = {"AUTOPILOT_KOG_BUILDER_TEMPLATE"}
+NO_DEFAULT = {"AUTOPILOT_KOG_BUILDER_TEMPLATE", "BUILDERS_NAMESPACE"}
 
 
 def prop(key: str, value: object) -> dict:
