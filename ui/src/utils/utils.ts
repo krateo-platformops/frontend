@@ -133,3 +133,12 @@ export const parseNumberOrNull = (value: unknown): number | null => {
   const parsed = Number(trimmed)
   return Number.isFinite(parsed) ? parsed : null
 }
+
+/**
+ * "1 write" / "2 writes" — a count with its noun agreed. Copy that interpolates a count into a
+ * fixed plural ("Confirm 1 writes") reads as a bug on the very gate that asks a human to commit;
+ * every count-plus-noun in user-facing copy goes through here. `plural` defaults to `singular + 's'`
+ * — pass it for the irregular ones ("branch" → "branches").
+ */
+export const countNoun = (count: number, singular: string, plural: string = `${singular}s`): string =>
+  `${count} ${count === 1 ? singular : plural}`

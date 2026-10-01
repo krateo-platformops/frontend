@@ -22,6 +22,7 @@
 
 import { buildBlastRadiusSet, parseTargetFromPath, type WriteOp } from '../components/BlastRadius/buildBlastRadius'
 import { redactSecretValues } from '../utils/secretFields'
+import { countNoun } from '../utils/utils'
 
 import { recordProvenance, type WriteOrigin } from './provenance'
 import type { ActionContext } from './useHandleActions'
@@ -169,7 +170,7 @@ export const runRestSet = async (ops: readonly WriteOp[], ctx: RunRestSetContext
   // recordProvenance; a declined confirm returned above, so it records NOTHING.
   recordProvenance(ctx, origin, radius, failed
     ? { message: `op ${failed.index + 1} of ${ops.length} (${opLabel(radius.ops[failed.index])}) failed: ${auditDetail(failed)}`, ok: false, status: failed.status }
-    : { message: `all ${ops.length} writes applied in order`, ok: true, status: results[results.length - 1]?.status ?? 0 },
+    : { message: ops.length === 1 ? 'the 1 write applied' : `all ${countNoun(ops.length, 'write')} applied in order`, ok: true, status: results[results.length - 1]?.status ?? 0 },
   requestedAt)
 
   // `silent` (previewPage v2): the caller renders the outcome itself (drawer content /

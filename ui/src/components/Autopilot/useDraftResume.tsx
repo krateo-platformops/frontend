@@ -15,6 +15,8 @@
 import { Alert, App, Descriptions, Modal, Typography } from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { countNoun } from '../../utils/utils'
+
 import { adoptRootFrom, ADOPT_PARAM, DISCARD_LEGACY_PARAM, readLegacyPageSet, type SandboxTarget } from './adoptLegacyPage'
 import type { DraftKind } from './blueprintDraftStore'
 import { treeHash, type DraftRecordBody } from './draftRecord'
@@ -165,7 +167,7 @@ export const useDraftResume = ({ allowAdopt, kind, onResumed, sandboxNamespace, 
           setNotice({ text: read.message, type: 'error' })
           return
         }
-        setNotice({ text: `Confirm to delete ${discardRoot} and the ${read.retire.length} objects it holds…`, type: 'reading' })
+        setNotice({ text: `Confirm to delete ${discardRoot} and the ${countNoun(read.retire.length, 'object')} it holds…`, type: 'reading' })
         discardId.current = newId()
         emitLegacyDiscard({ id: discardId.current, root: discardRoot, targets: read.retire })
         return

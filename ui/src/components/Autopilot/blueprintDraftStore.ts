@@ -26,6 +26,7 @@
  */
 
 import { isDraftKind, type DraftKindName } from '../../builders/draftKinds'
+import { countNoun } from '../../utils/utils'
 
 import type { ApplyResourceSetOp } from './applyResourceSet'
 import { regenerateArchitecture } from './blueprintDraft'
@@ -139,7 +140,7 @@ export const createBlueprintDraft = (given: Record<string, string>, kind: DraftK
   if (bytes > BLUEPRINT_DRAFT_MAX_BYTES) {
     const kib = Math.ceil(bytes / 1024)
     return {
-      error: `the blueprint draft is ${kib} KiB across ${paths.length} files — over the 512 KiB draft cap. Trim the chart (large assets belong in a hosted values file, not the templates tree).`,
+      error: `the blueprint draft is ${kib} KiB across ${countNoun(paths.length, 'file')} — over the 512 KiB draft cap. Trim the chart (large assets belong in a hosted values file, not the templates tree).`,
       ok: false,
     }
   }

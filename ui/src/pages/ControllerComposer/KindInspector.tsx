@@ -16,6 +16,7 @@
  */
 import { Alert, Button, Checkbox, Collapse, Popconfirm, Radio, Select, Space } from 'antd'
 
+import { countNoun } from '../../utils/utils'
 import styles from '../BlueprintComposer/BlueprintComposer.module.css'
 
 import { heldVerb, pluralOf, type CompareScope, type ControllerKind, type ControllerModel } from './controllerChart'
@@ -204,7 +205,7 @@ export const KindInspector = (props: InspectorProps) => {
         <div className={styles.section}>
           <p className={styles.fieldText}>Select a Kind on Resources to map its verbs, identifiers and auth.</p>
           <div className={styles.derivedList}>
-            <div className={styles.derived}><span className={styles.derivedLabel}>Spec</span><span className={styles.derivedValue}>{oas ? `${oas.summary.title || 'untitled'} · OpenAPI ${oas.summary.version} · ${oas.summary.operations} operations` : '—'}</span></div>
+            <div className={styles.derived}><span className={styles.derivedLabel}>Spec</span><span className={styles.derivedValue}>{oas ? `${oas.summary.title || 'untitled'} · OpenAPI ${oas.summary.version} · ${countNoun(oas.summary.operations, 'operation')}` : '—'}</span></div>
             <div className={styles.derived}><span className={styles.derivedLabel}>Served as</span><span className={styles.derivedValue}>{model.group ? `${model.group}/v1alpha1` : '—'}</span></div>
             <div className={styles.derived}><span className={styles.derivedLabel}>Calls</span><span className={styles.derivedValue}>{model.baseUrl || '—'}</span></div>
           </div>
