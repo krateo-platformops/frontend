@@ -186,7 +186,7 @@ describe('what each fixture says about its own builder', () => {
  */
 const PORTAL_CHART_SHA256: Record<string, string> = {
   'blueprint-builder.builder.yaml': '650e4e2b65d5648e4ccb580410cbb57c5755f67c7b1c7cfb1b0fc7a51229681a',
-  'controller-builder.builder.yaml': '5674fd6fd2505343f2ac9346894452fa2e384fd43ecf41a26bd07fe414f36420',
+  'controller-builder.builder.yaml': 'bb3b1d10d5ede73be311bff98419dbc7e0d1be35976f83cf7da54c147b02189c',
   'portal-builder.builder.yaml': 'd42b69006a7aebb342f90c7c7663dfa6767f34dc5e874320353cbf9e88f02612',
 }
 

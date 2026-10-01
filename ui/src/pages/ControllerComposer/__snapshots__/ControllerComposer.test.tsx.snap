@@ -49,7 +49,9 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
           <div class="ant-alert-description">
             <ul>
               <li>
-                "Pet → create POST /pet · get GET /pet/{petId} · findby GET /pet/findByStatus · update PUT /pet · delete DELETE /pet/{petId}"
+                "Served as petstore.example.io/v1alpha1 — the document says 1.0.27; the served version is pinned"
+              <li>
+                "Pet → create POST /pet · get GET /pet/{petId} · findby GET /pet/findByStatus · delete DELETE /pet/{petId}"
               <li>
                 "Store → create POST /store/order · get GET /store/order/{orderId} · findby GET /store/inventory · delete DELETE /store/order/{orderId}"
         <button class="ant-alert-close-icon" tabindex="0" type="button">
@@ -123,13 +125,13 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
               <svg aria-hidden="true" class="_edges_9029c5" height="200" width="440">
                 <path class="_edge_9029c5" d="M 172 52 C 220 52, 220 100, 268 100">
                 <path class="_edge_9029c5" d="M 172 148 C 220 148, 220 100, 268 100">
-              <button aria-label="Pet — create, get, findby, update, delete" aria-pressed="false" class="_card_9029c5" style="left: 16px; top: 16px;" type="button">
+              <button aria-label="Pet — create, get, findby, delete" aria-pressed="false" class="_card_9029c5" style="left: 16px; top: 16px;" type="button">
                 <span class="_cardEyebrow_9029c5">
                   "Pet · petstore.example.io"
                 <span class="_cardTitle_9029c5">
                   "pets"
                 <span class="_cardVerbs_9029c5">
-                  "create · get · findby · update · delete"
+                  "create · get · findby · delete"
               <button aria-label="Store — create, get, findby, delete" aria-pressed="true" class="_card_9029c5" style="left: 16px; top: 112px;" type="button">
                 <span class="_cardEyebrow_9029c5">
                   "Store · petstore.example.io"
@@ -447,7 +449,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …9 lines
+                                …10 lines
                         <div id="id21">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -460,7 +462,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …1280 lines
+                                …1284 lines
                         <div id="id22">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -473,7 +475,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …37 lines
+                                …36 lines
                         <div id="id23">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -486,7 +488,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …34 lines
+                                …36 lines
                         <div id="id24">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -499,7 +501,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …14 lines
+                                …47 lines
                         <div id="id25">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -525,9 +527,11 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
             <span class="_eyebrow_396249">
               "petstore.example.io/v1alpha1 · stores"
               <span class="_lockNote_9029c5">
-                "· Kind and group: locked once published"
+                "· Kind, group and version: locked once published"
             <span class="_fieldValue_396249 _mono_396249">
               "Store"
+            <span class="_reason_9029c5">
+              "Served as v1alpha1 whatever the vendor calls its release — the document says 1.0.27."
             <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
               <div class="ant-space-item">
                 <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm" type="button">
@@ -628,6 +632,28 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                       "inferred"
           <div class="_section_396249">
             <span class="_eyebrow_396249">
+              "Path ids"
+            <span class="_reason_9029c5">
+              "Where each verb reads its id from — status when the create returns it, spec when the person chooses it."
+            <div class="_checkList_9029c5">
+              <div data-binding="orderId">
+                <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+                  <div class="ant-space-item">
+                    <span class="_mono_396249">
+                      "{orderId} →"
+                  <div class="ant-space-item">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                      <div class="ant-select-content ant-select-content-has-value" title="status.id">
+                        "status.id"
+                        <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Where {orderId} is read from" autocomplete="new-password" class="ant-select-input" id="id26" readonly="" role="combobox" type="text" value="">
+                      <div class="ant-select-suffix">
+                        <span aria-label="down" class="anticon anticon-down" role="img">
+                          <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                            <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
+                <span class="_reason_9029c5">
+                  "the create response returns id — the server assigns the id, so it is read from status — get, delete"
+          <div class="_section_396249">
+            <span class="_eyebrow_396249">
               "Identifiers"
               <span class="_lockNote_9029c5">
                 "· Locked once published"
@@ -692,6 +718,62 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                 "The GET response returns nothing the create body does not send."
           <div class="_section_396249">
             <span class="_eyebrow_396249">
+              "Excluded from spec"
+              <span class="_lockNote_9029c5">
+                "· Locked once published"
+            <span class="_reason_9029c5">
+              "What the person is not asked for — status carries it, or the API sets it."
+            <div class="_checkList_9029c5">
+              <label class="ant-checkbox-wrapper ant-checkbox-wrapper-checked css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii ant-checkbox-checked">
+                  <input checked="" class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "id"
+                  <span class="_reason_9029c5">
+                    "status carries it — the id is read from there"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "petId"
+                  <span class="_reason_9029c5">
+                    "sent by create"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "quantity"
+                  <span class="_reason_9029c5">
+                    "sent by create"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "shipDate"
+                  <span class="_reason_9029c5">
+                    "sent by create"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "status"
+                  <span class="_reason_9029c5">
+                    "sent by create"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "complete"
+                  <span class="_reason_9029c5">
+                    "sent by create"
+          <div class="_section_396249">
+            <span class="_eyebrow_396249">
               "Compare scope"
             <div class="ant-select ant-select-sm ant-select-outlined css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
               <div class="ant-select-content ant-select-content-has-value" title="Not set — the controller default">
@@ -704,6 +786,8 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
           <div class="_section_396249">
             <span class="_eyebrow_396249">
               "Auth"
+            <span class="_reason_9029c5">
+              "Decided by the document — Swagger Petstore - OpenAPI 3.0 1.0.27 — not assumed for the controller."
             <ul class="_plainList_396249">
               <li data-scheme="petstore_auth">
                 <span class="_mono_396249">
@@ -879,13 +963,13 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
               <svg aria-hidden="true" class="_edges_9029c5" height="200" width="440">
                 <path class="_edge_9029c5" d="M 172 52 C 220 52, 220 100, 268 100">
                 <path class="_edge_9029c5" d="M 172 148 C 220 148, 220 100, 268 100">
-              <button aria-label="Pet — create, get, findby, update, delete" aria-pressed="true" class="_card_9029c5" style="left: 16px; top: 16px;" type="button">
+              <button aria-label="Pet — create, get, findby, delete" aria-pressed="true" class="_card_9029c5" style="left: 16px; top: 16px;" type="button">
                 <span class="_cardEyebrow_9029c5">
                   "Pet · petstore.example.io"
                 <span class="_cardTitle_9029c5">
                   "pets"
                 <span class="_cardVerbs_9029c5">
-                  "create · get · findby · update · delete"
+                  "create · get · findby · delete"
               <button aria-label="Store — create, get, findby, delete" aria-pressed="false" class="_card_9029c5" style="left: 16px; top: 112px;" type="button">
                 <span class="_cardEyebrow_9029c5">
                   "Store · petstore.example.io"
@@ -954,7 +1038,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …9 lines
+                                …10 lines
                         <div id="id15">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -967,7 +1051,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …1280 lines
+                                …1284 lines
                         <div id="id16">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -980,7 +1064,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …44 lines
+                                …43 lines
                         <div id="id17">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -993,7 +1077,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …34 lines
+                                …36 lines
                         <div id="id18">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -1006,7 +1090,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …14 lines
+                                …47 lines
                         <div id="id19">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -1032,9 +1116,11 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
             <span class="_eyebrow_396249">
               "petstore.example.io/v1alpha1 · pets"
               <span class="_lockNote_9029c5">
-                "· Kind and group: locked once published"
+                "· Kind, group and version: locked once published"
             <span class="_fieldValue_396249 _mono_396249">
               "Pet"
+            <span class="_reason_9029c5">
+              "Served as v1alpha1 whatever the vendor calls its release — the document says 1.0.27."
             <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
               <div class="ant-space-item">
                 <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm" type="button">
@@ -1107,8 +1193,9 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                     "update"
                   <td>
                     <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
-                      <div class="ant-select-content ant-select-content-has-value" title="PUT /pet">
-                        "PUT /pet"
+                      <div class="ant-select-content">
+                        <div class="ant-select-placeholder">
+                          "not mapped"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for update" autocomplete="new-password" class="ant-select-input" id="id20" readonly="" role="combobox" type="text" value="">
                       <div class="ant-select-suffix">
                         <span aria-label="down" class="anticon anticon-down" role="img">
@@ -1116,7 +1203,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
                   <td>
                     <span class="_reason_9029c5">
-                      "inferred"
+                      "—"
                 <tr data-verb="delete">
                   <td class="_verbAction_9029c5">
                     "delete"
@@ -1133,7 +1220,31 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                     <span class="_reason_9029c5">
                       "inferred"
             <p class="_note_396249">
-              "Not a verb: POST /pet/{petId} (POST on an item path is neither a create nor an update by rule — map it with an override); POST /pet/{petId}/uploadImage (an action on the item /pet/{petId}, not a verb of the Kind)."
+              "Not a verb — an action: POST /pet/{petId}/uploadImage. A sub-path of an item or of the collection is never a lifecycle verb."
+            <p class="_note_396249">
+              "Not a verb: PUT /pet (PUT on a collection path is not an update by rule (an update addresses one item, collection/{id}) — map it with an override if this API updates that way); POST /pet/{petId} (POST on an item path is neither a create nor an update by rule — map it with an override)."
+          <div class="_section_396249">
+            <span class="_eyebrow_396249">
+              "Path ids"
+            <span class="_reason_9029c5">
+              "Where each verb reads its id from — status when the create returns it, spec when the person chooses it."
+            <div class="_checkList_9029c5">
+              <div data-binding="petId">
+                <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+                  <div class="ant-space-item">
+                    <span class="_mono_396249">
+                      "{petId} →"
+                  <div class="ant-space-item">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                      <div class="ant-select-content ant-select-content-has-value" title="status.id">
+                        "status.id"
+                        <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Where {petId} is read from" autocomplete="new-password" class="ant-select-input" id="id20" readonly="" role="combobox" type="text" value="">
+                      <div class="ant-select-suffix">
+                        <span aria-label="down" class="anticon anticon-down" role="img">
+                          <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                            <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
+                <span class="_reason_9029c5">
+                  "the create response returns id — the server assigns the id, so it is read from status — get, delete"
           <div class="_section_396249">
             <span class="_eyebrow_396249">
               "Identifiers"
@@ -1166,6 +1277,22 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                     "status"
                   <span class="_reason_9029c5">
                     "a scalar field of the get response"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "category.id"
+                  <span class="_reason_9029c5">
+                    "nested in the get response"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "category.name"
+                  <span class="_reason_9029c5">
+                    "nested in the get response"
           <div class="_section_396249">
             <span class="_eyebrow_396249">
               "Status fields"
@@ -1174,6 +1301,78 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
             <div class="_checkList_9029c5">
               <p class="_fieldText_396249">
                 "The GET response returns nothing the create body does not send."
+          <div class="_section_396249">
+            <span class="_eyebrow_396249">
+              "Excluded from spec"
+              <span class="_lockNote_9029c5">
+                "· Locked once published"
+            <span class="_reason_9029c5">
+              "What the person is not asked for — status carries it, or the API sets it."
+            <div class="_checkList_9029c5">
+              <label class="ant-checkbox-wrapper ant-checkbox-wrapper-checked css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii ant-checkbox-checked">
+                  <input checked="" class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "id"
+                  <span class="_reason_9029c5">
+                    "status carries it — the id is read from there"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "name"
+                  <span class="_reason_9029c5">
+                    "sent by create"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "category"
+                  <span class="_reason_9029c5">
+                    "sent by create"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "photoUrls"
+                  <span class="_reason_9029c5">
+                    "sent by create"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "tags"
+                  <span class="_reason_9029c5">
+                    "sent by create"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "status"
+                  <span class="_reason_9029c5">
+                    "sent by create"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "category.id"
+                  <span class="_reason_9029c5">
+                    "sent by create"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "category.name"
+                  <span class="_reason_9029c5">
+                    "sent by create"
           <div class="_section_396249">
             <span class="_eyebrow_396249">
               "Compare scope"
@@ -1188,6 +1387,8 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
           <div class="_section_396249">
             <span class="_eyebrow_396249">
               "Auth"
+            <span class="_reason_9029c5">
+              "Decided by the document — Swagger Petstore - OpenAPI 3.0 1.0.27 — not assumed for the controller."
             <ul class="_plainList_396249">
               <li data-scheme="petstore_auth">
                 <span class="_mono_396249">
@@ -1219,7 +1420,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                   <span class="_mono_396249">
                     "api_key (header)"
                   <span class="_reason_9029c5">
-                    "read from the Configuration for delete, not from each Pet"
+                    "read from the Configuration for delete, not from each Pet — the document's apiKey"
           <div class="_section_396249">
             <span class="_eyebrow_396249">
               "Advanced"
@@ -1419,13 +1620,13 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
             <div class="_graph_9029c5" style="height: 104px;">
               <svg aria-hidden="true" class="_edges_9029c5" height="104" width="440">
                 <path class="_edge_9029c5" d="M 172 52 C 220 52, 220 52, 268 52">
-              <button aria-label="Pet — create, get, update, delete; findby to choose" aria-pressed="true" class="_card_9029c5" data-conflict="true" style="left: 16px; top: 16px;" type="button">
+              <button aria-label="Pet — create, get, delete; findby to choose" aria-pressed="true" class="_card_9029c5" data-conflict="true" style="left: 16px; top: 16px;" type="button">
                 <span class="_cardEyebrow_9029c5">
                   "Pet · petstore.example.io"
                 <span class="_cardTitle_9029c5">
                   "pets"
                 <span class="_cardVerbs_9029c5">
-                  "create · get · update · delete"
+                  "create · get · delete"
                   <span class="_cardConflict_9029c5">
                     "· findby: choose"
               <div class="_card_9029c5 _configCard_9029c5" style="left: 268px; top: 16px;">
@@ -1489,7 +1690,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …9 lines
+                                …10 lines
                         <div id="id15">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -1502,7 +1703,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …1280 lines
+                                …1284 lines
                         <div id="id16">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -1515,7 +1716,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …34 lines
+                                …33 lines
                         <div id="id17">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -1528,7 +1729,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …14 lines
+                                …47 lines
                         <div id="id18">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -1554,9 +1755,11 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
             <span class="_eyebrow_396249">
               "petstore.example.io/v1alpha1 · pets"
               <span class="_lockNote_9029c5">
-                "· Kind and group: locked once published"
+                "· Kind, group and version: locked once published"
             <span class="_fieldValue_396249 _mono_396249">
               "Pet"
+            <span class="_reason_9029c5">
+              "Served as v1alpha1 whatever the vendor calls its release — the document says 1.0.27."
             <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
               <div class="ant-space-item">
                 <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-sm" type="button">
@@ -1640,8 +1843,9 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                     "update"
                   <td>
                     <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
-                      <div class="ant-select-content ant-select-content-has-value" title="PUT /pet">
-                        "PUT /pet"
+                      <div class="ant-select-content">
+                        <div class="ant-select-placeholder">
+                          "not mapped"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for update" autocomplete="new-password" class="ant-select-input" id="id19" readonly="" role="combobox" type="text" value="">
                       <div class="ant-select-suffix">
                         <span aria-label="down" class="anticon anticon-down" role="img">
@@ -1649,7 +1853,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
                   <td>
                     <span class="_reason_9029c5">
-                      "inferred"
+                      "—"
                 <tr data-verb="delete">
                   <td class="_verbAction_9029c5">
                     "delete"
@@ -1666,7 +1870,31 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                     <span class="_reason_9029c5">
                       "inferred"
             <p class="_note_396249">
-              "Not a verb: POST /pet/{petId} (POST on an item path is neither a create nor an update by rule — map it with an override); POST /pet/{petId}/uploadImage (an action on the item /pet/{petId}, not a verb of the Kind)."
+              "Not a verb — an action: POST /pet/{petId}/uploadImage. A sub-path of an item or of the collection is never a lifecycle verb."
+            <p class="_note_396249">
+              "Not a verb: PUT /pet (PUT on a collection path is not an update by rule (an update addresses one item, collection/{id}) — map it with an override if this API updates that way); POST /pet/{petId} (POST on an item path is neither a create nor an update by rule — map it with an override)."
+          <div class="_section_396249">
+            <span class="_eyebrow_396249">
+              "Path ids"
+            <span class="_reason_9029c5">
+              "Where each verb reads its id from — status when the create returns it, spec when the person chooses it."
+            <div class="_checkList_9029c5">
+              <div data-binding="petId">
+                <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+                  <div class="ant-space-item">
+                    <span class="_mono_396249">
+                      "{petId} →"
+                  <div class="ant-space-item">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                      <div class="ant-select-content ant-select-content-has-value" title="status.id">
+                        "status.id"
+                        <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Where {petId} is read from" autocomplete="new-password" class="ant-select-input" id="id19" readonly="" role="combobox" type="text" value="">
+                      <div class="ant-select-suffix">
+                        <span aria-label="down" class="anticon anticon-down" role="img">
+                          <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                            <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
+                <span class="_reason_9029c5">
+                  "the create response returns id — the server assigns the id, so it is read from status — get, delete"
           <div class="_section_396249">
             <span class="_eyebrow_396249">
               "Identifiers"
@@ -1699,6 +1927,22 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                     "status"
                   <span class="_reason_9029c5">
                     "a scalar field of the get response"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "category.id"
+                  <span class="_reason_9029c5">
+                    "nested in the get response"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "category.name"
+                  <span class="_reason_9029c5">
+                    "nested in the get response"
           <div class="_section_396249">
             <span class="_eyebrow_396249">
               "Status fields"
@@ -1707,6 +1951,78 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
             <div class="_checkList_9029c5">
               <p class="_fieldText_396249">
                 "The GET response returns nothing the create body does not send."
+          <div class="_section_396249">
+            <span class="_eyebrow_396249">
+              "Excluded from spec"
+              <span class="_lockNote_9029c5">
+                "· Locked once published"
+            <span class="_reason_9029c5">
+              "What the person is not asked for — status carries it, or the API sets it."
+            <div class="_checkList_9029c5">
+              <label class="ant-checkbox-wrapper ant-checkbox-wrapper-checked css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii ant-checkbox-checked">
+                  <input checked="" class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "id"
+                  <span class="_reason_9029c5">
+                    "status carries it — the id is read from there"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "name"
+                  <span class="_reason_9029c5">
+                    "sent by create"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "category"
+                  <span class="_reason_9029c5">
+                    "sent by create"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "photoUrls"
+                  <span class="_reason_9029c5">
+                    "sent by create"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "tags"
+                  <span class="_reason_9029c5">
+                    "sent by create"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "status"
+                  <span class="_reason_9029c5">
+                    "sent by create"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "category.id"
+                  <span class="_reason_9029c5">
+                    "sent by create"
+              <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
+                  <input class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "category.name"
+                  <span class="_reason_9029c5">
+                    "sent by create"
           <div class="_section_396249">
             <span class="_eyebrow_396249">
               "Compare scope"
@@ -1721,6 +2037,8 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
           <div class="_section_396249">
             <span class="_eyebrow_396249">
               "Auth"
+            <span class="_reason_9029c5">
+              "Decided by the document — Swagger Petstore - OpenAPI 3.0 1.0.27 — not assumed for the controller."
             <ul class="_plainList_396249">
               <li data-scheme="petstore_auth">
                 <span class="_mono_396249">
@@ -1744,7 +2062,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                   <span class="_mono_396249">
                     "api_key (header)"
                   <span class="_reason_9029c5">
-                    "read from the Configuration for delete, not from each Pet"
+                    "read from the Configuration for delete, not from each Pet — the document's apiKey"
           <div class="_section_396249">
             <span class="_eyebrow_396249">
               "Advanced"
@@ -1958,7 +2276,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …9 lines
+                                …10 lines
                         <div id="id15">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -1971,7 +2289,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …1280 lines
+                                …1284 lines
                         <div id="id16">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -1984,7 +2302,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …14 lines
+                                …47 lines
                         <div id="id17">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -2016,7 +2334,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                 <span class="_derivedLabel_396249">
                   "Served as"
                 <span class="_derivedValue_396249">
-                  "petstore.example.io/v1alpha1"
+                  "petstore.example.io/v1alpha1 (the document says 1.0.27; pinned)"
               <div class="_derived_396249">
                 <span class="_derivedLabel_396249">
                   "Calls"

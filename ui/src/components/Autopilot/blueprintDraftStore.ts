@@ -27,6 +27,7 @@
 
 import { registryUnavailable } from '../../builders/builderRegistry'
 import { isDraftKind, type DraftKindName } from '../../builders/draftKinds'
+import { pinServedVersion } from '../../pages/ControllerComposer/servedVersion'
 import { countNoun } from '../../utils/utils'
 
 import type { ApplyResourceSetOp } from './applyResourceSet'
@@ -114,9 +115,15 @@ export interface FilesChange {
  * ranged), a removal, an Undo, a Start, an agent's rendered proposal — so none of them can leave the
  * `krateo:graph` block behind its descriptor. It stays one ordinary write: the gate is disarmed and a
  * render arms it, as for any other. A page set has no architecture file, and is held as given.
+ *
+ * A CONTROLLER's OpenAPI document is held with info.version pinned to v1alpha1 (servedVersion.ts
+ * pinServedVersion) — here, for the same reason: every write passes this point, so no gesture, agent
+ * verb or hand edit can hold a document whose version would move the API its Kinds are served under.
  */
-const settle = (files: Record<string, string>, kind: DraftKind): Record<string, string> =>
-  (kind === 'blueprint' ? regenerateArchitecture(files) : files)
+const settle = (files: Record<string, string>, kind: DraftKind): Record<string, string> => {
+  if (kind === 'blueprint') { return regenerateArchitecture(files) }
+  return kind === 'controller' ? pinServedVersion(files) : files
+}
 
 /**
  * Validate + measure a parsed chart tree (the map `parseRawTemplates` already produced).

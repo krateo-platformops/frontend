@@ -1,10 +1,12 @@
 /**
- * T11b — the oasgen-provider 0.23.0 RestDefinition schema primitives shared by kogMapping
- * and kogRestDefVerbs: the CRD enums, the keys each object level names, the spec.oasPath /
+ * T11b — the oasgen-provider RestDefinition schema primitives shared by kogMapping and
+ * kogRestDefVerbs: the CRD enums, the keys each object level names, the spec.oasPath /
  * jq-ref URI parser, and the field-level error helpers (enums, strings, integer lists, jq
  * programs, {name, value} lists). Mirrors the live `restdefinitions.ogen.krateo.io` CRD
- * dumped from krateo-057 (oasgen-provider 0.23.0) — the contract is spelled out in
- * kogMapping.ts's header. Pure: no React, no network.
+ * dumped from krateo-057 — oasgen-provider 0.23.0 first, brought up to 0.25 (installed
+ * v0-25-1, read 2026-10-01): findby `itemsPath`, a verb's own `oasPath`, pagination
+ * `pageNumber`, and continuationToken.response.tokenIn `header|body`. The contract is spelled
+ * out in kogMapping.ts's header. Pure: no React, no network.
  */
 
 /** The live CRD enums for verbsDescription entries. */
@@ -14,6 +16,8 @@ export const REST_DEF_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'] as con
 export const REST_DEF_COMPARE_SCOPES = ['fullSpec', 'identifiersAndStatus', 'updatable'] as const
 export const REST_DEF_ASYNC_MODES = ['blocking', 'requeue'] as const
 export const REST_DEF_VALUE_MAPPING_TYPES = ['alias', 'jq'] as const
+/** pagination.type (0.25: pageNumber beside continuationToken). */
+export const REST_DEF_PAGINATION_TYPES = ['continuationToken', 'pageNumber'] as const
 /** The RESTAction delegations on spec.resource (each an ApiRef). */
 export const REST_DEF_API_REFS = ['observeApiRef', 'createApiRef', 'updateApiRef', 'deleteApiRef'] as const
 
@@ -33,7 +37,12 @@ export const KNOWN_KEYS = {
   jq: ['inline', 'ref', 'entrypoint'],
   nameValue: ['name', 'value'],
   operationRef: ['in', 'path', 'jq'],
-  pagination: ['type', 'continuationToken'],
+  pageNumber: ['maxPages', 'request', 'response'],
+  pageNumberBody: ['totalPagesPath', 'totalItemsPath'],
+  pageNumberHeader: ['name', 'matches'],
+  pageNumberRequest: ['pageIn', 'pagePath', 'startPage', 'pageSize', 'sizeIn', 'sizePath'],
+  pageNumberResponse: ['header', 'body'],
+  pagination: ['type', 'continuationToken', 'pageNumber'],
   poll: ['method', 'path', 'handleParam', 'statusPath', 'successValues', 'failureValues', 'intervalSeconds', 'maxAttempts', 'timeoutSeconds'],
   requestFieldMapping: ['inPath', 'inQuery', 'inBody', 'inCustomResource'],
   resolver: ['type', 'secretRef'],
@@ -49,7 +58,7 @@ export const KNOWN_KEYS = {
   verb: [
     'action', 'method', 'path', 'requestFieldMapping', 'fieldMapping', 'requestTransform', 'responseTransform',
     'identifiersMatchPolicy', 'pagination', 'successCodes', 'headers', 'queries', 'tolerateCodes', 'notFoundCodes',
-    'notFoundBody', 'async',
+    'notFoundBody', 'async', 'itemsPath', 'oasPath',
   ],
 } as const satisfies Record<string, readonly string[]>
 
@@ -95,7 +104,7 @@ export const parseOasPath = (value: unknown): OasPathRef | null => {
 export const unknownFieldErrors = (record: Record<string, unknown>, known: readonly string[], at: string): string[] =>
   Object.keys(record)
     .filter((key) => !known.includes(key))
-    .map((key) => `${at}: unknown field "${key}" (not in the oasgen 0.23.0 RestDefinition schema; the apiserver would drop it)`)
+    .map((key) => `${at}: unknown field "${key}" (not in the oasgen 0.25 RestDefinition schema; the apiserver would drop it)`)
 
 /** Error lines for a value that must be one of `values` (absent is fine unless `required`). */
 export const enumErrors = (value: unknown, values: readonly string[], at: string, required = false): string[] => {

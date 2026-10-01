@@ -1,0 +1,84 @@
+# A CONSTRUCTED fixture, Aruba-shaped (frontend#405 round 2) — not Aruba's document. A key store whose
+# keys have NO get: create, findby and delete only, so oasgen builds status from the findby envelope
+# (oasgen#146). The envelope has TWO arrays (data, included — plain JSON:API), so oasgen refuses to guess
+# and itemsPath must say which. The create response returns both `keyId` and `id`, and every verb
+# addresses the key as {keyId}: which field is the id is ambiguous, and waits for a person to confirm.
+openapi: 3.0.1
+info:
+  title: Aruba-like Key Management
+  version: 1.0.4
+security:
+  - apiKeyHeader: []
+paths:
+  /kms/{kmsId}/keys:
+    parameters:
+      - { name: kmsId, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: keyCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                algorithm: { type: string }
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Key'
+    get:
+      operationId: keyList
+      responses:
+        '200':
+          description: the keys
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Key'
+                  included:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type: { type: string }
+                        id: { type: string }
+  /kms/{kmsId}/keys/{keyId}:
+    parameters:
+      - { name: kmsId, in: path, required: true, schema: { type: string } }
+      - { name: keyId, in: path, required: true, schema: { type: string } }
+    delete:
+      operationId: keyDelete
+      responses:
+        '204':
+          description: deleted
+components:
+  securitySchemes:
+    apiKeyHeader:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+  schemas:
+    Key:
+      type: object
+      properties:
+        id: { type: string }
+        keyId: { type: string }
+        name: { type: string }
+        algorithm: { type: string }
+        user:
+          type: object
+          properties:
+            username: { type: string }
+            email: { type: string }
+        status: { type: string }

@@ -142,7 +142,8 @@ const startPetstore = () => {
   type('OpenAPI spec', PETSTORE)
   type('Base URL the controller calls', 'https://petstore3.swagger.io/api/v3')
   expect(within(dialog).getByTestId('derived-spec').textContent).toBe('OpenAPI 3.0.4 · Swagger Petstore - OpenAPI 3.0 · 13 paths · 19 operations · 2 security schemes · 33 KiB')
-  expect(within(dialog).getByTestId('derived-group').textContent).toBe('petstore.example.io/v1alpha1')
+  // Round 2: served as v1alpha1 whatever the vendor's info.version says — and the modal says so.
+  expect(within(dialog).getByTestId('derived-group').textContent).toBe('petstore.example.io/v1alpha1 — pinned: the document says 1.0.27, and a vendor bump must not move the served version (kept as controller.builders.krateo.io/source-spec-version)')
   expect(within(dialog).getByTestId('derived-registration').textContent).toBe('CompositionDefinition petstore')
   act(() => { within(dialog).getByRole('button', { name: 'Start' }).click() })
 }
@@ -172,7 +173,11 @@ describe('petstore, authored in the UI with no rail', () => {
     act(() => { screen.getByRole('button', { name: 'Place pet as a Kind' }).click() })
     const inspector = () => within(screen.getByRole('region', { name: 'Inspector' }))
     expect(inspector().getByRole('radiogroup', { name: 'Which operation is findby' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /^Pet — create, get, update, delete; findby to choose$/ }).getAttribute('aria-pressed')).toBe('true')
+    // Round 2: PUT /pet is on the collection, so it is no update by rule — the person may still map it.
+    expect(screen.getByRole('button', { name: /^Pet — create, get, delete; findby to choose$/ }).getAttribute('aria-pressed')).toBe('true')
+    // {petId} is read from status.id (the create response returns it); uploadImage is an action, not a verb.
+    expect(inspector().getByRole('combobox', { name: 'Where {petId} is read from' })).toBeTruthy()
+    expect(inspector().getByText(/^Not a verb — an action: POST \/pet\/\{petId\}\/uploadImage\./)).toBeTruthy()
     expect(store.get()?.files && lintHeldDraft(store.get()!.files, 'controller')).toEqual([
       'Pet: 2 operations look like findby (GET /pet/findByStatus, GET /pet/findByTags) — choose one in the inspector, or leave findby out.',
     ])
@@ -220,6 +225,7 @@ describe('petstore, authored in the UI with no rail', () => {
     const pet = load(files['templates/restdefinition-pet.yaml']) as { spec: { resource: Record<string, unknown> } }
     expect(pet.spec.resource).toMatchObject({
       configurationFields: [{ fromOpenAPI: { in: 'header', name: 'api_key' }, fromRestDefinition: { actions: ['delete'] } }],
+      excludedSpecFields: ['id'],
       identifiers: ['id'],
       kind: 'Pet',
     })
@@ -227,7 +233,6 @@ describe('petstore, authored in the UI with no rail', () => {
       'create POST /pet',
       'get GET /pet/{petId}',
       'findby GET /pet/findByStatus',
-      'update PUT /pet',
       'delete DELETE /pet/{petId}',
     ])
 
@@ -277,9 +282,9 @@ describe('petstore, authored in the UI with no rail', () => {
     act(() => { screen.getByRole('button', { name: 'Place pet as a Kind' }).click() })
     act(() => { publishedLocks.set({ kind: 'controller', locked: lockedSnapshot(store.get()!.files), name: 'petstore' }) })
     const inspector = within(screen.getByRole('region', { name: 'Inspector' }))
-    expect(inspector.getByText(/Pet is published: its kind, group, identifiers, configuration fields and status fields cannot change in place/)).toBeTruthy()
+    expect(inspector.getByText(/Pet is published: its kind, group, served version, identifiers, configuration fields, status fields and excluded fields cannot change in place/)).toBeTruthy()
     const before = store.get()!.files
-    act(() => { fireEvent.click(inspector.getByRole('checkbox', { name: /^name/ })) })
+    act(() => { fireEvent.click(inspector.getByRole('checkbox', { name: /^namea conventional identifier/ })) })
     expect(inspector.getByText(/^cannot update Pet in place: identifiers is locked once published \(\["id"\] → \["id","name"\]\)/)).toBeTruthy()
     expect(store.get()!.files).toBe(before)
   }, 120_000)
@@ -508,7 +513,7 @@ describe('T9 — Preview renders the controller through controller-render-draft'
 
     // An edit — a person's, in the inspector — turns Publish off, and the render is said to be old.
     act(() => { screen.getByRole('button', { name: /^Pet — / }).click() })
-    act(() => { fireEvent.click(within(screen.getByRole('region', { name: 'Inspector' })).getByRole('checkbox', { name: /^name/ })) })
+    act(() => { fireEvent.click(within(screen.getByRole('region', { name: 'Inspector' })).getByRole('checkbox', { name: /^namea conventional identifier/ })) })
     await waitFor(() => expect(publishButton().disabled).toBe(true))
     expect(screen.getByText(CONTROLLER_STALE_CAPTION)).toBeTruthy()
     const refused = await publishDraft(publishDeps(gate, store), { label: 'Publish', verb: 'publishRestDef' })

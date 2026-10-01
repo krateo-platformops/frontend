@@ -9,7 +9,8 @@
  *                                            Kinds are served in and the base URL the controller calls
  *   values.yaml, values.schema.json          nothing to parameterise; the schema declares `global`
  *                                            only, closed, and with no `default:` anywhere
- *   templates/configmap-oas-<name>.yaml      the OpenAPI document, verbatim (servers set to the base URL)
+ *   templates/configmap-oas-<name>.yaml      the OpenAPI document, verbatim but for its servers (the base
+ *                                            URL) and info.version (pinned to v1alpha1 — servedVersion.ts)
  *   templates/restdefinition-<kind>.yaml ×N  one ogen.krateo.io/v1alpha1 RestDefinition per Kind
  *   compositiondefinition.yaml               written at PUBLISH (it names the destination owner)
  *
@@ -27,36 +28,60 @@
  *
  * EVERY EDIT IS A MUTATION OF THE PARSED OBJECT, not a rebuild: a hand edit in Chart files (a
  * pagination block, a requestTransform) survives the next click in the inspector.
+ *
+ * Reading a held draft lives in controllerModel.ts and the published locks in controllerLocks.ts; both
+ * are re-exported here, so this module stays the one callers import.
  */
 import { dump, load } from 'js-yaml'
 
-import { CHART_YAML_PATH, chartYamlName, chartYamlVersion } from '../../components/Autopilot/blueprintDraft'
+import { CHART_YAML_PATH } from '../../components/Autopilot/blueprintDraft'
 import { BLUEPRINT_DRAFT_MAX_BYTES } from '../../components/Autopilot/blueprintDraftStore'
-import { REST_DEFINITION_KIND } from '../../components/Autopilot/kogMapping'
 import { asRecord, isNonEmptyString } from '../../components/Autopilot/kogRestDefSchema'
 
-import { IMMUTABLE_REST_DEF_FIELDS, immutableFieldDiff } from './immutableDiff'
-import { OAS_METHODS, type OasDocument, type OasFormat, type OasImport, parseOas } from './oasImport'
-import { inferOperationMapping, type OperationMapping, type RestAction, VERB_ORDER, type VerbConflict } from './operationMapping'
+import { lockedChangesOf, lockedChanges, type LockedSnapshot } from './controllerLocks'
+import {
+  CONFIRMED_ANNOTATION,
+  confirmedOf,
+  type ControllerKind,
+  type ControllerModel,
+  heldMapping,
+  heldVerb,
+  OMITTED_ANNOTATION,
+  omittedOf,
+  OPERATIONS_ANNOTATION,
+  readController,
+  RELEASE_NAMESPACE,
+  RESTDEFINITION_PATH,
+  verbsOf,
+} from './controllerModel'
+import { OAS_METHODS, type OasDocument, type OasFormat } from './oasImport'
+import {
+  type FieldMappingSuggestion,
+  inferOperationMapping,
+  requestBodySchema,
+  type RestAction,
+  schemaHasField,
+  VERB_ORDER,
+} from './operationMapping'
 import { operationsInGroup } from './paletteModel'
-import { buildRestDefinition, type ControllerValidation, validateControllerRestDefinition } from './restDefinitionBuild'
+import { buildRestDefinition } from './restDefinitionBuild'
+import {
+  CONFIGMAP_PATH,
+  escapeHelm,
+  HELM_LITERAL_OPEN,
+  SERVED_VERSION,
+  servedVersionProblems,
+  unescapeHelm,
+} from './servedVersion'
 import { shownUrl, urlCredentialProblem } from './urlCredential'
+
+export { CONFIGMAP_PATH, escapeHelm, SERVED_VERSION, unescapeHelm }
+export * from './controllerModel'
+export * from './controllerLocks'
 
 export const VALUES_YAML_PATH = 'values.yaml'
 /** The first version of every controller: Chart.yaml's, literally, and what its release is tagged. */
 export const CONTROLLER_START_VERSION = '0.1.0'
-
-/** The Chart.yaml annotations that carry what a Kind is served as and whom it calls. */
-export const GROUP_ANNOTATION = 'controller.builders.krateo.io/api-group'
-export const BASE_URL_ANNOTATION = 'controller.builders.krateo.io/base-url'
-/** On a RestDefinition: the document's resource group it was placed from, and the verbs left out on purpose. */
-export const OPERATIONS_ANNOTATION = 'controller.builders.krateo.io/operations'
-export const OMITTED_ANNOTATION = 'controller.builders.krateo.io/omitted-verbs'
-
-/** Helm resolves it at install: a chart that baked the author's namespace would install only there. */
-export const RELEASE_NAMESPACE = '{{ .Release.Namespace }}'
-/** What `{{ .Release.Namespace }}` is read as when a RestDefinition is validated before any install. */
-const VALIDATION_NAMESPACE = 'release-namespace'
 
 /** The spec may take the tree's cap less this — the chart files and the RestDefinitions need the rest. */
 export const SPEC_HEADROOM_BYTES = 32 * 1024
@@ -66,18 +91,9 @@ export const oasConfigMapPath = (name: string): string => `templates/configmap-o
 export const oasConfigMapName = (name: string): string => `${name}-oas`
 export const oasConfigMapKey = (format: OasFormat): string => (format === 'json' ? 'openapi.json' : 'openapi.yaml')
 export const restDefinitionPath = (kind: string): string => `templates/restdefinition-${kind.toLowerCase()}.yaml`
-export const RESTDEFINITION_PATH = /^templates\/restdefinition-[a-z0-9-]+\.yaml$/
-export const CONFIGMAP_PATH = /^templates\/configmap-oas-[a-z0-9-]+\.yaml$/
 
 export const toYaml = (value: unknown): string => dump(value, { lineWidth: -1, noRefs: true, sortKeys: false })
 
-/**
- * `{{` in a document is text, not a template action — escaped the way Go templates spell a literal,
- * so Helm renders the document byte for byte. `}}` outside an action is already literal.
- */
-const HELM_LITERAL_OPEN = '{{`{{`}}'
-export const escapeHelm = (text: string): string => text.split('{{').join(HELM_LITERAL_OPEN)
-export const unescapeHelm = (text: string): string => text.split(HELM_LITERAL_OPEN).join('{{')
 /**
  * True when a document text still carries a Helm action once its escaped literals are set aside —
  * a hand edit like `{{ fail "boom" }}`. Helm would evaluate it at install, while the preview sends the
@@ -170,209 +186,6 @@ export const withServers = (doc: OasDocument, baseUrl: string): OasDocument => {
   return { ...doc, ...(doc.paths !== undefined ? { paths } : {}), servers }
 }
 
-// ── reading a held draft ────────────────────────────────────────────────────────────────────────
-
-export interface ControllerKind {
-  path: string
-  kind: string
-  /** The RestDefinition as held — `{{ .Release.Namespace }}` and all. */
-  restDefinition: Record<string, unknown>
-  /** The document's resource group it was placed from. */
-  group: string
-  omitted: RestAction[]
-  /** The inference over the group's operations — what the verbs are measured against. */
-  inference: OperationMapping | null
-  /** Inferred conflicts the person has not settled: the verb is neither set nor omitted. */
-  conflicts: VerbConflict[]
-  /** T7's validator on the RestDefinition as it will be installed (namespace resolved). */
-  validation: ControllerValidation | null
-}
-
-export interface ControllerModel {
-  name: string | null
-  version: string | null
-  group: string
-  baseUrl: string
-  /** The ConfigMap's path, its key, and the document it carries. */
-  spec: { path: string; key: string; oas: OasImport } | null
-  /** Why there is no document to read, or null. */
-  specProblem: string | null
-  kinds: ControllerKind[]
-  /** Files that should be RestDefinitions and do not read as one. */
-  unreadable: { path: string; reason: string }[]
-}
-
-const annotationsOf = (record: Record<string, unknown>): Record<string, unknown> =>
-  asRecord(asRecord(record.metadata)?.annotations) ?? {}
-
-const chartAnnotation = (chartText: string | undefined, key: string): string => {
-  try {
-    const value = asRecord(asRecord(load(chartText ?? ''))?.annotations)?.[key]
-    return typeof value === 'string' ? value : ''
-  } catch {
-    return ''
-  }
-}
-
-const readSpecConfigMap = (files: Readonly<Record<string, string>>): { spec: ControllerModel['spec']; problem: string | null } => {
-  const paths = Object.keys(files).filter((path) => CONFIGMAP_PATH.test(path)).sort()
-  if (!paths.length) {
-    return { problem: 'No templates/configmap-oas-<name>.yaml holds the OpenAPI document, so no operation can be mapped.', spec: null }
-  }
-  const [path] = paths
-  let parsed: Record<string, unknown> | null
-  try {
-    parsed = asRecord(load(files[path]))
-  } catch (error) {
-    return { problem: `${path} is not YAML: ${error instanceof Error ? error.message.split('\n')[0] : String(error)}`, spec: null }
-  }
-  const data = asRecord(parsed?.data) ?? {}
-  const key = ['openapi.json', 'openapi.yaml'].find((entry) => typeof data[entry] === 'string') ?? Object.keys(data).find((entry) => typeof data[entry] === 'string')
-  if (!key) {
-    return { problem: `${path} carries no document under data.`, spec: null }
-  }
-  const read = parseOas(unescapeHelm(data[key] as string))
-  if (!read.ok) {
-    return { problem: `${path}: ${read.error}`, spec: null }
-  }
-  return { problem: null, spec: { key, oas: read.documents[0], path } }
-}
-
-/** A RestDefinition with the release namespace resolved to a placeholder name — what the validator reads. */
-const resolvedForValidation = (restDefinition: Record<string, unknown>): Record<string, unknown> =>
-  JSON.parse(JSON.stringify(restDefinition).split(RELEASE_NAMESPACE).join(VALIDATION_NAMESPACE)) as Record<string, unknown>
-
-const verbsOf = (restDefinition: Record<string, unknown>): Record<string, unknown>[] => {
-  const list = asRecord(asRecord(restDefinition.spec)?.resource)?.verbsDescription
-  return Array.isArray(list) ? list.map((entry) => asRecord(entry) ?? {}) : []
-}
-
-export const heldVerb = (restDefinition: Record<string, unknown>, action: RestAction): { method: string; path: string } | null => {
-  const entry = verbsOf(restDefinition).find((verb) => verb.action === action)
-  return entry && isNonEmptyString(entry.method) && isNonEmptyString(entry.path) ? { method: entry.method.toUpperCase(), path: entry.path } : null
-}
-
-const omittedOf = (restDefinition: Record<string, unknown>): RestAction[] => {
-  const raw = annotationsOf(restDefinition)[OMITTED_ANNOTATION]
-  return typeof raw === 'string'
-    ? raw.split(',').map((entry) => entry.trim()).filter((entry): entry is RestAction => (VERB_ORDER as readonly string[]).includes(entry))
-    : []
-}
-
-const readKind = (path: string, text: string, spec: ControllerModel['spec']): ControllerKind | { path: string; reason: string } => {
-  let restDefinition: Record<string, unknown> | null
-  try {
-    restDefinition = asRecord(load(text))
-  } catch (error) {
-    return { path, reason: `not YAML: ${error instanceof Error ? error.message.split('\n')[0] : String(error)}` }
-  }
-  const kind = asRecord(asRecord(restDefinition?.spec)?.resource)?.kind
-  if (!restDefinition || restDefinition.kind !== REST_DEFINITION_KIND || !isNonEmptyString(kind)) {
-    return { path, reason: 'not a RestDefinition with a spec.resource.kind' }
-  }
-  const annotated = annotationsOf(restDefinition)[OPERATIONS_ANNOTATION]
-  const firstPath = verbsOf(restDefinition).map((verb) => verb.path).find(isNonEmptyString)
-  const group = typeof annotated === 'string' && annotated ? annotated : (firstPath?.split('/').find(Boolean) ?? '')
-  const omitted = omittedOf(restDefinition)
-  const inference = spec ? inferOperationMapping(spec.oas.doc, operationsInGroup(spec.oas.operations, group)) : null
-  const conflicts = (inference?.conflicts ?? []).filter((conflict) => !heldVerb(restDefinition, conflict.action) && !omitted.includes(conflict.action))
-  const validation = spec ? validateControllerRestDefinition(resolvedForValidation(restDefinition), spec.oas.doc) : null
-  return { conflicts, group, inference, kind, omitted, path, restDefinition, validation }
-}
-
-export const readController = (files: Readonly<Record<string, string>>): ControllerModel => {
-  const chartText = files[CHART_YAML_PATH]
-  const { problem, spec } = readSpecConfigMap(files)
-  const kinds: ControllerKind[] = []
-  const unreadable: ControllerModel['unreadable'] = []
-  for (const path of Object.keys(files).filter((entry) => RESTDEFINITION_PATH.test(entry)).sort()) {
-    const read = readKind(path, files[path], spec)
-    if ('kind' in read) {
-      kinds.push(read)
-    } else {
-      unreadable.push(read)
-    }
-  }
-  return {
-    baseUrl: chartAnnotation(chartText, BASE_URL_ANNOTATION),
-    group: chartAnnotation(chartText, GROUP_ANNOTATION),
-    kinds,
-    name: chartYamlName(chartText),
-    spec,
-    specProblem: problem,
-    unreadable,
-    version: chartYamlVersion(chartText),
-  }
-}
-
-// ── locked once published ─────────────────────────────────────────────────────────────────────────
-
-/**
- * What a PUBLISHED controller's RestDefinitions said about their CEL-immutable fields
- * (immutableDiff.ts: kind, resourceGroup, identifiers, configurationFields, additionalStatusFields,
- * excludedSpecFields), by path. Taken when a publish lands and kept on the draft record, so a
- * resumed draft still knows what it may no longer change.
- */
-export type LockedSnapshot = Record<string, Record<string, unknown>>
-
-const LOCKED_RESOURCE_FIELDS = IMMUTABLE_REST_DEF_FIELDS.filter((field) => field !== 'resourceGroup')
-
-export const lockedSnapshot = (files: Readonly<Record<string, string>>): LockedSnapshot => {
-  const snapshot: LockedSnapshot = {}
-  for (const path of Object.keys(files).filter((entry) => RESTDEFINITION_PATH.test(entry))) {
-    try {
-      const spec = asRecord(asRecord(load(files[path]))?.spec)
-      const resource = asRecord(spec?.resource) ?? {}
-      snapshot[path] = {
-        resourceGroup: spec?.resourceGroup,
-        ...Object.fromEntries(LOCKED_RESOURCE_FIELDS.filter((field) => resource[field] !== undefined).map((field) => [field, resource[field]])),
-      }
-    } catch {
-      // A file that does not read locks nothing it could be compared against.
-    }
-  }
-  return snapshot
-}
-
-/** The published RestDefinition as immutableFieldDiff reads it, rebuilt from the snapshot. */
-const publishedSkeleton = (locked: Record<string, unknown>): Record<string, unknown> => ({
-  spec: {
-    resource: Object.fromEntries(LOCKED_RESOURCE_FIELDS.filter((field) => locked[field] !== undefined).map((field) => [field, locked[field]])),
-    resourceGroup: locked.resourceGroup,
-  },
-})
-
-const show = (value: unknown): string => (value === undefined ? 'unset' : JSON.stringify(value))
-
-/** The sentence a change to a locked field is refused with (the mockup's screen 11). */
-export const lockedSentence = (kind: string, field: string, before: unknown, after: unknown): string =>
-  `cannot update ${kind} in place: ${field} is locked once published (${show(before)} → ${show(after)}). Changing it means deleting the RestDefinition — and every ${kind} it serves — and recreating it; undo the change, or place a new Kind instead.`
-
-/** Each locked field a held RestDefinition changed since it was published, as refusal sentences. */
-const lockedChangesOf = (path: string, restDefinition: Record<string, unknown>, locked: LockedSnapshot | null | undefined): string[] => {
-  const baseline = locked?.[path]
-  if (!baseline) { return [] }
-  const published = publishedSkeleton(baseline)
-  const held = asRecord(asRecord(restDefinition.spec)?.resource)?.kind
-  let kind = typeof held === 'string' ? held : 'this Kind'
-  if (typeof baseline.kind === 'string') { kind = baseline.kind }
-  return immutableFieldDiff(published, restDefinition).map((change) => lockedSentence(kind, change.field, change.before, change.after))
-}
-
-/** Every locked-field change the held draft carries, one sentence each. */
-export const lockedChanges = (files: Readonly<Record<string, string>>, locked: LockedSnapshot | null | undefined): string[] => {
-  if (!locked) { return [] }
-  return Object.keys(locked).flatMap((path) => {
-    if (!Object.prototype.hasOwnProperty.call(files, path)) { return [] }
-    try {
-      const restDefinition = asRecord(load(files[path]))
-      return restDefinition ? lockedChangesOf(path, restDefinition, locked) : []
-    } catch {
-      return []
-    }
-  })
-}
-
 /**
  * Every servers entry the HELD document names that is not the base URL — a hand edit in Chart files
  * that would send some operation's requests, and its credential, to another host.
@@ -397,9 +210,9 @@ const foreignServers = (model: ControllerModel): string[] => {
 }
 
 /**
- * The chart lint's controller half: the document reads, every Kind reads, no Kind is left with a
- * conflict nobody settled, and T7's validator passes every RestDefinition. Never throws — it runs
- * inside the draft broadcast.
+ * The chart lint's controller half: the document reads and says info.version v1alpha1, every Kind
+ * reads, no Kind is left with a conflict — or an ambiguous id binding — nobody settled, and T7's
+ * validator passes every RestDefinition. Never throws — it runs inside the draft broadcast.
  */
 export const lintControllerDraft = (files: Readonly<Record<string, string>>, locked?: LockedSnapshot | null): string[] => {
   try {
@@ -411,10 +224,12 @@ export const lintControllerDraft = (files: Readonly<Record<string, string>>, loc
         .map((path) => `${path}: a controller chart holds only Chart.yaml, values*, templates/restdefinition-<kind>.yaml and templates/configmap-oas-<name>.yaml — this file would be published without the preview ever rendering it. Remove it.`),
       ...helmActionProblems(files),
       ...(model.specProblem ? [model.specProblem] : []),
+      ...(model.spec ? servedVersionProblems(model.spec.path, model.spec.oas.doc) : []),
       ...foreignServers(model),
       ...model.unreadable.map(({ path, reason }) => `${path}: ${reason}`),
       ...model.kinds.flatMap((entry) => [
         ...entry.conflicts.map((conflict) => `${entry.kind}: ${conflict.sentence.replace(/ — choose one\.$/, '')} — choose one in the inspector, or leave ${conflict.action} out.`),
+        ...entry.unconfirmed.map((binding) => `${entry.kind}: ${binding.sentence} Confirm {${binding.param}} → ${binding.current} in the inspector, or bind it to ${binding.choices.filter((choice) => choice !== binding.current).join(' or ') || 'another field'}.`),
         ...(entry.validation?.errors ?? []).map((error) => `${entry.kind} (${entry.path}): ${error}`),
       ]),
     ]
@@ -428,6 +243,65 @@ export const lintControllerDraft = (files: Readonly<Record<string, string>>, loc
 export type ControllerPlan =
   | { ok: true; add?: Record<string, string>; edit?: Record<string, string>; remove?: string[]; expect?: Record<string, string>; path: string }
   | { ok: false; reason: string }
+
+/** The record without `key` — a list or map left empty is dropped, never written as `[]` or `{}`. */
+const without = (record: Record<string, unknown>, key: string): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(record).filter(([entry]) => entry !== key))
+
+/** Set `key` on the record, or drop it when the value is empty. Mutates, like every plan here. */
+const setOrDrop = (record: Record<string, unknown>, key: string, value: unknown): void => {
+  const empty = value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0)
+  const next = empty ? without(record, key) : { ...record, [key]: value }
+  for (const entry of Object.keys(record)) {
+    if (!(entry in next)) { Reflect.deleteProperty(record, entry) }
+  }
+  Object.assign(record, next)
+}
+
+const setAnnotation = (restDefinition: Record<string, unknown>, key: string, value: string | null): void => {
+  const metadata = { ...(asRecord(restDefinition.metadata) ?? {}) }
+  const annotations = { ...(asRecord(metadata.annotations) ?? {}) }
+  setOrDrop(annotations, key, value)
+  setOrDrop(metadata, 'annotations', Object.keys(annotations).length ? annotations : null)
+  restDefinition.metadata = metadata
+}
+
+const ordered = (verbs: Record<string, unknown>[]): Record<string, unknown>[] =>
+  [...verbs].sort((left, right) => VERB_ORDER.indexOf(left.action as RestAction) - VERB_ORDER.indexOf(right.action as RestAction))
+
+/** The fieldMapping entries the kernel suggests for one verb (inPath → the CR field it is read from). */
+const suggestedFieldMapping = (suggestions: readonly FieldMappingSuggestion[], action: RestAction): Record<string, unknown>[] =>
+  suggestions.filter((suggestion) => suggestion.action === action).map((suggestion) => ({ inCustomResource: suggestion.inCustomResource, inPath: suggestion.inPath }))
+
+/** The create body's schema for a held RestDefinition, or null (no create verb, no document). */
+const createBodyOf = (doc: OasDocument | undefined, restDefinition: Record<string, unknown>): unknown => {
+  const create = heldVerb(restDefinition, 'create')
+  return doc && create ? requestBodySchema(doc, create.method, create.path) : null
+}
+
+/**
+ * What a status-sourced id binding needs beside the fieldMapping, applied to the resource: the field it
+ * reads must BE in status (oasgen builds status from identifiers + additionalStatusFields only), and a
+ * field status carries is not also asked of the person in spec — it goes to excludedSpecFields when the
+ * create body has it (petstore's `id`). Fields already listed are left as they are; both lists stay
+ * editable afterwards.
+ */
+const settleStatusBindings = (doc: OasDocument | undefined, restDefinition: Record<string, unknown>, resource: Record<string, unknown>): void => {
+  const bound = verbsOf(restDefinition).flatMap((verb): unknown[] => (Array.isArray(verb.fieldMapping) ? verb.fieldMapping as unknown[] : []))
+    .map((entry) => asRecord(entry)?.inCustomResource)
+    .filter((field): field is string => isNonEmptyString(field) && field.startsWith('status.'))
+    .map((field) => field.slice('status.'.length))
+  if (!bound.length) { return }
+  const list = (key: string): string[] => (Array.isArray(resource[key]) ? (resource[key] as unknown[]).filter(isNonEmptyString) : [])
+  const identifiers = list('identifiers')
+  const statusFields = list('additionalStatusFields')
+  const missing = bound.filter((field) => !identifiers.includes(field) && !statusFields.includes(field))
+  setOrDrop(resource, 'additionalStatusFields', [...statusFields, ...new Set(missing)])
+  const body = createBodyOf(doc, restDefinition)
+  const excluded = list('excludedSpecFields')
+  const exclude = bound.filter((field) => !excluded.includes(field) && !!doc && !!body && schemaHasField(doc, body, field))
+  setOrDrop(resource, 'excludedSpecFields', [...excluded, ...new Set(exclude)])
+}
 
 /** Place a resource group of the document as a Kind: its RestDefinition, verbs inferred, conflicts left out. */
 export const planPlaceGroup = (files: Readonly<Record<string, string>>, group: string): ControllerPlan => {
@@ -456,15 +330,15 @@ export const planPlaceGroup = (files: Readonly<Record<string, string>>, group: s
   for (const action of VERB_ORDER) {
     const choice = mapping.verbs[action]
     if (!choice) { continue }
-    const fieldMapping = mapping.fieldMappingSuggestions
-      .filter((suggestion) => suggestion.action === action)
-      .map((suggestion) => ({ inCustomResource: suggestion.inCustomResource, inPath: suggestion.inPath }))
+    const fieldMapping = suggestedFieldMapping(mapping.fieldMappingSuggestions, action)
     verbs[action] = { method: choice.method, path: choice.path, ...(fieldMapping.length ? { fieldMapping } : {}) }
   }
   if (!Object.keys(verbs).length && !mapping.conflicts.length) {
     return { ok: false, reason: `No operation under ${group} reads as a create, get, findby, update or delete — nothing to map.` }
   }
-  const identifier = mapping.identifierCandidates[0]?.field
+  // The identifier is the field the id is read from when status carries it (KOG's baseline), else the
+  // first candidate the get response offers.
+  const identifier = mapping.boundStatusFields[0] ?? mapping.identifierCandidates[0]?.field
   const restDefinition = buildRestDefinition({
     identifiers: identifier ? [identifier] : [],
     kind,
@@ -476,6 +350,8 @@ export const planPlaceGroup = (files: Readonly<Record<string, string>>, group: s
   })
   const metadata = asRecord(restDefinition.metadata) ?? {}
   restDefinition.metadata = { ...metadata, annotations: { [OPERATIONS_ANNOTATION]: group } }
+  const resource = asRecord(asRecord(restDefinition.spec)?.resource)
+  if (resource) { settleStatusBindings(model.spec.oas.doc, restDefinition, resource) }
   // A Kind whose every verb is in conflict still has to be written: an empty list would be refused
   // by the CRD, so the file says what is missing — and the lint says it louder.
   return { add: { [path]: toYaml(restDefinition) }, ok: true, path }
@@ -514,35 +390,12 @@ const planMutation = (
   return { edit: { [path]: toYaml(restDefinition) }, expect: { [path]: files[path] }, ok: true, path }
 }
 
-/** The record without `key` — a list or map left empty is dropped, never written as `[]` or `{}`. */
-const without = (record: Record<string, unknown>, key: string): Record<string, unknown> =>
-  Object.fromEntries(Object.entries(record).filter(([entry]) => entry !== key))
-
-/** Set `key` on the record, or drop it when the value is empty. Mutates, like every plan here. */
-const setOrDrop = (record: Record<string, unknown>, key: string, value: unknown): void => {
-  const empty = value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0)
-  const next = empty ? without(record, key) : { ...record, [key]: value }
-  for (const entry of Object.keys(record)) {
-    if (!(entry in next)) { Reflect.deleteProperty(record, entry) }
-  }
-  Object.assign(record, next)
-}
-
-const setAnnotation = (restDefinition: Record<string, unknown>, key: string, value: string | null): void => {
-  const metadata = { ...(asRecord(restDefinition.metadata) ?? {}) }
-  const annotations = { ...(asRecord(metadata.annotations) ?? {}) }
-  setOrDrop(annotations, key, value)
-  setOrDrop(metadata, 'annotations', Object.keys(annotations).length ? annotations : null)
-  restDefinition.metadata = metadata
-}
-
-const ordered = (verbs: Record<string, unknown>[]): Record<string, unknown>[] =>
-  [...verbs].sort((left, right) => VERB_ORDER.indexOf(left.action as RestAction) - VERB_ORDER.indexOf(right.action as RestAction))
-
 /**
  * Set one verb to one operation — a conflict's choice, a dropped operation, or the verbs table — or
  * leave it OUT on purpose (`null`). The fieldMapping the inference suggests for that operation rides
- * along; a hand-written entry for the same verb is replaced, since it was about another operation.
+ * along — computed over the verbs as held, so a status-sourced id finds the held create's response —
+ * and a hand-written entry for the same verb is replaced, since it was about another operation. A
+ * status binding it brings is settled (status carries the field; spec does not ask for it).
  */
 export const planSetVerb = (
   files: Readonly<Record<string, string>>,
@@ -566,21 +419,20 @@ export const planSetVerb = (
       return `${choice.method.toUpperCase()} ${choice.path} is not an operation of the document.`
     }
     const suggestions = model.spec && held
-      ? inferOperationMapping(model.spec.oas.doc, [...operationsInGroup(model.spec.oas.operations, held.group), ...(operation && operation.group !== held.group ? [operation] : [])], [{ action, method: choice.method, path: choice.path }])
-        .fieldMappingSuggestions.filter((suggestion) => suggestion.action === action)
-        .map((suggestion) => ({ inCustomResource: suggestion.inCustomResource, inPath: suggestion.inPath }))
+      ? suggestedFieldMapping(heldMapping(model.spec, held.group, restDefinition, { action, choice }).fieldMappingSuggestions, action)
       : []
     resource.verbsDescription = ordered([...others, { action, method: choice.method.toUpperCase(), path: choice.path, ...(suggestions.length ? { fieldMapping: suggestions } : {}) }])
     setAnnotation(restDefinition, OMITTED_ANNOTATION, omitted.join(','))
+    settleStatusBindings(model.spec?.oas.doc, restDefinition, resource)
     return null
   }, locked)
 }
 
-/** Toggle one entry of a string list on the resource (identifiers, additionalStatusFields). */
+/** Toggle one entry of a string list on the resource (identifiers, additionalStatusFields, excludedSpecFields). */
 export const planToggleField = (
   files: Readonly<Record<string, string>>,
   path: string,
-  list: 'identifiers' | 'additionalStatusFields',
+  list: 'identifiers' | 'additionalStatusFields' | 'excludedSpecFields',
   field: string,
   locked?: LockedSnapshot | null,
 ): ControllerPlan => planMutation(files, path, (_restDefinition, resource) => {
@@ -599,16 +451,129 @@ export const planCompareScope = (files: Readonly<Record<string, string>>, path: 
   }, locked)
 
 /**
+ * BIND a path parameter to the CR field it is read from — the inspector's confirm step for an
+ * ambiguous id (`{keyId}`: `status.keyId` or `status.id`), or a parameter named differently across
+ * verbs. Every held verb whose path carries the parameter (or a name the kernel reads as the same
+ * segment) gets `{inPath, inCustomResource: field}`; the parameter is recorded as CONFIRMED; a status
+ * field is settled (status carries it; spec does not ask for it). `field` is `spec.<path>` or
+ * `status.<path>` — a leaf, never an object.
+ */
+export const planBindPathParam = (
+  files: Readonly<Record<string, string>>,
+  path: string,
+  param: string,
+  field: string,
+  locked?: LockedSnapshot | null,
+): ControllerPlan => {
+  const model = readController(files)
+  const held = model.kinds.find((entry) => entry.path === path)
+  return planMutation(files, path, (restDefinition, resource) => {
+    if (!/^(spec|status)\.[A-Za-z0-9_$-]+(\.[A-Za-z0-9_$-]+)*$/.test(field)) {
+      return `${field} is not a field of the resource — bind {${param}} to spec.<field> or status.<field>.`
+    }
+    const names = new Set([param, ...(held?.held?.paramAliases.find((alias) => alias.names.includes(param))?.names ?? [])])
+    const verbs = verbsOf(restDefinition)
+    let bound = 0
+    resource.verbsDescription = verbs.map((verb) => {
+      const params = isNonEmptyString(verb.path) ? [...verb.path.matchAll(/\{([^}]+)\}/g)].map((match) => match[1]) : []
+      const here = params.filter((name) => names.has(name))
+      if (!here.length) { return verb }
+      bound += here.length
+      const kept = (Array.isArray(verb.fieldMapping) ? (verb.fieldMapping as unknown[]).map((entry) => asRecord(entry) ?? {}) : [])
+        .filter((entry) => !here.includes(String(entry.inPath)))
+      return { ...verb, fieldMapping: [...kept, ...here.map((name) => ({ inCustomResource: field, inPath: name }))] }
+    })
+    if (!bound) {
+      return `No verb of ${held?.kind ?? 'this Kind'} has {${param}} in its path.`
+    }
+    const doc = model.spec?.oas.doc
+    if (doc && field.startsWith('status.') && held?.held) {
+      const source = field.slice('status.'.length)
+      const offered = held.held.fieldMappingSuggestions.flatMap((entry) => [entry.inCustomResource, ...entry.alternatives])
+      const known = [...held.held.identifierCandidates, ...held.held.statusFieldCandidates].map((entry) => entry.field)
+      if (!offered.includes(field) && !known.includes(source)) {
+        return `${source} is not a field the ${held.held.verbs.get ? 'get response' : 'findby item'} returns, so status would never carry it.`
+      }
+    }
+    const confirmed = [...new Set([...confirmedOf(restDefinition), ...names])].sort()
+    setAnnotation(restDefinition, CONFIRMED_ANNOTATION, confirmed.join(','))
+    settleStatusBindings(doc, restDefinition, resource)
+    return null
+  }, locked)
+}
+
+/**
+ * Set (or clear, with null) the findby's itemsPath — the property of an ENVELOPE response that holds
+ * the collection. oasgen refuses to guess between two array properties; this is the person saying which.
+ */
+export const planSetItemsPath = (
+  files: Readonly<Record<string, string>>,
+  path: string,
+  itemsPath: string | null,
+  locked?: LockedSnapshot | null,
+): ControllerPlan => planMutation(files, path, (restDefinition, held) => {
+  const verbs = verbsOf(restDefinition)
+  if (!verbs.some((verb) => verb.action === 'findby')) {
+    return 'There is no findby verb to set an itemsPath on — map findby first.'
+  }
+  const trimmed = itemsPath?.trim() ?? ''
+  let value: string | null = null
+  if (trimmed) { value = trimmed.startsWith('.') ? trimmed : `.${trimmed}` }
+  held.verbsDescription = verbs.map((verb) => {
+    if (verb.action !== 'findby') { return verb }
+    const next = { ...verb }
+    setOrDrop(next, 'itemsPath', value)
+    return next
+  })
+  return null
+}, locked)
+
+/** One header or query parameter of a Kind's verbs that may move to its Configuration, and the verbs that carry it. */
+export interface ConfigurationCandidate {
+  name: string
+  in: string
+  /** `['*']` when every held verb carries it, else the verbs that do. */
+  actions: string[]
+  /** True when no security scheme of the document is this parameter — an ordinary configuration value (api-version, a page size). */
+  nonAuth: boolean
+}
+
+/** The header and query parameters of a Kind's held verbs — what may be read from its Configuration instead of every resource's spec. */
+export const configurationCandidates = (model: ControllerModel, kind: ControllerKind): ConfigurationCandidate[] => {
+  const found = new Map<string, { name: string; in: string; actions: string[] }>()
+  const held = VERB_ORDER.filter((action) => heldVerb(kind.restDefinition, action))
+  for (const action of held) {
+    const verb = heldVerb(kind.restDefinition, action)
+    const operation = verb ? model.spec?.oas.operations.find((entry) => entry.method === verb.method && entry.path === verb.path) : undefined
+    for (const parameter of operation?.parameters ?? []) {
+      if (parameter.in !== 'header' && parameter.in !== 'query') { continue }
+      const key = `${parameter.in}:${parameter.name}`
+      const entry = found.get(key) ?? { actions: [], in: parameter.in, name: parameter.name }
+      entry.actions.push(action)
+      found.set(key, entry)
+    }
+  }
+  const schemes = asRecord(asRecord(model.spec?.oas.doc.components)?.securitySchemes) ?? {}
+  const authNames = new Set(Object.values(schemes).map((scheme) => asRecord(scheme)).filter((scheme) => scheme?.type === 'apiKey')
+    .map((scheme) => `${String(scheme?.in)}:${String(scheme?.name)}`))
+  return [...found.values()].map((entry) => ({
+    ...entry,
+    actions: held.length > 1 && entry.actions.length === held.length ? ['*'] : entry.actions,
+    nonAuth: !authNames.has(`${entry.in}:${entry.name}`),
+  }))
+}
+
+/**
  * Toggle a parameter as a CONFIGURATION field: read from the Kind's <Kind>Configuration instead of
- * every resource's spec, for the verbs whose operations carry it.
+ * every resource's spec, for the verbs whose operations carry it (`*` when every verb does).
  */
 export const planToggleConfigurationField = (
   files: Readonly<Record<string, string>>,
   path: string,
   parameter: { name: string; in: string; actions: string[] },
   locked?: LockedSnapshot | null,
-): ControllerPlan => planMutation(files, path, (_restDefinition, resource) => {
-  const current = Array.isArray(resource.configurationFields) ? (resource.configurationFields as unknown[]).map((entry) => asRecord(entry) ?? {}) : []
+): ControllerPlan => planMutation(files, path, (_restDefinition, held) => {
+  const current = Array.isArray(held.configurationFields) ? (held.configurationFields as unknown[]).map((entry) => asRecord(entry) ?? {}) : []
   const matches = (entry: Record<string, unknown>) => {
     const from = asRecord(entry.fromOpenAPI)
     return from?.name === parameter.name && from?.in === parameter.in
@@ -616,7 +581,7 @@ export const planToggleConfigurationField = (
   const next = current.some(matches)
     ? current.filter((entry) => !matches(entry))
     : [...current, { fromOpenAPI: { in: parameter.in, name: parameter.name }, fromRestDefinition: { actions: [...parameter.actions] } }]
-  setOrDrop(resource, 'configurationFields', next)
+  setOrDrop(held, 'configurationFields', next)
   return null
 }, locked)
 

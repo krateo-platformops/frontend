@@ -119,15 +119,17 @@ builder meant to stop.
   what each verb does is code, routed through the same kernels a person's gestures use. The
   Blueprint Builder's chart verbs (`chartPut`, `chartDelete`, `chartLink`) and the Controller
   Builder's controller verbs (`controllerStart`, `controllerPlace`, `controllerMapVerb`,
-  `controllerSetIdentifiers`, `controllerSetStatusFields`, `controllerRemoveKind`) are the two
+  `controllerSetIdentifiers`, `controllerSetStatusFields`, `controllerRemoveKind`, and — frontend#405
+  round 2 — `controllerBindId`, `controllerSetExcludedFields`, `controllerSetItemsPath`,
+  `controllerSetConfigurationFields`) are the two
   families. Both are draft-only and deny-by-default: a verb runs only if this frontend registers
   it and the held draft's Builder allows it.
   - No parser plugin yet: the Controller Builder reads its OpenAPI document with T7's kernel
     (`oasImport.ts`) inside its own start modal and workbench.
 - **Lints and gates:**
   - Lints: `chart-lint` (`lintBlueprintDraft`), `gate-drift`, and `restdef-validate`
-    (`lintControllerDraft`: the OpenAPI document reads, no verb conflict is unsettled, and T7's
-    validator passes every RestDefinition).
+    (`lintControllerDraft`: the OpenAPI document reads and is pinned to info.version v1alpha1, no
+    verb conflict or ambiguous path id is unsettled, and T7's validator passes every RestDefinition).
   - Gates: `preview-before-publish` (the render-hash gate) and `publish-name`.
   - A Builder chooses which lints and gates apply. It cannot define new ones.
 - **Start-value validation beyond `required` and `pattern`:** for example `chartNameProblem`

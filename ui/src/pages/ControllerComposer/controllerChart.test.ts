@@ -107,14 +107,18 @@ describe('placing and mapping', () => {
     expect(['Pet', 'Policy', 'Address'].map(pluralOf)).toEqual(['pets', 'policies', 'addresses'])
   })
 
-  it('places pet: the verbs inferred, the findby CONFLICT left out and named, identifiers from the GET response', () => {
+  it('places pet: the verbs inferred, the findby CONFLICT left out and named, the id read from status', () => {
     const files = apply(started(), planPlaceGroup(started(), 'pet'))
     const [pet] = readController(files).kinds
     expect(pet.kind).toBe('Pet')
     expect(pet.path).toBe(restDefinitionPath('Pet'))
     const { resource } = (pet.restDefinition.spec as { resource: Record<string, unknown> })
-    expect((resource.verbsDescription as { action: string }[]).map((verb) => verb.action)).toEqual(['create', 'get', 'update', 'delete'])
+    // PUT /pet is on the collection, so it is no update by rule (round 2) — the person maps it.
+    expect((resource.verbsDescription as { action: string }[]).map((verb) => verb.action)).toEqual(['create', 'get', 'delete'])
+    expect((resource.verbsDescription as { fieldMapping?: unknown }[])[1].fieldMapping).toEqual([{ inCustomResource: 'status.id', inPath: 'petId' }])
     expect(resource.identifiers).toEqual(['id'])
+    // status carries id, so spec does not ask the person for it.
+    expect(resource.excludedSpecFields).toEqual(['id'])
     expect(pet.conflicts.map((conflict) => conflict.action)).toEqual(['findby'])
     expect(lintControllerDraft(files)).toEqual(['Pet: 2 operations look like findby (GET /pet/findByStatus, GET /pet/findByTags) — choose one in the inspector, or leave findby out.'])
     expect(planPlaceGroup(files, 'pet')).toEqual({ ok: false, reason: 'pet is already placed as Pet.' })
@@ -150,9 +154,10 @@ describe('placing and mapping', () => {
   it('a hand edit in the file survives an inspector edit', () => {
     let files = apply(started(), planPlaceGroup(started(), 'pet'))
     const path = restDefinitionPath('Pet')
-    files = { ...files, [path]: files[path].replace('kind: Pet\n', 'kind: Pet\n    excludedSpecFields:\n      - photoUrls\n') }
+    expect(files[path]).toContain('    excludedSpecFields:\n      - id\n')
+    files = { ...files, [path]: files[path].replace('    excludedSpecFields:\n      - id\n', '    excludedSpecFields:\n      - id\n      - photoUrls\n') }
     files = apply(files, planToggleField(files, path, 'additionalStatusFields', 'status'))
-    expect((readController(files).kinds[0].restDefinition.spec as { resource: Record<string, unknown> }).resource.excludedSpecFields).toEqual(['photoUrls'])
+    expect((readController(files).kinds[0].restDefinition.spec as { resource: Record<string, unknown> }).resource.excludedSpecFields).toEqual(['id', 'photoUrls'])
   })
 
   it('a ConfigMap template is not read as a Kind, and the document path is where the RestDefinitions point', () => {

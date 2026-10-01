@@ -27,7 +27,7 @@ import styles from '../BlueprintComposer/BlueprintComposer.module.css'
 
 import { SPEC_BUDGET_BYTES } from './controllerChart'
 import {
-  readSpec, readSpecUrl, serverRewriteSentence, SPEC_TEXT_MAX_BYTES, startController, validateStartController,
+  readSpec, readSpecUrl, servedAsSentence, serverRewriteSentence, SPEC_TEXT_MAX_BYTES, startController, validateStartController,
   type StartControllerField, type StartControllerInput,
 } from './controllerStart'
 import { trimOas } from './oasImport'
@@ -258,7 +258,7 @@ export const StartControllerModal = ({ fields, onCancel, onStart, open, pending,
         </div>
         <div className={styles.derived}>
           <span className={styles.derivedLabel}>Kinds served as</span>
-          <span className={styles.derivedValue} data-testid='derived-group'>{group ? `${group}/v1alpha1` : '—'}</span>
+          <span className={styles.derivedValue} data-testid='derived-group'>{group ? servedAsSentence(group, spec.oas?.doc ?? null) : '—'}</span>
         </div>
         <div className={styles.derived}>
           <span className={styles.derivedLabel}>Registered as</span>

@@ -26,7 +26,7 @@ vi.mock('./builderClaimPublish', () => ({
 
 import { builderRegistry, swapBuildersForTest } from '../../builders/builderRegistry'
 import type { Config } from '../../context/ConfigContext'
-import { lockedSnapshot, restDefinitionPath } from '../../pages/ControllerComposer/controllerChart'
+import { lockedSnapshot, planBindPathParam, planSetItemsPath, restDefinitionPath } from '../../pages/ControllerComposer/controllerChart'
 import { renderController } from '../../pages/ControllerComposer/controllerRender'
 import type * as ControllerRenderModule from '../../pages/ControllerComposer/controllerRender'
 
@@ -128,7 +128,8 @@ describe('the controller verbs are declared, deny-by-default', () => {
       expect(routeProposal(verb), verb).toBe('apply')
     }
     expect(builder?.verbs.allowed).toEqual([
-      'controllerStart', 'controllerPlace', 'controllerMapVerb', 'controllerSetIdentifiers', 'controllerSetStatusFields', 'controllerRemoveKind', 'previewRestDef', 'publishRestDef',
+      'controllerStart', 'controllerPlace', 'controllerMapVerb', 'controllerSetIdentifiers', 'controllerSetStatusFields', 'controllerRemoveKind',
+      'controllerBindId', 'controllerSetExcludedFields', 'controllerSetItemsPath', 'controllerSetConfigurationFields', 'previewRestDef', 'publishRestDef',
     ])
     expect(builder?.summarizer?.plugin).toBe('controller-model')
     expect(isDraftVerb('controllerDeleteEverything')).toBe(false)
@@ -498,5 +499,69 @@ describe('review fixes — the closed bypasses', () => {
     expect(JSON.stringify(summary)).not.toContain('s3cr3t-value')
     expect(summary?.baseUrl).toBe('(a URL carrying a credential, not shown)')
     expect(summary?.problems?.some((problem) => /Chart\.yaml: the base URL — The URL's query carries a credential-like parameter \(apikey\)/.test(problem))).toBe(true)
+  })
+})
+
+describe('round 2 (frontend#405) — the agent reaches every new inspector gesture, through the same plans', () => {
+  const fixture = (file: string) => readFileSync(join(__dirname, '..', '..', 'pages', 'ControllerComposer', '__fixtures__', file), 'utf8')
+  const KMS = { apiGroup: 'kms.example.io', baseUrl: 'https://kms.example.test', name: 'kms', specText: fixture('aruba-like-kms.oas.yaml'), verb: 'controllerStart' }
+  const DBAAS = { apiGroup: 'dbaas.example.io', baseUrl: 'https://dbaas.example.test', name: 'dbaas', specText: fixture('aruba-like-dbaas.oas.yaml'), verb: 'controllerStart' }
+  const KM = restDefinitionPath('Km')
+  const PROJECT = restDefinitionPath('Project')
+  const resourceOf = (store: BlueprintDraftStore, path: string) => (load(store.get()?.files[path] ?? '') as { spec: { resource: Record<string, unknown> } }).spec.resource
+
+  it('kms: the envelope and the ambiguous id are told to the agent, and settled with controllerSetItemsPath + controllerBindId — the inspector\'s bytes exactly', async () => {
+    const { store } = mount()
+    await run(KMS)
+    const placed = await run({ group: 'kms', verb: 'controllerPlace' })
+    expect(placed).toContain('{keyId} is read from status.keyId but waits for a confirm (status.keyId or status.id) — settle it with controllerBindId')
+    const summary = summarizeController(store.get(), {})
+    expect(summary?.servedAs).toBe('kms.example.io/v1alpha1')
+    expect(summary?.sourceSpecVersion).toBe('1.0.4')
+    expect(summary?.kinds[0]).toMatchObject({
+      itemsPathChoices: ['.data', '.included'],
+      pathIds: [{ choices: ['status.keyId', 'status.id'], confirm: '{keyId} could be keyId or id — keyId is suggested; confirm it or choose another.', field: 'status.keyId', param: 'keyId' }],
+    })
+
+    const before = store.get()?.files ?? {}
+    const byPlan = planSetItemsPath(before, KM, '.data')
+    expect(await run({ itemsPath: '.data', kind: 'Km', verb: 'controllerSetItemsPath' })).toMatch(/^Km findby itemsPath: \.data — /)
+    expect(byPlan.ok && store.get()?.files[KM]).toBe(byPlan.ok ? byPlan.edit?.[KM] : '')
+
+    const beforeBind = store.get()?.files ?? {}
+    const bindPlan = planBindPathParam(beforeBind, KM, 'keyId', 'status.id')
+    expect(await run({ field: 'status.id', kind: 'Km', param: '{keyId}', verb: 'controllerBindId' })).toMatch(/^Km reads \{keyId\} from status\.id \(confirmed\)/)
+    expect(bindPlan.ok && store.get()?.files[KM]).toBe(bindPlan.ok ? bindPlan.edit?.[KM] : '')
+    expect(summarizeController(store.get(), {})?.problems).toBeUndefined()
+  })
+
+  it('dbaas: excluded fields and configuration fields are whole lists; actions come from the Kind, never from the agent', async () => {
+    const { store } = mount()
+    await run(DBAAS)
+    await run({ group: 'projects', verb: 'controllerPlace' })
+    expect(await run({ excludedFields: ['properties.flavor'], kind: 'Project', verb: 'controllerSetExcludedFields' })).toMatch(/^Project spec leaves out: properties\.flavor/)
+    expect(resourceOf(store, PROJECT).excludedSpecFields).toEqual(['properties.flavor'])
+    const label = await run({ configurationFields: [{ in: 'header', name: 'api-version' }, { in: 'query', name: 'limit' }], kind: 'Project', verb: 'controllerSetConfigurationFields' })
+    expect(label).toMatch(/^Project reads api-version \(header\), limit \(query\) from its Configuration/)
+    expect(resourceOf(store, PROJECT).configurationFields).toEqual([
+      { fromOpenAPI: { in: 'header', name: 'api-version' }, fromRestDefinition: { actions: ['*'] } },
+      { fromOpenAPI: { in: 'query', name: 'limit' }, fromRestDefinition: { actions: ['findby'] } },
+    ])
+    expect(await run({ configurationFields: [{ in: 'query', name: 'page' }], kind: 'Project', verb: 'controllerSetConfigurationFields' }))
+      .toMatch(/page \(query\) is not a header or query parameter of Project's verbs/)
+    expect(await run({ configurationFields: [], kind: 'Project', verb: 'controllerSetConfigurationFields' })).toMatch(/^Project reads none from its Configuration/)
+    expect(resourceOf(store, PROJECT).configurationFields).toBeUndefined()
+    // The alias {dbaasId}/{id} waits for a confirm, for the agent as for the person.
+    expect(await run({ field: 'status.metadata.id', kind: 'Project', param: 'id', verb: 'controllerBindId' })).toMatch(/^Project reads \{id\} from status\.metadata\.id \(confirmed\)/)
+    expect(summarizeController(store.get(), {})?.problems).toBeUndefined()
+  })
+
+  it('refuses a binding to something that is not a field, and an itemsPath with no findby', async () => {
+    mount()
+    await run(START)
+    await run({ group: 'pet', verb: 'controllerPlace' })
+    expect(await run({ field: 'id', kind: 'Pet', param: 'petId', verb: 'controllerBindId' })).toMatch(/id is not a field of the resource — bind \{petId\} to spec\.<field> or status\.<field>/)
+    expect(await run({ itemsPath: '.data', kind: 'Pet', verb: 'controllerSetItemsPath' })).toMatch(/There is no findby verb to set an itemsPath on/)
+    expect(await run({ excludedFields: 'id', kind: 'Pet', verb: 'controllerSetExcludedFields' })).toMatch(/excludedFields must be the whole list/)
   })
 })

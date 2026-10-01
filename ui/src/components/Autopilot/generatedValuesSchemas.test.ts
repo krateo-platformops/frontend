@@ -62,10 +62,34 @@ describe.each(GENERATED)('%s — the values composition-dynamic-controller rende
     // in a deployer's values, which the closed root exists to catch.
     expect(validate({ ...spec, global: CDC_GLOBAL, stray: 'x' })).toBe(false)
   })
+})
 
-  it('leaves global open — the controller, not the chart, decides which keys it carries', () => {
+describe('a page set leaves global OPEN — the controller, not the chart, decides which keys it carries', () => {
+  const schema = JSON.parse(pageValuesSchema('chain-pages')) as { properties: GeneratedSchema }
+  const validate = new Ajv({ allErrors: true, strict: false }).compile(schema)
+
+  it('takes a key a later CDC adds', () => {
     expect(schema.properties.global?.type).toBe('object')
     expect(schema.properties.global?.additionalProperties).toBeUndefined()
-    expect(errorsOf({ ...spec, global: { ...CDC_GLOBAL, keyAddedByALaterController: 'x' } })).toBe('')
+    expect(validate({ global: { ...CDC_GLOBAL, keyAddedByALaterController: 'x' }, tiers: { common: '' } })).toBe(true)
+  })
+})
+
+describe('a controller CLOSES global — core-provider\'s crdgen would otherwise emit x-kubernetes-preserve-unknown-fields on spec.global', () => {
+  const schema = JSON.parse(kogValuesSchema('githubrepo')) as { properties: { global: { additionalProperties?: unknown; properties?: Record<string, { type?: string }> } } }
+  const validate = new Ajv({ allErrors: true, strict: false }).compile(schema)
+
+  it('declares exactly the ten keys CDC writes, each a string, and nothing else', () => {
+    expect(schema.properties.global.additionalProperties).toBe(false)
+    expect(Object.keys(schema.properties.global.properties ?? {}).sort()).toEqual(Object.keys(CDC_GLOBAL).sort())
+    expect(Object.values(schema.properties.global.properties ?? {}).every((property) => property.type === 'string')).toBe(true)
+  })
+
+  it('refuses a key CDC does not write — which is why a key a later CDC adds must be added here', () => {
+    expect(validate({ global: { ...CDC_GLOBAL, keyAddedByALaterController: 'x' } })).toBe(false)
+  })
+
+  it('declares no default anywhere', () => {
+    expect(kogValuesSchema('githubrepo')).not.toMatch(/"default"/)
   })
 })

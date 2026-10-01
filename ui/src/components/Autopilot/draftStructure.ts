@@ -23,8 +23,15 @@
  * a drag and a proposal alike.
  */
 import { findBuilderOf } from '../../builders/builderRegistry'
-import { heldVerb, readController } from '../../pages/ControllerComposer/controllerChart'
-import { VERB_ORDER } from '../../pages/ControllerComposer/operationMapping'
+import {
+  configurationCandidates,
+  heldItemsPath,
+  heldVerb,
+  pathIdBindings,
+  readController,
+  SERVED_VERSION,
+} from '../../pages/ControllerComposer/controllerChart'
+import { envelopeArrays, successResponseSchema, VERB_ORDER } from '../../pages/ControllerComposer/operationMapping'
 import { shownUrl } from '../../pages/ControllerComposer/urlCredential'
 import { buildObjectTree, flattenTree, listDataSources } from '../../pages/PageComposer/objectTree'
 import type { TreeNode } from '../../pages/PageComposer/objectTree'
@@ -213,8 +220,24 @@ export const summarizeController = (held: BlueprintDraftHeld | null, state: Held
   const kinds = model.kinds.map((entry): ControllerKindSummary => {
     const resource = (entry.restDefinition.spec as { resource?: Record<string, unknown> } | undefined)?.resource ?? {}
     const statusFields = names(resource.additionalStatusFields)
-    const identifierCandidates = entry.inference?.identifierCandidates.map((candidate) => candidate.field) ?? []
-    const statusFieldCandidates = entry.inference?.statusFieldCandidates.map((candidate) => candidate.field) ?? []
+    const mapping = entry.held ?? entry.inference
+    const identifierCandidates = mapping?.identifierCandidates.map((candidate) => candidate.field) ?? []
+    const statusFieldCandidates = mapping?.statusFieldCandidates.map((candidate) => candidate.field) ?? []
+    const excludedSpecFields = names(resource.excludedSpecFields)
+    const pathIds = pathIdBindings(entry).map((binding) => ({
+      field: binding.field,
+      param: binding.param,
+      ...(binding.confirm ? { choices: binding.choices, confirm: binding.confirm } : {}),
+    }))
+    const findby = heldVerb(entry.restDefinition, 'findby')
+    const doc = model.spec?.oas.doc
+    const arrays = findby && doc ? envelopeArrays(doc, successResponseSchema(doc, findby.method, findby.path)) : []
+    const itemsPath = heldItemsPath(entry.restDefinition)
+    const configurationFields = (Array.isArray(resource.configurationFields) ? resource.configurationFields : [])
+      .map((field) => (field as { fromOpenAPI?: { name?: string; in?: string } }).fromOpenAPI)
+      .filter((from): from is { name: string; in: string } => typeof from?.name === 'string' && typeof from.in === 'string')
+      .map((from) => ({ in: from.in, name: from.name }))
+    const configuration = configurationCandidates(model, entry).map((candidate) => ({ actions: candidate.actions, in: candidate.in, name: candidate.name }))
     return {
       file: entry.path,
       group: entry.group,
@@ -231,6 +254,12 @@ export const summarizeController = (held: BlueprintDraftHeld | null, state: Held
       ...(identifierCandidates.length ? { identifierCandidates } : {}),
       ...(statusFields.length ? { statusFields } : {}),
       ...(statusFieldCandidates.length ? { statusFieldCandidates } : {}),
+      ...(excludedSpecFields.length ? { excludedSpecFields } : {}),
+      ...(pathIds.length ? { pathIds } : {}),
+      ...(arrays.length > 1 ? { itemsPathChoices: arrays.map((name) => `.${name}`) } : {}),
+      ...(itemsPath ? { itemsPath } : {}),
+      ...(configuration.length ? { configurationCandidates: configuration } : {}),
+      ...(configurationFields.length ? { configurationFields } : {}),
       ...(locked?.[entry.path] ? { published: true as const } : {}),
     }
   })
@@ -241,6 +270,8 @@ export const summarizeController = (held: BlueprintDraftHeld | null, state: Held
   }
   return {
     apiGroup: model.group,
+    ...(model.group ? { servedAs: `${model.group}/${model.servedVersion ?? SERVED_VERSION}` } : {}),
+    ...(model.sourceVersion ? { sourceSpecVersion: model.sourceVersion } : {}),
     // A base URL hand-edited to carry a credential is never sent; the lint names the problem.
     baseUrl: model.baseUrl ? shownUrl(model.baseUrl) : '',
     groups,

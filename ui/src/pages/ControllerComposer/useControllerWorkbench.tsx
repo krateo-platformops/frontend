@@ -30,9 +30,11 @@ import { lockedFor, usePublishedLocks } from '../../components/Autopilot/publish
 import { useChartRequests } from '../BlueprintComposer/useChartRequests'
 
 import {
+  planBindPathParam,
   planCompareScope,
   planPlaceGroup,
   planRemoveKind,
+  planSetItemsPath,
   planSetVerb,
   planToggleConfigurationField,
   planToggleField,
@@ -42,7 +44,8 @@ import {
 } from './controllerChart'
 import ControllerEmptyState from './ControllerEmptyState'
 import { CONTROLLER_FILES_CAPTION, controllerOutcomeCopy, controllerPreviewPayload } from './controllerPreviewPayload'
-import { classifyOperation, type RestAction } from './operationMapping'
+import type { FieldList } from './KindInspector'
+import { classifyOperation, pathShapeOf, type RestAction } from './operationMapping'
 import { operationsInGroup } from './paletteModel'
 import StartControllerModal from './StartControllerModal'
 
@@ -120,8 +123,7 @@ export const useControllerWorkbench = (host: HostDraft) => {
       setRefusal({ key: path, reason: 'That operation is not in the held document any more.', where: 'canvas' })
       return
     }
-    const items = new Set(operationsInGroup(model.spec.oas.operations, operation.group).map((entry) => entry.path).filter((entry) => /\}$/.test(entry)))
-    const classified = classifyOperation(operation, items)
+    const classified = classifyOperation(operation, pathShapeOf(operationsInGroup(model.spec.oas.operations, operation.group)))
     if (!classified.action) {
       setRefusal({ key: path, reason: `${operation.key} is not a verb of ${target.kind}: ${classified.reason}.`, where: 'canvas' })
       return
@@ -159,6 +161,7 @@ export const useControllerWorkbench = (host: HostDraft) => {
       kind: selectedKind,
       locked: selectedKind && locked?.[selectedKind.path] ? locked[selectedKind.path] : null,
       model,
+      onBindPathParam: (param: string, field: string) => edit(planBindPathParam(files, inspectorKey, param, field, locked)),
       onClear: () => select(null),
       onCompareScope: (scope: CompareScope | null) => edit(planCompareScope(files, inspectorKey, scope, locked)),
       onDismissRefusal: () => setRefusal(null),
@@ -166,9 +169,10 @@ export const useControllerWorkbench = (host: HostDraft) => {
       onRemove: () => {
         if (write(planRemoveKind(files, inspectorKey), 'inspector', inspectorKey)) { setSelected(null) }
       },
+      onSetItemsPath: (itemsPath: string | null) => edit(planSetItemsPath(files, inspectorKey, itemsPath, locked)),
       onSetVerb: (action: RestAction, choice: { method: string; path: string } | null) => edit(planSetVerb(files, inspectorKey, action, choice, locked)),
       onToggleConfigurationField: (parameter: { name: string; in: string; actions: string[] }) => edit(planToggleConfigurationField(files, inspectorKey, parameter, locked)),
-      onToggleField: (list: 'identifiers' | 'additionalStatusFields', field: string) => edit(planToggleField(files, inspectorKey, list, field, locked)),
+      onToggleField: (list: FieldList, field: string) => edit(planToggleField(files, inspectorKey, list, field, locked)),
       refusal: refusal?.where === 'inspector' ? refusal : null,
     },
     palette: {
