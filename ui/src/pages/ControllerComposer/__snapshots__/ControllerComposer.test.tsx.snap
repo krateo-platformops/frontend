@@ -49,9 +49,9 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
           <div class="ant-alert-description">
             <ul>
               <li>
-                "Served as petstore.example.io/v1alpha1 — the document says 1.0.27; the served version is pinned"
+                "Served as petstore.example.io/v1alpha1 (the document says 1.0.27; pinned)"
               <li>
-                "Pet → create POST /pet · get GET /pet/{petId} · findby GET /pet/findByStatus · delete DELETE /pet/{petId}"
+                "Pet → create POST /pet · get GET /pet/{petId} · findby GET /pet/findByStatus · update PUT /pet · delete DELETE /pet/{petId}"
               <li>
                 "Store → create POST /store/order · get GET /store/order/{orderId} · findby GET /store/inventory · delete DELETE /store/order/{orderId}"
         <button class="ant-alert-close-icon" tabindex="0" type="button">
@@ -125,13 +125,13 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
               <svg aria-hidden="true" class="_edges_9029c5" height="200" width="440">
                 <path class="_edge_9029c5" d="M 172 52 C 220 52, 220 100, 268 100">
                 <path class="_edge_9029c5" d="M 172 148 C 220 148, 220 100, 268 100">
-              <button aria-label="Pet — create, get, findby, delete" aria-pressed="false" class="_card_9029c5" style="left: 16px; top: 16px;" type="button">
+              <button aria-label="Pet — create, get, findby, update, delete" aria-pressed="false" class="_card_9029c5" style="left: 16px; top: 16px;" type="button">
                 <span class="_cardEyebrow_9029c5">
                   "Pet · petstore.example.io"
                 <span class="_cardTitle_9029c5">
                   "pets"
                 <span class="_cardVerbs_9029c5">
-                  "create · get · findby · delete"
+                  "create · get · findby · update · delete"
               <button aria-label="Store — create, get, findby, delete" aria-pressed="true" class="_card_9029c5" style="left: 16px; top: 112px;" type="button">
                 <span class="_cardEyebrow_9029c5">
                   "Store · petstore.example.io"
@@ -475,7 +475,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …36 lines
+                                …39 lines
                         <div id="id23">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -963,13 +963,13 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
               <svg aria-hidden="true" class="_edges_9029c5" height="200" width="440">
                 <path class="_edge_9029c5" d="M 172 52 C 220 52, 220 100, 268 100">
                 <path class="_edge_9029c5" d="M 172 148 C 220 148, 220 100, 268 100">
-              <button aria-label="Pet — create, get, findby, delete" aria-pressed="true" class="_card_9029c5" style="left: 16px; top: 16px;" type="button">
+              <button aria-label="Pet — create, get, findby, update, delete" aria-pressed="true" class="_card_9029c5" style="left: 16px; top: 16px;" type="button">
                 <span class="_cardEyebrow_9029c5">
                   "Pet · petstore.example.io"
                 <span class="_cardTitle_9029c5">
                   "pets"
                 <span class="_cardVerbs_9029c5">
-                  "create · get · findby · delete"
+                  "create · get · findby · update · delete"
               <button aria-label="Store — create, get, findby, delete" aria-pressed="false" class="_card_9029c5" style="left: 16px; top: 112px;" type="button">
                 <span class="_cardEyebrow_9029c5">
                   "Store · petstore.example.io"
@@ -1064,7 +1064,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …43 lines
+                                …46 lines
                         <div id="id17">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -1193,9 +1193,8 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                     "update"
                   <td>
                     <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
-                      <div class="ant-select-content">
-                        <div class="ant-select-placeholder">
-                          "not mapped"
+                      <div class="ant-select-content ant-select-content-has-value" title="PUT /pet">
+                        "PUT /pet"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for update" autocomplete="new-password" class="ant-select-input" id="id20" readonly="" role="combobox" type="text" value="">
                       <div class="ant-select-suffix">
                         <span aria-label="down" class="anticon anticon-down" role="img">
@@ -1203,7 +1202,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
                   <td>
                     <span class="_reason_9029c5">
-                      "—"
+                      "confirmed"
                 <tr data-verb="delete">
                   <td class="_verbAction_9029c5">
                     "delete"
@@ -1222,7 +1221,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
             <p class="_note_396249">
               "Not a verb — an action: POST /pet/{petId}/uploadImage. A sub-path of an item or of the collection is never a lifecycle verb."
             <p class="_note_396249">
-              "Not a verb: PUT /pet (PUT on a collection path is not an update by rule (an update addresses one item, collection/{id}) — map it with an override if this API updates that way); POST /pet/{petId} (POST on an item path is neither a create nor an update by rule — map it with an override)."
+              "Not a verb: POST /pet/{petId} (POST on an item path is neither a create nor an update by rule — map it with an override)."
           <div class="_section_396249">
             <span class="_eyebrow_396249">
               "Path ids"
@@ -1528,7 +1527,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
               <span>
                 "Close draft"
         <span class="_srOnly_396249" id="id2">
-          "Fix the 1 problem listed above first — a controller that fails the lint cannot be published."
+          "Fix the 2 problems listed above first — a controller that fails the lint cannot be published."
       <div class="ant-alert ant-alert-error ant-alert-outlined ant-alert-with-description css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
         <span class="ant-alert-icon">
           <span aria-label="close-circle" class="anticon anticon-close-circle" role="img">
@@ -1541,6 +1540,8 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
             <ul>
               <li>
                 "Pet: 2 operations look like findby (GET /pet/findByStatus, GET /pet/findByTags) — choose one in the inspector, or leave findby out."
+              <li>
+                "Pet: PUT /pet may be the update — a PUT on the collection whose body carries the id (id), not on the item, so it needs a confirm — choose one in the inspector, or leave update out."
       <div class="ant-alert ant-alert-info ant-alert-outlined css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
         <span class="ant-alert-icon">
           <span aria-label="info-circle" class="anticon anticon-info-circle" role="img">
@@ -1620,7 +1621,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
             <div class="_graph_9029c5" style="height: 104px;">
               <svg aria-hidden="true" class="_edges_9029c5" height="104" width="440">
                 <path class="_edge_9029c5" d="M 172 52 C 220 52, 220 52, 268 52">
-              <button aria-label="Pet — create, get, delete; findby to choose" aria-pressed="true" class="_card_9029c5" data-conflict="true" style="left: 16px; top: 16px;" type="button">
+              <button aria-label="Pet — create, get, delete; findby, update to choose" aria-pressed="true" class="_card_9029c5" data-conflict="true" style="left: 16px; top: 16px;" type="button">
                 <span class="_cardEyebrow_9029c5">
                   "Pet · petstore.example.io"
                 <span class="_cardTitle_9029c5">
@@ -1628,7 +1629,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                 <span class="_cardVerbs_9029c5">
                   "create · get · delete"
                   <span class="_cardConflict_9029c5">
-                    "· findby: choose"
+                    "· findby, update: choose"
               <div class="_card_9029c5 _configCard_9029c5" style="left: 268px; top: 16px;">
                 <span class="_cardEyebrow_9029c5">
                   "Configuration · petstore.example.io"
@@ -1842,18 +1843,22 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                   <td class="_verbAction_9029c5">
                     "update"
                   <td>
-                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
-                      <div class="ant-select-content">
-                        <div class="ant-select-placeholder">
-                          "not mapped"
-                        <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for update" autocomplete="new-password" class="ant-select-input" id="id19" readonly="" role="combobox" type="text" value="">
-                      <div class="ant-select-suffix">
-                        <span aria-label="down" class="anticon anticon-down" role="img">
-                          <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
-                            <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
+                    <div aria-label="Which operation is update" class="ant-radio-group ant-radio-group-outline css-dev-only-do-not-override-12q6fii css-var-id1 ant-radio-css-var" role="radiogroup">
+                      <span class="_choices_9029c5">
+                        <label class="ant-radio-wrapper css-dev-only-do-not-override-12q6fii css-var-id1 ant-radio-css-var">
+                          <span class="ant-radio ant-wave-target">
+                            <input class="ant-radio-input" name="test-id" type="radio" value="PUT /pet">
+                          <span class="ant-radio-label">
+                            <span class="_mono_396249">
+                              "PUT /pet"
+                        <label class="ant-radio-wrapper css-dev-only-do-not-override-12q6fii css-var-id1 ant-radio-css-var">
+                          <span class="ant-radio ant-wave-target">
+                            <input class="ant-radio-input" name="test-id" type="radio" value="__omit__">
+                          <span class="ant-radio-label">
+                            "Leave update out"
                   <td>
                     <span class="_reason_9029c5">
-                      "—"
+                      "conflict — choose"
                 <tr data-verb="delete">
                   <td class="_verbAction_9029c5">
                     "delete"
@@ -1872,7 +1877,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
             <p class="_note_396249">
               "Not a verb — an action: POST /pet/{petId}/uploadImage. A sub-path of an item or of the collection is never a lifecycle verb."
             <p class="_note_396249">
-              "Not a verb: PUT /pet (PUT on a collection path is not an update by rule (an update addresses one item, collection/{id}) — map it with an override if this API updates that way); POST /pet/{petId} (POST on an item path is neither a create nor an update by rule — map it with an override)."
+              "Not a verb: POST /pet/{petId} (POST on an item path is neither a create nor an update by rule — map it with an override)."
           <div class="_section_396249">
             <span class="_eyebrow_396249">
               "Path ids"

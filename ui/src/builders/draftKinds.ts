@@ -14,7 +14,7 @@
  */
 import { draftDisplayName } from '../components/Autopilot/blueprintDraft'
 import { pageRootSlug } from '../components/Autopilot/pageDraft'
-import { lockedSnapshot } from '../pages/ControllerComposer/controllerChart'
+import { completeLockedSnapshot, lockedSnapshot } from '../pages/ControllerComposer/controllerChart'
 
 import { builderOf, findBuilderOf } from './builderRegistry'
 
@@ -51,6 +51,11 @@ export interface DraftKindPlugin {
    * snapshotted when a publish lands and kept on its record. Absent: nothing is locked by a publish.
    */
   lockedSnapshot?: (files: Record<string, string>) => Record<string, Record<string, unknown>>
+  /**
+   * A record's lock, completed from the files it holds when it predates a field this build locks (a
+   * controller published before its served version was locked). Absent: the lock is used as stored.
+   */
+  completeLocked?: (locked: Record<string, Record<string, unknown>>, files: Record<string, string>) => Record<string, Record<string, unknown>>
 }
 
 /*
@@ -79,9 +84,11 @@ const DRAFT_KINDS = {
    * `draft-controller-<owner>-<chart name>`.
    */
   controller: {
+    // A RestDefinition's kind, group, identifiers, configuration and status fields are CEL-immutable,
+    // and the version its Kinds are served under is the published document's info.version.
+    completeLocked: (locked, files) => completeLockedSnapshot(locked, files),
     description: 'a controller chart — RestDefinitions and their OpenAPI documents — named by its Chart.yaml',
     displayName: (files) => draftDisplayName(files),
-    // A RestDefinition's kind, group, identifiers, configuration and status fields are CEL-immutable.
     lockedSnapshot: (files) => lockedSnapshot(files),
     nouns: {
       artifact: 'a controller',

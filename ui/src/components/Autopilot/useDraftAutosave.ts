@@ -360,10 +360,15 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
       meta.state = body.state
       meta.renderedHash = body.renderedHash
       meta.threadId = body.threadId
-      meta.publish = body.publish
-      // A published record brings back what its publish locked; any other resume clears the last one.
-      publishedLocks.set(body.state === 'published' && body.publish?.locked ? { kind: body.kind, locked: body.publish.locked, name: body.name } : null)
-      // What the record already holds: holding it again is not a change worth a write.
+      // A published record brings back what its publish locked — COMPLETED by its draft kind from the
+      // files it holds (a controller published before its served version was locked: the held document
+      // is what was published, so its version is the lock's). Any other resume clears the last lock.
+      const recorded = body.state === 'published' ? body.publish?.locked : undefined
+      const locked = recorded ? findDraftKindPlugin(body.kind)?.completeLocked?.(recorded, body.files) ?? recorded : undefined
+      meta.publish = body.publish && locked ? { ...body.publish, locked } : body.publish
+      publishedLocks.set(locked ? { kind: body.kind, locked, name: body.name } : null)
+      // What the record already holds: holding it again is not a change worth a write. The completed
+      // lock rides the next save the person causes, never one of its own.
       meta.saved = fingerprintOf(body.files, meta)
     },
     setThreadId: (id) => { threadId = id ?? undefined },

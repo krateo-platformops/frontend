@@ -45,8 +45,9 @@ import {
 import ControllerEmptyState from './ControllerEmptyState'
 import { CONTROLLER_FILES_CAPTION, controllerOutcomeCopy, controllerPreviewPayload } from './controllerPreviewPayload'
 import type { FieldList } from './KindInspector'
-import { classifyOperation, pathShapeOf, type RestAction } from './operationMapping'
+import { classifyOperation, type RestAction } from './operationMapping'
 import { operationsInGroup } from './paletteModel'
+import { pathShapeOf } from './pathShape'
 import StartControllerModal from './StartControllerModal'
 
 /** Why a gesture did not land, and where it is said: under a palette group, or on the canvas/inspector. */

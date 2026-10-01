@@ -28,6 +28,7 @@ import styles from '../BlueprintComposer/BlueprintComposer.module.css'
 
 import {
   configurationCandidates,
+  exclusionCandidates,
   heldItemsPath,
   heldVerb,
   pathIdBindings,
@@ -42,7 +43,6 @@ import { securitySchemeSupport, type OasOperation } from './oasImport'
 import {
   envelopeArrays,
   requestBodySchema,
-  scalarLeaves,
   schemaProperties,
   successResponseSchema,
   VERB_ORDER,
@@ -50,6 +50,7 @@ import {
   type RestAction,
 } from './operationMapping'
 import { operationsInGroup } from './paletteModel'
+import { crdVersionName, publishedBeforePinning, servedAsText } from './servedVersion'
 import type { ControllerRefusal } from './useControllerWorkbench'
 
 const OMIT = '__omit__'
@@ -99,8 +100,7 @@ const Section = ({ children, locked, title }: { children: React.ReactNode; locke
 
 /** `example.io/v1alpha1`, and the vendor's version when the document came with another. */
 const servedAs = (model: ControllerModel): string => {
-  const served = `${model.group}/${model.servedVersion ?? SERVED_VERSION}`
-  return model.sourceVersion ? `${served} (the document says ${model.sourceVersion}; pinned)` : served
+  return servedAsText(model.group, model.servedVersion, model.sourceVersion)
 }
 
 const VerbRow = ({ action, kind, onSetVerb, operations }: {
@@ -222,18 +222,6 @@ const FindbyItems = ({ kind, model, onSetItemsPath }: { kind: ControllerKind; mo
   )
 }
 
-/** What spec may leave out: what a status binding reads, then the create body's fields (nested leaves included). */
-const exclusionCandidates = (kind: ControllerKind, model: ControllerModel): FieldCandidate[] => {
-  const doc = model.spec?.oas.doc
-  const create = heldVerb(kind.restDefinition, 'create')
-  const body = doc && create ? requestBodySchema(doc, create.method, create.path) : null
-  const bound = (kind.held?.boundStatusFields ?? []).map((field) => ({ field, reason: 'status carries it — the id is read from there' }))
-  const fields = doc && body
-    ? [...Object.keys(schemaProperties(doc, body)), ...scalarLeaves(doc, body).map((leaf) => leaf.path).filter((path) => path.includes('.'))]
-    : []
-  return [...bound, ...fields.filter((field) => !bound.some((entry) => entry.field === field)).map((field) => ({ field, reason: 'sent by create' }))]
-}
-
 const Advanced = ({ kind, model }: { kind: ControllerKind; model: ControllerModel }) => {
   const resource = resourceOf(kind)
   const verbs = Array.isArray(resource.verbsDescription) ? (resource.verbsDescription as Record<string, unknown>[]) : []
@@ -332,11 +320,16 @@ export const KindInspector = (props: InspectorProps) => {
       </div>
       <div className={styles.section}>
         <span className={styles.eyebrow}>
-          {`${model.group}/${model.servedVersion ?? SERVED_VERSION} · ${pluralOf(kind.kind)}`}
+          {`${model.group}/${model.servedVersion ? crdVersionName(model.servedVersion) : SERVED_VERSION} · ${pluralOf(kind.kind)}`}
           <span className={own.lockNote}>{`· Kind, group and version: ${LOCKED.toLowerCase()}`}</span>
         </span>
         <span className={`${styles.fieldValue} ${styles.mono}`}>{kind.kind}</span>
-        {model.sourceVersion ? <span className={own.reason}>{`Served as ${SERVED_VERSION} whatever the vendor calls its release — the document says ${model.sourceVersion}.`}</span> : null}
+        {publishedBeforePinning(model.servedVersion)
+          ? <span className={own.reason}>{`Served as ${servedAs(model)} — its manifests are written against that version, so it stays.`}</span>
+          : null}
+        {!publishedBeforePinning(model.servedVersion) && model.sourceVersion
+          ? <span className={own.reason}>{`Served as ${SERVED_VERSION} whatever the vendor calls its release — the document says ${model.sourceVersion}.`}</span>
+          : null}
         <Space wrap>
           <Button onClick={() => props.onOpenFile(kind.path)} size='small'>Open file</Button>
           <Popconfirm cancelText='Keep it' okText='Remove' onConfirm={props.onRemove} title={`Remove ${kind.kind}? Its RestDefinition leaves the chart.`}>

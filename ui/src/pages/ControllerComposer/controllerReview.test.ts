@@ -14,7 +14,7 @@ import { lintHeldDraft } from '../../components/Autopilot/proposedChart'
 import { lockedFor, publishedLocks } from '../../components/Autopilot/publishedLocks'
 import { createDraftAutosave } from '../../components/Autopilot/useDraftAutosave'
 
-import { controllerCompositionDefinition, planPlaceGroup, restDefinitionPath, type ControllerPlan } from './controllerChart'
+import { controllerCompositionDefinition, oasConfigMapPath, planPlaceGroup, restDefinitionPath, type ControllerPlan } from './controllerChart'
 import { readSpecUrl, SPEC_TEXT_MAX_BYTES, startController } from './controllerStart'
 
 const PETSTORE = readFileSync(join(__dirname, '__fixtures__', 'petstore-v3.openapi.json'), 'utf8')
@@ -106,7 +106,8 @@ describe('item 6 — what a publish locked reaches the composer, and survives a 
     // The record reads back with its lock (the ConfigMap round trip).
     expect(readDraftRecord({ data: { [DRAFT_RECORD_KEY]: JSON.stringify(body) } })?.publish?.locked).toEqual(locked)
     autosave.seedFromRecord(body)
-    expect(publishedLocks.get()).toEqual({ kind: 'controller', locked, name: 'petstore' })
+    // A lock recorded before the served version was locked is completed from the held document.
+    expect(publishedLocks.get()).toEqual({ kind: 'controller', locked: { ...locked, [oasConfigMapPath('petstore')]: { servedVersion: 'v1alpha1' } }, name: 'petstore' })
     autosave.seedFromRecord({ ...body, publish: undefined, state: 'open' })
     expect(publishedLocks.get()).toBeNull()
     autosave.dispose()

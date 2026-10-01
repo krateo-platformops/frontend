@@ -38,7 +38,7 @@ import { CHART_YAML_PATH } from '../../components/Autopilot/blueprintDraft'
 import { BLUEPRINT_DRAFT_MAX_BYTES } from '../../components/Autopilot/blueprintDraftStore'
 import { asRecord, isNonEmptyString } from '../../components/Autopilot/kogRestDefSchema'
 
-import { lockedChangesOf, lockedChanges, type LockedSnapshot } from './controllerLocks'
+import { lockedChangesOf, lockedChanges, lockedServedVersion, type LockedSnapshot } from './controllerLocks'
 import {
   CONFIRMED_ANNOTATION,
   confirmedOf,
@@ -60,7 +60,9 @@ import {
   inferOperationMapping,
   requestBodySchema,
   type RestAction,
+  scalarLeaves,
   schemaHasField,
+  schemaProperties,
   VERB_ORDER,
 } from './operationMapping'
 import { operationsInGroup } from './paletteModel'
@@ -224,7 +226,7 @@ export const lintControllerDraft = (files: Readonly<Record<string, string>>, loc
         .map((path) => `${path}: a controller chart holds only Chart.yaml, values*, templates/restdefinition-<kind>.yaml and templates/configmap-oas-<name>.yaml — this file would be published without the preview ever rendering it. Remove it.`),
       ...helmActionProblems(files),
       ...(model.specProblem ? [model.specProblem] : []),
-      ...(model.spec ? servedVersionProblems(model.spec.path, model.spec.oas.doc) : []),
+      ...(model.spec ? servedVersionProblems(model.spec.path, model.spec.oas.doc, lockedServedVersion(locked, model.spec.path) !== null) : []),
       ...foreignServers(model),
       ...model.unreadable.map(({ path, reason }) => `${path}: ${reason}`),
       ...model.kinds.flatMap((entry) => [
@@ -418,12 +420,22 @@ export const planSetVerb = (
     if (model.spec && !operation) {
       return `${choice.method.toUpperCase()} ${choice.path} is not an operation of the document.`
     }
-    const suggestions = model.spec && held
+    let suggestions = model.spec && held
       ? suggestedFieldMapping(heldMapping(model.spec, held.group, restDefinition, { action, choice }).fieldMappingSuggestions, action)
       : []
+    // PUBLISHED: the lists a status binding would add to are locked, so nothing is added to them. The
+    // binding the verb already had is kept for every parameter the chosen path still carries — a
+    // re-pick of the same operation changes nothing — and only a parameter it never bound is suggested.
+    const published = !!locked?.[path]
+    if (published) {
+      const previous = verbsOf(restDefinition).find((verb) => verb.action === action)
+      const kept = (Array.isArray(previous?.fieldMapping) ? (previous.fieldMapping as unknown[]).map((entry) => asRecord(entry) ?? {}) : [])
+        .filter((entry) => typeof entry.inPath === 'string' && choice.path.includes(`{${entry.inPath}}`))
+      suggestions = [...kept, ...suggestions.filter((entry) => !kept.some((have) => have.inPath === entry.inPath))]
+    }
     resource.verbsDescription = ordered([...others, { action, method: choice.method.toUpperCase(), path: choice.path, ...(suggestions.length ? { fieldMapping: suggestions } : {}) }])
     setAnnotation(restDefinition, OMITTED_ANNOTATION, omitted.join(','))
-    settleStatusBindings(model.spec?.oas.doc, restDefinition, resource)
+    if (!published) { settleStatusBindings(model.spec?.oas.doc, restDefinition, resource) }
     return null
   }, locked)
 }
@@ -497,7 +509,9 @@ export const planBindPathParam = (
     }
     const confirmed = [...new Set([...confirmedOf(restDefinition), ...names])].sort()
     setAnnotation(restDefinition, CONFIRMED_ANNOTATION, confirmed.join(','))
-    settleStatusBindings(doc, restDefinition, resource)
+    // Published: identifiers, status and excluded fields are locked — a binding that needs one of them
+    // changed is refused by the validator's own sentence, never by a list change the person did not make.
+    if (!locked?.[path]) { settleStatusBindings(doc, restDefinition, resource) }
     return null
   }, locked)
 }
@@ -527,6 +541,22 @@ export const planSetItemsPath = (
   })
   return null
 }, locked)
+
+/**
+ * What spec may leave out (excludedSpecFields) — the inspector's checkboxes and the only fields
+ * controllerSetExcludedFields takes: what a status binding reads, then the create body's fields
+ * (top-level, and nested leaves).
+ */
+export const exclusionCandidates = (kind: ControllerKind, model: ControllerModel): { field: string; reason: string }[] => {
+  const doc = model.spec?.oas.doc
+  const create = heldVerb(kind.restDefinition, 'create')
+  const body = doc && create ? requestBodySchema(doc, create.method, create.path) : null
+  const bound = (kind.held?.boundStatusFields ?? []).map((field) => ({ field, reason: 'status carries it — the id is read from there' }))
+  const fields = doc && body
+    ? [...Object.keys(schemaProperties(doc, body)), ...scalarLeaves(doc, body).map((leaf) => leaf.path).filter((path) => path.includes('.'))]
+    : []
+  return [...bound, ...fields.filter((field) => !bound.some((entry) => entry.field === field)).map((field) => ({ field, reason: 'sent by create' }))]
+}
 
 /** One header or query parameter of a Kind's verbs that may move to its Configuration, and the verbs that carry it. */
 export interface ConfigurationCandidate {

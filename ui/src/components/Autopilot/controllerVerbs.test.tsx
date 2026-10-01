@@ -158,6 +158,9 @@ describe('petstore, end to end — start → place pet → settle findby → pre
 
     const settled = await run({ kind: 'Pet', method: 'GET', path: '/pet/findByStatus', restAction: 'findby', verb: 'controllerMapVerb' })
     expect(settled).toMatch(/^Pet findby is GET \/pet\/findByStatus — verbs: create POST \/pet, get GET \/pet\/\{petId\}, findby GET \/pet\/findByStatus/)
+    // Review of #434: the collection PUT is OFFERED as the update, and the agent confirms it like a person.
+    expect(settled).toContain('update is a conflict (PUT /pet) — settle it with controllerMapVerb')
+    expect(await run({ kind: 'Pet', method: 'PUT', path: '/pet', restAction: 'update', verb: 'controllerMapVerb' })).toMatch(/^Pet update is PUT \/pet — /)
     expect(refusals()).toEqual([])
 
     expect(await preview()).toBe('Previewed petstore — oasgen-render generated Pet; Publish is armed (publishRestDef)')
@@ -282,8 +285,9 @@ describe('the edit verbs — the inspector\'s and the palette\'s plans', () => {
   it('an omitted verb settles its conflict as omitted', async () => {
     const { store } = await started()
     expect(await run({ kind: 'pet', omit: true, restAction: 'findby', verb: 'controllerMapVerb' })).toMatch(/^Left findby out of Pet — verbs: /)
+    expect(await run({ kind: 'pet', omit: true, restAction: 'update', verb: 'controllerMapVerb' })).toMatch(/^Left update out of Pet — verbs: /)
     const summary = summarizeController(store.get())
-    expect(summary?.kinds[0]).toMatchObject({ kind: 'Pet', omitted: ['findby'] })
+    expect(summary?.kinds[0]).toMatchObject({ kind: 'Pet', omitted: ['findby', 'update'] })
     expect(summary?.kinds[0].conflicts).toBeUndefined()
   })
 
@@ -374,7 +378,7 @@ describe('the envelope — summarizer controller-model', () => {
     expect(summary?.groups[0]).toMatchObject({ group: 'pet', placedAs: 'Pet' })
     expect(summary?.groups[0].operations).toContain('GET /pet/findByTags')
     expect(summary?.kinds[0]).toMatchObject({
-      conflicts: [{ candidates: ['GET /pet/findByStatus', 'GET /pet/findByTags'], restAction: 'findby' }],
+      conflicts: [{ candidates: ['GET /pet/findByStatus', 'GET /pet/findByTags'], restAction: 'findby' }, { candidates: ['PUT /pet'], restAction: 'update' }],
       file: PET,
       group: 'pet',
       kind: 'Pet',
@@ -516,7 +520,7 @@ describe('round 2 (frontend#405) — the agent reaches every new inspector gestu
     const placed = await run({ group: 'kms', verb: 'controllerPlace' })
     expect(placed).toContain('{keyId} is read from status.keyId but waits for a confirm (status.keyId or status.id) — settle it with controllerBindId')
     const summary = summarizeController(store.get(), {})
-    expect(summary?.servedAs).toBe('kms.example.io/v1alpha1')
+    expect(summary?.servedAs).toBe('kms.example.io/v1alpha1 (the document says 1.0.4; pinned)')
     expect(summary?.sourceSpecVersion).toBe('1.0.4')
     expect(summary?.kinds[0]).toMatchObject({
       itemsPathChoices: ['.data', '.included'],
@@ -563,5 +567,8 @@ describe('round 2 (frontend#405) — the agent reaches every new inspector gestu
     expect(await run({ field: 'id', kind: 'Pet', param: 'petId', verb: 'controllerBindId' })).toMatch(/id is not a field of the resource — bind \{petId\} to spec\.<field> or status\.<field>/)
     expect(await run({ itemsPath: '.data', kind: 'Pet', verb: 'controllerSetItemsPath' })).toMatch(/There is no findby verb to set an itemsPath on/)
     expect(await run({ excludedFields: 'id', kind: 'Pet', verb: 'controllerSetExcludedFields' })).toMatch(/excludedFields must be the whole list/)
+    // Review of #434: only the inspector's candidates — what a status binding reads and what create sends.
+    expect(await run({ excludedFields: ['id', 'spec.nothere'], kind: 'Pet', verb: 'controllerSetExcludedFields' }))
+      .toMatch(/spec\.nothere is not a field Pet's spec could leave out — the candidates are what a status binding reads and what create sends: id, name, category, photoUrls, tags, status, category\.id, category\.name/)
   })
 })

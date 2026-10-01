@@ -26,10 +26,10 @@ describe('inferOperationMapping — petstore', () => {
   const petstore = load('petstore-v3.openapi.json')
   const group = (name: string) => operationsInGroup(petstore.operations, name)
 
-  it('pet: infers create/get/delete, and leaves the two findBy* as a conflict; PUT /pet is no update by rule', () => {
+  it('pet: infers create/get/delete, leaves the two findBy* as a conflict, and OFFERS PUT /pet as an update to confirm', () => {
     const mapping = inferOperationMapping(petstore.doc, group('pet'))
     // Round 2: an update is a PUT/PATCH on the ITEM path. petstore updates with PUT on the collection,
-    // which the person maps with an override (the inspector's verb table) when that is what it is.
+    // its body carrying the id — offered as a one-candidate conflict the person confirms, never inferred.
     expect(verbTable(mapping)).toEqual({
       create: 'POST /pet',
       delete: 'DELETE /pet/{petId}',
@@ -43,9 +43,12 @@ describe('inferOperationMapping — petstore', () => {
         expect.objectContaining({ method: 'GET', operationId: 'findPetsByTags', path: '/pet/findByTags', reason: 'GET on a findBy* path' }),
       ],
       sentence: '2 operations look like findby (GET /pet/findByStatus, GET /pet/findByTags) — choose one.',
+    }, {
+      action: 'update',
+      candidates: [expect.objectContaining({ method: 'PUT', operationId: 'updatePet', path: '/pet', reason: 'PUT on the collection, the id (id) in its body — confirm' })],
+      sentence: 'PUT /pet may be the update — a PUT on the collection whose body carries the id (id), not on the item, so it needs a confirm — choose one.',
     }])
     expect(mapping.unmapped).toEqual([
-      { category: 'other', key: 'PUT /pet', method: 'PUT', path: '/pet', reason: 'PUT on a collection path is not an update by rule (an update addresses one item, collection/{id}) — map it with an override if this API updates that way' },
       { category: 'other', key: 'POST /pet/{petId}', method: 'POST', path: '/pet/{petId}', reason: 'POST on an item path is neither a create nor an update by rule — map it with an override' },
       { category: 'action', key: 'POST /pet/{petId}/uploadImage', method: 'POST', path: '/pet/{petId}/uploadImage', reason: 'an action on the item /pet/{petId}, not a lifecycle verb' },
     ])

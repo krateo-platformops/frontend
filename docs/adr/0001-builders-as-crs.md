@@ -128,8 +128,11 @@ builder meant to stop.
     (`oasImport.ts`) inside its own start modal and workbench.
 - **Lints and gates:**
   - Lints: `chart-lint` (`lintBlueprintDraft`), `gate-drift`, and `restdef-validate`
-    (`lintControllerDraft`: the OpenAPI document reads and is pinned to info.version v1alpha1, no
-    verb conflict or ambiguous path id is unsettled, and T7's validator passes every RestDefinition).
+    (`lintControllerDraft`: the OpenAPI document reads; a never-published controller's says
+    info.version v1alpha1, and a published one's still says the version it was published under —
+    the ConfigMap's info.version is what a publish locks, while Chart.yaml's
+    `source-spec-version` annotation only records the vendor's version and is not locked; no verb
+    conflict or ambiguous path id is unsettled; and T7's validator passes every RestDefinition).
   - Gates: `preview-before-publish` (the render-hash gate) and `publish-name`.
   - A Builder chooses which lints and gates apply. It cannot define new ones.
 - **Start-value validation beyond `required` and `pattern`:** for example `chartNameProblem`

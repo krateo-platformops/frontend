@@ -53,6 +53,8 @@ import { CONTROLLER_DRAFT_KEY, CONTROLLER_PURPOSE_LABEL } from './controllerRend
 import { validateControllerRestDefinition } from './restDefinitionBuild'
 
 const PETSTORE = readFileSync(join(__dirname, '__fixtures__', 'petstore-v3.openapi.json'), 'utf8')
+/** A person's choice of one candidate in the Inspector's verbs table (a conflict's radio). */
+const pickInInspector = (name: string) => act(() => { fireEvent.click(within(screen.getByRole('region', { name: 'Inspector' })).getByRole('radio', { name })) })
 
 beforeAll(() => {
   installAntdShims()
@@ -172,21 +174,21 @@ describe('petstore, authored in the UI with no rail', () => {
     // pet, by its Place button: a Kind with its findby CONFLICT left for the person.
     act(() => { screen.getByRole('button', { name: 'Place pet as a Kind' }).click() })
     const inspector = () => within(screen.getByRole('region', { name: 'Inspector' }))
-    expect(inspector().getByRole('radiogroup', { name: 'Which operation is findby' })).toBeTruthy()
-    // Round 2: PUT /pet is on the collection, so it is no update by rule — the person may still map it.
-    expect(screen.getByRole('button', { name: /^Pet — create, get, delete; findby to choose$/ }).getAttribute('aria-pressed')).toBe('true')
+    // Round 2: PUT /pet is on the collection, so it is no update by rule — but its body carries the id,
+    // so it is OFFERED as the update, a one-candidate conflict the person confirms (review of #434).
+    expect(screen.getByRole('button', { name: /^Pet — create, get, delete; findby, update to choose$/ }).getAttribute('aria-pressed')).toBe('true')
+    expect(inspector().getAllByRole('radiogroup', { name: /^Which operation is / }).map((group) => group.getAttribute('aria-label'))).toEqual(['Which operation is findby', 'Which operation is update'])
     // {petId} is read from status.id (the create response returns it); uploadImage is an action, not a verb.
     expect(inspector().getByRole('combobox', { name: 'Where {petId} is read from' })).toBeTruthy()
     expect(inspector().getByText(/^Not a verb — an action: POST \/pet\/\{petId\}\/uploadImage\./)).toBeTruthy()
-    expect(store.get()?.files && lintHeldDraft(store.get()!.files, 'controller')).toEqual([
-      'Pet: 2 operations look like findby (GET /pet/findByStatus, GET /pet/findByTags) — choose one in the inspector, or leave findby out.',
-    ])
+    // The sentences themselves are controllerChart.test.ts's.
+    expect(store.get()?.files && lintHeldDraft(store.get()!.files, 'controller')).toEqual([expect.stringMatching(/^Pet: 2 operations look like findby /), expect.stringMatching(/^Pet: PUT \/pet may be the update /)])
     expect(publishButton().disabled).toBe(true)
     expect(page(container)).toMatchSnapshot('kind placed with conflict')
 
     // Settled by a person's choice, never by the composer.
-    act(() => { fireEvent.click(inspector().getByRole('radio', { name: 'GET /pet/findByStatus' })) })
-    expect(inspector().queryByRole('radiogroup', { name: 'Which operation is findby' })).toBeNull()
+    pickInInspector('GET /pet/findByStatus'); pickInInspector('PUT /pet')
+    expect(inspector().queryAllByRole('radiogroup', { name: /^Which operation is / })).toEqual([])
 
     // store, DRAGGED from the palette onto Resources.
     const canvas = screen.getByRole('region', { name: /Resources canvas/ })
@@ -233,6 +235,7 @@ describe('petstore, authored in the UI with no rail', () => {
       'create POST /pet',
       'get GET /pet/{petId}',
       'findby GET /pet/findByStatus',
+      'update PUT /pet',
       'delete DELETE /pet/{petId}',
     ])
 
@@ -420,11 +423,11 @@ describe('T9 — Preview renders the controller through controller-render-draft'
     return { container: view.container, gate: held.gate, ops: sandbox.ops, store: held.store }
   }
 
-  /** Petstore as #412 authors it: pet placed with findby settled, store placed — a lint-clean chart. */
+  /** Petstore as #412 authors it: pet placed with findby and update settled, store placed — a lint-clean chart. */
   const authorPetstore = () => {
     startPetstore()
     act(() => { screen.getByRole('button', { name: 'Place pet as a Kind' }).click() })
-    act(() => { fireEvent.click(within(screen.getByRole('region', { name: 'Inspector' })).getByRole('radio', { name: 'GET /pet/findByStatus' })) })
+    pickInInspector('GET /pet/findByStatus'); pickInInspector('PUT /pet')
     act(() => { screen.getByRole('button', { name: 'Place store as a Kind' }).click() })
   }
 

@@ -31,9 +31,10 @@ import { pinServedVersion } from '../../pages/ControllerComposer/servedVersion'
 import { countNoun } from '../../utils/utils'
 
 import type { ApplyResourceSetOp } from './applyResourceSet'
-import { regenerateArchitecture } from './blueprintDraft'
+import { draftDisplayName, regenerateArchitecture } from './blueprintDraft'
 import { OAS_ATTACHMENT_MAX_BYTES, utf8ByteLength } from './oasAttachment'
 import { heldKeyForDisplayedPath } from './pageDraft'
+import { lockedFor, publishedLocks } from './publishedLocks'
 
 /** The substitution-token key. In an op payload the token is EXACTLY `{"$fileContent": "<path>"}`. */
 export const FILE_CONTENT_KEY = '$fileContent'
@@ -119,10 +120,14 @@ export interface FilesChange {
  * A CONTROLLER's OpenAPI document is held with info.version pinned to v1alpha1 (servedVersion.ts
  * pinServedVersion) — here, for the same reason: every write passes this point, so no gesture, agent
  * verb or hand edit can hold a document whose version would move the API its Kinds are served under.
+ * A controller that was PUBLISHED (publishedLocks names it — set by the record's resume before its
+ * files are held) keeps the version it was published under: its lock says which, and the lint holds it.
  */
 const settle = (files: Record<string, string>, kind: DraftKind): Record<string, string> => {
   if (kind === 'blueprint') { return regenerateArchitecture(files) }
-  return kind === 'controller' ? pinServedVersion(files) : files
+  if (kind !== 'controller') { return files }
+  const published = lockedFor(publishedLocks.get(), kind, draftDisplayName(files)) !== null
+  return pinServedVersion(files, { published })
 }
 
 /**

@@ -105,7 +105,7 @@ describe('buildRestDefinition — petstore Pet', () => {
 
   it('refuses to build while a verb has two candidates', () => {
     expect(verbsFromInference(inferOperationMapping(petstore.doc, pet))).toEqual({
-      errors: ['2 operations look like findby (GET /pet/findByStatus, GET /pet/findByTags) — choose one.'],
+      errors: ['2 operations look like findby (GET /pet/findByStatus, GET /pet/findByTags) — choose one.', 'PUT /pet may be the update — a PUT on the collection whose body carries the id (id), not on the item, so it needs a confirm — choose one.'],
       ok: false,
     })
   })

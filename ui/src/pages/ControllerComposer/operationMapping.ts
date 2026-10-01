@@ -16,9 +16,10 @@
  * ACTIONS ARE NEVER VERBS. Any path that goes on past an item path (`/servers/{id}/poweron`,
  * `/users/{id}/password`, `/pet/{petId}/uploadImage`) is an action on that item, whatever its method.
  * A literal segment under the collection (`/user/createWithList`, `/user/login`) is an action on the
- * collection, unless it is a findBy* or search GET. Both are listed as "not a verb: action". A PUT or
- * PATCH on the collection (petstore's `PUT /pet`) and a POST on an item are left unmapped with their
- * reason — an override maps one when that is how the API works.
+ * collection, unless it is a findBy* or search GET. Both are listed as "not a verb: action". A POST on
+ * an item is left unmapped with its reason — an override maps one when that is how the API works. A PUT
+ * or PATCH on the collection (petstore's `PUT /pet`) is no update by rule either, but when the Kind has
+ * no item update and its body carries the id it is OFFERED as one, a conflict the person confirms.
  *
  * NEVER SILENTLY RESOLVED. Two operations that both look like one verb (GET /pet/findByStatus and
  * GET /pet/findByTags) are a CONFLICT, listed with every candidate. The kernel does not pick; an
@@ -48,6 +49,7 @@ import { asRecord } from '../../components/Autopilot/kogRestDefSchema'
 import type { REST_DEF_ACTIONS } from '../../components/Autopilot/kogRestDefSchema'
 
 import { deref, type OasDocument, type OasOperation } from './oasImport'
+import { isParam, normalizedPath, parentOf, pathParamsOf, type PathShape, pathShapeOf, segmentsOf, standInName } from './pathShape'
 
 export type RestAction = typeof REST_DEF_ACTIONS[number]
 
@@ -118,35 +120,6 @@ export interface OperationMapping {
   paramAliases: ParamAlias[]
   /** Status fields the id bindings read from (`status.metadata.id` → `metadata.id`), which status must carry. */
   boundStatusFields: string[]
-}
-
-const segmentsOf = (path: string): string[] => path.split('/').filter((segment) => segment.length > 0)
-const isParam = (segment: string | undefined): boolean => !!segment && /^\{[^}]+\}$/.test(segment)
-const pathParamsOf = (path: string): string[] => segmentsOf(path).filter(isParam).map((segment) => segment.slice(1, -1))
-
-/** A path with every parameter's NAME dropped: `/db/{databaseName}` and `/db/{name}` both read `/db/{}`. */
-export const normalizedPath = (path: string): string => `/${segmentsOf(path).map((segment) => (isParam(segment) ? '{}' : segment)).join('/')}`
-const parentOf = (normalized: string): string => `/${segmentsOf(normalized).slice(0, -1).join('/')}`
-
-/** The shape the selected operations give the paths: which are items, which are collections. */
-export interface PathShape {
-  /** Normalized item paths → the first raw path seen for each (what a sentence names). */
-  items: ReadonlyMap<string, string>
-  /** Normalized collection paths (each item path's parent) → a raw spelling. */
-  collections: ReadonlyMap<string, string>
-}
-
-export const pathShapeOf = (operations: readonly { path: string }[]): PathShape => {
-  const items = new Map<string, string>()
-  const collections = new Map<string, string>()
-  for (const { path } of operations) {
-    if (!isParam(segmentsOf(path).pop())) { continue }
-    const normalized = normalizedPath(path)
-    if (!items.has(normalized)) { items.set(normalized, path) }
-    const parent = parentOf(normalized)
-    if (!collections.has(parent)) { collections.set(parent, `/${segmentsOf(path).slice(0, -1).join('/')}`) }
-  }
-  return { collections, items }
 }
 
 type Classification =
@@ -358,15 +331,6 @@ export const findbyItemSchema = (doc: OasDocument, response: unknown, itemsPath?
   return { candidates: arrays, ok: false, reason: `the findby response is an envelope with ${arrays.length} array properties (${arrays.join(', ')}), and oasgen refuses to guess which holds the collection — set itemsPath` }
 }
 
-/** The response field a renamed path parameter stands for (petId → id, userName → name), or null. */
-const standInName = (param: string): string | null => {
-  const match = /^(.+?)(Id|_id|ID|Name|_name)$/.exec(param)
-  if (!match) {
-    return null
-  }
-  return /name/i.test(match[2]) ? 'name' : 'id'
-}
-
 const standInFor = (param: string, responseFields: readonly string[]): string | null => {
   const field = standInName(param)
   return field && responseFields.includes(field) ? field : null
@@ -435,6 +399,34 @@ const paramAliasesOf = (operations: readonly { method: string; path: string }[])
 }
 
 /**
+ * A PUT/PATCH on a COLLECTION path whose JSON body carries the item's id (the item path's last
+ * parameter, by its own name or the field it stands for: `{petId}` → `id`) — an update that addresses
+ * the item through its body. Null when there is no such operation.
+ */
+const collectionUpdateCandidate = (
+  doc: OasDocument,
+  operations: readonly OasOperation[],
+  shape: PathShape,
+): { choice: VerbChoice; sentence: string } | null => {
+  for (const operation of operations) {
+    const method = operation.method.toUpperCase()
+    const normalized = normalizedPath(operation.path)
+    if ((method !== 'PUT' && method !== 'PATCH') || !shape.collections.has(normalized)) { continue }
+    const item = [...shape.items.values()].find((path) => parentOf(normalizedPath(path)) === normalized)
+    const param = item ? pathParamsOf(item).pop() : undefined
+    const body = Object.keys(schemaProperties(doc, requestBodySchema(doc, method, operation.path)))
+    const field = param ? [param, standInName(param)].find((name): name is string => !!name && body.includes(name)) : undefined
+    if (field) {
+      return {
+        choice: { action: 'update', method, operationId: operation.operationId, path: operation.path, reason: `${method} on the collection, the id (${field}) in its body — confirm` },
+        sentence: `${method} ${operation.path} may be the update — a ${method} on the collection whose body carries the id (${field}), not on the item, so it needs a confirm — choose one.`,
+      }
+    }
+  }
+  return null
+}
+
+/**
  * Infer the verbs of ONE Kind from the operations selected for it, then apply the overrides.
  * `operations` is the selection (e.g. one palette group); `doc` is the document they came from.
  * `itemsPath` is the findby's held itemsPath, when the status source is a findby envelope.
@@ -485,9 +477,24 @@ export const inferOperationMapping = (
     }])
   }
 
+  // NO UPDATE ON THE ITEM, ONE ON THE COLLECTION: petstore's PUT /pet sends the whole Pet, id included.
+  // It is not inferred — an update by rule addresses the item — but it is OFFERED, as a one-candidate
+  // conflict the person confirms (or leaves out), never placed silently.
+  const confirmUpdate = !candidates.has('update') && !overrides.some((override) => override.action === 'update')
+    ? collectionUpdateCandidate(doc, operations, shape)
+    : null
+  if (confirmUpdate) {
+    const index = unmapped.findIndex((entry) => entry.method === confirmUpdate.choice.method && entry.path === confirmUpdate.choice.path)
+    if (index >= 0) { unmapped.splice(index, 1) }
+  }
+
   const verbs: Partial<Record<RestAction, VerbChoice>> = {}
   const conflicts: VerbConflict[] = []
   for (const action of VERB_ORDER) {
+    if (action === 'update' && confirmUpdate) {
+      conflicts.push({ action, candidates: [confirmUpdate.choice], sentence: confirmUpdate.sentence })
+      continue
+    }
     const list = candidates.get(action) ?? []
     if (list.length === 1) {
       verbs[action] = list[0]

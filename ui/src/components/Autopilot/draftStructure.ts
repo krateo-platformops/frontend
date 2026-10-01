@@ -29,9 +29,9 @@ import {
   heldVerb,
   pathIdBindings,
   readController,
-  SERVED_VERSION,
 } from '../../pages/ControllerComposer/controllerChart'
 import { envelopeArrays, successResponseSchema, VERB_ORDER } from '../../pages/ControllerComposer/operationMapping'
+import { servedAsText } from '../../pages/ControllerComposer/servedVersion'
 import { shownUrl } from '../../pages/ControllerComposer/urlCredential'
 import { buildObjectTree, flattenTree, listDataSources } from '../../pages/PageComposer/objectTree'
 import type { TreeNode } from '../../pages/PageComposer/objectTree'
@@ -270,7 +270,7 @@ export const summarizeController = (held: BlueprintDraftHeld | null, state: Held
   }
   return {
     apiGroup: model.group,
-    ...(model.group ? { servedAs: `${model.group}/${model.servedVersion ?? SERVED_VERSION}` } : {}),
+    ...(model.group ? { servedAs: servedAsText(model.group, model.servedVersion, model.sourceVersion) } : {}),
     ...(model.sourceVersion ? { sourceSpecVersion: model.sourceVersion } : {}),
     // A base URL hand-edited to carry a credential is never sent; the lint names the problem.
     baseUrl: model.baseUrl ? shownUrl(model.baseUrl) : '',

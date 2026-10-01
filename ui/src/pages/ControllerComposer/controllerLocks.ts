@@ -36,6 +36,29 @@ const configMapVersion = (text: string | undefined): string | null => {
   }
 }
 
+/**
+ * A lock as a RESUMED record carries it, completed. A controller published before the served version
+ * was locked has no ConfigMap entry; the document it holds is the one that was published, so its
+ * info.version (`1.0.27`, served as `v1-0-27`) IS the published version — recorded here so it is
+ * locked like any other, and never pinned to v1alpha1 (blueprintDraftStore settle). A lock that has
+ * one, or a tree with no readable document, is returned as it is.
+ */
+export const completeLockedSnapshot = (locked: LockedSnapshot, files: Readonly<Record<string, string>>): LockedSnapshot => {
+  let next: LockedSnapshot | null = null
+  for (const path of Object.keys(files).filter((entry) => CONFIGMAP_PATH.test(entry))) {
+    if (locked[path]?.servedVersion !== undefined) { continue }
+    const servedVersion = configMapVersion(files[path])
+    if (servedVersion) { next = { ...(next ?? locked), [path]: { servedVersion } } }
+  }
+  return next ?? locked
+}
+
+/** The version the lock holds a document's Kinds to, or null when the controller was never published. */
+export const lockedServedVersion = (locked: LockedSnapshot | null | undefined, configMapPath: string): string | null => {
+  const value = locked?.[configMapPath]?.servedVersion
+  return typeof value === 'string' ? value : null
+}
+
 const LOCKED_RESOURCE_FIELDS = IMMUTABLE_REST_DEF_FIELDS.filter((field) => field !== 'resourceGroup')
 
 export const lockedSnapshot = (files: Readonly<Record<string, string>>): LockedSnapshot => {

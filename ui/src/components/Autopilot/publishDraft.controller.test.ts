@@ -52,7 +52,11 @@ const petstore = (settled = true): Record<string, string> => {
   const started = startController({ apiGroup: 'petstore.example.io', baseUrl: 'https://petstore3.swagger.io/api/v3', name: 'petstore', paths: null, spec: PETSTORE })
   if (!started.ok) { throw new Error(JSON.stringify(started.problems)) }
   let files = apply(started.files, planPlaceGroup(started.files, 'pet'))
-  if (settled) { files = apply(files, planSetVerb(files, restDefinitionPath('Pet'), 'findby', { method: 'GET', path: '/pet/findByStatus' })) }
+  if (settled) {
+    files = apply(files, planSetVerb(files, restDefinitionPath('Pet'), 'findby', { method: 'GET', path: '/pet/findByStatus' }))
+    // The collection PUT is offered as the update and confirmed, as a person does in the verbs table.
+    files = apply(files, planSetVerb(files, restDefinitionPath('Pet'), 'update', { method: 'PUT', path: '/pet' }))
+  }
   return apply(files, planPlaceGroup(files, 'store'))
 }
 

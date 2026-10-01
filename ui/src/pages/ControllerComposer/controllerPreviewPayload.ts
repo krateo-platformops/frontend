@@ -18,8 +18,9 @@ import type { DraftRenderResultDetail } from '../../components/Autopilot/preview
 import { sameFiles, type LastRender } from '../BlueprintComposer/heldBlueprintPayload'
 import { renderOutcomeCopy, type OutcomeCopy } from '../BlueprintComposer/renderOutcome'
 
-import { SERVED_VERSION, type ControllerModel } from './controllerChart'
+import type { ControllerModel } from './controllerChart'
 import { renderedForms } from './controllerRender'
+import { servedAsText } from './servedVersion'
 
 export const CONTROLLER_FILES_CAPTION = 'Chart files is the tree the change request commits — each Kind is its RestDefinition, and the OpenAPI document rides in its ConfigMap. Edit a file in place; the canvas and the inspector read it back.'
 
@@ -48,8 +49,7 @@ const verbLine = (model: ControllerModel): string[] => model.kinds.map((entry) =
  */
 export const servedAsLine = (model: ControllerModel): string | null => {
   if (!model.group) { return null }
-  const served = `Served as ${model.group}/${model.servedVersion ?? SERVED_VERSION}`
-  return model.sourceVersion ? `${served} — the document says ${model.sourceVersion}; the served version is pinned` : served
+  return `Served as ${servedAsText(model.group, model.servedVersion, model.sourceVersion)}`
 }
 
 /**

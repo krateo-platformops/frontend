@@ -19,9 +19,14 @@
  * a tree is read that never went through the store.
  *
  * WHAT IS KEPT. The version the document came with goes into Chart.yaml as
- * `controller.builders.krateo.io/source-spec-version`, and the ConfigMap carries a comment saying
- * why its document says v1alpha1. Once published the served version is locked like the kind and the
- * group (controllerChart.ts lockedSnapshot).
+ * `controller.builders.krateo.io/source-spec-version` — a record of it, not a lock — and the
+ * ConfigMap carries a comment saying why its document says v1alpha1. What a publish LOCKS is the
+ * ConfigMap's info.version (controllerLocks.ts lockedSnapshot), like the kind and the group.
+ *
+ * ONLY A CONTROLLER NEVER PUBLISHED IS PINNED. One published before this pinning existed serves its
+ * vendor's version (`1.0.27` → `v1-0-27`), and its manifests are written against that: pinning it
+ * would move them. Its lock (completed from the held document when the record predates the
+ * servedVersion lock) keeps the published version, and `pinServedVersion` leaves it alone.
  *
  * WHEN oasgen GROWS A FIELD FOR IT. oasgen may add `spec.resource.version` to the RestDefinition (the
  * version stated on the resource instead of read from the document). When it ships, switch HERE:
@@ -137,7 +142,9 @@ const annotateChart = (text: string, source: string): string => {
  * said before is kept on Chart.yaml. A tree that needs nothing is returned as the same object, byte for
  * byte; a ConfigMap that does not read is left for the lint to name.
  */
-export const pinServedVersion = (files: Record<string, string>): Record<string, string> => {
+export const pinServedVersion = (files: Record<string, string>, options: { published?: boolean } = {}): Record<string, string> => {
+  // Published: the version it was published under is locked, whatever it is — never pinned.
+  if (options.published) { return files }
   let next: Record<string, string> | null = null
   let source: string | null = null
   for (const path of Object.keys(files).filter((entry) => CONFIGMAP_PATH.test(entry)).sort()) {
@@ -163,10 +170,41 @@ export const sourceSpecVersion = (chartText: string | undefined): string | null 
   }
 }
 
-/** The lint's half: each held document whose info.version is not the served version. */
-export const servedVersionProblems = (path: string, doc: Record<string, unknown>): string[] => {
+/** The lint's half: each held document whose info.version is not the served version (a published one is the lock's to judge). */
+export const servedVersionProblems = (path: string, doc: Record<string, unknown>, published = false): string[] => {
   const version = specInfoVersion(doc)
-  return version === SERVED_VERSION
+  return published || version === SERVED_VERSION
     ? []
     : [`${path}: the document's info.version is ${version === null ? 'unset' : JSON.stringify(version)}, not ${SERVED_VERSION} — oasgen-provider serves every Kind under the version it reads there, so a vendor's version would move the served API with every spec bump. Set it to ${SERVED_VERSION} (the vendor's version belongs in Chart.yaml's ${SOURCE_SPEC_VERSION_ANNOTATION}).`]
+}
+
+/** What a Resume says when holding an unpublished controller pinned its document (the record is rewritten on its next save). */
+export const pinnedOnResumeSentence = (files: Record<string, string>): string => {
+  const source = sourceSpecVersion(files[CHART_YAML])
+  return `Updated to the current format: the OpenAPI document is now held as info.version ${SERVED_VERSION}${source ? ` (it said ${source}, kept on Chart.yaml)` : ''}, so its Kinds are served as ${SERVED_VERSION}. The draft saves this change; preview it again before publishing.`
+}
+
+/** True when the held document serves under a version other than v1alpha1 — a controller published before the pinning. */
+export const publishedBeforePinning = (heldVersion: string | null): boolean => heldVersion !== null && heldVersion !== SERVED_VERSION
+
+/**
+ * The CRD version name oasgen serves a document's info.version under — plumbing crdgen
+ * NormalizeVersionName: lower-cased, every run of non-alphanumerics a `-`, trimmed, and a `v` before a
+ * leading digit (`1.0.27` → `v1-0-27`, `v1alpha1` → `v1alpha1`).
+ */
+export const crdVersionName = (version: string): string => {
+  const normalized = version.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  return /^[0-9]/.test(normalized) ? `v${normalized}` : normalized
+}
+
+/**
+ * The API a controller's Kinds are served under, as every surface says it (inspector, Preview, the
+ * agent's summary): `<group>/v1alpha1`, with what the vendor's document said when it was pinned; or,
+ * for a controller published before the pinning, the version it really serves (`<group>/v1-0-27`).
+ */
+export const servedAsText = (group: string, heldVersion: string | null, sourceVersion: string | null): string => {
+  if (heldVersion !== null && publishedBeforePinning(heldVersion)) {
+    return `${group}/${crdVersionName(heldVersion)} (published before v1alpha1 pinning)`
+  }
+  return sourceVersion ? `${group}/${SERVED_VERSION} (the document says ${sourceVersion}; pinned)` : `${group}/${SERVED_VERSION}`
 }

@@ -119,14 +119,19 @@ describe('placing and mapping', () => {
     expect(resource.identifiers).toEqual(['id'])
     // status carries id, so spec does not ask the person for it.
     expect(resource.excludedSpecFields).toEqual(['id'])
-    expect(pet.conflicts.map((conflict) => conflict.action)).toEqual(['findby'])
-    expect(lintControllerDraft(files)).toEqual(['Pet: 2 operations look like findby (GET /pet/findByStatus, GET /pet/findByTags) — choose one in the inspector, or leave findby out.'])
+    expect(pet.conflicts.map((conflict) => conflict.action)).toEqual(['findby', 'update'])
+    expect(lintControllerDraft(files)).toEqual([
+      'Pet: 2 operations look like findby (GET /pet/findByStatus, GET /pet/findByTags) — choose one in the inspector, or leave findby out.',
+      'Pet: PUT /pet may be the update — a PUT on the collection whose body carries the id (id), not on the item, so it needs a confirm — choose one in the inspector, or leave update out.',
+    ])
     expect(planPlaceGroup(files, 'pet')).toEqual({ ok: false, reason: 'pet is already placed as Pet.' })
   })
 
   it('a chosen findby settles the conflict and validates; an omitted one is remembered as omitted', () => {
     let files = apply(started(), planPlaceGroup(started(), 'pet'))
     const path = restDefinitionPath('Pet')
+    // The collection PUT offered as update is confirmed, as a person does in the verbs table.
+    files = apply(files, planSetVerb(files, path, 'update', { method: 'PUT', path: '/pet' }))
     const chosen = apply(files, planSetVerb(files, path, 'findby', { method: 'GET', path: '/pet/findByStatus' }))
     expect(readController(chosen).kinds[0].conflicts).toEqual([])
     expect(lintControllerDraft(chosen)).toEqual([])

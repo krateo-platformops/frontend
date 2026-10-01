@@ -200,7 +200,7 @@ const CHECKS = {
   lint: {
     'chart-lint': 'blueprintDraft.lintBlueprintDraft: chart identity, values.schema.json defaults and root, the byte cap',
     'gate-drift': 'proposedChart.lintHeldDraft: each template\'s dependency gate matches templates/architecture.yaml',
-    'restdef-validate': 'controllerChart.lintControllerDraft: the OpenAPI document reads, no verb conflict is left unsettled, and every RestDefinition passes the oasgen 0.23 shape and the OAS cross-check',
+    'restdef-validate': 'controllerChart.lintControllerDraft: the OpenAPI document reads, no verb conflict or ambiguous path id is left unsettled, the served version is v1alpha1 (or, once published, the version it was published under), and every RestDefinition passes the oasgen 0.25 shape and the OAS cross-check',
   },
 } as const
 

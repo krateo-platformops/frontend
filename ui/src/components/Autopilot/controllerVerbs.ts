@@ -43,6 +43,7 @@ import { draftKindOf } from '../../builders/draftKinds'
 import {
   configurationCandidates,
   type ControllerKind,
+  exclusionCandidates,
   type ControllerModel,
   type ControllerPlan,
   heldVerb,
@@ -447,6 +448,13 @@ const setExcludedVerb = (proposal: PortalActionProposal): AutopilotActionChip =>
   if (typeof held === 'string') { return refuse(verb, tried, held) }
   const kind = kindNamed(held.model, proposal.kind)
   if (typeof kind === 'string') { return refuse(verb, tried, kind) }
+  // The inspector's own candidates (a field already excluded may stay, or be dropped): nothing else.
+  const offered = exclusionCandidates(kind, held.model).map((candidate) => candidate.field)
+  const current = currentList(kind, 'excludedSpecFields')
+  const unknown = wanted.filter((field) => !offered.includes(field) && !current.includes(field))
+  if (unknown.length) {
+    return refuse(verb, tried, `${unknown.join(', ')} is not a field ${kind.kind}'s spec could leave out — the candidates are what a status binding reads and what create sends: ${listed(offered)}`)
+  }
   const plan = planSetList(held, kind, 'excludedSpecFields', wanted)
   if (!plan) {
     return done(verb, tried, `${kind.kind} excluded spec fields are already ${listed(wanted)} — nothing changed`)
