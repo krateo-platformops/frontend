@@ -270,7 +270,7 @@
   box-shadow: var(--elevation-lg);
   color: var(--krateo-color-text-default);
   display: inline-flex;
-  font-size: var(--font-size-xs);
+  font-size: var(--krateo-text-body-sm);
   font-weight: 600;
   gap: var(--spacing-sm);
   line-height: 1.2;

@@ -124,7 +124,7 @@ export const DataBindingModal = ({ namespace, onCancel, onDone, open, snowplowBa
   }
 
   const stepRow = (step: ActionStep, index: number) => (
-    <Space.Compact key={index} style={{ display: 'flex', marginBottom: 8 }}>
+    <Space.Compact key={index} style={{ display: 'flex', marginBottom: 'var(--spacing-sm)' }}>
       <Input
         onChange={(event) => setSteps(steps.map((each, i) => (i === index ? { ...each, name: event.target.value } : each)))}
         placeholder='pods'
@@ -149,7 +149,7 @@ export const DataBindingModal = ({ namespace, onCancel, onDone, open, snowplowBa
 
   return (
     <Modal okText='Apply' onCancel={onCancel} onOk={submit} open={open} title={`Data for ${widgetName}`} width={860}>
-      {error ? <Alert message={error} showIcon style={{ marginBottom: 12 }} type='error' /> : null}
+      {error ? <Alert message={error} showIcon style={{ marginBottom: 'var(--spacing-smd)' }} type='error' /> : null}
       <Tabs
         items={[
           {
@@ -162,7 +162,7 @@ export const DataBindingModal = ({ namespace, onCancel, onDone, open, snowplowBa
                     { label: 'Use one that exists', value: 'existing' },
                     { label: 'Write a new one', value: 'new' },
                   ]}
-                  style={{ marginBottom: 12 }}
+                  style={{ marginBottom: 'var(--spacing-smd)' }}
                   value={mode}
                 />
                 {mode === 'existing' ? (
@@ -218,7 +218,7 @@ export const DataBindingModal = ({ namespace, onCancel, onDone, open, snowplowBa
                   <code> dataSource</code>; a chart fills its series; a Statistic fills one value.
                 </Typography.Paragraph>
                 {templates.map((entry, index) => (
-                  <Space.Compact key={index} style={{ display: 'flex', marginBottom: 8 }}>
+                  <Space.Compact key={index} style={{ display: 'flex', marginBottom: 'var(--spacing-sm)' }}>
                     <Input
                       onChange={(event) => setTemplates(templates.map((row, i) => (i === index ? { ...row, forPath: event.target.value } : row)))}
                       placeholder='dataSource'
@@ -249,7 +249,7 @@ export const DataBindingModal = ({ namespace, onCancel, onDone, open, snowplowBa
                   item, instead of a list written by hand.
                 </Typography.Paragraph>
                 {refs.map((entry, index) => (
-                  <Space.Compact key={index} style={{ display: 'flex', marginBottom: 8 }}>
+                  <Space.Compact key={index} style={{ display: 'flex', marginBottom: 'var(--spacing-sm)' }}>
                     <Input
                       onChange={(event) => setRefs(refs.map((row, i) => (i === index ? { ...row, iterator: event.target.value } : row)))}
                       placeholder='.items[]'

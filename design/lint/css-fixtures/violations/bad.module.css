@@ -6,6 +6,10 @@
   gap: 7px;                /* T4 — raw gap */
 }
 
+.c {
+  font-size: var(--font-size-sm, 16px);  /* T3 — retired scale, smuggled back as a fallback */
+}
+
 .b {
   animation: spin 2s linear infinite;  /* T9 — infinite, no reduced-motion block in this file */
 }

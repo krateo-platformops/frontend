@@ -18,6 +18,7 @@ python3 lint-css-tokens.py ../../ui/src --update-baseline
 | Rule | ID | Catches |
 |---|---|---|
 | `font-size` | T3 | a size that is a raw number rather than a token |
+| `legacy-type-scale` | T3 | any reference to the retired `--font-size-*` scale — **including as a `var()` fallback**, which would otherwise render and pass `font-size` |
 | `spacing` | T4 | `padding`/`margin` not resolving to `--spacing-*` (`0`/`auto` exempt) |
 | `gap` | T4 | `gap` not resolving to `--spacing-*` |
 | `hex-literal` | T1 | a hardcoded colour — a hex inside a `var()` **fallback** is exempt |
@@ -43,6 +44,7 @@ font-size              T3        2         2       +0
 spacing                T4        0         0       +0
 gap                    T4        0         0       +0
 hex-literal            T1        0         0       +0
+legacy-type-scale      T3        0         0       +0
 breakpoint             T6        0         0       +0
 unguarded-animation    T9        0         0       +0
 widget-theme-coverage  T2       19        19       +0

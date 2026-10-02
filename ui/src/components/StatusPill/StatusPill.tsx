@@ -49,7 +49,7 @@ const StatusPill = ({ color, label, style, ...rest }: StatusPillProps) => {
             borderRadius: '50%',
             display: 'inline-block',
             height: 6,
-            marginRight: 6,
+            marginRight: 'var(--spacing-xsm)',
             verticalAlign: 'middle',
             width: 6,
           }}

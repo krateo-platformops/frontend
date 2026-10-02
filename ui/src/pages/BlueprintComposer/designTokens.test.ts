@@ -34,7 +34,6 @@ const emitted = new Set([
   ...Object.keys(radius).map((key) => `--radius-${key}`),
   ...Object.keys(elevation).map((key) => `--elevation-${key}`),
   ...Object.keys(motion).map((key) => `--motion-${key}`),
-  ...Object.keys(typography.size).map((key) => `--font-size-${key}`),
   ...Object.keys(typography.weight).map((key) => `--font-weight-${key}`),
   '--font-family', '--font-display', '--font-mono', '--header-h', '--header-icon-size',
 ])

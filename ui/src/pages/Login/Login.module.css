@@ -37,7 +37,7 @@
 
 .headline {
   color: var(--onmenubg-color);
-  font-size: clamp(var(--font-size-xl), 4vw, 44px);
+  font-size: clamp(var(--krateo-text-h2), 4vw, 44px);
   font-weight: var(--font-weight-bolder);
   line-height: 1.15;
   margin: 0 0 var(--spacing-md);
@@ -45,7 +45,7 @@
 
 .subtitle {
   color: rgb(255 255 255 / 85%);
-  font-size: var(--font-size-md);
+  font-size: var(--krateo-text-body-lg);
   line-height: 1.6;
   margin: 0 0 var(--spacing-xl);
 }
@@ -63,7 +63,7 @@
   align-items: center;
   color: rgb(255 255 255 / 95%);
   display: flex;
-  font-size: var(--font-size-sm);
+  font-size: var(--krateo-text-body);
   gap: var(--spacing-sm);
 }
 
@@ -90,20 +90,20 @@
 
 .welcome {
   color: var(--text-color);
-  font-size: var(--font-size-lg);
+  font-size: var(--krateo-text-h3);
   font-weight: var(--font-weight-bolder);
   margin: 0 0 var(--spacing-xs);
 }
 
 .welcomeSub {
   color: var(--gray-color);
-  font-size: var(--font-size-xs);
+  font-size: var(--krateo-text-body-sm);
   margin: 0 0 var(--spacing-lg);
 }
 
 .requestAccount {
   color: var(--gray-color);
-  font-size: var(--font-size-xs);
+  font-size: var(--krateo-text-body-sm);
   margin: var(--spacing-lg) 0 0;
   text-align: center;
 }

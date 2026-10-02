@@ -171,7 +171,7 @@ const SessionResumeModal = () => {
         inset: 0,
         justifyContent: 'center',
         overflow: 'auto',
-        padding: 24,
+        padding: 'var(--spacing-lg)',
         position: 'fixed',
         zIndex: 2000,
       }}
@@ -183,25 +183,25 @@ const SessionResumeModal = () => {
           borderRadius: token.borderRadiusLG,
           boxShadow: token.boxShadowSecondary,
           maxWidth: 400,
-          padding: 32,
+          padding: 'var(--spacing-xl)',
           width: '100%',
         }}
       >
-        <img alt={logoAlt} src={logoSrc} style={{ display: 'block', height: 40, marginBottom: 24 }} />
-        <h2 style={{ color: token.colorText, marginBottom: 8, marginTop: 0 }}>Session expired</h2>
-        <p style={{ color: token.colorTextSecondary, marginBottom: 20, marginTop: 0 }}>
+        <img alt={logoAlt} src={logoSrc} style={{ display: 'block', height: 40, marginBottom: 'var(--spacing-lg)' }} />
+        <h2 style={{ color: token.colorText, marginBottom: 'var(--spacing-sm)', marginTop: 0 }}>Session expired</h2>
+        <p style={{ color: token.colorTextSecondary, marginBottom: 'var(--spacing-lg)', marginTop: 0 }}>
           Your session has expired. Sign in to continue right where you left off.
         </p>
         {strategiesError && (
           <Alert
             message='Unable to reach the authentication service. Retry in a moment, or log out.'
             showIcon
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: 'var(--spacing-md)' }}
             type='error'
           />
         )}
         {submitError && (
-          <Alert message={submitError} showIcon style={{ marginBottom: 16 }} type='error' />
+          <Alert message={submitError} showIcon style={{ marginBottom: 'var(--spacing-md)' }} type='error' />
         )}
         {methods && (
           <AuthMethods
@@ -210,7 +210,7 @@ const SessionResumeModal = () => {
             onCredentialSubmit={(values, kind, method) => { void onCredentialSubmit(values, kind, method) }}
           />
         )}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'var(--spacing-sm)' }}>
           <Button onClick={onLogout} type='text'>Log out</Button>
         </div>
       </div>

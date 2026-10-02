@@ -242,6 +242,18 @@ def rule_hex_literal(path):
             yield line, re.sub(r'\s+', ' ', match.group(0)).strip()[:90]
 
 
+def rule_legacy_type_scale(path):
+    """T3 — the legacy `--font-size-*` scale is retired; nothing may reference it.
+
+    `font-size` alone does not cover this. A bare `var(--font-size-sm)` is caught there as a dead
+    reference now that nothing emits it, but `var(--font-size-sm, 16px)` renders its fallback and
+    passes — a second type scale smuggled back in as a fallback value. Two scales side by side is
+    the state T3 exists to end, so the name itself is the violation."""
+    text = _read(path)
+    for match in re.finditer(r'var\(\s*--font-size-[a-z0-9-]+[^)]*\)', text):
+        yield text[:match.start()].count('\n') + 1, match.group(0)
+
+
 def rule_breakpoint(path):
     """T6 — don't invent another breakpoint.
 
@@ -352,6 +364,7 @@ RULES = {
     'spacing': (rule_spacing, 'T4'),
     'gap': (rule_gap, 'T4'),
     'hex-literal': (rule_hex_literal, 'T1'),
+    'legacy-type-scale': (rule_legacy_type_scale, 'T3'),
     'breakpoint': (rule_breakpoint, 'T6'),
     'unguarded-animation': (rule_unguarded_animation, 'T9'),
     'widget-theme-coverage': (rule_widget_theme_coverage, 'T2'),

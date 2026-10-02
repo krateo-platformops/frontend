@@ -121,7 +121,7 @@ export const CreateWidgetModal = ({ onCancel, onCreate, open, widgetKind }: {
 
   return (
     <Modal okText='Create' onCancel={onCancel} onOk={submit} open={open} title={`Create a ${widgetKind}`} width={720}>
-      {error ? <Alert message={error} showIcon style={{ marginBottom: 12 }} type='error' /> : null}
+      {error ? <Alert message={error} showIcon style={{ marginBottom: 'var(--spacing-smd)' }} type='error' /> : null}
       <Typography.Paragraph type='secondary'>
         {schema
           ? `${widgetKind} needs these before it can be created — the names are the CRD's own. A list may be left empty when data binding will fill it. Everything else is editable in Files.`
