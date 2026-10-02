@@ -105,7 +105,7 @@ const chip = (verb: string, label: string): AutopilotActionChip => ({ label, rea
 /** A refusal: the chip the person reads, and the composeRefusals note the model reads next turn. */
 const refuse = (verb: string, tried: string, reason: string): AutopilotActionChip => {
   recordChartOutcome(tried, reason)
-  return chip(verb, `${verb} — this portal did not run it (${reason})`)
+  return { ...chip(verb, `${verb} — this portal did not run it (${reason})`), refused: true }
 }
 
 /** A verb that changed the draft: every held refusal was computed against the draft as it was. */

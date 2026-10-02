@@ -148,3 +148,44 @@ describe('switching loads the selected transcript into the rail', () => {
     expect(queryByText('thread B question')).toBeNull()
   })
 })
+
+describe('action chip outcome', () => {
+  const CHECK_PATH = 'M20 6L9 17l-5-5'
+  const bot = (actions: NonNullable<AutopilotMessage['actions']>): AutopilotMessage[] => [
+    { actions, createdAt: 1, id: 'b1', role: 'assistant', text: 'done' },
+  ]
+  const chipFor = (container: HTMLElement, label: string) => {
+    const chip = [...container.querySelectorAll<HTMLElement>('[data-outcome]')].find((el) => el.textContent?.includes(label))
+    if (!chip) { throw new Error(`no chip for ${label}`) }
+    return chip
+  }
+
+  it('draws a refused chip with the refusal icon, never the applied check', () => {
+    const label = 'previewRestDef — this portal did not run it (Fix these before previewing — nothing was sent to the cluster.)'
+    setValue({ messages: bot([{ label, readOnly: true, refused: true, verb: 'previewRestDef' }]) })
+    const { container } = render(<AutopilotRail />)
+    const chip = chipFor(container, label)
+    expect(chip.getAttribute('data-outcome')).toBe('refused')
+    expect(chip.querySelector(`path[d="${CHECK_PATH}"]`)).toBeNull()
+    expect(chip.querySelector('circle')).not.toBeNull()
+  })
+
+  it('still reads a refusal restored from a conversation saved before the field', () => {
+    const label = 'controllerMapVerb — this portal did not run it (a conflict is still unsettled)'
+    setValue({ messages: bot([{ label, readOnly: true, verb: 'controllerMapVerb' }]) })
+    const { container } = render(<AutopilotRail />)
+    const chip = chipFor(container, label)
+    expect(chip.getAttribute('data-outcome')).toBe('refused')
+    expect(chip.querySelector(`path[d="${CHECK_PATH}"]`)).toBeNull()
+  })
+
+  it('leaves an applied chip with its check', () => {
+    const label = 'Mapped findby on Pet'
+    setValue({ messages: bot([{ label, readOnly: true, verb: 'controllerMapVerb' }]) })
+    const { container } = render(<AutopilotRail />)
+    const chip = chipFor(container, label)
+    expect(chip.getAttribute('data-outcome')).toBe('applied')
+    expect(chip.querySelector(`path[d="${CHECK_PATH}"]`)).not.toBeNull()
+    expect(chip.querySelector('circle')).toBeNull()
+  })
+})

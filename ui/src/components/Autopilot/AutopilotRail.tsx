@@ -21,6 +21,7 @@ import { default as ReactMarkdown } from 'react-markdown'
 
 import { useConfigContext } from '../../context/ConfigContext'
 
+import { isRefusedChip } from './actionBridge'
 import type { ApprovalPause } from './approval'
 import { useAutopilot } from './AutopilotProvider'
 import styles from './AutopilotRail.module.css'
@@ -28,7 +29,7 @@ import AutopilotTour from './AutopilotTour'
 import { autopilotComposerDraftStore } from './composerDraftStore'
 import { describeArgs, deriveSessionsBase, fetchDelegationEvidence, NO_DELEGATION_SESSION, serializeEvidence, summarizeEvidence } from './evidence'
 import { useRailFocusTrap } from './focusTrap'
-import { CheckIcon, CollapseIcon, CopyIcon, EvidenceIcon, ExpandIcon, EyeIcon, HistoryIcon, LinkIcon, PlusIcon, SendIcon, ShrinkIcon, SparkIcon, StopIcon } from './icons'
+import { CheckIcon, CollapseIcon, CopyIcon, EvidenceIcon, ExpandIcon, EyeIcon, HistoryIcon, LinkIcon, PlusIcon, RefusedIcon, SendIcon, ShrinkIcon, SparkIcon, StopIcon } from './icons'
 import { LiveActivity } from './liveActivity'
 import { looksLikeOpenApiDocument } from './oasAttachment'
 import { relativeTime, type ThreadSummary } from './sessionHistoryStore'
@@ -183,8 +184,11 @@ const MessageBubble = ({ message }: { message: AutopilotMessage }) => {
           has already stripped any code/YAML blocks the agent shouldn't show. */}
       <div className={styles.apMd}><ReactMarkdown>{message.text}</ReactMarkdown></div>
       {message.actions?.map((action, index) => (
-        <div className={styles.apAct} key={`act-${index}`}>
-          <CheckIcon className={styles.apActCheck} />
+        <div className={styles.apAct} data-outcome={isRefusedChip(action) ? 'refused' : 'applied'} key={`act-${index}`}>
+          {/* A refusal never wears the applied check: it would read as success when nothing ran. */}
+          {isRefusedChip(action)
+            ? <RefusedIcon className={styles.apActRefused} />
+            : <CheckIcon className={styles.apActCheck} />}
           {action.url
             ? <a className={styles.apEvLink} href={action.url} rel='noreferrer' target='_blank'>{action.label}</a>
             : <span>{action.label}</span>}

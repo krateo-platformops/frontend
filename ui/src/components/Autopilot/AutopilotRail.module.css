@@ -513,6 +513,13 @@
   width: 15px;
 }
 
+.apActRefused {
+  color: var(--warning-color);
+  flex: none;
+  height: 15px;
+  width: 15px;
+}
+
 .apAct b {
   color: var(--dark-color);
   font-weight: 500;

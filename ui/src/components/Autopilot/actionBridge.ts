@@ -562,12 +562,16 @@ export const refused = (verb: string, reason?: string): AutopilotActionChip => (
     ? `${verb} — this portal did not run it (${reason})`
     : `${verb} — this portal did not run it`,
   readOnly: true,
+  refused: true,
   verb,
 })
 
-/** True for the chip of a verb the portal refused (`refused` here, `refuse` in controllerVerbs.ts). */
+/**
+ * True for the chip of a verb the portal refused (`refused` here, `refuse` in controllerVerbs.ts).
+ * The label prefix still counts for a chip restored from a conversation saved before the field.
+ */
 export const isRefusedChip = (chip: AutopilotActionChip): boolean =>
-  chip.label.startsWith(`${chip.verb} — this portal did not run it`)
+  chip.refused === true || chip.label.startsWith(`${chip.verb} — this portal did not run it`)
 
 /** The chip for a trailing preview skipped because an edit before it was refused — the draft is not what the reply meant. */
 export const previewSkippedChip = (refusedEdit: string): AutopilotActionChip =>

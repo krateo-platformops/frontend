@@ -50,6 +50,14 @@ export const CheckIcon = ({ className, size = 15 }: IconProps) => (
   </svg>
 )
 
+// A circle with an exclamation — the chip of a verb the portal refused, where CheckIcon would read as done.
+export const RefusedIcon = ({ className, size = 15 }: IconProps) => stroke(size, className, (
+  <>
+    <circle cx='12' cy='12' r='9' />
+    <path d='M12 7.5v5.5M12 16.5h.01' />
+  </>
+))
+
 export const EvidenceIcon = ({ className, size = 12 }: IconProps) => stroke(size, className, (
   <>
     <circle cx='11' cy='11' r='7' />

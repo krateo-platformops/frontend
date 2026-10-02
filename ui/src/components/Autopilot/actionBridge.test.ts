@@ -165,6 +165,7 @@ describe('refused — A18: a verb that cannot act says so', () => {
     expect(refused('navigate')).toEqual({
       label: 'navigate — this portal did not run it',
       readOnly: true,
+      refused: true,
       verb: 'navigate',
     })
   })
@@ -397,6 +398,12 @@ describe('a trailing preview after a refused edit', () => {
     expect(isRefusedChip(refused('controllerMapVerb', 'findby is not a verb of Pet'))).toBe(true)
     expect(isRefusedChip({ label: 'controllerMapVerb — this portal did not run it (a conflict is still unsettled)', readOnly: true, verb: 'controllerMapVerb' })).toBe(true)
     expect(isRefusedChip({ label: 'Omitted findby on Pet — Preview needed before it can be published', readOnly: true, verb: 'controllerMapVerb' })).toBe(false)
+  })
+
+  it('marks a refusal on the chip itself, not only in its label', () => {
+    expect(refused('controllerMapVerb', 'findby is not a verb of Pet').refused).toBe(true)
+    expect(previewSkippedChip('composeAdd — this portal did not run it').refused).toBe(true)
+    expect(isRefusedChip({ label: 'reworded', readOnly: true, refused: true, verb: 'previewRestDef' })).toBe(true)
   })
 
   it('is skipped with the reason, not run against a draft the reply did not make', () => {
