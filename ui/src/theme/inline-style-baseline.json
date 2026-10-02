@@ -2,22 +2,8 @@
   "colour": {
     "widgets/FlowChart/FlowChartNodeElement/FlowChartNodeElement.tsx": 1
   },
-  "font-size": {
-    "components/Notifications/Notifications.tsx": 6,
-    "pages/PageComposer/CanvasPanel.tsx": 2,
-    "pages/PageComposer/PalettePanel.tsx": 3,
-    "widgets/Markdown/Markdown.tsx": 1
-  },
+  "font-size": {},
   "spacing": {
-    "components/Notifications/Notifications.tsx": 5,
-    "components/SessionResume/SessionResumeModal.tsx": 8,
-    "components/StatusPill/StatusPill.tsx": 1,
-    "pages/PageComposer/CanvasPanel.tsx": 7,
-    "pages/PageComposer/CreateWidgetModal.tsx": 1,
-    "pages/PageComposer/DataBindingModal.tsx": 6,
-    "pages/PageComposer/MoveIntoModal.tsx": 1,
-    "pages/PageComposer/PalettePanel.tsx": 6,
-    "pages/PageComposer/PlaceWidgetModal.tsx": 2,
-    "widgets/Markdown/Markdown.tsx": 2
+    "pages/PageComposer/CanvasPanel.tsx": 1
   }
 }

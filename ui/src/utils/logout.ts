@@ -103,13 +103,13 @@ export const showSessionExpired = (): Promise<'resume' | 'logout'> => {
     const title = document.createElement('h2')
     title.textContent = 'Session expired'
     title.style.cssText = [
-      'margin:0 0 8px', 'font-size:var(--font-size-md, 18px)',
+      'margin:0 0 8px', 'font-size:var(--krateo-text-body-lg, 18px)',
       'font-family:var(--font-display, inherit)', 'color:var(--text-color, #E6EDF3)',
     ].join(';')
 
     const body = document.createElement('p')
     body.textContent = 'Your session has expired. Re-authenticate to pick up where you left off, or log out to start over.'
-    body.style.cssText = 'margin:0 0 20px;font-size:var(--font-size-xs, 14px);color:var(--gray-color, #8A97A6);line-height:1.5'
+    body.style.cssText = 'margin:0 0 20px;font-size:var(--krateo-text-body-sm, 13px);color:var(--gray-color, #8A97A6);line-height:1.5'
 
     const actions = document.createElement('div')
     actions.style.cssText = 'display:flex;gap:8px;justify-content:flex-end'
@@ -127,7 +127,7 @@ export const showSessionExpired = (): Promise<'resume' | 'logout'> => {
       'cursor:pointer', 'padding:6px 16px', 'border-radius:var(--radius-md, 6px)',
       'background:transparent', 'color:var(--text-color, #E6EDF3)',
       'border:1px solid var(--border-color, rgba(230,237,243,0.10))',
-      'font-size:var(--font-size-xs, 14px)',
+      'font-size:var(--krateo-text-body-sm, 13px)',
     ].join(';')
     logoutBtn.addEventListener('click', () => finish('logout'))
 
@@ -138,7 +138,7 @@ export const showSessionExpired = (): Promise<'resume' | 'logout'> => {
       'cursor:pointer', 'padding:6px 16px', 'border-radius:var(--radius-md, 6px)',
       'background:var(--amber-color, #F2A33C)', 'color:var(--background-color, #070C12)',
       'border:1px solid var(--amber-color, #F2A33C)', 'font-weight:600',
-      'font-size:var(--font-size-xs, 14px)',
+      'font-size:var(--krateo-text-body-sm, 13px)',
     ].join(';')
     resumeBtn.addEventListener('click', () => finish('resume'))
 

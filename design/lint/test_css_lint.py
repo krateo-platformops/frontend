@@ -14,7 +14,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 LINT = os.path.join(HERE, 'lint-css-tokens.py')
 EMPTY = os.path.join(HERE, 'css-fixtures', 'empty-baseline.json')
-RULES = ['font-size', 'spacing', 'gap', 'hex-literal', 'breakpoint', 'unguarded-animation',
+RULES = ['font-size', 'legacy-type-scale', 'spacing', 'gap', 'hex-literal', 'breakpoint', 'unguarded-animation',
          'widget-theme-coverage']
 
 

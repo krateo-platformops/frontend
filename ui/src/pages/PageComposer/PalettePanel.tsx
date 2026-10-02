@@ -95,8 +95,8 @@ const Item = ({ label, pick, plural, sub }: {
         borderRadius: 6,
         cursor: 'grab',
         display: 'flex',
-        gap: 8,
-        padding: '6px 8px',
+        gap: 'var(--spacing-sm)',
+        padding: 'var(--spacing-xsm) var(--spacing-sm)',
       }}
       title={(sub ?? plural) ? `${label} \u00b7 ${sub ?? plural}` : label}
     >
@@ -107,7 +107,7 @@ const Item = ({ label, pick, plural, sub }: {
           ellipsis rather than wrapping keeps each item one row high, so the list stays scannable;
           `minWidth: 0` is what lets a flex child shrink far enough to ellipsize at all, and the
           title attribute now carries the full label so a truncated one is still recoverable. */}
-      <Text style={{ flexShrink: 1, fontSize: 12, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</Text>
+      <Text style={{ flexShrink: 1, fontSize: 'var(--krateo-text-caption)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</Text>
       {/* nowrap: at the measured 182px column the plural badge wrapped mid-word, rendering as
           "card" / "s" on two lines.
 
@@ -117,7 +117,7 @@ const Item = ({ label, pick, plural, sub }: {
           from a truncated one. flex-shrink is a weight, so this makes the plural absorb essentially
           all the deficit while still degrading gracefully if a kind ever outgrows the column
           alone. */}
-      {sub ? <Text style={{ flexShrink: 100, fontSize: 11, marginLeft: 'auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} type='secondary'>{sub}</Text> : null}
+      {sub ? <Text style={{ flexShrink: 100, fontSize: 'var(--krateo-text-label-sm)', marginLeft: 'auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} type='secondary'>{sub}</Text> : null}
     </div>
   )
 }
@@ -127,9 +127,9 @@ const Item = ({ label, pick, plural, sub }: {
    panel. The builder now gives the palette a column of its own, so the strip has nothing left to
    solve — and a list that reflows its height as you filter it was never the better read. */
 const Section = ({ children, title }: { children: React.ReactNode; title: string }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-    <Text strong style={{ fontSize: 11, letterSpacing: 0.4, textTransform: 'uppercase' }} type='secondary'>{title}</Text>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xsm)' }}>
+    <Text strong style={{ fontSize: 'var(--krateo-text-label-sm)', letterSpacing: 0.4, textTransform: 'uppercase' }} type='secondary'>{title}</Text>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xsm)' }}>
       {children}
     </div>
   </div>
@@ -194,7 +194,7 @@ export const PalettePanel = ({ namespace, snowplowBaseUrl }: {
   }
 
   return (
-    <div data-testid='palette-panel' style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div data-testid='palette-panel' style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
       <Input
         allowClear
         aria-label='Filter the palette'
@@ -255,7 +255,7 @@ export const PalettePanel = ({ namespace, snowplowBaseUrl }: {
             ghost
             items={[...grouped.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([plural, widgets]) => ({
               children: (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xsm)' }}>
                   {widgets.map((widget) => (
                     <Item
                       key={`${widget.resource}/${widget.name}`}

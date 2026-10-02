@@ -38,7 +38,7 @@
     padding: var(--spacing-md);
 
     .initials {
-      font-size: var(--font-size-lg);
+      font-size: var(--krateo-text-h3);
     }
 
     .details {
@@ -48,7 +48,7 @@
       gap: var(--spacing-xs);
 
       .fullname {
-        font-size: var(--font-size-md);
+        font-size: var(--krateo-text-body-lg);
         font-weight: var(--font-weight-bold);
         text-align: center;
       }

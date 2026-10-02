@@ -150,7 +150,7 @@ export const DataBindingModal = ({ files = {}, namespace, onCancel, onDone, open
   }
 
   const stepRow = (step: ActionStep, index: number) => (
-    <Space.Compact key={index} style={{ display: 'flex', marginBottom: 8 }}>
+    <Space.Compact key={index} style={{ display: 'flex', marginBottom: 'var(--spacing-sm)' }}>
       <Input
         onChange={(event) => setSteps(steps.map((each, i) => (i === index ? { ...each, name: event.target.value } : each)))}
         placeholder='pods'
@@ -175,7 +175,7 @@ export const DataBindingModal = ({ files = {}, namespace, onCancel, onDone, open
 
   return (
     <Modal okText='Apply' onCancel={onCancel} onOk={submit} open={open} title={`Data for ${widgetName}`} width={860}>
-      {error ? <Alert message={error} showIcon style={{ marginBottom: 12 }} type='error' /> : null}
+      {error ? <Alert message={error} showIcon style={{ marginBottom: 'var(--spacing-smd)' }} type='error' /> : null}
       <Tabs
         items={[
           {
@@ -188,14 +188,14 @@ export const DataBindingModal = ({ files = {}, namespace, onCancel, onDone, open
                     { label: 'Use one that exists', value: 'existing' },
                     { label: 'Write a new one', value: 'new' },
                   ]}
-                  style={{ marginBottom: 12 }}
+                  style={{ marginBottom: 'var(--spacing-smd)' }}
                   value={mode}
                 />
                 {mode === 'existing' ? (
                   <>
                     {/* The cluster listing failing says so, but no longer empties the picker: the
                         draft's own RESTActions need no request and stay offered. */}
-                    {listError ? <Alert message={listError} showIcon style={{ marginBottom: 8 }} type='warning' /> : null}
+                    {listError ? <Alert message={listError} showIcon style={{ marginBottom: 'var(--spacing-sm)' }} type='warning' /> : null}
                     <Select
                       data-testid='action-picker'
                       onChange={setPicked}
@@ -262,7 +262,7 @@ export const DataBindingModal = ({ files = {}, namespace, onCancel, onDone, open
                   nested path such as <code>series[0].data</code> can be typed.
                 </Typography.Paragraph>
                 {templates.map((entry, index) => (
-                  <Space.Compact key={index} style={{ display: 'flex', marginBottom: 8 }}>
+                  <Space.Compact key={index} style={{ display: 'flex', marginBottom: 'var(--spacing-sm)' }}>
                     {/* AutoComplete, not Select: the list is the kind's top-level fields, and a
                         nested path is a legitimate target the list cannot enumerate. */}
                     <AutoComplete
@@ -299,7 +299,7 @@ export const DataBindingModal = ({ files = {}, namespace, onCancel, onDone, open
                   item, instead of a list written by hand.
                 </Typography.Paragraph>
                 {refs.map((entry, index) => (
-                  <Space.Compact key={index} style={{ display: 'flex', marginBottom: 8 }}>
+                  <Space.Compact key={index} style={{ display: 'flex', marginBottom: 'var(--spacing-sm)' }}>
                     <Input
                       onChange={(event) => setRefs(refs.map((row, i) => (i === index ? { ...row, iterator: event.target.value } : row)))}
                       placeholder='.items[]'

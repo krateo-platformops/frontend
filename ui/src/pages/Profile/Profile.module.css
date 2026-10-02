@@ -10,11 +10,11 @@
 
 .fullname {
   display: block;
-  font-size: var(--font-size-lg);
+  font-size: var(--krateo-text-h3);
   font-weight: var(--font-weight-bold);
 }
 
 .email {
   display: block;
-  font-size: var(--font-size-sm);
+  font-size: var(--krateo-text-body);
 }
