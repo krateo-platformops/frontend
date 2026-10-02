@@ -1,9 +1,5 @@
 {
-  "breakpoint": {
-    "components/Autopilot/AutopilotRail.module.css": 2,
-    "components/CommandPalette/CommandPalette.module.css": 2,
-    "pages/Login/Login.module.css": 1
-  },
+  "breakpoint": {},
   "font-size": {
     "widgets/List/ListView.module.css": 1,
     "widgets/Paragraph/Paragraph.module.css": 1

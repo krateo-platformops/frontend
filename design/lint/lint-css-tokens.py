@@ -15,7 +15,8 @@ the file shrinks as the sweep proceeds.
 Usage:
     lint-css-tokens.py <dir> [--baseline FILE] [--update-baseline] [--summary] [--rule R1,R2]
 
-Exit code is the number of NEW violations (0 = clean against the baseline).
+Exit code is the number of NEW violations plus paid-down debt not yet recorded in the baseline
+(0 = exactly at the baseline). The ledger only shrinks: a fix fails until --update-baseline records it.
 """
 import argparse
 import glob
@@ -452,9 +453,27 @@ def main():
                     print(f'      {line}: {text}')
             new_total += over
 
-    if new_total == 0:
+    # THE LEDGER ONLY SHRINKS. A file BELOW its baseline count is a fix nobody wrote down, and it
+    # leaves headroom: breakpoint sat at 0 against a baseline of 5 for weeks, which meant five new
+    # invented breakpoints would have passed this gate. Failing until the ledger is updated turns
+    # every fix into a recorded, reviewable step down that the next PR cannot undo.
+    stale_total = 0
+    for name in selected:
+        stale = [(path, was, current.get(name, {}).get(path, 0))
+                 for path, was in sorted(baseline.get(name, {}).items())
+                 if current.get(name, {}).get(path, 0) < was]
+        if not stale:
+            continue
+        print(f'\n{RULES[name][1]} ({name}): {len(stale)} file(s) below baseline — debt was paid, record it')
+        for path, was, now in stale:
+            print(f'  {path}: baseline {was}, now {now}')
+            stale_total += was - now
+    if stale_total:
+        print('\nrun with --update-baseline and commit the ledger, so the fix cannot be undone silently')
+
+    if new_total == 0 and stale_total == 0:
         print('clean against baseline')
-    return new_total
+    return new_total + stale_total
 
 
 if __name__ == '__main__':
