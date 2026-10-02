@@ -25,6 +25,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { draftKindPlugin } from '../../builders/draftKinds'
 import type { SetDispatchOptions, WriteOpResult } from '../../hooks/runRestSet'
 import {
+  askedOnCreateNotes,
   completeLockedSnapshot,
   lintControllerDraft,
   lockedSnapshot,
@@ -42,6 +43,7 @@ import { createBlueprintGate } from './blueprintGate'
 import type { SandboxWriter } from './blueprintRenderSandbox'
 import type { DraftRecordBody } from './draftRecord'
 import { draftSaveStatus } from './draftSaveStatus'
+import { summarizeController } from './draftStructure'
 import { emitDraftResume, onDraftResumeResult, type DraftResumeResultDetail } from './previewDraftResume'
 import { publishedLocks } from './publishedLocks'
 import { createDraftAutosave, DRAFT_AUTOSAVE_DEBOUNCE_MS } from './useDraftAutosave'
@@ -185,6 +187,31 @@ describe('3 — re-picking an id verb of a published Kind', () => {
     expect(plan).toMatchObject({ ok: true })
     const { resource } = (load(plan.ok ? plan.edit?.[PET] ?? '' : '') as { spec: { resource: Record<string, unknown> } }).spec
     expect(resource.excludedSpecFields).toBeUndefined()
+  })
+})
+
+describe('5 — a path parameter read from status, on a Kind published before it was excluded', () => {
+  const SENTENCE = 'petId is asked for on create because this controller was published before it was excluded; excluding it needs the RestDefinition recreated.'
+
+  it('the live (spec-sourced) Pet: Resume leaves the record as it is, and there is no note', async () => {
+    const record = live()
+    const { calls, store } = await resumeLive(record)
+    expect(store.get()?.files).toEqual(record.files)
+    expect(calls).toEqual([])
+    expect(askedOnCreateNotes(readController(record.files).kinds[0], true)).toEqual([])
+    expect(summarizeController(store.get())?.kinds[0].notes).toBeUndefined()
+  })
+
+  it('published with {petId} read from status.id: Resume changes nothing, and the inspector and the agent are told why petId is asked for', async () => {
+    const record = live()
+    const files = { ...record.files, [PET]: record.files[PET].split('inCustomResource: spec.id').join('inCustomResource: status.id') }
+    const { calls, store } = await resumeLive({ ...record, files, publish: { ...record.publish, locked: lockedSnapshot(files) } as DraftRecordBody['publish'] })
+    expect(store.get()?.files[PET]).toBe(files[PET])
+    expect(calls).toEqual([])
+    const { resource } = (load(store.get()?.files[PET] ?? '') as { spec: { resource: Record<string, unknown> } }).spec
+    expect(resource.excludedSpecFields).toBeUndefined()
+    expect(askedOnCreateNotes(readController(files).kinds[0], true)).toEqual([SENTENCE])
+    expect(summarizeController(store.get())?.kinds[0]).toMatchObject({ notes: [SENTENCE], published: true })
   })
 })
 

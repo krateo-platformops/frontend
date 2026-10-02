@@ -258,6 +258,41 @@ export const pathIdBindings = (kind: ControllerKind): PathIdBinding[] => {
   return [...found.values()]
 }
 
+/**
+ * The path parameters status supplies but oasgen would still ask spec for: each one that EVERY held
+ * verb whose path carries it reads from `status.*` (petstore's `{petId}` ← status.id). oasgen injects a
+ * verb's path parameters into spec — required — unless excludedSpecFields names the PARAMETER (0.25+).
+ * One any verb reads from spec, or leaves unmapped (oasgen then reads spec), is not among them.
+ */
+export const statusBoundPathParams = (restDefinition: Record<string, unknown>): string[] => {
+  const fromStatus = new Map<string, boolean>()
+  for (const verb of verbsOf(restDefinition)) {
+    const params = isNonEmptyString(verb.path) ? [...verb.path.matchAll(/\{([^}]+)\}/g)].map((match) => match[1]) : []
+    const mappings = Array.isArray(verb.fieldMapping) ? verb.fieldMapping.map((entry) => asRecord(entry) ?? {}) : []
+    for (const param of params) {
+      const field = mappings.find((mapping) => mapping.inPath === param)?.inCustomResource
+      fromStatus.set(param, (fromStatus.get(param) ?? true) && isNonEmptyString(field) && field.startsWith('status.'))
+    }
+  }
+  return [...fromStatus].filter(([, status]) => status).map(([param]) => param)
+}
+
+/** The sentence a PUBLISHED Kind carries for a status-bound path parameter its locked excludedSpecFields does not name. */
+export const askedOnCreateSentence = (param: string): string =>
+  `${param} is asked for on create because this controller was published before it was excluded; excluding it needs the RestDefinition recreated.`
+
+/**
+ * What a published Kind's spec still asks for that status supplies — one sentence per parameter, for
+ * the inspector and the agent's summary alike. excludedSpecFields is CEL-immutable, so nothing is
+ * changed: an unpublished draft has the parameter excluded as it is bound (settleStatusBindings).
+ */
+export const askedOnCreateNotes = (kind: ControllerKind, published: boolean): string[] => {
+  if (!published) { return [] }
+  const resource = asRecord(asRecord(kind.restDefinition.spec)?.resource) ?? {}
+  const excluded = Array.isArray(resource.excludedSpecFields) ? resource.excludedSpecFields.filter(isNonEmptyString) : []
+  return statusBoundPathParams(kind.restDefinition).filter((param) => !excluded.includes(param)).map(askedOnCreateSentence)
+}
+
 const readKind = (path: string, text: string, spec: ControllerModel['spec']): ControllerKind | { path: string; reason: string } => {
   let restDefinition: Record<string, unknown> | null
   try {

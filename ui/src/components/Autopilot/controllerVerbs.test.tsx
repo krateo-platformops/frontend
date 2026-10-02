@@ -567,8 +567,9 @@ describe('round 2 (frontend#405) — the agent reaches every new inspector gestu
     expect(await run({ field: 'id', kind: 'Pet', param: 'petId', verb: 'controllerBindId' })).toMatch(/id is not a field of the resource — bind \{petId\} to spec\.<field> or status\.<field>/)
     expect(await run({ itemsPath: '.data', kind: 'Pet', verb: 'controllerSetItemsPath' })).toMatch(/There is no findby verb to set an itemsPath on/)
     expect(await run({ excludedFields: 'id', kind: 'Pet', verb: 'controllerSetExcludedFields' })).toMatch(/excludedFields must be the whole list/)
-    // Review of #434: only the inspector's candidates — what a status binding reads and what create sends.
+    // Review of #434: only the inspector's candidates — what a status binding reads, the path parameters
+    // read from status, and what create sends.
     expect(await run({ excludedFields: ['id', 'spec.nothere'], kind: 'Pet', verb: 'controllerSetExcludedFields' }))
-      .toMatch(/spec\.nothere is not a field Pet's spec could leave out — the candidates are what a status binding reads and what create sends: id, name, category, photoUrls, tags, status, category\.id, category\.name/)
+      .toMatch(/spec\.nothere is not a field Pet's spec could leave out — the candidates are what a status binding reads, the path parameters read from status, and what create sends: id, petId, name, category, photoUrls, tags, status, category\.id, category\.name/)
   })
 })

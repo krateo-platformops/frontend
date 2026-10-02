@@ -16,16 +16,20 @@ import { describe, expect, it } from 'vitest'
 import { createBlueprintDraftStore } from '../../components/Autopilot/blueprintDraftStore'
 
 import {
+  askedOnCreateNotes,
   configurationCandidates,
+  exclusionCandidates,
   lintControllerDraft,
   lockedSnapshot,
   oasConfigMapPath,
   planBindPathParam,
   planPlaceGroup,
   planSetItemsPath,
+  planSetVerb,
   planToggleField,
   readController,
   restDefinitionPath,
+  statusBoundPathParams,
   type ControllerPlan,
 } from './controllerChart'
 import { servedAsSentence, startController, type StartControllerInput } from './controllerStart'
@@ -132,8 +136,9 @@ describe('3–5 — ids from status, nested and confirmed (Aruba-like dbaas)', (
     expect(verbOf(files, path, 'create').fieldMapping).toBeUndefined()
     const resource = resourceOf(files, path)
     expect(resource.identifiers).toEqual(['metadata.id'])
-    // metadata.id is not in the create body, so there is nothing to exclude from spec.
-    expect(resource.excludedSpecFields).toBeUndefined()
+    // metadata.id is not in the create body, but {dbaasId} and {id} are read from status on every verb
+    // that carries them, so spec does not ask for the path parameters.
+    expect(resource.excludedSpecFields).toEqual(['dbaasId', 'id'])
   })
 
   it('{dbaasId} and {id} wait for a confirm — the lint says so — and a confirm settles it', () => {
@@ -159,8 +164,10 @@ describe('3–5 — ids from status, nested and confirmed (Aruba-like dbaas)', (
   it('excludedSpecFields is editable like the other lists', () => {
     const files = placed()
     const toggled = apply(files, planToggleField(files, path, 'excludedSpecFields', 'properties.flavor'))
-    expect(resourceOf(toggled, path).excludedSpecFields).toEqual(['properties.flavor'])
-    expect(resourceOf(apply(toggled, planToggleField(toggled, path, 'excludedSpecFields', 'properties.flavor')), path).excludedSpecFields).toBeUndefined()
+    expect(resourceOf(toggled, path).excludedSpecFields).toEqual(['dbaasId', 'id', 'properties.flavor'])
+    expect(resourceOf(apply(toggled, planToggleField(toggled, path, 'excludedSpecFields', 'properties.flavor')), path).excludedSpecFields).toEqual(['dbaasId', 'id'])
+    const cleared = apply(files, planToggleField(files, path, 'excludedSpecFields', 'dbaasId'))
+    expect(resourceOf(apply(cleared, planToggleField(cleared, path, 'excludedSpecFields', 'id')), path).excludedSpecFields).toBeUndefined()
   })
 
   it('8 — configuration fields beyond auth: api-version on every verb (*), the findby\'s filter/sort/limit/offset', () => {
@@ -211,5 +218,67 @@ describe('2 + 3 — no get, an envelope with two arrays, and keyId vs id (Aruba-
     const petstore = start(fixture('petstore-v3.openapi.json'))
     const pet = apply(petstore, planPlaceGroup(petstore, 'pet'))
     expect(planSetItemsPath(pet, restDefinitionPath('Pet'), '.data')).toEqual({ ok: false, reason: 'There is no findby verb to set an itemsPath on — map findby first.' })
+  })
+})
+
+describe('a path parameter read from status is not asked of spec (oasgen 0.25 excludedSpecFields)', () => {
+  const PET = restDefinitionPath('Pet')
+  const placedPet = () => {
+    const files = start(fixture('petstore-v3.openapi.json'))
+    return apply(files, planPlaceGroup(files, 'pet'))
+  }
+
+  it('petstore: {petId} ← status.id on get and delete, so spec leaves out both id and petId', () => {
+    const files = placedPet()
+    expect(resourceOf(files, PET).excludedSpecFields).toEqual(['id', 'petId'])
+    const model = readController(files)
+    expect(statusBoundPathParams(model.kinds[0].restDefinition)).toEqual(['petId'])
+    // A candidate the inspector and controllerSetExcludedFields both offer, so it can be toggled off.
+    expect(exclusionCandidates(model.kinds[0], model).slice(0, 2)).toEqual([
+      { field: 'id', reason: 'status carries it — the id is read from there' },
+      { field: 'petId', reason: 'path parameter read from status — spec need not ask for it' },
+    ])
+    const toggled = apply(files, planToggleField(files, PET, 'excludedSpecFields', 'petId'))
+    expect(resourceOf(toggled, PET).excludedSpecFields).toEqual(['id'])
+    expect(lintControllerDraft(files)).toEqual(lintControllerDraft(toggled))
+  })
+
+  it('read from status by one verb and from spec by another, it stays in spec', () => {
+    const placed = placedPet()
+    // As if delete had been bound to spec by hand before anything excluded petId.
+    const mixed = {
+      ...placed,
+      [PET]: placed[PET]
+        .replace('    excludedSpecFields:\n      - id\n      - petId\n', '    excludedSpecFields:\n      - id\n')
+        .replace(/(- action: delete[\s\S]*?inCustomResource: )status\.id/, '$1spec.id'),
+    }
+    expect(verbOf(mixed, PET, 'delete').fieldMapping).toEqual([{ inCustomResource: 'spec.id', inPath: 'petId' }])
+    expect(verbOf(mixed, PET, 'get').fieldMapping).toEqual([{ inCustomResource: 'status.id', inPath: 'petId' }])
+    const model = readController(mixed)
+    expect(statusBoundPathParams(model.kinds[0].restDefinition)).toEqual([])
+    expect(exclusionCandidates(model.kinds[0], model).map((candidate) => candidate.field)).not.toContain('petId')
+    // A settle (re-picking create) adds nothing for it.
+    const settled = apply(mixed, planSetVerb(mixed, PET, 'create', { method: 'POST', path: '/pet' }))
+    expect(resourceOf(settled, PET).excludedSpecFields).toEqual(['id'])
+  })
+
+  it('PUBLISHED before it was excluded: nothing changes, and the Kind says why petId is asked for', () => {
+    const placed = placedPet()
+    const published = { ...placed, [PET]: placed[PET].replace('    excludedSpecFields:\n      - id\n      - petId\n', '    excludedSpecFields:\n      - id\n') }
+    const locked = lockedSnapshot(published)
+    const sentence = 'petId is asked for on create because this controller was published before it was excluded; excluding it needs the RestDefinition recreated.'
+    expect(askedOnCreateNotes(readController(published).kinds[0], true)).toEqual([sentence])
+    // Unpublished, there is no note — the settle excludes it instead.
+    expect(askedOnCreateNotes(readController(published).kinds[0], false)).toEqual([])
+    for (const plan of [
+      planSetVerb(published, PET, 'delete', { method: 'DELETE', path: '/pet/{petId}' }, locked),
+      planBindPathParam(published, PET, 'petId', 'status.id', locked),
+    ]) {
+      const after = apply(published, plan)
+      expect(resourceOf(after, PET).excludedSpecFields).toEqual(['id'])
+      expect(lintControllerDraft(after, locked)).toEqual(lintControllerDraft(published, locked))
+    }
+    // The toggle is refused by the lock, like any change to excludedSpecFields.
+    expect(planToggleField(published, PET, 'excludedSpecFields', 'petId', locked)).toMatchObject({ ok: false, reason: expect.stringMatching(/^cannot update Pet in place: excludedSpecFields is locked once published/) as unknown })
   })
 })

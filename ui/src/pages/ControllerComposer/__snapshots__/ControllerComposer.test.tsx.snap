@@ -475,7 +475,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …39 lines
+                                …40 lines
                         <div id="id23">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -488,7 +488,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …36 lines
+                                …37 lines
                         <div id="id24">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -732,9 +732,17 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                     "id"
                   <span class="_reason_9029c5">
                     "status carries it — the id is read from there"
+              <label class="ant-checkbox-wrapper ant-checkbox-wrapper-checked css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii ant-checkbox-checked">
+                  <input checked="" class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "orderId"
+                  <span class="_reason_9029c5">
+                    "path parameter read from status — spec need not ask for it"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
-                  <input class="ant-checkbox-input" type="checkbox">
+                  <input checked="" class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
                   <span class="_mono_396249">
                     "petId"
@@ -1064,7 +1072,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …46 lines
+                                …47 lines
                         <div id="id17">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -1077,7 +1085,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …36 lines
+                                …37 lines
                         <div id="id18">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -1316,6 +1324,14 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                     "id"
                   <span class="_reason_9029c5">
                     "status carries it — the id is read from there"
+              <label class="ant-checkbox-wrapper ant-checkbox-wrapper-checked css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii ant-checkbox-checked">
+                  <input checked="" class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "petId"
+                  <span class="_reason_9029c5">
+                    "path parameter read from status — spec need not ask for it"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
@@ -1717,7 +1733,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                                   "Edit"
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
-                                …33 lines
+                                …34 lines
                         <div id="id17">
                           <div class="_file_7a73aa">
                             <div class="_fileHead_7a73aa">
@@ -1972,6 +1988,14 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                     "id"
                   <span class="_reason_9029c5">
                     "status carries it — the id is read from there"
+              <label class="ant-checkbox-wrapper ant-checkbox-wrapper-checked css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
+                <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii ant-checkbox-checked">
+                  <input checked="" class="ant-checkbox-input" type="checkbox">
+                <span class="ant-checkbox-label">
+                  <span class="_mono_396249">
+                    "petId"
+                  <span class="_reason_9029c5">
+                    "path parameter read from status — spec need not ask for it"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
