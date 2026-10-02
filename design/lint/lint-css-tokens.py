@@ -15,7 +15,8 @@ the file shrinks as the sweep proceeds.
 Usage:
     lint-css-tokens.py <dir> [--baseline FILE] [--update-baseline] [--summary] [--rule R1,R2]
 
-Exit code is the number of NEW violations (0 = clean against the baseline).
+Exit code is the number of NEW violations plus paid-down debt not yet recorded in the baseline
+(0 = exactly at the baseline). The ledger only shrinks: a fix fails until --update-baseline records it.
 """
 import argparse
 import glob
@@ -241,6 +242,18 @@ def rule_hex_literal(path):
             yield line, re.sub(r'\s+', ' ', match.group(0)).strip()[:90]
 
 
+def rule_legacy_type_scale(path):
+    """T3 — the legacy `--font-size-*` scale is retired; nothing may reference it.
+
+    `font-size` alone does not cover this. A bare `var(--font-size-sm)` is caught there as a dead
+    reference now that nothing emits it, but `var(--font-size-sm, 16px)` renders its fallback and
+    passes — a second type scale smuggled back in as a fallback value. Two scales side by side is
+    the state T3 exists to end, so the name itself is the violation."""
+    text = _read(path)
+    for match in re.finditer(r'var\(\s*--font-size-[a-z0-9-]+[^)]*\)', text):
+        yield text[:match.start()].count('\n') + 1, match.group(0)
+
+
 def rule_breakpoint(path):
     """T6 — don't invent another breakpoint.
 
@@ -351,6 +364,7 @@ RULES = {
     'spacing': (rule_spacing, 'T4'),
     'gap': (rule_gap, 'T4'),
     'hex-literal': (rule_hex_literal, 'T1'),
+    'legacy-type-scale': (rule_legacy_type_scale, 'T3'),
     'breakpoint': (rule_breakpoint, 'T6'),
     'unguarded-animation': (rule_unguarded_animation, 'T9'),
     'widget-theme-coverage': (rule_widget_theme_coverage, 'T2'),
@@ -452,9 +466,27 @@ def main():
                     print(f'      {line}: {text}')
             new_total += over
 
-    if new_total == 0:
+    # THE LEDGER ONLY SHRINKS. A file BELOW its baseline count is a fix nobody wrote down, and it
+    # leaves headroom: breakpoint sat at 0 against a baseline of 5 for weeks, which meant five new
+    # invented breakpoints would have passed this gate. Failing until the ledger is updated turns
+    # every fix into a recorded, reviewable step down that the next PR cannot undo.
+    stale_total = 0
+    for name in selected:
+        stale = [(path, was, current.get(name, {}).get(path, 0))
+                 for path, was in sorted(baseline.get(name, {}).items())
+                 if current.get(name, {}).get(path, 0) < was]
+        if not stale:
+            continue
+        print(f'\n{RULES[name][1]} ({name}): {len(stale)} file(s) below baseline — debt was paid, record it')
+        for path, was, now in stale:
+            print(f'  {path}: baseline {was}, now {now}')
+            stale_total += was - now
+    if stale_total:
+        print('\nrun with --update-baseline and commit the ledger, so the fix cannot be undone silently')
+
+    if new_total == 0 and stale_total == 0:
         print('clean against baseline')
-    return new_total
+    return new_total + stale_total
 
 
 if __name__ == '__main__':

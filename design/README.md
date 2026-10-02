@@ -89,18 +89,28 @@ existence and count of resources outside a tenant's scope.
 
 ## What is enforced today
 
-Two lints run from [`lint/`](lint/), and between them they hold **21 of the 105 rules** —
-14 composition rules and 7 token rules. Everything else is a rule a human applies.
+Two lints run from [`lint/`](lint/), and between them they hold **22 of the 105 rules** —
+14 composition rules and 8 token rules. Everything else is a rule a human applies.
 
 - `lint-portal-consistency.py` — composition, run against a chart's widget CRs. **0 violations**
   across all 14 rules against the portal chart.
-- `lint-css-tokens.py` — token adoption in this repo's stylesheets. Gates on a **baseline** of 26
-  pre-existing violations across 24 files, so new code is held to the rule while the debt burns
-  down. 19 of those 26 are `widget-theme-coverage` (T2), which arrived with the rule itself:
+- `lint-css-tokens.py` — token adoption in this repo's stylesheets. Gates on a **baseline** of 21
+  pre-existing violations across 21 files, so new code is held to the rule while the debt burns
+  down. 19 of those 21 are `widget-theme-coverage` (T2), which arrived with the rule itself:
   adding a check to a codebase that predates it imports its existing debt in one step, and that is
   the point of baselining rather than a reason to weaken the rule. The live counts are
   `python3 design/lint/lint-css-tokens.py ui/src --summary`, which prints now-vs-baseline per rule
   — read that rather than this sentence.
+
+  **Both ledgers only shrink.** A file *below* its recorded count fails too, until the fix is
+  written back with `--update-baseline` (or `UPDATE_INLINE_STYLE_BASELINE=1` for the TSX one).
+  Before this, a paid-down entry was headroom: `breakpoint` sat at 0 against a baseline of 5,
+  so five new invented breakpoints would have passed the gate.
+- `ui/src/theme/inlineStyleTokens.test.ts` — the same T1/T3/T4 rules for **inline styles in TSX**
+  (`style={{…}}`, antd `styles`, anything typed `CSSProperties`), which the CSS lint cannot see.
+  Parses with the TypeScript compiler rather than a regex, and gates on its own ledger,
+  `ui/src/theme/inline-style-baseline.json`.
+  Runs with the rest of vitest (`test.yaml`), not in `design-system.yaml`.
 
 **Both are wired into CI**, and have been since they landed: `.github/workflows/design-system.yaml`
 here runs the CSS lint and both self-tests on every PR and push to `main`, and the portal repo's
@@ -108,8 +118,8 @@ workflow of the same name runs the composition lint against its rendered chart.
 
 **The CI check is the live status; this section is a claim about it.** To read the real state,
 look at the `design-system` check on any open PR in either repo — it fails on a violation, and a
-green one means all 21 machine-held rules hold as of that commit. The per-rule `Status:`
-markers in the six rule documents are the other half of the picture: they cover the 84 rules no
+green one means all 22 machine-held rules hold as of that commit. The per-rule `Status:`
+markers in the six rule documents are the other half of the picture: they cover the 83 rules no
 lint can decide, and a human keeps them true. Prefer the check over both.
 
 > This section said "Neither is wired into CI yet. Until they are, this document is still the thing

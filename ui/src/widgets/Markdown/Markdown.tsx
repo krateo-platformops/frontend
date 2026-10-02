@@ -52,11 +52,11 @@ const CodeBlock = ({ children }: { children?: ReactNode }) => {
           borderLeft: '3px solid var(--primary-color)',
           borderRadius: '4px',
           fontFamily: 'var(--font-mono)',
-          fontSize: '13px',
-          margin: '8px 0',
+          fontSize: 'var(--krateo-text-body-sm)',
+          margin: 'var(--spacing-sm) 0',
           overflowWrap: 'anywhere',
           // Room for the button so a long command never runs underneath it.
-          paddingRight: '44px',
+          paddingRight: 'calc(var(--spacing-xl) + var(--spacing-smd))',
           whiteSpace: 'pre-wrap',
         }}
       >

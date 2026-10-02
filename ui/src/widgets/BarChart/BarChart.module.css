@@ -11,11 +11,11 @@
       justify-content: space-between;
 
       .chartBarsLabel {
-        font-size: var(--font-size-sm);
+        font-size: var(--krateo-text-body);
       }
 
       .chartBarsValue {
-        font-size: var(--font-size-sm);
+        font-size: var(--krateo-text-body);
       }
     }
 

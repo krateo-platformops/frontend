@@ -69,7 +69,18 @@ trust either number.
 
 ### T3 — One type scale, and it must be the one that is used.
 
-**Status:** severe → **swept, one raw value left**
+**Status:** severe → swept → **one scale** — the legacy `--font-size-*` is retired
+
+> **Retired 2026-10-01.** All 50 legacy references moved to `--krateo-text-*` and `tokens.ts` no
+> longer emits the scale. 12/18/30 mapped exactly (caption / body-lg / h2); 14, 16 and 24 had no
+> canonical role and were **rounded by role** — 14→`body-sm` (13), 16→`body` (15), 24→`h3` (22) —
+> a deliberate 1–2px visual change, including the `Paragraph` widget's body text in every portal.
+> The lint rule `legacy-type-scale` now fails on any reference to the old names, *including as a
+> `var()` fallback*, which would otherwise render and pass `font-size`. Inline TSX `fontSize`
+> literals are at zero too (`ui/src/theme/inlineStyleTokens.test.ts`). Two raw values remain in the
+> CSS baseline and are judgement calls rather than sweeps: `Paragraph`'s `26px` strong title sits
+> exactly between `h3` (22) and `h2` (30), and `ListView`'s `0.85em` chip count is relative by design.
+> The figures below are the state before this, kept for the history.
 
 > **Corrected — the figures below were badly out of date, and in the direction that flatters
 > nobody: this rule described a sweep as un-started that had substantially happened.** It claimed

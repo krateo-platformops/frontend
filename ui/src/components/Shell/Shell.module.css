@@ -131,7 +131,7 @@
 
 .siderFooterName {
   color: var(--text-color);
-  font-size: var(--font-size-xxs);
+  font-size: var(--krateo-text-caption);
   font-weight: var(--font-weight-medium);
   overflow: hidden;
   text-overflow: ellipsis;

@@ -4,7 +4,7 @@
   gap: var(--spacing-md);
 
   .title {
-    font-size: var(--font-size-xl);
+    font-size: var(--krateo-text-h2);
     font-weight: var(--font-weight-lighter);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -21,6 +21,6 @@
 }
 
 .tabs :global(.ant-tabs-tab-btn) {
-  font-size: var(--font-size-xxs);
+  font-size: var(--krateo-text-caption);
   font-weight: var(--font-weight-medium);
 }

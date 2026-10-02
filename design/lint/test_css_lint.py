@@ -14,7 +14,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 LINT = os.path.join(HERE, 'lint-css-tokens.py')
 EMPTY = os.path.join(HERE, 'css-fixtures', 'empty-baseline.json')
-RULES = ['font-size', 'spacing', 'gap', 'hex-literal', 'breakpoint', 'unguarded-animation',
+RULES = ['font-size', 'legacy-type-scale', 'spacing', 'gap', 'hex-literal', 'breakpoint', 'unguarded-animation',
          'widget-theme-coverage']
 
 
@@ -39,6 +39,26 @@ def run(fixture, rule):
     return proc.returncode, proc.stdout
 
 
+def ratchet_failures():
+    """The baseline only shrinks: a file BELOW its recorded count must fail until it is recorded.
+
+    Without this half, a paid-down entry is headroom — the gate accepts that many new violations in
+    that file. Checked against the clean fixture with a ledger that claims a violation it no longer
+    has, which is exactly the state a fix leaves behind."""
+    stale = os.path.join(HERE, 'css-fixtures', 'stale-baseline.json')
+    with open(stale, 'w', encoding='utf-8') as fh:
+        fh.write('{"hex-literal": {"good.module.css": 1}}\n')
+    try:
+        proc = subprocess.run(
+            [sys.executable, LINT, os.path.join(HERE, 'css-fixtures', 'clean'),
+             '--rule', 'hex-literal', '--baseline', stale],
+            capture_output=True, text=True, check=False,
+        )
+    finally:
+        os.remove(stale)
+    return [] if proc.returncode >= 1 else ['ratchet: a fix not recorded in the baseline passed the gate']
+
+
 def main():
     with open(EMPTY, 'w', encoding='utf-8') as fh:
         fh.write('{}\n')
@@ -59,6 +79,7 @@ def main():
         if code != 0:
             failures.append(f'{rule}: false positive on correct authoring\n{out}')
     os.remove(EMPTY)
+    failures.extend(ratchet_failures())
 
     for line in failures:
         print(f'FAIL {line}')

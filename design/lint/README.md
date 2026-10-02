@@ -18,6 +18,7 @@ python3 lint-css-tokens.py ../../ui/src --update-baseline
 | Rule | ID | Catches |
 |---|---|---|
 | `font-size` | T3 | a size that is a raw number rather than a token |
+| `legacy-type-scale` | T3 | any reference to the retired `--font-size-*` scale — **including as a `var()` fallback**, which would otherwise render and pass `font-size` |
 | `spacing` | T4 | `padding`/`margin` not resolving to `--spacing-*` (`0`/`auto` exempt) |
 | `gap` | T4 | `gap` not resolving to `--spacing-*` |
 | `hex-literal` | T1 | a hardcoded colour — a hex inside a `var()` **fallback** is exempt |
@@ -28,13 +29,14 @@ python3 lint-css-tokens.py ../../ui/src --update-baseline
 ### The baseline is the point
 
 This codebase carried **314 pre-existing violations** when the gate was built; the sweep has since
-taken that to **seven, across five files** (`css-baseline.json`). A plain gate would fail CI on its first run
+taken it to what `css-baseline.json` holds now (`--summary` prints the live count). A plain gate would fail CI on its first run
 and be switched off within a day — which is exactly how the previous composition lint died. So the
 current state is recorded in `css-baseline.json`: **CI fails on anything not in it**, holding new
 code to the rule while the existing debt stays counted and visible.
 
 That makes the baseline a **debt ledger, not an excuse**. `--summary` prints what is left per rule,
-and the file shrinks as the sweep proceeds:
+and the file **can only shrink**: a file below its recorded count fails until `--update-baseline`
+writes the fix down, so paid-down debt is never headroom for new violations.
 
 ```
 rule                   id      now  baseline   delta
@@ -42,7 +44,8 @@ font-size              T3        2         2       +0
 spacing                T4        0         0       +0
 gap                    T4        0         0       +0
 hex-literal            T1        0         0       +0
-breakpoint             T6        5         5       +0
+legacy-type-scale      T3        0         0       +0
+breakpoint             T6        0         0       +0
 unguarded-animation    T9        0         0       +0
 widget-theme-coverage  T2       19        19       +0
 ```

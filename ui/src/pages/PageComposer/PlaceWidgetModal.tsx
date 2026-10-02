@@ -104,13 +104,13 @@ export const PlaceWidgetModal = ({ into, namespace, onCancel, onPlace, open, sno
         ? (
           <Alert
             showIcon
-            style={{ marginBlockStart: 12 }}
+            style={{ marginBlockStart: 'var(--spacing-smd)' }}
             title='No composable widgets exist in this namespace yet. Author one, or bind data to create a table.'
             type='info'
           />
         )
         : null}
-      {error ? <Alert showIcon style={{ marginBlockStart: 12 }} title={error} type='error' /> : null}
+      {error ? <Alert showIcon style={{ marginBlockStart: 'var(--spacing-smd)' }} title={error} type='error' /> : null}
     </Modal>
   )
 }

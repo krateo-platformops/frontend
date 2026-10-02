@@ -4,7 +4,7 @@
   /* A hex inside a var() fallback is defensive CSS doing the right thing, not a hardcoded colour. */
   border-color: color-mix(in srgb, var(--text-color, #888) 20%, transparent);
   color: var(--gray-color);
-  font-size: var(--font-size-sm);
+  font-size: var(--krateo-text-body);
   gap: var(--spacing-sm);
   /* `0` and `auto` are not sizes — requiring a token for them would be absurd. Nor is the same
      pair the other way round: `auto 0` was the last "violation" left in the codebase after the

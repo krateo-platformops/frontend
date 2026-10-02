@@ -31,7 +31,7 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: var(--font-size-xxs);
+  font-size: var(--krateo-text-caption);
   padding: var(--spacing-xxs) var(--spacing-xs);
 }
 
@@ -80,7 +80,7 @@
 .markdown pre code {
   background: none;
   border: none;
-  font-size: var(--font-size-xxs);
+  font-size: var(--krateo-text-caption);
   padding: 0;
 }
 

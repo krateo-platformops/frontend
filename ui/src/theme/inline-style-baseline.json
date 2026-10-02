@@ -1,0 +1,9 @@
+{
+  "colour": {
+    "widgets/FlowChart/FlowChartNodeElement/FlowChartNodeElement.tsx": 1
+  },
+  "font-size": {},
+  "spacing": {
+    "pages/PageComposer/CanvasPanel.tsx": 1
+  }
+}

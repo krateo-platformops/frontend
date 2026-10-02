@@ -179,7 +179,9 @@ export const typography = {
   // index.html <link>, which is what this comment used to claim.
   display: 'Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif',
   mono: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, "Courier New", monospace',
-  size: { xxs: 12, xs: 14, sm: 16, md: 18, lg: 24, xl: 30 },
+  // No `size` here any more. The legacy 6-step `--font-size-*` scale (12/14/16/18/24/30) shipped
+  // beside the canonical `--krateo-text-*` roles until every consumer moved; 14, 16 and 24 had no
+  // canonical role and were rounded to body-sm / body / h3. One type scale, see T3.
   weight: { lighter: 300, light: 400, medium: 500, bold: 600, bolder: 700 },
 } as const
 
@@ -523,7 +525,6 @@ export const cssVariables = (mode: ThemeMode = 'light') => {
   Object.entries(radius).forEach(([key, value]) => root.style.setProperty(`--radius-${key}`, `${value}px`))
   Object.entries(elevationSet).forEach(([key, value]) => root.style.setProperty(`--elevation-${key}`, value))
   Object.entries(motion).forEach(([key, value]) => root.style.setProperty(`--motion-${key}`, value))
-  Object.entries(typography.size).forEach(([key, value]) => root.style.setProperty(`--font-size-${key}`, `${value}px`))
   Object.entries(typography.weight).forEach(([key, value]) => root.style.setProperty(`--font-weight-${key}`, `${value}`))
   root.style.setProperty('--font-family', typography.family)
   root.style.setProperty('--font-display', typography.display)

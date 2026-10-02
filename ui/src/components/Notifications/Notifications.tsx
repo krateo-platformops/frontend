@@ -146,7 +146,7 @@ const EventItem = memo(function EventItem({ deduped, onNavigate }: { deduped: De
       actions={ts
         ? [
           <Tooltip key='ts' title={ts}>
-            <Text style={{ fontSize: 11, whiteSpace: 'nowrap' }} type='secondary'>
+            <Text style={{ fontSize: 'var(--krateo-text-label-sm)', whiteSpace: 'nowrap' }} type='secondary'>
               {formatTimestamp(ts)}
             </Text>
           </Tooltip>,
@@ -184,11 +184,11 @@ const EventItem = memo(function EventItem({ deduped, onNavigate }: { deduped: De
             // `--warning-color` is contrast-corrected per mode — 5.81:1 light (#8A5C00) and
             // 8.93:1 dark (#FFAA00). `--faint-color` is the de-emphasised token, 5.10:1 / 4.94:1,
             // replacing a grey that passed at 3.36:1 but tracked no theme.
-            style={{ color: isWarning ? 'var(--warning-color)' : 'var(--faint-color)', fontSize: 16 }}
+            style={{ color: isWarning ? 'var(--warning-color)' : 'var(--faint-color)', fontSize: 'var(--krateo-text-body)' }}
           />
         }
         description={
-          <Text style={{ fontSize: 12 }} type='secondary'>
+          <Text style={{ fontSize: 'var(--krateo-text-caption)' }} type='secondary'>
             {event.message ?? ''}
           </Text>
         }
@@ -198,11 +198,11 @@ const EventItem = memo(function EventItem({ deduped, onNavigate }: { deduped: De
           // line beneath, so the four elements no longer crowd + clip each other on one row.
           <div style={{ minWidth: 0 }}>
             <Tooltip title={event.reason ?? ''}>
-              <Text strong style={{ display: 'block', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <Text strong style={{ display: 'block', fontSize: 'var(--krateo-text-body-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {event.reason ?? ''}
               </Text>
             </Tooltip>
-            <div style={{ alignItems: 'center', display: 'flex', gap: 6, marginTop: 2, minWidth: 0 }}>
+            <div style={{ alignItems: 'center', display: 'flex', gap: 'var(--spacing-xsm)', marginTop: 'var(--spacing-xxs)', minWidth: 0 }}>
               <Tag color={isWarning ? 'warning' : 'default'} style={{ flexShrink: 0, margin: 0 }}>
                 {event.type ?? 'Unknown'}
               </Tag>
@@ -210,7 +210,7 @@ const EventItem = memo(function EventItem({ deduped, onNavigate }: { deduped: De
                 <Tag style={{ flexShrink: 0, margin: 0 }}>×{count}</Tag>
               )}
               {objRef && (
-                <Text style={{ flexShrink: 1, fontSize: 11, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} type='secondary'>
+                <Text style={{ flexShrink: 1, fontSize: 'var(--krateo-text-label-sm)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} type='secondary'>
                   {objRef}
                 </Text>
               )}
@@ -301,7 +301,7 @@ export const NotificationsDrawer = () => {
           split
         />
         {deduped.length > VISIBLE_LIMIT && (
-          <Text style={{ display: 'block', fontSize: 12, padding: '12px 0', textAlign: 'center' }} type='secondary'>
+          <Text style={{ display: 'block', fontSize: 'var(--krateo-text-caption)', padding: 'var(--spacing-smd) 0', textAlign: 'center' }} type='secondary'>
             Showing the {VISIBLE_LIMIT} most recent of {deduped.length} events
           </Text>
         )}
@@ -320,7 +320,7 @@ export const NotificationsDrawer = () => {
       // Notifications is deliberately more prominent than the generic/preview drawers. The extra
       // header padding stays scoped to THIS drawer (kept until a live diff confirms the tier alone
       // reproduces the height).
-      styles={{ header: { paddingBottom: 18, paddingTop: 18 } }}
+      styles={{ header: { paddingBottom: 'var(--spacing-md)', paddingTop: 'var(--spacing-md)' } }}
       title={<DrawerHeader emphasis='prominent' icon={['fas', 'bell'] as IconProp} title='Notifications' />}
       width={550}
       // C23: above the working surfaces on purpose — clicking the bell must always produce a

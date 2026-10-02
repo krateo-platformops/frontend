@@ -13,7 +13,7 @@
      and its parent `.headerRight` yields the space (Shell.module.css). Below a breakpoint the label
      is dropped (media query below), leaving just the search icon + ⌘K. */
   flex: 0 1 280px;
-  font-size: var(--font-size-xs);
+  font-size: var(--krateo-text-body-sm);
   gap: var(--spacing-sm);
   height: 36px;
   min-width: 0;
@@ -65,7 +65,7 @@
 .triggerIcon {
   color: var(--faint-color);
   flex-shrink: 0;
-  font-size: var(--font-size-xs);
+  font-size: var(--krateo-text-body-sm);
 }
 
 .triggerLabel {
@@ -84,7 +84,7 @@
   color: var(--gray-color);
   flex-shrink: 0;
   font-family: inherit;
-  font-size: var(--font-size-xxs);
+  font-size: var(--krateo-text-caption);
   line-height: 1.6;
   padding: 0 var(--spacing-xsm);
 }
@@ -129,7 +129,7 @@
 
 .resultTitle {
   color: var(--text-color);
-  font-size: var(--font-size-sm);
+  font-size: var(--krateo-text-body);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -137,7 +137,7 @@
 
 .resultSubtitle {
   color: var(--faint-color);
-  font-size: var(--font-size-xxs);
+  font-size: var(--krateo-text-caption);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -147,14 +147,14 @@
 .resultType {
   color: var(--gray-color);
   flex-shrink: 0;
-  font-size: var(--font-size-xxs);
+  font-size: var(--krateo-text-caption);
   text-transform: capitalize;
 }
 
 /* Settled-empty state: honest, and points at the unchanged full-search path. */
 .noMatches {
   color: var(--faint-color);
-  font-size: var(--font-size-xxs);
+  font-size: var(--krateo-text-caption);
   margin-top: var(--spacing-sm);
   padding: 0 var(--spacing-xs);
 }
@@ -168,7 +168,7 @@
 .hintRow {
   color: var(--faint-color);
   display: flex;
-  font-size: var(--font-size-xxs);
+  font-size: var(--krateo-text-caption);
   gap: var(--spacing-md);
   margin-top: var(--spacing-sm);
   padding: 0 var(--spacing-xs);
@@ -180,6 +180,6 @@
   border-radius: var(--radius-sm);
   color: var(--gray-color);
   font-family: inherit;
-  font-size: var(--font-size-xxs);
+  font-size: var(--krateo-text-caption);
   padding: var(--spacing-xxs) var(--spacing-xsm);
 }

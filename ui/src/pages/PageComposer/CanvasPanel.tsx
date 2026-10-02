@@ -152,9 +152,9 @@ const Well = ({ accepts, children, live, node }: {
         boxShadow: `inset 0 0 0 2px ${ring}`,
         display: 'flex',
         flexDirection: 'column',
-        gap: 8,
+        gap: 'var(--spacing-sm)',
         minHeight: 28,
-        paddingLeft: 12,
+        paddingLeft: 'var(--spacing-smd)',
       }}
     >
       {children}
@@ -199,12 +199,12 @@ const Frame = ({ airborne, depth, draggingId, legal, node, onSelect }: {
         borderRadius: 8,
         display: 'flex',
         flexDirection: 'column',
-        gap: 8,
+        gap: 'var(--spacing-sm)',
         opacity: frameOpacity(external, draggingId === dragId),
-        padding: 12,
+        padding: 'var(--spacing-smd)',
       }}
     >
-      <div style={{ alignItems: 'center', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      <div style={{ alignItems: 'center', display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-xsm)' }}>
         {/*
           THE HANDLE IS THE KIND LABEL, and it is a real button.
           It was a bare `<Text onClick>` with `cursor: pointer` and no tabIndex, role or key
@@ -257,7 +257,7 @@ const Frame = ({ airborne, depth, draggingId, legal, node, onSelect }: {
         >
           {node.kind ?? 'unresolved'}
         </Text>
-        <Text style={{ fontSize: 12 }} type='secondary'>{node.name}</Text>
+        <Text style={{ fontSize: 'var(--krateo-text-caption)' }} type='secondary'>{node.name}</Text>
         {/* The RESTAction shows HERE, on the widget that reads it — never as a frame of its own. */}
         {node.bound ? (
           <Tooltip title={node.dataSource ? `reads its data from the RESTAction ${node.dataSource} (spec.apiRef)` : 'reads its data from a RESTAction (spec.apiRef)'}>
@@ -291,7 +291,7 @@ const Frame = ({ airborne, depth, draggingId, legal, node, onSelect }: {
 
       {container ? (
         <Well accepts={accepts} live={airborne} node={node}>
-          {node.children.length === 0 ? <Text style={{ fontSize: 12 }} type='secondary'>empty</Text> : null}
+          {node.children.length === 0 ? <Text style={{ fontSize: 'var(--krateo-text-caption)' }} type='secondary'>empty</Text> : null}
           <DropGap at={0} container={node.name} live={airborne} node={node} />
           {node.children.map((child, index) => (
             <Fragment key={`${child.name}-${child.refId ?? index}-${index}`}>
@@ -353,7 +353,7 @@ export const CanvasPanel = ({ airborne = null, draggingId = null, files, onSelec
   }
 
   return (
-    <div data-testid='canvas-panel' style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div data-testid='canvas-panel' style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
       {tree.map((root, index) => (
         <Frame
           airborne={!!airborne}
