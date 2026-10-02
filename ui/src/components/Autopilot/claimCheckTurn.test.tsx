@@ -66,13 +66,13 @@ const POD_SIZING = 'I have authored and previewed the pod-sizing-23 page in the 
 
 const flush = (): Promise<void> => new Promise((resolve) => { setTimeout(resolve, 0) })
 
-/** One turn: the reply text, optionally a proposal, then `done` — and let finalize finish. */
-const turn = async (text: string, proposal?: Record<string, unknown>) => {
+/** One turn: the reply text, optionally proposals (in order), then `done` — and let finalize finish. */
+const turn = async (text: string, ...proposals: Record<string, unknown>[]) => {
   act(() => api.send('build me a pod sizing page and preview it'))
   const { onFrame } = harness.sends[harness.sends.length - 1]
   await act(async () => {
     onFrame({ delta: text, kind: 'text' })
-    if (proposal) {
+    for (const proposal of proposals) {
       onFrame({ args: proposal, kind: 'tool_call', name: 'propose_portal_action' })
     }
     onFrame({ kind: 'done' })
@@ -124,6 +124,24 @@ describe('finalize runs the claim check on what the turn actually did', () => {
     const reply = await turn('I have previewed the API mapping.', { verb: 'previewRestDef' })
     expect(reply.claims).toBeUndefined()
     expect(harness.record).not.toHaveBeenCalled()
+  })
+
+  it('krateo-057: a REFUSED controllerMapVerb described as done is flagged, naming the refusal', async () => {
+    const reason = 'GET /pets/{petId} is not an operation of the document.'
+    harness.apply.mockResolvedValue({ label: `controllerMapVerb — this portal did not run it (${reason})`, readOnly: true, refused: true, verb: 'controllerMapVerb' })
+    const text = 'Mapped the get verb for kind Pet to GET /pets/{petId}.'
+    const reply = await turn(text, { kind: 'Pet', method: 'GET', path: '/pets/{petId}', restAction: 'get', verb: 'controllerMapVerb' })
+    expect(reply.text).toBe(text)
+    expect(reply.claims).toEqual([{ attempt: 'mapped get → GET /pets/{petId}', family: 'controller', outcome: 'refused', phrase: 'Mapped', reason: 'GET /pets/{petId} is not an operation of the document' }])
+  })
+
+  it('a trailing previewRestDef SKIPPED after a refused edit does not back "I previewed it"', async () => {
+    harness.apply.mockResolvedValue({ label: 'controllerPlace — this portal did not run it (no such group)', readOnly: true, refused: true, verb: 'controllerPlace' })
+    const reply = await turn('I previewed it.', { group: 'nope', verb: 'controllerPlace' }, { verb: 'previewRestDef' })
+    expect(harness.apply).toHaveBeenCalledTimes(1)
+    expect(reply.claims).toHaveLength(1)
+    expect(reply.claims?.[0]).toMatchObject({ family: 'preview', outcome: 'refused' })
+    expect(reply.claims?.[0]?.reason).toMatch(/^an edit before it was refused/)
   })
 
   it('Retry re-asks ONCE as a hidden turn, naming the verb it never emitted', async () => {

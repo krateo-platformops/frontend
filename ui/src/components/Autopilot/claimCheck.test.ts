@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { checkClaims, chipOutcome, claimNotice, claimRetryNudge, CLAIM_RULES, denialOutcome, findClaims, isRetryable, type TurnAction } from './claimCheck'
+import { attemptOf, checkClaims, chipOutcome, claimNotice, claimRetryNudge, CLAIM_RULES, denialOutcome, findClaims, isRetryable, refusalReason, type TurnAction } from './claimCheck'
 import type { EvidenceEntry } from './types'
 
 /** The exact reply observed on krateo-057 (frontend 1.6.81) — no previewPage ever arrived. */
@@ -239,5 +239,83 @@ describe('the notice and the retry', () => {
     expect(nudge).toContain('previewPage')
     expect(nudge).toMatch(/say plainly that it was NOT done/)
     expect(nudge).not.toMatch(/[{}]/)
+  })
+})
+
+describe('a refusal described as a success — the controller family', () => {
+  /** The exact chip and prose observed on krateo-057 (frontend 1.6.89, autopilot 0.6.6). */
+  const MAP_CHIP = { label: 'controllerMapVerb — this portal did not run it (GET /pets/{petId} is not an operation of the document.)', readOnly: true, refused: true, verb: 'controllerMapVerb' }
+  const MAP_PROPOSAL = { kind: 'Pet', method: 'GET', path: '/pets/{petId}', restAction: 'get', verb: 'controllerMapVerb' }
+  const MAP_REPLY = 'Mapped the get verb for kind Pet to GET /pets/{petId}.'
+  const refusedMap: TurnAction = { attempt: attemptOf(MAP_PROPOSAL), outcome: chipOutcome(MAP_CHIP), reason: refusalReason(MAP_CHIP), verb: 'controllerMapVerb' }
+
+  it('the 057 reply and chip: flagged, and the notice names the refusal', () => {
+    const claims = checkClaims(MAP_REPLY, [refusedMap])
+    expect(claims).toHaveLength(1)
+    expect(claimNotice(claims[0])).toBe('The reply says it mapped get → GET /pets/{petId}, but the portal refused it: GET /pets/{petId} is not an operation of the document.')
+  })
+
+  it('the verbs-check-5 happy path, every chip applied: nothing flagged', () => {
+    const text = 'Starting the verbs-check-5 controller draft from the Petstore document. Pet update is PUT /pet. Left findby out of Pet. Previewed verbs-check-5 — the drawer shows the RestDefinition.'
+    const actions: TurnAction[] = ['controllerStart', 'controllerPlace', 'controllerMapVerb', 'controllerMapVerb', 'previewRestDef'].map((verb) => ({ outcome: 'applied', verb }))
+    expect(findClaims(text).map((claim) => claim.family)).toEqual(['controller'])
+    expect(checkClaims(text, actions)).toEqual([])
+  })
+
+  it('a refused previewRestDef and "I previewed it": flagged', () => {
+    const chip = { label: 'previewRestDef — this portal did not run it (no controller draft is open)', readOnly: true, refused: true, verb: 'previewRestDef' }
+    const claims = checkClaims('I previewed it.', [{ outcome: chipOutcome(chip), reason: refusalReason(chip), verb: 'previewRestDef' }])
+    expect(claims).toEqual([{ family: 'preview', outcome: 'refused', phrase: 'I previewed', reason: 'no controller draft is open' }])
+    expect(claimNotice(claims[0])).toBe('The reply says it previewed this, but the portal refused it: no controller draft is open.')
+  })
+
+  it('one applied and one refused attempt of the same family: the applied one backs it', () => {
+    expect(checkClaims(MAP_REPLY, [refusedMap, { outcome: 'applied', verb: 'controllerPlace' }])).toEqual([])
+  })
+
+  it('a controller claim with NO controller attempt is never flagged — those words are too ordinary alone', () => {
+    expect(checkClaims('I confirmed the identifiers with you earlier. Placed Pet.', [])).toEqual([])
+    expect(checkClaims(MAP_REPLY, [{ outcome: 'applied', verb: 'navigate' }])).toEqual([])
+  })
+
+  it('"I bound petId to status.id" with the bind refused is one notice, not also a page-draft one', () => {
+    const claims = checkClaims('I bound petId to status.id.', [{ outcome: 'refused', verb: 'controllerBindId' }])
+    expect(claims.map((claim) => claim.family)).toEqual(['controller'])
+  })
+
+  it('the chip field marks a refusal whatever its label says', () => {
+    expect(chipOutcome({ label: 'Pet get is GET /pets/{petId}', readOnly: true, refused: true, verb: 'controllerMapVerb' })).toBe('refused')
+  })
+
+  it('without a reason the notice keeps the family copy', () => {
+    expect(claimNotice({ family: 'controller', outcome: 'refused', phrase: 'x' })).toBe('Autopilot said it changed the controller draft, but the portal refused the edit.')
+  })
+
+  it.each([
+    [MAP_REPLY],
+    ['I mapped get to GET /pets/{petId}.'],
+    ['- Mapped the get verb for kind Pet to GET /pets/{petId}.'],
+    ['**Placed** Pet from the pet group.'],
+    ['I have left findby out of Pet.'],
+    ['I settled the verbs for Pet.'],
+    ['Pet get is now mapped.'],
+    ['The identifiers have been excluded.'],
+  ])('claims: %s', (text) => {
+    expect(findClaims(text).map((claim) => claim.family)).toContain('controller')
+  })
+
+  it.each([
+    'Mapped verbs are listed in the inspector.',
+    'Placed kinds appear on the left.',
+    'I can map get to GET /pets/{petId}.',
+    'Shall I leave findby out?',
+    'I have not mapped get yet.',
+    'Once mapped, the verb appears in the RestDefinition.',
+    'If I mapped get to GET /pets/{petId}, the preview would fail.',
+    'I confirmed with the person that the cluster is Ready.',
+    'Mapping get needs an operation of the document.',
+    'The get verb is not mapped.',
+  ])('does not claim: %s', (text) => {
+    expect(findClaims(text).map((claim) => claim.family)).not.toContain('controller')
   })
 })

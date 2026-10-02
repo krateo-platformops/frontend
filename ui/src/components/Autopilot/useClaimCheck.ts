@@ -7,7 +7,8 @@
  * so `track(apply)` hands `finalize` an `apply` that also records each chip it returned (on itself,
  * so a turn that returns early through a trampoline leaves nothing behind).
  * What `finalize` produces WITHOUT calling `apply` is read off the chips after the fact: a host-side
- * denial (the preview gates, the publish compile) and a prefillForm draft. A proposal the one-action
+ * denial (the preview gates, the publish compile), a prefillForm draft, and a refusal chip of its own
+ * (the trailing previewRestDef skipped after a refused edit). A proposal the one-action
  * cap left out arrived but never ran (`dropped`); a HITL continuation's decision is noted by
  * `noteDecision`, because an approved write tool is what makes that turn's "I applied it" true.
  *
@@ -19,7 +20,7 @@ import type { MutableRefObject } from 'react'
 
 import type { PortalActionProposal } from './actionBridge'
 import type { ActionOutcome, TurnAction } from './claimCheck'
-import { checkClaims, chipOutcome, claimRetryNudge, denialOutcome, isRetryable } from './claimCheck'
+import { attemptOf, checkClaims, chipOutcome, claimRetryNudge, denialOutcome, isRetryable, refusalReason } from './claimCheck'
 import { recordUnbackedClaims } from './claimTelemetry'
 import type { AutopilotActionChip, AutopilotMessage, EvidenceEntry, TurnModality } from './types'
 
@@ -30,7 +31,7 @@ export interface ClaimRetryApi {
 }
 
 type Apply<Rest extends unknown[]> = (proposal: PortalActionProposal, ...rest: Rest) => Promise<AutopilotActionChip | null>
-type Tracked = { chip: AutopilotActionChip | null; outcome: ActionOutcome; verb: string }[]
+type Tracked = { attempt?: string; chip: AutopilotActionChip | null; outcome: ActionOutcome; verb: string }[]
 /** A turn's `apply`, carrying the record of what it ran — so the record lives and dies with the turn. */
 export type TrackedApply<Rest extends unknown[]> = Apply<Rest> & { ran: Tracked }
 
@@ -57,10 +58,18 @@ export const collectTurnActions = ({ chips, decision, proposals, toRun, tracked 
     if (chip.verb === 'prefillForm') { return [{ outcome: 'applied', verb: 'prefillForm' }] }
     // finalize's own denial chips (preview gates, publish compile) never reached `apply`.
     if (chip.verb === 'applyResourceSet') { return [{ outcome: denialOutcome(chip.label), verb: 'applyResourceSet' }] }
+    // A refusal finalize made itself — a trailing previewRestDef skipped after a refused edit.
+    if (chip.refused) {
+      const reason = refusalReason(chip)
+      return [{ outcome: 'refused', verb: chip.verb, ...(reason ? { reason } : {}) }]
+    }
     return []
   })
   return [
-    ...tracked.map(({ outcome, verb }) => ({ outcome, verb })),
+    ...tracked.map(({ attempt, chip, outcome, verb }): TurnAction => {
+      const reason = outcome === 'refused' && chip ? refusalReason(chip) : undefined
+      return { outcome, verb, ...(attempt ? { attempt } : {}), ...(reason ? { reason } : {}) }
+    }),
     ...untracked,
     ...proposals.filter((proposal) => !toRun.includes(proposal)).map((proposal): TurnAction => ({ outcome: 'dropped', verb: proposal.verb })),
     ...(decision ? [{ outcome: decision === 'approve' ? 'applied' : 'declined', verb: 'approval' } as TurnAction] : []),
@@ -82,7 +91,7 @@ export const useClaimCheck = ({ messages, sendRef, sessionId, setMessages, strea
     const ran: Tracked = []
     const tracked = async (proposal: PortalActionProposal, ...rest: Rest) => {
       const chip = await apply(proposal, ...rest)
-      ran.push({ chip, outcome: appliedOutcome(proposal.verb, chip), verb: proposal.verb })
+      ran.push({ attempt: attemptOf(proposal), chip, outcome: appliedOutcome(proposal.verb, chip), verb: proposal.verb })
       return chip
     }
     return Object.assign(tracked, { ran })

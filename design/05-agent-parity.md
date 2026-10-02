@@ -465,6 +465,16 @@ The unmounted-control case is the same silent-failure shape as P10’s inert row
 > altered. A refused, failed, declined or cap-dropped action does not back a claim of success.
 > Offers, questions, futures, negations and conditionals never match; the notice is only useful
 > while it is never wrong. Countable as the `autopilot.claim.unbacked` span.
+>
+> **A refusal described as a success** is the same bug with the evidence in hand. Observed on
+> krateo-057 (1.6.89): the chip "controllerMapVerb — this portal did not run it (GET /pets/{petId}
+> is not an operation of the document.)" under "Mapped the get verb for kind Pet to GET
+> /pets/{petId}." The host knows which verbs it refused (`chip.refused`, #440), so a claim whose
+> family's only attempts were refused or skipped gets a notice naming the refusal: "The reply says
+> it mapped get → GET /pets/{petId}, but the portal refused it: …". The **controller** family
+> (every `controller*` verb) also reads the sentence-initial participle ("Mapped …", "Left findby
+> out …") the reply used, and flags only when a controller verb was attempted — "placed" and
+> "confirmed" are too ordinary to flag on their own.
 
 *Evidence: verified `actionBridge.ts:397-408` · `verbRegistry.ts:129-141`*
 

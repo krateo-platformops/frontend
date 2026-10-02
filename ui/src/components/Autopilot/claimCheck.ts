@@ -24,13 +24,19 @@
  * arrived at all (`missing`), or every one that arrived was refused, failed, declined by the person or
  * dropped by the one-action cap. The model's text is never touched; the rail adds a line under it.
  *
+ * A REFUSAL DESCRIBED AS A SUCCESS is the same bug with the evidence in hand. Observed on krateo-057
+ * (frontend 1.6.89): the chip "controllerMapVerb — this portal did not run it (GET /pets/{petId} is
+ * not an operation of the document.)" under the prose "Mapped the get verb for kind Pet to GET
+ * /pets/{petId}." The host knows which verbs it refused (`chip.refused`, frontend#440), so the notice
+ * names the refusal and its reason instead of a generic line.
+ *
  * Pure: no React, no I/O. The provider collects the turn's actions; the rail renders the notice;
  * `claimTelemetry.ts` makes it countable.
  */
 import type { AutopilotActionChip, EvidenceEntry } from './types'
 
 /** The families a reply can claim. Each maps to the portal verbs that would make it true. */
-export type ClaimFamily = 'preview' | 'publish' | 'apply' | 'compose' | 'chart'
+export type ClaimFamily = 'preview' | 'publish' | 'apply' | 'controller' | 'compose' | 'chart'
 
 /**
  * How one action of the turn ended. `applied` is the only outcome that backs a claim.
@@ -45,6 +51,10 @@ export type ActionOutcome = 'applied' | 'refused' | 'failed' | 'declined' | 'dro
 export interface TurnAction {
   verb: string
   outcome: ActionOutcome
+  /** What the action tried, in the reply's words ("mapped get → GET /pets/{petId}") — when the verb has one. */
+  attempt?: string
+  /** A refusal's reason, as the chip gave it. */
+  reason?: string
 }
 
 /** Why a claim is unbacked: nothing of its family arrived, or what arrived did not succeed. */
@@ -56,6 +66,9 @@ export interface UnbackedClaim {
   /** The exact words in the reply that made the claim (for the record and the retry nudge). */
   phrase: string
   outcome: UnbackedOutcome
+  /** A refused claim: what the refused action tried, and the portal's reason — so the notice can name them. */
+  attempt?: string
+  reason?: string
 }
 
 /** The words a claim can be preceded by between "I have" and the verb: "I have now/just/already…". */
@@ -70,6 +83,19 @@ const I_PERF = String.raw`\bI(?:['’]ve|\s+have)?\s+${ADV}`
 const COORD = String.raw`(?:(?:[a-z-]+ed|built|written|drawn|made|set\s+up)\s*(?:,\s*(?:and\s+)?|\s+and\s+|\s*&\s*)){0,3}`
 const CHANGE_REQUEST = String.raw`(?:pull\s+request|PR|merge\s+request|MR|change\s+request)`
 const FILE = String.raw`\x60?[\w./-]+\.(?:ya?ml|json|tpl|txt|md)\x60?`
+/** The controller edits a reply reports: "mapped", "placed Pet", "left findby out", "excluded …". */
+const CONTROLLER_EDIT = String.raw`mapped|placed|omitted|bound|excluded|left\s+[\w-]+\s+out`
+/** What "settled"/"confirmed" must be about to be a controller claim — alone they are ordinary words. */
+const CONTROLLER_NOUN = String.raw`verbs?|mappings?|identifiers?|status\s+fields?|kinds?|operations?|items\s*path|configuration`
+/** A list marker or bold opener before a sentence-initial participle ("- Mapped …", "**Placed** …"). */
+const BULLET = String.raw`(?:[-*•]\s+|\d+[.)]\s+)?(?:\*\*)?`
+/** "Mapped verbs are listed below": a participle followed by a finite verb is an adjective, not a report. */
+const FINITE = String.raw`(?:is|are|was|were|will|would|can|could|should|must|may|might|appears?|shows?|stays?|remains?|needs?)`
+/** The controller verbs (controllerVerbs.ts CONTROLLER_VERBS) — a successful one backs a controller claim. */
+const CONTROLLER_CLAIM_VERBS = [
+  'controllerStart', 'controllerPlace', 'controllerMapVerb', 'controllerSetIdentifiers', 'controllerSetStatusFields',
+  'controllerRemoveKind', 'controllerBindId', 'controllerSetExcludedFields', 'controllerSetItemsPath', 'controllerSetConfigurationFields',
+] as const
 
 /** One row of the verb table. */
 export interface ClaimRule {
@@ -82,6 +108,11 @@ export interface ClaimRule {
   unless?: RegExp
   /** Whether an approved write tool the agent ran itself (evidence / a HITL approval) backs it. */
   backedByAgentWrites: boolean
+  /**
+   * Flag only a claim whose family was ATTEMPTED this turn and never succeeded — never one with
+   * nothing behind it. For words too ordinary to read as a claim on their own ("confirmed", "placed").
+   */
+  attemptedOnly?: boolean
 }
 
 const rx = (source: string): RegExp => new RegExp(source, 'i')
@@ -129,6 +160,22 @@ export const CLAIM_RULES: readonly ClaimRule[] = [
     verbs: ['applyResourceSet', 'patchField', 'runAction', 'publishPage', 'publishBlueprint', 'publishRestDef'],
   },
   {
+    // A controller draft edit. Observed on krateo-057 (frontend 1.6.89): "Mapped the get verb for kind
+    // Pet to GET /pets/{petId}." beside the chip refusing exactly that mapping. The sentence-initial
+    // participle with no "I" is how the reply reported its edits, so it is a claim form here.
+    attemptedOnly: true,
+    backedByAgentWrites: false,
+    family: 'controller',
+    patterns: [
+      rx(String.raw`${I_PERF}${COORD}(?:${CONTROLLER_EDIT})\b`),
+      rx(String.raw`${I_PERF}${COORD}(?:settled|confirmed)\b[^.!?\n]{0,60}?\b(?:${CONTROLLER_NOUN})`),
+      rx(String.raw`^${BULLET}(?:${CONTROLLER_EDIT})(?:\*\*)?\s+(?!(?:[\w-]+\s+){0,2}${FINITE}\b)`),
+      rx(String.raw`\b(?:is|are)\s+now\s+(?:mapped|settled|placed|omitted|bound|excluded|left\s+out)\b`),
+      rx(String.raw`\b(?:has|have)\s+been\s+${ADV}(?:mapped|placed|omitted|bound|excluded|left\s+out)\b`),
+    ],
+    verbs: [...CONTROLLER_CLAIM_VERBS],
+  },
+  {
     // A draft edit — observed: "bound it to a multi-stage RESTAction" with no composeBind (actionBridge).
     backedByAgentWrites: false,
     family: 'compose',
@@ -136,7 +183,8 @@ export const CLAIM_RULES: readonly ClaimRule[] = [
       rx(String.raw`${I_PERF}${COORD}(?:bound|wired)\s+(?:it|them|the\s+[\w-]+(?:\s+[\w-]+)?|\x60?[\w-]+\x60?)\s+to\b`),
       rx(String.raw`${I_PERF}${COORD}(?:added|placed|inserted|moved|dropped)\s+[^.!?\n]{1,60}?\b(?:to|into|inside|onto|under)\s+(?:the|your)\s+(?:page|draft|canvas|layout)\b`),
     ],
-    verbs: ['composeAdd', 'composeMove', 'composeBind', 'previewPage'],
+    // A controller edit is a draft edit too: "I bound petId to status.id" is backed by controllerBindId.
+    verbs: ['composeAdd', 'composeMove', 'composeBind', 'previewPage', ...CONTROLLER_CLAIM_VERBS],
   },
   {
     backedByAgentWrites: false,
@@ -222,19 +270,29 @@ export const checkClaims = (
   evidence: readonly EvidenceEntry[] = [],
 ): UnbackedClaim[] => {
   const unbacked: UnbackedClaim[] = []
-  for (const { family, phrase } of findClaims(text)) {
+  const claims = findClaims(text)
+  // In a controller turn, "I bound petId to status.id" is ONE claim — the controller edit, not also a
+  // page-draft edit (compose's verbs include the controller's, so this only spares a second notice).
+  const controllerTurn = claims.some((claim) => claim.family === 'controller')
+    && actions.some((action) => (CONTROLLER_CLAIM_VERBS as readonly string[]).includes(action.verb))
+  for (const { family, phrase } of claims) {
     const rule = CLAIM_RULES.find((candidate) => candidate.family === family)!
+    if (family === 'compose' && controllerTurn) {
+      continue
+    }
     const mine = actions.filter((action) => rule.verbs.includes(action.verb) || (rule.backedByAgentWrites && action.verb === 'approval'))
     if (mine.some((action) => action.outcome === 'applied')) {
       continue
     }
-    if (rule.backedByAgentWrites && agentWrote(evidence)) {
+    if ((rule.backedByAgentWrites && agentWrote(evidence)) || (rule.attemptedOnly && !mine.length)) {
       continue
     }
     const outcome = mine.length
       ? OUTCOME_PRIORITY.find((candidate) => mine.some((action) => action.outcome === candidate)) ?? 'refused'
       : 'missing'
-    unbacked.push({ family, outcome, phrase })
+    // A refusal is named: the first refused attempt that carries the portal's reason.
+    const named = outcome === 'refused' ? mine.find((action) => action.outcome === 'refused' && action.reason) : undefined
+    unbacked.push({ family, outcome, phrase, ...(named?.attempt ? { attempt: named.attempt } : {}), ...(named?.reason ? { reason: named.reason } : {}) })
   }
   return unbacked
 }
@@ -249,6 +307,11 @@ export const chipOutcome = (chip: AutopilotActionChip): ActionOutcome => {
   if (chip.failure) {
     return 'failed'
   }
+  // Both refusal helpers set it (actionBridge `refused`, controllerVerbs `refuse`); the label is the
+  // fallback for a chip restored from a conversation saved before the field.
+  if (chip.refused) {
+    return 'refused'
+  }
   if (chip.previewFailed || /^preview apply failed\b/i.test(chip.label) || /\(render failed\)$/.test(chip.label)) {
     return 'failed'
   }
@@ -260,6 +323,28 @@ export const chipOutcome = (chip: AutopilotActionChip): ActionOutcome => {
   return 'applied'
 }
 
+/** A refusal chip's reason — the parenthesis of "<verb> — this portal did not run it (<reason>)". */
+export const refusalReason = (chip: AutopilotActionChip): string | undefined => {
+  const reason = / — this portal did not run it \(([\s\S]+)\)$/.exec(chip.label)?.[1]?.trim().replace(/[.\s]+$/, '')
+  return reason || undefined
+}
+
+/**
+ * What a proposal tried, in the words a reply would use — so a refused claim's notice can say which
+ * mapping the portal refused. Only verbs whose arguments say it plainly; the rest use the family copy.
+ */
+export const attemptOf = (proposal: { verb: string; restAction?: unknown; omit?: unknown; method?: unknown; path?: unknown; kind?: unknown }): string | undefined => {
+  if (proposal.verb !== 'controllerMapVerb' || typeof proposal.restAction !== 'string') {
+    return undefined
+  }
+  if (proposal.omit === true) {
+    return typeof proposal.kind === 'string' ? `left ${proposal.restAction} out of ${proposal.kind}` : undefined
+  }
+  const method = typeof proposal.method === 'string' ? proposal.method.trim().toUpperCase() : ''
+  const path = typeof proposal.path === 'string' ? proposal.path.trim() : ''
+  return method && path ? `mapped ${proposal.restAction} → ${method} ${path}` : undefined
+}
+
 /** A denial string from the publish compile path — a cancelled destination form is the person's decision. */
 export const denialOutcome = (denial: string): ActionOutcome => (/\bcancel/i.test(denial) ? 'declined' : 'refused')
 
@@ -268,6 +353,7 @@ const COPY: Record<ClaimFamily, { said: string; missing: string; unsuccessful: s
   apply: { declined: 'the change was not confirmed, so nothing was applied', missing: 'no change was applied', said: 'applied this change', unsuccessful: 'the change did not go through' },
   chart: { declined: 'no chart file was changed', missing: 'no chart file was changed', said: 'edited the chart', unsuccessful: 'the file edit was refused' },
   compose: { declined: 'the draft was not changed', missing: 'the draft was not changed', said: 'changed the page draft', unsuccessful: 'the draft edit was refused' },
+  controller: { declined: 'the controller draft was not changed', missing: 'the controller draft was not changed', said: 'changed the controller draft', unsuccessful: 'the portal refused the edit' },
   preview: { declined: 'no preview was produced', missing: 'no preview was produced', said: 'previewed this', unsuccessful: 'the preview did not succeed' },
   publish: { declined: 'the publish was not confirmed, so nothing was published', missing: 'nothing was published', said: 'published this', unsuccessful: 'the publish did not go through' },
 }
@@ -275,6 +361,9 @@ const COPY: Record<ClaimFamily, { said: string; missing: string; unsuccessful: s
 /** The notice line under the reply. Says what was claimed and what is true — never more. */
 export const claimNotice = (claim: UnbackedClaim): string => {
   const copy = COPY[claim.family]
+  if (claim.outcome === 'refused' && claim.reason) {
+    return `The reply says it ${claim.attempt ?? copy.said}, but the portal refused it: ${claim.reason}.`
+  }
   let truth = copy.unsuccessful
   if (claim.outcome === 'missing') {
     truth = copy.missing
@@ -292,6 +381,7 @@ const VERB_HINT: Record<ClaimFamily, string> = {
   apply: 'applyResourceSet (or patchField)',
   chart: 'chartPut / chartDelete',
   compose: 'composeAdd / composeMove / composeBind',
+  controller: 'controllerPlace / controllerMapVerb',
   preview: 'previewPage (or previewBlueprint / previewRestDef)',
   publish: 'publishPage (or publishBlueprint / publishRestDef)',
 }
