@@ -475,6 +475,12 @@ The unmounted-control case is the same silent-failure shape as P10’s inert row
 > (every `controller*` verb) also reads the sentence-initial participle ("Mapped …", "Left findby
 > out …") the reply used, and flags only when a controller verb was attempted — "placed" and
 > "confirmed" are too ordinary to flag on their own.
+>
+> Only a first-person claim ("I published") is ever flagged with nothing behind it; passive and state
+> wording ("has been published", "your preview is open") counts only when the turn attempted that
+> family and nothing succeeded. A claim about one mapping is judged against that mapping, so a
+> successful place does not cover a refused map in the same reply. The review corpus is
+> `claimCheck.corpus.test.ts`.
 
 *Evidence: verified `actionBridge.ts:397-408` · `verbRegistry.ts:129-141`*
 

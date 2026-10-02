@@ -19,6 +19,9 @@
  * questions, negations and conditionals never match: "I can preview", "shall I publish?", "to preview
  * it, …", "I haven't published", "once it has been published, …". A reply that looks back at an
  * EARLIER turn ("the page I previewed earlier") is not a claim about this one.
+ * Passive and state wording ("has been published", "your preview is open") describes a state that is
+ * as often the person's own work, so it counts only when this turn attempted the family and nothing
+ * succeeded — only a first-person claim is ever flagged with nothing behind it.
  *
  * A claim is unbacked when NO action of its family ran successfully in the same turn — either none
  * arrived at all (`missing`), or every one that arrived was refused, failed, declined by the person or
@@ -86,7 +89,7 @@ const FILE = String.raw`\x60?[\w./-]+\.(?:ya?ml|json|tpl|txt|md)\x60?`
 /** The controller edits a reply reports: "mapped", "placed Pet", "left findby out", "excluded …". */
 const CONTROLLER_EDIT = String.raw`mapped|placed|omitted|bound|excluded|left\s+[\w-]+\s+out`
 /** What "settled"/"confirmed" must be about to be a controller claim — alone they are ordinary words. */
-const CONTROLLER_NOUN = String.raw`verbs?|mappings?|identifiers?|status\s+fields?|kinds?|operations?|items\s*path|configuration`
+const CONTROLLER_NOUN = String.raw`verbs?|mappings?|identifiers?|status\s+fields?`
 /** A list marker or bold opener before a sentence-initial participle ("- Mapped …", "**Placed** …"). */
 const BULLET = String.raw`(?:[-*•]\s+|\d+[.)]\s+)?(?:\*\*)?`
 /** "Mapped verbs are listed below": a participle followed by a finite verb is an adjective, not a report. */
@@ -102,8 +105,14 @@ export interface ClaimRule {
   family: ClaimFamily
   /** The portal verbs whose successful run backs a claim of this family. */
   verbs: readonly string[]
-  /** Claim patterns — any match in a qualifying sentence is a claim. Case-insensitive. */
+  /** First-person claim patterns ("I have published") — the only form that is flagged with nothing behind it. */
   patterns: readonly RegExp[]
+  /**
+   * Passive and state wording ("has been published", "the preview is open"). It describes a state,
+   * which is just as often the person's own work or an earlier turn's, so it is a claim only when
+   * this turn ATTEMPTED the family and nothing succeeded — never `missing`.
+   */
+  passive?: readonly RegExp[]
   /** A sentence matching this is never a claim of this family (e.g. "applied the filter"). */
   unless?: RegExp
   /** Whether an approved write tool the agent ran itself (evidence / a HITL approval) backs it. */
@@ -126,34 +135,42 @@ export const CLAIM_RULES: readonly ClaimRule[] = [
     // A preview is a FRONTEND effect (the drawer, the sandbox render) — only a portal action makes one.
     backedByAgentWrites: false,
     family: 'preview',
+    passive: [
+      rx(String.raw`\b(?:is|are)\s+${ADV}(?:rendering|rendered|showing|shown|displayed|visible|live|open|up)\s+(?:in|on)\s+(?:your|the)\s+(?:live\s+)?(?:sandbox\s+)?(?:preview|drawer|sandbox)\b`),
+      rx(String.raw`\bpreview\s+(?:is|has)\s+${ADV}(?:open(?:ed)?|ready|live|rendering|up|been\s+(?:opened|rendered|generated|created))\b`),
+    ],
     patterns: [
       rx(String.raw`${I_PERF}${COORD}(?:re-?)?previewed\b`),
       rx(String.raw`${I_PERF}${COORD}(?:opened|rendered|launched|loaded|shown|showed|put|deployed)\b[^.!?\n]{0,60}?\b(?:preview|sandbox)\b`),
-      rx(String.raw`\b(?:is|are)\s+${ADV}(?:rendering|rendered|showing|shown|displayed|visible|live|open|up)\s+(?:in|on)\s+(?:your|the)\s+(?:live\s+)?(?:sandbox\s+)?(?:preview|drawer|sandbox)\b`),
-      rx(String.raw`\bpreview\s+(?:is|has)\s+${ADV}(?:open(?:ed)?|ready|live|rendering|up|been\s+(?:opened|rendered|generated|created))\b`),
+      // "now" makes it this turn's report ("The page is now rendering in your live preview"), not a state.
+      rx(String.raw`\b(?:is|are)\s+now\s+${ADV}(?:rendering|rendered|showing|shown|displayed|visible|live|open|up)\s+(?:in|on)\s+(?:your|the)\s+(?:live\s+)?(?:sandbox\s+)?(?:preview|drawer|sandbox)\b`),
     ],
     verbs: ['previewPage', 'previewBlueprint', 'previewRestDef'],
   },
   {
     backedByAgentWrites: true,
     family: 'publish',
-    patterns: [
-      rx(String.raw`${I_PERF}${COORD}(?:re-?)?published\b`),
-      rx(String.raw`${I_PERF}${COORD}(?:opened|raised|created|submitted|filed)\s+(?:a|an|the|your)\s+(?:new\s+)?(?:draft\s+)?${CHANGE_REQUEST}\b`),
+    passive: [
       rx(String.raw`\b(?:has|have)\s+been\s+${ADV}published\b`),
       rx(String.raw`\b(?:is|are)\s+now\s+published\b`),
       rx(String.raw`\b${CHANGE_REQUEST}\s+(?:has\s+been|was|is\s+now)\s+${ADV}(?:opened|created|raised|submitted)\b`),
+    ],
+    patterns: [
+      rx(String.raw`${I_PERF}${COORD}(?:re-?)?published\b`),
+      rx(String.raw`${I_PERF}${COORD}(?:opened|raised|created|submitted|filed)\s+(?:a|an|the|your)\s+(?:new\s+)?(?:draft\s+)?${CHANGE_REQUEST}\b`),
     ],
     verbs: ['publishPage', 'publishBlueprint', 'publishRestDef', 'applyResourceSet'],
   },
   {
     backedByAgentWrites: true,
     family: 'apply',
+    passive: [
+      rx(String.raw`\b(?:has|have)\s+been\s+${ADV}(?:applied|patched)\b`),
+      rx(String.raw`\b(?:is|are)\s+now\s+applied\b`),
+    ],
     patterns: [
       rx(String.raw`${I_PERF}${COORD}(?:re-?)?applied\b`),
       rx(String.raw`${I_PERF}${COORD}patched\b`),
-      rx(String.raw`\b(?:has|have)\s+been\s+${ADV}(?:applied|patched)\b`),
-      rx(String.raw`\b(?:is|are)\s+now\s+applied\b`),
     ],
     // "I applied the status filter" is a navigation (setExtras), not a write.
     unless: /\bfilters?\b/i,
@@ -166,12 +183,16 @@ export const CLAIM_RULES: readonly ClaimRule[] = [
     attemptedOnly: true,
     backedByAgentWrites: false,
     family: 'controller',
-    patterns: [
-      rx(String.raw`${I_PERF}${COORD}(?:${CONTROLLER_EDIT})\b`),
-      rx(String.raw`${I_PERF}${COORD}(?:settled|confirmed)\b[^.!?\n]{0,60}?\b(?:${CONTROLLER_NOUN})`),
-      rx(String.raw`^${BULLET}(?:${CONTROLLER_EDIT})(?:\*\*)?\s+(?!(?:[\w-]+\s+){0,2}${FINITE}\b)`),
+    passive: [
       rx(String.raw`\b(?:is|are)\s+now\s+(?:mapped|settled|placed|omitted|bound|excluded|left\s+out)\b`),
       rx(String.raw`\b(?:has|have)\s+been\s+${ADV}(?:mapped|placed|omitted|bound|excluded|left\s+out)\b`),
+    ],
+    patterns: [
+      rx(String.raw`${I_PERF}${COORD}(?:${CONTROLLER_EDIT})\b`),
+      // "I settled the verbs for Pet", never "I confirmed the operation X is not in the document".
+      rx(String.raw`${I_PERF}${COORD}(?:settled|confirmed)\s+(?:the\s+)?(?:[\w-]+\s+)?(?:${CONTROLLER_NOUN})\b(?!\s+(?:is|are|was|were|exists?)\b)`),
+      // Not "Mapped verbs are …" (an adjective), "- Mapped verbs: …" (a label) or "Mapped by you: …".
+      rx(String.raw`^${BULLET}(?:${CONTROLLER_EDIT})(?:\*\*)?\s+(?!(?:[\w-]+\s+){0,2}${FINITE}\b|by\b|[\w-]+(?:\s+[\w-]+)?\s*:)`),
     ],
     verbs: [...CONTROLLER_CLAIM_VERBS],
   },
@@ -219,29 +240,49 @@ const clauseBefore = (sentence: string, index: number): string => {
   return head.slice(cut + 1)
 }
 
-/** Every claim the text makes, at most one per family (the first phrase that made it). */
-export const findClaims = (text: string): { family: ClaimFamily; phrase: string }[] => {
-  const found = new Map<ClaimFamily, string>()
-  for (const sentence of sentencesOf(text)) {
-    // A question claims nothing ("Have I published it?", "Is it showing in the preview?").
-    if (sentence.endsWith('?') || RETROSPECTIVE.test(sentence)) {
+/** One claim the text makes: its family, the words, the sentence they sit in, and whether it is passive wording. */
+interface FoundClaim {
+  family: ClaimFamily
+  phrase: string
+  sentence: string
+  passive: boolean
+}
+
+/** The first claim `rule` finds in `sentence`, if any. */
+const claimIn = (rule: ClaimRule, sentence: string): FoundClaim | null => {
+  const tries: [RegExp, boolean][] = [...rule.patterns.map((pattern): [RegExp, boolean] => [pattern, false]), ...(rule.passive ?? []).map((pattern): [RegExp, boolean] => [pattern, true])]
+  for (const [pattern, passive] of tries) {
+    const match = pattern.exec(sentence)
+    // The patterns are case-insensitive for the verbs, but the pronoun is "I", never the Italian
+    // article ("Controlla i placed widgets").
+    if (!match || /^i(?![a-z])/.test(match[0])) {
       continue
     }
-    for (const rule of CLAIM_RULES) {
-      if (found.has(rule.family) || rule.unless?.test(sentence)) {
-        continue
-      }
-      for (const pattern of rule.patterns) {
-        const match = pattern.exec(sentence)
-        const clause = match ? clauseBefore(sentence, match.index) : ''
-        if (match && !SUBORDINATE.test(clause) && !NEGATED.test(clause)) {
-          found.set(rule.family, match[0].trim())
-          break
-        }
-      }
+    const clause = clauseBefore(sentence, match.index)
+    if (!SUBORDINATE.test(clause) && !NEGATED.test(clause)) {
+      return { family: rule.family, passive, phrase: match[0].trim(), sentence }
     }
   }
-  return [...found].map(([family, phrase]) => ({ family, phrase }))
+  return null
+}
+
+/** Every claim of every sentence, in order. */
+const allClaims = (text: string): FoundClaim[] => sentencesOf(text)
+  // A question claims nothing ("Have I published it?", "Is it showing in the preview?").
+  .filter((sentence) => !sentence.endsWith('?') && !RETROSPECTIVE.test(sentence))
+  .flatMap((sentence) => CLAIM_RULES.flatMap((rule) => {
+    const found = rule.unless?.test(sentence) ? null : claimIn(rule, sentence)
+    return found ? [found] : []
+  }))
+
+/** Every claim the text makes, at most one per family (the first phrase that made it). */
+export const findClaims = (text: string): { family: ClaimFamily; phrase: string; passive?: true }[] => {
+  const seen = new Set<ClaimFamily>()
+  return allClaims(text).flatMap(({ family, passive, phrase }) => {
+    if (seen.has(family)) { return [] }
+    seen.add(family)
+    return [{ family, phrase, ...(passive ? { passive: true as const } : {}) }]
+  })
 }
 
 /** A tool the agent ran ITSELF that writes — backs a publish/apply claim when it did not fail. */
@@ -258,43 +299,81 @@ const agentWrote = (evidence: readonly EvidenceEntry[]): boolean =>
 /** When several actions of a family arrived and none applied, the reason worth naming first. */
 const OUTCOME_PRIORITY: readonly UnbackedOutcome[] = ['declined', 'failed', 'refused', 'dropped']
 
+/** The paths a sentence names ("/pets/{petId}"), without the sentence's own full stop. */
+const pathsIn = (sentence: string): string[] => [...sentence.matchAll(/\/[\w{}.\-/]*/g)].map(([path]) => path.replace(/\.+$/, ''))
+const escape = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** What a mapping attempt names: its verb and path, read off `attemptOf`'s words. */
+const mappingOf = (attempt?: string): { action: string; path?: string } | null => {
+  const mapped = /^mapped (\S+) → \S+ (\S+)$/.exec(attempt ?? '')
+  if (mapped) { return { action: mapped[1], path: mapped[2] } }
+  const left = /^left (\S+) out of /.exec(attempt ?? '')
+  return left ? { action: left[1] } : null
+}
+
+/**
+ * Whether a sentence is about this mapping attempt. A path decides when the sentence names one —
+ * "get has been mapped to GET /pet/{petId}" is not about an attempt at /pets/{petId} — otherwise the
+ * verb's own name, as a word.
+ */
+const isAbout = (sentence: string, action: TurnAction): boolean => {
+  const mapping = mappingOf(action.attempt)
+  if (!mapping) { return false }
+  const paths = pathsIn(sentence)
+  if (mapping.path && paths.length) { return paths.includes(mapping.path) }
+  return new RegExp(String.raw`(?:^|[^\w-])${escape(mapping.action)}(?![\w-])`, 'i').test(sentence)
+}
+
 /**
  * THE KERNEL. The claims in `text` that no action of this turn backs.
  *
  * `actions` is every portal action the turn produced and how it ended (including approved or denied
  * HITL tool calls, as verb `approval`); `evidence` is the turn's tool trace.
+ *
+ * A claim about ONE mapping is backed by that mapping alone: "Placed pet as Pet. Mapped get to GET
+ * /pets/{petId}." is not backed by the place when the mapping was refused. Every other claim is
+ * backed by any success of its family.
  */
 export const checkClaims = (
   text: string,
   actions: readonly TurnAction[],
   evidence: readonly EvidenceEntry[] = [],
 ): UnbackedClaim[] => {
-  const unbacked: UnbackedClaim[] = []
-  const claims = findClaims(text)
+  const unbacked = new Map<ClaimFamily, UnbackedClaim>()
+  const claims = allClaims(text)
   // In a controller turn, "I bound petId to status.id" is ONE claim — the controller edit, not also a
   // page-draft edit (compose's verbs include the controller's, so this only spares a second notice).
   const controllerTurn = claims.some((claim) => claim.family === 'controller')
     && actions.some((action) => (CONTROLLER_CLAIM_VERBS as readonly string[]).includes(action.verb))
-  for (const { family, phrase } of claims) {
+  for (const { family, passive, phrase, sentence } of claims) {
     const rule = CLAIM_RULES.find((candidate) => candidate.family === family)!
-    if (family === 'compose' && controllerTurn) {
+    if (unbacked.has(family) || (family === 'compose' && controllerTurn)) {
       continue
     }
     const mine = actions.filter((action) => rule.verbs.includes(action.verb) || (rule.backedByAgentWrites && action.verb === 'approval'))
-    if (mine.some((action) => action.outcome === 'applied')) {
+    const about = family === 'controller' ? mine.filter((action) => isAbout(sentence, action)) : []
+    // Passive wording names a state; for a controller, only a state of an attempt it names is this turn's.
+    if (passive && family === 'controller' && !about.length) {
       continue
     }
-    if ((rule.backedByAgentWrites && agentWrote(evidence)) || (rule.attemptedOnly && !mine.length)) {
+    const backing = about.length ? about : mine
+    if (backing.some((action) => action.outcome === 'applied')) {
       continue
     }
-    const outcome = mine.length
-      ? OUTCOME_PRIORITY.find((candidate) => mine.some((action) => action.outcome === candidate)) ?? 'refused'
+    if ((rule.backedByAgentWrites && agentWrote(evidence)) || ((rule.attemptedOnly || passive) && !backing.length)) {
+      continue
+    }
+    const outcome = backing.length
+      ? OUTCOME_PRIORITY.find((candidate) => backing.some((action) => action.outcome === candidate)) ?? 'refused'
       : 'missing'
-    // A refusal is named: the first refused attempt that carries the portal's reason.
-    const named = outcome === 'refused' ? mine.find((action) => action.outcome === 'refused' && action.reason) : undefined
-    unbacked.push({ family, outcome, phrase, ...(named?.attempt ? { attempt: named.attempt } : {}), ...(named?.reason ? { reason: named.reason } : {}) })
+    // A refusal is named only when it is the one the words are about — the attempt the sentence names,
+    // or the turn's single refusal when the sentence names no other path. Otherwise the family copy.
+    const refusals = backing.filter((action) => action.outcome === 'refused' && action.reason)
+    const sole = refusals.length === 1 && !pathsIn(sentence).some((path) => path !== mappingOf(refusals[0].attempt)?.path)
+    const named = outcome === 'refused' && (about.length || sole) ? refusals[0] : undefined
+    unbacked.set(family, { family, outcome, phrase, ...(named?.attempt ? { attempt: named.attempt } : {}), ...(named?.reason ? { reason: named.reason } : {}) })
   }
-  return unbacked
+  return [...unbacked.values()]
 }
 
 /**

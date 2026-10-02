@@ -269,8 +269,27 @@ describe('a refusal described as a success — the controller family', () => {
     expect(claimNotice(claims[0])).toBe('The reply says it previewed this, but the portal refused it: no controller draft is open.')
   })
 
-  it('one applied and one refused attempt of the same family: the applied one backs it', () => {
-    expect(checkClaims(MAP_REPLY, [refusedMap, { outcome: 'applied', verb: 'controllerPlace' }])).toEqual([])
+  it('one applied and one refused attempt of the same mapping: the applied one backs it', () => {
+    const retried: TurnAction = { attempt: 'mapped get → GET /pet/{petId}', outcome: 'applied', verb: 'controllerMapVerb' }
+    expect(checkClaims('Mapped the get verb for kind Pet to GET /pet/{petId}.', [refusedMap, retried])).toEqual([])
+    expect(checkClaims('I mapped get.', [refusedMap, retried])).toEqual([])
+    expect(checkClaims('Left findby out of Pet.', [{ outcome: 'refused', verb: 'controllerSetExcludedFields' }, { outcome: 'applied', verb: 'controllerMapVerb' }])).toEqual([])
+  })
+
+  it('a success of ANOTHER controller verb does not back a refused mapping the sentence names', () => {
+    const claims = checkClaims('Placed pet as Pet. Mapped the get verb for kind Pet to GET /pets/{petId}.', [{ outcome: 'applied', verb: 'controllerPlace' }, refusedMap])
+    expect(claims).toHaveLength(1)
+    expect(claims[0]).toMatchObject({ attempt: 'mapped get → GET /pets/{petId}', family: 'controller', outcome: 'refused' })
+  })
+
+  it('names a refusal only when the words are about it', () => {
+    const other: TurnAction = { attempt: 'mapped update → PUT /pets', outcome: 'refused', reason: 'PUT /pets is not an operation of the document', verb: 'controllerMapVerb' }
+    // The sentence names the update mapping: that refusal, not the first one.
+    expect(checkClaims('I mapped update to PUT /pets.', [refusedMap, other])[0]?.reason).toBe('PUT /pets is not an operation of the document')
+    // Two refusals and words about neither: the family copy, not a guess.
+    const [generic] = checkClaims('I placed Pet.', [refusedMap, other])
+    expect(generic?.reason).toBeUndefined()
+    expect(claimNotice(generic)).toBe('Autopilot said it changed the controller draft, but the portal refused the edit.')
   })
 
   it('a controller claim with NO controller attempt is never flagged — those words are too ordinary alone', () => {
