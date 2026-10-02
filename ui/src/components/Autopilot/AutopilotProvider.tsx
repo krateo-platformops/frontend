@@ -17,7 +17,7 @@ import type { WriteOrigin } from '../../hooks/provenance'
 import { randomId } from '../../utils/utils'
 
 import type { PortalActionProposal, PortalTour } from './actionBridge'
-import { parseAutopilotDirectives, sanitizeChatText, selectProposalsToRun, useAutopilotActionBridge } from './actionBridge'
+import { isComposeVerb, isRefusedChip, parseAutopilotDirectives, previewSkippedChip, sanitizeChatText, selectProposalsToRun, useAutopilotActionBridge } from './actionBridge'
 import { AgentDraftProvider } from './agentDraft'
 import type { ApprovalDecision, ApprovalGovernor, ApprovalPause } from './approval'
 import { createApprovalGovernor, summarizeApprovalTools } from './approval'
@@ -324,8 +324,14 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     // Which of a reply's proposals run — and why compose is exempt from the one-action cap. See
     // selectProposalsToRun; order is preserved and the loop awaits them in turn.
     const toRun = selectProposalsToRun(toolProposals, textProposals)
+    // The first draft edit of this run that did not land: a trailing previewRestDef is then skipped.
+    let refusedEdit: string | null = null
     /* eslint-disable no-await-in-loop -- sequential is the point; see selectProposalsToRun. */
     for (const proposal of toRun) {
+      if (proposal.verb === 'previewRestDef' && refusedEdit !== null) {
+        chips.push(previewSkippedChip(refusedEdit))
+        continue
+      }
       // W0-3 provenance: tag the dispatch as agent-origin with the identity context the
       // provider actually holds at dispatch time — the frontend-owned session id and the
       // user's latest chat message (the prompt that produced this proposal). If a write
@@ -409,6 +415,9 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         }
       } else {
         const chip = await apply(proposal, origin)
+        if (isComposeVerb(proposal.verb) && (!chip || isRefusedChip(chip))) {
+          refusedEdit ??= chip?.label ?? `${proposal.verb} was not applied`
+        }
         if (chip) {
           chips.push(chip)
           // An inline previewRestDef arms NOTHING (frontend#429): it is an inspection, and a

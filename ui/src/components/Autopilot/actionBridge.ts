@@ -445,6 +445,12 @@ export const isComposeVerb = (verb: string): boolean => COMPOSE_VERBS.has(verb) 
  * A reply that mixes compose with something else is answered as the AUTHORING it is: the compose
  * sequence runs and the rest is dropped. Mixing is not a shape the prompt asks for, and choosing
  * the page-moving action over the draft edits would apply the half the user did not ask about.
+ *
+ * A CONTROLLER RUN MAY END IN ITS PREVIEW. "Place Pet, omit findby, then preview it" is one request,
+ * and without this the preview was dropped and the turn ended with chips until the person asked
+ * again. One previewRestDef written AFTER the last controller verb runs last, once every edit has
+ * settled; one written before them would render the draft as it was, so it is dropped. The caller
+ * skips it when an edit of the run was refused (previewSkippedChip). publishRestDef never rides along.
  */
 export const selectProposalsToRun = (
   toolProposals: readonly PortalActionProposal[],
@@ -452,7 +458,17 @@ export const selectProposalsToRun = (
 ): PortalActionProposal[] => {
   const ordered = [...toolProposals, ...textProposals]
   const composeRun = ordered.filter((candidate) => isComposeVerb(candidate.verb))
-  return composeRun.length ? composeRun : ordered.slice(0, 1)
+  if (!composeRun.length) {
+    return ordered.slice(0, 1)
+  }
+  let lastControllerEdit = -1
+  ordered.forEach((candidate, index) => {
+    if (isControllerVerb(candidate.verb)) { lastControllerEdit = index }
+  })
+  const preview = lastControllerEdit < 0
+    ? undefined
+    : ordered.slice(lastControllerEdit + 1).find((candidate) => candidate.verb === 'previewRestDef')
+  return preview ? [...composeRun, preview] : composeRun
 }
 
 export const parseAutopilotDirectives = (text: string): AutopilotDirectives => {
@@ -548,6 +564,14 @@ export const refused = (verb: string, reason?: string): AutopilotActionChip => (
   readOnly: true,
   verb,
 })
+
+/** True for the chip of a verb the portal refused (`refused` here, `refuse` in controllerVerbs.ts). */
+export const isRefusedChip = (chip: AutopilotActionChip): boolean =>
+  chip.label.startsWith(`${chip.verb} — this portal did not run it`)
+
+/** The chip for a trailing preview skipped because an edit before it was refused — the draft is not what the reply meant. */
+export const previewSkippedChip = (refusedEdit: string): AutopilotActionChip =>
+  refused('previewRestDef', `an edit before it was refused, so the draft is not what this reply described: ${refusedEdit}`)
 
 /**
  * The bridge hook. `apply` compiles ONE proposal to a canonical action and drives
