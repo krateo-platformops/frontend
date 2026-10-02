@@ -62,3 +62,13 @@
   flex-wrap: wrap;
   gap: var(--spacing-xsm);
 }
+
+/* `tag` cell — a Tag never wider than its cell. antd's Tag is an inline-block, so the cell's own
+   ellipsis cannot reach inside it and an overflowing tag was clipped mid-word; capped at the cell
+   it ellipsizes itself (full text in its title), the same way an antd ellipsis cell does. */
+.tagCell {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}

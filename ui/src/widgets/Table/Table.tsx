@@ -1,6 +1,6 @@
 import type { IconProp } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { Table as AntdTable, Progress, Result, Tag, Typography } from 'antd'
+import { Table as AntdTable, Progress, Result, Tag, theme, Typography } from 'antd'
 import type { TablePaginationConfig } from 'antd'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router'
@@ -15,6 +15,7 @@ import { formatISODate, formatRelativeTime } from '../../utils/utils'
 
 import styles from './Table.module.css'
 import type { Table as WidgetType } from './Table.type'
+import { tagColumnLayout } from './tableColumnWidths'
 import { computeTablePagination, shouldVirtualize, VIRTUAL_SCROLL_Y } from './tablePagination'
 import { getColumnSortProps } from './tableSorting'
 
@@ -25,6 +26,7 @@ const Table = ({ deniedRefIds, resourcesRefs, serverPagination, uid, widgetData 
   const data = dataSource ?? []
   const { getFilteredData } = useFilter()
   const navigate = useNavigate()
+  const { token } = theme.useToken()
 
   // Optional row → route navigation. `rowNavigateTo` is a path with `{valueKey}`
   // placeholders filled from that row's cells (e.g. "/compositions/{ns}/{name}").
@@ -73,8 +75,26 @@ const Table = ({ deniedRefIds, resourcesRefs, serverPagination, uid, widgetData 
   // `fitContent`: shrink columns to the container instead of the default horizontal scroll — a wide
   // cell then ellipsis-truncates (full text on hover) rather than pushing a scrollbar. Virtual tables
   // need a fixed scroll viewport, so fitContent only takes effect in the non-virtual (small) case.
+  //
+  // Both of those truncate cells, and a Tag is an atomic inline-block: the cell's text-overflow
+  // cannot reach inside it, so a tag wider than its column was cut mid-word with no ellipsis
+  // ("Underprovision" on a narrow Portal Builder preview). A column that renders tags therefore gets
+  // a fixed width that fits its widest tag, and the table a numeric scroll.x (the sum of every
+  // column's floor) — antd's own pairing: it fills the container when there is room and scrolls
+  // horizontally when there is not. A table with no tag column keeps exactly the layout it had.
+  const truncating = Boolean(fitContent) || virtual
+  const { scrollX: tagScrollX, tagWidths } = truncating
+    ? tagColumnLayout(columns, dataTable ?? [], {
+      // antd Table cell inline padding: `padding` for large, `paddingXS` for middle and small.
+      cellPadding: 2 * (size === 'large' ? token.padding : token.paddingXS) + (bordered ? token.lineWidth : 0),
+      fontSize: token.fontSizeSM,
+      // antd Tag: tagPaddingHorizontal is a fixed 8px per side, border included.
+      tagChrome: 2 * 8,
+    })
+    : { scrollX: undefined, tagWidths: [] }
   const horizontalScroll = fitContent ? undefined : { x: 'max-content' as const }
-  const scroll = virtual ? { x: 'max-content' as const, y: VIRTUAL_SCROLL_Y } : horizontalScroll
+  const truncatingScroll = tagScrollX ? { x: tagScrollX } : horizontalScroll
+  const scroll = virtual ? { x: tagScrollX ?? ('max-content' as const), y: VIRTUAL_SCROLL_Y } : truncatingScroll
 
   // Pagination: controlled server-side classic pager when the widget opts in
   // (serverPagination), else the CR's own pagination config (or none). See
@@ -127,7 +147,11 @@ const Table = ({ deniedRefIds, resourcesRefs, serverPagination, uid, widgetData 
               // Per-row colored Tag (e.g. status Healthy/Failed/Pending). The color rides on
               // the cell so each row can differ. Resolved to the EXACT Petrol hex soft-tint
               // (not antd's preset palette) so the status pill is cyan/crimson/magenta/amber.
-              return <Tag style={getTagStyle(cellColor ?? color)}>{stringValue ?? '-'}</Tag>
+              //
+              // `.tagCell` + `title` are the backstop for a label the column floor still under-measures:
+              // the tag ellipsizes with its full text on hover, as an antd ellipsis cell does, instead
+              // of being cut mid-word.
+              return <Tag className={styles.tagCell} style={getTagStyle(cellColor ?? color)} title={stringValue}>{stringValue ?? '-'}</Tag>
 
             case 'bar': {
               // Reconciliation-rail gauge cell (desired-vs-actual): cyan CONVERGED fill to
@@ -235,7 +259,7 @@ const Table = ({ deniedRefIds, resourcesRefs, serverPagination, uid, widgetData 
             </Typography.Text>
           </div>
         ),
-        width,
+        width: tagWidths[index] ?? width,
       }))}
       dataSource={dataTable}
       key={uid}
