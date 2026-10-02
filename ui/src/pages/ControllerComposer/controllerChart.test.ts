@@ -117,8 +117,8 @@ describe('placing and mapping', () => {
     expect((resource.verbsDescription as { action: string }[]).map((verb) => verb.action)).toEqual(['create', 'get', 'delete'])
     expect((resource.verbsDescription as { fieldMapping?: unknown }[])[1].fieldMapping).toEqual([{ inCustomResource: 'status.id', inPath: 'petId' }])
     expect(resource.identifiers).toEqual(['id'])
-    // status carries id, so spec does not ask the person for it.
-    expect(resource.excludedSpecFields).toEqual(['id'])
+    // status carries id, so spec does not ask the person for it — nor for {petId}, read from status.id.
+    expect(resource.excludedSpecFields).toEqual(['id', 'petId'])
     expect(pet.conflicts.map((conflict) => conflict.action)).toEqual(['findby', 'update'])
     expect(lintControllerDraft(files)).toEqual([
       'Pet: 2 operations look like findby (GET /pet/findByStatus, GET /pet/findByTags) — choose one in the inspector, or leave findby out.',
@@ -159,10 +159,10 @@ describe('placing and mapping', () => {
   it('a hand edit in the file survives an inspector edit', () => {
     let files = apply(started(), planPlaceGroup(started(), 'pet'))
     const path = restDefinitionPath('Pet')
-    expect(files[path]).toContain('    excludedSpecFields:\n      - id\n')
-    files = { ...files, [path]: files[path].replace('    excludedSpecFields:\n      - id\n', '    excludedSpecFields:\n      - id\n      - photoUrls\n') }
+    expect(files[path]).toContain('    excludedSpecFields:\n      - id\n      - petId\n')
+    files = { ...files, [path]: files[path].replace('    excludedSpecFields:\n      - id\n      - petId\n', '    excludedSpecFields:\n      - id\n      - petId\n      - photoUrls\n') }
     files = apply(files, planToggleField(files, path, 'additionalStatusFields', 'status'))
-    expect((readController(files).kinds[0].restDefinition.spec as { resource: Record<string, unknown> }).resource.excludedSpecFields).toEqual(['id', 'photoUrls'])
+    expect((readController(files).kinds[0].restDefinition.spec as { resource: Record<string, unknown> }).resource.excludedSpecFields).toEqual(['id', 'petId', 'photoUrls'])
   })
 
   it('a ConfigMap template is not read as a Kind, and the document path is where the RestDefinitions point', () => {

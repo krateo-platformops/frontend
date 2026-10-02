@@ -24,6 +24,7 @@
  */
 import { findBuilderOf } from '../../builders/builderRegistry'
 import {
+  askedOnCreateNotes,
   configurationCandidates,
   heldItemsPath,
   heldVerb,
@@ -237,6 +238,7 @@ export const summarizeController = (held: BlueprintDraftHeld | null, state: Held
       .map((field) => (field as { fromOpenAPI?: { name?: string; in?: string } }).fromOpenAPI)
       .filter((from): from is { name: string; in: string } => typeof from?.name === 'string' && typeof from.in === 'string')
       .map((from) => ({ in: from.in, name: from.name }))
+    const notes = askedOnCreateNotes(entry, !!locked?.[entry.path])
     const configuration = configurationCandidates(model, entry).map((candidate) => ({ actions: candidate.actions, in: candidate.in, name: candidate.name }))
     return {
       file: entry.path,
@@ -261,6 +263,7 @@ export const summarizeController = (held: BlueprintDraftHeld | null, state: Held
       ...(configuration.length ? { configurationCandidates: configuration } : {}),
       ...(configurationFields.length ? { configurationFields } : {}),
       ...(locked?.[entry.path] ? { published: true as const } : {}),
+      ...(notes.length ? { notes } : {}),
     }
   })
   const problems = lintHeldDraft(held.files, held.kind)

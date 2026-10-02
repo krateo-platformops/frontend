@@ -313,6 +313,12 @@ export interface ControllerKindSummary {
   /** Fields the generated spec leaves out (status carries them) — controllerSetExcludedFields. */
   excludedSpecFields?: string[]
   /**
+   * Published only: a path parameter status supplies that spec still asks for on create, because the
+   * Kind was published before it was excluded — excludedSpecFields is locked, so only recreating the
+   * RestDefinition removes it. One sentence each.
+   */
+  notes?: string[]
+  /**
    * Where each path parameter a verb needs is read from (`status.metadata.id`). `confirm` — the binding
    * is ambiguous or one segment is named two ways: settle it with controllerBindId, from `choices`.
    */

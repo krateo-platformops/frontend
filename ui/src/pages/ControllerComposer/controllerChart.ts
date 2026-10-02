@@ -52,6 +52,7 @@ import {
   readController,
   RELEASE_NAMESPACE,
   RESTDEFINITION_PATH,
+  statusBoundPathParams,
   verbsOf,
 } from './controllerModel'
 import { OAS_METHODS, type OasDocument, type OasFormat } from './oasImport'
@@ -287,7 +288,8 @@ const createBodyOf = (doc: OasDocument | undefined, restDefinition: Record<strin
  * What a status-sourced id binding needs beside the fieldMapping, applied to the resource: the field it
  * reads must BE in status (oasgen builds status from identifiers + additionalStatusFields only), and a
  * field status carries is not also asked of the person in spec — it goes to excludedSpecFields when the
- * create body has it (petstore's `id`). Fields already listed are left as they are; both lists stay
+ * create body has it (petstore's `id`), and so does a path parameter every verb carrying it reads from
+ * status (petstore's `petId` — oasgen injects path parameters into spec). Fields already listed are left as they are; both lists stay
  * editable afterwards.
  */
 const settleStatusBindings = (doc: OasDocument | undefined, restDefinition: Record<string, unknown>, resource: Record<string, unknown>): void => {
@@ -304,7 +306,9 @@ const settleStatusBindings = (doc: OasDocument | undefined, restDefinition: Reco
   const body = createBodyOf(doc, restDefinition)
   const excluded = list('excludedSpecFields')
   const exclude = bound.filter((field) => !excluded.includes(field) && !!doc && !!body && schemaHasField(doc, body, field))
-  setOrDrop(resource, 'excludedSpecFields', [...excluded, ...new Set(exclude)])
+  // The path parameter itself (petstore's petId), when every verb carrying it reads it from status.
+  const params = statusBoundPathParams(restDefinition).filter((param) => !excluded.includes(param))
+  setOrDrop(resource, 'excludedSpecFields', [...excluded, ...new Set([...exclude, ...params])])
 }
 
 /** Place a resource group of the document as a Kind: its RestDefinition, verbs inferred, conflicts left out. */
@@ -546,7 +550,8 @@ export const planSetItemsPath = (
 
 /**
  * What spec may leave out (excludedSpecFields) — the inspector's checkboxes and the only fields
- * controllerSetExcludedFields takes: what a status binding reads, then the create body's fields
+ * controllerSetExcludedFields takes: what a status binding reads, the path parameters read from
+ * status (statusBoundPathParams), then the create body's fields
  * (top-level, and nested leaves).
  */
 export const exclusionCandidates = (kind: ControllerKind, model: ControllerModel): { field: string; reason: string }[] => {
@@ -554,6 +559,9 @@ export const exclusionCandidates = (kind: ControllerKind, model: ControllerModel
   const create = heldVerb(kind.restDefinition, 'create')
   const body = doc && create ? requestBodySchema(doc, create.method, create.path) : null
   const bound = (kind.held?.boundStatusFields ?? []).map((field) => ({ field, reason: 'status carries it — the id is read from there' }))
+  for (const param of statusBoundPathParams(kind.restDefinition)) {
+    if (!bound.some((entry) => entry.field === param)) { bound.push({ field: param, reason: 'path parameter read from status — spec need not ask for it' }) }
+  }
   const fields = doc && body
     ? [...Object.keys(schemaProperties(doc, body)), ...scalarLeaves(doc, body).map((leaf) => leaf.path).filter((path) => path.includes('.'))]
     : []

@@ -453,7 +453,7 @@ const setExcludedVerb = (proposal: PortalActionProposal): AutopilotActionChip =>
   const current = currentList(kind, 'excludedSpecFields')
   const unknown = wanted.filter((field) => !offered.includes(field) && !current.includes(field))
   if (unknown.length) {
-    return refuse(verb, tried, `${unknown.join(', ')} is not a field ${kind.kind}'s spec could leave out — the candidates are what a status binding reads and what create sends: ${listed(offered)}`)
+    return refuse(verb, tried, `${unknown.join(', ')} is not a field ${kind.kind}'s spec could leave out — the candidates are what a status binding reads, the path parameters read from status, and what create sends: ${listed(offered)}`)
   }
   const plan = planSetList(held, kind, 'excludedSpecFields', wanted)
   if (!plan) {

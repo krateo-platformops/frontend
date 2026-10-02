@@ -227,7 +227,7 @@ describe('petstore, authored in the UI with no rail', () => {
     const pet = load(files['templates/restdefinition-pet.yaml']) as { spec: { resource: Record<string, unknown> } }
     expect(pet.spec.resource).toMatchObject({
       configurationFields: [{ fromOpenAPI: { in: 'header', name: 'api_key' }, fromRestDefinition: { actions: ['delete'] } }],
-      excludedSpecFields: ['id'],
+      excludedSpecFields: ['id', 'petId'],
       identifiers: ['id'],
       kind: 'Pet',
     })

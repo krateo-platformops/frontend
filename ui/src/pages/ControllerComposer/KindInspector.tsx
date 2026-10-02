@@ -27,6 +27,7 @@ import { countNoun } from '../../utils/utils'
 import styles from '../BlueprintComposer/BlueprintComposer.module.css'
 
 import {
+  askedOnCreateNotes,
   configurationCandidates,
   exclusionCandidates,
   heldItemsPath,
@@ -408,6 +409,7 @@ export const KindInspector = (props: InspectorProps) => {
           ))}
           {!(exclusionCandidates(kind, model).length || excluded.length) ? <p className={styles.fieldText}>There is no create body to leave fields out of.</p> : null}
         </div>
+        {askedOnCreateNotes(kind, !!props.locked).map((note) => <p className={styles.note} key={note}>{note}</p>)}
       </Section>
 
       <Section title='Compare scope'>
