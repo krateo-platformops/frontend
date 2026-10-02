@@ -11,6 +11,7 @@
  */
 
 import type { ApprovalDecision, ApprovalPause } from './approval'
+import type { UnbackedClaim } from './claimCheck'
 import type { ComposeRefusalNote } from './composeRequest'
 
 /** Who authored a transcript message. */
@@ -52,6 +53,14 @@ export interface AutopilotMessage {
    * messages predating the feature, which read as `text`: never speaking is the safe default.
    */
   modality?: TurnModality
+  /**
+   * What the reply SAID it did that the turn did not do (claimCheck.ts) — a preview, publish or
+   * apply stated as done with no successful action behind it. The rail renders a notice under the
+   * text; the text itself is never altered. Absent = nothing to flag.
+   */
+  claims?: UnbackedClaim[]
+  /** The person pressed Retry on the claim notice — the hidden re-ask was sent once. */
+  claimRetried?: boolean
   createdAt: number
 }
 

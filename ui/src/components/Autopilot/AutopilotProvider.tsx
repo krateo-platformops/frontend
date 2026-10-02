@@ -40,17 +40,19 @@ import { blueprintChipRendered, compilePublishOps, heldDraftIdentity, recordBlue
 import { narratedPublishNudge, publishDraft, runPersonPublish } from './publishDraft'
 import { PublishTargetFormHost } from './publishTargetForm'
 import type { ThreadSummary } from './sessionHistoryStore'
-import { a2aAuthHeader, createEchoTransport, createKagentTransport } from './transport'
+import { createEchoTransport, createKagentTransport } from './transport'
 import type { AutopilotActionChip, AutopilotFrame, AutopilotMessage, AutopilotTransport, EvidenceEntry, PageContextEnvelope, TurnModality } from './types'
 import { buildContextDelta, useAutopilotContext } from './useAutopilotContext'
+import { useAutopilotReachability } from './useAutopilotReachability'
 import { useBlueprintAuthoringBuses } from './useBlueprintAuthoringBuses'
+import { type ClaimRetryApi, useClaimCheck } from './useClaimCheck'
 import { createDraftAutosave, useDraftAutosave } from './useDraftAutosave'
 import { createBroadcastingDraftStore, useDraftFileBuses } from './useDraftFileBuses'
 import { useDraftResumeBus } from './useDraftResumeBus'
 import { autopilotSpeakBackStore } from './voice/speak/speakBackStore'
 import { stopVoice } from './voiceWiring'
 
-interface AutopilotContextValue {
+interface AutopilotContextValue extends ClaimRetryApi {
   /** Whether Autopilot is CONFIGURED (endpoint present / dev echo) — controls rail + toggle
    * VISIBILITY. The toggle renders whenever this is true, even if the agent is not currently
    * reachable, so the capability stays discoverable. */
@@ -118,43 +120,11 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   const useEcho = endpoint === 'echo' || (import.meta.env.DEV && import.meta.env.VITE_AUTOPILOT_ECHO === 'true')
   const enabled = Boolean(endpoint) || useEcho
 
-  // Availability (CLICKABILITY — distinct from `enabled`/visibility). The toggle grays out when EITHER
-  //  (a) the installer marks Autopilot unavailable: config.api.AUTOPILOT_AVAILABLE === 'false' (set when
-  //      agents are not deployed/licensed, features.coreAgents=false); OR
-  //  (b) a runtime reachability probe of the endpoint fails (agent deployed but down/unreachable).
-  // Echo/dev is always reachable. The probe re-runs when the endpoint changes and on window focus, so a
-  // later-deployed or recovered agent flips the toggle live without a page reload.
-  const flagAvailable = config?.api.AUTOPILOT_AVAILABLE !== 'false'
   // Per-builder publish destinations, resolved from install config (owner/repo slug) → the built-in
   // canonical fallback. Config-driven so an org/repo rename is a values change, not a rebuild.
   const builderTargets = useBuilderTargets(config)
-  const [probeOk, setProbeOk] = useState(true)
-  useEffect(() => {
-    if (!enabled || useEcho || !flagAvailable || !endpoint) {
-      return
-    }
-    const ctrl = new AbortController()
-    // GET the A2A base, carrying the Bearer the real turns carry: a 5xx gateway error means the
-    // proxy could not reach the agent upstream (not deployed / down), and 401/403 mean this user
-    // cannot drive the agent at all (invalid session, or agentgateway RBAC denies them this
-    // agent) — both are a dead click. Any other response (200/404/405/…) means it answered.
-    const probe = () => {
-      fetch(`${endpoint.replace(/\/$/, '')}/`, { headers: a2aAuthHeader(), method: 'GET', signal: ctrl.signal })
-        .then((res) => setProbeOk(res.status !== 401 && res.status !== 403 && (res.status < 502 || res.status > 504)))
-        .catch(() => {
-          if (!ctrl.signal.aborted) {
-            setProbeOk(false)
-          }
-        })
-    }
-    probe()
-    window.addEventListener('focus', probe)
-    return () => {
-      ctrl.abort()
-      window.removeEventListener('focus', probe)
-    }
-  }, [enabled, useEcho, flagAvailable, endpoint])
-  const reachable = enabled && flagAvailable && (useEcho || probeOk)
+  // CLICKABILITY (distinct from `enabled`/visibility): the installer flag AND a live probe — see the hook.
+  const reachable = useAutopilotReachability(enabled, useEcho, config?.api.AUTOPILOT_AVAILABLE !== 'false', endpoint)
 
   const { collect } = useAutopilotContext()
   // DRAFT RECORDS: the held draft autosaved to the sandbox (useDraftAutosave). Built before the bridge
@@ -241,6 +211,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // (send is declared after finalize); `recoveryCountRef` caps retries so a persistently-off turn can't loop.
   const sendRef = useRef<((text: string, opts?: { modality?: TurnModality; recovery?: boolean }) => void) | undefined>(undefined)
   const recoveryCountRef = useRef(0)
+  // THE CLAIM CHECK (useClaimCheck / claimCheck.ts): what a reply SAYS it did, against what its turn did.
+  const { flag: flagClaims, noteDecision, retryClaims, track: trackTurn } = useClaimCheck({ messages, sendRef, sessionId, setMessages, streaming })
 
   const transport: AutopilotTransport = useMemo(() => (endpoint && endpoint !== 'echo' ? createKagentTransport(endpoint) : createEchoTransport()), [endpoint])
 
@@ -321,6 +293,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     setStreaming(false)
 
     const chips: AutopilotActionChip[] = []
+    // `apply` for THIS turn, recording each chip it returns — the claim check's record of what ran.
+    const applyTurn = trackTurn(apply)
     // Which of a reply's proposals run — and why compose is exempt from the one-action cap. See
     // selectProposalsToRun; order is preserved and the loop awaits them in turn.
     const toRun = selectProposalsToRun(toolProposals, textProposals)
@@ -349,7 +323,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         if (compiled.denial !== null) {
           chips.push({ label: compiled.denial, readOnly: true, verb: 'applyResourceSet' })
         } else if (compiled.ops) {
-          const chip = await apply({ label, ops: compiled.ops, verb: 'applyResourceSet' }, origin)
+          const chip = await applyTurn({ label, ops: compiled.ops, verb: 'applyResourceSet' }, origin)
           pushChip(chip)
           if (held && compiled.claim && chip && !chip.failure) { void draftAutosave.markPublished(held, compiled.claim, deepLink) }
           if (deepLink) {
@@ -411,10 +385,10 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
         if (denial !== null) {
           chips.push({ label: denial, readOnly: true, verb: 'applyResourceSet' })
         } else if (compiledOps) {
-          pushChip(await apply({ ...proposal, ops: compiledOps }, origin))
+          pushChip(await applyTurn({ ...proposal, ops: compiledOps }, origin))
         }
       } else {
-        const chip = await apply(proposal, origin)
+        const chip = await applyTurn(proposal, origin)
         if (isComposeVerb(proposal.verb) && (!chip || isRefusedChip(chip))) {
           refusedEdit ??= chip?.label ?? `${proposal.verb} was not applied`
         }
@@ -501,6 +475,10 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       setTourOpen(true)
     }
 
+    // Flagged only HERE, past every trampoline: a turn about to be re-issued (its text replaced by
+    // "↻ One moment…", or an ajv-rejected preview self-correcting) is not the answer the person keeps.
+    flagClaims(assistantId, cleanedText, { applied: applyTurn, chips, evidence, proposals: [...toolProposals, ...textProposals], toRun })
+
     // SPEAK-BACK (voice spec §3, FR 73). Here and nowhere else, for three reasons the
     // provider's own code makes structural rather than stylistic:
     //   1. Mid-stream text is `sanitizeChatText(next)` while the FINAL message is REPLACED
@@ -514,7 +492,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     // otherwise never learn the answer proposes changing something (FR 71). The store decides
     // whether anything is actually said: a typed turn is always silent.
     autopilotSpeakBackStore.speakAnswer({ actions: chips, id: assistantId, modality, text: cleanedText })
-  }, [apply, blueprintGate, blueprintStore, builderTargets, config, draftAutosave, oasStore, sessionId, setMessages])
+  }, [apply, blueprintGate, blueprintStore, builderTargets, config, draftAutosave, flagClaims, oasStore, sessionId, setMessages, trackTurn])
 
   const applyFrame = useCallback((assistantId: string, frame: AutopilotFrame, modality: TurnModality) => {
     switch (frame.kind) {
@@ -589,13 +567,14 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // grows a tool-approval action shape.
   const dispatchDecision = useCallback((decision: ApprovalDecision, pause: ApprovalPause, chipLabel: string) => {
     const assistantId = randomId()
+    noteDecision(assistantId, decision.type)
     setMessages((prev) => [
       ...prev,
       { actions: [{ label: chipLabel, readOnly: decision.type === 'reject', verb: 'approval' }], createdAt: Date.now(), id: assistantId, role: 'assistant', streaming: true, text: '' },
     ])
     setStreaming(true)
     abortRef.current = transport.respondToApproval(decision, pause, { onFrame: (frame) => applyFrame(assistantId, frame, 'text') })
-  }, [applyFrame, setMessages, transport])
+  }, [applyFrame, noteDecision, setMessages, transport])
 
   // Keep the governor-timeout path pointing at the CURRENT dispatchDecision (the
   // governor closure is created inside applyFrame and must not go stale).
@@ -858,8 +837,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // `sessions` is a stable bound-free store method (closes over its own state, no `this`) — passed
   // through directly; it reads the archive lazily each call, re-read on every provider re-render.
   const value = useMemo<AutopilotContextValue>(() => ({
-    approvePending, attachOasDocument, clearOasAttachment, closeTour, collect, denyPending, enabled, messages, newThread, oasAttachment: oasHeld, open, pendingApproval, reachable, restored, send, sessionId, sessions: autopilotConversationStore.sessions, setOpen, stop, streaming, switchToThread, toggle, tour, tourOpen,
-  }), [approvePending, attachOasDocument, clearOasAttachment, closeTour, collect, denyPending, enabled, messages, newThread, oasHeld, open, pendingApproval, reachable, restored, send, sessionId, stop, streaming, switchToThread, toggle, tour, tourOpen])
+    approvePending, attachOasDocument, clearOasAttachment, closeTour, collect, denyPending, enabled, messages, newThread, oasAttachment: oasHeld, open, pendingApproval, reachable, restored, retryClaims, send, sessionId, sessions: autopilotConversationStore.sessions, setOpen, stop, streaming, switchToThread, toggle, tour, tourOpen,
+  }), [approvePending, attachOasDocument, clearOasAttachment, closeTour, collect, denyPending, enabled, messages, newThread, oasHeld, open, pendingApproval, reachable, restored, retryClaims, send, sessionId, stop, streaming, switchToThread, toggle, tour, tourOpen])
 
   return (
     <AutopilotReactContext.Provider value={value}>
