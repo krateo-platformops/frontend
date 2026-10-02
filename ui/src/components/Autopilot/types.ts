@@ -122,6 +122,12 @@ export interface AutopilotActionChip {
    * person's Publish reads it to decide whether to say "published".
    */
   failure?: string
+  /**
+   * The portal declined the verb and nothing ran — set by both refusal helpers (`refused` in
+   * actionBridge.ts, `refuse` in controllerVerbs.ts). Structural so the rail can draw a refusal
+   * instead of the applied check without reading the label's prose.
+   */
+  refused?: boolean
 }
 
 // ────────────────────────────────────────────────────────────────────────────

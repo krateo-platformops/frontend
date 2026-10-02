@@ -262,6 +262,13 @@ describe('the edit verbs — the inspector\'s and the palette\'s plans', () => {
     }
   })
 
+  it('marks its refusal on the chip, so the rail does not draw it as applied', async () => {
+    mount()
+    let chip: Awaited<ReturnType<typeof DRAFT_VERB_REGISTRY[string]['apply']>> = null
+    await act(async () => { chip = await DRAFT_VERB_REGISTRY.controllerPlace.apply({ group: 'pet', verb: 'controllerPlace' }, deps()) })
+    expect(chip).toMatchObject({ refused: true, verb: 'controllerPlace' })
+  })
+
   it('refuses to edit a draft of another kind, by name', async () => {
     const { store } = mount()
     act(() => { store.set({ 'Chart.yaml': 'apiVersion: v2\nname: chart\nversion: 0.1.0\n', 'values.schema.json': '{"type":"object"}' }, 'blueprint') })
