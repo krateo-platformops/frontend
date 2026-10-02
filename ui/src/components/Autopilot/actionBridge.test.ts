@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 
 import { describe, expect, it } from 'vitest'
 
-import { parseAutopilotDirectives, sanitizeChatText, refused, selectProposalsToRun } from './actionBridge'
+import { isRefusedChip, parseAutopilotDirectives, previewSkippedChip, sanitizeChatText, refused, selectProposalsToRun } from './actionBridge'
 import type { PortalActionProposal } from './actionBridge'
 
 const railSource = (file: string): string =>
@@ -364,5 +364,51 @@ describe('selectProposalsToRun', () => {
 
   it('answers nothing for an empty reply', () => {
     expect(selectProposalsToRun([], [])).toEqual([])
+  })
+
+  // Observed on krateo-057: "place Pet, omit findby, then preview it" placed, settled — and ended the
+  // turn with chips, because the preview beside the edits was dropped. It took a second message.
+  it('lets a controller run END in its preview, run after every edit', () => {
+    const run = selectProposalsToRun([], [at('controllerStart'), at('controllerPlace'), at('controllerMapVerb'), at('previewRestDef')])
+    expect(run.map((x) => x.verb)).toEqual(['controllerStart', 'controllerPlace', 'controllerMapVerb', 'previewRestDef'])
+  })
+
+  it('drops a preview written BEFORE the last edit — it would render the draft as it was', () => {
+    const run = selectProposalsToRun([at('controllerPlace')], [at('previewRestDef'), at('controllerMapVerb')])
+    expect(run.map((x) => x.verb)).toEqual(['controllerPlace', 'controllerMapVerb'])
+  })
+
+  it('keeps ONE trailing preview, never a publish', () => {
+    const run = selectProposalsToRun([], [at('controllerPlace'), at('previewRestDef'), at('previewRestDef'), at('publishRestDef')])
+    expect(run.map((x) => x.verb)).toEqual(['controllerPlace', 'previewRestDef'])
+  })
+
+  it('does not attach a preview to a page or chart compose run', () => {
+    expect(selectProposalsToRun([], [at('composeAdd'), at('previewRestDef')]).map((x) => x.verb)).toEqual(['composeAdd'])
+  })
+
+  it('leaves a preview alone in a reply of its own', () => {
+    expect(selectProposalsToRun([], [at('previewRestDef')]).map((x) => x.verb)).toEqual(['previewRestDef'])
+  })
+})
+
+describe('a trailing preview after a refused edit', () => {
+  it('reads a refusal chip from either refusal helper, and nothing else', () => {
+    expect(isRefusedChip(refused('controllerMapVerb', 'findby is not a verb of Pet'))).toBe(true)
+    expect(isRefusedChip({ label: 'controllerMapVerb — this portal did not run it (a conflict is still unsettled)', readOnly: true, verb: 'controllerMapVerb' })).toBe(true)
+    expect(isRefusedChip({ label: 'Omitted findby on Pet — Preview needed before it can be published', readOnly: true, verb: 'controllerMapVerb' })).toBe(false)
+  })
+
+  it('is skipped with the reason, not run against a draft the reply did not make', () => {
+    const chip = previewSkippedChip('controllerMapVerb — this portal did not run it (PUT /pets is not an operation of the document)')
+    expect(chip.verb).toBe('previewRestDef')
+    expect(isRefusedChip(chip)).toBe(true)
+    expect(chip.label).toContain('PUT /pets is not an operation of the document')
+  })
+
+  it('is wired into finalize: a refused or unapplied draft edit skips the preview', () => {
+    const provider = railSource('AutopilotProvider.tsx')
+    expect(provider).toMatch(/proposal\.verb === 'previewRestDef' && refusedEdit !== null/)
+    expect(provider).toMatch(/isComposeVerb\(proposal\.verb\) && \(!chip \|\| isRefusedChip\(chip\)\)/)
   })
 })
