@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Envelope } from '../src/envelope'
-import { byKind, type Draft, example, json, liveCtx, recorder, run } from './helpers'
+import { byKind, type Draft, example, fakeSnowplow, json, liveCtx, recorder, run } from './helpers'
 
 const failsAt = (envelope: Envelope, stepName: string, pattern: RegExp): void => {
   expect(envelope.ok).toBe(false)
@@ -88,6 +88,24 @@ describe('references', () => {
     const draft = mutate((d) => { byKind(d, 'Flex').spec.resourcesRefs.items[1].name = 'pod-sizing-tabel' })
     failsAt(await run(draft), 'references', /spec.resourcesRefs.items\[1\]: notChecked: not in the draft/)
   })
+  it('a NESTED widget\'s child is checked too, not only the root\'s (M2)', async () => {
+    const draft = mutate((d) => {
+      byKind(d, 'Table').spec.resourcesRefs.items = [{ id: 'x', apiVersion: 'widgets.templates.krateo.io/v1beta1', resource: 'buttons', name: 'nowhere', namespace: 'krateo-system' }]
+    })
+    failsAt(await run(draft), 'references', /widgets\[2\] \(Table\/pod-sizing-table\): spec.resourcesRefs.items\[0\]: notChecked: not in the draft/)
+  })
+  it('a LITERAL resourcesRefsTemplate entry is checked; a templated one is left to render time', async () => {
+    const literal = mutate((d) => {
+      byKind(d, 'Table').spec.resourcesRefsTemplate = [{ iterator: '${ .pods }', template: { apiVersion: 'widgets.templates.krateo.io/v1beta1', resource: 'buttons', name: 'nowhere', namespace: 'krateo-system' } }]
+    })
+    failsAt(await run(literal), 'references', /spec.resourcesRefsTemplate\[0\].template: notChecked: not in the draft/)
+    const templated = mutate((d) => {
+      byKind(d, 'Table').spec.resourcesRefsTemplate = [{ iterator: '${ .pods }', template: { apiVersion: 'widgets.templates.krateo.io/v1beta1', resource: 'buttons', name: '${ .name }', namespace: 'krateo-system' } }]
+    })
+    const envelope = await run(templated)
+    expect(envelope.ok).toBe(true)
+    expect(envelope.steps.find((s) => s.name === 'references')?.notes[1]).toMatch(/1 templated resourcesRefsTemplate entry is filled from data at render time/)
+  })
   it('a root child outside the draft with no namespace', async () => {
     const draft = mutate((d) => {
       const item = byKind(d, 'Flex').spec.resourcesRefs.items[1]
@@ -98,21 +116,33 @@ describe('references', () => {
   })
   it('a root child that is not a widget', async () => {
     const draft = mutate((d) => { Object.assign(byKind(d, 'Flex').spec.resourcesRefs.items[1], { apiVersion: 'v1', resource: 'configmaps', name: 'x' }) })
-    failsAt(await run(draft), 'references', /a page root's children are widgets/)
+    failsAt(await run(draft), 'references', /a widget's children are widgets/)
   })
-  it('an apiRef to a RESTAction in neither the draft nor the cluster', async () => {
+  it('an apiRef to a RESTAction in neither the draft nor the cluster (read raw through snowplow as the caller)', async () => {
     const draft = mutate((d) => { byKind(d, 'Table').spec.apiRef.name = 'pod-sizzling' })
-    const { transport } = recorder(() => json(404, { kind: 'Status', reason: 'NotFound', code: 404 }))
+    const { transport } = recorder(fakeSnowplow())
     failsAt(await run(draft, liveCtx(transport)), 'references', /Table\/pod-sizing-table\): spec.apiRef: restactions\/pod-sizzling is in neither the draft nor namespace krateo-system/)
   })
-  it('an apiRef to an EXISTING RESTAction resolves (read-only get as the gate)', async () => {
-    const draft = mutate((d) => {
-      byKind(d, 'Table').spec.apiRef = { name: 'compositions-list', namespace: 'krateo-system' }
-    })
-    const { transport, requests } = recorder((req) => (req.url.endsWith('/restactions/compositions-list') ? json(200, {}) : json(201, {})))
-    const envelope = await run(draft, liveCtx(transport, { callerToken: null }))
+  it('an apiRef the caller cannot read is red', async () => {
+    const draft = mutate((d) => { byKind(d, 'Table').spec.apiRef.name = 'private-ra' })
+    const { transport } = recorder(fakeSnowplow({ read: () => json(403, { kind: 'Status', code: 403, message: 'forbidden' }) }))
+    failsAt(await run(draft, liveCtx(transport)), 'references', /you cannot read krateo-system\/restactions\/private-ra/)
+  })
+  it('an apiRef to an EXISTING RESTAction resolves — read raw, never resolved', async () => {
+    const draft = mutate((d) => { byKind(d, 'Table').spec.apiRef = { name: 'compositions-list', namespace: 'krateo-system' } })
+    const { transport, requests } = recorder(fakeSnowplow({ read: () => json(200, { kind: 'RESTAction', spec: { api: [{ name: 'l', path: '/apis/composition.krateo.io' }] } }) }))
+    const envelope = await run(draft, liveCtx(transport))
     expect(envelope.steps.find((s) => s.name === 'references')?.ok).toBe(true)
-    expect(requests[0]).toMatchObject({ method: 'GET', url: 'https://apiserver.test/apis/templates.krateo.io/v1/namespaces/krateo-system/restactions/compositions-list' })
+    expect(requests.find((r) => new URL(r.url).pathname === '/call' && r.method === 'GET')).toMatchObject({
+      url: 'http://snowplow.test/call?apiVersion=templates.krateo.io%2Fv1&resource=restactions&namespace=krateo-system&name=compositions-list&raw=true',
+      headers: { Authorization: 'Bearer caller-jwt' },
+    })
+  })
+  it('today\'s snowplow (no raw read): an out-of-draft reference is live verdict missing, red, and never resolved', async () => {
+    const draft = mutate((d) => { byKind(d, 'Table').spec.apiRef = { name: 'compositions-list', namespace: 'krateo-system' } })
+    const { transport, requests } = recorder(fakeSnowplow({ capabilities: null }))
+    failsAt(await run(draft, liveCtx(transport)), 'references', /live verdict missing: not in the draft, and this snowplow cannot yet read an object without resolving it \(call.raw/)
+    expect(requests.some((r) => new URL(r.url).pathname === '/call')).toBe(false)
   })
 })
 

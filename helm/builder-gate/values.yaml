@@ -12,21 +12,14 @@ imagePullSecrets: []
 # Where Builder CRs live (the portal chart installs them in the frontend's BUILDERS_NAMESPACE).
 buildersNamespace: krateo-system
 
-# The preview sandbox the frontend chart creates (previewSandbox.enabled). The ONLY namespace the
-# gate's dry-run targets, and the only one its create grant covers. If it does not exist, every
-# object reads notChecked and the gate is red.
+# The preview sandbox the frontend chart creates (previewSandbox.enabled): the ONLY namespace the
+# gate names in a dry-run or an inline resolve (both sent through snowplow, as the caller). If it
+# does not exist, every object reads notChecked and the gate is red.
 sandboxNamespace: krateo-preview
 
-# snowplow, for POST /jq as the caller (the data step).
+# snowplow: every judgement against the cluster goes through it as the caller
+# (builder-gate/docs/snowplow-contract.md).
 snowplowUrl: http://snowplow.krateo-system.svc:8081
-
-# Reads as the caller go through the cert-replay hop (agentgateway-policies): the gate mounts the
-# hop's kubeconfig ConfigMap for its address and CA. Its user is empty — the caller's own token
-# rides each request. Empty name: no caller reads, and the data step is red for any draft RESTAction.
-callerReads:
-  hopKubeconfig:
-    configMapName: agentgateway-policies-cert-replay-hop-kubeconfig
-    key: kubeconfig
 
 # Registers each instance with kagent so the agent's toolName resolves to it.
 remoteMCPServer:

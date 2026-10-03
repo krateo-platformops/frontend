@@ -1,20 +1,16 @@
 /**
- * The one HTTP primitive every outbound call goes through (API server, the caller-identity hop,
- * snowplow). node:http(s) rather than fetch because the API server and the hop present cluster
- * CAs, which fetch cannot be handed without a dispatcher package.
+ * The one HTTP primitive every outbound call goes through (the API server, for the Builder, and
+ * snowplow). node:http(s) rather than fetch because the API server presents a cluster CA, which
+ * fetch cannot be handed without a dispatcher package.
  *
  * It is a TRANSPORT, swappable in tests, so a test can record every request the gate makes and
- * assert that nothing but the dry-run ever leaves with a mutating verb.
+ * assert that nothing it sends can store an object (dryRunGuard.test.ts).
  */
 import http from 'node:http'
 import https from 'node:https'
 
-/**
- * The gate's OWN requests are GET, plus POST for the dry-run create and snowplow's /jq. The data
- * step also replays a draft RESTAction's own verb (as the caller, or with the endpoint's own
- * credentials) — that is the only way any other verb gets here (dryRunGuard.test.ts).
- */
-export type Method = string
+/** GET, plus POST for snowplow's guarded dry-run and inline resolve (dryRunGuard.test.ts). */
+export type Method = 'GET' | 'POST'
 
 export interface HttpRequest {
   method: Method
@@ -58,7 +54,7 @@ export const nodeTransport: Transport = (request) => new Promise((resolve, rejec
       ...request.headers,
     },
     ...(url.protocol === 'https:'
-      ? { ca: request.tls?.ca, cert: request.tls?.cert, key: request.tls?.key, rejectUnauthorized: request.tls?.rejectUnauthorized ?? true }
+      ? { ca: request.tls?.ca, cert: request.tls?.cert, key: request.tls?.key }
       : {}),
   }, (res) => {
     const chunks: Buffer[] = []

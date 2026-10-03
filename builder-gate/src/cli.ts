@@ -10,7 +10,8 @@
  *   --context <name>          the kubeconfig context.
  *   --sandbox <ns>            the dry-run namespace (default krateo-preview).
  *   --builders-namespace <ns> where Builder CRs live (default krateo-system).
- *   --caller-token-file <f>   a caller JWT for the data step (plus CALLER_HOP_KUBECONFIG, SNOWPLOW_URL).
+ *   --caller-token-file <f>   a caller JWT: references, the dry-run and data go through snowplow
+ *                             (SNOWPLOW_URL) as its owner. Without one those steps are red.
  */
 import { readFileSync } from 'node:fs'
 
@@ -63,9 +64,8 @@ const main = async (): Promise<void> => {
     }
     envelope = await runGate(builder, files as unknown[], {
       live: false,
-      kube: null,
-      caller: null,
-      callerMissing: 'offline run',
+      snowplow: null,
+      snowplowMissing: 'offline run',
       jq: jqcheckEngine(),
       deadline: Date.now() + GATE_TIMEOUT_MS,
     }, lookup!)

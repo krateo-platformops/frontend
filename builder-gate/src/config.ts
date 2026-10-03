@@ -1,58 +1,47 @@
 /** The gate's configuration, from its environment (the chart sets every variable per instance). */
 import { builderFromCluster, type BuilderLookup } from './builder'
-import { callerClient, type CallerConfig } from './caller'
 import { GATE_TIMEOUT_MS } from './gate'
+import type { Transport } from './http'
 import { jqcheckEngine } from './jq'
 import { inClusterIdentity, KubeClient, kubeconfigIdentity } from './kube'
 import type { GateContext } from './plan'
+import { snowplowClient } from './snowplow'
 
 export interface GateConfig {
   /** The Builders this instance validates for (its agent's), by name. */
   builders: string[]
   buildersNamespace: string
+  /** The only namespace a dry-run or an inline resolve names (through snowplow). */
   sandboxNamespace: string
+  /** The gate's own identity, for reading its Builder — nothing else. */
   kube: KubeClient | null
-  callerConfig: CallerConfig | null
-  /** Why callerConfig is null. */
-  callerConfigMissing: string | null
+  snowplowUrl: string | null
 }
 
 const list = (value: string | undefined): string[] => (value ?? '').split(',').map((s) => s.trim()).filter(Boolean)
 
 export const configFromEnv = (env: NodeJS.ProcessEnv = process.env): GateConfig => {
-  const sandboxNamespace = env.SANDBOX_NAMESPACE || 'krateo-preview'
   // Off-cluster (CI's kind job, a local run) the identity is a kubeconfig, named explicitly —
   // never an ambient KUBECONFIG, so a developer's admin context is never picked up by accident.
   const identity = env.GATE_KUBECONFIG
     ? kubeconfigIdentity(env.GATE_KUBECONFIG, env.GATE_KUBE_CONTEXT || undefined)
     : inClusterIdentity()
-  let callerConfig: CallerConfig | null = null
-  let callerConfigMissing: string | null = null
-  if (!env.CALLER_HOP_KUBECONFIG) {
-    callerConfigMissing = 'no caller-identity hop is configured (CALLER_HOP_KUBECONFIG)'
-  } else if (!env.SNOWPLOW_URL) {
-    callerConfigMissing = 'no snowplow is configured (SNOWPLOW_URL)'
-  } else {
-    callerConfig = { hop: kubeconfigIdentity(env.CALLER_HOP_KUBECONFIG, undefined, false), snowplowUrl: env.SNOWPLOW_URL }
-  }
   return {
     builders: list(env.GATE_BUILDERS),
     buildersNamespace: env.BUILDERS_NAMESPACE || 'krateo-system',
-    sandboxNamespace,
-    kube: identity ? new KubeClient(identity, sandboxNamespace) : null,
-    callerConfig,
-    callerConfigMissing,
+    sandboxNamespace: env.SANDBOX_NAMESPACE || 'krateo-preview',
+    kube: identity ? new KubeClient(identity) : null,
+    snowplowUrl: env.SNOWPLOW_URL || null,
   }
 }
 
 /** A live context for one call, as the caller whose token arrived with it (or none). */
-export const liveContext = (config: GateConfig, callerToken: string | null): GateContext => ({
+export const liveContext = (config: GateConfig, callerToken: string | null, transport?: Transport): GateContext => ({
   live: true,
-  kube: config.kube,
-  caller: config.callerConfig && callerToken ? callerClient(config.callerConfig, callerToken) : null,
-  callerMissing: !callerToken
+  snowplow: config.snowplowUrl && callerToken ? snowplowClient(config.snowplowUrl, callerToken, config.sandboxNamespace, transport) : null,
+  snowplowMissing: !callerToken
     ? 'no caller token reached the gate (kagent forwards it on tool calls when the agent runs with KAGENT_PROPAGATE_TOKEN)'
-    : config.callerConfigMissing,
+    : config.snowplowUrl ? null : 'no snowplow is configured (SNOWPLOW_URL)',
   jq: jqcheckEngine(),
   deadline: Date.now() + GATE_TIMEOUT_MS,
 })

@@ -1,14 +1,8 @@
 /**
- * The gate's own API-server client, as ITS ServiceAccount (in-cluster) or, off-cluster, as the
- * identity a kubeconfig names (CI's kind job, a local run against a dev cluster).
- *
- * NEVER WRITES, BY CONSTRUCTION. Reads are GET. The one request that carries a body to the API
- * server is `dryRunCreate`, and it:
- *   - always targets the sandbox namespace the client was built with (no caller picks it);
- *   - always carries DRY_RUN_QUERY, a constant — no parameter reaches the query string;
- *   - is the only POST in this file (dryRunGuard.test.ts asserts it, statically and at runtime).
- * RBAC has no dry-run-only verb, so the Role grants a real `create` in the sandbox; this file is
- * what keeps it a dry run.
+ * The gate's own API-server identity — its ServiceAccount in-cluster, or a kubeconfig off-cluster
+ * — used for ONE thing: reading the Builder CR it validates for (the chart grants only `get` on
+ * those Builders, by name). Every judgement of a draft against the cluster goes through snowplow
+ * AS THE CALLER (snowplow.ts); the gate holds no other RBAC and sends nothing but GETs here.
  */
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
@@ -17,10 +11,6 @@ import yaml from 'js-yaml'
 
 import { type HttpResponse, jsonOf, nodeTransport, type Transport } from './http'
 
-/** The query every dry-run carries: the whole admission chain, nothing stored, unknown fields refused. */
-export const DRY_RUN_QUERY = '?dryRun=All&fieldValidation=Strict'
-
-/** CPA's per-object bound (live_dry_run.py): 20 s, so one slow admission webhook cannot eat the call. */
 export const PER_REQUEST_TIMEOUT_MS = 20_000
 
 const SA_DIR = '/var/run/secrets/kubernetes.io/serviceaccount'
@@ -44,8 +34,6 @@ export interface KubeReply {
 }
 
 const DNS1123_SUBDOMAIN = /^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$/
-const PLURAL = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/
-const GROUP_VERSION = /^([a-z0-9.-]+\/)?v[0-9]+[a-z0-9]*$/
 
 /** A path segment the gate puts in a URL. Anything else is refused before a request is built. */
 export const safeSegment = (value: string, pattern: RegExp = DNS1123_SUBDOMAIN): string => {
@@ -55,53 +43,29 @@ export const safeSegment = (value: string, pattern: RegExp = DNS1123_SUBDOMAIN):
   return value
 }
 
-/** `/apis/<g>/<v>` or `/api/v1` for a group/version string. */
-export const apiBase = (apiVersion: string): string => {
-  safeSegment(apiVersion, GROUP_VERSION)
-  return apiVersion.includes('/') ? `/apis/${apiVersion}` : `/api/${apiVersion}`
-}
-
 export class KubeClient {
   constructor(
     readonly identity: KubeIdentity,
-    /** The ONLY namespace a dry-run may target (the preview sandbox). */
-    readonly sandboxNamespace: string,
     private readonly transport: Transport = nodeTransport,
-  ) {
-    safeSegment(sandboxNamespace)
-  }
+  ) {}
 
   private headers(): Record<string, string> {
     const token = this.identity.token?.()
     return token ? { Authorization: `Bearer ${token}` } : {}
   }
 
-  private async send(method: 'GET' | 'POST', path: string, body?: string, timeoutMs = PER_REQUEST_TIMEOUT_MS): Promise<KubeReply> {
+  /** A read. GET, always: the gate's identity has nothing else to send. */
+  async get(path: string, timeoutMs = PER_REQUEST_TIMEOUT_MS): Promise<KubeReply> {
     const res: HttpResponse = await this.transport({
-      method,
+      method: 'GET',
       url: `${this.identity.server}${path}`,
       headers: this.headers(),
-      body,
       tls: { ca: this.identity.ca, cert: this.identity.cert, key: this.identity.key },
       timeoutMs,
     })
     const warning = res.headers.warning
     const warnings = (Array.isArray(warning) ? warning : warning ? [warning] : [])
     return { status: res.status, json: jsonOf(res.body), body: res.body, warnings }
-  }
-
-  /** A read. GET, always. */
-  get(path: string, timeoutMs?: number): Promise<KubeReply> {
-    return this.send('GET', path, undefined, timeoutMs)
-  }
-
-  /**
-   * THE dry-run. The object is judged by the whole admission chain (schema, CEL, webhooks) under
-   * Strict field validation and is never stored. Namespace and query are not parameters.
-   */
-  dryRunCreate(apiVersion: string, plural: string, object: Record<string, unknown>, timeoutMs?: number): Promise<KubeReply> {
-    const path = `${apiBase(apiVersion)}/namespaces/${this.sandboxNamespace}/${safeSegment(plural, PLURAL)}${DRY_RUN_QUERY}`
-    return this.send('POST', path, JSON.stringify(object), timeoutMs)
   }
 }
 
@@ -135,10 +99,8 @@ const file = (value: unknown): Buffer | undefined => (typeof value === 'string' 
 /**
  * A kubeconfig identity: server + CA from the context's cluster; token, token file, client
  * certificate or an exec credential plugin (GKE's gke-gcloud-auth-plugin) from its user.
- * `withUser: false` keeps only server + CA — the caller-identity hop's kubeconfig, whose user is
- * empty because the caller's own token rides each request.
  */
-export const kubeconfigIdentity = (path: string, context?: string, withUser = true): KubeIdentity => {
+export const kubeconfigIdentity = (path: string, context?: string): KubeIdentity => {
   const config = rec(yaml.load(readFileSync(path, 'utf8')))
   const contextName = context ?? (typeof config['current-context'] === 'string' ? config['current-context'] : '')
   const ctx = entryOf(config.contexts, contextName, 'context')
@@ -150,9 +112,6 @@ export const kubeconfigIdentity = (path: string, context?: string, withUser = tr
     server: cluster.server.replace(/\/$/, ''),
     ca: b64(cluster['certificate-authority-data']) ?? file(cluster['certificate-authority']),
     source: `kubeconfig context ${contextName}`,
-  }
-  if (!withUser) {
-    return identity
   }
   const user = entryOf(config.users, String(ctx.user ?? ''), 'user')
   if (typeof user.token === 'string') {

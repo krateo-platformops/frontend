@@ -7,9 +7,11 @@
 #               steps are turned off, by the CLI's --offline flag — asserting every offline step
 #               ran and passed and every live step said DISABLED; then snowplow's jq modules
 #               diffed against the tag SNOWPLOW_REF names.
-#   kind        the live dry-run against a real API server, as the chart's own ServiceAccount: the
-#               RESTAction CEL rules rejected, an unknown field rejected under Strict, nothing
-#               stored, and a Forbidden is notChecked AND red.
+#   kind        the gate's identity against a real API server, as the chart's own ServiceAccount:
+#               it reads its own Builder and no other; it may not create, get or list widgets,
+#               RESTActions or Secrets; with no caller token it judges nothing live, and that is
+#               red; nothing is stored.
+#   (gate)      also replays the secrets-rule corpus through the portal's OWN lint-ra-secrets.py.
 #
 # The image itself (multi-arch) is built by release-pullrequest.yaml / release-tag.yaml.
 name: builder-gate
@@ -74,6 +76,16 @@ jobs:
               || { echo "::error::step $s did not report itself disabled"; exit 1; }
           done
 
+      - name: The secrets rule agrees with the portal's own lint-ra-secrets.py
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet pyyaml
+          ref="$(tr -d '[:space:]' < test/secrets/PORTAL_REF)"
+          gh api "repos/krateo-platformops/portal/contents/scripts/lint-ra-secrets.py?ref=${ref}" --jq .content | base64 -d > "$RUNNER_TEMP/lint-ra-secrets.py"
+          python3 test/secrets/conformance.py "$RUNNER_TEMP/lint-ra-secrets.py"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: snowplow's jq modules match the tag in SNOWPLOW_REF
         run: |
           set -euo pipefail
@@ -114,7 +126,7 @@ jobs:
       - uses: helm/kind-action@v1
         with:
           cluster_name: builder-gate
-      - name: Live dry-run against a real API server
+      - name: The gate's identity against a real API server
         env:
           KUBECONFIG_FILE: /home/runner/.kube/config
           KUBE_CONTEXT: kind-builder-gate

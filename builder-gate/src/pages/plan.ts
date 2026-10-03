@@ -2,12 +2,18 @@
  * The page plan: the draft is the ordered CR set `previewPage` receives (root Flex, every child
  * widget, every new RESTAction), and the steps run in order, stopping at the first failure:
  *
- *   1. builder-lint   the portal's own page lint, imported (pageLint.ts): lintPageDrafts + the root rule
- *   2. references     root children and apiRefs resolve to the draft or the cluster
+ *   1. builder-lint   the portal's own page lint, imported (pageLint.ts): lintPageDrafts + the root
+ *                     rule, plus the portal's secrets rule over every RESTAction (secrets.ts)
+ *   2. references     every widget's refs and apiRef resolve to the draft, or to an object snowplow
+ *                     reads raw as the caller
  *   3. jq-compile     every RESTAction filter and widgetDataTemplate expression, snowplow's engine
- *   4. live-dry-run   every object judged by the API server, dryRun=All + Strict; notChecked is red
- *   5. data           every draft RESTAction run as the caller, as preview runs it
+ *   4. live-dry-run   every object judged by the API server through snowplow as the caller,
+ *                     dryRun=All + Strict; "live verdict missing" and notChecked are red
+ *   5. data           every draft RESTAction resolved by snowplow as the caller, nothing stored
  *   6. coverage       informational: what the API server accepted (runs once the dry-run has)
+ *
+ * The gate emulates nothing snowplow does and holds no RBAC beyond reading its own Builder: steps
+ * 1–3 are static, steps 2 (for out-of-draft refs), 4 and 5 are snowplow's (docs/snowplow-contract.md).
  */
 import { lintPageDrafts, pageRootProblem } from '@frontend/components/Autopilot/pageLint'
 
@@ -20,6 +26,7 @@ import { dryRunStep } from './dryRun'
 import { rec, type Rec } from './drafts'
 import { jqCompileStep } from './jqCompile'
 import { referencesStep } from './references'
+import { draftSecretsProblems } from './secrets'
 
 export const coverageOf = (verdicts: ObjectVerdict[]): Coverage => {
   const count = (v: ObjectVerdict['verdict']): number => verdicts.filter((x) => x.verdict === v).length
@@ -43,7 +50,12 @@ const builderLintStep = async (drafts: readonly Rec[]): Promise<StepResult> => {
   if (root) {
     problems.push(root)
   }
-  return step('builder-lint', problems, [`${drafts.length} object(s) linted by the portal's own page lint (pageLint.ts) over this release's widget schemas`])
+  // Gate rule, the portal's own (scripts/lint-ra-secrets.py): no RESTAction may read Secrets.
+  problems.push(...draftSecretsProblems(drafts))
+  return step('builder-lint', problems, [
+    `${drafts.length} object(s) linted by the portal's own page lint (pageLint.ts) over this release's widget schemas`,
+    'every RESTAction held to the portal\'s secrets rule (lint-ra-secrets.py, fetchablePath)',
+  ])
 }
 
 export const pagePlan: BuilderPlan = {

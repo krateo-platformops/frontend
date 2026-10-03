@@ -6,10 +6,9 @@
  * transport and the dry-run client stay as they are.
  */
 import type { BuilderSpec } from './builder'
-import type { CallerClient } from './caller'
 import type { Coverage, StepResult } from './envelope'
 import type { JqEngine } from './jq'
-import type { KubeClient } from './kube'
+import type { SnowplowClient } from './snowplow'
 
 export interface GateContext {
   /**
@@ -17,12 +16,13 @@ export interface GateContext {
    * report themselves DISABLED and judge nothing. The MCP server always runs live.
    */
   live: boolean
-  /** The gate's own identity (its ServiceAccount). Null: no API server to judge with. */
-  kube: KubeClient | null
-  /** Reads as the caller. Null when no caller token reached the gate, or no hop is configured. */
-  caller: CallerClient | null
-  /** Why `caller` is null, in a sentence. */
-  callerMissing: string | null
+  /**
+   * snowplow as the caller. Null when no caller token reached the gate, or no snowplow is
+   * configured — then every step that needs the cluster says so, and is red.
+   */
+  snowplow: SnowplowClient | null
+  /** Why `snowplow` is null, in a sentence. */
+  snowplowMissing: string | null
   jq: JqEngine
   /** Epoch ms by which the whole call must have answered. */
   deadline: number

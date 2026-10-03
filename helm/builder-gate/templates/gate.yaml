@@ -6,7 +6,6 @@ a restart never strands a session.
 {{- range .Values.instances }}
 {{- $name := include "builder-gate.name" . }}
 {{- $ctx := dict "root" $ "instance" . }}
-{{- $hop := $.Values.callerReads.hopKubeconfig }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -53,10 +52,6 @@ spec:
               value: {{ $.Values.sandboxNamespace | quote }}
             - name: SNOWPLOW_URL
               value: {{ $.Values.snowplowUrl | quote }}
-            {{- if $hop.configMapName }}
-            - name: CALLER_HOP_KUBECONFIG
-              value: /etc/caller-hop/kubeconfig
-            {{- end }}
           # The gate needs nothing remote to be alive; an unreachable API server is a verdict
           # inside the envelope, not a dead pod. The liveness budget (15 s x 8) is longer than the
           # tool's 100 s deadline, so the tool's own deadline always fires first.
@@ -83,21 +78,6 @@ spec:
               drop: [ALL]
           resources:
             {{- toYaml $.Values.resources | nindent 12 }}
-          {{- if $hop.configMapName }}
-          volumeMounts:
-            - name: caller-hop
-              mountPath: /etc/caller-hop
-              readOnly: true
-          {{- end }}
-      {{- if $hop.configMapName }}
-      volumes:
-        - name: caller-hop
-          configMap:
-            name: {{ $hop.configMapName }}
-            items:
-              - key: {{ $hop.key }}
-                path: kubeconfig
-      {{- end }}
 ---
 apiVersion: v1
 kind: Service
@@ -124,7 +104,7 @@ metadata:
   labels:
     {{- include "builder-gate.labels" $ctx | nindent 4 }}
 spec:
-  description: "Krateo builder gate for {{ .name }} ({{ join ", " .builders }}): validate_draft runs the portal's own lint, reference checks, snowplow's jq compiler, a live API-server dry-run of every object (dryRun=All, fieldValidation=Strict) and the draft RESTActions run as the caller"
+  description: "Krateo builder gate for {{ .name }} ({{ join ", " .builders }}): validate_draft runs the portal's own lint (with its secrets rule), reference checks and snowplow's jq compiler, then, through snowplow as the caller, a dry-run of every object (dryRun=All, fieldValidation=Strict) and each draft RESTAction resolved without being stored"
   protocol: STREAMABLE_HTTP
   url: http://{{ $name }}.{{ $.Release.Namespace }}:8080/mcp
   timeout: {{ $.Values.remoteMCPServer.timeout }}

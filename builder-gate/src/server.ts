@@ -15,9 +15,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { z } from 'zod'
 
-import { bearerOf } from './caller'
 import { configFromEnv, liveBuilderLookup, liveContext } from './config'
 import { GATE_VERSION, runGate } from './gate'
+import { bearerOf } from './snowplow'
 
 const config = configFromEnv()
 const log = (fields: Record<string, unknown>): void => {
@@ -25,10 +25,11 @@ const log = (fields: Record<string, unknown>): void => {
 }
 
 const DESCRIPTION = [
-  'Validate a builder draft before you hand it back: the portal\'s own lint, references, jq compiled by snowplow\'s engine,',
-  'a live API-server dry-run of every object (dryRun=All, fieldValidation=Strict), and the draft RESTActions run as the caller, as preview runs them (a non-GET stage is executed and named in the notes).',
+  'Validate a builder draft before you hand it back: the portal\'s own lint (with its secrets rule), references, jq compiled by snowplow\'s engine,',
+  'then, through snowplow as you: a dry-run of every object (dryRun=All, fieldValidation=Strict) and each draft RESTAction resolved without being stored.',
   'Returns {ok, failedStep, steps:[{name, ok, problems[], notes[]}], coverage}. Steps stop at the first failure: a later step\'s silence means it has not run.',
   'notChecked is a failure. Fix exactly what failedStep names and call again with the whole draft; hand back exactly the draft that returned ok:true.',
+  '"live verdict missing" is a failure too, but not the draft\'s: snowplow cannot yet judge it — report it, do not rewrite the draft for it.',
   'For a page (portal-builder), files is the ordered array of CR objects previewPage receives.',
 ].join(' ')
 
@@ -114,6 +115,6 @@ http.listen(port, () => {
     builders: config.builders,
     sandbox: config.sandboxNamespace,
     identity: config.kube?.identity.source ?? 'none',
-    callerReads: config.callerConfig ? 'configured' : config.callerConfigMissing,
+    snowplow: config.snowplowUrl ?? 'not configured',
   })
 })
