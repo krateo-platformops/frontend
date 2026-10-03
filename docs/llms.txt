@@ -9,6 +9,7 @@ docs/api.md: the 43 widget CRDs + the shared widget spec model; the container's 
 docs/examples.md: index of the runnable examples
 docs/release.md: how a release ships — one plain-semver tag drives image + both charts; the crds-subchart seam
 docs/log.md: curated history
+builder-gate/README.md: the builder gate — validate_draft MCP service (portal lint, references, snowplow jq, live dry-run, data as the caller) + helm/builder-gate
 examples/hello-page/README.md: a convention Flex page (page-hello) with a Paragraph + Button; routes-as-data
 examples/hello-page/manifest.yaml: the manifest — kubectl apply -f
 examples/namespaces-table/README.md: a Table fed by a RESTAction over the Kubernetes API (widgetDataTemplate jq rows)

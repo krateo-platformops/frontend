@@ -1,0 +1,114 @@
+{{- /*
+RBAC per instance — the narrowest grant that lets the gate judge a draft (#442 D1, D3):
+
+  * Role in the SANDBOX: `create` on widgets and RESTActions, and nothing else. RBAC has no
+    dry-run-only verb, so this is a real create permission; the gate's code sends exactly one
+    mutating request, with dryRun=All&fieldValidation=Strict hard-coded (src/kube.ts, held by
+    test/dryRunGuard.test.ts). The namespace is the quarantined preview sandbox, which previews
+    already write to.
+  * ClusterRole: get/list on widgets and RESTActions, to resolve a reference to an object that
+    already exists (D3). Read-only. No Secrets, no other kind.
+  * Role in the Builders' namespace: get on this instance's own Builder CRs, by name.
+*/ -}}
+{{- range .Values.instances }}
+{{- $name := include "builder-gate.name" . }}
+{{- $ctx := dict "root" $ "instance" . }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "builder-gate.labels" $ctx | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}-dry-run
+  namespace: {{ $.Values.sandboxNamespace }}
+  labels:
+    {{- include "builder-gate.labels" $ctx | nindent 4 }}
+rules:
+  - apiGroups: [widgets.templates.krateo.io]
+    resources: ["*"]
+    verbs: [create]
+  - apiGroups: [templates.krateo.io]
+    resources: [restactions]
+    verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}-dry-run
+  namespace: {{ $.Values.sandboxNamespace }}
+  labels:
+    {{- include "builder-gate.labels" $ctx | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}-dry-run
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ $.Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $name }}-read
+  labels:
+    {{- include "builder-gate.labels" $ctx | nindent 4 }}
+rules:
+  - apiGroups: [widgets.templates.krateo.io]
+    resources: ["*"]
+    verbs: [get, list]
+  - apiGroups: [templates.krateo.io]
+    resources: [restactions]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $name }}-read
+  labels:
+    {{- include "builder-gate.labels" $ctx | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $name }}-read
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ $.Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}-builders
+  namespace: {{ $.Values.buildersNamespace }}
+  labels:
+    {{- include "builder-gate.labels" $ctx | nindent 4 }}
+rules:
+  - apiGroups: [builders.templates.krateo.io]
+    resources: [builders]
+    resourceNames:
+      {{- toYaml .builders | nindent 6 }}
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}-builders
+  namespace: {{ $.Values.buildersNamespace }}
+  labels:
+    {{- include "builder-gate.labels" $ctx | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}-builders
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ $.Release.Namespace }}
+{{- end }}

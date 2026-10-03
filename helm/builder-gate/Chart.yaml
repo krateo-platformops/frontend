@@ -1,0 +1,19 @@
+apiVersion: v2
+name: builder-gate
+description: >-
+  validate_draft — the builder gate. Every agent-authored builder draft is judged by the portal's
+  own lint and accepted by the live API server (dryRun=All, fieldValidation=Strict) before the agent
+  hands it back. One instance per authoring agent, each with its own Builder and narrow RBAC.
+type: application
+# Released on the frontend's own tag (release-oci stamps CHART_VERSION), and the image is built on
+# the same tag, so the gate's lint is always this frontend release's lint.
+version: CHART_VERSION
+home: https://krateo.io
+icon: https://github.com/krateoplatformops/krateo/blob/main/docs/media/logo.svg
+keywords:
+  - krateo
+  - builder
+  - mcp
+  - gate
+sources:
+  - https://github.com/krateo-platformops/frontend
