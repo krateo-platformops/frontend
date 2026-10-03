@@ -13,9 +13,15 @@ import { confirmed, example, fakeSnowplow, json, liveCtx, recorder, run } from '
 const reply = (status: number, body: unknown) => ({ status, json: body, body: JSON.stringify(body), warnings: [] })
 
 describe('classifyDryRun', () => {
+  it('a 409 AlreadyExists is validated only when snowplow confirms the dry run', () => {
+    expect(classifyDryRun({ ...reply(409, { reason: 'AlreadyExists', message: 'exists' }), headers: { 'x-krateo-dry-run': 'All' } }, 'krateo-preview').verdict).toBe('validated')
+    const unconfirmed = classifyDryRun({ ...reply(409, { reason: 'AlreadyExists', message: 'exists' }), headers: {} }, 'krateo-preview')
+    expect(unconfirmed).toEqual({ verdict: 'notChecked', detail: 'snowplow answered 409 AlreadyExists without x-krateo-dry-run: All — whether the API server judged a dry run cannot be told' })
+  })
+
   it.each([
     [201, {}, 'validated'],
-    [409, { reason: 'AlreadyExists', message: 'exists' }, 'validated'],
+    [409, { reason: 'AlreadyExists', message: 'exists' }, 'notChecked'],
     [422, { reason: 'Invalid', message: 'spec.api[0]: Invalid value: "object": userAccessFilter is only allowed on read-verb HTTP stages' }, 'rejected'],
     [400, { reason: 'BadRequest', message: 'strict decoding error: unknown field "spec.bogus"' }, 'rejected'],
     [403, { reason: 'Forbidden', message: 'forbidden' }, 'notChecked'],
@@ -64,6 +70,13 @@ describe('live-dry-run, through snowplow as the caller', () => {
     expect(envelope.failedStep).toBe('live-dry-run')
     expect(envelope.coverage?.validated).toBe(0)
     expect(envelope.steps.find((s) => s.name === 'live-dry-run')?.problems[0]).toMatch(/without x-krateo-dry-run: All — the object may have been PERSISTED in krateo-preview/)
+  })
+
+  it('a 409 AlreadyExists without the confirmation is notChecked, and red', async () => {
+    const { transport } = recorder(fakeSnowplow({ dryRun: () => json(409, { kind: 'Status', reason: 'AlreadyExists', code: 409, message: 'already exists' }) }))
+    const envelope = await run(example(), liveCtx(transport))
+    expect(envelope.failedStep).toBe('live-dry-run')
+    expect(envelope.coverage).toMatchObject({ validated: 0, notChecked: 4 })
   })
 
   it('a CEL rejection fails the step, attributed to the object, with the API server\'s message', async () => {

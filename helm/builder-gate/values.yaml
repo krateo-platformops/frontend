@@ -24,8 +24,8 @@ snowplowUrl: http://snowplow.krateo-system.svc:8081
 # Registers each instance with kagent so the agent's toolName resolves to it.
 remoteMCPServer:
   enabled: true
-  # Above the gate's own 100 s budget, so an overrun reaches the agent as an envelope.
-  timeout: 120s
+  # Above the gate's own 100 s budget (so an overrun reaches the agent as an envelope), and below 120 s.
+  timeout: 110s
 
 resources:
   requests:

@@ -76,13 +76,14 @@ jobs:
               || { echo "::error::step $s did not report itself disabled"; exit 1; }
           done
 
-      - name: The secrets rule agrees with the portal's own lint-ra-secrets.py
+      - name: The secrets rule against the portal's own lint-ra-secrets.py and fetchableDefs
         run: |
           set -euo pipefail
           python3 -m pip install --quiet pyyaml
           ref="$(tr -d '[:space:]' < test/secrets/PORTAL_REF)"
           gh api "repos/krateo-platformops/portal/contents/scripts/lint-ra-secrets.py?ref=${ref}" --jq .content | base64 -d > "$RUNNER_TEMP/lint-ra-secrets.py"
-          python3 test/secrets/conformance.py "$RUNNER_TEMP/lint-ra-secrets.py"
+          gh api "repos/krateo-platformops/portal/contents/helm/portal/templates/_fetchable.tpl?ref=${ref}" --jq .content | base64 -d > "$RUNNER_TEMP/_fetchable.tpl"
+          python3 test/secrets/conformance.py "$RUNNER_TEMP/lint-ra-secrets.py" "$RUNNER_TEMP/_fetchable.tpl"
         env:
           GH_TOKEN: ${{ github.token }}
 

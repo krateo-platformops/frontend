@@ -18,7 +18,7 @@ import { type ObjectVerdict, step, type StepResult } from '../envelope'
 import { HttpError } from '../http'
 import { PER_REQUEST_TIMEOUT_MS } from '../kube'
 import type { GateContext } from '../plan'
-import { CAPABILITY_DRY_RUN } from '../snowplow'
+import { CAPABILITY_DRY_RUN, DRY_RUN_CONFIRMATION } from '../snowplow'
 import { kindOf, labelOf, nameOf, pluralOfDraft, rec, type Rec } from './drafts'
 
 export const STEP_BUDGET_MS = 45_000
@@ -29,7 +29,7 @@ const PARALLEL = 4
  * The API server's answer (snowplow forwards its status and body), classified. Order matters as in CPA: a rejection is recognised before
  * anything that could make it look like an environment problem.
  */
-export const classifyDryRun = (reply: { status: number; json: unknown; body: string }, sandboxNamespace: string): { verdict: ObjectVerdict['verdict']; detail?: string } => {
+export const classifyDryRun = (reply: { status: number; json: unknown; body: string; headers?: Record<string, string | string[] | undefined> }, sandboxNamespace: string): { verdict: ObjectVerdict['verdict']; detail?: string } => {
   const status = rec(reply.json) ?? {}
   const message = typeof status.message === 'string' ? status.message : reply.body.slice(0, 500)
   const reason = typeof status.reason === 'string' ? status.reason : ''
@@ -39,7 +39,12 @@ export const classifyDryRun = (reply: { status: number; json: unknown; body: str
     return { verdict: 'validated' }
   }
   // Admission (schema, CEL, webhooks) runs before storage, so a name collision means it passed.
+  // ...but only when snowplow confirms the request it forwarded WAS a dry run: a 409 from a
+  // snowplow that dropped dryRun says nothing about admission, and a retry would have created it.
   if (reply.status === 409 && reason === 'AlreadyExists') {
+    if (String(reply.headers?.[DRY_RUN_CONFIRMATION] ?? '') !== 'All') {
+      return { verdict: 'notChecked', detail: `snowplow answered 409 AlreadyExists without ${DRY_RUN_CONFIRMATION}: All — whether the API server judged a dry run cannot be told` }
+    }
     return { verdict: 'validated', detail: 'an object of that name already exists in the sandbox; the API server validated this one before refusing the name clash' }
   }
   // 422 Invalid: the schema or a CEL rule. 400 BadRequest: under Strict, an unknown or duplicate

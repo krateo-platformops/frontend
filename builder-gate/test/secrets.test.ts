@@ -11,12 +11,34 @@ import { describe, expect, it } from 'vitest'
 import { secretsProblems } from '../src/pages/secrets'
 import { byKind, example, fakeSnowplow, json, liveCtx, recorder, run } from './helpers'
 
-const cases = JSON.parse(readFileSync(join(__dirname, 'secrets', 'cases.json'), 'utf8')) as { name: string; step: Record<string, unknown>; refused: boolean }[]
+const cases = JSON.parse(readFileSync(join(__dirname, 'secrets', 'cases.json'), 'utf8')) as { name: string; step: Record<string, unknown>; refused: boolean; portalGap?: boolean }[]
 
 describe('the secrets rule, case by case (the same corpus the portal lint replays)', () => {
   it.each(cases.map((c) => [c.name, c] as const))('%s', (_name, c) => {
     const problems = secretsProblems({ kind: 'RESTAction', spec: { api: [c.step] } }, 'ra')
     expect(problems.length > 0).toBe(c.refused)
+  })
+})
+
+describe('the review\'s bypasses (#446), each refused for its own reason', () => {
+  const problemsOf = (name: string): string[] => {
+    const c = cases.find((x) => x.name === name)!
+    return secretsProblems({ kind: 'RESTAction', spec: { api: [c.step] } }, 'ra')
+  }
+  it('#1 a self-defined fetchablePath is not the portal\'s allowlist', () => {
+    expect(problemsOf('review #1: implode-built core path, self-defined fetchablePath = identity')[0])
+      .toMatch(/its iterator defines its own fetchablePath — only portal.fetchableDefs, verbatim, restricts what it may read/)
+    expect(problemsOf('the portal\'s defs, then fetchablePath redefined after them')[0]).toMatch(/redefines fetchableCore or fetchablePath/)
+    expect(problemsOf('the portal\'s defs carried but fetchablePath never applied')[0]).toMatch(/never applies fetchablePath/)
+    expect(problemsOf('a data-driven path behind the portal\'s own fetchableDefs, verbatim')).toEqual([])
+  })
+  it('#2 ".." in a path, plain or percent-encoded', () => {
+    for (const name of ['review #2: /apis/ prefix climbing back with ..', 'review #2: a fixed core resource, then a ../ fragment', 'review #2: .. percent-encoded as %2E%2e']) {
+      expect(problemsOf(name)[0], name).toMatch(/".." in path/)
+    }
+  })
+  it('#3 an object-valued field is read as its JSON', () => {
+    expect(problemsOf('review #3: an object-valued resourcesFrom')[0]).toMatch(/"secret" in userAccessFilter.resourcesFrom/)
   })
 })
 
