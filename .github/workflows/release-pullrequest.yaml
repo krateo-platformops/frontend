@@ -14,7 +14,7 @@ jobs:
       contents: read
       packages: write
     with:
-      modules: '[{"mod":"frontend","context":"ui"}]'
+      modules: '[{"mod":"frontend","context":"ui"},{"mod":"builder-gate","context":".","dockerfile":"builder-gate/Dockerfile"}]'
       push: false
       # NOT github.ref_name: on a pull_request that is "<number>/merge" (the merge ref), and the
       # Dockerfile runs `npm version $VERSION`, which rejects it — "Invalid version: 101/merge" — so

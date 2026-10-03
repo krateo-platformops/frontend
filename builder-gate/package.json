@@ -1,0 +1,29 @@
+{
+  "name": "builder-gate",
+  "private": true,
+  "version": "0.0.0",
+  "description": "validate_draft: every agent-authored builder draft judged by the portal's own lint and the live API server before it is handed back (krateo-platformops/frontend#442).",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "gate": "node dist/cli.cjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.0",
+    "ajv": "8.20.0",
+    "js-yaml": "4.3.2",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.0.0",
+    "esbuild": "0.25.10",
+    "typescript": "5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
