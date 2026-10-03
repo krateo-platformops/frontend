@@ -1,47 +1,51 @@
 #!/usr/bin/env python3
 """
-The gate's secrets rule (src/pages/secrets.ts) against THE PORTAL'S OWN lint and defs:
+The gate's secrets rule (src/pages/secrets.ts) against THE PORTAL'S OWN lint and defs, at the
+portal commit in PORTAL_REF (CI fetches both files into a portal-shaped tree):
 
-1. Every case in cases.json is judged by krateo-platformops/portal scripts/lint-ra-secrets.py (at
-   the commit in PORTAL_REF, fetched by CI) exactly as that lint judges a rendered RESTAction step,
-   and must match the verdict the case records — the same verdict secrets.test.ts asserts for the
-   TypeScript port. A case marked `portalGap` is one the gate refuses and that portal commit still
-   ACCEPTS (a bypass the review of #446 found; the portal lint is being fixed separately): the
-   portal lint must accept it there, so the day it is fixed this fails and the mark is removed.
-2. src/pages/fetchableDefs.json — the defs the gate requires VERBATIM — must equal the
-   portal.fetchableDefs define in helm/portal/templates/_fetchable.tpl at the same commit.
+1. The portal lint's own self-test passes (its PLANTED bypasses caught, its CLEAN shapes accepted).
+2. cases.json carries every one of the portal's PLANTED and CLEAN steps, verbatim.
+3. Every case in cases.json gets, from the portal's check_step, exactly the verdict the case
+   records — the same verdict secrets.test.ts asserts for the TypeScript port. No case may be
+   marked as a known disagreement: the two engines agree on all of them.
+4. src/pages/fetchableDefs.json — the defs the gate requires verbatim — equals portal.fetchableDefs
+   in _fetchable.tpl, whitespace-normalized.
 
-Usage: conformance.py <lint-ra-secrets.py> <_fetchable.tpl>
+Usage: conformance.py <portal tree with scripts/lint-ra-secrets.py and helm/portal/templates/_fetchable.tpl>
 """
 import importlib.util
 import json
 import os
-import re
 import sys
 
-spec = importlib.util.spec_from_file_location('lint', sys.argv[1])
+HERE = os.path.dirname(os.path.abspath(__file__))
+spec = importlib.util.spec_from_file_location('lint', os.path.join(sys.argv[1], 'scripts', 'lint-ra-secrets.py'))
 lint = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(lint)
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-failures = 0
-for case in json.load(open(os.path.join(HERE, 'cases.json'))):
-    step = case['step']
-    hits = [k for k, v in lint.step_fields(step).items() if lint.names_secrets(v)]
-    if not hits and lint.data_driven(step):
-        ok, _ = lint.guarded(step)
-        hits = [] if ok else ['data-driven']
-    refused = bool(hits)
-    expected = (not case['refused']) if case.get('portalGap') else case['refused']
-    mark = 'ok  ' if refused == expected else 'FAIL'
-    failures += refused != expected
-    gap = ' (portalGap: the gate refuses it; this portal commit does not)' if case.get('portalGap') else ''
-    print(f"{mark} {case['name']}: portal lint {'refuses' if refused else 'accepts'}{gap}")
+failures = lint.self_test()
+for f in failures:
+    print(f'FAIL {f}')
 
-tpl = open(sys.argv[2], encoding='utf-8').read()
-m = re.search(r'\{\{- define "portal.fetchableDefs" -\}\}\n(.*?)\n\{\{- end -\}\}', tpl, re.S)
-pinned = json.load(open(os.path.join(HERE, '..', '..', 'src', 'pages', 'fetchableDefs.json')))['defs']
-same = bool(m) and ' '.join(m.group(1).split()) == ' '.join(pinned.split())
+cases = json.load(open(os.path.join(HERE, 'cases.json'), encoding='utf-8'))
+steps = [c['step'] for c in cases]
+for kind, entries in (('PLANTED', lint.PLANTED), ('CLEAN', lint.CLEAN)):
+    for what, step in entries:
+        if step not in steps:
+            failures.append(f'portal {kind} {what!r} is missing from cases.json')
+            print(f'FAIL portal {kind} {what!r} is missing from cases.json')
+
+for case in cases:
+    if 'portalGap' in case:
+        failures.append(f"{case['name']}: marked portalGap — the engines must agree on every case")
+    refused = bool(lint.check_step(case['step']))
+    ok = refused == case['refused']
+    failures += [] if ok else [case['name']]
+    print(f"{'ok  ' if ok else 'FAIL'} {case['name']}: portal lint {'refuses' if refused else 'accepts'}")
+
+pinned = json.load(open(os.path.join(HERE, '..', '..', 'src', 'pages', 'fetchableDefs.json'), encoding='utf-8'))['defs']
+same = lint.normalized(pinned) == lint.CANONICAL
 print(f"{'ok  ' if same else 'FAIL'} src/pages/fetchableDefs.json equals portal.fetchableDefs in _fetchable.tpl")
-failures += not same
+failures += [] if same else ['fetchableDefs.json']
+print(f'{len(cases)} cases, {len(failures)} failure(s)')
 sys.exit(1 if failures else 0)

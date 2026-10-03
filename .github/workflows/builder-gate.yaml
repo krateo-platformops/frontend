@@ -81,9 +81,11 @@ jobs:
           set -euo pipefail
           python3 -m pip install --quiet pyyaml
           ref="$(tr -d '[:space:]' < test/secrets/PORTAL_REF)"
-          gh api "repos/krateo-platformops/portal/contents/scripts/lint-ra-secrets.py?ref=${ref}" --jq .content | base64 -d > "$RUNNER_TEMP/lint-ra-secrets.py"
-          gh api "repos/krateo-platformops/portal/contents/helm/portal/templates/_fetchable.tpl?ref=${ref}" --jq .content | base64 -d > "$RUNNER_TEMP/_fetchable.tpl"
-          python3 test/secrets/conformance.py "$RUNNER_TEMP/lint-ra-secrets.py" "$RUNNER_TEMP/_fetchable.tpl"
+          portal="$RUNNER_TEMP/portal"
+          mkdir -p "$portal/scripts" "$portal/helm/portal/templates"
+          gh api "repos/krateo-platformops/portal/contents/scripts/lint-ra-secrets.py?ref=${ref}" --jq .content | base64 -d > "$portal/scripts/lint-ra-secrets.py"
+          gh api "repos/krateo-platformops/portal/contents/helm/portal/templates/_fetchable.tpl?ref=${ref}" --jq .content | base64 -d > "$portal/helm/portal/templates/_fetchable.tpl"
+          python3 test/secrets/conformance.py "$portal"
         env:
           GH_TOKEN: ${{ github.token }}
 
