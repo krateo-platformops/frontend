@@ -6,7 +6,7 @@
  *   2. references     root children and apiRefs resolve to the draft or the cluster
  *   3. jq-compile     every RESTAction filter and widgetDataTemplate expression, snowplow's engine
  *   4. live-dry-run   every object judged by the API server, dryRun=All + Strict; notChecked is red
- *   5. data           every draft RESTAction run read-only as the caller
+ *   5. data           every draft RESTAction run as the caller, as preview runs it
  *   6. coverage       informational: what the API server accepted (runs once the dry-run has)
  */
 import { lintPageDrafts, pageRootProblem } from '@frontend/components/Autopilot/pageLint'

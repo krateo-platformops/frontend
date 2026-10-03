@@ -36,18 +36,26 @@ failure, so a later step's silence means it has not run.
 | 2 | `references` | Every root `resourcesRefs` child resolves to the draft or an existing widget, and every `spec.apiRef` resolves to the draft or an existing RESTAction. Lookups are read-only `get` calls as the gate. |
 | 3 | `jq-compile` | Compiles every RESTAction `spec.filter`, per-api `filter` and `widgetDataTemplate` expression with snowplow's gojq fork and modules (`jqcheck/`). It only compiles. |
 | 4 | `live-dry-run` | POSTs every object to `…/namespaces/<sandbox>/<plural>?dryRun=All&fieldValidation=Strict` as the gate's ServiceAccount and classifies the reply as `validated`, `rejected` or `notChecked`. **`notChecked` is red.** |
-| 5 | `data` | Runs each draft RESTAction read-only as the caller. API steps go through the cert-replay hop and jq goes through snowplow `POST /jq`. It returns item counts and a sample of the output. With no caller token the step is `notChecked`, which is red. |
+| 5 | `data` | Runs each draft RESTAction as the caller, as preview will. In-cluster stages go through the cert-replay hop. An `endpointRef` stage reads its endpoint Secret as the caller, then calls the Secret's `server-url` with the Secret's own credentials (token, basic, client certificate or AWS SigV4). A non-GET stage is executed and named in the notes. jq goes through snowplow `POST /jq`. It returns item counts and a sample, with endpoint credentials redacted. A caller who cannot read the endpoint Secret is red. With no caller token, or an unreachable endpoint, the step is `notChecked`, which is red. |
 | 6 | `coverage` | Informational. It names what the API server accepted. |
 
-## Never writes
+## What the gate's identity may do, and what the caller's may do
 
-- The only request with a body to the API server is `kube.ts` `dryRunCreate`. It hard-codes the
-  sandbox namespace and `?dryRun=All&fieldValidation=Strict`.
-- The caller's identity is only ever used to read.
-- `test/dryRunGuard.test.ts` holds both points statically, over the source, and at run time,
-  over every request the gate makes.
-- RBAC has no dry-run verb. The chart therefore grants a real `create` that is narrowed to the
-  sandbox and to widgets and RESTActions.
+- **The gate's own ServiceAccount never writes.** The only request it sends with a body is
+  `kube.ts` `dryRunCreate`, which hard-codes the sandbox namespace and
+  `?dryRun=All&fieldValidation=Strict`. RBAC has no dry-run verb, so the chart grants a real
+  `create`, narrowed to the sandbox and to widgets and RESTActions.
+- **The data step runs a draft RESTAction's own stages as the caller,** non-GET ones included,
+  because preview runs them too. Each non-GET stage is named in the notes (`executed POST <path> on
+  <host>`). No other non-GET request is sent as the caller.
+- **External stages:**
+  - The host comes from the endpoint Secret's `server-url`. A draft path that is an absolute URL,
+    or that contains `//`, `@`, `\` or whitespace, is refused before any request is sent.
+  - The request carries only the endpoint's own credentials, never the caller's bearer.
+  - Credential values are redacted from everything the gate returns.
+- `test/dryRunGuard.test.ts` and `test/endpoint.test.ts` hold all of this, statically over the
+  source and at run time over every request the gate makes. Part of `test/endpoint.test.ts` runs
+  against a real HTTP server.
 
 ## Install
 

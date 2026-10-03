@@ -124,7 +124,7 @@ metadata:
   labels:
     {{- include "builder-gate.labels" $ctx | nindent 4 }}
 spec:
-  description: "Krateo builder gate for {{ .name }} ({{ join ", " .builders }}): validate_draft runs the portal's own lint, reference checks, snowplow's jq compiler, a live API-server dry-run of every object (dryRun=All, fieldValidation=Strict) and the draft RESTActions read-only as the caller"
+  description: "Krateo builder gate for {{ .name }} ({{ join ", " .builders }}): validate_draft runs the portal's own lint, reference checks, snowplow's jq compiler, a live API-server dry-run of every object (dryRun=All, fieldValidation=Strict) and the draft RESTActions run as the caller"
   protocol: STREAMABLE_HTTP
   url: http://{{ $name }}.{{ $.Release.Namespace }}:8080/mcp
   timeout: {{ $.Values.remoteMCPServer.timeout }}

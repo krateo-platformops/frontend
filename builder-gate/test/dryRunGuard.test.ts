@@ -1,11 +1,12 @@
 /**
- * THE GATE NEVER WRITES (#442 D1, D10). Two proofs:
- *   1. statically, over the source: the only request verbs that exist are GET and POST; the only
- *      POST to the API server is kube.ts dryRunCreate, and its URL ends in the constant
+ * THE GATE'S OWN IDENTITY NEVER WRITES (#442 D1). Two proofs:
+ *   1. statically, over the source: the gate itself names no verb but GET and POST; the only POST
+ *      its ServiceAccount sends is kube.ts dryRunCreate, whose URL ends in the constant
  *      `?dryRun=All&fieldValidation=Strict`; the only other POST is snowplow /jq;
- *   2. at run time: the gate runs the example and every mutation the rule tests use against a
- *      recording transport, and every request that is not a GET is either an API-server dry-run
- *      into the sandbox carrying both parameters, or snowplow /jq.
+ *   2. at run time: the gate runs the example and a set of mutations against a recording
+ *      transport, and every request made AS THE GATE is a GET or a sandbox dry-run carrying both
+ *      parameters. Any other verb is a draft RESTAction's own stage, replayed as the caller (Diego,
+ *      2026-10-03), and only the one the draft names.
  */
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -27,7 +28,7 @@ describe('statically', () => {
     expect(DRY_RUN_QUERY).toBe('?dryRun=All&fieldValidation=Strict')
   })
 
-  it('no PUT, PATCH or DELETE exists anywhere in the gate', () => {
+  it('the gate itself names no PUT, PATCH or DELETE (only a draft can)', () => {
     for (const file of files) {
       expect(code(file), file).not.toMatch(/['"](PUT|PATCH|DELETE)['"]/)
     }
@@ -35,8 +36,8 @@ describe('statically', () => {
 
   it('POST appears only in the dry-run and in snowplow /jq', () => {
     const posting = files.filter((file) => /['"]POST['"]/.test(code(file))).map((file) => file.slice(ROOT.length + 1)).sort()
-    // http.ts declares the Method type; server.ts is the MCP endpoint's own INBOUND method.
-    expect(posting).toEqual(['src/caller.ts', 'src/http.ts', 'src/kube.ts', 'src/server.ts'])
+    // server.ts is the MCP endpoint's own INBOUND method.
+    expect(posting).toEqual(['src/caller.ts', 'src/kube.ts', 'src/server.ts'])
     expect(code(join(ROOT, 'src', 'server.ts'))).not.toMatch(/transport\(|https?\.request\(|method: 'POST'/)
     const kube = code(join(ROOT, 'src', 'kube.ts'))
     expect(kube.match(/['"]POST['"]/g)).toHaveLength(2) // the send() signature and dryRunCreate's call
@@ -62,6 +63,7 @@ describe('at run time', () => {
     (d) => { byKind(d, 'RESTAction').spec.api[0].userAccessFilter = { verb: 'get', group: '', resource: 'pods' } },
     (d) => { byKind(d, 'Table').spec.apiRef = { name: 'compositions-list', namespace: 'krateo-system' } },
     (d) => { byKind(d, 'Flex').spec.resourcesRefs.items[0].name = 'existing-pie' },
+    (d) => { byKind(d, 'RESTAction').spec.api.push({ name: 'replayed', path: '/api/v1/namespaces/krateo-system/configmaps', verb: 'POST', payload: '{}' }) },
   ]
   for (const mutation of mutations) {
     const draft = example()
@@ -69,7 +71,7 @@ describe('at run time', () => {
     drafts.push(draft)
   }
 
-  it('every non-GET request is a sandbox dry-run with both parameters, or snowplow /jq', async () => {
+  it('as the gate: only GETs and sandbox dry-runs; any other verb is the draft\'s own stage, as the caller', async () => {
     const { transport, requests } = recorder((req) => {
       if (req.url.startsWith('http://snowplow.test')) {
         return fakeSnowplowJq(req)
@@ -84,17 +86,22 @@ describe('at run time', () => {
       await run(draft, liveCtx(transport))
     }
     expect(requests.length).toBeGreaterThan(20)
-    const mutating = requests.filter((r) => r.method !== 'GET')
-    expect(mutating.length).toBeGreaterThan(0)
-    for (const req of mutating) {
-      expect(req.method).toBe('POST')
-      if (req.url.startsWith('http://snowplow.test')) {
-        expect(req.url).toBe('http://snowplow.test/jq')
-        continue
+    const asGate = requests.filter((r) => r.headers?.Authorization === 'Bearer sa-token')
+    // The gate's identity goes to the API server only, and the API server sees no other identity.
+    expect(asGate.length).toBeGreaterThan(0)
+    expect(requests.filter((r) => r.url.startsWith('https://apiserver.test'))).toEqual(asGate)
+    for (const req of asGate) {
+      if (req.method !== 'GET') {
+        expect(req.method).toBe('POST')
+        expect(req.url).toMatch(/^https:\/\/apiserver\.test\/apis\/[^?]+\/namespaces\/krateo-preview\/[a-z]+\?dryRun=All&fieldValidation=Strict$/)
       }
-      expect(req.url).toMatch(/^https:\/\/apiserver\.test\/apis\/[^?]+\/namespaces\/krateo-preview\/[a-z]+\?dryRun=All&fieldValidation=Strict$/)
     }
-    // The hop (the caller's identity) is only ever read.
-    expect(requests.filter((r) => r.url.startsWith('https://hop.test')).every((r) => r.method === 'GET')).toBe(true)
+    for (const req of requests.filter((r) => r.url.startsWith('http://snowplow.test'))) {
+      expect(req).toMatchObject({ method: 'POST', url: 'http://snowplow.test/jq' })
+    }
+    // The caller's identity sends a non-GET only where a draft stage defines one: the two
+    // mutations above that set verb POST.
+    expect(requests.filter((r) => r.url.startsWith('https://hop.test') && r.method !== 'GET').map((r) => `${r.method} ${r.url}`))
+      .toEqual(['POST https://hop.test/api/v1/namespaces/krateo-system/pods', 'POST https://hop.test/api/v1/namespaces/krateo-system/configmaps'])
   })
 })

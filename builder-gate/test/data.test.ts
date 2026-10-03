@@ -1,6 +1,7 @@
 /**
- * The data step: each draft RESTAction run read-only as the caller — the API server through the
- * hop, jq through snowplow /jq — with the output sampled for the agent. Never a write.
+ * The data step: each draft RESTAction run as the caller, as preview runs it — the API server
+ * through the hop, jq through snowplow /jq — with the output sampled for the agent. External
+ * (endpointRef) stages are in endpoint.test.ts.
  */
 import { describe, expect, it } from 'vitest'
 
@@ -71,7 +72,7 @@ describe('data', () => {
     const { transport } = recorder(cluster)
     const envelope = await run(draft, liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
-    expect(envelope.steps.find((s) => s.name === 'data')?.problems[0]).toMatch(/spec.api\[0\] \(pods\): GET \/api\/v1\/namespaces\/kube-system\/pods answered 404/)
+    expect(envelope.steps.find((s) => s.name === 'data')?.problems[0]).toMatch(/spec.api\[0\] \(pods\): GET \/api\/v1\/namespaces\/kube-system\/pods on the API server \(as the caller\) answered 404/)
   })
 
   it('a filter that fails at run time is red, with snowplow\'s message', async () => {
@@ -83,18 +84,21 @@ describe('data', () => {
     expect(envelope.steps.find((s) => s.name === 'data')?.problems[0]).toMatch(/spec.filter: /)
   })
 
-  it('a non-GET step and an endpointRef step are not replayed — notChecked, red', async () => {
+  it('a non-GET in-cluster stage is executed as the caller, as preview will, and named in the notes', async () => {
     const draft = example()
-    byKind(draft, 'RESTAction').spec.api.push(
-      { name: 'post', path: '/api/v1/namespaces/krateo-system/configmaps', verb: 'POST', payload: '{}' },
-      { name: 'ext', path: '/v1/things', endpointRef: { name: 'ext-endpoint', namespace: 'krateo-system' } },
-    )
-    const { transport, requests } = recorder(cluster)
+    byKind(draft, 'RESTAction').spec.api.push({
+      name: 'review', path: '/apis/authorization.k8s.io/v1/selfsubjectaccessreviews', verb: 'POST',
+      headers: ['Content-Type: application/json'], payload: '{"spec":{"resourceAttributes":{"verb":"list","resource":"pods"}}}',
+    })
+    const { transport, requests } = recorder((req) => (req.url.endsWith('/selfsubjectaccessreviews') ? json(201, { status: { allowed: true } }) : cluster(req)))
     const envelope = await run(draft, liveCtx(transport))
-    const problems = envelope.steps.find((s) => s.name === 'data')?.problems.join('\n')
-    expect(problems).toMatch(/\(post\): notChecked: verb POST — the gate replays reads only/)
-    expect(problems).toMatch(/\(ext\): notChecked: it calls through endpointRef ext-endpoint/)
-    expect(requests.filter((r) => r.url.startsWith('https://hop.test') && r.method !== 'GET')).toEqual([])
+    expect(envelope.ok).toBe(true)
+    const post = requests.find((r) => r.url.endsWith('/selfsubjectaccessreviews'))!
+    expect(post).toMatchObject({ method: 'POST', url: 'https://hop.test/apis/authorization.k8s.io/v1/selfsubjectaccessreviews' })
+    expect(post.headers).toMatchObject({ Authorization: 'Bearer caller-jwt', 'Content-Type': 'application/json' })
+    expect(JSON.parse(post.body!).spec.resourceAttributes.verb).toBe('list')
+    expect(envelope.steps.find((s) => s.name === 'data')?.notes.join('\n'))
+      .toContain('spec.api[1] (review): executed POST /apis/authorization.k8s.io/v1/selfsubjectaccessreviews on the API server (as the caller)')
   })
 
   it('a dependsOn iterator renders one path per element, as snowplow does', async () => {

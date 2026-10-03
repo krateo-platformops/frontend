@@ -9,15 +9,19 @@
 import http from 'node:http'
 import https from 'node:https'
 
-/** GET for reads; POST only for the dry-run create and snowplow's /jq. No other verb exists here. */
-export type Method = 'GET' | 'POST'
+/**
+ * The gate's OWN requests are GET, plus POST for the dry-run create and snowplow's /jq. The data
+ * step also replays a draft RESTAction's own verb (as the caller, or with the endpoint's own
+ * credentials) — that is the only way any other verb gets here (dryRunGuard.test.ts).
+ */
+export type Method = string
 
 export interface HttpRequest {
   method: Method
   url: string
   headers?: Record<string, string>
   body?: string
-  tls?: { ca?: string | Buffer; cert?: string | Buffer; key?: string | Buffer }
+  tls?: { ca?: string | Buffer; cert?: string | Buffer; key?: string | Buffer; rejectUnauthorized?: boolean }
   timeoutMs: number
   /** Cap on the response body; a larger body fails the request rather than exhausting memory. */
   maxBytes?: number
@@ -43,14 +47,19 @@ export const nodeTransport: Transport = (request) => new Promise((resolve, rejec
   const url = new URL(request.url)
   const lib = url.protocol === 'https:' ? https : http
   const maxBytes = request.maxBytes ?? DEFAULT_MAX_BYTES
+  // A header the request names itself (a RESTAction's own Content-Type) wins over the default.
+  const named = new Set(Object.keys(request.headers ?? {}).map((k) => k.toLowerCase()))
   const req = lib.request(url, {
     method: request.method,
     headers: {
-      Accept: 'application/json',
-      ...(request.body !== undefined ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(request.body) } : {}),
+      ...(named.has('accept') ? {} : { Accept: 'application/json' }),
+      ...(request.body !== undefined ? { 'Content-Length': Buffer.byteLength(request.body) } : {}),
+      ...(request.body !== undefined && !named.has('content-type') ? { 'Content-Type': 'application/json' } : {}),
       ...request.headers,
     },
-    ...(url.protocol === 'https:' ? { ca: request.tls?.ca, cert: request.tls?.cert, key: request.tls?.key } : {}),
+    ...(url.protocol === 'https:'
+      ? { ca: request.tls?.ca, cert: request.tls?.cert, key: request.tls?.key, rejectUnauthorized: request.tls?.rejectUnauthorized ?? true }
+      : {}),
   }, (res) => {
     const chunks: Buffer[] = []
     let size = 0

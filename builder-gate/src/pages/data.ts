@@ -1,30 +1,37 @@
 /**
- * Step 5, data (#442 D10 c): each RESTAction in the draft is run the way snowplow would run it,
- * READ-ONLY and AS THE CALLER, so the agent sees what the page will actually show before it hands
- * the draft back:
- *   - each api step's path is rendered (a `${ … }` template through snowplow /jq, per iterator
- *     element when the step dependsOn one), then GET as the caller through the cert-replay hop;
- *   - each step's own filter, and then the RESTAction's spec.filter, are run through snowplow
- *     POST /jq as the caller, on the same dict shape snowplow builds (dict[<step name>]; a step
- *     filter sees {<step name>: response}).
- * The output comes back as a short sample plus item counts.
+ * Step 5, data (#442 D10 c): each RESTAction in the draft is run the way snowplow would run it, AS
+ * THE CALLER, so the agent sees what the page will actually show before it hands the draft back:
+ *   - each stage's path, headers and payload are rendered (a `${ … }` template through snowplow
+ *     /jq, per iterator element when the stage dependsOn one);
+ *   - an in-cluster stage goes through the cert-replay hop as the caller, with its own verb;
+ *   - an endpointRef stage reads its endpoint Secret AS THE CALLER through the hop (a caller who
+ *     cannot read it is red — preview reads it as them too), then calls server-url with that
+ *     Secret's own credentials, the host pinned to server-url (endpoint.ts);
+ *   - each stage's own filter, and then the RESTAction's spec.filter, are run through snowplow
+ *     POST /jq as the caller, on the same dict shape snowplow builds (dict[<stage name>]; a stage
+ *     filter sees {<stage name>: response}).
+ * The output comes back as a short sample plus item counts, with every endpoint Secret value redacted.
  *
- * NEVER WRITES (#442 D10). Only GET leaves for the API server; POST goes only to /jq, which
- * evaluates and stores nothing. A step the gate cannot replay read-only — a non-GET verb, an
- * endpointRef (a Secret-backed endpoint the gate never reads) — is notChecked, which is red.
+ * NON-READ STAGES RUN (Diego, 2026-10-03, superseding the read-only rule): preview executes them,
+ * so the gate does too, and names each one in the notes ("executed POST <path> on <host>").
+ * notChecked — red — is kept for real inability only: no caller token, unreachable, a timeout.
+ * The gate's OWN identity still never writes: it is not used here at all.
  *
  * What it does not reproduce, and says so in its notes: snowplow's userAccessFilter re-filter
  * (the hop already reads with the caller's own RBAC) and request extras / paging (none exist at
  * authoring time).
  */
-import { SNOWPLOW_JQ_MAX_BODY } from '../caller'
+import { type CallerReplyWithType, SNOWPLOW_JQ_MAX_BODY } from '../caller'
+import { type Endpoint, endpointFromSecret, externalRequest, headersOf, redact } from '../endpoint'
 import { step, type StepResult } from '../envelope'
+import { HttpError } from '../http'
 import type { GateContext } from '../plan'
 import { isRestAction, labelOf, maybeQuery, rec, type Rec, str } from './drafts'
 
 /** Iterator elements replayed per step; the rest are counted, not fetched. */
 export const ITERATOR_SAMPLE = 10
 const SAMPLE_CHARS = 1_200
+const DNS1123 = /^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$/
 const PER_CALL_MS = 15_000
 export const STEP_BUDGET_MS = 40_000
 
@@ -124,7 +131,7 @@ export const dataStep = async (drafts: readonly Rec[], ctx: GateContext): Promis
 
   const problems: string[] = []
   const notes: string[] = [
-    'read as the caller (cert-replay hop for the API server, snowplow /jq for jq); userAccessFilter is not re-applied — the reads already carry the caller\'s RBAC',
+    'run as the caller (cert-replay hop for the API server and endpoint Secrets, snowplow /jq for jq; external stages with their endpoint\'s own credentials); userAccessFilter is not re-applied — the reads already carry the caller\'s RBAC',
   ]
   const stepDeadline = Math.min(ctx.deadline, Date.now() + STEP_BUDGET_MS)
   const timeLeft = (): number => Math.min(PER_CALL_MS, stepDeadline - Date.now())
@@ -154,6 +161,61 @@ export const dataStep = async (drafts: readonly Rec[], ctx: GateContext): Promis
     }
   }
 
+  /** A template (`${ … }`) rendered against `ds` through jq, as snowplow's evalJQE; a literal as is. */
+  const render = async (text: string, ds: unknown): Promise<string | { error: string }> => {
+    const template = maybeQuery(text)
+    if (!template.ok) {
+      return text
+    }
+    const out = await evaluate(template.query, ds)
+    if (!out.ok) {
+      return { error: `${JSON.stringify(text.slice(0, 80))}: ${out.error}` }
+    }
+    return typeof out.value === 'string' ? out.value : JSON.stringify(out.value)
+  }
+
+  // Every endpoint Secret value read this call: nothing the step emits may carry one.
+  const secrets = new Set<string>()
+  const endpoints = new Map<string, { endpoint: Endpoint } | { problem: string }>()
+  /** The endpoint a stage's endpointRef names, read from its Secret AS THE CALLER (never as the gate). */
+  const endpointOf = async (ref: Rec, ds: unknown): Promise<{ endpoint: Endpoint } | { problem: string }> => {
+    const rawName = str(ref.name) ?? ''
+    const named = await render(rawName, ds)
+    if (typeof named !== 'string') {
+      return { problem: `endpointRef.name: ${named.error}` }
+    }
+    // snowplow #113 guardrail b: a templated name may not select a per-user credential Secret.
+    if (maybeQuery(rawName).ok && named.endsWith('-clientconfig')) {
+      return { problem: `endpointRef.name resolved to ${JSON.stringify(named)}, a reserved per-user credential Secret — refused, as snowplow refuses it` }
+    }
+    const namespace = str(ref.namespace) ?? ''
+    if (!DNS1123.test(named) || !DNS1123.test(namespace)) {
+      return { problem: `endpointRef ${JSON.stringify(`${namespace}/${named}`)} is not a Secret namespace/name` }
+    }
+    const key = `${namespace}/${named}`
+    const cached = endpoints.get(key)
+    if (cached) {
+      return cached
+    }
+    let result: { endpoint: Endpoint } | { problem: string }
+    try {
+      const reply = await caller.get(`/api/v1/namespaces/${namespace}/secrets/${named}`, Math.max(500, timeLeft()))
+      if (reply.status === 403 || reply.status === 404) {
+        result = { problem: `you cannot read endpoint Secret ${key} (${reply.status}) — preview reads it as you too, so this stage would fail for you` }
+      } else if (reply.status !== 200) {
+        result = { problem: `notChecked: reading endpoint Secret ${key} answered ${reply.status}` }
+      } else {
+        const parsed = endpointFromSecret(reply.json)
+        parsed.secrets.forEach((v) => secrets.add(v))
+        result = parsed.endpoint ? { endpoint: parsed.endpoint } : { problem: `endpoint Secret ${key}: ${parsed.problem}` }
+      }
+    } catch (error) {
+      result = { problem: `notChecked: reading endpoint Secret ${key} failed (${(error as Error).message})` }
+    }
+    endpoints.set(key, result)
+    return result
+  }
+
   for (const { cr, index } of restActions) {
     const label = labelOf(cr, index)
     const spec = rec(cr.spec) ?? {}
@@ -171,17 +233,8 @@ export const dataStep = async (drafts: readonly Rec[], ctx: GateContext): Promis
       const name = str(api.name) ?? `api${k}`
       const where = `${label}: spec.api[${k}] (${name})`
       const verb = (str(api.verb) ?? 'GET').toUpperCase()
-      if (rec(api.endpointRef)) {
-        problems.push(`${where}: notChecked: it calls through endpointRef ${str(rec(api.endpointRef)?.name) ?? '?'}, a Secret-backed endpoint the gate never reads`)
-        complete = false
-        continue
-      }
-      if (verb !== 'GET') {
-        problems.push(`${where}: notChecked: verb ${verb} — the gate replays reads only`)
-        complete = false
-        continue
-      }
       const continueOnError = api.continueOnError === true
+      const endpointRef = rec(api.endpointRef)
 
       // The data each request is rendered against: the dict, or each iterator element.
       let contexts: unknown[] = [dict]
@@ -208,45 +261,72 @@ export const dataStep = async (drafts: readonly Rec[], ctx: GateContext): Promis
 
       const counts: string[] = []
       for (const ds of contexts) {
-        let path = str(api.path) ?? ''
-        const template = maybeQuery(path)
-        if (template.ok) {
-          // eslint-disable-next-line no-await-in-loop -- one element at a time, inside the budget
-          const rendered = await evaluate(template.query, ds)
-          if (!rendered.ok) {
-            problems.push(`${where}: path: ${rendered.error}`)
-            complete = false
-            continue
-          }
-          path = typeof rendered.value === 'string' ? rendered.value : JSON.stringify(rendered.value)
-        }
-        if (!path.startsWith('/')) {
-          problems.push(`${where}: notChecked: path ${JSON.stringify(path)} is not an API-server path, and with no endpointRef snowplow would send it to the API server`)
+        // Path, headers and payload render through jq exactly as snowplow's createRequestOption.
+        // eslint-disable-next-line no-await-in-loop -- one element at a time, inside the budget
+        const path = await render(str(api.path) ?? '', ds)
+        // eslint-disable-next-line no-await-in-loop -- as above
+        const headerLines = await Promise.all((Array.isArray(api.headers) ? api.headers : []).map((h) => render(String(h), ds)))
+        // eslint-disable-next-line no-await-in-loop -- as above
+        const payload = typeof api.payload === 'string' ? await render(api.payload, ds) : undefined
+        const failed = [path, ...headerLines, payload].find((r): r is { error: string } => typeof r === 'object' && r !== null && 'error' in r)
+        if (failed) {
+          problems.push(`${where}: ${failed.error}`)
           complete = false
           continue
         }
-        let response: unknown
+        const target = path as string
+        const headers = headersOf(headerLines as string[])
+        const body = payload as string | undefined
+
+        let reply: CallerReplyWithType
+        let shown: string
         try {
-          // eslint-disable-next-line no-await-in-loop -- as above
-          const reply = await caller.get(path, Math.max(500, timeLeft()))
-          if (reply.status !== 200) {
-            const message = `GET ${path} answered ${reply.status} ${String(rec(reply.json)?.message ?? '').slice(0, 200)}`
-            if (continueOnError) {
-              notes.push(`${where}: ${message} (continueOnError)`)
+          if (endpointRef) {
+            // eslint-disable-next-line no-await-in-loop -- as above
+            const resolved = await endpointOf(endpointRef, ds)
+            if ('problem' in resolved) {
+              problems.push(`${where}: ${resolved.problem}`)
+              complete = false
               continue
             }
-            problems.push(`${where}: ${message}${reply.status === 401 ? ' — the hop did not accept the caller\'s token' : ''}`)
-            complete = false
-            continue
+            const request = externalRequest(resolved.endpoint, { method: verb, path: target, headers, payload: body, timeoutMs: Math.max(500, timeLeft()) })
+            shown = `${verb} ${new URL(request.url).pathname} on ${new URL(request.url).host}`
+            // eslint-disable-next-line no-await-in-loop -- as above
+            reply = await caller.external(request)
+          } else {
+            if (!target.startsWith('/')) {
+              problems.push(`${where}: path ${JSON.stringify(target)} is not an API-server path, and with no endpointRef snowplow sends it to the API server`)
+              complete = false
+              continue
+            }
+            shown = `${verb} ${target} on the API server (as the caller)`
+            // eslint-disable-next-line no-await-in-loop -- as above
+            reply = verb === 'GET' ? { ...(await caller.get(target, Math.max(500, timeLeft()))), contentType: 'application/json' } : await caller.replay(verb, target, headers, body, Math.max(500, timeLeft()))
           }
-          response = reply.json
         } catch (error) {
-          problems.push(`${where}: notChecked: GET ${path} failed (${(error as Error).message})`)
+          const message = (error as Error).message
+          problems.push(`${where}: ${/^notChecked:/.test(message) ? message : error instanceof HttpError ? `notChecked: ${verb} ${target} failed (${message})` : message}`)
           complete = false
           continue
         }
+        if (verb !== 'GET') {
+          notes.push(`${where}: executed ${shown} — the validation ran a non-read call, as preview will`)
+        }
+        if (reply.status < 200 || reply.status >= 300 || (endpointRef && !/json/.test(reply.contentType))) {
+          const message = reply.status >= 200 && reply.status < 300
+            ? `${shown} answered content type ${JSON.stringify(reply.contentType)}, which snowplow refuses (406)`
+            : `${shown} answered ${reply.status} ${String(rec(reply.json)?.message ?? reply.body).slice(0, 200)}`
+          if (continueOnError) {
+            notes.push(`${where}: ${message} (continueOnError)`)
+            continue
+          }
+          problems.push(`${where}: ${message}${reply.status === 401 && !endpointRef ? ' — the hop did not accept the caller\'s token' : ''}`)
+          complete = false
+          continue
+        }
+        const response = reply.json
         const items = rec(response)?.items
-        counts.push(Array.isArray(items) ? `${path} → ${items.length} item(s)` : `${path} → 1 object`)
+        counts.push(Array.isArray(items) ? `${target} → ${items.length} item(s)` : `${target} → 1 object`)
         let value = response
         const filter = str(api.filter)
         if (filter) {
@@ -285,5 +365,7 @@ export const dataStep = async (drafts: readonly Rec[], ctx: GateContext): Promis
   if (usedLocalEngine) {
     notes.push('some inputs exceeded snowplow /jq\'s 1 MiB body cap and were evaluated by the gate\'s copy of the same engine (jqcheck: snowplow\'s gojq fork and modules)')
   }
-  return step('data', problems, notes)
+  // The last line of defence: whatever a stage, an error echo or a sample carried, no endpoint
+  // Secret value leaves the gate.
+  return step('data', problems.map((p) => redact(p, secrets)), notes.map((n) => redact(n, secrets)))
 }
