@@ -13,7 +13,7 @@ import { resetKindCacheForTests } from './kindResolver'
 import { applyPreviewPageV2 } from './previewPageV2'
 import { createPreviewPageSession, primeDraftKinds, WIDGETS_API_VERSION } from './previewSandbox'
 
-vi.mock('./previewBus', () => ({ openAutopilotPreview: vi.fn(), setPreviewProblems: vi.fn() }))
+vi.mock('./previewBus', () => ({ openAutopilotPreview: vi.fn(), setPreviewProblems: vi.fn(), setPreviewRender: vi.fn() }))
 
 const SANDBOX = 'krateo-preview'
 const SNOWPLOW = 'http://snowplow.test'
