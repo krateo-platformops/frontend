@@ -44,6 +44,9 @@ jobs:
         run: go build -o ../bin/jqcheck . && echo "JQCHECK_BIN=$GITHUB_WORKSPACE/builder-gate/bin/jqcheck" >> "$GITHUB_ENV"
       - name: Install
         run: npm ci --no-audit --no-fund
+      # The build also writes generated/widget-schemas.json, which the typecheck reads.
+      - name: Build
+        run: node build.mjs
       - name: Typecheck
         run: npx tsc --noEmit -p tsconfig.json
       # `run`, never bare `vitest` (a watch). The global setup builds dist/ first.

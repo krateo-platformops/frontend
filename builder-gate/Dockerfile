@@ -30,4 +30,6 @@ COPY --from=jqcheck /out/jqcheck /usr/local/bin/jqcheck
 ENV NODE_ENV=production JQCHECK_BIN=/usr/local/bin/jqcheck PORT=8080
 USER 10001
 EXPOSE 8080
+# Kubernetes probes /healthz itself (the chart); this serves a plain `docker run`.
+HEALTHCHECK --interval=30s --timeout=5s CMD wget -qO- http://127.0.0.1:8080/healthz || exit 1
 CMD ["node", "/app/server.cjs"]

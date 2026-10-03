@@ -16,7 +16,7 @@ let server: ChildProcess
 let logs = ''
 
 beforeAll(async () => {
-  const env = { ...process.env, PORT: String(PORT), GATE_BUILDERS: 'portal-builder' }
+  const env: NodeJS.ProcessEnv = { ...process.env, PORT: String(PORT), GATE_BUILDERS: 'portal-builder' }
   delete env.KUBERNETES_SERVICE_HOST
   delete env.GATE_KUBECONFIG
   server = spawn(process.execPath, [join(ROOT, 'dist', 'server.cjs')], { env })
