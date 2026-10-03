@@ -82,6 +82,12 @@ const Table = ({ deniedRefIds, resourcesRefs, serverPagination, uid, widgetData 
   // a fixed width that fits its widest tag, and the table a numeric scroll.x (the sum of every
   // column's floor) — antd's own pairing: it fills the container when there is room and scrolls
   // horizontally when there is not. A table with no tag column keeps exactly the layout it had.
+  //
+  // A VIRTUAL table keeps the tag column's width but not the scroll: it fits its container and the
+  // other columns share what is left, ellipsized with the full text on hover. Its horizontal scroll
+  // is the virtual list's own scrollbar, hidden at rest and drawn at the foot of the 640px viewport,
+  // so a scrolling virtual table read as clipped ("Underprovisio" in a Portal Builder preview with
+  // the Autopilot rail open, 151 pods) with nothing on screen to scroll it by.
   const truncating = Boolean(fitContent) || virtual
   const { scrollX: tagScrollX, tagWidths } = truncating
     ? tagColumnLayout(columns, dataTable ?? [], {
@@ -94,7 +100,7 @@ const Table = ({ deniedRefIds, resourcesRefs, serverPagination, uid, widgetData 
     : { scrollX: undefined, tagWidths: [] }
   const horizontalScroll = fitContent ? undefined : { x: 'max-content' as const }
   const truncatingScroll = tagScrollX ? { x: tagScrollX } : horizontalScroll
-  const scroll = virtual ? { x: tagScrollX ?? ('max-content' as const), y: VIRTUAL_SCROLL_Y } : truncatingScroll
+  const scroll = virtual ? { x: 'max-content' as const, y: VIRTUAL_SCROLL_Y } : truncatingScroll
 
   // Pagination: controlled server-side classic pager when the widget opts in
   // (serverPagination), else the CR's own pagination config (or none). See

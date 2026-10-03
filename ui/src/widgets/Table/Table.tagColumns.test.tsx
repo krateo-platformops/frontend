@@ -7,7 +7,8 @@
  * off and no ellipsis. A Tag is an atomic inline-block, so the cell's ellipsis cannot reach inside it.
  * The tag column now gets a fixed width that fits its widest tag and the table a numeric scroll.x, so
  * a narrow container scrolls instead of clipping; the tag itself ellipsizes (title = full text) as a
- * backstop. A table with no tag column must not change.
+ * backstop. A virtual table keeps the tag column's width but fits its container rather than scroll
+ * (its scrollbar is hidden at rest). A table with no tag column must not change.
  */
 import { cleanup, render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
@@ -120,12 +121,32 @@ describe('Table — tag cells in a narrow container', () => {
     expect(width).toBe(widestTag + 2 * DEFAULT_COLUMN_FLOOR)
   })
 
-  it('virtual: the tag column is sized and the table scrolls horizontally too', () => {
+  it('virtual: the tag column is sized and the table fits its container instead of scrolling', () => {
+    // A virtual table's horizontal scroll is the virtual list's own scrollbar: hidden at rest and drawn
+    // at the foot of the 640px viewport. A scrolling virtual table read as clipped ("Underprovisio",
+    // Portal Builder preview, 151 pods, Autopilot rail open), so it fits instead: the tag column keeps
+    // its width and the other columns share the rest, ellipsized with the full text on hover.
     const { colWidths, container } = renderTable(podsTable(VIRTUAL_ROW_THRESHOLD))
 
     expect(container.querySelector('.ant-table-virtual')).not.toBeNull()
-    expect(container.querySelector('.ant-table-scroll-horizontal')).not.toBeNull()
-    expect(colWidths).toContain(`${widestTag}px`)
+    // Only the tag column is sized (antd's virtual grid gives the others a 1px placeholder it then
+    // stretches over the rest of the container).
+    expect(colWidths[2]).toBe(`${widestTag}px`)
+    expect(colWidths.slice(0, 2)).not.toContain(`${widestTag}px`)
+
+    // Not the numeric floor (widestTag + 2 × DEFAULT_COLUMN_FLOOR, wider than the 320px container):
+    // the table is at least its container and no wider than its columns' own widths.
+    const table = container.querySelector<HTMLTableElement>('.ant-table-header table')
+    expect(table?.style.minWidth).toBe('100%')
+    expect(Number.parseFloat(table?.style.width ?? '')).toBeLessThan(320)
+    expect(Number.parseFloat(table?.style.width ?? '')).not.toBe(widestTag + 2 * DEFAULT_COLUMN_FLOOR)
+
+    // Every tag in full; every other cell ellipsizes with its full text in a title.
+    const tags = [...container.querySelectorAll('.ant-table-tbody .ant-tag')]
+    expect(tags.length).toBeGreaterThan(0)
+    expect(tags.every((tag) => verdicts.includes(tag.textContent ?? '') && tag.getAttribute('title') === tag.textContent)).toBe(true)
+    const podCell = container.querySelector('.ant-table-tbody .ant-table-cell-ellipsis')
+    expect(podCell?.querySelector('[title]')?.getAttribute('title') ?? podCell?.getAttribute('title')).toMatch(/^krateo-system$|^portals-v1-\d+$/)
   })
 
   it('a fitContent table with no tag column keeps fitting its container, with no horizontal scroll', () => {
