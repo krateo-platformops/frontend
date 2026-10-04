@@ -1,11 +1,11 @@
 /**
  * Step 4, live-dry-run: each object is created in the preview sandbox with dryRun=All and
- * fieldValidation=Strict THROUGH SNOWPLOW, AS THE CALLER (snowplow.ts dryRunCreate,
+ * fieldValidation=Strict THROUGH SNOWPLOW'S /call/dry-run, AS THE CALLER (snowplow.ts dryRunCreate,
  * docs/snowplow-contract.md). The API server is the only judge of the RESTAction CRD's CEL rules
  * (the userAccessFilter constraints) and of the CRDs actually deployed, which can differ from the
  * schemas the lint reads (crd-drift.yaml). The gate has no RBAC of its own for this.
  *
- * Every object must be JUDGED (#442 D9). Until snowplow advertises the dry-run forward, the step
+ * Every object must be JUDGED (#442 D9). Until snowplow advertises the dry-run route, the step
  * says "live verdict missing" and is RED — there is no green without the API server's judgement.
  * `notChecked` — Forbidden, unreachable, a timeout, a missing sandbox — is red as well.
  *
@@ -18,7 +18,7 @@ import { type ObjectVerdict, step, type StepResult } from '../envelope'
 import { HttpError } from '../http'
 import { PER_REQUEST_TIMEOUT_MS } from '../kube'
 import type { GateContext } from '../plan'
-import { CAPABILITY_DRY_RUN, DRY_RUN_CONFIRMATION } from '../snowplow'
+import { CAPABILITY_DRY_RUN, CAPABILITY_FIELD_VALIDATION, ECHO_DRY_RUN, echoed } from '../snowplow'
 import { kindOf, labelOf, nameOf, pluralOfDraft, rec, type Rec } from './drafts'
 
 export const STEP_BUDGET_MS = 45_000
@@ -26,8 +26,12 @@ export const MAX_OBJECTS = 50
 const PARALLEL = 4
 
 /**
- * The API server's answer (snowplow forwards its status and body), classified. Order matters as in CPA: a rejection is recognised before
- * anything that could make it look like an environment problem.
+ * The API server's answer, classified — but only an answer snowplow ECHOES as a dry run
+ * (X-Snowplow-Dry-Run: All, on 2xx and on the API server's own failures). Without the echo the
+ * reply is not the API server's verdict on a dry run (a snowplow validation 400, an older
+ * snowplow's 404 for a route it does not serve): it judges nothing, and that is notChecked — red.
+ * Order matters as in CPA: a rejection is recognised before anything that could make it look like
+ * an environment problem.
  */
 export const classifyDryRun = (reply: { status: number; json: unknown; body: string; headers?: Record<string, string | string[] | undefined> }, sandboxNamespace: string): { verdict: ObjectVerdict['verdict']; detail?: string } => {
   const status = rec(reply.json) ?? {}
@@ -35,16 +39,14 @@ export const classifyDryRun = (reply: { status: number; json: unknown; body: str
   const reason = typeof status.reason === 'string' ? status.reason : ''
   const details = rec(status.details) ?? {}
 
+  if (!echoed(reply.headers, { [ECHO_DRY_RUN]: 'All' })) {
+    return { verdict: 'notChecked', detail: `snowplow answered ${reply.status} without ${ECHO_DRY_RUN}: All, so it is not the API server's verdict on a dry run: ${message}` }
+  }
   if (reply.status === 200 || reply.status === 201) {
     return { verdict: 'validated' }
   }
   // Admission (schema, CEL, webhooks) runs before storage, so a name collision means it passed.
-  // ...but only when snowplow confirms the request it forwarded WAS a dry run: a 409 from a
-  // snowplow that dropped dryRun says nothing about admission, and a retry would have created it.
   if (reply.status === 409 && reason === 'AlreadyExists') {
-    if (String(reply.headers?.[DRY_RUN_CONFIRMATION] ?? '') !== 'All') {
-      return { verdict: 'notChecked', detail: `snowplow answered 409 AlreadyExists without ${DRY_RUN_CONFIRMATION}: All — whether the API server judged a dry run cannot be told` }
-    }
     return { verdict: 'validated', detail: 'an object of that name already exists in the sandbox; the API server validated this one before refusing the name clash' }
   }
   // 422 Invalid: the schema or a CEL rule. 400 BadRequest: under Strict, an unknown or duplicate
@@ -100,11 +102,12 @@ export const dryRunStep = async (drafts: readonly Rec[], ctx: GateContext): Prom
   if (!capabilities.ok) {
     return unjudged(`notChecked: ${capabilities.reason}`)
   }
-  if (!capabilities.offered.has(CAPABILITY_DRY_RUN)) {
-    return unjudged(`live verdict missing: this snowplow does not yet forward dryRun on /call (${CAPABILITY_DRY_RUN}, docs/snowplow-contract.md)`)
+  const missing = [CAPABILITY_DRY_RUN, CAPABILITY_FIELD_VALIDATION].filter((c) => !capabilities.offered.has(c))
+  if (missing.length > 0) {
+    return unjudged(`live verdict missing: this snowplow does not yet offer the dry-run route (${missing.join(', ')}; snowplow 1.12.36, docs/snowplow-contract.md)`)
   }
 
-  const notes = [`judged by the API server through snowplow as the caller, in namespace ${snowplow.sandboxNamespace}, dryRun=All, fieldValidation=Strict`]
+  const notes = [`judged by the API server through snowplow POST /call/dry-run as the caller, in namespace ${snowplow.sandboxNamespace}, dryRun=All, fieldValidation=Strict, every verdict echoed`]
   const stepDeadline = Math.min(ctx.deadline, Date.now() + STEP_BUDGET_MS)
   let next = 0
   const worker = async (): Promise<void> => {

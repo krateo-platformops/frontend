@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Envelope } from '../src/envelope'
-import { byKind, type Draft, example, fakeSnowplow, json, liveCtx, recorder, run } from './helpers'
+import { byKind, type Draft, example, fakeSnowplow, json, liveCtx, rawReply, recorder, run } from './helpers'
 
 const failsAt = (envelope: Envelope, stepName: string, pattern: RegExp): void => {
   expect(envelope.ok).toBe(false)
@@ -125,18 +125,23 @@ describe('references', () => {
   })
   it('an apiRef the caller cannot read is red', async () => {
     const draft = mutate((d) => { byKind(d, 'Table').spec.apiRef.name = 'private-ra' })
-    const { transport } = recorder(fakeSnowplow({ read: () => json(403, { kind: 'Status', code: 403, message: 'forbidden' }) }))
+    const { transport } = recorder(fakeSnowplow({ read: () => rawReply(403, { kind: 'Status', code: 403, message: 'forbidden' }) }))
     failsAt(await run(draft, liveCtx(transport)), 'references', /you cannot read krateo-system\/restactions\/private-ra/)
   })
   it('an apiRef to an EXISTING RESTAction resolves — read raw, never resolved', async () => {
     const draft = mutate((d) => { byKind(d, 'Table').spec.apiRef = { name: 'compositions-list', namespace: 'krateo-system' } })
-    const { transport, requests } = recorder(fakeSnowplow({ read: () => json(200, { kind: 'RESTAction', spec: { api: [{ name: 'l', path: '/apis/composition.krateo.io' }] } }) }))
+    const { transport, requests } = recorder(fakeSnowplow({ read: () => rawReply(200, { kind: 'RESTAction', spec: { api: [{ name: 'l', path: '/apis/composition.krateo.io' }] } }) }))
     const envelope = await run(draft, liveCtx(transport))
     expect(envelope.steps.find((s) => s.name === 'references')?.ok).toBe(true)
     expect(requests.find((r) => new URL(r.url).pathname === '/call' && r.method === 'GET')).toMatchObject({
       url: 'http://snowplow.test/call?apiVersion=templates.krateo.io%2Fv1&resource=restactions&namespace=krateo-system&name=compositions-list&raw=true',
       headers: { Authorization: 'Bearer caller-jwt' },
     })
+  })
+  it('a raw read answered WITHOUT X-Snowplow-Raw: true is a failure — the object may have been resolved, not read', async () => {
+    const draft = mutate((d) => { byKind(d, 'Table').spec.apiRef = { name: 'compositions-list', namespace: 'krateo-system' } })
+    const { transport } = recorder(fakeSnowplow({ read: () => json(200, { kind: 'RESTAction', status: { resolved: true } }) }))
+    failsAt(await run(draft, liveCtx(transport)), 'references', /notChecked: reading krateo-system\/restactions\/compositions-list through snowplow failed \(snowplow answered 200 to a raw read without x-snowplow-raw: true/)
   })
   it('today\'s snowplow (no raw read): an out-of-draft reference is live verdict missing, red, and never resolved', async () => {
     const draft = mutate((d) => { byKind(d, 'Table').spec.apiRef = { name: 'compositions-list', namespace: 'krateo-system' } })

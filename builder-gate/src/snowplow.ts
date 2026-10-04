@@ -3,28 +3,46 @@
  * person the agent works for, whose Krateo JWT kagent forwards on the MCP request
  * (KAGENT_PROPAGATE_TOKEN). The gate holds no RBAC for it and emulates nothing snowplow does.
  *
- * The contract is docs/snowplow-contract.md. ALL of it is ASSUMED (none of it is in snowplow
- * 1.12.33), and each call is only ever sent once snowplow ADVERTISES it:
- *   - `GET  /capabilities`                               what this snowplow offers (404 = nothing)
- *   - `GET  /call?…&raw=true`                            an existing widget or RESTAction, stored, not resolved
- *   - `POST /call?…&dryRun=All&fieldValidation=Strict`   the dry-run create
- *   - `POST /resolve?dryRun=All`                         an inline RESTAction resolved, persisting nothing
+ * The contract is snowplow#443's design (confirmed 2026-10-04; lands in snowplow 1.12.36), written
+ * up in docs/snowplow-contract.md:
+ *   - `GET  /capabilities`                                  static tokens; 404 = none
+ *   - `GET  /call?…&raw=true`                               the stored object  → echo X-Snowplow-Raw: true
+ *   - `POST /call/dry-run?…&dryRun=All&fieldValidation=Strict`  the dry-run create
+ *                                                           → echo X-Snowplow-Dry-Run: All, X-Snowplow-Field-Validation: Strict
+ *   - `POST /call/read?…resource=restactions…` body {extras, object}  the inline resolve
+ *                                                           → echo X-Snowplow-Dry-Run: All, X-Snowplow-Resolve-Source: request-body
  *
- * WHY THE FEATURE CHECK IS LOAD-BEARING: today's snowplow ignores a `dryRun` query parameter on
- * POST /call — it would CREATE the object for real. So `dryRunCreate` refuses to send unless this
- * snowplow advertised `call.dryRun`, and a 2xx that does not carry the X-Krateo-Dry-Run: All
- * confirmation is reported as a contract violation, never as a pass.
+ * SAFETY, unchanged in posture:
+ *   - each call is sent only once snowplow advertises its capability token — never by version;
+ *   - the dry-run goes ONLY to /call/dry-run, a route an older snowplow does not serve (404,
+ *     nothing written), never to /call, which an older snowplow would treat as a real create;
+ *   - a reply without its echo is a FAILURE, never a pass: an older snowplow answering /call/read
+ *     resolves the STORED RESTAction, and only the echo tells the two apart.
  */
 import { type HttpResponse, jsonOf, nodeTransport, type Transport } from './http'
 import { safeSegment } from './kube'
 
-export const CAPABILITY_RAW_READ = 'call.raw'
+/** The capability tokens snowplow#443's design names. */
 export const CAPABILITY_DRY_RUN = 'call.dryRun'
-export const CAPABILITY_RESOLVE = 'resolve.inline'
+export const CAPABILITY_FIELD_VALIDATION = 'call.fieldValidation'
+export const CAPABILITY_RAW_READ = 'call.raw'
+export const CAPABILITY_RESOLVE = 'call.read.inline'
+
+/**
+ * The reason a per-stage error carries when snowplow did not run a write-verb stage by design
+ * (inline resolve executes reads only). ASSUMED: asked for on snowplow#443, not yet named there.
+ * Only an error carrying it is "not executed by design"; any other stage error is a real failure.
+ */
+export const STAGE_NOT_EXECUTED_REASON = 'StageNotExecuted'
+
 /** The parameters every dry-run carries — a constant: no caller reaches this string. */
 export const DRY_RUN_PARAMS = 'dryRun=All&fieldValidation=Strict'
-/** The response header with which snowplow confirms it forwarded the dry run to the API server. */
-export const DRY_RUN_CONFIRMATION = 'x-krateo-dry-run'
+
+/** The echo headers (lower-case, as node delivers them) and the value each must carry. */
+export const ECHO_DRY_RUN = 'x-snowplow-dry-run'
+export const ECHO_FIELD_VALIDATION = 'x-snowplow-field-validation'
+export const ECHO_RESOLVE_SOURCE = 'x-snowplow-resolve-source'
+export const ECHO_RAW = 'x-snowplow-raw'
 
 const GROUP_VERSION = /^([a-z0-9.-]+\/)?v[0-9]+[a-z0-9]*$/
 const PLURAL = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/
@@ -48,7 +66,18 @@ export interface SnowplowClient {
   resolveInline(restAction: Record<string, unknown>, timeoutMs: number): Promise<SnowplowReply>
 }
 
+/** The contract was not kept (or not offered): the request was refused, or its reply cannot be trusted. */
 export class ContractError extends Error {}
+
+/** The value of a response header, or '' (node lower-cases names). */
+export const headerOf = (headers: HttpResponse['headers'] | undefined, name: string): string => {
+  const value = headers?.[name]
+  return Array.isArray(value) ? value[0] ?? '' : value ?? ''
+}
+
+/** Whether every echo in `expected` is present with its value. */
+export const echoed = (headers: HttpResponse['headers'] | undefined, expected: Record<string, string>): boolean =>
+  Object.entries(expected).every(([name, value]) => headerOf(headers, name) === value)
 
 /**
  * snowplow as `token`'s owner. `sandboxNamespace` is the only namespace a dry-run or an inline
@@ -74,6 +103,12 @@ export const snowplowClient = (url: string, token: string, sandboxNamespace: str
       throw new ContractError('the object has no metadata.name')
     }
     return name
+  }
+  const requireCapabilities = (...tokens: string[]): void => {
+    const missing = tokens.filter((t) => !offered?.has(t))
+    if (missing.length > 0) {
+      throw new ContractError(`refusing to send: this snowplow has not advertised ${missing.join(', ')}`)
+    }
   }
   const probeCapabilities = async (timeoutMs: number): Promise<Capabilities> => {
     try {
@@ -103,31 +138,31 @@ export const snowplowClient = (url: string, token: string, sandboxNamespace: str
     async read(apiVersion, resource, namespace, name, timeoutMs) {
       // Raw: the stored object, NOT resolved — a resolving GET /call would run a RESTAction (and
       // could pull Secrets into snowplow's informers) just to learn that it exists.
-      if (!offered?.has(CAPABILITY_RAW_READ)) {
-        throw new ContractError(`refusing GET /call: this snowplow has not advertised ${CAPABILITY_RAW_READ}, and a resolving read would run the object`)
+      requireCapabilities(CAPABILITY_RAW_READ)
+      const res = await transport({ method: 'GET', url: `${base}/call?${query(apiVersion, resource, namespace, name)}&raw=true`, headers: auth, timeoutMs })
+      if ([200, 403, 404].includes(res.status) && !echoed(res.headers, { [ECHO_RAW]: 'true' })) {
+        throw new ContractError(`snowplow answered ${res.status} to a raw read without ${ECHO_RAW}: true — it may have resolved the object instead`)
       }
-      return reply(await transport({ method: 'GET', url: `${base}/call?${query(apiVersion, resource, namespace, name)}&raw=true`, headers: auth, timeoutMs }))
+      return reply(res)
     },
     async dryRunCreate(apiVersion, resource, object, timeoutMs) {
-      // Never on a snowplow that has not said it forwards dryRun: it would create for real.
-      if (!offered?.has(CAPABILITY_DRY_RUN)) {
-        throw new ContractError(`refusing to POST /call: this snowplow has not advertised ${CAPABILITY_DRY_RUN}`)
-      }
-      const url = `${base}/call?${query(apiVersion, resource, sandboxNamespace, nameOf(object))}&${DRY_RUN_PARAMS}`
+      // Only on /call/dry-run: a snowplow that does not serve it answers 404 and writes nothing.
+      requireCapabilities(CAPABILITY_DRY_RUN, CAPABILITY_FIELD_VALIDATION)
+      const url = `${base}/call/dry-run?${query(apiVersion, resource, sandboxNamespace, nameOf(object))}&${DRY_RUN_PARAMS}`
       const res = await transport({ method: 'POST', url, headers: auth, body: JSON.stringify(object), timeoutMs })
-      if (res.status >= 200 && res.status < 300 && String(res.headers[DRY_RUN_CONFIRMATION] ?? '') !== 'All') {
-        throw new ContractError(`snowplow answered ${res.status} to the dry run without ${DRY_RUN_CONFIRMATION}: All — the object may have been PERSISTED in ${sandboxNamespace}`)
+      if (res.status >= 200 && res.status < 300 && !echoed(res.headers, { [ECHO_DRY_RUN]: 'All', [ECHO_FIELD_VALIDATION]: 'Strict' })) {
+        throw new ContractError(`snowplow answered ${res.status} to the dry run without ${ECHO_DRY_RUN}: All and ${ECHO_FIELD_VALIDATION}: Strict — the object may have been PERSISTED in ${sandboxNamespace}`)
       }
       return reply(res)
     },
     async resolveInline(restAction, timeoutMs) {
-      if (!offered?.has(CAPABILITY_RESOLVE)) {
-        throw new ContractError(`refusing to POST /resolve: this snowplow has not advertised ${CAPABILITY_RESOLVE}`)
-      }
-      const body = JSON.stringify({ namespace: sandboxNamespace, restAction })
-      const res = await transport({ method: 'POST', url: `${base}/resolve?dryRun=All`, headers: auth, body, timeoutMs })
-      if (res.status >= 200 && res.status < 300 && String(res.headers[DRY_RUN_CONFIRMATION] ?? '') !== 'All') {
-        throw new ContractError(`snowplow answered ${res.status} to the inline resolve without ${DRY_RUN_CONFIRMATION}: All — it may have persisted the RESTAction`)
+      requireCapabilities(CAPABILITY_RESOLVE)
+      const url = `${base}/call/read?${query('templates.krateo.io/v1', 'restactions', sandboxNamespace, nameOf(restAction))}`
+      // The draft resolves in the sandbox namespace: the design requires metadata to match the query.
+      const object = { ...restAction, metadata: { ...(restAction.metadata as Record<string, unknown>), namespace: sandboxNamespace } }
+      const res = await transport({ method: 'POST', url, headers: auth, body: JSON.stringify({ extras: {}, object }), timeoutMs })
+      if (res.status >= 200 && res.status < 300 && !echoed(res.headers, { [ECHO_DRY_RUN]: 'All', [ECHO_RESOLVE_SOURCE]: 'request-body' })) {
+        throw new ContractError(`snowplow answered ${res.status} to the inline resolve without ${ECHO_DRY_RUN}: All and ${ECHO_RESOLVE_SOURCE}: request-body — it resolved something other than this draft (an older snowplow resolves the STORED RESTAction)`)
       }
       return reply(res)
     },

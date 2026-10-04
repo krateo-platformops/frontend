@@ -7,9 +7,10 @@
  *   2. references     every widget's refs and apiRef resolve to the draft, or to an object snowplow
  *                     reads raw as the caller
  *   3. jq-compile     every RESTAction filter and widgetDataTemplate expression, snowplow's engine
- *   4. live-dry-run   every object judged by the API server through snowplow as the caller,
- *                     dryRun=All + Strict; "live verdict missing" and notChecked are red
- *   5. data           every draft RESTAction resolved by snowplow as the caller, nothing stored
+ *   4. live-dry-run   every object judged by the API server through snowplow /call/dry-run as the
+ *                     caller, dryRun=All + Strict; "live verdict missing" and notChecked are red
+ *   5. data           every draft RESTAction resolved by snowplow (/call/read) as the caller, nothing
+ *                     stored; stage errors read back, Secret-shaped output dropped
  *   6. coverage       informational: what the API server accepted (runs once the dry-run has)
  *
  * The gate emulates nothing snowplow does and holds no RBAC beyond reading its own Builder: steps

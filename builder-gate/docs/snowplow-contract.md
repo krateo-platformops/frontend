@@ -1,123 +1,141 @@
 ---
 type: Integration
-title: builder-gate ↔ snowplow — the assumed contract
-description: What the builder gate needs from snowplow to judge a draft against the live cluster as the caller, with no RBAC and no emulation of its own. ASSUMED, not yet confirmed by snowplow; none of it exists in snowplow 1.12.33.
+title: builder-gate ↔ snowplow — the contract (snowplow#443)
+description: What the builder gate calls on snowplow to judge a draft against the live cluster as the caller, with no RBAC and no emulation of its own — snowplow#443's design, confirmed from the gate side on 2026-10-04, landing in snowplow 1.12.36.
 tags: [builder-gate, snowplow, contract]
-timestamp: 2026-10-03T00:00:00Z
+timestamp: 2026-10-04T00:00:00Z
 ---
 
-# builder-gate ↔ snowplow: the assumed contract
+# builder-gate ↔ snowplow: the contract
 
-**Status: ASSUMED.** The snowplow owners have not confirmed any of this yet, and none of it exists
-in snowplow 1.12.33 (the installer pin). The gate's client is `src/snowplow.ts`, and its tests
-(`test/dryRun.test.ts`, `test/data.test.ts`, `test/rules.test.ts`, `test/dryRunGuard.test.ts`)
-run against an in-memory snowplow that speaks this document. When snowplow confirms the contract
-or changes it, this file and `src/snowplow.ts` change together.
+**Source.** This is the design comment on krateo-platformops/snowplow#443 ("#443 design: the
+builder-gate contract"). The builder gate confirmed it on the issue, and it lands in **snowplow
+1.12.36**. The gate's client is `src/snowplow.ts`. Its tests run against an in-memory snowplow
+that speaks this document, plus an OLDER snowplow that does not.
+
+**Still assumed** (asked on the issue, not yet answered there):
+
+- **The reason code on a write-verb stage an inline resolve does not run.** The gate assumes
+  `reason: "StageNotExecuted"` (`STAGE_NOT_EXECUTED_REASON`). Only an error carrying it is
+  reported as "not executed by design". Without it, the stage error is a real failure (red).
+- **Where per-stage errors sit in the reply.** The gate reads them from each stage's `errorKey`
+  (default `error`) in `.status`, where snowplow's resolver accumulates them. A RESTAction whose
+  `spec.filter` drops that key hides its stage errors from the gate.
 
 ## Why snowplow
 
-The gate is thin (#442). It lints, checks references and compiles jq itself, all of which are
-static. Everything that needs the live cluster goes through snowplow **as the caller**, the person
-the agent works for. The gate never acts as itself:
+The gate is thin (#442):
 
-- It holds no RBAC beyond `get` on its own Builder CRs.
-- It never re-implements RESTAction evaluation, which belongs to snowplow.
-- Whatever it learns, the person could have learned through the portal.
+- It lints, checks references and compiles jq itself. All of that is static.
+- Everything that needs the live cluster goes through snowplow **as the caller**: the person the
+  agent works for, whose Krateo JWT kagent forwards on the MCP request (`KAGENT_PROPAGATE_TOKEN`).
+- The gate holds no RBAC beyond `get` on its own Builder CRs, and re-implements nothing snowplow
+  does.
 
-The caller's identity is the Krateo JWT that kagent forwards on the MCP request
-(`KAGENT_PROPAGATE_TOKEN`). The gate sends it as `Authorization: Bearer <jwt>` on every call
-below, exactly as the portal does.
+## 0. The safety rules the gate keeps
 
-## 1. `GET /capabilities` — feature discovery
+1. **Capabilities by presence, never by version.** Each call below is sent only when
+   `GET /capabilities` lists its token. A 404 means none.
+2. **Dry-run writes go to `/call/dry-run` only.** An older snowplow (and an older pod mid-rollout)
+   does not serve that route, so it answers 404 and **nothing is written**. Plain `/call` is only
+   ever read (GET) by the gate. An older snowplow would treat a write there as a real create.
+3. **A missing echo is a failure, never a pass.** Every reply the gate trusts carries its echo
+   header. Without it, the reply judges nothing, and the step is red.
 
-The gate asks this once per `validate_draft` call, before anything else live.
+## 1. `GET /capabilities`
 
 ```http
 GET /capabilities
-Authorization: Bearer <caller JWT>
 
-200 {"capabilities": ["call.raw", "call.dryRun", "resolve.inline"]}
+200 {"capabilities":["call.dryRun","call.fieldValidation","call.raw","call.read.inline"]}
 ```
 
-- A capability that is not listed is treated as absent. A **404** means none (today's snowplow).
-- **Load-bearing:** the gate sends a call from sections 2–4 only when its capability is listed.
-  Today's snowplow ignores `dryRun` on `POST /call` and would **create the object for real**, so
-  without the advertisement the gate sends nothing.
-- When a capability is absent, the step that needs it reports `live verdict missing: …` and is
-  **red** (#442 D9: no green without the API server's judgement).
+The response is static and unauthenticated, and contains only the tokens. `call.warnings` comes
+later; the gate does not use it.
 
-## 2. `call.raw` — read an existing object, not resolved
+| Token | What the gate sends once it is listed |
+|---|---|
+| `call.dryRun` + `call.fieldValidation` | §2, the dry-run (both tokens are required: every dry-run carries `fieldValidation=Strict`) |
+| `call.raw` | §3, the raw read |
+| `call.read.inline` | §4, the inline resolve |
 
-```http
-GET /call?apiVersion=<group/version>&resource=<plural>&namespace=<ns>&name=<name>&raw=true
-Authorization: Bearer <caller JWT>
-```
-
-- **What it does:** returns the object as stored, using the caller's RBAC `get`. It does **not**
-  resolve it: no widgetData template, no apiRef, and no RESTAction api calls run.
-- **Why:** a resolving `GET /call` would run a RESTAction just to learn that it exists, and could
-  pull Secrets into snowplow's cluster-wide informers. That is the hazard the portal's
-  `lint-ra-secrets.py` documents.
-- **Answers:** 200 with the object; 404 when it is missing; 403 when the caller may not read it.
-  The body follows snowplow's usual Status JSON.
-- **Who uses it:** the `references` step, for a reference that is not in the draft. It checks
-  that the object exists. For a RESTAction, it also holds the stored spec to the secrets rule.
-
-## 3. `call.dryRun` — the dry-run create
+## 2. Dry-run: `POST /call/dry-run`
 
 ```http
-POST /call?apiVersion=<group/version>&resource=<plural>&namespace=<sandbox>&name=<name>&dryRun=All&fieldValidation=Strict
+POST /call/dry-run?apiVersion=<g/v>&resource=<plural>&namespace=<sandbox>&name=<name>&dryRun=All&fieldValidation=Strict
 Authorization: Bearer <caller JWT>
-Content-Type: application/json
 
 <the object, metadata.namespace = <sandbox>>
 ```
 
-- **What snowplow does:** forwards **both** query parameters to the API server's create, as the
-  caller. It returns the API server's status code and body unchanged: the object on 201, a
-  `Status` on failure (422 `Invalid` for schema or CEL, 400 for a strict-decoding error, 403, 404
-  …).
-- **The confirmation the gate requires:** every 2xx carries the response header
-  `X-Krateo-Dry-Run: All`. This states that snowplow forwarded the dry run. A 2xx without it is a
-  contract violation, and the gate reports it as such (`the object may have been PERSISTED`),
-  never as a pass.
-- **Sandbox only:** the gate only ever names the preview sandbox namespace (`SANDBOX_NAMESPACE`,
-  `krateo-preview`). The caller's own RBAC decides whether the create is allowed, as it does for
-  the portal's preview.
-- **Who uses it:** the `live-dry-run` step, one call per object, with the verdicts classified as
-  `validated`, `rejected` or `notChecked`.
+- **What snowplow does:** the outbound apiserver call always carries `dryRun=All`. An inbound
+  `dryRun` other than exactly `All` is a 400. `fieldValidation=Strict` is forwarded, and the
+  request runs as the caller.
+- **Echo:** `X-Snowplow-Dry-Run: All` and `X-Snowplow-Field-Validation: Strict`. These are on 2xx
+  and on the apiserver's own failures, and absent on snowplow's validation 400.
+- **How the gate reads the reply:**
+  - **Echoed:** it is the apiserver's verdict. 201 and 409 AlreadyExists are `validated`; 422 and
+    400 are `rejected`; 403, 401 and a missing sandbox namespace are `notChecked`.
+  - **Not echoed:** `notChecked`, which is red, whatever the status. A 2xx without both echoes is
+    reported as a contract violation: the object "may have been PERSISTED".
+- **The gate only ever names the sandbox namespace** (`SANDBOX_NAMESPACE`, `krateo-preview`).
+- **Known gap (snowplow side):** plumbing v1.14.2 truncates apiserver error bodies to 2 KiB, so a
+  Strict 422 reaches the gate with `message` but without `details.causes`.
 
-## 4. `resolve.inline` — resolve a RESTAction without storing it
+## 3. Raw read: `GET /call?…&raw=true`
 
 ```http
-POST /resolve?dryRun=All
+GET /call?apiVersion=<g/v>&resource=<plural>&namespace=<ns>&name=<name>&raw=true
 Authorization: Bearer <caller JWT>
-Content-Type: application/json
-
-{"namespace": "<sandbox>", "restAction": <the RESTAction object>}
 ```
 
-- **What snowplow does:** resolves the RESTAction exactly as it resolves a stored one for this
-  caller, and **persists nothing**: the api stages, the filters, userAccessFilter, endpointRef and
-  the caches all behave as they would for a stored one. It answers 200 with the RESTAction, its
-  `status` set to the output. On failure it answers a `Status`, with 4xx for a defect in the
-  RESTAction and 5xx when it cannot run it.
-- **The confirmation:** every 2xx carries `X-Krateo-Dry-Run: All`, the same rule as section 3.
-- **Who uses it:** the `data` step, which reports a count and a short sample of `status` to the
-  agent.
-- **Secrets:** a RESTAction that could read Secrets never reaches this call. The gate's
-  `builder-lint` refuses it first (`src/pages/secrets.ts`, ported from the portal's
-  `lint-ra-secrets.py`).
+- **What it returns:** for RESTActions and the widgets group, the stored object, not resolved, as
+  the caller. The apiserver's 403 and 404 are passed through. Other kinds already return the
+  stored object on `GET /call`.
+- **Echo:** `X-Snowplow-Raw: true`. The gate requires it on 200, 403 and 404. A reply without it
+  may be a resolve, so the lookup fails.
+- **Who uses it:** the `references` step, for references outside the draft. An existing
+  RESTAction is also held to the secrets rule.
 
-## Open questions for the snowplow owners
+## 4. Inline resolve: `POST /call/read`
 
-1. **Naming:** the paths, the `raw` parameter, the capability names and the
-   `X-Krateo-Dry-Run` header are proposals. Any shape works if it keeps the three properties
-   below:
-   - discovered before use;
-   - confirmed on success;
-   - nothing persisted.
-2. **Inline resolve:** should it live under `/call` (as a `POST /call/read` sibling) rather than
-   `/resolve`?
-3. **Caches:** must the inline resolve bypass the identity-free apistage L1 cache? The draft is
-   not a stored object, so it must not seed or read entries keyed as one.
+```http
+POST /call/read?apiVersion=templates.krateo.io/v1&resource=restactions&namespace=<sandbox>&name=<name>
+Authorization: Bearer <caller JWT>
+
+{"extras":{},"object":{<the RESTAction, metadata.namespace = <sandbox>>}}
+```
+
+- **What snowplow does:**
+  - It uses the same resolver entry as a stored RESTAction; only the spec's source changes. The
+    reply is the same envelope, with the output in `.status` and per-stage errors included.
+  - It runs as the caller end to end. endpointRef Secrets and userAccessFilter stages are read as
+    the caller too.
+  - It persists nothing: no cache, informer, SSE or refresher contact.
+  - Write-verb stages are **not executed**; each gets a per-stage error.
+- **Validation (each failure is a 400):** body ≤ 1 MiB; RESTAction only; and metadata name and
+  namespace must equal the query.
+- **Echo:** `X-Snowplow-Dry-Run: All` and `X-Snowplow-Resolve-Source: request-body`. An older
+  snowplow ignores `object` and resolves the STORED RESTAction with no echo, so a reply without
+  both echoes fails.
+- **v1 scope:** drafts referencing other drafts are not supported (nested references resolve
+  stored objects), so the gate resolves each draft RESTAction on its own.
+- **What the gate does with the reply:**
+  - **Per-stage errors:**
+    - an error carrying `StageNotExecuted` (assumed, see above) is a note: "not executed by
+      design: checked at the driven Preview";
+    - an error under an `errorKey` that only `continueOnError` stages write is a note;
+    - any other stage error is red.
+  - **Secrets, second layer:** snowplow reads Secret paths live as the caller and does not refuse
+    them (the #398 ruling). The gate's static rule (`src/pages/secrets.ts`) already refuses any
+    draft that could read them. Beyond that, the gate drops anything Secret-shaped from the output
+    before it enters the envelope, and notes the drop. Secret-shaped means:
+    - `kind: Secret`; or
+    - a `data` map of base64 values under an object with `type`, `metadata`, `stringData` or
+      `immutable`.
+  - **The sample:** what reaches the agent is a count and a short sample of `.status`.
+
+## 5. RBAC
+
+Everything above runs as the caller. The gate's ServiceAccount holds only `get` on its own
+Builders, and the snowplow chart's RBAC is unchanged.
