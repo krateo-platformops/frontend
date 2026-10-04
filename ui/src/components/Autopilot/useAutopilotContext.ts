@@ -17,7 +17,8 @@ import { isWildcardSegment, secretFieldPaths } from '../../utils/secretFields'
 
 import { getComposeRefusals } from './composeRequest'
 import { chartFingerprint, controllerFingerprint, draftFingerprint } from './draftStructure'
-import { getPreviewProblems } from './previewBus'
+import { getPreviewProblems, getPreviewRender } from './previewBus'
+import { boundedPreviewRender, type RenderedWidgetState } from './previewRender'
 import { redactAutopilotContext } from './redact'
 import type { AutopilotIdentity, PageContextEnvelope, WidgetInventoryEntry } from './types'
 
@@ -503,12 +504,27 @@ export const buildContextDelta = (
     && chartFingerprint(previous.chart) === chartFingerprint(next.chart)
     && controllerFingerprint(previous.controller) === controllerFingerprint(next.controller)
   const sameRefusals = JSON.stringify(previous.composeRefusals ?? null) === JSON.stringify(next.composeRefusals ?? null)
-  if (sameRoute && prevEndpoints === nextEndpoints && sameStatus && sameDraft && sameRefusals
-    && !next.composeRefusals?.length && !hasPrefillableForm) {
+  //  - Never collapse while the last preview's render has problems, or when what it rendered
+  //    changed: the check runs after the preview, with the route and the widget set unchanged, so
+  //    every guard above is blind to it — and it is the evidence the model's next step rests on.
+  const sameRender = JSON.stringify(previous.previewRender ?? null) === JSON.stringify(next.previewRender ?? null)
+  if (sameRoute && prevEndpoints === nextEndpoints && sameStatus && sameDraft && sameRefusals && sameRender
+    && !next.composeRefusals?.length && !next.previewRender?.problems.length && !hasPrefillableForm) {
     const statusNote = next.pageStatus ? `, page ${next.pageStatus}` : ''
     return `<page_context>\nUnchanged: still on ${next.focus ?? next.route} (${next.widgets.length} widgets${statusNote}).\n</page_context>`
   }
   return serializePageContext(next)
+}
+
+/** The server's own words for a failed widget fetch (WidgetFetchError's `detail`, else its message). */
+const fetchErrorOf = (error: unknown): { status?: number; message: string } | undefined => {
+  if (!error) {
+    return undefined
+  }
+  const record = error as { detail?: unknown; message?: unknown; status?: unknown }
+  const detail = typeof record.detail === 'string' && record.detail ? record.detail : undefined
+  const message = typeof record.message === 'string' ? record.message : 'the widget could not be fetched'
+  return { message: detail ?? message, ...(typeof record.status === 'number' ? { status: record.status } : {}) }
 }
 
 /** Hook: returns a `collect()` that snapshots the live page context on demand. */
@@ -542,13 +558,15 @@ export const useAutopilotContext = () => {
         const loading = query.state.status === 'pending'
           || (query.state.fetchStatus === 'fetching' && query.state.data === undefined)
         const stale = query.isStale()
-        return { ...entry, loading: loading || undefined, stale: stale || undefined }
+        const error = load.loadState === 'error' ? fetchErrorOf(query.state.error)?.message.slice(0, 300) : undefined
+        return { ...entry, ...(error ? { error } : {}), loading: loading || undefined, stale: stale || undefined }
       })
       .filter((widget) => widget.endpoint !== '')
       .slice(0, MAX_WIDGETS)
 
     const route = window.location.pathname
     const previewProblems = getPreviewProblems()
+    const previewRender = getPreviewRender()
     const composeRefusals = getComposeRefusals()
     return {
       capturedAt: Date.now(),
@@ -562,10 +580,32 @@ export const useAutopilotContext = () => {
       // Autopilot SEES its own rejected preview — the exact verdicts ride the context so the
       // model self-corrects (fix + re-emit the fence) without the user relaying errors.
       ...(previewProblems?.length ? { previewProblems: previewProblems.slice(0, 8) } : {}),
+      // What the last live preview RENDERED — its problems and its data — so a follow-up turn and
+      // every turn after it reason from the render, not from the CRs that were sent.
+      ...(previewRender ? { previewRender: boundedPreviewRender(previewRender) } : {}),
       route,
       widgets,
     }
   }, [queryClient])
 
-  return { collect }
+  /**
+   * Every MOUNTED widget query, as WidgetRenderer reads it — the raw material previewRender.ts
+   * checks a live preview against. Not part of the envelope: the provider reads it after a preview,
+   * summarizes the preview's own widgets, and only that summary travels.
+   */
+  const readRenderedWidgets = useCallback((): RenderedWidgetState[] =>
+    queryClient.getQueryCache().findAll({ queryKey: ['widgets'], type: 'active' }).map((query) => {
+      const { queryKey, state } = query
+      const loadState = loadStateFromStatus(state.status, state.fetchStatus)
+      const error = loadState === 'error' ? fetchErrorOf(state.error) : undefined
+      return {
+        data: state.data,
+        endpoint: Array.isArray(queryKey) && typeof queryKey[1] === 'string' ? queryKey[1] : '',
+        loadState,
+        updatedAt: Math.max(state.dataUpdatedAt, state.errorUpdatedAt),
+        ...(error ? { error } : {}),
+      }
+    }), [queryClient])
+
+  return { collect, readRenderedWidgets }
 }

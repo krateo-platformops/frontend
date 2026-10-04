@@ -36,7 +36,7 @@ import type { PortalActionProposal } from './actionBridge'
 import { type ApplyResourceSetOp, buildSetOpPath, isApplySetAllowed, MAX_APPLY_SET_OPS } from './applyResourceSet'
 import { draftOwner } from './draftRecord'
 import { buildPagePreviewPayload, parsePagePreviewArgs } from './previewBridge'
-import { openAutopilotPreview, setPreviewProblems } from './previewBus'
+import { openAutopilotPreview, setPreviewProblems, setPreviewRender } from './previewBus'
 import {
   buildSandboxTeardownOps,
   buildSandboxWidgetEndpoint,
@@ -343,6 +343,8 @@ export const applyPreviewPageV2 = async (
   if (!widgets) {
     return null
   }
+  // Whatever the last preview rendered is no longer what will be on screen.
+  setPreviewRender(null)
 
   // 1. VALIDATE — any failure: source drawer with the verdicts, NOTHING applied.
   const problems = await validatePageDrafts(widgets, deps.snowplowBaseUrl)
@@ -473,5 +475,7 @@ export const applyPreviewPageV2 = async (
 
   const label = proposal.label ?? `live preview — ${applied.length} draft${applied.length === 1 ? '' : 's'} → ${deps.sandboxNamespace}`
 
-  return { label, readOnly: false, verb: 'previewPage' }
+  // `rendered`: the drafts are live in the sandbox and the drawer renders them — what the provider's
+  // render check (previewRender.ts) keys on, structurally rather than on the label.
+  return { label, readOnly: false, rendered: true, verb: 'previewPage' }
 }

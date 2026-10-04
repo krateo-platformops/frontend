@@ -31,7 +31,7 @@ import { applyPreviewPageV2, mergePatchOf, type PreviewPageV2Deps } from './prev
 import { createPreviewPageSession, ownerTagOf, primeDraftKinds, sandboxDraftName, WIDGETS_API_VERSION } from './previewSandbox'
 import { recordPagePreview } from './publishCompile'
 
-vi.mock('./previewBus', () => ({ openAutopilotPreview: vi.fn(), setPreviewProblems: vi.fn() }))
+vi.mock('./previewBus', () => ({ openAutopilotPreview: vi.fn(), setPreviewProblems: vi.fn(), setPreviewRender: vi.fn() }))
 
 const openPreviewMock = vi.mocked(openAutopilotPreview)
 
@@ -205,7 +205,7 @@ describe('previewPage v2 — the happy path (apply → live drawer → teardown 
     expect(typeof payload.onClose).toBe('function')
 
     // The chip is honest about the mutation (sandbox writes happened).
-    expect(chip).toEqual({ label: `live preview — 2 drafts → ${SANDBOX}`, readOnly: false, verb: 'previewPage' })
+    expect(chip).toEqual({ label: `live preview — 2 drafts → ${SANDBOX}`, readOnly: false, rendered: true, verb: 'previewPage' })
   })
 
   it('drawer close → best-effort DELETE teardown ONCE (a second close is a no-op)', async () => {

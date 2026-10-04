@@ -32,7 +32,7 @@ import { withHeldDraft } from './draftStructure'
 import { recordToolFrame } from './evidence'
 import { useAutopilotShortcut } from './keyboardShortcut'
 import { createOasAttachmentStore, type OasAttachmentResult } from './oasAttachment'
-import { PREVIEW_SELF_CORRECTION_NUDGE } from './previewBus'
+import { PREVIEW_SELF_CORRECTION_NUDGE, setPreviewRender } from './previewBus'
 import { emitPublishResult, onPublishRequest } from './previewPublishRequest'
 import { AutopilotPreviewDrawer } from './previewSurface'
 import { routeProposal } from './proposalRoute'
@@ -47,6 +47,7 @@ import { useBlueprintAuthoringBuses } from './useBlueprintAuthoringBuses'
 import { createDraftAutosave, useDraftAutosave } from './useDraftAutosave'
 import { createBroadcastingDraftStore, useDraftFileBuses } from './useDraftFileBuses'
 import { useDraftResumeBus } from './useDraftResumeBus'
+import { usePreviewDataLoop } from './usePreviewDataLoop'
 import { autopilotSpeakBackStore } from './voice/speak/speakBackStore'
 import { stopVoice } from './voiceWiring'
 
@@ -156,7 +157,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   }, [enabled, useEcho, flagAvailable, endpoint])
   const reachable = enabled && flagAvailable && (useEcho || probeOk)
 
-  const { collect } = useAutopilotContext()
+  const { collect, readRenderedWidgets } = useAutopilotContext()
   // DRAFT RECORDS: the held draft autosaved to the sandbox (useDraftAutosave). Built before the bridge
   // and the store, because each is handed a piece of it at construction — the bridge its write-ahead
   // (a live page preview flushes the record before it applies), the store its change listener.
@@ -241,6 +242,9 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   // (send is declared after finalize); `recoveryCountRef` caps retries so a persistently-off turn can't loop.
   const sendRef = useRef<((text: string, opts?: { modality?: TurnModality; recovery?: boolean }) => void) | undefined>(undefined)
   const recoveryCountRef = useRef(0)
+  // PREVIEW-DATA TRAMPOLINE (frontend#442 D10): a live preview of a specialist's page is read back
+  // once rendered, and a render with problems earns a bounded follow-up turn. See usePreviewDataLoop.
+  const { beginRun, checkLivePreview, holdsPublish, reset: resetPreviewDataLoop } = usePreviewDataLoop({ readRenderedWidgets, sandboxNamespace: config?.api.PREVIEW_SANDBOX_NAMESPACE, sendRef, setMessages, streaming })
 
   const transport: AutopilotTransport = useMemo(() => (endpoint && endpoint !== 'echo' ? createKagentTransport(endpoint) : createEchoTransport()), [endpoint])
 
@@ -326,6 +330,11 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     const toRun = selectProposalsToRun(toolProposals, textProposals)
     // The first draft edit of this run that did not land: a trailing previewRestDef is then skipped.
     let refusedEdit: string | null = null
+    // The widgets of a previewPage that went LIVE this run, and when the run began — the render check
+    // below counts only answers the cache settled after this moment.
+    let livePagePreview: Record<string, unknown>[] | null = null
+    const runStartedAt = Date.now()
+    const userTurn = beginRun(evidence)
     /* eslint-disable no-await-in-loop -- sequential is the point; see selectProposalsToRun. */
     for (const proposal of toRun) {
       if (proposal.verb === 'previewRestDef' && refusedEdit !== null) {
@@ -437,6 +446,9 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
             // allowed ONLY after the SAME page was previewed this thread. FE-P1's ajv verdicts
             // (drawer) + CHART-P2's PR CI are the correctness gates; this is the preview gate.
             recordPagePreview(proposal.widgets, blueprintStore, blueprintGate)
+            if (chip.rendered === true && Array.isArray(proposal.widgets)) {
+              livePagePreview = proposal.widgets as Record<string, unknown>[]
+            }
           }
         }
       }
@@ -446,6 +458,11 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       setMessages((prev) => prev.map((message) => (
         message.id === assistantId ? { ...message, actions: chips } : message
       )))
+    }
+
+    // PREVIEW-DATA TRAMPOLINE: read back what the live preview rendered (detached; see usePreviewDataLoop).
+    if (livePagePreview) {
+      checkLivePreview(assistantId, userTurn, livePagePreview, runStartedAt, modality)
     }
 
     // PREVIEW-VALIDATION TRAMPOLINE (FE-P5): an ajv-rejected previewPage self-corrects WITHOUT the human
@@ -480,7 +497,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       const held = blueprintStore.get()
       const heldName = heldDraftIdentity(held)
       const approvedPublish = /\b(publish|open the (?:pull request|pr|merge request|mr)|go ahead|do it|approve|proceed|looks good|ship it)\b/i.test(lastUserTextRef.current)
-      const nudge = held && heldName && approvedPublish ? narratedPublishNudge(held, heldName, builderTargets) : null
+      // Not while the live preview's render still lists problems, nor after the data loop reported.
+      const nudge = held && heldName && approvedPublish && !holdsPublish() ? narratedPublishNudge(held, heldName, builderTargets) : null
       if (nudge) {
         recoveryCountRef.current += 1
         setMessages((prev) => prev.map((message) => (message.id === assistantId ? { ...message, text: '↻ One moment — preparing the change request…' } : message)))
@@ -514,7 +532,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     // otherwise never learn the answer proposes changing something (FR 71). The store decides
     // whether anything is actually said: a typed turn is always silent.
     autopilotSpeakBackStore.speakAnswer({ actions: chips, id: assistantId, modality, text: cleanedText })
-  }, [apply, blueprintGate, blueprintStore, builderTargets, config, draftAutosave, oasStore, sessionId, setMessages])
+  }, [apply, beginRun, blueprintGate, blueprintStore, builderTargets, checkLivePreview, config, draftAutosave, holdsPublish, oasStore, sessionId, setMessages])
 
   const applyFrame = useCallback((assistantId: string, frame: AutopilotFrame, modality: TurnModality) => {
     switch (frame.kind) {
@@ -644,6 +662,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     if (!recovery) {
       lastUserTextRef.current = trimmed
       recoveryCountRef.current = 0
+      resetPreviewDataLoop()
       // A NEW USER TURN STOPS SPEECH (FR 75). Not just the ones the keyboard produced: a
       // suggestion chip, a starter prompt and a purely-dictated draft all reach this line
       // without a keystroke, and the composer's own onChange cancel never fires for them. The
@@ -674,7 +693,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     setStreaming(true)
 
     abortRef.current = transport.send({ context: baseContext, contextId, sessionId, text: trimmed }, { onFrame: (frame) => applyFrame(assistantId, frame, modality) })
-  }, [applyFrame, blueprintGate, blueprintStore, collect, contextId, sessionId, setMessages, streaming, transport])
+  }, [applyFrame, blueprintGate, blueprintStore, collect, contextId, resetPreviewDataLoop, sessionId, setMessages, streaming, transport])
 
   // Keep the finalize-side recovery trampoline pointing at the CURRENT send closure.
   useEffect(() => { sendRef.current = send }, [send])
@@ -685,9 +704,11 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     abortRef.current?.()
     abortRef.current = null
     setStreaming(false)
+    // Stop means stop: a pending preview-data check sends no follow-up after it.
+    resetPreviewDataLoop()
     // Settle any still-streaming bubble so the UI drops the caret and re-enables the composer.
     setMessages((prev) => prev.map((message) => (message.streaming ? { ...message, streaming: false } : message)))
-  }, [setMessages])
+  }, [resetPreviewDataLoop, setMessages])
 
   // Tear down all PER-THREAD, in-flight machinery — shared by newThread (archive-then-reset)
   // and switchToThread (load an archived transcript). Everything here is thread-scoped state
@@ -713,6 +734,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     approvalRef.current = null
     setPendingApproval(null)
     recoveryCountRef.current = 0
+    resetPreviewDataLoop()
+    setPreviewRender(null)
     assistantTextRef.current.clear()
     proposalsRef.current.clear()
     evidenceRef.current.clear()
@@ -741,7 +764,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     // a re-preview, which is where the security posture actually lives; the draft is visible in
     // the Files tab either way, and the surfaces already offer an explicit Close draft for when
     // someone means to discard it.
-  }, [blueprintGate, oasStore, transport])
+  }, [blueprintGate, oasStore, resetPreviewDataLoop, transport])
 
   const newThread = useCallback(() => {
     teardownThread()
