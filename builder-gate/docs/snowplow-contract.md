@@ -129,9 +129,12 @@ Authorization: Bearer <caller JWT>
     - A failed stage with reason `StageNotExecuted` is a note: "not executed by design: checked at
       the driven Preview". As a documented fallback, so is a failed stage whose body message
       matches `dry-run: stage "<name>" verb <V> is not executed`.
+    - A failed stage the draft marks `continueOnError` (matched by name) is a note too: "stage
+      <name> failed (<reason>) — continueOnError, the page is expected to cope; checked at the
+      driven Preview". Its author declared the tolerance, and the driven Preview judges what
+      renders.
     - **Red:**
-      - any other failed stage, including one marked `continueOnError` (the header says it
-        failed);
+      - any other failed stage;
       - a truncated header;
       - a missing or malformed header, which is a contract violation.
     - The body's per-stage error messages (each stage's `errorKey`, default `error`, in `.status`)

@@ -87,15 +87,28 @@ describe('data', () => {
     expect(dataOf(envelope).problems).toEqual(['widgets[3] (RESTAction/pod-sizing): stage pods failed (Forbidden)'])
   })
 
-  it('a failed stage of a continueOnError stage is red too: the header says it failed', async () => {
+  it('a failed continueOnError stage is a note — matched by stage name; the same failure elsewhere stays red', async () => {
     const draft = example()
     Object.assign(byKind(draft, 'RESTAction').spec.api[0], { continueOnError: true, errorKey: 'podsErr' })
+    byKind(draft, 'RESTAction').spec.api.push({ name: 'nodes', path: '/api/v1/nodes' })
     const { transport } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [], podsErr: [{ code: 404, message: 'stage "pods": not found' }] } }, [{ name: 'pods', ok: false, reason: 'NotFound' }]),
+      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [], podsErr: [{ code: 404, message: 'stage "pods": not found' }] } },
+        [{ name: 'pods', ok: false, reason: 'NotFound' }, { name: 'nodes', ok: false, reason: 'Forbidden' }]),
     }))
     const envelope = await run(draft, liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
-    expect(dataOf(envelope).problems).toEqual(['widgets[3] (RESTAction/pod-sizing): stage pods failed (NotFound): stage "pods": not found'])
+    expect(dataOf(envelope).notes).toContain('widgets[3] (RESTAction/pod-sizing): stage pods failed (NotFound) — continueOnError, the page is expected to cope; checked at the driven Preview — stage "pods": not found')
+    expect(dataOf(envelope).problems).toEqual(['widgets[3] (RESTAction/pod-sizing): stage nodes failed (Forbidden)'])
+  })
+
+  it('a draft whose only failed stage is continueOnError passes', async () => {
+    const draft = example()
+    byKind(draft, 'RESTAction').spec.api[0].continueOnError = true
+    const { transport } = recorder(fakeSnowplow({
+      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [] } }, [{ name: 'pods', ok: false, reason: 'Error' }]),
+    }))
+    const envelope = await run(draft, liveCtx(transport))
+    expect(envelope.ok).toBe(true)
   })
 
   it('a truncated outcomes header is red', async () => {

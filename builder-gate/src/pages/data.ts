@@ -12,8 +12,9 @@
  * What it reads back:
  *   - stage outcomes, from the X-Snowplow-Stage-Outcomes header (snowplow PR #469) — the primary
  *     source, which a spec.filter cannot hide. A write-verb stage refused by design
- *     (StageNotExecuted, or its documented message) is a NOTE ("checked at the driven Preview");
- *     any other failed stage, a truncated header and a missing one are red. The body's per-stage
+ *     (StageNotExecuted, or its documented message) is a NOTE ("checked at the driven Preview"), and
+ *     so is a failed stage the draft marks continueOnError; any other failed stage, a truncated
+ *     header and a missing one are red. The body's per-stage
  *     error messages are read only as detail;
  *   - the output itself, as a count and a short sample, with anything shaped like a Kubernetes
  *     Secret DROPPED first and the drop noted. builder-lint already refuses a RESTAction that
@@ -107,9 +108,11 @@ const detailFor = (messages: readonly string[], stage: string): string | undefin
 /**
  * Stage outcomes from X-Snowplow-Stage-Outcomes — the PRIMARY source, which no spec.filter can
  * hide. Red: a missing or malformed header (a contract violation), a truncated one, and any failed
- * stage that is not a write-verb stage refused by design. By design means the StageNotExecuted
- * reason, or — the documented fallback — the body message `dry-run: stage "<name>" verb <V> is not
- * executed` for that stage. The body is read only for that and for detail.
+ * stage that is neither a write-verb stage refused by design nor a stage the draft marks
+ * continueOnError. By design means the StageNotExecuted reason, or — the documented fallback — the
+ * body message `dry-run: stage "<name>" verb <V> is not executed` for that stage. A
+ * continueOnError stage's failure is a note: its author declared the tolerance, and the driven
+ * Preview judges what renders. The body is read only for that fallback and for detail.
  */
 export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers']; json: unknown }): { failures: string[]; byDesign: string[] } => {
   const outcomes = stageOutcomesOf(reply.headers)
@@ -125,10 +128,16 @@ export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers
   }
   const failures: string[] = []
   const byDesign: string[] = []
+  // The draft's own declaration: a stage its author marked continueOnError may fail, and the page
+  // is expected to cope — the driven Preview judges what actually renders.
+  const tolerant = new Set((Array.isArray(rec(ra.spec)?.api) ? rec(ra.spec)?.api as unknown[] : [])
+    .map((a) => rec(a) ?? {}).filter((api) => api.continueOnError === true).map((api) => str(api.name)).filter((n): n is string => n !== null))
   for (const stage of outcomes.stages.filter((o) => !o.ok)) {
     const detail = detailFor(messages, stage.name)
     if (stage.reason === STAGE_NOT_EXECUTED_REASON || (detail !== undefined && STAGE_NOT_EXECUTED_MESSAGE.test(detail))) {
       byDesign.push(`stage ${stage.name}: not executed by design (a write-verb stage): checked at the driven Preview${detail ? ` — ${detail}` : ''}`)
+    } else if (tolerant.has(stage.name)) {
+      byDesign.push(`stage ${stage.name} failed (${stage.reason ?? 'no reason given'}) — continueOnError, the page is expected to cope; checked at the driven Preview${detail ? ` — ${detail}` : ''}`)
     } else {
       failures.push(`stage ${stage.name} failed (${stage.reason ?? 'no reason given'})${detail ? `: ${detail}` : ''}`)
     }
