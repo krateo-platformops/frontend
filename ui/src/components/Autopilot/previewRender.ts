@@ -292,18 +292,19 @@ export const awaitSettledPreview = async (
   }
 }
 
-/** Automatic follow-up turns one user request may produce, the report turn included. */
-export const MAX_PREVIEW_FOLLOW_UPS = 3
+/** Automatic FIX rounds one user request may produce. The report turn that ends the loop comes on top. */
+export const MAX_PREVIEW_FIX_ROUNDS = 3
 
 export type PreviewFollowUp = { mode: 'fix' | 'report'; attempt: number; repeated: boolean }
 
 /**
  * The bound on the loop, one per provider; `reset` on every real user turn.
  *
- * A preview with problems earns a follow-up turn while the budget lasts. The follow-up asks for a
- * FIX, except when it is the last one the budget allows or the problems are the same as the ones the
- * previous follow-up already asked about (no progress): then it asks Agentiko to stop, report and
- * ask the person. After that, nothing more fires until the person speaks.
+ * Iterate until right, stop only on no progress. A preview with problems earns a FIX follow-up, up to
+ * MAX_PREVIEW_FIX_ROUNDS of them. The follow-up after the last fix round, or any follow-up whose
+ * problems are the same as the ones the previous follow-up already asked about (no progress), asks
+ * Agentiko instead to stop, report and ask the person. After that report, nothing more fires until
+ * the person speaks — so a request gets at most MAX_PREVIEW_FIX_ROUNDS + 1 automatic turns.
  *
  * "The same problems" compares widget and category, not the free text: a RESTAction error carries a
  * trace id or a timestamp that differs on every call, and must not read as progress.
@@ -314,14 +315,14 @@ export const createPreviewDataLoop = () => {
   let stopped = false
   return {
     next(problems: readonly PreviewRenderProblem[]): PreviewFollowUp | null {
-      if (!problems.length || stopped || followUps >= MAX_PREVIEW_FOLLOW_UPS) {
+      if (!problems.length || stopped) {
         return null
       }
       const fingerprint = problems.map(({ category, widget }) => `${widget}|${category}`).sort().join('\n')
       const repeated = fingerprint === lastFingerprint
       lastFingerprint = fingerprint
       followUps += 1
-      const mode = repeated || followUps === MAX_PREVIEW_FOLLOW_UPS ? 'report' : 'fix'
+      const mode = repeated || followUps > MAX_PREVIEW_FIX_ROUNDS ? 'report' : 'fix'
       stopped = mode === 'report'
       return { attempt: followUps, mode, repeated }
     },
@@ -342,7 +343,7 @@ export const previewFollowUpPrompt = (summary: PreviewRenderSummary, step: Previ
   const fine = summary.rendered.length ? `\nRendered with data: ${summary.rendered.join('; ')}.` : ''
   if (step.mode === 'fix') {
     return [
-      `The portal drove the live preview of the page and read what each widget rendered (automatic check ${step.attempt} of ${MAX_PREVIEW_FOLLOW_UPS}). It rendered with problems:`,
+      `The portal drove the live preview of the page and read what each widget rendered (automatic fix round ${step.attempt} of ${MAX_PREVIEW_FIX_ROUNDS}). It rendered with problems:`,
       lines + fine,
       'The same lines are in your page context under `previewRender`. The page is not done while any of them is listed.',
       'Send these exact lines to frontend-agent together with every CR of your last previewPage, unchanged, and ask it to fix exactly these problems. Then emit a fresh previewPage of the whole corrected set in this reply.',
@@ -351,7 +352,7 @@ export const previewFollowUpPrompt = (summary: PreviewRenderSummary, step: Previ
   }
   const why = step.repeated
     ? 'they are the same problems the previous check reported, so another automatic fix would not help'
-    : `that was the last automatic check (${MAX_PREVIEW_FOLLOW_UPS} of ${MAX_PREVIEW_FOLLOW_UPS})`
+    : `all ${MAX_PREVIEW_FIX_ROUNDS} automatic fix rounds are used up`
   return [
     `The portal drove the live preview of the page again and it still renders with problems — ${why}:`,
     lines + fine,

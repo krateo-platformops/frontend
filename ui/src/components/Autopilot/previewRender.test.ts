@@ -5,14 +5,14 @@
  * session per call, so each check below pins one thing a person sees on a broken page — a red card
  * with the server's words, an empty table, a pie with no slices, a chart missing the field it plots —
  * and that a page that rendered fine produces no problem at all. The loop's bound is pinned
- * separately: three follow-ups at most, the last one a report, and an early report on no progress.
+ * separately: three fix rounds, then a report turn, and an early report on no progress.
  */
 import { describe, expect, it } from 'vitest'
 
 import {
   awaitSettledPreview,
   createPreviewDataLoop,
-  MAX_PREVIEW_FOLLOW_UPS,
+  MAX_PREVIEW_FIX_ROUNDS,
   previewFollowUpPrompt,
   previewRenderChipLabel,
   previewWidgetNames,
@@ -194,7 +194,7 @@ describe('awaitSettledPreview — the render is read once it has settled', () =>
   })
 })
 
-describe('createPreviewDataLoop — at most three follow-ups, and none on no progress', () => {
+describe('createPreviewDataLoop — three fix rounds, then a report; the report comes early on no progress', () => {
   const empty = summarize([served('Table', 'pods-table', { dataSource: [] })]).problems
   const errored = summarize([failed('PieChart', 'pods-by-phase', 500, 'trace 1')]).problems
 
@@ -202,12 +202,14 @@ describe('createPreviewDataLoop — at most three follow-ups, and none on no pro
     expect(createPreviewDataLoop().next([])).toBeNull()
   })
 
-  it('fixes while problems change, reports on the last follow-up, then stays silent', () => {
+  it('fixes while problems change — fix, fix, fix — then reports, then stays silent', () => {
     const loop = createPreviewDataLoop()
+    expect(MAX_PREVIEW_FIX_ROUNDS).toBe(3)
     expect(loop.next(empty)).toEqual({ attempt: 1, mode: 'fix', repeated: false })
     expect(loop.next(errored)).toEqual({ attempt: 2, mode: 'fix', repeated: false })
-    expect(loop.next(empty)).toEqual({ attempt: MAX_PREVIEW_FOLLOW_UPS, mode: 'report', repeated: false })
-    expect(loop.next(errored)).toBeNull()
+    expect(loop.next(empty)).toEqual({ attempt: 3, mode: 'fix', repeated: false })
+    expect(loop.next(errored)).toEqual({ attempt: 4, mode: 'report', repeated: false })
+    expect(loop.next(empty)).toBeNull()
   })
 
   it('the same problems twice is no progress: report now, not after the budget', () => {
@@ -238,10 +240,14 @@ describe('previewFollowUpPrompt — the follow-up carries the whole problem', ()
     const text = previewFollowUpPrompt(summary, { attempt: 1, mode: 'fix', repeated: false })
     expect(text).toContain('- PieChart pods-by-phase: failed to load (500): unable to resolve api reference')
     expect(text).toContain('Rendered with data: Table pods-table: 1 row.')
-    expect(text).toContain('automatic check 1 of 3')
+    expect(text).toContain('automatic fix round 1 of 3')
     expect(text).toMatch(/frontend-agent together with every CR of your last previewPage/)
     expect(text).toMatch(/fresh previewPage of the whole corrected set/)
     expect(text).toMatch(/Do not publish/)
+  })
+
+  it('a report after the last fix round says the rounds are used up', () => {
+    expect(previewFollowUpPrompt(summary, { attempt: 4, mode: 'report', repeated: false })).toMatch(/all 3 automatic fix rounds are used up/)
   })
 
   it('a report turn stops the loop and asks the person', () => {

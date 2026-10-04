@@ -163,12 +163,37 @@ describe('a live preview of a specialist\'s page is read back', () => {
     expect(harness.sends).toHaveLength(1)
   })
 
-  it('stops at its bound: the same problems twice turn into a report, then nothing', async () => {
+  it('iterates while the problems change: fix, fix, fix, then one report, then nothing', async () => {
+    // Each round "fixes" one thing and breaks another, so every check shows different problems.
+    const failing: PreviewRenderModule.RenderedWidgetState = { ...tableServing([]), data: undefined, error: { message: 'jq: error', status: 500 }, loadState: 'error' }
+    const rounds = [[tableServing([])], [failing], [tableServing([])], [failing]]
+    harness.rendered = rounds[0]
+    act(() => api.send('build me a page of the pods'))
+    for (let turn = 0; turn < 4; turn += 1) {
+      harness.rendered = rounds[turn]
+      act(() => streamPreviewTurn(turn))
+      // eslint-disable-next-line no-await-in-loop -- each round must land before the next is streamed
+      await settle()
+    }
+    expect(harness.sends.slice(1).map(({ text }) => /automatic fix round (\d) of 3|fix rounds are used up/.exec(text)?.[0])).toEqual([
+      'automatic fix round 1 of 3',
+      'automatic fix round 2 of 3',
+      'automatic fix round 3 of 3',
+      'fix rounds are used up',
+    ])
+
+    // The report turn obeys and previews nothing; even if it did, the loop has stopped.
+    act(() => streamPreviewTurn(4))
+    await settle()
+    expect(harness.sends).toHaveLength(5)
+  })
+
+  it('stops early on no progress: the same problems twice turn into a report, then nothing', async () => {
     harness.rendered = [tableServing([])]
     act(() => api.send('build me a page of the pods'))
     act(() => streamPreviewTurn(0))
     await settle()
-    expect(harness.sends[1].text).toMatch(/automatic check 1 of 3/)
+    expect(harness.sends[1].text).toMatch(/automatic fix round 1 of 3/)
 
     act(() => streamPreviewTurn(1))
     await settle()

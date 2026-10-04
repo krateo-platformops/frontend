@@ -6,7 +6,8 @@
  * (`previewRender`), and a render with problems — a widget that failed to load, an empty table or
  * chart, a chart missing the field it plots — runs ONE hidden follow-up turn naming them, so the
  * agent sends them back to the specialist and previews again. The loop is bounded per user request
- * (createPreviewDataLoop: at most MAX_PREVIEW_FOLLOW_UPS, and it stops on the same problems twice).
+ * (createPreviewDataLoop: at most MAX_PREVIEW_FIX_ROUNDS fix rounds, then a report turn — and the
+ * report comes early on the same problems twice).
  *
  * The check is detached from finalize: the render takes seconds and the turn's answer is complete.
  * It drives nothing itself — the follow-up is a turn like the other trampolines', and every write it
