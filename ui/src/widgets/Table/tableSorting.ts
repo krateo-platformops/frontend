@@ -52,13 +52,25 @@ const AGE_UNIT_SECONDS: Record<string, number> = {
 }
 
 /** Plain numeric string, e.g. "42", "-3.14". */
-const NUMERIC_RE = /^-?\d+(?:\.\d+)?$/
+export const NUMERIC_RE = /^-?\d+(?:\.\d+)?$/
 
 /** ISO-8601 date or datetime, e.g. "2026-07-22" / "2026-07-22T10:15:00Z". */
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/
 
+/**
+ * A placeholder a RESTAction writes in place of a value: "-", "—", "null" (a jq `tostring` of null),
+ * "n/a". One such cell must not turn a numeric column into a string column, which re-sorted it
+ * lexicographically and left-aligned it.
+ */
+const PLACEHOLDER_RE = /^(?:-|—|null|n\/a)$/i
+
 const isMissing = (value: boolean | number | string | null | undefined): value is '' | null | undefined => (
   value === undefined || value === null || value === ''
+)
+
+/** Whether a value counts as no value: empty, or one of the placeholders above. */
+export const isBlank = (value: boolean | number | string | null | undefined): boolean => (
+  isMissing(value) || (typeof value === 'string' && PLACEHOLDER_RE.test(value.trim()))
 )
 
 /** Parse a kubectl-style age string to seconds; undefined when not an age. */
@@ -138,7 +150,7 @@ export const sniffColumnType = (values: (boolean | number | string | undefined)[
   let canBeDate = true
   let canBeNumber = true
   for (const value of values) {
-    if (isMissing(value)) { continue }
+    if (isMissing(value) || isBlank(value)) { continue }
     sawValue = true
     if (typeof value === 'number') {
       canBeAge = false
@@ -163,7 +175,7 @@ export const sniffColumnType = (values: (boolean | number | string | undefined)[
 
 /** Normalize a raw value into its comparable form for the sniffed type. */
 const toComparable = (value: boolean | number | string | undefined, sortType: ColumnSortType): number | string | undefined => {
-  if (isMissing(value)) { return undefined }
+  if (isMissing(value) || isBlank(value)) { return undefined }
   switch (sortType) {
     case 'number': {
       const num = typeof value === 'number' ? value : Number(value)
