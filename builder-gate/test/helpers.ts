@@ -39,23 +39,34 @@ export const recorder = (handler: (req: HttpRequest) => HttpResponse | Promise<H
 }
 
 export const SNOWPLOW = 'http://snowplow.test'
-export const ALL_CAPABILITIES = ['call.raw', 'call.dryRun', 'resolve.inline']
+/** snowplow#443's capability tokens (snowplow 1.12.36). */
+export const ALL_CAPABILITIES = ['call.dryRun', 'call.fieldValidation', 'call.raw', 'call.read.inline']
 
 export interface FakeSnowplow {
-  /** What GET /capabilities advertises; null = 404 (today's snowplow). */
+  /** What GET /capabilities advertises; null = 404 (snowplow before 1.12.36). */
   capabilities?: string[] | null
-  /** GET /call?…&raw=true — the stored object, or a status. Default: 404. */
+  /** Serve /call/dry-run? false = an older snowplow: 404 on the route, nothing written. */
+  dryRunRoute?: boolean
+  /** GET /call?…&raw=true — default: 404, echoed. */
   read?: (url: URL) => HttpResponse
-  /** POST /call?…&dryRun=All… Default: 201, confirmed. */
+  /** POST /call/dry-run — default: 201 with the object, echoed. */
   dryRun?: (url: URL, body: Record<string, any>) => HttpResponse
-  /** POST /resolve?dryRun=All. Default: resolves to {status: {pods: []}}, confirmed. */
-  resolve?: (body: Record<string, any>) => HttpResponse
+  /** POST /call/read with {extras, object} — default: resolves to {status: {pods: []}}, echoed. */
+  resolve?: (url: URL, body: Record<string, any>) => HttpResponse
 }
 
-/** The X-Krateo-Dry-Run: All confirmation the contract requires on a 2xx. */
-export const confirmed = (status: number, body: unknown): HttpResponse => json(status, body, { 'x-krateo-dry-run': 'All' })
+/** The echoes snowplow#443 puts on a dry-run reply. */
+export const dryRunEcho = { 'x-snowplow-dry-run': 'All', 'x-snowplow-field-validation': 'Strict' }
+/** The echoes on an inline resolve reply. */
+export const resolveEcho = { 'x-snowplow-dry-run': 'All', 'x-snowplow-resolve-source': 'request-body' }
+/** The echo on a raw read. */
+export const rawEcho = { 'x-snowplow-raw': 'true' }
 
-/** snowplow as docs/snowplow-contract.md describes it, in memory. */
+export const dryRunReply = (status: number, body: unknown): HttpResponse => json(status, body, dryRunEcho)
+export const resolveReply = (status: number, body: unknown): HttpResponse => json(status, body, resolveEcho)
+export const rawReply = (status: number, body: unknown): HttpResponse => json(status, body, rawEcho)
+
+/** snowplow as snowplow#443 describes it (or, with options, an older or broken one), in memory. */
 export const fakeSnowplow = (fake: FakeSnowplow = {}) => (req: HttpRequest): HttpResponse => {
   const url = new URL(req.url)
   if (url.pathname === '/capabilities') {
@@ -63,13 +74,17 @@ export const fakeSnowplow = (fake: FakeSnowplow = {}) => (req: HttpRequest): Htt
     return offered === null ? json(404, { message: 'not found' }) : json(200, { capabilities: offered })
   }
   if (url.pathname === '/call' && req.method === 'GET') {
-    return fake.read ? fake.read(url) : json(404, { kind: 'Status', code: 404, message: 'not found' })
+    return fake.read ? fake.read(url) : rawReply(404, { kind: 'Status', code: 404, reason: 'NotFound', message: 'not found' })
   }
-  if (url.pathname === '/call' && req.method === 'POST') {
-    return fake.dryRun ? fake.dryRun(url, JSON.parse(req.body ?? '{}')) : confirmed(201, JSON.parse(req.body ?? '{}'))
+  if (url.pathname === '/call/dry-run' && req.method === 'POST') {
+    if (fake.dryRunRoute === false) {
+      return json(404, { message: '404 page not found' })
+    }
+    return fake.dryRun ? fake.dryRun(url, JSON.parse(req.body ?? '{}')) : dryRunReply(201, JSON.parse(req.body ?? '{}'))
   }
-  if (url.pathname === '/resolve') {
-    return fake.resolve ? fake.resolve(JSON.parse(req.body ?? '{}')) : confirmed(200, { status: { pods: [] } })
+  if (url.pathname === '/call/read' && req.method === 'POST') {
+    const body = JSON.parse(req.body ?? '{}')
+    return fake.resolve ? fake.resolve(url, body) : resolveReply(200, { ...body.object, status: { pods: [] } })
   }
   return json(404, { message: `no route ${req.method} ${url.pathname}` })
 }

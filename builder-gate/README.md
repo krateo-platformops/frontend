@@ -39,15 +39,16 @@ RBAC beyond reading its own Builder and emulates nothing snowplow does.
 | 1 | `builder-lint` | Runs `lintPageDrafts` and `pageRootProblem` from `ui/src/components/Autopilot/pageLint.ts`, imported rather than copied, with the `ui/src/widgets/*/*.schema.json` schemas and the plurals from `widgetKinds.generated.ts`. Adds **the portal's secrets rule** (`src/pages/secrets.ts`, ported function for function from portal `scripts/lint-ra-secrets.py` at the commit in `test/secrets/PORTAL_REF`). No RESTAction step may name Secrets, however encoded. No path may climb with `..` or `%2e`. A data-driven or character-building `${ }` path passes only as `${ .<field> }`, behind an iterator that begins with `portal.fetchableDefs` verbatim and applies `(.<field> \| fetchablePath)`. |
 | 2 | `references` | Checks every widget's `resourcesRefs` items, every literal `resourcesRefsTemplate` entry and every `spec.apiRef`. Each must resolve to the draft, or to an object snowplow reads **raw** (stored, not resolved) as the caller. An existing RESTAction the page binds is held to the secrets rule too. |
 | 3 | `jq-compile` | Compiles every RESTAction `spec.filter`, per-api `filter` and `widgetDataTemplate` expression with snowplow's gojq fork and modules (`jqcheck/`). It only compiles. |
-| 4 | `live-dry-run` | Sends every object through snowplow `POST /call …&dryRun=All&fieldValidation=Strict` as the caller, and classifies the reply as `validated`, `rejected` or `notChecked`. |
-| 5 | `data` | Asks snowplow to resolve each draft RESTAction inline, as the caller, persisting nothing. Reports a count and a short sample. |
+| 4 | `live-dry-run` | Sends every object to snowplow `POST /call/dry-run?…&dryRun=All&fieldValidation=Strict` as the caller. Classifies an echoed reply as `validated`, `rejected` or `notChecked`; an unechoed reply is `notChecked`. |
+| 5 | `data` | Asks snowplow to resolve each draft RESTAction inline (`POST /call/read`, the draft in the body), as the caller, persisting nothing. Reports per-stage errors (a write-verb stage not run by design is a note, only with its reason code). Reports a count and a short sample, with anything Secret-shaped dropped first. |
 | 6 | `coverage` | Informational. It names what the API server accepted. |
 
 **What is red:**
 
-- `notChecked`: no caller token, unreachable, or a timeout.
-- `live verdict missing`: a snowplow that has not advertised the call a step needs. Today, that is
-  every snowplow.
+- `notChecked`: no caller token, unreachable, a timeout, or a reply without its echo header.
+- `live verdict missing`: a snowplow that has not advertised the call a step needs. That is every
+  snowplow before 1.12.36, which ships the contract (snowplow#443,
+  [docs/snowplow-contract.md](docs/snowplow-contract.md)).
 
 There is no green without the API server's judgement (#442 D9).
 
@@ -55,13 +56,16 @@ There is no green without the API server's judgement (#442 D9).
 
 - **The gate's own identity:** sends only `GET`, and only for its Builder (`kube.ts`).
 - **Every POST** is in `snowplow.ts`, and there are exactly two:
-  - the dry-run, whose URL ends in the constant `dryRun=All&fieldValidation=Strict`;
-  - the inline resolve, `POST /resolve?dryRun=All`.
-- **Each POST is sent only when snowplow advertised it.** Today's snowplow ignores `dryRun` on
-  `/call` and would create for real.
-- **A 2xx without `X-Krateo-Dry-Run: All` is a contract violation,** never a pass.
+  - the dry-run, to `/call/dry-run` ONLY, whose URL ends in the constant
+    `dryRun=All&fieldValidation=Strict`. An older snowplow does not serve that route, so it answers
+    404 and writes nothing. The gate never writes to plain `/call`, which an older snowplow would
+    treat as a real create.
+  - the inline resolve, `POST /call/read`, a read route.
+- **Each POST is sent only when snowplow advertises its capability token.**
+- **A reply without its echo is never a pass.** The echoes are `X-Snowplow-Dry-Run`,
+  `X-Snowplow-Field-Validation`, `X-Snowplow-Resolve-Source` and `X-Snowplow-Raw`.
 - `test/dryRunGuard.test.ts` holds this statically over the source, and at run time against a
-  snowplow that offers the contract and against today's.
+  snowplow that offers the contract and against an older one.
 
 ## Install
 

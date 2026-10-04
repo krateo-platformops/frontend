@@ -10,7 +10,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { secretsProblems } from '../src/pages/secrets'
-import { byKind, example, fakeSnowplow, json, liveCtx, recorder, run } from './helpers'
+import { byKind, example, fakeSnowplow, json, liveCtx, rawReply, recorder, run } from './helpers'
 
 const cases = JSON.parse(readFileSync(join(__dirname, 'secrets', 'cases.json'), 'utf8')) as { name: string; step: Record<string, unknown>; refused: boolean; source: string }[]
 
@@ -80,7 +80,7 @@ describe('in the gate', () => {
     byKind(draft, 'PieChart').spec.apiRef = { name: 'leaky', namespace: 'krateo-system' }
     byKind(draft, 'Table').spec.apiRef = { name: 'leaky', namespace: 'krateo-system' }
     const { transport } = recorder(fakeSnowplow({
-      read: () => json(200, { kind: 'RESTAction', metadata: { name: 'leaky' }, spec: { api: [{ name: 'all', path: '/api/v1/secrets' }] } }),
+      read: () => rawReply(200, { kind: 'RESTAction', metadata: { name: 'leaky' }, spec: { api: [{ name: 'all', path: '/api/v1/secrets' }] } }),
     }))
     const envelope = await run(draft, liveCtx(transport))
     expect(envelope.failedStep).toBe('references')
