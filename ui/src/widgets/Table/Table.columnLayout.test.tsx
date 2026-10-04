@@ -204,7 +204,7 @@ describe('Table — headers, widths and alignment', () => {
 
   it('a numeric column with a placeholder cell still right-aligns', () => {
     const rows = podRows(8).map((row, index) => row.map((cell) => (cell.valueKey === 'req'
-      ? { kind: 'jsonSchemaType', stringValue: index === 3 ? 'null' : '50', type: 'string', valueKey: 'req' }
+      ? { kind: 'jsonSchemaType' as const, stringValue: index === 3 ? 'null' : '50', type: 'string' as const, valueKey: 'req' }
       : cell)))
     const { container } = renderTable({ dataSource: rows, fitContent: true })
 
