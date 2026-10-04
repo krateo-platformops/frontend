@@ -35,7 +35,7 @@ vi.mock('../../components/FiltesProvider/FiltersProvider', () => ({
 
 import Table from './Table'
 import type { TableWidgetData } from './Table'
-import { DEFAULT_COLUMN_FLOOR, TAG_GLYPH_EM, tagColumnLayout } from './tableColumnWidths'
+import { columnLayout, headerWidth, TAG_GLYPH_EM } from './tableColumnWidths'
 import { VIRTUAL_ROW_THRESHOLD } from './tablePagination'
 
 afterEach(cleanup)
@@ -56,10 +56,10 @@ const podsTable = (rows: number, extra: Partial<TableWidgetData> = {}) => ({
   ...extra,
 }) as unknown as TableWidgetData
 
-const renderTable = (widgetData: TableWidgetData) => {
+const renderTable = (widgetData: TableWidgetData, width = 320) => {
   const view = render(
     // The narrow container of the defect: the preview pane with the Autopilot rail open.
-    <div style={{ width: 320 }}>
+    <div style={{ width }}>
       <MemoryRouter>
         <Table resourcesRefs={{ items: [] }} uid='t' widgetData={widgetData} />
       </MemoryRouter>
@@ -70,40 +70,42 @@ const renderTable = (widgetData: TableWidgetData) => {
   return { ...view, colWidths, table }
 }
 
-// antd's default tokens, which is what the jsdom render resolves: fontSizeSM 12, paddingXS 8 per side
-// (size middle), Tag padding 8 per side.
-const tokens = { cellPadding: 16, fontSize: 12, tagChrome: 16 }
+// antd's default tokens, which is what the jsdom render resolves: fontSize 14, fontSizeSM 12,
+// paddingXS 8 per side (size middle), marginXXS 4, Tag padding 8 per side; the header is 11px.
+const tokens = { cellFontSize: 14, cellPadding: 16, fontSize: 12, headerFontSize: 11, sorterWidth: 16, tagChrome: 16 }
 const widestTag = Math.ceil('Underprovisioned'.length * 12 * TAG_GLYPH_EM + 16 + 16)
+// The text columns' floors: each one's header on at most two lines.
+const textFloors = headerWidth({ title: 'Namespace', valueKey: 'ns' }, tokens) + headerWidth({ title: 'Pod', valueKey: 'pod' }, tokens)
 
-describe('tagColumnLayout', () => {
+describe('columnLayout — tag columns', () => {
   const { columns, dataSource } = podsTable(4)
 
   it('sizes a tag column to its widest label and floors the rest, so scroll.x fits every column', () => {
-    const { scrollX, tagWidths } = tagColumnLayout(columns, dataSource ?? [], tokens)
+    const { scrollX, widths } = columnLayout(columns, dataSource ?? [], tokens)
 
-    expect(tagWidths).toEqual([undefined, undefined, widestTag])
-    expect(scrollX).toBe(widestTag + 2 * DEFAULT_COLUMN_FLOOR)
+    expect(widths).toEqual([undefined, undefined, widestTag])
+    expect(scrollX).toBe(widestTag + textFloors)
   })
 
   it('never shrinks below the author\'s own width/minWidth', () => {
     const sized = columns.map((column) => (column.valueKey === 'verdict' ? { ...column, minWidth: 400 } : { ...column, width: 150 }))
-    const { scrollX, tagWidths } = tagColumnLayout(sized, dataSource ?? [], tokens)
+    const { scrollX, widths } = columnLayout(sized, dataSource ?? [], tokens)
 
-    expect(tagWidths[2]).toBe(400)
+    expect(widths[2]).toBe(400)
     expect(scrollX).toBe(400 + 150 + 150)
   })
 
-  it('leaves a table without tag columns alone', () => {
-    const { scrollX, tagWidths } = tagColumnLayout(columns.slice(0, 2), dataSource ?? [], tokens)
+  it('leaves a table without tag or numeric columns alone', () => {
+    const { scrollX, widths } = columnLayout(columns.slice(0, 2), dataSource ?? [], tokens)
 
     expect(scrollX).toBeUndefined()
-    expect(tagWidths).toEqual([undefined, undefined])
+    expect(widths).toEqual([undefined, undefined])
   })
 })
 
 describe('Table — tag cells in a narrow container', () => {
   it('fitContent: the tag column is wide enough for its widest tag and the table scrolls rather than clip', () => {
-    const { colWidths, container, table } = renderTable(podsTable(8, { fitContent: true }))
+    const { colWidths, container, table } = renderTable(podsTable(8, { fitContent: true }), 240)
 
     // Every label is present in full, with the full text on hover as the ellipsis backstop.
     const tags = [...container.querySelectorAll('.ant-tag')]
@@ -111,14 +113,14 @@ describe('Table — tag cells in a narrow container', () => {
     expect(tags.every((tag) => tag.getAttribute('title') === tag.textContent)).toBe(true)
     expect(tags.every((tag) => tag.className.includes('tagCell'))).toBe(true)
 
-    // The table scrolls horizontally: its width is the numeric floor, wider than the 320px container.
+    // The table scrolls horizontally: its width is the numeric floor, wider than the 240px container.
     const width = Number.parseFloat(table?.style.width ?? '')
-    expect(width).toBeGreaterThan(320)
+    expect(width).toBeGreaterThan(240)
     expect(container.querySelector('.ant-table-scroll-horizontal')).not.toBeNull()
 
     // Only the verdict column carries a fixed width, the one that fits "Underprovisioned".
     expect(colWidths).toEqual(['', '', `${widestTag}px`])
-    expect(width).toBe(widestTag + 2 * DEFAULT_COLUMN_FLOOR)
+    expect(width).toBe(widestTag + textFloors)
   })
 
   it('virtual: the tag column is sized and the table fits its container instead of scrolling', () => {
@@ -134,12 +136,12 @@ describe('Table — tag cells in a narrow container', () => {
     expect(colWidths[2]).toBe(`${widestTag}px`)
     expect(colWidths.slice(0, 2)).not.toContain(`${widestTag}px`)
 
-    // Not the numeric floor (widestTag + 2 × DEFAULT_COLUMN_FLOOR, wider than the 320px container):
+    // Not the numeric floor (widestTag + the text columns' floors, wider than the 320px container):
     // the table is at least its container and no wider than its columns' own widths.
     const table = container.querySelector<HTMLTableElement>('.ant-table-header table')
     expect(table?.style.minWidth).toBe('100%')
     expect(Number.parseFloat(table?.style.width ?? '')).toBeLessThan(320)
-    expect(Number.parseFloat(table?.style.width ?? '')).not.toBe(widestTag + 2 * DEFAULT_COLUMN_FLOOR)
+    expect(Number.parseFloat(table?.style.width ?? '')).not.toBe(widestTag + textFloors)
 
     // Every tag in full; every other cell ellipsizes with its full text in a title.
     const tags = [...container.querySelectorAll('.ant-table-tbody .ant-tag')]

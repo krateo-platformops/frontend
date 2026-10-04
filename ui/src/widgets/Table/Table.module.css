@@ -72,3 +72,23 @@
   text-overflow: ellipsis;
   vertical-align: middle;
 }
+
+/* A truncating (fitContent or virtual) table's header: wraps at word boundaries onto at most two
+   lines instead of ellipsizing on one, so "CPU REQUEST (M)" keeps its unit. Same face as
+   .headerEllipsis; columnLayout sizes each column so its header fits, and a title still past two
+   lines ellipsizes with the full text in its title. antd's ellipsis column sets nowrap on the th;
+   this span sets its own white-space. */
+.headerWrap {
+  -webkit-box-orient: vertical;
+  display: -webkit-box;
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-sm);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.08em;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: normal;
+  text-transform: uppercase;
+  white-space: normal;
+}
