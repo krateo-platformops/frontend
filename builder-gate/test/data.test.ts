@@ -111,6 +111,70 @@ describe('data', () => {
     expect(envelope.ok).toBe(true)
   })
 
+  describe('NotRun: the resolve stopped at an earlier stage (snowplow truncates at the first hard failure)', () => {
+    // Three stages in topological order; `review` is a write-verb stage.
+    const threeStages = () => {
+      const draft = example()
+      byKind(draft, 'RESTAction').spec.api = [
+        { name: 'review', path: '/apis/authorization.k8s.io/v1/selfsubjectaccessreviews', verb: 'POST' },
+        { name: 'pods', path: '/api/v1/namespaces/krateo-system/pods' },
+        { name: 'nodes', path: '/api/v1/nodes' },
+      ]
+      return draft
+    }
+    const resolving = (outcomes: { name: string; ok: boolean; reason?: string }[], messages: string[] = []) =>
+      recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...body.object, status: { error: messages.map((message) => ({ message })) } }, outcomes) }))
+
+    it('after a write-verb stage refused by design, the stages it stopped are notes too', async () => {
+      const { transport } = resolving(
+        [{ name: 'review', ok: false, reason: 'StageNotExecuted' }, { name: 'pods', ok: false, reason: 'NotRun' }, { name: 'nodes', ok: false, reason: 'NotRun' }],
+        ['dry-run: stage "review" verb POST is not executed'],
+      )
+      const envelope = await run(threeStages(), liveCtx(transport))
+      expect(envelope.ok).toBe(true)
+      expect(dataOf(envelope).notes).toEqual(expect.arrayContaining([
+        'widgets[3] (RESTAction/pod-sizing): stage pods: not run — the resolve stopped at stage review, which was not executed by design; checked at the driven Preview',
+        'widgets[3] (RESTAction/pod-sizing): stage nodes: not run — the resolve stopped at stage review, which was not executed by design; checked at the driven Preview',
+      ]))
+    })
+
+    it('after a continueOnError stage that stopped the resolve, a note', async () => {
+      const draft = threeStages()
+      byKind(draft, 'RESTAction').spec.api[1].continueOnError = true
+      const { transport } = resolving([{ name: 'review', ok: true }, { name: 'pods', ok: false, reason: 'Error' }, { name: 'nodes', ok: false, reason: 'NotRun' }])
+      const envelope = await run(draft, liveCtx(transport))
+      expect(envelope.ok).toBe(true)
+      expect(dataOf(envelope).notes).toContain('widgets[3] (RESTAction/pod-sizing): stage nodes: not run — the resolve stopped at stage pods, which is continueOnError; checked at the driven Preview')
+    })
+
+    it('after a real failure, red with it', async () => {
+      const { transport } = resolving([{ name: 'review', ok: true }, { name: 'pods', ok: false, reason: 'Forbidden' }, { name: 'nodes', ok: false, reason: 'NotRun' }])
+      const envelope = await run(threeStages(), liveCtx(transport))
+      expect(envelope.failedStep).toBe('data')
+      expect(dataOf(envelope).problems).toEqual([
+        'widgets[3] (RESTAction/pod-sizing): stage pods failed (Forbidden)',
+        'widgets[3] (RESTAction/pod-sizing): stage nodes: not run — the resolve stopped at stage pods (Forbidden)',
+      ])
+    })
+
+    it('with no failed stage before it, red', async () => {
+      const { transport } = resolving([{ name: 'review', ok: true }, { name: 'pods', ok: true }, { name: 'nodes', ok: false, reason: 'NotRun' }])
+      const envelope = await run(threeStages(), liveCtx(transport))
+      expect(envelope.failedStep).toBe('data')
+      expect(dataOf(envelope).problems).toEqual(['widgets[3] (RESTAction/pod-sizing): stage nodes: not run — the resolve stopped before it, at no failed stage the header names'])
+    })
+  })
+
+  it.each([
+    ['a reason outside the closed set', { name: 'pods', ok: false, reason: 'Timeout' }, /stage pods failed with an unknown reason "Timeout" — not one of snowplow's codes/],
+    ['a failed stage with no reason', { name: 'pods', ok: false }, /stage pods failed with an unknown reason null/],
+  ])('%s is red', async (_what, outcome, message) => {
+    const { transport } = recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, [outcome]) }))
+    const envelope = await run(example(), liveCtx(transport))
+    expect(envelope.failedStep).toBe('data')
+    expect(dataOf(envelope).problems[0]).toMatch(message)
+  })
+
   it('a truncated outcomes header is red', async () => {
     const { transport } = recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, '{"truncated":true,"failed":7}') }))
     const envelope = await run(example(), liveCtx(transport))

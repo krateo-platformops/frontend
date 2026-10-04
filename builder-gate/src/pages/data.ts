@@ -24,7 +24,7 @@
 import { step, type StepResult } from '../envelope'
 import { HttpError } from '../http'
 import type { GateContext } from '../plan'
-import { CAPABILITY_RESOLVE, type SnowplowReply, STAGE_NOT_EXECUTED_MESSAGE, STAGE_NOT_EXECUTED_REASON, STAGE_OUTCOMES, stageOutcomesOf } from '../snowplow'
+import { CAPABILITY_RESOLVE, type SnowplowReply, STAGE_NOT_EXECUTED_MESSAGE, STAGE_NOT_EXECUTED_REASON, STAGE_NOT_RUN_REASON, STAGE_OUTCOMES, STAGE_REASONS, stageOutcomesOf } from '../snowplow'
 import { isRestAction, labelOf, rec, type Rec, str } from './drafts'
 
 const SAMPLE_CHARS = 1_200
@@ -107,12 +107,20 @@ const detailFor = (messages: readonly string[], stage: string): string | undefin
 
 /**
  * Stage outcomes from X-Snowplow-Stage-Outcomes — the PRIMARY source, which no spec.filter can
- * hide. Red: a missing or malformed header (a contract violation), a truncated one, and any failed
- * stage that is neither a write-verb stage refused by design nor a stage the draft marks
- * continueOnError. By design means the StageNotExecuted reason, or — the documented fallback — the
- * body message `dry-run: stage "<name>" verb <V> is not executed` for that stage. A
- * continueOnError stage's failure is a note: its author declared the tolerance, and the driven
- * Preview judges what renders. The body is read only for that fallback and for detail.
+ * hide. Each failed stage, in the header's topological order:
+ *   - a reason outside the closed set (or none): red, "unknown reason";
+ *   - StageNotExecuted, or — the documented fallback — the body message `dry-run: stage "<name>"
+ *     verb <V> is not executed`: a NOTE, refused by design, checked at the driven Preview;
+ *   - a stage the draft marks continueOnError (by name): a NOTE — its author declared the
+ *     tolerance, and the driven Preview judges what renders;
+ *   - NotRun: the resolve stopped before this stage. snowplow truncates a resolve at the first
+ *     stage that fails hard (stage_outcomes.go, resolve.go), and every later stage in topological
+ *     order reports NotRun — whatever its dependsOn. So the cause is the nearest earlier failed
+ *     stage: if that one is a note (refused by design, or continueOnError), so is the NotRun;
+ *     otherwise the NotRun is red with it;
+ *   - any other failed stage: red.
+ * A truncated header, and a missing or malformed one (a contract violation), are red. The body is
+ * read only for the message fallback and for detail.
  */
 export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers']; json: unknown }): { failures: string[]; byDesign: string[] } => {
   const outcomes = stageOutcomesOf(reply.headers)
@@ -128,18 +136,39 @@ export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers
   }
   const failures: string[] = []
   const byDesign: string[] = []
-  // The draft's own declaration: a stage its author marked continueOnError may fail, and the page
-  // is expected to cope — the driven Preview judges what actually renders.
+  // The draft's own declaration: a stage its author marked continueOnError may fail.
   const tolerant = new Set((Array.isArray(rec(ra.spec)?.api) ? rec(ra.spec)?.api as unknown[] : [])
     .map((a) => rec(a) ?? {}).filter((api) => api.continueOnError === true).map((api) => str(api.name)).filter((n): n is string => n !== null))
+  /** The cause of the latest stop: the nearest earlier failed stage, and whether it was a note. */
+  let stopper: { name: string; reason: string; note: string | null } | null = null
   for (const stage of outcomes.stages.filter((o) => !o.ok)) {
+    const reason = stage.reason ?? ''
     const detail = detailFor(messages, stage.name)
-    if (stage.reason === STAGE_NOT_EXECUTED_REASON || (detail !== undefined && STAGE_NOT_EXECUTED_MESSAGE.test(detail))) {
-      byDesign.push(`stage ${stage.name}: not executed by design (a write-verb stage): checked at the driven Preview${detail ? ` — ${detail}` : ''}`)
+    const suffix = detail ? ` — ${detail}` : ''
+    if (!STAGE_REASONS.has(reason)) {
+      failures.push(`stage ${stage.name} failed with an unknown reason ${JSON.stringify(stage.reason ?? null)} — not one of snowplow's codes${suffix}`)
+      stopper = { name: stage.name, reason, note: null }
+      continue
+    }
+    if (reason === STAGE_NOT_RUN_REASON) {
+      if (stopper?.note) {
+        byDesign.push(`stage ${stage.name}: not run — the resolve stopped at stage ${stopper.name}, which ${stopper.note}; checked at the driven Preview`)
+      } else if (stopper) {
+        failures.push(`stage ${stage.name}: not run — the resolve stopped at stage ${stopper.name} (${stopper.reason})`)
+      } else {
+        failures.push(`stage ${stage.name}: not run — the resolve stopped before it, at no failed stage the header names`)
+      }
+      continue
+    }
+    if (reason === STAGE_NOT_EXECUTED_REASON || (detail !== undefined && STAGE_NOT_EXECUTED_MESSAGE.test(detail))) {
+      byDesign.push(`stage ${stage.name}: not executed by design (a write-verb stage): checked at the driven Preview${suffix}`)
+      stopper = { name: stage.name, reason, note: 'was not executed by design' }
     } else if (tolerant.has(stage.name)) {
-      byDesign.push(`stage ${stage.name} failed (${stage.reason ?? 'no reason given'}) — continueOnError, the page is expected to cope; checked at the driven Preview${detail ? ` — ${detail}` : ''}`)
+      byDesign.push(`stage ${stage.name} failed (${reason}) — continueOnError, the page is expected to cope; checked at the driven Preview${suffix}`)
+      stopper = { name: stage.name, reason, note: 'is continueOnError' }
     } else {
-      failures.push(`stage ${stage.name} failed (${stage.reason ?? 'no reason given'})${detail ? `: ${detail}` : ''}`)
+      failures.push(`stage ${stage.name} failed (${reason})${suffix}`)
+      stopper = { name: stage.name, reason, note: null }
     }
   }
   return { failures, byDesign }

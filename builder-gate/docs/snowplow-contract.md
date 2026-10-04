@@ -116,29 +116,41 @@ Authorization: Bearer <caller JWT>
 - **Echo:** `X-Snowplow-Dry-Run: All` and `X-Snowplow-Resolve-Source: request-body`, set before
   the first byte, so they ride a 2xx, a stage-error 200 and a filter 500. An older snowplow ignores
   `object` and resolves the STORED RESTAction with no echo, so a reply without both echoes fails.
-- **Stage outcomes:** `X-Snowplow-Stage-Outcomes` (snowplow PR #469) is compact JSON,
-  `[{"name":"<stage>","ok":true|false,"reason":"<code>"}]`.
-  - It carries reason codes only (`StageNotExecuted`, `Forbidden`, `NotFound`, `Error`, …), no
-    message text.
-  - It is bounded at about 4 KiB. Past that it becomes `{"truncated":true,"failed":N}`.
+- **Stage outcomes:** `X-Snowplow-Stage-Outcomes` (snowplow PR #469, `stage_outcomes.go`) is
+  compact JSON in topological stage order:
+  `[{"name":"<stage>","ok":true},{"name":"<stage>","ok":false,"reason":"<code>"}]`.
+  - It is never set on a stored resolve, and never carries a message, a path or data.
+  - `reason` comes from a CLOSED set:
+    - `StageNotExecuted`: a write-verb stage, refused;
+    - `Forbidden`;
+    - `NotFound`;
+    - `Unauthorized`;
+    - `NotRun`: the resolve stopped (truncated) before this stage;
+    - `Error`: anything else.
+  - Above 4 KiB the header is `{"truncated":true,"failed":N}`.
+  - A refused write-verb stage that is not `continueOnError` is a hard failure, so snowplow stops
+    the resolve there. Every later stage in topological order then reports `NotRun`, whatever its
+    `dependsOn`.
 - **v1 scope:** drafts referencing other drafts are not supported (nested references resolve
   stored objects), so the gate resolves each draft RESTAction on its own.
 - **What the gate does with the reply:**
   - **Stage outcomes come from the header, the PRIMARY source.** Unlike the body, no
-    `spec.filter` can drop it.
-    - A failed stage with reason `StageNotExecuted` is a note: "not executed by design: checked at
-      the driven Preview". As a documented fallback, so is a failed stage whose body message
-      matches `dry-run: stage "<name>" verb <V> is not executed`.
-    - A failed stage the draft marks `continueOnError` (matched by name) is a note too: "stage
-      <name> failed (<reason>) — continueOnError, the page is expected to cope; checked at the
-      driven Preview". Its author declared the tolerance, and the driven Preview judges what
-      renders.
+    `spec.filter` can drop it. Each failed stage, in header order:
+    - **Note:** reason `StageNotExecuted`, or a body message matching the documented
+      `dry-run: stage "<name>" verb <V> is not executed`. Reads "not executed by design: checked at
+      the driven Preview".
+    - **Note:** a stage the draft marks `continueOnError` (matched by name). Reads "continueOnError,
+      the page is expected to cope; checked at the driven Preview".
+    - **`NotRun`:** its cause is the nearest earlier failed stage, the one where the resolve
+      stopped. It is a note when that stage is a note, and red otherwise. With no earlier failed
+      stage, it is red.
     - **Red:**
+      - a reason outside the closed set, or none ("unknown reason");
       - any other failed stage;
       - a truncated header;
       - a missing or malformed header, which is a contract violation.
     - The body's per-stage error messages (each stage's `errorKey`, default `error`, in `.status`)
-      are read only as detail for those notes and problems.
+      are read only for the message fallback and as detail.
   - **Secrets, second layer:** snowplow reads Secret paths live as the caller and does not refuse
     them (the #398 ruling). The gate's static rule (`src/pages/secrets.ts`) already refuses any
     draft that could read them. Beyond that, the gate drops anything Secret-shaped from the output

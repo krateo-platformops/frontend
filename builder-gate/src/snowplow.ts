@@ -35,11 +35,16 @@ export const CAPABILITY_RESOLVE = 'call.read.inline'
  * executed` — is stable too, and is accepted as a fallback (STAGE_NOT_EXECUTED_MESSAGE).
  */
 export const STAGE_NOT_EXECUTED_REASON = 'StageNotExecuted'
+/** A stage that never ran: the resolve stopped (truncated) at an earlier stage, in topological order. */
+export const STAGE_NOT_RUN_REASON = 'NotRun'
+/** The CLOSED set of stage reason codes (snowplow PR #469, stage_outcomes.go). Anything else is unknown. */
+export const STAGE_REASONS: ReadonlySet<string> = new Set([STAGE_NOT_EXECUTED_REASON, 'Forbidden', 'NotFound', 'Unauthorized', STAGE_NOT_RUN_REASON, 'Error'])
 export const STAGE_NOT_EXECUTED_MESSAGE = /^dry-run: stage .* is not executed$/
 
 /**
- * The stage outcomes header on an inline resolve reply (snowplow PR #469): compact JSON
- * `[{"name","ok","reason"}]`, reason codes only, no message text; past ~4 KiB it becomes
+ * The stage outcomes header on an inline resolve reply (snowplow PR #469): compact JSON in
+ * topological stage order, `[{"name","ok":true},{"name","ok":false,"reason":"<code>"}]`, reason
+ * codes only (STAGE_REASONS), no message text; past 4 KiB it becomes
  * `{"truncated":true,"failed":N}`. It is THE source of stage outcomes: unlike the body, no
  * spec.filter can drop it.
  */
