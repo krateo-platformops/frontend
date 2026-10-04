@@ -10,10 +10,11 @@
  * (#442 D9) whenever the draft carries a RESTAction. A draft with none has nothing to resolve.
  *
  * What it reads back:
- *   - per-stage errors, from each stage's errorKey (default "error") in the output, where snowplow
- *     accumulates them. A write-verb stage snowplow did not run by design carries
- *     STAGE_NOT_EXECUTED_REASON and is a NOTE ("checked at the driven Preview") — only with that
- *     code; any other stage error is red, unless every stage writing that key is continueOnError;
+ *   - stage outcomes, from the X-Snowplow-Stage-Outcomes header (snowplow PR #469) — the primary
+ *     source, which a spec.filter cannot hide. A write-verb stage refused by design
+ *     (StageNotExecuted, or its documented message) is a NOTE ("checked at the driven Preview");
+ *     any other failed stage, a truncated header and a missing one are red. The body's per-stage
+ *     error messages are read only as detail;
  *   - the output itself, as a count and a short sample, with anything shaped like a Kubernetes
  *     Secret DROPPED first and the drop noted. builder-lint already refuses a RESTAction that
  *     could read Secrets (secrets.ts); this is the second layer, because snowplow reads Secret
@@ -22,7 +23,7 @@
 import { step, type StepResult } from '../envelope'
 import { HttpError } from '../http'
 import type { GateContext } from '../plan'
-import { CAPABILITY_RESOLVE, STAGE_NOT_EXECUTED_REASON } from '../snowplow'
+import { CAPABILITY_RESOLVE, type SnowplowReply, STAGE_NOT_EXECUTED_MESSAGE, STAGE_NOT_EXECUTED_REASON, STAGE_OUTCOMES, stageOutcomesOf } from '../snowplow'
 import { isRestAction, labelOf, rec, type Rec, str } from './drafts'
 
 const SAMPLE_CHARS = 1_200
@@ -84,35 +85,55 @@ export const withoutSecrets = (value: unknown): { value: unknown; dropped: numbe
   return { value: walk(value), dropped }
 }
 
-/** The per-stage errors in a resolve's output, split into by-design notes and real problems. */
-const stageErrors = (ra: Rec, output: unknown): { byDesign: string[]; failures: string[]; tolerated: string[] } => {
-  const result = { byDesign: [] as string[], failures: [] as string[], tolerated: [] as string[] }
+/** Every per-stage error message in a resolve's body, from each stage's errorKey — detail only. */
+const bodyStageMessages = (ra: Rec, output: unknown): string[] => {
   const out = rec(output)
-  const apis = (Array.isArray(rec(ra.spec)?.api) ? rec(ra.spec)?.api as unknown[] : []).map((a) => rec(a) ?? {})
   if (!out) {
-    return result
+    return []
   }
-  const keys = new Map<string, boolean>()
-  for (const api of apis) {
-    const key = str(api.errorKey) ?? 'error'
-    // A key is tolerated only when EVERY stage writing it is continueOnError.
-    keys.set(key, (keys.get(key) ?? true) && api.continueOnError === true)
-  }
-  for (const [key, tolerated] of keys) {
+  const apis = (Array.isArray(rec(ra.spec)?.api) ? rec(ra.spec)?.api as unknown[] : []).map((a) => rec(a) ?? {})
+  const keys = new Set(['error', ...apis.map((api) => str(api.errorKey) ?? 'error')])
+  return [...keys].flatMap((key) => {
     const entries = out[key]
-    for (const entry of Array.isArray(entries) ? entries : entries === undefined ? [] : [entries]) {
-      const status = rec(entry)
-      const message = String(status?.message ?? (typeof entry === 'string' ? entry : JSON.stringify(entry))).slice(0, 300)
-      if (status?.reason === STAGE_NOT_EXECUTED_REASON) {
-        result.byDesign.push(`not executed by design (a write-verb stage): checked at the driven Preview — ${message}`)
-      } else if (tolerated) {
-        result.tolerated.push(message)
-      } else {
-        result.failures.push(message)
-      }
+    return (Array.isArray(entries) ? entries : entries === undefined ? [] : [entries])
+      .map((entry) => String(rec(entry)?.message ?? (typeof entry === 'string' ? entry : JSON.stringify(entry))))
+  })
+}
+
+/** The body's message for a stage, when one names it (`stage "<name>"`): detail for a note. */
+const detailFor = (messages: readonly string[], stage: string): string | undefined =>
+  messages.find((m) => m.includes(`stage ${JSON.stringify(stage)}`) || m.includes(`stage ${stage} `))
+
+/**
+ * Stage outcomes from X-Snowplow-Stage-Outcomes — the PRIMARY source, which no spec.filter can
+ * hide. Red: a missing or malformed header (a contract violation), a truncated one, and any failed
+ * stage that is not a write-verb stage refused by design. By design means the StageNotExecuted
+ * reason, or — the documented fallback — the body message `dry-run: stage "<name>" verb <V> is not
+ * executed` for that stage. The body is read only for that and for detail.
+ */
+export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers']; json: unknown }): { failures: string[]; byDesign: string[] } => {
+  const outcomes = stageOutcomesOf(reply.headers)
+  const messages = bodyStageMessages(ra, rec(reply.json)?.status)
+  switch (outcomes.kind) {
+    case 'missing':
+      return { failures: [`snowplow answered the inline resolve without ${STAGE_OUTCOMES} — a contract violation: its stage outcomes cannot be known`], byDesign: [] }
+    case 'invalid':
+      return { failures: [`snowplow's ${STAGE_OUTCOMES} is not the documented shape (${outcomes.why}): its stage outcomes cannot be known`], byDesign: [] }
+    case 'truncated':
+      return { failures: [`${Number.isNaN(outcomes.failed) ? 'some' : outcomes.failed} stage(s) failed; ${STAGE_OUTCOMES} was truncated, so which ones cannot be told`], byDesign: [] }
+    default:
+  }
+  const failures: string[] = []
+  const byDesign: string[] = []
+  for (const stage of outcomes.stages.filter((o) => !o.ok)) {
+    const detail = detailFor(messages, stage.name)
+    if (stage.reason === STAGE_NOT_EXECUTED_REASON || (detail !== undefined && STAGE_NOT_EXECUTED_MESSAGE.test(detail))) {
+      byDesign.push(`stage ${stage.name}: not executed by design (a write-verb stage): checked at the driven Preview${detail ? ` — ${detail}` : ''}`)
+    } else {
+      failures.push(`stage ${stage.name} failed (${stage.reason ?? 'no reason given'})${detail ? `: ${detail}` : ''}`)
     }
   }
-  return result
+  return { failures, byDesign }
 }
 
 export const dataStep = async (drafts: readonly Rec[], ctx: GateContext): Promise<StepResult> => {
@@ -153,10 +174,9 @@ export const dataStep = async (drafts: readonly Rec[], ctx: GateContext): Promis
         problems.push(`${label}: ${reply.status === 401 || reply.status >= 500 ? 'notChecked: ' : ''}snowplow could not resolve it (${reply.status}): ${message}`)
         continue
       }
-      const errors = stageErrors(cr, rec(reply.json)?.status)
-      problems.push(...errors.failures.map((m) => `${label}: stage error: ${m}`))
-      notes.push(...errors.byDesign.map((m) => `${label}: ${m}`))
-      notes.push(...errors.tolerated.map((m) => `${label}: stage error tolerated by continueOnError: ${m}`))
+      const stages = stageVerdicts(cr, reply)
+      problems.push(...stages.failures.map((m) => `${label}: ${m}`))
+      notes.push(...stages.byDesign.map((m) => `${label}: ${m}`))
       const { value: output, dropped } = withoutSecrets(rec(reply.json)?.status)
       if (dropped > 0) {
         notes.push(`${label}: ${dropped} Secret-shaped object(s) dropped from the output before it reached this envelope`)

@@ -10,7 +10,8 @@
  *   - `POST /call/dry-run?…&dryRun=All&fieldValidation=Strict`  the dry-run create
  *                                                           → echo X-Snowplow-Dry-Run: All, X-Snowplow-Field-Validation: Strict
  *   - `POST /call/read?…resource=restactions…` body {extras, object}  the inline resolve
- *                                                           → echo X-Snowplow-Dry-Run: All, X-Snowplow-Resolve-Source: request-body
+ *                                                           → echo X-Snowplow-Dry-Run: All, X-Snowplow-Resolve-Source: request-body,
+ *                                                             and X-Snowplow-Stage-Outcomes (snowplow PR #469)
  *
  * SAFETY, unchanged in posture:
  *   - each call is sent only once snowplow advertises its capability token — never by version;
@@ -29,11 +30,57 @@ export const CAPABILITY_RAW_READ = 'call.raw'
 export const CAPABILITY_RESOLVE = 'call.read.inline'
 
 /**
- * The reason a per-stage error carries when snowplow did not run a write-verb stage by design
- * (inline resolve executes reads only). ASSUMED: asked for on snowplow#443, not yet named there.
- * Only an error carrying it is "not executed by design"; any other stage error is a real failure.
+ * The reason code of a write-verb stage an inline resolve refuses to run, by design (snowplow PR
+ * #469). Its documented per-stage error message — `dry-run: stage "<id>" verb <V> is not
+ * executed` — is stable too, and is accepted as a fallback (STAGE_NOT_EXECUTED_MESSAGE).
  */
 export const STAGE_NOT_EXECUTED_REASON = 'StageNotExecuted'
+export const STAGE_NOT_EXECUTED_MESSAGE = /^dry-run: stage .* is not executed$/
+
+/**
+ * The stage outcomes header on an inline resolve reply (snowplow PR #469): compact JSON
+ * `[{"name","ok","reason"}]`, reason codes only, no message text; past ~4 KiB it becomes
+ * `{"truncated":true,"failed":N}`. It is THE source of stage outcomes: unlike the body, no
+ * spec.filter can drop it.
+ */
+export const STAGE_OUTCOMES = 'x-snowplow-stage-outcomes'
+
+export interface StageOutcome {
+  name: string
+  ok: boolean
+  reason?: string
+}
+
+export type StageOutcomes =
+  | { kind: 'stages'; stages: StageOutcome[] }
+  | { kind: 'truncated'; failed: number }
+  | { kind: 'missing' }
+  | { kind: 'invalid'; why: string }
+
+/** The X-Snowplow-Stage-Outcomes header, parsed — and anything that is not the documented shape, named. */
+export const stageOutcomesOf = (headers: HttpResponse['headers'] | undefined): StageOutcomes => {
+  const raw = headerOf(headers, STAGE_OUTCOMES)
+  if (!raw) {
+    return { kind: 'missing' }
+  }
+  const parsed = jsonOf(raw)
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && (parsed as { truncated?: unknown }).truncated === true) {
+    const failed = (parsed as { failed?: unknown }).failed
+    return { kind: 'truncated', failed: typeof failed === 'number' ? failed : NaN }
+  }
+  if (!Array.isArray(parsed)) {
+    return { kind: 'invalid', why: 'not a JSON array' }
+  }
+  const stages: StageOutcome[] = []
+  for (const entry of parsed) {
+    const e = entry as { name?: unknown; ok?: unknown; reason?: unknown } | null
+    if (!e || typeof e.name !== 'string' || typeof e.ok !== 'boolean' || (e.reason !== undefined && typeof e.reason !== 'string')) {
+      return { kind: 'invalid', why: `an entry is not {name, ok, reason}: ${JSON.stringify(entry).slice(0, 120)}` }
+    }
+    stages.push({ name: e.name, ok: e.ok, ...(typeof e.reason === 'string' && e.reason ? { reason: e.reason } : {}) })
+  }
+  return { kind: 'stages', stages }
+}
 
 /** The parameters every dry-run carries — a constant: no caller reaches this string. */
 export const DRY_RUN_PARAMS = 'dryRun=All&fieldValidation=Strict'

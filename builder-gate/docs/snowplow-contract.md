@@ -13,14 +13,12 @@ builder-gate contract"). The builder gate confirmed it on the issue, and it land
 1.12.36**. The gate's client is `src/snowplow.ts`. Its tests run against an in-memory snowplow
 that speaks this document, plus an OLDER snowplow that does not.
 
-**Still assumed** (asked on the issue, not yet answered there):
+**Pending snowplow PR #469** (#443 P2), which ships the following. The gate is written against
+it, and its PR does not merge before #469 does:
 
-- **The reason code on a write-verb stage an inline resolve does not run.** The gate assumes
-  `reason: "StageNotExecuted"` (`STAGE_NOT_EXECUTED_REASON`). Only an error carrying it is
-  reported as "not executed by design". Without it, the stage error is a real failure (red).
-- **Where per-stage errors sit in the reply.** The gate reads them from each stage's `errorKey`
-  (default `error`) in `.status`, where snowplow's resolver accumulates them. A RESTAction whose
-  `spec.filter` drops that key hides its stage errors from the gate.
+- **`X-Snowplow-Stage-Outcomes`** on an inline resolve reply. See §4.
+- **The `StageNotExecuted` reason** on a write-verb stage the inline resolve refuses to run. The
+  documented message `dry-run: stage "<id>" verb <V> is not executed` is stable too.
 
 ## Why snowplow
 
@@ -115,17 +113,29 @@ Authorization: Bearer <caller JWT>
   - Write-verb stages are **not executed**; each gets a per-stage error.
 - **Validation (each failure is a 400):** body ≤ 1 MiB; RESTAction only; and metadata name and
   namespace must equal the query.
-- **Echo:** `X-Snowplow-Dry-Run: All` and `X-Snowplow-Resolve-Source: request-body`. An older
-  snowplow ignores `object` and resolves the STORED RESTAction with no echo, so a reply without
-  both echoes fails.
+- **Echo:** `X-Snowplow-Dry-Run: All` and `X-Snowplow-Resolve-Source: request-body`, set before
+  the first byte, so they ride a 2xx, a stage-error 200 and a filter 500. An older snowplow ignores
+  `object` and resolves the STORED RESTAction with no echo, so a reply without both echoes fails.
+- **Stage outcomes:** `X-Snowplow-Stage-Outcomes` (snowplow PR #469) is compact JSON,
+  `[{"name":"<stage>","ok":true|false,"reason":"<code>"}]`.
+  - It carries reason codes only (`StageNotExecuted`, `Forbidden`, `NotFound`, `Error`, …), no
+    message text.
+  - It is bounded at about 4 KiB. Past that it becomes `{"truncated":true,"failed":N}`.
 - **v1 scope:** drafts referencing other drafts are not supported (nested references resolve
   stored objects), so the gate resolves each draft RESTAction on its own.
 - **What the gate does with the reply:**
-  - **Per-stage errors:**
-    - an error carrying `StageNotExecuted` (assumed, see above) is a note: "not executed by
-      design: checked at the driven Preview";
-    - an error under an `errorKey` that only `continueOnError` stages write is a note;
-    - any other stage error is red.
+  - **Stage outcomes come from the header, the PRIMARY source.** Unlike the body, no
+    `spec.filter` can drop it.
+    - A failed stage with reason `StageNotExecuted` is a note: "not executed by design: checked at
+      the driven Preview". As a documented fallback, so is a failed stage whose body message
+      matches `dry-run: stage "<name>" verb <V> is not executed`.
+    - **Red:**
+      - any other failed stage, including one marked `continueOnError` (the header says it
+        failed);
+      - a truncated header;
+      - a missing or malformed header, which is a contract violation.
+    - The body's per-stage error messages (each stage's `errorKey`, default `error`, in `.status`)
+      are read only as detail for those notes and problems.
   - **Secrets, second layer:** snowplow reads Secret paths live as the caller and does not refuse
     them (the #398 ruling). The gate's static rule (`src/pages/secrets.ts`) already refuses any
     draft that could read them. Beyond that, the gate drops anything Secret-shaped from the output

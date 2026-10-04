@@ -53,35 +53,70 @@ describe('data', () => {
     expect(dataOf(envelope).problems[0]).toBe('widgets[3] (RESTAction/pod-sizing): snowplow could not resolve it (400): metadata.namespace must equal the query namespace')
   })
 
-  it('a write-verb stage snowplow did not run BY DESIGN (reason code present) is a note, not red', async () => {
+  it('a write-verb stage refused BY DESIGN (StageNotExecuted in the outcomes header) is a note, with the body message as detail', async () => {
     const draft = example()
-    byKind(draft, 'RESTAction').spec.filter = undefined
+    byKind(draft, 'RESTAction').spec.api.push({ name: 'review', path: '/api/v1/namespaces/krateo-system/configmaps', verb: 'POST' })
     const { transport } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: { items: [] }, error: [{ kind: 'Status', code: 422, reason: 'StageNotExecuted', message: 'stage review: write verb POST not executed by an inline resolve' }] } }),
+      resolve: (_url, body) => resolveReply(200,
+        { ...body.object, status: { pods: [], error: [{ code: 422, message: 'dry-run: stage "review" verb POST is not executed' }] } },
+        [{ name: 'pods', ok: true }, { name: 'review', ok: false, reason: 'StageNotExecuted' }]),
     }))
     const envelope = await run(draft, liveCtx(transport))
     expect(envelope.ok).toBe(true)
-    expect(dataOf(envelope).notes).toContain('widgets[3] (RESTAction/pod-sizing): not executed by design (a write-verb stage): checked at the driven Preview — stage review: write verb POST not executed by an inline resolve')
+    expect(dataOf(envelope).notes).toContain('widgets[3] (RESTAction/pod-sizing): stage review: not executed by design (a write-verb stage): checked at the driven Preview — dry-run: stage "review" verb POST is not executed')
   })
 
-  it('the same stage error WITHOUT the reason code is a real failure', async () => {
+  it('the documented message is accepted as a fallback when the header gives another reason', async () => {
     const { transport } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { error: [{ kind: 'Status', code: 422, message: 'stage review: write verb POST not executed by an inline resolve' }] } }),
+      resolve: (_url, body) => resolveReply(200,
+        { ...body.object, status: { error: [{ message: 'dry-run: stage "pods" verb PUT is not executed' }] } },
+        [{ name: 'pods', ok: false, reason: 'Error' }]),
+    }))
+    const envelope = await run(example(), liveCtx(transport))
+    expect(envelope.ok).toBe(true)
+    expect(dataOf(envelope).notes.join('\n')).toContain('stage pods: not executed by design')
+  })
+
+  it('a failed stage with any other reason is red — even when a spec.filter dropped its error from the body', async () => {
+    // The example's spec.filter keeps only .pods: the body carries no error at all; the header does.
+    const { transport } = recorder(fakeSnowplow({
+      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [] } }, [{ name: 'pods', ok: false, reason: 'Forbidden' }]),
     }))
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
-    expect(dataOf(envelope).problems[0]).toBe('widgets[3] (RESTAction/pod-sizing): stage error: stage review: write verb POST not executed by an inline resolve')
+    expect(dataOf(envelope).problems).toEqual(['widgets[3] (RESTAction/pod-sizing): stage pods failed (Forbidden)'])
   })
 
-  it('a stage error under a key only continueOnError stages write is noted, not red', async () => {
+  it('a failed stage of a continueOnError stage is red too: the header says it failed', async () => {
     const draft = example()
     Object.assign(byKind(draft, 'RESTAction').spec.api[0], { continueOnError: true, errorKey: 'podsErr' })
     const { transport } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [], podsErr: [{ code: 403, message: 'pods is forbidden' }] } }),
+      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [], podsErr: [{ code: 404, message: 'stage "pods": not found' }] } }, [{ name: 'pods', ok: false, reason: 'NotFound' }]),
     }))
     const envelope = await run(draft, liveCtx(transport))
-    expect(envelope.ok).toBe(true)
-    expect(dataOf(envelope).notes).toContain('widgets[3] (RESTAction/pod-sizing): stage error tolerated by continueOnError: pods is forbidden')
+    expect(envelope.failedStep).toBe('data')
+    expect(dataOf(envelope).problems).toEqual(['widgets[3] (RESTAction/pod-sizing): stage pods failed (NotFound): stage "pods": not found'])
+  })
+
+  it('a truncated outcomes header is red', async () => {
+    const { transport } = recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, '{"truncated":true,"failed":7}') }))
+    const envelope = await run(example(), liveCtx(transport))
+    expect(envelope.failedStep).toBe('data')
+    expect(dataOf(envelope).problems).toEqual(['widgets[3] (RESTAction/pod-sizing): 7 stage(s) failed; x-snowplow-stage-outcomes was truncated, so which ones cannot be told'])
+  })
+
+  it('a MISSING outcomes header on an inline reply is red: a contract violation', async () => {
+    const { transport } = recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [] } }, null) }))
+    const envelope = await run(example(), liveCtx(transport))
+    expect(envelope.failedStep).toBe('data')
+    expect(dataOf(envelope).problems).toEqual(['widgets[3] (RESTAction/pod-sizing): snowplow answered the inline resolve without x-snowplow-stage-outcomes — a contract violation: its stage outcomes cannot be known'])
+  })
+
+  it('a malformed outcomes header is red', async () => {
+    const { transport } = recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, '[{"name":"pods"}]') }))
+    const envelope = await run(example(), liveCtx(transport))
+    expect(envelope.failedStep).toBe('data')
+    expect(dataOf(envelope).problems[0]).toMatch(/is not the documented shape \(an entry is not \{name, ok, reason\}/)
   })
 
   it('Secret-shaped output is dropped before it reaches the envelope, and the drop is noted', async () => {
