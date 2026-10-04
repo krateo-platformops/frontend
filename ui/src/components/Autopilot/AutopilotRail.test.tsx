@@ -9,6 +9,9 @@
  *   - the restored-thread state renders the "viewing a past conversation" hint.
  * The rail reads everything through useAutopilot — stubbed here so the test drives the UI, not A2A.
  */
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
 import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -187,5 +190,23 @@ describe('action chip outcome', () => {
     expect(chip.getAttribute('data-outcome')).toBe('applied')
     expect(chip.querySelector(`path[d="${CHECK_PATH}"]`)).not.toBeNull()
     expect(chip.querySelector('circle')).toBeNull()
+  })
+
+  it('keeps the read-only badge on one line beside a long label', () => {
+    const label = 'Preview rendered: PieChart dry-pb-v2-20261004-2-pie: 4 slices · Table dry-pb-v2-20261004-2-table: 149 rows'
+    setValue({ messages: bot([{ label, readOnly: true, verb: 'previewPage' }]) })
+    const { container } = render(<AutopilotRail />)
+    const chip = chipFor(container, label)
+    const badge = [...chip.querySelectorAll('span')].find((el) => el.textContent === 'read-only')
+    const text = [...chip.querySelectorAll('span')].find((el) => el.textContent === label)
+    expect(badge?.className).toMatch(/apActRo/)
+    expect(text?.className).toMatch(/apActLabel/)
+    // jsdom applies no CSS-module rules, so assert the rules themselves: the badge neither shrinks
+    // nor wraps, and the label is the flex child allowed to shrink below its content width.
+    const css = readFileSync(resolve(__dirname, 'AutopilotRail.module.css'), 'utf8')
+    const rule = (name: string) => css.match(new RegExp(`\\.${name} \\{([^}]*)\\}`))?.[1] ?? ''
+    expect(rule('apActRo')).toMatch(/flex: none;/)
+    expect(rule('apActRo')).toMatch(/white-space: nowrap;/)
+    expect(rule('apActLabel')).toMatch(/min-width: 0;/)
   })
 })

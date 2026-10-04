@@ -525,12 +525,23 @@
   font-weight: 500;
 }
 
+/* The label takes the room left beside the icon and badge and wraps there; min-width: 0
+   lets a long unbroken label (a widget name, a URL) shrink instead of crushing the badge. */
+.apActLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The badge keeps its natural width on one line: it never shrinks or wraps into a column. */
 .apActRo {
   color: var(--cyan-color);
+  flex: none;
   font-size: var(--krateo-text-label-xs);
   letter-spacing: 0.05em;
   margin-left: auto;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 /* ── kagent HITL approval card (Phase 2) ──

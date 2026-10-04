@@ -190,8 +190,8 @@ const MessageBubble = ({ message }: { message: AutopilotMessage }) => {
             ? <RefusedIcon className={styles.apActRefused} />
             : <CheckIcon className={styles.apActCheck} />}
           {action.url
-            ? <a className={styles.apEvLink} href={action.url} rel='noreferrer' target='_blank'>{action.label}</a>
-            : <span>{action.label}</span>}
+            ? <a className={`${styles.apEvLink} ${styles.apActLabel}`} href={action.url} rel='noreferrer' target='_blank'>{action.label}</a>
+            : <span className={styles.apActLabel}>{action.label}</span>}
           {action.readOnly ? <span className={styles.apActRo}>read-only</span> : null}
         </div>
       ))}
