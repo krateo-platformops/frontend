@@ -29,6 +29,8 @@ const SANDBOX = 'krateo-preview'
 
 const harness = vi.hoisted(() => ({
   apply: vi.fn(),
+  /** When set, the render check waits on it — a preview still settling. */
+  gate: null as Promise<void> | null,
   rendered: [] as PreviewRenderModule.RenderedWidgetState[],
   sends: [] as { onFrame: (frame: AutopilotFrame) => void; text: string }[],
 }))
@@ -45,7 +47,14 @@ vi.mock('./useAutopilotContext', () => ({
 // The wait is previewRender.test.ts's to pin; here the render is already settled.
 vi.mock('./previewRender', async (importOriginal) => {
   const actual = await importOriginal<typeof PreviewRenderModule>()
-  return { ...actual, awaitSettledPreview: (read: () => PreviewRenderModule.RenderedWidgetState[]) => Promise.resolve({ states: read(), timedOut: false }) }
+  return {
+    ...actual,
+    awaitSettledPreview: async (read: () => PreviewRenderModule.RenderedWidgetState[]) => {
+      await harness.gate
+      const states = read()
+      return { states, timedOut: !states.length }
+    },
+  }
 })
 vi.mock('./actionBridge', async (importOriginal) => ({
   ...(await importOriginal<typeof ActionBridgeModule>()),
@@ -114,6 +123,7 @@ const settle = async () => {
 beforeEach(() => {
   harness.sends.length = 0
   harness.rendered = []
+  harness.gate = null
   harness.apply.mockReset()
   harness.apply.mockResolvedValue(LIVE_CHIP)
   autopilotConversationStore.reset()
@@ -134,13 +144,16 @@ describe('a live preview of a specialist\'s page is read back', () => {
     await settle()
 
     expect(harness.sends).toHaveLength(2)
-    expect(harness.sends[1].text).toContain('- Table pods-table: empty — empty: 0 rows')
+    expect(harness.sends[1].text).toContain('- Table pods-table: empty — 0 rows')
     expect(harness.sends[1].text).toContain('frontend-agent')
-    expect(getPreviewRender()).toEqual({ problems: ['Table pods-table: empty — empty: 0 rows'], rendered: [] })
+    expect(getPreviewRender()).toEqual({ problems: ['Table pods-table: empty — 0 rows'], rendered: [] })
     // Hidden: the person typed one message, and sees one user bubble.
     expect(api.messages.filter((message) => message.role === 'user')).toHaveLength(1)
     const previewing = api.messages.find((message) => message.text === 'Previewing the page now.')
-    expect(previewing?.actions?.map((chip) => chip.label)).toEqual([LIVE_CHIP.label, 'preview rendered with 1 problem: Table pods-table: empty — empty: 0 rows'])
+    expect(previewing?.actions?.map((chip) => chip.label)).toEqual([LIVE_CHIP.label, 'preview rendered with 1 empty widget to verify: Table pods-table: empty — 0 rows'])
+    // The data rides fenced, and the empty line is to verify before anything is delegated.
+    expect(harness.sends[1].text).toContain('<preview_render>')
+    expect(harness.sends[1].text).toMatch(/FIRST, for each `empty` line, check whether the cluster genuinely holds no such data/)
   })
 
   it('a clean render sends nothing more, and its chip says what rendered', async () => {
@@ -152,6 +165,46 @@ describe('a live preview of a specialist\'s page is read back', () => {
     expect(harness.sends).toHaveLength(1)
     const previewing = api.messages.find((message) => message.text === 'Previewing the page now.')
     expect(previewing?.actions?.at(-1)?.label).toBe('Preview rendered: Table pods-table: 2 rows')
+  })
+
+  it('a check that read NOTHING (the preview was closed) is not a clean preview', async () => {
+    harness.rendered = []
+    act(() => api.send('build me a page of the pods'))
+    act(() => streamPreviewTurn(0))
+    await settle()
+
+    expect(harness.sends).toHaveLength(1)
+    expect(getPreviewRender()).toBeNull()
+    const previewing = api.messages.find((message) => message.text === 'Previewing the page now.')
+    expect(previewing?.actions?.at(-1)?.label).toMatch(/^could not read the preview/)
+    expect(previewing?.actions?.some((chip) => chip.label.startsWith('Preview rendered'))).toBe(false)
+  })
+
+  it('the chip is scrubbed like the follow-up: a token in a server error never reaches the transcript', async () => {
+    const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhIn0.c2lnbmF0dXJlLXNpZ25hdHVyZQ'
+    harness.rendered = [{ ...tableServing([]), data: undefined, error: { message: `upstream said Bearer ${jwt}`, status: 500 }, loadState: 'error' }]
+    act(() => api.send('build me a page of the pods'))
+    act(() => streamPreviewTurn(0))
+    await settle()
+
+    const labels = api.messages.flatMap((message) => message.actions ?? []).map((chip) => chip.label).join('\n')
+    expect(labels).toContain('[redacted-jwt]')
+    expect(labels).not.toContain(jwt)
+    expect(harness.sends[1].text).not.toContain(jwt)
+  })
+
+  it('Stop means stop: a check still settling sends no follow-up after it', async () => {
+    let open: () => void = () => undefined
+    harness.gate = new Promise((resolve) => { open = resolve })
+    harness.rendered = [tableServing([])]
+    act(() => api.send('build me a page of the pods'))
+    act(() => streamPreviewTurn(0))
+    await settle()
+    act(() => api.stop())
+    act(() => { open() })
+    await settle()
+
+    expect(harness.sends).toHaveLength(1)
   })
 
   it('a page no specialist authored this request is not chased', async () => {

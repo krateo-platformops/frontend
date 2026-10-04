@@ -14,12 +14,12 @@
  * leads to is the agent's next preview, through the same UI verb.
  */
 
-import { type MutableRefObject, useCallback, useRef } from 'react'
+import { type MutableRefObject, useCallback, useEffect, useRef } from 'react'
 
 import { getUserInfo } from '../../utils/getUserInfo'
 
 import { draftOwner } from './draftRecord'
-import { setPreviewRender } from './previewBus'
+import { getPreviewRender, setPreviewRender } from './previewBus'
 import {
   awaitSettledPreview,
   createPreviewDataLoop,
@@ -42,9 +42,14 @@ interface PreviewDataLoopDeps {
   sandboxNamespace: string | undefined
   sendRef: MutableRefObject<Send | undefined>
   setMessages: (update: (prev: AutopilotMessage[]) => AutopilotMessage[]) => void
+  /** True while an assistant turn is streaming. The follow-up never opens a second stream. */
+  streaming: boolean
 }
 
-export const usePreviewDataLoop = ({ readRenderedWidgets, sandboxNamespace, sendRef, setMessages }: PreviewDataLoopDeps) => {
+export const usePreviewDataLoop = ({ readRenderedWidgets, sandboxNamespace, sendRef, setMessages, streaming }: PreviewDataLoopDeps) => {
+  // `streaming`, as the detached check reads it seconds later.
+  const streamingRef = useRef(streaming)
+  useEffect(() => { streamingRef.current = streaming }, [streaming])
   const loopRef = useRef(createPreviewDataLoop())
   // Counts REAL user turns: a check that settles after the person has moved on drops its follow-up.
   const userTurnRef = useRef(0)
@@ -89,20 +94,41 @@ export const usePreviewDataLoop = ({ readRenderedWidgets, sandboxNamespace, send
         return
       }
       const summary = summarizePreviewRender(states, names, sandboxNamespace, timedOut)
-      setPreviewRender({ problems: summary.problems.map(problemLine), rendered: summary.rendered })
-      setMessages((prev) => prev.map((message) => (
+      // The chip is scrubbed like the follow-up: it is stored with the transcript, and a RESTAction's
+      // error can quote whatever its request carried.
+      const chip = (label: string) => setMessages((prev) => prev.map((message) => (
         message.id === assistantId
-          ? { ...message, actions: [...(message.actions ?? []), { label: previewRenderChipLabel(summary), readOnly: true, verb: 'previewPage' }] }
+          ? { ...message, actions: [...(message.actions ?? []), { label: redactValue(label) as string, readOnly: true, verb: 'previewPage' }] }
           : message
       )))
-      const step = loopRef.current.next(summary.problems)
-      if (step) {
-        // The follow-up is typed text, not the envelope, so it is scrubbed here: a RESTAction's
-        // error can quote whatever its request carried.
-        sendRef.current?.(redactValue(previewFollowUpPrompt(summary, step)) as string, { modality, recovery: true })
+      chip(previewRenderChipLabel(summary))
+      // Read nothing (the preview was closed, or never rendered): not a clean preview, and no evidence
+      // for the next turn either — the envelope keeps no `previewRender` rather than a false one.
+      if (!summary.read) {
+        return
       }
+      setPreviewRender({ problems: summary.problems.map(problemLine), rendered: summary.rendered })
+      const step = loopRef.current.next(summary.problems)
+      if (!step) {
+        return
+      }
+      // Never a second stream: a turn already streaming (another trampoline's) owns the rail and its
+      // abort. The render stays on the envelope, so the next turn still sees it.
+      if (streamingRef.current) {
+        chip('the preview has problems, but another answer was still streaming, so they were not sent automatically — they stay in the page context')
+        return
+      }
+      sendRef.current?.(redactValue(previewFollowUpPrompt(summary, step)) as string, { modality, recovery: true })
     })()
   }, [readRenderedWidgets, sandboxNamespace, sendRef, setMessages])
 
-  return { beginRun, checkLivePreview, reset }
+  /**
+   * Whether the narrated-publish trampoline must stay quiet: the last render still lists problems,
+   * or this request's loop has already sent its report. Re-prompting a publish then would push the
+   * page the render just showed to be wrong.
+   */
+  const holdsPublish = useCallback((): boolean =>
+    Boolean(getPreviewRender()?.problems.length) || loopRef.current.reported(), [])
+
+  return { beginRun, checkLivePreview, holdsPublish, reset }
 }

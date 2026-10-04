@@ -18,7 +18,7 @@ import { isWildcardSegment, secretFieldPaths } from '../../utils/secretFields'
 import { getComposeRefusals } from './composeRequest'
 import { chartFingerprint, controllerFingerprint, draftFingerprint } from './draftStructure'
 import { getPreviewProblems, getPreviewRender } from './previewBus'
-import type { RenderedWidgetState } from './previewRender'
+import { boundedPreviewRender, type RenderedWidgetState } from './previewRender'
 import { redactAutopilotContext } from './redact'
 import type { AutopilotIdentity, PageContextEnvelope, WidgetInventoryEntry } from './types'
 
@@ -582,7 +582,7 @@ export const useAutopilotContext = () => {
       ...(previewProblems?.length ? { previewProblems: previewProblems.slice(0, 8) } : {}),
       // What the last live preview RENDERED — its problems and its data — so a follow-up turn and
       // every turn after it reason from the render, not from the CRs that were sent.
-      ...(previewRender ? { previewRender } : {}),
+      ...(previewRender ? { previewRender: boundedPreviewRender(previewRender) } : {}),
       route,
       widgets,
     }

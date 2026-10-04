@@ -61,6 +61,13 @@ describe('the page context carries what the preview rendered', () => {
     expect(collect().previewRender).toEqual({ problems: ['Table pods-table: empty — empty: 0 rows'], rendered: ['PieChart pods-by-phase: 4 slices'] })
   })
 
+  it('previewRender on the envelope is bounded — every later turn carries it', () => {
+    setPreviewRender({ problems: Array<string>(40).fill('p'.repeat(290)), rendered: ['Table x: 1 row'] })
+    const { collect } = hookOn(new QueryClient())
+    const render = collect().previewRender!
+    expect([...render.problems, ...render.rendered].join('').length).toBeLessThanOrEqual(3000)
+  })
+
   it('the delta budget never collapses a render with problems, nor one that changed', () => {
     const base: PageContextEnvelope = { pageStatus: 'ready', route: '/portal-builder', widgets: [] }
     const withProblems = { ...base, previewRender: { problems: ['Table pods-table: empty — empty: 0 rows'], rendered: [] } }

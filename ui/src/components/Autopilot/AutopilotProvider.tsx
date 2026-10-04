@@ -244,7 +244,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   const recoveryCountRef = useRef(0)
   // PREVIEW-DATA TRAMPOLINE (frontend#442 D10): a live preview of a specialist's page is read back
   // once rendered, and a render with problems earns a bounded follow-up turn. See usePreviewDataLoop.
-  const { beginRun, checkLivePreview, reset: resetPreviewDataLoop } = usePreviewDataLoop({ readRenderedWidgets, sandboxNamespace: config?.api.PREVIEW_SANDBOX_NAMESPACE, sendRef, setMessages })
+  const { beginRun, checkLivePreview, holdsPublish, reset: resetPreviewDataLoop } = usePreviewDataLoop({ readRenderedWidgets, sandboxNamespace: config?.api.PREVIEW_SANDBOX_NAMESPACE, sendRef, setMessages, streaming })
 
   const transport: AutopilotTransport = useMemo(() => (endpoint && endpoint !== 'echo' ? createKagentTransport(endpoint) : createEchoTransport()), [endpoint])
 
@@ -497,7 +497,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       const held = blueprintStore.get()
       const heldName = heldDraftIdentity(held)
       const approvedPublish = /\b(publish|open the (?:pull request|pr|merge request|mr)|go ahead|do it|approve|proceed|looks good|ship it)\b/i.test(lastUserTextRef.current)
-      const nudge = held && heldName && approvedPublish ? narratedPublishNudge(held, heldName, builderTargets) : null
+      // Not while the live preview's render still lists problems, nor after the data loop reported.
+      const nudge = held && heldName && approvedPublish && !holdsPublish() ? narratedPublishNudge(held, heldName, builderTargets) : null
       if (nudge) {
         recoveryCountRef.current += 1
         setMessages((prev) => prev.map((message) => (message.id === assistantId ? { ...message, text: '↻ One moment — preparing the change request…' } : message)))
@@ -531,7 +532,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     // otherwise never learn the answer proposes changing something (FR 71). The store decides
     // whether anything is actually said: a typed turn is always silent.
     autopilotSpeakBackStore.speakAnswer({ actions: chips, id: assistantId, modality, text: cleanedText })
-  }, [apply, beginRun, blueprintGate, blueprintStore, builderTargets, checkLivePreview, config, draftAutosave, oasStore, sessionId, setMessages])
+  }, [apply, beginRun, blueprintGate, blueprintStore, builderTargets, checkLivePreview, config, draftAutosave, holdsPublish, oasStore, sessionId, setMessages])
 
   const applyFrame = useCallback((assistantId: string, frame: AutopilotFrame, modality: TurnModality) => {
     switch (frame.kind) {
@@ -703,9 +704,11 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     abortRef.current?.()
     abortRef.current = null
     setStreaming(false)
+    // Stop means stop: a pending preview-data check sends no follow-up after it.
+    resetPreviewDataLoop()
     // Settle any still-streaming bubble so the UI drops the caret and re-enables the composer.
     setMessages((prev) => prev.map((message) => (message.streaming ? { ...message, streaming: false } : message)))
-  }, [setMessages])
+  }, [resetPreviewDataLoop, setMessages])
 
   // Tear down all PER-THREAD, in-flight machinery — shared by newThread (archive-then-reset)
   // and switchToThread (load an archived transcript). Everything here is thread-scoped state
