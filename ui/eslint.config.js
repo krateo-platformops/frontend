@@ -465,7 +465,12 @@ export default tsEslint.config(
       'jsx-a11y/aria-role': ['error', { ignoreNonDOM: true }],
 
       'jsx-a11y/aria-unsupported-elements': 'error',
+      // C8: a clickable element is focusable, announced, and works from the keyboard.
+      'jsx-a11y/click-events-have-key-events': 'error',
+      // C9: every icon-only control has an accessible name. A Tooltip does not give it one.
+      'jsx-a11y/control-has-associated-label': ['error', { depth: 3, ignoreElements: ['input', 'select', 'td', 'textarea', 'th', 'tr'] }],
       'jsx-a11y/heading-has-content': 'error',
+      'jsx-a11y/interactive-supports-focus': 'error',
 
       'jsx-a11y/iframe-has-title': 'error',
       'jsx-a11y/img-redundant-alt': 'error',
@@ -473,7 +478,9 @@ export default tsEslint.config(
       'jsx-a11y/no-access-key': 'error',
 
       'jsx-a11y/no-distracting-elements': 'error',
+      'jsx-a11y/no-noninteractive-element-interactions': 'error',
       'jsx-a11y/no-redundant-roles': 'error',
+      'jsx-a11y/no-static-element-interactions': 'error',
       'jsx-a11y/role-has-required-aria-props': 'error',
       'jsx-a11y/role-supports-aria-props': 'error',
       'jsx-a11y/scope': 'error',
@@ -504,7 +511,27 @@ export default tsEslint.config(
       'react/no-unknown-property': 'error',
     },
     settings: {
+      // C8–C10 (design/02-components.md). jsx-a11y only sees DOM elements, so an antd `<Card onClick>`
+      // or a bare `<Button icon={…} />` was invisible to it: exactly the shapes those rules were
+      // written about. Mapping each antd component to the element it renders lets the rules see them.
+      'jsx-a11y': {
+        components: { Avatar: 'span', Button: 'button', Card: 'div', Col: 'div', Flex: 'div', Row: 'div', Space: 'div', Tag: 'span', Text: 'span', Title: 'h1' },
+      },
       react: { version: 'detect' },
+    },
+  },
+
+  // Tests render fixtures, not product UI: a clickable <div> in a test exercises a handler, it is not
+  // a control anyone has to reach. The C8/C9 rules stay on everything that ships.
+  {
+    files: ['**/*.test.tsx'],
+    name: 'C8/C9 a11y rules do not apply to test fixtures',
+    rules: {
+      'jsx-a11y/click-events-have-key-events': 'off',
+      'jsx-a11y/control-has-associated-label': 'off',
+      'jsx-a11y/interactive-supports-focus': 'off',
+      'jsx-a11y/no-noninteractive-element-interactions': 'off',
+      'jsx-a11y/no-static-element-interactions': 'off',
     },
   },
 

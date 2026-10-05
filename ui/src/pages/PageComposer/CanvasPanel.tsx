@@ -214,6 +214,8 @@ const Frame = ({ airborne, depth, draggingId, legal, node, onSelect }: {
           `listeners` supply the lift. So the same element is now the drag handle AND the selection
           control, reachable by keyboard for both.
         */}
+        {/* C8 exception: role, tabIndex and the key handler arrive through the dnd-kit `attributes` spread or the explicit fallback below, which the rule cannot see. */}
+        {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
         <Text
           {...(movable ? attributes : {})}
           {...(movable ? listeners : {})}

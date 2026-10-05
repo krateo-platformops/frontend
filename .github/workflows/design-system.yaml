@@ -54,3 +54,29 @@ jobs:
       - name: Remaining debt
         if: always()
         run: python3 design/lint/lint-css-tokens.py ui/src --summary
+
+  # C8–C10, accessibility. NO OTHER JOB RUNS ESLINT: lint.yaml is the chart repo's `helm lint`, and
+  # the full ESLint config carries ~60 unrelated problems nothing has ever gated on. This runs the
+  # jsx-a11y family alone (eslint.a11y.config.js derives it from eslint.config.js, so there is no
+  # second list), which is at zero and stays there. The C10 trigger check is a vitest test and runs
+  # with the suite in test.yaml.
+  a11y:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install ui deps
+        run: npm ci --no-audit --no-fund
+
+      - name: Accessibility lint (fails on any violation)
+        run: npx eslint -c eslint.a11y.config.js src
