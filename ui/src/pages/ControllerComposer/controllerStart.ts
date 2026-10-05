@@ -200,12 +200,23 @@ export const validateStartController = (input: StartControllerInput, reading: Sp
   return problems
 }
 
+/**
+ * The icon a started controller chart carries, the same brand path a started BLUEPRINT uses (#454).
+ * The Marketplace's blueprints index (krateo-blueprints/charts publish-chart.yaml) REFUSES a chart
+ * without an https icon — it logs "it needs an https icon in Chart.yaml" and the release's index job
+ * is skipped — so without this a merged controller is released and silently left out of the
+ * Marketplace, and nobody can Install it from there. #454 fixed that for the Blueprint Composer only.
+ * The author can point it at another image in the Files tab like any other Chart.yaml line.
+ */
+const CHART_ICON = 'https://raw.githubusercontent.com/krateo-platformops/.github/main/brand/logo.svg'
+
 /** Chart.yaml in the order Helm's own files read — built by assignment, since the order is the file's. */
 const chartYaml = (name: string, group: string, baseUrl: string, title: string, sourceVersion: string | null): string => {
   const chart: Record<string, unknown> = {}
   chart.apiVersion = 'v2'
   chart.name = name
   chart.description = title ? `Krateo controller for ${title}, served in ${group}.` : `Krateo controller, served in ${group}.`
+  chart.icon = CHART_ICON
   chart.type = 'application'
   chart.version = CONTROLLER_START_VERSION
   const annotations: Record<string, string> = {}
