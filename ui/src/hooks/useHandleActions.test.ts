@@ -452,7 +452,16 @@ describe('dispatchAction — onEventNavigateTo (SSE) race + cleanup', () => {
     expect(ctx.notification.error).not.toHaveBeenCalled()
   })
 
-  it('(7) registers a cleanup that closes the EventSource (unmount safety)', async () => {
+  it('opens the event stream with the access token, which sse-proxy requires', async () => {
+    vi.stubGlobal('EventSource', FakeEventSource)
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, '{"metadata":{"uid":"U"}}'))))
+
+    await dispatchAction(restOnEvent(), { resourcesRefs: refs([postRef]) }, makeCtx({ getAccessToken: vi.fn(() => 'a.b+c') }))
+
+    expect(FakeEventSource.instances.at(-1)?.url).toBe('http://ev/notifications?access_token=a.b%2Bc')
+  })
+
+  it('(7) keeps waiting after the widget unmounts, and still shows the result and redirects', async () => {
     vi.stubGlobal('EventSource', FakeEventSource)
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, '{"metadata":{"uid":"U"}}'))))
 
@@ -462,13 +471,40 @@ describe('dispatchAction — onEventNavigateTo (SSE) race + cleanup', () => {
     await dispatchAction(restOnEvent(), { resourcesRefs: refs([postRef]) }, ctx)
 
     const es = FakeEventSource.instances.at(-1)
-    // still open, awaiting the event
-    expect(es?.closed).toBe(false)
     expect(captured).toBeDefined()
 
-    // simulate the hook's unmount teardown
+    // the hook's unmount teardown: a refetch re-rendered the button away
     captured?.()
+    expect(es?.closed).toBe(false)
+
+    es?.emit('krateo', { involvedObject: { uid: 'U' }, reason: 'Ready' })
+    await flush()
+
     expect(es?.closed).toBe(true)
+    expect(ctx.message.destroy).toHaveBeenCalled()
+    expect(ctx.notification.success).toHaveBeenCalled()
+    expect(ctx.navigate).toHaveBeenCalledWith('/done')
+  })
+
+  it('(7) after the user left the page, shows the result but does not redirect', async () => {
+    vi.stubGlobal('EventSource', FakeEventSource)
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, '{"metadata":{"uid":"U"}}'))))
+
+    const location = { pathname: '/incidents/ns/name' }
+    vi.stubGlobal('window', { location })
+
+    let captured: (() => void) | undefined
+    const ctx = makeCtx({ registerCleanup: (fn) => { captured = fn } })
+
+    await dispatchAction(restOnEvent(), { resourcesRefs: refs([postRef]) }, ctx)
+    captured?.()
+    location.pathname = '/elsewhere'
+
+    FakeEventSource.instances.at(-1)?.emit('krateo', { involvedObject: { uid: 'U' }, reason: 'Ready' })
+    await flush()
+
+    expect(ctx.notification.success).toHaveBeenCalled()
+    expect(ctx.navigate).not.toHaveBeenCalled()
   })
 })
 

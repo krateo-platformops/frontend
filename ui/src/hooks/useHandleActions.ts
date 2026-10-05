@@ -354,10 +354,15 @@ const runRest = async (
   let processEvent: (eventData: EventData) => void = () => undefined
 
   if (onEventNavigateTo) {
-    const eventsEndpoint = `${ctx.eventsBaseUrl}/notifications`
+    // sse-proxy verifies the JWT on /notifications; EventSource cannot set headers, so the token
+    // rides as ?access_token=, as in useGetEvents.
+    const eventsEndpoint = `${ctx.eventsBaseUrl}/notifications?access_token=${encodeURIComponent(ctx.getAccessToken())}`
     const eventTimeoutSeconds = onEventNavigateTo.timeout ?? 30
 
     const eventSource = new EventSource(eventsEndpoint, { withCredentials: false })
+    // The page the click happened on, and whether the widget has unmounted since.
+    const startPath = typeof window === 'undefined' ? '' : window.location.pathname
+    let detached = false
 
     let description = `Timeout waiting for event ${onEventNavigateTo.eventReason}`
     if (errorMessage) {
@@ -375,11 +380,11 @@ const runRest = async (
       ctx.message.destroy()
     }, eventTimeoutSeconds * 1000)
 
-    // (7) Close the stream + cancel the timeout if the widget unmounts before the event
-    // arrives, instead of leaking the connection (and firing toasts) until the timeout.
+    // (7) A widget that unmounts mid-wait (a refetch re-rendered it away, or the user left)
+    // keeps waiting: the timeout bounds the stream, the result still shows, and the redirect
+    // happens only if the user is still on the page of the click.
     ctx.registerCleanup(() => {
-      eventSource.close()
-      clearTimeout(timeoutId)
+      detached = true
     })
 
     const loadingMessage = onEventNavigateTo.loadingMessage
@@ -440,6 +445,9 @@ const runRest = async (
         ctx.notification.success({ description: successDescription, message: 'Successfully executed action', placement: 'bottomLeft' })
 
         ctx.setLoading(false)
+        if (detached && typeof window !== 'undefined' && window.location.pathname !== startPath) {
+          return
+        }
         ctx.closeDrawer()
         void ctx.navigate(redirectUrl)
       })()
