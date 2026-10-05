@@ -22,6 +22,7 @@ import {
   lintControllerDraft,
   lockedSnapshot,
   oasConfigMapPath,
+  pathParamsOutsideSpec,
   planBindPathParam,
   planPlaceGroup,
   planSetItemsPath,
@@ -136,9 +137,9 @@ describe('3–5 — ids from status, nested and confirmed (Aruba-like dbaas)', (
     expect(verbOf(files, path, 'create').fieldMapping).toBeUndefined()
     const resource = resourceOf(files, path)
     expect(resource.identifiers).toEqual(['metadata.id'])
-    // metadata.id is not in the create body, but {dbaasId} and {id} are read from status on every verb
-    // that carries them, so spec does not ask for the path parameters.
-    expect(resource.excludedSpecFields).toEqual(['dbaasId', 'id'])
+    // {dbaasId} and {id} are read from status on every verb that carries them, but the document declares
+    // both on the path item — oasgen never puts them in spec, so there is nothing to exclude.
+    expect(resource.excludedSpecFields).toBeUndefined()
   })
 
   it('{dbaasId} and {id} wait for a confirm — the lint says so — and a confirm settles it', () => {
@@ -164,10 +165,8 @@ describe('3–5 — ids from status, nested and confirmed (Aruba-like dbaas)', (
   it('excludedSpecFields is editable like the other lists', () => {
     const files = placed()
     const toggled = apply(files, planToggleField(files, path, 'excludedSpecFields', 'properties.flavor'))
-    expect(resourceOf(toggled, path).excludedSpecFields).toEqual(['dbaasId', 'id', 'properties.flavor'])
-    expect(resourceOf(apply(toggled, planToggleField(toggled, path, 'excludedSpecFields', 'properties.flavor')), path).excludedSpecFields).toEqual(['dbaasId', 'id'])
-    const cleared = apply(files, planToggleField(files, path, 'excludedSpecFields', 'dbaasId'))
-    expect(resourceOf(apply(cleared, planToggleField(cleared, path, 'excludedSpecFields', 'id')), path).excludedSpecFields).toBeUndefined()
+    expect(resourceOf(toggled, path).excludedSpecFields).toEqual(['properties.flavor'])
+    expect(resourceOf(apply(toggled, planToggleField(toggled, path, 'excludedSpecFields', 'properties.flavor')), path).excludedSpecFields).toBeUndefined()
   })
 
   it('8 — configuration fields beyond auth: api-version on every verb (*), the findby\'s filter/sort/limit/offset', () => {
@@ -267,9 +266,9 @@ describe('a path parameter read from status is not asked of spec (oasgen 0.25 ex
     const published = { ...placed, [PET]: placed[PET].replace('    excludedSpecFields:\n      - id\n      - petId\n', '    excludedSpecFields:\n      - id\n') }
     const locked = lockedSnapshot(published)
     const sentence = 'petId is asked for on create because this controller was published before it was excluded; excluding it needs the RestDefinition recreated.'
-    expect(askedOnCreateNotes(readController(published).kinds[0], true)).toEqual([sentence])
+    expect(askedOnCreateNotes(readController(published).kinds[0], true, readController(published).spec?.oas.doc)).toEqual([sentence])
     // Unpublished, there is no note — the settle excludes it instead.
-    expect(askedOnCreateNotes(readController(published).kinds[0], false)).toEqual([])
+    expect(askedOnCreateNotes(readController(published).kinds[0], false, readController(published).spec?.oas.doc)).toEqual([])
     for (const plan of [
       planSetVerb(published, PET, 'delete', { method: 'DELETE', path: '/pet/{petId}' }, locked),
       planBindPathParam(published, PET, 'petId', 'status.id', locked),
@@ -280,5 +279,67 @@ describe('a path parameter read from status is not asked of spec (oasgen 0.25 ex
     }
     // The toggle is refused by the lock, like any change to excludedSpecFields.
     expect(planToggleField(published, PET, 'excludedSpecFields', 'petId', locked)).toMatchObject({ ok: false, reason: expect.stringMatching(/^cannot update Pet in place: excludedSpecFields is locked once published/) as unknown })
+  })
+})
+
+describe('a path parameter spec never carries is not put in excludedSpecFields', () => {
+  const WIDGET = restDefinitionPath('Widget')
+  // oasgen builds spec from the create body plus each verb's OPERATION-level parameters, so where
+  // {widget_id} is declared decides whether spec has a widget_id to exclude.
+  const widgets = (where: 'path' | 'operation', bodyCarriesParam = false): string => {
+    const param = { in: 'path', name: 'widget_id', required: true, schema: { type: 'string' } }
+    const body = {
+      properties: { id: { type: 'string' }, title: { type: 'string' }, ...(bodyCarriesParam ? { widget_id: { type: 'string' } } : {}) },
+      type: 'object',
+    }
+    const ok = { content: { 'application/json': { schema: body } }, description: 'ok' }
+    const own = where === 'operation' ? { parameters: [param] } : {}
+    return JSON.stringify({
+      info: { title: 'widgets', version: '1.0.0' },
+      openapi: '3.0.3',
+      paths: {
+        '/widgets': { post: { requestBody: { content: { 'application/json': { schema: body } } }, responses: { 200: ok } } },
+        '/widgets/{widget_id}': {
+          ...(where === 'path' ? { parameters: [param] } : {}),
+          delete: { ...own, responses: { 200: ok } },
+          get: { ...own, responses: { 200: ok } },
+        },
+      },
+    })
+  }
+  const placed = (spec: string): Record<string, string> => {
+    const files = start(spec)
+    return apply(files, planPlaceGroup(files, 'widgets'))
+  }
+
+  it('declared on the path item only and not in the body: not excluded, not offered, and the inspector says why', () => {
+    const files = placed(widgets('path'))
+    const model = readController(files)
+    expect(statusBoundPathParams(model.kinds[0].restDefinition)).toEqual(['widget_id'])
+    expect(resourceOf(files, WIDGET).excludedSpecFields).toEqual(['id'])
+    expect(exclusionCandidates(model.kinds[0], model).map((candidate) => candidate.field)).not.toContain('widget_id')
+    expect(pathParamsOutsideSpec(model.kinds[0], model)).toEqual([
+      'widget_id is read from status, and spec never asks for it — the document declares it on the path, not on an operation, so there is nothing to exclude.',
+    ])
+    // Nor is it "asked for on create" once published — spec never had it.
+    expect(askedOnCreateNotes(model.kinds[0], true, model.spec?.oas.doc)).toEqual([])
+  })
+
+  it('declared on the operation: excluded as before, and there is nothing to explain', () => {
+    const files = placed(widgets('operation'))
+    const model = readController(files)
+    expect(resourceOf(files, WIDGET).excludedSpecFields).toEqual(['id', 'widget_id'])
+    expect(exclusionCandidates(model.kinds[0], model).map((candidate) => candidate.field)).toContain('widget_id')
+    expect(pathParamsOutsideSpec(model.kinds[0], model)).toEqual([])
+  })
+
+  it('declared on the path item but sent by the create body: bound to status, it is excluded as before', () => {
+    const files = placed(widgets('path', true))
+    // The body carries widget_id, so placing reads it from spec; bound to status, spec need not ask for it.
+    const bound = apply(files, planBindPathParam(files, WIDGET, 'widget_id', 'status.id'))
+    const model = readController(bound)
+    expect(resourceOf(bound, WIDGET).excludedSpecFields).toEqual(expect.arrayContaining(['id', 'widget_id']))
+    expect(exclusionCandidates(model.kinds[0], model).map((candidate) => candidate.field)).toContain('widget_id')
+    expect(pathParamsOutsideSpec(model.kinds[0], model)).toEqual([])
   })
 })
