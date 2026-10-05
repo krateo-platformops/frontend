@@ -5,6 +5,10 @@
  *   Chart.yaml                  names the chart; core-provider derives the generated Kind and API
  *                               version from its name and version. (The draft is a BLUEPRINT
  *                               because the store records it as one, not because this file exists.)
+ *                               It carries the Krateo brand icon: the Marketplace's blueprints index
+ *                               (krateo-blueprints/charts publish-chart.yaml) refuses a chart without
+ *                               an https icon, and the release adds the chart there on merge. The
+ *                               author can point it at another image in the Files tab.
  *   values.yaml                 the defaults; empty until the author places a field.
  *   values.schema.json          IS the generated CRD's spec — core-provider refuses a chart without
  *                               one. `{type: object, properties: {}}` and nothing else: an object or
@@ -140,12 +144,16 @@ export const validateStartChart = (input: StartChartInput): StartChartProblem[] 
 export const startChartWarnings = (input: StartChartInput): StartChartProblem[] =>
   chartIdentityWarnings({ name: input.name, version: input.version })
 
+/** The icon a started chart carries; the platform charts publish under the same brand path. */
+const CHART_ICON = 'https://raw.githubusercontent.com/krateo-platformops/.github/main/brand/logo.svg'
+
 /** Build by assignment: the lint alphabetises object literals, and a file's key order is its format. */
 const chartYaml = (name: string, version: string, description: string): string => {
   const chart: Record<string, string> = {}
   chart.apiVersion = 'v2'
   chart.name = name
   if (description) { chart.description = description }
+  chart.icon = CHART_ICON
   chart.type = 'application'
   chart.version = version
   return dump(chart, { lineWidth: -1, noRefs: true, sortKeys: false })

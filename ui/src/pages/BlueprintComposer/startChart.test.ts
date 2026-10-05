@@ -27,7 +27,7 @@ describe('startChart — the seeded draft', () => {
   it('Chart.yaml is an application chart that draftDisplayName reads the name back out of', () => {
     const files = started()
     expect(draftDisplayName(files)).toBe('builder-publish')
-    expect(files['Chart.yaml']).toBe('apiVersion: v2\nname: builder-publish\ndescription: Publishes a page set as a pull request\ntype: application\nversion: 0.1.0\n')
+    expect(files['Chart.yaml']).toBe('apiVersion: v2\nname: builder-publish\ndescription: Publishes a page set as a pull request\nicon: https://raw.githubusercontent.com/krateo-platformops/.github/main/brand/logo.svg\ntype: application\nversion: 0.1.0\n')
   })
 
   it('an empty description is left out rather than written blank; an awkward one is quoted by YAML', () => {
