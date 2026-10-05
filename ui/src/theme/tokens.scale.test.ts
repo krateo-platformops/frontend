@@ -97,3 +97,11 @@ describe('antd text sizes come from the one type scale (T2, T3)', () => {
     }
   })
 })
+
+describe('Descriptions spacing is on the scale (T2)', () => {
+  it('spaces the title on the scale — it was 18px, antd’s 20 compacted', () => {
+    for (const { components } of [lightTheme, darkTheme]) {
+      expect(components?.Descriptions?.titleMarginBottom).toBe(spacing.md)
+    }
+  })
+})

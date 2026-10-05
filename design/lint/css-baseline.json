@@ -9,10 +9,5 @@
   "legacy-type-scale": {},
   "spacing": {},
   "unguarded-animation": {},
-  "widget-theme-coverage": {
-    "widgets/Breadcrumb/Breadcrumb.tsx": 1,
-    "widgets/Descriptions/Descriptions.tsx": 1,
-    "widgets/Image/Image.tsx": 1,
-    "widgets/QRCode/QRCode.tsx": 1
-  }
+  "widget-theme-coverage": {}
 }

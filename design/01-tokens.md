@@ -27,7 +27,19 @@ Verified by sweep: all 168 files under `ui/src/widgets` contain exactly one hex 
 
 ### T2 — Density comes from the antd component overrides — for the 15 widget kinds those overrides actually cover.
 
-**Status:** partial → **enforced**, burning down — 4 candidates left in the baseline
+**Status:** partial → enforced → **holds** — the T2 baseline is empty
+
+> **2026-10-05: the display group closes T2** (`Breadcrumb, Descriptions, Image, QRCode`).
+> Breadcrumb (which also themes the shell's own `components/Breadcrumb`) and Image restate what
+> compactAlgorithm derives. Descriptions' `titleMarginBottom` was 18px (antd's 20, compacted), off
+> the spacing scale; it is now `spacing.md`. QRCode is the third documented opt-out: antd's
+> `QRCodeComponentToken` is empty. Measured live on the blueprint detail page, the shell
+> breadcrumb and both bordered Descriptions did not move a pixel.
+>
+> **Where T2 ended:** the 19 candidates became 16 `buildComponents` entries (Form; the six form
+> controls; Divider, Flex, Layout; Alert, Badge, Result; Breadcrumb, Descriptions, Image) and three
+> documented opt-outs (Row, Col, QRCode), across five PRs. A new antd-wrapping widget now has to do
+> one or the other before CI passes.
 
 > **2026-10-05: the feedback group is off the list** (`Alert, Badge, Result`). Alert and Badge
 > restate what compactAlgorithm derives (paddings 4/12/16, badge marks 5/12/18, text 10 =

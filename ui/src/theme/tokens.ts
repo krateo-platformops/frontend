@@ -405,6 +405,8 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   // T2 feedback group. Alert and Badge restate what compactAlgorithm already derives.
   Alert: { defaultPadding: `${spacing.xs}px ${spacing.smd}px`, withDescriptionIconSize: 20, withDescriptionPadding: `${spacing.md}px ${spacing.md}px` },
   Badge: { dotSize: 5, indicatorHeight: 18, indicatorHeightSM: 12, statusSize: 5, textFontSize: textPx('label-xs'), textFontSizeSM: textPx('label-xs') },
+  // T2 display group. Breadcrumb also themes the shell's own Breadcrumb (components/Breadcrumb).
+  Breadcrumb: { iconFontSize: textPx('caption'), separatorMargin: spacing.xs },
   Button: {
     borderRadius: radius.md,
     controlHeight: 32,
@@ -430,6 +432,8 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   DatePicker: { borderRadius: radius.md, controlHeight: 32 },
   // T2 layout group: Divider and Flex restate what compactAlgorithm already derives (margins 16/8/4,
   // gaps 4/8/16), so the values are ours to move rather than a side effect of the algorithm.
+  // titleMarginBottom was 18 (antd's 20, compacted) — off the spacing scale. Nearest step: md.
+  Descriptions: { colonMarginLeft: spacing.xxs, colonMarginRight: spacing.xs, itemPaddingBottom: spacing.sm, itemPaddingEnd: spacing.sm, titleMarginBottom: spacing.md },
   Divider: { margin: spacing.sm, marginLG: spacing.md, textPaddingInline: '1em', verticalMarginInline: spacing.xs },
   Drawer: { paddingLG: spacing.lg },
   // `gap: small | middle | large` reads paddingXS / padding / paddingLG, not the flexGap* tokens.
@@ -439,6 +443,8 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   // never got: antd's own vertical-label rule out-specified it, so every label rendered at antd's 4.
   // From the theme it applies everywhere (4 → 6 for every vertical label, schema-driven or not).
   Form: { itemMarginBottom: spacing.md, verticalLabelPadding: `0 0 ${spacing.xsm}px` },
+  // The preview toolbar's icons, at body-text size.
+  Image: { previewOperationSize: textPx('body') },
   Input: { borderRadius: radius.md, controlHeight: 32 },
   // Was 28 — an InputNumber beside an Input in the same form was 4px shorter.
   InputNumber: { borderRadius: radius.md, controlHeight: 32 },
