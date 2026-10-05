@@ -83,3 +83,17 @@ describe('Layout regions follow the app chrome, not antd’s defaults (T2)', () 
     }
   })
 })
+
+describe('antd text sizes come from the one type scale (T2, T3)', () => {
+  it('sizes Result and Badge text with canonical roles', () => {
+    // Result's title was 20px — a size the scale does not have. Read the roles from what
+    // cssVariables() emits, so a change to the scale moves these with it.
+    cssVariables('light')
+    const role = (name: string) => Number.parseInt(document.documentElement.style.getPropertyValue(`--krateo-text-${name}`), 10)
+    for (const { components } of [lightTheme, darkTheme]) {
+      expect(components?.Result?.titleFontSize).toBe(role('h3'))
+      expect(components?.Result?.subtitleFontSize).toBe(role('caption'))
+      expect(components?.Badge?.textFontSize).toBe(role('label-xs'))
+    }
+  })
+})
