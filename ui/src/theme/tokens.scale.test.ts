@@ -59,3 +59,15 @@ describe('Form density comes from the theme (T2)', () => {
     }
   })
 })
+
+describe('form controls share one height (T2)', () => {
+  it('pins every input-like control to 32px, not the compact algorithm’s 28', () => {
+    // compactAlgorithm turns our controlHeight 32 into 28. Any control without its own override
+    // inherits the 28 — that is how InputNumber and button-style Radios ended up 4px short.
+    for (const { components } of [lightTheme, darkTheme]) {
+      for (const kind of ['Button', 'DatePicker', 'Input', 'InputNumber', 'Radio', 'Select'] as const) {
+        expect(components?.[kind]?.controlHeight, kind).toBe(32)
+      }
+    }
+  })
+})
