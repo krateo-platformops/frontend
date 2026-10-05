@@ -33,6 +33,7 @@ import {
   heldItemsPath,
   heldVerb,
   pathIdBindings,
+  pathParamsOutsideSpec,
   pluralOf,
   SERVED_VERSION,
   type CompareScope,
@@ -409,7 +410,8 @@ export const KindInspector = (props: InspectorProps) => {
           ))}
           {!(exclusionCandidates(kind, model).length || excluded.length) ? <p className={styles.fieldText}>There is no create body to leave fields out of.</p> : null}
         </div>
-        {askedOnCreateNotes(kind, !!props.locked).map((note) => <p className={styles.note} key={note}>{note}</p>)}
+        {pathParamsOutsideSpec(kind, model).map((note) => <p className={styles.note} key={note}>{note}</p>)}
+        {askedOnCreateNotes(kind, !!props.locked, model.spec?.oas.doc).map((note) => <p className={styles.note} key={note}>{note}</p>)}
       </Section>
 
       <Section title='Compare scope'>
