@@ -312,6 +312,12 @@ def _themed_kinds(src):
 
 WIDGET_ANTD_IMPORT = re.compile(r"import\s*\{([^}]*)\}\s*from\s*'antd'")
 
+# T2's own escape hatch: "a new widget either adds a buildComponents entry or documents why it opts
+# out". The documentation lives in the widget, next to the code it excuses, rather than in a list
+# here that rots as widgets move. A bare `// T2 opt-out:` with no reason is not documentation and
+# does not count — the reason is the point.
+T2_OPT_OUT = re.compile(r'^[ \t]*//[ \t]*T2 opt-out:[ \t]*(\S.{9,})$', re.M)
+
 
 def _imports_own_antd_kind(src, kind):
     """True if the file imports antd's component of the SAME name, aliased or not.
@@ -337,7 +343,10 @@ def rule_widget_theme_coverage(root):
 
     Deliberately silent about widgets with no antd counterpart (charts, Markdown, YamlViewer,
     PageHeader). Those are opt-outs by construction, not debt — flagging them would train readers
-    to ignore the rule."""
+    to ignore the rule.
+
+    Also silent about a widget that carries `// T2 opt-out: <reason>` — one whose antd component
+    exposes nothing to theme (Row and Col: antd's Grid has no component tokens)."""
     widgets_dir = os.path.join(root, 'widgets')
     theme = os.path.join(root, 'theme', 'tokens.ts')
     if not os.path.isdir(widgets_dir) or not os.path.exists(theme):
@@ -348,7 +357,7 @@ def rule_widget_theme_coverage(root):
         if not os.path.exists(entry) or kind in covered:
             continue
         src = _read(entry)
-        if not _imports_own_antd_kind(src, kind):
+        if not _imports_own_antd_kind(src, kind) or T2_OPT_OUT.search(src):
             continue
         line = 1
         for i, text in enumerate(src.split('\n'), 1):

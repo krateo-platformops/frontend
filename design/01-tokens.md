@@ -27,7 +27,21 @@ Verified by sweep: all 168 files under `ui/src/widgets` contain exactly one hex 
 
 ### T2 — Density comes from the antd component overrides — for the 15 widget kinds those overrides actually cover.
 
-**Status:** partial → **enforced**, burning down — 12 candidates left in the baseline
+**Status:** partial → **enforced**, burning down — 7 candidates left in the baseline
+
+> **2026-10-05: the layout group is off the list** (`Col, Divider, Flex, Layout, Row`).
+> - **Layout** had the loudest finding of the T2 sweep: antd's defaults are off-brand and
+>   off-grid. Header and sider were antd's navy `#001529`, the header 56px tall with `0 43.75px`
+>   padding, the footer `21px 43.75px`. `Layout.module.css` repaints the regions it classes, so the
+>   portal never showed the navy, but antd's own rules still ran underneath (the header's
+>   line-height was 56px inside a 64px box) and any unclassed region would have shown them. The
+>   theme now says what the CSS says. Measured live, header contents did not move.
+> - **Flex and Divider** restate what compactAlgorithm already derives (gaps 4/8/16, margins
+>   16/8/4). `gap: small | middle | large` reads paddingXS / padding / paddingLG, not flexGap*.
+> - **Row and Col** are the first **documented opt-outs**: antd's Grid exposes no component
+>   tokens, so there is nothing for `buildComponents` to hold. Each carries `// T2 opt-out: <reason>`,
+>   which the lint accepts only with a reason. Row's `gutter` now reads `spacing.md`, and its CSS
+>   compensation `calc(var(--spacing-md) / -2)`, so the two cannot drift apart.
 
 > **2026-10-05: the form controls are off the list** (`Checkbox, InputNumber, Radio, Slider, Switch,
 > Upload`). Measuring them found the reason T2 matters: `compactAlgorithm` turns our controlHeight
@@ -72,7 +86,8 @@ So the real figure is **19 candidates, not 31 defects** — and `Form` is the on
 because it hand-rolls 19 padding/margin and 5 font-size declarations with no theme backing and
 because it is the most CR-authoring-critical widget in the set.
 
-**Rule:** a new widget either adds a `buildComponents` entry or documents why it opts out.
+**Rule:** a new widget either adds a `buildComponents` entry or documents why it opts out, as a
+`// T2 opt-out: <reason>` line in the widget's own source (the lint ignores one without a reason).
 
 **Now enforced** — `lint-css-tokens.py` rule `widget-theme-coverage` (T2) diffs the `ui/src/widgets`
 listing against the theme object and gates on a baseline of the 19, so a *new* antd-wrapping widget

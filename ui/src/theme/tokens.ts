@@ -422,7 +422,12 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   // Checkbox and Switch restate what they already render, so the values are ours to move.
   Checkbox: { borderRadiusSM: radius.md, controlInteractiveSize: 14 },
   DatePicker: { borderRadius: radius.md, controlHeight: 32 },
+  // T2 layout group: Divider and Flex restate what compactAlgorithm already derives (margins 16/8/4,
+  // gaps 4/8/16), so the values are ours to move rather than a side effect of the algorithm.
+  Divider: { margin: spacing.sm, marginLG: spacing.md, textPaddingInline: '1em', verticalMarginInline: spacing.xs },
   Drawer: { paddingLG: spacing.lg },
+  // `gap: small | middle | large` reads paddingXS / padding / paddingLG, not the flexGap* tokens.
+  Flex: { padding: spacing.sm, paddingLG: spacing.md, paddingXS: spacing.xs },
   // T2: Form density, on the scale. itemMarginBottom restates antd's compact default (16) so it is
   // ours to move. verticalLabelPadding is the 6px label gap SchemaFields' `.field` CSS asked for and
   // never got: antd's own vertical-label rule out-specified it, so every label rendered at antd's 4.
@@ -431,6 +436,18 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   Input: { borderRadius: radius.md, controlHeight: 32 },
   // Was 28 — an InputNumber beside an Input in the same form was 4px shorter.
   InputNumber: { borderRadius: radius.md, controlHeight: 32 },
+  // antd's defaults here are off-brand and off-grid: headerBg/siderBg are its navy #001529, the
+  // header is 56px tall with `0 43.75px` padding, the footer `21px 43.75px`. Layout.module.css
+  // repaints the regions it classes, but antd's own rules still apply underneath (the header's
+  // line-height was 56px inside a 64px box). Now the theme says what the CSS says.
+  Layout: {
+    bodyBg: palette.background,
+    footerPadding: `${spacing.md}px ${spacing.xl}px`,
+    headerBg: palette.panelbg,
+    headerHeight: layout.headerHeight,
+    headerPadding: `0 ${spacing.md}px`,
+    siderBg: palette.panelbg,
+  },
   List: { borderRadiusLG: radius.lg },
   // Sidebar nav density — `.nav-item` (~36px tall, bumped from 30 per issue #80 §0.5). NB: the
   // Menu.module.css item box is `height: auto`, so its 9px vertical padding is the effective lever;
