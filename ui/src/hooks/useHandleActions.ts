@@ -354,7 +354,9 @@ const runRest = async (
   let processEvent: (eventData: EventData) => void = () => undefined
 
   if (onEventNavigateTo) {
-    const eventsEndpoint = `${ctx.eventsBaseUrl}/notifications`
+    // sse-proxy verifies the JWT on /notifications; EventSource cannot set headers, so the token
+    // rides as ?access_token=, as in useGetEvents.
+    const eventsEndpoint = `${ctx.eventsBaseUrl}/notifications?access_token=${encodeURIComponent(ctx.getAccessToken())}`
     const eventTimeoutSeconds = onEventNavigateTo.timeout ?? 30
 
     const eventSource = new EventSource(eventsEndpoint, { withCredentials: false })

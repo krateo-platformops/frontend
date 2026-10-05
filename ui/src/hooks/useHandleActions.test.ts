@@ -452,6 +452,15 @@ describe('dispatchAction — onEventNavigateTo (SSE) race + cleanup', () => {
     expect(ctx.notification.error).not.toHaveBeenCalled()
   })
 
+  it('opens the event stream with the access token, which sse-proxy requires', async () => {
+    vi.stubGlobal('EventSource', FakeEventSource)
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, '{"metadata":{"uid":"U"}}'))))
+
+    await dispatchAction(restOnEvent(), { resourcesRefs: refs([postRef]) }, makeCtx({ getAccessToken: vi.fn(() => 'a.b+c') }))
+
+    expect(FakeEventSource.instances.at(-1)?.url).toBe('http://ev/notifications?access_token=a.b%2Bc')
+  })
+
   it('(7) registers a cleanup that closes the EventSource (unmount safety)', async () => {
     vi.stubGlobal('EventSource', FakeEventSource)
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, '{"metadata":{"uid":"U"}}'))))
