@@ -121,6 +121,18 @@ they hold **25 of the 105 rules** — 14 composition rules and 8 token rules, pl
   `ui/src/theme/inline-style-baseline.json`.
   Runs with the rest of vitest (`test.yaml`), not in `design-system.yaml`.
 
+- **Visual regression** — `ui/visual/` renders every widget from its own example CR
+  (`src/examples/widgets`), light and dark, and compares it pixel for pixel against the baselines in
+  `ui/visual/__screenshots__` (72 today). It holds no numbered rule; it is what notices that a token
+  change moved something it was not meant to. Two of its checks keep it honest: every widget with an
+  example is either screenshotted or excluded with a reason, and every screenshotted example must
+  validate against its widget's schema. When it was written, **46 of 166 example documents failed
+  their own schema** (every Table example used `data`, which the widget no longer reads, so they
+  rendered empty); the Table and Card renames are fixed, and 23 remain as a follow-up. It runs in the
+  Playwright container only, because fonts rasterise differently on macOS: `npm run visual` to
+  check, `npm run visual:update` to accept an intended change, and commit the PNGs so the reviewer
+  sees the before and after.
+
 **Both are wired into CI**, and have been since they landed: `.github/workflows/design-system.yaml`
 here runs the CSS lint and both self-tests on every PR and push to `main`, and the portal repo's
 workflow of the same name runs the composition lint against its rendered chart.
