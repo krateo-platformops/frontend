@@ -31,8 +31,11 @@ Verified by sweep: all 168 files under `ui/src/widgets` contain exactly one hex 
 
 > **2026-10-05: `Form` is off the list.** `buildComponents` now carries `Form: { itemMarginBottom:
 > spacing.md, verticalLabelPadding: 0 0 spacing.xsm }`. The first restates antd's compact default
-> (16), so nothing moves; the second is the 6px label gap SchemaFields set in its own CSS, now
-> shared by every vertical label (non-schema forms go 4 → 6px). The `.field` `margin-bottom …
+> (16), so nothing moves. The second is the 6px label gap SchemaFields' CSS asked for and **never
+> got**: measured on the live portal, its `.field` labels rendered at antd's 4px, because antd's
+> vertical-label rule out-specifies `.field :global(.ant-form-item-label)`. A value declared and
+> silently overridden is this document's thesis in miniature, and the reason density belongs in the
+> theme rather than in a stylesheet racing antd's selectors. Every vertical label now gets 4 → 6px. The `.field` `margin-bottom …
 > !important` stays: it is the same value, and the `!important` decides which rule wins when a
 > validation message appears, which is behaviour rather than density.
 

@@ -278,8 +278,9 @@
   border-left-color: var(--primary-color);
 }
 
-/* The 6px label gap comes from the theme (`buildComponents` Form.verticalLabelPadding, T2), not
-   from here, so every Form shares it. */
+/* The 6px label gap comes from the theme (`buildComponents` Form.verticalLabelPadding, T2). A
+   `padding-bottom` here never applied: antd's vertical-label rule is more specific and won, so the
+   labels rendered at antd's 4px until the value moved into the theme. */
 .field :global(.ant-form-item-label) {
   text-align: left;
   white-space: normal;
