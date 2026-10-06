@@ -397,8 +397,14 @@ const KRATEO_CHART_LIGHT: Record<string, string> = {
 
 export const tokens = { color, elevation, motion, radius, spacing, typography } as const
 
+/** A canonical type role in px, for antd tokens that take a number (`text-h3` → 22). One scale (T3). */
+const textPx = (role: string): number => Number.parseInt(KRATEO_BASE[`text-${role}`], 10)
+
 /** Per-component overrides. Tight density (32px controls), v2 radii, near-flat cards. */
 const buildComponents = (palette: Record<keyof typeof color, string>, mode: ThemeMode): ThemeConfig['components'] => ({
+  // T2 feedback group. Alert and Badge restate what compactAlgorithm already derives.
+  Alert: { defaultPadding: `${spacing.xs}px ${spacing.smd}px`, withDescriptionIconSize: 20, withDescriptionPadding: `${spacing.md}px ${spacing.md}px` },
+  Badge: { dotSize: 5, indicatorHeight: 18, indicatorHeightSM: 12, statusSize: 5, textFontSize: textPx('label-xs'), textFontSizeSM: textPx('label-xs') },
   Button: {
     borderRadius: radius.md,
     controlHeight: 32,
@@ -457,6 +463,9 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   Progress: { defaultColor: palette.green },
   // Was 28 — `optionType: button` radios sat 4px short of a Button in the same row.
   Radio: { controlHeight: 32, radioSize: 14 },
+  // Result's title was 20px, a size the one type scale does not have (T3). Nearest role: h3 (22).
+  // Reaches every Result: Page404, Auth, the widget error states, empty builders.
+  Result: { extraMargin: `${spacing.md}px 0 0 0`, subtitleFontSize: textPx('caption'), titleFontSize: textPx('h3') },
   Select: { borderRadius: radius.md, controlHeight: 32 },
   // Was 8.75 / 10.5 (controlHeightLG / 4, controlHeightSM / 2). Whole pixels, antd's own pair.
   Slider: { controlSize: 10, handleSize: 10, handleSizeHover: 12 },

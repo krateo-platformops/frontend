@@ -27,7 +27,14 @@ Verified by sweep: all 168 files under `ui/src/widgets` contain exactly one hex 
 
 ### T2 — Density comes from the antd component overrides — for the 15 widget kinds those overrides actually cover.
 
-**Status:** partial → **enforced**, burning down — 7 candidates left in the baseline
+**Status:** partial → **enforced**, burning down — 4 candidates left in the baseline
+
+> **2026-10-05: the feedback group is off the list** (`Alert, Badge, Result`). Alert and Badge
+> restate what compactAlgorithm derives (paddings 4/12/16, badge marks 5/12/18, text 10 =
+> `label-xs`). **Result's title was 20px, a size the one type scale does not have**, and Result is
+> everywhere: Page404, Auth, Login, the widget error states, the empty Builders. Nearest role: `h3`
+> (22). antd sizes that take a number now read the canonical roles through `textPx()` in
+> `tokens.ts`, so they follow the scale instead of restating it.
 
 > **2026-10-05: the layout group is off the list** (`Col, Divider, Flex, Layout, Row`).
 > - **Layout** had the loudest finding of the T2 sweep: antd's defaults are off-brand and

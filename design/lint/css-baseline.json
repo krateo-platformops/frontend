@@ -10,12 +10,9 @@
   "spacing": {},
   "unguarded-animation": {},
   "widget-theme-coverage": {
-    "widgets/Alert/Alert.tsx": 1,
-    "widgets/Badge/Badge.tsx": 1,
     "widgets/Breadcrumb/Breadcrumb.tsx": 1,
     "widgets/Descriptions/Descriptions.tsx": 1,
     "widgets/Image/Image.tsx": 1,
-    "widgets/QRCode/QRCode.tsx": 1,
-    "widgets/Result/Result.tsx": 1
+    "widgets/QRCode/QRCode.tsx": 1
   }
 }
