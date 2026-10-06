@@ -10,7 +10,7 @@ spec:
   widgetData:
     title: Missing Action Example (on click)
     clickActionId: click
-    actions: {}
+    widgetActions: {}
     items: []
   resourcesRefs:
     items: []
@@ -27,7 +27,7 @@ spec:
   widgetData:
     title: Overview
     items: []
-    actions: {}
+    widgetActions: {}
   resourcesRefs:
     items: []
 ---
@@ -47,7 +47,7 @@ spec:
       color: green
     tooltip: Displays the current system status.
     items: []
-    actions: {}
+    widgetActions: {}
   resourcesRefs:
     items: []
 ---
@@ -65,7 +65,7 @@ spec:
     headerLeft: 'Last updated: 2025-06-10'
     headerRight: 'Status: Healthy'
     items: []
-    actions: {}
+    widgetActions: {}
   resourcesRefs:
     items: []
 ---
@@ -87,7 +87,7 @@ spec:
     footer:
       - resourceRefId: example-button-with-icon
     items: []
-    actions: {}
+    widgetActions: {}
   resourcesRefs:
     items:
       - id: example-button-with-icon
@@ -111,7 +111,7 @@ spec:
     items:
       - resourceRefId: example-piechart-full-fill
       - resourceRefId: example-table-basic
-    actions: {}
+    widgetActions: {}
   resourcesRefs:
     items:
       - id: example-piechart-full-fill
@@ -140,7 +140,7 @@ spec:
     title: Navigate to BarChart
     clickActionId: navigate-to-barchart
     items: []
-    actions:
+    widgetActions:
       navigate:
         - id: navigate-to-barchart
           path: /barchart
@@ -161,7 +161,7 @@ spec:
     title: Navigate to Dashboard
     clickActionId: navigate-dashboard
     items: []
-    actions:
+    widgetActions:
       navigate:
         - id: navigate-dashboard
           type: navigate
@@ -188,7 +188,7 @@ spec:
     title: Navigate to Reports
     clickActionId: navigate-reports
     items: []
-    actions:
+    widgetActions:
       navigate:
         - id: navigate-reports
           path: /reports
@@ -210,7 +210,7 @@ spec:
     title: Navigate to BarChart with loading
     clickActionId: navigate-barchart
     items: []
-    actions:
+    widgetActions:
       navigate:
         - id: navigate-barchart
           path: /barchart
@@ -233,7 +233,7 @@ spec:
     title: Open Drawer Default
     clickActionId: open-drawer-default
     items: []
-    actions:
+    widgetActions:
       openDrawer:
         - id: open-drawer-default
           type: openDrawer
@@ -262,7 +262,7 @@ spec:
     title: Open Drawer Large
     clickActionId: open-drawer-large
     items: []
-    actions:
+    widgetActions:
       openDrawer:
         - id: open-drawer-large
           type: openDrawer
@@ -293,7 +293,7 @@ spec:
     title: Open Modal Default
     clickActionId: open-modal-default
     items: []
-    actions:
+    widgetActions:
       openModal:
         - id: open-modal-default
           type: openModal
@@ -324,7 +324,7 @@ spec:
     title: Open Modal Large Confirm
     clickActionId: open-modal-large-confirm
     items: []
-    actions:
+    widgetActions:
       openModal:
         - id: open-modal-large-confirm
           type: openModal
@@ -356,7 +356,7 @@ spec:
     title: Open Modal Custom Width
     clickActionId: open-modal-custom
     items: []
-    actions:
+    widgetActions:
       openModal:
         - id: open-modal-custom
           type: openModal
@@ -388,7 +388,7 @@ spec:
     title: Open Modal Fullscreen
     clickActionId: open-modal-fullscreen
     items: []
-    actions:
+    widgetActions:
       openModal:
         - id: open-modal-fullscreen
           type: openModal

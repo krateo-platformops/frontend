@@ -11,7 +11,7 @@ spec:
   widgetData:
     allowedResources: [barcharts, buttons, filters, flowcharts, linecharts, markdowns, paragraphs, piecharts, yamlviewers]
     columns: []
-    data:
+    dataSource:
       - - valueKey: name
           kind: jsonSchemaType
           type: string
@@ -34,7 +34,7 @@ spec:
         title: Name
       - valueKey: age
         title: Age
-    data: []
+    dataSource: []
 ---
 # Basic table with strings and numbers
 # Target: confirm that basic JSON schema types render correctly as text cells.
@@ -47,13 +47,14 @@ metadata:
 spec:
   widgetData:
     allowedResources: [barcharts, buttons, filters, flowcharts, linecharts, markdowns, paragraphs, piecharts, yamlviewers]
-    pageSize: 5
+    pagination:
+      pageSize: 5
     columns:
       - valueKey: name
         title: Name
       - valueKey: age
         title: Age
-    data:
+    dataSource:
       - - valueKey: name
           kind: jsonSchemaType
           type: string
@@ -91,7 +92,7 @@ spec:
         title: Balance
       - valueKey: tags
         title: Tags
-    data:
+    dataSource:
       - 
         - valueKey: name
           kind: jsonSchemaType
@@ -127,7 +128,7 @@ spec:
       - valueKey: icon
         title: Icon
         color: blue
-    data:
+    dataSource:
       - 
         - valueKey: name
           kind: jsonSchemaType
@@ -162,7 +163,7 @@ spec:
         title: Widget Name
       - valueKey: widget
         title: Widget
-    data:
+    dataSource:
       - 
         - valueKey: name
           kind: jsonSchemaType
@@ -245,7 +246,7 @@ spec:
         title: Name
       - valueKey: status
         title: Status
-    data:
+    dataSource:
       - 
         - valueKey: name
           kind: jsonSchemaType
@@ -284,7 +285,7 @@ spec:
         title: Role
       - valueKey: users
         title: Users
-    data:
+    dataSource:
       - 
         - valueKey: name
           kind: jsonSchemaType
@@ -343,13 +344,14 @@ metadata:
 spec:
   widgetData:
     allowedResources: [barcharts, buttons, filters, flowcharts, linecharts, markdowns, paragraphs, piecharts, yamlviewers]
-    pageSize: 3
+    pagination:
+      pageSize: 3
     columns:
       - valueKey: id
         title: ID
       - valueKey: name
         title: Name
-    data:
+    dataSource:
       - 
         - valueKey: id
           kind: jsonSchemaType

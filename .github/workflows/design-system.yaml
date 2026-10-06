@@ -80,3 +80,38 @@ jobs:
 
       - name: Accessibility lint (fails on any violation)
         run: npx eslint -c eslint.a11y.config.js src
+
+  # Visual regression: every widget example, light and dark, against the PNG baselines in
+  # ui/visual/__screenshots__. It runs in the SAME Playwright image `ui/visual/docker.sh` uses
+  # locally, because baselines are only comparable when fonts rasterise identically; the image tag
+  # must match @playwright/test in ui/package.json. On a failure the diffs are uploaded: the
+  # expected/actual/diff triple for each changed widget.
+  visual:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install ui deps
+        run: npm ci --no-audit --no-fund
+
+      - name: Build the harness
+        run: npm run visual:build
+
+      - name: Compare against the baselines
+        run: npx playwright test -c visual/playwright.config.ts
+
+      - name: Upload the diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diffs
+          path: |
+            ui/test-results/visual
+            ui/playwright-report

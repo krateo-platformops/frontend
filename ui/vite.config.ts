@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import svgr from 'vite-plugin-svgr'
+import { configDefaults } from 'vitest/config'
 
 // Build-time provenance for the sider build footer (Shell.tsx). The app version comes from
 // package.json (the single source the app already versions itself by), NOT a hardcoded literal;
@@ -124,6 +125,8 @@ export default defineConfig({
    * are the fix. If flakiness survives this, capping is the next lever, not the first.
    */
   test: {
+    // visual/ holds Playwright specs (run in their container by `npm run visual`), not vitest suites.
+    exclude: [...configDefaults.exclude, 'visual/**'],
     hookTimeout: 30000,
     setupFiles: ['./src/test/setup.ts'],
     testTimeout: 30000,
