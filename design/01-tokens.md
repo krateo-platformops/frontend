@@ -27,7 +27,16 @@ Verified by sweep: all 168 files under `ui/src/widgets` contain exactly one hex 
 
 ### T2 — Density comes from the antd component overrides — for the 15 widget kinds those overrides actually cover.
 
-**Status:** partial → **enforced**, burning down — 18 candidates left in the baseline
+**Status:** partial → **enforced**, burning down — 12 candidates left in the baseline
+
+> **2026-10-05: the form controls are off the list** (`Checkbox, InputNumber, Radio, Slider, Switch,
+> Upload`). Measuring them found the reason T2 matters: `compactAlgorithm` turns our controlHeight
+> 32 into **28** (and controlHeightLG into 35, controlHeightSM into 21). Input, Select, DatePicker
+> and Button restore 32 explicitly; InputNumber and button-style Radios did not, so they sat 4px
+> short of their neighbours in the same form. The Slider handle (8.75 / 10.5px) and Upload's
+> picture card (89.25px) landed on fractional pixels. All four now carry explicit whole-pixel
+> values; Checkbox and Switch restate what they already rendered. `tokens.scale.test.ts` pins every
+> input-like control to 32px.
 
 > **2026-10-05: `Form` is off the list.** `buildComponents` now carries `Form: { itemMarginBottom:
 > spacing.md, verticalLabelPadding: 0 0 spacing.xsm }`. The first restates antd's compact default

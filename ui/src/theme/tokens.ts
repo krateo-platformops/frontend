@@ -416,6 +416,11 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
     boxShadowTertiary: mode === 'dark' ? elevationDark.sm : elevation.sm,
     paddingLG: 14,
   },
+  // T2 form controls. The compactAlgorithm derives controlHeight 28, controlHeightLG 35 and
+  // controlHeightSM 21 from our 32; Input/Select/DatePicker/Button restore 32 explicitly, and the
+  // controls below did not, so they sat 4px short of their neighbours or landed on fractional px.
+  // Checkbox and Switch restate what they already render, so the values are ours to move.
+  Checkbox: { borderRadiusSM: radius.md, controlInteractiveSize: 14 },
   DatePicker: { borderRadius: radius.md, controlHeight: 32 },
   Drawer: { paddingLG: spacing.lg },
   // T2: Form density, on the scale. itemMarginBottom restates antd's compact default (16) so it is
@@ -424,6 +429,8 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   // From the theme it applies everywhere (4 → 6 for every vertical label, schema-driven or not).
   Form: { itemMarginBottom: spacing.md, verticalLabelPadding: `0 0 ${spacing.xsm}px` },
   Input: { borderRadius: radius.md, controlHeight: 32 },
+  // Was 28 — an InputNumber beside an Input in the same form was 4px shorter.
+  InputNumber: { borderRadius: radius.md, controlHeight: 32 },
   List: { borderRadiusLG: radius.lg },
   // Sidebar nav density — `.nav-item` (~36px tall, bumped from 30 per issue #80 §0.5). NB: the
   // Menu.module.css item box is `height: auto`, so its 9px vertical padding is the effective lever;
@@ -431,9 +438,14 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   Menu: { fontSize: 13, itemBorderRadius: radius.md, itemHeight: 36, itemMarginBlock: 0, itemPaddingInline: 9, subMenuItemBorderRadius: radius.md },
   Modal: { borderRadiusLG: radius.xl },
   Progress: { defaultColor: palette.green },
+  // Was 28 — `optionType: button` radios sat 4px short of a Button in the same row.
+  Radio: { controlHeight: 32, radioSize: 14 },
   Select: { borderRadius: radius.md, controlHeight: 32 },
+  // Was 8.75 / 10.5 (controlHeightLG / 4, controlHeightSM / 2). Whole pixels, antd's own pair.
+  Slider: { controlSize: 10, handleSize: 10, handleSizeHover: 12 },
   Statistic: { contentFontSize: 31, titleFontSize: 13 },
   Steps: { iconSize: 28 },
+  Switch: { handleSize: 16, trackHeight: 20 },
   // #72 §0.5 + #76 table cell padding: the reporters found the rows too TIGHT (Incidents + Alerts,
   // both `size: small`) and asked to INCREASE the vertical padding to the portal's spacing scale.
   // Nearly every portal Table is `size: small` → antd pads it with `cellPaddingBlockSM`, so that is
@@ -443,6 +455,8 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   Table: { borderColor: palette.border, borderRadiusLG: radius.lg, cellPaddingBlock: 16, cellPaddingBlockSM: 8, headerBg: palette.lightgray, headerBorderRadius: radius.lg, headerColor: palette.gray, rowHoverBg: palette.light },
   Tabs: { horizontalItemGutter: 24 },
   Tag: { borderRadiusSM: radius.sm },
+  // Was 89.25 (controlHeightLG × 2.55). Whole pixels.
+  Upload: { pictureCardSize: 88 },
 })
 
 /** Light antd theme (brand v2 blue). compactAlgorithm = the instrument-density pass. */

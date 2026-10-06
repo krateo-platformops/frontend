@@ -102,9 +102,9 @@ they hold **25 of the 105 rules** — 14 composition rules and 8 token rules, pl
 
 - `lint-portal-consistency.py` — composition, run against a chart's widget CRs. **0 violations**
   across all 14 rules against the portal chart.
-- `lint-css-tokens.py` — token adoption in this repo's stylesheets. Gates on a **baseline** of 20
-  pre-existing violations across 20 files, so new code is held to the rule while the debt burns
-  down. 18 of those 20 are `widget-theme-coverage` (T2), which arrived with the rule itself:
+- `lint-css-tokens.py` — token adoption in this repo's stylesheets. Gates on a **baseline** of 14
+  pre-existing violations across 14 files, so new code is held to the rule while the debt burns
+  down. 12 of those 14 are `widget-theme-coverage` (T2), which arrived with the rule itself:
   adding a check to a codebase that predates it imports its existing debt in one step, and that is
   the point of baselining rather than a reason to weaken the rule. The live counts are
   `python3 design/lint/lint-css-tokens.py ui/src --summary`, which prints now-vs-baseline per rule
