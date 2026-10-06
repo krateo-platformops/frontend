@@ -10,6 +10,8 @@ These govern how a page is assembled from widget CRs. Over half the recommended 
 
 Never add a `← Back to X` link. Filed four times, on four pages, with an identical fix each time — the cleanest illustration in the set of a missing contract.
 
+There is also only one breadcrumb: see [P27](#p27--one-breadcrumb-per-page-and-it-is-the-shells).
+
 *Evidence: #69 §0.2 · #78 §0.2 · #82 §0.4 · #83 §0.3*
 
 ### P2 — No eyebrow label above a page title.
@@ -212,6 +214,70 @@ after the templated-items defect was fixed it found two more that had never been
 `page-alert-detail` and `page-agent-detail`, the same two the very first hand survey missed. The
 violations fixture now carries a templated page, and reverting the rule to the old behaviour makes
 that fixture go silent (1 -> 0), which is the regression test the first draft lacked*
+
+### P26 — A screen's actions sit on its title's row, on the trailing edge; its status sits just before them.
+
+**Status:** **enforced** — by construction (`PageHeader`, `ScreenHeader`) and by two checks
+
+Title on the left. On the same row, right-aligned: the status first (*Saved · 23:00*, a file count,
+an exception pill), then the actions in reading order with the primary last, nearest the edge. When
+the row is too narrow the title gives way first, wrapping inside its own box; only when the row
+cannot hold the trailing group at all does it move to its own line, still right-aligned. The
+subtitle goes under the row.
+
+Reported on the Page composer, which put *Preview · Undo · Publish · Close draft* under its
+description, on the left — with a stylesheet rule (`.actions { align-self: flex-start }`) saying so
+on purpose — while the Controller Builder put the same buttons top-right. Both were hand-built
+`<header>`s inside one component, `ComposerHost`, one per frame: the chrome differed because nothing
+said it could not ([C5](02-components.md#c5--pageheader--eyebrow-title-counter-tags-actions-subtitle-in-one-place)'s "the body may differ; the chrome may not",
+inside the app).
+
+- **CR pages** get it from `PageHeader`: title line and actions share one row, `justify: space-between`.
+- **Screens the app builds** use `components/ScreenHeader`: the same shape, with `status` and
+  `actions` slots and no alignment prop. `ComposerHost` uses it in every frame.
+- **Checked twice:** `ui/src/test/screenHeaders.test.ts` fails on a hand-built `<header>` holding a
+  button; `ui/visual/layout.spec.ts` measures, in a browser at 1440/1024/600px, that the trailing
+  group ends at the header's right edge, shares the title's row where it fits, and that the status
+  precedes the actions. The second matters because a screenshot baseline can be regenerated to match
+  a mistake; a geometric assertion cannot.
+
+Generalises two narrower rules that already said the same thing for their own containers:
+[P23](#p23--form-actions-draft-left-cancel-and-primary-grouped-right-primary-last) (forms) and A5
+(the Autopilot CTA).
+
+*Evidence: measuring it found the first defect before any page did — at 1024px a long title and meta
+at h2 pushed the actions under the title, so the title now yields first (`flex: 1 1 20ch`). Pointing
+the structural check at `ComposerHost` as it was on main reports both hand-built headers; turning
+ScreenHeader's row back into a column fails all three geometric checks*
+
+### P27 — One breadcrumb per page, and it is the shell's.
+
+**Status:** **enforced** — app side and chart side
+
+The shell renders the page's breadcrumb above every page. Nothing under it repeats the trail: no
+second `Breadcrumb`, and no eyebrow spelling the path (`Controller Builder / Compose`). A context
+eyebrow is not a trail — `Platform · tenant x` names where you are, it does not repeat how you got
+there.
+
+Reported on the composers, which printed `<Builder> / Compose` as an eyebrow above the title, right
+under the shell breadcrumb that already said it — in three of `ComposerHost`'s frames. It was also a
+[P2](#p2--no-eyebrow-label-above-a-page-title) violation, in the one place P2 had never been checked:
+the app's own code.
+
+- **By construction:** `PageHeader` has no eyebrow field and `ScreenHeader` has no eyebrow or crumb
+  slot, so neither header can grow one.
+- **App side:** `ui/src/test/screenHeaders.test.ts` fails on an element styled as an eyebrow whose
+  text (literal, template, or a same-file constant) spells a path, and on an import of antd's
+  `Breadcrumb` anywhere but the shell's component and the CR widget.
+- **Chart side:** the composition lint's `second-breadcrumb` rule fails on a `Breadcrumb` widget in a
+  chart, or an eyebrow Paragraph spelling a path. A portal with no shell breadcrumb opts a Breadcrumb
+  CR out with `krateo.io/own-breadcrumb`.
+
+Pairs with [P1](#p1--one-way-back-the-breadcrumb-is-it): P1 says the breadcrumb is the only way
+back; P27 says there is only one of it.
+
+*Evidence: the portal chart has no Breadcrumb CR and no path eyebrow (0 violations); `ComposerHost` as
+it was on main fails the app-side check on all three eyebrows*
 
 ## Behaviour and honesty
 

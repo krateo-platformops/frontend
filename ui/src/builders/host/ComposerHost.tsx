@@ -24,7 +24,7 @@
  * Builder it cannot mount — a plugin, a check or a workbench this build does not ship, or a plugin
  * paired with another kind's workbench — is said in sentences where the composer would have been.
  */
-import { Alert, Button, Popconfirm, Space, Tooltip, Typography } from 'antd'
+import { Alert, Button, Popconfirm, Space, Tooltip } from 'antd'
 import {
   useCallback, useContext, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore,
   type CSSProperties, type ReactNode,
@@ -41,6 +41,7 @@ import { emitDraftUndo } from '../../components/Autopilot/previewDraftUndo'
 import { emitPublishRequest, onPublishResult, type PublishRequestDetail } from '../../components/Autopilot/previewPublishRequest'
 import { PreviewContent, type RestDefVerdicts } from '../../components/Autopilot/previewSurface'
 import { useDraftResume } from '../../components/Autopilot/useDraftResume'
+import ScreenHeader from '../../components/ScreenHeader'
 import StatusPill from '../../components/StatusPill'
 import { ConfigContext } from '../../context/ConfigContext'
 import { SplitDivider } from '../../pages/PageComposer/SplitDivider'
@@ -107,15 +108,14 @@ const Refused = ({ label, problems }: { label: string; problems: string[] }) => 
   const styles = FRAME_STYLES.panes
   return (
     <div className={styles.page}>
-      <header className={styles.head}>
-        <span className={styles.eyebrow}>{`${label} / Compose`}</span>
+      <ScreenHeader title={label}>
         <Alert
           description={<ul>{problems.map((problem) => <li key={problem}>{problem}</li>)}</ul>}
           showIcon
           title={`The ${label} cannot be shown by this frontend.`}
           type='error'
         />
-      </header>
+      </ScreenHeader>
     </div>
   )
 }
@@ -221,7 +221,6 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
     emitPublishRequest({ id, verb: publishVerb })
   }
 
-  const eyebrow = `${spec.label} / Compose`
   const title = `${capitalized(nouns.composer)} composer`
   const { summary } = parts.workbench
   // What the files pane shows — null when nothing of this Builder's is, and the empty state is.
@@ -277,13 +276,11 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
     return (
       <div className={styles.page}>
         {workbench.before}
-        <header className={styles.head}>
-          <Typography.Title level={2} style={{ margin: 0 }}>{title}</Typography.Title>
-          <Typography.Paragraph style={{ margin: 0 }} type='secondary'>{summary}</Typography.Paragraph>
-          {shown ? (
-            <Space className={styles.actions}>
-              {/* The draft record's autosave: Saving…, Saved · HH:MM, or Not saved — and why. */}
-              <DraftSaveIndicator kind={kind} />
+        {/* Status (the draft record's autosave: Saving…, Saved · HH:MM, or Not saved — and why) and
+            actions sit together on the title's row, trailing edge (P26); no crumb above (P27). */}
+        <ScreenHeader
+          actions={shown ? (
+            <Space wrap>
               {previewButton}
               {undoButton}
               {verbRefusal ? (
@@ -301,11 +298,15 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
               {closeButton}
             </Space>
           ) : null}
+          status={shown ? <DraftSaveIndicator kind={kind} /> : null}
+          subtitle={summary}
+          title={title}
+        >
           {shown && verbRefusal ? <span className={styles.srOnly} id={blockerId}>{verbRefusal}</span> : null}
           {resumed}
           {workbench.notices}
           {publishedAlert}
-        </header>
+        </ScreenHeader>
         {shown ? (
           <>
             {wrap(
@@ -334,11 +335,7 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
     return (
       <div className={styles.page}>
         {workbench.before}
-        <header className={styles.head}>
-          <span className={styles.eyebrow}>{eyebrow}</span>
-          <h1 className={styles.pageTitle}>{title}</h1>
-          <p className={styles.subtitle}>{summary}</p>
-        </header>
+        <ScreenHeader subtitle={summary} title={title} />
         {resumed}
         {workbench.empty}
       </div>
@@ -362,23 +359,8 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
   return (
     <div className={styles.page}>
       {workbench.before}
-      <header className={styles.head}>
-        <div className={styles.titleRow}>
-          <div className={styles.titleBlock}>
-            <span className={styles.eyebrow}>{eyebrow}</span>
-            <h1 className={styles.title}>
-              {name}
-              {meta ? <>{' '}<span className={styles.titleMeta}>{meta}</span></> : null}
-            </h1>
-          </div>
-          <span className={styles.spacer} />
-          {/* The draft record's autosave: Saving…, Saved · HH:MM, or Not saved — and why. */}
-          <DraftSaveIndicator kind={kind} />
-          {/* A count, with no cap to measure it against (frontend#367). */}
-          <span className={styles.countPill} title='Files held in the draft'>{counted(Object.keys(files).length, 'file')}</span>
-          {/* The EXCEPTION only (status indicators are exception-only): nothing marks a draft whose
-              preview stands. `previewed` absent means unknown — no claim either way. */}
-          {held.previewed === false ? <StatusPill color='warning' label='Preview needed' /> : null}
+      <ScreenHeader
+        actions={(
           <Space wrap>
             {previewButton}
             {undoButton}
@@ -400,13 +382,27 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
             </Tooltip>
             {closeButton}
           </Space>
-          {blocker ? <span className={styles.srOnly} id={blockerId}>{blocker}</span> : null}
-        </div>
+        )}
+        meta={meta}
+        status={(
+          <>
+            {/* The draft record's autosave: Saving…, Saved · HH:MM, or Not saved — and why. */}
+            <DraftSaveIndicator kind={kind} />
+            {/* A count, with no cap to measure it against (frontend#367). */}
+            <span className={styles.countPill} title='Files held in the draft'>{counted(Object.keys(files).length, 'file')}</span>
+            {/* The EXCEPTION only (status indicators are exception-only): nothing marks a draft whose
+                preview stands. `previewed` absent means unknown — no claim either way. */}
+            {held.previewed === false ? <StatusPill color='warning' label='Preview needed' /> : null}
+          </>
+        )}
+        title={name}
+      >
+        {blocker ? <span className={styles.srOnly} id={blockerId}>{blocker}</span> : null}
         {resumed}
         <DraftProblemsAlert problems={held.problems ?? []} />
         {workbench.notices}
         {publishedAlert}
-      </header>
+      </ScreenHeader>
 
       {wrap(
         <div className={styles.body}>

@@ -161,10 +161,11 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('a stub Builder, end to end in the composer host', () => {
-  it('is routed by its spec, and its header speaks its label', () => {
+  it('is routed by its spec, and its header does not repeat the shell breadcrumb', () => {
     expect(builderRoutes().map((route) => route.path)).toEqual([STUB_ROUTE])
     mountAtRoute()
-    expect(screen.getByText('Stub Builder / Compose')).toBeTruthy()
+    // P27: the label is the shell breadcrumb's to say ("Stub Builder / Compose"), never the header's too.
+    expect(screen.queryByText('Stub Builder / Compose')).toBeNull()
     expect(screen.getByRole('button', { name: 'Start a chart' })).toBeTruthy()
   })
 
@@ -177,7 +178,7 @@ describe('a stub Builder, end to end in the composer host', () => {
     act(() => { within(screen.getByRole('dialog')).getByRole('button', { name: 'Start' }).click() })
     await settle()
     expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('orders-api')
-    expect(screen.getByText('Stub Builder / Compose')).toBeTruthy()
+    expect(screen.queryByText('Stub Builder / Compose')).toBeNull()
     // The start's first render armed the gate: Publish is on.
     expect(publishButton().disabled).toBe(false)
 
