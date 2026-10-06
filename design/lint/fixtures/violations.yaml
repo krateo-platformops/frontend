@@ -381,3 +381,19 @@ spec:
     color: var(--nope-color)
   resourcesRefs:
     items: []
+---
+kind: Breadcrumb
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: bad-second-breadcrumb}
+spec:
+  widgetData:
+    items:
+      - title: Builders
+---
+kind: Paragraph
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: bad-crumb-eyebrow}
+spec:
+  widgetData:
+    variant: eyebrow
+    text: "Controller Builder / Compose"

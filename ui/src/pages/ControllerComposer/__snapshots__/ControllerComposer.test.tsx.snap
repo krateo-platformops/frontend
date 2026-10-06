@@ -3,41 +3,38 @@
 exports[`T9 — Preview renders the controller through controller-render-draft > OK: lint → draft.json into the sandbox → controller-render-draft over /call → Publish ARMED; Rendered is each Kind's create form, Source the CRDs > rendered 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_396249">
-    <header class="_head_396249">
-      <div class="_titleRow_396249">
-        <div class="_titleBlock_396249">
-          <span class="_eyebrow_396249">
-            "Controller Builder / Compose"
-          <h1 class="_title_396249">
-            "petstore"
-            <span class="_titleMeta_396249">
-              "0.1.0 · Pet, Store · petstore.example.io"
-        <span class="_spacer_396249">
-        <span aria-live="polite" class="_indicator_314ebb _saved_314ebb" role="status">
-          <span aria-hidden="true" aria-label="check" class="anticon anticon-check" role="img">
-            <svg aria-hidden="true" data-icon="check" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
-              <path d="M912 190h-69.9c-9.8 0-19.1 4.5-25.1 12.2L404.7 724.5 207 474a32 32 0 00-25.1-12.2H112c-6.7 0-10.4 7.7-6.3 12.9l273.9 347c12.8 16.2 37.4 16.2 50.3 0l488.4-618.9c4.1-5.1.4-12.8-6.3-12.8z">
-          "Saved · HH:MM"
-        <span class="_countPill_396249" title="Files held in the draft">
-          "6 files"
-        <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
-          <div class="ant-space-item">
-            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
-              <span>
-                "Preview"
-          <div class="ant-space-item">
-            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
-              <span>
-                "Undo"
-          <div class="ant-space-item">
-            <span class="_tooltipAnchor_396249">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-primary ant-btn-color-primary ant-btn-variant-solid" type="button">
+    <header class="_header_ec3666">
+      <div class="_row_ec3666">
+        <h1 class="_title_ec3666">
+          "petstore"
+          <span class="_meta_ec3666">
+            "0.1.0 · Pet, Store · petstore.example.io"
+        <div class="_trailing_ec3666" data-screen-header="trailing">
+          <span aria-live="polite" class="_indicator_314ebb _saved_314ebb" role="status">
+            <span aria-hidden="true" aria-label="check" class="anticon anticon-check" role="img">
+              <svg aria-hidden="true" data-icon="check" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                <path d="M912 190h-69.9c-9.8 0-19.1 4.5-25.1 12.2L404.7 724.5 207 474a32 32 0 00-25.1-12.2H112c-6.7 0-10.4 7.7-6.3 12.9l273.9 347c12.8 16.2 37.4 16.2 50.3 0l488.4-618.9c4.1-5.1.4-12.8-6.3-12.8z">
+            "Saved · HH:MM"
+          <span class="_countPill_396249" title="Files held in the draft">
+            "6 files"
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+            <div class="ant-space-item">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
-                  "Publish"
-          <div class="ant-space-item">
-            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
-              <span>
-                "Close draft"
+                  "Preview"
+            <div class="ant-space-item">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+                <span>
+                  "Undo"
+            <div class="ant-space-item">
+              <span class="_tooltipAnchor_396249">
+                <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-primary ant-btn-color-primary ant-btn-variant-solid" type="button">
+                  <span>
+                    "Publish"
+            <div class="ant-space-item">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+                <span>
+                  "Close draft"
       <div class="ant-alert ant-alert-success ant-alert-outlined ant-alert-with-description css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
         <span class="ant-alert-icon">
           <span aria-label="check-circle" class="anticon anticon-check-circle" role="img">
@@ -857,41 +854,38 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
 exports[`petstore, authored in the UI with no rail > start → place pet and store → settle the findby conflict → auth → a chart tree T7's validator passes > auth 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_396249">
-    <header class="_head_396249">
-      <div class="_titleRow_396249">
-        <div class="_titleBlock_396249">
-          <span class="_eyebrow_396249">
-            "Controller Builder / Compose"
-          <h1 class="_title_396249">
-            "petstore"
-            <span class="_titleMeta_396249">
-              "0.1.0 · Pet, Store · petstore.example.io"
-        <span class="_spacer_396249">
-        <span class="_countPill_396249" title="Files held in the draft">
-          "6 files"
-        <span class="ant-tag ant-tag-filled css-dev-only-do-not-override-12q6fii css-var-id1" style="background-color: color-mix(in srgb, rgb(138, 92, 0) 15%, transparent); border-color: color-mix(in srgb, rgb(138, 92, 0) 38%, transparent); color: rgb(138, 92, 0);">
-          <span style="background: rgb(138, 92, 0); border-radius: 50%; display: inline-block; height: 6px; margin-right: var(--spacing-xsm); vertical-align: middle; width: 6px;">
-          "Preview needed"
-        <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
-          <div class="ant-space-item">
-            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
-              <span>
-                "Preview"
-          <div class="ant-space-item">
-            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
-              <span>
-                "Undo"
-          <div class="ant-space-item">
-            <span class="_tooltipAnchor_396249">
-              <button aria-describedby="id2" class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-primary ant-btn-color-primary ant-btn-variant-solid" disabled="" type="button">
+    <header class="_header_ec3666">
+      <div class="_row_ec3666">
+        <h1 class="_title_ec3666">
+          "petstore"
+          <span class="_meta_ec3666">
+            "0.1.0 · Pet, Store · petstore.example.io"
+        <div class="_trailing_ec3666" data-screen-header="trailing">
+          <span class="_countPill_396249" title="Files held in the draft">
+            "6 files"
+          <span class="ant-tag ant-tag-filled css-dev-only-do-not-override-12q6fii css-var-id1" style="background-color: color-mix(in srgb, rgb(138, 92, 0) 15%, transparent); border-color: color-mix(in srgb, rgb(138, 92, 0) 38%, transparent); color: rgb(138, 92, 0);">
+            <span style="background: rgb(138, 92, 0); border-radius: 50%; display: inline-block; height: 6px; margin-right: var(--spacing-xsm); vertical-align: middle; width: 6px;">
+            "Preview needed"
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+            <div class="ant-space-item">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
-                  "Publish"
-          <div class="ant-space-item">
-            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
-              <span>
-                "Close draft"
-        <span class="_srOnly_396249" id="id2">
-          "Preview needed — publishing stays off until Preview has rendered the controller exactly as it is now."
+                  "Preview"
+            <div class="ant-space-item">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+                <span>
+                  "Undo"
+            <div class="ant-space-item">
+              <span class="_tooltipAnchor_396249">
+                <button aria-describedby="id2" class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-primary ant-btn-color-primary ant-btn-variant-solid" disabled="" type="button">
+                  <span>
+                    "Publish"
+            <div class="ant-space-item">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+                <span>
+                  "Close draft"
+      <span class="_srOnly_396249" id="id2">
+        "Preview needed — publishing stays off until Preview has rendered the controller exactly as it is now."
       <div class="ant-alert ant-alert-info ant-alert-outlined css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
         <span class="ant-alert-icon">
           <span aria-label="info-circle" class="anticon anticon-info-circle" role="img">
@@ -1480,12 +1474,11 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
 exports[`petstore, authored in the UI with no rail > start → place pet and store → settle the findby conflict → auth → a chart tree T7's validator passes > empty 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_396249">
-    <header class="_head_396249">
-      <span class="_eyebrow_396249">
-        "Controller Builder / Compose"
-      <h1 class="_pageTitle_396249">
-        "Controller composer"
-      <p class="_subtitle_396249">
+    <header class="_header_ec3666">
+      <div class="_row_ec3666">
+        <h1 class="_title_ec3666">
+          "Controller composer"
+      <p class="_subtitle_ec3666">
         "Map an OpenAPI document to Kinds — each resource group a Kind, its operations its verbs — then publish the controller chart as one change request."
     <div class="_empty_2dde71">
       <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
@@ -1509,41 +1502,38 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
 exports[`petstore, authored in the UI with no rail > start → place pet and store → settle the findby conflict → auth → a chart tree T7's validator passes > kind placed with conflict 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_396249">
-    <header class="_head_396249">
-      <div class="_titleRow_396249">
-        <div class="_titleBlock_396249">
-          <span class="_eyebrow_396249">
-            "Controller Builder / Compose"
-          <h1 class="_title_396249">
-            "petstore"
-            <span class="_titleMeta_396249">
-              "0.1.0 · Pet · petstore.example.io"
-        <span class="_spacer_396249">
-        <span class="_countPill_396249" title="Files held in the draft">
-          "5 files"
-        <span class="ant-tag ant-tag-filled css-dev-only-do-not-override-12q6fii css-var-id1" style="background-color: color-mix(in srgb, rgb(138, 92, 0) 15%, transparent); border-color: color-mix(in srgb, rgb(138, 92, 0) 38%, transparent); color: rgb(138, 92, 0);">
-          <span style="background: rgb(138, 92, 0); border-radius: 50%; display: inline-block; height: 6px; margin-right: var(--spacing-xsm); vertical-align: middle; width: 6px;">
-          "Preview needed"
-        <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
-          <div class="ant-space-item">
-            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
-              <span>
-                "Preview"
-          <div class="ant-space-item">
-            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
-              <span>
-                "Undo"
-          <div class="ant-space-item">
-            <span class="_tooltipAnchor_396249">
-              <button aria-describedby="id2" class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-primary ant-btn-color-primary ant-btn-variant-solid" disabled="" type="button">
+    <header class="_header_ec3666">
+      <div class="_row_ec3666">
+        <h1 class="_title_ec3666">
+          "petstore"
+          <span class="_meta_ec3666">
+            "0.1.0 · Pet · petstore.example.io"
+        <div class="_trailing_ec3666" data-screen-header="trailing">
+          <span class="_countPill_396249" title="Files held in the draft">
+            "5 files"
+          <span class="ant-tag ant-tag-filled css-dev-only-do-not-override-12q6fii css-var-id1" style="background-color: color-mix(in srgb, rgb(138, 92, 0) 15%, transparent); border-color: color-mix(in srgb, rgb(138, 92, 0) 38%, transparent); color: rgb(138, 92, 0);">
+            <span style="background: rgb(138, 92, 0); border-radius: 50%; display: inline-block; height: 6px; margin-right: var(--spacing-xsm); vertical-align: middle; width: 6px;">
+            "Preview needed"
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+            <div class="ant-space-item">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
-                  "Publish"
-          <div class="ant-space-item">
-            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
-              <span>
-                "Close draft"
-        <span class="_srOnly_396249" id="id2">
-          "Fix the 2 problems listed above first — a controller that fails the lint cannot be published."
+                  "Preview"
+            <div class="ant-space-item">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+                <span>
+                  "Undo"
+            <div class="ant-space-item">
+              <span class="_tooltipAnchor_396249">
+                <button aria-describedby="id2" class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-primary ant-btn-color-primary ant-btn-variant-solid" disabled="" type="button">
+                  <span>
+                    "Publish"
+            <div class="ant-space-item">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+                <span>
+                  "Close draft"
+      <span class="_srOnly_396249" id="id2">
+        "Fix the 2 problems listed above first — a controller that fails the lint cannot be published."
       <div class="ant-alert ant-alert-error ant-alert-outlined ant-alert-with-description css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
         <span class="ant-alert-icon">
           <span aria-label="close-circle" class="anticon anticon-close-circle" role="img">
@@ -2136,41 +2126,38 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
 exports[`petstore, authored in the UI with no rail > start → place pet and store → settle the findby conflict → auth → a chart tree T7's validator passes > started 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_396249">
-    <header class="_head_396249">
-      <div class="_titleRow_396249">
-        <div class="_titleBlock_396249">
-          <span class="_eyebrow_396249">
-            "Controller Builder / Compose"
-          <h1 class="_title_396249">
-            "petstore"
-            <span class="_titleMeta_396249">
-              "0.1.0 · petstore.example.io"
-        <span class="_spacer_396249">
-        <span class="_countPill_396249" title="Files held in the draft">
-          "4 files"
-        <span class="ant-tag ant-tag-filled css-dev-only-do-not-override-12q6fii css-var-id1" style="background-color: color-mix(in srgb, rgb(138, 92, 0) 15%, transparent); border-color: color-mix(in srgb, rgb(138, 92, 0) 38%, transparent); color: rgb(138, 92, 0);">
-          <span style="background: rgb(138, 92, 0); border-radius: 50%; display: inline-block; height: 6px; margin-right: var(--spacing-xsm); vertical-align: middle; width: 6px;">
-          "Preview needed"
-        <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
-          <div class="ant-space-item">
-            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
-              <span>
-                "Preview"
-          <div class="ant-space-item">
-            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" disabled="" type="button">
-              <span>
-                "Undo"
-          <div class="ant-space-item">
-            <span class="_tooltipAnchor_396249">
-              <button aria-describedby="id2" class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-primary ant-btn-color-primary ant-btn-variant-solid" disabled="" type="button">
+    <header class="_header_ec3666">
+      <div class="_row_ec3666">
+        <h1 class="_title_ec3666">
+          "petstore"
+          <span class="_meta_ec3666">
+            "0.1.0 · petstore.example.io"
+        <div class="_trailing_ec3666" data-screen-header="trailing">
+          <span class="_countPill_396249" title="Files held in the draft">
+            "4 files"
+          <span class="ant-tag ant-tag-filled css-dev-only-do-not-override-12q6fii css-var-id1" style="background-color: color-mix(in srgb, rgb(138, 92, 0) 15%, transparent); border-color: color-mix(in srgb, rgb(138, 92, 0) 38%, transparent); color: rgb(138, 92, 0);">
+            <span style="background: rgb(138, 92, 0); border-radius: 50%; display: inline-block; height: 6px; margin-right: var(--spacing-xsm); vertical-align: middle; width: 6px;">
+            "Preview needed"
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+            <div class="ant-space-item">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
-                  "Publish"
-          <div class="ant-space-item">
-            <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
-              <span>
-                "Close draft"
-        <span class="_srOnly_396249" id="id2">
-          "Preview needed — publishing stays off until Preview has rendered the controller exactly as it is now."
+                  "Preview"
+            <div class="ant-space-item">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" disabled="" type="button">
+                <span>
+                  "Undo"
+            <div class="ant-space-item">
+              <span class="_tooltipAnchor_396249">
+                <button aria-describedby="id2" class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-primary ant-btn-color-primary ant-btn-variant-solid" disabled="" type="button">
+                  <span>
+                    "Publish"
+            <div class="ant-space-item">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+                <span>
+                  "Close draft"
+      <span class="_srOnly_396249" id="id2">
+        "Preview needed — publishing stays off until Preview has rendered the controller exactly as it is now."
       <div class="ant-alert ant-alert-info ant-alert-outlined css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
         <span class="ant-alert-icon">
           <span aria-label="info-circle" class="anticon anticon-info-circle" role="img">

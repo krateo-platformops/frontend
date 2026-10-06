@@ -349,3 +349,23 @@ spec:
         color: "{readyColor}"
   resourcesRefs:
     items: []
+---
+# A context eyebrow is not a trail (P27).
+kind: Paragraph
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: good-context-eyebrow}
+spec:
+  widgetData:
+    variant: eyebrow
+    text: "Platform · tenant krateo-enterprise"
+---
+# A portal with no shell breadcrumb keeps its own, and says so (P27).
+kind: Breadcrumb
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: good-own-breadcrumb
+  annotations: {krateo.io/own-breadcrumb: "true"}
+spec:
+  widgetData:
+    items:
+      - title: Home

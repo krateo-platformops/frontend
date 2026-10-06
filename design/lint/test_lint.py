@@ -111,7 +111,19 @@ def enforced_count_drift():
         if os.path.isfile(path):
             a11y_ids.update(re.findall(r'^\s*(?://|\*)\s*(C\d+)\s*(?::|—)', io.open(path, encoding='utf-8').read(), re.M))
     a11y = len(a11y_ids)
-    held = composition + token + a11y
+    # App-side layout rules: the P-IDs the in-app checks cite in their headings (`P26 — …`), less the
+    # ones the composition lint already counts (P27 is checked on both sides; it is one rule).
+    lint_spec = importlib.util.spec_from_file_location('lintmod_ids', LINT)
+    lint_mod = importlib.util.module_from_spec(lint_spec)
+    lint_spec.loader.exec_module(lint_mod)
+    portal_ids = {part for _, rule_id in lint_mod.RULES.values() for part in rule_id.split('+')}
+    app_ids = set()
+    for rel in (os.path.join('src', 'test', 'screenHeaders.test.ts'), os.path.join('visual', 'layout.spec.ts')):
+        path = os.path.join(ui, rel)
+        if os.path.isfile(path):
+            app_ids.update(re.findall(r'^\s*(?://|\*)\s*(P\d+)\s*(?::|—|,)', io.open(path, encoding='utf-8').read(), re.M))
+    app = len(app_ids - portal_ids)
+    held = composition + token + a11y + app
     # Total rules: the headings across the six design documents.
     total = 0
     for name in sorted(os.listdir(os.path.join(HERE, os.pardir))):
@@ -126,6 +138,7 @@ def enforced_count_drift():
     claim(r'across all (\d+) rules against the portal chart', composition, 'portal-chart rule count')
     claim(r'all (\d+) machine-held rules hold as of that commit', held, 'machine-held total (CI sentence)')
     claim(r'(\d+) accessibility rules', a11y, 'accessibility rule count')
+    claim(r'(\d+) app-side layout rule', app, 'app-side layout rule count')
     claim(r'they cover the (\d+) rules no', total - held, 'human-held remainder')
 
     # The CSS baseline: total violations and the number of files they span.

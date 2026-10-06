@@ -261,6 +261,30 @@ def rule_back_link(crs):
     return out
 
 
+CRUMB_TRAIL = re.compile(r'\S\s+/\s+\S')
+
+
+def rule_second_breadcrumb(crs):
+    """P27 — one breadcrumb per page, and it is the shell's.
+
+    The shell renders the page's breadcrumb above every page. A `Breadcrumb` widget in a chart, or an
+    eyebrow Paragraph spelling a path ("Builders / Compose"), puts a second one under it — the
+    composers did exactly that in-app until ScreenHeader removed the slot. A portal with no shell
+    breadcrumb opts a Breadcrumb CR out with the `krateo.io/own-breadcrumb` annotation.
+
+    A context eyebrow is not a trail: "Platform · tenant x" passes, "Platform / Compositions" does not."""
+    out = []
+    for fname, doc in crs:
+        kind = doc.get('kind')
+        annotations = (doc.get('metadata') or {}).get('annotations') or {}
+        if kind == 'Breadcrumb' and not annotations.get('krateo.io/own-breadcrumb'):
+            out.append((fname, "a Breadcrumb widget: the shell already renders this page's breadcrumb, so this is a second one"))
+        data = widget_data(doc)
+        if kind == 'Paragraph' and data.get('variant') == 'eyebrow' and CRUMB_TRAIL.search(str(data.get('text') or '')):
+            out.append((fname, f'eyebrow text "{data.get("text")}" spells a path: that is the shell breadcrumb, said twice'))
+    return out
+
+
 def rule_emoji(crs):
     """P15 — no emoji in titles, headings or status text."""
     out = []
@@ -948,6 +972,7 @@ RULES = {
     'dangling-ref': (rule_dangling_ref, 'X4'),
     'row-nav-placeholder': (rule_row_nav_placeholder, 'P10'),
     'back-link': (rule_back_link, 'P1'),
+    'second-breadcrumb': (rule_second_breadcrumb, 'P27'),
     'emoji': (rule_emoji, 'P15'),
     'tag-colour-no-label': (rule_tag_colour_without_label, 'C13'),
     'containment': (rule_containment, 'X5'),

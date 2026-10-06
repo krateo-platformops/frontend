@@ -26,12 +26,14 @@ import '../index.css'
 import '../src/widgets/load'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { App as AntdApp } from 'antd'
+import { App as AntdApp, Button, Space } from 'antd'
 import { loadAll } from 'js-yaml'
 import ReactDOM from 'react-dom/client'
 import { MemoryRouter } from 'react-router'
 
 import FiltersProvider from '../src/components/FiltesProvider'
+import ScreenHeader from '../src/components/ScreenHeader'
+import StatusPill from '../src/components/StatusPill'
 import { ConfigContext, type Config } from '../src/context/ConfigContext'
 import { RoutesProvider } from '../src/context/RoutesContext'
 import { ThemeModeProvider } from '../src/context/ThemeModeContext'
@@ -59,6 +61,36 @@ const source = Object.entries(examples).find(([path]) => path.endsWith(`/${folde
 const example = source ? (loadAll(source) as ExampleCR[]).filter(Boolean)[doc] : undefined
 const Component = example ? getWidgetModule(example.kind)?.component : undefined
 
+/**
+ * `?fixture=screen-header`: the in-app header with every slot filled, full width, so layout.spec.ts
+ * can measure P26 (status and actions on the title's row, trailing edge) in a real browser.
+ */
+const fixture = params.get('fixture')
+const fixtures: Record<string, () => React.ReactNode> = {
+  'screen-header': () => (
+    <ScreenHeader
+      actions={(
+        <Space wrap>
+          <Button>Preview</Button>
+          <Button>Undo</Button>
+          <Button type='primary'>Publish</Button>
+          <Button>Close draft</Button>
+        </Space>
+      )}
+      meta='0.1.0 · Pet · cbv2202610021.example.io'
+      status={<><span data-testid='status'>Saved · 23:00</span><StatusPill color='warning' label='Preview needed' /></>}
+      subtitle='Author a page and everything it needs, then publish the whole set as one change request.'
+      title='cb-v2-20261002-1'
+    />
+  ),
+}
+
+const missing = <pre data-testid='missing'>{`no renderable example ${doc} in ${folder}`}</pre>
+const widget = Component && example
+  ? <Component resourcesRefs={example.spec.resourcesRefs ?? { items: [] }} uid={`visual-${folder}-${doc}`} widget={example as never} widgetData={example.spec.widgetData} />
+  : missing
+const body = fixture && fixtures[fixture] ? fixtures[fixture]() : widget
+
 const root = ReactDOM.createRoot(document.getElementById('root')!)
 
 root.render(
@@ -69,10 +101,8 @@ root.render(
           <MemoryRouter>
             <AntdApp>
               <FiltersProvider>
-                <div data-testid='case' style={{ background: 'var(--background-color)', boxSizing: 'border-box', padding: 'var(--spacing-md)', width: 720 }}>
-                  {Component && example
-                    ? <Component resourcesRefs={example.spec.resourcesRefs ?? { items: [] }} uid={`visual-${folder}-${doc}`} widget={example as never} widgetData={example.spec.widgetData} />
-                    : <pre data-testid='missing'>{`no renderable example ${doc} in ${folder}`}</pre>}
+                <div data-testid='case' style={{ background: 'var(--background-color)', boxSizing: 'border-box', padding: 'var(--spacing-md)', width: fixture ? '100%' : 720 }}>
+                  {body}
                 </div>
               </FiltersProvider>
             </AntdApp>

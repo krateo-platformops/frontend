@@ -93,6 +93,7 @@ Exit code is the number of violations, so CI fails on any.
 | `dangling-ref` | X4 | An `items[].resourceRefId` with no matching `resourcesRefs` entry. Renders three different ways depending on container — silent drop, a dash, or a visible error — and only `Tabs` tells you. |
 | `row-nav-placeholder` | P10 | A `rowNavigateTo` placeholder that resolves to neither a column nor a `dataSource` cell. The row stops being clickable with no cursor, no warning and no visual difference. |
 | `back-link` | P1 | A `← Back to X` label. Filed four times on four pages with an identical fix each time. |
+| `second-breadcrumb` | P27 | A `Breadcrumb` widget, or an eyebrow Paragraph spelling a path (`A / B`): the shell already renders the page's breadcrumb, so either is a second one. A context eyebrow (`Platform · tenant x`) is not a trail and passes. A portal with no shell breadcrumb opts a Breadcrumb CR out with `krateo.io/own-breadcrumb` |
 | `emoji` | P15 | Emoji in a title, label or status text. |
 | `tag-colour-no-label` | C13 | A `Tag` with a colour and no label — meaning carried by colour alone. |
 | `dead-kind` | X11 | A widget kind the frontend no longer resolves — `Panel`, `DataGrid`, `Column`, `TabList`, `NavMenu`, or a removed routing kind. Renders nothing. |
