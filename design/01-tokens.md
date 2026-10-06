@@ -122,7 +122,17 @@ trust either number.
 
 ### T3 — One type scale, and it must be the one that is used.
 
-**Status:** severe → swept → **one scale** — the legacy `--font-size-*` is retired
+**Status:** severe → swept → one scale → **holds** — no raw size left, and antd's headings are on the scale
+
+> **2026-10-06: the last two values, and what they were hiding.** `Paragraph`'s strong title (26px)
+> was a page title, and measuring it against the other ways to write one showed the real defect:
+> antd's headings were all off the scale (compacted to 32/26/20/16/14), so a page title rendered at
+> **32px** from `PageHeader` or `level: 1` and at **26px** from `strong: true` — one role, two sizes,
+> neither on the scale. In the portal chart that is 21 strong titles, 4 `level: 1` and every
+> PageHeader. Now a page title is `h2` (30) on every path: Typography's `fontSizeHeading1..5` are
+> h2 / h3 / h3 / h4 / body (a heading never drops below body text), scoped to Typography so nothing
+> else that reads the global heading tokens moves. `ListView`'s `0.85em` chip count was 10.2px of a
+> 12px label: `label-xs`, named. The CSS baseline is empty.
 
 > **Retired 2026-10-01.** All 50 legacy references moved to `--krateo-text-*` and `tokens.ts` no
 > longer emits the scale. 12/18/30 mapped exactly (caption / body-lg / h2); 14, 16 and 24 had no
@@ -130,9 +140,8 @@ trust either number.
 > a deliberate 1–2px visual change, including the `Paragraph` widget's body text in every portal.
 > The lint rule `legacy-type-scale` now fails on any reference to the old names, *including as a
 > `var()` fallback*, which would otherwise render and pass `font-size`. Inline TSX `fontSize`
-> literals are at zero too (`ui/src/theme/inlineStyleTokens.test.ts`). Two raw values remain in the
-> CSS baseline and are judgement calls rather than sweeps: `Paragraph`'s `26px` strong title sits
-> exactly between `h3` (22) and `h2` (30), and `ListView`'s `0.85em` chip count is relative by design.
+> literals are at zero too (`ui/src/theme/inlineStyleTokens.test.ts`). Two raw values remained in the
+> CSS baseline and were judgement calls; both are resolved in the 2026-10-06 note above.
 > The figures below are the state before this, kept for the history.
 
 > **Corrected — the figures below were badly out of date, and in the direction that flatters

@@ -367,7 +367,8 @@
 }
 
 .chipCount {
-  font-size: 0.85em;
+  /* T3: was 0.85em of the chip's 12px label, i.e. 10.2px: the label-xs role, named. */
+  font-size: var(--krateo-text-label-xs);
   font-variant-numeric: tabular-nums;
   margin-inline-start: var(--spacing-xsm);
   opacity: 0.6;
