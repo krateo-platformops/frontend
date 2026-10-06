@@ -1,3 +1,4 @@
+// T2 opt-out: antd's QRCode exposes no component tokens to theme; size and colour are props
 import { QRCode as AntdQRCode } from 'antd'
 
 import type { WidgetProps } from '../../types/Widget'
