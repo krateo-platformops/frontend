@@ -10,9 +10,8 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    allowedResources: [buttons, paragraphs, tables, piecharts, linecharts]
-    asGrid: true
-    items: []
+    grid: { gutter: 16, xs: 1, sm: 1, md: 2, lg: 3, xl: 3, xxl: 4 }
+    dataSource: []
 ---
 # Missing resource references
 # Target: test what happens when item identifiers do not correspond to any known resource reference.
@@ -25,9 +24,8 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    allowedResources: [buttons, paragraphs, tables, piecharts, linecharts]
-    asGrid: true
-    items:
+    grid: { gutter: 16, xs: 1, sm: 1, md: 2, lg: 3, xl: 3, xxl: 4 }
+    dataSource:
       - resourceRefId: unknown-widget-1
       - resourceRefId: unknown-widget-2
   resourcesRefs:
@@ -45,9 +43,7 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    allowedResources: [tables]
-    asGrid: false
-    items:
+    dataSource:
       - resourceRefId: example-table-basic
   resourcesRefs:
     items:
@@ -70,9 +66,7 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    allowedResources: [linecharts, piecharts, tables]
-    asGrid: false
-    items:
+    dataSource:
       - resourceRefId: example-linechart-multi
       - resourceRefId: example-table-basic
       - resourceRefId: example-piechart-full-fill
@@ -109,9 +103,8 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    allowedResources: [linecharts, piecharts, tables]
-    asGrid: true
-    items:
+    grid: { gutter: 16, xs: 1, sm: 1, md: 2, lg: 3, xl: 3, xxl: 4 }
+    dataSource:
       - resourceRefId: example-linechart-multi
       - resourceRefId: example-table-basic
       - resourceRefId: example-piechart-full-fill
@@ -148,8 +141,6 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    allowedResources: [linecharts, piecharts, tables]
-    asGrid: true
     grid:
       gutter: 4
       xs: 1    
@@ -158,7 +149,7 @@ spec:
       lg: 4    
       xl: 5    
       xxl: 6   
-    items:
+    dataSource:
       - resourceRefId: example-linechart-multi
       - resourceRefId: example-table-basic
       - resourceRefId: example-piechart-full-fill
@@ -195,10 +186,9 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    allowedResources: [panels]
-    asGrid: true
+    grid: { gutter: 16, xs: 1, sm: 1, md: 2, lg: 3, xl: 3, xxl: 4 }
     prefix: example-datagrid-with-prefix-filter-prefix
-    items:
+    dataSource:
       - resourceRefId: example-datagrid-with-prefix-panel-1
       - resourceRefId: example-datagrid-with-prefix-panel-2
   resourcesRefs:
@@ -224,11 +214,27 @@ metadata:
 spec:
   widgetData:
     prefix: example-datagrid-with-prefix-filter-prefix
-    fields:
-      - label: Title
-        name: 
-        - title
-        type: string
+    items:
+      - resourceRefId: example-datagrid-with-prefix-filter-title
+  resourcesRefs:
+    items:
+      - id: example-datagrid-with-prefix-filter-title
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-datagrid-with-prefix-filter-title
+        namespace: krateo-system
+        resource: inputs
+        verb: GET
+---
+# A filter field for example-datagrid-with-prefix-filter: its `name` is the data path it filters.
+kind: Input
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-datagrid-with-prefix-filter-title
+  namespace: krateo-system
+spec:
+  widgetData:
+    name: title
+    label: Title
 ---
 kind: Markdown
 apiVersion: widgets.templates.krateo.io/v1beta1
@@ -247,7 +253,7 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    actions: {}
+    widgetActions: {}
     items: []
     title: First panel with filterable title
   resourcesRefs:
@@ -276,7 +282,7 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    actions: {}
+    widgetActions: {}
     items: []
     title: Second panel with filterable title
   resourcesRefs:
@@ -299,8 +305,6 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    allowedResources: [datagrids, tables]
-    asGrid: true
     grid:
       gutter: 16
       lg: 2
@@ -308,7 +312,7 @@ spec:
       sm: 1
       xl: 2
       xs: 1
-    items:
+    dataSource:
       - resourceRefId: example-datagrid-multiple-default
       - resourceRefId: example-table-basic
   resourcesRefs:

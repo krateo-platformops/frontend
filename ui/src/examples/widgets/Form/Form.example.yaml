@@ -28,14 +28,26 @@ spec:
   resourcesRefs:
     items:
       - id: field-name
-        allowed: true
-        path: "/call?resource=inputs&apiVersion=widgets.templates.krateo.io/v1beta1&name=field-name&namespace=krateo-system"
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: field-name
+        namespace: krateo-system
+        resource: inputs
+        verb: GET
       - id: field-environment
-        allowed: true
-        path: "/call?resource=selects&apiVersion=widgets.templates.krateo.io/v1beta1&name=field-environment&namespace=krateo-system"
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: field-environment
+        namespace: krateo-system
+        resource: selects
+        verb: GET
       - id: field-autosync
-        allowed: true
-        path: "/call?resource=switches&apiVersion=widgets.templates.krateo.io/v1beta1&name=field-autosync&namespace=krateo-system"
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: field-autosync
+        namespace: krateo-system
+        resource: switches
+        verb: GET
       - id: create-deployment
-        allowed: true
-        path: "/call?resource=restactions&apiVersion=templates.krateo.io/v1alpha1&name=create-deployment&namespace=krateo-system"
+        apiVersion: templates.krateo.io/v1alpha1
+        name: create-deployment
+        namespace: krateo-system
+        resource: restactions
+        verb: GET

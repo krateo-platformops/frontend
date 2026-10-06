@@ -128,7 +128,11 @@ they hold **25 of the 105 rules** — 14 composition rules and 8 token rules, pl
   example is either screenshotted or excluded with a reason, and every screenshotted example must
   validate against its widget's schema. When it was written, **46 of 166 example documents failed
   their own schema** (every Table example used `data`, which the widget no longer reads, so they
-  rendered empty); the Table and Card renames are fixed, and 23 remain as a follow-up. It runs in the
+  rendered empty). All of them now pass, and `ui/src/test/widgetExamples.test.ts` validates every
+  example document against its kind's **generated CRD**, closing objects and dropping nulls the way
+  the apiserver does: the widget schema also describes the resolved `resourcesRefs` (`allowed`,
+  `path`) the frontend receives, and six example files had copied that shape, so they passed the
+  widget schema and were rejected by a server-side dry run. It runs in the
   Playwright container only, because fonts rasterise differently on macOS: `npm run visual` to
   check, `npm run visual:update` to accept an intended change, and commit the PNGs so the reviewer
   sees the before and after.
