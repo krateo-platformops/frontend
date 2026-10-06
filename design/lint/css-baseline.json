@@ -1,9 +1,6 @@
 {
   "breakpoint": {},
-  "font-size": {
-    "widgets/List/ListView.module.css": 1,
-    "widgets/Paragraph/Paragraph.module.css": 1
-  },
+  "font-size": {},
   "gap": {},
   "hex-literal": {},
   "legacy-type-scale": {},

@@ -102,12 +102,12 @@ they hold **25 of the 105 rules** — 14 composition rules and 8 token rules, pl
 
 - `lint-portal-consistency.py` — composition, run against a chart's widget CRs. **0 violations**
   across all 14 rules against the portal chart.
-- `lint-css-tokens.py` — token adoption in this repo's stylesheets. Gates on a **baseline** of 2
-  pre-existing violations across 2 files, so new code is held to the rule while the debt burns
-  down. 2 of those 2 are `font-size` (T3), and both are judgement calls rather than sweeps (see T3).
-  `widget-theme-coverage` (T2) arrived with **19** — adding a check to a codebase that predates it
-  imports its existing debt in one step, which is the point of baselining rather than a reason to
-  weaken the rule — and was burned to zero one widget group at a time. The live counts are
+- `lint-css-tokens.py` — token adoption in this repo's stylesheets. Its baseline is **empty**: every
+  pre-existing violation has been paid off. It arrived with ~314 — adding a check to a codebase that
+  predates it imports its existing debt in one step, which is the point of baselining rather than a
+  reason to weaken the rule — and the last were `widget-theme-coverage` (T2, 19, burned to zero one
+  widget group at a time) and two T3 judgement calls, resolved by giving a page title one size.
+  The ledger only shrinks, so the gate now holds every rule at zero. The live counts are
   `python3 design/lint/lint-css-tokens.py ui/src --summary`, which prints now-vs-baseline per rule
   — read that rather than this sentence.
 

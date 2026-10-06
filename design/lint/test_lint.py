@@ -134,10 +134,15 @@ def enforced_count_drift():
         baseline = json.load(io.open(baseline_path, encoding='utf-8'))
         files = {path for entries in baseline.values() for path in entries}
         violations = sum(count for entries in baseline.values() for count in entries.values())
-        claim(r'\*\*baseline\*\* of (\d+)\s*\n?\s*pre-existing violations', violations, 'CSS baseline violations')
-        claim(r'pre-existing violations across (\d+) files', len(files), 'CSS baseline file count')
-        worst = max(baseline.items(), key=lambda kv: sum(kv[1].values()))
-        claim(r'(\d+) of those \d+ are', sum(worst[1].values()), f'largest baseline rule ({worst[0]})')
+        if violations == 0:
+            # Paid off. "0 of those 0 are <rule>" would name an arbitrary rule; say what is true.
+            if not re.search(r'baseline is \*\*empty\*\*', text):
+                out.append('CSS baseline: it is empty, and the README should say "baseline is **empty**"')
+        else:
+            claim(r'\*\*baseline\*\* of (\d+)\s*\n?\s*pre-existing violations', violations, 'CSS baseline violations')
+            claim(r'pre-existing violations across (\d+) files', len(files), 'CSS baseline file count')
+            worst = max(baseline.items(), key=lambda kv: sum(kv[1].values()))
+            claim(r'(\d+) of those \d+ are', sum(worst[1].values()), f'largest baseline rule ({worst[0]})')
     return out
 
 

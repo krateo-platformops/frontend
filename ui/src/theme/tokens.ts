@@ -487,6 +487,12 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   Table: { borderColor: palette.border, borderRadiusLG: radius.lg, cellPaddingBlock: 16, cellPaddingBlockSM: 8, headerBg: palette.lightgray, headerBorderRadius: radius.lg, headerColor: palette.gray, rowHoverBg: palette.light },
   Tabs: { horizontalItemGutter: 24 },
   Tag: { borderRadiusSM: radius.sm },
+  // T3: antd's headings were all off the one type scale (compacted: 32/26/20/16/14). A page title
+  // rendered at 32px from PageHeader or `level: 1`, and at 26px from a strong Paragraph — one role,
+  // two sizes, neither on the scale. One role, one size: a page title is h2 (30), and the lower
+  // levels take the nearest role (a heading never drops below body text). Scoped to Typography so
+  // no other component that reads the global heading tokens moves with it.
+  Typography: { fontSizeHeading1: textPx('h2'), fontSizeHeading2: textPx('h3'), fontSizeHeading3: textPx('h3'), fontSizeHeading4: textPx('h4'), fontSizeHeading5: textPx('body') },
   // Was 89.25 (controlHeightLG × 2.55). Whole pixels.
   Upload: { pictureCardSize: 88 },
 })

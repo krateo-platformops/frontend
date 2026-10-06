@@ -66,7 +66,9 @@ h5.paragraph {
 }
 
 .paragraph:has(strong) {
-  font-size: 26px;
+  /* T3: a page title is h2, the same size as `level: 1` and PageHeader (Typography fontSizeHeading1
+     in tokens.ts). It was 26px from an early mockup, while those rendered at 32. */
+  font-size: var(--krateo-text-h2);
   font-weight: var(--font-weight-bold, 600);
 
   /* 1.2, matching the level:N path above — both were 1.1 for Barlow Condensed's condensed line

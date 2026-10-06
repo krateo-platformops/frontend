@@ -105,3 +105,20 @@ describe('Descriptions spacing is on the scale (T2)', () => {
     }
   })
 })
+
+describe('antd headings are on the one type scale (T3)', () => {
+  it('makes a page title h2 on every path, and keeps lower levels on canonical roles', () => {
+    // A page title rendered at 32px from PageHeader / `level: 1` and at 26px from a strong Paragraph.
+    cssVariables('light')
+    const role = (name: string) => Number.parseInt(document.documentElement.style.getPropertyValue(`--krateo-text-${name}`), 10)
+    for (const { components } of [lightTheme, darkTheme]) {
+      expect(components?.Typography).toMatchObject({
+        fontSizeHeading1: role('h2'),
+        fontSizeHeading2: role('h3'),
+        fontSizeHeading3: role('h3'),
+        fontSizeHeading4: role('h4'),
+        fontSizeHeading5: role('body'),
+      })
+    }
+  })
+})
