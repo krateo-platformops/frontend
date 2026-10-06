@@ -6,6 +6,7 @@
   },
   "gap": {},
   "hex-literal": {},
+  "legacy-type-scale": {},
   "spacing": {},
   "unguarded-animation": {},
   "widget-theme-coverage": {
@@ -17,7 +18,6 @@
     "widgets/Descriptions/Descriptions.tsx": 1,
     "widgets/Divider/Divider.tsx": 1,
     "widgets/Flex/Flex.tsx": 1,
-    "widgets/Form/Form.tsx": 1,
     "widgets/Image/Image.tsx": 1,
     "widgets/InputNumber/InputNumber.tsx": 1,
     "widgets/Layout/Layout.tsx": 1,

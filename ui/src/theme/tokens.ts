@@ -418,6 +418,11 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   },
   DatePicker: { borderRadius: radius.md, controlHeight: 32 },
   Drawer: { paddingLG: spacing.lg },
+  // T2: Form density, on the scale. itemMarginBottom restates antd's compact default (16) so it is
+  // ours to move. verticalLabelPadding is the 6px label gap SchemaFields' `.field` CSS asked for and
+  // never got: antd's own vertical-label rule out-specified it, so every label rendered at antd's 4.
+  // From the theme it applies everywhere (4 → 6 for every vertical label, schema-driven or not).
+  Form: { itemMarginBottom: spacing.md, verticalLabelPadding: `0 0 ${spacing.xsm}px` },
   Input: { borderRadius: radius.md, controlHeight: 32 },
   List: { borderRadiusLG: radius.lg },
   // Sidebar nav density — `.nav-item` (~36px tall, bumped from 30 per issue #80 §0.5). NB: the

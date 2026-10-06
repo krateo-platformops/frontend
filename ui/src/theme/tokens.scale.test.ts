@@ -11,7 +11,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { spacing, cssVariables } from './tokens'
+import { cssVariables, darkTheme, lightTheme, spacing } from './tokens'
 
 describe('spacing scale', () => {
   it('carries the half-steps a doubling scale skips', () => {
@@ -48,5 +48,14 @@ describe('type scale — the micro-label tier', () => {
     expect(root.style.getPropertyValue('--spacing-xxs')).toBe('2px')
     expect(root.style.getPropertyValue('--spacing-xsm')).toBe('6px')
     expect(root.style.getPropertyValue('--spacing-smd')).toBe('12px')
+  })
+})
+
+describe('Form density comes from the theme (T2)', () => {
+  it('spaces items and labels on the spacing scale, in both modes', () => {
+    for (const { components } of [lightTheme, darkTheme]) {
+      expect(components?.Form?.itemMarginBottom).toBe(spacing.md)
+      expect(components?.Form?.verticalLabelPadding).toBe(`0 0 ${spacing.xsm}px`)
+    }
   })
 })

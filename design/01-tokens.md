@@ -27,7 +27,17 @@ Verified by sweep: all 168 files under `ui/src/widgets` contain exactly one hex 
 
 ### T2 — Density comes from the antd component overrides — for the 15 widget kinds those overrides actually cover.
 
-**Status:** partial → **enforced** — the rule now has a lint; the 19 candidates remain as baselined debt
+**Status:** partial → **enforced**, burning down — 18 candidates left in the baseline
+
+> **2026-10-05: `Form` is off the list.** `buildComponents` now carries `Form: { itemMarginBottom:
+> spacing.md, verticalLabelPadding: 0 0 spacing.xsm }`. The first restates antd's compact default
+> (16), so nothing moves. The second is the 6px label gap SchemaFields' CSS asked for and **never
+> got**: measured on the live portal, its `.field` labels rendered at antd's 4px, because antd's
+> vertical-label rule out-specifies `.field :global(.ant-form-item-label)`. A value declared and
+> silently overridden is this document's thesis in miniature, and the reason density belongs in the
+> theme rather than in a stylesheet racing antd's selectors. Every vertical label now gets 4 → 6px. The `.field` `margin-bottom …
+> !important` stays: it is the same value, and the `!important` decides which rule wins when a
+> validation message appears, which is behaviour rather than density.
 
 Reworded from an earlier, over-confident version of this rule. `buildComponents` governs **15** antd
 kinds: `Button, Card, DatePicker, Drawer, Input, List, Menu, Modal, Progress, Select, Statistic,
