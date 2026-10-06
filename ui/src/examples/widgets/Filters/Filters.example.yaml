@@ -15,8 +15,14 @@ spec:
   resourcesRefs:
     items:
       - id: filter-name
-        allowed: true
-        path: "/call?resource=inputs&apiVersion=widgets.templates.krateo.io/v1beta1&name=filter-name&namespace=krateo-system"
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: filter-name
+        namespace: krateo-system
+        resource: inputs
+        verb: GET
       - id: filter-status
-        allowed: true
-        path: "/call?resource=selects&apiVersion=widgets.templates.krateo.io/v1beta1&name=filter-status&namespace=krateo-system"
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: filter-status
+        namespace: krateo-system
+        resource: selects
+        verb: GET

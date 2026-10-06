@@ -5,12 +5,10 @@
  * A diff here is a visual change. If it is intended, regenerate with `npm run visual:update` and
  * commit the PNGs; the reviewer then sees the before/after in the PR's file diff.
  */
-import { readFileSync, readdirSync } from 'node:fs'
+import { readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 import { expect, test } from '@playwright/test'
-import Ajv from 'ajv'
-import { loadAll } from 'js-yaml'
 
 /**
  * Widgets screenshotted, and which documents of their example file. The first document is often
@@ -64,23 +62,8 @@ const EXCLUDED: Record<string, string> = {
 }
 
 const EXAMPLES = fileURLToPath(new URL('../src/examples/widgets', import.meta.url))
-const WIDGETS = fileURLToPath(new URL('../src/widgets', import.meta.url))
-
-test('every screenshotted example is valid against its own widget schema', () => {
-  // A screenshot of an example the CRD would reject pins down an API that does not exist. This is
-  // not hypothetical: when this suite was written, 46 of 166 example documents failed their schema,
-  // and every Table example used `data`, which the widget no longer reads, so they rendered empty.
-  const ajv = new Ajv({ allErrors: true, strict: false })
-  const invalid = Object.entries(CASES).flatMap(([folder, docs]) => {
-    // The schema file is named for the CRD kind, which is not always the folder (List holds Listy).
-    const schemaFile = readdirSync(`${WIDGETS}/${folder}`).find((name) => name.endsWith('.schema.json'))
-    const schema = JSON.parse(readFileSync(`${WIDGETS}/${folder}/${schemaFile}`, 'utf8')) as { properties: { spec: { properties: { widgetData: object } } } }
-    const examples = (loadAll(readFileSync(`${EXAMPLES}/${folder}/${folder}.example.yaml`, 'utf8')) as Array<{ spec: { widgetData: unknown } } | null>).filter(Boolean)
-    return docs.filter((doc) => !ajv.validate(schema.properties.spec.properties.widgetData, examples[doc]?.spec.widgetData ?? {}))
-      .map((doc) => `${folder} #${doc}: ${ajv.errorsText()}`)
-  })
-  expect(invalid).toEqual([])
-})
+// Every example, screenshotted or not, is validated against its own kind's schema by
+// src/test/widgetExamples.test.ts, so a picture here is never of a CR the apiserver would reject.
 
 test('every widget with an example is screenshotted or excluded with a reason', () => {
   const kinds = readdirSync(EXAMPLES, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name)

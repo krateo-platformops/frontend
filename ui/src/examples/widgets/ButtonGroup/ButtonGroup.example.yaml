@@ -11,7 +11,7 @@ spec:
   widgetData:
     allowedResources: [buttons]
     alignment: left
-    gap: small
+    size: small
     items: []
   resourcesRefs:
     items: []
@@ -29,7 +29,7 @@ spec:
   widgetData:
     allowedResources: [buttons]
     alignment: left
-    gap: medium
+    size: middle
     items:
       - resourceRefId: example-buttongroup-button-1
       - resourceRefId: button-missing
@@ -70,7 +70,7 @@ spec:
   widgetData:
     allowedResources: [buttons]
     alignment: center
-    gap: small
+    size: small
     items:
       - resourceRefId: example-buttongroup-button-1
   resourcesRefs:
@@ -94,7 +94,7 @@ spec:
   widgetData:
     allowedResources: [buttons]
     alignment: left
-    gap: small
+    size: small
     items:
       - resourceRefId: example-buttongroup-button-1
       - resourceRefId: example-buttongroup-button-2
@@ -141,7 +141,7 @@ spec:
   widgetData:
     allowedResources: [buttons]
     alignment: left
-    gap: large
+    size: large
     items:
       - resourceRefId: example-buttongroup-button-1
       - resourceRefId: example-buttongroup-button-2
@@ -172,7 +172,7 @@ spec:
   widgetData:
     allowedResources: [buttons]
     alignment: right
-    gap: medium
+    size: middle
     items:
       - resourceRefId: example-buttongroup-button-1
       - resourceRefId: example-buttongroup-button-2

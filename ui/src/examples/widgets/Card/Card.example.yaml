@@ -63,7 +63,7 @@ spec:
   widgetData:
     title: Node Information
     headerLeft: 'Last updated: 2025-06-10'
-    headerRight: 'Status: Healthy'
+    extra: 'Status: Healthy'
     items: []
     widgetActions: {}
   resourcesRefs:

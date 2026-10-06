@@ -250,7 +250,7 @@ spec:
       - 
         - valueKey: name
           kind: jsonSchemaType
-          type: null
+          type: 'null'
         - valueKey: status
           kind: jsonSchemaType
           type: string
@@ -262,7 +262,7 @@ spec:
           stringValue: "Ghost entry"
         - valueKey: status
           kind: jsonSchemaType
-          type: null
+          type: 'null'
 ---
 # Table with filter
 # Target: demonstrate interaction between table and filter components using a common prefix.
@@ -321,15 +321,45 @@ metadata:
 spec:
   widgetData:
     prefix: example-table-with-filter-prefix
-    fields:
-      - label: Pod Name
-        name:
-          - name
-        type: string
-      - label: Users
-        name:
-          - users
-        type: string
+    items:
+      - resourceRefId: example-table-with-filter-filter-name
+      - resourceRefId: example-table-with-filter-filter-users
+  resourcesRefs:
+    items:
+      - id: example-table-with-filter-filter-name
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-table-with-filter-filter-name
+        namespace: krateo-system
+        resource: inputs
+        verb: GET
+      - id: example-table-with-filter-filter-users
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-table-with-filter-filter-users
+        namespace: krateo-system
+        resource: inputs
+        verb: GET
+---
+# A filter field for example-table-with-filter-filter: its `name` is the data path it filters.
+kind: Input
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-table-with-filter-filter-name
+  namespace: krateo-system
+spec:
+  widgetData:
+    name: name
+    label: Pod Name
+---
+# A filter field for example-table-with-filter-filter: its `name` is the data path it filters.
+kind: Input
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-table-with-filter-filter-users
+  namespace: krateo-system
+spec:
+  widgetData:
+    name: users
+    label: Users
 ---
 # Table with pagination
 # Target: verify that pagination is correctly activated when the number of rows exceeds the configured pageSize.
