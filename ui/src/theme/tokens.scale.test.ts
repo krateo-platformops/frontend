@@ -11,7 +11,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { cssVariables, darkTheme, lightTheme, spacing } from './tokens'
+import { color, colorDark, cssVariables, darkTheme, layout, lightTheme, spacing } from './tokens'
 
 describe('spacing scale', () => {
   it('carries the half-steps a doubling scale skips', () => {
@@ -68,6 +68,18 @@ describe('form controls share one height (T2)', () => {
       for (const kind of ['Button', 'DatePicker', 'Input', 'InputNumber', 'Radio', 'Select'] as const) {
         expect(components?.[kind]?.controlHeight, kind).toBe(32)
       }
+    }
+  })
+})
+
+describe('Layout regions follow the app chrome, not antd’s defaults (T2)', () => {
+  it('sizes and paints the header and sider from our tokens, in both modes', () => {
+    // antd's defaults were its navy #001529, a 56px header and `0 43.75px` padding.
+    for (const [{ components }, palette] of [[lightTheme, color], [darkTheme, colorDark]] as const) {
+      expect(components?.Layout?.headerHeight).toBe(layout.headerHeight)
+      expect(components?.Layout?.headerPadding).toBe(`0 ${spacing.md}px`)
+      expect(components?.Layout?.headerBg).toBe(palette.panelbg)
+      expect(components?.Layout?.siderBg).toBe(palette.panelbg)
     }
   })
 })

@@ -1,6 +1,8 @@
+// T2 opt-out: antd's Grid exposes no component tokens to theme; spacing is the `gutter` prop below
 import { Col as AntdColumn, Row as AntdRow } from 'antd'
 
 import RefChild, { refChildState } from '../../components/RefChild'
+import { spacing } from '../../theme/tokens'
 import type { WidgetProps } from '../../types/Widget'
 
 import styles from './Row.module.css'
@@ -54,7 +56,7 @@ const Row = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<RowWi
         // once the Autopilot rail narrows the content). Matches the `.ant-row > div > *
         // { height: 100% }` rule in Row.module.css; an explicit `alignment` still wins.
         align={alignment ?? 'stretch'}
-        gutter={[16, 16]}
+        gutter={[spacing.md, spacing.md]}
         key={uid}
         wrap
       >
