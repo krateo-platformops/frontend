@@ -64,6 +64,8 @@ export const ControllerPalette = ({ model, onDismissRefusal, onPlace, refusal }:
             const placed = placedAs.get(group.group)
             return (
               <Fragment key={group.group}>
+                {/* C8 exception: pointer drag source; the Place button below is the keyboard path to the same edit. */}
+                {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
                 <div
                   className={styles.paletteGroup}
                   data-group={group.group}
@@ -91,6 +93,8 @@ export const ControllerPalette = ({ model, onDismissRefusal, onPlace, refusal }:
                     )}
                   </div>
                   {expanded(group.group) ? group.operations.map((operation) => (
+                    // C8 exception: pointer drag source; the operations table is the keyboard path to the same mapping.
+                    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
                     <div
                       className={own.operation}
                       data-operation={operation.key}

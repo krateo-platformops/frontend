@@ -164,7 +164,8 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
               {extraEndpoint && <WidgetRenderer widgetEndpoint={extraEndpoint} />}
               {tooltip && (
                 <Tooltip title={tooltip}>
-                  <Button icon={<FontAwesomeIcon icon={['fas', 'circle-question'] as IconProp} />} type='text' />
+                  {/* C9: a Tooltip describes, it does not name — an icon-only button needs its own label. */}
+                  <Button aria-label='More information' icon={<FontAwesomeIcon icon={['fas', 'circle-question'] as IconProp} />} type='text' />
                 </Tooltip>
               )}
             </>

@@ -101,6 +101,17 @@ def enforced_count_drift():
     css_mod = importlib.util.module_from_spec(css_spec)
     css_spec.loader.exec_module(css_mod)
     token = len(css_mod.RULES)
+    # Accessibility rules: the C-rule IDs the a11y gate actually cites — `// C8:` / `// C9:` beside
+    # the jsx-a11y rules in ui/eslint.config.js, and the `C10 —` heading of the trigger test. Read
+    # from the gates themselves, so a rule enforced without saying which one does not count.
+    ui = os.path.join(HERE, os.pardir, os.pardir, 'ui')
+    a11y_ids = set()
+    for rel in ('eslint.config.js', os.path.join('src', 'test', 'a11yTriggers.test.ts')):
+        path = os.path.join(ui, rel)
+        if os.path.isfile(path):
+            a11y_ids.update(re.findall(r'^\s*(?://|\*)\s*(C\d+)\s*(?::|—)', io.open(path, encoding='utf-8').read(), re.M))
+    a11y = len(a11y_ids)
+    held = composition + token + a11y
     # Total rules: the headings across the six design documents.
     total = 0
     for name in sorted(os.listdir(os.path.join(HERE, os.pardir))):
@@ -108,13 +119,14 @@ def enforced_count_drift():
             doc = io.open(os.path.join(HERE, os.pardir, name), encoding='utf-8').read()
             total += len(re.findall(r'^\s*#{2,4}\s*[A-Z]\d+\b', doc, re.M))
 
-    claim(r'they hold \*\*(\d+) of the \d+ rules\*\*', composition + token, 'machine-held total')
+    claim(r'they hold \*\*(\d+) of the \d+ rules\*\*', held, 'machine-held total')
     claim(r'they hold \*\*\d+ of the (\d+) rules\*\*', total, 'total rule count')
     claim(r'(\d+) composition rules and \d+ token rules', composition, 'composition rule count')
     claim(r'\d+ composition rules and (\d+) token rules', token, 'token rule count')
     claim(r'across all (\d+) rules against the portal chart', composition, 'portal-chart rule count')
-    claim(r'all (\d+) machine-held rules hold as of that commit', composition + token, 'machine-held total (CI sentence)')
-    claim(r'they cover the (\d+) rules no', total - composition - token, 'human-held remainder')
+    claim(r'all (\d+) machine-held rules hold as of that commit', held, 'machine-held total (CI sentence)')
+    claim(r'(\d+) accessibility rules', a11y, 'accessibility rule count')
+    claim(r'they cover the (\d+) rules no', total - held, 'human-held remainder')
 
     # The CSS baseline: total violations and the number of files they span.
     baseline_path = os.path.join(HERE, 'css-baseline.json')

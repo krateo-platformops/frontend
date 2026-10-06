@@ -89,8 +89,16 @@ existence and count of resources outside a tenant's scope.
 
 ## What is enforced today
 
-Two lints run from [`lint/`](lint/), and between them they hold **22 of the 105 rules** —
-14 composition rules and 8 token rules. Everything else is a rule a human applies.
+Two lints run from [`lint/`](lint/) and an accessibility gate runs from `ui/`; between them
+they hold **25 of the 105 rules** — 14 composition rules and 8 token rules, plus the
+3 accessibility rules C8–C10. Everything else is a rule a human applies.
+
+- **Accessibility (C8–C10)** — `ui/eslint.a11y.config.js` runs the `jsx-a11y` rules of
+  `eslint.config.js` and nothing else, with antd components mapped to the DOM they render (so a
+  `<Card onClick>` or an icon-only `<Button>` is visible to them). It exists because **no CI job ran
+  ESLint at all**: `lint.yaml` is `helm lint`, and the full config still reports ~60 unrelated,
+  ungated problems. `ui/src/test/a11yTriggers.test.ts` covers what jsx-a11y cannot see, a Popover or
+  Dropdown opening from an element that cannot take focus (C10). Both are at zero, with no baseline.
 
 - `lint-portal-consistency.py` — composition, run against a chart's widget CRs. **0 violations**
   across all 14 rules against the portal chart.
@@ -118,8 +126,8 @@ workflow of the same name runs the composition lint against its rendered chart.
 
 **The CI check is the live status; this section is a claim about it.** To read the real state,
 look at the `design-system` check on any open PR in either repo — it fails on a violation, and a
-green one means all 22 machine-held rules hold as of that commit. The per-rule `Status:`
-markers in the six rule documents are the other half of the picture: they cover the 83 rules no
+green one means all 25 machine-held rules hold as of that commit. The per-rule `Status:`
+markers in the six rule documents are the other half of the picture: they cover the 80 rules no
 lint can decide, and a human keeps them true. Prefer the check over both.
 
 > This section said "Neither is wired into CI yet. Until they are, this document is still the thing

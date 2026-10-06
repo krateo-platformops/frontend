@@ -606,6 +606,8 @@ const AutopilotRail = () => {
   const dockedWidth = Math.min(railWidth + (historyOpen ? HISTORY_EXTRA_WIDTH : 0), maxDockableWidth(viewportWidth))
 
   return (
+    // C8 exception: the rail's keyboard shortcuts, delegated from the controls inside it; the <aside> itself is not a control.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <aside
       className={`${styles.apRail} ${open ? styles.open : ''} ${open && historyOpen ? styles.split : ''} ${open && fullWidth ? styles.full : ''} ${resizing ? styles.resizing : ''}`}
       onKeyDown={onRailKeyDown}

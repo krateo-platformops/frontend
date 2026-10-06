@@ -47,6 +47,8 @@ const ArchitectureStateNode = ({ data }: { data: FlowChartNodeData }) => {
   }
 
   return (
+    // C8 exception: a focusable group that discloses its details on focus and closes them on Escape.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       aria-label={architectureNodeLabel(data)}
       className={styles.card}
