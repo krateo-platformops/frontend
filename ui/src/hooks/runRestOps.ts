@@ -26,6 +26,7 @@ import type { WidgetAction } from '../types/Widget'
 import { omitSecretPaths, secretValuesOf } from '../utils/secretFields'
 import { getResourceRef } from '../utils/utils'
 
+import { writeTargetName } from './callPath'
 import { runRestSet, type WriteOp } from './runRestSet'
 import type { ActionContext, ActionRuntime } from './useHandleActions'
 import { buildPayloadDetailed, interpolateRedirectUrl, updateNameNamespace } from './useHandleActions'
@@ -91,7 +92,7 @@ export const runRestOps = async (
     const opAction = { ...action, payload: op.payload, payloadToOverride: op.payloadToOverride }
     // eslint-disable-next-line no-await-in-loop -- payloads build sequentially to keep op order deterministic
     const { payload, secretTargets } = await buildPayloadDetailed(opAction, payloadBase, customPayload, ctx.resolveJq, runtime.secretPaths)
-    const name = payload?.metadata?.name
+    const name = writeTargetName(verb, payload?.metadata?.name)
     const namespace = payload?.metadata?.namespace
     const path = (name ?? namespace) ? updateNameNamespace(refPath, name, namespace) : refPath
     writeOps.push({ maskTargets: secretTargets, path, payload, verb, ...(secrets ? { secretValues: secrets } : {}) })

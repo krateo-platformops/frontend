@@ -19,6 +19,7 @@ import { openModal } from '../widgets/Modal/Modal'
 
 import type { BlastRadius, BlastRadiusSet } from './blastRadius.types'
 import { buildPayloadDetailed, templateJqInput } from './buildPayload'
+import { writeTargetName } from './callPath'
 import { buildConfirmModalProps, confirmWithTimeout } from './confirmModalProps'
 import { recordProvenance, stampAgentCreated, type WriteOrigin } from './provenance'
 import { runRestFanOut } from './runRestFanOut'
@@ -466,7 +467,7 @@ const runRest = async (
   }
 
   const updatedUrl = customPayload
-    ? updateNameNamespace(url, payload?.metadata?.name, payload?.metadata?.namespace)
+    ? updateNameNamespace(url, writeTargetName(verb, payload?.metadata?.name), payload?.metadata?.namespace)
     : url
 
   const headersObject = getHeadersObject(headers)
