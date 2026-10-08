@@ -27,6 +27,7 @@ import lightfair from 'react-syntax-highlighter/dist/esm/styles/hljs/lightfair.j
 
 import { useThemeMode } from '../../context/ThemeModeContext'
 import { LAYER } from '../../theme/layers'
+import DismissButton from '../DismissButton'
 import { DrawerHeader, drawerCloseProps } from '../DrawerHeader/DrawerHeader'
 import WidgetRenderer from '../WidgetRenderer'
 
@@ -271,7 +272,7 @@ const FileEditBlock = ({
           />
           <Space>
             <Button disabled={text === current} onClick={onApply} type='primary'>Apply edits</Button>
-            <Button onClick={() => { setEditing(false); setError(null) }}>Cancel</Button>
+            <DismissButton onClick={() => { setEditing(false); setError(null) }}>Cancel</DismissButton>
           </Space>
         </div>
       ) : (

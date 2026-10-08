@@ -37,6 +37,7 @@ import lightfair from 'react-syntax-highlighter/dist/esm/styles/hljs/lightfair.j
 import { VALUES_SCHEMA_PATH } from '../../components/Autopilot/blueprintDraft'
 import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
 import { PreviewFormSection } from '../../components/Autopilot/previewFormSection'
+import DismissButton from '../../components/DismissButton'
 import { DrawerHeader, drawerCloseProps } from '../../components/DrawerHeader/DrawerHeader'
 import StatusPill from '../../components/StatusPill'
 import { useThemeMode } from '../../context/ThemeModeContext'
@@ -204,7 +205,7 @@ export const FormEditorDrawer = ({ addNonce, addType, onClose, open, schemaText 
                 />
                 <Space>
                   <Button disabled={draft === base} onClick={apply} type='primary'>Apply</Button>
-                  <Button onClick={() => { setEditing(false); setRefused(null) }}>Cancel</Button>
+                  <DismissButton onClick={() => { setEditing(false); setRefused(null) }}>Cancel</DismissButton>
                 </Space>
               </>
             ) : (

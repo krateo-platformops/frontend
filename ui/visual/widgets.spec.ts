@@ -19,7 +19,7 @@ const CASES: Record<string, number[]> = {
   Alert: [0, 1],
   Badge: [0, 1],
   Breadcrumb: [0],
-  Button: [1, 2, 3],
+  Button: [1, 2, 3, 34],
   Card: [2, 4],
   Checkbox: [0],
   DatePicker: [0],

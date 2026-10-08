@@ -23,6 +23,7 @@
  */
 import { Alert, Button, Checkbox, Collapse, Popconfirm, Radio, Select, Space } from 'antd'
 
+import { dismissButtonProps } from '../../components/DismissButton'
 import { countNoun } from '../../utils/utils'
 import styles from '../BlueprintComposer/BlueprintComposer.module.css'
 
@@ -334,7 +335,7 @@ export const KindInspector = (props: InspectorProps) => {
           : null}
         <Space wrap>
           <Button onClick={() => props.onOpenFile(kind.path)} size='small'>Open file</Button>
-          <Popconfirm cancelText='Keep it' okText='Remove' onConfirm={props.onRemove} title={`Remove ${kind.kind}? Its RestDefinition leaves the chart.`}>
+          <Popconfirm cancelButtonProps={dismissButtonProps} cancelText='Keep it' okButtonProps={{ danger: true }} okText='Remove' onConfirm={props.onRemove} title={`Remove ${kind.kind}? Its RestDefinition leaves the chart.`}>
             <Button danger size='small'>Remove Kind</Button>
           </Popconfirm>
         </Space>

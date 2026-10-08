@@ -16,6 +16,7 @@
 import { Button, Popconfirm, Space } from 'antd'
 import { Link } from 'react-router'
 
+import { dismissButtonProps } from '../../components/DismissButton'
 import { WidgetEmpty } from '../../components/WidgetStates'
 
 export const PORTAL_BUILDER_COMPOSE_PATH = '/portal-builder/compose'
@@ -34,13 +35,13 @@ export const BlueprintEmptyState = ({ onDiscard, onStart, parkedPage }: {
           {/* A client-side navigation: the held draft lives in this tab's memory, and a full page
               load would drop the very draft it is sending the person to. */}
           <Link to={PORTAL_BUILDER_COMPOSE_PATH}>Open the page in the Portal Builder</Link>
-          <Popconfirm
-            cancelText='Keep it'
+          <Popconfirm cancelButtonProps={dismissButtonProps} cancelText='Keep it'
+            okButtonProps={{ danger: true }}
             okText='Discard'
             onConfirm={onDiscard}
             title='Discard the page draft? Its unpublished files are deleted.'
           >
-            <Button>Discard page draft</Button>
+            <Button danger>Discard page draft</Button>
           </Popconfirm>
         </Space>
       </WidgetEmpty>

@@ -369,3 +369,69 @@ spec:
   widgetData:
     items:
       - title: Home
+---
+# A4: the Autopilot entry point among the header's actions: filled, wand icon, 'Ask Autopilot →'.
+kind: PageHeader
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: good-autopilot-header}
+spec:
+  widgetData:
+    title: Controller Builder
+    items:
+      - resourceRefId: good-ask
+      - resourceRefId: good-build
+  resourcesRefs:
+    items:
+      - {id: good-build, apiVersion: widgets.templates.krateo.io/v1beta1, name: good-build, namespace: krateo-system, resource: buttons, verb: GET}
+      - {id: good-ask, apiVersion: widgets.templates.krateo.io/v1beta1, name: good-ask, namespace: krateo-system, resource: buttons, verb: GET}
+---
+kind: Button
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: good-build}
+spec:
+  widgetData:
+    label: Build a controller
+    type: primary
+    clickActionId: go
+    actions:
+      navigate:
+        - {id: go, type: navigate, path: /controller-builder/compose}
+---
+kind: Button
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: good-ask}
+spec:
+  widgetData:
+    label: Ask Autopilot →
+    icon: fa-wand-magic-sparkles
+    type: primary
+    clickActionId: ask
+    actions:
+      navigate:
+        - {id: ask, type: navigate, path: "/controller-builder/compose?ask=help"}
+---
+# C26: the dismiss role amber, the destroy role red.
+kind: Button
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: good-cancel}
+spec:
+  widgetData:
+    label: Cancel
+    intent: dismiss
+    clickActionId: back
+    actions:
+      navigate:
+        - {id: back, type: navigate, path: /compositions}
+---
+kind: Button
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: good-delete}
+spec:
+  widgetData:
+    label: Delete composition
+    danger: true
+    type: default
+    clickActionId: del
+    actions:
+      navigate:
+        - {id: del, type: navigate, path: /compositions/delete}

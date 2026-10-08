@@ -11,7 +11,7 @@
  * child (looking through a `<Tooltip>`, which wraps the trigger without being it) and requires it
  * to be focusable:
  *   - a native control (`button`, `a`, `input`, `select`, `textarea`), or a component that renders
- *     one (antd `Button`/`Input`, the shared `HeaderIconButton`);
+ *     one (antd `Button`/`Input`, the shared `HeaderIconButton` and `DismissButton`);
  *   - or anything that sets `tabIndex` itself.
  * A child the source cannot name (`{children}`, a spread) is not judged: guessing would make the
  * check noisy, and a noisy check is the kind that gets switched off.
@@ -26,7 +26,7 @@ import { describe, expect, it } from 'vitest'
 
 const ROOT = join(__dirname, '..')
 const TRIGGERS = new Set(['Dropdown', 'Popconfirm', 'Popover'])
-const FOCUSABLE = new Set(['a', 'Button', 'button', 'HeaderIconButton', 'Input', 'input', 'select', 'textarea'])
+const FOCUSABLE = new Set(['a', 'Button', 'button', 'DismissButton', 'HeaderIconButton', 'Input', 'input', 'select', 'textarea'])
 
 const walk = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

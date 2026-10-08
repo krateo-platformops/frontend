@@ -90,7 +90,7 @@ existence and count of resources outside a tenant's scope.
 ## What is enforced today
 
 Two lints run from [`lint/`](lint/) and an accessibility gate runs from `ui/`; between them
-they hold **27 of the 107 rules** — 15 composition rules and 8 token rules, plus the
+they hold **29 of the 108 rules** — 17 composition rules and 8 token rules, plus the
 3 accessibility rules C8–C10 and 1 app-side layout rule (P26). Everything else is a rule a human applies.
 
 - **Accessibility (C8–C10)** — `ui/eslint.a11y.config.js` runs the `jsx-a11y` rules of
@@ -101,7 +101,10 @@ they hold **27 of the 107 rules** — 15 composition rules and 8 token rules, pl
   Dropdown opening from an element that cannot take focus (C10). Both are at zero, with no baseline.
 
 - `lint-portal-consistency.py` — composition, run against a chart's widget CRs. **0 violations**
-  across all 15 rules against the portal chart.
+  across all 17 rules against the portal chart, except the migrations A4 and C26 were written to drive:
+  seven Autopilot Buttons become filled (`type: primary`) with the canonical `Ask Autopilot →`
+  label and wand icon, and one Close button (`incident-detail-close`) takes `intent: dismiss`. The portal vendors this lint, so the rule reaches its CI together with that
+  migration.
 - `lint-css-tokens.py` — token adoption in this repo's stylesheets. Its baseline is **empty**: every
   pre-existing violation has been paid off. It arrived with ~314 — adding a check to a codebase that
   predates it imports its existing debt in one step, which is the point of baselining rather than a
@@ -122,11 +125,17 @@ they hold **27 of the 107 rules** — 15 composition rules and 8 token rules, pl
   Runs with the rest of vitest (`test.yaml`), not in `design-system.yaml`.
 
 - **Screen headers (P26, P27)** — the headers the app builds itself use `components/ScreenHeader`:
-  status and actions on the title's row, trailing edge, and no eyebrow or crumb slot.
+  status and actions on the trailing edge, one row, centred on the title and subtitle together, and
+  no eyebrow or crumb slot. The `PageHeader` widget renders its `items` the
+  same way.
   `ui/src/test/screenHeaders.test.ts` fails on a hand-built `<header>` with actions, an eyebrow that
   spells a path, or antd's `Breadcrumb` outside its two owners; `ui/visual/layout.spec.ts` measures
   the geometry in a browser at 1440/1024/600px. On the chart side, the composition lint's
   `second-breadcrumb` rule holds P27.
+- **Button roles (C26)** — closing is amber (`components/DismissButton`, `intent: dismiss` on the
+  Button widget), deleting is red (`danger`). `ui/src/test/buttonRoles.test.ts` holds the app's
+  buttons and the Cancel inside every `Popconfirm`, `Modal` and confirm dialog; the composition
+  lint's `button-role` rule holds the chart's.
 - **Visual regression** — `ui/visual/` renders every widget from its own example CR
   (`src/examples/widgets`), light and dark, and compares it pixel for pixel against the baselines in
   `ui/visual/__screenshots__` (72 today). It holds no numbered rule; it is what notices that a token
@@ -149,8 +158,8 @@ workflow of the same name runs the composition lint against its rendered chart.
 
 **The CI check is the live status; this section is a claim about it.** To read the real state,
 look at the `design-system` check on any open PR in either repo — it fails on a violation, and a
-green one means all 27 machine-held rules hold as of that commit. The per-rule `Status:`
-markers in the six rule documents are the other half of the picture: they cover the 80 rules no
+green one means all 29 machine-held rules hold as of that commit. The per-rule `Status:`
+markers in the six rule documents are the other half of the picture: they cover the 79 rules no
 lint can decide, and a human keeps them true. Prefer the check over both.
 
 > This section said "Neither is wired into CI yet. Until they are, this document is still the thing

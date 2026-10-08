@@ -25,6 +25,7 @@ import { Alert, Form, Input, Modal, Typography } from 'antd'
 import type { JSONSchema4 } from 'json-schema'
 import { useEffect, useState } from 'react'
 
+import { dismissButtonProps } from '../../components/DismissButton'
 import { color } from '../../theme/tokens'
 import { SchemaForm } from '../../widgets/Form/SchemaFields'
 
@@ -217,7 +218,7 @@ export const CreateWidgetModal = ({ onCancel, onCreate, open, widgetKind }: {
   }
 
   return (
-    <Modal okText='Create' onCancel={onCancel} onOk={submit} open={open} title={`Create a ${widgetKind}`} width={720}>
+    <Modal cancelButtonProps={dismissButtonProps} okText='Create' onCancel={onCancel} onOk={submit} open={open} title={`Create a ${widgetKind}`} width={720}>
       {error ? <Alert message={error} showIcon style={{ marginBottom: 'var(--spacing-smd)' }} type='error' /> : null}
       <Typography.Paragraph type='secondary'>
         {schema

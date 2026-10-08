@@ -15,6 +15,7 @@ import { Form, Input, Modal, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 
 import { ABOVE_PREVIEW_DRAWER_Z_INDEX } from '../../hooks/confirmModalProps'
+import { dismissButtonProps } from '../DismissButton'
 
 import { seededRepoProblem } from './builderPublishClaim'
 
@@ -187,7 +188,7 @@ export const PublishTargetFormHost = () => {
   }
 
   return (
-    <Modal
+    <Modal cancelButtonProps={dismissButtonProps}
       cancelText='Cancel publish'
       // AN IN-FLIGHT PUBLISH IS NOT DISCARDED BY AN INCIDENTAL CLICK (frontend#279).
       //

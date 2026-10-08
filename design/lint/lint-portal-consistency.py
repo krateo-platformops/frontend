@@ -814,6 +814,82 @@ def rule_page_header(crs):
     return out
 
 
+ASK_PATH = re.compile(r'[?&]ask=')
+
+
+ASK_LABEL = re.compile(r'^\s*ask autopilot\b', re.I)
+
+
+def _is_autopilot_entry(button_doc):
+    """A Button that opens the Autopilot rail seeded with a prompt.
+
+    Three signals, because the chart spells the link three ways: A4's canonical label ("Ask
+    Autopilot"), a static `?ask=` navigate path, or a widgetDataTemplate computing the navigate
+    actions from an `askHref` (Alerts does that, so a path-only check missed it)."""
+    data = widget_data(button_doc)
+    if ASK_LABEL.match(str(data.get('label') or '')):
+        return True
+    for navigate in ((data.get('actions') or {}).get('navigate') or []):
+        if isinstance(navigate, dict) and ASK_PATH.search(str(navigate.get('path') or '')):
+            return True
+    for entry in (button_doc.get('spec') or {}).get('widgetDataTemplate') or []:
+        if isinstance(entry, dict) and str(entry.get('forPath', '')).startswith('actions') and 'askHref' in str(entry.get('expression') or ''):
+            return True
+    return False
+
+
+AUTOPILOT_LABEL = 'Ask Autopilot →'
+AUTOPILOT_ICON = 'fa-wand-magic-sparkles'
+
+
+def rule_autopilot_button(crs):
+    """A4 — every Autopilot entry point looks the same: a filled (`type: primary`) Button labelled
+    "Ask Autopilot →" with the magic-wand icon. Never a link: the product's decision, recorded once
+    here instead of re-litigated per page.
+
+    Recognised by what the Button does, not what it says (a `?ask=` link or an `askHref` template),
+    as well as by its label — the sweep that resolved A4 the first time missed a CTA precisely
+    because it matched a shape instead of the capability. Where it sits is P26's business, as for any
+    header action."""
+    out = []
+    for fname, doc in crs:
+        if doc.get('kind') != 'Button' or not _is_autopilot_entry(doc):
+            continue
+        data = widget_data(doc)
+        label, icon, kind = str(data.get('label') or ''), str(data.get('icon') or ''), data.get('type')
+        if label != AUTOPILOT_LABEL:
+            out.append((fname, f'Autopilot entry point labelled "{label}" — the canonical label is "{AUTOPILOT_LABEL}"'))
+        if icon != AUTOPILOT_ICON:
+            out.append((fname, f'Autopilot entry point with icon "{icon or "none"}" — it carries {AUTOPILOT_ICON}'))
+        if kind != 'primary':
+            out.append((fname, f'Autopilot entry point is a `type: {kind or "default"}` Button — it is a filled `type: primary` button, not a link'))
+    return out
+
+
+DISMISS_LABEL = re.compile(r'^\s*(cancel|close|close draft|dismiss|back|keep editing|keep it)\s*$', re.I)
+DESTROY_LABEL = re.compile(r'^\s*(delete|remove|discard|destroy|uninstall)\b', re.I)
+
+
+def rule_button_role(crs):
+    """C26 — a Button says what it does to the work in front of you.
+
+    DISMISS — it closes or backs out without deleting anything (Cancel, Close): `intent: dismiss`,
+    which draws it amber and outlined. DESTROY — it deletes content (Delete, Remove, Discard):
+    `danger: true`, red. Read from the label, the only place a CR says which it is; a label that is
+    neither is not judged."""
+    out = []
+    for fname, doc in crs:
+        if doc.get('kind') != 'Button':
+            continue
+        data = widget_data(doc)
+        label = str(data.get('label') or '')
+        if DISMISS_LABEL.match(label) and data.get('intent') != 'dismiss':
+            out.append((fname, f'"{label}" dismisses — give it `intent: dismiss` (amber), not a {data.get("type") or "primary"} button'))
+        if DESTROY_LABEL.match(label) and data.get('danger') is not True and data.get('color') != 'danger':
+            out.append((fname, f'"{label}" deletes — give it `danger: true` (red)'))
+    return out
+
+
 def rule_root_coverage(crs):
     """P9+P25 coverage — a `page-*` CR the nav does not reach, so neither rule judged it.
 
@@ -973,6 +1049,8 @@ RULES = {
     'row-nav-placeholder': (rule_row_nav_placeholder, 'P10'),
     'back-link': (rule_back_link, 'P1'),
     'second-breadcrumb': (rule_second_breadcrumb, 'P27'),
+    'autopilot-button': (rule_autopilot_button, 'A4'),
+    'button-role': (rule_button_role, 'C26'),
     'emoji': (rule_emoji, 'P15'),
     'tag-colour-no-label': (rule_tag_colour_without_label, 'C13'),
     'containment': (rule_containment, 'X5'),

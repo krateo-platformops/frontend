@@ -397,3 +397,41 @@ spec:
   widgetData:
     variant: eyebrow
     text: "Controller Builder / Compose"
+---
+# A4: an Autopilot entry point as a link, with the old label and no icon.
+kind: Button
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: bad-ask-link}
+spec:
+  widgetData:
+    label: Ask Autopilot
+    type: link
+    clickActionId: ask
+    actions:
+      navigate:
+        - {id: ask, type: navigate, path: "/controller-builder/compose?ask=help"}
+---
+# C26: a Cancel drawn as a neutral secondary, and a Delete that is not red.
+kind: Button
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: bad-cancel}
+spec:
+  widgetData:
+    label: Cancel
+    type: default
+    clickActionId: back
+    actions:
+      navigate:
+        - {id: back, type: navigate, path: /compositions}
+---
+kind: Button
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: bad-delete}
+spec:
+  widgetData:
+    label: Delete composition
+    type: default
+    clickActionId: del
+    actions:
+      navigate:
+        - {id: del, type: navigate, path: /compositions/delete}

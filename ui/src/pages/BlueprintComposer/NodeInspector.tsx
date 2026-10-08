@@ -32,6 +32,7 @@ import { Button, Input, Popconfirm, Select, Switch } from 'antd'
 import { useEffect, useId, useState } from 'react'
 
 import { PreviewFormSection } from '../../components/Autopilot/previewFormSection'
+import { dismissButtonProps } from '../../components/DismissButton'
 
 import { levelOf, type ResourceNode } from './architecture'
 import { apiGroup, counted } from './architectureView'
@@ -324,8 +325,8 @@ export const NodeInspector = ({
               </p>
             ) : null}
             {editing ? (
-              <Popconfirm
-                cancelText='Keep it'
+              <Popconfirm cancelButtonProps={dismissButtonProps} cancelText='Keep it'
+                okButtonProps={{ danger: true }}
                 okText='Remove'
                 onConfirm={() => setRefusal(editing.onRemoveNode())}
                 title={`Remove ${node.id} from the chart? Its template and every edge onto it go with it.`}

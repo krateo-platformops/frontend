@@ -8,6 +8,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { useAgentDraft } from '../../components/Autopilot/agentDraft'
+import { dismissButtonProps } from '../../components/DismissButton'
 import WidgetRenderer from '../../components/WidgetRenderer'
 import { useHandleAction } from '../../hooks/useHandleActions'
 import type { WidgetProps } from '../../types/Widget'
@@ -66,7 +67,9 @@ const DRAFT_STORAGE_PREFIX = 'K_draft__'
 const FormExtra = ({ buttonConfig, disabled = false, form, loading, onDraft, submitDisabled = false, submitLabel }: FormExtraProps): React.ReactNode => {
   const navigate = useNavigate()
   // When `secondary.navigateTo` is set the secondary button is a Cancel that
-  // navigates (SPA) instead of resetting the form.
+  // navigates (SPA) instead of resetting the form. It leaves without deleting anything, so it
+  // takes the DISMISS role (C26): amber. A Reset stays neutral — it clears unsaved input on the
+  // spot, it neither leaves nor deletes anything stored.
   const secondaryNav = buttonConfig?.secondary?.navigateTo
   // Action bar: Save draft pinned LEFT, Cancel + primary grouped RIGHT (mockup `.actionbar`
   // split). With no draft action (e.g. the drawer render) the left slot is an empty spacer,
@@ -88,6 +91,7 @@ const FormExtra = ({ buttonConfig, disabled = false, form, loading, onDraft, sub
         : <span />}
       <Space>
         <Button
+          {...(secondaryNav ? dismissButtonProps : {})}
           disabled={disabled}
           form={form}
           htmlType={secondaryNav ? 'button' : 'reset'}
