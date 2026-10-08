@@ -4,8 +4,9 @@
   gap: var(--spacing-sm);
 }
 
-/* The title and the trailing group share ONE row. When the row is too narrow it wraps, and the
-   trailing group still keeps to the right edge: that is what margin-inline-start: auto is for. */
+/* P26: the text block on the left, the trailing group on the right, centred on the whole block.
+   When the row is tight the text wraps inside its own box first; only past that does the trailing
+   group drop under it — still right-aligned, still one row. */
 .row {
   align-items: center;
   display: flex;
@@ -14,13 +15,17 @@
   justify-content: space-between;
 }
 
-/* A page title is h2 on every path (T3), as the PageHeader widget's is.
-   The title is what gives way: it shrinks and wraps inside its own box (down to ~20ch) before the
-   trailing group is pushed off the row. Measured: without this, a long name and meta at 30px sent
-   the actions under the title at 1024px — the console's width with the Autopilot rail open. */
+.text {
+  display: flex;
+  flex: 1 1 32ch;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  min-width: 0;
+}
+
+/* A page title is h2 on every path (T3), as the PageHeader widget's is. It has its line to itself. */
 .title {
   color: var(--text-color);
-  flex: 1 1 20ch;
   font-size: var(--krateo-text-h2);
   font-weight: var(--font-weight-bolder);
   letter-spacing: -0.01em;
@@ -38,13 +43,13 @@
   letter-spacing: 0;
 }
 
-/* P26: status first, then the actions, on the trailing edge. It does not shrink: it moves to its
-   own line, still right-aligned, only when the row cannot hold it at all. */
+/* P26: status first, then the actions, on the trailing edge, on ONE row: it neither wraps (no
+   stacked buttons) nor shrinks. */
 .trailing {
   align-items: center;
   display: flex;
   flex: 0 0 auto;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--spacing-sm);
   justify-content: flex-end;
   margin-inline-start: auto;

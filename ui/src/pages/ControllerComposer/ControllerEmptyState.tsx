@@ -12,6 +12,7 @@ import { Link } from 'react-router'
 
 import { findBuilderOf } from '../../builders/builderRegistry'
 import { findDraftKindPlugin } from '../../builders/draftKinds'
+import { dismissButtonProps } from '../../components/DismissButton'
 import { WidgetEmpty } from '../../components/WidgetStates'
 
 export const CONTROLLER_EMPTY = 'No controller open. Start one here, or ask Autopilot to draft one — either way you review every file before anything is published.'
@@ -35,8 +36,8 @@ export const ControllerEmptyState = ({ builder, held, onDiscard, onStart, parked
         <Space wrap>
           {/* Client-side: the held draft lives in this tab's memory, and a full load would drop it. */}
           {owner ? <Link to={owner.route}>{`Open it in the ${owner.label}`}</Link> : null}
-          <Popconfirm cancelText='Keep it' okText='Discard' onConfirm={onDiscard} title='Discard that draft? Its unpublished files are deleted.'>
-            <Button>Discard the draft</Button>
+          <Popconfirm cancelButtonProps={dismissButtonProps} cancelText='Keep it' okButtonProps={{ danger: true }} okText='Discard' onConfirm={onDiscard} title='Discard that draft? Its unpublished files are deleted.'>
+            <Button danger>Discard the draft</Button>
           </Popconfirm>
         </Space>
       </WidgetEmpty>

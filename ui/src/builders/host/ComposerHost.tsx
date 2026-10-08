@@ -41,6 +41,7 @@ import { emitDraftUndo } from '../../components/Autopilot/previewDraftUndo'
 import { emitPublishRequest, onPublishResult, type PublishRequestDetail } from '../../components/Autopilot/previewPublishRequest'
 import { PreviewContent, type RestDefVerdicts } from '../../components/Autopilot/previewSurface'
 import { useDraftResume } from '../../components/Autopilot/useDraftResume'
+import DismissButton, { dismissButtonProps } from '../../components/DismissButton'
 import ScreenHeader from '../../components/ScreenHeader'
 import StatusPill from '../../components/StatusPill'
 import { ConfigContext } from '../../context/ConfigContext'
@@ -236,8 +237,8 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
   // Confirmed rather than immediate. The provider drops the held draft, not only this view; whether
   // the draft stays stored (close) or goes (discard) is useCloseDraftCopy's to say.
   const closeButton = (
-    <Popconfirm cancelText='Keep editing' okText={closeCopy.okText} onConfirm={emitDraftClose} title={closeCopy.title}>
-      <Button>Close draft</Button>
+    <Popconfirm cancelButtonProps={dismissButtonProps} cancelText='Keep editing' okButtonProps={{ danger: closeCopy.okText === 'Discard' }} okText={closeCopy.okText} onConfirm={emitDraftClose} title={closeCopy.title}>
+      <DismissButton>Close draft</DismissButton>
     </Popconfirm>
   )
   const publishedAlert = published ? (
@@ -277,10 +278,10 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
       <div className={styles.page}>
         {workbench.before}
         {/* Status (the draft record's autosave: Saving…, Saved · HH:MM, or Not saved — and why) and
-            actions sit together on the title's row, trailing edge (P26); no crumb above (P27). */}
+            actions sit together on the trailing edge, one row, centred on title + subtitle (P26); no crumb above (P27). */}
         <ScreenHeader
           actions={shown ? (
-            <Space wrap>
+            <Space>
               {previewButton}
               {undoButton}
               {verbRefusal ? (
@@ -361,7 +362,7 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
       {workbench.before}
       <ScreenHeader
         actions={(
-          <Space wrap>
+          <Space>
             {previewButton}
             {undoButton}
             {/* The Tooltip holds a SPAN, not the button: it writes its own aria-describedby onto

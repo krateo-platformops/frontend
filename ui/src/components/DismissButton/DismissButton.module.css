@@ -1,0 +1,29 @@
+/*
+ * C26 — the DISMISS role: a button that closes or backs out of something without deleting any
+ * content (Cancel, Close, Close draft, Keep editing). Amber, outlined: set apart from the neutral
+ * secondaries beside it, and from the red of a button that deletes (antd `danger`).
+ *
+ * It re-points antd's own button variables rather than restyling the button, so every state antd
+ * draws (hover, active, focus, disabled, loading) keeps working, and both themes follow the token.
+ * The selector names the exact antd button it re-points — default colour, outlined or link — plus
+ * this class: antd sets these variables on that same three-class selector, so a bare `.dismiss`
+ * loses to it (measured: the first version rendered as a plain grey secondary).
+ */
+:global(.ant-btn.ant-btn-color-default.ant-btn-variant-outlined).dismiss,
+:global(.ant-btn.ant-btn-color-default.ant-btn-variant-link).dismiss {
+  --ant-btn-color-base: var(--krateo-color-status-warning-text);
+  --ant-btn-color-hover: var(--krateo-color-status-warning-text);
+  --ant-btn-color-active: var(--krateo-color-status-warning-text);
+  --ant-btn-text-color: var(--krateo-color-status-warning-text);
+  --ant-btn-text-color-hover: var(--krateo-color-status-warning-text);
+  --ant-btn-text-color-active: var(--krateo-color-status-warning-text);
+  --ant-btn-bg-color-hover: var(--krateo-color-status-warning-subtle);
+  --ant-btn-bg-color-active: var(--krateo-color-status-warning-subtle);
+}
+
+/* The border only where there is one: a link-variant Cancel set inline in text stays borderless. */
+:global(.ant-btn.ant-btn-color-default.ant-btn-variant-outlined).dismiss {
+  --ant-btn-border-color: var(--krateo-color-status-warning-text);
+  --ant-btn-border-color-hover: var(--krateo-color-status-warning-text);
+  --ant-btn-border-color-active: var(--krateo-color-status-warning-text);
+}

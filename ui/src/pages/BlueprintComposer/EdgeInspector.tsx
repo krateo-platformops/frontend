@@ -23,6 +23,8 @@
 import { Button, Radio, Switch } from 'antd'
 import { useEffect, useId, useRef, useState } from 'react'
 
+import DismissButton from '../../components/DismissButton'
+
 import type { ResourceNode } from './architecture'
 import { counted } from './architectureView'
 import styles from './BlueprintComposer.module.css'
@@ -134,7 +136,7 @@ export const PendingEdgeInspector = ({ onAccept, onCancel, pending, plan, status
         ) : null}
         <div className={styles.edgeActions}>
           <Button aria-describedby={refusal ? refusalId : undefined} disabled={!planned.ok} onClick={accept} type='primary'>Accept edge</Button>
-          <Button onClick={onCancel} type='link'>Cancel</Button>
+          <DismissButton onClick={onCancel} type='link'>Cancel</DismissButton>
         </div>
       </div>
     </section>
@@ -159,7 +161,7 @@ export const RefusedMoment = ({ onDismiss, reason }: { reason: string; onDismiss
   <div className={styles.schemaRefusal} data-testid='refused-moment' role='alert'>
     <strong>Refused a moment ago</strong>
     <div>{reason}</div>
-    <Button className={styles.inlineAction} onClick={onDismiss} size='small' type='link'>Dismiss</Button>
+    <DismissButton className={styles.inlineAction} onClick={onDismiss} size='small' type='link'>Dismiss</DismissButton>
   </div>
 )
 

@@ -23,6 +23,7 @@ import { useId, useMemo, useState } from 'react'
 
 import type { StartField } from '../../builders/builderSpec'
 import type { DraftRenderResultDetail } from '../../components/Autopilot/previewDraftRender'
+import { dismissButtonProps } from '../../components/DismissButton'
 import styles from '../BlueprintComposer/BlueprintComposer.module.css'
 
 import { SPEC_BUDGET_BYTES } from './controllerChart'
@@ -102,7 +103,7 @@ export const StartControllerModal = ({ fields, onCancel, onStart, open, pending,
   const rewritten = spec.oas ? serverRewriteSentence(spec.oas.doc, input.baseUrl) : null
 
   return (
-    <Modal
+    <Modal cancelButtonProps={dismissButtonProps}
       cancelText='Cancel'
       confirmLoading={pending}
       okText='Start'

@@ -5,10 +5,11 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > empty: no
   <div class="_page_396249">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "Blueprint composer"
-      <p class="_subtitle_ec3666">
-        "Author a chart and the file that describes it — its resources, what depends on what, and the states it moves through — then publish the whole set as one change request."
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "Blueprint composer"
+          <p class="_subtitle_ec3666">
+            "Author a chart and the file that describes it — its resources, what depends on what, and the states it moves through — then publish the whole set as one change request."
     <div class="_empty_2dde71">
       <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
         <div class="ant-empty-image">
@@ -33,17 +34,18 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: a ch
   <div class="_page_396249">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "builder-publish"
-          <span class="_meta_ec3666">
-            "0.1.0 · BuilderPublish"
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "builder-publish"
+            <span class="_meta_ec3666">
+              "0.1.0 · BuilderPublish"
         <div class="_trailing_ec3666" data-screen-header="trailing">
           <span class="_countPill_396249" title="Files held in the draft">
             "9 files"
           <span class="ant-tag ant-tag-filled css-dev-only-do-not-override-12q6fii css-var-id1" style="background-color: color-mix(in srgb, rgb(138, 92, 0) 15%, transparent); border-color: color-mix(in srgb, rgb(138, 92, 0) 38%, transparent); color: rgb(138, 92, 0);">
             <span style="background: rgb(138, 92, 0); border-radius: 50%; display: inline-block; height: 6px; margin-right: var(--spacing-xsm); vertical-align: middle; width: 6px;">
             "Preview needed"
-          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1">
             <div class="ant-space-item">
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
@@ -58,7 +60,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: a ch
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
       <span class="_srOnly_396249" id="id2">
@@ -2525,17 +2527,18 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: a fr
   <div class="_page_396249">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "builder-publish"
-          <span class="_meta_ec3666">
-            "0.1.0 · BuilderPublish"
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "builder-publish"
+            <span class="_meta_ec3666">
+              "0.1.0 · BuilderPublish"
         <div class="_trailing_ec3666" data-screen-header="trailing">
           <span class="_countPill_396249" title="Files held in the draft">
             "4 files"
           <span class="ant-tag ant-tag-filled css-dev-only-do-not-override-12q6fii css-var-id1" style="background-color: color-mix(in srgb, rgb(138, 92, 0) 15%, transparent); border-color: color-mix(in srgb, rgb(138, 92, 0) 38%, transparent); color: rgb(138, 92, 0);">
             <span style="background: rgb(138, 92, 0); border-radius: 50%; display: inline-block; height: 6px; margin-right: var(--spacing-xsm); vertical-align: middle; width: 6px;">
             "Preview needed"
-          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1">
             <div class="ant-space-item">
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
@@ -2550,7 +2553,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: a fr
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
       <span class="_srOnly_396249" id="id2">
@@ -3424,17 +3427,18 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: prev
   <div class="_page_396249">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "builder-publish"
-          <span class="_meta_ec3666">
-            "0.1.0 · BuilderPublish"
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "builder-publish"
+            <span class="_meta_ec3666">
+              "0.1.0 · BuilderPublish"
         <div class="_trailing_ec3666" data-screen-header="trailing">
           <span class="_countPill_396249" title="Files held in the draft">
             "4 files"
           <span class="ant-tag ant-tag-filled css-dev-only-do-not-override-12q6fii css-var-id1" style="background-color: color-mix(in srgb, rgb(138, 92, 0) 15%, transparent); border-color: color-mix(in srgb, rgb(138, 92, 0) 38%, transparent); color: rgb(138, 92, 0);">
             <span style="background: rgb(138, 92, 0); border-radius: 50%; display: inline-block; height: 6px; margin-right: var(--spacing-xsm); vertical-align: middle; width: 6px;">
             "Preview needed"
-          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1">
             <div class="ant-space-item">
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined ant-btn-loading" type="button">
                 <span class="ant-btn-icon ant-btn-loading-icon">
@@ -3453,7 +3457,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: prev
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
       <span class="_srOnly_396249" id="id2">
@@ -4325,14 +4329,15 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: prev
   <div class="_page_396249">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "builder-publish"
-          <span class="_meta_ec3666">
-            "0.1.0 · BuilderPublish"
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "builder-publish"
+            <span class="_meta_ec3666">
+              "0.1.0 · BuilderPublish"
         <div class="_trailing_ec3666" data-screen-header="trailing">
           <span class="_countPill_396249" title="Files held in the draft">
             "4 files"
-          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1">
             <div class="ant-space-item">
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
@@ -4347,7 +4352,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: prev
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
       <div class="ant-alert ant-alert-success ant-alert-outlined css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
@@ -5245,14 +5250,15 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: prev
   <div class="_page_396249">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "builder-publish"
-          <span class="_meta_ec3666">
-            "0.1.0 · BuilderPublish"
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "builder-publish"
+            <span class="_meta_ec3666">
+              "0.1.0 · BuilderPublish"
         <div class="_trailing_ec3666" data-screen-header="trailing">
           <span class="_countPill_396249" title="Files held in the draft">
             "4 files"
-          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1">
             <div class="ant-space-item">
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
@@ -5271,7 +5277,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: prev
                   <span>
                     "Publishing…"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
       <div class="ant-alert ant-alert-success ant-alert-outlined css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
@@ -6153,14 +6159,15 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: prev
   <div class="_page_396249">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "builder-publish"
-          <span class="_meta_ec3666">
-            "0.1.0 · BuilderPublish"
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "builder-publish"
+            <span class="_meta_ec3666">
+              "0.1.0 · BuilderPublish"
         <div class="_trailing_ec3666" data-screen-header="trailing">
           <span class="_countPill_396249" title="Files held in the draft">
             "4 files"
-          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1">
             <div class="ant-space-item">
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
@@ -6175,7 +6182,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: prev
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
       <div class="ant-alert ant-alert-success ant-alert-outlined css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
@@ -7057,10 +7064,11 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > parked: a
   <div class="_page_396249">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "Blueprint composer"
-      <p class="_subtitle_ec3666">
-        "Author a chart and the file that describes it — its resources, what depends on what, and the states it moves through — then publish the whole set as one change request."
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "Blueprint composer"
+          <p class="_subtitle_ec3666">
+            "Author a chart and the file that describes it — its resources, what depends on what, and the states it moves through — then publish the whole set as one change request."
     <div class="_empty_2dde71">
       <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
         <div class="ant-empty-image">
@@ -7080,7 +7088,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > parked: a
               <a data-discover="true" href="/portal-builder/compose">
                 "Open the page in the Portal Builder"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlined" type="button">
                 <span>
                   "Discard page draft""
 `;
@@ -7090,14 +7098,15 @@ exports[`Blueprint Composer — a chart held BEFORE it mounts (review of #427) >
   <div class="_page_396249">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "builder-publish"
-          <span class="_meta_ec3666">
-            "0.1.0 · BuilderPublish"
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "builder-publish"
+            <span class="_meta_ec3666">
+              "0.1.0 · BuilderPublish"
         <div class="_trailing_ec3666" data-screen-header="trailing">
           <span class="_countPill_396249" title="Files held in the draft">
             "4 files"
-          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1">
             <div class="ant-space-item">
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
@@ -7112,7 +7121,7 @@ exports[`Blueprint Composer — a chart held BEFORE it mounts (review of #427) >
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
     <div class="_body_396249">
@@ -7983,10 +7992,11 @@ exports[`Page Composer — DOM structure, unchanged by the host > empty: nothing
     <div aria-live="polite" class="_announce_23a8e0" data-testid="composer-announce" role="status">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "Page composer"
-      <p class="_subtitle_ec3666">
-        "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "Page composer"
+          <p class="_subtitle_ec3666">
+            "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
     <div class="_empty_2dde71">
       <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
         <div class="ant-empty-image">
@@ -8012,10 +8022,13 @@ exports[`Page Composer — DOM structure, unchanged by the host > own: a page he
     <div aria-live="polite" class="_announce_23a8e0" data-testid="composer-announce" role="status">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "Page composer"
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "Page composer"
+          <p class="_subtitle_ec3666">
+            "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
         <div class="_trailing_ec3666" data-screen-header="trailing">
-          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1">
             <div class="ant-space-item">
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
@@ -8029,11 +8042,9 @@ exports[`Page Composer — DOM structure, unchanged by the host > own: a page he
                 <span>
                   "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
-      <p class="_subtitle_ec3666">
-        "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
     <div class="_build_23a8e0">
       <section class="_palette_23a8e0">
         <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -8759,10 +8770,13 @@ exports[`Page Composer — DOM structure, unchanged by the host > own: publishin
     <div aria-live="polite" class="_announce_23a8e0" data-testid="composer-announce" role="status">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "Page composer"
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "Page composer"
+          <p class="_subtitle_ec3666">
+            "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
         <div class="_trailing_ec3666" data-screen-header="trailing">
-          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1">
             <div class="ant-space-item">
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
@@ -8776,11 +8790,9 @@ exports[`Page Composer — DOM structure, unchanged by the host > own: publishin
                 <span>
                   "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
-      <p class="_subtitle_ec3666">
-        "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
       <div class="ant-alert ant-alert-warning ant-alert-outlined css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
         <span class="ant-alert-icon">
           <span aria-label="exclamation-circle" class="anticon anticon-exclamation-circle" role="img">
@@ -9301,10 +9313,13 @@ exports[`Page Composer — DOM structure, unchanged by the host > own: publishin
     <div aria-live="polite" class="_announce_23a8e0" data-testid="composer-announce" role="status">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "Page composer"
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "Page composer"
+          <p class="_subtitle_ec3666">
+            "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
         <div class="_trailing_ec3666" data-screen-header="trailing">
-          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1">
             <div class="ant-space-item">
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
@@ -9322,11 +9337,9 @@ exports[`Page Composer — DOM structure, unchanged by the host > own: publishin
                 <span>
                   "Publishing…"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
-      <p class="_subtitle_ec3666">
-        "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
     <div class="_build_23a8e0">
       <section class="_palette_23a8e0">
         <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -9835,10 +9848,11 @@ exports[`Page Composer — DOM structure, unchanged by the host > parked: a blue
     <div aria-live="polite" class="_announce_23a8e0" data-testid="composer-announce" role="status">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "Page composer"
-      <p class="_subtitle_ec3666">
-        "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "Page composer"
+          <p class="_subtitle_ec3666">
+            "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
     <div class="_empty_2dde71">
       <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
         <div class="ant-empty-image">
@@ -9853,7 +9867,7 @@ exports[`Page Composer — DOM structure, unchanged by the host > parked: a blue
         <div class="ant-empty-description">
           "A blueprint draft is open in this thread. This composer edits pages — discard that draft to start a page here."
         <div class="ant-empty-footer">
-          <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+          <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlined" type="button">
             <span>
               "Discard blueprint draft""
 `;

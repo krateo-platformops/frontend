@@ -1,8 +1,8 @@
 /**
  * THE HEADERS THE APP BUILDS ITSELF follow the same two rules as the PageHeader widget.
  *
- * P26 — A screen's actions sit on its title's row, on the trailing edge, with its status just
- *   before them. The Page composer put Publish and Close under its description, on the left — a
+ * P26 — A screen's actions sit on the trailing edge, all on one row, with its status just before
+ *   them, centred on the title and subtitle together (level with the title when there is none). The Page composer put Publish and Close under its description, on the left — a
  *   stylesheet rule said so on purpose — while the Controller Builder put the same buttons top-right.
  *   Both were hand-built `<header>`s inside one component. So: a `<header>` holding a button is
  *   built with ScreenHeader (components/ScreenHeader), which has one place for actions.
@@ -13,7 +13,7 @@
  *   components whose job it is — the shell's, and the CR widget (which the portal lint holds to
  *   the same rule on the chart side).
  *
- * jsdom has no layout, so the geometry — trailing edge, same row — is measured by
+ * jsdom has no layout, so the geometry — trailing edge, centred, one row — is measured by
  * ui/visual/layout.spec.ts in a real browser. This checks the structure that makes it true.
  */
 import { readFileSync, readdirSync } from 'node:fs'

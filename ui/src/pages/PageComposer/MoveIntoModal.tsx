@@ -19,6 +19,8 @@
 import { Alert, Modal, Select, Typography } from 'antd'
 import { useState } from 'react'
 
+import { dismissButtonProps } from '../../components/DismissButton'
+
 import { legalTargets } from './dropTargets'
 import type { TreeNode } from './objectTree'
 
@@ -75,7 +77,7 @@ export const MoveIntoModal = ({ moving, onCancel, onMove, open, roots }: {
   }
 
   return (
-    <Modal
+    <Modal cancelButtonProps={dismissButtonProps}
       okButtonProps={{ disabled: !chosen }}
       okText='Move'
       onCancel={onCancel}

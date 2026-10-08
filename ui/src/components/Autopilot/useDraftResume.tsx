@@ -16,6 +16,7 @@ import { Alert, App, Descriptions, Modal, Typography } from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { countNoun } from '../../utils/utils'
+import { dismissButtonProps } from '../DismissButton'
 
 import { adoptRootFrom, ADOPT_PARAM, DISCARD_LEGACY_PARAM, readLegacyPageSet, type SandboxTarget } from './adoptLegacyPage'
 import type { DraftKind } from './blueprintDraftStore'
@@ -217,7 +218,7 @@ export const useDraftResume = ({ allowAdopt, kind, onResumed, sandboxNamespace, 
 
   // Screen 4. antd's Modal: focus is trapped and Escape is Cancel, which is the safe answer.
   const prompt = (
-    <Modal
+    <Modal cancelButtonProps={dismissButtonProps}
       cancelText='Cancel'
       okText='Close and resume'
       onCancel={cancel}

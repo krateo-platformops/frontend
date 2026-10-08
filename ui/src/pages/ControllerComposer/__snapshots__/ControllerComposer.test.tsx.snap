@@ -5,10 +5,11 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
   <div class="_page_396249">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "petstore"
-          <span class="_meta_ec3666">
-            "0.1.0 · Pet, Store · petstore.example.io"
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "petstore"
+            <span class="_meta_ec3666">
+              "0.1.0 · Pet, Store · petstore.example.io"
         <div class="_trailing_ec3666" data-screen-header="trailing">
           <span aria-live="polite" class="_indicator_314ebb _saved_314ebb" role="status">
             <span aria-hidden="true" aria-label="check" class="anticon anticon-check" role="img">
@@ -17,7 +18,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
             "Saved · HH:MM"
           <span class="_countPill_396249" title="Files held in the draft">
             "6 files"
-          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1">
             <div class="ant-space-item">
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
@@ -32,7 +33,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
       <div class="ant-alert ant-alert-success ant-alert-outlined ant-alert-with-description css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
@@ -856,17 +857,18 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
   <div class="_page_396249">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "petstore"
-          <span class="_meta_ec3666">
-            "0.1.0 · Pet, Store · petstore.example.io"
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "petstore"
+            <span class="_meta_ec3666">
+              "0.1.0 · Pet, Store · petstore.example.io"
         <div class="_trailing_ec3666" data-screen-header="trailing">
           <span class="_countPill_396249" title="Files held in the draft">
             "6 files"
           <span class="ant-tag ant-tag-filled css-dev-only-do-not-override-12q6fii css-var-id1" style="background-color: color-mix(in srgb, rgb(138, 92, 0) 15%, transparent); border-color: color-mix(in srgb, rgb(138, 92, 0) 38%, transparent); color: rgb(138, 92, 0);">
             <span style="background: rgb(138, 92, 0); border-radius: 50%; display: inline-block; height: 6px; margin-right: var(--spacing-xsm); vertical-align: middle; width: 6px;">
             "Preview needed"
-          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1">
             <div class="ant-space-item">
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
@@ -881,7 +883,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
       <span class="_srOnly_396249" id="id2">
@@ -1476,10 +1478,11 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
   <div class="_page_396249">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "Controller composer"
-      <p class="_subtitle_ec3666">
-        "Map an OpenAPI document to Kinds — each resource group a Kind, its operations its verbs — then publish the controller chart as one change request."
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "Controller composer"
+          <p class="_subtitle_ec3666">
+            "Map an OpenAPI document to Kinds — each resource group a Kind, its operations its verbs — then publish the controller chart as one change request."
     <div class="_empty_2dde71">
       <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
         <div class="ant-empty-image">
@@ -1504,17 +1507,18 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
   <div class="_page_396249">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "petstore"
-          <span class="_meta_ec3666">
-            "0.1.0 · Pet · petstore.example.io"
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "petstore"
+            <span class="_meta_ec3666">
+              "0.1.0 · Pet · petstore.example.io"
         <div class="_trailing_ec3666" data-screen-header="trailing">
           <span class="_countPill_396249" title="Files held in the draft">
             "5 files"
           <span class="ant-tag ant-tag-filled css-dev-only-do-not-override-12q6fii css-var-id1" style="background-color: color-mix(in srgb, rgb(138, 92, 0) 15%, transparent); border-color: color-mix(in srgb, rgb(138, 92, 0) 38%, transparent); color: rgb(138, 92, 0);">
             <span style="background: rgb(138, 92, 0); border-radius: 50%; display: inline-block; height: 6px; margin-right: var(--spacing-xsm); vertical-align: middle; width: 6px;">
             "Preview needed"
-          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1">
             <div class="ant-space-item">
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
@@ -1529,7 +1533,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
       <span class="_srOnly_396249" id="id2">
@@ -2128,17 +2132,18 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
   <div class="_page_396249">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
-        <h1 class="_title_ec3666">
-          "petstore"
-          <span class="_meta_ec3666">
-            "0.1.0 · petstore.example.io"
+        <div class="_text_ec3666">
+          <h1 class="_title_ec3666">
+            "petstore"
+            <span class="_meta_ec3666">
+              "0.1.0 · petstore.example.io"
         <div class="_trailing_ec3666" data-screen-header="trailing">
           <span class="_countPill_396249" title="Files held in the draft">
             "4 files"
           <span class="ant-tag ant-tag-filled css-dev-only-do-not-override-12q6fii css-var-id1" style="background-color: color-mix(in srgb, rgb(138, 92, 0) 15%, transparent); border-color: color-mix(in srgb, rgb(138, 92, 0) 38%, transparent); color: rgb(138, 92, 0);">
             <span style="background: rgb(138, 92, 0); border-radius: 50%; display: inline-block; height: 6px; margin-right: var(--spacing-xsm); vertical-align: middle; width: 6px;">
             "Preview needed"
-          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
+          <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1">
             <div class="ant-space-item">
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
@@ -2153,7 +2158,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
       <span class="_srOnly_396249" id="id2">

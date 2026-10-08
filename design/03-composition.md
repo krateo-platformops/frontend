@@ -215,15 +215,24 @@ after the templated-items defect was fixed it found two more that had never been
 violations fixture now carries a templated page, and reverting the rule to the old behaviour makes
 that fixture go silent (1 -> 0), which is the regression test the first draft lacked*
 
-### P26 — A screen's actions sit on its title's row, on the trailing edge; its status sits just before them.
+### P26 — A header's actions sit on its trailing edge, on one row, centred on the title and subtitle together; with no subtitle, level with the title.
 
 **Status:** **enforced** — by construction (`PageHeader`, `ScreenHeader`) and by two checks
 
-Title on the left. On the same row, right-aligned: the status first (*Saved · 23:00*, a file count,
-an exception pill), then the actions in reading order with the primary last, nearest the edge. When
-the row is too narrow the title gives way first, wrapping inside its own box; only when the row
-cannot hold the trailing group at all does it move to its own line, still right-aligned. The
-subtitle goes under the row.
+A header is two columns. On the left, the text block: the title line (title, counter, tags) and the
+subtitle under it. On the right, on the trailing edge: the status first (*Saved · 23:00*, a file
+count, an exception pill), then the actions in reading order with the primary last, nearest the
+edge.
+
+- **With a subtitle**, the action row is centred vertically on the **whole** text block — between
+  the title and the subtitle, not pinned to either line.
+- **With no subtitle**, the text block is the title, so the row is level with the title.
+- **Never stacked.** The actions are one row that neither wraps nor shrinks. When the header is
+  tight the text block gives way first, wrapping inside its own box; only when the row cannot sit
+  beside it at all does the row drop under it — still one row, still on the right edge.
+
+This holds for every action, including the Autopilot entry point
+([A4](05-agent-parity.md), [A5](05-agent-parity.md)): it is one of the actions, and sits where they do.
 
 Reported on the Page composer, which put *Preview · Undo · Publish · Close draft* under its
 description, on the left — with a stylesheet rule (`.actions { align-self: flex-start }`) saying so
@@ -232,23 +241,30 @@ on purpose — while the Controller Builder put the same buttons top-right. Both
 said it could not ([C5](02-components.md#c5--pageheader--eyebrow-title-counter-tags-actions-subtitle-in-one-place)'s "the body may differ; the chrome may not",
 inside the app).
 
-- **CR pages** get it from `PageHeader`: title line and actions share one row, `justify: space-between`.
+- **CR pages** get it from `PageHeader`: its `items` render as that trailing row.
 - **Screens the app builds** use `components/ScreenHeader`: the same shape, with `status` and
   `actions` slots and no alignment prop. `ComposerHost` uses it in every frame.
 - **Checked twice:** `ui/src/test/screenHeaders.test.ts` fails on a hand-built `<header>` holding a
-  button; `ui/visual/layout.spec.ts` measures, in a browser at 1440/1024/600px, that the trailing
-  group ends at the header's right edge, shares the title's row where it fits, and that the status
-  precedes the actions. The second matters because a screenshot baseline can be regenerated to match
-  a mistake; a geometric assertion cannot.
+  button; `ui/visual/layout.spec.ts` measures both headers in a browser, at 1440/1024/600px, with
+  and without a subtitle: all the buttons share one row, they read left to right, the row ends at
+  the header's right edge, its middle is within 2px of the text block's middle (the title's alone
+  when there is no subtitle), at narrow widths it sits under the text, and the status precedes the
+  actions. The second matters because a screenshot baseline can be
+  regenerated to match a mistake; a geometric assertion cannot.
 
 Generalises two narrower rules that already said the same thing for their own containers:
 [P23](#p23--form-actions-draft-left-cancel-and-primary-grouped-right-primary-last) (forms) and A5
 (the Autopilot CTA).
 
-*Evidence: measuring it found the first defect before any page did — at 1024px a long title and meta
-at h2 pushed the actions under the title, so the title now yields first (`flex: 1 1 20ch`). Pointing
-the structural check at `ComposerHost` as it was on main reports both hand-built headers; turning
-ScreenHeader's row back into a column fails all three geometric checks*
+> **Decided 2026-10-08, replacing the first version of this rule** ("a screen's actions sit on its
+> title's row"). The product call: no button pinned to the title's line, no buttons stacked, and the
+> action row centred on the text it belongs to. A variant pinning the row to the subtitle's line was
+> tried the same day and replaced by this one.
+
+*Evidence: the first version, measured, found a defect before any page did — at 1024px a long
+title and meta at h2 pushed the actions under the title. Pointing the structural check at
+`ComposerHost` as it was before ScreenHeader reports both hand-built headers; putting the actions
+back on the title's line or the subtitle's, or letting their row wrap, fails the geometric checks*
 
 ### P27 — One breadcrumb per page, and it is the shell's.
 

@@ -207,9 +207,23 @@ Page context is **not** passed by the entry point. It is snapshotted from the li
 
 *Evidence: verified `askDeepLink.ts` · `useAutopilotContext.ts:1-10`*
 
-### A4 — One canonical label for “open Autopilot with a seeded prompt”.
+### A4 — One canonical look for “open Autopilot with a seeded prompt”: “Ask Autopilot →” with the magic-wand icon.
 
-**Status:** gap → **resolved**
+**Status:** gap → resolved → **enforced** — the composition lint's `autopilot-button` rule
+
+Every Autopilot entry point is the same object: a **filled** button (`type: primary`, never a link),
+label **`Ask Autopilot →`**, icon **`fa-wand-magic-sparkles`**. Where it sits is A5's and, in a
+header, [P26](03-composition.md)'s. The lint recognises the entry
+point by what the Button *does* — a `?ask=` link, or a template computing an `askHref` — as well as
+by its label, for the reason recorded below.
+
+> **Decided 2026-10-08: filled, and the arrow and the wand are part of the label.** portal#151 dropped
+> the trailing arrow ("it implied navigation away"), one CTA had drifted to a robot icon, and the
+> builder pages had turned theirs into `type: link`. The product
+> call restores the look the builder pages shipped with in 1.6.3: the arrow says the button takes you
+> somewhere, into the Autopilot rail with the prompt written, and the wand is the one mark every
+> entry point shares. A link reads as a footnote; the entry point is a button. Against the portal
+> chart on 2026-10-08 the rule reports seven Buttons to update.
 
 > **Corrected, then resolved.** This rule recorded FOUR label variants on medium confidence. Measured against the chart there were **three** across six CTAs — “Ask Autopilot →”, “Investigate with Autopilot”, “Diagnose with Autopilot”. “Troubleshoot with Autopilot” does not exist.
 
@@ -223,15 +237,29 @@ Four variants for the same mechanism: *“Ask Autopilot →”* (builder pages),
 
 *Evidence: #84 §0.1 · #83 §0.8 · #86 §0.9 · `askDeepLink.ts:3-4`*
 
-### A5 — The CTA is scoped to the smallest container it is actually about, right-aligned within it, and competes for that container’s one primary slot.
+### A5 — The Autopilot entry point is scoped to the smallest container it is about, right-aligned within it.
 
-**Status:** CR
+**Status:** **enforced** where the container is a page header — by P26, which holds every header action
 
-A panel when it acts on that panel’s content; the page, in its own right-aligned row, when Autopilot is the page’s whole workflow. Never a bare item in a page’s top-level stack.
+**A panel** when it acts on that panel's content: it stays inside the panel, where the panel puts it.
 
-On primacy: it is **not** special-cased. It takes `primary` under the same rule any other single-action container does, and drops to secondary if the container gains a competing primary. This is P6 as rescoped, with no Autopilot carve-out.
+**The page** when Autopilot is the page's whole workflow. Then it is one of the header's actions,
+and sits where [P26](03-composition.md) puts every header action: on the trailing edge, on one
+row with the others, centred on the title and subtitle together (level with the title when there is
+no subtitle). It looks as [A4](#a4--one-canonical-look-for-open-autopilot-with-a-seeded-prompt-ask-autopilot--with-the-magic-wand-icon)
+says: filled, wand, `Ask Autopilot →`.
 
-*Evidence: #83 §0.8 → #86 §0.9 — the same bug pattern corrected twice, on two pages*
+Never a bare item in a page's top-level stack.
+
+> **Decided 2026-10-08, replacing this rule's primacy clause.** A5 used to say the CTA "competes for
+> the container's one primary slot and drops to secondary" when the container has another primary;
+> the chart followed that to its end and made the builder pages' Ask Autopilot a `type: link`. The
+> product call is the opposite: the entry point keeps one look everywhere — a filled button (A4) —
+> and its place is the header's action row like any other action (P26). A separate slot for it was
+> drafted and dropped the same day: once no action sits on the title line, the entry point needs no
+> line of its own.
+
+*Evidence: #83 §0.8 → #86 §0.9 (the same bug pattern corrected twice, on two pages)*
 
 ### A6 — A declared verb that always no-ops must be implemented or removed.
 

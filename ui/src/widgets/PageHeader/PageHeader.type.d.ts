@@ -49,7 +49,7 @@ export interface PageHeader {
        */
       allowedResources?: ('buttons' | 'buttongroups' | 'flexes')[]
       /**
-       * the page's actions, rendered right-aligned on the title line. At most one should be `type: primary`
+       * the page's actions, rendered on ONE row on the right edge, vertically centred on the title and subtitle together (level with the title when there is no subtitle); never stacked (design rule P26). At most one should be `type: primary`
        */
       items?: {
         /**

@@ -1123,11 +1123,13 @@
   transition: width 100ms linear;
 }
 
+/* C26: Cancel dismisses — amber, as DismissButton draws it; a native button because the voice row
+   is drawn at the rail's own scale. */
 .apVoiceCancel {
   background: transparent;
-  border: 1px solid color-mix(in srgb, var(--primary-color) 35%, transparent);
+  border: 1px solid var(--krateo-color-status-warning-text);
   border-radius: var(--radius-sm);
-  color: var(--primary-color);
+  color: var(--krateo-color-status-warning-text);
   cursor: pointer;
   flex: none;
   font-size: var(--krateo-text-label-sm);
@@ -1136,7 +1138,7 @@
 }
 
 .apVoiceCancel:hover {
-  background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+  background: var(--krateo-color-status-warning-subtle);
 }
 
 /* The error line (role=alert) and the neutral info note share a box but not a colour: an
