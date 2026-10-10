@@ -172,3 +172,71 @@ describe('snowplow#560 — fallback to GET against a server that predates the bo
     vi.useRealTimers()
   })
 })
+
+describe('a 400 is not a transport fault', () => {
+  /** snowplow rejected the subscription on its contents — the same body cannot succeed by repetition. */
+  const rejected = (detail: string): Response => ({
+    ok: false,
+    status: 400,
+    body: null,
+    text: () => Promise.resolve(detail),
+  }) as unknown as Response
+
+  it('does not retry a rejected subscription on the backoff timer', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.fn<FetchFn>(() => Promise.resolve(rejected('no valid subscription keys')))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const mgr = new RefreshManager()
+    mgr.configure('https://portal.example/content')
+    await connect(mgr)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    // The retry ceiling is 30s; a transport fault would have reconnected several times by 90s.
+    await vi.advanceTimersByTimeAsync(90_000)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    mgr.reset()
+    vi.useRealTimers()
+  })
+
+  it('is NOT latched: arming another widget re-subscribes, because the cause may have cleared', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.fn<FetchFn>()
+      .mockImplementationOnce(() => Promise.resolve(rejected('no valid subscription keys')))
+      .mockImplementation(() => Promise.resolve(openStream()))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const mgr = new RefreshManager()
+    mgr.configure('https://portal.example/content')
+    await connect(mgr)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    // A navigation arms a new widget — the same path a page change takes.
+    mgr.arm('w-next', coords('next'), 'key-next', vi.fn())
+    await vi.advanceTimersByTimeAsync(500)
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    mgr.reset()
+    vi.useRealTimers()
+  })
+
+  it('still retries a genuine transport fault (5xx), which repetition can fix', async () => {
+    vi.useFakeTimers()
+    const serverError = { ok: false, status: 503, body: null } as unknown as Response
+    const fetchMock = vi.fn<FetchFn>(() => Promise.resolve(serverError))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const mgr = new RefreshManager()
+    mgr.configure('https://portal.example/content')
+    await connect(mgr)
+    const afterFirst = fetchMock.mock.calls.length
+
+    await vi.advanceTimersByTimeAsync(90_000)
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(afterFirst)
+
+    mgr.reset()
+    vi.useRealTimers()
+  })
+})
