@@ -311,6 +311,13 @@ export class RefreshManager {
   private revalidateOnConnect = false
   /** One truncation warning per stream open, not one per armed widget. */
   private warnedTruncation = false
+  /**
+   * Sticky for the life of the manager: snowplow answered the POST subscription with 404/405,
+   * so it predates the body transport and every reconnect goes straight to `GET ?sub=`. Not
+   * reset on reconnect — a server rolled mid-session is picked up on the next page load, and
+   * re-probing POST on every retry would cost a round trip per attempt against an old server.
+   */
+  private postUnsupported = false
 
   /** Point the manager at the snowplow base URL (idempotent; set on first arm). */
   configure(baseUrl: string): void { this.baseUrl = baseUrl }
@@ -484,10 +491,9 @@ export class RefreshManager {
     }
     if (!token) { return }
 
-    const sub = base64UrlEncode(JSON.stringify(coords))
     const controller = new AbortController()
     this.controller = controller
-    void this.stream(`${this.baseUrl}/refreshes?sub=${sub}`, token, controller)
+    void this.stream(coords, token, controller)
   }
 
   /** The armed coords, capped to snowplow's limits (warning about what was dropped). */
@@ -497,6 +503,12 @@ export class RefreshManager {
       console.warn(`[live-refresh] ${coords.length} widgets armed > ${MAX_WIDGETS} cap; dropping ${coords.length - MAX_WIDGETS} from the subscription`)
       coords = coords.slice(0, MAX_WIDGETS)
     }
+    // ON THE BODY TRANSPORT THIS CAP IS THE REAL ONE. While the subscription went in the query
+    // string the INGRESS bit first, at roughly 22 widgets, so this 16 KiB cap was unreachable in
+    // that deployment and the warning below could never fire. POST removes the URL limit, so the
+    // cap below is now the binding constraint and its warning becomes live. The measurement it
+    // was added to collect is finally collectable.
+    //
     // THE BYTE CAP BITES LONG BEFORE THE COUNT CAP, and it used to bite in silence. A coordinate
     // is ~170-330 B depending on extras, so 16 KiB holds roughly 49-86 of them — far under
     // MAX_WIDGETS=512. A page denser than that lost its TAIL widgets from the subscription with
@@ -515,13 +527,48 @@ export class RefreshManager {
     return coords
   }
 
-  private async stream(url: string, token: string, controller: AbortController): Promise<void> {
-    let response: Response
-    try {
-      response = await fetch(url, {
-        headers: { Accept: 'text/event-stream', Authorization: `Bearer ${token}` },
+  /**
+   * Open the stream, preferring the POST body and falling back to `GET ?sub=`.
+   *
+   * WHY THE BODY. `GET /refreshes?sub=` carries the whole subscription base64'd in the query
+   * string, so the URL grows ~361 B per widget. Measured on 057: a 50-widget composition page
+   * produced an 18,098-character URL and the INGRESS answered 431 before snowplow saw it — 0
+   * stream chunks, 6 immediate closes — while a 17-widget page on the same build returned 200
+   * and held the stream open. Live refresh was structurally dead above roughly 22 widgets, on
+   * every load. A body has no length limit of that kind and needs no base64, so the 1.33x
+   * encoding inflation goes too (50 coords: 8,401 B of JSON against 11,204 B of base64).
+   *
+   * WHY THE FALLBACK, rather than requiring the server first. snowplow accepts the body only from
+   * 1.12.41; 1.12.38 and earlier do not. Falling back on 404/405 means this can deploy in either
+   * order — against an old server every subscription still works exactly as before, and the body
+   * transport starts being used the moment the server supports it, with no client change.
+   */
+  private async open(coords: RefreshCoords[], token: string, controller: AbortController): Promise<Response> {
+    const headers = { Accept: 'text/event-stream', Authorization: `Bearer ${token}` }
+
+    if (!this.postUnsupported) {
+      const posted = await fetch(`${this.baseUrl}/refreshes`, {
+        body: JSON.stringify(coords),
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        method: 'POST',
         signal: controller.signal,
       })
+      // 404/405 is "this server has no POST route", not "this subscription is bad". Anything
+      // else — including 401 and 5xx — is a real answer and belongs to the caller's handling.
+      if (posted.status !== 404 && posted.status !== 405) { return posted }
+      this.postUnsupported = true
+      console.warn(`[live-refresh] snowplow answered the POST subscription with ${posted.status}; it predates the body transport, falling back to GET ?sub= for this session`)
+    }
+
+    const sub = base64UrlEncode(JSON.stringify(coords))
+
+    return fetch(`${this.baseUrl}/refreshes?sub=${sub}`, { headers, signal: controller.signal })
+  }
+
+  private async stream(coords: RefreshCoords[], token: string, controller: AbortController): Promise<void> {
+    let response: Response
+    try {
+      response = await this.open(coords, token, controller)
     } catch {
       this.scheduleRetry(controller)
       return
