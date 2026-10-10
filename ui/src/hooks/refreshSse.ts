@@ -504,7 +504,8 @@ export class RefreshManager {
       coords = coords.slice(0, MAX_WIDGETS)
     }
     // ON THE BODY TRANSPORT THIS CAP IS THE REAL ONE. While the subscription went in the query
-    // string the INGRESS bit first, at roughly 22 widgets, so this 16 KiB cap was unreachable in
+    // string the EDGE bit first — around 40 widgets in a browser, and lower for a user with a
+    // larger session cookie — so this 16 KiB cap was unreachable in
     // that deployment and the warning below could never fire. POST removes the URL limit, so the
     // cap below is now the binding constraint and its warning becomes live. The measurement it
     // was added to collect is finally collectable.
@@ -534,9 +535,18 @@ export class RefreshManager {
    * string, so the URL grows ~361 B per widget. Measured on 057: a 50-widget composition page
    * produced an 18,098-character URL and the INGRESS answered 431 before snowplow saw it — 0
    * stream chunks, 6 immediate closes — while a 17-widget page on the same build returned 200
-   * and held the stream open. Live refresh was structurally dead above roughly 22 widgets, on
-   * every load. A body has no length limit of that kind and needs no base64, so the 1.33x
-   * encoding inflation goes too (50 coords: 8,401 B of JSON against 11,204 B of base64).
+   * and held the stream open. A body has no length limit of that kind and needs no base64, so
+   * the 1.33x encoding inflation goes too (50 coords: 8,401 B of JSON against 11,204 B of base64).
+   *
+   * WHERE THE CLIFF ACTUALLY IS — measured on 057, 2026-10-10, and superseding the "~22 widgets"
+   * first written here. It is NOT a request-line limit: it is a ~16 KiB budget for the WHOLE
+   * HTTP/2 header block, so the query string and the cookie spend the same allowance. Bare
+   * client: through at 16,133 chars, refused at 16,134. With a browser-like header set: 14,506 /
+   * 14,507 — adding 1,627 bytes of headers moved the cliff by exactly 1,627. It therefore MOVES
+   * WITH THE SESSION COOKIE, so the same page can work for one user and 431 for another whose
+   * cookie is larger. In a browser it bites around 40 widgets, and there is no fixed safe widget
+   * count to design against. The 431 is the edge's: it carries no application headers, and
+   * snowplow has no code that emits one.
    *
    * WHY THE FALLBACK, rather than requiring the server first. snowplow accepts the body only from
    * 1.12.41; 1.12.38 and earlier do not. Falling back on 404/405 means this can deploy in either

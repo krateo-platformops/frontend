@@ -163,3 +163,35 @@ The authoritative per-action property tables are generated from the schemas:
   the app opens snowplow's `/refreshes` stream and arms per-widget subscriptions so a
   widget refetches when its backing cluster object changes; the `FreshnessBadge`'s "Live"
   dot reflects a genuinely-open subscription (`WidgetRenderer.tsx:123-129`).
+
+  **Transport — POST body, falling back to `GET ?sub=`** (`refreshSse.ts`, `open()`).
+  The subscription is the same coordinate array either way; only where it travels changed.
+
+  | | request | encoding |
+  |---|---|---|
+  | preferred | `POST /refreshes`, array as the JSON body | raw JSON |
+  | fallback | `GET /refreshes?sub=<base64url>` | base64, ~1.33x |
+
+  The query-string form spends the same budget as every other request header, and snowplow
+  sits behind an edge proxy that caps the whole HTTP/2 header block at ~16 KiB. Measured on
+  057 (2026-10-10, by the snowplow session): a bare client gets through at 16,133 characters
+  and is refused at 16,134; with a browser-like header set (1.2 KB cookie, UA,
+  accept-language, sec-ch-ua, referer) the cliff drops to 14,506/14,507 — adding 1,627 bytes
+  of headers moved it by exactly 1,627. **So the limit moves with the session cookie: the
+  same page can work for one user and fail for another whose cookie is larger**, which is why
+  there is no fixed safe widget count. In a browser it bites around 40 widgets. The 431 comes
+  from the edge, not snowplow — it carries no application headers, and snowplow has no code
+  that emits one.
+
+  A body has no such limit, so the preferred form removes the cliff entirely.
+
+  **The fallback is what makes this deployable in any order.** A `404`/`405` means the server
+  predates the body route, so the client retries once as `GET ?sub=` and remembers it for the
+  session (`postUnsupported`). Any other status — `401`, `5xx` — is a real answer and keeps its
+  existing handling. snowplow accepts the body from **1.12.41** and still accepts `?sub=`
+  byte-identically, so client and server roll independently.
+
+  **This does not make every page live-refresh.** A page whose RESTAction declares a
+  `userAccessFilter` is not cached at all, so there is no cell to publish about even once the
+  subscription arrives (snowplow#561). The composition detail page is one of these: the two
+  defects stack on it, and POST fixes only the first.
