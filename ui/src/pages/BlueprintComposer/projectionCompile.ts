@@ -30,6 +30,49 @@ export const STATUS_RESTACTION_NAMESPACE = 'krateo-system'
 export const statusRestActionName = (chart: string): string => `${chart}-status`
 
 /**
+ * PROVENANCE, because this RESTAction is a COPY and copies go stale silently (#483).
+ *
+ * The emitted RESTAction embeds S11_TOP_FILTER verbatim. It is applied as a standalone CR with no
+ * Helm release and no ownerReferences, so no chart upgrade can ever reach it: fixing the generator
+ * fixes blueprints published from that moment on, and every blueprint already published keeps
+ * running the filter it was born with. That is exactly what happened with the condition form of
+ * `readyWhen` (#482) — the generator and the portal copy were both fixed and released, while
+ * event-site, published 2026-10-06, went on reporting architectureLevel 0 for resources that were
+ * Ready, until the live object was patched by hand.
+ *
+ * These two annotations do not fix that. They make it ANSWERABLE: which generator produced this
+ * copy, and does its filter still match the current one — a query instead of an investigation.
+ */
+export const GENERATED_BY_ANNOTATION = 'krateo.io/generated-by'
+export const FILTER_DIGEST_ANNOTATION = 'krateo.io/filter-digest'
+
+/**
+ * The generator's own version, as the build inlines it (vite.config.ts `define`). Absent outside a
+ * build — unit tests, a node script — where it reads `unknown` rather than throwing, because a
+ * missing stamp must never be the reason a publish fails.
+ */
+const generatorVersion = (): string => (typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'unknown')
+
+/**
+ * A short, STABLE, non-cryptographic digest of the filter text (FNV-1a, 32-bit, hex).
+ *
+ * Deliberately not SHA-256: `compileProjection` is synchronous and the browser's only built-in hash
+ * is `crypto.subtle.digest`, which is async. Making the whole compile async to obtain a stronger
+ * hash would be a large change for no gain here — this detects a filter that drifted from its
+ * generator, which is an accident, not an adversary. Collisions do not matter: two different
+ * filters hashing alike would hide a drift, and FNV-1a over a few KB of jq makes that vanishingly
+ * unlikely for texts that differ at all.
+ */
+export const filterDigest = (text: string): string => {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return hash.toString(16).padStart(8, '0')
+}
+
+/**
  * The chart-root file a publish commits the projection as — never under templates/, never packaged
  * (the builder scaffold's .helmignore). JSON, not YAML: the portal's Install step reads it from the
  * publish claim with snowplow's jq, which parses JSON (`fromjson`) and has no YAML parser. It holds
@@ -166,12 +209,17 @@ export const compileProjection = (arch: ChartArchitecture): ProjectionCompile =>
   const metadata: Record<string, unknown> = {}
   metadata.name = name
   metadata.namespace = STATUS_RESTACTION_NAMESPACE
-  metadata.annotations = { 'krateo.io/generated-from': 'templates/architecture.yaml' }
   manifest.metadata = metadata
   const spec: Record<string, unknown> = {}
   spec.api = api
   spec.filter = `(\n${fold(served)}\n)\n| (\n${S11_TOP_FILTER}\n)\n`
   manifest.spec = spec
+  // Stamped AFTER the filter exists, so the digest is of what actually ships (#483).
+  metadata.annotations = {
+    'krateo.io/generated-from': 'templates/architecture.yaml',
+    [GENERATED_BY_ANNOTATION]: `frontend-${generatorVersion()}`,
+    [FILTER_DIGEST_ANNOTATION]: filterDigest(spec.filter as string),
+  }
 
   const author: ProjectionRow[] = arch.status?.project ?? []
   const extras = arch.status?.extras

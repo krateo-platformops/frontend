@@ -12,11 +12,11 @@ import { describe, expect, it } from 'vitest'
 import { edgeChart } from './__fixtures__/s4b'
 import { ARCHITECTURE_TEMPLATE_PATH, parseArchitecture, serializeArchitecture, unwrapFromConfigMapTemplate, type ChartArchitecture } from './architecture'
 import { S11_ARCH_STEP_FILTER, S11_OBJECT_FILTER, S11_TOP_FILTER } from './architectureStateJq'
-import { ARCHITECTURE_ROWS, compileProjection, PROJECTION_BUNDLE_PATH, projectionForFiles } from './projectionCompile'
+import { ARCHITECTURE_ROWS, compileProjection, FILTER_DIGEST_ANNOTATION, filterDigest, GENERATED_BY_ANNOTATION, PROJECTION_BUNDLE_PATH, projectionForFiles } from './projectionCompile'
 import { blueprintCompositionDefinition } from './startChart'
 
 interface Step { name: string; path: string; verb: string; dependsOn?: unknown; endpointRef?: unknown; filter: string; errorKey: string; continueOnError: boolean }
-interface RestAction { apiVersion: string; kind: string; metadata: { name: string; namespace: string }; spec: { api: Step[]; filter: string } }
+interface RestAction { apiVersion: string; kind: string; metadata: { name: string; namespace: string; annotations: Record<string, string> }; spec: { api: Step[]; filter: string } }
 
 const archOf = (files: Record<string, string>): ChartArchitecture => {
   const parsed = parseArchitecture(unwrapFromConfigMapTemplate(files[ARCHITECTURE_TEMPLATE_PATH]) ?? '')
@@ -179,5 +179,43 @@ describe('the CompositionDefinition a projecting chart publishes', () => {
     expect(withIt.spec.statusDataTemplate).toEqual([...ARCHITECTURE_ROWS])
     expect(blueprintCompositionDefinition('orders', 'krateo-blueprints', 'orders', '0.1.0')).toBe(blueprintCompositionDefinition('orders', 'krateo-blueprints', 'orders', '0.1.0', null))
     expect(blueprintCompositionDefinition('orders', 'krateo-blueprints', 'orders', '0.1.0')).not.toContain('apiRef')
+  })
+})
+
+describe('provenance on the emitted RESTAction (#483)', () => {
+  // This RESTAction is a COPY of the generator's jq, applied with no Helm release and no
+  // ownerReferences, so no chart upgrade reaches it. These annotations do not fix that — they make
+  // "which generator wrote this, and has its filter drifted?" a query rather than an investigation.
+  // #482 is the case that proves it matters: the generator was fixed and released while event-site,
+  // published 2026-10-06, kept reporting architectureLevel 0 for resources that were Ready.
+  it('stamps the generator version and a digest OF THE FILTER THAT SHIPS', () => {
+    const { ra } = compiled(archOf(edgeChart()))
+    expect(ra.metadata.annotations['krateo.io/generated-from']).toBe('templates/architecture.yaml')
+    expect(ra.metadata.annotations[GENERATED_BY_ANNOTATION]).toMatch(/^frontend-/)
+    // The digest must be of the rendered filter, not of the template or the whole manifest —
+    // otherwise it cannot answer the only question it exists to answer.
+    expect(ra.metadata.annotations[FILTER_DIGEST_ANNOTATION]).toBe(filterDigest(ra.spec.filter))
+  })
+
+  it('changes the digest when the filter changes, and not when it does not', () => {
+    const a = compiled(archOf(edgeChart()))
+    const b = compiled(archOf(edgeChart()))
+    expect(b.ra.metadata.annotations[FILTER_DIGEST_ANNOTATION]).toBe(a.ra.metadata.annotations[FILTER_DIGEST_ANNOTATION])
+    // A drifted copy — one node's readyWhen switched to the condition form, exactly the #482 shape.
+    expect(filterDigest(a.ra.spec.filter + '\n# drift')).not.toBe(a.ra.metadata.annotations[FILTER_DIGEST_ANNOTATION])
+  })
+
+  it('does not put the stamp inside the filter, so provenance cannot change what the filter computes', () => {
+    const { ra } = compiled(archOf(edgeChart()))
+    expect(ra.spec.filter).not.toContain(GENERATED_BY_ANNOTATION)
+    expect(ra.spec.filter).not.toContain(FILTER_DIGEST_ANNOTATION)
+    expect(ra.spec.filter).not.toContain('frontend-')
+  })
+
+  it('is carried in the committed bundle, so a published blueprint records its own provenance', () => {
+    const out = projectionForFiles(edgeChart())
+    const bundle = JSON.parse(out?.bundle ?? '{}') as { restaction: RestAction }
+    expect(bundle.restaction.metadata.annotations[GENERATED_BY_ANNOTATION]).toMatch(/^frontend-/)
+    expect(bundle.restaction.metadata.annotations[FILTER_DIGEST_ANNOTATION]).toBe(filterDigest(bundle.restaction.spec.filter))
   })
 })
