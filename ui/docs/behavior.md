@@ -175,13 +175,23 @@ The authoritative per-action property tables are generated from the schemas:
   The query-string form spends the same budget as every other request header, and snowplow
   sits behind an edge proxy that caps the whole HTTP/2 header block at ~16 KiB. Measured on
   057 (2026-10-10, by the snowplow session): a bare client gets through at 16,133 characters
-  and is refused at 16,134; with a browser-like header set (1.2 KB cookie, UA,
-  accept-language, sec-ch-ua, referer) the cliff drops to 14,506/14,507 — adding 1,627 bytes
-  of headers moved it by exactly 1,627. **So the limit moves with the session cookie: the
-  same page can work for one user and fail for another whose cookie is larger**, which is why
-  there is no fixed safe widget count. In a browser it bites around 40 widgets. The 431 comes
-  from the edge, not snowplow — it carries no application headers, and snowplow has no code
-  that emits one.
+  and is refused at 16,134; adding 1,627 bytes of headers moved the cliff by exactly 1,627.
+
+  **What shares that budget is the Bearer token, not a cookie.** `document.cookie` is empty on
+  this portal — snowplow is authenticated with `Authorization: Bearer` (`getAccessToken()`),
+  measured at 928 bytes. So **the limit moves with the token, and a token grows with the user's
+  role and group claims**: the same page can subscribe for one user and be refused for another
+  whose claims are fatter. There is no fixed safe widget count.
+
+  Headroom, measured 2026-10-10: the composition detail page subscribed 30 coordinates at
+  10,656 characters and got a 200, against roughly 15,200 available once the token is counted —
+  about thirteen coordinates of margin at ~354 encoded bytes each. On 2026-10-07 the same route
+  carried 50 widgets, produced an 18,098-character URL and was refused, so the page's own density
+  moved between the two readings. Both are real; the margin is simply thin, and a page gaining a
+  dozen widgets crosses it silently.
+
+  The 431 comes from the edge, not snowplow — it carries no application headers, and snowplow has
+  no code that emits one.
 
   A body has no such limit, so the preferred form removes the cliff entirely.
 

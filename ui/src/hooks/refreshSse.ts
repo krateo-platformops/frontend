@@ -504,8 +504,8 @@ export class RefreshManager {
       coords = coords.slice(0, MAX_WIDGETS)
     }
     // ON THE BODY TRANSPORT THIS CAP IS THE REAL ONE. While the subscription went in the query
-    // string the EDGE bit first — around 40 widgets in a browser, and lower for a user with a
-    // larger session cookie — so this 16 KiB cap was unreachable in
+    // string the EDGE bit first — and lower for a user whose Bearer token carries more group
+    // claims — so this 16 KiB cap was unreachable in
     // that deployment and the warning below could never fire. POST removes the URL limit, so the
     // cap below is now the binding constraint and its warning becomes live. The measurement it
     // was added to collect is finally collectable.
@@ -540,13 +540,25 @@ export class RefreshManager {
    *
    * WHERE THE CLIFF ACTUALLY IS — measured on 057, 2026-10-10, and superseding the "~22 widgets"
    * first written here. It is NOT a request-line limit: it is a ~16 KiB budget for the WHOLE
-   * HTTP/2 header block, so the query string and the cookie spend the same allowance. Bare
-   * client: through at 16,133 chars, refused at 16,134. With a browser-like header set: 14,506 /
-   * 14,507 — adding 1,627 bytes of headers moved the cliff by exactly 1,627. It therefore MOVES
-   * WITH THE SESSION COOKIE, so the same page can work for one user and 431 for another whose
-   * cookie is larger. In a browser it bites around 40 widgets, and there is no fixed safe widget
-   * count to design against. The 431 is the edge's: it carries no application headers, and
-   * snowplow has no code that emits one.
+   * HTTP/2 header block, so the query string shares its allowance with every other header. Bare
+   * client: through at 16,133 chars, refused at 16,134. Adding 1,627 bytes of headers moved the
+   * cliff by exactly 1,627.
+   *
+   * WHAT SHARES THE BUDGET IS THE BEARER TOKEN, NOT A COOKIE — and this file says so forty lines
+   * above, which is why writing "session cookie" here was wrong twice over. `document.cookie` is
+   * EMPTY on this portal; snowplow is authenticated with `Authorization: Bearer`, measured at 928
+   * bytes. So the cliff moves with the TOKEN, and a token grows with the user's role and group
+   * claims — the same page can therefore work for one user and 431 for another whose claims are
+   * fatter. There is still no fixed safe widget count to design against.
+   *
+   * HEADROOM, measured 2026-10-10: the composition detail page subscribed 30 coordinates at
+   * 10,656 characters and got a 200 — under the ~15,200 left once the token is accounted for. At
+   * ~354 encoded bytes per coordinate that is about thirteen coordinates of margin. (On 2026-10-07
+   * the same route carried 50 widgets, produced an 18,098-character URL and WAS refused, so the
+   * page's own density moved between those readings; both numbers are real.) The point is that the
+   * margin is thin and a page gaining a dozen widgets crosses it silently.
+   *
+   * The 431 is the edge's: it carries no application headers, and snowplow has no code emitting one.
    *
    * WHY THE FALLBACK, rather than requiring the server first. snowplow accepts the body only from
    * 1.12.41; 1.12.38 and earlier do not. Falling back on 404/405 means this can deploy in either
