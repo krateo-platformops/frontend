@@ -606,6 +606,35 @@ export class RefreshManager {
       }, () => undefined)
       return
     }
+    if (response.status === 400) {
+      // A 400 IS NOT A TRANSPORT FAULT, and retrying one is the defect. The subscription reached
+      // snowplow and was rejected on its contents, so the identical body re-sent on a backoff
+      // timer gets the identical answer — forever, at the 30 s ceiling, with nothing live and
+      // nothing said. That is the same shape as the 401 loop handled above.
+      //
+      // DELIBERATELY NOT LATCHED FOR THE SESSION. snowplow returns 400 for two different things
+      // and only one of them is permanent:
+      //   - "subscription body too large" / "empty subscription body" — the same set can never
+      //     succeed, so there is nothing to retry.
+      //   - "no valid subscription keys" — the set arrived intact but nothing in it was armable
+      //     AT THAT MOMENT: nothing cached for those coordinates yet, or RBAC denied them. Both
+      //     can change under the user — a cell gets populated, access is granted — and the same
+      //     set would then work.
+      // Stopping `scheduleRetry` without latching gives both the right behaviour, so the client
+      // needs no way to tell them apart: arm() reaches connect() through scheduleReconnect(),
+      // which is a different path from the retry timer, so the next navigation or widget change
+      // tries again naturally. A latch would leave a page dead after its cause had cleared.
+      //
+      // The server's message is read only to SAY which one it was. Nothing branches on it —
+      // parsing prose for control flow is how this would rot.
+      void response.text().then((detail) => {
+        console.warn(`[live-refresh] snowplow rejected the subscription (400): ${detail.trim() || 'no detail'}. Not retrying this set; the next navigation or widget change will re-subscribe.`)
+      }, () => {
+        console.warn('[live-refresh] snowplow rejected the subscription (400). Not retrying this set; the next navigation or widget change will re-subscribe.')
+      })
+
+      return
+    }
     if (!response.ok || !response.body) {
       this.scheduleRetry(controller)
       return
