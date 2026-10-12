@@ -71,11 +71,12 @@ describe('the <chart>-status RESTAction', () => {
   })
 
   it('runs the S11 page filter VERBATIM — the controller and the page cannot disagree about the state', () => {
-    // The digests are the portal file's own (helm/portal/templates/restaction.composition-architecture.yaml
-    // at portal f73ad15). A change to either copy without the other fails here.
+    // These pin THIS repo's copy. They were the portal file's own at portal f73ad15, and are not any
+    // longer: portal #254 added `gateOpen` and `compositionNotSynced` to its copy and not to this one.
+    // So the guard is one-directional — it catches a change here, never a change there.
     expect(sha(S11_ARCH_STEP_FILTER)).toBe('d17b7211bda6d3277625adb5c9c0ef5a69d65c36d9da685f43ee65ae02f45f76')
     expect(sha(S11_OBJECT_FILTER)).toBe('90c0dc9ab9e5dc0cc00f428905c167becdb595a924d49e447d847849d0e2472d')
-    expect(sha(S11_TOP_FILTER)).toBe('3e88fa4ca537d455e527f415a1e3dd5b291d13d5fdc9a84acde113276dcc2161')
+    expect(sha(S11_TOP_FILTER)).toBe('92befd95d84792bcc6689c850894fdc2ae6d1cbb0ec17b0b25fce9aef067dfdd')
     const { ra } = compiled(archOf(edgeChart()))
     expect(ra.spec.api[0].filter).toBe(S11_ARCH_STEP_FILTER)
     expect(ra.spec.filter).toContain(S11_TOP_FILTER)
