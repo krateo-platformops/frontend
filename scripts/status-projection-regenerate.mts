@@ -32,56 +32,75 @@
  * writes nothing, which is how to exercise this end to end against a cluster you are not ready to
  * change. Dry run unless --apply. Exit 0 when nothing needed changing (or the dry run completed), 1 when a
  * copy is stale and was not applied, 2 when it could not look, 3 when an apply failed.
+ *
+ * `main` takes its argv and its two outside-the-process effects as arguments so the refusals above
+ * can be tested without a cluster and without a tagged checkout — see
+ * `ui/src/pages/BlueprintComposer/statusProjectionRegenerate.test.ts`. The process only exits when
+ * this file is the entry point.
  */
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 import { regenerateProjection, type LiveProjection } from '../ui/src/pages/BlueprintComposer/projectionCompile'
 
-const arg = (name: string, fallback = ''): string => {
-  const i = process.argv.indexOf(`--${name}`)
-  return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : fallback
-}
-const serverDryRun = process.argv.includes('--server-dry-run')
-const apply = process.argv.includes('--apply') || serverDryRun
-
-const kubectl = (...args: string[]): string => {
-  const base: string[] = []
-  if (arg('kubeconfig')) { base.push('--kubeconfig', arg('kubeconfig')) }
-  if (arg('context')) { base.push('--context', arg('context')) }
-  return execFileSync('kubectl', [...base, ...args], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+const arg = (argv: string[], name: string, fallback = ''): string => {
+  const i = argv.indexOf(`--${name}`)
+  return i >= 0 && argv[i + 1] ? argv[i + 1] : fallback
 }
 
 const GENERATED_FROM = 'krateo.io/generated-from'
 
 /**
- * Which generator is doing the repairing. `--as-version`, else the checkout's nearest tag — the
- * release whose `architectureStateJq.ts` this run is about to write into the cluster.
+ * The checkout's nearest tag. Null in an untagged or shallow checkout — the normal CI state, and
+ * the whole reason `--as-version` exists.
  */
-const generatorVersion = (): string | null => {
-  if (arg('as-version')) { return arg('as-version') }
+const describeNearestTag = (): string | null => {
   try {
-    return execFileSync('git', ['describe', '--tags', '--abbrev=0'], { cwd: new URL('..', import.meta.url).pathname, encoding: 'utf8' }).trim() || null
+    return execFileSync('git', ['describe', '--tags', '--abbrev=0'], { cwd: new URL('..', import.meta.url).pathname, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null
   } catch {
     return null
   }
 }
 
-const main = (): number => {
+const runKubectl = (args: string[]): string =>
+  execFileSync('kubectl', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+
+/** The two things this run does outside its own process. A test substitutes both. */
+export type Effects = {
+  describeNearestTag?: () => string | null
+  kubectl?: (args: string[]) => string
+}
+
+export const main = (argv: string[] = process.argv, effects: Effects = {}): number => {
+  const describe = effects.describeNearestTag ?? describeNearestTag
+  const run = effects.kubectl ?? runKubectl
+
+  const serverDryRun = argv.includes('--server-dry-run')
+  const apply = argv.includes('--apply') || serverDryRun
+  const kubeconfig = arg(argv, 'kubeconfig')
+  const context = arg(argv, 'context')
+
+  const base: string[] = []
+  if (kubeconfig) { base.push('--kubeconfig', kubeconfig) }
+  if (context) { base.push('--context', context) }
+  const kubectl = (...args: string[]): string => run([...base, ...args])
+
   // A write goes to whatever cluster the ambient context happens to name, which is the one mistake
   // worth making impossible. Reading is allowed to be casual; patching is not.
-  if (apply && !(arg('kubeconfig') && arg('context'))) {
+  if (apply && !(kubeconfig && context)) {
     console.error('--apply requires an explicit --kubeconfig and --context: a patch must never land on an ambient cluster')
     return 2
   }
-  const version = generatorVersion()
+  // Which generator is doing the repairing: `--as-version`, else the checkout's nearest tag.
+  const version = arg(argv, 'as-version') || describe() || null
   if (apply && !version) {
     console.error('cannot tell which generator version this is: pass --as-version, or run from a checkout with a release tag')
     return 2
   }
-  const ns = arg('namespace', 'krateo-system')
+  const ns = arg(argv, 'namespace', 'krateo-system')
   let list: { items: LiveProjection[] }
   try {
     list = JSON.parse(kubectl('get', 'restactions.templates.krateo.io', '-n', ns, '-o', 'json')) as { items: LiveProjection[] }
@@ -140,4 +159,7 @@ const main = (): number => {
   return 0
 }
 
-process.exit(main())
+// Importing this module must not exit the importer — the test does exactly that.
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
+  process.exit(main())
+}
