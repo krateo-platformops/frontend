@@ -20,6 +20,11 @@
  * rewrites `spec` and the provenance annotations of this RESTAction, and nothing else — the
  * CompositionDefinition's apiRef and statusDataTemplate are not touched, and no chart is re-rendered.
  *
+ * It stamps the objects it repairs with the version of the generator that repaired them, so it has
+ * to know its own: `--as-version`, or the checkout's nearest tag. It will NOT write
+ * `frontend-unknown` — an annotation that looks like an answer and is not is worse than none, and
+ * `__APP_VERSION__` is a Vite compile-time constant that does not exist under tsx.
+ *
  *   npx tsx scripts/status-projection-regenerate.mts --kubeconfig PATH --context CTX [--namespace NS]
  *   npx tsx scripts/status-projection-regenerate.mts --kubeconfig PATH --context CTX --apply
  *
@@ -51,11 +56,29 @@ const kubectl = (...args: string[]): string => {
 
 const GENERATED_FROM = 'krateo.io/generated-from'
 
+/**
+ * Which generator is doing the repairing. `--as-version`, else the checkout's nearest tag — the
+ * release whose `architectureStateJq.ts` this run is about to write into the cluster.
+ */
+const generatorVersion = (): string | null => {
+  if (arg('as-version')) { return arg('as-version') }
+  try {
+    return execFileSync('git', ['describe', '--tags', '--abbrev=0'], { cwd: new URL('..', import.meta.url).pathname, encoding: 'utf8' }).trim() || null
+  } catch {
+    return null
+  }
+}
+
 const main = (): number => {
   // A write goes to whatever cluster the ambient context happens to name, which is the one mistake
   // worth making impossible. Reading is allowed to be casual; patching is not.
   if (apply && !(arg('kubeconfig') && arg('context'))) {
     console.error('--apply requires an explicit --kubeconfig and --context: a patch must never land on an ambient cluster')
+    return 2
+  }
+  const version = generatorVersion()
+  if (apply && !version) {
+    console.error('cannot tell which generator version this is: pass --as-version, or run from a checkout with a release tag')
     return 2
   }
   const ns = arg('namespace', 'krateo-system')
@@ -78,7 +101,7 @@ const main = (): number => {
   let failed = 0
   for (const ra of copies) {
     const name = ra.metadata?.name ?? '<unnamed>'
-    const out = regenerateProjection(ra)
+    const out = regenerateProjection(ra, version ? { generatedBy: `frontend-${version}` } : undefined)
     if (!out.ok) {
       console.log(`SKIP    ${name}  ${out.reason}`)
       failed += 1

@@ -377,7 +377,7 @@ export type ProjectionRegeneration =
  * paths, and a regeneration that cannot move them cannot widen or break it. What does move is the
  * filter (the computation), the stage filters (how each LIST is reduced), and the provenance stamp.
  */
-export const regenerateProjection = (ra: LiveProjection): ProjectionRegeneration => {
+export const regenerateProjection = (ra: LiveProjection, options?: { generatedBy?: string }): ProjectionRegeneration => {
   const recovered = recoverArchitecture(ra)
   if (!recovered.ok) { return recovered }
   const compiled = compileProjection(recovered.architecture)
@@ -393,11 +393,19 @@ export const regenerateProjection = (ra: LiveProjection): ProjectionRegeneration
     return { ok: false, reason: 'regeneration moved a stage path — refusing, because the composition\'s RBAC is derived from these' }
   }
 
+  // `__APP_VERSION__` is a Vite compile-time constant, so OUTSIDE a browser build — which is where
+  // regeneration runs — `generatorVersion()` degrades to `unknown`. That degradation is right for a
+  // publish (a missing stamp must never be why a publish fails) and WRONG here: this writes the
+  // annotation onto an object it has just repaired, and `frontend-unknown` is worse than no
+  // annotation at all, because it looks like an answer. The caller supplies the real one.
+  const nextMetadata = next.metadata as { annotations: Record<string, string> }
+  if (options?.generatedBy) { nextMetadata.annotations[GENERATED_BY_ANNOTATION] = options.generatedBy }
+
   const changed: ('filter' | 'stages' | 'provenance')[] = []
   if (nextSpec.filter !== (ra.spec?.filter ?? '')) { changed.push('filter') }
   if (canonical(nextSpec.api) !== canonical((ra.spec?.api ?? []).filter(Boolean))) { changed.push('stages') }
   const liveAnnotations = ra.metadata?.annotations ?? {}
-  const nextAnnotations = (next.metadata as { annotations: Record<string, string> }).annotations
+  const nextAnnotations = nextMetadata.annotations
   if (Object.entries(nextAnnotations).some(([key, value]) => liveAnnotations[key] !== value)) { changed.push('provenance') }
 
   return { changed, ok: true, restaction: next }
