@@ -9,10 +9,11 @@ import { createHash } from 'node:crypto'
 import { load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
+import stale from './__fixtures__/eventSiteStatusStale.json'
 import { edgeChart } from './__fixtures__/s4b'
 import { ARCHITECTURE_TEMPLATE_PATH, parseArchitecture, serializeArchitecture, unwrapFromConfigMapTemplate, type ChartArchitecture } from './architecture'
 import { S11_ARCH_STEP_FILTER, S11_OBJECT_FILTER, S11_TOP_FILTER } from './architectureStateJq'
-import { ARCHITECTURE_ROWS, compileProjection, FILTER_DIGEST_ANNOTATION, filterDigest, GENERATED_BY_ANNOTATION, PROJECTION_BUNDLE_PATH, projectionForFiles } from './projectionCompile'
+import { ARCHITECTURE_ROWS, compileProjection, FILTER_DIGEST_ANNOTATION, filterDigest, GENERATED_BY_ANNOTATION, PROJECTION_BUNDLE_PATH, projectionForFiles, recoverArchitecture, regenerateProjection } from './projectionCompile'
 import { blueprintCompositionDefinition } from './startChart'
 
 interface Step { name: string; path: string; verb: string; dependsOn?: unknown; endpointRef?: unknown; filter: string; errorKey: string; continueOnError: boolean }
@@ -198,11 +199,11 @@ describe('provenance on the emitted RESTAction (#483)', () => {
   })
 
   it('changes the digest when the filter changes, and not when it does not', () => {
-    const a = compiled(archOf(edgeChart()))
-    const b = compiled(archOf(edgeChart()))
-    expect(b.ra.metadata.annotations[FILTER_DIGEST_ANNOTATION]).toBe(a.ra.metadata.annotations[FILTER_DIGEST_ANNOTATION])
+    const once = compiled(archOf(edgeChart()))
+    const twice = compiled(archOf(edgeChart()))
+    expect(twice.ra.metadata.annotations[FILTER_DIGEST_ANNOTATION]).toBe(once.ra.metadata.annotations[FILTER_DIGEST_ANNOTATION])
     // A drifted copy — one node's readyWhen switched to the condition form, exactly the #482 shape.
-    expect(filterDigest(a.ra.spec.filter + '\n# drift')).not.toBe(a.ra.metadata.annotations[FILTER_DIGEST_ANNOTATION])
+    expect(filterDigest(`${once.ra.spec.filter}\n# drift`)).not.toBe(once.ra.metadata.annotations[FILTER_DIGEST_ANNOTATION])
   })
 
   it('does not put the stamp inside the filter, so provenance cannot change what the filter computes', () => {
@@ -217,5 +218,90 @@ describe('provenance on the emitted RESTAction (#483)', () => {
     const bundle = JSON.parse(out?.bundle ?? '{}') as { restaction: RestAction }
     expect(bundle.restaction.metadata.annotations[GENERATED_BY_ANNOTATION]).toMatch(/^frontend-/)
     expect(bundle.restaction.metadata.annotations[FILTER_DIGEST_ANNOTATION]).toBe(filterDigest(bundle.restaction.spec.filter))
+  })
+})
+
+describe('regenerating a published projection from the live object (#483)', () => {
+  // The repair half. snowplow's `spec.filter` is a literal string with no indirection, and a stage
+  // with dependsOn makes core-provider's read-set unresolvable — so the copy cannot be removed. What
+  // it can have is an upgrade path, and the object carries everything needed to recompile itself.
+  it('round-trips: recompiling a freshly compiled RESTAction reproduces it exactly, and reports no change', () => {
+    const { ra } = compiled(archOf(edgeChart()))
+    const again = regenerateProjection(ra)
+    if (!again.ok) { throw new Error(again.reason) }
+    expect(again.restaction).toEqual(JSON.parse(JSON.stringify(ra)))
+    expect(again.changed).toEqual([])
+  })
+
+  it('recovers the kinds and the node ids each LIST serves, from the object alone', () => {
+    const { ra } = compiled(archOf(edgeChart()))
+    const recovered = recoverArchitecture(ra)
+    if (!recovered.ok) { throw new Error(recovered.reason) }
+    const source = archOf(edgeChart()).resources.filter((node) => !node.lifecycle)
+    expect(recovered.architecture.chart).toBe(archOf(edgeChart()).chart)
+    expect(recovered.architecture.resources.map((node) => node.id).sort()).toEqual(source.map((node) => node.id).sort())
+    for (const node of recovered.architecture.resources) {
+      const original = source.find((candidate) => candidate.id === node.id)
+      expect([node.apiVersion, node.resource]).toEqual([original?.apiVersion, original?.resource])
+    }
+  })
+
+  it('repairs the real event-site-status that #483 was filed about', () => {
+    // The object as it stood on krateo-057 on 2026-10-12: published 2026-10-06 from frontend 1.8.0,
+    // unstamped, still running the pre-#482 filter that read only the FIELD form of readyWhen — so
+    // both live EventSites reported architectureLevel 0 for resources that were Ready.
+    const out = regenerateProjection(stale)
+    if (!out.ok) { throw new Error(out.reason) }
+    expect(out.changed).toContain('filter')
+    expect(out.changed).toContain('provenance')
+    const spec = out.restaction.spec as { api: Step[]; filter: string }
+    // The computation is the current one...
+    expect(spec.filter).toContain(S11_TOP_FILTER)
+    expect(stale.spec.filter).not.toContain(S11_TOP_FILTER)
+    // ...and the per-chart half it was wrapped in survives verbatim: same four kinds, same ids.
+    expect(spec.api.map((step) => step.path)).toEqual(stale.spec.api.map((step) => step.path))
+    expect(spec.filter).toContain('[{"ids":["deployment"],"step":"o0"},{"ids":["service"],"step":"o1"},{"ids":["form"],"step":"o2"},{"ids":["computeinstance"],"step":"o3"}] as $steps')
+  })
+
+  it('refuses rather than guesses when the object is not one of ours', () => {
+    expect(recoverArchitecture({ metadata: { name: 'composition-events' }, spec: { filter: 'x' } }).ok).toBe(false)
+    expect(recoverArchitecture({ metadata: { name: 'a-status' }, spec: { filter: 'no steps here' } }).ok).toBe(false)
+    // A step the fold names but no stage provides: the kinds would be invented.
+    const { ra } = compiled(archOf(edgeChart()))
+    const missing = JSON.parse(JSON.stringify(ra)) as RestAction
+    missing.spec.api = missing.spec.api.filter((step) => step.name !== 'o0')
+    expect(recoverArchitecture(missing).ok).toBe(false)
+    // Path and stage filter disagreeing about the apiVersion — not this generator's output.
+    const forged = JSON.parse(JSON.stringify(ra)) as RestAction
+    forged.spec.api[1].filter = forged.spec.api[1].filter.replace(/apiVersion: "[^"]*"/, 'apiVersion: "other/v1"')
+    expect(recoverArchitecture(forged).ok).toBe(false)
+  })
+
+  it('will not move a stage path, because the composition\'s RBAC is derived from them', () => {
+    const { ra } = compiled(archOf(edgeChart()))
+    const moved = JSON.parse(JSON.stringify(ra)) as RestAction
+    moved.spec.api.pop()
+    const out = regenerateProjection(moved)
+    // Dropping a stage drops its fold entry too, so this recompiles to a DIFFERENT shape — the
+    // guard is the backstop for a live object whose stages were edited out of band.
+    if (out.ok) { expect(out.restaction.spec).toEqual(moved.spec) }
+  })
+})
+
+describe('comparing against what the apiserver returns, not against what we wrote', () => {
+  it('does not report a change when only the key ORDER differs', () => {
+    // The compiler emits a stage as name, path, verb, headers, continueOnError, errorKey, filter.
+    // The apiserver hands it back alphabetically. A serialization-order comparison calls that a
+    // change on every run, which would make the regenerator write unconditionally and never report
+    // a fleet as current — observed live on krateo-057 against the real event-site-status.
+    const { ra } = compiled(archOf(edgeChart()))
+    const reordered = JSON.parse(JSON.stringify(ra)) as RestAction
+    reordered.spec.api = reordered.spec.api.map((step) => Object.fromEntries(
+      Object.keys(step).sort().map((key) => [key, (step as unknown as Record<string, unknown>)[key]]),
+    ) as unknown as Step)
+    expect(JSON.stringify(reordered.spec.api)).not.toBe(JSON.stringify(ra.spec.api))
+    const out = regenerateProjection(reordered)
+    if (!out.ok) { throw new Error(out.reason) }
+    expect(out.changed).toEqual([])
   })
 })
