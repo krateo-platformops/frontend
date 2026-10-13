@@ -90,7 +90,7 @@ existence and count of resources outside a tenant's scope.
 ## What is enforced today
 
 Two lints run from [`lint/`](lint/) and an accessibility gate runs from `ui/`; between them
-they hold **29 of the 108 rules** — 17 composition rules and 8 token rules, plus the
+they hold **30 of the 108 rules** — 18 composition rules and 8 token rules, plus the
 3 accessibility rules C8–C10 and 1 app-side layout rule (P26). Everything else is a rule a human applies.
 
 - **Accessibility (C8–C10)** — `ui/eslint.a11y.config.js` runs the `jsx-a11y` rules of
@@ -101,10 +101,11 @@ they hold **29 of the 108 rules** — 17 composition rules and 8 token rules, pl
   Dropdown opening from an element that cannot take focus (C10). Both are at zero, with no baseline.
 
 - `lint-portal-consistency.py` — composition, run against a chart's widget CRs. **0 violations**
-  across all 17 rules against the portal chart, except the migrations A4 and C26 were written to drive:
-  seven Autopilot Buttons become filled (`type: primary`) with the canonical `Ask Autopilot →`
-  label and wand icon, and one Close button (`incident-detail-close`) takes `intent: dismiss`. The portal vendors this lint, so the rule reaches its CI together with that
-  migration.
+  across all 18 rules against the portal chart, except the migrations A4 and P6 were tightened to drive:
+  the two "Diagnose" buttons (composition and incident detail) are Autopilot entry points the
+  first A4 sweep could not see, and the incident remediation's "I applied it" was a second filled
+  button beside "Run apply". The portal vendors this lint, so the rules
+  reach its CI together with that migration.
 - `lint-css-tokens.py` — token adoption in this repo's stylesheets. Its baseline is **empty**: every
   pre-existing violation has been paid off. It arrived with ~314 — adding a check to a codebase that
   predates it imports its existing debt in one step, which is the point of baselining rather than a
@@ -136,6 +137,9 @@ they hold **29 of the 108 rules** — 17 composition rules and 8 token rules, pl
   Button widget), deleting is red (`danger`). `ui/src/test/buttonRoles.test.ts` holds the app's
   buttons and the Cancel inside every `Popconfirm`, `Modal` and confirm dialog; the composition
   lint's `button-role` rule holds the chart's.
+- **One primary per container (P6)** — the composition lint's `one-primary` rule: a header or a
+  panel names at most one filled Button among its own children. The Autopilot entry point is filled
+  everywhere (A4) and is not counted.
 - **Visual regression** — `ui/visual/` renders every widget from its own example CR
   (`src/examples/widgets`), light and dark, and compares it pixel for pixel against the baselines in
   `ui/visual/__screenshots__` (72 today). It holds no numbered rule; it is what notices that a token
@@ -158,8 +162,8 @@ workflow of the same name runs the composition lint against its rendered chart.
 
 **The CI check is the live status; this section is a claim about it.** To read the real state,
 look at the `design-system` check on any open PR in either repo — it fails on a violation, and a
-green one means all 29 machine-held rules hold as of that commit. The per-rule `Status:`
-markers in the six rule documents are the other half of the picture: they cover the 79 rules no
+green one means all 30 machine-held rules hold as of that commit. The per-rule `Status:`
+markers in the six rule documents are the other half of the picture: they cover the 78 rules no
 lint can decide, and a human keeps them true. Prefer the check over both.
 
 > This section said "Neither is wired into CI yet. Until they are, this document is still the thing

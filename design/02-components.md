@@ -422,6 +422,12 @@ That pairing means a component was rebuilt rather than reused. Extract the share
 `StatusPill` now backs both `Tag` and `PageHeader` — and forward unrecognised props untouched, so
 the extraction is not a silent behaviour change.
 
+> **2026-10-13: the same tell, in `Card`.** Its `extra` slot had two pill variants, and neither was
+> the pill: `badge` restyled an antd `Badge` as a mono-uppercase glowing chip, and `tag` was
+> `import { Tag } from 'antd'` plus `getTagStyle` — the exact pairing named above. A composition's
+> rail read “NOTSYNCED” a few inches under the “NotReady” pill in its header. Both variants are
+> `StatusPill` now; `extraStatus` keeps antd's Badge status names as input.
+
 Applies to the CR surface too, not just rendering: before giving a new widget a required field,
 read what the closest existing widget requires. `PageHeader` shipped with `allowedResources` and
 `items` required because they were copied from a container schema; `Card`, the actual precedent,

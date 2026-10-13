@@ -75,3 +75,16 @@ spec:
       Krateo PlatformOps provides a powerful ecosystem for creating and managing digital products across multiple environments.
       It allows teams to define, automate, and observe applications using customizable widgets.
       This paragraph intentionally contains a long body of text to ensure that wrapping and layout behave correctly even with very large inputs.
+---
+# Bold label
+# Target: `strong: true` is antd's bold, at body size — a section label, never a second page title.
+# Expected behavior: "Audit log" renders bold at the body text size.
+kind: Paragraph
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-paragraph-strong
+  namespace: krateo-system
+spec:
+  widgetData:
+    text: Audit log
+    strong: true

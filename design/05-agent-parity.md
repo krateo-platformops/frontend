@@ -214,8 +214,9 @@ Page context is **not** passed by the entry point. It is snapshotted from the li
 Every Autopilot entry point is the same object: a **filled** button (`type: primary`, never a link),
 label **`Ask Autopilot →`**, icon **`fa-wand-magic-sparkles`**. Where it sits is A5's and, in a
 header, [P26](03-composition.md)'s. The lint recognises the entry
-point by what the Button *does* — a `?ask=` link, or a template computing an `askHref` — as well as
-by its label, for the reason recorded below.
+point by what the Button *does* — a `?ask=` link, a template computing an `askHref`, or a template
+reading any `…Href` its RESTAction builds with `?ask=` — as well as by its label, for the reasons
+recorded below. Being filled does not spend its container's one primary (P6).
 
 > **Decided 2026-10-08: filled, and the arrow and the wand are part of the label.** portal#151 dropped
 > the trailing arrow ("it implied navigation away"), one CTA had drifted to a robot icon, and the
@@ -224,6 +225,12 @@ by its label, for the reason recorded below.
 > somewhere, into the Autopilot rail with the prompt written, and the wand is the one mark every
 > entry point shares. A link reads as a footnote; the entry point is a button. Against the portal
 > chart on 2026-10-08 the rule reports seven Buttons to update.
+
+> **2026-10-13: the same miss, a third time.** The composition and incident detail pages each had a
+> “Diagnose” button, outlined and wand-iconed, whose link the RESTAction builds as `diagnoseHref:
+> "…?ask=…"`. The lint matched `askHref` by name, so a field spelled differently passed as plain
+> navigation, and a page-by-page check of the live portal found what the lint called clean. It now
+> follows the field to the RESTAction that builds it. Both buttons are “Ask Autopilot →”.
 
 > **Corrected, then resolved.** This rule recorded FOUR label variants on medium confidence. Measured against the chart there were **three** across six CTAs — “Ask Autopilot →”, “Investigate with Autopilot”, “Diagnose with Autopilot”. “Troubleshoot with Autopilot” does not exist.
 
@@ -257,7 +264,8 @@ Never a bare item in a page's top-level stack.
 > product call is the opposite: the entry point keeps one look everywhere — a filled button (A4) —
 > and its place is the header's action row like any other action (P26). A separate slot for it was
 > drafted and dropped the same day: once no action sits on the title line, the entry point needs no
-> line of its own.
+> line of its own. On 2026-10-13 [P6](03-composition.md) was brought into line: the entry point sits
+> beside its container's one primary and is not counted against it.
 
 *Evidence: #83 §0.8 → #86 §0.9 (the same bug pattern corrected twice, on two pages)*
 

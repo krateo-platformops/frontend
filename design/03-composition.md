@@ -51,15 +51,24 @@ Seven findings across five pages.
 
 *Evidence: #75 §0.2 · #79 §0.1–0.2 · #80 §0.1 · #82 §0.1 · #86 §0.4*
 
-### P6 — One primary action per container — a page header *or* a self-contained panel.
+### P6 — One primary action per container — a page header *or* a self-contained panel. The Autopilot entry point is not counted.
 
-**Status:** CR
+**Status:** CR → **enforced** — the composition lint's `one-primary` rule
 
 **Rescoped.** This previously read “per header”, which was too narrow: the same discipline is already applied at panel level, and #86 §0.9a treats an Alert-detail panel as its own primary budget independent of the page header.
 
-The rescoping also resolves the apparent conflict with the Autopilot CTA. That button is **not** special-cased: it competes for the same single slot as any other button in its container, is never automatically primary for being Autopilot, and is never barred from being primary either. See A5.
+A container is whatever names the buttons as its own children: a `PageHeader`'s `items`, a panel's `items`, a Card's `extraRefId` slot. Among those, **one** is filled — the action the container is for — and the rest are `type: default`. A Button with no `type` counts as filled too, because that is how the widget draws it. The one violation found when the rule landed was an incident remediation's “I applied it”, filled beside “Run apply”.
 
-*Evidence: #78 §0.4 · #84 §0.1 · #86 §0.9 — rescoped by the parity audit*
+> **Decided 2026-10-13: the Autopilot entry point does not spend the budget.** This rule used to
+> say the Autopilot CTA “competes for the same single slot as any other button … never
+> automatically primary”. [A4](05-agent-parity.md) has since made it filled everywhere, so the two
+> rules disagreed: every page with an Autopilot entry point either broke this one or demoted its
+> own action. The resolution is the one the pages already showed: “Ask Autopilot →” sits *beside*
+> the container's primary — Alerts' “New alert”, the builders' compose button, a composition's
+> Sync — never instead of it, and the container keeps exactly one primary of its own. Where it
+> sits is [A5](05-agent-parity.md)'s business.
+
+*Evidence: #78 §0.4 · #84 §0.1 · #86 §0.9 — rescoped by the parity audit · exemption decided 2026-10-13*
 
 ### P7 — Don’t spend two panels on two facts.
 
