@@ -57,7 +57,7 @@ Seven findings across five pages.
 
 **Rescoped.** This previously read “per header”, which was too narrow: the same discipline is already applied at panel level, and #86 §0.9a treats an Alert-detail panel as its own primary budget independent of the page header.
 
-A container is whatever names the buttons as its own children: a `PageHeader`'s `items`, a panel's `items`, a Card's `extraRefId` slot. Among those, **one** is filled — the action the container is for — and the rest are `type: default`. A Button with no `type` counts as filled, because that is how the widget draws it: the one violation found when the rule landed was an “I applied it” beside “Run apply”, primary only by omission.
+A container is whatever names the buttons as its own children: a `PageHeader`'s `items`, a panel's `items`, a Card's `extraRefId` slot. Among those, **one** is filled — the action the container is for — and the rest are `type: default`. A Button with no `type` counts as filled too, because that is how the widget draws it. The one violation found when the rule landed was an incident remediation's “I applied it”, filled beside “Run apply”.
 
 > **Decided 2026-10-13: the Autopilot entry point does not spend the budget.** This rule used to
 > say the Autopilot CTA “competes for the same single slot as any other button … never

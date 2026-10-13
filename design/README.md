@@ -104,7 +104,7 @@ they hold **30 of the 108 rules** — 18 composition rules and 8 token rules, pl
   across all 18 rules against the portal chart, except the migrations A4 and P6 were tightened to drive:
   the two "Diagnose" buttons (composition and incident detail) are Autopilot entry points the
   first A4 sweep could not see, and the incident remediation's "I applied it" was a second filled
-  button beside "Run apply" because it set no `type`. The portal vendors this lint, so the rules
+  button beside "Run apply". The portal vendors this lint, so the rules
   reach its CI together with that migration.
 - `lint-css-tokens.py` — token adoption in this repo's stylesheets. Its baseline is **empty**: every
   pre-existing violation has been paid off. It arrived with ~314 — adding a check to a codebase that
