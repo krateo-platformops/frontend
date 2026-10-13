@@ -69,17 +69,25 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+# The scaffold left this empty, which put the pod in the BestEffort QoS class: it requests
+# nothing, so it is scored onto whichever node looks least allocated, it never counts against
+# that node's CPU budget, and it is the FIRST thing evicted when the node comes under pressure.
+# That is the wrong trade for the component that serves the whole portal UI — a frontend eviction
+# is a visible dead-portal window, which is the same failure the probe tolerances below are
+# written to avoid. Requests move it to Burstable and give it a share worth scheduling.
+#
+# Sized from what it actually uses, not from a guess: the live pod on krateo-057 reads 1m CPU and
+# 7Mi across repeated samples (it serves the built assets and nothing else). The CPU request
+# matches the platform controllers' 50m convention; the memory request is an order of magnitude
+# above the measurement and the limit another two, so the ceiling cannot bite a healthy pod.
+# No CPU limit, deliberately, and for the same reason the probes are lenient: throttling a
+# request-serving process under contention is how a slow portal becomes a restarting one.
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
 
 # Probe tolerances are explicit because the Kubernetes defaults (timeoutSeconds: 1,
 # failureThreshold: 3) are too twitchy under CPU contention: a healthy pod that misses
