@@ -305,3 +305,29 @@ describe('comparing against what the apiserver returns, not against what we wrot
     expect(out.changed).toEqual([])
   })
 })
+
+describe('the regenerator stamps the generator that actually repaired the object', () => {
+  // `__APP_VERSION__` is a Vite compile-time constant, so outside a browser build — which is where
+  // regeneration runs — the stamp degrades to `frontend-unknown`. Right for a publish, wrong here:
+  // this writes onto an object it just repaired, and an annotation that looks like an answer and is
+  // not is worse than none. Observed live: the first --apply on krateo-057 wrote frontend-unknown.
+  it('writes the caller\'s version, not the build-time fallback', () => {
+    const { ra } = compiled(archOf(edgeChart()))
+    const out = regenerateProjection(ra, { generatedBy: 'frontend-1.8.2' })
+    if (!out.ok) { throw new Error(out.reason) }
+    const annotations = (out.restaction.metadata as { annotations: Record<string, string> }).annotations
+    expect(annotations[GENERATED_BY_ANNOTATION]).toBe('frontend-1.8.2')
+    expect(annotations[GENERATED_BY_ANNOTATION]).not.toContain('unknown')
+    // The override is provenance only — it must not touch what the filter computes.
+    expect(out.restaction.spec).toEqual(ra.spec)
+  })
+
+  it('reports a provenance change when only the stamped version differs', () => {
+    const { ra } = compiled(archOf(edgeChart()))
+    const stamped = JSON.parse(JSON.stringify(ra)) as RestAction
+    stamped.metadata.annotations[GENERATED_BY_ANNOTATION] = 'frontend-1.8.0'
+    const out = regenerateProjection(stamped, { generatedBy: 'frontend-1.8.2' })
+    if (!out.ok) { throw new Error(out.reason) }
+    expect(out.changed).toEqual(['provenance'])
+  })
+})
