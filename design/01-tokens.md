@@ -124,6 +124,14 @@ trust either number.
 
 **Status:** severe → swept → one scale → **holds** — no raw size left, and antd's headings are on the scale
 
+> **2026-10-13: `strong` is bold again, not a page title.** The note below made `strong: true` one
+> of two routes to a 30px page title. P25 has since put every page title in a `PageHeader`, so the
+> only `strong` Paragraphs left in the portal were section labels — “Audit log” under Settings, the
+> Observability tabs' section names — each drawn as large as the page title above it, which a
+> page-by-page check of the live portal found and no lint did. `strong` is antd's word for bold
+> (C25), so it now means that: bold, at the body size, which is the weight a panel title already
+> has. A heading inside a page is `level: N`.
+
 > **2026-10-06: the last two values, and what they were hiding.** `Paragraph`'s strong title (26px)
 > was a page title, and measuring it against the other ways to write one showed the real defect:
 > antd's headings were all off the scale (compacted to 32/26/20/16/14), so a page title rendered at

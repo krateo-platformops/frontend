@@ -405,3 +405,23 @@ spec:
         namespace: krateo-system
         resource: yamlviewers
         verb: GET
+---
+# Status in the header's extra slot
+# Target: `extraVariant: badge` draws the shared StatusPill (C24) — the same pill, dot and casing as
+# a PageHeader tag, not a separate mono-uppercase chip.
+# Expected behavior: the header reads "Reconciliation" with a red "NotSynced" pill on the right.
+kind: Card
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-panel-status-badge
+  namespace: krateo-system
+spec:
+  widgetData:
+    title: Reconciliation
+    titleVariant: eyebrow
+    extra: NotSynced
+    extraVariant: badge
+    extraStatus: error
+    items: []
+  resourcesRefs:
+    items: []
