@@ -145,6 +145,52 @@ describe('SchemaFields — Advanced/required partition (FRM1)', () => {
     expect(container.querySelector('.ant-collapse')).toBeNull()
   })
 
+  it('renders NO Advanced collapse when nothing is required — the fields are open', () => {
+    // Nothing to set the optional fields apart from: a collapse would be the whole container.
+    const noneRequired: JSONSchema4 = {
+      properties: { className: { type: 'string' }, enabled: { type: 'boolean' } },
+      type: 'object',
+    }
+    const { container } = render(
+      <AntdForm>
+        <SchemaFields schema={noneRequired} />
+      </AntdForm>,
+    )
+    expect(container.querySelector('.ant-collapse')).toBeNull()
+    expect(document.getElementById('className')).toBeTruthy()
+  })
+
+  it('a list row whose item fields are all optional opens with its fields in view', () => {
+    // The authn chart's ingress.hosts: a row was an empty card holding one closed
+    // "Advanced · 2 settings", and each nested list (paths) added another.
+    const ingress: JSONSchema4 = {
+      properties: {
+        hosts: {
+          items: {
+            properties: {
+              host: { type: 'string' },
+              paths: { items: { properties: { path: { type: 'string' }, pathType: { type: 'string' } }, type: 'object' }, type: 'array' },
+            },
+            type: 'object',
+          },
+          type: 'array',
+        },
+      },
+      required: ['hosts'],
+      type: 'object',
+    }
+    const { container } = render(
+      <AntdForm>
+        <SchemaFields schema={ingress} />
+      </AntdForm>,
+    )
+    fireEvent.click(screen.getByText('Add hosts'))
+    fireEvent.click(screen.getByText('Add paths'))
+    expect(container.querySelector('.ant-collapse')).toBeNull()
+    expect(document.getElementById('hosts_0_host')).toBeTruthy()
+    expect(document.getElementById('hosts_0_paths_0_pathType')).toBeTruthy()
+  })
+
   it('a COLLAPSED optional field still SUBMITS its value (disclosure, not hiding)', async () => {
     const onFinish = vi.fn()
     const { container, getByText } = renderInForm(onFinish)

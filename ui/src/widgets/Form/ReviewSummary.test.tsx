@@ -114,7 +114,26 @@ describe('ReviewSummary — secret fields are masked, never redisplayed', () => 
     expect(text).not.toContain('k-123')
     expect(text).not.toContain('tok-456')
     expect(text).toContain('alice')
-    expect(screen.getAllByText('••••••')).toHaveLength(2)
-    expect(text).toContain('{"token":"••••••"}')
+    // apiKey, password, and auth.token — the nested one inside the object's YAML.
+    expect(screen.getAllByText('••••••')).toHaveLength(3)
+    expect(text).toMatch(/token:\s*••••••/)
+  })
+})
+
+describe('ReviewSummary — what reaches the review', () => {
+  afterEach(() => { cleanup() })
+
+  it('shows an object as YAML and leaves out sections nothing was entered in', () => {
+    const { container } = render(
+      <ReviewSummary values={{ ingress: { hosts: [{ host: 'b.example.io', paths: [] }] }, name: 'demo', service: {}, serviceAccount: { create: undefined, name: '' }, tags: [] }} />,
+    )
+    const text = container.textContent ?? ''
+    expect(text).toMatch(/hosts:\s*-\s*host:\s*b\.example\.io/)
+    expect(text).not.toContain('{"')
+    expect(text).not.toContain('service')
+    expect(text).not.toContain('tags')
+    // A section never opened arrives with its keys undefined — still nothing entered.
+    expect(text).not.toContain('serviceAccount')
+    expect(text).not.toContain('paths')
   })
 })

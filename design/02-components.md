@@ -428,6 +428,11 @@ the extraction is not a silent behaviour change.
 > rail read “NOTSYNCED” a few inches under the “NotReady” pill in its header. Both variants are
 > `StatusPill` now; `extraStatus` keeps antd's Badge status names as input.
 
+> **2026-10-14: the same object, two screens apart.** The create form's Review step showed an
+> object value as one line of compact JSON; the write-confirm dialog one click later showed the
+> same object as highlighted YAML, from a `YamlBlock` private to that dialog. It is
+> `components/YamlBlock` now, and both use it.
+
 Applies to the CR surface too, not just rendering: before giving a new widget a required field,
 read what the closest existing widget requires. `PageHeader` shipped with `allowedResources` and
 `items` required because they were copied from a container schema; `Card`, the actual precedent,

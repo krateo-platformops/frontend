@@ -294,28 +294,17 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                                                           <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                                                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
                                 <div style="display: none;">
-                                  <div class="ant-collapse ant-collapse-icon-placement-start _advanced_745dfe css-dev-only-do-not-override-12q6fii css-var-id1">
-                                    <div class="ant-collapse-item">
-                                      <div aria-disabled="false" aria-expanded="false" class="ant-collapse-header" role="button" tabindex="0">
-                                        <div class="ant-collapse-expand-icon">
-                                          <span aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow" role="img">
-                                            <svg aria-hidden="true" data-icon="right" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
-                                              <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z">
-                                        <span class="ant-collapse-title">
-                                          "Advanced · 1 setting"
-                                      <div class="ant-collapse-panel ant-collapse-panel-inactive" style="display: none;">
-                                        <div class="ant-collapse-body">
-                                          <div class="ant-form-item _field_745dfe css-var-id1 ant-form-css-var css-dev-only-do-not-override-12q6fii ant-form-item-vertical">
-                                            <div class="ant-row ant-form-item-row css-dev-only-do-not-override-12q6fii css-var-id1">
-                                              <div class="ant-col ant-col-24 ant-form-item-label css-dev-only-do-not-override-12q6fii css-var-id1">
-                                                <label class="ant-form-item-no-colon" for="id17">
-                                                  <span class="_fieldLabel_745dfe">
-                                                    <span class="_fieldName_745dfe">
-                                                      "name"
-                                              <div class="ant-col ant-col-24 ant-form-item-control css-dev-only-do-not-override-12q6fii css-var-id1">
-                                                <div class="ant-form-item-control-input">
-                                                  <div class="ant-form-item-control-input-content">
-                                                    <input class="ant-input ant-input-disabled css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var" disabled="" id="id17" type="text" value="">
+                                  <div class="ant-form-item _field_745dfe css-var-id1 ant-form-css-var css-dev-only-do-not-override-12q6fii ant-form-item-vertical">
+                                    <div class="ant-row ant-form-item-row css-dev-only-do-not-override-12q6fii css-var-id1">
+                                      <div class="ant-col ant-col-24 ant-form-item-label css-dev-only-do-not-override-12q6fii css-var-id1">
+                                        <label class="ant-form-item-no-colon" for="id17">
+                                          <span class="_fieldLabel_745dfe">
+                                            <span class="_fieldName_745dfe">
+                                              "name"
+                                      <div class="ant-col ant-col-24 ant-form-item-control css-dev-only-do-not-override-12q6fii css-var-id1">
+                                        <div class="ant-form-item-control-input">
+                                          <div class="ant-form-item-control-input-content">
+                                            <input class="ant-input ant-input-disabled css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var" disabled="" id="id17" type="text" value="">
                         <section data-testid="autopilot-form-preview">
                           <h5 class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                             "Store — create form"

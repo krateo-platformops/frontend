@@ -1,0 +1,13 @@
+/* Scroll-bounded so a large object (e.g. a pasted OpenAPI ConfigMap) stays readable without
+   burying what is around it. */
+.block {
+  border: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+  border-radius: 6px;
+  font-size: var(--krateo-text-caption);
+  max-height: 220px;
+  overflow: auto;
+}
+
+.block pre {
+  margin: 0 !important;
+}

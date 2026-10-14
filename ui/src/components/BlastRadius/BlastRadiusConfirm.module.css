@@ -185,19 +185,10 @@
   text-transform: uppercase;
 }
 
-/* Full-body YAML for a confirm op/diff — scroll-bounded so a large object (e.g. a pasted
-   OpenAPI ConfigMap) stays confirmable without burying the modal. */
+/* Full-body YAML for a confirm op/diff — the shared YamlBlock (components/YamlBlock), indented
+   under its op line. */
 .yamlBlock {
-  border: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
-  border-radius: 6px;
-  font-size: var(--krateo-text-caption);
   margin: var(--spacing-xsm) 0 var(--spacing-xs) var(--spacing-lg);
-  max-height: 220px;
-  overflow: auto;
-}
-
-.yamlBlock pre {
-  margin: 0 !important;
 }
 
 /* #5 — the plain-language "what this write does" line (Create file … / Open PR …). More prominent

@@ -424,6 +424,14 @@ Six compliant instances make this real house convention — Breadcrumb, Notifica
 
 Partitioned on `schema.required`, with `forceRender` so collapsed fields still register, validate and submit. Codified so a future change doesn’t unmount them instead of hiding them.
 
+> **2026-10-14: no Advanced when nothing is required.** The collapse sets optional fields apart
+> from required ones. In a container with no required field there is nothing to set them apart
+> from, and the collapse was the whole container: a list row the person had just added (authn's
+> `ingress.hosts` → “hosts 1”) opened as an empty card holding one closed “Advanced · 2 settings”,
+> one more click per level of nesting, and an all-optional section (Ingress) showed only that bar.
+> Such a container renders its fields open. A container with at least one required field is
+> unchanged.
+
 *Evidence: verified `SchemaFields.tsx:150-186`*
 
 ### P22 — A control’s width matches its semantics.
