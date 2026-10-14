@@ -435,3 +435,9 @@
 .mapRowFields {
   width: 100%;
 }
+
+/* The review's label column keeps to its labels. A YAML block in the value column made antd's
+   auto table layout split the row in half, pushing every value to the middle of the page. */
+.reviewSummary :global(.ant-descriptions-item-label) {
+  width: 25%;
+}

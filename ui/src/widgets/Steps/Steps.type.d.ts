@@ -20,6 +20,10 @@ export interface Steps {
        */
       current?: number
       /**
+       * the step to show as current (0-based) while a Form on the same page shows its Review step (`reviewBeforeSubmit`). Not an antd prop: a wizard's header and its Form are separate widgets, and this is how the header follows the review. Unset, `current` never changes.
+       */
+      reviewCurrent?: number
+      /**
        * the layout orientation of the steps (antd Steps `orientation`)
        */
       orientation?: 'horizontal' | 'vertical'

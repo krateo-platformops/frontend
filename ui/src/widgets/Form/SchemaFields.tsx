@@ -436,6 +436,13 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
  * its value exactly as a flat field would. `hide` still omits a property from EITHER partition,
  * order within each partition follows the existing (stringSchema-driven) property order, and a
  * form with no optional fields renders no Advanced section at all.
+ *
+ * NOR IS THERE ONE WHEN NOTHING IS REQUIRED. The collapse sets the optional fields apart from the
+ * required ones; with no required field there is nothing to set them apart from, and the collapse
+ * was the whole container. A list row you had just added ("hosts 1") opened as an empty card with
+ * one closed "Advanced · 2 settings" in it, one more click per level of nesting, and a section
+ * whose fields were all optional (Ingress) showed the same single closed bar. Those fields render
+ * open instead.
  */
 export const SchemaFields = ({ hide = [], namePath = [], schema }: SchemaFieldsProps): React.ReactNode => {
   if (!schema?.properties) { return null }
@@ -444,6 +451,10 @@ export const SchemaFields = ({ hide = [], namePath = [], schema }: SchemaFieldsP
   const visible = Object.entries(schema.properties).filter(([key]) => !hide.includes(key))
   const requiredEntries = visible.filter(([key]) => required.has(key))
   const optionalEntries = visible.filter(([key]) => !required.has(key))
+
+  if (requiredEntries.length === 0) {
+    return <>{optionalEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, false))}</>
+  }
 
   return (
     <>
