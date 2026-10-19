@@ -1,11 +1,11 @@
-import { useMemo } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import DependencyGraph, { type GraphNode } from '../../components/DependencyGraph'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import type { WidgetProps } from '../../types/Widget'
 
 import ArchitectureStateNode from './ArchitectureStateNode'
-import { ARCHITECTURE_NODE_SIZE, architectureEdgeAppearance, toArchitectureGraphData } from './architectureVariant'
+import { ARCHITECTURE_NODE_SIZE, architectureEdgeAppearance, architectureGraphWidth, toArchitectureGraphData } from './architectureVariant'
 import styles from './FlowChart.module.css'
 import type { FlowChart as WidgetType } from './FlowChart.type'
 import FlowChartNodeElement from './FlowChartNodeElement'
@@ -53,13 +53,48 @@ interface VariantProps {
  */
 const ArchitectureFlowChart = ({ data, uid }: VariantProps) => {
   const graphData = useMemo(() => toArchitectureGraphData(data), [data])
+  const drawnWidth = useMemo(() => architectureGraphWidth(graphData.nodes, graphData.edges), [graphData])
+  const box = useRef<HTMLDivElement>(null)
+  const [overflows, setOverflows] = useState(false)
+
+  // portal#310. The graph is drawn at TRUE SIZE and `fit="natural"` pins its left edge, so a graph
+  // wider than the box is clipped on the right — four columns are 1360px against a card that gives
+  // ~1200px at 1518px of viewport, and EVERY composition with an architecture on 057 has four. The
+  // overflow itself is the deliberate trade (see the variant's comment: the type floor outranks
+  // fitting), but nothing on screen said so, and a card cut mid-name reads as a rendering fault
+  // rather than as "there is more, drag it". This only decides whether to SAY so.
+  //
+  // Measured, not assumed: the box width comes from the element, the drawn width from the node
+  // geometry, because the canvas is G6's and its content bounds are not ours to read from here.
+  useLayoutEffect(() => {
+    const element = box.current
+    if (!element || drawnWidth === 0) { return }
+    const measure = () => setOverflows(drawnWidth > element.clientWidth)
+    measure()
+    // ResizeObserver is absent in jsdom unless a test installs one; the first measure already ran,
+    // so a missing observer costs responsiveness to a resize, never the initial state.
+    if (typeof ResizeObserver === 'undefined') { return }
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [drawnWidth])
 
   if (graphData.nodes.length === 0) {
     return <WidgetEmpty description='Nothing to graph' />
   }
 
   return (
-    <div className={styles.architecture} key={uid}>
+    <div
+      className={styles.architecture}
+      // The fade is decorative: it repeats what the clipped card already shows, for people who read
+      // the clip as damage. The content is reachable without it — drag, or Tab, which pans a focused
+      // card into view — so it carries no accessible name and announces nothing (G12 is about colour
+      // never being the ONLY signal; here the signal is the clipped card itself).
+      data-overflows={overflows ? 'true' : undefined}
+      data-testid='architecture-graph-box'
+      key={uid}
+      ref={box}
+    >
       <DependencyGraph
         edgeAppearance={architectureEdgeAppearance}
         edges={graphData.edges}
