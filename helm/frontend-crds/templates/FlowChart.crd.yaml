@@ -210,7 +210,7 @@ spec:
                             description: name of the resource
                             type: string
                           names:
-                            description: 'architecture variant: every object this node stands for, by its FULL name. The node''s `name` is a DISPLAY string (the composition''s own prefix elided, a range written first ... last), so before this field the full name existed nowhere the browser could reach and the hover tooltip could only repeat the short form. Presentation belongs to the renderer: this carries the data. Absent on a chart rendered before portal 1.8.74, where `name` is all there is.'
+                            description: 'architecture variant: every object this node stands for, by its FULL name. The node''s `name` is a DISPLAY string (the composition''s own prefix elided, a range written first … last), so before this field the full name existed nowhere the browser could reach and the hover tooltip could only repeat the short form. Presentation belongs to the renderer: this carries the data. Absent on a chart rendered before portal 1.8.74, where `name` is all there is.'
                             items:
                               type: string
                             type: array
