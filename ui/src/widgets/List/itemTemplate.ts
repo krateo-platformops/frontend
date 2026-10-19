@@ -88,6 +88,8 @@ export interface ItemTemplate {
   secondaryTextAsTag?: boolean
   /** Render `subPrimaryText` as a small mono bordered pill (e.g. an event's involvedObject `Kind/name` ref). */
   subPrimaryTextMono?: boolean
+  /** One line each for primaryText and subPrimaryText, the full text in a tooltip (P19). */
+  ellipsis?: boolean
   /**
    * Per-item navigation target — a `{path}` template resolved against the item
    * (e.g. `{link}` or `/compositions/{metadata.namespace}/{metadata.name}`). When it
