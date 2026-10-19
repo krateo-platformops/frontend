@@ -7,6 +7,7 @@ import { useParams, useSearchParams } from 'react-router'
 
 import { isTimeoutError } from '../components/WidgetStates'
 import { useConfigContext } from '../context/ConfigContext'
+import { useWidgetScope } from '../context/WidgetScopeContext'
 import type { Widget } from '../types/Widget'
 import { getAccessToken } from '../utils/getAccessToken'
 import { getUserInfo } from '../utils/getUserInfo'
@@ -125,6 +126,15 @@ export const widgetFetchRetryDelay = (attemptIndex: number): number => Math.min(
  * Returns '' when empty so the param — and the react-query key it feeds — stay stable
  * (same inputs → same string, no spurious refetch).
  */
+/**
+ * The empty route inputs a chrome widget gets. Module-level singletons, not literals at the call
+ * site: `buildExtrasParam` is called on every render and a fresh `{}`/`new URLSearchParams()` each
+ * time is still deep-equal, but keeping one instance makes it obvious that chrome's envelope
+ * cannot drift render to render.
+ */
+const EMPTY_ROUTE_PARAMS: Readonly<Record<string, string | undefined>> = Object.freeze({})
+const EMPTY_SEARCH_PARAMS = new URLSearchParams()
+
 export const buildExtrasParam = (
   searchParams: URLSearchParams,
   routeParams: Record<string, string | undefined> = {},
@@ -202,7 +212,19 @@ export const boundedWindow = (
 export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOptions = {}) => {
   const { config } = useConfigContext()
   const [searchParams] = useSearchParams()
-  const routeParams = useParams()
+  const matchedParams = useParams()
+  // snowplow#777. react-router shares ONE params object across the matched branch, so a widget
+  // mounted ABOVE the outlet (the Shell's header chrome) sees the child route's params and the
+  // page's query string, reads neither, and has snowplow decline them — 74 declines in 7 days,
+  // 33% of all logged /call declines, for a byte-identical body. A widget gets the route inputs
+  // owned at or above its OWN level; chrome sits at the root layout and owns none.
+  //
+  // A page widget is at the deepest matched level, so `scope` is 'page', both values are passed
+  // through unchanged, and its extras string — the react-query key AND the L1 cache cell key — is
+  // byte-identical to before. Re-keying page cells would miss every warm cell in the fleet.
+  const scope = useWidgetScope()
+  const routeParams = scope === 'chrome' ? EMPTY_ROUTE_PARAMS : matchedParams
+  const widgetSearchParams = scope === 'chrome' ? EMPTY_SEARCH_PARAMS : searchParams
   const { defaultPageSize } = options
   // Extras envelope snowplow forwards into the RESTAction jq dict (`?extras=<json>`):
   // route params (e.g. /compositions/:namespace/:name) + browser URL query (search `q`)
@@ -211,7 +233,7 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   // server-side (capability flag api.SNOWPLOW_IDENTITY_INJECTION). See buildExtrasParam.
   const { displayName, username } = getUserInfo()
   const injectIdentity = !config?.api.SNOWPLOW_IDENTITY_INJECTION
-  const extrasParam = buildExtrasParam(searchParams, routeParams, displayName, username, injectIdentity)
+  const extrasParam = buildExtrasParam(widgetSearchParams, routeParams, displayName, username, injectIdentity)
 
   const widgetFullUrl = `${config!.api.SNOWPLOW_API_BASE_URL}${widgetEndpoint}`
   const requestUrl = new URL(widgetFullUrl)
