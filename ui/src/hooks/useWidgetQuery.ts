@@ -135,12 +135,16 @@ export const widgetFetchRetryDelay = (attemptIndex: number): number => Math.min(
 const EMPTY_ROUTE_PARAMS: Readonly<Record<string, string | undefined>> = Object.freeze({})
 const EMPTY_SEARCH_PARAMS = new URLSearchParams()
 
+/** The caller extras of a widget that supplies none — frozen, so "nothing" is one object. */
+const EMPTY_CALLER_EXTRAS: Readonly<Record<string, unknown>> = Object.freeze({})
+
 export const buildExtrasParam = (
   searchParams: URLSearchParams,
   routeParams: Record<string, string | undefined> = {},
   displayName?: string,
   username?: string,
   injectIdentity: boolean = true,
+  callerExtras: Readonly<Record<string, unknown>> = EMPTY_CALLER_EXTRAS,
 ): string => {
   const extras: Record<string, unknown> = Object.fromEntries(searchParams.entries())
   for (const [key, value] of Object.entries(routeParams)) {
@@ -171,6 +175,20 @@ export const buildExtrasParam = (
     if (displayName && routeParams.displayName === undefined) { extras.displayName = displayName }
     if (username && routeParams.username === undefined) { extras.username = username }
   }
+  // CALLER EXTRAS LAST, and they win (#493). A widget host that passes a key knows what it needs;
+  // the ambient inputs — route, query, identity — are what happened to be in scope. The precedence
+  // is therefore caller > route > identity > query, extending rather than disturbing the existing
+  // order (route already beat identity, identity already beat query).
+  //
+  // Applied last is also what keeps KEY ORDER intact, which matters because the serialized string
+  // is the react-query key and the L1 cache cell key. A caller that passes nothing writes nothing,
+  // so the string is byte-identical to before this parameter existed — the default is the frozen
+  // singleton, not a fresh `{}`, so there is not even a new object per render. And a caller key
+  // that COLLIDES with an ambient one overwrites in place: JS keeps a property at its original
+  // insertion position on reassignment, so the collision changes the value and never the order.
+  for (const [key, value] of Object.entries(callerExtras)) {
+    if (value !== undefined) { extras[key] = value }
+  }
   return Object.keys(extras).length > 0 ? JSON.stringify(extras) : ''
 }
 
@@ -192,6 +210,17 @@ export const buildExtrasParam = (
  */
 export type UseWidgetQueryOptions = {
   defaultPageSize?: number
+  /**
+   * Extras this widget CONTRIBUTES, for a host whose input is client state rather than the URL —
+   * the ⌘K palette's search term is the case that forced it (#493). Without this a caller needing
+   * to add one key had to reimplement the hook's endpoint resolution, auth and caching wholesale.
+   *
+   * Merged last and wins over route, identity and query. Keep the object STABLE across renders
+   * (literal in a `useMemo`, or a module constant): it is part of the react-query key, so a fresh
+   * object with the same contents is fine — the key is the serialized string, not the reference —
+   * but a changing VALUE is a new cache cell, which is the point when the value is a search term.
+   */
+  extras?: Readonly<Record<string, unknown>>
 }
 
 /**
@@ -225,7 +254,7 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   const scope = useWidgetScope()
   const routeParams = scope === 'chrome' ? EMPTY_ROUTE_PARAMS : matchedParams
   const widgetSearchParams = scope === 'chrome' ? EMPTY_SEARCH_PARAMS : searchParams
-  const { defaultPageSize } = options
+  const { defaultPageSize, extras: callerExtras } = options
   // Extras envelope snowplow forwards into the RESTAction jq dict (`?extras=<json>`):
   // route params (e.g. /compositions/:namespace/:name) + browser URL query (search `q`)
   // + login identity `displayName` (greeting) + `username` (per-user server state, e.g.
@@ -233,7 +262,7 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   // server-side (capability flag api.SNOWPLOW_IDENTITY_INJECTION). See buildExtrasParam.
   const { displayName, username } = getUserInfo()
   const injectIdentity = !config?.api.SNOWPLOW_IDENTITY_INJECTION
-  const extrasParam = buildExtrasParam(widgetSearchParams, routeParams, displayName, username, injectIdentity)
+  const extrasParam = buildExtrasParam(widgetSearchParams, routeParams, displayName, username, injectIdentity, callerExtras)
 
   const widgetFullUrl = `${config!.api.SNOWPLOW_API_BASE_URL}${widgetEndpoint}`
   const requestUrl = new URL(widgetFullUrl)
