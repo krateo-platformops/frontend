@@ -42,6 +42,28 @@ const STATES: readonly ArchitectureState[] = ['done', 'waiting', 'withheld', 'un
 export const architectureState = (state: unknown): ArchitectureState =>
   STATES.find((known) => known === state) ?? 'unknown'
 
+/**
+ * The full value behind the name line, for the card's `title` — what hover and keyboard focus
+ * disclose. Before portal#311 the `title` repeated the already-shortened string, so nothing anywhere
+ * in the UI could tell you what a node's objects were actually called.
+ *
+ * A `forEach` node lists every instance: `targetCommitId · 9 of 9` tells you there are nine and the
+ * name line tells you the range, but neither says WHICH nine, and the RESTAction has them. Capped,
+ * because a tooltip is not a table — past the cap it says how many more.
+ *
+ * The NAME LINE is left exactly as the RESTAction wrote it. Eliding the shared prefix is the right
+ * call for 194px of card (it is the suffix that tells the nodes apart), and moving that rule into
+ * the SPA would be a second change riding on this one. What was wrong was only that the elision
+ * reached the tooltip too, so the full value existed nowhere.
+ */
+export const architectureTitle = (names: readonly string[] | undefined, fallback: string, apiVersion?: string, cap = 12): string => {
+  const kindLine = apiVersion ? [apiVersion] : []
+  if (!names || names.length === 0) { return [fallback, ...kindLine].join('\n') }
+  const shown = names.slice(0, cap)
+  const rest = names.length - shown.length
+  return [...shown, ...(rest > 0 ? [`… and ${rest} more`] : []), ...kindLine].join('\n')
+}
+
 /** `label: reason — message`, the words behind the exception dot. */
 export const exceptionText = ({ label, message, reason }: ArchitectureException): string =>
   `${label}${reason ? `: ${reason}` : ''}${message ? ` — ${message}` : ''}`

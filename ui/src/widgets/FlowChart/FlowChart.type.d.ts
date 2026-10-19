@@ -87,6 +87,10 @@ export interface FlowChart {
          */
         name: string
         /**
+         * architecture variant: every object this node stands for, by its FULL name. The node's `name` is a DISPLAY string (the composition's own prefix elided, a range written first … last), so before this field the full name existed nowhere the browser could reach and the hover tooltip could only repeat the short form. Presentation belongs to the renderer: this carries the data. Absent on a chart rendered before portal 1.8.74, where `name` is all there is.
+         */
+        names?: string[]
+        /**
          * namespace in which the resource is defined
          */
         namespace?: string
