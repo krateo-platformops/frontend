@@ -59,49 +59,18 @@ export const pageChartYaml = (slug: string): string => dump({
 }, { lineWidth: -1, noRefs: true, sortKeys: false })
 
 /**
- * The tier the CRs in a page chart are placed in.
- *
- * ONE tier per page set, because that is the granularity the composer can honestly express: a page
- * set is one chart with one audience. `common` is the portal's own name for "every authenticated
- * user sees it", which is what a newly authored page is until someone decides otherwise. A deployer
- * remaps it to any namespace through `values.tiers.common`; splitting a single page set across
- * tiers means splitting it into two charts.
- */
-const PAGE_TIER = 'common'
-
-/**
- * The chart's own copy of the portal's `tierNamespace` helper.
- *
- * Copied rather than referenced: a page set is a SEPARATE chart now, so `portal.tierNamespace` is
- * not in scope at render time and a template calling it fails with "template not defined". Renamed
- * to `page.*` for the same reason — these are two charts with two helper namespaces, and a name
- * borrowed from the other one would only look shared.
- *
- * Empty tier → `.Release.Namespace`, which is the whole default: install the chart and its pages
- * land beside it, with RBAC tiering opt-in exactly as it is in the portal.
- */
-const pageTiersPartial = (): string => `{{/*
-page.tierNamespace — resolve a widget tier to a namespace.
-Call: {{ include "page.tierNamespace" (dict "ctx" . "tier" "common") }}
-Returns .Values.tiers.<tier> if non-empty, else .Release.Namespace.
-*/}}
-{{- define "page.tierNamespace" -}}
-{{- $ns := index (default (dict) .ctx.Values.tiers) .tier -}}
-{{- if $ns -}}{{ $ns }}{{- else -}}{{ .ctx.Release.Namespace }}{{- end -}}
-{{- end -}}
-`
-
-/**
  * The generated CRD's spec, which is what `values.schema.json` IS — core-provider reads this file
  * and turns it into the CRD, so a chart without one can be published and can never be installed.
  *
- * Deliberately closed (`additionalProperties: false`) and near-empty: the pages in this chart are
- * static CRs with nothing to parameterise yet. `tiers.common` is the one thing a deployer genuinely
- * needs, because it decides which namespace the pages land in and therefore who can see them.
+ * Deliberately closed (`additionalProperties: false`) and EMPTY of deployer settings: the pages in
+ * this chart are static CRs with nothing to parameterise.
  *
- * It lists ONLY the tier the templates actually reference. The portal's own schema offers admin and
- * tenant beside common, and mirroring all three here would have put two knobs in the install form
- * that no template reads — a setting that silently does nothing is worse than one that isn't there.
+ * IT USED TO CARRY A `tiers.common` NAMESPACE KNOB, a copy of the portal chart's tiers model
+ * (krateo-platformops/portal#261). That model is gone, and this is why it was never needed here:
+ * a page set is installed BY a composition, so the release namespace already IS the namespace the
+ * deployer chose when they created the CR. The knob asked a second time, in the install form, for
+ * something the form's own target had already decided — and the portal's sidebar now DISCOVERS the
+ * namespaces a caller may read page roots in, so nothing has to be told where the pages went.
  *
  * `global` is declared because the root is closed and a value nobody fills in still arrives.
  * composition-dynamic-controller adds a top-level `global` block to the values of EVERY render
@@ -121,15 +90,6 @@ export const pageValuesSchema = (slug: string): string => `${JSON.stringify({
   properties: {
     global: {
       description: 'Set by composition-dynamic-controller on every render (composition name, namespace, kind, ...); not for a deployer to fill in.',
-      type: 'object',
-    },
-    tiers: {
-      additionalProperties: false,
-      description: 'Which namespace this page set is created in. Empty = the release namespace.',
-      properties: {
-        common: { default: '', title: 'Namespace', type: 'string' },
-      },
-      title: 'Namespace tiers',
       type: 'object',
     },
   },
@@ -214,13 +174,21 @@ spec:
 ` : null
 }
 
-/** The namespace every CR this chart ships is created in — resolved at install time, not authoring. */
-const TIER_NAMESPACE = `{{ include "page.tierNamespace" (dict "ctx" . "tier" "${PAGE_TIER}") }}`
+/**
+ * The namespace every CR this chart ships is created in — resolved at install time, not authoring,
+ * so the published chart names no namespace of its own and installs anywhere.
+ *
+ * It was `{{ include "page.tierNamespace" ... }}` while page sets carried a copy of the portal's
+ * tiers model (krateo-platformops/portal#261). The release namespace is what that helper resolved
+ * to on every install that did not set a tier, i.e. every install — and it is the namespace the
+ * composition that installs this chart was created in, which is the deployer's actual choice.
+ */
+const RELEASE_NAMESPACE = '{{ .Release.Namespace }}'
 
 /**
- * `spec.resourcesRefs.items[]` with sibling refs pointed at the tier instead of the authoring
- * namespace. Returns a partial spread — `{}` when there is nothing to retarget — so a CR with no
- * refs, or only external ones, is dumped exactly as it was held.
+ * `spec.resourcesRefs.items[]` with sibling refs pointed at the release namespace instead of the
+ * authoring one. Returns a partial spread — `{}` when there is nothing to retarget — so a CR with
+ * no refs, or only external ones, is dumped exactly as it was held.
  */
 const retargetRefs = (cr: Record<string, unknown>, shipped: ReadonlySet<string>): Record<string, unknown> => {
   const spec = cr.spec && typeof cr.spec === 'object' ? cr.spec as Record<string, unknown> : null
@@ -230,7 +198,7 @@ const retargetRefs = (cr: Record<string, unknown>, shipped: ReadonlySet<string>)
   }
   const items: unknown[] = (refs.items as unknown[]).map((item) => {
     const ref = item && typeof item === 'object' ? item as Record<string, unknown> : null
-    return ref && typeof ref.name === 'string' && shipped.has(ref.name) ? { ...ref, namespace: TIER_NAMESPACE } : item
+    return ref && typeof ref.name === 'string' && shipped.has(ref.name) ? { ...ref, namespace: RELEASE_NAMESPACE } : item
   })
   return { spec: { ...spec, resourcesRefs: { ...refs, items } } }
 }
@@ -266,10 +234,10 @@ export const pageDraftFiles = (widgets: readonly unknown[]): Record<string, stri
     // keeps those two readers from having to share one value that cannot suit both.
     //
     // Both namespaces move together or the page breaks in a way nothing reports: the CRs install
-    // into the tier, but a parent still naming the authoring namespace resolves its children
-    // somewhere else — a page that renders empty, with every resource present and healthy.
+    // into the release namespace, but a parent still naming the authoring namespace resolves its
+    // children somewhere else — a page that renders empty, with every resource present and healthy.
     files[pageDraftSlug(kind, name)] = dump(
-      { ...cr, metadata: { ...metadata, namespace: TIER_NAMESPACE }, ...retargetRefs(cr, shipped) },
+      { ...cr, metadata: { ...metadata, namespace: RELEASE_NAMESPACE }, ...retargetRefs(cr, shipped) },
       { lineWidth: -1, noRefs: true, sortKeys: false },
     )
   }
@@ -294,13 +262,17 @@ export const pageDraftFiles = (widgets: readonly unknown[]): Record<string, stri
   }
   files['Chart.yaml'] = pageChartYaml(slug)
   files['values.schema.json'] = pageValuesSchema(slug)
-  // A partial (leading `_`), so Helm defines it and renders nothing from it.
-  files[`${PAGE_TEMPLATES_DIR}/_tiers.tpl`] = pageTiersPartial()
-  // The defaults the schema already declares, written out as values.yaml too. Helm does not require
-  // it (the tier helper defaults a missing `tiers` to an empty dict), but a chart whose values are
-  // only discoverable by reading a JSON Schema is a chart nobody reads the values of — and `helm
-  // lint` says so. Keep it in step with pageValuesSchema; they describe the same two facts.
-  files['values.yaml'] = 'tiers:\n  # Namespace this page set is created in. Empty = the release namespace.\n  common: ""\n'
+  // Written even though there is nothing to set, because `helm lint` says so for a chart without
+  // one. It says what it says rather than being empty: a reader who opens values.yaml looking for
+  // the namespace knob that page sets used to carry (portal#261's `tiers.common`) gets told where
+  // the namespace comes from instead of finding a blank file.
+  files['values.yaml'] = '# Nothing to set.\n'
+    + '#\n'
+    + '# Every CR this page set ships is created in the release namespace — the namespace of the\n'
+    + '# composition that installs it — and the portal sidebar discovers page roots in whichever\n'
+    + '# namespaces a signed-in caller may read them.\n'
+    + '#\n'
+    + '# `global` is set by composition-dynamic-controller on every render, not by a deployer.\n'
   return files
 }
 
@@ -323,13 +295,13 @@ export const pageDraftFiles = (widgets: readonly unknown[]): Record<string, stri
  * publish set, and absent from the thing labelled "Rendered (live)".
  *
  * THE TEMPLATED NAMESPACE COMES BACK AS-IS, deliberately. `pageDraftFiles` writes
- * `{{ include "page.tierNamespace" ... }}` into metadata.namespace so the CHART does not hardcode
- * an authoring namespace. Reversing that here would mean guessing which namespace it came from.
+ * `{{ .Release.Namespace }}` into metadata.namespace so the CHART does not hardcode an authoring
+ * namespace. Reversing that here would mean guessing which namespace it came from.
  * It does not need reversing: `rewriteDraftsForSandbox` FORCES the namespace to the sandbox before
  * anything is applied, so the include is overwritten rather than resolved. Anything that starts
  * applying these objects WITHOUT that rewrite has to resolve the namespace itself first.
  *
- * Non-template files (Chart.yaml, values, the tier helper) are not widgets and are skipped. A file
+ * Non-template files (Chart.yaml, values) are not widgets and are skipped. A file
  * that does not parse, or parses to something that is not a CR, is skipped rather than failing the
  * whole set: one malformed file should cost its own widget, not the preview.
  */

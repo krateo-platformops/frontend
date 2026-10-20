@@ -351,7 +351,7 @@ export interface DraftAction {
   name: string
   /**
    * The namespace its file declares, or null when that is a Helm template. A page draft writes
-   * `{{ include "page.tierNamespace" ... }}` into every object, which is a chart's instruction and
+   * `{{ .Release.Namespace }}` into every object, which is a chart's instruction and
    * not a place an apiRef can name — so the caller resolves it exactly as it does for a RESTAction
    * written in the Data modal, rather than copying the include into the widget.
    */
@@ -394,7 +394,7 @@ export const flattenTree = (nodes: readonly TreeNode[]): TreeNode[] =>
  * A namespace a NEW object can be created in, or null.
  *
  * Skips Helm template expressions. The held draft is a page-set CHART — `pageDraft.ts` rewrites
- * every namespace to `{{ include "page.tierNamespace" ... }}` so the published chart is portable —
+ * every namespace to `{{ .Release.Namespace }}` so the published chart is portable —
  * so the literal most files carry is a template, not a place. Counting it produced a "namespace"
  * that no apiserver would accept, and Bind data refused with "the draft has no namespace to create
  * these in" on every hand-started page.
