@@ -146,7 +146,7 @@ describe('Menu navModel', () => {
 describe('resolveContentEndpoint — a page that lives in another namespace', () => {
   it('resolves the convention in the ITEM’s namespace when it declares one', () => {
     // Without this, the convention resolves every page in the single configured
-    // FRONTEND_NAMESPACE — so a page shipped by another chart, or placed in a `tiers` namespace,
+    // FRONTEND_NAMESPACE — so a page shipped by another chart, or installed into another namespace,
     // is simply unreachable by a nav entry that has no resourceRefId.
     const endpoint = resolveContentEndpoint(
       { namespace: 'krateo-tenant', page: 'fleet-health', path: '/fleet-health' },

@@ -255,16 +255,17 @@ describe('draftNamespace', () => {
 
 describe('draftNamespace ignores Helm templates', () => {
   // The held draft IS a page-set chart: pageDraft.ts rewrites every namespace to
-  // `{{ include "page.tierNamespace" ... }}` so the published chart is portable. Counting that as
-  // a namespace produced one no apiserver would accept, and Bind data refused with "the draft has
-  // no namespace to create these in" on every hand-started page.
+  // `{{ .Release.Namespace }}` so the published chart is portable. Counting that as a namespace
+  // produced one no apiserver would accept, and Bind data refused with "the draft has no namespace
+  // to create these in" on every hand-started page. The guard is on `{{` and not on any one
+  // helper, which is why swapping the template out (portal#261) did not reach it.
   const file = (name: string, ns: string) => [
     `templates/flex.${name}.yaml`,
     `apiVersion: widgets.templates.krateo.io/v1beta1\nkind: Flex\nmetadata:\n  name: ${name}\n  namespace: ${ns}\nspec:\n  widgetData: {}\n`,
   ] as const
 
   it('returns null when every namespace is a template, rather than the template itself', () => {
-    const tpl = '\'{{ include "page.tierNamespace" (dict "ctx" . "tier" "common") }}\''
+    const tpl = '\'{{ .Release.Namespace }}\''
     expect(draftNamespace(Object.fromEntries([file('a', tpl), file('b', tpl)]))).toBeNull()
   })
 
@@ -276,7 +277,7 @@ describe('draftNamespace ignores Helm templates', () => {
   })
 
   it('ignores the template even when it outnumbers the real one', () => {
-    const tpl = '\'{{ include "page.tierNamespace" (dict "ctx" . "tier" "common") }}\''
+    const tpl = '\'{{ .Release.Namespace }}\''
     const files = Object.fromEntries([file('a', tpl), file('b', tpl), file('c', 'krateo-system')])
     expect(draftNamespace(files)).toBe('krateo-system')
   })
@@ -290,7 +291,7 @@ describe('draftActions — the RESTActions a Data modal can reuse without a publ
     const files = {
       'templates/broken.yaml': 'kind: RESTAction\n  : : not yaml',
       'templates/restaction.fleet.yaml': action('fleet', 'krateo-system'),
-      'templates/restaction.pod-sizing.yaml': action('pod-sizing', `'{{ include "page.tierNamespace" (dict "ctx" . "tier" "common") }}'`),
+      'templates/restaction.pod-sizing.yaml': action('pod-sizing', `'{{ .Release.Namespace }}'`),
       'templates/table.pods.yaml': cr('Table', 'pods'),
     }
     expect(draftActions(files)).toEqual([

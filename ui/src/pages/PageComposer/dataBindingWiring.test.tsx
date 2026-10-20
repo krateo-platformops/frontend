@@ -5,7 +5,7 @@
  * The emitters were covered thoroughly and the wiring was not, so this shipped: the Data action
  * rendered on every node, the click set state, and NO MODAL APPEARED. The guard required a non-null
  * `draftNamespace(files)`, and a page draft holds the TEMPLATED namespace
- * (`{{ include "page.tierNamespace" ... }}`) in every file — which `draftNamespace` deliberately
+ * (`{{ .Release.Namespace }}`) in every file — which `draftNamespace` deliberately
  * skips. So it returned null for exactly the drafts the modal exists for.
  *
  * Nothing about that is visible from a unit test of the emitters, and nothing about it errors. It
@@ -64,7 +64,7 @@ describe('the Data action on a real page draft', () => {
     // disappears with it and the next reader should be told rather than left guessing.
     const files = realDraft()
     const root = Object.entries(files).find(([path]) => path.includes('flex.'))
-    expect(root?.[1]).toContain('{{ include "page.tierNamespace"')
+    expect(root?.[1]).toContain('{{ .Release.Namespace }}')
   })
 
   it('OPENS the modal — it rendered nothing at all before', async () => {
