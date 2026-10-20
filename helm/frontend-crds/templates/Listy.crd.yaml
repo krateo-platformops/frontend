@@ -418,6 +418,9 @@ spec:
                     footer:
                       description: antd List footer (ReactNode in antd; string here)
                       type: string
+                    footerNavigateTo:
+                      description: 'in-app route the footer opens (e.g. /incidents); when set the footer renders as a link. Not an antd prop: antd''s footer is a ReactNode, and a CR can only say where it goes.'
+                      type: string
                     grid:
                       description: antd List grid layout (ListGridType); presence enables grid mode
                       properties:
@@ -521,6 +524,9 @@ spec:
                         description:
                           description: longer body line (2-line clamp); only rendered by the card rowVariant (e.g. a catalog tile description)
                           type: string
+                        ellipsis:
+                          description: one line each for primaryText and subPrimaryText in the default row, the full text in a tooltip (antd Typography ellipsis)
+                          type: boolean
                         formats:
                           description: Per-field rendering applied after each {dot.path} resolves.
                           properties:

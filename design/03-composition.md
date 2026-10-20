@@ -406,6 +406,12 @@ Six compliant instances make this real house convention — Breadcrumb, Notifica
 
 *Evidence: verified `CommandPalette.tsx:137-138` · `Select.tsx:128,144`*
 
+> **2026-10-19: one-line list rows are a choice a CR can make, and they keep the rule.** A Listy's
+> `itemTemplate.ellipsis` puts a default row's title and sub-line on one line each, through antd
+> Typography's `ellipsis` with its tooltip, so the full text is always one hover away. Added for the
+> composition-detail page, whose incidents were titled by their whole root-cause sentence and whose
+> events by the whole backend error.
+
 ### P20 — Error titles are sentence case.
 
 **Status:** minor → **fixed**

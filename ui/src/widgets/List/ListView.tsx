@@ -71,6 +71,8 @@ interface ListViewProps {
   loading?: boolean
   header?: ReactNode
   footer?: ReactNode
+  /** In-app route the footer opens; the footer is then a link, not a sentence pointing at one. */
+  footerNavigateTo?: string
   /**
    * antd List pagination (serializable subset): presence enables client-side paging of the
    * delivered items (e.g. the ~400-card Marketplace grid). Server-side facet/search filters
@@ -91,13 +93,24 @@ interface ListViewProps {
 }
 
 /**
+ * `itemTemplate.ellipsis`: a row's text on one line, the whole of it in a tooltip (P19). A list of
+ * incidents titled by their root cause, or of events titled by their message, was a column of
+ * 200-character sentences; one line each keeps the list scannable and loses nothing.
+ */
+const oneLine = (text: string | undefined, ellipsis: boolean | undefined, type?: 'secondary') => {
+  if (!text) { return undefined }
+  if (!ellipsis) { return text }
+  return <Typography.Text className={styles.oneLine} ellipsis={{ tooltip: text }} type={type}>{text}</Typography.Text>
+}
+
+/**
  * Domain-agnostic list presentation mirroring the antd `List` API. Each element
  * is rendered as a child widget (when `renderChild` returns a node for it) or as
  * an `List.Item.Meta` row via `itemTemplate`. Shared by the `List` widget and
  * `Notifications`.
  */
 export const ListView = ({
-  actions, bordered, deniedRefIds, footer, grid, header, hideWhenEmpty, itemLayout = 'horizontal', itemTemplate, items, loading, pagination, renderChild, resourcesRefs, rowKey, size, split, widget,
+  actions, bordered, deniedRefIds, footer, footerNavigateTo, grid, header, hideWhenEmpty, itemLayout = 'horizontal', itemTemplate, items, loading, pagination, renderChild, resourcesRefs, rowKey, size, split, widget,
 }: ListViewProps) => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -167,7 +180,11 @@ export const ListView = ({
       bordered={bordered}
       className={isChips ? styles.chipList : undefined}
       dataSource={items}
-      footer={footer}
+      footer={footer && footerNavigateTo
+        // P12: a footer that says "see all →" is a way somewhere, so it is a real link — it takes
+        // focus and Enter like one — rather than a sentence that only looks like it goes there.
+        ? <Typography.Link href={footerNavigateTo} onClick={(event) => { event.preventDefault(); navigateOrExternal(navigate, footerNavigateTo) }}>{footer}</Typography.Link>
+        : footer}
       grid={grid}
       header={header}
       itemLayout={itemLayout}
@@ -434,8 +451,8 @@ export const ListView = ({
                 avatar={avatar}
                 description={row.subPrimaryText && itemTemplate.subPrimaryTextMono
                   ? <span className={styles.refPill}>{row.subPrimaryText}</span>
-                  : (row.subPrimaryText || undefined)}
-                title={row.primaryText}
+                  : oneLine(row.subPrimaryText, itemTemplate.ellipsis, 'secondary')}
+                title={oneLine(row.primaryText, itemTemplate.ellipsis)}
               />
             )}
             {barEl}

@@ -373,3 +373,11 @@
   margin-inline-start: var(--spacing-xsm);
   opacity: 0.6;
 }
+
+/* itemTemplate.ellipsis: the one-line text must be allowed to shrink inside the row's flex track,
+   or it pushes the row wider instead of truncating. */
+.oneLine {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+}
