@@ -631,7 +631,8 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
 
       {reviewing && reviewValues ? <ReviewSummary agentKeys={agentAuthoredKeys(agentAuthoredRef.current, reviewValues)} schema={jsonSchema} secretPaths={widgetSecretPaths} values={reviewValues} /> : null}
 
-      <div className={styles.extra}>{footer}</div>
+      {/* In a drawer the buttons live in the drawer's header, so there is no action bar to draw. */}
+      {footer ? <div className={styles.extra}>{footer}</div> : null}
     </div>
   )
 }
