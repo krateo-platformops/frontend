@@ -105,15 +105,23 @@ export const WidgetNotFound = ({ subtitle }: { subtitle?: string }) => (
  * WidgetError: a component that is simply absent from this installation is an expected outcome,
  * not a malfunction, and the red cross misdescribes it exactly as it did for a 403.
  *
- * No Retry, for the same reason WidgetForbidden has none: the dependency will be missing on the
- * next fetch too, and the button would imply otherwise.
+ * It DOES offer a button, unlike WidgetForbidden and WidgetNotFound, and the difference is the
+ * recovery path rather than the tone. An error answer carries no `/refreshes` arming headers, so
+ * a tab sitting on a 424 is never told when the operator finally appears -- it would otherwise
+ * clear only on navigation or a reload. And unlike a denial or a deleted object, "install the
+ * missing component" is the expected next step here, often taken by the same person with this
+ * tab still open.
+ *
+ * Hence "Check again" rather than "Retry": before the install it honestly changes nothing, and
+ * it does not imply the failure was transient the way Retry does.
  *
  * `subtitle` is snowplow's own message for the failed dependency and is rendered verbatim as
  * reader-facing copy, so it must never carry identity or credentials.
  */
-export const WidgetDependencyMissing = ({ subtitle }: { subtitle?: string }) => (
+export const WidgetDependencyMissing = ({ onRetry, subtitle }: { onRetry?: () => void; subtitle?: string }) => (
   <div className={styles.timeout} data-testid='widget-dependency-missing'>
     <Result
+      extra={onRetry ? <Button onClick={onRetry} type='primary'>Check again</Button> : undefined}
       status='info'
       subTitle={subtitle ?? 'Something this needs is not installed on this cluster.'}
       title='Data source unavailable'

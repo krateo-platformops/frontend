@@ -161,7 +161,7 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
     // is not broken, and it is not retryable, so it gets the calm no-Retry state rather than
     // falling through to the red cross below.
     if (status === 424) {
-      return <WidgetDependencyMissing subtitle={detail} />
+      return <WidgetDependencyMissing onRetry={() => { void refetch() }} subtitle={detail} />
     }
 
     const failedToFetch = error instanceof Error && (error instanceof TypeError || error.message.includes('Failed to fetch'))
