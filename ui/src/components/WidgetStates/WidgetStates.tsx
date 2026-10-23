@@ -96,6 +96,32 @@ export const WidgetNotFound = ({ subtitle }: { subtitle?: string }) => (
 )
 
 /**
+ * Distinct DEPENDENCY-FAILED state (424), snowplow#853. The widget CR itself was read fine —
+ * what it needs in order to say anything is not on this cluster: the apiRef RESTAction, one of
+ * its stages, a nested resolve, or the CRD a status check reads. The canonical case is a page
+ * whose backing operator was never installed (/agents/new with no kagent).
+ *
+ * Before 424 this arrived as a 404 and rendered WidgetNotFound. It must NOT fall through to
+ * WidgetError: a component that is simply absent from this installation is an expected outcome,
+ * not a malfunction, and the red cross misdescribes it exactly as it did for a 403.
+ *
+ * No Retry, for the same reason WidgetForbidden has none: the dependency will be missing on the
+ * next fetch too, and the button would imply otherwise.
+ *
+ * `subtitle` is snowplow's own message for the failed dependency and is rendered verbatim as
+ * reader-facing copy, so it must never carry identity or credentials.
+ */
+export const WidgetDependencyMissing = ({ subtitle }: { subtitle?: string }) => (
+  <div className={styles.timeout} data-testid='widget-dependency-missing'>
+    <Result
+      status='info'
+      subTitle={subtitle ?? 'Something this needs is not installed on this cluster.'}
+      title='Data source unavailable'
+    />
+  </div>
+)
+
+/**
  * Classify a fetch failure as a TIMEOUT (calm, retryable) vs a hard error. True for
  * request deadlines, cancelled/aborted fetches, and 503/504 gateway timeouts —
  * detected from the HTTP status when present, otherwise from the message class. Pure

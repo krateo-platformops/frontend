@@ -217,6 +217,64 @@ describe('WidgetRenderer — hard error → WidgetError (red cross), not the cal
     expect(queryByTestId('widget-error')).toBeNull()
   })
 
+  /**
+   * 424 Failed Dependency (snowplow#853, 1.12.55): the widget CR read fine, but something it
+   * needs is absent from this cluster — typically the operator behind its apiRef. Before #853
+   * this arrived as a 404 and got WidgetNotFound; it must not regress into the red cross now
+   * that it has its own status, for the same reason 403 did not stay there.
+   */
+  it('renders WidgetDependencyMissing for a 424 — an uninstalled dependency is not a malfunction', async () => {
+    await setState({
+      error: Object.assign(new Error('Widget fetch failed: 424 Failed Dependency'), { status: 424 }),
+      isPending: false,
+      timedOut: false,
+    })
+    const { queryByTestId } = renderWidget()
+
+    expect(queryByTestId('widget-dependency-missing')).not.toBeNull()
+    expect(queryByTestId('widget-error')).toBeNull()
+    expect(queryByTestId('widget-timeout')).toBeNull()
+    expect(queryByTestId('widget-notfound')).toBeNull()
+  })
+
+  /**
+   * The whole point of 424 over 404 is that snowplow can say WHICH dependency is missing, so
+   * that message has to reach the reader rather than being replaced by generic copy.
+   */
+  it("shows snowplow's own words for the missing dependency on a 424", async () => {
+    await setState({
+      error: Object.assign(new Error('Widget fetch failed: 424 Failed Dependency'), {
+        detail: 'resolve apiRef agents-list: stage "crd": "agents.kagent.dev" not found',
+        status: 424,
+      }),
+      isPending: false,
+      timedOut: false,
+    })
+    const { queryByTestId } = renderWidget()
+
+    // Scoped to the 424 state on purpose: WidgetError renders `detail` as its subtitle too, so an
+    // unscoped text match would pass even if 424 fell through to the red cross -- i.e. it would
+    // not be testing this change at all.
+    const state = queryByTestId('widget-dependency-missing')
+    expect(state).not.toBeNull()
+    expect(state!.textContent).toContain('"agents.kagent.dev" not found')
+  })
+
+  /**
+   * No Retry, for the reason WidgetForbidden has none: the dependency is still going to be
+   * missing on the next fetch, and the button would tell the reader the failure is transient.
+   */
+  it('offers no Retry on a 424 — the dependency will still be missing next time', async () => {
+    await setState({
+      error: Object.assign(new Error('Widget fetch failed: 424 Failed Dependency'), { status: 424 }),
+      isPending: false,
+      timedOut: false,
+    })
+    const { queryByRole } = renderWidget()
+
+    expect(queryByRole('button', { name: /retry/i })).toBeNull()
+  })
+
   it("surfaces the backend's own message when the failure response carried one", async () => {
     await setState({
       error: Object.assign(new Error('Widget fetch failed: 500 Internal Server Error'), {
