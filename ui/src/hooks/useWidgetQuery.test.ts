@@ -325,9 +325,13 @@ describe('initial-render retry — transient failures retry, permanent ones do n
     expect(shouldRetryWidgetFetch(0, new WidgetFetchError('nope', 404))).toBe(true)
   })
 
-  it('never retries permanent 4xx (auth / forbidden / bad-request)', () => {
-    for (const status of [400, 401, 403]) {
+  it('never retries permanent 4xx (auth / forbidden / bad-request / failed-dependency)', () => {
+    // 424 (snowplow#853) joins these: an uninstalled dependency cannot appear between attempts,
+    // and retrying it is the 4x/~4.9s amplification #853 exists to remove. It must stay terminal
+    // on BOTH paths, so the eventTriggered variant is asserted too -- only 404 inverts on that flag.
+    for (const status of [400, 401, 403, 424]) {
       expect(shouldRetryWidgetFetch(0, new WidgetFetchError('nope', status))).toBe(false)
+      expect(shouldRetryWidgetFetch(0, new WidgetFetchError('nope', status), true)).toBe(false)
     }
   })
 
@@ -366,6 +370,10 @@ describe('timedOut — useWidgetQuery classifies the query error via the Freshne
   })
 
   it('is false for a hard 4xx / 500 error (red-cross path, not the calm timeout)', () => {
+    // 424's status line is "Failed Dependency" -- no timeout word, and the detail is carried on
+    // a separate field rather than concatenated into the message, so a dependency whose own
+    // error text says "timeout" still cannot reclassify the widget as slow.
+    expect(computeTimedOut(new WidgetFetchError('Widget fetch failed: 424 Failed Dependency', 424))).toBe(false)
     expect(computeTimedOut(new WidgetFetchError('bad request', 400))).toBe(false)
     expect(computeTimedOut(new WidgetFetchError('forbidden', 403))).toBe(false)
     expect(computeTimedOut(new WidgetFetchError('server error', 500))).toBe(false)

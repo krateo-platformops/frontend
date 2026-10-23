@@ -10,7 +10,7 @@ import { getWidgetModule } from '../../widgets/registry'
 import { useFilter } from '../FiltesProvider/FiltersProvider'
 import { FreshnessBadge } from '../FreshnessBadge/FreshnessBadge'
 import { ScrollPagination } from '../Pagination/ScrollPagination'
-import { WidgetError, WidgetErrorBoundary, WidgetForbidden, WidgetLoading, WidgetNotFound, WidgetTimeout } from '../WidgetStates'
+import { WidgetDependencyMissing, WidgetError, WidgetErrorBoundary, WidgetForbidden, WidgetLoading, WidgetNotFound, WidgetTimeout } from '../WidgetStates'
 
 import styles from './WidgetRenderer.module.css'
 
@@ -155,6 +155,13 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
     }
     if (status === 404) {
       return <WidgetNotFound subtitle={detail} />
+    }
+    // 424: the widget was found, but something it depends on is not installed here (snowplow#853 —
+    // before 1.12.55 this same situation answered 404 and landed on WidgetNotFound above). Absent
+    // is not broken, and it is not retryable, so it gets the calm no-Retry state rather than
+    // falling through to the red cross below.
+    if (status === 424) {
+      return <WidgetDependencyMissing onRetry={() => { void refetch() }} subtitle={detail} />
     }
 
     const failedToFetch = error instanceof Error && (error instanceof TypeError || error.message.includes('Failed to fetch'))
