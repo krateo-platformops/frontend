@@ -90,8 +90,16 @@ describe('sseClient — shared, ref-counted SSE over fetch + Bearer', () => {
   beforeEach(() => {
     nextStatus = 200
     vi.stubGlobal('fetch', (url: string, init: RequestInit) => {
+      // A real fetch rejects on an already-aborted signal and never reaches the network. The
+      // fake has to do the same, or a stream the client deliberately declined to open still
+      // shows up here as live — which is how the one-stream rule looked satisfied when it
+      // wasn't (review G2).
+      if (init.signal?.aborted) {
+        return Promise.reject(new DOMException('The user aborted a request.', 'AbortError'))
+      }
       const fake = new FakeStream(url, init, nextStatus)
       init.signal?.addEventListener('abort', () => { fake.closed = true })
+
       return Promise.resolve(fake.response())
     })
   })
@@ -358,6 +366,61 @@ describe('sseClient — shared, ref-counted SSE over fetch + Bearer', () => {
     // byTopic is shared with the replacement, so a late frame would arrive looking like the
     // new stream's own.
     expect(seen).toEqual([])
+  })
+
+  it('a pending fetch aborted by the reopen does not tear down its replacement (the browser path)', async () => {
+    // G2 from the review. A real fetch REJECTS when its signal aborts, so in a browser the
+    // "old request finishes after the reopen" case goes through the fetch catch, NOT the
+    // !response.ok branch. The simple fake ignores the signal, which is exactly why reverting
+    // that catch's guard passed the whole suite — the test could not reach the real path.
+    let calls = 0
+    vi.stubGlobal('fetch', (url: string, init: RequestInit) => {
+      calls += 1
+      if (calls === 1) {
+        return new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => {
+            reject(new DOMException('The user aborted a request.', 'AbortError'))
+          })
+        })
+      }
+      const fake = new FakeStream(url, init, 200)
+      init.signal?.addEventListener('abort', () => { fake.closed = true })
+
+      return Promise.resolve(fake.response())
+    })
+
+    const seen: string[] = []
+    let errors = 0
+    subscribeSse('u', 't', { onError: () => { errors += 1 }, onMessage: (data) => seen.push(data) })
+    await settle()
+
+    resumeAs('tok-2')
+    await settle()
+    expect(calls).toBe(2)
+
+    // The aborted first request must be silent, not an error that tears down the replacement.
+    expect(errors).toBe(0)
+    FakeStream.instances[0]?.emit('t', { survived: true })
+    await settle()
+    expect(seen).toEqual(['{"survived":true}'])
+  })
+
+  it('subscribing and invalidating in the same tick delivers each frame ONCE', async () => {
+    // G1 from the review. The first open used to read `conn.controller` when its microtask
+    // ran, by which time an invalidation in the same tick had already replaced it — so this
+    // open and the reopen's both started on the same controller, both passed isCurrent, and
+    // every frame arrived twice. Not reachable from today's call sites; it breaks the
+    // one-stream-per-endpoint rule the module exists to keep.
+    const seen: string[] = []
+    subscribeSse('u', 't', { onMessage: (data) => seen.push(data) })
+    resumeAs('tok-2')
+    await settle()
+
+    const live = FakeStream.instances.filter((instance) => !instance.closed)
+    expect(live).toHaveLength(1)
+    live[0]?.emit('t', { once: true })
+    await settle()
+    expect(seen).toEqual(['{"once":true}'])
   })
 
   it('does not report an error when WE tore the connection down', async () => {

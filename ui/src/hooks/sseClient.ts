@@ -190,7 +190,13 @@ export const subscribeSse = (url: string, topic: string, subscriber: SseSubscrib
     connection = conn
     // Subscribe first, open after: the caller's subscriber must be in `all` before the
     // stream can fan `onOpen`/`onError` at it. `stream` never rejects.
-    queueMicrotask(() => { void stream(url, conn, conn.controller) })
+    //
+    // Capture the controller HERE, not inside the microtask. Reading `conn.controller` when
+    // the microtask runs means an invalidation in this same tick has already replaced it, so
+    // this open and the reopen's both start on the identical controller — two live streams,
+    // both passing `isCurrent`, every frame delivered twice. Same capture reopenAll does.
+    const { controller } = conn
+    queueMicrotask(() => { void stream(url, conn, controller) })
   }
 
   const conn = connection
