@@ -56,6 +56,8 @@ import type { Config } from '../context/ConfigContext'
 import { getAccessToken } from '../utils/getAccessToken'
 import { raiseSessionExpired } from '../utils/sessionResume'
 
+import { drainSseEvents, parseSseBlock } from './sseFrames'
+
 // ────────────────────────────────────────────────────────────────────────────
 // Protocol types
 // ────────────────────────────────────────────────────────────────────────────
@@ -132,36 +134,10 @@ export const base64UrlEncode = (input: string): string => {
     .replace(/=+$/, '')
 }
 
-/** Pull complete SSE event blocks out of a rolling buffer, returning [events, remainder]. */
-export const drainSseEvents = (buffer: string): { events: string[]; rest: string } => {
-  const events: string[] = []
-  let rest = buffer
-  let boundary = rest.indexOf('\n\n')
-  while (boundary !== -1) {
-    events.push(rest.slice(0, boundary))
-    rest = rest.slice(boundary + 2)
-    boundary = rest.indexOf('\n\n')
-  }
-  return { events, rest }
-}
-
-/**
- * Parse one SSE event block into its `event:` name and joined `data:` payload.
- * Comment lines (`:` prefix, e.g. `: keepalive`) and unknown fields are ignored.
- */
-export const parseSseBlock = (block: string): { event?: string; data?: string } => {
-  let event: string | undefined
-  const dataLines: string[] = []
-  for (const line of block.split('\n')) {
-    if (line.startsWith(':') || line.length === 0) { continue }
-    if (line.startsWith('event:')) {
-      event = line.slice(6).trim()
-    } else if (line.startsWith('data:')) {
-      dataLines.push(line.slice(5).replace(/^ /, ''))
-    }
-  }
-  return { event, data: dataLines.length ? dataLines.join('\n') : undefined }
-}
+// SSE frame parsing lives in sseFrames.ts so clients can parse without importing this
+// module (which instantiates refreshManager below). Re-exported: callers and tests that
+// imported them from here keep working.
+export { drainSseEvents, parseSseBlock }
 
 const parseNumber = (raw: string | null): number | undefined => {
   if (raw === null) { return undefined }

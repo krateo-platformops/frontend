@@ -63,14 +63,11 @@ export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic
       return
     }
 
-    // sse-proxy verifies the JWT on /notifications too. EventSource cannot set
-    // headers and we open the stream with withCredentials:false, so the token
-    // rides as ?access_token= — sse-proxy's documented EventSource fallback.
-    const streamUrl = `${notificationsUrl}?access_token=${encodeURIComponent(getAccessToken())}`
-
     // Subscribe through the shared SSE client so we don't open a second connection to
     // /notifications when other widgets (List/Listy) listen to the same stream.
-    return subscribeSse(streamUrl, topic, {
+    // The URL carries NO credential: sseClient authenticates with `Authorization: Bearer`
+    // (installer#395 — the token used to ride as ?access_token= and reach the access logs).
+    return subscribeSse(notificationsUrl, topic, {
       onError: () => { console.error('[SSE] Connection error') },
       onMessage: (raw) => {
         try {
