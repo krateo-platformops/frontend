@@ -1,4 +1,4 @@
-import { getAccessToken } from '../utils/getAccessToken'
+import { getAccessToken, onAccessTokenInvalidated } from '../utils/getAccessToken'
 
 import { drainSseEvents, parseSseBlock } from './sseFrames'
 
@@ -50,7 +50,7 @@ export interface SseSubscriber {
 }
 
 interface SseConnection {
-  /** Aborts the in-flight fetch and ends its read loop. */
+  /** Aborts the in-flight fetch and ends its read loop. Replaced by `reopenAll`. */
   controller: AbortController
   /** topic → subscribers listening on that topic (for message routing). */
   byTopic: Map<string, Set<SseSubscriber>>
@@ -76,10 +76,22 @@ const fail = (url: string, connection: SseConnection) => {
 }
 
 /**
+ * Is this stream still the connection's live one?
+ *
+ * A reopen replaces `connection.controller` and starts a new `stream` over the SAME
+ * connection object and subscribers, so the old stream wakes up (its read rejects on
+ * abort) and reaches its teardown tail. Comparing the controller it was started with
+ * against the connection's current one is what stops it killing its own replacement —
+ * the same guard `refreshSse.scheduleRetry` uses for the same reason.
+ */
+const isCurrent = (connection: SseConnection, controller: AbortController): boolean =>
+  connection.controller === controller && !controller.signal.aborted
+
+/**
  * Open the stream and pump frames into the connection's subscribers until it ends,
  * errors, or is aborted. Resolves when the stream is done; never rejects.
  */
-const stream = async (url: string, connection: SseConnection): Promise<void> => {
+const stream = async (url: string, connection: SseConnection, controller: AbortController): Promise<void> => {
   let token: string
   try {
     token = getAccessToken()
@@ -95,11 +107,12 @@ const stream = async (url: string, connection: SseConnection): Promise<void> => 
   try {
     response = await fetch(url, {
       headers: { Accept: 'text/event-stream', Authorization: `Bearer ${token}` },
-      signal: connection.controller.signal,
+      signal: controller.signal,
     })
   } catch {
-    // Aborted by teardown, or a transport fault. An abort is ours and is not an error.
-    if (!connection.controller.signal.aborted) { fail(url, connection) }
+    // Aborted by teardown or by a reopen, or a transport fault. An abort is ours.
+    if (!isCurrent(connection, controller)) { return }
+    fail(url, connection)
     return
   }
 
@@ -144,9 +157,11 @@ const stream = async (url: string, connection: SseConnection): Promise<void> => 
     }
   } catch { /* aborted or transport error — fall through to the same teardown */ }
 
-  // The stream ended: server idle-close, network drop, or our own abort. Only the first
-  // two are errors the subscribers should hear about.
-  if (!connection.controller.signal.aborted) { fail(url, connection) }
+  // The stream ended: server idle-close, network drop, our own teardown, or a reopen that
+  // replaced this stream. Only the first two are errors the subscribers should hear about —
+  // and a superseded stream must stay silent, or it tears down the one that replaced it.
+  if (!isCurrent(connection, controller)) { return }
+  fail(url, connection)
 }
 
 /**
@@ -164,7 +179,7 @@ export const subscribeSse = (url: string, topic: string, subscriber: SseSubscrib
     connection = conn
     // Subscribe first, open after: the caller's subscriber must be in `all` before the
     // stream can fan `onOpen`/`onError` at it. `stream` never rejects.
-    queueMicrotask(() => { void stream(url, conn) })
+    queueMicrotask(() => { void stream(url, conn, conn.controller) })
   }
 
   const conn = connection
@@ -189,6 +204,36 @@ export const subscribeSse = (url: string, topic: string, subscriber: SseSubscrib
     }
   }
 }
+
+/**
+ * Re-open every live stream with the CURRENT credential.
+ *
+ * Registered against `onAccessTokenInvalidated`, which the in-place session-resume flow
+ * (and Auth) already call. Without this a stream opened before the resume keeps serving
+ * the PREVIOUS user's identity on the server for as long as it stays open, and because
+ * `connections` is keyed on the endpoint alone, a remount re-joins that same connection
+ * instead of opening a fresh one. #501 removed the accident that used to cover this: the
+ * token was part of the url, so a credential change changed the key.
+ *
+ * It re-opens rather than merely tearing down, deliberately. A bare teardown would fix the
+ * identity and leave the bell dead until something remounted it — trading a security bug
+ * for a silent functional one. This is NOT the general reconnect policy (frontend#503):
+ * there is no timer, no backoff and no retry. One attempt, driven by a credential change we
+ * were told about, which is why it cannot loop. If that attempt fails, `stream` fails the
+ * connection exactly as it would have anyway.
+ */
+const reopenAll = (): void => {
+  connections.forEach((connection, url) => {
+    // Abort the in-flight stream and give the connection a fresh controller, so the old
+    // stream's tail sees it is no longer current and stays quiet.
+    connection.controller.abort()
+    connection.controller = new AbortController()
+    const { controller } = connection
+    queueMicrotask(() => { void stream(url, connection, controller) })
+  })
+}
+
+onAccessTokenInvalidated(reopenAll)
 
 /** Test-only: abort + drop all connections. */
 export const __resetSseConnections = (): void => {

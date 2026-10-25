@@ -2,7 +2,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { __resetSseConnections, subscribeSse } from './sseClient'
 
-vi.mock('../utils/getAccessToken', () => ({ getAccessToken: () => 'tok-123' }))
+/**
+ * The real module's shape: a token that can change, and a listener registry the resume flow
+ * drives. Held via vi.hoisted because a vi.mock factory runs before the file body.
+ */
+const auth = vi.hoisted(() => ({ listeners: [] as (() => void)[], token: { current: 'tok-123' } }))
+
+vi.mock('../utils/getAccessToken', () => ({
+  getAccessToken: () => auth.token.current,
+  onAccessTokenInvalidated: (listener: () => void) => {
+    auth.listeners.push(listener)
+
+    return () => undefined
+  },
+}))
+
+/** What `invalidateAccessTokenCache()` does to anything listening. */
+const resumeAs = (token: string) => {
+  auth.token.current = token
+  auth.listeners.forEach((listener) => { listener() })
+}
 
 /**
  * One opened stream. `push` feeds raw SSE text to the client's reader exactly as the
@@ -64,6 +83,9 @@ const settle = () => new Promise<void>((resolve) => { setTimeout(resolve, 0) })
 const noop = () => undefined
 let nextStatus = 200
 
+/** Live connections, inferred from whether a fresh subscribe opens a new stream. */
+const connectionCount = () => FakeStream.instances.filter((i) => !i.closed).length
+
 describe('sseClient — shared, ref-counted SSE over fetch + Bearer', () => {
   beforeEach(() => {
     nextStatus = 200
@@ -75,6 +97,7 @@ describe('sseClient — shared, ref-counted SSE over fetch + Bearer', () => {
   })
   afterEach(() => {
     __resetSseConnections()
+    auth.token.current = 'tok-123'
     FakeStream.instances = []
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
@@ -217,6 +240,69 @@ describe('sseClient — shared, ref-counted SSE over fetch + Bearer', () => {
     await settle()
     expect(survived).toEqual(['{"x":1}', '{"x":2}'])
     expect(FakeStream.instances).toHaveLength(1)
+  })
+
+  it('re-opens with the NEW credential when the session changes (#503 F3)', async () => {
+    // The bug: `connections` is keyed on the endpoint alone, so after an in-place resume as
+    // another user a stream opened with the OLD token keeps that identity on the server, and
+    // a remount re-joins the very same connection. #501 removed the accident that covered
+    // this — the token used to be in the url, so a credential change changed the key.
+    subscribeSse('u', 't', { onMessage: noop })
+    await settle()
+    expect(FakeStream.instances[0]?.headers.Authorization).toBe('Bearer tok-123')
+
+    resumeAs('tok-2')
+    await settle()
+
+    expect(FakeStream.instances).toHaveLength(2)
+    expect(FakeStream.instances[1]?.headers.Authorization).toBe('Bearer tok-2')
+    // The old stream was aborted rather than left running with the stale identity.
+    expect(FakeStream.instances[0]?.closed).toBe(true)
+  })
+
+  it('keeps the subscribers and keeps delivering across a re-open', async () => {
+    const seen: string[] = []
+    let errors = 0
+    subscribeSse('u', 't', { onError: () => { errors += 1 }, onMessage: (data) => seen.push(data) })
+    await settle()
+
+    resumeAs('tok-2')
+    await settle()
+
+    // A bare teardown would have fixed the identity and left the bell dead until something
+    // remounted it — a security bug traded for a silent functional one. It must still work.
+    FakeStream.instances[1]?.emit('t', { after: 'resume' })
+    await settle()
+    expect(seen).toEqual(['{"after":"resume"}'])
+    expect(errors).toBe(0)
+    expect(connectionCount()).toBe(1)
+  })
+
+  it('a superseded stream does not tear down the one that replaced it', async () => {
+    // The subtle half. The re-open gives the connection a fresh controller, so the OLD
+    // stream wakes on abort and runs its teardown tail. Without the identity guard it fails
+    // the connection its replacement is now using — the reopen would kill itself.
+    let errors = 0
+    subscribeSse('u', 't', { onError: () => { errors += 1 }, onMessage: noop })
+    await settle()
+
+    resumeAs('tok-2')
+    await settle()
+
+    // Let the old stream finish arriving at its tail, after the replacement is live.
+    FakeStream.instances[0]?.end()
+    await settle()
+
+    expect(errors).toBe(0)
+    const seen: string[] = []
+    subscribeSse('u', 't', { onMessage: (data) => seen.push(data) })
+    await settle()
+    // Still ONE connection, and it is the new one: no third stream was opened, which it
+    // would have been had the connection been torn down.
+    expect(FakeStream.instances).toHaveLength(2)
+    FakeStream.instances[1]?.emit('t', { ok: true })
+    await settle()
+    expect(seen).toEqual(['{"ok":true}'])
   })
 
   it('does not report an error when WE tore the connection down', async () => {
