@@ -78,7 +78,16 @@ class FakeStream {
 }
 
 /** Let queued microtasks and the client's awaits run. */
-const settle = () => new Promise<void>((resolve) => { setTimeout(resolve, 0) })
+const settle = async () => {
+  // FIVE macrotask turns, not one. Each turn drains the queued microtasks — the queueMicrotask
+  // open, the `await fetch`/`read` continuations, an abort rejection — and a single turn is not
+  // enough to carry abort -> reject -> catch -> tail check while the reopen's own fetch is still
+  // pending. A coarser settle lets a test pass without ever reaching the state it asserts.
+  for (let turn = 0; turn < 5; turn += 1) {
+    // eslint-disable-next-line no-await-in-loop -- draining turns is inherently sequential
+    await new Promise<void>((resolve) => { setTimeout(resolve, 0) })
+  }
+}
 
 const noop = () => undefined
 let nextStatus = 200
