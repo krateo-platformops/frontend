@@ -192,6 +192,33 @@ describe('sseClient — shared, ref-counted SSE over fetch + Bearer', () => {
     expect(stream?.closed).toBe(true)
   })
 
+  it('a throwing subscriber does not kill the stream for the others (snowplow review F1)', async () => {
+    // The regression this guards: the fan-out runs inside the read loop's try, so before the
+    // per-subscriber catch one handler throwing tore down the connection EVERY subscriber on
+    // the endpoint shares. Reachable as soon as a second consumer joined — the bell died
+    // because the action-navigate path's unguarded JSON.parse hit a frame it disliked.
+    const survived: string[] = []
+    let errors = 0
+    subscribeSse('u', 't', { onMessage: () => { throw new Error('handler blew up') } })
+    subscribeSse('u', 't', { onError: () => { errors += 1 }, onMessage: (data) => survived.push(data) })
+    await settle()
+
+    FakeStream.instances[0]?.emit('t', { x: 1 })
+    await settle()
+
+    // The well-behaved subscriber still got this message...
+    expect(survived).toEqual(['{"x":1}'])
+    // ...the connection was not torn down...
+    expect(FakeStream.instances[0]?.closed).toBe(false)
+    expect(errors).toBe(0)
+
+    // ...and it keeps delivering afterwards, which is the part a one-shot check would miss.
+    FakeStream.instances[0]?.emit('t', { x: 2 })
+    await settle()
+    expect(survived).toEqual(['{"x":1}', '{"x":2}'])
+    expect(FakeStream.instances).toHaveLength(1)
+  })
+
   it('does not report an error when WE tore the connection down', async () => {
     let errors = 0
     const unsubscribe = subscribeSse('u', 't', { onError: () => { errors += 1 }, onMessage: noop })

@@ -127,7 +127,19 @@ const stream = async (url: string, connection: SseConnection): Promise<void> => 
       events.forEach((block) => {
         const { data, event } = parseSseBlock(block)
         if (event === undefined || data === undefined) { return }
-        connection.byTopic.get(event)?.forEach((sub) => { sub.onMessage(data) })
+        connection.byTopic.get(event)?.forEach((sub) => {
+          // Each delivery is isolated. This fan-out runs inside the read loop's try, so an
+          // exception from ONE subscriber would otherwise break the loop and tear down the
+          // connection that every OTHER subscriber on this endpoint is sharing — the bell
+          // going dead because an unrelated widget's handler threw. Native EventSource gave
+          // this for free (the browser contains a listener's exception), and routing a second
+          // consumer through this client is what made it reachable.
+          try {
+            sub.onMessage(data)
+          } catch (error) {
+            console.error('[SSE] subscriber threw while handling a message; the stream is unaffected:', error)
+          }
+        })
       })
     }
   } catch { /* aborted or transport error — fall through to the same teardown */ }

@@ -369,7 +369,17 @@ const runRest = async (
     // above and only ever READ inside this callback, which fires later.
     const unsubscribeEvents = subscribeSse(eventsEndpoint, 'krateo', {
       onMessage: (raw) => {
-        const eventData = JSON.parse(raw) as EventData
+        // Guarded like every other subscriber (useGetEvents, useLiveRefresh, useSseStream):
+        // the stream is shared, so a malformed frame must be this subscriber's problem alone.
+        let eventData: EventData
+        try {
+          eventData = JSON.parse(raw) as EventData
+        } catch (error) {
+          console.error('[action] could not parse an event from the stream:', error)
+
+          return
+        }
+
         if (!resourceUid) {
           pendingEvents.push(eventData)
 
