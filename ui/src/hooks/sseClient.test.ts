@@ -305,6 +305,61 @@ describe('sseClient — shared, ref-counted SSE over fetch + Bearer', () => {
     expect(seen).toEqual(['{"ok":true}'])
   })
 
+  it('a superseded stream answering non-ok does not tear down its replacement', async () => {
+    // The reachable case, and the one the reopen itself creates: a stale token 401s, that
+    // raises the resume, the resume invalidates and reopens — and THEN the old 401 lands.
+    // `fail`'s own guard cannot catch it, because it compares the CONNECTION, which a reopen
+    // deliberately keeps (only the controller is replaced).
+    let resolveFirst: ((response: Response) => void) | undefined
+    let calls = 0
+    vi.stubGlobal('fetch', (url: string, init: RequestInit) => {
+      calls += 1
+      if (calls === 1) {
+        return new Promise<Response>((resolve) => { resolveFirst = resolve })
+      }
+      const fake = new FakeStream(url, init, 200)
+      init.signal?.addEventListener('abort', () => { fake.closed = true })
+
+      return Promise.resolve(fake.response())
+    })
+
+    const seen: string[] = []
+    let errors = 0
+    subscribeSse('u', 't', { onError: () => { errors += 1 }, onMessage: (data) => seen.push(data) })
+    await settle()
+
+    // The first fetch is still in flight when the session changes.
+    resumeAs('tok-2')
+    await settle()
+    expect(calls).toBe(2)
+
+    // Now the ORIGINAL request answers 401, after it has been superseded.
+    resolveFirst?.({ body: null, ok: false, status: 401, statusText: 'Unauthorized' } as unknown as Response)
+    await settle()
+
+    expect(errors).toBe(0)
+    // And the replacement is still live and still delivering.
+    FakeStream.instances[0]?.emit('t', { survived: true })
+    await settle()
+    expect(seen).toEqual(['{"survived":true}'])
+  })
+
+  it('delivers no frame from a stream that has been superseded', async () => {
+    const seen: string[] = []
+    subscribeSse('u', 't', { onMessage: (data) => seen.push(data) })
+    await settle()
+    const [first] = FakeStream.instances
+
+    // Queue a frame on the OLD stream, then replace it before the read loop can run again.
+    resumeAs('tok-2')
+    first?.emit('t', { fromTheOldStream: true })
+    await settle()
+
+    // byTopic is shared with the replacement, so a late frame would arrive looking like the
+    // new stream's own.
+    expect(seen).toEqual([])
+  })
+
   it('does not report an error when WE tore the connection down', async () => {
     let errors = 0
     const unsubscribe = subscribeSse('u', 't', { onError: () => { errors += 1 }, onMessage: noop })

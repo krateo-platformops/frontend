@@ -99,6 +99,7 @@ const stream = async (url: string, connection: SseConnection, controller: AbortC
     // No session (logged out, or K_user cleared). Same observable outcome as the 401 the
     // server would have answered, without opening a request to collect it.
     console.error('[SSE] No access token; not opening the stream')
+    if (!isCurrent(connection, controller)) { return }
     fail(url, connection)
     return
   }
@@ -115,6 +116,13 @@ const stream = async (url: string, connection: SseConnection, controller: AbortC
     fail(url, connection)
     return
   }
+
+  // Superseded while this fetch was in flight: say nothing and touch nothing. This path is
+  // the one that matters most, and it is reachable by the very case the reopen exists for —
+  // a stale token 401s, that raises the resume, the resume invalidates and reopens, and THEN
+  // the old 401 lands. `fail` would not catch it: its own guard compares the connection,
+  // which a reopen deliberately does not replace, only its controller.
+  if (!isCurrent(connection, controller)) { return }
 
   if (!response.ok || !response.body) {
     // Worth the status: the old EventSource path could only ever say "something failed",
@@ -134,6 +142,9 @@ const stream = async (url: string, connection: SseConnection, controller: AbortC
       // eslint-disable-next-line no-await-in-loop -- sequential stream reads are inherent to SSE
       const { done, value } = await reader.read()
       if (done) { break }
+      // Replaced mid-flight: deliver nothing further. `byTopic` is shared with the stream
+      // that replaced us, so one late frame here would arrive as if it were the new one's.
+      if (!isCurrent(connection, controller)) { return }
       buffer += decoder.decode(value, { stream: true })
       const { events, rest } = drainSseEvents(buffer)
       buffer = rest
