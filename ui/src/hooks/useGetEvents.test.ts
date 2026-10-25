@@ -20,7 +20,7 @@ import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { useGetEvents } from './useGetEvents'
-import { useLiveRefreshFirehose } from './useLiveRefresh'
+import { LIVE_REFRESH_FIREHOSE_ENABLED, useLiveRefreshFirehose } from './useLiveRefresh'
 
 const { sseSubscriptions } = vi.hoisted(() => ({
   sseSubscriptions: [] as { url: string; topic: string }[],
@@ -102,33 +102,45 @@ describe('useGetEvents — installer#395: no credential in any url', () => {
 })
 
 /**
- * The connection-sharing consequence of taking the token out of the url.
+ * The firehose is dormant ON PURPOSE, and these pin that.
  *
- * sseClient keys its connection map on the url. While the bell's url carried
- * `?access_token=…` and the firehose's did not, the two keys DIFFERED, so each opened
- * its own connection to the same endpoint — and the firehose's, having no credential at
- * all, was answered 401 by sse-proxy's requireSSEToken. The firehose's own docstring
- * claims it "reuses the connection Notifications already holds (no extra socket)", which
- * the token in the url had quietly made false.
+ * Taking the token out of the url repairs connection sharing as a side effect: sseClient
+ * keys on the url, so while the bell's carried `?access_token=` and the firehose's did not,
+ * the two keyed DIFFERENT cells — the firehose opened its own credential-free connection and
+ * was answered 401, silently, for as long as it has existed. Identical urls would now key one
+ * shared authenticated stream, which means the firehose would START WORKING.
  *
- * With the credential in a header, both call sites name the same endpoint, so they key
- * the same cell and genuinely share one authenticated stream. That is what this pins:
- * not that sharing works (sseClient.test.ts covers that), but that these two agree on
- * the string it keys on.
+ * That is a live behaviour change and it is not shipping on the back of a security fix, so
+ * `LIVE_REFRESH_FIREHOSE_ENABLED` is false. These tests exist so that re-enabling it is a
+ * deliberate act with a failing test in front of it, rather than something that happens by
+ * accident in an unrelated refactor.
  */
-describe('the bell and the live-refresh firehose share one stream', () => {
+describe('the live-refresh firehose stays dormant', () => {
   afterEach(() => { sseSubscriptions.length = 0 })
 
-  it('subscribe to the identical endpoint, so sseClient keys them to one connection', async () => {
+  it('is switched off', () => {
+    // Flipping this to true is the whole enablement change — and it must come with its own
+    // review, deploy and watch. If you are here because this failed, that is the question
+    // being asked of you.
+    expect(LIVE_REFRESH_FIREHOSE_ENABLED).toBe(false)
+  })
+
+  it('opens no stream of its own while disabled', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve([]), ok: true } as unknown as Response)))
+
+    renderHook(() => useLiveRefreshFirehose(), { wrapper })
+    await waitFor(() => { expect(sseSubscriptions).toHaveLength(0) })
+  })
+
+  it('leaves the bell the only subscriber when both are mounted', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve([]), ok: true } as unknown as Response)))
 
     renderHook(() => useGetEvents({ topic: 'krateo' }), { wrapper })
     renderHook(() => useLiveRefreshFirehose(), { wrapper })
 
-    await waitFor(() => { expect(sseSubscriptions).toHaveLength(2) })
-
-    const [bell, firehose] = sseSubscriptions
-    expect(firehose?.url).toBe(bell?.url)
-    expect(bell?.url).toBe('https://portal.krateo.dev/events/notifications')
+    await waitFor(() => { expect(sseSubscriptions).toHaveLength(1) })
+    // The one subscription is the bell's, on the bare endpoint. When the firehose is enabled
+    // it will name this same url, which is precisely why they will then share one connection.
+    expect(sseSubscriptions[0]?.url).toBe('https://portal.krateo.dev/events/notifications')
   })
 })
