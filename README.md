@@ -8,7 +8,7 @@ shipping frontend code.
 
 The web UI of Krateo PlatformOps, deliberately thin: a static SPA behind nginx with no
 product state and no hardcoded pages. The app shell, sidebar, routes and content are all
-widget CRs (`widgets.templates.krateo.io`, 43 kinds), RBAC-shaped per user by snowplow.
+widget CRs (`widgets.templates.krateo.io`, 45 kinds), RBAC-shaped per user by snowplow.
 One monorepo, one version line: the app (`ui/`) and its Helm charts (`helm/frontend/`,
 `helm/frontend-crds/`) ship together from a single tag.
 Full picture: [docs/index.md](docs/index.md).

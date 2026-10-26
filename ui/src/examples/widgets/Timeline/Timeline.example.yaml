@@ -1,0 +1,71 @@
+# Basic timeline
+# Target: render a short sequence of events, oldest first.
+# Expected behavior: three nodes stacked vertically on a single rail, each with its content.
+kind: Timeline
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-timeline-basic
+  namespace: krateo-system
+spec:
+  widgetData:
+    items:
+      - content: "Composition created"
+      - content: "Managed resources provisioned"
+      - content: "Composition ready"
+---
+# Composition events with timestamps and colors
+# Target: the `title` column carries the timestamp, `color`/`icon` encode the event type,
+# and a trailing `loading` node marks a reconcile still in progress.
+# Expected behavior: timestamps on one side of the rail and messages on the other; the
+# warning node is red, the ready node shows a check icon, the last node spins.
+kind: Timeline
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-timeline-events
+  namespace: krateo-system
+spec:
+  widgetData:
+    mode: start
+    titleSpan: "120px"
+    items:
+      - title: "13:57:02"
+        content: "Created: composition fireworks-app created"
+        color: blue
+      - title: "13:58:40"
+        content: "ReconcileError: rds-instance quota exceeded in eu-west-1"
+        color: red
+      - title: "14:02:11"
+        content: "Ready: all managed resources are synced"
+        color: green
+        icon: "fa-check"
+      - content: "Reconciling…"
+        loading: true
+---
+# Alternate timeline with an inline child widget
+# Target: `mode: alternate` with a per-item `placement`, and a node that renders a
+# referenced widget below its content.
+# Expected behavior: nodes alternate around the rail; the second node shows the
+# referenced markdown widget under its text.
+kind: Timeline
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-timeline-alternate
+  namespace: krateo-system
+spec:
+  widgetData:
+    mode: alternate
+    items:
+      - title: "v1.2.0"
+        content: "Release published"
+      - title: "v1.3.0"
+        content: "Release notes"
+        placement: end
+        resourceRefId: example-markdown-basic
+  resourcesRefs:
+    items:
+      - id: example-markdown-basic
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-markdown-basic
+        namespace: krateo-system
+        resource: markdowns
+        verb: GET
