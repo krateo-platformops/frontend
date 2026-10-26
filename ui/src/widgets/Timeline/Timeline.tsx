@@ -6,6 +6,7 @@ import WidgetRenderer from '../../components/WidgetRenderer'
 import type { WidgetProps } from '../../types/Widget'
 import { getEndpointUrl } from '../../utils/utils'
 
+import styles from './Timeline.module.css'
 import type { Timeline as WidgetType } from './Timeline.type'
 
 export type TimelineWidgetData = WidgetType['spec']['widgetData']
@@ -23,7 +24,9 @@ const Timeline = ({ resourcesRefs, uid, widgetData }: WidgetProps<TimelineWidget
             ? (
               <>
                 {content && <span>{content}</span>}
-                <WidgetRenderer key={`${uid}-timeline-${index}`} widgetEndpoint={endpoint} />
+                <div className={styles.child}>
+                  <WidgetRenderer key={`${uid}-timeline-${index}`} widgetEndpoint={endpoint} />
+                </div>
               </>
             )
             : content,
