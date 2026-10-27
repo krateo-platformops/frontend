@@ -2,6 +2,8 @@ import type { JSONSchema4 } from 'json-schema'
 
 import { isSecretArrayNode, isSecretSchemaNode } from '../../utils/secretFields'
 
+import { type DependsOn, parseDependsOn } from './fieldDependencies'
+
 /**
  * `x-krateo-options` — a field whose options come from a RESTAction at runtime.
  *
@@ -24,6 +26,13 @@ export interface FieldOptionsSpec {
   ref: string
   /** true: only a listed value is accepted. false (default): the list suggests, free text is kept */
   closed: boolean
+  /**
+   * The options depend on another field's value, sent as `extras[param]`: no value there, no call.
+   * `{ "field": "region", "param": "region" }` — see `resolveFieldPath` for what `field` names.
+   */
+  dependsOn?: DependsOn
+  /** why the extension cannot be used as written; the field is disabled and says so */
+  problem?: string
 }
 
 export const FIELD_OPTIONS_KEY = 'x-krateo-options'
@@ -37,9 +46,15 @@ export const getFieldOptionsSpec = (node: JSONSchema4): FieldOptionsSpec | undef
   const raw = node[FIELD_OPTIONS_KEY] as unknown
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) { return undefined }
   if (isSecretSchemaNode(node) || isSecretArrayNode(node)) { return undefined }
-  const { closed, ref } = raw as { closed?: unknown; ref?: unknown }
+  const { closed, dependsOn: rawDependsOn, ref } = raw as { closed?: unknown; dependsOn?: unknown; ref?: unknown }
   if (typeof ref !== 'string' || !ref.trim()) { return undefined }
-  return { closed: closed === true, ref: ref.trim() }
+  const { dependsOn, problem } = parseDependsOn(rawDependsOn)
+  return {
+    closed: closed === true,
+    ref: ref.trim(),
+    ...(dependsOn ? { dependsOn } : {}),
+    ...(problem ? { problem } : {}),
+  }
 }
 
 /** One option, as the field shows it and as the Review shows the picked value. */
