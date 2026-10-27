@@ -176,12 +176,60 @@ const stream = async (url: string, connection: SseConnection, controller: AbortC
 }
 
 /**
+ * Re-open every live stream with the CURRENT credential.
+ *
+ * Registered against `onAccessTokenInvalidated`, which the in-place session-resume flow
+ * (and Auth) already call. Without this a stream opened before the resume keeps serving
+ * the PREVIOUS user's identity on the server for as long as it stays open, and because
+ * `connections` is keyed on the endpoint alone, a remount re-joins that same connection
+ * instead of opening a fresh one. #501 removed the accident that used to cover this: the
+ * token was part of the url, so a credential change changed the key.
+ *
+ * It re-opens rather than merely tearing down, deliberately. A bare teardown would fix the
+ * identity and leave the bell dead until something remounted it — trading a security bug
+ * for a silent functional one. This is NOT the general reconnect policy (frontend#503):
+ * there is no timer, no backoff and no retry. One attempt, driven by a credential change we
+ * were told about, which is why it cannot loop. If that attempt fails, `stream` fails the
+ * connection exactly as it would have anyway.
+ */
+const reopenAll = (): void => {
+  connections.forEach((connection, url) => {
+    // Abort the in-flight stream and give the connection a fresh controller, so the old
+    // stream's tail sees it is no longer current and stays quiet.
+    connection.controller.abort()
+    connection.controller = new AbortController()
+    const { controller } = connection
+    queueMicrotask(() => { void stream(url, connection, controller) })
+  })
+}
+
+/**
+ * Arm `reopenAll` against the next credential change, once.
+ *
+ * Deliberately NOT at module scope. Importing a module must not register a global listener:
+ * a suite that partially mocks `getAccessToken` — a common thing to do, and nothing to do
+ * with SSE — then fails to COLLECT, with an error pointing at this file rather than at
+ * itself. Three suites ran zero tests that way for a day (frontend#505).
+ *
+ * Arming it on first subscription is equivalent, not a compromise: `reopenAll` over zero
+ * connections is a no-op, so the only invalidations it can miss are the ones with nothing to
+ * reopen — and the first stream opened after one reads the current token anyway.
+ */
+let credentialWatchArmed = false
+const armCredentialWatch = (): void => {
+  if (credentialWatchArmed) { return }
+  credentialWatchArmed = true
+  onAccessTokenInvalidated(reopenAll)
+}
+
+/**
  * Subscribe to `topic` on the SSE stream at `url`, which must be the endpoint alone —
  * no `?access_token=`; this client authenticates with a Bearer header. Returns an
  * idempotent unsubscribe; when the last subscriber for a `url` unsubscribes, its
  * connection is closed.
  */
 export const subscribeSse = (url: string, topic: string, subscriber: SseSubscriber): () => void => {
+  armCredentialWatch()
   let connection = connections.get(url)
 
   if (!connection) {
@@ -221,36 +269,6 @@ export const subscribeSse = (url: string, topic: string, subscriber: SseSubscrib
     }
   }
 }
-
-/**
- * Re-open every live stream with the CURRENT credential.
- *
- * Registered against `onAccessTokenInvalidated`, which the in-place session-resume flow
- * (and Auth) already call. Without this a stream opened before the resume keeps serving
- * the PREVIOUS user's identity on the server for as long as it stays open, and because
- * `connections` is keyed on the endpoint alone, a remount re-joins that same connection
- * instead of opening a fresh one. #501 removed the accident that used to cover this: the
- * token was part of the url, so a credential change changed the key.
- *
- * It re-opens rather than merely tearing down, deliberately. A bare teardown would fix the
- * identity and leave the bell dead until something remounted it — trading a security bug
- * for a silent functional one. This is NOT the general reconnect policy (frontend#503):
- * there is no timer, no backoff and no retry. One attempt, driven by a credential change we
- * were told about, which is why it cannot loop. If that attempt fails, `stream` fails the
- * connection exactly as it would have anyway.
- */
-const reopenAll = (): void => {
-  connections.forEach((connection, url) => {
-    // Abort the in-flight stream and give the connection a fresh controller, so the old
-    // stream's tail sees it is no longer current and stays quiet.
-    connection.controller.abort()
-    connection.controller = new AbortController()
-    const { controller } = connection
-    queueMicrotask(() => { void stream(url, connection, controller) })
-  })
-}
-
-onAccessTokenInvalidated(reopenAll)
 
 /** Test-only: abort + drop all connections. */
 export const __resetSseConnections = (): void => {
