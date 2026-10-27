@@ -1,10 +1,10 @@
 ---
 type: Architecture
 title: frontend — Form suggestions, autocomplete & dependencies
-description: The `x-krateo-suggestions` schema extension (a server-computed, open option catalogue on a Form field), plus the historical note on the removed client-side autocomplete/dependencies configuration.
+description: The `x-krateo-suggestions` schema extension (a server-computed, open option catalogue on a Form field), plus where the earlier widgetData autocomplete/dependencies configuration went (schema extensions).
 resource: forms.widgets.templates.krateo.io
 tags: [widgets, form, schema, archive]
-timestamp: 2026-09-17T00:00:00Z
+timestamp: 2026-10-27T00:00:00Z
 ---
 
 # `x-krateo-suggestions` — an open option catalogue on a schema field
@@ -55,23 +55,18 @@ untouched. The frontend never fetches options itself.
 Implementation: `getSuggestionGroups` in `../src/widgets/Form/utils.ts`, consumed by
 `controlFor` in `../src/widgets/Form/SchemaFields.tsx`.
 
-# Form autocomplete & dependencies — removed
+# Form autocomplete & dependencies — back, as schema extensions
 
-Earlier frontend versions documented two dynamic Form field configurations —
+Earlier frontend versions configured two dynamic Form field behaviours in `widgetData`:
 **`autocomplete`** (RESTAction-backed option lookup as the user types) and
-**`dependencies`** (cascading selects re-queried when a parent field changes), with
-`{ label, value }`-shaped options and initial values.
+**`dependencies`** (cascading selects re-queried when a parent field changes), keyed by field
+name, with `{ label, value }`-shaped values; later also `displayingDependencies` (show/hide)
+and `objectFields` (lists of objects).
 
-**The current implementation has neither.** The Form widget's schema
-(`../src/widgets/Form/Form.schema.json`) declares no `autocomplete` or `dependencies`
-properties, and no code under `ui/src/widgets/Form/` implements the option-lookup
-protocol. Dynamic form content is achieved today by templating the form's `schema` /
-`items` server-side (a `widgetDataTemplate` jq expression over an `apiRef` RESTAction
-result — see [the widget concept](./docs.md) and the Form entry in the
-[widgets API reference](./widgets-api-reference.md)).
-
-Do not author new CRs against the removed properties: the generated CRDs reject unknown
-`widgetData` fields. `x-krateo-suggestions` above is **not** a reintroduction of
-`autocomplete`: it is a static, server-computed catalogue carried inside the schema, with no
-client-side lookup protocol and no re-query on keystroke. Cascading `dependencies` remain
-unimplemented.
+Those `widgetData` keys are **not** supported: the Form CRD declares none of them and rejects
+(or prunes) unknown `widgetData` fields. The behaviours are back as keywords on the schema
+field itself — `x-krateo-options` (with `dependsOn` and `search`), `x-krateo-visible-when`,
+`x-krateo-row-title` — documented in [form-schema-extensions](./form-schema-extensions.md).
+They moved onto the field because one Form serves every blueprint: only the blueprint's own
+`values.schema.json` can say which of its fields load options. Fields now store the option's
+value, not a `{ label, value }` pair.
