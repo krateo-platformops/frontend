@@ -9,6 +9,7 @@ import { Tooltip } from 'antd'
 
 import { useAutopilot } from './AutopilotProvider'
 import styles from './AutopilotToggle.module.css'
+import { AUTOPILOT_UNAVAILABLE } from './copy'
 import { SparkIcon } from './icons'
 
 // ⌘ on Mac, Ctrl elsewhere — for the visible hint only; AutopilotProvider's global handler
@@ -60,7 +61,7 @@ const AutopilotToggle = () => {
 
   // A disabled <button> swallows pointer events, so wrap it in a span the Tooltip can hover over.
   return (
-    <Tooltip title='Autopilot is unavailable — the agent is not deployed, not reachable, or not permitted for your user'>
+    <Tooltip title={AUTOPILOT_UNAVAILABLE}>
       <span className={styles.disabledWrap}>{button}</span>
     </Tooltip>
   )

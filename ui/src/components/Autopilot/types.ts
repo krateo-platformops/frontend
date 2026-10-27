@@ -441,7 +441,10 @@ export type AutopilotFrame =
   | { kind: 'tool_result'; name: string; id?: string; output?: string; isError?: boolean; sessionId?: string }
   | { kind: 'require_approval'; pause: ApprovalPause }
   | { kind: 'done' }
-  | { kind: 'error'; message: string }
+  /** `status` is the HTTP status when the failure was an HTTP one — carried structurally so a
+   *  consumer can act on it. Parsing it back out of `message` would be reading prose for control
+   *  flow. Absent for in-band JSON-RPC errors and network faults, which have no status. */
+  | { kind: 'error'; message: string; status?: number }
 
 /** Per-stream callbacks. The transport invokes these as frames arrive. */
 export interface AutopilotStreamHandlers {
