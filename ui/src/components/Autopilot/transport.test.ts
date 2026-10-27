@@ -219,3 +219,31 @@ describe('a stream that dies before the answer', () => {
     ])
   })
 })
+
+describe('an HTTP failure before the stream ever opens', () => {
+  /** The gateway refuses the POST outright: no body, so no frames but this one. */
+  const failWith = async (status: number): Promise<AutopilotFrame[]> => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ body: null, ok: false, status })))
+    const frames: AutopilotFrame[] = []
+    createKagentTransport('/autopilot').send(
+      { context: '<page_context/>', sessionId: 's1', text: 'publish the chart' },
+      { onFrame: (frame) => frames.push(frame) },
+    )
+    await vi.waitFor(() => expect(frames).toHaveLength(1))
+    return frames
+  }
+
+  // The provider decides availability off this field. Recovering it from `message` would mean
+  // reading prose for control flow — the message is written for a person and is free to change.
+  it('carries the status structurally, beside the message a person reads', async () => {
+    expect(await failWith(403)).toEqual([{
+      kind: 'error',
+      message: 'Autopilot denied the request (403) — your user is not allowed to use this agent.',
+      status: 403,
+    }])
+  })
+
+  it('carries a status it has no opinion about just the same', async () => {
+    expect(await failWith(500)).toEqual([{ kind: 'error', message: 'Autopilot request failed (500)', status: 500 }])
+  })
+})
