@@ -232,6 +232,11 @@
   white-space: normal;
 }
 
+/* A schema-level notice above the fields (`x-krateo-notice`). */
+.notice {
+  margin-bottom: var(--spacing-md);
+}
+
 /* Why an `x-krateo-options` field shows no list (source missing, denied, failed load). */
 .fieldNote {
   align-items: center;
