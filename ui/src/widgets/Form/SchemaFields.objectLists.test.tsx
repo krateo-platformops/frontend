@@ -50,7 +50,7 @@ const HOSTS: JSONSchema4 = {
   items: {
     type: 'object',
     required: ['host'],
-    properties: { path: { type: 'string' }, host: { type: 'string' } },
+    properties: { path: { type: 'string', default: '/' }, host: { type: 'string' } },
   },
 }
 const SCHEMA: JSONSchema4 = {
@@ -87,6 +87,15 @@ describe('a list of objects with declared fields', () => {
     fireEvent.click(screen.getByText('Add Hosts'))
     fireEvent.change(document.getElementById('hosts_0_host') as Element, { target: { value: 'api.example.com' } })
     await waitFor(() => { expect(rowToggle('Hosts 1').textContent).toContain('api.example.com') })
+  })
+
+  it('a new row starts from the item defaults', async () => {
+    const onFinish = mount()
+    fireEvent.click(screen.getByText('Add Hosts'))
+    fireEvent.change(document.getElementById('hosts_0_host') as Element, { target: { value: 'a.example.com' } })
+    fireEvent.click(screen.getByText('submit'))
+    await waitFor(() => { expect(onFinish).toHaveBeenCalled() })
+    expect(onFinish.mock.calls[0][0]).toMatchObject({ hosts: [{ host: 'a.example.com', path: '/' }] })
   })
 
   it('collapses to the title and opens again, its fields still submitted', async () => {

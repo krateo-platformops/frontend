@@ -17,7 +17,7 @@ import { type SchemaRoot, SchemaRootContext } from './schemaRoot'
 import { fieldLabel, itemCountRules, rulesFor } from './schemaRules'
 import { FormRefsContext } from './useFieldOptions'
 import type { SuggestionGroup } from './utils'
-import { getOptionsFromEnum, getSuggestionGroups, suggestionSearchText } from './utils'
+import { getDefaultsFromSchema, getOptionsFromEnum, getSuggestionGroups, suggestionSearchText } from './utils'
 import { isVisible, VISIBLE_WHEN_KEY } from './visibleWhen'
 
 /** A control's onChange argument as a value: an input's event carries it in `target.value`. */
@@ -437,7 +437,8 @@ const ObjectList = ({ fieldKey, isRequired, listPath, name, node }: {
                 <SchemaFields hide={[]} namePath={[field.name]} schema={itemSchema} scopePath={[...listPath, field.name]} />
               </ObjectListRow>
             ))}
-            <Button block disabled={fields.length >= max} icon={<PlusOutlined />} onClick={() => { add() }} type='dashed'>
+            {/* A new row starts from the item schema's defaults (a host's `path: /`), as a new form does. */}
+            <Button block disabled={fields.length >= max} icon={<PlusOutlined />} onClick={() => { add(getDefaultsFromSchema(itemSchema)) }} type='dashed'>
               {fields.length >= max ? `${label}: at most ${max}` : `Add ${label}`}
             </Button>
             <AntdForm.ErrorList errors={errors} />
