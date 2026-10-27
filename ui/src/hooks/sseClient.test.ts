@@ -592,11 +592,18 @@ describe('sseClient — reconnect after a dropped stream', () => {
   })
 
   it('retries a 5xx and RECOVERS when the server comes back — the self-heal property', async () => {
-    // This is the case a misconfigured sse-proxy produces: scope resolution needs the
-    // ServiceAccount to create SubjectAccessReviews, and without that grant every request
-    // answers 500. Retrying it means the bell comes back BY ITSELF once the grant lands,
-    // instead of every open tab staying dead until its user reloads the page. Nothing pinned
-    // this, and it is the property a scoping roll is judged by.
+    // sse-proxy answers 500 when it cannot resolve a caller's scope — its ServiceAccount needs
+    // to create SubjectAccessReviews, and without that grant every request fails. Retrying means
+    // the bell comes back BY ITSELF once the grant lands, instead of every open tab staying dead
+    // until its user reloads the page.
+    //
+    // A SECOND LAYER, NOT THE MITIGATION, and the distinction matters because the opposite
+    // reading makes the grant look optional. Enabling scoping through the sse-proxy chart creates
+    // the ClusterRole and binding in the SAME template, so "flag on, grant absent" is unreachable
+    // by that path and must stay unreachable. What this covers is the population the chart does
+    // not own: RBAC_SCOPING_ENABLED hand-set outside it, or the grants deleted out of band. The
+    // installer session made this correction after I had framed the self-heal as the answer to a
+    // botched roll.
     nextStatus = 503
     subscribeSse('u', 't', { onMessage: noop })
     await settleF()
