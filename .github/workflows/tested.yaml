@@ -1,0 +1,55 @@
+# The suite that every published artifact of this repo must pass — ONE definition, called by each
+# workflow that publishes something installable.
+#
+# WHY IT EXISTS. frontend 1.8.12 was cut from a main whose `test` job was RED, pinned, and rolled to
+# production. Nothing in the path objected: release-tag, release-oci and release-notes all trigger on
+# the tag and none of them depended on a test. Three suites had been collecting ZERO tests for a day,
+# and the only visible symptom was a red main that nobody was required to look at. The installer
+# session's pin procedure checked the chart thoroughly and never asked whether the code was green,
+# because no artifact told it.
+#
+# WHY IT RUNS THE SUITE instead of reading the tagged commit's check-runs, which would be cheaper:
+#   - a check-run gate has to be phrased "present AND successful". `test.yaml` triggers on
+#     pull_request and push-to-main, never on tags, so a tag cut from anything but main carries NO
+#     `test` run at all and "nothing red on this commit" waves it straight through. That is not
+#     hypothetical: snowplow 1.12.56 had 13 green check-runs at its tagged commit, not one of them a
+#     test, and was pinned and rolled behind a guard that reported it green;
+#   - and it would race anyway. A tag cut right after a merge arrives while main's own run is still
+#     in progress, so the check-run exists with no conclusion yet.
+# Running the suite can be neither vacuous nor racy. It costs one job per publishing workflow.
+#
+# SCOPE. Called by release-tag (images) and release-oci (charts) — the two artifacts someone
+# installs. NOT by release-notes, which its own header designs to never fail a release and which
+# publishes nothing installable. A new publishing workflow, or a new published module, must be added
+# here; this file is the only place that knowledge lives.
+name: tested
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  tested:
+    name: Tested at this tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install ui deps
+        run: npm ci --no-audit --no-fund
+        working-directory: ui
+      # `run`, never bare `vitest`: ui/package.json defines "test": "vitest", which starts a WATCH
+      # and hangs a CI job until its timeout instead of failing. Same reasoning as test.yaml's header.
+      - name: Unit tests — frontend
+        run: npx vitest run --reporter=dot
+        working-directory: ui
+      - name: Install builder-gate deps
+        run: npm ci --no-audit --no-fund
+        working-directory: builder-gate
+      - name: Unit tests — builder-gate
+        run: npx vitest run --reporter=dot
+        working-directory: builder-gate
