@@ -110,8 +110,10 @@ export const OptionsInput = ({ disabled, fieldPath = [], id, node, onChange, spe
   const [typed, setTyped] = useState('')
   const searchesValue = !spec.closed && node.type !== 'array'
   let rawTerm = ''
-  if (spec.search) {
-    rawTerm = searchesValue ? (typeof value === 'string' ? value : '') : typed
+  if (spec.search && !searchesValue) {
+    rawTerm = typed
+  } else if (spec.search && typeof value === 'string') {
+    rawTerm = value
   }
   const term = useDebouncedValue(rawTerm.trim(), SEARCH_DEBOUNCE_MS)
   const tooShort = !!spec.search && term.length < spec.search.minChars
