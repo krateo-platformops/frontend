@@ -225,7 +225,18 @@ async function stream(url: string, connection: SseConnection, controller: AbortC
     // Worth the status: the old EventSource path could only ever say "something failed",
     // which made an expired token and an unreachable proxy look identical in the console.
     console.error(`[SSE] Connection error: ${response.status} ${response.statusText}`)
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 403) {
+      // NOT a session problem, and not retriable either: the caller is authenticated and simply
+      // may not read this stream. Re-authenticating as the same user cannot change a 403, so
+      // raising the session-resume modal here would ask someone to fix an authorisation refusal
+      // by proving the identity that was refused — and with no modal surface mounted it falls
+      // through to a real logout. sse-proxy's per-caller event scoping makes a legitimate 403 the
+      // NORMAL answer for a user outside the stream's scope (sse-proxy#29), so this must stay a
+      // quiet, terminal refusal rather than an eviction.
+      fail(url, connection)
+      return
+    }
+    if (response.status === 401) {
       // #503 F2. An expired or refused credential is not a transport fault, and treating it
       // as one is the 553-rejection defect: every attempt re-presents the SAME dead token and
       // backs off to the ceiling forever. Raise the in-place resume instead — the same call

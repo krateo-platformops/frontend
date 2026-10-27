@@ -628,11 +628,19 @@ describe('sseClient — reconnect after a dropped stream', () => {
       expect(FakeStream.instances).toHaveLength(2)
     })
 
-    it('treats a 403 the same way — a refused user is not a blip', async () => {
+    it('a 403 raises NO resume — it is a refusal of this identity, not a stale one', async () => {
+      // Re-authenticating as the same user cannot change a 403, so raising the modal would ask
+      // someone to fix an authorisation refusal by proving the identity that was refused; with no
+      // modal surface mounted it falls through to a real logout. Once sse-proxy scopes events per
+      // caller, a 403 is the normal answer for a user outside the scope — evicting them for it
+      // would be the bug. It is still terminal: no retry either.
       nextStatus = 403
-      subscribeSse('u', 't', { onMessage: noop })
+      let errors = 0
+      subscribeSse('u', 't', { onError: () => { errors += 1 }, onMessage: noop })
       await settleF()
-      expect(resume.raises).toBe(1)
+      expect(resume.raises).toBe(0)
+      expect(errors).toBe(1)
+
       await elapse(PAST_FIRST_STEP * 4)
       expect(FakeStream.instances).toHaveLength(1)
     })
