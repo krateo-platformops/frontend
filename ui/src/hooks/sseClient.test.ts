@@ -585,6 +585,29 @@ describe('sseClient — reconnect after a dropped stream', () => {
     expect(opens).toEqual([false, true])
   })
 
+  it('retries a 5xx and RECOVERS when the server comes back — the self-heal property', async () => {
+    // This is the case a misconfigured sse-proxy produces: scope resolution needs the
+    // ServiceAccount to create SubjectAccessReviews, and without that grant every request
+    // answers 500. Retrying it means the bell comes back BY ITSELF once the grant lands,
+    // instead of every open tab staying dead until its user reloads the page. Nothing pinned
+    // this, and it is the property a scoping roll is judged by.
+    nextStatus = 503
+    subscribeSse('u', 't', { onMessage: noop })
+    await settleF()
+    expect(FakeStream.instances).toHaveLength(1)
+
+    nextStatus = 200
+    await elapse(PAST_FIRST_STEP)
+    expect(FakeStream.instances).toHaveLength(2)
+
+    const seen: string[] = []
+    subscribeSse('u', 't', { onMessage: (data) => seen.push(data) })
+    await settleF()
+    FakeStream.instances[1]?.emit('t', { healed: true })
+    await settleF()
+    expect(seen).toEqual(['{"healed":true}'])
+  })
+
   describe('an auth failure is not a transport fault', () => {
     it('raises session-resume ONCE and schedules no retry', async () => {
       // Retrying IS the defect: the same dead token re-presented on a timer produced 553
