@@ -21,7 +21,13 @@ on:
         required: false
 
 jobs:
+  # The charts are what the installer PINS, so this gate matters more here than anywhere: 1.8.12's
+  # charts published cleanly from a red main and were pinned and rolled. See tested.yaml.
+  tested:
+    uses: ./.github/workflows/tested.yaml
   release-oci:
+    needs:
+      - tested
     uses: krateo-platformops/.github/.github/workflows/release-oci.yaml@main
     permissions:
       contents: read

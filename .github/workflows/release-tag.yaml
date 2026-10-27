@@ -11,7 +11,13 @@ on:
     tags: ["[0-9]+.[0-9]+.[0-9]+"]
 
 jobs:
+  # No tag publishes an artifact that has not passed the suite — see tested.yaml for the two
+  # releases that taught us this and why it runs the suite rather than reading check-runs.
+  tested:
+    uses: ./.github/workflows/tested.yaml
   build:
+    needs:
+      - tested
     uses: krateo-platformops/.github/.github/workflows/component-image-build.yaml@main
     permissions:
       contents: read
