@@ -38,7 +38,14 @@ export const STAGE_NOT_EXECUTED_REASON = 'StageNotExecuted'
 /** A stage that never ran: the resolve stopped (truncated) at an earlier stage, in topological order. */
 export const STAGE_NOT_RUN_REASON = 'NotRun'
 /** The CLOSED set of stage reason codes (snowplow PR #469, stage_outcomes.go). Anything else is unknown. */
-export const STAGE_REASONS: ReadonlySet<string> = new Set([STAGE_NOT_EXECUTED_REASON, 'Forbidden', 'NotFound', 'Unauthorized', STAGE_NOT_RUN_REASON, 'Error'])
+/**
+ * A write stage snowplow did not dial because the stage it `dependsOn` failed or was itself
+ * skipped (snowplow#904). Unlike NotRun, which must be attributed to the nearest earlier
+ * failure by position, a Skipped outcome NAMES its cause in `dependsOn`.
+ */
+export const STAGE_SKIPPED_REASON = 'Skipped'
+
+export const STAGE_REASONS: ReadonlySet<string> = new Set([STAGE_NOT_EXECUTED_REASON, 'Forbidden', 'NotFound', 'Unauthorized', STAGE_NOT_RUN_REASON, STAGE_SKIPPED_REASON, 'Error'])
 export const STAGE_NOT_EXECUTED_MESSAGE = /^dry-run: stage .* is not executed$/
 
 /**
@@ -54,6 +61,8 @@ export interface StageOutcome {
   name: string
   ok: boolean
   reason?: string
+  /** Only on a `Skipped` outcome: the stage this one depended on, which did not succeed. */
+  dependsOn?: string
 }
 
 export type StageOutcomes =
@@ -78,11 +87,17 @@ export const stageOutcomesOf = (headers: HttpResponse['headers'] | undefined): S
   }
   const stages: StageOutcome[] = []
   for (const entry of parsed) {
-    const e = entry as { name?: unknown; ok?: unknown; reason?: unknown } | null
-    if (!e || typeof e.name !== 'string' || typeof e.ok !== 'boolean' || (e.reason !== undefined && typeof e.reason !== 'string')) {
-      return { kind: 'invalid', why: `an entry is not {name, ok, reason}: ${JSON.stringify(entry).slice(0, 120)}` }
+    const e = entry as { name?: unknown; ok?: unknown; reason?: unknown; dependsOn?: unknown } | null
+    if (!e || typeof e.name !== 'string' || typeof e.ok !== 'boolean' || (e.reason !== undefined && typeof e.reason !== 'string')
+      || (e.dependsOn !== undefined && typeof e.dependsOn !== 'string')) {
+      return { kind: 'invalid', why: `an entry is not {name, ok, reason, dependsOn}: ${JSON.stringify(entry).slice(0, 120)}` }
     }
-    stages.push({ name: e.name, ok: e.ok, ...(typeof e.reason === 'string' && e.reason ? { reason: e.reason } : {}) })
+    stages.push({
+      name: e.name,
+      ok: e.ok,
+      ...(typeof e.reason === 'string' && e.reason ? { reason: e.reason } : {}),
+      ...(typeof e.dependsOn === 'string' && e.dependsOn ? { dependsOn: e.dependsOn } : {}),
+    })
   }
   return { kind: 'stages', stages }
 }

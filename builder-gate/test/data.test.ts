@@ -101,6 +101,69 @@ describe('data', () => {
     expect(dataOf(envelope).problems).toEqual(['widgets[3] (RESTAction/pod-sizing): stage nodes failed (Forbidden)'])
   })
 
+  it('snowplow#904: a write SKIPPED because its continueOnError dependency failed is a NOTE, not red', async () => {
+    // The regression this prevents. In a dry-run draft a failing continueOnError read followed
+    // by a dependent write now reports Skipped; without semantics for it the gate calls it
+    // "failed with an unknown reason" and the draft goes RED, where today it is two notes.
+    const draft = example()
+    Object.assign(byKind(draft, 'RESTAction').spec.api[0], { continueOnError: true, errorKey: 'podsErr' })
+    byKind(draft, 'RESTAction').spec.api.push({ name: 'scale', path: '/api/v1/scale', verb: 'POST', dependsOn: { name: 'pods' } })
+    const { transport } = recorder(fakeSnowplow({
+      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [], podsErr: [{ code: 404, message: 'stage "pods": not found' }] } },
+        [{ name: 'pods', ok: false, reason: 'NotFound' }, { name: 'scale', ok: false, reason: 'Skipped', dependsOn: 'pods' }]),
+    }))
+    const envelope = await run(draft, liveCtx(transport))
+    expect(dataOf(envelope).notes).toContain('widgets[3] (RESTAction/pod-sizing): stage scale: not sent — it depends on stage pods, which is continueOnError; checked at the driven Preview')
+    expect(dataOf(envelope).problems).toEqual([])
+    expect(envelope.ok).toBe(true)
+  })
+
+  it('snowplow#904: a write SKIPPED because its dependency failed hard is red', async () => {
+    const draft = example()
+    byKind(draft, 'RESTAction').spec.api.push({ name: 'scale', path: '/api/v1/scale', verb: 'POST', dependsOn: { name: 'pods' } })
+    const { transport } = recorder(fakeSnowplow({
+      resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} },
+        [{ name: 'pods', ok: false, reason: 'Forbidden' }, { name: 'scale', ok: false, reason: 'Skipped', dependsOn: 'pods' }]),
+    }))
+    const envelope = await run(draft, liveCtx(transport))
+    expect(envelope.failedStep).toBe('data')
+    expect(dataOf(envelope).problems).toContain('widgets[3] (RESTAction/pod-sizing): stage scale: not sent because the stage it depends on, pods, failed')
+  })
+
+  it('snowplow#904: a skip chain resolves through the stage each one NAMES, not by position', async () => {
+    // A -> B -> C, with an unrelated red stage sitting between B and C in the header. Positional
+    // attribution would blame that one for C; dependsOn makes C inherit B, which inherits A.
+    const draft = example()
+    Object.assign(byKind(draft, 'RESTAction').spec.api[0], { continueOnError: true })
+    byKind(draft, 'RESTAction').spec.api.push({ name: 'detach', path: '/api/v1/detach', verb: 'POST', dependsOn: { name: 'pods' } })
+    byKind(draft, 'RESTAction').spec.api.push({ name: 'other', path: '/api/v1/other' })
+    byKind(draft, 'RESTAction').spec.api.push({ name: 'remove', path: '/api/v1/remove', verb: 'DELETE', dependsOn: { name: 'detach' } })
+    const { transport } = recorder(fakeSnowplow({
+      resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, [
+        { name: 'pods', ok: false, reason: 'Error' },
+        { name: 'detach', ok: false, reason: 'Skipped', dependsOn: 'pods' },
+        { name: 'other', ok: false, reason: 'Forbidden' },
+        { name: 'remove', ok: false, reason: 'Skipped', dependsOn: 'detach' },
+      ]),
+    }))
+    const envelope = await run(draft, liveCtx(transport))
+    const notes = dataOf(envelope).notes.join('\n')
+    expect(notes).toContain('stage detach: not sent — it depends on stage pods, which is continueOnError')
+    expect(notes).toContain('stage remove: not sent — it depends on stage detach, which was not sent because stage pods is continueOnError')
+    // `other` is red on its own and must NOT have captured `remove`.
+    expect(dataOf(envelope).problems).toEqual(['widgets[3] (RESTAction/pod-sizing): stage other failed (Forbidden)'])
+  })
+
+  it('snowplow#904: a Skipped outcome that names no dependency is red, and says so', async () => {
+    const draft = example()
+    const { transport } = recorder(fakeSnowplow({
+      resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, [{ name: 'pods', ok: false, reason: 'Skipped' }]),
+    }))
+    const envelope = await run(draft, liveCtx(transport))
+    expect(envelope.failedStep).toBe('data')
+    expect(dataOf(envelope).problems[0]).toMatch(/stage pods: not sent, but x-snowplow-stage-outcomes does not name the stage it depends on/)
+  })
+
   it('a draft whose only failed stage is continueOnError passes', async () => {
     const draft = example()
     byKind(draft, 'RESTAction').spec.api[0].continueOnError = true
@@ -193,7 +256,7 @@ describe('data', () => {
     const { transport } = recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, '[{"name":"pods"}]') }))
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
-    expect(dataOf(envelope).problems[0]).toMatch(/is not the documented shape \(an entry is not \{name, ok, reason\}/)
+    expect(dataOf(envelope).problems[0]).toMatch(/is not the documented shape \(an entry is not \{name, ok, reason, dependsOn\}/)
   })
 
   it('Secret-shaped output is dropped before it reaches the envelope, and the drop is noted', async () => {

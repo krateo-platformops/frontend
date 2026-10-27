@@ -64,7 +64,8 @@ export const rawEcho = { 'x-snowplow-raw': 'true' }
 
 export const dryRunReply = (status: number, body: unknown): HttpResponse => json(status, body, dryRunEcho)
 /** The stage outcomes header (snowplow PR #469), compact JSON. */
-export type Outcome = { name: string; ok: boolean; reason?: string }
+/** `dependsOn` is set only on a `Skipped` outcome (snowplow#904): the stage it depended on. */
+export type Outcome = { name: string; ok: boolean; reason?: string; dependsOn?: string }
 /** Every stage of a RESTAction, ok — what a clean inline resolve reports. */
 export const allOk = (restAction: Record<string, any>): Outcome[] =>
   ((restAction?.spec?.api ?? []) as { name: string }[]).map((api) => ({ name: api.name, ok: true }))
