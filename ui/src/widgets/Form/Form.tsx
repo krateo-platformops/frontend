@@ -1,6 +1,6 @@
 import type { IconProp } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { Button, Descriptions, Form as AntdForm, Result, Space, Spin, Tag } from 'antd'
+import { Alert, Button, Descriptions, Form as AntdForm, Result, Space, Spin, Tag } from 'antd'
 import useApp from 'antd/es/app/useApp'
 import dayjs from 'dayjs'
 import type { JSONSchema4 } from 'json-schema'
@@ -623,6 +623,11 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
           {jsonSchema?.properties
             ? (
               <FormRefsContext.Provider value={formRefs}>
+                {/* What the schema's source could not carry — e.g. the blueprint formdef's CRD
+                    fallback, which loses field order and every x-krateo-* extension. */}
+                {typeof jsonSchema['x-krateo-notice'] === 'string' && jsonSchema['x-krateo-notice'].trim()
+                  ? <Alert className={styles.notice} showIcon title={jsonSchema['x-krateo-notice']} type='info' />
+                  : null}
                 <SchemaForm hide={propertiesToHide} schema={jsonSchema} />
               </FormRefsContext.Provider>
             )
