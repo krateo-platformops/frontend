@@ -232,6 +232,18 @@
   white-space: normal;
 }
 
+/* Why an `x-krateo-options` field shows no list (source missing, denied, failed load). */
+.fieldNote {
+  align-items: center;
+  color: var(--gray-color);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--krateo-text-caption);
+  gap: var(--spacing-xs);
+  line-height: 1.45;
+  margin-top: var(--spacing-xs);
+}
+
 /* An `x-krateo-suggestions` row: the value over what it IS. Same name-over-muted-caption
    shape as .fieldLabel/.fieldDesc above, so a dropdown entry reads like the form it belongs
    to. The row is a single line each, ellipsised — the full text is the option's `title`
