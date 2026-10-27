@@ -8,11 +8,12 @@ import type { ReactElement } from 'react'
 import { isSecretArrayNode, isSecretSchemaNode } from '../../utils/secretFields'
 
 import { collectDependencies, type FieldPath } from './fieldDependencies'
-import { getFieldOptionsSpec } from './fieldOptions'
+import { closedOptionRule, getFieldOptionsSpec, type OptionRegistry } from './fieldOptions'
 import styles from './Form.module.css'
 import { OptionsInput } from './OptionsInput'
 import { type SchemaRoot, SchemaRootContext } from './schemaRoot'
 import { fieldLabel, itemCountRules, rulesFor } from './schemaRules'
+import { FormRefsContext } from './useFieldOptions'
 import type { SuggestionGroup } from './utils'
 import { getOptionsFromEnum, getSuggestionGroups, suggestionSearchText } from './utils'
 
@@ -373,7 +374,16 @@ interface SchemaFieldsProps {
  * are preserved verbatim regardless of which partition (required up-front or Advanced
  * collapse) the property lands in, so submission + validation are identical to a flat render.
  */
-function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: Array<string | number>, scopePath: FieldPath, isRequired: boolean): React.ReactNode {
+/** The rules a field's schema implies, plus a closed option field's "must be listed". */
+const fieldRules = (key: string, node: JSONSchema4, isRequired: boolean, fieldPath: FieldPath, registry?: OptionRegistry) => {
+  const rules = rulesFor(key, node, isRequired) ?? []
+  if (getFieldOptionsSpec(node)?.closed) {
+    rules.push(closedOptionRule(fieldLabel(key, node), fieldPath, registry))
+  }
+  return rules.length ? rules : undefined
+}
+
+function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: Array<string | number>, scopePath: FieldPath, isRequired: boolean, registry?: OptionRegistry): React.ReactNode {
   const path = [...namePath, key]
   const scope = [...scopePath, key]
 
@@ -449,7 +459,7 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
       label={fieldHeader(key, node, isRequired)}
       labelCol={{ span: 24 }}
       name={path}
-      rules={rulesFor(key, node, isRequired)}
+      rules={fieldRules(key, node, isRequired, scope, registry)}
       valuePropName={node.type === 'boolean' ? 'checked' : undefined}
       wrapperCol={{ span: 24 }}
     >
@@ -486,6 +496,7 @@ const useSchemaRoot = (schema: JSONSchema4): SchemaRoot =>
   useMemo(() => ({ cyclic: collectDependencies(schema).cyclic, schema }), [schema])
 
 const SchemaFieldsBody = ({ hide = [], namePath = [], schema, scopePath }: SchemaFieldsProps): React.ReactNode => {
+  const { options: registry } = useContext(FormRefsContext)
   if (!schema?.properties) { return null }
   const scope = scopePath ?? namePath
   const required = new Set(Array.isArray(schema.required) ? schema.required : [])
@@ -495,17 +506,17 @@ const SchemaFieldsBody = ({ hide = [], namePath = [], schema, scopePath }: Schem
   const optionalEntries = visible.filter(([key]) => !required.has(key))
 
   if (requiredEntries.length === 0) {
-    return <>{optionalEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, false))}</>
+    return <>{optionalEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, false, registry))}</>
   }
 
   return (
     <>
-      {requiredEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, true))}
+      {requiredEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, true, registry))}
       {optionalEntries.length > 0 ? (
         <Collapse
           className={styles.advanced}
           items={[{
-            children: <>{optionalEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, false))}</>,
+            children: <>{optionalEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, false, registry))}</>,
             // Always mount the optional fields (they're just visually hidden while collapsed) so
             // they register with the form store and submit / validate identically to an up-front
             // field — the disclosure never drops a value, even if the collapse is never opened.

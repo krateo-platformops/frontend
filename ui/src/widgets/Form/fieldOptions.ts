@@ -2,7 +2,7 @@ import type { JSONSchema4 } from 'json-schema'
 
 import { isSecretArrayNode, isSecretSchemaNode } from '../../utils/secretFields'
 
-import { type DependsOn, parseDependsOn } from './fieldDependencies'
+import { type DependsOn, PARAM_NAME, parseDependsOn, RESERVED_PARAMS } from './fieldDependencies'
 
 /**
  * `x-krateo-options` — a field whose options come from a RESTAction at runtime.
@@ -31,11 +31,30 @@ export interface FieldOptionsSpec {
    * `{ "field": "region", "param": "region" }` — see `resolveFieldPath` for what `field` names.
    */
   dependsOn?: DependsOn
+  /**
+   * Search as the person types: the typed text is sent as `extras[param]` once it has `minChars`
+   * characters (default 2), and the RESTAction filters. Without it the options load once and are
+   * filtered in the browser.
+   */
+  search?: { param: string; minChars: number }
   /** why the extension cannot be used as written; the field is disabled and says so */
   problem?: string
 }
 
 export const FIELD_OPTIONS_KEY = 'x-krateo-options'
+
+const DEFAULT_MIN_CHARS = 2
+
+/** `search` as authored — the same param rules as `dependsOn.param` — or a reason it cannot be used. */
+const parseSearch = (raw: unknown): { search?: { param: string; minChars: number }; problem?: string } => {
+  if (raw === undefined) { return {} }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) { return { problem: 'search must be { param, minChars? }' } }
+  const { minChars, param } = raw as { minChars?: unknown; param?: unknown }
+  if (typeof param !== 'string' || !PARAM_NAME.test(param)) { return { problem: 'search.param must be a plain name' } }
+  if (RESERVED_PARAMS.has(param)) { return { problem: `search.param cannot be "${param}": that name carries the caller's identity` } }
+  const min = typeof minChars === 'number' && Number.isInteger(minChars) && minChars >= 1 ? minChars : DEFAULT_MIN_CHARS
+  return { search: { minChars: min, param } }
+}
 
 /**
  * Reads `x-krateo-options` off a schema node. Anything malformed reads as absent, so the field
@@ -46,13 +65,19 @@ export const getFieldOptionsSpec = (node: JSONSchema4): FieldOptionsSpec | undef
   const raw = node[FIELD_OPTIONS_KEY] as unknown
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) { return undefined }
   if (isSecretSchemaNode(node) || isSecretArrayNode(node)) { return undefined }
-  const { closed, dependsOn: rawDependsOn, ref } = raw as { closed?: unknown; dependsOn?: unknown; ref?: unknown }
+  const { closed, dependsOn: rawDependsOn, ref, search: rawSearch } = raw as { closed?: unknown; dependsOn?: unknown; ref?: unknown; search?: unknown }
   if (typeof ref !== 'string' || !ref.trim()) { return undefined }
-  const { dependsOn, problem } = parseDependsOn(rawDependsOn)
+  const { dependsOn, problem: dependsOnProblem } = parseDependsOn(rawDependsOn)
+  const { problem: searchProblem, search } = parseSearch(rawSearch)
+  if (!dependsOnProblem && !searchProblem && search && dependsOn && search.param === dependsOn.param) {
+    return { closed: closed === true, problem: `search.param and dependsOn.param are both "${search.param}"`, ref: ref.trim() }
+  }
+  const problem = dependsOnProblem ?? searchProblem
   return {
     closed: closed === true,
     ref: ref.trim(),
     ...(dependsOn ? { dependsOn } : {}),
+    ...(search ? { search } : {}),
     ...(problem ? { problem } : {}),
   }
 }
@@ -104,4 +129,63 @@ export const parseFieldOptions = (payload: unknown): FieldOption[] | undefined =
     }
   }
   return options
+}
+
+const valueKey = (value: unknown): string => `${typeof value}:${String(value)}`
+
+/**
+ * What the Form learned about its option fields while the person filled it in, keyed by field
+ * path: the label of every option a field showed (so the Review can say "United States", not
+ * "us", while the payload keeps "us"), and the complete list of a CLOSED field that loads its
+ * options at once (so a value that arrived some other way — initial values, a resumed draft, an
+ * Autopilot draft — and is not in it fails validation instead of being submitted).
+ */
+export interface OptionRegistry {
+  record: (path: readonly (string | number)[], options: FieldOption[]) => void
+  /** the complete list of a closed field, or undefined when it is not known (loading, search) */
+  setClosed: (path: readonly (string | number)[], options: FieldOption[] | undefined) => void
+  labelFor: (path: readonly (string | number)[], value: unknown) => string | undefined
+  /** true / false against a known closed list; undefined when there is none to check against */
+  allows: (path: readonly (string | number)[], value: unknown) => boolean | undefined
+}
+
+/**
+ * The rule a CLOSED option field adds: every value must be in the list, when the list is known
+ * in full. Unknown (still loading, searched, failed) is not a violation — the person picked from
+ * what they were shown, and the API server still validates.
+ */
+export const closedOptionRule = (label: string, path: readonly (string | number)[], registry: OptionRegistry | undefined) => ({
+  validator: (_rule: unknown, value: unknown) => {
+    const entries = (Array.isArray(value) ? value : [value]).filter((entry) => entry !== undefined && entry !== null && entry !== '')
+    const outside = entries.filter((entry) => registry?.allows(path, entry) === false)
+    return outside.length
+      ? Promise.reject(new Error(`${label}: ${outside.map(String).join(', ')} ${outside.length === 1 ? 'is' : 'are'} not among the available options`))
+      : Promise.resolve()
+  },
+})
+
+export const createOptionRegistry = (): OptionRegistry => {
+  const labels = new Map<string, Map<string, string>>()
+  const closed = new Map<string, Set<string>>()
+  const keyOf = (path: readonly (string | number)[]) => JSON.stringify(path)
+  return {
+    allows: (path, value) => {
+      const list = closed.get(keyOf(path))
+      return list ? list.has(valueKey(value)) : undefined
+    },
+    labelFor: (path, value) => labels.get(keyOf(path))?.get(valueKey(value)),
+    record: (path, options) => {
+      const key = keyOf(path)
+      const known = labels.get(key) ?? new Map<string, string>()
+      for (const option of options) { known.set(valueKey(option.value), option.label) }
+      labels.set(key, known)
+    },
+    setClosed: (path, options) => {
+      if (options) {
+        closed.set(keyOf(path), new Set(options.map((option) => valueKey(option.value))))
+      } else {
+        closed.delete(keyOf(path))
+      }
+    },
+  }
 }

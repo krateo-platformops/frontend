@@ -19,6 +19,7 @@ import { getEndpointUrl } from '../../utils/utils'
 import { useDrawerContext } from '../Drawer/DrawerContext'
 
 import { collectDependencies, dependentsToClear } from './fieldDependencies'
+import { createOptionRegistry, getFieldOptionsSpec, type OptionRegistry } from './fieldOptions'
 import styles from './Form.module.css'
 import type { Form as WidgetType } from './Form.type'
 import { setFormReviewing } from './reviewPhase'
@@ -204,8 +205,24 @@ export const agentAuthoredKeys = (
   }
 })
 
-export const ReviewSummary = ({ agentKeys, schema, secretPaths, values }: {
+/**
+ * A top-level option field (`x-krateo-options`) reviewed by the labels it showed — "United
+ * States (us)" — while the payload keeps the value. A value with no recorded label, or a label
+ * that is the value itself, reads as before.
+ */
+const withOptionLabels = (key: string, value: unknown, node: JSONSchema4 | undefined, registry: OptionRegistry | undefined): unknown => {
+  if (!registry || !node || !getFieldOptionsSpec(node)) { return value }
+  const labelled = (entry: unknown) => {
+    const label = registry.labelFor([key], entry)
+    return label && label !== String(entry) ? `${label} (${String(entry)})` : entry
+  }
+  return Array.isArray(value) ? value.map(labelled) : labelled(value)
+}
+
+export const ReviewSummary = ({ agentKeys, optionLabels, schema, secretPaths, values }: {
   agentKeys?: readonly string[]
+  /** the labels option fields showed, keyed by field (see OptionRegistry) */
+  optionLabels?: OptionRegistry
   schema?: JSONSchema4
   /** secret fields beyond the schema's own (a composable Form's password Inputs) */
   secretPaths?: readonly SecretPath[]
@@ -228,7 +245,7 @@ export const ReviewSummary = ({ agentKeys, schema, secretPaths, values }: {
         ? <span>{base} <Tag className={styles.agentTag} color='processing'>Autopilot</Tag></span>
         : base
 
-      return { children: formatReviewValue(value), key, label }
+      return { children: formatReviewValue(withOptionLabels(key, value, node, optionLabels)), key, label }
     })
   const authoredCount = items.filter((item) => authored.has(item.key)).length
 
@@ -331,8 +348,10 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   }), [])
   const secretPaths = useMemo(() => [...secretFieldPaths(jsonSchema), ...widgetSecretPaths], [jsonSchema, widgetSecretPaths])
 
-  // The RESTActions a schema field's `x-krateo-options.ref` can name (see useFieldOptions.ts).
-  const formRefs = useMemo(() => ({ deniedRefIds, resourcesRefs }), [deniedRefIds, resourcesRefs])
+  // The RESTActions a schema field's `x-krateo-options.ref` can name (see useFieldOptions.ts), and
+  // what those fields showed — the labels the Review prints, the closed lists values must be in.
+  const [optionRegistry] = useState(createOptionRegistry)
+  const formRefs = useMemo(() => ({ deniedRefIds, options: optionRegistry, resourcesRefs }), [deniedRefIds, optionRegistry, resourcesRefs])
 
   // A field whose options depend on another (`x-krateo-options.dependsOn`) is cleared when the
   // PERSON changes that other field — its value was picked from options the new one no longer
@@ -657,7 +676,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
         </AntdForm>
       </div>
 
-      {reviewing && reviewValues ? <ReviewSummary agentKeys={agentAuthoredKeys(agentAuthoredRef.current, reviewValues)} schema={jsonSchema} secretPaths={widgetSecretPaths} values={reviewValues} /> : null}
+      {reviewing && reviewValues ? <ReviewSummary agentKeys={agentAuthoredKeys(agentAuthoredRef.current, reviewValues)} optionLabels={optionRegistry} schema={jsonSchema} secretPaths={widgetSecretPaths} values={reviewValues} /> : null}
 
       {/* In a drawer the buttons live in the drawer's header, so there is no action bar to draw. */}
       {footer ? <div className={styles.extra}>{footer}</div> : null}
