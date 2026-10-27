@@ -27,6 +27,7 @@ import { SchemaForm } from './SchemaFields'
 import { SecretFieldsContext, type SecretFieldsRegistry } from './secretFieldsRegistry'
 import { FormRefsContext } from './useFieldOptions'
 import { fieldlessSchemaMessage, getDefaultsFromSchema, narrowAgentDraft } from './utils'
+import { hiddenPaths, omitPaths } from './visibleWhen'
 
 export type FormWidgetData = WidgetType['spec']['widgetData']
 
@@ -382,9 +383,13 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   const safeAgentDraft = useMemo<Record<string, unknown> | undefined>(
     () => {
       const narrowed = narrowAgentDraft(agentDraft, jsonSchema?.properties, propertiesToHide)
-      return narrowed ? omitSecretPaths(narrowed, secretPaths) : narrowed
+      if (!narrowed) { return narrowed }
+      // …and a field `x-krateo-visible-when` would keep hidden once the draft lands: the person
+      // could not see what the agent wrote there, so it is not written.
+      const landed = { ...(jsonSchema ? getDefaultsFromSchema(jsonSchema) : {}), ...initialValues, ...savedDraft, ...narrowed }
+      return omitSecretPaths(omitPaths(narrowed, hiddenPaths(jsonSchema, landed)), secretPaths)
     },
-    [agentDraft, jsonSchema, propertiesToHide, secretPaths],
+    [agentDraft, jsonSchema, propertiesToHide, secretPaths, initialValues, savedDraft],
   )
 
   // Effective initial values = schema defaults < explicit initialValues < the resumed localStorage
@@ -518,7 +523,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   const onDraft = (draftActionId && draftStorageKey)
     ? () => {
       // A secret never goes to browser storage — a resumed draft asks for it again.
-      const values = omitSecretPaths(convertDayjsToISOString(form.getFieldsValue(true) as Record<string, unknown>), secretPaths)
+      const store = convertDayjsToISOString(form.getFieldsValue(true) as Record<string, unknown>)
+      // Nor does a field the person cannot see: a draft holds what the form shows.
+      const values = omitSecretPaths(omitPaths(store, hiddenPaths(jsonSchema, store)), secretPaths)
       delete values.__owner
       try {
         localStorage.setItem(draftStorageKey, JSON.stringify(values))
