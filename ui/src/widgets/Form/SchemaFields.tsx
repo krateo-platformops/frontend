@@ -1,8 +1,8 @@
-import { CloseOutlined, MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
+import { CloseOutlined, DownOutlined, MinusCircleOutlined, PlusOutlined, RightOutlined } from '@ant-design/icons'
 import { Form as AntdForm, AutoComplete, Button, Card, Collapse, Input, InputNumber, Select, Space, Switch } from 'antd'
 import type { DefaultOptionType } from 'antd/es/select'
 import type { JSONSchema4 } from 'json-schema'
-import { cloneElement, isValidElement, useContext, useEffect, useMemo, useState } from 'react'
+import { cloneElement, isValidElement, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
 
 import { isSecretArrayNode, isSecretSchemaNode } from '../../utils/secretFields'
@@ -10,6 +10,8 @@ import { isSecretArrayNode, isSecretSchemaNode } from '../../utils/secretFields'
 import { collectDependencies, type FieldPath } from './fieldDependencies'
 import { closedOptionRule, getFieldOptionsSpec, type OptionRegistry } from './fieldOptions'
 import styles from './Form.module.css'
+import { FreeObjectListInput } from './FreeObjectListInput'
+import { JsonValueInput } from './JsonValueInput'
 import { OptionsInput } from './OptionsInput'
 import { type SchemaRoot, SchemaRootContext } from './schemaRoot'
 import { fieldLabel, itemCountRules, rulesFor } from './schemaRules'
@@ -17,46 +19,6 @@ import { FormRefsContext } from './useFieldOptions'
 import type { SuggestionGroup } from './utils'
 import { getOptionsFromEnum, getSuggestionGroups, suggestionSearchText } from './utils'
 import { isVisible, VISIBLE_WHEN_KEY } from './visibleWhen'
-
-/**
- * Editor for a free-form object/array node (a `type: object` map without `properties`,
- * e.g. `x-kubernetes-preserve-unknown-fields` like a `tags`/`labels` map, or a non-string
- * array). antd injects `value`/`onChange`: the value stays a real object/array — edited as
- * JSON — so it is submitted correctly and never rendered as the string "[object Object]".
- */
-const JsonValueInput = ({ id, onChange, value }: { id?: string; onChange?: (next: unknown) => void; value?: unknown }): React.ReactNode => {
-  const [text, setText] = useState<string>(() => (value === undefined || value === null ? '' : JSON.stringify(value, null, 2)))
-  const [invalid, setInvalid] = useState(false)
-
-  const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const next = event.target.value
-    setText(next)
-    if (next.trim() === '') {
-      setInvalid(false)
-      onChange?.(undefined)
-      return
-    }
-    try {
-      const parsed: unknown = JSON.parse(next)
-      setInvalid(false)
-      onChange?.(parsed)
-    } catch {
-      setInvalid(true)
-    }
-  }
-
-  return (
-    <Input.TextArea
-      autoSize={{ maxRows: 12, minRows: 2 }}
-      id={id}
-      onChange={handleChange}
-      placeholder='{ } — JSON (key/value map)'
-      status={invalid ? 'error' : undefined}
-      style={{ fontFamily: 'var(--font-mono, monospace)' }}
-      value={text}
-    />
-  )
-}
 
 /** A control's onChange argument as a value: an input's event carries it in `target.value`. */
 const valueOf = (arg: unknown): unknown => {
@@ -311,6 +273,11 @@ const controlFor = (node: JSONSchema4, fieldPath: FieldPath = []): React.ReactNo
   if (isTypedMap(node)) {
     return <MapRowsInput valueSchema={node.additionalProperties as JSONSchema4} />
   }
+  // A list of objects whose items declare no fields (`imagePullSecrets`, `tolerations`): rows of
+  // key/value per item, with JSON one click away.
+  if (node.type === 'array' && !Array.isArray(node.items) && node.items?.type === 'object' && !node.items.properties) {
+    return <FreeObjectListInput label={fieldLabel(String(fieldPath[fieldPath.length - 1] ?? 'Item'), node)} />
+  }
   if (node.type === 'object' || node.type === 'array' || isUntypedObject(node)) { return <JsonValueInput /> }
   return <Input />
 }
@@ -329,6 +296,157 @@ const isGroup = (node: JSONSchema4): boolean => node.type === 'object' && !!node
 const isObjectList = (node: JSONSchema4): boolean =>
   node.type === 'array' && !!node.items && !Array.isArray(node.items)
   && node.items.type === 'object' && !!node.items.properties
+
+/** The property a list row is read by: `x-krateo-row-title`, else its first required string field, else its first string field. */
+export const rowTitleKey = (node: JSONSchema4): string | undefined => {
+  const item = node.items as JSONSchema4
+  const properties = item.properties ?? {}
+  const explicit = node['x-krateo-row-title'] as unknown
+  if (typeof explicit === 'string' && properties[explicit]) { return explicit }
+  const required = Array.isArray(item.required) ? item.required : []
+  return required.find((key) => properties[key]?.type === 'string')
+    ?? Object.entries(properties).find(([, child]) => child.type === 'string')?.[0]
+}
+
+/** Rows at mount from this many on start collapsed: the list reads as its titles. */
+const COLLAPSE_FROM_ROWS = 3
+
+const startsWith = (path: Array<string | number>, prefix: Array<string | number>): boolean =>
+  prefix.every((key, index) => path[index] === key)
+
+/**
+ * One row of a list of objects: a Card titled by the row's title field ("Hosts 2 · api.example.com")
+ * that collapses to that title. Collapsed, its fields stay mounted — they validate and submit —
+ * and a row holding a validation error opens itself, so an error is never hidden.
+ */
+const ObjectListRow = ({ children, index, label, listPath, onRemove, removable, startCollapsed, titleKey }: {
+  children: React.ReactNode
+  index: number
+  label: string
+  listPath: FieldPath
+  onRemove: () => void
+  removable: boolean
+  startCollapsed: boolean
+  titleKey?: string
+}): React.ReactNode => {
+  const form = AntdForm.useFormInstance()
+  const [collapsed, setCollapsed] = useState(startCollapsed)
+  const rowPath = [...listPath, index]
+  const title = AntdForm.useWatch((values: unknown) => {
+    if (!titleKey) { return undefined }
+    const row = rowPath.reduce<unknown>((at, key) => (at && typeof at === 'object' ? (at as Record<string | number, unknown>)[key] : undefined), values)
+    const value = (row as Record<string, unknown> | undefined)?.[titleKey]
+    return typeof value === 'string' || typeof value === 'number' ? String(value) : undefined
+  }, { form, preserve: true })
+  const name = `${label} ${index + 1}`
+
+  return (
+    <AntdForm.Item noStyle shouldUpdate>
+      {() => {
+        const hasError = form.getFieldsError().some(({ errors, name: at }) => errors.length > 0 && startsWith(at, rowPath))
+        const open = !collapsed || hasError
+        return (
+          <Card
+            extra={(
+              <Button
+                aria-label={`Remove ${name}`}
+                disabled={!removable}
+                icon={<CloseOutlined />}
+                onClick={onRemove}
+                size='small'
+                type='text'
+              />
+            )}
+            size='small'
+            title={(
+              <button
+                aria-expanded={open}
+                className={styles.listRowToggle}
+                onClick={() => { setCollapsed(open) }}
+                type='button'
+              >
+                {open ? <DownOutlined /> : <RightOutlined />}
+                <span>{name}</span>
+                {title ? <span className={styles.listRowTitle}>{title}</span> : null}
+              </button>
+            )}
+          >
+            <div style={open ? undefined : { display: 'none' }}>{children}</div>
+          </Card>
+        )
+      }}
+    </AntdForm.Item>
+  )
+}
+
+/**
+ * An array whose items are objects with declared fields, as antd's dynamic nested form: one
+ * ObjectListRow per entry, its fields rendered from the ITEM schema by the same renderer (so a
+ * row gets the required / Advanced split and its own dependsOn / visible-when scope), named
+ * relative to the list. `minItems` / `maxItems` gate removing and adding rows, and are rules too.
+ */
+const ObjectList = ({ fieldKey, isRequired, listPath, name, node }: {
+  fieldKey: string
+  isRequired: boolean
+  /** the list's absolute path */
+  listPath: FieldPath
+  /** the list's antd name (relative inside an enclosing list row) */
+  name: Array<string | number>
+  node: JSONSchema4
+}): React.ReactNode => {
+  const itemSchema = node.items as JSONSchema4
+  const label = fieldLabel(fieldKey, node)
+  const titleKey = rowTitleKey(node)
+  // Rows present when the list first renders (an edit form, a draft) start collapsed when there
+  // are many of them; a row the person adds opens.
+  const mountedKeys = useRef<Set<number> | null>(null)
+  const max = typeof node.maxItems === 'number' ? node.maxItems : Infinity
+  const min = typeof node.minItems === 'number' ? node.minItems : 0
+
+  return (
+    <AntdForm.List
+      name={name}
+      // A required list keeps the rule the JSON editor had: something must be in it. A
+      // form that submits without validating (the composer's create form) is unaffected.
+      rules={[
+        ...(isRequired
+          ? [{ validator: (_rule: unknown, rows: unknown) => (Array.isArray(rows) && rows.length ? Promise.resolve() : Promise.reject(new Error(`${label} is required`))) }]
+          : []),
+        ...itemCountRules(label, node),
+      ]}
+    >
+      {(fields, { add, remove }, { errors }) => {
+        if (mountedKeys.current === null) {
+          mountedKeys.current = new Set(fields.length >= COLLAPSE_FROM_ROWS ? fields.map((field) => field.key) : [])
+        }
+        const mounted = mountedKeys.current
+        return (
+          <div className={styles.listRows}>
+            {fields.map((field) => (
+              <ObjectListRow
+                index={field.name}
+                key={field.key}
+                label={label}
+                listPath={listPath}
+                onRemove={() => { remove(field.name) }}
+                removable={fields.length > min}
+                startCollapsed={mounted.has(field.key)}
+                titleKey={titleKey}
+              >
+                {/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
+                <SchemaFields hide={[]} namePath={[field.name]} schema={itemSchema} scopePath={[...listPath, field.name]} />
+              </ObjectListRow>
+            ))}
+            <Button block disabled={fields.length >= max} icon={<PlusOutlined />} onClick={() => { add() }} type='dashed'>
+              {fields.length >= max ? `${label}: at most ${max}` : `Add ${label}`}
+            </Button>
+            <AntdForm.ErrorList errors={errors} />
+          </div>
+        )
+      }}
+    </AntdForm.List>
+  )
+}
 
 /**
  * One COHERENT header for every property — the property's human `title` (the label the blueprint
@@ -389,46 +507,12 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
   const scope = [...scopePath, key]
 
   if (isObjectList(node)) {
-    const itemSchema = node.items as JSONSchema4
-    const label = fieldLabel(key, node)
     return (
       <div className={styles.group} key={path.join('.')}>
         {fieldHeader(key, node, isRequired)}
         <div className={styles.groupBody}>
-          {/* antd's dynamic nested form: one Card per row, its fields rendered from the ITEM
-              schema by the same renderer (so each row gets the required / Advanced split too),
-              named relative to the list. Removing and adding rows is the list's own op. */}
-          <AntdForm.List
-            name={path}
-            // A required list keeps the rule the JSON editor had: something must be in it. A
-            // form that submits without validating (the composer's create form) is unaffected.
-            rules={[
-              ...(isRequired
-                ? [{ validator: (_rule: unknown, rows: unknown) => (Array.isArray(rows) && rows.length ? Promise.resolve() : Promise.reject(new Error(`${label} is required`))) }]
-                : []),
-              ...itemCountRules(label, node),
-            ]}
-          >
-            {(fields, { add, remove }, { errors }) => (
-              <div className={styles.listRows}>
-                {fields.map((field) => (
-                  <Card
-                    extra={<Button aria-label={`Remove ${label} ${field.name + 1}`} icon={<CloseOutlined />} onClick={() => remove(field.name)} size='small' type='text' />}
-                    key={field.key}
-                    size='small'
-                    title={`${label} ${field.name + 1}`}
-                  >
-                    {/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
-                    <SchemaFields hide={[]} namePath={[field.name]} schema={itemSchema} scopePath={[...scope, field.name]} />
-                  </Card>
-                ))}
-                <Button block icon={<PlusOutlined />} onClick={() => add()} type='dashed'>
-                  Add {label}
-                </Button>
-                <AntdForm.ErrorList errors={errors} />
-              </div>
-            )}
-          </AntdForm.List>
+          { }
+          <ObjectList fieldKey={key} isRequired={isRequired} listPath={scope} name={path} node={node} />
         </div>
       </div>
     )
