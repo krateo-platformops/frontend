@@ -210,3 +210,49 @@ describe('action chip outcome', () => {
     expect(rule('apActLabel')).toMatch(/min-width: 0;/)
   })
 })
+
+/**
+ * The rail's half of the availability contract (the colleague's cmp.krateo.dev report).
+ *
+ * The provider defines `enabled` = an endpoint is configured (VISIBILITY) and `reachable` = the
+ * agent is actually usable (CLICKABILITY). AutopilotToggle implemented its half; the rail never
+ * consumed `reachable` at all, so every control inside it stayed live while the agent was not
+ * deployed, not reachable, or not permitted — each click firing a turn that could only fail.
+ *
+ * Both arms are asserted. A test that only checks the disabled case passes just as well against a
+ * rail that disables everything always.
+ */
+describe('AutopilotRail — unusable agent', () => {
+  afterEach(cleanup)
+
+  it('disables every control and SAYS WHY when the agent is not reachable', () => {
+    mockedUseAutopilot.mockReturnValue({ ...baseValue, reachable: false })
+    const { getByLabelText, getByTestId, getByText } = render(<AutopilotRail />)
+
+    // the starter prompts a zero-knowledge user reaches for first
+    expect((getByText('Show me around') as HTMLButtonElement).disabled).toBe(true)
+    expect((getByText("What's on this page?") as HTMLButtonElement).disabled).toBe(true)
+    // and Send
+    expect((getByLabelText('Send') as HTMLButtonElement).disabled).toBe(true)
+    // a disabled button swallows pointer events, so the toggle's tooltip cannot reach anyone in
+    // here: the reason has to be on the page as text.
+    expect(getByTestId('autopilot-unavailable').textContent).toContain('not permitted for your user')
+  })
+
+  it('leaves them usable when the agent IS reachable (the control arm)', () => {
+    mockedUseAutopilot.mockReturnValue({ ...baseValue, reachable: true })
+    const { getByText, queryByTestId } = render(<AutopilotRail />)
+
+    expect((getByText('Show me around') as HTMLButtonElement).disabled).toBe(false)
+    expect(queryByTestId('autopilot-unavailable')).toBeNull()
+  })
+
+  it('sends nothing when a starter prompt is clicked while unreachable', () => {
+    const send = vi.fn()
+    mockedUseAutopilot.mockReturnValue({ ...baseValue, reachable: false, send })
+    const { getByText } = render(<AutopilotRail />)
+
+    fireEvent.click(getByText('Show me around'))
+    expect(send).not.toHaveBeenCalled()
+  })
+})
