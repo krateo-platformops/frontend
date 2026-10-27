@@ -24,7 +24,7 @@
 import { step, type StepResult } from '../envelope'
 import { HttpError } from '../http'
 import type { GateContext } from '../plan'
-import { CAPABILITY_RESOLVE, type SnowplowReply, STAGE_NOT_EXECUTED_MESSAGE, STAGE_NOT_EXECUTED_REASON, STAGE_NOT_RUN_REASON, STAGE_OUTCOMES, STAGE_REASONS, STAGE_SKIPPED_REASON, stageOutcomesOf } from '../snowplow'
+import { CAPABILITY_RESOLVE, type SnowplowReply, STAGE_ABORTED_REASON, STAGE_NOT_EXECUTED_MESSAGE, STAGE_NOT_EXECUTED_REASON, STAGE_NOT_RUN_REASON, STAGE_OUTCOMES, STAGE_REASONS, STAGE_SKIPPED_REASON, stageOutcomesOf } from '../snowplow'
 import { isRestAction, labelOf, rec, type Rec, str } from './drafts'
 
 const SAMPLE_CHARS = 1_200
@@ -133,6 +133,19 @@ export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers
     case 'truncated':
       return { failures: [`${Number.isNaN(outcomes.failed) ? 'some' : outcomes.failed} stage(s) failed; ${STAGE_OUTCOMES} was truncated, so which ones cannot be told`], byDesign: [] }
     default:
+  }
+  // An ABORTED resolve (snowplow#904 review F3) ran no stage at all: its graph could not be
+  // ordered. Every row after it is a NotRun that the abort explains, so attributing them one by
+  // one to a positional `stopper` would print a line per stage, each naming no cause. One red
+  // line that says the resolve never started is the honest report.
+  const aborted = outcomes.stages.find((o) => o.name === '' && o.reason === STAGE_ABORTED_REASON)
+  if (aborted) {
+    const declared = outcomes.stages.filter((o) => o.name !== '').map((o) => o.name)
+    const never = declared.length === 0 ? '' : `; its declared stage(s) never ran: ${declared.join(', ')}`
+    return {
+      failures: [`snowplow aborted the resolve before running any stage — its dependsOn graph could not be ordered (a stage naming a dependency that does not exist, or a cycle)${never}`],
+      byDesign: [],
+    }
   }
   const failures: string[] = []
   const byDesign: string[] = []

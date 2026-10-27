@@ -67,16 +67,21 @@ export const dryRunReply = (status: number, body: unknown): HttpResponse => json
 /** `dependsOn` is set only on a `Skipped` outcome (snowplow#904): the stage it depended on. */
 export type Outcome = { name: string; ok: boolean; reason?: string; dependsOn?: string }
 /** Every stage of a RESTAction, ok — what a clean inline resolve reports. */
+/**
+ * The pre-#911 success shape: every stage listed, `ok:true`. snowplow no longer sends it — a
+ * succeeded stage is simply absent — so it is kept only to assert the gate still reads an older
+ * snowplow's answer, and is never the default.
+ */
 export const allOk = (restAction: Record<string, any>): Outcome[] =>
   ((restAction?.spec?.api ?? []) as { name: string }[]).map((api) => ({ name: api.name, ok: true }))
 
 /**
  * An inline resolve reply: both echoes, plus X-Snowplow-Stage-Outcomes. `outcomes` defaults to
- * every stage of the resolved object ok; pass null to leave the header off (a contract violation),
- * or a raw string to send it verbatim.
+ * `[]` — which is what snowplow sends when every stage succeeded (#911). Pass null to leave the
+ * header off (a contract violation), or a raw string to send it verbatim.
  */
 export const resolveReply = (status: number, body: unknown, outcomes?: Outcome[] | string | null): HttpResponse => {
-  const stages = outcomes === undefined ? allOk((body as Record<string, any>) ?? {}) : outcomes
+  const stages = outcomes === undefined ? [] : outcomes
   return json(status, body, {
     ...resolveEcho,
     ...(stages === null ? {} : { 'x-snowplow-stage-outcomes': typeof stages === 'string' ? stages : JSON.stringify(stages) }),

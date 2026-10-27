@@ -44,16 +44,31 @@ export const STAGE_NOT_RUN_REASON = 'NotRun'
  * failure by position, a Skipped outcome NAMES its cause in `dependsOn`.
  */
 export const STAGE_SKIPPED_REASON = 'Skipped'
+/**
+ * The RESOLVE-level row (snowplow#904 review F3) of a resolve that ran NO stage: its stage graph
+ * could not be ordered — a `dependsOn` naming a stage that does not exist, or a cycle — or it had
+ * no identity or client config. It is the only row whose `name` is empty, it comes first, and
+ * every declared stage follows it as `NotRun`. Such a resolve is never reported as `[]`, which is
+ * what makes "all succeeded" and "nothing ran" tellable apart.
+ */
+export const STAGE_ABORTED_REASON = 'Aborted'
 
-export const STAGE_REASONS: ReadonlySet<string> = new Set([STAGE_NOT_EXECUTED_REASON, 'Forbidden', 'NotFound', 'Unauthorized', STAGE_NOT_RUN_REASON, STAGE_SKIPPED_REASON, 'Error'])
+export const STAGE_REASONS: ReadonlySet<string> = new Set([STAGE_NOT_EXECUTED_REASON, 'Forbidden', 'NotFound', 'Unauthorized', STAGE_NOT_RUN_REASON, STAGE_SKIPPED_REASON, STAGE_ABORTED_REASON, 'Error'])
 export const STAGE_NOT_EXECUTED_MESSAGE = /^dry-run: stage .* is not executed$/
 
 /**
- * The stage outcomes header on an inline resolve reply (snowplow PR #469): compact JSON in
- * topological stage order, `[{"name","ok":true},{"name","ok":false,"reason":"<code>"}]`, reason
- * codes only (STAGE_REASONS), no message text; past 4 KiB it becomes
- * `{"truncated":true,"failed":N}`. It is THE source of stage outcomes: unlike the body, no
- * spec.filter can drop it.
+ * The stage outcomes header on a `/call` reply (snowplow PR #469, narrowed by #911): compact JSON
+ * in dependency order listing every stage that did NOT succeed —
+ * `[{"name","ok":false,"reason":"<code>","dependsOn":"<stage>"}]` — reason codes only
+ * (STAGE_REASONS), no message text, no path, no identity, no data. Past 4 KiB it becomes
+ * `{"truncated":true,"failed":N}`.
+ *
+ * `[]` MEANS EVERY STAGE SUCCEEDED. A succeeded stage is not listed (#911; before it, every stage
+ * appeared, with `ok:true` — which is why nothing here may count rows to learn how many stages ran).
+ * The one answer that is never `[]` is an aborted resolve, which leads with STAGE_ABORTED_REASON.
+ *
+ * It is THE source of stage outcomes: unlike the body, no `spec.filter` can drop it, and #911 sets
+ * it on stored and cached answers too, not only live ones.
  */
 export const STAGE_OUTCOMES = 'x-snowplow-stage-outcomes'
 

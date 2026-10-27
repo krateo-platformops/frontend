@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { secretShaped, withoutSecrets } from '../src/pages/data'
-import { byKind, example, fakeSnowplow, json, liveCtx, rawReply, recorder, resolveReply, run } from './helpers'
+import { allOk, byKind, example, fakeSnowplow, json, liveCtx, rawReply, recorder, resolveReply, run } from './helpers'
 
 const dataOf = (envelope: Awaited<ReturnType<typeof run>>) => envelope.steps.find((s) => s.name === 'data')!
 
@@ -162,6 +162,53 @@ describe('data', () => {
     const envelope = await run(draft, liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
     expect(dataOf(envelope).problems[0]).toMatch(/stage pods: not sent, but x-snowplow-stage-outcomes does not name the stage it depends on/)
+  })
+
+  it('snowplow#911: [] is every stage succeeded — the shape a passing resolve actually sends', async () => {
+    // Not a tautology: `allOk` below proves the gate also reads the pre-#911 shape, so this one
+    // pins which of the two means success NOW. A gate that counted rows to learn how many stages
+    // ran would read [] as "no stages" and pass a draft it never looked at.
+    const draft = example()
+    const { transport } = recorder(fakeSnowplow({
+      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [] } }, []),
+    }))
+    const envelope = await run(draft, liveCtx(transport))
+    expect(envelope.ok).toBe(true)
+    expect(dataOf(envelope).problems).toEqual([])
+  })
+
+  it('still reads an older snowplow, which listed succeeded stages as ok:true', async () => {
+    const draft = example()
+    const { transport } = recorder(fakeSnowplow({
+      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [] } }, allOk(body.object as Record<string, unknown>)),
+    }))
+    const envelope = await run(draft, liveCtx(transport))
+    expect(envelope.ok).toBe(true)
+    expect(dataOf(envelope).problems).toEqual([])
+  })
+
+  it('snowplow#904 F3: an ABORTED resolve is red once, naming the stages that never ran', async () => {
+    // The resolve-level row: name "", then every declared stage as NotRun. Judged stage-by-stage
+    // these would be one red line each, every one of them saying the resolve "stopped before it,
+    // at no failed stage the header names" — true, useless, and N times over.
+    const draft = example()
+    byKind(draft, 'RESTAction').spec.api.push({ name: 'scale', path: '/api/v1/scale', verb: 'POST', dependsOn: { name: 'nope' } })
+    const { transport } = recorder(fakeSnowplow({
+      resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, [
+        { name: '', ok: false, reason: 'Aborted' },
+        { name: 'pods', ok: false, reason: 'NotRun' },
+        { name: 'nodes', ok: false, reason: 'NotRun' },
+        { name: 'scale', ok: false, reason: 'NotRun' },
+      ]),
+    }))
+    const envelope = await run(draft, liveCtx(transport))
+    expect(envelope.failedStep).toBe('data')
+    expect(dataOf(envelope).problems).toEqual([
+      'widgets[3] (RESTAction/pod-sizing): snowplow aborted the resolve before running any stage — its dependsOn graph could not be ordered (a stage naming a dependency that does not exist, or a cycle); its declared stage(s) never ran: pods, nodes, scale',
+    ])
+    // …and not one per-stage line: no NotRun of an aborted resolve is attributed to anything.
+    expect(dataOf(envelope).notes.filter((n) => /not run|not sent|stopped at/i.test(n))).toEqual([])
+    expect(dataOf(envelope).problems).toHaveLength(1)
   })
 
   it('a draft whose only failed stage is continueOnError passes', async () => {
