@@ -131,7 +131,11 @@ export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers
     case 'invalid':
       return { failures: [`snowplow's ${STAGE_OUTCOMES} is not the documented shape (${outcomes.why}): its stage outcomes cannot be known`], byDesign: [] }
     case 'truncated':
-      return { failures: [`${Number.isNaN(outcomes.failed) ? 'some' : outcomes.failed} stage(s) failed; ${STAGE_OUTCOMES} was truncated, so which ones cannot be told`], byDesign: [] }
+      // `failed` is the number of ROWS the header would have carried, which snowplow sets to
+      // len(out): every stage that did not succeed, NotRun ones included, plus the resolve-level
+      // Aborted row. So it is "did not succeed", not "failed" — an aborted resolve, where nothing
+      // ran at all, can arrive here too once its stage list is long enough to breach 4 KiB.
+      return { failures: [`${Number.isNaN(outcomes.failed) ? 'some' : outcomes.failed} stage(s) did not succeed; ${STAGE_OUTCOMES} was truncated, so which ones — and whether any stage ran at all — cannot be told`], byDesign: [] }
     default:
   }
   // An ABORTED resolve (snowplow#904 review F3) ran no stage at all: its graph could not be

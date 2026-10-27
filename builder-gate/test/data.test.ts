@@ -211,6 +211,20 @@ describe('data', () => {
     expect(dataOf(envelope).problems).toHaveLength(1)
   })
 
+  it('snowplow#904 F3: an abort that declared no stage is the Aborted row alone, and still red', async () => {
+    // Confirmed against abortedResolve: it registers the declared names and returns, so with no
+    // declared stage the value is just the resolve-level row. The verdict must not then read as
+    // "all succeeded" — which is the whole reason the row exists instead of [].
+    const { transport } = recorder(fakeSnowplow({
+      resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, [{ name: '', ok: false, reason: 'Aborted' }]),
+    }))
+    const envelope = await run(example(), liveCtx(transport))
+    expect(envelope.failedStep).toBe('data')
+    expect(dataOf(envelope).problems).toEqual([
+      'widgets[3] (RESTAction/pod-sizing): snowplow aborted the resolve before running any stage — its dependsOn graph could not be ordered (a stage naming a dependency that does not exist, or a cycle)',
+    ])
+  })
+
   it('a draft whose only failed stage is continueOnError passes', async () => {
     const draft = example()
     byKind(draft, 'RESTAction').spec.api[0].continueOnError = true
@@ -289,7 +303,7 @@ describe('data', () => {
     const { transport } = recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, '{"truncated":true,"failed":7}') }))
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
-    expect(dataOf(envelope).problems).toEqual(['widgets[3] (RESTAction/pod-sizing): 7 stage(s) failed; x-snowplow-stage-outcomes was truncated, so which ones cannot be told'])
+    expect(dataOf(envelope).problems).toEqual(['widgets[3] (RESTAction/pod-sizing): 7 stage(s) did not succeed; x-snowplow-stage-outcomes was truncated, so which ones — and whether any stage ran at all — cannot be told'])
   })
 
   it('a MISSING outcomes header on an inline reply is red: a contract violation', async () => {
