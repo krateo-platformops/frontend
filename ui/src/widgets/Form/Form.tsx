@@ -23,6 +23,7 @@ import type { Form as WidgetType } from './Form.type'
 import { setFormReviewing } from './reviewPhase'
 import { SchemaForm } from './SchemaFields'
 import { SecretFieldsContext, type SecretFieldsRegistry } from './secretFieldsRegistry'
+import { FormRefsContext } from './useFieldOptions'
 import { fieldlessSchemaMessage, getDefaultsFromSchema, narrowAgentDraft } from './utils'
 
 export type FormWidgetData = WidgetType['spec']['widgetData']
@@ -329,6 +330,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   }), [])
   const secretPaths = useMemo(() => [...secretFieldPaths(jsonSchema), ...widgetSecretPaths], [jsonSchema, widgetSecretPaths])
 
+  // The RESTActions a schema field's `x-krateo-options.ref` can name (see useFieldOptions.ts).
+  const formRefs = useMemo(() => ({ deniedRefIds, resourcesRefs }), [deniedRefIds, resourcesRefs])
+
   // Filter the Autopilot draft to the form's REAL field names (top-level schema properties). The model
   // is told to use exact field names, but an invented or "closest-match" key would otherwise be held in
   // the form store by setFieldsValue while the chip still claims "drafted the form" — a value landing
@@ -617,7 +621,11 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
           size={size}
         >
           {jsonSchema?.properties
-            ? <SchemaForm hide={propertiesToHide} schema={jsonSchema} />
+            ? (
+              <FormRefsContext.Provider value={formRefs}>
+                <SchemaForm hide={propertiesToHide} schema={jsonSchema} />
+              </FormRefsContext.Provider>
+            )
             : (
               <SecretFieldsContext.Provider value={secretRegistry}>
                 {items?.map(({ resourceRefId }, index) => {
