@@ -69,6 +69,18 @@ export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic
     // (installer#395 — the token used to ride as ?access_token= and reach the access logs).
     return subscribeSse(notificationsUrl, topic, {
       onError: () => { console.error('[SSE] Connection error') },
+      onOpen: ({ reopened }) => {
+        // A REOPEN has a hole in it. sse-proxy keeps no replay and sends no ids, so every event
+        // published while the stream was down is simply gone — and this list is append-only from
+        // the stream's side, so the hole would sit in the bell until a reload. Refetch the
+        // baseline instead; GET /events is the only thing that can fill it.
+        //
+        // Guarded on `reopened` because the FIRST open happens next to this hook's own useQuery:
+        // invalidating there would refetch the list we are already fetching, on every mount.
+        if (reopened) {
+          void queryClient.invalidateQueries({ queryKey })
+        }
+      },
       onMessage: (raw) => {
         try {
           const data = JSON.parse(raw) as SSEK8sEvent
