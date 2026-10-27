@@ -230,9 +230,14 @@ async function stream(url: string, connection: SseConnection, controller: AbortC
       // may not read this stream. Re-authenticating as the same user cannot change a 403, so
       // raising the session-resume modal here would ask someone to fix an authorisation refusal
       // by proving the identity that was refused — and with no modal surface mounted it falls
-      // through to a real logout. sse-proxy's per-caller event scoping makes a legitimate 403 the
-      // NORMAL answer for a user outside the stream's scope (sse-proxy#29), so this must stay a
-      // quiet, terminal refusal rather than an eviction.
+      // through to a real logout.
+      //
+      // NOT DEAD CODE, though sse-proxy's SSE handler never answers 403: an out-of-scope caller
+      // gets 200 with a filtered stream and a scope-resolution failure is a 500. This branch is
+      // load-bearing for the endpoints that DO refuse an identity — the HTTP /events route and
+      // snowplow /call — and the next person to notice the scoping fact should not read it as
+      // dead and delete it. (An earlier version of this comment cited that scoping as the
+      // motivation. It was wrong; the reasoning above never depended on it.)
       fail(url, connection)
       return
     }
