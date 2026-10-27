@@ -26,6 +26,11 @@ name: tested
 
 on:
   workflow_call:
+  # Also runnable by hand, which is not a convenience: `workflow_call` alone means nothing
+  # exercises this file until a real release calls it, and a gate first executed at the moment
+  # it is relied on is a gate nobody has tested. `gh workflow run tested.yaml --ref <branch>`
+  # proves it works before a tag depends on it.
+  workflow_dispatch:
 
 permissions:
   contents: read
