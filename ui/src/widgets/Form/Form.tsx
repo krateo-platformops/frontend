@@ -18,6 +18,7 @@ import { maskSecretPaths, omitSecretPaths, secretFieldPaths, type SecretPath } f
 import { getEndpointUrl } from '../../utils/utils'
 import { useDrawerContext } from '../Drawer/DrawerContext'
 
+import { collectDependencies, dependentsToClear } from './fieldDependencies'
 import styles from './Form.module.css'
 import type { Form as WidgetType } from './Form.type'
 import { setFormReviewing } from './reviewPhase'
@@ -333,6 +334,19 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   // The RESTActions a schema field's `x-krateo-options.ref` can name (see useFieldOptions.ts).
   const formRefs = useMemo(() => ({ deniedRefIds, resourcesRefs }), [deniedRefIds, resourcesRefs])
 
+  // A field whose options depend on another (`x-krateo-options.dependsOn`) is cleared when the
+  // PERSON changes that other field — its value was picked from options the new one no longer
+  // yields — and so is whatever depends on it in turn. antd fires onValuesChange for user input
+  // only: initial values, a refetch, a resumed draft and an Autopilot draft set fields
+  // programmatically and keep every value they set, dependent ones included.
+  const dependencies = useMemo(() => collectDependencies(jsonSchema).dependencies, [jsonSchema])
+  const onValuesChange = (changed: unknown) => {
+    if (!dependencies.length) { return }
+    for (const path of dependentsToClear(dependencies, changed, (at) => form.getFieldValue(at) as unknown)) {
+      form.setFieldValue(path, undefined)
+    }
+  }
+
   // Filter the Autopilot draft to the form's REAL field names (top-level schema properties). The model
   // is told to use exact field names, but an invented or "closest-match" key would otherwise be held in
   // the form store by setFieldsValue while the chip still claims "drafted the form" — a value landing
@@ -618,6 +632,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
           initialValues={effectiveInitialValues}
           layout={layout}
           onFinish={(formValues) => { onFinish(formValues as Record<string, unknown>) }}
+          onValuesChange={onValuesChange}
           size={size}
         >
           {jsonSchema?.properties
