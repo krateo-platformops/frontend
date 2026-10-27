@@ -258,7 +258,7 @@ export const NotificationsBell = () => {
  * widget's remounts never tear it down. Reads open-state + data from the shared context.
  */
 export const NotificationsDrawer = () => {
-  const { isLoading, notifications, open, setOpen } = useNotifications()
+  const { isLoading, notifications, open, scope, setOpen } = useNotifications()
   const navigate = useNavigate()
 
   // Dedupe once per data change, not on every render. The initial GET /events seeds up to
@@ -283,7 +283,15 @@ export const NotificationsDrawer = () => {
       return <Skeleton active paragraph={{ rows: 6 }} />
     }
     if (deduped.length === 0) {
-      return <Empty description='No events' image={Empty.PRESENTED_IMAGE_SIMPLE} />
+      // AN EMPTY SCOPE HAS NO OTHER SYMPTOM. When sse-proxy resolves this caller's scope to
+      // nothing, the stream opens and simply never delivers — identical, from here, to a healthy
+      // bell on a quiet cluster. `none` is the only way to tell, which is why the proxy sends an
+      // explicit token for it (sse-proxy#34) and why an ABSENT header must not land here: an
+      // older proxy does not scope at all, and saying "you may see no events" to everyone on one
+      // would be the worse error.
+      return scope.kind === 'none'
+        ? <Empty description='No events are in scope for you' image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        : <Empty description='No events' image={Empty.PRESENTED_IMAGE_SIMPLE} />
     }
     return (
       <>

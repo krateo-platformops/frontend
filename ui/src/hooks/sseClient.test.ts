@@ -44,7 +44,8 @@ class FakeStream {
   private resolveRead: (() => void) | null = null
   private done = false
 
-  constructor(public url: string, public init: RequestInit, public status = 200) {
+  constructor(public url: string, public init: RequestInit, public status = 200,
+              public responseHeaders: Record<string, string> = {}) {
     FakeStream.instances.push(this)
   }
 
@@ -78,8 +79,13 @@ class FakeStream {
       }
     }
 
+    // A real Headers: `get` is case-insensitive and returns null when absent, and BOTH of those
+    // are load-bearing here — absence is what `unscoped` is parsed from.
+    const headers = new Headers(this.responseHeaders)
+
     return {
       body: { getReader: () => ({ read }) },
+      headers,
       ok: this.status >= 200 && this.status < 300,
       status: this.status,
       statusText: `status ${this.status}`,

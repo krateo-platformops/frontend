@@ -53,6 +53,44 @@ import { drainSseEvents, parseSseBlock } from './sseFrames'
  * REOPENS (`onOpen({ reopened })`) so they can refetch their baseline instead of carrying a
  * hole — the same reasoning as `refreshSse`'s `revalidateOnConnect`.
  */
+/**
+ * What `X-Krateo-Event-Scope` says this caller may receive (sse-proxy#34).
+ *
+ *   `unscoped`  the header is ABSENT — this proxy does not scope at all. NOT the same as `none`,
+ *               and the distinction is the whole point: an older proxy must never render as
+ *               "you may see nothing". It is also what a cross-origin read sees if the proxy ever
+ *               forgets `Access-Control-Expose-Headers`, which is why absence is the safe default.
+ *   `all`       the header is `*` — this caller receives every namespace.
+ *   `none`      the explicit token — scoping is ON and this caller's scope resolved EMPTY, so the
+ *               stream is open and will never deliver. Indistinguishable from a quiet cluster
+ *               without this header, which is why it exists.
+ *   namespaces  the caller's namespaces, sorted by the proxy (rbac.go sorts and deduplicates).
+ *
+ * A 403 carries NO header, because the proxy only writes it after the scope resolves — so a
+ * refusal and an old proxy both read as `unscoped`, and only the connection state tells them
+ * apart. A consumer must therefore pair this with `onError`, never read it alone.
+ */
+export type EventScope =
+  | { kind: 'unscoped' }
+  | { kind: 'all' }
+  | { kind: 'none' }
+  | { kind: 'namespaces'; namespaces: string[] }
+
+export const EVENT_SCOPE_HEADER = 'x-krateo-event-scope'
+
+/** Parse the header exactly as sse-proxy writes it; anything unrecognised is treated as unscoped. */
+export const parseEventScope = (raw: string | null): EventScope => {
+  if (raw === null) { return { kind: 'unscoped' } }
+  const value = raw.trim()
+  if (value === '*') { return { kind: 'all' } }
+  if (value === 'none') { return { kind: 'none' } }
+  const namespaces = value.split(',').map((ns) => ns.trim()).filter((ns) => ns !== '')
+  // An empty or whitespace-only value is NOT `none`: the explicit token is the only thing that
+  // means "nothing". A proxy that strips empty headers would otherwise turn "does not scope" into
+  // "you may see nothing", which is the one confusion the token exists to prevent.
+  return namespaces.length === 0 ? { kind: 'unscoped' } : { kind: 'namespaces', namespaces }
+}
+
 export interface SseSubscriber {
   /** Called with the raw `event.data` string for each message on the subscribed topic. */
   onMessage: (data: string) => void
@@ -63,7 +101,7 @@ export interface SseSubscriber {
    * refetch its baseline when `reopened` is true, and must not refetch when it is false:
    * the caller has just loaded that baseline itself.
    */
-  onOpen?: (info: { reopened: boolean }) => void
+  onOpen?: (info: { reopened: boolean; scope: EventScope }) => void
   /**
    * Connection failed. Fired on every failed attempt, including the ones a retry follows, so
    * a subscriber can show "disconnected" without having to know the retry policy. The
@@ -278,7 +316,11 @@ async function stream(url: string, connection: SseConnection, controller: AbortC
   clearRetry(connection)
   const reopened = connection.opened
   connection.opened = true
-  connection.all.forEach((sub) => sub.onOpen?.({ reopened }))
+  // Read per open, not once per page load: a reconnect can land on a pod whose scope resolution
+  // has changed — after an RBAC grant lands, for instance — and a stale first-open value would be
+  // the quieter kind of dead.
+  const scope = parseEventScope(response.headers.get(EVENT_SCOPE_HEADER))
+  connection.all.forEach((sub) => sub.onOpen?.({ reopened, scope }))
 
   const reader = response.body.getReader()
   const decoder = new TextDecoder()

@@ -1,12 +1,12 @@
 import type { QueryKey } from '@tanstack/react-query'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { useConfigContext } from '../context/ConfigContext'
 import { getAccessToken } from '../utils/getAccessToken'
 import type { SSEK8sEvent } from '../utils/types'
 
-import { subscribeSse } from './sseClient'
+import { type EventScope, subscribeSse } from './sseClient'
 
 const MAX_EVENTS = 200
 // 10 seconds
@@ -24,6 +24,10 @@ export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic
   const queryKey: QueryKey = useMemo(() => ['events', eventsUrl, 'topic', topic], [eventsUrl, topic])
 
   const queryClient = useQueryClient()
+  // The scope the proxy announced on the LAST successful open. Not "the scope": a stream that has
+  // dropped leaves this stale by definition, which is why the drawer pairs it with the fact that
+  // nothing is connected rather than rendering it alone.
+  const [scope, setScope] = useState<EventScope>({ kind: 'unscoped' })
   const queryResult = useQuery({
     gcTime: Infinity,
     queryFn: async () => {
@@ -35,7 +39,7 @@ export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic
       const notifications = (await res.json()) as SSEK8sEvent[]
       return notifications
     },
-    // eslint-disable-next-line @tanstack/query/exhaustive-deps -- we want to re-fetch when the url changes
+
     queryKey,
     /* Prevent all automatic refetching, SSE will handle new events  */
     refetchOnMount: false,
@@ -69,7 +73,16 @@ export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic
     // (installer#395 — the token used to ride as ?access_token= and reach the access logs).
     return subscribeSse(notificationsUrl, topic, {
       onError: () => { console.error('[SSE] Connection error') },
-      onOpen: ({ reopened }) => {
+      onMessage: (raw) => {
+        try {
+          const data = JSON.parse(raw) as SSEK8sEvent
+          queryClient.setQueryData(queryKey, (prev: SSEK8sEvent[]) => [data, ...(prev || [])])
+        } catch (error) {
+          console.error('Error parsing event data:', error)
+        }
+      },
+      onOpen: ({ reopened, scope: announced }) => {
+        setScope(announced)
         // A REOPEN has a hole in it. sse-proxy keeps no replay and sends no ids, so every event
         // published while the stream was down is simply gone — and this list is append-only from
         // the stream's side, so the hole would sit in the bell until a reload. Refetch the
@@ -81,16 +94,11 @@ export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic
           void queryClient.invalidateQueries({ queryKey })
         }
       },
-      onMessage: (raw) => {
-        try {
-          const data = JSON.parse(raw) as SSEK8sEvent
-          queryClient.setQueryData(queryKey, (prev: SSEK8sEvent[]) => [data, ...(prev || [])])
-        } catch (error) {
-          console.error('Error parsing event data:', error)
-        }
-      },
     })
   }, [notificationsUrl, topic, queryClient, queryKey, registerToSSE])
 
-  return queryResult
+  // Deliberately NOT `{ ...queryResult, scope }`: spreading a react-query result makes the
+  // consumer observe every field of the query and re-render on all of them
+  // (@tanstack/query/no-rest-destructuring). These three are what the bell actually reads.
+  return { data: queryResult.data, isLoading: queryResult.isLoading, scope }
 }
