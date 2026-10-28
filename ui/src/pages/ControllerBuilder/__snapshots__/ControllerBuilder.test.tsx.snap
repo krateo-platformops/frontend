@@ -2,7 +2,7 @@
 
 exports[`T9 — Preview renders the controller through controller-render-draft > OK: lint → draft.json into the sandbox → controller-render-draft over /call → Publish ARMED; Rendered is each Kind's create form, Source the CRDs > rendered 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
-  <div class="_page_396249">
+  <div class="_page_61220e">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
         <div class="_text_ec3666">
@@ -16,7 +16,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
               <svg aria-hidden="true" data-icon="check" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                 <path d="M912 190h-69.9c-9.8 0-19.1 4.5-25.1 12.2L404.7 724.5 207 474a32 32 0 00-25.1-12.2H112c-6.7 0-10.4 7.7-6.3 12.9l273.9 347c12.8 16.2 37.4 16.2 50.3 0l488.4-618.9c4.1-5.1.4-12.8-6.3-12.8z">
             "Saved · HH:MM"
-          <span class="_countPill_396249" title="Files held in the draft">
+          <span class="_countPill_61220e" title="Files held in the draft">
             "6 files"
           <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1">
             <div class="ant-space-item">
@@ -28,7 +28,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                 <span>
                   "Undo"
             <div class="ant-space-item">
-              <span class="_tooltipAnchor_396249">
+              <span class="_tooltipAnchor_61220e">
                 <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-primary ant-btn-color-primary ant-btn-variant-solid" type="button">
                   <span>
                     "Publish"
@@ -56,12 +56,12 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
               <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z">
-    <div class="_body_396249">
-      <section aria-label="Add" class="_pane_396249 _palettePane_396249">
-        <div class="_paneHead_396249">
-          <span class="_paneTitle_396249">
+    <div class="_body_61220e">
+      <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
+        <div class="_paneHead_61220e">
+          <span class="_paneTitle_61220e">
             "Add"
-        <div aria-label="Palette" class="_paletteBody_396249" role="group">
+        <div aria-label="Palette" class="_paletteBody_61220e" role="group">
           <span class="ant-input-affix-wrapper ant-input-affix-wrapper-sm css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var">
             <input aria-label="Filter by path or operation" class="ant-input ant-input-sm css-dev-only-do-not-override-12q6fii" placeholder="Filter by path or operation" type="text" value="">
             <span class="ant-input-suffix">
@@ -69,83 +69,83 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                 <span aria-label="close-circle" class="anticon anticon-close-circle" role="img">
                   <svg aria-hidden="true" data-icon="close-circle" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                     <path d="M512 64c247.4 0 448 200.6 448 448S759.4 960 512 960 64 759.4 64 512 264.6 64 512 64zm127.98 274.82h-.04l-.08.06L512 466.75 384.14 338.88c-.04-.05-.06-.06-.08-.06a.12.12 0 00-.07 0c-.03 0-.05.01-.09.05l-45.02 45.02a.2.2 0 00-.05.09.12.12 0 000 .07v.02a.27.27 0 00.06.06L466.75 512 338.88 639.86c-.05.04-.06.06-.06.08a.12.12 0 000 .07c0 .03.01.05.05.09l45.02 45.02a.2.2 0 00.09.05.12.12 0 00.07 0c.02 0 .04-.01.08-.05L512 557.25l127.86 127.87c.04.04.06.05.08.05a.12.12 0 00.07 0c.03 0 .05-.01.09-.05l45.02-45.02a.2.2 0 00.05-.09.12.12 0 000-.07v-.02a.27.27 0 00-.05-.06L557.25 512l127.87-127.86c.04-.04.05-.06.05-.08a.12.12 0 000-.07c0-.03-.01-.05-.05-.09l-45.02-45.02a.2.2 0 00-.09-.05.12.12 0 00-.07 0z">
-          <div class="_paletteSection_396249">
-            <div class="_paletteSectionHead_396249">
-              <span class="_eyebrow_396249">
+          <div class="_paletteSection_61220e">
+            <div class="_paletteSectionHead_61220e">
+              <span class="_eyebrow_61220e">
                 "Operations"
-              <span class="_countPill_396249">
+              <span class="_countPill_61220e">
                 "19 operations · 3 groups"
-            <div class="_paletteGroup_396249" data-group="pet" draggable="false">
-              <div class="_groupActions_9029c5">
-                <button aria-expanded="false" class="_paletteGroupHead_396249" type="button">
+            <div class="_paletteGroup_61220e" data-group="pet" draggable="false">
+              <div class="_groupActions_49498e">
+                <button aria-expanded="false" class="_paletteGroupHead_61220e" type="button">
                   <span aria-hidden="true">
                     "▸"
-                  <span class="_paletteGroupName_396249">
+                  <span class="_paletteGroupName_61220e">
                     "/pet"
-                  <span class="_countPill_396249">
+                  <span class="_countPill_61220e">
                     "8"
-                <span class="_placedMark_396249">
+                <span class="_placedMark_61220e">
                   "✓ Pet"
-            <div class="_paletteGroup_396249" data-group="store" draggable="false">
-              <div class="_groupActions_9029c5">
-                <button aria-expanded="false" class="_paletteGroupHead_396249" type="button">
+            <div class="_paletteGroup_61220e" data-group="store" draggable="false">
+              <div class="_groupActions_49498e">
+                <button aria-expanded="false" class="_paletteGroupHead_61220e" type="button">
                   <span aria-hidden="true">
                     "▸"
-                  <span class="_paletteGroupName_396249">
+                  <span class="_paletteGroupName_61220e">
                     "/store"
-                  <span class="_countPill_396249">
+                  <span class="_countPill_61220e">
                     "4"
-                <span class="_placedMark_396249">
+                <span class="_placedMark_61220e">
                   "✓ Store"
-            <div class="_paletteGroup_396249" data-group="user" draggable="true">
-              <div class="_groupActions_9029c5">
-                <button aria-expanded="false" class="_paletteGroupHead_396249" type="button">
+            <div class="_paletteGroup_61220e" data-group="user" draggable="true">
+              <div class="_groupActions_49498e">
+                <button aria-expanded="false" class="_paletteGroupHead_61220e" type="button">
                   <span aria-hidden="true">
                     "▸"
-                  <span class="_paletteGroupName_396249">
+                  <span class="_paletteGroupName_61220e">
                     "/user"
-                  <span class="_countPill_396249">
+                  <span class="_countPill_61220e">
                     "7"
                 <button aria-label="Place user as a Kind" class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                   <span>
                     "Place"
-          <p class="_note_396249">
+          <p class="_note_61220e">
             "Drag a group onto Resources to map it as a Kind; drag one operation onto a Kind to make it one of its verbs."
-      <div class="_centre_396249">
-        <section aria-label="Resources" class="_pane_396249">
-          <div class="_paneHead_396249">
-            <span class="_paneTitle_396249">
+      <div class="_centre_61220e">
+        <section aria-label="Resources" class="_pane_61220e">
+          <div class="_paneHead_61220e">
+            <span class="_paneTitle_61220e">
               "Resources"
-            <span class="_countPill_396249">
+            <span class="_countPill_61220e">
               "2 Kinds"
-          <div aria-label="Resources canvas — drop a resource group here to map it as a Kind" class="_canvas_9029c5" role="region">
-            <div class="_graph_9029c5" style="height: 200px;">
-              <svg aria-hidden="true" class="_edges_9029c5" height="200" width="440">
-                <path class="_edge_9029c5" d="M 172 52 C 220 52, 220 100, 268 100">
-                <path class="_edge_9029c5" d="M 172 148 C 220 148, 220 100, 268 100">
-              <button aria-label="Pet — create, get, findby, update, delete" aria-pressed="false" class="_card_9029c5" style="left: 16px; top: 16px;" type="button">
-                <span class="_cardEyebrow_9029c5">
+          <div aria-label="Resources canvas — drop a resource group here to map it as a Kind" class="_canvas_49498e" role="region">
+            <div class="_graph_49498e" style="height: 200px;">
+              <svg aria-hidden="true" class="_edges_49498e" height="200" width="440">
+                <path class="_edge_49498e" d="M 172 52 C 220 52, 220 100, 268 100">
+                <path class="_edge_49498e" d="M 172 148 C 220 148, 220 100, 268 100">
+              <button aria-label="Pet — create, get, findby, update, delete" aria-pressed="false" class="_card_49498e" style="left: 16px; top: 16px;" type="button">
+                <span class="_cardEyebrow_49498e">
                   "Pet · petstore.example.io"
-                <span class="_cardTitle_9029c5">
+                <span class="_cardTitle_49498e">
                   "pets"
-                <span class="_cardVerbs_9029c5">
+                <span class="_cardVerbs_49498e">
                   "create · get · findby · update · delete"
-              <button aria-label="Store — create, get, findby, delete" aria-pressed="true" class="_card_9029c5" style="left: 16px; top: 112px;" type="button">
-                <span class="_cardEyebrow_9029c5">
+              <button aria-label="Store — create, get, findby, delete" aria-pressed="true" class="_card_49498e" style="left: 16px; top: 112px;" type="button">
+                <span class="_cardEyebrow_49498e">
                   "Store · petstore.example.io"
-                <span class="_cardTitle_9029c5">
+                <span class="_cardTitle_49498e">
                   "stores"
-                <span class="_cardVerbs_9029c5">
+                <span class="_cardVerbs_49498e">
                   "create · get · findby · delete"
-              <div class="_card_9029c5 _configCard_9029c5" style="left: 268px; top: 64px;">
-                <span class="_cardEyebrow_9029c5">
+              <div class="_card_49498e _configCard_49498e" style="left: 268px; top: 64px;">
+                <span class="_cardEyebrow_49498e">
                   "Configuration · petstore.example.io"
-                <span class="_cardTitle_9029c5">
+                <span class="_cardTitle_49498e">
                   "authentication"
-                <span class="_cardVerbs_9029c5">
+                <span class="_cardVerbs_49498e">
                   "api_key"
-        <section aria-label="Controller files and Source" class="_pane_396249 _filesPane_396249">
-          <div class="_section_396249">
+        <section aria-label="Controller files and Source" class="_pane_61220e _filesPane_61220e">
+          <div class="_section_61220e">
             <div class="_body_7a73aa">
               <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
                 "Rendered is the create form of each Kind oasgen-render generated; Source is the CRDs themselves — rendered, nothing applied to the cluster. Chart files is the tree the change request commits."
@@ -502,22 +502,22 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …4 lines
-      <div class="_side_396249">
-        <section aria-label="Inspector" class="_pane_396249" tabindex="-1">
-          <div class="_paneHead_396249">
-            <span class="_paneTitle_396249">
+      <div class="_side_61220e">
+        <section aria-label="Inspector" class="_pane_61220e" tabindex="-1">
+          <div class="_paneHead_61220e">
+            <span class="_paneTitle_61220e">
               "Inspector"
             <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
               <span>
                 "Clear"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "petstore.example.io/v1alpha1 · stores"
-              <span class="_lockNote_9029c5">
+              <span class="_lockNote_49498e">
                 "· Kind, group and version: locked once published"
-            <span class="_fieldValue_396249 _mono_396249">
+            <span class="_fieldValue_61220e _mono_61220e">
               "Store"
-            <span class="_reason_9029c5">
+            <span class="_reason_49498e">
               "Served as v1alpha1 whatever the vendor calls its release — the document says 1.0.27."
             <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
               <div class="ant-space-item">
@@ -528,10 +528,10 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                 <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlined ant-btn-sm" type="button">
                   <span>
                     "Remove Kind"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Verbs"
-            <table class="_verbs_9029c5">
+            <table class="_verbs_49498e">
               <thead>
                 <tr>
                   <th>
@@ -542,10 +542,10 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                     "From"
               <tbody>
                 <tr data-verb="create">
-                  <td class="_verbAction_9029c5">
+                  <td class="_verbAction_49498e">
                     "create"
                   <td>
-                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_61220e css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
                       <div class="ant-select-content ant-select-content-has-value" title="POST /store/order">
                         "POST /store/order"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for create" autocomplete="new-password" class="ant-select-input" id="id26" readonly="" role="combobox" type="text" value="">
@@ -554,13 +554,13 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                           <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
                   <td>
-                    <span class="_reason_9029c5">
+                    <span class="_reason_49498e">
                       "inferred"
                 <tr data-verb="get">
-                  <td class="_verbAction_9029c5">
+                  <td class="_verbAction_49498e">
                     "get"
                   <td>
-                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_61220e css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
                       <div class="ant-select-content ant-select-content-has-value" title="GET /store/order/{orderId}">
                         "GET /store/order/{orderId}"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for get" autocomplete="new-password" class="ant-select-input" id="id26" readonly="" role="combobox" type="text" value="">
@@ -569,13 +569,13 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                           <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
                   <td>
-                    <span class="_reason_9029c5">
+                    <span class="_reason_49498e">
                       "inferred"
                 <tr data-verb="findby">
-                  <td class="_verbAction_9029c5">
+                  <td class="_verbAction_49498e">
                     "findby"
                   <td>
-                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_61220e css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
                       <div class="ant-select-content ant-select-content-has-value" title="GET /store/inventory">
                         "GET /store/inventory"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for findby" autocomplete="new-password" class="ant-select-input" id="id26" readonly="" role="combobox" type="text" value="">
@@ -584,13 +584,13 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                           <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
                   <td>
-                    <span class="_reason_9029c5">
+                    <span class="_reason_49498e">
                       "inferred"
                 <tr data-verb="update">
-                  <td class="_verbAction_9029c5">
+                  <td class="_verbAction_49498e">
                     "update"
                   <td>
-                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_61220e css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
                       <div class="ant-select-content">
                         <div class="ant-select-placeholder">
                           "not mapped"
@@ -600,13 +600,13 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                           <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
                   <td>
-                    <span class="_reason_9029c5">
+                    <span class="_reason_49498e">
                       "—"
                 <tr data-verb="delete">
-                  <td class="_verbAction_9029c5">
+                  <td class="_verbAction_49498e">
                     "delete"
                   <td>
-                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_61220e css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
                       <div class="ant-select-content ant-select-content-has-value" title="DELETE /store/order/{orderId}">
                         "DELETE /store/order/{orderId}"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for delete" autocomplete="new-password" class="ant-select-input" id="id26" readonly="" role="combobox" type="text" value="">
@@ -615,21 +615,21 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                           <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
                   <td>
-                    <span class="_reason_9029c5">
+                    <span class="_reason_49498e">
                       "inferred"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Path ids"
-            <span class="_reason_9029c5">
+            <span class="_reason_49498e">
               "Where each verb reads its id from — status when the create returns it, spec when the person chooses it."
-            <div class="_checkList_9029c5">
+            <div class="_checkList_49498e">
               <div data-binding="orderId">
                 <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
                   <div class="ant-space-item">
-                    <span class="_mono_396249">
+                    <span class="_mono_61220e">
                       "{orderId} →"
                   <div class="ant-space-item">
-                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_61220e css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
                       <div class="ant-select-content ant-select-content-has-value" title="status.id">
                         "status.id"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Where {orderId} is read from" autocomplete="new-password" class="ant-select-input" id="id26" readonly="" role="combobox" type="text" value="">
@@ -637,138 +637,138 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                         <span aria-label="down" class="anticon anticon-down" role="img">
                           <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
-                <span class="_reason_9029c5">
+                <span class="_reason_49498e">
                   "the create response returns id — the server assigns the id, so it is read from status — get, delete"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Identifiers"
-              <span class="_lockNote_9029c5">
+              <span class="_lockNote_49498e">
                 "· Locked once published"
-            <span class="_reason_9029c5">
+            <span class="_reason_49498e">
               "From the GET response — how the controller finds the resource it made."
-            <div class="_checkList_9029c5">
+            <div class="_checkList_49498e">
               <label class="ant-checkbox-wrapper ant-checkbox-wrapper-checked css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii ant-checkbox-checked">
                   <input checked="" class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "id"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "the get path's {orderId} stands for it"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "petId"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "a scalar field of the get response"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "quantity"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "a scalar field of the get response"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "shipDate"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "a scalar field of the get response"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "status"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "a scalar field of the get response"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "complete"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "a scalar field of the get response"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Status fields"
-              <span class="_lockNote_9029c5">
+              <span class="_lockNote_49498e">
                 "· Locked once published"
-            <div class="_checkList_9029c5">
-              <p class="_fieldText_396249">
+            <div class="_checkList_49498e">
+              <p class="_fieldText_61220e">
                 "The GET response returns nothing the create body does not send."
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Excluded from spec"
-              <span class="_lockNote_9029c5">
+              <span class="_lockNote_49498e">
                 "· Locked once published"
-            <span class="_reason_9029c5">
+            <span class="_reason_49498e">
               "What the person is not asked for — status carries it, or the API sets it."
-            <div class="_checkList_9029c5">
+            <div class="_checkList_49498e">
               <label class="ant-checkbox-wrapper ant-checkbox-wrapper-checked css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii ant-checkbox-checked">
                   <input checked="" class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "id"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "status carries it — the id is read from there"
               <label class="ant-checkbox-wrapper ant-checkbox-wrapper-checked css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii ant-checkbox-checked">
                   <input checked="" class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "orderId"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "path parameter read from status — spec need not ask for it"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input checked="" class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "petId"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "quantity"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "shipDate"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "status"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "complete"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Compare scope"
             <div class="ant-select ant-select-sm ant-select-outlined css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
               <div class="ant-select-content ant-select-content-has-value" title="Not set — the controller default">
@@ -778,30 +778,30 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                 <span aria-label="down" class="anticon anticon-down" role="img">
                   <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                     <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Auth"
-            <span class="_reason_9029c5">
+            <span class="_reason_49498e">
               "Decided by the document — Swagger Petstore - OpenAPI 3.0 1.0.27 — not assumed for the controller."
-            <ul class="_plainList_396249">
+            <ul class="_plainList_61220e">
               <li data-scheme="petstore_auth">
-                <span class="_mono_396249">
+                <span class="_mono_61220e">
                   "petstore_auth"
                 "(oauth2) —"
                 "skipped: oauth2 is not generated: the controller has no token flow, so the generated Configuration would have no credentials field"
               <li data-scheme="api_key">
-                <span class="_mono_396249">
+                <span class="_mono_61220e">
                   "api_key"
                 "(apiKey) —"
                 "used: the StoreConfiguration carries authentication.apiKey"
-            <p class="_note_396249">
+            <p class="_note_61220e">
               "The credential is never held in this chart. A StoreConfiguration you create names the Secret it is read from (a secretRef — tokenRef, or usernameRef and passwordRef), and each Store points at it."
-            <span class="_eyebrow_396249">
+            <span class="_eyebrow_61220e">
               "Configuration fields"
-            <p class="_fieldText_396249">
+            <p class="_fieldText_61220e">
               "No header or query parameter on this Kind's verbs."
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Advanced"
             <div class="ant-collapse ant-collapse-icon-placement-start ant-collapse-ghost ant-collapse-small css-dev-only-do-not-override-12q6fii css-var-id1">
               <div class="ant-collapse-item">
@@ -843,7 +843,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
 
 exports[`petstore, authored in the UI with no rail > start → place pet and store → settle the findby conflict → auth → a chart tree T7's validator passes > auth 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
-  <div class="_page_396249">
+  <div class="_page_61220e">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
         <div class="_text_ec3666">
@@ -852,7 +852,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
             <span class="_meta_ec3666">
               "0.1.0 · Pet, Store · petstore.example.io"
         <div class="_trailing_ec3666" data-screen-header="trailing">
-          <span class="_countPill_396249" title="Files held in the draft">
+          <span class="_countPill_61220e" title="Files held in the draft">
             "6 files"
           <span class="ant-tag ant-tag-filled css-dev-only-do-not-override-12q6fii css-var-id1" style="background-color: color-mix(in srgb, rgb(138, 92, 0) 15%, transparent); border-color: color-mix(in srgb, rgb(138, 92, 0) 38%, transparent); color: rgb(138, 92, 0);">
             <span style="background: rgb(138, 92, 0); border-radius: 50%; display: inline-block; height: 6px; margin-right: var(--spacing-xsm); vertical-align: middle; width: 6px;">
@@ -867,7 +867,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                 <span>
                   "Undo"
             <div class="ant-space-item">
-              <span class="_tooltipAnchor_396249">
+              <span class="_tooltipAnchor_61220e">
                 <button aria-describedby="id2" class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-primary ant-btn-color-primary ant-btn-variant-solid" disabled="" type="button">
                   <span>
                     "Publish"
@@ -875,7 +875,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
-      <span class="_srOnly_396249" id="id2">
+      <span class="_srOnly_61220e" id="id2">
         "Preview needed — publishing stays off until Preview has rendered the controller exactly as it is now."
       <div class="ant-alert ant-alert-info ant-alert-outlined css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
         <span class="ant-alert-icon">
@@ -889,12 +889,12 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
               <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z">
-    <div class="_body_396249">
-      <section aria-label="Add" class="_pane_396249 _palettePane_396249">
-        <div class="_paneHead_396249">
-          <span class="_paneTitle_396249">
+    <div class="_body_61220e">
+      <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
+        <div class="_paneHead_61220e">
+          <span class="_paneTitle_61220e">
             "Add"
-        <div aria-label="Palette" class="_paletteBody_396249" role="group">
+        <div aria-label="Palette" class="_paletteBody_61220e" role="group">
           <span class="ant-input-affix-wrapper ant-input-affix-wrapper-sm css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var">
             <input aria-label="Filter by path or operation" class="ant-input ant-input-sm css-dev-only-do-not-override-12q6fii" placeholder="Filter by path or operation" type="text" value="">
             <span class="ant-input-suffix">
@@ -902,83 +902,83 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                 <span aria-label="close-circle" class="anticon anticon-close-circle" role="img">
                   <svg aria-hidden="true" data-icon="close-circle" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                     <path d="M512 64c247.4 0 448 200.6 448 448S759.4 960 512 960 64 759.4 64 512 264.6 64 512 64zm127.98 274.82h-.04l-.08.06L512 466.75 384.14 338.88c-.04-.05-.06-.06-.08-.06a.12.12 0 00-.07 0c-.03 0-.05.01-.09.05l-45.02 45.02a.2.2 0 00-.05.09.12.12 0 000 .07v.02a.27.27 0 00.06.06L466.75 512 338.88 639.86c-.05.04-.06.06-.06.08a.12.12 0 000 .07c0 .03.01.05.05.09l45.02 45.02a.2.2 0 00.09.05.12.12 0 00.07 0c.02 0 .04-.01.08-.05L512 557.25l127.86 127.87c.04.04.06.05.08.05a.12.12 0 00.07 0c.03 0 .05-.01.09-.05l45.02-45.02a.2.2 0 00.05-.09.12.12 0 000-.07v-.02a.27.27 0 00-.05-.06L557.25 512l127.87-127.86c.04-.04.05-.06.05-.08a.12.12 0 000-.07c0-.03-.01-.05-.05-.09l-45.02-45.02a.2.2 0 00-.09-.05.12.12 0 00-.07 0z">
-          <div class="_paletteSection_396249">
-            <div class="_paletteSectionHead_396249">
-              <span class="_eyebrow_396249">
+          <div class="_paletteSection_61220e">
+            <div class="_paletteSectionHead_61220e">
+              <span class="_eyebrow_61220e">
                 "Operations"
-              <span class="_countPill_396249">
+              <span class="_countPill_61220e">
                 "19 operations · 3 groups"
-            <div class="_paletteGroup_396249" data-group="pet" draggable="false">
-              <div class="_groupActions_9029c5">
-                <button aria-expanded="false" class="_paletteGroupHead_396249" type="button">
+            <div class="_paletteGroup_61220e" data-group="pet" draggable="false">
+              <div class="_groupActions_49498e">
+                <button aria-expanded="false" class="_paletteGroupHead_61220e" type="button">
                   <span aria-hidden="true">
                     "▸"
-                  <span class="_paletteGroupName_396249">
+                  <span class="_paletteGroupName_61220e">
                     "/pet"
-                  <span class="_countPill_396249">
+                  <span class="_countPill_61220e">
                     "8"
-                <span class="_placedMark_396249">
+                <span class="_placedMark_61220e">
                   "✓ Pet"
-            <div class="_paletteGroup_396249" data-group="store" draggable="false">
-              <div class="_groupActions_9029c5">
-                <button aria-expanded="false" class="_paletteGroupHead_396249" type="button">
+            <div class="_paletteGroup_61220e" data-group="store" draggable="false">
+              <div class="_groupActions_49498e">
+                <button aria-expanded="false" class="_paletteGroupHead_61220e" type="button">
                   <span aria-hidden="true">
                     "▸"
-                  <span class="_paletteGroupName_396249">
+                  <span class="_paletteGroupName_61220e">
                     "/store"
-                  <span class="_countPill_396249">
+                  <span class="_countPill_61220e">
                     "4"
-                <span class="_placedMark_396249">
+                <span class="_placedMark_61220e">
                   "✓ Store"
-            <div class="_paletteGroup_396249" data-group="user" draggable="true">
-              <div class="_groupActions_9029c5">
-                <button aria-expanded="false" class="_paletteGroupHead_396249" type="button">
+            <div class="_paletteGroup_61220e" data-group="user" draggable="true">
+              <div class="_groupActions_49498e">
+                <button aria-expanded="false" class="_paletteGroupHead_61220e" type="button">
                   <span aria-hidden="true">
                     "▸"
-                  <span class="_paletteGroupName_396249">
+                  <span class="_paletteGroupName_61220e">
                     "/user"
-                  <span class="_countPill_396249">
+                  <span class="_countPill_61220e">
                     "7"
                 <button aria-label="Place user as a Kind" class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                   <span>
                     "Place"
-          <p class="_note_396249">
+          <p class="_note_61220e">
             "Drag a group onto Resources to map it as a Kind; drag one operation onto a Kind to make it one of its verbs."
-      <div class="_centre_396249">
-        <section aria-label="Resources" class="_pane_396249">
-          <div class="_paneHead_396249">
-            <span class="_paneTitle_396249">
+      <div class="_centre_61220e">
+        <section aria-label="Resources" class="_pane_61220e">
+          <div class="_paneHead_61220e">
+            <span class="_paneTitle_61220e">
               "Resources"
-            <span class="_countPill_396249">
+            <span class="_countPill_61220e">
               "2 Kinds"
-          <div aria-label="Resources canvas — drop a resource group here to map it as a Kind" class="_canvas_9029c5" role="region">
-            <div class="_graph_9029c5" style="height: 200px;">
-              <svg aria-hidden="true" class="_edges_9029c5" height="200" width="440">
-                <path class="_edge_9029c5" d="M 172 52 C 220 52, 220 100, 268 100">
-                <path class="_edge_9029c5" d="M 172 148 C 220 148, 220 100, 268 100">
-              <button aria-label="Pet — create, get, findby, update, delete" aria-pressed="true" class="_card_9029c5" style="left: 16px; top: 16px;" type="button">
-                <span class="_cardEyebrow_9029c5">
+          <div aria-label="Resources canvas — drop a resource group here to map it as a Kind" class="_canvas_49498e" role="region">
+            <div class="_graph_49498e" style="height: 200px;">
+              <svg aria-hidden="true" class="_edges_49498e" height="200" width="440">
+                <path class="_edge_49498e" d="M 172 52 C 220 52, 220 100, 268 100">
+                <path class="_edge_49498e" d="M 172 148 C 220 148, 220 100, 268 100">
+              <button aria-label="Pet — create, get, findby, update, delete" aria-pressed="true" class="_card_49498e" style="left: 16px; top: 16px;" type="button">
+                <span class="_cardEyebrow_49498e">
                   "Pet · petstore.example.io"
-                <span class="_cardTitle_9029c5">
+                <span class="_cardTitle_49498e">
                   "pets"
-                <span class="_cardVerbs_9029c5">
+                <span class="_cardVerbs_49498e">
                   "create · get · findby · update · delete"
-              <button aria-label="Store — create, get, findby, delete" aria-pressed="false" class="_card_9029c5" style="left: 16px; top: 112px;" type="button">
-                <span class="_cardEyebrow_9029c5">
+              <button aria-label="Store — create, get, findby, delete" aria-pressed="false" class="_card_49498e" style="left: 16px; top: 112px;" type="button">
+                <span class="_cardEyebrow_49498e">
                   "Store · petstore.example.io"
-                <span class="_cardTitle_9029c5">
+                <span class="_cardTitle_49498e">
                   "stores"
-                <span class="_cardVerbs_9029c5">
+                <span class="_cardVerbs_49498e">
                   "create · get · findby · delete"
-              <div class="_card_9029c5 _configCard_9029c5" style="left: 268px; top: 64px;">
-                <span class="_cardEyebrow_9029c5">
+              <div class="_card_49498e _configCard_49498e" style="left: 268px; top: 64px;">
+                <span class="_cardEyebrow_49498e">
                   "Configuration · petstore.example.io"
-                <span class="_cardTitle_9029c5">
+                <span class="_cardTitle_49498e">
                   "authentication"
-                <span class="_cardVerbs_9029c5">
+                <span class="_cardVerbs_49498e">
                   "api_key"
-        <section aria-label="Controller files and Source" class="_pane_396249 _filesPane_396249">
-          <div class="_section_396249">
+        <section aria-label="Controller files and Source" class="_pane_61220e _filesPane_61220e">
+          <div class="_section_61220e">
             <div class="_body_7a73aa">
               <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
                 "Chart files is the tree the change request commits — each Kind is its RestDefinition, and the OpenAPI document rides in its ConfigMap. Edit a file in place; the canvas and the inspector read it back."
@@ -1097,22 +1097,22 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …4 lines
-      <div class="_side_396249">
-        <section aria-label="Inspector" class="_pane_396249" tabindex="-1">
-          <div class="_paneHead_396249">
-            <span class="_paneTitle_396249">
+      <div class="_side_61220e">
+        <section aria-label="Inspector" class="_pane_61220e" tabindex="-1">
+          <div class="_paneHead_61220e">
+            <span class="_paneTitle_61220e">
               "Inspector"
             <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
               <span>
                 "Clear"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "petstore.example.io/v1alpha1 · pets"
-              <span class="_lockNote_9029c5">
+              <span class="_lockNote_49498e">
                 "· Kind, group and version: locked once published"
-            <span class="_fieldValue_396249 _mono_396249">
+            <span class="_fieldValue_61220e _mono_61220e">
               "Pet"
-            <span class="_reason_9029c5">
+            <span class="_reason_49498e">
               "Served as v1alpha1 whatever the vendor calls its release — the document says 1.0.27."
             <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
               <div class="ant-space-item">
@@ -1123,10 +1123,10 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                 <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlined ant-btn-sm" type="button">
                   <span>
                     "Remove Kind"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Verbs"
-            <table class="_verbs_9029c5">
+            <table class="_verbs_49498e">
               <thead>
                 <tr>
                   <th>
@@ -1137,10 +1137,10 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                     "From"
               <tbody>
                 <tr data-verb="create">
-                  <td class="_verbAction_9029c5">
+                  <td class="_verbAction_49498e">
                     "create"
                   <td>
-                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_61220e css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
                       <div class="ant-select-content ant-select-content-has-value" title="POST /pet">
                         "POST /pet"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for create" autocomplete="new-password" class="ant-select-input" id="id20" readonly="" role="combobox" type="text" value="">
@@ -1149,13 +1149,13 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                           <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
                   <td>
-                    <span class="_reason_9029c5">
+                    <span class="_reason_49498e">
                       "inferred"
                 <tr data-verb="get">
-                  <td class="_verbAction_9029c5">
+                  <td class="_verbAction_49498e">
                     "get"
                   <td>
-                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_61220e css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
                       <div class="ant-select-content ant-select-content-has-value" title="GET /pet/{petId}">
                         "GET /pet/{petId}"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for get" autocomplete="new-password" class="ant-select-input" id="id20" readonly="" role="combobox" type="text" value="">
@@ -1164,13 +1164,13 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                           <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
                   <td>
-                    <span class="_reason_9029c5">
+                    <span class="_reason_49498e">
                       "inferred"
                 <tr data-verb="findby">
-                  <td class="_verbAction_9029c5">
+                  <td class="_verbAction_49498e">
                     "findby"
                   <td>
-                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_61220e css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
                       <div class="ant-select-content ant-select-content-has-value" title="GET /pet/findByStatus">
                         "GET /pet/findByStatus"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for findby" autocomplete="new-password" class="ant-select-input" id="id20" readonly="" role="combobox" type="text" value="">
@@ -1179,13 +1179,13 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                           <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
                   <td>
-                    <span class="_reason_9029c5">
+                    <span class="_reason_49498e">
                       "confirmed"
                 <tr data-verb="update">
-                  <td class="_verbAction_9029c5">
+                  <td class="_verbAction_49498e">
                     "update"
                   <td>
-                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_61220e css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
                       <div class="ant-select-content ant-select-content-has-value" title="PUT /pet">
                         "PUT /pet"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for update" autocomplete="new-password" class="ant-select-input" id="id20" readonly="" role="combobox" type="text" value="">
@@ -1194,13 +1194,13 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                           <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
                   <td>
-                    <span class="_reason_9029c5">
+                    <span class="_reason_49498e">
                       "confirmed"
                 <tr data-verb="delete">
-                  <td class="_verbAction_9029c5">
+                  <td class="_verbAction_49498e">
                     "delete"
                   <td>
-                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_61220e css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
                       <div class="ant-select-content ant-select-content-has-value" title="DELETE /pet/{petId}">
                         "DELETE /pet/{petId}"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for delete" autocomplete="new-password" class="ant-select-input" id="id20" readonly="" role="combobox" type="text" value="">
@@ -1209,25 +1209,25 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                           <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
                   <td>
-                    <span class="_reason_9029c5">
+                    <span class="_reason_49498e">
                       "inferred"
-            <p class="_note_396249">
+            <p class="_note_61220e">
               "Not a verb — an action: POST /pet/{petId}/uploadImage. A sub-path of an item or of the collection is never a lifecycle verb."
-            <p class="_note_396249">
+            <p class="_note_61220e">
               "Not a verb: POST /pet/{petId} (POST on an item path is neither a create nor an update by rule — map it with an override)."
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Path ids"
-            <span class="_reason_9029c5">
+            <span class="_reason_49498e">
               "Where each verb reads its id from — status when the create returns it, spec when the person chooses it."
-            <div class="_checkList_9029c5">
+            <div class="_checkList_49498e">
               <div data-binding="petId">
                 <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
                   <div class="ant-space-item">
-                    <span class="_mono_396249">
+                    <span class="_mono_61220e">
                       "{petId} →"
                   <div class="ant-space-item">
-                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_61220e css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
                       <div class="ant-select-content ant-select-content-has-value" title="status.id">
                         "status.id"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Where {petId} is read from" autocomplete="new-password" class="ant-select-input" id="id20" readonly="" role="combobox" type="text" value="">
@@ -1235,146 +1235,146 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                         <span aria-label="down" class="anticon anticon-down" role="img">
                           <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
-                <span class="_reason_9029c5">
+                <span class="_reason_49498e">
                   "the create response returns id — the server assigns the id, so it is read from status — get, delete"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Identifiers"
-              <span class="_lockNote_9029c5">
+              <span class="_lockNote_49498e">
                 "· Locked once published"
-            <span class="_reason_9029c5">
+            <span class="_reason_49498e">
               "From the GET response — how the controller finds the resource it made."
-            <div class="_checkList_9029c5">
+            <div class="_checkList_49498e">
               <label class="ant-checkbox-wrapper ant-checkbox-wrapper-checked css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii ant-checkbox-checked">
                   <input checked="" class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "id"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "the get path's {petId} stands for it"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "name"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "a conventional identifier in the get response"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "status"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "a scalar field of the get response"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "category.id"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "nested in the get response"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "category.name"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "nested in the get response"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Status fields"
-              <span class="_lockNote_9029c5">
+              <span class="_lockNote_49498e">
                 "· Locked once published"
-            <div class="_checkList_9029c5">
-              <p class="_fieldText_396249">
+            <div class="_checkList_49498e">
+              <p class="_fieldText_61220e">
                 "The GET response returns nothing the create body does not send."
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Excluded from spec"
-              <span class="_lockNote_9029c5">
+              <span class="_lockNote_49498e">
                 "· Locked once published"
-            <span class="_reason_9029c5">
+            <span class="_reason_49498e">
               "What the person is not asked for — status carries it, or the API sets it."
-            <div class="_checkList_9029c5">
+            <div class="_checkList_49498e">
               <label class="ant-checkbox-wrapper ant-checkbox-wrapper-checked css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii ant-checkbox-checked">
                   <input checked="" class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "id"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "status carries it — the id is read from there"
               <label class="ant-checkbox-wrapper ant-checkbox-wrapper-checked css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii ant-checkbox-checked">
                   <input checked="" class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "petId"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "path parameter read from status — spec need not ask for it"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "name"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "category"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "photoUrls"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "tags"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "status"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "category.id"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "category.name"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Compare scope"
             <div class="ant-select ant-select-sm ant-select-outlined css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
               <div class="ant-select-content ant-select-content-has-value" title="Not set — the controller default">
@@ -1384,45 +1384,45 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                 <span aria-label="down" class="anticon anticon-down" role="img">
                   <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                     <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Auth"
-            <span class="_reason_9029c5">
+            <span class="_reason_49498e">
               "Decided by the document — Swagger Petstore - OpenAPI 3.0 1.0.27 — not assumed for the controller."
-            <ul class="_plainList_396249">
+            <ul class="_plainList_61220e">
               <li data-scheme="petstore_auth">
-                <span class="_mono_396249">
+                <span class="_mono_61220e">
                   "petstore_auth"
                 "(oauth2) —"
                 "skipped: oauth2 is not generated: the controller has no token flow, so the generated Configuration would have no credentials field"
               <li data-scheme="api_key">
-                <span class="_mono_396249">
+                <span class="_mono_61220e">
                   "api_key"
                 "(apiKey) —"
                 "used: the PetConfiguration carries authentication.apiKey"
-            <p class="_note_396249">
+            <p class="_note_61220e">
               "The credential is never held in this chart. A PetConfiguration you create names the Secret it is read from (a secretRef — tokenRef, or usernameRef and passwordRef), and each Pet points at it."
-            <span class="_eyebrow_396249">
+            <span class="_eyebrow_61220e">
               "Configuration fields"
-            <div class="_checkList_9029c5">
+            <div class="_checkList_49498e">
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "status (query)"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "read from the Configuration for findby, not from each Pet"
               <label class="ant-checkbox-wrapper ant-checkbox-wrapper-checked css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii ant-checkbox-checked">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "api_key (header)"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "read from the Configuration for delete, not from each Pet — the document's apiKey"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Advanced"
             <div class="ant-collapse ant-collapse-icon-placement-start ant-collapse-ghost ant-collapse-small css-dev-only-do-not-override-12q6fii css-var-id1">
               <div class="ant-collapse-item">
@@ -1464,7 +1464,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
 
 exports[`petstore, authored in the UI with no rail > start → place pet and store → settle the findby conflict → auth → a chart tree T7's validator passes > empty 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
-  <div class="_page_396249">
+  <div class="_page_61220e">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
         <div class="_text_ec3666">
@@ -1493,7 +1493,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
 
 exports[`petstore, authored in the UI with no rail > start → place pet and store → settle the findby conflict → auth → a chart tree T7's validator passes > kind placed with conflict 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
-  <div class="_page_396249">
+  <div class="_page_61220e">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
         <div class="_text_ec3666">
@@ -1502,7 +1502,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
             <span class="_meta_ec3666">
               "0.1.0 · Pet · petstore.example.io"
         <div class="_trailing_ec3666" data-screen-header="trailing">
-          <span class="_countPill_396249" title="Files held in the draft">
+          <span class="_countPill_61220e" title="Files held in the draft">
             "5 files"
           <span class="ant-tag ant-tag-filled css-dev-only-do-not-override-12q6fii css-var-id1" style="background-color: color-mix(in srgb, rgb(138, 92, 0) 15%, transparent); border-color: color-mix(in srgb, rgb(138, 92, 0) 38%, transparent); color: rgb(138, 92, 0);">
             <span style="background: rgb(138, 92, 0); border-radius: 50%; display: inline-block; height: 6px; margin-right: var(--spacing-xsm); vertical-align: middle; width: 6px;">
@@ -1517,7 +1517,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                 <span>
                   "Undo"
             <div class="ant-space-item">
-              <span class="_tooltipAnchor_396249">
+              <span class="_tooltipAnchor_61220e">
                 <button aria-describedby="id2" class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-primary ant-btn-color-primary ant-btn-variant-solid" disabled="" type="button">
                   <span>
                     "Publish"
@@ -1525,7 +1525,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
-      <span class="_srOnly_396249" id="id2">
+      <span class="_srOnly_61220e" id="id2">
         "Fix the 2 problems listed above first — a controller that fails the lint cannot be published."
       <div class="ant-alert ant-alert-error ant-alert-outlined ant-alert-with-description css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
         <span class="ant-alert-icon">
@@ -1553,12 +1553,12 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
               <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z">
-    <div class="_body_396249">
-      <section aria-label="Add" class="_pane_396249 _palettePane_396249">
-        <div class="_paneHead_396249">
-          <span class="_paneTitle_396249">
+    <div class="_body_61220e">
+      <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
+        <div class="_paneHead_61220e">
+          <span class="_paneTitle_61220e">
             "Add"
-        <div aria-label="Palette" class="_paletteBody_396249" role="group">
+        <div aria-label="Palette" class="_paletteBody_61220e" role="group">
           <span class="ant-input-affix-wrapper ant-input-affix-wrapper-sm css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var">
             <input aria-label="Filter by path or operation" class="ant-input ant-input-sm css-dev-only-do-not-override-12q6fii" placeholder="Filter by path or operation" type="text" value="">
             <span class="ant-input-suffix">
@@ -1566,78 +1566,78 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                 <span aria-label="close-circle" class="anticon anticon-close-circle" role="img">
                   <svg aria-hidden="true" data-icon="close-circle" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                     <path d="M512 64c247.4 0 448 200.6 448 448S759.4 960 512 960 64 759.4 64 512 264.6 64 512 64zm127.98 274.82h-.04l-.08.06L512 466.75 384.14 338.88c-.04-.05-.06-.06-.08-.06a.12.12 0 00-.07 0c-.03 0-.05.01-.09.05l-45.02 45.02a.2.2 0 00-.05.09.12.12 0 000 .07v.02a.27.27 0 00.06.06L466.75 512 338.88 639.86c-.05.04-.06.06-.06.08a.12.12 0 000 .07c0 .03.01.05.05.09l45.02 45.02a.2.2 0 00.09.05.12.12 0 00.07 0c.02 0 .04-.01.08-.05L512 557.25l127.86 127.87c.04.04.06.05.08.05a.12.12 0 00.07 0c.03 0 .05-.01.09-.05l45.02-45.02a.2.2 0 00.05-.09.12.12 0 000-.07v-.02a.27.27 0 00-.05-.06L557.25 512l127.87-127.86c.04-.04.05-.06.05-.08a.12.12 0 000-.07c0-.03-.01-.05-.05-.09l-45.02-45.02a.2.2 0 00-.09-.05.12.12 0 00-.07 0z">
-          <div class="_paletteSection_396249">
-            <div class="_paletteSectionHead_396249">
-              <span class="_eyebrow_396249">
+          <div class="_paletteSection_61220e">
+            <div class="_paletteSectionHead_61220e">
+              <span class="_eyebrow_61220e">
                 "Operations"
-              <span class="_countPill_396249">
+              <span class="_countPill_61220e">
                 "19 operations · 3 groups"
-            <div class="_paletteGroup_396249" data-group="pet" draggable="false">
-              <div class="_groupActions_9029c5">
-                <button aria-expanded="false" class="_paletteGroupHead_396249" type="button">
+            <div class="_paletteGroup_61220e" data-group="pet" draggable="false">
+              <div class="_groupActions_49498e">
+                <button aria-expanded="false" class="_paletteGroupHead_61220e" type="button">
                   <span aria-hidden="true">
                     "▸"
-                  <span class="_paletteGroupName_396249">
+                  <span class="_paletteGroupName_61220e">
                     "/pet"
-                  <span class="_countPill_396249">
+                  <span class="_countPill_61220e">
                     "8"
-                <span class="_placedMark_396249">
+                <span class="_placedMark_61220e">
                   "✓ Pet"
-            <div class="_paletteGroup_396249" data-group="store" draggable="true">
-              <div class="_groupActions_9029c5">
-                <button aria-expanded="false" class="_paletteGroupHead_396249" type="button">
+            <div class="_paletteGroup_61220e" data-group="store" draggable="true">
+              <div class="_groupActions_49498e">
+                <button aria-expanded="false" class="_paletteGroupHead_61220e" type="button">
                   <span aria-hidden="true">
                     "▸"
-                  <span class="_paletteGroupName_396249">
+                  <span class="_paletteGroupName_61220e">
                     "/store"
-                  <span class="_countPill_396249">
+                  <span class="_countPill_61220e">
                     "4"
                 <button aria-label="Place store as a Kind" class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                   <span>
                     "Place"
-            <div class="_paletteGroup_396249" data-group="user" draggable="true">
-              <div class="_groupActions_9029c5">
-                <button aria-expanded="false" class="_paletteGroupHead_396249" type="button">
+            <div class="_paletteGroup_61220e" data-group="user" draggable="true">
+              <div class="_groupActions_49498e">
+                <button aria-expanded="false" class="_paletteGroupHead_61220e" type="button">
                   <span aria-hidden="true">
                     "▸"
-                  <span class="_paletteGroupName_396249">
+                  <span class="_paletteGroupName_61220e">
                     "/user"
-                  <span class="_countPill_396249">
+                  <span class="_countPill_61220e">
                     "7"
                 <button aria-label="Place user as a Kind" class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                   <span>
                     "Place"
-          <p class="_note_396249">
+          <p class="_note_61220e">
             "Drag a group onto Resources to map it as a Kind; drag one operation onto a Kind to make it one of its verbs."
-      <div class="_centre_396249">
-        <section aria-label="Resources" class="_pane_396249">
-          <div class="_paneHead_396249">
-            <span class="_paneTitle_396249">
+      <div class="_centre_61220e">
+        <section aria-label="Resources" class="_pane_61220e">
+          <div class="_paneHead_61220e">
+            <span class="_paneTitle_61220e">
               "Resources"
-            <span class="_countPill_396249">
+            <span class="_countPill_61220e">
               "1 Kind"
-          <div aria-label="Resources canvas — drop a resource group here to map it as a Kind" class="_canvas_9029c5" role="region">
-            <div class="_graph_9029c5" style="height: 104px;">
-              <svg aria-hidden="true" class="_edges_9029c5" height="104" width="440">
-                <path class="_edge_9029c5" d="M 172 52 C 220 52, 220 52, 268 52">
-              <button aria-label="Pet — create, get, delete; findby, update to choose" aria-pressed="true" class="_card_9029c5" data-conflict="true" style="left: 16px; top: 16px;" type="button">
-                <span class="_cardEyebrow_9029c5">
+          <div aria-label="Resources canvas — drop a resource group here to map it as a Kind" class="_canvas_49498e" role="region">
+            <div class="_graph_49498e" style="height: 104px;">
+              <svg aria-hidden="true" class="_edges_49498e" height="104" width="440">
+                <path class="_edge_49498e" d="M 172 52 C 220 52, 220 52, 268 52">
+              <button aria-label="Pet — create, get, delete; findby, update to choose" aria-pressed="true" class="_card_49498e" data-conflict="true" style="left: 16px; top: 16px;" type="button">
+                <span class="_cardEyebrow_49498e">
                   "Pet · petstore.example.io"
-                <span class="_cardTitle_9029c5">
+                <span class="_cardTitle_49498e">
                   "pets"
-                <span class="_cardVerbs_9029c5">
+                <span class="_cardVerbs_49498e">
                   "create · get · delete"
-                  <span class="_cardConflict_9029c5">
+                  <span class="_cardConflict_49498e">
                     "· findby, update: choose"
-              <div class="_card_9029c5 _configCard_9029c5" style="left: 268px; top: 16px;">
-                <span class="_cardEyebrow_9029c5">
+              <div class="_card_49498e _configCard_49498e" style="left: 268px; top: 16px;">
+                <span class="_cardEyebrow_49498e">
                   "Configuration · petstore.example.io"
-                <span class="_cardTitle_9029c5">
+                <span class="_cardTitle_49498e">
                   "authentication"
-                <span class="_cardVerbs_9029c5">
+                <span class="_cardVerbs_49498e">
                   "api_key"
-        <section aria-label="Controller files and Source" class="_pane_396249 _filesPane_396249">
-          <div class="_section_396249">
+        <section aria-label="Controller files and Source" class="_pane_61220e _filesPane_61220e">
+          <div class="_section_61220e">
             <div class="_body_7a73aa">
               <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
                 "Chart files is the tree the change request commits — each Kind is its RestDefinition, and the OpenAPI document rides in its ConfigMap. Edit a file in place; the canvas and the inspector read it back."
@@ -1743,22 +1743,22 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …4 lines
-      <div class="_side_396249">
-        <section aria-label="Inspector" class="_pane_396249" tabindex="-1">
-          <div class="_paneHead_396249">
-            <span class="_paneTitle_396249">
+      <div class="_side_61220e">
+        <section aria-label="Inspector" class="_pane_61220e" tabindex="-1">
+          <div class="_paneHead_61220e">
+            <span class="_paneTitle_61220e">
               "Inspector"
             <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
               <span>
                 "Clear"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "petstore.example.io/v1alpha1 · pets"
-              <span class="_lockNote_9029c5">
+              <span class="_lockNote_49498e">
                 "· Kind, group and version: locked once published"
-            <span class="_fieldValue_396249 _mono_396249">
+            <span class="_fieldValue_61220e _mono_61220e">
               "Pet"
-            <span class="_reason_9029c5">
+            <span class="_reason_49498e">
               "Served as v1alpha1 whatever the vendor calls its release — the document says 1.0.27."
             <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
               <div class="ant-space-item">
@@ -1769,10 +1769,10 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                 <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlined ant-btn-sm" type="button">
                   <span>
                     "Remove Kind"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Verbs"
-            <table class="_verbs_9029c5">
+            <table class="_verbs_49498e">
               <thead>
                 <tr>
                   <th>
@@ -1783,10 +1783,10 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                     "From"
               <tbody>
                 <tr data-verb="create">
-                  <td class="_verbAction_9029c5">
+                  <td class="_verbAction_49498e">
                     "create"
                   <td>
-                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_61220e css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
                       <div class="ant-select-content ant-select-content-has-value" title="POST /pet">
                         "POST /pet"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for create" autocomplete="new-password" class="ant-select-input" id="id19" readonly="" role="combobox" type="text" value="">
@@ -1795,13 +1795,13 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                           <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
                   <td>
-                    <span class="_reason_9029c5">
+                    <span class="_reason_49498e">
                       "inferred"
                 <tr data-verb="get">
-                  <td class="_verbAction_9029c5">
+                  <td class="_verbAction_49498e">
                     "get"
                   <td>
-                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_61220e css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
                       <div class="ant-select-content ant-select-content-has-value" title="GET /pet/{petId}">
                         "GET /pet/{petId}"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for get" autocomplete="new-password" class="ant-select-input" id="id19" readonly="" role="combobox" type="text" value="">
@@ -1810,25 +1810,25 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                           <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
                   <td>
-                    <span class="_reason_9029c5">
+                    <span class="_reason_49498e">
                       "inferred"
                 <tr data-verb="findby">
-                  <td class="_verbAction_9029c5">
+                  <td class="_verbAction_49498e">
                     "findby"
                   <td>
                     <div aria-label="Which operation is findby" class="ant-radio-group ant-radio-group-outline css-dev-only-do-not-override-12q6fii css-var-id1 ant-radio-css-var" role="radiogroup">
-                      <span class="_choices_9029c5">
+                      <span class="_choices_49498e">
                         <label class="ant-radio-wrapper css-dev-only-do-not-override-12q6fii css-var-id1 ant-radio-css-var">
                           <span class="ant-radio ant-wave-target">
                             <input class="ant-radio-input" name="test-id" type="radio" value="GET /pet/findByStatus">
                           <span class="ant-radio-label">
-                            <span class="_mono_396249">
+                            <span class="_mono_61220e">
                               "GET /pet/findByStatus"
                         <label class="ant-radio-wrapper css-dev-only-do-not-override-12q6fii css-var-id1 ant-radio-css-var">
                           <span class="ant-radio ant-wave-target">
                             <input class="ant-radio-input" name="test-id" type="radio" value="GET /pet/findByTags">
                           <span class="ant-radio-label">
-                            <span class="_mono_396249">
+                            <span class="_mono_61220e">
                               "GET /pet/findByTags"
                         <label class="ant-radio-wrapper css-dev-only-do-not-override-12q6fii css-var-id1 ant-radio-css-var">
                           <span class="ant-radio ant-wave-target">
@@ -1836,19 +1836,19 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                           <span class="ant-radio-label">
                             "Leave findby out"
                   <td>
-                    <span class="_reason_9029c5">
+                    <span class="_reason_49498e">
                       "conflict — choose"
                 <tr data-verb="update">
-                  <td class="_verbAction_9029c5">
+                  <td class="_verbAction_49498e">
                     "update"
                   <td>
                     <div aria-label="Which operation is update" class="ant-radio-group ant-radio-group-outline css-dev-only-do-not-override-12q6fii css-var-id1 ant-radio-css-var" role="radiogroup">
-                      <span class="_choices_9029c5">
+                      <span class="_choices_49498e">
                         <label class="ant-radio-wrapper css-dev-only-do-not-override-12q6fii css-var-id1 ant-radio-css-var">
                           <span class="ant-radio ant-wave-target">
                             <input class="ant-radio-input" name="test-id" type="radio" value="PUT /pet">
                           <span class="ant-radio-label">
-                            <span class="_mono_396249">
+                            <span class="_mono_61220e">
                               "PUT /pet"
                         <label class="ant-radio-wrapper css-dev-only-do-not-override-12q6fii css-var-id1 ant-radio-css-var">
                           <span class="ant-radio ant-wave-target">
@@ -1856,13 +1856,13 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                           <span class="ant-radio-label">
                             "Leave update out"
                   <td>
-                    <span class="_reason_9029c5">
+                    <span class="_reason_49498e">
                       "conflict — choose"
                 <tr data-verb="delete">
-                  <td class="_verbAction_9029c5">
+                  <td class="_verbAction_49498e">
                     "delete"
                   <td>
-                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_61220e css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
                       <div class="ant-select-content ant-select-content-has-value" title="DELETE /pet/{petId}">
                         "DELETE /pet/{petId}"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Operation for delete" autocomplete="new-password" class="ant-select-input" id="id19" readonly="" role="combobox" type="text" value="">
@@ -1871,25 +1871,25 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                           <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
                   <td>
-                    <span class="_reason_9029c5">
+                    <span class="_reason_49498e">
                       "inferred"
-            <p class="_note_396249">
+            <p class="_note_61220e">
               "Not a verb — an action: POST /pet/{petId}/uploadImage. A sub-path of an item or of the collection is never a lifecycle verb."
-            <p class="_note_396249">
+            <p class="_note_61220e">
               "Not a verb: POST /pet/{petId} (POST on an item path is neither a create nor an update by rule — map it with an override)."
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Path ids"
-            <span class="_reason_9029c5">
+            <span class="_reason_49498e">
               "Where each verb reads its id from — status when the create returns it, spec when the person chooses it."
-            <div class="_checkList_9029c5">
+            <div class="_checkList_49498e">
               <div data-binding="petId">
                 <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
                   <div class="ant-space-item">
-                    <span class="_mono_396249">
+                    <span class="_mono_61220e">
                       "{petId} →"
                   <div class="ant-space-item">
-                    <div class="ant-select ant-select-sm ant-select-outlined _mono_396249 css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
+                    <div class="ant-select ant-select-sm ant-select-outlined _mono_61220e css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
                       <div class="ant-select-content ant-select-content-has-value" title="status.id">
                         "status.id"
                         <input aria-autocomplete="list" aria-expanded="false" aria-haspopup="listbox" aria-label="Where {petId} is read from" autocomplete="new-password" class="ant-select-input" id="id19" readonly="" role="combobox" type="text" value="">
@@ -1897,146 +1897,146 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                         <span aria-label="down" class="anticon anticon-down" role="img">
                           <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                             <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
-                <span class="_reason_9029c5">
+                <span class="_reason_49498e">
                   "the create response returns id — the server assigns the id, so it is read from status — get, delete"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Identifiers"
-              <span class="_lockNote_9029c5">
+              <span class="_lockNote_49498e">
                 "· Locked once published"
-            <span class="_reason_9029c5">
+            <span class="_reason_49498e">
               "From the GET response — how the controller finds the resource it made."
-            <div class="_checkList_9029c5">
+            <div class="_checkList_49498e">
               <label class="ant-checkbox-wrapper ant-checkbox-wrapper-checked css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii ant-checkbox-checked">
                   <input checked="" class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "id"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "the get path's {petId} stands for it"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "name"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "a conventional identifier in the get response"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "status"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "a scalar field of the get response"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "category.id"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "nested in the get response"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "category.name"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "nested in the get response"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Status fields"
-              <span class="_lockNote_9029c5">
+              <span class="_lockNote_49498e">
                 "· Locked once published"
-            <div class="_checkList_9029c5">
-              <p class="_fieldText_396249">
+            <div class="_checkList_49498e">
+              <p class="_fieldText_61220e">
                 "The GET response returns nothing the create body does not send."
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Excluded from spec"
-              <span class="_lockNote_9029c5">
+              <span class="_lockNote_49498e">
                 "· Locked once published"
-            <span class="_reason_9029c5">
+            <span class="_reason_49498e">
               "What the person is not asked for — status carries it, or the API sets it."
-            <div class="_checkList_9029c5">
+            <div class="_checkList_49498e">
               <label class="ant-checkbox-wrapper ant-checkbox-wrapper-checked css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii ant-checkbox-checked">
                   <input checked="" class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "id"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "status carries it — the id is read from there"
               <label class="ant-checkbox-wrapper ant-checkbox-wrapper-checked css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii ant-checkbox-checked">
                   <input checked="" class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "petId"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "path parameter read from status — spec need not ask for it"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "name"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "category"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "photoUrls"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "tags"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "status"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "category.id"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "category.name"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "sent by create"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Compare scope"
             <div class="ant-select ant-select-sm ant-select-outlined css-var-id1 ant-select-css-var css-dev-only-do-not-override-12q6fii ant-select-single ant-select-show-arrow">
               <div class="ant-select-content ant-select-content-has-value" title="Not set — the controller default">
@@ -2046,37 +2046,37 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                 <span aria-label="down" class="anticon anticon-down" role="img">
                   <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                     <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z">
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Auth"
-            <span class="_reason_9029c5">
+            <span class="_reason_49498e">
               "Decided by the document — Swagger Petstore - OpenAPI 3.0 1.0.27 — not assumed for the controller."
-            <ul class="_plainList_396249">
+            <ul class="_plainList_61220e">
               <li data-scheme="petstore_auth">
-                <span class="_mono_396249">
+                <span class="_mono_61220e">
                   "petstore_auth"
                 "(oauth2) —"
                 "skipped: oauth2 is not generated: the controller has no token flow, so the generated Configuration would have no credentials field"
               <li data-scheme="api_key">
-                <span class="_mono_396249">
+                <span class="_mono_61220e">
                   "api_key"
                 "(apiKey) —"
                 "used: the PetConfiguration carries authentication.apiKey"
-            <p class="_note_396249">
+            <p class="_note_61220e">
               "The credential is never held in this chart. A PetConfiguration you create names the Secret it is read from (a secretRef — tokenRef, or usernameRef and passwordRef), and each Pet points at it."
-            <span class="_eyebrow_396249">
+            <span class="_eyebrow_61220e">
               "Configuration fields"
-            <div class="_checkList_9029c5">
+            <div class="_checkList_49498e">
               <label class="ant-checkbox-wrapper css-var-id1 ant-checkbox-css-var css-dev-only-do-not-override-12q6fii">
                 <span class="ant-checkbox ant-wave-target css-dev-only-do-not-override-12q6fii">
                   <input class="ant-checkbox-input" type="checkbox">
                 <span class="ant-checkbox-label">
-                  <span class="_mono_396249">
+                  <span class="_mono_61220e">
                     "api_key (header)"
-                  <span class="_reason_9029c5">
+                  <span class="_reason_49498e">
                     "read from the Configuration for delete, not from each Pet — the document's apiKey"
-          <div class="_section_396249">
-            <span class="_eyebrow_396249">
+          <div class="_section_61220e">
+            <span class="_eyebrow_61220e">
               "Advanced"
             <div class="ant-collapse ant-collapse-icon-placement-start ant-collapse-ghost ant-collapse-small css-dev-only-do-not-override-12q6fii css-var-id1">
               <div class="ant-collapse-item">
@@ -2118,7 +2118,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
 
 exports[`petstore, authored in the UI with no rail > start → place pet and store → settle the findby conflict → auth → a chart tree T7's validator passes > started 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
-  <div class="_page_396249">
+  <div class="_page_61220e">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
         <div class="_text_ec3666">
@@ -2127,7 +2127,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
             <span class="_meta_ec3666">
               "0.1.0 · petstore.example.io"
         <div class="_trailing_ec3666" data-screen-header="trailing">
-          <span class="_countPill_396249" title="Files held in the draft">
+          <span class="_countPill_61220e" title="Files held in the draft">
             "4 files"
           <span class="ant-tag ant-tag-filled css-dev-only-do-not-override-12q6fii css-var-id1" style="background-color: color-mix(in srgb, rgb(138, 92, 0) 15%, transparent); border-color: color-mix(in srgb, rgb(138, 92, 0) 38%, transparent); color: rgb(138, 92, 0);">
             <span style="background: rgb(138, 92, 0); border-radius: 50%; display: inline-block; height: 6px; margin-right: var(--spacing-xsm); vertical-align: middle; width: 6px;">
@@ -2142,7 +2142,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                 <span>
                   "Undo"
             <div class="ant-space-item">
-              <span class="_tooltipAnchor_396249">
+              <span class="_tooltipAnchor_61220e">
                 <button aria-describedby="id2" class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-primary ant-btn-color-primary ant-btn-variant-solid" disabled="" type="button">
                   <span>
                     "Publish"
@@ -2150,7 +2150,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
-      <span class="_srOnly_396249" id="id2">
+      <span class="_srOnly_61220e" id="id2">
         "Preview needed — publishing stays off until Preview has rendered the controller exactly as it is now."
       <div class="ant-alert ant-alert-info ant-alert-outlined css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
         <span class="ant-alert-icon">
@@ -2164,12 +2164,12 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
               <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z">
-    <div class="_body_396249">
-      <section aria-label="Add" class="_pane_396249 _palettePane_396249">
-        <div class="_paneHead_396249">
-          <span class="_paneTitle_396249">
+    <div class="_body_61220e">
+      <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
+        <div class="_paneHead_61220e">
+          <span class="_paneTitle_61220e">
             "Add"
-        <div aria-label="Palette" class="_paletteBody_396249" role="group">
+        <div aria-label="Palette" class="_paletteBody_61220e" role="group">
           <span class="ant-input-affix-wrapper ant-input-affix-wrapper-sm css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var">
             <input aria-label="Filter by path or operation" class="ant-input ant-input-sm css-dev-only-do-not-override-12q6fii" placeholder="Filter by path or operation" type="text" value="">
             <span class="ant-input-suffix">
@@ -2177,63 +2177,63 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                 <span aria-label="close-circle" class="anticon anticon-close-circle" role="img">
                   <svg aria-hidden="true" data-icon="close-circle" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                     <path d="M512 64c247.4 0 448 200.6 448 448S759.4 960 512 960 64 759.4 64 512 264.6 64 512 64zm127.98 274.82h-.04l-.08.06L512 466.75 384.14 338.88c-.04-.05-.06-.06-.08-.06a.12.12 0 00-.07 0c-.03 0-.05.01-.09.05l-45.02 45.02a.2.2 0 00-.05.09.12.12 0 000 .07v.02a.27.27 0 00.06.06L466.75 512 338.88 639.86c-.05.04-.06.06-.06.08a.12.12 0 000 .07c0 .03.01.05.05.09l45.02 45.02a.2.2 0 00.09.05.12.12 0 00.07 0c.02 0 .04-.01.08-.05L512 557.25l127.86 127.87c.04.04.06.05.08.05a.12.12 0 00.07 0c.03 0 .05-.01.09-.05l45.02-45.02a.2.2 0 00.05-.09.12.12 0 000-.07v-.02a.27.27 0 00-.05-.06L557.25 512l127.87-127.86c.04-.04.05-.06.05-.08a.12.12 0 000-.07c0-.03-.01-.05-.05-.09l-45.02-45.02a.2.2 0 00-.09-.05.12.12 0 00-.07 0z">
-          <div class="_paletteSection_396249">
-            <div class="_paletteSectionHead_396249">
-              <span class="_eyebrow_396249">
+          <div class="_paletteSection_61220e">
+            <div class="_paletteSectionHead_61220e">
+              <span class="_eyebrow_61220e">
                 "Operations"
-              <span class="_countPill_396249">
+              <span class="_countPill_61220e">
                 "19 operations · 3 groups"
-            <div class="_paletteGroup_396249" data-group="pet" draggable="true">
-              <div class="_groupActions_9029c5">
-                <button aria-expanded="false" class="_paletteGroupHead_396249" type="button">
+            <div class="_paletteGroup_61220e" data-group="pet" draggable="true">
+              <div class="_groupActions_49498e">
+                <button aria-expanded="false" class="_paletteGroupHead_61220e" type="button">
                   <span aria-hidden="true">
                     "▸"
-                  <span class="_paletteGroupName_396249">
+                  <span class="_paletteGroupName_61220e">
                     "/pet"
-                  <span class="_countPill_396249">
+                  <span class="_countPill_61220e">
                     "8"
                 <button aria-label="Place pet as a Kind" class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                   <span>
                     "Place"
-            <div class="_paletteGroup_396249" data-group="store" draggable="true">
-              <div class="_groupActions_9029c5">
-                <button aria-expanded="false" class="_paletteGroupHead_396249" type="button">
+            <div class="_paletteGroup_61220e" data-group="store" draggable="true">
+              <div class="_groupActions_49498e">
+                <button aria-expanded="false" class="_paletteGroupHead_61220e" type="button">
                   <span aria-hidden="true">
                     "▸"
-                  <span class="_paletteGroupName_396249">
+                  <span class="_paletteGroupName_61220e">
                     "/store"
-                  <span class="_countPill_396249">
+                  <span class="_countPill_61220e">
                     "4"
                 <button aria-label="Place store as a Kind" class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                   <span>
                     "Place"
-            <div class="_paletteGroup_396249" data-group="user" draggable="true">
-              <div class="_groupActions_9029c5">
-                <button aria-expanded="false" class="_paletteGroupHead_396249" type="button">
+            <div class="_paletteGroup_61220e" data-group="user" draggable="true">
+              <div class="_groupActions_49498e">
+                <button aria-expanded="false" class="_paletteGroupHead_61220e" type="button">
                   <span aria-hidden="true">
                     "▸"
-                  <span class="_paletteGroupName_396249">
+                  <span class="_paletteGroupName_61220e">
                     "/user"
-                  <span class="_countPill_396249">
+                  <span class="_countPill_61220e">
                     "7"
                 <button aria-label="Place user as a Kind" class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                   <span>
                     "Place"
-          <p class="_note_396249">
+          <p class="_note_61220e">
             "Drag a group onto Resources to map it as a Kind; drag one operation onto a Kind to make it one of its verbs."
-      <div class="_centre_396249">
-        <section aria-label="Resources" class="_pane_396249">
-          <div class="_paneHead_396249">
-            <span class="_paneTitle_396249">
+      <div class="_centre_61220e">
+        <section aria-label="Resources" class="_pane_61220e">
+          <div class="_paneHead_61220e">
+            <span class="_paneTitle_61220e">
               "Resources"
-          <div aria-label="Resources canvas — drop a resource group here to map it as a Kind" class="_canvas_9029c5" role="region">
-            <div class="_canvasEmpty_9029c5">
-              <p class="_canvasEmptyTitle_9029c5">
+          <div aria-label="Resources canvas — drop a resource group here to map it as a Kind" class="_canvas_49498e" role="region">
+            <div class="_canvasEmpty_49498e">
+              <p class="_canvasEmptyTitle_49498e">
                 "No Kinds yet"
               <span>
                 "Drag a resource group from Add onto this canvas, or press Place on one — each group becomes one Kind, its operations its verbs."
-        <section aria-label="Controller files and Source" class="_pane_396249 _filesPane_396249">
-          <div class="_section_396249">
+        <section aria-label="Controller files and Source" class="_pane_61220e _filesPane_61220e">
+          <div class="_section_61220e">
             <div class="_body_7a73aa">
               <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
                 "Chart files is the tree the change request commits — each Kind is its RestDefinition, and the OpenAPI document rides in its ConfigMap. Edit a file in place; the canvas and the inspector read it back."
@@ -2326,28 +2326,28 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                             <div class="_yaml_7a73aa">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …4 lines
-      <div class="_side_396249">
-        <section aria-label="Inspector" class="_pane_396249" tabindex="-1">
-          <div class="_paneHead_396249">
-            <span class="_paneTitle_396249">
+      <div class="_side_61220e">
+        <section aria-label="Inspector" class="_pane_61220e" tabindex="-1">
+          <div class="_paneHead_61220e">
+            <span class="_paneTitle_61220e">
               "Inspector"
-          <div class="_section_396249">
-            <p class="_fieldText_396249">
+          <div class="_section_61220e">
+            <p class="_fieldText_61220e">
               "Select a Kind on Resources to map its verbs, identifiers and auth."
-            <div class="_derivedList_396249">
-              <div class="_derived_396249">
-                <span class="_derivedLabel_396249">
+            <div class="_derivedList_61220e">
+              <div class="_derived_61220e">
+                <span class="_derivedLabel_61220e">
                   "Spec"
-                <span class="_derivedValue_396249">
+                <span class="_derivedValue_61220e">
                   "Swagger Petstore - OpenAPI 3.0 · OpenAPI 3.0.4 · 19 operations"
-              <div class="_derived_396249">
-                <span class="_derivedLabel_396249">
+              <div class="_derived_61220e">
+                <span class="_derivedLabel_61220e">
                   "Served as"
-                <span class="_derivedValue_396249">
+                <span class="_derivedValue_61220e">
                   "petstore.example.io/v1alpha1 (the document says 1.0.27; pinned)"
-              <div class="_derived_396249">
-                <span class="_derivedLabel_396249">
+              <div class="_derived_61220e">
+                <span class="_derivedLabel_61220e">
                   "Calls"
-                <span class="_derivedValue_396249">
+                <span class="_derivedValue_61220e">
                   "https://petstore3.swagger.io/api/v3""
 `;

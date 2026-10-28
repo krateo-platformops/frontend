@@ -55,8 +55,8 @@ import { installAntdShims, installScrollShim, seededChart } from '../../pages/Bl
 import { swapBuildersForTest } from '../builderRegistry'
 import { parseBuilder, type Builder } from '../builderSpec'
 
-import { builderRoutes } from './builderRoutes'
 import BuilderHost from './BuilderHost'
+import { builderRoutes } from './builderRoutes'
 
 const STUB_ROUTE = '/stub-builder/compose'
 

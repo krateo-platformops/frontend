@@ -13,8 +13,8 @@ import { Fragment, useMemo, useState } from 'react'
 
 import styles from '../BlueprintBuilder/BlueprintBuilder.module.css'
 
-import type { ControllerModel } from './controllerChart'
 import own from './ControllerBuilder.module.css'
+import type { ControllerModel } from './controllerChart'
 import { buildControllerPalette } from './paletteModel'
 import type { ControllerRefusal } from './useControllerWorkbench'
 

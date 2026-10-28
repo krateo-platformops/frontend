@@ -27,6 +27,7 @@ import { dismissButtonProps } from '../../components/DismissButton'
 import { countNoun } from '../../utils/utils'
 import styles from '../BlueprintBuilder/BlueprintBuilder.module.css'
 
+import own from './ControllerBuilder.module.css'
 import {
   askedOnCreateNotes,
   configurationCandidates,
@@ -41,7 +42,6 @@ import {
   type ControllerKind,
   type ControllerModel,
 } from './controllerChart'
-import own from './ControllerBuilder.module.css'
 import { securitySchemeSupport, type OasOperation } from './oasImport'
 import {
   envelopeArrays,

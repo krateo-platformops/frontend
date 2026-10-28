@@ -15,8 +15,8 @@ import { useState, type DragEvent } from 'react'
 
 import styles from '../BlueprintBuilder/BlueprintBuilder.module.css'
 
-import { heldVerb, pluralOf, type ControllerModel } from './controllerChart'
 import own from './ControllerBuilder.module.css'
+import { heldVerb, pluralOf, type ControllerModel } from './controllerChart'
 import { DRAG_GROUP, DRAG_OPERATION } from './ControllerPalette'
 import { securitySchemeSupport } from './oasImport'
 import { VERB_ORDER } from './operationMapping'
