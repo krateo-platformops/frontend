@@ -23,12 +23,12 @@ import { useGetEvents } from './useGetEvents'
 import { LIVE_REFRESH_FIREHOSE_ENABLED, useLiveRefreshFirehose } from './useLiveRefresh'
 
 const { sseSubscriptions } = vi.hoisted(() => ({
-  sseSubscriptions: [] as { url: string; topic: string }[],
+  sseSubscriptions: [] as { url: string; topic: string; onOpen?: (info: { reopened: boolean }) => void }[],
 }))
 
 vi.mock('./sseClient', () => ({
-  subscribeSse: (url: string, topic: string) => {
-    sseSubscriptions.push({ topic, url })
+  subscribeSse: (url: string, topic: string, subscriber: { onOpen?: (info: { reopened: boolean }) => void }) => {
+    sseSubscriptions.push({ onOpen: subscriber.onOpen, topic, url })
 
     return () => undefined
   },
@@ -142,5 +142,45 @@ describe('the live-refresh firehose stays dormant', () => {
     // The one subscription is the bell's, on the bare endpoint. When the firehose is enabled
     // it will name this same url, which is precisely why they will then share one connection.
     expect(sseSubscriptions[0]?.url).toBe('https://portal.krateo.dev/events/notifications')
+  })
+})
+
+/**
+ * #503: a reconnect leaves a hole. sse-proxy keeps no replay and sends no ids, so events
+ * published while the stream was down are gone — and the list only ever grows from the
+ * stream's side, so without this the bell would carry that hole until a page reload.
+ */
+describe('useGetEvents — a reopened stream refetches the baseline', () => {
+  afterEach(() => {
+    sseSubscriptions.length = 0
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  const mount = () => {
+    const fetchMock = vi.fn(() => Promise.resolve({ json: () => Promise.resolve([]), ok: true, status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    renderHook(() => useGetEvents({}), { wrapper })
+
+    return fetchMock
+  }
+
+  it('refetches /events when the stream REOPENS', async () => {
+    const fetchMock = mount()
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+
+    sseSubscriptions[0]?.onOpen?.({ reopened: true })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+  })
+
+  it('does NOT refetch on the first open, which it is already fetching alongside', async () => {
+    // The control arm. Without it, "refetch on open" would pass while doubling the request
+    // on every single mount of the bell.
+    const fetchMock = mount()
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+
+    sseSubscriptions[0]?.onOpen?.({ reopened: false })
+    await new Promise<void>((resolve) => { setTimeout(resolve, 20) })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

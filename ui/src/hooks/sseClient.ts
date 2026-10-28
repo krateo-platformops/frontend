@@ -1,5 +1,7 @@
 import { getAccessToken, onAccessTokenInvalidated } from '../utils/getAccessToken'
+import { raiseSessionExpired } from '../utils/sessionResume'
 
+import { reconnectDelayMs } from './sseBackoff'
 import { drainSseEvents, parseSseBlock } from './sseFrames'
 
 /**
@@ -33,46 +35,175 @@ import { drainSseEvents, parseSseBlock } from './sseFrames'
  *  - The token is read HERE, per connection attempt, not passed in by the caller. A
  *    caller cannot hold a stale one, and cannot put it in a URL by construction.
  *
- * Trade-off vs EventSource: fetch-SSE has no built-in reconnect. Nothing is lost — the
- * previous implementation tore the connection down inside `onerror`, so it never
- * reconnected either; a later `subscribeSse` reopens. Deliberately NOT adding a retry
- * policy here: `refreshSse.ts` shows how much care one needs (401 must raise
- * session-resume rather than re-present a dead token forever), and that belongs in a
- * change of its own.
+ * fetch-SSE has no built-in reconnect, so this module reconnects (#503). The policy is
+ * `sseBackoff`'s, shared with `refreshSse` so the tab has one curve rather than two, and
+ * the rule that matters is which failures earn a retry at all:
+ *
+ *  - a server close or a transport fault RETRIES, on jittered capped backoff. This is the
+ *    case that was dead: an sse-proxy roll ends every stream, and nothing re-subscribed,
+ *    so every open tab's bell stopped until the user reloaded the page — `NotificationsContext`
+ *    is mounted once at the shell level, deliberately, so even navigating did not revive it;
+ *  - a 401/403 NEVER retries. Re-presenting a dead token on a timer is what produced 553
+ *    gateway rejections in one window; it raises the in-place session-resume instead, and
+ *    reopens only once the session is actually back;
+ *  - a stream the caller tore down, or one a reopen superseded, retries nothing at all.
+ *
+ * A reconnect loses frames: the server keeps no replay and sends no ids, so whatever was
+ * published while the stream was down is simply gone. Subscribers are told which opens are
+ * REOPENS (`onOpen({ reopened })`) so they can refetch their baseline instead of carrying a
+ * hole — the same reasoning as `refreshSse`'s `revalidateOnConnect`.
  */
+/**
+ * What `X-Krateo-Event-Scope` says this caller may receive (sse-proxy#34).
+ *
+ *   `unscoped`  the header is ABSENT — this proxy does not scope at all. NOT the same as `none`,
+ *               and the distinction is the whole point: an older proxy must never render as
+ *               "you may see nothing". It is also what a cross-origin read sees if the proxy ever
+ *               forgets `Access-Control-Expose-Headers`, which is why absence is the safe default.
+ *   `all`       the header is `*` — this caller receives every namespace.
+ *   `none`      the explicit token — scoping is ON and this caller's scope resolved EMPTY, so the
+ *               stream is open and will never deliver. Indistinguishable from a quiet cluster
+ *               without this header, which is why it exists.
+ *   namespaces  the caller's namespaces, sorted by the proxy (rbac.go sorts and deduplicates).
+ *
+ * A 403 carries NO header, because the proxy only writes it after the scope resolves — so a
+ * refusal and an old proxy both read as `unscoped`, and only the connection state tells them
+ * apart. A consumer must therefore pair this with `onError`, never read it alone.
+ */
+export type EventScope =
+  | { kind: 'unscoped' }
+  | { kind: 'all' }
+  | { kind: 'none' }
+  | { kind: 'namespaces'; namespaces: string[] }
+
+export const EVENT_SCOPE_HEADER = 'x-krateo-event-scope'
+
+/** Parse the header exactly as sse-proxy writes it; anything unrecognised is treated as unscoped. */
+export const parseEventScope = (raw: string | null): EventScope => {
+  if (raw === null) { return { kind: 'unscoped' } }
+  const value = raw.trim()
+  if (value === '*') { return { kind: 'all' } }
+  if (value === 'none') { return { kind: 'none' } }
+  const namespaces = value.split(',').map((ns) => ns.trim()).filter((ns) => ns !== '')
+  // An empty or whitespace-only value is NOT `none`: the explicit token is the only thing that
+  // means "nothing". A proxy that strips empty headers would otherwise turn "does not scope" into
+  // "you may see nothing", which is the one confusion the token exists to prevent.
+  return namespaces.length === 0 ? { kind: 'unscoped' } : { kind: 'namespaces', namespaces }
+}
+
 export interface SseSubscriber {
   /** Called with the raw `event.data` string for each message on the subscribed topic. */
   onMessage: (data: string) => void
-  /** Connection opened. */
-  onOpen?: () => void
-  /** Connection errored (the shared connection is then torn down; a later subscribe reopens). */
+  /**
+   * Connection opened. `reopened` is false for this connection's FIRST open and true for
+   * every one after it — a reconnect or a credential reopen. Frames published while the
+   * stream was down are gone (no replay, no ids), so a subscriber that keeps a list should
+   * refetch its baseline when `reopened` is true, and must not refetch when it is false:
+   * the caller has just loaded that baseline itself.
+   */
+  onOpen?: (info: { reopened: boolean; scope: EventScope }) => void
+  /**
+   * Connection failed. Fired on every failed attempt, including the ones a retry follows, so
+   * a subscriber can show "disconnected" without having to know the retry policy. The
+   * connection is torn down only when nothing will retry it: an auth failure the user did
+   * not resume, or the last subscriber leaving.
+   */
   onError?: () => void
 }
 
 interface SseConnection {
-  /** Aborts the in-flight fetch and ends its read loop. Replaced by `reopenAll`. */
+  /** Aborts the in-flight fetch and ends its read loop. Replaced by `reopenAll` and by a retry. */
   controller: AbortController
   /** topic → subscribers listening on that topic (for message routing). */
   byTopic: Map<string, Set<SseSubscriber>>
   /** all subscribers on this connection (for open/error fan-out + ref counting). */
   all: Set<SseSubscriber>
+  /**
+   * Consecutive failed attempts, which picks the backoff step. RESET on every successful
+   * open: without that, a connection that drops once an hour climbs to the 30 s ceiling over
+   * a day and stays there, so the slowest reconnects would be the ones on the healthiest
+   * endpoints.
+   */
+  attempt: number
+  /** The pending retry, so a teardown or a reopen can cancel it instead of racing it. */
+  retryTimer: ReturnType<typeof setTimeout> | undefined
+  /** Has any stream on this connection opened? Decides `onOpen`'s `reopened`. */
+  opened: boolean
 }
 
 const connections = new Map<string, SseConnection>()
 
+const clearRetry = (connection: SseConnection) => {
+  if (connection.retryTimer !== undefined) {
+    clearTimeout(connection.retryTimer)
+    connection.retryTimer = undefined
+  }
+}
+
 const teardown = (url: string, connection: SseConnection) => {
   connection.controller.abort()
+  clearRetry(connection)
   if (connections.get(url) === connection) {
     connections.delete(url)
   }
 }
 
-/** Fan an error out to every subscriber and drop the connection. */
+/** Tell every subscriber the stream is down. Says nothing about whether it will come back. */
+const announceError = (connection: SseConnection) => {
+  connection.all.forEach((sub) => sub.onError?.())
+}
+
+/**
+ * Fan an error out to every subscriber and drop the connection — the terminal failure, for
+ * what no retry can fix. A later `subscribeSse` opens a fresh connection.
+ */
 const fail = (url: string, connection: SseConnection) => {
   // Already replaced or torn down — the error belongs to a dead connection.
   if (connections.get(url) !== connection) { return }
-  connection.all.forEach((sub) => sub.onError?.())
+  announceError(connection)
   teardown(url, connection)
+}
+
+/**
+ * Reopen the connection: abort whatever stream it has and start a new one on a FRESH
+ * controller, which is what makes the old stream's tail recognise itself as superseded.
+ * The single place that does this, so `reopenAll`, the retry timer and the post-resume
+ * reopen cannot each get it subtly different.
+ */
+const reopen = (url: string, connection: SseConnection) => {
+  connection.controller.abort()
+  connection.controller = new AbortController()
+  const { controller } = connection
+  // The read loop ends by asking the retry policy what to do, and the retry policy reopens by
+  // starting a read loop: genuinely mutual, so one of the two references has to point forward.
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define -- mutual recursion: stream -> scheduleRetry -> reopen -> stream
+  queueMicrotask(() => { void stream(url, connection, controller) })
+}
+
+/**
+ * Schedule a reconnect for a stream that dropped, or give up if nothing is listening.
+ *
+ * Only the connection's CURRENT stream may schedule one: a superseded stream reaching its
+ * tail must not queue a retry for the stream that replaced it. One timer at a time, for the
+ * same reason.
+ */
+const scheduleRetry = (url: string, connection: SseConnection, controller: AbortController) => {
+  if (connections.get(url) !== connection || connection.controller !== controller) { return }
+  announceError(connection)
+  // Nobody is listening any more: a retry would hold an endpoint open for no subscriber.
+  if (connection.all.size === 0) {
+    teardown(url, connection)
+    return
+  }
+  if (connection.retryTimer !== undefined) { return }
+  const delay = reconnectDelayMs(connection.attempt)
+  connection.attempt += 1
+  connection.retryTimer = setTimeout(() => {
+    connection.retryTimer = undefined
+    // Torn down while the timer was pending, or the last subscriber left.
+    if (connections.get(url) !== connection || connection.all.size === 0) { return }
+    reopen(url, connection)
+  }, delay)
 }
 
 /**
@@ -91,7 +222,7 @@ const isCurrent = (connection: SseConnection, controller: AbortController): bool
  * Open the stream and pump frames into the connection's subscribers until it ends,
  * errors, or is aborted. Resolves when the stream is done; never rejects.
  */
-const stream = async (url: string, connection: SseConnection, controller: AbortController): Promise<void> => {
+async function stream(url: string, connection: SseConnection, controller: AbortController): Promise<void> {
   let token: string
   try {
     token = getAccessToken()
@@ -100,6 +231,8 @@ const stream = async (url: string, connection: SseConnection, controller: AbortC
     // server would have answered, without opening a request to collect it.
     console.error('[SSE] No access token; not opening the stream')
     if (!isCurrent(connection, controller)) { return }
+    // Terminal, not retriable: there is no session, so every attempt would fail identically.
+    // The logout/resume flow invalidates the token cache, and that reopens every connection.
     fail(url, connection)
     return
   }
@@ -111,9 +244,11 @@ const stream = async (url: string, connection: SseConnection, controller: AbortC
       signal: controller.signal,
     })
   } catch {
-    // Aborted by teardown or by a reopen, or a transport fault. An abort is ours.
+    // Aborted by teardown or by a reopen, or a transport fault. An abort is ours — and the
+    // isCurrent guard is what tells the two apart, because an abort we caused always came
+    // with a controller swap or a teardown.
     if (!isCurrent(connection, controller)) { return }
-    fail(url, connection)
+    scheduleRetry(url, connection, controller)
     return
   }
 
@@ -128,11 +263,64 @@ const stream = async (url: string, connection: SseConnection, controller: AbortC
     // Worth the status: the old EventSource path could only ever say "something failed",
     // which made an expired token and an unreachable proxy look identical in the console.
     console.error(`[SSE] Connection error: ${response.status} ${response.statusText}`)
-    fail(url, connection)
+    if (response.status === 403) {
+      // NOT a session problem, and not retriable either: the caller is authenticated and simply
+      // may not read this stream. Re-authenticating as the same user cannot change a 403, so
+      // raising the session-resume modal here would ask someone to fix an authorisation refusal
+      // by proving the identity that was refused — and with no modal surface mounted it falls
+      // through to a real logout.
+      //
+      // NOT DEAD CODE, though sse-proxy's SSE handler never answers 403: an out-of-scope caller
+      // gets 200 with a filtered stream and a scope-resolution failure is a 500. This branch is
+      // load-bearing for the endpoints that DO refuse an identity — the HTTP /events route and
+      // snowplow /call — and the next person to notice the scoping fact should not read it as
+      // dead and delete it. (An earlier version of this comment cited that scoping as the
+      // motivation. It was wrong; the reasoning above never depended on it.)
+      fail(url, connection)
+      return
+    }
+    if (response.status === 401) {
+      // #503 F2. An expired or refused credential is not a transport fault, and treating it
+      // as one is the 553-rejection defect: every attempt re-presents the SAME dead token and
+      // backs off to the ceiling forever. Raise the in-place resume instead — the same call
+      // useWidgetQuery makes, and concurrent raises coalesce into one modal.
+      //
+      // And REOPEN EXPLICITLY on success. A resumed session invalidates the token cache, which
+      // already reopens every connection through `reopenAll`, so this reopen is usually the
+      // second one — harmless, because `reopen` swaps the controller and the identity guard
+      // leaves the superseded stream silent. It is here because relying on the OTHER path to
+      // do it is how refreshSse turned "loops forever and never works" into "stops looping and
+      // never works": quieter, equally dead. One of the two reopens is redundant; neither is
+      // safe to omit, and the guard is what makes the redundancy free.
+      announceError(connection)
+      void raiseSessionExpired().then(
+        (outcome) => {
+          if (connections.get(url) !== connection) { return }
+          if (outcome === 'resumed') {
+            connection.attempt = 0
+            reopen(url, connection)
+          } else {
+            teardown(url, connection)
+          }
+        },
+        () => { if (connections.get(url) === connection) { teardown(url, connection) } },
+      )
+      return
+    }
+    scheduleRetry(url, connection, controller)
     return
   }
 
-  connection.all.forEach((sub) => sub.onOpen?.())
+  // Opened: the backoff budget is spent, so clear it (see SseConnection.attempt).
+  connection.attempt = 0
+  clearRetry(connection)
+  const reopened = connection.opened
+  connection.opened = true
+  // Read per open, not once per page load: a reconnect can land on a pod whose scope resolution
+  // has changed — after an RBAC grant lands, for instance — and a stale first-open value would be
+  // the quieter kind of dead.
+  const scope = parseEventScope(response.headers.get(EVENT_SCOPE_HEADER))
+  connection.all.forEach((sub) => sub.onOpen?.({ reopened, scope }))
 
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
@@ -171,8 +359,58 @@ const stream = async (url: string, connection: SseConnection, controller: AbortC
   // The stream ended: server idle-close, network drop, our own teardown, or a reopen that
   // replaced this stream. Only the first two are errors the subscribers should hear about —
   // and a superseded stream must stay silent, or it tears down the one that replaced it.
+  //
+  // THIS is the sse-proxy roll: a pod shutdown ends every stream here, with `done` from the
+  // reader and no error at all. It used to fall into `fail`, which deleted the connection and
+  // left the bell dead until a page reload.
   if (!isCurrent(connection, controller)) { return }
-  fail(url, connection)
+  scheduleRetry(url, connection, controller)
+}
+
+/**
+ * Re-open every live stream with the CURRENT credential.
+ *
+ * Registered against `onAccessTokenInvalidated`, which the in-place session-resume flow
+ * (and Auth) already call. Without this a stream opened before the resume keeps serving
+ * the PREVIOUS user's identity on the server for as long as it stays open, and because
+ * `connections` is keyed on the endpoint alone, a remount re-joins that same connection
+ * instead of opening a fresh one. #501 removed the accident that used to cover this: the
+ * token was part of the url, so a credential change changed the key.
+ *
+ * It re-opens rather than merely tearing down, deliberately. A bare teardown would fix the
+ * identity and leave the bell dead until something remounted it — trading a security bug
+ * for a silent functional one. This is NOT the general reconnect policy (frontend#503):
+ * there is no timer, no backoff and no retry. One attempt, driven by a credential change we
+ * were told about, which is why it cannot loop. If that attempt fails, `stream` fails the
+ * connection exactly as it would have anyway.
+ */
+const reopenAll = (): void => {
+  connections.forEach((connection, url) => {
+    // A credential change supersedes a pending retry: that retry would open with the token
+    // this reopen exists to replace, and two opens would race for the same connection.
+    clearRetry(connection)
+    connection.attempt = 0
+    reopen(url, connection)
+  })
+}
+
+/**
+ * Arm `reopenAll` against the next credential change, once.
+ *
+ * Deliberately NOT at module scope. Importing a module must not register a global listener:
+ * a suite that partially mocks `getAccessToken` — a common thing to do, and nothing to do
+ * with SSE — then fails to COLLECT, with an error pointing at this file rather than at
+ * itself. Three suites ran zero tests that way for a day (frontend#505).
+ *
+ * Arming it on first subscription is equivalent, not a compromise: `reopenAll` over zero
+ * connections is a no-op, so the only invalidations it can miss are the ones with nothing to
+ * reopen — and the first stream opened after one reads the current token anyway.
+ */
+let credentialWatchArmed = false
+const armCredentialWatch = (): void => {
+  if (credentialWatchArmed) { return }
+  credentialWatchArmed = true
+  onAccessTokenInvalidated(reopenAll)
 }
 
 /**
@@ -182,10 +420,11 @@ const stream = async (url: string, connection: SseConnection, controller: AbortC
  * connection is closed.
  */
 export const subscribeSse = (url: string, topic: string, subscriber: SseSubscriber): () => void => {
+  armCredentialWatch()
   let connection = connections.get(url)
 
   if (!connection) {
-    const conn: SseConnection = { all: new Set(), byTopic: new Map(), controller: new AbortController() }
+    const conn: SseConnection = { all: new Set(), attempt: 0, byTopic: new Map(), controller: new AbortController(), opened: false, retryTimer: undefined }
     connections.set(url, conn)
     connection = conn
     // Subscribe first, open after: the caller's subscriber must be in `all` before the
@@ -222,38 +461,11 @@ export const subscribeSse = (url: string, topic: string, subscriber: SseSubscrib
   }
 }
 
-/**
- * Re-open every live stream with the CURRENT credential.
- *
- * Registered against `onAccessTokenInvalidated`, which the in-place session-resume flow
- * (and Auth) already call. Without this a stream opened before the resume keeps serving
- * the PREVIOUS user's identity on the server for as long as it stays open, and because
- * `connections` is keyed on the endpoint alone, a remount re-joins that same connection
- * instead of opening a fresh one. #501 removed the accident that used to cover this: the
- * token was part of the url, so a credential change changed the key.
- *
- * It re-opens rather than merely tearing down, deliberately. A bare teardown would fix the
- * identity and leave the bell dead until something remounted it — trading a security bug
- * for a silent functional one. This is NOT the general reconnect policy (frontend#503):
- * there is no timer, no backoff and no retry. One attempt, driven by a credential change we
- * were told about, which is why it cannot loop. If that attempt fails, `stream` fails the
- * connection exactly as it would have anyway.
- */
-const reopenAll = (): void => {
-  connections.forEach((connection, url) => {
-    // Abort the in-flight stream and give the connection a fresh controller, so the old
-    // stream's tail sees it is no longer current and stays quiet.
-    connection.controller.abort()
-    connection.controller = new AbortController()
-    const { controller } = connection
-    queueMicrotask(() => { void stream(url, connection, controller) })
-  })
-}
-
-onAccessTokenInvalidated(reopenAll)
-
 /** Test-only: abort + drop all connections. */
 export const __resetSseConnections = (): void => {
-  connections.forEach((connection) => connection.controller.abort())
+  connections.forEach((connection) => {
+    connection.controller.abort()
+    clearRetry(connection)
+  })
   connections.clear()
 }

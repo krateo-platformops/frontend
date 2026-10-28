@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNode } from 'react'
 
+import type { EventScope } from '../../hooks/sseClient'
 import { useGetEvents } from '../../hooks/useGetEvents'
 import type { SSEK8sEvent } from '../../utils/types'
 
@@ -37,6 +38,8 @@ const useDrawerOpen = (): boolean => useSyncExternalStore(openStore.subscribe, o
 interface NotificationsCtx {
   isLoading: boolean
   notifications: SSEK8sEvent[] | undefined
+  /** What the stream announced it may deliver, as of its last successful open. */
+  scope: EventScope
   open: boolean
   setOpen: (open: boolean) => void
 }
@@ -48,11 +51,11 @@ export const NotificationsProvider = ({ children, topic = 'krateo' }: { children
   // Single initial-GET + SSE subscription for the whole app. Anchored above the header churn;
   // on the rarer ShellRoute rebuild the react-query cache serves the data instantly (no refetch
   // flash) because the QueryClient lives above ShellRoute.
-  const { data: notifications, isLoading } = useGetEvents({ registerToSSE: true, topic })
+  const { data: notifications, isLoading, scope } = useGetEvents({ registerToSSE: true, topic })
 
   const value = useMemo<NotificationsCtx>(
-    () => ({ isLoading, notifications, open, setOpen: openStore.setOpen }),
-    [isLoading, notifications, open]
+    () => ({ isLoading, notifications, open, scope, setOpen: openStore.setOpen }),
+    [isLoading, notifications, open, scope]
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

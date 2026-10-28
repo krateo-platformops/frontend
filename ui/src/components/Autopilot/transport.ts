@@ -416,7 +416,7 @@ const streamJsonRpc = (
       }
 
       if (!response.ok || !response.body) {
-        observed.onFrame({ kind: 'error', message: describeHttpFailure(response.status) })
+        observed.onFrame({ kind: 'error', message: describeHttpFailure(response.status), status: response.status })
         return
       }
 

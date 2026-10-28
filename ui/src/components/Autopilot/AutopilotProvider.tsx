@@ -22,6 +22,7 @@ import { AgentDraftProvider } from './agentDraft'
 import type { ApprovalDecision, ApprovalGovernor, ApprovalPause } from './approval'
 import { createApprovalGovernor, summarizeApprovalTools } from './approval'
 import { useAskDeepLink } from './askDeepLink'
+import { useAutopilotAvailability } from './availability'
 import type { BlueprintDraftHeld } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
 import { trackPublishStatus } from './builderClaimPublish'
@@ -40,7 +41,7 @@ import { blueprintChipRendered, compilePublishOps, heldDraftIdentity, recordBlue
 import { narratedPublishNudge, publishDraft, runPersonPublish } from './publishDraft'
 import { PublishTargetFormHost } from './publishTargetForm'
 import type { ThreadSummary } from './sessionHistoryStore'
-import { a2aAuthHeader, createEchoTransport, createKagentTransport } from './transport'
+import { createEchoTransport, createKagentTransport } from './transport'
 import type { AutopilotActionChip, AutopilotFrame, AutopilotMessage, AutopilotTransport, EvidenceEntry, PageContextEnvelope, TurnModality } from './types'
 import { buildContextDelta, useAutopilotContext } from './useAutopilotContext'
 import { useBlueprintAuthoringBuses } from './useBlueprintAuthoringBuses'
@@ -58,8 +59,10 @@ interface AutopilotContextValue {
   enabled: boolean
   /** Whether the configured agent is actually USABLE right now — controls CLICKABILITY. False when
    * the installer marks Autopilot unavailable (AUTOPILOT_AVAILABLE="false", e.g. agents not
-   * deployed/licensed) OR the runtime reachability probe of the endpoint fails (agent down). When
-   * `enabled && !reachable` the toggle renders grayed-out and non-clickable. `null` while probing. */
+   * deployed/licensed), while the runtime reachability probe has not yet answered, when that probe
+   * fails (agent down), or once a TURN has been answered 401/403 — the real request is a stronger
+   * witness than the probe. When `enabled && !reachable` the toggle renders grayed-out and
+   * non-clickable, and the rail disables its controls behind a notice saying why. */
   reachable: boolean
   /** Whether the docked rail is open. */
   open: boolean
@@ -119,43 +122,13 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   const useEcho = endpoint === 'echo' || (import.meta.env.DEV && import.meta.env.VITE_AUTOPILOT_ECHO === 'true')
   const enabled = Boolean(endpoint) || useEcho
 
-  // Availability (CLICKABILITY — distinct from `enabled`/visibility). The toggle grays out when EITHER
-  //  (a) the installer marks Autopilot unavailable: config.api.AUTOPILOT_AVAILABLE === 'false' (set when
-  //      agents are not deployed/licensed, features.coreAgents=false); OR
-  //  (b) a runtime reachability probe of the endpoint fails (agent deployed but down/unreachable).
-  // Echo/dev is always reachable. The probe re-runs when the endpoint changes and on window focus, so a
-  // later-deployed or recovered agent flips the toggle live without a page reload.
+  // Availability (CLICKABILITY — distinct from `enabled`/visibility): the installer's flag, the
+  // reachability probe and a turn's own verdict, in ./availability.
   const flagAvailable = config?.api.AUTOPILOT_AVAILABLE !== 'false'
   // Per-builder publish destinations, resolved from install config (owner/repo slug) → the built-in
   // canonical fallback. Config-driven so an org/repo rename is a values change, not a rebuild.
   const builderTargets = useBuilderTargets(config)
-  const [probeOk, setProbeOk] = useState(true)
-  useEffect(() => {
-    if (!enabled || useEcho || !flagAvailable || !endpoint) {
-      return
-    }
-    const ctrl = new AbortController()
-    // GET the A2A base, carrying the Bearer the real turns carry: a 5xx gateway error means the
-    // proxy could not reach the agent upstream (not deployed / down), and 401/403 mean this user
-    // cannot drive the agent at all (invalid session, or agentgateway RBAC denies them this
-    // agent) — both are a dead click. Any other response (200/404/405/…) means it answered.
-    const probe = () => {
-      fetch(`${endpoint.replace(/\/$/, '')}/`, { headers: a2aAuthHeader(), method: 'GET', signal: ctrl.signal })
-        .then((res) => setProbeOk(res.status !== 401 && res.status !== 403 && (res.status < 502 || res.status > 504)))
-        .catch(() => {
-          if (!ctrl.signal.aborted) {
-            setProbeOk(false)
-          }
-        })
-    }
-    probe()
-    window.addEventListener('focus', probe)
-    return () => {
-      ctrl.abort()
-      window.removeEventListener('focus', probe)
-    }
-  }, [enabled, useEcho, flagAvailable, endpoint])
-  const reachable = enabled && flagAvailable && (useEcho || probeOk)
+  const { markUnavailable, reachable } = useAutopilotAvailability({ enabled, endpoint, flagAvailable, useEcho })
 
   const { collect, readRenderedWidgets } = useAutopilotContext()
   // DRAFT RECORDS: the held draft autosaved to the sandbox (useDraftAutosave). Built before the bridge
@@ -573,6 +546,17 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
             : message
         )))
         setStreaming(false)
+        // A turn answered 401/403 is the AUTHORITATIVE word on whether this user can drive this
+        // agent: it is the real request, not a guess about one. The startup probe GETs the A2A
+        // base and counts anything but 401/403/502-504 as reachable, so a gateway that answers a
+        // bare path while denying the actual turn reads as available and every control stays live
+        // — which is what was reported from cmp.krateo.dev. Learning from the turn closes that
+        // WITHOUT making the probe stricter, which would have disabled installs whose gateway
+        // legitimately 404s a bare GET. The status is read off the frame, never parsed back out
+        // of the message: prose is not a control-flow input.
+        if (frame.status === 401 || frame.status === 403) {
+          markUnavailable()
+        }
         break
       case 'done':
         void finalize(assistantId, modality)
@@ -590,7 +574,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       default:
         break
     }
-  }, [finalize, publishEvidence, setMessages])
+  }, [finalize, markUnavailable, publishEvidence, setMessages])
 
   // Send a HITL decision over A2A (the `{decision_type}` DataPart on the paused task —
   // see approval.ts) and stream the agent's continuation into a NEW assistant bubble,

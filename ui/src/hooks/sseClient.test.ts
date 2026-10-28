@@ -8,6 +8,16 @@ import { __resetSseConnections, subscribeSse } from './sseClient'
  */
 const auth = vi.hoisted(() => ({ listeners: [] as (() => void)[], token: { current: 'tok-123' } }))
 
+/** The resume flow, as a lever: each 401/403 parks a promise the test resolves itself. */
+const resume = vi.hoisted(() => ({ raises: 0, settle: [] as ((outcome: string) => void)[] }))
+
+vi.mock('../utils/sessionResume', () => ({
+  raiseSessionExpired: () => {
+    resume.raises += 1
+    return new Promise<string>((res) => { resume.settle.push(res) })
+  },
+}))
+
 vi.mock('../utils/getAccessToken', () => ({
   getAccessToken: () => auth.token.current,
   onAccessTokenInvalidated: (listener: () => void) => {
@@ -34,7 +44,8 @@ class FakeStream {
   private resolveRead: (() => void) | null = null
   private done = false
 
-  constructor(public url: string, public init: RequestInit, public status = 200) {
+  constructor(public url: string, public init: RequestInit, public status = 200,
+              public responseHeaders: Record<string, string> = {}) {
     FakeStream.instances.push(this)
   }
 
@@ -68,8 +79,13 @@ class FakeStream {
       }
     }
 
+    // A real Headers: `get` is case-insensitive and returns null when absent, and BOTH of those
+    // are load-bearing here — absence is what `unscoped` is parsed from.
+    const headers = new Headers(this.responseHeaders)
+
     return {
       body: { getReader: () => ({ read }) },
+      headers,
       ok: this.status >= 200 && this.status < 300,
       status: this.status,
       statusText: `status ${this.status}`,
@@ -113,6 +129,8 @@ describe('sseClient — shared, ref-counted SSE over fetch + Bearer', () => {
     })
   })
   afterEach(() => {
+    resume.raises = 0
+    resume.settle = []
     __resetSseConnections()
     auth.token.current = 'tok-123'
     FakeStream.instances = []
@@ -189,7 +207,10 @@ describe('sseClient — shared, ref-counted SSE over fetch + Bearer', () => {
     expect(opened).toBe(2)
   })
 
-  it('fans onError out and tears the connection down; a later subscribe reopens', async () => {
+  it('fans onError out on a dropped stream, and KEEPS the connection for the retry to reopen', async () => {
+    // Before #503 this tore the connection down, which is why an sse-proxy roll left every
+    // open tab's bell dead: nothing re-subscribed. onError still fires — a subscriber that
+    // wants to show "disconnected" must hear about it — but the connection survives.
     let errors = 0
     subscribeSse('u', 't', { onError: () => { errors += 1 }, onMessage: noop })
     await settle()
@@ -197,17 +218,19 @@ describe('sseClient — shared, ref-counted SSE over fetch + Bearer', () => {
     await settle()
     expect(errors).toBe(1)
 
+    // A fresh subscribe JOINS the surviving connection rather than opening a second one.
     subscribeSse('u', 't', { onMessage: noop })
     await settle()
-    expect(FakeStream.instances).toHaveLength(2)
+    expect(FakeStream.instances).toHaveLength(1)
   })
 
-  it('treats a non-ok response as a connection error', async () => {
-    nextStatus = 401
+  it('a non-ok response that is not an auth failure is an error the subscribers hear', async () => {
+    nextStatus = 503
     let errors = 0
     subscribeSse('u', 't', { onError: () => { errors += 1 }, onMessage: noop })
     await settle()
     expect(errors).toBe(1)
+    expect(resume.raises).toBe(0)
   })
 
   it('stops delivery after unsubscribe (and unsubscribe is idempotent)', async () => {
@@ -439,5 +462,223 @@ describe('sseClient — shared, ref-counted SSE over fetch + Bearer', () => {
     unsubscribe()
     await settle()
     expect(errors).toBe(0)
+  })
+})
+
+/**
+ * Reconnect (#503). Only `setTimeout` is faked: `queueMicrotask` stays native so the client's
+ * own opens still drain on ordinary awaits, and the ONLY clock the test controls is the backoff.
+ * Every delay assertion is written against the jitter BOUNDS — ±25 % of a 1 s first step, so
+ * [750, 1250] — which is why advancing 700 and then 1300 is deterministic despite the jitter.
+ */
+describe('sseClient — reconnect after a dropped stream', () => {
+  const FIRST_STEP_FLOOR = 700
+  const PAST_FIRST_STEP = 1300
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    nextStatus = 200
+    vi.stubGlobal('fetch', (url: string, init: RequestInit) => {
+      if (init.signal?.aborted) {
+        return Promise.reject(new DOMException('The user aborted a request.', 'AbortError'))
+      }
+      const fake = new FakeStream(url, init, nextStatus)
+      init.signal?.addEventListener('abort', () => { fake.closed = true })
+
+      return Promise.resolve(fake.response())
+    })
+  })
+  afterEach(() => {
+    __resetSseConnections()
+    resume.raises = 0
+    resume.settle = []
+    FakeStream.instances = []
+    auth.token.current = 'tok-123'
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  /** Drain the client's microtask-driven opens without letting the backoff timer fire. */
+  const settleF = async () => {
+    for (let turn = 0; turn < 5; turn += 1) {
+      // eslint-disable-next-line no-await-in-loop -- draining turns is inherently sequential
+      await vi.advanceTimersByTimeAsync(0)
+    }
+  }
+  /** Advance the clock, then drain whatever the fired timer started. */
+  const elapse = async (ms: number) => {
+    await vi.advanceTimersByTimeAsync(ms)
+    await settleF()
+  }
+
+  it('reopens the stream and keeps delivering — the sse-proxy roll case', async () => {
+    const seen: string[] = []
+    subscribeSse('u', 't', { onMessage: (data) => seen.push(data) })
+    await settleF()
+    // A pod shutdown ends the stream with `done` from the reader and no error at all.
+    FakeStream.instances[0]?.end()
+    await settleF()
+
+    await elapse(PAST_FIRST_STEP)
+    expect(FakeStream.instances).toHaveLength(2)
+    FakeStream.instances[1]?.emit('t', { after: 'the roll' })
+    await settleF()
+    expect(seen).toEqual(['{"after":"the roll"}'])
+  })
+
+  it('waits out the backoff rather than reopening immediately', async () => {
+    subscribeSse('u', 't', { onMessage: noop })
+    await settleF()
+    FakeStream.instances[0]?.end()
+    await settleF()
+    // An immediate loop is the failure mode a retry policy exists to avoid.
+    expect(FakeStream.instances).toHaveLength(1)
+
+    await elapse(FIRST_STEP_FLOOR)
+    expect(FakeStream.instances).toHaveLength(1)
+    await elapse(PAST_FIRST_STEP - FIRST_STEP_FLOOR)
+    expect(FakeStream.instances).toHaveLength(2)
+  })
+
+  it('spends its backoff budget from zero again after a successful open', async () => {
+    // Without the reset, a connection that drops once an hour climbs to the 30 s ceiling over
+    // a day: the slowest reconnects would be the ones on the healthiest endpoints. The second
+    // drop must therefore wait the FIRST step (~1 s), not the second (~2 s).
+    subscribeSse('u', 't', { onMessage: noop })
+    await settleF()
+    FakeStream.instances[0]?.end()
+    await settleF()
+    await elapse(PAST_FIRST_STEP)
+    expect(FakeStream.instances).toHaveLength(2)
+
+    FakeStream.instances[1]?.end()
+    await settleF()
+    await elapse(PAST_FIRST_STEP)
+    expect(FakeStream.instances).toHaveLength(3)
+  })
+
+  it('does NOT reconnect once the last subscriber has gone', async () => {
+    const unsubscribe = subscribeSse('u', 't', { onMessage: noop })
+    await settleF()
+    unsubscribe()
+    await settleF()
+    await elapse(PAST_FIRST_STEP * 4)
+    expect(FakeStream.instances).toHaveLength(1)
+  })
+
+  it('never resurrects a connection whose pending retry was torn down', async () => {
+    subscribeSse('u', 't', { onMessage: noop })
+    await settleF()
+    FakeStream.instances[0]?.end()
+    await settleF()
+    // The retry is armed; drop the whole module's state under it.
+    __resetSseConnections()
+    await elapse(PAST_FIRST_STEP * 4)
+    expect(FakeStream.instances).toHaveLength(1)
+  })
+
+  it('tells subscribers which opens are REOPENS, so they can refetch the baseline they missed', async () => {
+    const opens: boolean[] = []
+    subscribeSse('u', 't', { onMessage: noop, onOpen: ({ reopened }) => opens.push(reopened) })
+    await settleF()
+    expect(opens).toEqual([false])
+
+    FakeStream.instances[0]?.end()
+    await settleF()
+    await elapse(PAST_FIRST_STEP)
+    // Frames published while it was down are gone: no replay, no ids, nothing to resume from.
+    expect(opens).toEqual([false, true])
+  })
+
+  it('retries a 5xx and RECOVERS when the server comes back — the self-heal property', async () => {
+    // sse-proxy answers 500 when it cannot resolve a caller's scope — its ServiceAccount needs
+    // to create SubjectAccessReviews, and without that grant every request fails. Retrying means
+    // the bell comes back BY ITSELF once the grant lands, instead of every open tab staying dead
+    // until its user reloads the page.
+    //
+    // A SECOND LAYER, NOT THE MITIGATION, and the distinction matters because the opposite
+    // reading makes the grant look optional. Enabling scoping through the sse-proxy chart creates
+    // the ClusterRole and binding in the SAME template, so "flag on, grant absent" is unreachable
+    // by that path and must stay unreachable. What this covers is the population the chart does
+    // not own: RBAC_SCOPING_ENABLED hand-set outside it, or the grants deleted out of band. The
+    // installer session made this correction after I had framed the self-heal as the answer to a
+    // botched roll.
+    nextStatus = 503
+    subscribeSse('u', 't', { onMessage: noop })
+    await settleF()
+    expect(FakeStream.instances).toHaveLength(1)
+
+    nextStatus = 200
+    await elapse(PAST_FIRST_STEP)
+    expect(FakeStream.instances).toHaveLength(2)
+
+    const seen: string[] = []
+    subscribeSse('u', 't', { onMessage: (data) => seen.push(data) })
+    await settleF()
+    FakeStream.instances[1]?.emit('t', { healed: true })
+    await settleF()
+    expect(seen).toEqual(['{"healed":true}'])
+  })
+
+  describe('an auth failure is not a transport fault', () => {
+    it('raises session-resume ONCE and schedules no retry', async () => {
+      // Retrying IS the defect: the same dead token re-presented on a timer produced 553
+      // gateway rejections in one window, backing off to the ceiling with no way back.
+      nextStatus = 401
+      subscribeSse('u', 't', { onMessage: noop })
+      await settleF()
+      expect(resume.raises).toBe(1)
+
+      await elapse(PAST_FIRST_STEP * 4)
+      expect(FakeStream.instances).toHaveLength(1)
+      expect(resume.raises).toBe(1)
+    })
+
+    it('reopens with the new credential once the session is resumed', async () => {
+      nextStatus = 401
+      subscribeSse('u', 't', { onMessage: noop })
+      await settleF()
+
+      nextStatus = 200
+      auth.token.current = 'tok-after-resume'
+      resume.settle[0]?.('resumed')
+      await settleF()
+      expect(FakeStream.instances).toHaveLength(2)
+      expect(FakeStream.instances[1]?.headers.Authorization).toBe('Bearer tok-after-resume')
+    })
+
+    it('drops the connection when the user did not resume', async () => {
+      nextStatus = 401
+      subscribeSse('u', 't', { onMessage: noop })
+      await settleF()
+      resume.settle[0]?.('logout')
+      await settleF()
+
+      await elapse(PAST_FIRST_STEP * 4)
+      expect(FakeStream.instances).toHaveLength(1)
+      // The connection is gone, so a later subscribe opens a fresh one rather than joining a corpse.
+      nextStatus = 200
+      subscribeSse('u', 't', { onMessage: noop })
+      await settleF()
+      expect(FakeStream.instances).toHaveLength(2)
+    })
+
+    it('a 403 raises NO resume — it is a refusal of this identity, not a stale one', async () => {
+      // Re-authenticating as the same user cannot change a 403, so raising the modal would ask
+      // someone to fix an authorisation refusal by proving the identity that was refused; with no
+      // modal surface mounted it falls through to a real logout. Once sse-proxy scopes events per
+      // caller, a 403 is the normal answer for a user outside the scope — evicting them for it
+      // would be the bug. It is still terminal: no retry either.
+      nextStatus = 403
+      let errors = 0
+      subscribeSse('u', 't', { onError: () => { errors += 1 }, onMessage: noop })
+      await settleF()
+      expect(resume.raises).toBe(0)
+      expect(errors).toBe(1)
+
+      await elapse(PAST_FIRST_STEP * 4)
+      expect(FakeStream.instances).toHaveLength(1)
+    })
   })
 })
