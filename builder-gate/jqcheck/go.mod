@@ -1,6 +1,6 @@
 module github.com/krateo-platformops/frontend/builder-gate/jqcheck
 
-go 1.24.0
+go 1.26.0
 
 require github.com/itchyny/gojq v0.12.17
 

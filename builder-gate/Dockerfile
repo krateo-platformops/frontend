@@ -6,7 +6,7 @@
 # Both build stages run on the BUILD platform and cross-compile, so the arm64 leg never runs npm or
 # Go under emulation: the bundle is plain JavaScript and jqcheck is a static Go binary.
 
-FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS jqcheck
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS jqcheck
 ARG TARGETOS
 ARG TARGETARCH
 WORKDIR /src
