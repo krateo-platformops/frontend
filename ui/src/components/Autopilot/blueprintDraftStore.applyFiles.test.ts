@@ -8,9 +8,9 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 
-import { ARCHITECTURE_TEMPLATE_PATH, rewrapDescriptor, unwrapFromConfigMapTemplate, wrapAsConfigMapTemplate } from '../../pages/BlueprintComposer/architecture'
-import { graphBlockIn } from '../../pages/BlueprintComposer/graphCompile'
-import { startChart } from '../../pages/BlueprintComposer/startChart'
+import { ARCHITECTURE_TEMPLATE_PATH, rewrapDescriptor, unwrapFromConfigMapTemplate, wrapAsConfigMapTemplate } from '../../pages/BlueprintBuilder/architecture'
+import { graphBlockIn } from '../../pages/BlueprintBuilder/graphCompile'
+import { startChart } from '../../pages/BlueprintBuilder/startChart'
 
 import { lintBlueprintDraft } from './blueprintDraft'
 import { createBlueprintDraftStore, type FilesChange } from './blueprintDraftStore'

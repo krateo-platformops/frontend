@@ -15,7 +15,7 @@ vi.mock('./builderClaimPublish', () => ({
   buildClaimPublish: vi.fn(() => Promise.resolve({ branch: 'builder/x', compiled: { denial: null, ops: [] }, deepLink: null })),
 }))
 
-import { startChart } from '../../pages/BlueprintComposer/startChart'
+import { startChart } from '../../pages/BlueprintBuilder/startChart'
 
 import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { buildClaimPublish } from './builderClaimPublish'

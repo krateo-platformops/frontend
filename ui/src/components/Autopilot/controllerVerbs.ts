@@ -56,9 +56,9 @@ import {
   planToggleConfigurationField,
   planToggleField,
   readController,
-} from '../../pages/ControllerComposer/controllerChart'
-import { readSpec, readSpecUrl, serverRewriteSentence, startController, type StartControllerInput } from '../../pages/ControllerComposer/controllerStart'
-import { type RestAction, VERB_ORDER } from '../../pages/ControllerComposer/operationMapping'
+} from '../../pages/ControllerBuilder/controllerChart'
+import { readSpec, readSpecUrl, serverRewriteSentence, startController, type StartControllerInput } from '../../pages/ControllerBuilder/controllerStart'
+import { type RestAction, VERB_ORDER } from '../../pages/ControllerBuilder/operationMapping'
 
 import type { PortalActionProposal } from './actionBridge'
 import { draftDisplayName } from './blueprintDraft'

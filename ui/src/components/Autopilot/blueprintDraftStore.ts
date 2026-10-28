@@ -27,7 +27,7 @@
 
 import { registryUnavailable } from '../../builders/builderRegistry'
 import { isDraftKind, type DraftKindName } from '../../builders/draftKinds'
-import { lockedServedVersion, pinServedVersion, servedVersionUnknown } from '../../pages/ControllerComposer/servedVersion'
+import { lockedServedVersion, pinServedVersion, servedVersionUnknown } from '../../pages/ControllerBuilder/servedVersion'
 import { countNoun } from '../../utils/utils'
 
 import type { ApplyResourceSetOp } from './applyResourceSet'

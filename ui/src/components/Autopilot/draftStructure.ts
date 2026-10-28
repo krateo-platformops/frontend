@@ -30,12 +30,12 @@ import {
   heldVerb,
   pathIdBindings,
   readController,
-} from '../../pages/ControllerComposer/controllerChart'
-import { envelopeArrays, successResponseSchema, VERB_ORDER } from '../../pages/ControllerComposer/operationMapping'
-import { servedAsText } from '../../pages/ControllerComposer/servedVersion'
-import { shownUrl } from '../../pages/ControllerComposer/urlCredential'
-import { buildObjectTree, flattenTree, listDataSources } from '../../pages/PageComposer/objectTree'
-import type { TreeNode } from '../../pages/PageComposer/objectTree'
+} from '../../pages/ControllerBuilder/controllerChart'
+import { envelopeArrays, successResponseSchema, VERB_ORDER } from '../../pages/ControllerBuilder/operationMapping'
+import { servedAsText } from '../../pages/ControllerBuilder/servedVersion'
+import { shownUrl } from '../../pages/ControllerBuilder/urlCredential'
+import { buildObjectTree, flattenTree, listDataSources } from '../../pages/PageBuilder/objectTree'
+import type { TreeNode } from '../../pages/PageBuilder/objectTree'
 
 import { CHART_YAML_PATH, chartYamlName, VALUES_SCHEMA_PATH } from './blueprintDraft'
 import type { BlueprintDraftHeld } from './blueprintDraftStore'

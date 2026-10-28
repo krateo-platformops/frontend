@@ -277,7 +277,7 @@ describe('a compose chip never claims an outcome the composer did not report', (
  *
  * Structural, like the rest of this file, because `apply` is a hook and there is no assembly step
  * to call. The ops' own RULES are pinned behaviourally in composeAuthoring.test.ts and
- * PageComposer.agent.test.tsx; what these assert is that the directive can reach them at all.
+ * PageBuilder.agent.test.tsx; what these assert is that the directive can reach them at all.
  */
 describe('the authoring directives reach the composer', () => {
   const bridge = () => railSource('actionBridge.ts')

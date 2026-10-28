@@ -14,7 +14,7 @@
  */
 import { draftDisplayName } from '../components/Autopilot/blueprintDraft'
 import { pageRootSlug } from '../components/Autopilot/pageDraft'
-import { completeLockedSnapshot, lockedSnapshot, servedVersionUnknownProblems } from '../pages/ControllerComposer/controllerChart'
+import { completeLockedSnapshot, lockedSnapshot, servedVersionUnknownProblems } from '../pages/ControllerBuilder/controllerChart'
 
 import { builderOf, findBuilderOf } from './builderRegistry'
 

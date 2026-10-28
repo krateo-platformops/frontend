@@ -8,7 +8,7 @@
  *     scripts/gen-widget-kinds.ts derives from helm/frontend-crds and CI re-checks. The portal asks
  *     snowplow's discovery for the same answer; the CRDs it would discover ship from this chart.
  */
-import { WIDGET_KINDS } from '@frontend/pages/PageComposer/widgetKinds.generated'
+import { WIDGET_KINDS } from '@frontend/pages/PageBuilder/widgetKinds.generated'
 
 import schemas from '../generated/widget-schemas.json'
 

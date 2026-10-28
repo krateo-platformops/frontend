@@ -3,12 +3,12 @@
 #
 # THE ENGINE RUNS IT (T8): builderRegistry.ts holds it beside the page and blueprint Builders, and the
 # composer host mounts it at its route with the plugins it names — the `openapi` palette, the
-# `restdef-graph` canvas and the `restdef-mapping` inspector (pages/ControllerComposer/controllerSlots),
+# `restdef-graph` canvas and the `restdef-mapping` inspector (pages/ControllerBuilder/controllerSlots),
 # over the controller workbench (useControllerWorkbench). A controller draft is held, autosaved as
 # `draft-controller-<owner>-<slug>`, resumed, linted and published by the same engine code as the others.
 #
 # PREVIEW RUNS IT TOO (T9, frontend#413): preview.restActionRef is the RESTAction the provider calls
-# (useBlueprintAuthoringBuses → pages/ControllerComposer/controllerRender.ts), and only a render with
+# (useBlueprintAuthoringBuses → pages/ControllerBuilder/controllerRender.ts), and only a render with
 # CRDs and zero problems arms Publish.
 #
 # SHIPPED BY THE PORTAL CHART, READ FROM THE CLUSTER. The portal chart installs this CR in the

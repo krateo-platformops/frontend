@@ -35,7 +35,7 @@
  *
  * `main` takes its argv and its two outside-the-process effects as arguments so the refusals above
  * can be tested without a cluster and without a tagged checkout — see
- * `ui/src/pages/BlueprintComposer/statusProjectionRegenerate.test.ts`. The process only exits when
+ * `ui/src/pages/BlueprintBuilder/statusProjectionRegenerate.test.ts`. The process only exits when
  * this file is the entry point.
  */
 import { execFileSync } from 'node:child_process'
@@ -44,7 +44,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-import { regenerateProjection, type LiveProjection } from '../ui/src/pages/BlueprintComposer/projectionCompile'
+import { regenerateProjection, type LiveProjection } from '../ui/src/pages/BlueprintBuilder/projectionCompile'
 
 const arg = (argv: string[], name: string, fallback = ''): string => {
   const i = argv.indexOf(`--${name}`)

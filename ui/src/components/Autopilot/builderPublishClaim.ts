@@ -16,7 +16,7 @@
  */
 
 import type { Config } from '../../context/ConfigContext'
-import { PUBLISH_CLAIM_PREFIX } from '../../pages/BlueprintComposer/chartIdentity'
+import { PUBLISH_CLAIM_PREFIX } from '../../pages/BlueprintBuilder/chartIdentity'
 
 import type { ApplyResourceSetGvr, ApplyResourceSetOp } from './applyResourceSet'
 

@@ -4,7 +4,7 @@
  *
  * THREE LAYERS, each owning what only it can know:
  *
- * - The HOST (ComposerHost.tsx) is the same for every Builder. It owns what both composers used to
+ * - The HOST (BuilderHost.tsx) is the same for every Builder. It owns what both composers used to
  *   wire by hand: whose draft is held (the draft broadcast and its replay), the preview-surface claim,
  *   the header — title, save indicator, pills, Preview · Undo · Publish · Close draft — the publish
  *   request and its answer, Resume, the file focus and edit verdicts of the PreviewContent tabs, and

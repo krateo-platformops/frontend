@@ -4,6 +4,6 @@
   },
   "font-size": {},
   "spacing": {
-    "pages/PageComposer/CanvasPanel.tsx": 1
+    "pages/PageBuilder/CanvasPanel.tsx": 1
   }
 }

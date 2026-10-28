@@ -10,8 +10,8 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { ARCHITECTURE_TEMPLATE_PATH, unwrapFromConfigMapTemplate, wrapAsConfigMapTemplate } from '../../pages/BlueprintComposer/architecture'
-import { placedNameExpression } from '../../pages/BlueprintComposer/naming'
+import { ARCHITECTURE_TEMPLATE_PATH, unwrapFromConfigMapTemplate, wrapAsConfigMapTemplate } from '../../pages/BlueprintBuilder/architecture'
+import { placedNameExpression } from '../../pages/BlueprintBuilder/naming'
 
 import {
   buildFormPreviewModel,

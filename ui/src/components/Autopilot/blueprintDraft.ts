@@ -30,11 +30,11 @@ import {
   regenerateGraphBlock,
   unwrapFromConfigMapTemplate,
   type ChartArchitecture,
-} from '../../pages/BlueprintComposer/architecture'
-import { chartIdentityProblems, chartNameProblem } from '../../pages/BlueprintComposer/chartIdentity'
-import { extractNameExpression } from '../../pages/BlueprintComposer/gateExtract'
-import { graphBlockIn } from '../../pages/BlueprintComposer/graphCompile'
-import { itemNamesMeet, readPlacedName } from '../../pages/BlueprintComposer/naming'
+} from '../../pages/BlueprintBuilder/architecture'
+import { chartIdentityProblems, chartNameProblem } from '../../pages/BlueprintBuilder/chartIdentity'
+import { extractNameExpression } from '../../pages/BlueprintBuilder/gateExtract'
+import { graphBlockIn } from '../../pages/BlueprintBuilder/graphCompile'
+import { itemNamesMeet, readPlacedName } from '../../pages/BlueprintBuilder/naming'
 
 import type { DraftKind } from './blueprintDraftStore'
 import { OAS_ATTACHMENT_MAX_BYTES, utf8ByteLength } from './oasAttachment'

@@ -13,11 +13,11 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ARCHITECTURE_TEMPLATE_PATH } from '../../pages/BlueprintComposer/architecture'
-import { graphBlockIn } from '../../pages/BlueprintComposer/graphCompile'
-import { placedNameExpression } from '../../pages/BlueprintComposer/naming'
-import { planPlace } from '../../pages/BlueprintComposer/planPlace'
-import { startChart } from '../../pages/BlueprintComposer/startChart'
+import { ARCHITECTURE_TEMPLATE_PATH } from '../../pages/BlueprintBuilder/architecture'
+import { graphBlockIn } from '../../pages/BlueprintBuilder/graphCompile'
+import { placedNameExpression } from '../../pages/BlueprintBuilder/naming'
+import { planPlace } from '../../pages/BlueprintBuilder/planPlace'
+import { startChart } from '../../pages/BlueprintBuilder/startChart'
 
 import { lintBlueprintDraft } from './blueprintDraft'
 import { createBlueprintDraftStore, type BlueprintDraftStore } from './blueprintDraftStore'

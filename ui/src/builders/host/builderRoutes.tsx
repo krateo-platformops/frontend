@@ -28,7 +28,7 @@ import { builderRegistry, buildersStatus, subscribeBuilders } from '../builderRe
 import type { Builder, BuilderSpec } from '../builderSpec'
 import { resolvePlugin } from '../pluginRegistry'
 
-import ComposerHost from './ComposerHost'
+import BuilderHost from './BuilderHost'
 
 /** The id prefix of a builder route — how the shell tells one from the portal's own. */
 export const BUILDER_ROUTE_ID = 'builder:'
@@ -66,7 +66,7 @@ export const BuilderRouteHost = ({ name }: { name: string }) => {
       {lastError
         ? <Alert banner showIcon title={`The Builders could not be read again from the cluster: ${lastError} The ones read earlier are still in use.`} type='warning' />
         : null}
-      <ComposerHost builder={builder} name={name} />
+      <BuilderHost builder={builder} name={name} />
     </>
   )
 }

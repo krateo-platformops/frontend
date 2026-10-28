@@ -16,7 +16,7 @@ import { act, cleanup, render } from '@testing-library/react'
 import { load } from 'js-yaml'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../pages/ControllerComposer/controllerRender', async (original) => ({
+vi.mock('../../pages/ControllerBuilder/controllerRender', async (original) => ({
   ...(await original<typeof ControllerRenderModule>()),
   renderController: vi.fn(),
 }))
@@ -26,9 +26,9 @@ vi.mock('./builderClaimPublish', () => ({
 
 import { builderRegistry, swapBuildersForTest } from '../../builders/builderRegistry'
 import type { Config } from '../../context/ConfigContext'
-import { lockedSnapshot, planBindPathParam, planSetItemsPath, restDefinitionPath } from '../../pages/ControllerComposer/controllerChart'
-import { renderController } from '../../pages/ControllerComposer/controllerRender'
-import type * as ControllerRenderModule from '../../pages/ControllerComposer/controllerRender'
+import { lockedSnapshot, planBindPathParam, planSetItemsPath, restDefinitionPath } from '../../pages/ControllerBuilder/controllerChart'
+import { renderController } from '../../pages/ControllerBuilder/controllerRender'
+import type * as ControllerRenderModule from '../../pages/ControllerBuilder/controllerRender'
 
 import type { PortalActionProposal } from './actionBridge'
 import { isComposeVerb } from './actionBridge'
@@ -51,7 +51,7 @@ import { useBlueprintAuthoringBuses } from './useBlueprintAuthoringBuses'
 import { useDraftFileBuses } from './useDraftFileBuses'
 import { DRAFT_VERB_REGISTRY, isDraftVerb, isReadOnlyVerb, type VerbDeps } from './verbRegistry'
 
-const PETSTORE = readFileSync(join(__dirname, '..', '..', 'pages', 'ControllerComposer', '__fixtures__', 'petstore-v3.openapi.json'), 'utf8')
+const PETSTORE = readFileSync(join(__dirname, '..', '..', 'pages', 'ControllerBuilder', '__fixtures__', 'petstore-v3.openapi.json'), 'utf8')
 const CONFIG = { api: { SNOWPLOW_API_BASE_URL: 'https://snowplow.test' }, params: { FRONTEND_NAMESPACE: 'krateo-system' } } as unknown as Config
 const PET = restDefinitionPath('Pet')
 const START = { apiGroup: 'petstore.example.io', baseUrl: 'https://petstore3.swagger.io/api/v3', name: 'petstore', specText: PETSTORE, verb: 'controllerStart' }
@@ -514,7 +514,7 @@ describe('review fixes — the closed bypasses', () => {
 })
 
 describe('round 2 (frontend#405) — the agent reaches every new inspector gesture, through the same plans', () => {
-  const fixture = (file: string) => readFileSync(join(__dirname, '..', '..', 'pages', 'ControllerComposer', '__fixtures__', file), 'utf8')
+  const fixture = (file: string) => readFileSync(join(__dirname, '..', '..', 'pages', 'ControllerBuilder', '__fixtures__', file), 'utf8')
   const KMS = { apiGroup: 'kms.example.io', baseUrl: 'https://kms.example.test', name: 'kms', specText: fixture('aruba-like-kms.oas.yaml'), verb: 'controllerStart' }
   const DBAAS = { apiGroup: 'dbaas.example.io', baseUrl: 'https://dbaas.example.test', name: 'dbaas', specText: fixture('aruba-like-dbaas.oas.yaml'), verb: 'controllerStart' }
   const KM = restDefinitionPath('Km')

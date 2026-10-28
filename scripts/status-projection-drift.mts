@@ -21,7 +21,7 @@
  */
 import { execFileSync } from 'node:child_process'
 
-import { S11_TOP_FILTER } from '../ui/src/pages/BlueprintComposer/architectureStateJq'
+import { S11_TOP_FILTER } from '../ui/src/pages/BlueprintBuilder/architectureStateJq'
 
 const arg = (name: string, fallback = ''): string => {
   const i = process.argv.indexOf(`--${name}`)

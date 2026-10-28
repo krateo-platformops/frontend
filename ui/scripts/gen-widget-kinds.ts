@@ -37,7 +37,7 @@ import { glob } from 'glob'
 import yaml from 'js-yaml'
 
 const CRD_GLOB = join(process.cwd(), '..', 'helm', 'frontend-crds', 'templates', '*.crd.yaml')
-const OUTPUT = join(process.cwd(), 'src', 'pages', 'PageComposer', 'widgetKinds.generated.ts')
+const OUTPUT = join(process.cwd(), 'src', 'pages', 'PageBuilder', 'widgetKinds.generated.ts')
 
 interface Schema {
   properties?: Record<string, Schema>

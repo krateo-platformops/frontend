@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { summarizeChart, summarizeDraft } from '../components/Autopilot/draftStructure'
-import { architectureGraphCanvas, kindsPalette, nodeInspector } from '../pages/BlueprintComposer/blueprintSlots'
-import { openapiPalette, restdefGraphCanvas, restdefMappingInspector } from '../pages/ControllerComposer/controllerSlots'
-import { objectTreeInspector, pageGridCanvas, widgetsPalette } from '../pages/PageComposer/pageSlots'
+import { architectureGraphCanvas, kindsPalette, nodeInspector } from '../pages/BlueprintBuilder/blueprintSlots'
+import { openapiPalette, restdefGraphCanvas, restdefMappingInspector } from '../pages/ControllerBuilder/controllerSlots'
+import { objectTreeInspector, pageGridCanvas, widgetsPalette } from '../pages/PageBuilder/pageSlots'
 
 import type { SlotPlugin } from './host/hostTypes'
 import { checkNames, pendingPluginNames, pluginNames, resolveCheck, resolvePlugin, type PluginSlot } from './pluginRegistry'

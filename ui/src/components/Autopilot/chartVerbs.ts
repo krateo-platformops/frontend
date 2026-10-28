@@ -28,7 +28,7 @@
  */
 import { findBuilderOf } from '../../builders/builderRegistry'
 import { draftKindOf } from '../../builders/draftKinds'
-import { planEdge, regenerateGates, type EdgeOp } from '../../pages/BlueprintComposer/planEdge'
+import { planEdge, regenerateGates, type EdgeOp } from '../../pages/BlueprintBuilder/planEdge'
 
 import type { PortalActionProposal } from './actionBridge'
 import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from './blueprintDraft'

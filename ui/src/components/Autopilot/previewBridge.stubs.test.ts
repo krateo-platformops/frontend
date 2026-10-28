@@ -4,7 +4,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ARCHITECTURE_TEMPLATE_PATH, wrapAsConfigMapTemplate } from '../../pages/BlueprintComposer/architecture'
+import { ARCHITECTURE_TEMPLATE_PATH, wrapAsConfigMapTemplate } from '../../pages/BlueprintBuilder/architecture'
 
 import { buildBlueprintRenderExtras, callBlueprintRenderRA } from './previewBridge'
 

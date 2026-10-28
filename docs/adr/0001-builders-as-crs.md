@@ -15,7 +15,7 @@ timestamp: 2026-09-30T00:00:00Z
 ## Context
 
 Everything a user *views* in the portal is declarative: widget CRs and RESTActions. The
-builders that *author* that content are not. `PageComposer` and `BlueprintComposer` are
+builders that *author* that content are not. `PageBuilder` and `BlueprintBuilder` are
 ~26k lines of hardcoded React and Autopilot logic, more than all 50 widget kinds together
 (#404). A third builder, the Controller Builder, written the same way would add another
 ~8–10k lines.

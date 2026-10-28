@@ -9,7 +9,7 @@
  * repeated verbatim or built upon as though it had landed.
  *
  * These pin the channel itself. That the COMPOSER answers on every path is pinned next door, in
- * PageComposer.agent.test.tsx.
+ * PageBuilder.agent.test.tsx.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 

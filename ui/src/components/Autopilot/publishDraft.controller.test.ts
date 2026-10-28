@@ -20,8 +20,8 @@ vi.mock('./builderClaimPublish', () => ({
   buildClaimPublish: vi.fn(() => Promise.resolve({ branch: 'builder/x', compiled: { denial: null, ops: [] }, deepLink: null })),
 }))
 
-import { oasConfigMapPath, planPlaceGroup, planSetVerb, restDefinitionPath, type ControllerPlan } from '../../pages/ControllerComposer/controllerChart'
-import { startController } from '../../pages/ControllerComposer/controllerStart'
+import { oasConfigMapPath, planPlaceGroup, planSetVerb, restDefinitionPath, type ControllerPlan } from '../../pages/ControllerBuilder/controllerChart'
+import { startController } from '../../pages/ControllerBuilder/controllerStart'
 
 import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { buildClaimPublish } from './builderClaimPublish'
@@ -29,7 +29,7 @@ import type { BuilderTargets } from './builderTargets'
 import { NOTHING_HELD_CONTROLLER, publishDraft, REGISTRATION_PATH, type PublishDraftDeps } from './publishDraft'
 import { publishedLocks } from './publishedLocks'
 
-const PETSTORE = readFileSync(join(__dirname, '..', '..', 'pages', 'ControllerComposer', '__fixtures__', 'petstore-v3.openapi.json'), 'utf8')
+const PETSTORE = readFileSync(join(__dirname, '..', '..', 'pages', 'ControllerBuilder', '__fixtures__', 'petstore-v3.openapi.json'), 'utf8')
 const SCAFFOLD = { owner: 'krateo-blueprints', repo: 'builder-scaffold' }
 const NONE = { owner: '', repo: '' }
 

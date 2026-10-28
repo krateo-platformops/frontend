@@ -16,7 +16,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { App as AntdApp } from 'antd'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { installAntdShims } from '../../pages/PageComposer/composerTestHarness'
+import { installAntdShims } from '../../pages/PageBuilder/builderTestHarness'
 
 import { legacyPageSet, PREVIEW_LABELS, serveLegacyPageSet } from './__fixtures__/legacyPageSet'
 import type { DraftKind } from './blueprintDraftStore'

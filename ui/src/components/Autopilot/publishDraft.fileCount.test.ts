@@ -15,7 +15,7 @@ vi.mock('./builderClaimPublish', () => ({
   buildClaimPublish: vi.fn(() => Promise.resolve({ branch: 'builder/big-chart', compiled: { denial: null, ops: [] }, deepLink: null })),
 }))
 
-import { wrapAsConfigMapTemplate } from '../../pages/BlueprintComposer/architecture'
+import { wrapAsConfigMapTemplate } from '../../pages/BlueprintBuilder/architecture'
 
 import { MAX_APPLY_SET_OPS } from './applyResourceSet'
 import { createBlueprintDraftStore } from './blueprintDraftStore'

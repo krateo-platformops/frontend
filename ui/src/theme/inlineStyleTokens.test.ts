@@ -13,7 +13,7 @@
  *     meaningful icon. Fine in dark (8.97:1), so the defect existed in one theme only.
  *   - `Markdown.tsx` — a 12% grey that renders the same fill in both modes: theme-neutral by
  *     accident rather than by design.
- *   - `PageComposer` — colours behind `var(--krateo-canvas-*, …)` fallbacks naming tokens nothing
+ *   - `PageBuilder` — colours behind `var(--krateo-canvas-*, …)` fallbacks naming tokens nothing
  *     emits, which is a literal that reads as a token.
  *
  * WHY AN AST AND NOT A REGEX. The previous guard matched `style=\{\{(.*?)\}\}`, which stops at the

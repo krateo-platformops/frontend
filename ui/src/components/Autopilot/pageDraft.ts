@@ -23,8 +23,8 @@
 
 import { dump, load } from 'js-yaml'
 
-import { compositionKind } from '../../pages/BlueprintComposer/chartIdentity'
-import { ociChartLocation } from '../../pages/BlueprintComposer/startChart'
+import { compositionKind } from '../../pages/BlueprintBuilder/chartIdentity'
+import { ociChartLocation } from '../../pages/BlueprintBuilder/startChart'
 
 import type { BlueprintDraftHeld } from './blueprintDraftStore'
 

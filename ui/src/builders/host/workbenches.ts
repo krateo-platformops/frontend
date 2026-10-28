@@ -4,9 +4,9 @@
  * resolves, and a draft kind with none is a sentence, never a blank composer.
  */
 import type { DraftKind } from '../../components/Autopilot/blueprintDraftStore'
-import { useBlueprintWorkbench } from '../../pages/BlueprintComposer/useBlueprintWorkbench'
-import { useControllerWorkbench } from '../../pages/ControllerComposer/useControllerWorkbench'
-import { usePageWorkbench } from '../../pages/PageComposer/usePageWorkbench'
+import { useBlueprintWorkbench } from '../../pages/BlueprintBuilder/useBlueprintWorkbench'
+import { useControllerWorkbench } from '../../pages/ControllerBuilder/useControllerWorkbench'
+import { usePageWorkbench } from '../../pages/PageBuilder/usePageWorkbench'
 
 import type { WorkbenchPlugin } from './hostTypes'
 

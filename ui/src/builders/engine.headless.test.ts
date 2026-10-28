@@ -33,7 +33,7 @@ import { lintHeldDraft } from '../components/Autopilot/proposedChart'
 import { heldDraftIdentity } from '../components/Autopilot/publishCompile'
 import { publishDraft, publisherOfVerb, REGISTRATION_PATH, type PublishDraftDeps } from '../components/Autopilot/publishDraft'
 import { draftRecordDisplayName } from '../components/Autopilot/useDraftAutosave'
-import { startChart } from '../pages/BlueprintComposer/startChart'
+import { startChart } from '../pages/BlueprintBuilder/startChart'
 
 import { builderRegistry, swapBuildersForTest } from './builderRegistry'
 import { parseBuilder, type Builder } from './builderSpec'
