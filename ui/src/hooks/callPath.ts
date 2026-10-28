@@ -13,13 +13,26 @@
  *     resourcesrefs resolver encodes the widget-action paths the portal already fires:
  *     `gvr.GroupVersion().String()`.
  *   - `resource` — the resource PLURAL.
- *   - `namespace` AND `name` — util.ParseNamespacedName requires BOTH non-empty for
- *     EVERY verb, including a collection POST. `buildURIPath` then joins `name` into the
- *     apiserver URI only for GET/PUT/PATCH/DELETE — for POST the name is validated but
- *     IGNORED (the create hits the collection). The widget write path satisfies this by
- *     appending the payload's metadata.name (updateNameNamespace); a caller with no
- *     natural object name (create-with-generateName) gets the COLLECTION_POST_NAME
- *     placeholder below.
+ *   - `name` — required non-empty for EVERY verb, including a collection POST.
+ *     `buildURIPath` joins it into the apiserver URI only for GET/PUT/PATCH/DELETE — for
+ *     POST the name is validated but IGNORED (the create hits the collection). The widget
+ *     write path satisfies this by appending the payload's metadata.name
+ *     (updateNameNamespace); a caller with no natural object name
+ *     (create-with-generateName) gets the COLLECTION_POST_NAME placeholder below.
+ *   - `namespace` — required non-empty for a NAMESPACED resource, and OMITTED ENTIRELY
+ *     for a cluster-scoped one. Absence is the signal, which is why this builder omits
+ *     the param instead of sending an empty value (#528).
+ *
+ *     THIS CONTRACT CHANGED, and the old wording here is what caused #528. It used to say
+ *     util.ParseNamespacedName requires BOTH non-empty for every verb. That function still
+ *     does — but since snowplow#156 `/call` deliberately does NOT use it. From
+ *     internal/handlers/call.go: "util.ParseNamespacedName here: it hard-rejects an empty
+ *     `namespace` […] the cluster-scoped write we now want to serve", so it reads
+ *     name/namespace directly — namespace PRESENT takes the namespaced path byte-identically,
+ *     namespace ABSENT takes the cluster-scoped path on a POSITIVE scope-mapper answer and
+ *     FAILS CLOSED otherwise. Its own API doc: "omit for cluster-scoped, e.g.
+ *     ClusterRole/Node — issue #156". Verified against snowplow main while fixing #528;
+ *     do not re-derive this from nsn.go, which is no longer the /call contract.
  */
 
 /** The apiserver target of a `/call` write. Core group is the empty string. */
@@ -27,7 +40,9 @@ export interface CallWriteTarget {
   group: string
   version: string
   resource: string
-  namespace: string
+  /** Target namespace. OMIT for a cluster-scoped resource (ClusterPolicy, ClusterRole,
+   * Node): snowplow reads an absent `namespace` as "cluster-scoped" (#156). */
+  namespace?: string
   /** Object name. Omit ONLY for a collection POST (create): the builder substitutes the
    * required-but-ignored COLLECTION_POST_NAME placeholder. */
   name?: string
@@ -52,7 +67,10 @@ export const buildCallWritePath = ({ group, name, namespace, resource, version }
   params.set('apiVersion', group ? `${group}/${version}` : version)
   params.set('resource', resource)
   params.set('name', name || COLLECTION_POST_NAME)
-  params.set('namespace', namespace)
+  // OMITTED, not empty, when there is no namespace: that is how snowplow tells a
+  // cluster-scoped write from a namespaced one (#156). `namespace=` present-but-empty is
+  // not the same request, and `namespace=undefined` is a namespace literally named that.
+  if (namespace) { params.set('namespace', namespace) }
 
   return `/call?${params.toString()}`
 }
@@ -61,8 +79,9 @@ export const buildCallWritePath = ({ group, name, namespace, resource, version }
  * The `name`/`namespace` a widget write must put on its `/call` path, given the payload
  * it is about to send.
  *
- * snowplow's `validateRequest` requires BOTH `name` and `namespace` to be non-empty on
- * EVERY verb, a collection POST included (see the contract at the top of this module).
+ * snowplow requires `name` non-empty on EVERY verb, a collection POST included, and
+ * `namespace` non-empty only for a NAMESPACED resource (see the contract at the top of
+ * this module — an absent namespace is how a cluster-scoped write is expressed).
  * The widget write paths took the object's name from `payload.metadata.name` and skipped
  * the rewrite entirely when it was absent:
  *

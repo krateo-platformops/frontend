@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { countNoun, randomId } from './utils'
+import { countNoun, getResourceEndpoint, randomId } from './utils'
 
 describe('countNoun', () => {
   it('keeps the singular for exactly one', () => {
@@ -50,5 +50,27 @@ describe('randomId', () => {
   it('produces distinct ids across many calls', () => {
     const ids = new Set(Array.from({ length: 200 }, () => randomId()))
     expect(ids.size).toBe(200)
+  })
+})
+
+/**
+ * #528. getResourceEndpoint builds a `/call` path too, and had the same unconditional
+ * interpolation: an absent namespace became the literal `namespace=undefined`. snowplow
+ * reads an ABSENT namespace as cluster-scoped (#156), so the param is omitted.
+ */
+describe('getResourceEndpoint — a cluster-scoped target omits namespace (#528)', () => {
+  it('omits the param when there is no namespace', () => {
+    expect(getResourceEndpoint({ apiVersion: 'kyverno.io/v1', name: 'require-tags', resource: 'clusterpolicies' }))
+      .toBe('/call?resource=clusterpolicies&apiVersion=kyverno.io/v1&name=require-tags')
+  })
+
+  it('omits it for an empty string as well', () => {
+    expect(getResourceEndpoint({ apiVersion: 'v1', name: 'node-1', namespace: '', resource: 'nodes' }))
+      .not.toContain('namespace')
+  })
+
+  it('still sends it for a namespaced target', () => {
+    expect(getResourceEndpoint({ apiVersion: 'v1', name: 'cm', namespace: 'krateo-system', resource: 'configmaps' }))
+      .toBe('/call?resource=configmaps&apiVersion=v1&name=cm&namespace=krateo-system')
   })
 })

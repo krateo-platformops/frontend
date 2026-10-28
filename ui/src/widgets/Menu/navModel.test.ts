@@ -179,10 +179,17 @@ describe('resolveContentEndpoint — a page that lives in another namespace', ()
 
   it('keeps an empty namespace rather than silently defaulting it', () => {
     // `??` not `||`: an empty string is a misconfigured item, and letting it 404 is more honest
-    // than quietly resolving somewhere that happens to work.
+    // than quietly resolving somewhere that happens to work. THAT is the guarantee here.
     const endpoint = resolveContentEndpoint({ namespace: '', page: 'x', path: '/x' }, { items: [] }, 'krateo-system')
 
-    // `namespace` is the last query param, so the empty value shows as a trailing `namespace=`.
-    expect(endpoint.endsWith('namespace=')).toBe(true)
+    // The default must not be substituted — that is what "rather than silently defaulting it" means.
+    expect(endpoint).not.toContain('krateo-system')
+    // #528: an absent namespace is now OMITTED rather than sent as an empty `namespace=`.
+    // This asserted the trailing `namespace=` before, which was pinning a URL detail snowplow
+    // cannot distinguish: call.go reads `req.URL.Query().Get("namespace")` and branches on
+    // `!= ""`, so a present-but-empty param and an omitted one are the SAME request to it.
+    // Either way `flexes` is a namespaced GVR, the scope mapper says namespaced, and /call
+    // fails closed with a 400 — so this item still 404s/400s as the comment above intends.
+    expect(endpoint).not.toContain('namespace=')
   })
 })

@@ -32,9 +32,13 @@ export const getResourceEndpoint = ({
   resource: string
   apiVersion: string
   name: string
-  namespace: string
+  /** Omit for a cluster-scoped resource: snowplow reads an absent `namespace` as
+   * cluster-scoped (#156). An empty or undefined one must not be sent as a value. */
+  namespace?: string
 }): string => {
-  return `/call?resource=${resource}&apiVersion=${apiVersion}&name=${name}&namespace=${namespace}`
+  const ns = namespace ? `&namespace=${namespace}` : ''
+
+  return `/call?resource=${resource}&apiVersion=${apiVersion}&name=${name}${ns}`
 }
 
 export const formatISODate = (value: string, showTime: boolean = false) => {
