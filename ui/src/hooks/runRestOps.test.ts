@@ -80,7 +80,7 @@ const opsAction = (over: Partial<RestAction> = {}): RestAction => ({
   resourceRefId: 'create-role',
   type: 'rest',
   ...over,
-} as RestAction)
+})
 
 // resolveJq stub implementing just the two expressions the action uses.
 const opsResolveJq = () => vi.fn((expr: string, vals: Record<string, unknown>): Promise<string> => {
@@ -200,7 +200,7 @@ describe('dispatchAction — W3-2 ops (one submit → N DISTINCT writes via the 
     const ctx = makeCtx({ confirm, resolveJq: opsResolveJq() })
 
     await dispatchAction(
-      opsAction({ fanOutPath: 'subjects' } as Partial<RestAction>),
+      opsAction({ fanOutPath: 'subjects' }),
       { customPayload: { namespace: 'team-a', subject: 'alice', subjects: ['alice'] }, resourcesRefs: rbacRefs() },
       ctx
     )

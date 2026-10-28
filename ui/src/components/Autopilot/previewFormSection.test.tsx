@@ -31,7 +31,7 @@ beforeAll(() => {
     disconnect = noop
     observe = noop
     unobserve = noop
-  } as unknown as typeof ResizeObserver
+  }
 })
 
 const SCHEMA_TEXT = JSON.stringify({

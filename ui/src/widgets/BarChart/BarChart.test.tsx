@@ -34,7 +34,7 @@ function renderBar(data: Partial<BarChartWidgetData>) {
       resourcesRefs={{ items: [] }}
       uid='b'
       widget={{} as never}
-      widgetData={{ data: [{ x: 'a', y: 1 }], xField: 'x', yField: 'y', ...data } as unknown as BarChartWidgetData}
+      widgetData={{ data: [{ x: 'a', y: 1 }], xField: 'x', yField: 'y', ...data }}
     />,
   )
   return columnProps[columnProps.length - 1]
@@ -55,7 +55,7 @@ describe('BarChart widget — axis/legend legible on dark theme (audit §6)', ()
   })
 
   it('honours legend:false (no legend object)', () => {
-    const props = renderBar({ legend: false } as unknown as Partial<BarChartWidgetData>)
+    const props = renderBar({ legend: false })
     expect(props.legend).toBe(false)
   })
 })

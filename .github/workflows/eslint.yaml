@@ -1,0 +1,47 @@
+# Gates `eslint .` on the ui workspace.
+#
+# This could not be enabled before, for the same reason typecheck.yaml could not: main carried 59
+# eslint errors, so the job would have been red from its first run and switched off within a day.
+# They are fixed — main is at zero errors AND zero warnings — and this keeps it there.
+#
+# NO BASELINE AND NO EXCEPTIONS, deliberately. A lint gate that ships with an allow-list of
+# existing violations only gates the files nobody has touched yet, and the list is what every later
+# violation gets appended to. The five findings that needed real work (a `[object Object]`
+# stringification and four files over the 500-line limit) were fixed or split rather than exempted,
+# so there is nothing here to grandfather.
+#
+# WHY --max-warnings 0, when the config sets some rules to `warn`. The severities stay as they are:
+# a warning is advisory in an editor and during local work, which is what `warn` is for. But a
+# warning that reaches main never gets fixed, and the count only goes up — the repo is at zero
+# today, so holding it there costs nothing and is the only moment this is free. It also makes
+# `reportUnusedDisableDirectives` meaningful: a stale `eslint-disable` is reported as a warning,
+# and without this flag the gate would wave through disable comments for rules that no longer fire.
+#
+# SCOPE: ui only. It is the one workspace with an eslint config (builder-gate has no lint script);
+# a second config added later must be gated here too.
+name: eslint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  eslint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install ui deps
+        working-directory: ui
+        run: npm ci --no-audit --no-fund
+      # `npm run lint` is `eslint .`; --max-warnings 0 is passed here rather than baked into the
+      # script so local runs keep reporting warnings as warnings (see the header).
+      - name: eslint
+        working-directory: ui
+        run: npm run lint -- --max-warnings 0

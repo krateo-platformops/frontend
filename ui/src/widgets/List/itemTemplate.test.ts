@@ -39,6 +39,17 @@ describe('itemTemplate — interpolate', () => {
   it('interpolates composite templates', () => {
     expect(interpolate('name: {a} | deep: {nested.c}', item)).toBe('name: x | deep: y')
   })
+
+  it('renders non-string values without ever falling back to [object Object]', () => {
+    const values = { arr: [1, 'two'], count: 3, obj: { k: 'v' }, off: false, on: true, zero: 0 }
+    expect(interpolate('{count}', values)).toBe('3')
+    expect(interpolate('{on}', values)).toBe('true')
+    // false and 0 are non-empty values, not misses, so they render rather than falling through
+    expect(interpolate('{off|count}', values)).toBe('false')
+    expect(interpolate('{zero|count}', values)).toBe('0')
+    expect(interpolate('{obj}', values)).toBe('{"k":"v"}')
+    expect(interpolate('{arr}', values)).toBe('[1,"two"]')
+  })
 })
 
 describe('itemTemplate — resolveColor', () => {

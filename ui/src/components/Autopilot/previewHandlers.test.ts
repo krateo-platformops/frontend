@@ -38,7 +38,7 @@ const makeRADeps = (overrides?: Partial<VerbDeps>): VerbDeps => ({
 })
 
 const asProposal = (verb: string, extra: Record<string, unknown>): PortalActionProposal =>
-  ({ verb, ...extra } as PortalActionProposal)
+  ({ verb, ...extra })
 
 /** The payload the (mocked) drawer was opened with on the first call. */
 const openedPayload = (): AutopilotPreviewPayload => openPreviewMock.mock.calls[0][0]

@@ -160,7 +160,7 @@ const FiltersProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const getFilteredData = (data: FilterableRow[], prefix: string): FilterableRow[] => {
-    const filters: FilterType[] = (filterMap[prefix] as FilterType[] | undefined) ?? []
+    const filters: FilterType[] = (filterMap[prefix]) ?? []
 
     if (filters.length === 0) { return data }
 
@@ -188,7 +188,7 @@ const FiltersProvider = ({ children }: { children: ReactNode }) => {
       return false
     }
     const dataObj = widgetData as Record<string, unknown>
-    const filters: FilterType[] = (filterMap[prefix] as FilterType[] | undefined) ?? []
+    const filters: FilterType[] = (filterMap[prefix]) ?? []
 
     if (filters.length === 0) { return false }
 

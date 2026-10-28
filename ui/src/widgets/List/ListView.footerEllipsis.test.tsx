@@ -22,7 +22,11 @@ vi.stubGlobal('matchMedia', (query: string) => ({
 }))
 
 // antd's ellipsis measures its text with a ResizeObserver, which jsdom lacks.
-vi.stubGlobal('ResizeObserver', class { disconnect() { return undefined } observe() { return undefined } unobserve() { return undefined } })
+vi.stubGlobal('ResizeObserver', class {
+  disconnect() { return undefined }
+  observe() { return undefined }
+  unobserve() { return undefined }
+})
 
 vi.mock('../../hooks/useHandleActions', () => ({
   useHandleAction: () => ({ handleAction: vi.fn(), isActionLoading: false }),

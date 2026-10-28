@@ -86,7 +86,12 @@ export default defineConfig({
     ...(autopilotProxyTarget
       ? {
         proxy: {
-          // Order matters: the sessions trace (Evidence panel) must not be rewritten to the A2A path.
+          // ORDER IS SEMANTIC, not style: Vite matches proxy keys in declaration order, so the
+          // specific sessions trace (the Evidence panel) has to be declared BEFORE the `/autopilot`
+          // catch-all or it is rewritten to the A2A agent path and the panel reads an agent turn
+          // instead of its trace. sort-keys would put the catch-all first, which is why it is off
+          // for this object and only this object.
+          /* eslint-disable sort-keys/sort-keys-fix -- see above: declaration order routes requests */
           '/autopilot/sessions': {
             changeOrigin: true,
             rewrite: (path: string) => path.replace(/^\/autopilot\/sessions/, '/api/sessions'),
@@ -97,6 +102,7 @@ export default defineConfig({
             rewrite: (path: string) => path.replace(/^\/autopilot/, '/api/a2a/krateo-system/autopilot'),
             target: autopilotProxyTarget,
           },
+          /* eslint-enable sort-keys/sort-keys-fix */
         },
       }
       : {}),

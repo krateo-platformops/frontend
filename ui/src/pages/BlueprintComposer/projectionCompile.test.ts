@@ -315,7 +315,7 @@ describe('the regenerator stamps the generator that actually repaired the object
     const { ra } = compiled(archOf(edgeChart()))
     const out = regenerateProjection(ra, { generatedBy: 'frontend-1.8.2' })
     if (!out.ok) { throw new Error(out.reason) }
-    const annotations = (out.restaction.metadata as { annotations: Record<string, string> }).annotations
+    const { annotations } = (out.restaction.metadata as { annotations: Record<string, string> })
     expect(annotations[GENERATED_BY_ANNOTATION]).toBe('frontend-1.8.2')
     expect(annotations[GENERATED_BY_ANNOTATION]).not.toContain('unknown')
     // The override is provenance only — it must not touch what the filter computes.
