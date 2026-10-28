@@ -189,8 +189,8 @@ describe('frontend#180 — the preview must not cover a widened rail', () => {
   })
 })
 
-describe('AutopilotPreviewDrawer — which previews a mounted page composer takes', () => {
-  it('defers a PAGE preview to the composer, and opens for everything the composer cannot show', async () => {
+describe('AutopilotPreviewDrawer — which previews a mounted page builder takes', () => {
+  it('defers a PAGE preview to the builder, and opens for everything the builder cannot show', async () => {
     const release = claimPreviewSurface('page')
     const view = render(<AutopilotPreviewDrawer />)
     act(() => { openAutopilotPreview({ summary: ['flex.page-x'], title: 'Page preview — x' }) })
@@ -203,7 +203,7 @@ describe('AutopilotPreviewDrawer — which previews a mounted page composer take
     release()
   })
 
-  it('a BLUEPRINT composer takes only charts — a page preview still opens the drawer', async () => {
+  it('a BLUEPRINT builder takes only charts — a page preview still opens the drawer', async () => {
     // A kind-blind claim made a mounted blueprint composer swallow every page preview (it cannot show
     // one), and let its own chart previews open the drawer over it.
     const release = claimPreviewSurface('blueprint')
@@ -230,7 +230,7 @@ describe('AutopilotPreviewDrawer — which previews a mounted page composer take
     releaseBlueprint()
   })
 
-  it('HANDS a live page render to the claiming composer — its sandbox teardown is not fired', async () => {
+  it('HANDS a live page render to the claiming builder — its sandbox teardown is not fired', async () => {
     // The drawer's close of a live page preview DELETEs the sandbox draft CRs. Firing it on a claim
     // meant opening the Portal Builder tore down the render the person was looking at, while the
     // composer (which adopts only NEW previews) had none to show. The composer registers its preview
@@ -254,7 +254,7 @@ describe('AutopilotPreviewDrawer — which previews a mounted page composer take
     release()
   })
 
-  it('opens a page preview as before when no composer holds the claim', async () => {
+  it('opens a page preview as before when no builder holds the claim', async () => {
     const view = render(<AutopilotPreviewDrawer />)
     act(() => { openAutopilotPreview({ summary: ['flex.page-x'], title: 'Page preview — x' }) })
     await waitFor(() => expect(view.getByText('Page preview — x')).toBeTruthy())

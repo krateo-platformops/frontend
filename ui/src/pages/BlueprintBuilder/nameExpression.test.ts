@@ -34,7 +34,7 @@ describe('nameExpressionOf — the template\'s own metadata.name', () => {
     expect(nameExpressionOf(`${template}{{- end }}\n`, at)).toEqual({ expr: 'printf "%s-%d-%s" $.Release.Name $i $f.name', ok: true })
   })
 
-  it('reads through a gate block the composer wrote', () => {
+  it('reads through a gate block the builder wrote', () => {
     const gated = doc('{{ printf "%s-x" .Release.Name }}', ['{{- /* krateo:gate begin — generated */}}', '{{- $gate := true -}}', '{{- if $gate }}'])
     expect(nameExpressionOf(gated, at)).toEqual({ expr: 'printf "%s-x" .Release.Name', ok: true })
   })
@@ -47,7 +47,7 @@ describe('nameExpressionOf — the template\'s own metadata.name', () => {
     const template = doc('{{ printf "%s-%s" $t.prefix .Values.name }}', ['{{- $t := .Values.target -}}'])
     expect(nameExpressionOf(template, { id: 'repo', path: 'templates/repo.yaml' })).toEqual({
       ok: false,
-      reason: 'The composer cannot tell what repo is named: templates/repo.yaml sets metadata.name with {{ printf "%s-%s" $t.prefix .Values.name }}. Name it with one expression over $.Release.Name or $.Values, and try again.',
+      reason: 'The builder cannot tell what repo is named: templates/repo.yaml sets metadata.name with {{ printf "%s-%s" $t.prefix .Values.name }}. Name it with one expression over $.Release.Name or $.Values, and try again.',
     })
     expect(nameExpressionOf('apiVersion: v1\nkind: ConfigMap\n', at).ok).toBe(false)
   })

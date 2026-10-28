@@ -137,7 +137,7 @@ describe('the controller verbs are declared, deny-by-default', () => {
 })
 
 describe('petstore, end to end — start → place pet → settle findby → preview → publish', () => {
-  it('reproduces what a person does in the composer, and publishes the held, previewed draft', async () => {
+  it('reproduces what a person does in the builder, and publishes the held, previewed draft', async () => {
     const { gate, store } = mount()
 
     const started = await run(START)

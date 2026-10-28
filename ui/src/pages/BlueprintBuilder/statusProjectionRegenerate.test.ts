@@ -163,7 +163,7 @@ describe('it will not stamp a version it cannot name (#485)', () => {
 })
 
 describe('what it decides to touch', () => {
-  it('ignores RESTActions the composer did not emit', () => {
+  it('ignores RESTActions the builder did not emit', () => {
     const foreign = { ...stale, metadata: { ...stale.metadata, annotations: {}, name: 'settings-krateo-status' } }
     const kube = fakeKubectl(list(foreign))
     const spy = quiet()

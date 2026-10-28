@@ -78,5 +78,5 @@ export const nameExpressionOf = (template: string, { id, path }: { id: string; p
     return { expr, ok: true }
   }
   const sets = line ? `sets metadata.name with ${line.value}` : 'sets no metadata.name'
-  return { ok: false, reason: `The composer cannot tell what ${id} is named: ${path} ${sets}. Name it with one expression over $.Release.Name or $.Values, and try again.` }
+  return { ok: false, reason: `The builder cannot tell what ${id} is named: ${path} ${sets}. Name it with one expression over $.Release.Name or $.Values, and try again.` }
 }

@@ -100,7 +100,7 @@ describe.each(FIXTURES)('the %s Builder', (name) => {
     expect(ok).toBe(true)
   })
 
-  it('names only plugins and checks this frontend ships (or, for a composer not built yet, lists as pending)', () => {
+  it('names only plugins and checks this frontend ships (or, for a builder not built yet, lists as pending)', () => {
     const { spec } = parsed(name)
     if (!COMPOSER_PENDING.has(name)) {
       expect(builderRefusals(spec)).toEqual([])
@@ -136,7 +136,7 @@ describe.each(FIXTURES)('the %s Builder', (name) => {
     expect(read).toContain(spec.publish.templateKey)
   })
 
-  it('is served at its route, one per Builder — a composer not built yet: not yet', () => {
+  it('is served at its route, one per Builder — a builder not built yet: not yet', () => {
     const shell = readFileSync(join(__dirname, '..', 'context', 'RoutesContext.tsx'), 'utf8')
     expect(shell).toContain('builderRoutes(STATIC_PATHS)')
     expect(shell).toContain('replaceBuilderRoutes(children, fresh)')

@@ -90,7 +90,7 @@ describe('the plugin registry', () => {
 })
 
 describe('the check names', () => {
-  it('knows the lints and gates the composers run today', () => {
+  it('knows the lints and gates the builders run today', () => {
     expect(checkNames('lint')).toEqual(['chart-lint', 'gate-drift', 'restdef-validate'])
     expect(checkNames('gate')).toEqual(['preview-before-publish', 'publish-name'])
   })

@@ -125,7 +125,7 @@ const heldChart = (verb: string): HeldChart | AutopilotActionChip => {
 }
 
 const written = (verb: string, outcome: ReturnType<typeof emitFilesBatch>, label: string): AutopilotActionChip => {
-  if (!outcome) { return refusal(verb, 'the composer is not reachable in this portal') }
+  if (!outcome) { return refusal(verb, 'the builder is not reachable in this portal') }
   if (!outcome.ok) { return refusal(verb, outcome.error) }
   const done = chip(verb, `${label} — Preview needed before it can be published`)
   WROTE.add(done)

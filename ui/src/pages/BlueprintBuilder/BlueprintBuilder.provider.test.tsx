@@ -82,7 +82,7 @@ const Page = ({ composer, drawer = false }: { composer: boolean; drawer?: boolea
       <ThemeModeProvider>
         <Provider />
         {drawer ? <AutopilotPreviewDrawer /> : null}
-        {composer ? <div data-testid='composer'><BlueprintBuilder /></div> : null}
+        {composer ? <div data-testid='builder'><BlueprintBuilder /></div> : null}
       </ThemeModeProvider>
     </MemoryRouter>
   </AntdApp>
@@ -117,7 +117,7 @@ describe('BlueprintBuilder + the provider — an edit the provider refuses', () 
     expect(publish.disabled).toBe(false)
 
     // Over the 512 KiB tree cap: the store refuses it.
-    const composer = screen.getByTestId('composer')
+    const composer = screen.getByTestId('builder')
     editFile(fileBlock(composer, 'values.yaml'), 'values.yaml', `# ${'x'.repeat(600 * 1024)}\n{}\n`)
 
     expect(held?.get()?.files['values.yaml']).toBe(files['values.yaml'])
@@ -132,8 +132,8 @@ describe('BlueprintBuilder + the provider — an edit the provider refuses', () 
   })
 })
 
-describe('BlueprintBuilder + the provider — a drawer already open when the composer claims the surface', () => {
-  it('closes: one surface per draft, so a stale Files tab cannot write over the composer', async () => {
+describe('BlueprintBuilder + the provider — a drawer already open when the builder claims the surface', () => {
+  it('closes: one surface per draft, so a stale Files tab cannot write over the builder', async () => {
     const view = render(<Page composer={false} drawer />)
     const files = seededChart()
     await startAndRender(files)
@@ -147,11 +147,11 @@ describe('BlueprintBuilder + the provider — a drawer already open when the com
 
     // The person navigates to the composer.
     view.rerender(<Page composer drawer />)
-    expect(screen.getByTestId('composer').textContent).toContain('builder-publish')
+    expect(screen.getByTestId('builder').textContent).toContain('builder-publish')
     expect(document.querySelector('.ant-drawer-open')).toBeNull()
   })
 
-  it('leaves a drawer showing something the composer does not own — an inspection — open', () => {
+  it('leaves a drawer showing something the builder does not own — an inspection — open', () => {
     const view = render(<Page composer={false} drawer />)
     act(() => {
       window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, { detail: { builder: 'inspect', summary: ['repos'], title: 'Describe — repos' } }))
@@ -185,7 +185,7 @@ describe('BlueprintBuilder + the provider — a resource added the way the canva
     expect(vi.mocked(callBlueprintRenderRA)).toHaveBeenCalledTimes(1)
 
     act(() => { emitFileAdd({ content: SETTINGS, path: 'templates/settings.yaml' }) })
-    const composer = screen.getByTestId('composer')
+    const composer = screen.getByTestId('builder')
     editFile(fileBlock(composer, ARCHITECTURE_TEMPLATE_PATH), ARCHITECTURE_TEMPLATE_PATH, withSettingsNode(files[ARCHITECTURE_TEMPLATE_PATH]))
 
     const heldFiles = held?.get()?.files ?? {}

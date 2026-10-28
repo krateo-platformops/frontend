@@ -567,7 +567,7 @@ export const wrapAsConfigMapTemplate = (descriptor: string, chart: string): stri
   const graph = graphBlockFor(descriptor, chart)
   return [
     '{{- /* Rendered per composition so the detail page can read the chart architecture through',
-    "       snowplow /call under the caller's own RBAC. Edit data.architecture; the composer owns the rest. */}}",
+    "       snowplow /call under the caller's own RBAC. Edit data.architecture; the builder owns the rest. */}}",
     '{{- $g := .Values.global | default dict }}',
     'apiVersion: v1',
     'kind: ConfigMap',

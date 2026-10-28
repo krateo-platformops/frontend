@@ -89,7 +89,7 @@ const propose = async (request: ComposeOp): Promise<ComposeResult | null> => {
     await Promise.resolve()
   })
   stop()
-  expect(answers.length, 'the composer answered more than once').toBeLessThan(2)
+  expect(answers.length, 'the builder answered more than once').toBeLessThan(2)
   if (answers.length === 1) { expect(answers[0].id).toBe(id) }
   return answers[0] ?? null
 }
@@ -99,7 +99,7 @@ const open = () => {
   emit({ files: nested(), title: 'x' })
 }
 
-describe('the agent restructures the draft through the composer', () => {
+describe('the agent restructures the draft through the builder', () => {
   it('MOVES a widget — the same two-file rewrite a drag produces', async () => {
     const bus = capture()
     open()

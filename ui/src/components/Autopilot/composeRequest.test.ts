@@ -26,7 +26,7 @@ const answerWith = (answer: (id: string) => Parameters<typeof emitComposeResult>
   onComposeRequest((request) => { emitComposeResult(answer(request.id)) })
 
 describe('requestCompose', () => {
-  it('resolves with what the composer applied, echoing the files it rewrote', async () => {
+  it('resolves with what the builder applied, echoing the files it rewrote', async () => {
     const stop = answerWith((id) => ({
       applied: true,
       id,
@@ -38,7 +38,7 @@ describe('requestCompose', () => {
     stop()
   })
 
-  it("carries the composer's OWN reason back, not a sentence the caller invented", async () => {
+  it("carries the builder's OWN reason back, not a sentence the caller invented", async () => {
     const stop = answerWith((id) => ({
       applied: false,
       id,
@@ -50,7 +50,7 @@ describe('requestCompose', () => {
     stop()
   })
 
-  it('refuses when NO composer is open, instead of hanging or claiming success', async () => {
+  it('refuses when NO builder is open, instead of hanging or claiming success', async () => {
     vi.useFakeTimers()
     const pending = requestCompose({ op: 'move', target: 'page-x', widget: 'card-b' })
     await vi.advanceTimersByTimeAsync(4000)

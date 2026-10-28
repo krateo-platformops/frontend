@@ -114,7 +114,7 @@ describe('renderGatePreamble — the edge compiled to the lookup the chart write
     expect(renderGatePreamble(node('app', unknown), unknown)).toEqual({
       code: 'needs-readyWhen',
       ok: false,
-      reason: 'ready: true onto "sa" has nothing to wait for — ServiceAccount has no readiness the composer knows; declare its readyWhen, or wait only for it to exist',
+      reason: 'ready: true onto "sa" has nothing to wait for — ServiceAccount has no readiness the builder knows; declare its readyWhen, or wait only for it to exist',
     })
   })
 

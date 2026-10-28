@@ -85,7 +85,7 @@ const resolveParts = (builder: Builder): { ok: true; parts: Parts } | { ok: fals
   const workbench = resolveWorkbench(spec.draftKind)
   if (!workbench.ok) { problems.push(workbench.refusal) }
   const draftKind = findDraftKindPlugin(spec.draftKind)
-  if (!draftKind) { problems.push(`This frontend has no words for the draft kind "${spec.draftKind}", so the composer cannot name what it holds.`) }
+  if (!draftKind) { problems.push(`This frontend has no words for the draft kind "${spec.draftKind}", so the builder cannot name what it holds.`) }
   const palette = resolvePlugin('palette', spec.palette.plugin)
   const canvas = resolvePlugin('canvas', spec.canvas.plugin)
   const inspector = resolvePlugin('inspector', spec.inspector.plugin)
@@ -222,7 +222,7 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
     emitPublishRequest({ id, verb: publishVerb })
   }
 
-  const title = `${capitalized(nouns.composer)} composer`
+  const title = `${capitalized(nouns.builder)} builder`
   const { summary } = parts.workbench
   // What the files pane shows — null when nothing of this Builder's is, and the empty state is.
   const shown = mode === 'parked' ? null : workbench.shown

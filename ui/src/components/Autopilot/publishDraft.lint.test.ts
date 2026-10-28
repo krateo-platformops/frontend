@@ -41,7 +41,7 @@ describe('runDraftPublish — the verb must match what is held', () => {
     store.set(cleanChart, 'blueprint')
     const outcome = await runDraftPublish(deps(store), { verb: 'publishPage' })
     expect(outcome.compiled.ops).toBeNull()
-    expect(outcome.compiled.denial).toBe('denied — the open draft is a blueprint chart, and publishPage publishes a portal page. Publish it from the blueprint composer.')
+    expect(outcome.compiled.denial).toBe('denied — the open draft is a blueprint chart, and publishPage publishes a portal page. Publish it from the blueprint builder.')
   })
 
   it('publishBlueprint over a held PAGE is refused by name, before the lint or the destination dialog', async () => {

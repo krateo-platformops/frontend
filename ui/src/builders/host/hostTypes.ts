@@ -20,7 +20,7 @@ import type { ComponentType, ReactNode, RefObject } from 'react'
 
 import type { DraftKind } from '../../components/Autopilot/blueprintDraftStore'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
-import type { ComposerMode, DraftChangedDetail } from '../../components/Autopilot/previewDraftChanged'
+import type { BuilderMode, DraftChangedDetail } from '../../components/Autopilot/previewDraftChanged'
 import type { FileHighlight } from '../../components/Autopilot/previewSurface'
 import type { Config } from '../../context/ConfigContext'
 import type { Builder, BuilderSpec } from '../builderSpec'
@@ -37,7 +37,7 @@ export interface HostDraft {
   api: Config['api'] | undefined
   /** The last draft broadcast. */
   held: DraftChangedDetail
-  mode: ComposerMode
+  mode: BuilderMode
   /** The held files when the draft is this Builder's own; an empty record otherwise — never another kind's. */
   files: Readonly<Record<string, string>>
   /** Reveal a file in the files pane — again, when it is asked for again. */

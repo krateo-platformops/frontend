@@ -88,7 +88,7 @@ describe('chartPut', () => {
     expect(store.get()?.files[PR]).toBe(gated[PR])
   })
 
-  it('refuses a path the composer would not key, and the file the portal writes at publish', () => {
+  it('refuses a path the builder would not key, and the file the portal writes at publish', () => {
     mount(edgeChart())
     expect(run({ content: 'x', path: '../etc/passwd', verb: 'chartPut' })).toMatch(/not a chart-relative path/)
     expect(run({ content: 'x', path: './values.yaml', verb: 'chartPut' })).toMatch(/not a chart-relative path/)

@@ -29,7 +29,7 @@ export const BlueprintEmptyState = ({ onDiscard, onStart, parkedPage }: {
   if (parkedPage) {
     return (
       <WidgetEmpty
-        description='A portal page draft is open in this thread. This composer edits blueprints — finish or publish the page in the Portal Builder, or discard it to start a chart here.'
+        description='A portal page draft is open in this thread. This builder edits blueprints — finish or publish the page in the Portal Builder, or discard it to start a chart here.'
       >
         <Space wrap>
           {/* A client-side navigation: the held draft lives in this tab's memory, and a full page

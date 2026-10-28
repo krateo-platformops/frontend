@@ -77,7 +77,7 @@ const NEW_DRAFT_NAMESPACE = 'krateo-system'
  *
  * So: pointer when there is one, rectangle intersection when there is not.
  */
-const composerCollisions: CollisionDetection = (args) => {
+const builderCollisions: CollisionDetection = (args) => {
   const byPointer = pointerWithin(args)
   return byPointer.length ? byPointer : rectIntersection(args)
 }
@@ -616,7 +616,7 @@ export const usePageWorkbench = (host: HostDraft) => {
           A region that speaks only on failure teaches people to ignore it, and then silence has two
           meanings: it worked, or it did nothing. `role='status'` announces without interrupting.
         */}
-        <div aria-live='polite' className={styles.announce} data-testid='composer-announce' role='status'>
+        <div aria-live='polite' className={styles.announce} data-testid='builder-announce' role='status'>
           {announcement}
         </div>
         {/* NEW_DRAFT_NAMESPACE, not a namespace read from the draft: there IS no draft yet, which is
@@ -680,7 +680,7 @@ export const usePageWorkbench = (host: HostDraft) => {
           loud. The tree's live region already speaks in names; this is the canvas catching up.
         */
         accessibility={{ announcements: dragAnnouncements }}
-        collisionDetection={composerCollisions}
+        collisionDetection={builderCollisions}
         onDragCancel={onDragCancel}
         onDragEnd={onDragEnd}
         onDragStart={onDragStart}

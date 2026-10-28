@@ -56,7 +56,7 @@ describe('item 5 — a spec read from a URL', () => {
   })
 })
 
-describe('item 6 — what a publish locked reaches the composer, and survives a resume', () => {
+describe('item 6 — what a publish locked reaches the builder, and survives a resume', () => {
   const apply = (files: Record<string, string>, plan: ControllerPlan): Record<string, string> => {
     if (!plan.ok) { throw new Error(plan.reason) }
     return { ...files, ...(plan.add ?? {}), ...(plan.edit ?? {}) }

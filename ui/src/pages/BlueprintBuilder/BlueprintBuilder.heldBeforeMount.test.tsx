@@ -53,7 +53,7 @@ afterEach(() => {
 
 const CRD_URL = 'resource=customresourcedefinitions'
 
-type Held = { store: ReturnType<typeof createBroadcastingDraftStore>; gate: ReturnType<typeof createBlueprintGate>; showComposer: () => void }
+type Held = { store: ReturnType<typeof createBroadcastingDraftStore>; gate: ReturnType<typeof createBlueprintGate>; showBuilder: () => void }
 
 /** The provider's draft half, mounted alone; the composer only when asked. */
 const mountProviderFirst = (): Held => {
@@ -61,9 +61,9 @@ const mountProviderFirst = (): Held => {
   const Page = () => {
     const [gate] = useState(() => createBlueprintGate())
     const [store] = useState(() => createBroadcastingDraftStore(gate))
-    const [composer, setComposer] = useState(false)
+    const [composer, setBuilder] = useState(false)
     useDraftFileBuses(store, gate, heldDraftIdentity)
-    held.current = { gate, showComposer: () => setComposer(true), store }
+    held.current = { gate, showBuilder: () => setBuilder(true), store }
     return composer ? <BlueprintBuilder /> : null
   }
   render(
@@ -91,7 +91,7 @@ describe('BlueprintBuilder — a chart held before it mounted', () => {
     act(() => { provider.gate.recordPreview('orders') })
 
     // Now the composer mounts, and hears the held chart only through the replay it asks for.
-    act(() => { provider.showComposer() })
+    act(() => { provider.showBuilder() })
     const palette = () => screen.getByRole('region', { name: 'Add' })
     await waitFor(() => expect(within(palette()).getByText('72 kinds · 4 groups')).toBeTruthy())
 

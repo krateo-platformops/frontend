@@ -16,7 +16,7 @@ import {
   RESUME_NOT_CONFIGURED,
   resumeRecordNameFrom,
   savedWhen,
-  wrongComposerMessage,
+  wrongBuilderMessage,
 } from './draftResume'
 
 const body: DraftRecordBody = {
@@ -91,7 +91,7 @@ describe('readDraftRecordByName', () => {
   })
 })
 
-describe('what the composer says', () => {
+describe('what the builder says', () => {
   const now = new Date(2026, 8, 29, 15, 0)
 
   it('dates the last save relative to today', () => {
@@ -111,8 +111,8 @@ describe('what the composer says', () => {
       .toContain('It has not been previewed yet')
   })
 
-  it('a record opened in the other composer says where it belongs', () => {
-    expect(wrongComposerMessage({ kind: 'page', name: 'fleet' })).toContain('Portal Builder')
-    expect(wrongComposerMessage({ kind: 'blueprint', name: 'x' })).toContain('Blueprint Builder')
+  it('a record opened in the other builder says where it belongs', () => {
+    expect(wrongBuilderMessage({ kind: 'page', name: 'fleet' })).toContain('Portal Builder')
+    expect(wrongBuilderMessage({ kind: 'blueprint', name: 'x' })).toContain('Blueprint Builder')
   })
 })

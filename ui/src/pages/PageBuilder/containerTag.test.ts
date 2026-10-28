@@ -56,7 +56,7 @@ describe('containerTag', () => {
     expect(containerTag(page)).toBeNull()
   })
 
-  it('a container the composer created stays untagged after its first child lands', () => {
+  it('a container the builder created stays untagged after its first child lands', () => {
     expect(containerTag({ allowedDerived: true, allowedResources: ['tables'] })).toBeNull()
   })
 

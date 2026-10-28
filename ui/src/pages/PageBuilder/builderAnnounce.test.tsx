@@ -15,7 +15,7 @@ import { emit, held, installAntdShims, mount, widgetCr } from './builderTestHarn
 afterEach(cleanup)
 beforeAll(installAntdShims)
 
-const announced = () => screen.getByTestId('composer-announce').textContent
+const announced = () => screen.getByTestId('builder-announce').textContent
 
 const openDraft = () => {
   mount()
@@ -28,12 +28,12 @@ const openDraft = () => {
   held({ 'templates/flex.page-x.yaml': widgetCr('Flex', 'page-x', ['first', 'second']) })
 }
 
-describe('the composer says what happened', () => {
+describe('the builder says what happened', () => {
   it('has a live region BEFORE the first edit, not appearing with it', () => {
     // Assistive technology watches a region it has already seen; one that appears at the same
     // moment as its first message is commonly missed entirely.
     mount()
-    const region = screen.getByTestId('composer-announce')
+    const region = screen.getByTestId('builder-announce')
     expect(region.getAttribute('aria-live')).toBe('polite')
     expect(region.getAttribute('role')).toBe('status')
   })

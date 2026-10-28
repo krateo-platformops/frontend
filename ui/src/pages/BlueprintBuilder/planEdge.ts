@@ -144,7 +144,7 @@ const dependencyPath = (arch: ChartArchitecture, start: string, goal: string): s
 /** Why `ready` onto `target` has nothing to wait for — or null when its readiness compiles. */
 const readinessGap = (target: ResourceNode): string | null => {
   if (readinessGuard(target, 0, '""').ok) { return null }
-  const why = target.class === 'custom' ? 'a custom resource has no default' : `the composer knows no default for ${target.kind}`
+  const why = target.class === 'custom' ? 'a custom resource has no default' : `the builder knows no default for ${target.kind}`
   return `Pick what “ready” means for ${target.id} — ${why}. Or turn off Wait for readiness: then it only has to exist.`
 }
 
@@ -236,7 +236,7 @@ const withNames = (files: Files, arch: ChartArchitecture, gated: readonly string
     const target = next.resources.find((node) => node.id === id)
     if (!target || target.name) { continue }
     if (!holds(files, target.template)) {
-      return refuse('no-name', `The composer cannot tell what ${id} is named: its template ${target.template} is not in the chart. ${NOTHING_WRITTEN}`, { path: target.template })
+      return refuse('no-name', `The builder cannot tell what ${id} is named: its template ${target.template} is not in the chart. ${NOTHING_WRITTEN}`, { path: target.template })
     }
     const named = nameExpressionOf(files[target.template], { id, path: target.template })
     if (!named.ok) { return refuse('no-name', named.reason, { path: target.template }) }
@@ -262,7 +262,7 @@ const gatePlan = (files: Files, read: Extract<DescriptorRead, { ok: true }>, arc
     const text = files[path]
     const hand = unmanagedLookups(text)
     if (hand.length) {
-      return refuse('unmanaged-gate', `${path} already gates itself with a hand-written lookup (line ${hand[0]}), so the composer will not add a second gate there. ${NOTHING_WRITTEN}`, { line: hand[0], path })
+      return refuse('unmanaged-gate', `${path} already gates itself with a hand-written lookup (line ${hand[0]}), so the builder will not add a second gate there. ${NOTHING_WRITTEN}`, { line: hand[0], path })
     }
     let result: ApplyResult
     if (node.dependsOn?.length) {

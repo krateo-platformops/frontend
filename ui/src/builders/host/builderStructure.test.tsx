@@ -109,7 +109,7 @@ const closeConfirm = (): string => {
   return words.join(' | ')
 }
 
-describe('Blueprint Composer — DOM structure, unchanged by the host', () => {
+describe('Blueprint Builder — DOM structure, unchanged by the host', () => {
   it('empty: nothing held', () => {
     const { container } = mountWithOwner()
     expect(page(container)).toMatchSnapshot()
@@ -154,15 +154,15 @@ describe('Blueprint Composer — DOM structure, unchanged by the host', () => {
   })
 })
 
-describe('Blueprint Composer — a chart held BEFORE it mounts (review of #427)', () => {
-  it('own: held and armed by the provider first, then the composer mounts and replays it', () => {
+describe('Blueprint Builder — a chart held BEFORE it mounts (review of #427)', () => {
+  it('own: held and armed by the provider first, then the builder mounts and replays it', () => {
     const held: { show: () => void; store: ReturnType<typeof createBroadcastingDraftStore> | null; gate: ReturnType<typeof createBlueprintGate> | null } = { gate: null, show: () => undefined, store: null }
     const Page = () => {
       const [gate] = useState(() => createBlueprintGate())
       const [store] = useState(() => createBroadcastingDraftStore(gate))
-      const [composer, setComposer] = useState(false)
+      const [composer, setBuilder] = useState(false)
       useDraftFileBuses(store, gate, heldDraftIdentity)
-      Object.assign(held, { gate, show: () => setComposer(true), store })
+      Object.assign(held, { gate, show: () => setBuilder(true), store })
       return composer ? <BlueprintBuilder /> : null
     }
     const { container } = render(
@@ -181,7 +181,7 @@ describe('Blueprint Composer — a chart held BEFORE it mounts (review of #427)'
   })
 })
 
-describe('Page Composer — DOM structure, unchanged by the host', () => {
+describe('Page Builder — DOM structure, unchanged by the host', () => {
   it('empty: nothing held', () => {
     const { container } = mountPage()
     expect(page(container)).toMatchSnapshot()

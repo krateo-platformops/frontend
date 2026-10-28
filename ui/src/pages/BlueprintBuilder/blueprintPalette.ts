@@ -58,7 +58,7 @@ export interface PaletteRead {
 }
 
 export const PALETTE_NOT_CONFIGURED = 'This portal has no snowplow URL or frontend namespace configured, so only Kubernetes native kinds can be placed.'
-export const PALETTE_RA_MISSING = 'This portal has no blueprint-palette RESTAction (404) — its portal chart predates this composer. Kubernetes native kinds still work.'
+export const PALETTE_RA_MISSING = 'This portal has no blueprint-palette RESTAction (404) — its portal chart predates this builder. Kubernetes native kinds still work.'
 export const PALETTE_RA_DENIED = 'You may not run the blueprint-palette RESTAction (403) — ask a platform admin for access to it. Kubernetes native kinds still work.'
 export const CUSTOM_DENIED = 'This portal may not list custom resource kinds for your user (403). Ask a platform admin for read access to CustomResourceDefinitions to place them — nothing here is hidden silently.'
 export const COMPOSITIONS_DENIED = 'You may not list installed blueprints across namespaces (403 on CompositionDefinitions). Ask a platform admin for access to place one — nothing here is hidden silently.'

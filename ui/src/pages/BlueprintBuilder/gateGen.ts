@@ -113,7 +113,7 @@ export const unmanagedLookups = (template: string): number[] => {
 export const unmanagedGateNotes = (files: Readonly<Record<string, string>>): string[] => Object.keys(files).sort()
   .filter((path) => /^templates\/[^/]+\.ya?ml$/.test(path) && path !== ARCHITECTURE_TEMPLATE_PATH)
   .flatMap((path) => unmanagedLookups(files[path]).map((line) =>
-    `Unmanaged gate — ${path}:${line}: a lookup outside a krateo:gate block. The composer leaves it alone; describe it in ${ARCHITECTURE_TEMPLATE_PATH} to manage it.`))
+    `Unmanaged gate — ${path}:${line}: a lookup outside a krateo:gate block. The builder leaves it alone; describe it in ${ARCHITECTURE_TEMPLATE_PATH} to manage it.`))
 
 type Block = { ok: true; begin: number; open: number; end: number; body: string } | { ok: false; reason: string } | null
 

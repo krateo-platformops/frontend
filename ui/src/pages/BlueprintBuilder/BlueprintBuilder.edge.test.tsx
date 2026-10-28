@@ -192,7 +192,7 @@ describe('BlueprintBuilder — drawing an edge (screen 6)', () => {
     expect(accept.getAttribute('aria-describedby')).toBeNull()
   })
 
-  it('8. Esc lets the pending edge go, from anywhere in the composer', async () => {
+  it('8. Esc lets the pending edge go, from anywhere in the builder', async () => {
     await start()
     await addDependency('localresource', 'repository')
     act(() => { fireEvent.keyDown(document.body, { key: 'Escape' }) })

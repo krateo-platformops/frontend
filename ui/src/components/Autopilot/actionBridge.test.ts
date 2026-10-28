@@ -223,14 +223,14 @@ describe('the agent can only drive a control that is actually mounted', () => {
  * and with no error, over a canvas with no card in it. Restoring fire-and-forget — dropping the
  * `await`, or returning the label without the `applied` check — must fail here.
  */
-describe('a compose chip never claims an outcome the composer did not report', () => {
+describe('a compose chip never claims an outcome the builder did not report', () => {
   const composeBranches = (): string[] => {
     const bridge = railSource('actionBridge.ts')
     return [...bridge.matchAll(/const result = await requestCompose\(\{[\s\S]{0,400}?\n(\s*)\}\n/g)]
       .map((match) => match[0])
   }
 
-  it('awaits the composer on every compose call site', () => {
+  it('awaits the builder on every compose call site', () => {
     const bridge = railSource('actionBridge.ts')
     const calls = [...bridge.matchAll(/requestCompose\(/g)]
     // Five: move, addContainer, addWidget, addExisting, bindData. The last two arrived with the
@@ -251,7 +251,7 @@ describe('a compose chip never claims an outcome the composer did not report', (
     }
   })
 
-  it("prefers the composer's reason over the bridge's fallback wording", () => {
+  it("prefers the builder's reason over the bridge's fallback wording", () => {
     // The fallback exists only for an answer that carries no reason, never as the wording a real
     // refusal is reported with.
     const helper = /const composeRefusal = [\s\S]{0,600}?\n\}/.exec(railSource('actionBridge.ts'))
@@ -279,7 +279,7 @@ describe('a compose chip never claims an outcome the composer did not report', (
  * to call. The ops' own RULES are pinned behaviourally in composeAuthoring.test.ts and
  * PageBuilder.agent.test.tsx; what these assert is that the directive can reach them at all.
  */
-describe('the authoring directives reach the composer', () => {
+describe('the authoring directives reach the builder', () => {
   const bridge = () => railSource('actionBridge.ts')
 
   it('routes a composeAdd carrying a KIND to the addWidget op', () => {

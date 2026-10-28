@@ -1,13 +1,13 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Blueprint Composer — DOM structure, unchanged by the host > empty: nothing held 1`] = `
+exports[`Blueprint Builder — DOM structure, unchanged by the host > empty: nothing held 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_61220e">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
         <div class="_text_ec3666">
           <h1 class="_title_ec3666">
-            "Blueprint composer"
+            "Blueprint builder"
           <p class="_subtitle_ec3666">
             "Author a chart and the file that describes it — its resources, what depends on what, and the states it moves through — then publish the whole set as one change request."
     <div class="_empty_2dde71">
@@ -29,7 +29,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > empty: no
               "Start a chart""
 `;
 
-exports[`Blueprint Composer — DOM structure, unchanged by the host > own: a chart with lint problems 1`] = `
+exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a chart with lint problems 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_61220e">
     <header class="_header_ec3666">
@@ -526,7 +526,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: a ch
                                       "the"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
-                                      "composer"
+                                      "builder"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
                                       "owns"
@@ -2522,7 +2522,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: a ch
               "The form is empty because values.schema.json has no properties yet.""
 `;
 
-exports[`Blueprint Composer — DOM structure, unchanged by the host > own: a fresh chart, preview needed, Publish off with its reason 1`] = `
+exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a fresh chart, preview needed, Publish off with its reason 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_61220e">
     <header class="_header_ec3666">
@@ -2879,7 +2879,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: a fr
                                       "the"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
-                                      "composer"
+                                      "builder"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
                                       "owns"
@@ -3420,9 +3420,9 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: a fr
               "The form is empty because values.schema.json has no properties yet.""
 `;
 
-exports[`Blueprint Composer — DOM structure, unchanged by the host > own: a fresh chart, preview needed, Publish off with its reason 2`] = `"Discard this chart draft? Its unpublished files are deleted. | Keep editing | Discard"`;
+exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a fresh chart, preview needed, Publish off with its reason 2`] = `"Discard this chart draft? Its unpublished files are deleted. | Keep editing | Discard"`;
 
-exports[`Blueprint Composer — DOM structure, unchanged by the host > own: previewing, then rendered — Publish on — then published > previewing 1`] = `
+exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previewing, then rendered — Publish on — then published > previewing 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_61220e">
     <header class="_header_ec3666">
@@ -3783,7 +3783,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: prev
                                       "the"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
-                                      "composer"
+                                      "builder"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
                                       "owns"
@@ -4324,7 +4324,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: prev
               "The form is empty because values.schema.json has no properties yet.""
 `;
 
-exports[`Blueprint Composer — DOM structure, unchanged by the host > own: previewing, then rendered — Publish on — then published > published 1`] = `
+exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previewing, then rendered — Publish on — then published > published 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_61220e">
     <header class="_header_ec3666">
@@ -4704,7 +4704,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: prev
                                       "the"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
-                                      "composer"
+                                      "builder"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
                                       "owns"
@@ -5245,7 +5245,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: prev
               "The form is empty because values.schema.json has no properties yet.""
 `;
 
-exports[`Blueprint Composer — DOM structure, unchanged by the host > own: previewing, then rendered — Publish on — then published > publishing 1`] = `
+exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previewing, then rendered — Publish on — then published > publishing 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_61220e">
     <header class="_header_ec3666">
@@ -5613,7 +5613,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: prev
                                       "the"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
-                                      "composer"
+                                      "builder"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
                                       "owns"
@@ -6154,7 +6154,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: prev
               "The form is empty because values.schema.json has no properties yet.""
 `;
 
-exports[`Blueprint Composer — DOM structure, unchanged by the host > own: previewing, then rendered — Publish on — then published > rendered 1`] = `
+exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previewing, then rendered — Publish on — then published > rendered 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_61220e">
     <header class="_header_ec3666">
@@ -6518,7 +6518,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: prev
                                       "the"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
-                                      "composer"
+                                      "builder"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
                                       "owns"
@@ -7059,14 +7059,14 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > own: prev
               "The form is empty because values.schema.json has no properties yet.""
 `;
 
-exports[`Blueprint Composer — DOM structure, unchanged by the host > parked: a page draft is held 1`] = `
+exports[`Blueprint Builder — DOM structure, unchanged by the host > parked: a page draft is held 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_61220e">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
         <div class="_text_ec3666">
           <h1 class="_title_ec3666">
-            "Blueprint composer"
+            "Blueprint builder"
           <p class="_subtitle_ec3666">
             "Author a chart and the file that describes it — its resources, what depends on what, and the states it moves through — then publish the whole set as one change request."
     <div class="_empty_2dde71">
@@ -7081,7 +7081,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > parked: a
                 <path d="M55 12.8 44.9 1.3Q44 0 42.9 0H21.1q-1.2 0-2 1.3L9 12.8V22h46z">
                 <path d="M41.6 16c0-1.7 1-3 2.2-3H55v18.1c0 2.2-1.3 3.9-3 3.9H12c-1.7 0-3-1.7-3-3.9V13h11.2c1.2 0 2.2 1.3 2.2 3s1 2.9 2.2 2.9h14.8c1.2 0 2.2-1.4 2.2-3" fill="#f6f6f6">
         <div class="ant-empty-description">
-          "A portal page draft is open in this thread. This composer edits blueprints — finish or publish the page in the Portal Builder, or discard it to start a chart here."
+          "A portal page draft is open in this thread. This builder edits blueprints — finish or publish the page in the Portal Builder, or discard it to start a chart here."
         <div class="ant-empty-footer">
           <div class="ant-space css-dev-only-do-not-override-12q6fii ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small css-var-id1" style="flex-wrap: wrap;">
             <div class="ant-space-item">
@@ -7093,7 +7093,7 @@ exports[`Blueprint Composer — DOM structure, unchanged by the host > parked: a
                   "Discard page draft""
 `;
 
-exports[`Blueprint Composer — a chart held BEFORE it mounts (review of #427) > own: held and armed by the provider first, then the composer mounts and replays it 1`] = `
+exports[`Blueprint Builder — a chart held BEFORE it mounts (review of #427) > own: held and armed by the provider first, then the builder mounts and replays it 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_61220e">
     <header class="_header_ec3666">
@@ -7445,7 +7445,7 @@ exports[`Blueprint Composer — a chart held BEFORE it mounts (review of #427) >
                                       "the"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
-                                      "composer"
+                                      "builder"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
                                       "owns"
@@ -7986,15 +7986,15 @@ exports[`Blueprint Composer — a chart held BEFORE it mounts (review of #427) >
               "The form is empty because values.schema.json has no properties yet.""
 `;
 
-exports[`Page Composer — DOM structure, unchanged by the host > empty: nothing held 1`] = `
+exports[`Page Builder — DOM structure, unchanged by the host > empty: nothing held 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_03b493">
-    <div aria-live="polite" class="_announce_03b493" data-testid="composer-announce" role="status">
+    <div aria-live="polite" class="_announce_03b493" data-testid="builder-announce" role="status">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
         <div class="_text_ec3666">
           <h1 class="_title_ec3666">
-            "Page composer"
+            "Page builder"
           <p class="_subtitle_ec3666">
             "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
     <div class="_empty_2dde71">
@@ -8016,15 +8016,15 @@ exports[`Page Composer — DOM structure, unchanged by the host > empty: nothing
               "Start a page""
 `;
 
-exports[`Page Composer — DOM structure, unchanged by the host > own: a page held — header actions, split, tree 1`] = `
+exports[`Page Builder — DOM structure, unchanged by the host > own: a page held — header actions, split, tree 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_03b493">
-    <div aria-live="polite" class="_announce_03b493" data-testid="composer-announce" role="status">
+    <div aria-live="polite" class="_announce_03b493" data-testid="builder-announce" role="status">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
         <div class="_text_ec3666">
           <h1 class="_title_ec3666">
-            "Page composer"
+            "Page builder"
           <p class="_subtitle_ec3666">
             "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
         <div class="_trailing_ec3666" data-screen-header="trailing">
@@ -8373,7 +8373,7 @@ exports[`Page Composer — DOM structure, unchanged by the host > own: a page he
                       "card-a"
                 <div data-testid="canvas-gap-page-x-1" style="margin-block: 0; padding-block: 0;">
                   <div style="background: transparent; border-radius: 2px; height: 2px; opacity: 0;">
-        <div aria-label="Resize the preview" aria-orientation="horizontal" aria-valuemax="80" aria-valuemin="20" aria-valuenow="60" class="_split_03b493" data-testid="composer-split" role="separator" tabindex="0">
+        <div aria-label="Resize the preview" aria-orientation="horizontal" aria-valuemax="80" aria-valuemin="20" aria-valuenow="60" class="_split_03b493" data-testid="builder-split" role="separator" tabindex="0">
         <div class="_result_03b493">
           <div class="_body_7a73aa">
             <div class="ant-tabs ant-tabs-top css-dev-only-do-not-override-12q6fii css-var-id1 ant-tabs-css-var">
@@ -8762,17 +8762,17 @@ exports[`Page Composer — DOM structure, unchanged by the host > own: a page he
     <div aria-atomic="true" aria-live="assertive" id="id15" role="status" style="position: fixed; top: 0px; left: 0px; width: 1px; height: 1px; margin: -1px; border: 0px; padding: 0px; overflow: hidden; clip: rect(0px); clip-path: inset(100%); white-space: nowrap;">"
 `;
 
-exports[`Page Composer — DOM structure, unchanged by the host > own: a page held — header actions, split, tree 2`] = `"Discard this draft? The sandbox and its unpublished files are deleted. | Keep editing | Discard"`;
+exports[`Page Builder — DOM structure, unchanged by the host > own: a page held — header actions, split, tree 2`] = `"Discard this draft? The sandbox and its unpublished files are deleted. | Keep editing | Discard"`;
 
-exports[`Page Composer — DOM structure, unchanged by the host > own: publishing, then a denial > denied 1`] = `
+exports[`Page Builder — DOM structure, unchanged by the host > own: publishing, then a denial > denied 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_03b493">
-    <div aria-live="polite" class="_announce_03b493" data-testid="composer-announce" role="status">
+    <div aria-live="polite" class="_announce_03b493" data-testid="builder-announce" role="status">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
         <div class="_text_ec3666">
           <h1 class="_title_ec3666">
-            "Page composer"
+            "Page builder"
           <p class="_subtitle_ec3666">
             "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
         <div class="_trailing_ec3666" data-screen-header="trailing">
@@ -9126,7 +9126,7 @@ exports[`Page Composer — DOM structure, unchanged by the host > own: publishin
                   "empty"
                 <div data-testid="canvas-gap-page-x-0" style="margin-block: 0; padding-block: 0;">
                   <div style="background: transparent; border-radius: 2px; height: 2px; opacity: 0;">
-        <div aria-label="Resize the preview" aria-orientation="horizontal" aria-valuemax="80" aria-valuemin="20" aria-valuenow="60" class="_split_03b493" data-testid="composer-split" role="separator" tabindex="0">
+        <div aria-label="Resize the preview" aria-orientation="horizontal" aria-valuemax="80" aria-valuemin="20" aria-valuenow="60" class="_split_03b493" data-testid="builder-split" role="separator" tabindex="0">
         <div class="_result_03b493">
           <div class="_body_7a73aa">
             <div class="ant-tabs ant-tabs-top css-dev-only-do-not-override-12q6fii css-var-id1 ant-tabs-css-var">
@@ -9307,15 +9307,15 @@ exports[`Page Composer — DOM structure, unchanged by the host > own: publishin
     <div aria-atomic="true" aria-live="assertive" id="id13" role="status" style="position: fixed; top: 0px; left: 0px; width: 1px; height: 1px; margin: -1px; border: 0px; padding: 0px; overflow: hidden; clip: rect(0px); clip-path: inset(100%); white-space: nowrap;">"
 `;
 
-exports[`Page Composer — DOM structure, unchanged by the host > own: publishing, then a denial > publishing 1`] = `
+exports[`Page Builder — DOM structure, unchanged by the host > own: publishing, then a denial > publishing 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_03b493">
-    <div aria-live="polite" class="_announce_03b493" data-testid="composer-announce" role="status">
+    <div aria-live="polite" class="_announce_03b493" data-testid="builder-announce" role="status">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
         <div class="_text_ec3666">
           <h1 class="_title_ec3666">
-            "Page composer"
+            "Page builder"
           <p class="_subtitle_ec3666">
             "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
         <div class="_trailing_ec3666" data-screen-header="trailing">
@@ -9661,7 +9661,7 @@ exports[`Page Composer — DOM structure, unchanged by the host > own: publishin
                   "empty"
                 <div data-testid="canvas-gap-page-x-0" style="margin-block: 0; padding-block: 0;">
                   <div style="background: transparent; border-radius: 2px; height: 2px; opacity: 0;">
-        <div aria-label="Resize the preview" aria-orientation="horizontal" aria-valuemax="80" aria-valuemin="20" aria-valuenow="60" class="_split_03b493" data-testid="composer-split" role="separator" tabindex="0">
+        <div aria-label="Resize the preview" aria-orientation="horizontal" aria-valuemax="80" aria-valuemin="20" aria-valuenow="60" class="_split_03b493" data-testid="builder-split" role="separator" tabindex="0">
         <div class="_result_03b493">
           <div class="_body_7a73aa">
             <div class="ant-tabs ant-tabs-top css-dev-only-do-not-override-12q6fii css-var-id1 ant-tabs-css-var">
@@ -9842,15 +9842,15 @@ exports[`Page Composer — DOM structure, unchanged by the host > own: publishin
     <div aria-atomic="true" aria-live="assertive" id="id13" role="status" style="position: fixed; top: 0px; left: 0px; width: 1px; height: 1px; margin: -1px; border: 0px; padding: 0px; overflow: hidden; clip: rect(0px); clip-path: inset(100%); white-space: nowrap;">"
 `;
 
-exports[`Page Composer — DOM structure, unchanged by the host > parked: a blueprint draft is held 1`] = `
+exports[`Page Builder — DOM structure, unchanged by the host > parked: a blueprint draft is held 1`] = `
 "<div class="css-dev-only-do-not-override-12q6fii ant-app css-var-root">
   <div class="_page_03b493">
-    <div aria-live="polite" class="_announce_03b493" data-testid="composer-announce" role="status">
+    <div aria-live="polite" class="_announce_03b493" data-testid="builder-announce" role="status">
     <header class="_header_ec3666">
       <div class="_row_ec3666">
         <div class="_text_ec3666">
           <h1 class="_title_ec3666">
-            "Page composer"
+            "Page builder"
           <p class="_subtitle_ec3666">
             "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
     <div class="_empty_2dde71">
@@ -9865,7 +9865,7 @@ exports[`Page Composer — DOM structure, unchanged by the host > parked: a blue
                 <path d="M55 12.8 44.9 1.3Q44 0 42.9 0H21.1q-1.2 0-2 1.3L9 12.8V22h46z">
                 <path d="M41.6 16c0-1.7 1-3 2.2-3H55v18.1c0 2.2-1.3 3.9-3 3.9H12c-1.7 0-3-1.7-3-3.9V13h11.2c1.2 0 2.2 1.3 2.2 3s1 2.9 2.2 2.9h14.8c1.2 0 2.2-1.4 2.2-3" fill="#f6f6f6">
         <div class="ant-empty-description">
-          "A blueprint draft is open in this thread. This composer edits pages — discard that draft to start a page here."
+          "A blueprint draft is open in this thread. This builder edits pages — discard that draft to start a page here."
         <div class="ant-empty-footer">
           <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-dangerous ant-btn-color-dangerous ant-btn-variant-outlined" type="button">
             <span>

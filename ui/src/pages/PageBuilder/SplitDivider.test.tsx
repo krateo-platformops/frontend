@@ -42,7 +42,7 @@ describe('SplitDivider', () => {
   const setup = (value = 60) => {
     const onChange = vi.fn()
     render(<SplitDivider onChange={onChange} value={value} />)
-    return { handle: screen.getByTestId('composer-split'), onChange }
+    return { handle: screen.getByTestId('builder-split'), onChange }
   }
 
   it('is a focusable separator that announces its value', () => {

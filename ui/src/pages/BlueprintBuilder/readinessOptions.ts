@@ -95,7 +95,7 @@ export const readinessOptions = (node: ResourceNode, read: StatusRead): Readines
   } else if (node.class === 'custom' && read.state === 'ok' && !fields.length && !conditions.length) {
     sentence = `${node.kind}'s CRD declares no status fields, so there is nothing to wait on. Turn off Wait for readiness (it only has to exist).`
   } else if (node.class === 'native' && !fallback) {
-    sentence = `${node.kind} has no readiness the composer knows. Turn off Wait for readiness (it only has to exist).`
+    sentence = `${node.kind} has no readiness the builder knows. Turn off Wait for readiness (it only has to exist).`
   }
   return { note: node.class === 'custom' && read.state === 'ok' && fields.length ? CUSTOM_NOTE : null, options, sentence, suggested }
 }

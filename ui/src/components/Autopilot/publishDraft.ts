@@ -216,7 +216,7 @@ export const runDraftPublish = async (
   // blueprint claim out of page files — refused by name instead.
   if (held && held.kind !== builder.draftKind) {
     const heldNouns = draftKindOf(held.kind).nouns
-    return denied(`denied — the open draft is ${heldNouns.artifact}, and ${proposal.verb} publishes ${kind.nouns.artifact}. Publish it from the ${heldNouns.composer} composer.`, held)
+    return denied(`denied — the open draft is ${heldNouns.artifact}, and ${proposal.verb} publishes ${kind.nouns.artifact}. Publish it from the ${heldNouns.builder} builder.`, held)
   }
   // A draft that fails the chart lint is refused BY NAME, before anyone is asked where to send it.
   // Its gate is already disarmed (a dirty hand edit forgets the arming), but that refusal says

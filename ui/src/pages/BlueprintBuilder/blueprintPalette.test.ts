@@ -50,7 +50,7 @@ describe('readBlueprintPalette — the request', () => {
 })
 
 describe('readBlueprintPalette — a failure of the RESTAction is one sentence for the pane', () => {
-  it('404: the portal chart predates the composer', async () => {
+  it('404: the portal chart predates the builder', async () => {
     respond(404)
     const read = await readBlueprintPalette('http://snowplow', 'krateo-system')
     expect(read.unavailable).toBe(PALETTE_RA_MISSING)

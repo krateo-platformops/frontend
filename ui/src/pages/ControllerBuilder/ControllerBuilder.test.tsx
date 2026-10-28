@@ -152,7 +152,7 @@ const startPetstore = () => {
 
 const publishButton = (): HTMLButtonElement => screen.getByRole<HTMLButtonElement>('button', { name: /Publish/ })
 
-describe('the Controller Builder has its composer', () => {
+describe('the Controller Builder has its builder', () => {
   it('is served at /controller-builder/compose', () => {
     expect(builderRoutes().map((route) => route.path)).toContain('/controller-builder/compose')
   })

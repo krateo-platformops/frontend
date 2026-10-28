@@ -117,9 +117,9 @@ export const onDraftReplayRequest = (handler: () => void): (() => void) => {
  * a first claim, and a kind no loaded Builder declares (isDraftKind) is never claimed nor heard — deny
  * by default, so a stray event cannot make the drawer defer to a composer that does not exist.
  */
-const composerMounted = new Map<DraftKind, number>()
+const builderMounted = new Map<DraftKind, number>()
 
-const mountedCount = (kind: DraftKind): number => composerMounted.get(kind) ?? 0
+const mountedCount = (kind: DraftKind): number => builderMounted.get(kind) ?? 0
 
 /**
  * A CLAIM IS ANNOUNCED, not only recorded. Deferring the NEXT preview is half of "one surface per
@@ -140,10 +140,10 @@ export const claimPreviewSurface = (kind: DraftKind): (() => void) => {
   if (!isDraftKind(kind)) {
     return () => undefined
   }
-  composerMounted.set(kind, mountedCount(kind) + 1)
+  builderMounted.set(kind, mountedCount(kind) + 1)
   window.dispatchEvent(new CustomEvent<DraftKind>(AUTOPILOT_PREVIEW_CLAIMED_EVENT, { detail: kind }))
   return () => {
-    composerMounted.set(kind, Math.max(0, mountedCount(kind) - 1))
+    builderMounted.set(kind, Math.max(0, mountedCount(kind) - 1))
   }
 }
 
@@ -163,7 +163,7 @@ export const onPreviewSurfaceClaimed = (handler: (kind: DraftKind) => void): (()
 export const previewSurfaceClaimed = (kind: DraftKind | null): boolean => kind !== null && mountedCount(kind) > 0
 
 /** Whose draft a broadcast holds, from one composer's side: its Builder's (`own`), another's (`parked`), or none. */
-export type ComposerMode = 'empty' | 'own' | 'parked'
+export type BuilderMode = 'empty' | 'own' | 'parked'
 
 /**
  * WHOSE DRAFT IS HELD, for the composer hosting the Builder named `builderName`. `kind` on the
@@ -171,7 +171,7 @@ export type ComposerMode = 'empty' | 'own' | 'parked'
  * A detail with no `kind` is a legacy emitter, which only ever held page drafts — so files with no
  * kind are parked too (a null kind is no legacy emitter: nothing is held).
  */
-export const composerModeOf = ({ files, kind }: Pick<DraftChangedDetail, 'files' | 'kind'>, builderName: string): ComposerMode => {
+export const builderModeOf = ({ files, kind }: Pick<DraftChangedDetail, 'files' | 'kind'>, builderName: string): BuilderMode => {
   if (kind && kind === builderRegistry.get({ name: builderName })?.spec.draftKind) {
     return 'own'
   }

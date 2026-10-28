@@ -28,7 +28,7 @@ const sources = readdirSync(DIR)
 const code = (text: string): string =>
   text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 
-describe('the composer styles from tokens (T1, T4)', () => {
+describe('the builder styles from tokens (T1, T4)', () => {
   it('uses NO colour literal in an inline style', () => {
     const offenders = sources.flatMap(([file, text]) =>
       (code(text).match(/#[0-9A-Fa-f]{6}\b|rgba?\([\d.,\s]+\)/g) ?? []).map((hit) => `${file}: ${hit}`))

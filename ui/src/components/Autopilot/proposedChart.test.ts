@@ -60,7 +60,7 @@ describe('declared-vs-gated drift in a held chart', () => {
     return { ...chart, [PR]: bare[PR] }
   }
 
-  it('finds none in a chart the composer wrote — every fixture, as built', () => {
+  it('finds none in a chart the builder wrote — every fixture, as built', () => {
     expect(gateDrift(edgeChart())).toEqual([])
     expect(lintHeldDraft(edgeChart(), 'blueprint')).toEqual([])
   })

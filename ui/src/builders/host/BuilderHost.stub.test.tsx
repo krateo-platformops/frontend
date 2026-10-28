@@ -160,7 +160,7 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
-describe('a stub Builder, end to end in the composer host', () => {
+describe('a stub Builder, end to end in the builder host', () => {
   it('is routed by its spec, and its header does not repeat the shell breadcrumb', () => {
     expect(builderRoutes().map((route) => route.path)).toEqual([STUB_ROUTE])
     mountAtRoute()

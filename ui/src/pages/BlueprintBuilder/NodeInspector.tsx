@@ -62,7 +62,7 @@ const readiness = (node: ResourceNode): { label: string; note?: string; kstatus?
   }
   const note = node.class === 'custom'
     ? 'A custom resource has no default, so nothing can wait on its readiness until one is declared.'
-    : `${node.kind} has no readiness the composer knows, so nothing can wait on it until one is declared.`
+    : `${node.kind} has no readiness the builder knows, so nothing can wait on it until one is declared.`
   return { label: 'Ready when', note }
 }
 

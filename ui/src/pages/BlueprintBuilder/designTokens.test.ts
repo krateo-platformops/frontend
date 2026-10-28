@@ -45,7 +45,7 @@ const phantoms = (files: readonly (readonly [string, string])[]): string[] => fi
     .filter((name) => !name.startsWith('--krateo-') && !emitted.has(name))
     .map((name) => `${file}: ${name}`))
 
-describe('the blueprint composer styles from tokens (T1, T4)', () => {
+describe('the blueprint builder styles from tokens (T1, T4)', () => {
   it('has sources to check — the filters did not silently match nothing', () => {
     expect(sources.map(([file]) => file)).toContain('BlueprintBuilder.tsx')
     expect(stylesheets.map(([file]) => file).sort()).toEqual(['ArchitectureCanvas.module.css', 'BlueprintBuilder.module.css'])

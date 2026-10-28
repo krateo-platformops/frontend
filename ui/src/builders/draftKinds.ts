@@ -23,8 +23,8 @@ export interface DraftKindNouns {
   artifact: string
   /** The artifact in one word, as a banner says it: "page". */
   short: string
-  /** Which composer: "the page composer". */
-  composer: string
+  /** Which builder: "the page builder". */
+  builder: string
   /** What must have been previewed before a publish: "portal page". */
   previewed: string
   /** What to draft and preview first: "page-<slug>". */
@@ -75,7 +75,7 @@ const DRAFT_KINDS = {
     displayName: (files) => draftDisplayName(files),
     nouns: {
       artifact: 'a blueprint chart',
-      composer: 'blueprint',
+      builder: 'blueprint',
       previewFirst: 'chart',
       previewed: 'blueprint',
       renameHint: '',
@@ -98,7 +98,7 @@ const DRAFT_KINDS = {
     lockedSnapshot: (files) => lockedSnapshot(files),
     nouns: {
       artifact: 'a controller',
-      composer: 'controller',
+      builder: 'controller',
       previewFirst: 'controller',
       previewed: 'controller',
       renameHint: '',
@@ -112,7 +112,7 @@ const DRAFT_KINDS = {
     displayName: (files) => pageRootSlug(files) ?? 'draft',
     nouns: {
       artifact: 'a portal page',
-      composer: 'page',
+      builder: 'page',
       previewFirst: 'page-<slug>',
       previewed: 'portal page',
       renameHint: ' (a page set is named for its page slug)',

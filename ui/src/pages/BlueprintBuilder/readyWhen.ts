@@ -151,6 +151,6 @@ export const readinessGuard = (target: ResourceNode, idx: number, nameExpr: stri
   if (native) {
     return { lines: [lookup, ...nativeGuard(native.readiness, dep, idx, nameExpr)], ok: true }
   }
-  const why = target.class === 'custom' ? 'a custom resource has no default' : `${target.kind} has no readiness the composer knows`
+  const why = target.class === 'custom' ? 'a custom resource has no default' : `${target.kind} has no readiness the builder knows`
   return { ok: false, reason: `ready: true onto "${target.id}" has nothing to wait for — ${why}; declare its readyWhen, or wait only for it to exist` }
 }

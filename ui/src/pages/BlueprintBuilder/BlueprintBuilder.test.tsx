@@ -41,7 +41,7 @@ const type = (label: string, value: string) => {
   act(() => { fireEvent.change(screen.getByLabelText(label), { target: { value } }) })
 }
 
-describe('BlueprintBuilder — mounted bare, like the Page Composer', () => {
+describe('BlueprintBuilder — mounted bare, like the Page Builder', () => {
   it('renders with NO provider of any kind around it', () => {
     // No AutopilotProvider, no router, no theme, no config: the page talks to the provider only
     // through window buses, so there is nothing above it to require.
@@ -73,7 +73,7 @@ describe('BlueprintBuilder — nothing held (screen 2, behind the modal)', () =>
     mount()
     // P27: "Blueprint Builder / Compose" is the shell breadcrumb's; the header does not repeat it.
     expect(screen.queryByText('Blueprint Builder / Compose')).toBeNull()
-    expect(screen.getByRole('heading', { level: 1, name: 'Blueprint composer' })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: 'Blueprint builder' })).toBeTruthy()
     const empty = document.querySelector('.ant-empty')
     expect(empty?.textContent).toMatch(/No chart open/)
     expect(empty?.querySelector('button')?.textContent).toBe('Start a chart')
@@ -276,7 +276,7 @@ describe('BlueprintBuilder — Start a chart (screen 2)', () => {
     expect(within(screen.getByRole('dialog')).getByText(/A draft is already open in this thread/)).toBeTruthy()
   })
 
-  it('an accepted start: the modal closes when the chart is held, and the composer takes over', () => {
+  it('an accepted start: the modal closes when the chart is held, and the builder takes over', () => {
     const starts = listen<ChartStartDetail>(AUTOPILOT_CHART_START_EVENT)
     mount()
     openStart()
@@ -294,7 +294,7 @@ describe('BlueprintBuilder — Start a chart (screen 2)', () => {
   it.each([
     ['unavailable', 'This portal has no chart render configured', /no chart render configured/],
     ['failed', 'The chart did not render, so it cannot be published yet.', /did not render.*The render error is in Source/],
-  ] as const)('reports a %s first render in the composer, not the modal', (outcome, message, shown) => {
+  ] as const)('reports a %s first render in the builder, not the modal', (outcome, message, shown) => {
     const starts = listen<ChartStartDetail>(AUTOPILOT_CHART_START_EVENT)
     mount()
     openStart()

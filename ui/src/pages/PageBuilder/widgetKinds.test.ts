@@ -18,7 +18,7 @@ describe('the widget kind table, derived from the CRDs', () => {
     expect(Object.keys(WIDGET_KINDS)).toHaveLength(44)
   })
 
-  it('finds ELEVEN containers, and the composer knew five of them', () => {
+  it('finds ELEVEN containers, and the builder knew five of them', () => {
     expect(containers.sort()).toEqual([
       'ButtonGroup', 'Card', 'Col', 'Filters', 'Flex', 'Form', 'Menu', 'PageHeader', 'Row', 'Steps', 'Tabs',
     ])
@@ -41,7 +41,7 @@ describe('the widget kind table, derived from the CRDs', () => {
     }
   })
 
-  it('PageHeader is a container — the composer has been treating it as a leaf', () => {
+  it('PageHeader is a container — the builder has been treating it as a leaf', () => {
     // Every draft startDraft seeds contains one, and it could never take a child by any route.
     expect(WIDGET_KINDS.PageHeader.container).toBe(true)
   })

@@ -87,7 +87,7 @@ describe('planEdge — refusals, each in words', () => {
       line: 41,
       ok: false,
       path: 'templates/localresource.yaml',
-      reason: 'templates/localresource.yaml already gates itself with a hand-written lookup (line 41), so the composer will not add a second gate there. Nothing was written.',
+      reason: 'templates/localresource.yaml already gates itself with a hand-written lookup (line 41), so the builder will not add a second gate there. Nothing was written.',
       where: [],
     })
   })

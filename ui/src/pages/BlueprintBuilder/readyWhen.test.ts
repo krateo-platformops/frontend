@@ -134,7 +134,7 @@ describe('readinessGuard — the Helm the gate waits with', () => {
   it('ready with nothing to compile is REFUSED — never weakened to existence', () => {
     expect(readinessGuard(node({}), 0, 'N')).toEqual({ ok: false, reason: 'ready: true onto "dep" has nothing to wait for — a custom resource has no default; declare its readyWhen, or wait only for it to exist' })
     expect(readinessGuard(node({ apiVersion: 'v1', class: 'native', kind: 'ServiceAccount' }), 0, 'N'))
-      .toEqual({ ok: false, reason: 'ready: true onto "dep" has nothing to wait for — ServiceAccount has no readiness the composer knows; declare its readyWhen, or wait only for it to exist' })
+      .toEqual({ ok: false, reason: 'ready: true onto "dep" has nothing to wait for — ServiceAccount has no readiness the builder knows; declare its readyWhen, or wait only for it to exist' })
     expect(readinessGuard(node({ readyWhen: '.status.a | b' }), 0, 'N').ok).toBe(false)
   })
 

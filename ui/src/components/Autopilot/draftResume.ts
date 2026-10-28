@@ -111,7 +111,7 @@ export const readDraftRecordByName = async (
  * Every Builder this frontend loads has a composer at its route now — the Controller Builder's since
  * T8 (frontend#412) — so the route is somewhere to go, not a promise.
  */
-export const wrongComposerMessage = (record: Pick<DraftRecordBody, 'kind' | 'name'>): string => {
+export const wrongBuilderMessage = (record: Pick<DraftRecordBody, 'kind' | 'name'>): string => {
   const builder = builderOf(record.kind)
   return `${record.name} is ${draftKindOf(record.kind).nouns.artifact} draft — resume it from the ${builder.label}, at ${builder.route}.`
 }

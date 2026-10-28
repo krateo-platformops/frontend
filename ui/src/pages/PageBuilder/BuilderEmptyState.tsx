@@ -20,7 +20,7 @@ export const BuilderEmptyState = ({ onDiscard, onStart, parkedBlueprint }: {
   if (parkedBlueprint) {
     return (
       <WidgetEmpty
-        description='A blueprint draft is open in this thread. This composer edits pages — discard that draft to start a page here.'
+        description='A blueprint draft is open in this thread. This builder edits pages — discard that draft to start a page here.'
       >
         <Popconfirm cancelButtonProps={dismissButtonProps} cancelText='Keep it'
           okButtonProps={{ danger: true }}

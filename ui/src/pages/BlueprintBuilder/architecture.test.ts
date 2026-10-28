@@ -378,7 +378,7 @@ describe('regenerateGraphBlock — the block follows the descriptor, and the aut
   /** The file with its data.architecture replaced by hand, and nothing else touched — the block included. */
   const handEdited = (arch: ChartArchitecture) => wrapped.replace(indented(serializeArchitecture(named())), indented(serializeArchitecture(arch)))
 
-  it('is the identity on a file the composer wrote — a write that changed nothing changes nothing', () => {
+  it('is the identity on a file the builder wrote — a write that changed nothing changes nothing', () => {
     expect(regenerateGraphBlock(wrapped, 'demo')).toBe(wrapped)
   })
 

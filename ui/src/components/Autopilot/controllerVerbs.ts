@@ -402,7 +402,7 @@ const removeVerb = (proposal: PortalActionProposal): AutopilotActionChip => {
   const kind = kindNamed(held.model, proposal.kind)
   if (typeof kind === 'string') { return refuse(verb, tried, kind) }
   if (held.locked?.[kind.path]) {
-    return refuse(verb, tried, `${kind.kind} was published — removing it would delete every ${kind.kind} it serves once the release installs; only the person can decide that, in the composer`)
+    return refuse(verb, tried, `${kind.kind} was published — removing it would delete every ${kind.kind} it serves once the release installs; only the person can decide that, in the builder`)
   }
   return writePlan(verb, tried, planRemoveKind(held.files, kind.path), `Removed ${kind.kind} (${kind.path}); its resource group ${kind.group} can be placed again`)
 }

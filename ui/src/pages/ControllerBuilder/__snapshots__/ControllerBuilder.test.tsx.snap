@@ -1469,7 +1469,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
       <div class="_row_ec3666">
         <div class="_text_ec3666">
           <h1 class="_title_ec3666">
-            "Controller composer"
+            "Controller builder"
           <p class="_subtitle_ec3666">
             "Map an OpenAPI document to Kinds — each resource group a Kind, its operations its verbs — then publish the controller chart as one change request."
     <div class="_empty_2dde71">

@@ -36,4 +36,4 @@ const WORKBENCHES = {
 export const resolveWorkbench = (draftKind: string): { ok: true; kind: DraftKind; plugin: WorkbenchPlugin } | { ok: false; refusal: string } =>
   (Object.prototype.hasOwnProperty.call(WORKBENCHES, draftKind)
     ? { kind: draftKind as DraftKind, ok: true, plugin: WORKBENCHES[draftKind as keyof typeof WORKBENCHES] }
-    : { ok: false, refusal: `This frontend has no workbench for the draft kind "${draftKind}", so the composer cannot be shown. It ships: ${Object.keys(WORKBENCHES).sort().join(', ')}.` })
+    : { ok: false, refusal: `This frontend has no workbench for the draft kind "${draftKind}", so the builder cannot be shown. It ships: ${Object.keys(WORKBENCHES).sort().join(', ')}.` })

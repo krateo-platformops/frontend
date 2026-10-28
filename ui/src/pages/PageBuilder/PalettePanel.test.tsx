@@ -40,7 +40,7 @@ beforeAll(() => {
 afterEach(cleanup)
 
 describe('widgetIcons', () => {
-  it('every LAYOUT KIND the composer can create has its own glyph', () => {
+  it('every LAYOUT KIND the builder can create has its own glyph', () => {
     // A container with the fallback glyph would sit in the palette looking like an unknown type.
     for (const plural of Object.values(LAYOUT_KINDS)) {
       expect(KNOWN_ICON_PLURALS).toContain(plural)

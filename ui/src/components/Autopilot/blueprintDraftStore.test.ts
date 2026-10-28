@@ -170,7 +170,7 @@ describe('opsCarryFileContentToken', () => {
   })
 })
 
-describe('addFile — the composer creating a file the draft does not hold', () => {
+describe('addFile — the builder creating a file the draft does not hold', () => {
   const draft = () => {
     const store = createBlueprintDraftStore()
     store.set({ 'Chart.yaml': 'name: x\n' }, 'blueprint')

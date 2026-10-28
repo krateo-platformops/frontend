@@ -238,14 +238,14 @@ describe('BlueprintBuilder — the generated gate (screen 7)', () => {
     const before = held(provider)
     await acceptScreenAttempt()
     const box = within(screen.getByTestId('edge-inspector')).getByRole('alert')
-    expect(box.textContent).toBe('templates/localresource.yaml already gates itself with a hand-written lookup (line 41), so the composer will not add a second gate there. Nothing was written.')
+    expect(box.textContent).toBe('templates/localresource.yaml already gates itself with a hand-written lookup (line 41), so the builder will not add a second gate there. Nothing was written.')
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Accept edge' }).disabled).toBe(true)
     expect(held(provider)).toBe(before)
     act(() => { fireEvent.keyDown(document.body, { key: 'Escape' }) })
     act(() => { fireEvent.click(screen.getByRole('tab', { name: 'Source' })) })
     const notes = [...screen.getByText('Unmanaged gates').closest('.ant-alert')?.querySelectorAll('li') ?? []].map((item) => item.textContent)
     expect(notes).toEqual([41, 58, 86, 139, 167, 168].map((line) =>
-      `Unmanaged gate — templates/localresource.yaml:${line}: a lookup outside a krateo:gate block. The composer leaves it alone; describe it in templates/architecture.yaml to manage it.`))
+      `Unmanaged gate — templates/localresource.yaml:${line}: a lookup outside a krateo:gate block. The builder leaves it alone; describe it in templates/architecture.yaml to manage it.`))
   })
 
   it('9. ONE Undo restores both files', async () => {

@@ -202,7 +202,7 @@ export const recordComposeOutcome = (op: ComposeOp, result: ComposeResult): void
     return
   }
   const note: ComposeRefusalNote = {
-    reason: result.reason ?? 'the composer did not apply it',
+    reason: result.reason ?? 'the builder did not apply it',
     tried: describeOp(op),
     ...(result.where?.length ? { where: result.where } : {}),
   }
@@ -250,7 +250,7 @@ export const requestCompose = (
   const sub: { stop?: () => void } = {}
   const timer = setTimeout(() => {
     sub.stop?.()
-    const timedOut: ComposeResult = { applied: false, id, paths: [], reason: 'no page composer is open to apply this' }
+    const timedOut: ComposeResult = { applied: false, id, paths: [], reason: 'no page builder is open to apply this' }
     recordComposeOutcome(request, timedOut)
     resolve(timedOut)
   }, timeoutMs)

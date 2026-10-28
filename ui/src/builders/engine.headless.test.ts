@@ -26,7 +26,7 @@ vi.mock('../components/Autopilot/builderPublishGvr', async (importOriginal) => (
 import { createBlueprintDraftStore } from '../components/Autopilot/blueprintDraftStore'
 import { createBlueprintGate } from '../components/Autopilot/blueprintGate'
 import type { BuilderTargets } from '../components/Autopilot/builderTargets'
-import { wrongComposerMessage } from '../components/Autopilot/draftResume'
+import { wrongBuilderMessage } from '../components/Autopilot/draftResume'
 import { summarizeChart, withHeldDraft } from '../components/Autopilot/draftStructure'
 import { draftKindOfPayload } from '../components/Autopilot/previewBus'
 import { lintHeldDraft } from '../components/Autopilot/proposedChart'
@@ -169,7 +169,7 @@ describe('a stub Builder drives the engine, start → edit → preview → publi
   })
 
   it('the words come from the spec: a refusal names the stub\'s label', () => {
-    expect(wrongComposerMessage({ kind: 'blueprint', name: 'orders-api' })).toBe('orders-api is a blueprint chart draft — resume it from the Stub Builder, at /stub-builder/compose.')
+    expect(wrongBuilderMessage({ kind: 'blueprint', name: 'orders-api' })).toBe('orders-api is a blueprint chart draft — resume it from the Stub Builder, at /stub-builder/compose.')
   })
 
   it('the summarizer is the spec\'s: the stub names none, so Autopilot is told no chart', () => {
