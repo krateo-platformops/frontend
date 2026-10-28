@@ -118,7 +118,7 @@ describe('a refusal is held for the next turn', () => {
     const pending = requestCompose({ op: 'move', target: 'page-x', widget: 'card-b' })
     await vi.advanceTimersByTimeAsync(4000)
     await pending
-    expect(getComposeRefusals()?.[0].reason).toMatch(/no page composer is open/i)
+    expect(getComposeRefusals()?.[0].reason).toMatch(/no page builder is open/i)
   })
 })
 

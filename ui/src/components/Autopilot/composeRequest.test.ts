@@ -56,7 +56,7 @@ describe('requestCompose', () => {
     await vi.advanceTimersByTimeAsync(4000)
     const result = await pending
     expect(result.applied).toBe(false)
-    expect(result.reason).toMatch(/no page composer is open/i)
+    expect(result.reason).toMatch(/no page builder is open/i)
   })
 
   it('ignores an answer addressed to a DIFFERENT request', async () => {
