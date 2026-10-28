@@ -24,7 +24,7 @@
 import { step, type StepResult } from '../envelope'
 import { HttpError } from '../http'
 import type { GateContext } from '../plan'
-import { CAPABILITY_RESOLVE, type SnowplowReply, STAGE_NOT_EXECUTED_MESSAGE, STAGE_NOT_EXECUTED_REASON, STAGE_NOT_RUN_REASON, STAGE_OUTCOMES, STAGE_REASONS, stageOutcomesOf } from '../snowplow'
+import { CAPABILITY_RESOLVE, type SnowplowReply, STAGE_ABORTED_REASON, STAGE_NOT_EXECUTED_MESSAGE, STAGE_NOT_EXECUTED_REASON, STAGE_NOT_RUN_REASON, STAGE_OUTCOMES, STAGE_REASONS, STAGE_SKIPPED_REASON, stageOutcomesOf } from '../snowplow'
 import { isRestAction, labelOf, rec, type Rec, str } from './drafts'
 
 const SAMPLE_CHARS = 1_200
@@ -131,8 +131,25 @@ export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers
     case 'invalid':
       return { failures: [`snowplow's ${STAGE_OUTCOMES} is not the documented shape (${outcomes.why}): its stage outcomes cannot be known`], byDesign: [] }
     case 'truncated':
-      return { failures: [`${Number.isNaN(outcomes.failed) ? 'some' : outcomes.failed} stage(s) failed; ${STAGE_OUTCOMES} was truncated, so which ones cannot be told`], byDesign: [] }
+      // `failed` is the number of ROWS the header would have carried, which snowplow sets to
+      // len(out): every stage that did not succeed, NotRun ones included, plus the resolve-level
+      // Aborted row. So it is "did not succeed", not "failed" — an aborted resolve, where nothing
+      // ran at all, can arrive here too once its stage list is long enough to breach 4 KiB.
+      return { failures: [`${Number.isNaN(outcomes.failed) ? 'some' : outcomes.failed} stage(s) did not succeed; ${STAGE_OUTCOMES} was truncated, so which ones — and whether any stage ran at all — cannot be told`], byDesign: [] }
     default:
+  }
+  // An ABORTED resolve (snowplow#904 review F3) ran no stage at all: its graph could not be
+  // ordered. Every row after it is a NotRun that the abort explains, so attributing them one by
+  // one to a positional `stopper` would print a line per stage, each naming no cause. One red
+  // line that says the resolve never started is the honest report.
+  const aborted = outcomes.stages.find((o) => o.name === '' && o.reason === STAGE_ABORTED_REASON)
+  if (aborted) {
+    const declared = outcomes.stages.filter((o) => o.name !== '').map((o) => o.name)
+    const never = declared.length === 0 ? '' : `; its declared stage(s) never ran: ${declared.join(', ')}`
+    return {
+      failures: [`snowplow aborted the resolve before running any stage — its dependsOn graph could not be ordered (a stage naming a dependency that does not exist, or a cycle)${never}`],
+      byDesign: [],
+    }
   }
   const failures: string[] = []
   const byDesign: string[] = []
@@ -141,6 +158,18 @@ export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers
     .map((a) => rec(a) ?? {}).filter((api) => api.continueOnError === true).map((api) => str(api.name)).filter((n): n is string => n !== null))
   /** The cause of the latest stop: the nearest earlier failed stage, and whether it was a note. */
   let stopper: { name: string; reason: string; note: string | null } | null = null
+  /**
+   * Every non-succeeded stage already judged, by NAME: the note phrase when it was a note,
+   * null when it was red. Skipped reads its cause from here.
+   *
+   * NotRun has to guess its cause by position (`stopper`) because snowplow does not say which
+   * stage truncated the resolve. Skipped does say — `dependsOn` names it — so it must not
+   * guess: a chain A fails -> B skipped -> C skipped resolves C through B through A, which
+   * positional attribution would get wrong the moment an unrelated failure sits between them.
+   * The header is in topological order and lists only stages that did NOT succeed, so a named
+   * dependency has always been judged by the time its dependent is reached.
+   */
+  const judged = new Map<string, string | null>()
   for (const stage of outcomes.stages.filter((o) => !o.ok)) {
     const reason = stage.reason ?? ''
     const detail = detailFor(messages, stage.name)
@@ -148,27 +177,57 @@ export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers
     if (!STAGE_REASONS.has(reason)) {
       failures.push(`stage ${stage.name} failed with an unknown reason ${JSON.stringify(stage.reason ?? null)} — not one of snowplow's codes${suffix}`)
       stopper = { name: stage.name, reason, note: null }
+      judged.set(stage.name, null)
       continue
     }
     if (reason === STAGE_NOT_RUN_REASON) {
       if (stopper?.note) {
         byDesign.push(`stage ${stage.name}: not run — the resolve stopped at stage ${stopper.name}, which ${stopper.note}; checked at the driven Preview`)
+        judged.set(stage.name, `was not run after stage ${stopper.name}, which ${stopper.note}`)
       } else if (stopper) {
         failures.push(`stage ${stage.name}: not run — the resolve stopped at stage ${stopper.name} (${stopper.reason})`)
+        judged.set(stage.name, null)
       } else {
         failures.push(`stage ${stage.name}: not run — the resolve stopped before it, at no failed stage the header names`)
+        judged.set(stage.name, null)
+      }
+      continue
+    }
+    if (reason === STAGE_SKIPPED_REASON) {
+      // snowplow#904: a write stage it did not dial because the stage it dependsOn did not
+      // succeed. It inherits that stage's verdict — a note if the cause was tolerated, red if
+      // not — because the skip is a CONSEQUENCE, never an independent failure. A skip is also
+      // not a `stopper`: it does not truncate the resolve, so a later NotRun must not be
+      // attributed to it.
+      const dep = stage.dependsOn
+      const depNote = dep === undefined ? undefined : judged.get(dep)
+      if (dep === undefined) {
+        failures.push(`stage ${stage.name}: not sent, but ${STAGE_OUTCOMES} does not name the stage it depends on${suffix}`)
+        judged.set(stage.name, null)
+      } else if (depNote === undefined) {
+        failures.push(`stage ${stage.name}: not sent because stage ${dep} did not succeed — which ${STAGE_OUTCOMES} does not list${suffix}`)
+        judged.set(stage.name, null)
+      } else if (depNote === null) {
+        failures.push(`stage ${stage.name}: not sent because the stage it depends on, ${dep}, failed${suffix}`)
+        judged.set(stage.name, null)
+      } else {
+        byDesign.push(`stage ${stage.name}: not sent — it depends on stage ${dep}, which ${depNote}; checked at the driven Preview${suffix}`)
+        judged.set(stage.name, `was not sent because stage ${dep} ${depNote}`)
       }
       continue
     }
     if (reason === STAGE_NOT_EXECUTED_REASON || (detail !== undefined && STAGE_NOT_EXECUTED_MESSAGE.test(detail))) {
       byDesign.push(`stage ${stage.name}: not executed by design (a write-verb stage): checked at the driven Preview${suffix}`)
       stopper = { name: stage.name, reason, note: 'was not executed by design' }
+      judged.set(stage.name, 'was not executed by design')
     } else if (tolerant.has(stage.name)) {
       byDesign.push(`stage ${stage.name} failed (${reason}) — continueOnError, the page is expected to cope; checked at the driven Preview${suffix}`)
       stopper = { name: stage.name, reason, note: 'is continueOnError' }
+      judged.set(stage.name, 'is continueOnError')
     } else {
       failures.push(`stage ${stage.name} failed (${reason})${suffix}`)
       stopper = { name: stage.name, reason, note: null }
+      judged.set(stage.name, null)
     }
   }
   return { failures, byDesign }
