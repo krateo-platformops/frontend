@@ -1,0 +1,43 @@
+# The builder gate: one MCP server per authoring agent (krateo-platformops/frontend#442).
+# Every key below is typed in values.schema.json WITHOUT a default; the value lives here.
+
+image:
+  repository: ghcr.io/krateo-platformops/builder-gate
+  # Empty: the chart's own version. The image and the chart are released on the same tag.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# Where Builder CRs live (the portal chart installs them in the frontend's BUILDERS_NAMESPACE).
+buildersNamespace: krateo-system
+
+# The preview sandbox the frontend chart creates (previewSandbox.enabled): the ONLY namespace the
+# gate names in a dry-run or an inline resolve (both sent through snowplow, as the caller). If it
+# does not exist, every object reads notChecked and the gate is red.
+sandboxNamespace: krateo-preview
+
+# snowplow: every judgement against the cluster goes through it as the caller
+# (builder-gate/docs/snowplow-contract.md).
+snowplowUrl: http://snowplow.krateo-system.svc:8081
+
+# Registers each instance with kagent so the agent's toolName resolves to it.
+remoteMCPServer:
+  enabled: true
+  # Above the gate's own 100 s budget (so an overrun reaches the agent as an envelope), and below 120 s.
+  timeout: 110s
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 96Mi
+  limits:
+    memory: 384Mi
+
+# One gate per authoring agent. Each gets its own ServiceAccount, RBAC, Deployment, Service and
+# RemoteMCPServer, named builder-gate-<name>, and validates drafts for the Builders it lists only.
+#
+#   instances:
+#     - name: frontend-agent
+#       builders: [portal-builder]
+instances: []

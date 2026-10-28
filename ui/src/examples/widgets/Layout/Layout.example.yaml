@@ -21,21 +21,18 @@ spec:
   resourcesRefs:
     items:
       - id: sider-nav
-        allowed: true
         resource: menus
         apiVersion: widgets.templates.krateo.io/v1beta1
         name: sider-nav-menu
         namespace: krateo-system
         verb: GET
       - id: top-bar
-        allowed: true
         resource: buttongroups
         apiVersion: widgets.templates.krateo.io/v1beta1
         name: header-toolbar
         namespace: krateo-system
         verb: GET
       - id: main-content
-        allowed: true
         resource: pages
         apiVersion: widgets.templates.krateo.io/v1beta1
         name: home-page

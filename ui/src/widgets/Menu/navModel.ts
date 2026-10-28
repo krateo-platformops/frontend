@@ -20,7 +20,7 @@ export interface InlineNavItem {
    * WHY IT EXISTS. The convention below resolves `page-<slug>` in ONE namespace — the frontend's
    * `FRONTEND_NAMESPACE` — so a page installed anywhere else is unreachable by it. That was
    * invisible while every page shipped in the portal chart, and becomes load-bearing the moment
-   * pages arrive from other charts or from the `tiers` split (portal.tierNamespace admin/tenant),
+   * pages arrive from other charts, or from a chart installed into another namespace,
    * where the nav entries that reach them today do so only via `resourceRefId` + a ref carrying an
    * explicit namespace. A menu assembled from a cluster listing has no such refs, so the namespace
    * has to travel on the item.

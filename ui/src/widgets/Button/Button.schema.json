@@ -414,7 +414,14 @@
             },
             "danger": {
               "type": "boolean",
-              "description": "antd Button danger"
+              "description": "antd Button danger. Design rule C26: set it on a button that DELETES content (Delete, Remove, Discard)"
+            },
+            "intent": {
+              "type": "string",
+              "enum": [
+                "dismiss"
+              ],
+              "description": "Krateo button role, not an antd prop (design rule C26). `dismiss`: the button closes or backs out without deleting anything (Cancel, Close) and is drawn amber and outlined; `type`, `color`, `variant` and `danger` are ignored. A button that deletes content uses `danger` instead"
             },
             "disabled": {
               "type": "boolean",

@@ -21,7 +21,10 @@
     "apply-crds": "tsx scripts/apply-crds.ts",
     "examples": "tsx scripts/run-examples.ts",
     "test": "vitest",
-    "gen-widget-kinds": "tsx scripts/gen-widget-kinds.ts"
+    "gen-widget-kinds": "tsx scripts/gen-widget-kinds.ts",
+    "visual": "visual/docker.sh",
+    "visual:build": "vite build --config visual/vite.config.ts",
+    "visual:update": "visual/docker.sh --update-snapshots"
   },
   "repository": {
     "type": "git",
@@ -31,7 +34,10 @@
   "author": "",
   "devDependencies": {
     "@eslint/js": "^9.23.0",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
     "@inquirer/select": "^4.2.3",
+    "@playwright/test": "1.63.0",
     "@stylistic/eslint-plugin": "^3.0.1",
     "@stylistic/eslint-plugin-js": "^3.0.1",
     "@stylistic/eslint-plugin-ts": "^3.0.1",

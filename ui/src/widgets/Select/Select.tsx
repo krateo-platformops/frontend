@@ -203,9 +203,14 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
         // trigger's responsive behaviour so the whole left cluster yields together.
         style={{ flex: '0 1 170px', minWidth: 0 }}
         tagRender={(props) => (
+          // C8 exception: not a control; it only stops the mousedown reaching the Select, which would open the dropdown.
+          // eslint-disable-next-line jsx-a11y/no-static-element-interactions
           <span className={styles.ptag} onMouseDown={(event) => event.stopPropagation()}>
             {props.label}
-            {props.closable ? <span className={styles.ptagClose} onClick={props.onClose} role='button'>✕</span> : null}
+            {/* C8: a real button, so the tag can be removed from the keyboard and is named for what it removes. */}
+            {props.closable ? (
+              <button aria-label={typeof props.label === 'string' ? `Remove ${props.label}` : 'Remove'} className={styles.ptagClose} onClick={props.onClose} type='button'>✕</button>
+            ) : null}
           </span>
         )}
         value={value}

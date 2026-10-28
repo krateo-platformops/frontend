@@ -10,6 +10,7 @@ import type { ModalFuncProps } from 'antd/es/modal/interface'
 import { createElement } from 'react'
 
 import BlastRadiusConfirm, { VERB_INTENT } from '../components/BlastRadius/BlastRadiusConfirm'
+import { dismissButtonProps } from '../components/DismissButton'
 import { LAYER } from '../theme/layers'
 import { countNoun } from '../utils/utils'
 
@@ -74,6 +75,7 @@ export const buildConfirmModalProps = (
   }
 
   return {
+    cancelButtonProps: dismissButtonProps,
     cancelText: 'Cancel',
     content: radius ? createElement(BlastRadiusConfirm, { radius }) : undefined,
     okButtonProps: irreversible ? { danger: true } : undefined,

@@ -117,6 +117,17 @@ export const setPreviewProblems = (problems: string[] | null): void => {
 
 export const getPreviewProblems = (): string[] | null => lastPreviewProblems
 
+/** What the LAST live previewPage rendered (previewRender.ts), as the collector surfaces it on the
+ * page context (`previewRender`): the problems the follow-up turn named, and what rendered with data.
+ * Cleared when a new preview is applied, so it never describes a render that is no longer on screen. */
+let lastPreviewRender: { problems: string[]; rendered: string[] } | null = null
+
+export const setPreviewRender = (render: { problems: string[]; rendered: string[] } | null): void => {
+  lastPreviewRender = render ? { problems: [...render.problems], rendered: [...render.rendered] } : null
+}
+
+export const getPreviewRender = (): { problems: string[]; rendered: string[] } | null => lastPreviewRender
+
 /** The hidden recovery-turn prompt fired by the provider's PREVIEW-VALIDATION TRAMPOLINE when a
  * previewPage was ajv-rejected — pairs with the every-turn PREVIEW SELF-CORRECTION directive. */
 export const PREVIEW_SELF_CORRECTION_NUDGE = 'Your previewed page was REJECTED by validation — the EXACT schema errors are in your page context under `previewProblems` (one line per failing field). Fix exactly those errors in the affected CRs (re-delegate to the frontend specialist with the lines verbatim if it authored them) and re-emit the FULL corrected preview fence now (the SAME verb you used — previewPage or previewRestDef). Do NOT emit applyResourceSet or any publish in this reply — publishing is unlocked ONLY by a CLEAN preview that the human then approves.'

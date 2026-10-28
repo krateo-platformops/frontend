@@ -261,6 +261,30 @@ def rule_back_link(crs):
     return out
 
 
+CRUMB_TRAIL = re.compile(r'\S\s+/\s+\S')
+
+
+def rule_second_breadcrumb(crs):
+    """P27 — one breadcrumb per page, and it is the shell's.
+
+    The shell renders the page's breadcrumb above every page. A `Breadcrumb` widget in a chart, or an
+    eyebrow Paragraph spelling a path ("Builders / Compose"), puts a second one under it — the
+    composers did exactly that in-app until ScreenHeader removed the slot. A portal with no shell
+    breadcrumb opts a Breadcrumb CR out with the `krateo.io/own-breadcrumb` annotation.
+
+    A context eyebrow is not a trail: "Platform · tenant x" passes, "Platform / Compositions" does not."""
+    out = []
+    for fname, doc in crs:
+        kind = doc.get('kind')
+        annotations = (doc.get('metadata') or {}).get('annotations') or {}
+        if kind == 'Breadcrumb' and not annotations.get('krateo.io/own-breadcrumb'):
+            out.append((fname, "a Breadcrumb widget: the shell already renders this page's breadcrumb, so this is a second one"))
+        data = widget_data(doc)
+        if kind == 'Paragraph' and data.get('variant') == 'eyebrow' and CRUMB_TRAIL.search(str(data.get('text') or '')):
+            out.append((fname, f'eyebrow text "{data.get("text")}" spells a path: that is the shell breadcrumb, said twice'))
+    return out
+
+
 def rule_emoji(crs):
     """P15 — no emoji in titles, headings or status text."""
     out = []
@@ -790,6 +814,148 @@ def rule_page_header(crs):
     return out
 
 
+ASK_PATH = re.compile(r'[?&]ask=')
+
+
+ASK_LABEL = re.compile(r'^\s*ask autopilot\b', re.I)
+
+
+def _rest_actions(crs):
+    """RESTActions by name: where a Button's `apiRef` points, and where a templated href is built."""
+    return {((doc.get('metadata') or {}).get('name') or ''): doc for _f, doc in crs if doc.get('kind') == 'RESTAction'}
+
+
+def _is_autopilot_entry(button_doc, rest_actions=None):
+    """A Button that opens the Autopilot rail seeded with a prompt.
+
+    Recognised by where it GOES, because the chart spells that four ways: A4's canonical label
+    ("Ask Autopilot"), a static `?ask=` navigate path, a widgetDataTemplate computing the navigate
+    actions from an `askHref` (Alerts does that, so a path-only check missed it), or one computing
+    them from ANY field its `apiRef` RESTAction builds with `?ask=`.
+
+    The last is the shape that got through: two "Diagnose" buttons read a `diagnoseHref` that
+    composition-detail and incident-detail build as `…?ask=…`, so a check keyed on the field's
+    NAME passed them as plain navigation. The field is followed to the RESTAction that builds it."""
+    data = widget_data(button_doc)
+    if ASK_LABEL.match(str(data.get('label') or '')):
+        return True
+    for navigate in ((data.get('actions') or {}).get('navigate') or []):
+        if isinstance(navigate, dict) and ASK_PATH.search(str(navigate.get('path') or '')):
+            return True
+    spec = button_doc.get('spec') or {}
+    expressions = [str(entry.get('expression') or '') for entry in (spec.get('widgetDataTemplate') or [])
+                   if isinstance(entry, dict) and str(entry.get('forPath', '')).startswith('actions')]
+    if any('askHref' in expr for expr in expressions):
+        return True
+    source = (rest_actions or {}).get(((spec.get('apiRef') or {}).get('name') or ''))
+    if source is not None:
+        built = '\n'.join(text for _path, text in walk_strings(source))
+        # Only the `…Href` fields a template reads: a RESTAction builds many fields, and a generic
+        # one (`name`, `href`) is built in several shapes at once.
+        for field in {f for expr in expressions for f in re.findall(r'\.(\w+Href)\b', expr)}:
+            if re.search(rf'\b{re.escape(field)}\s*:[^\n]*[?&]ask=', built):
+                return True
+    return False
+
+
+AUTOPILOT_LABEL = 'Ask Autopilot →'
+AUTOPILOT_ICON = 'fa-wand-magic-sparkles'
+
+
+def rule_autopilot_button(crs):
+    """A4 — every Autopilot entry point looks the same: a filled (`type: primary`) Button labelled
+    "Ask Autopilot →" with the magic-wand icon. Never a link: the product's decision, recorded once
+    here instead of re-litigated per page.
+
+    Recognised by what the Button does, not what it says (a `?ask=` link or an `askHref` template),
+    as well as by its label — the sweep that resolved A4 the first time missed a CTA precisely
+    because it matched a shape instead of the capability. Where it sits is P26's business, as for any
+    header action."""
+    out, rest_actions = [], _rest_actions(crs)
+    for fname, doc in crs:
+        if doc.get('kind') != 'Button' or not _is_autopilot_entry(doc, rest_actions):
+            continue
+        data = widget_data(doc)
+        label, icon, kind = str(data.get('label') or ''), str(data.get('icon') or ''), data.get('type')
+        if label != AUTOPILOT_LABEL:
+            out.append((fname, f'Autopilot entry point labelled "{label}" — the canonical label is "{AUTOPILOT_LABEL}"'))
+        if icon != AUTOPILOT_ICON:
+            out.append((fname, f'Autopilot entry point with icon "{icon or "none"}" — it carries {AUTOPILOT_ICON}'))
+        if kind != 'primary':
+            out.append((fname, f'Autopilot entry point is a `type: {kind or "default"}` Button — it is a filled `type: primary` button, not a link'))
+    return out
+
+
+def _is_primary(button_doc):
+    """Filled, as the Button widget draws it: `type: primary`, or no `type` at all — Button.tsx
+    falls back to primary, so an unset type is the loudest button there is, not a neutral one. A
+    templated `type` is not judged; the lint does not guess what jq will emit."""
+    if 'type' in templated_paths(button_doc):
+        return False
+    data = widget_data(button_doc)
+    return data.get('intent') != 'dismiss' and data.get('type') in (None, 'primary')
+
+
+def rule_one_primary(crs):
+    """P6 — one primary action per container: a page header, or a self-contained panel.
+
+    A container is any widget whose children are named in `items` (or the Card's `extraRefId`
+    slot); its Buttons are the ones it names directly. Two filled buttons side by side say nothing
+    about which one the container is for, which is the whole job of the primary.
+
+    THE AUTOPILOT ENTRY POINT DOES NOT COUNT. A4 makes it filled wherever it appears, so it would
+    otherwise spend the budget on every page that has one; it sits beside the container's own
+    primary, never instead of it. Decided 2026-10-13."""
+    _index, resolve = ref_resolver(crs)
+    rest_actions = _rest_actions(crs)
+    out = []
+    for fname, doc in widget_crs(crs):
+        if doc.get('kind') == 'Button':
+            continue
+        data = widget_data(doc)
+        by_id = {r['id']: r for r in refs_of(doc) if r.get('id')}
+        named = [item.get('resourceRefId') for item in (data.get('items') or []) if isinstance(item, dict)]
+        named += template_ref_ids(doc) + ([data['extraRefId']] if data.get('extraRefId') else [])
+        primaries = []
+        for ref_id in dict.fromkeys(filter(None, named)):
+            ref = by_id.get(ref_id)
+            if not ref or ref.get('resource') != 'buttons':
+                continue
+            target = resolve(ref.get('name'), 'buttons')
+            if target and _is_primary(target[1]) and not _is_autopilot_entry(target[1], rest_actions):
+                primaries.append(str(widget_data(target[1]).get('label') or ref.get('name')))
+        if len(primaries) > 1:
+            name = (doc.get('metadata') or {}).get('name')
+            out.append((fname, f'{doc.get("kind")} `{name}` has {len(primaries)} primary buttons '
+                               f'({", ".join(primaries)}) — one is the container\'s action, the rest '
+                               f'are `type: default` (an Autopilot entry point does not count)'))
+    return out
+
+
+DISMISS_LABEL = re.compile(r'^\s*(cancel|close|close draft|dismiss|back|keep editing|keep it)\s*$', re.I)
+DESTROY_LABEL = re.compile(r'^\s*(delete|remove|discard|destroy|uninstall)\b', re.I)
+
+
+def rule_button_role(crs):
+    """C26 — a Button says what it does to the work in front of you.
+
+    DISMISS — it closes or backs out without deleting anything (Cancel, Close): `intent: dismiss`,
+    which draws it amber and outlined. DESTROY — it deletes content (Delete, Remove, Discard):
+    `danger: true`, red. Read from the label, the only place a CR says which it is; a label that is
+    neither is not judged."""
+    out = []
+    for fname, doc in crs:
+        if doc.get('kind') != 'Button':
+            continue
+        data = widget_data(doc)
+        label = str(data.get('label') or '')
+        if DISMISS_LABEL.match(label) and data.get('intent') != 'dismiss':
+            out.append((fname, f'"{label}" dismisses — give it `intent: dismiss` (amber), not a {data.get("type") or "primary"} button'))
+        if DESTROY_LABEL.match(label) and data.get('danger') is not True and data.get('color') != 'danger':
+            out.append((fname, f'"{label}" deletes — give it `danger: true` (red)'))
+    return out
+
+
 def rule_root_coverage(crs):
     """P9+P25 coverage — a `page-*` CR the nav does not reach, so neither rule judged it.
 
@@ -948,6 +1114,10 @@ RULES = {
     'dangling-ref': (rule_dangling_ref, 'X4'),
     'row-nav-placeholder': (rule_row_nav_placeholder, 'P10'),
     'back-link': (rule_back_link, 'P1'),
+    'second-breadcrumb': (rule_second_breadcrumb, 'P27'),
+    'autopilot-button': (rule_autopilot_button, 'A4'),
+    'one-primary': (rule_one_primary, 'P6'),
+    'button-role': (rule_button_role, 'C26'),
     'emoji': (rule_emoji, 'P15'),
     'tag-colour-no-label': (rule_tag_colour_without_label, 'C13'),
     'containment': (rule_containment, 'X5'),

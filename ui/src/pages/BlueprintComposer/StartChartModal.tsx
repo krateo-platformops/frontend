@@ -31,6 +31,7 @@ import { Alert, Form, Input, Modal, type InputRef } from 'antd'
 import { useEffect, useId, useRef, useState } from 'react'
 
 import type { DraftRenderResultDetail } from '../../components/Autopilot/previewDraftRender'
+import { dismissButtonProps } from '../../components/DismissButton'
 
 import styles from './BlueprintComposer.module.css'
 import { claimApiVersion, compositionKind, ociChartLocation, startChart, startChartWarnings, validateStartChart, type StartChartInput } from './startChart'
@@ -103,7 +104,7 @@ export const StartChartModal = ({ onCancel, onStart, open, owner, pending, refus
   }
 
   return (
-    <Modal
+    <Modal cancelButtonProps={dismissButtonProps}
       cancelText='Cancel'
       confirmLoading={pending}
       okText='Start'

@@ -12,7 +12,7 @@
  * is the `exception` dot, which the RESTAction sets only for NotSynced or NotReady (P13). Edges
  * take the theme's neutral tokens, dashed where they point into a node that is still withheld.
  */
-import type { EdgeAppearance, GraphEdge, GraphNode } from '../../components/DependencyGraph'
+import { GRAPH_LAYOUT, type EdgeAppearance, type GraphEdge, type GraphNode } from '../../components/DependencyGraph'
 
 import type { FlowChartData, FlowChartNodeData } from './FlowChart'
 
@@ -32,6 +32,49 @@ export interface ArchitectureEdgeData {
  */
 export const ARCHITECTURE_NODE_SIZE: [number, number] = [220, 84]
 
+/**
+ * The drawn width of an architecture graph, in px, at the cards' true size.
+ *
+ * dagre lays the graph out LR, so one RANK is one column and the drawn width is
+ * `ranks × cardWidth + (ranks − 1) × ranksep`. A rank is a step in the longest chain of active
+ * dependencies, which is what `level` means in the descriptor — computed here from the edges rather
+ * than read from the data, because the widget is given `parentRefs` and not levels.
+ *
+ * Used to tell the card whether the graph runs past its box (portal#310). Before this, a graph wider
+ * than the box was simply clipped at the right edge with nothing on screen saying so: the last
+ * column was cut mid-card and read as a rendering fault rather than as "there is more, drag it".
+ * `fit="natural"` pins the LEFT edge, so overflow is always on the right on first paint.
+ *
+ * A cycle cannot happen (the descriptor is a DAG and `toArchitectureGraphData` drops an edge whose
+ * source is not drawn) but the walk is depth-capped anyway: a malformed payload must not hang the
+ * page, and a wrong width only costs a fade that should not be there.
+ */
+export const architectureGraphWidth = (
+  nodes: readonly { id: string }[],
+  edges: readonly { source: string; target: string }[],
+  cardWidth = ARCHITECTURE_NODE_SIZE[0],
+  ranksep = GRAPH_LAYOUT.ranksep,
+): number => {
+  if (nodes.length === 0) { return 0 }
+  const parents = new Map<string, string[]>()
+  for (const { source, target } of edges) {
+    parents.set(target, [...(parents.get(target) ?? []), source])
+  }
+  const depth = new Map<string, number>()
+  const rankOf = (id: string, seen: ReadonlySet<string>): number => {
+    const known = depth.get(id)
+    if (known !== undefined) { return known }
+    // Depth cap: a self-reference or a cycle in a malformed payload stops here rather than recursing.
+    if (seen.has(id) || seen.size > nodes.length) { return 0 }
+    const next = new Set(seen).add(id)
+    const own = (parents.get(id) ?? []).reduce((deepest, parent) => Math.max(deepest, rankOf(parent, next) + 1), 0)
+    depth.set(id, own)
+    return own
+  }
+  const ranks = nodes.reduce((most, { id }) => Math.max(most, rankOf(id, new Set())), 0) + 1
+  return ranks * cardWidth + (ranks - 1) * ranksep
+}
+
 const STATES: readonly ArchitectureState[] = ['done', 'waiting', 'withheld', 'unreadable', 'unavailable', 'unknown']
 
 /**
@@ -41,6 +84,28 @@ const STATES: readonly ArchitectureState[] = ['done', 'waiting', 'withheld', 'un
  */
 export const architectureState = (state: unknown): ArchitectureState =>
   STATES.find((known) => known === state) ?? 'unknown'
+
+/**
+ * The full value behind the name line, for the card's `title` — what hover and keyboard focus
+ * disclose. Before portal#311 the `title` repeated the already-shortened string, so nothing anywhere
+ * in the UI could tell you what a node's objects were actually called.
+ *
+ * A `forEach` node lists every instance: `targetCommitId · 9 of 9` tells you there are nine and the
+ * name line tells you the range, but neither says WHICH nine, and the RESTAction has them. Capped,
+ * because a tooltip is not a table — past the cap it says how many more.
+ *
+ * The NAME LINE is left exactly as the RESTAction wrote it. Eliding the shared prefix is the right
+ * call for 194px of card (it is the suffix that tells the nodes apart), and moving that rule into
+ * the SPA would be a second change riding on this one. What was wrong was only that the elision
+ * reached the tooltip too, so the full value existed nowhere.
+ */
+export const architectureTitle = (names: readonly string[] | undefined, fallback: string, apiVersion?: string, cap = 12): string => {
+  const kindLine = apiVersion ? [apiVersion] : []
+  if (!names || names.length === 0) { return [fallback, ...kindLine].join('\n') }
+  const shown = names.slice(0, cap)
+  const rest = names.length - shown.length
+  return [...shown, ...(rest > 0 ? [`… and ${rest} more`] : []), ...kindLine].join('\n')
+}
 
 /** `label: reason — message`, the words behind the exception dot. */
 export const exceptionText = ({ label, message, reason }: ArchitectureException): string =>

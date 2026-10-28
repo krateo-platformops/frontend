@@ -1129,3 +1129,30 @@ spec:
         name: my-sample-nginx-pod-event-navigation-success
         namespace: krateo-system
         verb: POST
+---
+# Dismiss role (design rule C26)
+# Target: a button that closes or backs out without deleting anything.
+# Expected behavior: an amber, outlined "Cancel" that navigates back; `intent: dismiss` overrides type/color/danger.
+kind: Button
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-button-dismiss
+  namespace: krateo-system
+spec:
+  widgetData:
+    label: Cancel
+    intent: dismiss
+    clickActionId: navigate-example-button-back
+    actions:
+      navigate:
+        - id: navigate-example-button-back
+          path: /button
+          type: navigate
+  resourcesRefs:
+    items:
+      - id: navigate-example-button-back
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-button-page
+        namespace: krateo-system
+        resource: pages
+        verb: GET

@@ -20,4 +20,4 @@ spec:
     precision: 1
     suffix: "%"
     title: "Uptime"
-    value: 99.9
+    value: '99.9'

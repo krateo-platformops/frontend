@@ -436,7 +436,7 @@ spec:
                         - gold
                       type: string
                     danger:
-                      description: antd Button danger
+                      description: 'antd Button danger. Design rule C26: set it on a button that DELETES content (Delete, Remove, Discard)'
                       type: boolean
                     disabled:
                       description: antd Button disabled
@@ -449,6 +449,11 @@ spec:
                       type: string
                     iconColor:
                       description: palette color name (e.g. green / orange / red / cyan) applied to the icon independently of the button color — e.g. a leading fa-circle status dot on a filter chip
+                      type: string
+                    intent:
+                      description: 'Krateo button role, not an antd prop (design rule C26). `dismiss`: the button closes or backs out without deleting anything (Cancel, Close) and is drawn amber and outlined; `type`, `color`, `variant` and `danger` are ignored. A button that deletes content uses `danger` instead'
+                      enum:
+                        - dismiss
                       type: string
                     label:
                       description: the label of the button

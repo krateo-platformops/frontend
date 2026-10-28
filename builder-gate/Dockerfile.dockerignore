@@ -1,0 +1,10 @@
+# The build context is the repository root; send only what the gate is built from.
+*
+!builder-gate/package.json
+!builder-gate/package-lock.json
+!builder-gate/build.mjs
+!builder-gate/scripts/
+!builder-gate/src/
+!builder-gate/SNOWPLOW_REF
+!builder-gate/jqcheck/
+!ui/src/

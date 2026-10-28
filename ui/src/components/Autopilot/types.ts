@@ -121,8 +121,10 @@ export interface AutopilotActionChip {
    */
   previewFailed?: boolean
   /**
-   * previewBlueprint only: true when an inline draft ACTUALLY rendered. Arming requires it — the absence
+   * previewBlueprint: true when an inline draft ACTUALLY rendered. Arming requires it — the absence
    * of a failure is not a render (an unconfigured render service returns neither).
+   * previewPage: true when the drafts were applied to the sandbox and the live render opened — the
+   * one preview whose rendered DATA the provider then checks (previewRender.ts).
    */
   rendered?: boolean
   /**
@@ -175,6 +177,9 @@ export interface WidgetInventoryEntry {
    * boolean `loading`/`stale` above: `loadState` also distinguishes the ERRORED render.)
    */
   loadState?: 'loading' | 'error' | 'ready'
+  /** When `loadState` is `error`: the server's own words for the failure (a RESTAction that failed
+   * to resolve, a 403, a missing child), so "why is this red" is answered from the screen. */
+  error?: string
   /**
    * True when this widget carries an unusually large row count (a client-render-scale
    * hazard: a big non-virtualized list/table can wedge the browser tab while it paints).
@@ -234,6 +239,14 @@ export interface PageContextEnvelope {
    * REJECTED. The model must fix these exact errors and re-emit the full corrected
    * previewPage fence (see the PREVIEW SELF-CORRECTION routing rule). */
   previewProblems?: string[]
+  /**
+   * What the LAST live previewPage actually RENDERED, read from the widget cache once the preview
+   * settled (previewRender.ts): `problems` — a widget that failed to load (with the server's words,
+   * a RESTAction resolve error among them), an empty table or chart, a chart whose rows lack the
+   * field it plots — and `rendered`, what showed data (`Table pods: 148 rows`). Present from the
+   * check until the next preview is applied. A page is done only when `problems` is empty.
+   */
+  previewRender?: { problems: string[]; rendered: string[] }
   /**
    * Compose proposals the composer REFUSED and the model has not yet corrected — with the
    * containers that would have accepted each.
@@ -437,7 +450,10 @@ export type AutopilotFrame =
   | { kind: 'tool_result'; name: string; id?: string; output?: string; isError?: boolean; sessionId?: string }
   | { kind: 'require_approval'; pause: ApprovalPause }
   | { kind: 'done' }
-  | { kind: 'error'; message: string }
+  /** `status` is the HTTP status when the failure was an HTTP one — carried structurally so a
+   *  consumer can act on it. Parsing it back out of `message` would be reading prose for control
+   *  flow. Absent for in-band JSON-RPC errors and network faults, which have no status. */
+  | { kind: 'error'; message: string; status?: number }
 
 /** Per-stream callbacks. The transport invokes these as frames arrive. */
 export interface AutopilotStreamHandlers {

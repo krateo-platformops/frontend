@@ -1,3 +1,4 @@
+// T2 opt-out: antd's Grid exposes no component tokens to theme; the parent Row's gutter spaces it
 import { Col as AntdCol } from 'antd'
 
 import RefChild from '../../components/RefChild'

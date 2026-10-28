@@ -17,25 +17,36 @@
  * previewPageV2.ts; the drawer surface in previewSurface.tsx.
  */
 
-import Ajv, { type ValidateFunction } from 'ajv'
-
 import { getResourceEndpoint } from '../../utils/utils'
 
 import { type ApplyResourceSetGvr, type ApplyResourceSetOp, MAX_APPLY_SET_OPS } from './applyResourceSet'
 import { LABEL_OWNER } from './draftRecord'
 import { pluralOf, primeKinds } from './kindResolver'
+import {
+  expectedApiVersionOf,
+  isPageRoot,
+  lintPageDrafts,
+  RESTACTION_GROUP,
+  RESTACTION_KIND,
+  RESTACTION_VERSION,
+  RESTACTIONS_PLURAL,
+  WIDGETS_API_VERSION,
+  WIDGETS_GROUP,
+  WIDGETS_VERSION,
+} from './pageLint'
 
-/** The widget-CR coordinates every draft is normalized to (the live CRD group/version). */
-export const WIDGETS_GROUP = 'widgets.templates.krateo.io'
-export const WIDGETS_VERSION = 'v1beta1'
-export const WIDGETS_API_VERSION = `${WIDGETS_GROUP}/${WIDGETS_VERSION}`
-
-/** RESTAction drafts (a page's data source) ride in the same preview set. */
-export const RESTACTION_KIND = 'RESTAction'
-export const RESTACTION_GROUP = 'templates.krateo.io'
-export const RESTACTION_VERSION = 'v1'
-export const RESTACTION_API_VERSION = `${RESTACTION_GROUP}/${RESTACTION_VERSION}`
-export const RESTACTIONS_PLURAL = 'restactions'
+/** The widget-CR and RESTAction coordinates live with the lint (pageLint.ts); re-exported for this module's callers. */
+export {
+  expectedApiVersionOf,
+  RESTACTION_API_VERSION,
+  RESTACTION_GROUP,
+  RESTACTION_KIND,
+  RESTACTION_VERSION,
+  RESTACTIONS_PLURAL,
+  WIDGETS_API_VERSION,
+  WIDGETS_GROUP,
+  WIDGETS_VERSION,
+} from './pageLint'
 
 /** The A.2.2 draft labels: purpose marker + the per-thread session id (teardown/TTL keys). */
 export const PREVIEW_PURPOSE_LABEL = 'krateo.io/purpose'
@@ -43,9 +54,6 @@ export const PREVIEW_PURPOSE_VALUE = 'preview-draft'
 export const PREVIEW_SESSION_LABEL = 'krateo.io/preview-session'
 /** Whose preview a sandbox CR is — the draft-record kernel's owner label, the same key and value. */
 export const PREVIEW_OWNER_LABEL = LABEL_OWNER
-
-/** DNS-1123 name (same class applyResourceSet's path-segment guard enforces). */
-const DNS1123 = /^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$/
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   (value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null)
@@ -95,25 +103,14 @@ export const primeDraftKinds = async (
   await primeKinds(snowplowBaseUrl, WIDGETS_API_VERSION, kinds)
 }
 
-/** The apiVersion a draft of this kind MUST carry (normalized in the rewrite). */
-export const expectedApiVersionOf = (kind: string): string =>
-  (kind === RESTACTION_KIND ? RESTACTION_API_VERSION : WIDGETS_API_VERSION)
-
 const draftName = (cr: Record<string, unknown>): string | null => {
   const name = asRecord(cr.metadata)?.name
 
   return isNonEmptyString(name) ? name : null
 }
 
-/** "widgets[2] (Flex/page-root)" — the identity prefix of every validation line. */
-const draftLabel = (cr: Record<string, unknown>, index: number): string => {
-  const kind = isNonEmptyString(cr.kind) ? cr.kind : '?'
-
-  return `widgets[${index}] (${kind}/${draftName(cr) ?? '?'})`
-}
-
 // ────────────────────────────────────────────────────────────────────────────
-// Validation — ajv over the CO-LOCATED widget schemas (lazy, cached per kind)
+// Validation — the page lint over the CO-LOCATED widget schemas (lazy, cached per kind)
 // ────────────────────────────────────────────────────────────────────────────
 
 /** Lazy glob of every co-located widget schema, keyed by its kind (the file basename —
@@ -128,82 +125,10 @@ const schemaLoaderByKind = new Map<string, () => Promise<Record<string, unknown>
   }),
 )
 
-// One ajv for all kinds. strict:false — the authored schemas carry doc-oriented
-// keywords/defaults ajv's strict mode flags; validation semantics are unaffected.
-let ajv: Ajv | null = null
-const validators = new Map<string, ValidateFunction>()
-
-const validatorFor = async (kind: string): Promise<ValidateFunction | null> => {
-  const cached = validators.get(kind)
-  if (cached) {
-    return cached
-  }
-  const loader = schemaLoaderByKind.get(kind)
-  if (!loader) {
-    return null
-  }
-  const schema = await loader()
-  ajv = ajv ?? new Ajv({ allErrors: true, strict: false })
-  const validate = ajv.compile(schema)
-  validators.set(kind, validate)
-
-  return validate
-}
-
 /**
- * Validate ONE draft CR. The co-located schema validates the `{version, kind, spec}`
- * envelope (the shape the CRDs are generated from — metadata/apiVersion are the
- * apiserver's, not the schema's), so the draft is projected onto it. RESTActions have
- * no frontend schema (spec §7.8, honest gap) → structural checks only; the strict CRD
- * at admission and snowplow's own execution are their real gates.
- */
-const validateDraft = async (cr: Record<string, unknown>, index: number): Promise<string[]> => {
-  const at = draftLabel(cr, index)
-  const errors: string[] = []
-  const kind = isNonEmptyString(cr.kind) ? cr.kind : ''
-  const gvr = draftGvrOf(kind)
-  if (!gvr) {
-    return [`${at}: unknown kind — not a registered widget kind or ${RESTACTION_KIND}`]
-  }
-  const name = draftName(cr)
-  if (!name || !DNS1123.test(name)) {
-    errors.push(`${at}: metadata.name is required and must be a DNS-1123 name`)
-  }
-  const expected = expectedApiVersionOf(kind)
-  if (cr.apiVersion !== undefined && cr.apiVersion !== expected) {
-    errors.push(`${at}: apiVersion must be ${expected}`)
-  }
-  const spec = asRecord(cr.spec)
-  if (!spec) {
-    errors.push(`${at}: spec is required`)
-
-    return errors
-  }
-  if (kind === RESTACTION_KIND) {
-    return errors
-  }
-  const validate = await validatorFor(kind)
-  if (!validate) {
-    // A kind in the plural table but with no co-located schema would be a build-time
-    // drift bug (validate-schemas guards it); fail CLOSED — never apply unvalidated.
-    errors.push(`${at}: no co-located schema found for kind ${kind} — draft not validated, refusing to apply`)
-
-    return errors
-  }
-  if (!validate({ kind, spec, version: WIDGETS_VERSION })) {
-    for (const error of validate.errors ?? []) {
-      errors.push(`${at}: ${error.instancePath || '(root)'} ${error.message ?? 'invalid'}`)
-    }
-  }
-
-  return errors
-}
-
-/**
- * Validate the WHOLE draft set (A.2.1: any failure → the v1 source drawer with
- * verdicts; garbage is never applied). Returns problem lines for the drawer —
- * EMPTY means every draft is applyable. Also rejects duplicate (kind, name) pairs
- * (the second POST would 409 mid-set) — all-or-nothing, like the set kernel.
+ * Validate the WHOLE draft set — the pure page lint (pageLint.ts) over this portal's own sources:
+ * the co-located schemas through the glob above, and the plurals snowplow's discovery resolver
+ * answers. Returns problem lines for the drawer — EMPTY means every draft is applyable.
  */
 export const validatePageDrafts = async (
   drafts: readonly Record<string, unknown>[],
@@ -212,23 +137,11 @@ export const validatePageDrafts = async (
   // Resolve the kinds before any of them is looked up. Without a base URL nothing resolves and
   // every widget kind reads as unknown — which is why the caller must pass it (previewPageV2 does).
   await primeDraftKinds(drafts, snowplowBaseUrl)
-  const problems: string[] = []
-  const seen = new Set<string>()
-  for (const [index, cr] of drafts.entries()) {
-    // eslint-disable-next-line no-await-in-loop -- drafts validate in order; per-kind schema loads are cached after the first hit
-    problems.push(...await validateDraft(cr, index))
-    const gvr = draftGvrOf(isNonEmptyString(cr.kind) ? cr.kind : '')
-    const name = draftName(cr)
-    if (gvr && name) {
-      const key = `${gvr.resource}/${name}`
-      if (seen.has(key)) {
-        problems.push(`${draftLabel(cr, index)}: duplicate draft — ${key} appears twice in the set`)
-      }
-      seen.add(key)
-    }
-  }
 
-  return problems
+  return lintPageDrafts(drafts, {
+    pluralOf: (kind) => pluralOf(WIDGETS_API_VERSION, kind),
+    schemaFor: (kind) => schemaLoaderByKind.get(kind)?.() ?? null,
+  })
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -436,7 +349,7 @@ export const chunkSetOps = (ops: readonly ApplyResourceSetOp[]): ApplyResourceSe
  * `page-` prefix is what finds it, and `sandboxDraftName` never cuts a name's head.
  */
 export const rootDraftTargetOf = (targets: readonly DraftTarget[]): DraftTarget | null =>
-  targets.find(({ kind, name }) => kind === 'Flex' && name.startsWith('page-')) ?? null
+  targets.find(({ kind, name }) => isPageRoot(kind, name)) ?? null
 
 /**
  * The root draft's REAL served `widgetEndpoint` — built exactly the way snowplow's

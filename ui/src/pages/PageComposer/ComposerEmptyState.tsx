@@ -9,6 +9,7 @@
  */
 import { Button, Popconfirm } from 'antd'
 
+import { dismissButtonProps } from '../../components/DismissButton'
 import { WidgetEmpty } from '../../components/WidgetStates'
 
 export const ComposerEmptyState = ({ onDiscard, onStart, parkedBlueprint }: {
@@ -21,13 +22,13 @@ export const ComposerEmptyState = ({ onDiscard, onStart, parkedBlueprint }: {
       <WidgetEmpty
         description='A blueprint draft is open in this thread. This composer edits pages — discard that draft to start a page here.'
       >
-        <Popconfirm
-          cancelText='Keep it'
+        <Popconfirm cancelButtonProps={dismissButtonProps} cancelText='Keep it'
+          okButtonProps={{ danger: true }}
           okText='Discard'
           onConfirm={onDiscard}
           title='Discard the blueprint draft? Its unpublished files are deleted.'
         >
-          <Button>Discard blueprint draft</Button>
+          <Button danger>Discard blueprint draft</Button>
         </Popconfirm>
       </WidgetEmpty>
     )

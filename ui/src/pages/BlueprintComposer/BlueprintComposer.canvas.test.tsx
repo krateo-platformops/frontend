@@ -44,7 +44,8 @@ describe('BlueprintComposer — the header of a held chart (screen 3)', () => {
     const heading = screen.getByRole('heading', { level: 1, name: 'builder-publish 0.1.0 · BuilderPublish' })
     expect(within(heading).getByText('0.1.0 · BuilderPublish')).toBeTruthy()
     expect(screen.getByText('9 files')).toBeTruthy()
-    expect(screen.getByText('Blueprint Builder / Compose')).toBeTruthy()
+    // P27: the shell breadcrumb says "Blueprint Builder / Compose"; the header does not say it again.
+    expect(screen.queryByText('Blueprint Builder / Compose')).toBeNull()
   })
 
   it('offers Preview, Undo, Publish and Close draft', () => {

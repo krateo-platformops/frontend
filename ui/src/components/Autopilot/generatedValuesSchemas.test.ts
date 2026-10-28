@@ -40,7 +40,7 @@ interface GeneratedSchema {
 }
 
 const GENERATED: [label: string, schemaText: string, spec: Record<string, unknown>][] = [
-  ['a page set (pageValuesSchema)', pageValuesSchema('chain-pages'), { tiers: { common: '' } }],
+  ['a page set (pageValuesSchema)', pageValuesSchema('chain-pages'), {}],
   ['a controller (kogValuesSchema)', kogValuesSchema('githubrepo'), {}],
 ]
 
@@ -71,7 +71,7 @@ describe('a page set leaves global OPEN — the controller, not the chart, decid
   it('takes a key a later CDC adds', () => {
     expect(schema.properties.global?.type).toBe('object')
     expect(schema.properties.global?.additionalProperties).toBeUndefined()
-    expect(validate({ global: { ...CDC_GLOBAL, keyAddedByALaterController: 'x' }, tiers: { common: '' } })).toBe(true)
+    expect(validate({ global: { ...CDC_GLOBAL, keyAddedByALaterController: 'x' } })).toBe(true)
   })
 })
 

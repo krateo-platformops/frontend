@@ -4,6 +4,7 @@ import { Outlet } from 'react-router'
 
 import { ensureBuildersLoaded } from '../../builders/clusterBuilders'
 import { useConfigContext } from '../../context/ConfigContext'
+import { WidgetScopeProvider } from '../../context/WidgetScopeContext'
 import Drawer from '../../widgets/Drawer'
 import Modal from '../../widgets/Modal'
 import { AutopilotProvider, AutopilotShell, AutopilotToggle } from '../Autopilot'
@@ -30,7 +31,14 @@ const HeaderChrome = () => {
   return (
     <>
       <div className={styles.headerLeft}>
-        <WidgetRenderer key='header-context' widgetEndpoint={headerContext} />
+        {/* snowplow#777: chrome is mounted ABOVE the outlet, so react-router hands it the child
+            route's params and the page's query — which header-context, tenant-chip and
+            project-select all declare nothing for and read nothing from. Scoping the tree to
+            'chrome' stops them entering its extras envelope at all, instead of being sent and
+            then declined (74 declines in 7 days, 33% of all logged /call declines). */}
+        <WidgetScopeProvider scope='chrome'>
+          <WidgetRenderer key='header-context' widgetEndpoint={headerContext} />
+        </WidgetScopeProvider>
       </div>
       {/* Autopilot is a distinct surface, not a page utility — pull its toggle out of the
           search/notifications/theme cluster and set it beside the user menu, behind a divider. */}

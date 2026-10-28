@@ -96,6 +96,40 @@ export const WidgetNotFound = ({ subtitle }: { subtitle?: string }) => (
 )
 
 /**
+ * Distinct DEPENDENCY-FAILED state (424), snowplow#853. The widget CR itself was read fine —
+ * what it needs in order to say anything is not on this cluster: the apiRef RESTAction, one of
+ * its stages, a nested resolve, or the CRD a status check reads. The canonical case is a page
+ * whose backing operator was never installed (/agents/new with no kagent).
+ *
+ * Before 424 this arrived as a 404 and rendered WidgetNotFound. It must NOT fall through to
+ * WidgetError: a component that is simply absent from this installation is an expected outcome,
+ * not a malfunction, and the red cross misdescribes it exactly as it did for a 403.
+ *
+ * It DOES offer a button, unlike WidgetForbidden and WidgetNotFound, and the difference is the
+ * recovery path rather than the tone. An error answer carries no `/refreshes` arming headers, so
+ * a tab sitting on a 424 is never told when the operator finally appears -- it would otherwise
+ * clear only on navigation or a reload. And unlike a denial or a deleted object, "install the
+ * missing component" is the expected next step here, often taken by the same person with this
+ * tab still open.
+ *
+ * Hence "Check again" rather than "Retry": before the install it honestly changes nothing, and
+ * it does not imply the failure was transient the way Retry does.
+ *
+ * `subtitle` is snowplow's own message for the failed dependency and is rendered verbatim as
+ * reader-facing copy, so it must never carry identity or credentials.
+ */
+export const WidgetDependencyMissing = ({ onRetry, subtitle }: { onRetry?: () => void; subtitle?: string }) => (
+  <div className={styles.timeout} data-testid='widget-dependency-missing'>
+    <Result
+      extra={onRetry ? <Button onClick={onRetry} type='primary'>Check again</Button> : undefined}
+      status='info'
+      subTitle={subtitle ?? 'Something this needs is not installed on this cluster.'}
+      title='Data source unavailable'
+    />
+  </div>
+)
+
+/**
  * Classify a fetch failure as a TIMEOUT (calm, retryable) vs a hard error. True for
  * request deadlines, cancelled/aborted fetches, and 503/504 gateway timeouts —
  * detected from the HTTP status when present, otherwise from the message class. Pure

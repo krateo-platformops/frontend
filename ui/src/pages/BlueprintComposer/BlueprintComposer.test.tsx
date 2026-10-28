@@ -71,7 +71,8 @@ describe('BlueprintComposer — mounted bare, like the Page Composer', () => {
 describe('BlueprintComposer — nothing held (screen 2, behind the modal)', () => {
   it('names the page and says no chart is open, through the shared empty state with Start inside it', () => {
     mount()
-    expect(screen.getByText('Blueprint Builder / Compose')).toBeTruthy()
+    // P27: "Blueprint Builder / Compose" is the shell breadcrumb's; the header does not repeat it.
+    expect(screen.queryByText('Blueprint Builder / Compose')).toBeNull()
     expect(screen.getByRole('heading', { level: 1, name: 'Blueprint composer' })).toBeTruthy()
     const empty = document.querySelector('.ant-empty')
     expect(empty?.textContent).toMatch(/No chart open/)

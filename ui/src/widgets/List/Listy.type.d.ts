@@ -85,6 +85,10 @@ export interface Listy {
        */
       footer?: string
       /**
+       * in-app route the footer opens (e.g. /incidents); when set the footer renders as a link. Not an antd prop: antd's footer is a ReactNode, and a CR can only say where it goes.
+       */
+      footerNavigateTo?: string
+      /**
        * antd List pagination (serializable subset); presence enables client-side paging of the delivered dataSource (e.g. the ~400-card Marketplace grid). Server-side facet/search filters (?extras) shrink the array BEFORE it reaches the widget, so paging composes with them: antd clamps the current page into the filtered range, and a single-page result hides the pager entirely (exception-only chrome). Absent = antd default (no pagination).
        */
       pagination?: {
@@ -151,6 +155,10 @@ export interface Listy {
          * render subPrimaryText as a small mono bordered pill (e.g. an event involvedObject Kind/name ref) instead of plain sub-text
          */
         subPrimaryTextMono?: boolean
+        /**
+         * one line each for primaryText and subPrimaryText in the default row, the full text in a tooltip (antd Typography ellipsis)
+         */
+        ellipsis?: boolean
         /**
          * per-item navigation target ({dot.path} template, e.g. {link}); when it resolves non-empty the row becomes clickable and navigates there (SPA route)
          */

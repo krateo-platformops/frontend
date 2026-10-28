@@ -9,6 +9,9 @@
  *   - the restored-thread state renders the "viewing a past conversation" hint.
  * The rail reads everything through useAutopilot — stubbed here so the test drives the UI, not A2A.
  */
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
 import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -41,6 +44,10 @@ const baseValue = {
   pendingApproval: null,
   reachable: true,
   restored: false,
+  // Added by the claim check: the rail's Retry on an unbacked-claim notice. Present here because
+  // three cases spread `baseValue` into `mockReturnValue` WITHOUT the cast `setValue` applies, so
+  // the context type is actually checked there — which is how the merge surfaced it.
+  retryClaims: vi.fn(),
   send: vi.fn(),
   sessionId: 's-current',
   sessions: vi.fn((): ThreadSummary[] => []),
@@ -53,8 +60,12 @@ const baseValue = {
   tourOpen: false,
 }
 
+// NO CAST. `baseValue` is now a complete AutopilotContextValue, so this helper is type-checked —
+// which is the point: the cast that used to sit here is why a context field added elsewhere could
+// go missing from the mock without anything saying so. It only surfaced in the three cases that
+// spread `baseValue` directly. Keep this assignable rather than restoring the cast.
 const setValue = (overrides: Partial<typeof baseValue>) => {
-  mockedUseAutopilot.mockReturnValue({ ...baseValue, ...overrides } as unknown as ReturnType<typeof useAutopilot>)
+  mockedUseAutopilot.mockReturnValue({ ...baseValue, ...overrides })
 }
 
 beforeAll(() => {
@@ -187,5 +198,69 @@ describe('action chip outcome', () => {
     expect(chip.getAttribute('data-outcome')).toBe('applied')
     expect(chip.querySelector(`path[d="${CHECK_PATH}"]`)).not.toBeNull()
     expect(chip.querySelector('circle')).toBeNull()
+  })
+
+  it('keeps the read-only badge on one line beside a long label', () => {
+    const label = 'Preview rendered: PieChart dry-pb-v2-20261004-2-pie: 4 slices · Table dry-pb-v2-20261004-2-table: 149 rows'
+    setValue({ messages: bot([{ label, readOnly: true, verb: 'previewPage' }]) })
+    const { container } = render(<AutopilotRail />)
+    const chip = chipFor(container, label)
+    const badge = [...chip.querySelectorAll('span')].find((el) => el.textContent === 'read-only')
+    const text = [...chip.querySelectorAll('span')].find((el) => el.textContent === label)
+    expect(badge?.className).toMatch(/apActRo/)
+    expect(text?.className).toMatch(/apActLabel/)
+    // jsdom applies no CSS-module rules, so assert the rules themselves: the badge neither shrinks
+    // nor wraps, and the label is the flex child allowed to shrink below its content width.
+    const css = readFileSync(resolve(__dirname, 'AutopilotRail.module.css'), 'utf8')
+    const rule = (name: string) => css.match(new RegExp(`\\.${name} \\{([^}]*)\\}`))?.[1] ?? ''
+    expect(rule('apActRo')).toMatch(/flex: none;/)
+    expect(rule('apActRo')).toMatch(/white-space: nowrap;/)
+    expect(rule('apActLabel')).toMatch(/min-width: 0;/)
+  })
+})
+
+/**
+ * The rail's half of the availability contract (the colleague's cmp.krateo.dev report).
+ *
+ * The provider defines `enabled` = an endpoint is configured (VISIBILITY) and `reachable` = the
+ * agent is actually usable (CLICKABILITY). AutopilotToggle implemented its half; the rail never
+ * consumed `reachable` at all, so every control inside it stayed live while the agent was not
+ * deployed, not reachable, or not permitted — each click firing a turn that could only fail.
+ *
+ * Both arms are asserted. A test that only checks the disabled case passes just as well against a
+ * rail that disables everything always.
+ */
+describe('AutopilotRail — unusable agent', () => {
+  afterEach(cleanup)
+
+  it('disables every control and SAYS WHY when the agent is not reachable', () => {
+    mockedUseAutopilot.mockReturnValue({ ...baseValue, reachable: false })
+    const { getByLabelText, getByTestId, getByText } = render(<AutopilotRail />)
+
+    // the starter prompts a zero-knowledge user reaches for first
+    expect((getByText('Show me around') as HTMLButtonElement).disabled).toBe(true)
+    expect((getByText("What's on this page?") as HTMLButtonElement).disabled).toBe(true)
+    // and Send
+    expect((getByLabelText('Send') as HTMLButtonElement).disabled).toBe(true)
+    // a disabled button swallows pointer events, so the toggle's tooltip cannot reach anyone in
+    // here: the reason has to be on the page as text.
+    expect(getByTestId('autopilot-unavailable').textContent).toContain('not permitted for your user')
+  })
+
+  it('leaves them usable when the agent IS reachable (the control arm)', () => {
+    mockedUseAutopilot.mockReturnValue({ ...baseValue, reachable: true })
+    const { getByText, queryByTestId } = render(<AutopilotRail />)
+
+    expect((getByText('Show me around') as HTMLButtonElement).disabled).toBe(false)
+    expect(queryByTestId('autopilot-unavailable')).toBeNull()
+  })
+
+  it('sends nothing when a starter prompt is clicked while unreachable', () => {
+    const send = vi.fn()
+    mockedUseAutopilot.mockReturnValue({ ...baseValue, reachable: false, send })
+    const { getByText } = render(<AutopilotRail />)
+
+    fireEvent.click(getByText('Show me around'))
+    expect(send).not.toHaveBeenCalled()
   })
 })

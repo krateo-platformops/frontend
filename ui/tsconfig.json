@@ -21,5 +21,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/**/*", "scripts/*"]
+  "include": ["src/**/*", "scripts/*", "visual/**/*"],
+  // Like ../vite.config.ts, which this extends: Vite configs are not part of the typecheck.
+  "exclude": ["visual/vite.config.ts"]
 }

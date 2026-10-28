@@ -17,7 +17,6 @@ spec:
   resourcesRefs:
     items:
       - id: upload-target
-        allowed: true
         resource: restactions
         apiVersion: templates.krateo.io/v1alpha1
         name: upload-file

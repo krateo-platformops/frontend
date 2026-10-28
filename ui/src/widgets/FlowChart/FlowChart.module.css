@@ -24,3 +24,24 @@
   height: 360px;
   position: relative;
 }
+
+/* portal#310: the graph runs past this box. `fit="natural"` pins its LEFT edge, so what is missing
+   is always on the RIGHT, and a card clipped mid-name reads as damage unless something says the
+   drawing continues. A fade over the last 48px does that without moving or shrinking anything — the
+   cards keep their designed 220x84 and their type floor, which is why the variant draws at true size
+   in the first place.
+
+   Decorative and inert: `pointer-events: none` so it never eats a drag (dragging is how the rest is
+   reached), and no accessible name, since the clipped card is itself the signal. Painted only when
+   the component has measured an overflow. The colour is the page's own surface, so it reads as the
+   drawing running under the card's edge rather than as a band of its own. */
+.architecture[data-overflows='true']::after {
+  background: linear-gradient(to right, transparent, var(--background-color));
+  bottom: 0;
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 48px;
+}

@@ -163,3 +163,45 @@ The authoritative per-action property tables are generated from the schemas:
   the app opens snowplow's `/refreshes` stream and arms per-widget subscriptions so a
   widget refetches when its backing cluster object changes; the `FreshnessBadge`'s "Live"
   dot reflects a genuinely-open subscription (`WidgetRenderer.tsx:123-129`).
+
+  **Transport — POST body, falling back to `GET ?sub=`** (`refreshSse.ts`, `open()`).
+  The subscription is the same coordinate array either way; only where it travels changed.
+
+  | | request | encoding |
+  |---|---|---|
+  | preferred | `POST /refreshes`, array as the JSON body | raw JSON |
+  | fallback | `GET /refreshes?sub=<base64url>` | base64, ~1.33x |
+
+  The query-string form spends the same budget as every other request header, and snowplow
+  sits behind an edge proxy that caps the whole HTTP/2 header block at ~16 KiB. Measured on
+  057 (2026-10-10, by the snowplow session): a bare client gets through at 16,133 characters
+  and is refused at 16,134; adding 1,627 bytes of headers moved the cliff by exactly 1,627.
+
+  **What shares that budget is the Bearer token, not a cookie.** `document.cookie` is empty on
+  this portal — snowplow is authenticated with `Authorization: Bearer` (`getAccessToken()`),
+  measured at 928 bytes. So **the limit moves with the token, and a token grows with the user's
+  role and group claims**: the same page can subscribe for one user and be refused for another
+  whose claims are fatter. There is no fixed safe widget count.
+
+  Headroom, measured 2026-10-10: the composition detail page subscribed 30 coordinates at
+  10,656 characters and got a 200, against roughly 15,200 available once the token is counted —
+  about thirteen coordinates of margin at ~354 encoded bytes each. On 2026-10-07 the same route
+  carried 50 widgets, produced an 18,098-character URL and was refused, so the page's own density
+  moved between the two readings. Both are real; the margin is simply thin, and a page gaining a
+  dozen widgets crosses it silently.
+
+  The 431 comes from the edge, not snowplow — it carries no application headers, and snowplow has
+  no code that emits one.
+
+  A body has no such limit, so the preferred form removes the cliff entirely.
+
+  **The fallback is what makes this deployable in any order.** A `404`/`405` means the server
+  predates the body route, so the client retries once as `GET ?sub=` and remembers it for the
+  session (`postUnsupported`). Any other status — `401`, `5xx` — is a real answer and keeps its
+  existing handling. snowplow accepts the body from **1.12.41** and still accepts `?sub=`
+  byte-identically, so client and server roll independently.
+
+  **This does not make every page live-refresh.** A page whose RESTAction declares a
+  `userAccessFilter` is not cached at all, so there is no cell to publish about even once the
+  subscription arrives (snowplow#561). The composition detail page is one of these: the two
+  defects stack on it, and POST fixes only the first.

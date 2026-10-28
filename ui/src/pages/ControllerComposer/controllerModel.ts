@@ -11,12 +11,14 @@ import { CHART_YAML_PATH, chartYamlName, chartYamlVersion } from '../../componen
 import { REST_DEFINITION_KIND } from '../../components/Autopilot/kogMapping'
 import { asRecord, isNonEmptyString } from '../../components/Autopilot/kogRestDefSchema'
 
-import { type OasImport, type OasOperation, parseOas } from './oasImport'
+import { deref, type OasDocument, type OasImport, type OasOperation, parseOas } from './oasImport'
 import {
   inferOperationMapping,
   type MappingOverride,
   type OperationMapping,
+  requestBodySchema,
   type RestAction,
+  schemaHasField,
   VERB_ORDER,
   type VerbConflict,
 } from './operationMapping'
@@ -262,7 +264,8 @@ export const pathIdBindings = (kind: ControllerKind): PathIdBinding[] => {
  * The path parameters status supplies but oasgen would still ask spec for: each one that EVERY held
  * verb whose path carries it reads from `status.*` (petstore's `{petId}` ← status.id). oasgen injects a
  * verb's path parameters into spec — required — unless excludedSpecFields names the PARAMETER (0.25+).
- * One any verb reads from spec, or leaves unmapped (oasgen then reads spec), is not among them.
+ * One any verb reads from spec, or leaves unmapped (oasgen then reads spec), is not among them. Only
+ * an operation's own parameters are injected: whether spec carries one is specCarriesField's question.
  */
 export const statusBoundPathParams = (restDefinition: Record<string, unknown>): string[] => {
   const fromStatus = new Map<string, boolean>()
@@ -277,6 +280,24 @@ export const statusBoundPathParams = (restDefinition: Record<string, unknown>): 
   return [...fromStatus].filter(([, status]) => status).map(([param]) => param)
 }
 
+/**
+ * Is a field in the spec oasgen builds — so excludedSpecFields may name it? oasgen starts spec from the
+ * create body and adds each held verb's OPERATION-level parameters; a parameter declared only on the
+ * path item is never added, and excluding it is the warning "set in excludedSpecFields not found in
+ * schema". With no document there is nothing to tell by, and the answer is yes.
+ */
+export const specCarriesField = (doc: OasDocument | undefined, restDefinition: Record<string, unknown>, field: string): boolean => {
+  if (!doc) { return true }
+  const create = heldVerb(restDefinition, 'create')
+  const body = create ? requestBodySchema(doc, create.method, create.path) : null
+  if (body && schemaHasField(doc, body, field)) { return true }
+  return verbsOf(restDefinition).some((verb) => {
+    if (!isNonEmptyString(verb.method) || !isNonEmptyString(verb.path)) { return false }
+    const own = asRecord(deref(doc, asRecord(doc.paths)?.[verb.path])?.[verb.method.toLowerCase()])?.parameters
+    return Array.isArray(own) && own.some((entry) => deref(doc, entry)?.name === field)
+  })
+}
+
 /** The sentence a PUBLISHED Kind carries for a status-bound path parameter its locked excludedSpecFields does not name. */
 export const askedOnCreateSentence = (param: string): string =>
   `${param} is asked for on create because this controller was published before it was excluded; excluding it needs the RestDefinition recreated.`
@@ -286,11 +307,12 @@ export const askedOnCreateSentence = (param: string): string =>
  * the inspector and the agent's summary alike. excludedSpecFields is CEL-immutable, so nothing is
  * changed: an unpublished draft has the parameter excluded as it is bound (settleStatusBindings).
  */
-export const askedOnCreateNotes = (kind: ControllerKind, published: boolean): string[] => {
+export const askedOnCreateNotes = (kind: ControllerKind, published: boolean, doc: OasDocument | undefined): string[] => {
   if (!published) { return [] }
   const resource = asRecord(asRecord(kind.restDefinition.spec)?.resource) ?? {}
   const excluded = Array.isArray(resource.excludedSpecFields) ? resource.excludedSpecFields.filter(isNonEmptyString) : []
-  return statusBoundPathParams(kind.restDefinition).filter((param) => !excluded.includes(param)).map(askedOnCreateSentence)
+  return statusBoundPathParams(kind.restDefinition).filter((param) => !excluded.includes(param) && specCarriesField(doc, kind.restDefinition, param))
+    .map(askedOnCreateSentence)
 }
 
 const readKind = (path: string, text: string, spec: ControllerModel['spec']): ControllerKind | { path: string; reason: string } => {

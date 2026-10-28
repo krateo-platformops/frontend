@@ -22,6 +22,7 @@ import { AgentDraftProvider } from './agentDraft'
 import type { ApprovalDecision, ApprovalGovernor, ApprovalPause } from './approval'
 import { createApprovalGovernor, summarizeApprovalTools } from './approval'
 import { useAskDeepLink } from './askDeepLink'
+import { useAutopilotAvailability } from './availability'
 import type { BlueprintDraftHeld } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
 import { trackPublishStatus } from './builderClaimPublish'
@@ -32,7 +33,7 @@ import { withHeldDraft } from './draftStructure'
 import { recordToolFrame } from './evidence'
 import { useAutopilotShortcut } from './keyboardShortcut'
 import { createOasAttachmentStore, type OasAttachmentResult } from './oasAttachment'
-import { PREVIEW_SELF_CORRECTION_NUDGE } from './previewBus'
+import { PREVIEW_SELF_CORRECTION_NUDGE, setPreviewRender } from './previewBus'
 import { emitPublishResult, onPublishRequest } from './previewPublishRequest'
 import { AutopilotPreviewDrawer } from './previewSurface'
 import { routeProposal } from './proposalRoute'
@@ -43,12 +44,12 @@ import type { ThreadSummary } from './sessionHistoryStore'
 import { createEchoTransport, createKagentTransport } from './transport'
 import type { AutopilotActionChip, AutopilotFrame, AutopilotMessage, AutopilotTransport, EvidenceEntry, PageContextEnvelope, TurnModality } from './types'
 import { buildContextDelta, useAutopilotContext } from './useAutopilotContext'
-import { useAutopilotReachability } from './useAutopilotReachability'
 import { useBlueprintAuthoringBuses } from './useBlueprintAuthoringBuses'
 import { type ClaimRetryApi, useClaimCheck } from './useClaimCheck'
 import { createDraftAutosave, useDraftAutosave } from './useDraftAutosave'
 import { createBroadcastingDraftStore, useDraftFileBuses } from './useDraftFileBuses'
 import { useDraftResumeBus } from './useDraftResumeBus'
+import { usePreviewDataLoop } from './usePreviewDataLoop'
 import { autopilotSpeakBackStore } from './voice/speak/speakBackStore'
 import { stopVoice } from './voiceWiring'
 
@@ -59,8 +60,10 @@ interface AutopilotContextValue extends ClaimRetryApi {
   enabled: boolean
   /** Whether the configured agent is actually USABLE right now — controls CLICKABILITY. False when
    * the installer marks Autopilot unavailable (AUTOPILOT_AVAILABLE="false", e.g. agents not
-   * deployed/licensed) OR the runtime reachability probe of the endpoint fails (agent down). When
-   * `enabled && !reachable` the toggle renders grayed-out and non-clickable. `null` while probing. */
+   * deployed/licensed), while the runtime reachability probe has not yet answered, when that probe
+   * fails (agent down), or once a TURN has been answered 401/403 — the real request is a stronger
+   * witness than the probe. When `enabled && !reachable` the toggle renders grayed-out and
+   * non-clickable, and the rail disables its controls behind a notice saying why. */
   reachable: boolean
   /** Whether the docked rail is open. */
   open: boolean
@@ -120,13 +123,15 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   const useEcho = endpoint === 'echo' || (import.meta.env.DEV && import.meta.env.VITE_AUTOPILOT_ECHO === 'true')
   const enabled = Boolean(endpoint) || useEcho
 
+  // Availability (CLICKABILITY — distinct from `enabled`/visibility): the installer's flag, the
+  // reachability probe and a turn's own verdict, in ./availability.
+  const flagAvailable = config?.api.AUTOPILOT_AVAILABLE !== 'false'
   // Per-builder publish destinations, resolved from install config (owner/repo slug) → the built-in
   // canonical fallback. Config-driven so an org/repo rename is a values change, not a rebuild.
   const builderTargets = useBuilderTargets(config)
-  // CLICKABILITY (distinct from `enabled`/visibility): the installer flag AND a live probe — see the hook.
-  const reachable = useAutopilotReachability(enabled, useEcho, config?.api.AUTOPILOT_AVAILABLE !== 'false', endpoint)
+  const { markUnavailable, reachable } = useAutopilotAvailability({ enabled, endpoint, flagAvailable, useEcho })
 
-  const { collect } = useAutopilotContext()
+  const { collect, readRenderedWidgets } = useAutopilotContext()
   // DRAFT RECORDS: the held draft autosaved to the sandbox (useDraftAutosave). Built before the bridge
   // and the store, because each is handed a piece of it at construction — the bridge its write-ahead
   // (a live page preview flushes the record before it applies), the store its change listener.
@@ -213,6 +218,9 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
   const recoveryCountRef = useRef(0)
   // THE CLAIM CHECK (useClaimCheck / claimCheck.ts): what a reply SAYS it did, against what its turn did.
   const { flag: flagClaims, noteDecision, retryClaims, track: trackTurn } = useClaimCheck({ messages, sendRef, sessionId, setMessages, streaming })
+  // PREVIEW-DATA TRAMPOLINE (frontend#442 D10): a live preview of a specialist's page is read back
+  // once rendered, and a render with problems earns a bounded follow-up turn. See usePreviewDataLoop.
+  const { beginRun, checkLivePreview, holdsPublish, reset: resetPreviewDataLoop } = usePreviewDataLoop({ readRenderedWidgets, sandboxNamespace: config?.api.PREVIEW_SANDBOX_NAMESPACE, sendRef, setMessages, streaming })
 
   const transport: AutopilotTransport = useMemo(() => (endpoint && endpoint !== 'echo' ? createKagentTransport(endpoint) : createEchoTransport()), [endpoint])
 
@@ -300,6 +308,11 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     const toRun = selectProposalsToRun(toolProposals, textProposals)
     // The first draft edit of this run that did not land: a trailing previewRestDef is then skipped.
     let refusedEdit: string | null = null
+    // The widgets of a previewPage that went LIVE this run, and when the run began — the render check
+    // below counts only answers the cache settled after this moment.
+    let livePagePreview: Record<string, unknown>[] | null = null
+    const runStartedAt = Date.now()
+    const userTurn = beginRun(evidence)
     /* eslint-disable no-await-in-loop -- sequential is the point; see selectProposalsToRun. */
     for (const proposal of toRun) {
       if (proposal.verb === 'previewRestDef' && refusedEdit !== null) {
@@ -411,6 +424,9 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
             // allowed ONLY after the SAME page was previewed this thread. FE-P1's ajv verdicts
             // (drawer) + CHART-P2's PR CI are the correctness gates; this is the preview gate.
             recordPagePreview(proposal.widgets, blueprintStore, blueprintGate)
+            if (chip.rendered === true && Array.isArray(proposal.widgets)) {
+              livePagePreview = proposal.widgets as Record<string, unknown>[]
+            }
           }
         }
       }
@@ -420,6 +436,11 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       setMessages((prev) => prev.map((message) => (
         message.id === assistantId ? { ...message, actions: chips } : message
       )))
+    }
+
+    // PREVIEW-DATA TRAMPOLINE: read back what the live preview rendered (detached; see usePreviewDataLoop).
+    if (livePagePreview) {
+      checkLivePreview(assistantId, userTurn, livePagePreview, runStartedAt, modality)
     }
 
     // PREVIEW-VALIDATION TRAMPOLINE (FE-P5): an ajv-rejected previewPage self-corrects WITHOUT the human
@@ -454,7 +475,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       const held = blueprintStore.get()
       const heldName = heldDraftIdentity(held)
       const approvedPublish = /\b(publish|open the (?:pull request|pr|merge request|mr)|go ahead|do it|approve|proceed|looks good|ship it)\b/i.test(lastUserTextRef.current)
-      const nudge = held && heldName && approvedPublish ? narratedPublishNudge(held, heldName, builderTargets) : null
+      // Not while the live preview's render still lists problems, nor after the data loop reported.
+      const nudge = held && heldName && approvedPublish && !holdsPublish() ? narratedPublishNudge(held, heldName, builderTargets) : null
       if (nudge) {
         recoveryCountRef.current += 1
         setMessages((prev) => prev.map((message) => (message.id === assistantId ? { ...message, text: '↻ One moment — preparing the change request…' } : message)))
@@ -492,7 +514,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     // otherwise never learn the answer proposes changing something (FR 71). The store decides
     // whether anything is actually said: a typed turn is always silent.
     autopilotSpeakBackStore.speakAnswer({ actions: chips, id: assistantId, modality, text: cleanedText })
-  }, [apply, blueprintGate, blueprintStore, builderTargets, config, draftAutosave, flagClaims, oasStore, sessionId, setMessages, trackTurn])
+  }, [apply, beginRun, blueprintGate, blueprintStore, builderTargets, checkLivePreview, config, draftAutosave, flagClaims, holdsPublish, oasStore, sessionId, setMessages, trackTurn])
 
   const applyFrame = useCallback((assistantId: string, frame: AutopilotFrame, modality: TurnModality) => {
     switch (frame.kind) {
@@ -533,6 +555,17 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
             : message
         )))
         setStreaming(false)
+        // A turn answered 401/403 is the AUTHORITATIVE word on whether this user can drive this
+        // agent: it is the real request, not a guess about one. The startup probe GETs the A2A
+        // base and counts anything but 401/403/502-504 as reachable, so a gateway that answers a
+        // bare path while denying the actual turn reads as available and every control stays live
+        // — which is what was reported from cmp.krateo.dev. Learning from the turn closes that
+        // WITHOUT making the probe stricter, which would have disabled installs whose gateway
+        // legitimately 404s a bare GET. The status is read off the frame, never parsed back out
+        // of the message: prose is not a control-flow input.
+        if (frame.status === 401 || frame.status === 403) {
+          markUnavailable()
+        }
         break
       case 'done':
         void finalize(assistantId, modality)
@@ -550,7 +583,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
       default:
         break
     }
-  }, [finalize, publishEvidence, setMessages])
+  }, [finalize, markUnavailable, publishEvidence, setMessages])
 
   // Send a HITL decision over A2A (the `{decision_type}` DataPart on the paused task —
   // see approval.ts) and stream the agent's continuation into a NEW assistant bubble,
@@ -623,6 +656,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     if (!recovery) {
       lastUserTextRef.current = trimmed
       recoveryCountRef.current = 0
+      resetPreviewDataLoop()
       // A NEW USER TURN STOPS SPEECH (FR 75). Not just the ones the keyboard produced: a
       // suggestion chip, a starter prompt and a purely-dictated draft all reach this line
       // without a keystroke, and the composer's own onChange cancel never fires for them. The
@@ -653,7 +687,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     setStreaming(true)
 
     abortRef.current = transport.send({ context: baseContext, contextId, sessionId, text: trimmed }, { onFrame: (frame) => applyFrame(assistantId, frame, modality) })
-  }, [applyFrame, blueprintGate, blueprintStore, collect, contextId, sessionId, setMessages, streaming, transport])
+  }, [applyFrame, blueprintGate, blueprintStore, collect, contextId, resetPreviewDataLoop, sessionId, setMessages, streaming, transport])
 
   // Keep the finalize-side recovery trampoline pointing at the CURRENT send closure.
   useEffect(() => { sendRef.current = send }, [send])
@@ -664,9 +698,11 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     abortRef.current?.()
     abortRef.current = null
     setStreaming(false)
+    // Stop means stop: a pending preview-data check sends no follow-up after it.
+    resetPreviewDataLoop()
     // Settle any still-streaming bubble so the UI drops the caret and re-enables the composer.
     setMessages((prev) => prev.map((message) => (message.streaming ? { ...message, streaming: false } : message)))
-  }, [setMessages])
+  }, [resetPreviewDataLoop, setMessages])
 
   // Tear down all PER-THREAD, in-flight machinery — shared by newThread (archive-then-reset)
   // and switchToThread (load an archived transcript). Everything here is thread-scoped state
@@ -692,6 +728,8 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     approvalRef.current = null
     setPendingApproval(null)
     recoveryCountRef.current = 0
+    resetPreviewDataLoop()
+    setPreviewRender(null)
     assistantTextRef.current.clear()
     proposalsRef.current.clear()
     evidenceRef.current.clear()
@@ -720,7 +758,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
     // a re-preview, which is where the security posture actually lives; the draft is visible in
     // the Files tab either way, and the surfaces already offer an explicit Close draft for when
     // someone means to discard it.
-  }, [blueprintGate, oasStore, transport])
+  }, [blueprintGate, oasStore, resetPreviewDataLoop, transport])
 
   const newThread = useCallback(() => {
     teardownThread()

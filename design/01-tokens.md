@@ -27,7 +27,59 @@ Verified by sweep: all 168 files under `ui/src/widgets` contain exactly one hex 
 
 ### T2 — Density comes from the antd component overrides — for the 15 widget kinds those overrides actually cover.
 
-**Status:** partial → **enforced** — the rule now has a lint; the 19 candidates remain as baselined debt
+**Status:** partial → enforced → **holds** — the T2 baseline is empty
+
+> **2026-10-05: the display group closes T2** (`Breadcrumb, Descriptions, Image, QRCode`).
+> Breadcrumb (which also themes the shell's own `components/Breadcrumb`) and Image restate what
+> compactAlgorithm derives. Descriptions' `titleMarginBottom` was 18px (antd's 20, compacted), off
+> the spacing scale; it is now `spacing.md`. QRCode is the third documented opt-out: antd's
+> `QRCodeComponentToken` is empty. Measured live on the blueprint detail page, the shell
+> breadcrumb and both bordered Descriptions did not move a pixel.
+>
+> **Where T2 ended:** the 19 candidates became 16 `buildComponents` entries (Form; the six form
+> controls; Divider, Flex, Layout; Alert, Badge, Result; Breadcrumb, Descriptions, Image) and three
+> documented opt-outs (Row, Col, QRCode), across five PRs. A new antd-wrapping widget now has to do
+> one or the other before CI passes.
+
+> **2026-10-05: the feedback group is off the list** (`Alert, Badge, Result`). Alert and Badge
+> restate what compactAlgorithm derives (paddings 4/12/16, badge marks 5/12/18, text 10 =
+> `label-xs`). **Result's title was 20px, a size the one type scale does not have**, and Result is
+> everywhere: Page404, Auth, Login, the widget error states, the empty Builders. Nearest role: `h3`
+> (22). antd sizes that take a number now read the canonical roles through `textPx()` in
+> `tokens.ts`, so they follow the scale instead of restating it.
+
+> **2026-10-05: the layout group is off the list** (`Col, Divider, Flex, Layout, Row`).
+> - **Layout** had the loudest finding of the T2 sweep: antd's defaults are off-brand and
+>   off-grid. Header and sider were antd's navy `#001529`, the header 56px tall with `0 43.75px`
+>   padding, the footer `21px 43.75px`. `Layout.module.css` repaints the regions it classes, so the
+>   portal never showed the navy, but antd's own rules still ran underneath (the header's
+>   line-height was 56px inside a 64px box) and any unclassed region would have shown them. The
+>   theme now says what the CSS says. Measured live, header contents did not move.
+> - **Flex and Divider** restate what compactAlgorithm already derives (gaps 4/8/16, margins
+>   16/8/4). `gap: small | middle | large` reads paddingXS / padding / paddingLG, not flexGap*.
+> - **Row and Col** are the first **documented opt-outs**: antd's Grid exposes no component
+>   tokens, so there is nothing for `buildComponents` to hold. Each carries `// T2 opt-out: <reason>`,
+>   which the lint accepts only with a reason. Row's `gutter` now reads `spacing.md`, and its CSS
+>   compensation `calc(var(--spacing-md) / -2)`, so the two cannot drift apart.
+
+> **2026-10-05: the form controls are off the list** (`Checkbox, InputNumber, Radio, Slider, Switch,
+> Upload`). Measuring them found the reason T2 matters: `compactAlgorithm` turns our controlHeight
+> 32 into **28** (and controlHeightLG into 35, controlHeightSM into 21). Input, Select, DatePicker
+> and Button restore 32 explicitly; InputNumber and button-style Radios did not, so they sat 4px
+> short of their neighbours in the same form. The Slider handle (8.75 / 10.5px) and Upload's
+> picture card (89.25px) landed on fractional pixels. All four now carry explicit whole-pixel
+> values; Checkbox and Switch restate what they already rendered. `tokens.scale.test.ts` pins every
+> input-like control to 32px.
+
+> **2026-10-05: `Form` is off the list.** `buildComponents` now carries `Form: { itemMarginBottom:
+> spacing.md, verticalLabelPadding: 0 0 spacing.xsm }`. The first restates antd's compact default
+> (16), so nothing moves. The second is the 6px label gap SchemaFields' CSS asked for and **never
+> got**: measured on the live portal, its `.field` labels rendered at antd's 4px, because antd's
+> vertical-label rule out-specifies `.field :global(.ant-form-item-label)`. A value declared and
+> silently overridden is this document's thesis in miniature, and the reason density belongs in the
+> theme rather than in a stylesheet racing antd's selectors. Every vertical label now gets 4 → 6px. The `.field` `margin-bottom …
+> !important` stays: it is the same value, and the `!important` decides which rule wins when a
+> validation message appears, which is behaviour rather than density.
 
 Reworded from an earlier, over-confident version of this rule. `buildComponents` governs **15** antd
 kinds: `Button, Card, DatePicker, Drawer, Input, List, Menu, Modal, Progress, Select, Statistic,
@@ -53,7 +105,8 @@ So the real figure is **19 candidates, not 31 defects** — and `Form` is the on
 because it hand-rolls 19 padding/margin and 5 font-size declarations with no theme backing and
 because it is the most CR-authoring-critical widget in the set.
 
-**Rule:** a new widget either adds a `buildComponents` entry or documents why it opts out.
+**Rule:** a new widget either adds a `buildComponents` entry or documents why it opts out, as a
+`// T2 opt-out: <reason>` line in the widget's own source (the lint ignores one without a reason).
 
 **Now enforced** — `lint-css-tokens.py` rule `widget-theme-coverage` (T2) diffs the `ui/src/widgets`
 listing against the theme object and gates on a baseline of the 19, so a *new* antd-wrapping widget
@@ -69,7 +122,25 @@ trust either number.
 
 ### T3 — One type scale, and it must be the one that is used.
 
-**Status:** severe → swept → **one scale** — the legacy `--font-size-*` is retired
+**Status:** severe → swept → one scale → **holds** — no raw size left, and antd's headings are on the scale
+
+> **2026-10-13: `strong` is bold again, not a page title.** The note below made `strong: true` one
+> of two routes to a 30px page title. P25 has since put every page title in a `PageHeader`, so the
+> only `strong` Paragraphs left in the portal were section labels — “Audit log” under Settings, the
+> Observability tabs' section names — each drawn as large as the page title above it, which a
+> page-by-page check of the live portal found and no lint did. `strong` is antd's word for bold
+> (C25), so it now means that: bold, at the body size, which is the weight a panel title already
+> has. A heading inside a page is `level: N`.
+
+> **2026-10-06: the last two values, and what they were hiding.** `Paragraph`'s strong title (26px)
+> was a page title, and measuring it against the other ways to write one showed the real defect:
+> antd's headings were all off the scale (compacted to 32/26/20/16/14), so a page title rendered at
+> **32px** from `PageHeader` or `level: 1` and at **26px** from `strong: true` — one role, two sizes,
+> neither on the scale. In the portal chart that is 21 strong titles, 4 `level: 1` and every
+> PageHeader. Now a page title is `h2` (30) on every path: Typography's `fontSizeHeading1..5` are
+> h2 / h3 / h3 / h4 / body (a heading never drops below body text), scoped to Typography so nothing
+> else that reads the global heading tokens moves. `ListView`'s `0.85em` chip count was 10.2px of a
+> 12px label: `label-xs`, named. The CSS baseline is empty.
 
 > **Retired 2026-10-01.** All 50 legacy references moved to `--krateo-text-*` and `tokens.ts` no
 > longer emits the scale. 12/18/30 mapped exactly (caption / body-lg / h2); 14, 16 and 24 had no
@@ -77,9 +148,8 @@ trust either number.
 > a deliberate 1–2px visual change, including the `Paragraph` widget's body text in every portal.
 > The lint rule `legacy-type-scale` now fails on any reference to the old names, *including as a
 > `var()` fallback*, which would otherwise render and pass `font-size`. Inline TSX `fontSize`
-> literals are at zero too (`ui/src/theme/inlineStyleTokens.test.ts`). Two raw values remain in the
-> CSS baseline and are judgement calls rather than sweeps: `Paragraph`'s `26px` strong title sits
-> exactly between `h3` (22) and `h2` (30), and `ListView`'s `0.85em` chip count is relative by design.
+> literals are at zero too (`ui/src/theme/inlineStyleTokens.test.ts`). Two raw values remained in the
+> CSS baseline and were judgement calls; both are resolved in the 2026-10-06 note above.
 > The figures below are the state before this, kept for the history.
 
 > **Corrected — the figures below were badly out of date, and in the direction that flatters

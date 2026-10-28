@@ -22,13 +22,13 @@
 import { Tooltip } from 'antd'
 import { useState, type FocusEvent, type KeyboardEvent } from 'react'
 
-import { architectureNodeLabel, architectureState, exceptionText } from '../architectureVariant'
+import { architectureNodeLabel, architectureState, architectureTitle, exceptionText } from '../architectureVariant'
 import type { FlowChartNodeData } from '../FlowChart'
 
 import styles from './ArchitectureStateNode.module.css'
 
 const ArchitectureStateNode = ({ data }: { data: FlowChartNodeData }) => {
-  const { detail, exception, kind, name } = data
+  const { detail, exception, kind, name, names, version } = data
   // Who opened the exception's tooltip: focus on the card, or the pointer on the marker.
   const [byFocus, setByFocus] = useState(false)
   const [byHover, setByHover] = useState(false)
@@ -47,6 +47,8 @@ const ArchitectureStateNode = ({ data }: { data: FlowChartNodeData }) => {
   }
 
   return (
+    // C8 exception: a focusable group that discloses its details on focus and closes them on Escape.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       aria-label={architectureNodeLabel(data)}
       className={styles.card}
@@ -58,7 +60,7 @@ const ArchitectureStateNode = ({ data }: { data: FlowChartNodeData }) => {
       tabIndex={0}
     >
       <span className={styles.eyebrow}>
-        <span className={styles.kind} title={kind}>{kind}</span>
+        <span className={styles.kind} title={version ? `${kind} · ${version}` : kind}>{kind}</span>
         {exception
           ? (
             <Tooltip onOpenChange={setByHover} open={open} title={exceptionText(exception)}>
@@ -70,7 +72,11 @@ const ArchitectureStateNode = ({ data }: { data: FlowChartNodeData }) => {
           )
           : null}
       </span>
-      <span className={styles.name} title={name}>{name}</span>
+      {/* portal#311: `name` is a DISPLAY string the RESTAction already shortened, so a title of
+          `name` repeated the elision and the full value was reachable nowhere. `names` carries the
+          real ones; where a chart predates portal 1.8.74 it is absent and `name` stands in, which is
+          exactly today's behaviour. */}
+      <span className={styles.name} title={architectureTitle(names, name, version)}>{name}</span>
       {detail ? <span className={styles.detail} title={detail}>{detail}</span> : null}
     </div>
   )

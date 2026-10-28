@@ -10,6 +10,8 @@ These govern how a page is assembled from widget CRs. Over half the recommended 
 
 Never add a `← Back to X` link. Filed four times, on four pages, with an identical fix each time — the cleanest illustration in the set of a missing contract.
 
+There is also only one breadcrumb: see [P27](#p27--one-breadcrumb-per-page-and-it-is-the-shells).
+
 *Evidence: #69 §0.2 · #78 §0.2 · #82 §0.4 · #83 §0.3*
 
 ### P2 — No eyebrow label above a page title.
@@ -49,15 +51,24 @@ Seven findings across five pages.
 
 *Evidence: #75 §0.2 · #79 §0.1–0.2 · #80 §0.1 · #82 §0.1 · #86 §0.4*
 
-### P6 — One primary action per container — a page header *or* a self-contained panel.
+### P6 — One primary action per container — a page header *or* a self-contained panel. The Autopilot entry point is not counted.
 
-**Status:** CR
+**Status:** CR → **enforced** — the composition lint's `one-primary` rule
 
 **Rescoped.** This previously read “per header”, which was too narrow: the same discipline is already applied at panel level, and #86 §0.9a treats an Alert-detail panel as its own primary budget independent of the page header.
 
-The rescoping also resolves the apparent conflict with the Autopilot CTA. That button is **not** special-cased: it competes for the same single slot as any other button in its container, is never automatically primary for being Autopilot, and is never barred from being primary either. See A5.
+A container is whatever names the buttons as its own children: a `PageHeader`'s `items`, a panel's `items`, a Card's `extraRefId` slot. Among those, **one** is filled — the action the container is for — and the rest are `type: default`. A Button with no `type` counts as filled too, because that is how the widget draws it. The one violation found when the rule landed was an incident remediation's “I applied it”, filled beside “Run apply”.
 
-*Evidence: #78 §0.4 · #84 §0.1 · #86 §0.9 — rescoped by the parity audit*
+> **Decided 2026-10-13: the Autopilot entry point does not spend the budget.** This rule used to
+> say the Autopilot CTA “competes for the same single slot as any other button … never
+> automatically primary”. [A4](05-agent-parity.md) has since made it filled everywhere, so the two
+> rules disagreed: every page with an Autopilot entry point either broke this one or demoted its
+> own action. The resolution is the one the pages already showed: “Ask Autopilot →” sits *beside*
+> the container's primary — Alerts' “New alert”, the builders' compose button, a composition's
+> Sync — never instead of it, and the container keeps exactly one primary of its own. Where it
+> sits is [A5](05-agent-parity.md)'s business.
+
+*Evidence: #78 §0.4 · #84 §0.1 · #86 §0.9 — rescoped by the parity audit · exemption decided 2026-10-13*
 
 ### P7 — Don’t spend two panels on two facts.
 
@@ -213,6 +224,86 @@ after the templated-items defect was fixed it found two more that had never been
 violations fixture now carries a templated page, and reverting the rule to the old behaviour makes
 that fixture go silent (1 -> 0), which is the regression test the first draft lacked*
 
+### P26 — A header's actions sit on its trailing edge, on one row, centred on the title and subtitle together; with no subtitle, level with the title.
+
+**Status:** **enforced** — by construction (`PageHeader`, `ScreenHeader`) and by two checks
+
+A header is two columns. On the left, the text block: the title line (title, counter, tags) and the
+subtitle under it. On the right, on the trailing edge: the status first (*Saved · 23:00*, a file
+count, an exception pill), then the actions in reading order with the primary last, nearest the
+edge.
+
+- **With a subtitle**, the action row is centred vertically on the **whole** text block — between
+  the title and the subtitle, not pinned to either line.
+- **With no subtitle**, the text block is the title, so the row is level with the title.
+- **Never stacked.** The actions are one row that neither wraps nor shrinks. When the header is
+  tight the text block gives way first, wrapping inside its own box; only when the row cannot sit
+  beside it at all does the row drop under it — still one row, still on the right edge.
+
+This holds for every action, including the Autopilot entry point
+([A4](05-agent-parity.md), [A5](05-agent-parity.md)): it is one of the actions, and sits where they do.
+
+Reported on the Page composer, which put *Preview · Undo · Publish · Close draft* under its
+description, on the left — with a stylesheet rule (`.actions { align-self: flex-start }`) saying so
+on purpose — while the Controller Builder put the same buttons top-right. Both were hand-built
+`<header>`s inside one component, `ComposerHost`, one per frame: the chrome differed because nothing
+said it could not ([C5](02-components.md#c5--pageheader--eyebrow-title-counter-tags-actions-subtitle-in-one-place)'s "the body may differ; the chrome may not",
+inside the app).
+
+- **CR pages** get it from `PageHeader`: its `items` render as that trailing row.
+- **Screens the app builds** use `components/ScreenHeader`: the same shape, with `status` and
+  `actions` slots and no alignment prop. `ComposerHost` uses it in every frame.
+- **Checked twice:** `ui/src/test/screenHeaders.test.ts` fails on a hand-built `<header>` holding a
+  button; `ui/visual/layout.spec.ts` measures both headers in a browser, at 1440/1024/600px, with
+  and without a subtitle: all the buttons share one row, they read left to right, the row ends at
+  the header's right edge, its middle is within 2px of the text block's middle (the title's alone
+  when there is no subtitle), at narrow widths it sits under the text, and the status precedes the
+  actions. The second matters because a screenshot baseline can be
+  regenerated to match a mistake; a geometric assertion cannot.
+
+Generalises two narrower rules that already said the same thing for their own containers:
+[P23](#p23--form-actions-draft-left-cancel-and-primary-grouped-right-primary-last) (forms) and A5
+(the Autopilot CTA).
+
+> **Decided 2026-10-08, replacing the first version of this rule** ("a screen's actions sit on its
+> title's row"). The product call: no button pinned to the title's line, no buttons stacked, and the
+> action row centred on the text it belongs to. A variant pinning the row to the subtitle's line was
+> tried the same day and replaced by this one.
+
+*Evidence: the first version, measured, found a defect before any page did — at 1024px a long
+title and meta at h2 pushed the actions under the title. Pointing the structural check at
+`ComposerHost` as it was before ScreenHeader reports both hand-built headers; putting the actions
+back on the title's line or the subtitle's, or letting their row wrap, fails the geometric checks*
+
+### P27 — One breadcrumb per page, and it is the shell's.
+
+**Status:** **enforced** — app side and chart side
+
+The shell renders the page's breadcrumb above every page. Nothing under it repeats the trail: no
+second `Breadcrumb`, and no eyebrow spelling the path (`Controller Builder / Compose`). A context
+eyebrow is not a trail — `Platform · tenant x` names where you are, it does not repeat how you got
+there.
+
+Reported on the composers, which printed `<Builder> / Compose` as an eyebrow above the title, right
+under the shell breadcrumb that already said it — in three of `ComposerHost`'s frames. It was also a
+[P2](#p2--no-eyebrow-label-above-a-page-title) violation, in the one place P2 had never been checked:
+the app's own code.
+
+- **By construction:** `PageHeader` has no eyebrow field and `ScreenHeader` has no eyebrow or crumb
+  slot, so neither header can grow one.
+- **App side:** `ui/src/test/screenHeaders.test.ts` fails on an element styled as an eyebrow whose
+  text (literal, template, or a same-file constant) spells a path, and on an import of antd's
+  `Breadcrumb` anywhere but the shell's component and the CR widget.
+- **Chart side:** the composition lint's `second-breadcrumb` rule fails on a `Breadcrumb` widget in a
+  chart, or an eyebrow Paragraph spelling a path. A portal with no shell breadcrumb opts a Breadcrumb
+  CR out with `krateo.io/own-breadcrumb`.
+
+Pairs with [P1](#p1--one-way-back-the-breadcrumb-is-it): P1 says the breadcrumb is the only way
+back; P27 says there is only one of it.
+
+*Evidence: the portal chart has no Breadcrumb CR and no path eyebrow (0 violations); `ComposerHost` as
+it was on main fails the app-side check on all three eyebrows*
+
 ## Behaviour and honesty
 
 ### P10 — A declared navigation must resolve — or must not be declared.
@@ -315,6 +406,12 @@ Six compliant instances make this real house convention — Breadcrumb, Notifica
 
 *Evidence: verified `CommandPalette.tsx:137-138` · `Select.tsx:128,144`*
 
+> **2026-10-19: one-line list rows are a choice a CR can make, and they keep the rule.** A Listy's
+> `itemTemplate.ellipsis` puts a default row's title and sub-line on one line each, through antd
+> Typography's `ellipsis` with its tooltip, so the full text is always one hover away. Added for the
+> composition-detail page, whose incidents were titled by their whole root-cause sentence and whose
+> events by the whole backend error.
+
 ### P20 — Error titles are sentence case.
 
 **Status:** minor → **fixed**
@@ -332,6 +429,14 @@ Six compliant instances make this real house convention — Breadcrumb, Notifica
 **Status:** holds
 
 Partitioned on `schema.required`, with `forceRender` so collapsed fields still register, validate and submit. Codified so a future change doesn’t unmount them instead of hiding them.
+
+> **2026-10-14: no Advanced when nothing is required.** The collapse sets optional fields apart
+> from required ones. In a container with no required field there is nothing to set them apart
+> from, and the collapse was the whole container: a list row the person had just added (authn's
+> `ingress.hosts` → “hosts 1”) opened as an empty card holding one closed “Advanced · 2 settings”,
+> one more click per level of nesting, and an all-optional section (Ingress) showed only that bar.
+> Such a container renders its fields open. A container with at least one required field is
+> unchanged.
 
 *Evidence: verified `SchemaFields.tsx:150-186`*
 

@@ -397,8 +397,16 @@ const KRATEO_CHART_LIGHT: Record<string, string> = {
 
 export const tokens = { color, elevation, motion, radius, spacing, typography } as const
 
+/** A canonical type role in px, for antd tokens that take a number (`text-h3` → 22). One scale (T3). */
+const textPx = (role: string): number => Number.parseInt(KRATEO_BASE[`text-${role}`], 10)
+
 /** Per-component overrides. Tight density (32px controls), v2 radii, near-flat cards. */
 const buildComponents = (palette: Record<keyof typeof color, string>, mode: ThemeMode): ThemeConfig['components'] => ({
+  // T2 feedback group. Alert and Badge restate what compactAlgorithm already derives.
+  Alert: { defaultPadding: `${spacing.xs}px ${spacing.smd}px`, withDescriptionIconSize: 20, withDescriptionPadding: `${spacing.md}px ${spacing.md}px` },
+  Badge: { dotSize: 5, indicatorHeight: 18, indicatorHeightSM: 12, statusSize: 5, textFontSize: textPx('label-xs'), textFontSizeSM: textPx('label-xs') },
+  // T2 display group. Breadcrumb also themes the shell's own Breadcrumb (components/Breadcrumb).
+  Breadcrumb: { iconFontSize: textPx('caption'), separatorMargin: spacing.xs },
   Button: {
     borderRadius: radius.md,
     controlHeight: 32,
@@ -416,9 +424,42 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
     boxShadowTertiary: mode === 'dark' ? elevationDark.sm : elevation.sm,
     paddingLG: 14,
   },
+  // T2 form controls. The compactAlgorithm derives controlHeight 28, controlHeightLG 35 and
+  // controlHeightSM 21 from our 32; Input/Select/DatePicker/Button restore 32 explicitly, and the
+  // controls below did not, so they sat 4px short of their neighbours or landed on fractional px.
+  // Checkbox and Switch restate what they already render, so the values are ours to move.
+  Checkbox: { borderRadiusSM: radius.md, controlInteractiveSize: 14 },
   DatePicker: { borderRadius: radius.md, controlHeight: 32 },
+  // T2 layout group: Divider and Flex restate what compactAlgorithm already derives (margins 16/8/4,
+  // gaps 4/8/16), so the values are ours to move rather than a side effect of the algorithm.
+  // titleMarginBottom was 18 (antd's 20, compacted) — off the spacing scale. Nearest step: md.
+  Descriptions: { colonMarginLeft: spacing.xxs, colonMarginRight: spacing.xs, itemPaddingBottom: spacing.sm, itemPaddingEnd: spacing.sm, titleMarginBottom: spacing.md },
+  Divider: { margin: spacing.sm, marginLG: spacing.md, textPaddingInline: '1em', verticalMarginInline: spacing.xs },
   Drawer: { paddingLG: spacing.lg },
+  // `gap: small | middle | large` reads paddingXS / padding / paddingLG, not the flexGap* tokens.
+  Flex: { padding: spacing.sm, paddingLG: spacing.md, paddingXS: spacing.xs },
+  // T2: Form density, on the scale. itemMarginBottom restates antd's compact default (16) so it is
+  // ours to move. verticalLabelPadding is the 6px label gap SchemaFields' `.field` CSS asked for and
+  // never got: antd's own vertical-label rule out-specified it, so every label rendered at antd's 4.
+  // From the theme it applies everywhere (4 → 6 for every vertical label, schema-driven or not).
+  Form: { itemMarginBottom: spacing.md, verticalLabelPadding: `0 0 ${spacing.xsm}px` },
+  // The preview toolbar's icons, at body-text size.
+  Image: { previewOperationSize: textPx('body') },
   Input: { borderRadius: radius.md, controlHeight: 32 },
+  // Was 28 — an InputNumber beside an Input in the same form was 4px shorter.
+  InputNumber: { borderRadius: radius.md, controlHeight: 32 },
+  // antd's defaults here are off-brand and off-grid: headerBg/siderBg are its navy #001529, the
+  // header is 56px tall with `0 43.75px` padding, the footer `21px 43.75px`. Layout.module.css
+  // repaints the regions it classes, but antd's own rules still apply underneath (the header's
+  // line-height was 56px inside a 64px box). Now the theme says what the CSS says.
+  Layout: {
+    bodyBg: palette.background,
+    footerPadding: `${spacing.md}px ${spacing.xl}px`,
+    headerBg: palette.panelbg,
+    headerHeight: layout.headerHeight,
+    headerPadding: `0 ${spacing.md}px`,
+    siderBg: palette.panelbg,
+  },
   List: { borderRadiusLG: radius.lg },
   // Sidebar nav density — `.nav-item` (~36px tall, bumped from 30 per issue #80 §0.5). NB: the
   // Menu.module.css item box is `height: auto`, so its 9px vertical padding is the effective lever;
@@ -426,9 +467,17 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   Menu: { fontSize: 13, itemBorderRadius: radius.md, itemHeight: 36, itemMarginBlock: 0, itemPaddingInline: 9, subMenuItemBorderRadius: radius.md },
   Modal: { borderRadiusLG: radius.xl },
   Progress: { defaultColor: palette.green },
+  // Was 28 — `optionType: button` radios sat 4px short of a Button in the same row.
+  Radio: { controlHeight: 32, radioSize: 14 },
+  // Result's title was 20px, a size the one type scale does not have (T3). Nearest role: h3 (22).
+  // Reaches every Result: Page404, Auth, the widget error states, empty builders.
+  Result: { extraMargin: `${spacing.md}px 0 0 0`, subtitleFontSize: textPx('caption'), titleFontSize: textPx('h3') },
   Select: { borderRadius: radius.md, controlHeight: 32 },
+  // Was 8.75 / 10.5 (controlHeightLG / 4, controlHeightSM / 2). Whole pixels, antd's own pair.
+  Slider: { controlSize: 10, handleSize: 10, handleSizeHover: 12 },
   Statistic: { contentFontSize: 31, titleFontSize: 13 },
   Steps: { iconSize: 28 },
+  Switch: { handleSize: 16, trackHeight: 20 },
   // #72 §0.5 + #76 table cell padding: the reporters found the rows too TIGHT (Incidents + Alerts,
   // both `size: small`) and asked to INCREASE the vertical padding to the portal's spacing scale.
   // Nearly every portal Table is `size: small` → antd pads it with `cellPaddingBlockSM`, so that is
@@ -438,6 +487,14 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   Table: { borderColor: palette.border, borderRadiusLG: radius.lg, cellPaddingBlock: 16, cellPaddingBlockSM: 8, headerBg: palette.lightgray, headerBorderRadius: radius.lg, headerColor: palette.gray, rowHoverBg: palette.light },
   Tabs: { horizontalItemGutter: 24 },
   Tag: { borderRadiusSM: radius.sm },
+  // T3: antd's headings were all off the one type scale (compacted: 32/26/20/16/14). A page title
+  // rendered at 32px from PageHeader or `level: 1`, and at 26px from a strong Paragraph — one role,
+  // two sizes, neither on the scale. One role, one size: a page title is h2 (30), and the lower
+  // levels take the nearest role (a heading never drops below body text). Scoped to Typography so
+  // no other component that reads the global heading tokens moves with it.
+  Typography: { fontSizeHeading1: textPx('h2'), fontSizeHeading2: textPx('h3'), fontSizeHeading3: textPx('h3'), fontSizeHeading4: textPx('h4'), fontSizeHeading5: textPx('body') },
+  // Was 89.25 (controlHeightLG × 2.55). Whole pixels.
+  Upload: { pictureCardSize: 88 },
 })
 
 /** Light antd theme (brand v2 blue). compactAlgorithm = the instrument-density pass. */

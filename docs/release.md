@@ -41,6 +41,11 @@ One tag ships everything. This monorepo has a single version line: the app image
      tag), packages, and pushes →
      `oci://ghcr.io/krateo-platformops/charts/frontend:X.Y.Z` and
      `oci://ghcr.io/krateo-platformops/charts/frontend-crds:X.Y.Z`.
+   - The same `build` job builds the builder gate from the repository root
+     (`builder-gate/Dockerfile`) → `ghcr.io/krateo-platformops/builder-gate:X.Y.Z`, and
+     `release-oci` publishes its chart → `oci://ghcr.io/krateo-platformops/charts/builder-gate:X.Y.Z`.
+     The gate imports this tag's page lint and widget schemas, so it never pins another release
+     ([builder-gate/README.md](../builder-gate/README.md)).
    - [`release-tag.yaml`](../.github/workflows/release-tag.yaml) `crds` → regenerates
      the widget CRDs from the schemas (`npm ci && npm run generate-crds` in `ui/`, via
      the pinned krateoctl), uploads them as the `frontend-crds-yaml-files` artifact,

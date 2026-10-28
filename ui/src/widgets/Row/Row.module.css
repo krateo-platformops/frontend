@@ -1,5 +1,5 @@
 .row {
-  /* antd's declared `gutter={[16,16]}` (Row.tsx): the -8px row margin + 8px col padding give a
+  /* antd's declared `gutter={[spacing.md, spacing.md]}` (Row.tsx, 16px): the -8px row margin + 8px col padding give a
      16px gap BETWEEN columns while keeping BOTH outer edges flush with the container (the negative
      margin cancels the first/last col's outer padding) — so multi-column rows (dashboard stat
      cards, detail-page 2-panel rows) read as separated cards without insetting the row from the
@@ -8,7 +8,8 @@
      the margin, so its RIGHT edge lands 16px short of the container (issue #80 §0.2). Without it,
      the flex row fills its container naturally AND both outer edges land flush. */
   :global(.ant-row) {
-    margin: 0 -8px !important;
+    /* Half the gutter, from the same token as Row.tsx's `gutter`, so the two cannot drift apart. */
+    margin: 0 calc(var(--spacing-md) / -2) !important;
   }
 
   :global(.ant-row > .ant-col) {

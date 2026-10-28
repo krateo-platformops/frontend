@@ -21,6 +21,8 @@
 import { Alert, Form, Input, Modal, Select, Typography } from 'antd'
 import { useState } from 'react'
 
+import { dismissButtonProps } from '../../components/DismissButton'
+
 import { dataPathFor, generateBinding, validateBinding } from './generateBinding'
 import type { BindingResult } from './generateBinding'
 import { WIDGET_KINDS } from './widgetKinds.generated'
@@ -138,7 +140,7 @@ export const BindDataModal = ({ namespace, onCancel, onGenerate, open }: {
   }
 
   return (
-    <Modal okText='Generate' onCancel={onCancel} onOk={submit} open={open} title='Bind data' width={720}>
+    <Modal cancelButtonProps={dismissButtonProps} okText='Generate' onCancel={onCancel} onOk={submit} open={open} title='Bind data' width={720}>
       <Typography.Paragraph type='secondary'>
         Reads from the cluster and renders a table. Both the query and the widget are generated —
         you review them in Files before anything is published.

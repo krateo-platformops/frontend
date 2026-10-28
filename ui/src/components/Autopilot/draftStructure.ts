@@ -238,7 +238,7 @@ export const summarizeController = (held: BlueprintDraftHeld | null, state: Held
       .map((field) => (field as { fromOpenAPI?: { name?: string; in?: string } }).fromOpenAPI)
       .filter((from): from is { name: string; in: string } => typeof from?.name === 'string' && typeof from.in === 'string')
       .map((from) => ({ in: from.in, name: from.name }))
-    const notes = askedOnCreateNotes(entry, !!locked?.[entry.path])
+    const notes = askedOnCreateNotes(entry, !!locked?.[entry.path], doc)
     const configuration = configurationCandidates(model, entry).map((candidate) => ({ actions: candidate.actions, in: candidate.in, name: candidate.name }))
     return {
       file: entry.path,

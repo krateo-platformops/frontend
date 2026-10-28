@@ -117,14 +117,14 @@ const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
                 }}
                 text={markdown}
               >
-                <Button icon={<FontAwesomeIcon icon={['fas', 'copy'] as IconProp} />} size='large' />
+                <Button aria-label='Copy to clipboard' icon={<FontAwesomeIcon icon={['fas', 'copy'] as IconProp} />} size='large' />
               </CopyToClipboard>
             </div>
           )}
 
           {allowDownload && (
             <div className={styles.button}>
-              <Button icon={<FontAwesomeIcon icon={['fas', 'download'] as IconProp} />} onClick={handleDownload} size='large' />
+              <Button aria-label='Download' icon={<FontAwesomeIcon icon={['fas', 'download'] as IconProp} />} onClick={handleDownload} size='large' />
             </div>
           )}
         </div>

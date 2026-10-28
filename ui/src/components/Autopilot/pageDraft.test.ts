@@ -40,7 +40,6 @@ describe('pageDraftFiles', () => {
       // Ready=False — several layers and one merge away from anything that names the cause.
       expect(Object.keys(chart()).sort()).toEqual([
         'Chart.yaml',
-        'templates/_tiers.tpl',
         'templates/card.pg-summary.yaml',
         'templates/flex.page-postgres.yaml',
         'values.schema.json',
@@ -54,11 +53,14 @@ describe('pageDraftFiles', () => {
       expect(chart()['Chart.yaml']).toContain('name: postgres')
     })
 
-    it('advertises ONLY the value its templates read', () => {
-      // tiers.common is referenced by every template; the portal's schema also offers admin and
-      // tenant, and copying those in would put two knobs in the install form that nothing reads.
-      const schema = JSON.parse(chart()['values.schema.json']) as { properties: { tiers: { properties: Record<string, unknown> } } }
-      expect(Object.keys(schema.properties.tiers.properties)).toEqual(['common'])
+    it('advertises NO deployer setting — a page set has nothing to parameterise', () => {
+      // It used to advertise `tiers.common`, a namespace knob copied from the portal chart's tiers
+      // model (krateo-platformops/portal#261). A page set is installed BY a composition, so the
+      // release namespace already IS the namespace the deployer picked when they created the CR:
+      // the knob asked a second time, in the install form, for something already decided. `global`
+      // is not a deployer setting — CDC writes it on every render.
+      const schema = JSON.parse(chart()['values.schema.json']) as { properties: Record<string, unknown> }
+      expect(Object.keys(schema.properties)).toEqual(['global'])
     })
 
     it('declares the `global` composition-dynamic-controller adds to every render, and stays closed', () => {
@@ -71,11 +73,14 @@ describe('pageDraftFiles', () => {
       expect(schema.additionalProperties).toBe(false)
     })
 
-    it('states the same defaults in values.yaml as in the schema', () => {
-      // Two files describing one fact drift; this is the cheapest place to notice.
-      const schema = JSON.parse(chart()['values.schema.json']) as { properties: { tiers: { properties: { common: { default: string } } } } }
-      expect(schema.properties.tiers.properties.common.default).toBe('')
-      expect(chart()['values.yaml']).toMatch(/^tiers:\n(?:.*\n)?\s+common: ""\n$/)
+    it('ships a values.yaml that says there is nothing to set', () => {
+      // `helm lint` wants the file. An EMPTY one reads as an oversight, and a reader opening it for
+      // the namespace knob page sets used to carry should be told where the namespace comes from.
+      // It must declare no value: anything here is a key the schema would have to admit.
+      const values = chart()['values.yaml']
+      expect(values).toContain('Nothing to set')
+      expect(values).toContain('release namespace')
+      expect(values.split('\n').filter((line) => line.trim() && !line.trimStart().startsWith('#'))).toEqual([])
     })
 
     it('carries no subschema combinator — the class that cannot become a structural CRD', () => {
@@ -88,19 +93,25 @@ describe('pageDraftFiles', () => {
   describe('namespace is resolved at INSTALL time, not authoring time', () => {
     const chart = () => pageDraftFiles([flexRoot, card]) as Record<string, string>
 
-    it('templates metadata.namespace through the tier helper', () => {
+    it('templates metadata.namespace as the release namespace', () => {
       // Dumping the authoring namespace would pin every installation of this page set to whichever
       // namespace the author happened to be working in.
       expect(chart()['templates/flex.page-postgres.yaml'])
-        .toContain('namespace: \'{{ include "page.tierNamespace" (dict "ctx" . "tier" "common") }}\'')
+        .toContain('namespace: \'{{ .Release.Namespace }}\'')
       expect(chart()['templates/flex.page-postgres.yaml']).not.toContain('namespace: krateo-system')
     })
 
-    it('ships the helper it calls — `portal.tierNamespace` is NOT in scope in another chart', () => {
-      // A page set is a separate chart now. Calling the portal's helper renders
-      // "template not defined", which fails the install rather than failing quietly — but it fails.
-      expect(chart()['templates/_tiers.tpl']).toContain('define "page.tierNamespace"')
-      expect(chart()['templates/_tiers.tpl']).toContain('.ctx.Release.Namespace')
+    it('calls NO helper — a chart that defines none cannot call one that is out of scope', () => {
+      // It used to write `{{ include "page.tierNamespace" ... }}` and ship a `_tiers.tpl` partial
+      // defining it, because the portal's own `portal.tierNamespace` is not in scope in another
+      // chart and calling it renders "template not defined". With the tiers model gone
+      // (krateo-platformops/portal#261) there is no helper to define, ship or get wrong.
+      const files = chart()
+      expect(Object.keys(files).some((path) => path.endsWith('_tiers.tpl'))).toBe(false)
+      for (const [path, content] of Object.entries(files)) {
+        expect(content, path).not.toContain('include "page.')
+        expect(content, path).not.toContain('tierNamespace')
+      }
     })
 
     it('moves a SIBLING ref with it — a parent left behind renders an empty, healthy page', () => {
@@ -119,8 +130,8 @@ describe('pageDraftFiles', () => {
       const files = pageDraftFiles([parent, card]) as Record<string, string>
       const root = files['templates/flex.page-postgres.yaml']
 
-      // The sibling this chart ships moves to the tier…
-      expect(root).toMatch(/name: pg-summary\n\s+namespace: '\{\{ include "page\.tierNamespace"/)
+      // The sibling this chart ships moves to the release namespace…
+      expect(root).toMatch(/name: pg-summary\n\s+namespace: '\{\{ \.Release\.Namespace \}\}'/)
       // …and a widget placed from ELSEWHERE keeps its own namespace: this chart neither creates nor
       // moves it, so retargeting it would point the page at a resource that is not there.
       expect(root).toMatch(/name: fleet-elsewhere\n\s+namespace: other-ns/)

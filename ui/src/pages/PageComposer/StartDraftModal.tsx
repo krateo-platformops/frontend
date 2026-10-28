@@ -12,6 +12,8 @@
 import { Alert, Form, Input, Modal, Typography } from 'antd'
 import { useState } from 'react'
 
+import { dismissButtonProps } from '../../components/DismissButton'
+
 import { SLUG_PATTERN, startDraft, validateStartDraft } from './startDraft'
 import type { StartDraftResult } from './startDraft'
 
@@ -43,7 +45,7 @@ export const StartDraftModal = ({ namespace, onCancel, onStart, open }: {
   }
 
   return (
-    <Modal okText='Start' onCancel={onCancel} onOk={submit} open={open} title='Start a page' width={560}>
+    <Modal cancelButtonProps={dismissButtonProps} okText='Start' onCancel={onCancel} onOk={submit} open={open} title='Start a page' width={560}>
       <Typography.Paragraph type='secondary'>
         Creates an empty draft — a root layout and a page header. Nothing is written to the cluster
         and nothing is published until you say so.

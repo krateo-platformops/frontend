@@ -1,13 +1,15 @@
 import type { IconProp } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { Table as AntdTable, Progress, Result, Tag, Typography } from 'antd'
+import { Table as AntdTable, Progress, Result, Tag, theme, Typography } from 'antd'
 import type { TablePaginationConfig } from 'antd'
-import type { CSSProperties } from 'react'
+import type { TableRef } from 'antd/es/table'
+import { useCallback, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router'
 
 import { useFilter } from '../../components/FiltesProvider/FiltersProvider'
 import RefChild from '../../components/RefChild'
 import { WidgetEmpty } from '../../components/WidgetStates'
+import { useMeasuredWidth } from '../../hooks/useMeasuredWidth'
 import { getColorCode, getTagStyle } from '../../theme/palette'
 import type { WidgetProps } from '../../types/Widget'
 import { navigateOrExternal } from '../../utils/navigation'
@@ -15,16 +17,24 @@ import { formatISODate, formatRelativeTime } from '../../utils/utils'
 
 import styles from './Table.module.css'
 import type { Table as WidgetType } from './Table.type'
+import { columnLayout } from './tableColumnWidths'
 import { computeTablePagination, shouldVirtualize, VIRTUAL_SCROLL_Y } from './tablePagination'
 import { getColumnSortProps } from './tableSorting'
 
 export type TableWidgetData = WidgetType['spec']['widgetData']
+
+/** --krateo-text-label-sm, px: the header's font size. */
+const HEADER_FONT_SIZE = 11
 
 const Table = ({ deniedRefIds, resourcesRefs, serverPagination, uid, widgetData }: WidgetProps<TableWidgetData>) => {
   const { bordered, columns, dataSource, fitContent, pagination, prefix, rowNavigateTo, size } = widgetData
   const data = dataSource ?? []
   const { getFilteredData } = useFilter()
   const navigate = useNavigate()
+  const { token } = theme.useToken()
+  // The table's own width, which the text columns of a truncating table share (columnLayout).
+  const { ref: measureRef, width: containerWidth } = useMeasuredWidth<HTMLDivElement>()
+  const tableRef = useCallback((table: TableRef | null) => { measureRef(table?.nativeElement ?? null) }, [measureRef])
 
   // Optional row → route navigation. `rowNavigateTo` is a path with `{valueKey}`
   // placeholders filled from that row's cells (e.g. "/compositions/{ns}/{name}").
@@ -73,8 +83,40 @@ const Table = ({ deniedRefIds, resourcesRefs, serverPagination, uid, widgetData 
   // `fitContent`: shrink columns to the container instead of the default horizontal scroll — a wide
   // cell then ellipsis-truncates (full text on hover) rather than pushing a scrollbar. Virtual tables
   // need a fixed scroll viewport, so fitContent only takes effect in the non-virtual (small) case.
+  //
+  // Both of those truncate cells, and a Tag is an atomic inline-block: the cell's text-overflow
+  // cannot reach inside it, so a tag wider than its column was cut mid-word with no ellipsis
+  // ("Underprovision" on a narrow Portal Builder preview). A column that renders tags therefore gets
+  // a fixed width that fits its widest tag, and the table a numeric scroll.x (the sum of every
+  // column's floor) — antd's own pairing: it fills the container when there is room and scrolls
+  // horizontally when there is not. A numeric column is sized the same way, to its widest value, and
+  // every sized column is at least wide enough for its header on two lines; the text columns share
+  // what is left (columnLayout). A table with no tag or numeric column keeps exactly the layout it had.
+  //
+  // A VIRTUAL table keeps the tag column's width but not the scroll: it fits its container and the
+  // other columns share what is left, ellipsized with the full text on hover. Its horizontal scroll
+  // is the virtual list's own scrollbar, hidden at rest and drawn at the foot of the 640px viewport,
+  // so a scrolling virtual table read as clipped ("Underprovisio" in a Portal Builder preview with
+  // the Autopilot rail open, 151 pods) with nothing on screen to scroll it by.
+  const truncating = Boolean(fitContent) || virtual
+  const layout = columnLayout(columns, dataTable ?? [], {
+    cellFontSize: token.fontSize,
+    // antd Table cell inline padding: `padding` for large, `paddingXS` for middle and small.
+    cellPadding: 2 * (size === 'large' ? token.padding : token.paddingXS) + (bordered ? token.lineWidth : 0),
+    fontSize: token.fontSizeSM,
+    // --krateo-text-label-sm, the header's size (Table.module.css `.headerWrap`).
+    headerFontSize: HEADER_FONT_SIZE,
+    // antd's sorter icon is fontSizeSM wide with a marginXXS before it.
+    sorterWidth: token.fontSizeSM + token.marginXXS,
+    // antd Tag: tagPaddingHorizontal is a fixed 8px per side, border included.
+    tagChrome: 2 * 8,
+  }, { containerWidth, virtual })
+  // Only a truncating table takes the computed widths; a max-content table sizes every column to
+  // its content already. Alignment applies to every table.
+  const widths = truncating ? layout.widths : []
   const horizontalScroll = fitContent ? undefined : { x: 'max-content' as const }
-  const scroll = virtual ? { x: 'max-content' as const, y: VIRTUAL_SCROLL_Y } : horizontalScroll
+  const truncatingScroll = truncating && layout.scrollX ? { x: layout.scrollX } : horizontalScroll
+  const scroll = virtual ? { x: 'max-content' as const, y: VIRTUAL_SCROLL_Y } : truncatingScroll
 
   // Pagination: controlled server-side classic pager when the widget opts in
   // (serverPagination), else the CR's own pagination config (or none). See
@@ -91,6 +133,9 @@ const Table = ({ deniedRefIds, resourcesRefs, serverPagination, uid, widgetData 
         // sniffed per column) + `align: 'right'` for numeric/age columns. No
         // default sortOrder: the server's jq order stays until a header click.
         ...getColumnSortProps(dataTable, valueKey),
+        // Numbers right-align and text left-aligns, decided by the cells' kind (isNumericColumn), so
+        // one placeholder cell cannot flip a column of numbers to the left.
+        ...(layout.numeric[index] ? { align: 'right' as const } : {}),
         dataIndex: valueKey,
         // With fitContent, truncate an overflowing cell (full text on hover) instead of widening the
         // table — this is what lets the table fit the container without a horizontal scrollbar.
@@ -127,7 +172,11 @@ const Table = ({ deniedRefIds, resourcesRefs, serverPagination, uid, widgetData 
               // Per-row colored Tag (e.g. status Healthy/Failed/Pending). The color rides on
               // the cell so each row can differ. Resolved to the EXACT Petrol hex soft-tint
               // (not antd's preset palette) so the status pill is cyan/crimson/magenta/amber.
-              return <Tag style={getTagStyle(cellColor ?? color)}>{stringValue ?? '-'}</Tag>
+              //
+              // `.tagCell` + `title` are the backstop for a label the column floor still under-measures:
+              // the tag ellipsizes with its full text on hover, as an antd ellipsis cell does, instead
+              // of being cut mid-word.
+              return <Tag className={styles.tagCell} style={getTagStyle(cellColor ?? color)} title={stringValue}>{stringValue ?? '-'}</Tag>
 
             case 'bar': {
               // Reconciliation-rail gauge cell (desired-vs-actual): cyan CONVERGED fill to
@@ -228,14 +277,19 @@ const Table = ({ deniedRefIds, resourcesRefs, serverPagination, uid, widgetData 
               return <span>-</span>
           }
         },
-        title: (
-          <div className={styles.headerEllipsis}>
-            <Typography.Text ellipsis={{ tooltip: true }}>
-              {title}
-            </Typography.Text>
-          </div>
-        ),
-        width,
+        // A truncating table's header wraps onto two lines rather than ellipsize, so a title's unit
+        // ("CPU request (m)") is not the part that is cut; columnLayout sizes the columns for that.
+        // Past two lines it ellipsizes, full title on hover.
+        title: truncating
+          ? <span className={styles.headerWrap} title={title}>{title}</span>
+          : (
+            <div className={styles.headerEllipsis}>
+              <Typography.Text ellipsis={{ tooltip: true }}>
+                {title}
+              </Typography.Text>
+            </div>
+          ),
+        width: widths[index] ?? width,
       }))}
       dataSource={dataTable}
       key={uid}
@@ -270,6 +324,7 @@ const Table = ({ deniedRefIds, resourcesRefs, serverPagination, uid, widgetData 
         }
         : undefined}
       pagination={paginationProp}
+      ref={tableRef}
       scroll={scroll}
       size={size ?? 'middle'}
       virtual={virtual}

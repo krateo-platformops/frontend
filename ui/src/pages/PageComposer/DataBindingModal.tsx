@@ -29,6 +29,8 @@
 import { Alert, AutoComplete, Button, Form, Input, Modal, Radio, Select, Space, Tabs, Typography } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 
+import { dismissButtonProps } from '../../components/DismissButton'
+
 import { draftActions } from './objectTree'
 import { listPlaceableActions } from './placeableWidgets'
 import type { PlaceableWidget } from './placeableWidgets'
@@ -174,7 +176,7 @@ export const DataBindingModal = ({ files = {}, namespace, onCancel, onDone, open
   )
 
   return (
-    <Modal okText='Apply' onCancel={onCancel} onOk={submit} open={open} title={`Data for ${widgetName}`} width={860}>
+    <Modal cancelButtonProps={dismissButtonProps} okText='Apply' onCancel={onCancel} onOk={submit} open={open} title={`Data for ${widgetName}`} width={860}>
       {error ? <Alert message={error} showIcon style={{ marginBottom: 'var(--spacing-smd)' }} type='error' /> : null}
       <Tabs
         items={[

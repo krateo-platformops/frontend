@@ -60,6 +60,8 @@ export const ControllerCanvas = ({ model, onDismissRefusal, onDropGroup, onDropO
         {model.kinds.length ? <span className={styles.countPill}>{`${model.kinds.length} ${model.kinds.length === 1 ? 'Kind' : 'Kinds'}`}</span> : null}
       </div>
       {refusal ? <Alert closable onClose={onDismissRefusal} showIcon title={refusal.reason} type='error' /> : null}
+      {/* C8 exception: a drop target for pointer drags; the keyboard path is each palette group's Place button. */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         aria-label='Resources canvas — drop a resource group here to map it as a Kind'
         className={own.canvas}

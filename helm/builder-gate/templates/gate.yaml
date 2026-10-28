@@ -1,0 +1,112 @@
+{{- /*
+One gate per instance: Deployment, Service, and the RemoteMCPServer kagent resolves the agent's
+validate_draft toolName against. The server is stateless (a fresh MCP transport per request), so
+a restart never strands a session.
+*/ -}}
+{{- range .Values.instances }}
+{{- $name := include "builder-gate.name" . }}
+{{- $ctx := dict "root" $ "instance" . }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "builder-gate.labels" $ctx | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ $name }}
+  template:
+    metadata:
+      labels:
+        {{- include "builder-gate.labels" $ctx | nindent 8 }}
+    spec:
+      serviceAccountName: {{ $name }}
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: gate
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag | default $.Chart.Version }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          ports:
+            - name: mcp
+              containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: GATE_BUILDERS
+              value: {{ join "," .builders | quote }}
+            - name: BUILDERS_NAMESPACE
+              value: {{ $.Values.buildersNamespace | quote }}
+            - name: SANDBOX_NAMESPACE
+              value: {{ $.Values.sandboxNamespace | quote }}
+            - name: SNOWPLOW_URL
+              value: {{ $.Values.snowplowUrl | quote }}
+          # The gate needs nothing remote to be alive; an unreachable API server is a verdict
+          # inside the envelope, not a dead pod. The liveness budget (15 s x 8) is longer than the
+          # tool's 100 s deadline, so the tool's own deadline always fires first.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: mcp
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 8
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: mcp
+            initialDelaySeconds: 2
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "builder-gate.labels" $ctx | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: {{ $name }}
+  ports:
+    - name: mcp
+      port: 8080
+      targetPort: mcp
+{{- if $.Values.remoteMCPServer.enabled }}
+---
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "builder-gate.labels" $ctx | nindent 4 }}
+spec:
+  description: "Krateo builder gate for {{ .name }} ({{ join ", " .builders }}): validate_draft runs the portal's own lint (with its secrets rule), reference checks and snowplow's jq compiler, then, through snowplow as the caller, a dry-run of every object (dryRun=All, fieldValidation=Strict) and each draft RESTAction resolved without being stored"
+  protocol: STREAMABLE_HTTP
+  url: http://{{ $name }}.{{ $.Release.Namespace }}:8080/mcp
+  timeout: {{ $.Values.remoteMCPServer.timeout }}
+{{- end }}
+{{- end }}

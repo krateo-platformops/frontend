@@ -89,16 +89,29 @@ existence and count of resources outside a tenant's scope.
 
 ## What is enforced today
 
-Two lints run from [`lint/`](lint/), and between them they hold **22 of the 105 rules** —
-14 composition rules and 8 token rules. Everything else is a rule a human applies.
+Two lints run from [`lint/`](lint/) and an accessibility gate runs from `ui/`; between them
+they hold **30 of the 108 rules** — 18 composition rules and 8 token rules, plus the
+3 accessibility rules C8–C10 and 1 app-side layout rule (P26). Everything else is a rule a human applies.
+
+- **Accessibility (C8–C10)** — `ui/eslint.a11y.config.js` runs the `jsx-a11y` rules of
+  `eslint.config.js` and nothing else, with antd components mapped to the DOM they render (so a
+  `<Card onClick>` or an icon-only `<Button>` is visible to them). It exists because **no CI job ran
+  ESLint at all**: `lint.yaml` is `helm lint`, and the full config still reports ~60 unrelated,
+  ungated problems. `ui/src/test/a11yTriggers.test.ts` covers what jsx-a11y cannot see, a Popover or
+  Dropdown opening from an element that cannot take focus (C10). Both are at zero, with no baseline.
 
 - `lint-portal-consistency.py` — composition, run against a chart's widget CRs. **0 violations**
-  across all 14 rules against the portal chart.
-- `lint-css-tokens.py` — token adoption in this repo's stylesheets. Gates on a **baseline** of 21
-  pre-existing violations across 21 files, so new code is held to the rule while the debt burns
-  down. 19 of those 21 are `widget-theme-coverage` (T2), which arrived with the rule itself:
-  adding a check to a codebase that predates it imports its existing debt in one step, and that is
-  the point of baselining rather than a reason to weaken the rule. The live counts are
+  across all 18 rules against the portal chart, except the migrations A4 and P6 were tightened to drive:
+  the two "Diagnose" buttons (composition and incident detail) are Autopilot entry points the
+  first A4 sweep could not see, and the incident remediation's "I applied it" was a second filled
+  button beside "Run apply". The portal vendors this lint, so the rules
+  reach its CI together with that migration.
+- `lint-css-tokens.py` — token adoption in this repo's stylesheets. Its baseline is **empty**: every
+  pre-existing violation has been paid off. It arrived with ~314 — adding a check to a codebase that
+  predates it imports its existing debt in one step, which is the point of baselining rather than a
+  reason to weaken the rule — and the last were `widget-theme-coverage` (T2, 19, burned to zero one
+  widget group at a time) and two T3 judgement calls, resolved by giving a page title one size.
+  The ledger only shrinks, so the gate now holds every rule at zero. The live counts are
   `python3 design/lint/lint-css-tokens.py ui/src --summary`, which prints now-vs-baseline per rule
   — read that rather than this sentence.
 
@@ -112,14 +125,45 @@ Two lints run from [`lint/`](lint/), and between them they hold **22 of the 105 
   `ui/src/theme/inline-style-baseline.json`.
   Runs with the rest of vitest (`test.yaml`), not in `design-system.yaml`.
 
+- **Screen headers (P26, P27)** — the headers the app builds itself use `components/ScreenHeader`:
+  status and actions on the trailing edge, one row, centred on the title and subtitle together, and
+  no eyebrow or crumb slot. The `PageHeader` widget renders its `items` the
+  same way.
+  `ui/src/test/screenHeaders.test.ts` fails on a hand-built `<header>` with actions, an eyebrow that
+  spells a path, or antd's `Breadcrumb` outside its two owners; `ui/visual/layout.spec.ts` measures
+  the geometry in a browser at 1440/1024/600px. On the chart side, the composition lint's
+  `second-breadcrumb` rule holds P27.
+- **Button roles (C26)** — closing is amber (`components/DismissButton`, `intent: dismiss` on the
+  Button widget), deleting is red (`danger`). `ui/src/test/buttonRoles.test.ts` holds the app's
+  buttons and the Cancel inside every `Popconfirm`, `Modal` and confirm dialog; the composition
+  lint's `button-role` rule holds the chart's.
+- **One primary per container (P6)** — the composition lint's `one-primary` rule: a header or a
+  panel names at most one filled Button among its own children. The Autopilot entry point is filled
+  everywhere (A4) and is not counted.
+- **Visual regression** — `ui/visual/` renders every widget from its own example CR
+  (`src/examples/widgets`), light and dark, and compares it pixel for pixel against the baselines in
+  `ui/visual/__screenshots__` (72 today). It holds no numbered rule; it is what notices that a token
+  change moved something it was not meant to. Two of its checks keep it honest: every widget with an
+  example is either screenshotted or excluded with a reason, and every screenshotted example must
+  validate against its widget's schema. When it was written, **46 of 166 example documents failed
+  their own schema** (every Table example used `data`, which the widget no longer reads, so they
+  rendered empty). All of them now pass, and `ui/src/test/widgetExamples.test.ts` validates every
+  example document against its kind's **generated CRD**, closing objects and dropping nulls the way
+  the apiserver does: the widget schema also describes the resolved `resourcesRefs` (`allowed`,
+  `path`) the frontend receives, and six example files had copied that shape, so they passed the
+  widget schema and were rejected by a server-side dry run. It runs in the
+  Playwright container only, because fonts rasterise differently on macOS: `npm run visual` to
+  check, `npm run visual:update` to accept an intended change, and commit the PNGs so the reviewer
+  sees the before and after.
+
 **Both are wired into CI**, and have been since they landed: `.github/workflows/design-system.yaml`
 here runs the CSS lint and both self-tests on every PR and push to `main`, and the portal repo's
 workflow of the same name runs the composition lint against its rendered chart.
 
 **The CI check is the live status; this section is a claim about it.** To read the real state,
 look at the `design-system` check on any open PR in either repo — it fails on a violation, and a
-green one means all 22 machine-held rules hold as of that commit. The per-rule `Status:`
-markers in the six rule documents are the other half of the picture: they cover the 83 rules no
+green one means all 30 machine-held rules hold as of that commit. The per-rule `Status:`
+markers in the six rule documents are the other half of the picture: they cover the 78 rules no
 lint can decide, and a human keeps them true. Prefer the check over both.
 
 > This section said "Neither is wired into CI yet. Until they are, this document is still the thing

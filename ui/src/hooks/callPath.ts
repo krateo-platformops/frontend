@@ -56,3 +56,35 @@ export const buildCallWritePath = ({ group, name, namespace, resource, version }
 
   return `/call?${params.toString()}`
 }
+
+/**
+ * The `name`/`namespace` a widget write must put on its `/call` path, given the payload
+ * it is about to send.
+ *
+ * snowplow's `validateRequest` requires BOTH `name` and `namespace` to be non-empty on
+ * EVERY verb, a collection POST included (see the contract at the top of this module).
+ * The widget write paths took the object's name from `payload.metadata.name` and skipped
+ * the rewrite entirely when it was absent:
+ *
+ *     const path = (name ?? namespace) ? updateNameNamespace(refPath, name, namespace) : refPath
+ *
+ * `??` only falls through on null/undefined, so an EMPTY-STRING name — what a server-side
+ * `widgetDataTemplate` yields when its source field resolves to nothing, e.g.
+ * `name: (.claimName // "")` — left `""`, which is falsy, so the ternary dropped `name`
+ * AND `namespace` and sent the bare collection path. snowplow then answered
+ * `400 missing 'name' query parameter`, which names the query parameter rather than the
+ * empty field that caused it. Measured 2026-10-07 on the Platform Review "Open change
+ * request" drawer, where it meant `builder: review` had never once produced a
+ * BuilderPublish (frontend#475).
+ *
+ * A POST therefore falls back to COLLECTION_POST_NAME, exactly as `buildCallWritePath`
+ * already does for the AuditRecord create. A name-addressed verb does NOT: for
+ * PUT/PATCH/DELETE the name is joined into the apiserver URI, so substituting a
+ * placeholder would aim the write at a resource called `-` instead of failing — those
+ * keep the old behaviour and surface the apiserver's own error.
+ */
+export const writeTargetName = (verb: string | undefined, name: unknown): string | undefined => {
+  const given = typeof name === 'string' && name.length > 0 ? name : undefined
+
+  return given ?? (verb?.toUpperCase() === 'POST' ? COLLECTION_POST_NAME : undefined)
+}

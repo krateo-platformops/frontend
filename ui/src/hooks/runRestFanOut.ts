@@ -20,6 +20,7 @@ import { isMutatingVerb } from '../components/BlastRadius/buildBlastRadius'
 import type { ResourceRef, WidgetAction } from '../types/Widget'
 import { ANY_ITEM, omitSecretPaths, secretValuesOf } from '../utils/secretFields'
 
+import { writeTargetName } from './callPath'
 import { runRestSet, type WriteOp } from './runRestSet'
 import type { ActionContext, ActionRuntime } from './useHandleActions'
 import { buildPayloadDetailed, interpolateRedirectUrl, updateNameNamespace } from './useHandleActions'
@@ -73,7 +74,7 @@ export const runRestFanOut = async (
     const perOpValues = { ...customPayload, [fanOutPath]: element }
     // eslint-disable-next-line no-await-in-loop -- payloads build sequentially to keep op order deterministic
     const { payload, secretTargets } = await buildPayloadDetailed(action, resourceRef.payload, perOpValues, ctx.resolveJq, opSecretPaths)
-    const name = payload?.metadata?.name
+    const name = writeTargetName(verb, payload?.metadata?.name)
     const namespace = payload?.metadata?.namespace
     const path = (name ?? namespace) ? updateNameNamespace(resourceRef.path, name, namespace) : resourceRef.path
     ops.push({ maskTargets: secretTargets, path, payload, verb, ...(secrets ? { secretValues: secrets } : {}) })

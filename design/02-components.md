@@ -98,7 +98,19 @@ Today: a custom button, an antd circle button, and an antd circle button wrapped
 
 ### C8 — A clickable row is keyboard-operable: focusable, announced, and activated by Enter and Space.
 
-**Status:** gap → **fixed** — **residual:** not on the card-tile row
+**Status:** gap → fixed → **enforced**
+
+> **2026-10-05: enforced, and the residual is gone.** `jsx-a11y` (`click-events-have-key-events`,
+> `no-static-element-interactions`, `no-noninteractive-element-interactions`,
+> `interactive-supports-focus`) now runs in CI through `ui/eslint.a11y.config.js`, with antd's `Card`,
+> `Flex`, `Space`, `Avatar`, `Text`… mapped to the DOM they render. Before the mapping the rules
+> could not see a `<Card onClick>`, the exact shape of this rule. The card-tile residual below no
+> longer holds: `rowNavProps` puts role, tabIndex and the key handler on the `Card` itself, and since
+> #394 it acts only on keys aimed at the row. Switching the rules on found **one real instance**:
+> Select's tag ✕ was a `<span onClick role="button">` with no focus or key handler. It is now a
+> `<button>` named "Remove <tag>". Eight other hits were legitimate and each carries a
+> `C8 exception:` comment with its reason (a drop target whose keyboard path is the Place button, a
+> focusable window-splitter, a delegated shortcut handler…).
 
 > **2026-09-15 reconciliation.** The transition above is real but over-claimed: a live counterexample remains. `ui/src/widgets/List/ListView.tsx:244` — the card tile spreads the row's `onKeyDown` onto the `<Card>` that contains the focusable, so the handler is on the wrong node. Verified by an adversarial pass whose brief was to refute the closure, not to confirm it — 15 of 18 markers examined failed that way, which is the direction that matters, since a rule marked fixed is a rule nobody re-checks.
 
@@ -110,9 +122,15 @@ Today: a custom button, an antd circle button, and an antd circle button wrapped
 
 ### C9 — Every icon-only trigger carries an accessible name.
 
-**Status:** gap → **fixed**
+**Status:** gap → fixed → **enforced**
 
 > **Resolved since this rule was written.** `aria-label` added to the notification bell. Landed in PR #195.
+
+> **2026-10-05: enforced.** `jsx-a11y/control-has-associated-label`, with antd `Button` mapped to
+> `<button>`, runs in CI. It found **four** icon-only buttons with no name, each inside or beside a
+> Tooltip, which describes a control but does not name it: Card's help button, Markdown's copy and
+> download, YamlViewer's copy. All four now carry an `aria-label`. The shared `HeaderIconButton`
+> already requires one by type.
 
 The header notification bell — present on every page — has no `aria-label`, no tooltip and no text. The rail’s nine icon buttons are all labelled, so the standard exists; the header predates it.
 
@@ -120,7 +138,12 @@ The header notification bell — present on every page — has no `aria-label`, 
 
 ### C10 — A click-triggered menu’s trigger is itself focusable — a Popover does not add that for you.
 
-**Status:** gap → **fixed**
+**Status:** gap → fixed → **enforced**
+
+> **2026-10-05: enforced.** jsx-a11y cannot see this one, because antd attaches the handler at
+> runtime. `ui/src/test/a11yTriggers.test.ts` reads the source: every `Popover`, `Dropdown` and
+> `Popconfirm` must open from a focusable child (looking through a `Tooltip`). All four in the tree
+> pass. Turning UserMenu's `<button>` back into a `<span>` fails the test with file and line.
 
 > **Resolved since this rule was written.** The trigger is now a real `<button>` with the chrome stripped, and the Popover is controlled so `aria-expanded` reports its state. Landed in PR #195. **C8 (List/Notifications rows) is still open** — same class, different surface.
 
@@ -399,6 +422,17 @@ That pairing means a component was rebuilt rather than reused. Extract the share
 `StatusPill` now backs both `Tag` and `PageHeader` — and forward unrecognised props untouched, so
 the extraction is not a silent behaviour change.
 
+> **2026-10-13: the same tell, in `Card`.** Its `extra` slot had two pill variants, and neither was
+> the pill: `badge` restyled an antd `Badge` as a mono-uppercase glowing chip, and `tag` was
+> `import { Tag } from 'antd'` plus `getTagStyle` — the exact pairing named above. A composition's
+> rail read “NOTSYNCED” a few inches under the “NotReady” pill in its header. Both variants are
+> `StatusPill` now; `extraStatus` keeps antd's Badge status names as input.
+
+> **2026-10-14: the same object, two screens apart.** The create form's Review step showed an
+> object value as one line of compact JSON; the write-confirm dialog one click later showed the
+> same object as highlighted YAML, from a `YamlBlock` private to that dialog. It is
+> `components/YamlBlock` now, and both use it.
+
 Applies to the CR surface too, not just rendering: before giving a new widget a required field,
 read what the closest existing widget requires. `PageHeader` shipped with `allowedResources` and
 `items` required because they were copied from a container schema; `Card`, the actual precedent,
@@ -496,3 +530,40 @@ today, and stop the seventh being added.
 
 *Evidence: measured across 44 `ui/src/widgets/*/*.schema.json` (2,317 properties, 799 described) and
 the 44 widget `.tsx` files (30 import their own antd namesake, 14 do not)*
+
+### C26 — A button's colour says what it does to the work: closing is amber, deleting is red.
+
+**Status:** **enforced** — app side (`ui/src/test/buttonRoles.test.ts`) and chart side (the composition lint's `button-role` rule)
+
+Three roles, decided by what the button does, not by where it sits:
+
+- **Dismiss** — it closes or backs out and deletes nothing stored: *Cancel*, *Close*, *Close draft*,
+  *Keep editing*, *Dismiss*. **Amber, outlined** (`--krateo-color-status-warning-text`, the hover on
+  `…-warning-subtle`). In the app: `components/DismissButton`, or `dismissButtonProps` where antd
+  builds the button itself — every `Popconfirm`'s and `Modal`'s Cancel, and `modal.confirm`'s. In a
+  CR: `intent: dismiss` on the `Button` widget. The `Form` widget's secondary takes it on its own
+  when it navigates away (`secondary.navigateTo`); a `Reset`, which clears unsaved input in place,
+  stays neutral.
+- **Destroy** — it deletes content: *Delete*, *Remove*, *Discard* a draft, *Uninstall*. **Red**:
+  antd's `danger`, on the button that opens the confirmation and on the confirmation's own OK. When
+  one dialog can do either — *Close draft* keeps the draft if it was saved and discards it if not —
+  its OK is red only in the case that deletes.
+- **Everything else** keeps its place in the primary / secondary hierarchy
+  ([P6](03-composition.md#p6--one-primary-action-per-container--a-page-header-or-a-self-contained-panel)).
+
+Amber and red are kept apart on purpose: if closing a dialog and deleting a chart shared a colour,
+the colour would stop warning about the one that cannot be undone.
+
+The check reads labels, because a label is the only place a CR — or a `<Button>` in the app — says
+which role it has. The app-side test also requires the Cancel that antd draws inside every
+`Popconfirm`, `Modal` and confirm dialog to carry `dismissButtonProps`, since no label in the code
+names that button. A native `<button>` is outside both checks: the one there is (the Autopilot voice
+row's *Cancel*) is styled amber in its own stylesheet.
+
+> **Decided 2026-10-08.** Reported on *Close draft*, which looked exactly like *Preview* and *Undo*
+> beside it. The product call extends it to every Cancel, "so the role of something that closes is
+> defined", and keeps red for a real deletion of content.
+
+*Evidence: the first run of the app-side check found 32 sites — 15 Cancel buttons drawn by
+`Popconfirm`/`Modal`/`modal.confirm`, 5 dismiss `<Button>`s, 12 deletions without `danger`. Against
+the portal chart on 2026-10-08 the lint reports one Button (`incident-detail-close`)*

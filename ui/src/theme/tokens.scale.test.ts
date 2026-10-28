@@ -11,7 +11,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { spacing, cssVariables } from './tokens'
+import { color, colorDark, cssVariables, darkTheme, layout, lightTheme, spacing } from './tokens'
 
 describe('spacing scale', () => {
   it('carries the half-steps a doubling scale skips', () => {
@@ -48,5 +48,77 @@ describe('type scale — the micro-label tier', () => {
     expect(root.style.getPropertyValue('--spacing-xxs')).toBe('2px')
     expect(root.style.getPropertyValue('--spacing-xsm')).toBe('6px')
     expect(root.style.getPropertyValue('--spacing-smd')).toBe('12px')
+  })
+})
+
+describe('Form density comes from the theme (T2)', () => {
+  it('spaces items and labels on the spacing scale, in both modes', () => {
+    for (const { components } of [lightTheme, darkTheme]) {
+      expect(components?.Form?.itemMarginBottom).toBe(spacing.md)
+      expect(components?.Form?.verticalLabelPadding).toBe(`0 0 ${spacing.xsm}px`)
+    }
+  })
+})
+
+describe('form controls share one height (T2)', () => {
+  it('pins every input-like control to 32px, not the compact algorithm’s 28', () => {
+    // compactAlgorithm turns our controlHeight 32 into 28. Any control without its own override
+    // inherits the 28 — that is how InputNumber and button-style Radios ended up 4px short.
+    for (const { components } of [lightTheme, darkTheme]) {
+      for (const kind of ['Button', 'DatePicker', 'Input', 'InputNumber', 'Radio', 'Select'] as const) {
+        expect(components?.[kind]?.controlHeight, kind).toBe(32)
+      }
+    }
+  })
+})
+
+describe('Layout regions follow the app chrome, not antd’s defaults (T2)', () => {
+  it('sizes and paints the header and sider from our tokens, in both modes', () => {
+    // antd's defaults were its navy #001529, a 56px header and `0 43.75px` padding.
+    for (const [{ components }, palette] of [[lightTheme, color], [darkTheme, colorDark]] as const) {
+      expect(components?.Layout?.headerHeight).toBe(layout.headerHeight)
+      expect(components?.Layout?.headerPadding).toBe(`0 ${spacing.md}px`)
+      expect(components?.Layout?.headerBg).toBe(palette.panelbg)
+      expect(components?.Layout?.siderBg).toBe(palette.panelbg)
+    }
+  })
+})
+
+describe('antd text sizes come from the one type scale (T2, T3)', () => {
+  it('sizes Result and Badge text with canonical roles', () => {
+    // Result's title was 20px — a size the scale does not have. Read the roles from what
+    // cssVariables() emits, so a change to the scale moves these with it.
+    cssVariables('light')
+    const role = (name: string) => Number.parseInt(document.documentElement.style.getPropertyValue(`--krateo-text-${name}`), 10)
+    for (const { components } of [lightTheme, darkTheme]) {
+      expect(components?.Result?.titleFontSize).toBe(role('h3'))
+      expect(components?.Result?.subtitleFontSize).toBe(role('caption'))
+      expect(components?.Badge?.textFontSize).toBe(role('label-xs'))
+    }
+  })
+})
+
+describe('Descriptions spacing is on the scale (T2)', () => {
+  it('spaces the title on the scale — it was 18px, antd’s 20 compacted', () => {
+    for (const { components } of [lightTheme, darkTheme]) {
+      expect(components?.Descriptions?.titleMarginBottom).toBe(spacing.md)
+    }
+  })
+})
+
+describe('antd headings are on the one type scale (T3)', () => {
+  it('makes a page title h2 on every path, and keeps lower levels on canonical roles', () => {
+    // A page title rendered at 32px from PageHeader / `level: 1` and at 26px from a strong Paragraph.
+    cssVariables('light')
+    const role = (name: string) => Number.parseInt(document.documentElement.style.getPropertyValue(`--krateo-text-${name}`), 10)
+    for (const { components } of [lightTheme, darkTheme]) {
+      expect(components?.Typography).toMatchObject({
+        fontSizeHeading1: role('h2'),
+        fontSizeHeading2: role('h3'),
+        fontSizeHeading3: role('h3'),
+        fontSizeHeading4: role('h4'),
+        fontSizeHeading5: role('body'),
+      })
+    }
   })
 })

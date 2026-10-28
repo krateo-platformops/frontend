@@ -399,16 +399,33 @@ describe('dispatchAction — routing + non-SSE rest paths', () => {
   })
 })
 
-// Controllable EventSource for the onEventNavigateTo (SSE) path.
-class FakeEventSource {
-  static instances: FakeEventSource[] = []
-  listeners: Record<string, ((event: { data: string }) => void)[]> = {}
-  closed = false
-  constructor(public url: string) { FakeEventSource.instances.push(this) }
-  addEventListener(type: string, listener: (event: { data: string }) => void) { (this.listeners[type] ??= []).push(listener) }
-  emit(type: string, data: unknown) { (this.listeners[type] ?? []).forEach((listener) => { listener({ data: JSON.stringify(data) }) }) }
-  close() { this.closed = true }
-}
+/**
+ * Controllable subscription on the shared SSE client, for the onEventNavigateTo path.
+ *
+ * Mocked at the sseClient seam rather than at the global: the transport (fetch + Bearer,
+ * connection sharing, frame parsing) is sseClient.test.ts's subject, and these tests are
+ * about dispatchAction's event race and cleanup. Stubbing a global EventSource would also
+ * no longer work — the client uses `fetch`, which these tests already stub for the REST
+ * call, so the two would collide.
+ *
+ * `vi.hoisted` because a `vi.mock` factory runs before the file body, so a plain
+ * module-level const would still be in its TDZ when the factory reads it.
+ */
+const { sseSubscriptions } = vi.hoisted(() => ({
+  sseSubscriptions: [] as { url: string; topic: string; onMessage: (raw: string) => void; closed: boolean }[],
+}))
+
+vi.mock('./sseClient', () => ({
+  subscribeSse: (url: string, topic: string, subscriber: { onMessage: (raw: string) => void }) => {
+    const entry = { closed: false, onMessage: subscriber.onMessage, topic, url }
+    sseSubscriptions.push(entry)
+
+    return () => { entry.closed = true }
+  },
+}))
+
+/** Deliver one event on the most recent subscription, as the server would. */
+const emitSse = (data: unknown) => { sseSubscriptions.at(-1)?.onMessage(JSON.stringify(data)) }
 
 const flush = () => new Promise((resolve) => { setTimeout(resolve, 0) })
 
@@ -423,24 +440,22 @@ const restOnEvent = (): WidgetAction => ({
 describe('dispatchAction — onEventNavigateTo (SSE) race + cleanup', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
-    FakeEventSource.instances = []
+    sseSubscriptions.length = 0
   })
 
   it('(3) replays an event that arrived before the POST response set resourceUid', async () => {
-    vi.stubGlobal('EventSource', FakeEventSource)
     let resolveFetch: (r: Response) => void = () => undefined
     vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => { resolveFetch = resolve })))
 
     const ctx = makeCtx()
     const pending = dispatchAction(restOnEvent(), { resourcesRefs: refs([postRef]) }, ctx)
 
-    // let runRest reach the fetch await (EventSource created + listener registered)
+    // let runRest reach the fetch await (the stream is subscribed by now)
     await flush()
-    const es = FakeEventSource.instances.at(-1)
-    expect(es).toBeDefined()
+    expect(sseSubscriptions.at(-1)).toBeDefined()
 
     // event arrives FIRST — it must be buffered, not dropped
-    es?.emit('krateo', { involvedObject: { uid: 'U123' }, reason: 'Ready' })
+    emitSse({ involvedObject: { uid: 'U123' }, reason: 'Ready' })
     expect(ctx.navigate).not.toHaveBeenCalled()
 
     // the response lands and sets resourceUid → the buffered event replays
@@ -452,8 +467,23 @@ describe('dispatchAction — onEventNavigateTo (SSE) race + cleanup', () => {
     expect(ctx.notification.error).not.toHaveBeenCalled()
   })
 
-  it('(7) registers a cleanup that closes the EventSource (unmount safety)', async () => {
-    vi.stubGlobal('EventSource', FakeEventSource)
+  it('subscribes with NO credential in the url, on the shared /notifications stream', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, '{"metadata":{"uid":"U"}}'))))
+
+    await dispatchAction(restOnEvent(), { resourcesRefs: refs([postRef]) }, makeCtx({ getAccessToken: vi.fn(() => 'a.b+c') }))
+
+    // installer#395: the token used to ride here as ?access_token= and reach every access
+    // log on the path. sseClient now sends it as an Authorization header instead, so this
+    // call site must hand over the bare endpoint — and the same one the bell uses, so the
+    // two share a connection rather than opening a socket each.
+    const subscription = sseSubscriptions.at(-1)
+    expect(subscription?.url).toBe('http://ev/notifications')
+    expect(subscription?.url).not.toContain('a.b')
+    expect(subscription?.url).not.toContain('access_token')
+    expect(subscription?.topic).toBe('krateo')
+  })
+
+  it('(7) keeps waiting after the widget unmounts, and still shows the result and redirects', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, '{"metadata":{"uid":"U"}}'))))
 
     let captured: (() => void) | undefined
@@ -461,14 +491,40 @@ describe('dispatchAction — onEventNavigateTo (SSE) race + cleanup', () => {
 
     await dispatchAction(restOnEvent(), { resourcesRefs: refs([postRef]) }, ctx)
 
-    const es = FakeEventSource.instances.at(-1)
-    // still open, awaiting the event
-    expect(es?.closed).toBe(false)
+    const subscription = sseSubscriptions.at(-1)
     expect(captured).toBeDefined()
 
-    // simulate the hook's unmount teardown
+    // the hook's unmount teardown: a refetch re-rendered the button away
     captured?.()
-    expect(es?.closed).toBe(true)
+    expect(subscription?.closed).toBe(false)
+
+    emitSse({ involvedObject: { uid: 'U' }, reason: 'Ready' })
+    await flush()
+
+    expect(subscription?.closed).toBe(true)
+    expect(ctx.message.destroy).toHaveBeenCalled()
+    expect(ctx.notification.success).toHaveBeenCalled()
+    expect(ctx.navigate).toHaveBeenCalledWith('/done')
+  })
+
+  it('(7) after the user left the page, shows the result but does not redirect', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, '{"metadata":{"uid":"U"}}'))))
+
+    const location = { pathname: '/incidents/ns/name' }
+    vi.stubGlobal('window', { location })
+
+    let captured: (() => void) | undefined
+    const ctx = makeCtx({ registerCleanup: (fn) => { captured = fn } })
+
+    await dispatchAction(restOnEvent(), { resourcesRefs: refs([postRef]) }, ctx)
+    captured?.()
+    location.pathname = '/elsewhere'
+
+    emitSse({ involvedObject: { uid: 'U' }, reason: 'Ready' })
+    await flush()
+
+    expect(ctx.notification.success).toHaveBeenCalled()
+    expect(ctx.navigate).not.toHaveBeenCalled()
   })
 })
 

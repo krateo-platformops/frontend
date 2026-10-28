@@ -5,9 +5,10 @@ import { Card as AntdCard, Badge, Button, Tag, Tooltip } from 'antd'
 import useApp from 'antd/es/app/useApp'
 
 import RefChild from '../../components/RefChild'
+import StatusPill from '../../components/StatusPill'
 import WidgetRenderer from '../../components/WidgetRenderer'
 import { useHandleAction } from '../../hooks/useHandleActions'
-import { getColorCode, getTagStyle } from '../../theme/palette'
+import { getColorCode } from '../../theme/palette'
 import type { ResourcesRefs, WidgetAction, WidgetProps } from '../../types/Widget'
 import { getEndpointUrl } from '../../utils/utils'
 
@@ -43,6 +44,15 @@ const FooterItem = ({ resourceRefId, resourcesRefs }: { resourceRefId: string; r
       <WidgetRenderer widgetEndpoint={endpoint}/>
     </div>
   )
+}
+
+/** antd Badge status names, as `extraStatus` spells them, in the palette StatusPill reads. */
+const BADGE_STATUS_COLOR: Record<string, string> = {
+  default: 'gray',
+  error: 'error',
+  processing: 'cyan',
+  success: 'success',
+  warning: 'warning',
 }
 
 const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetProps<CardWidgetData>) => {
@@ -125,14 +135,17 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
     </div>
   )
 
-  // #86: the extra-value node (status Badge / soft Tag / plain text) as a helper — keeps the `extra`
-  // JSX below free of a nested ternary (no-nested-ternary).
+  // #86: the extra-value node (status pill / plain text) as a helper — keeps the `extra` JSX below
+  // free of a nested ternary (no-nested-ternary).
+  //
+  // C24: both pill variants are the one StatusPill. `badge` was an antd Badge restyled as a
+  // mono-uppercase glowing chip and `tag` a bare antd Tag with the palette tint, so a composition's
+  // "NotSynced" in its rail read NOTSYNCED, inches from the "NotReady" pill in its header. Same
+  // vocabulary, same object. `badge` keeps antd's Badge status names as its input.
   const renderExtraValue = () => {
-    if (extraVariant === 'badge') {
-      return <Badge className={styles.statusBadge} status={(extraStatus ?? 'processing') as 'success' | 'processing' | 'warning' | 'error' | 'default'} text={extra} />
-    }
-    if (extraVariant === 'tag') {
-      return <Tag style={getTagStyle(extraStatus)}>{extra}</Tag>
+    if (extraVariant === 'badge' || extraVariant === 'tag') {
+      const status = extraStatus ?? (extraVariant === 'badge' ? 'processing' : undefined)
+      return <StatusPill color={status ? (BADGE_STATUS_COLOR[status] ?? status) : undefined} label={extra} />
     }
     return extra
   }
@@ -164,7 +177,8 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
               {extraEndpoint && <WidgetRenderer widgetEndpoint={extraEndpoint} />}
               {tooltip && (
                 <Tooltip title={tooltip}>
-                  <Button icon={<FontAwesomeIcon icon={['fas', 'circle-question'] as IconProp} />} type='text' />
+                  {/* C9: a Tooltip describes, it does not name — an icon-only button needs its own label. */}
+                  <Button aria-label='More information' icon={<FontAwesomeIcon icon={['fas', 'circle-question'] as IconProp} />} type='text' />
                 </Tooltip>
               )}
             </>

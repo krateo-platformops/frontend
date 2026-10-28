@@ -23,7 +23,7 @@ const chartFiles = (dir: string): string[] => readdirSync(dir, { withFileTypes: 
 })
 
 describe('released charts', () => {
-  it('are exactly the two under helm/ — nothing else in the repo looks like a chart', () => {
-    expect(chartFiles(ROOT).sort()).toEqual(['helm/frontend-crds/Chart.yaml', 'helm/frontend/Chart.yaml'])
+  it('are exactly the ones under helm/ — nothing else in the repo looks like a chart', () => {
+    expect(chartFiles(ROOT).sort()).toEqual(['helm/builder-gate/Chart.yaml', 'helm/frontend-crds/Chart.yaml', 'helm/frontend/Chart.yaml'])
   })
 })

@@ -14,6 +14,16 @@
   width: 100%;
 }
 
+/* The text block: the title line and, under it, the subtitle. It is what gives way when the row is
+   tight, so the actions keep their one row. */
+.text {
+  display: flex;
+  flex: 1 1 32ch;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  min-width: 0;
+}
+
 /* The title, its counter and its tags share ONE baseline-centred row. Getting this wrong per-page
  * is the defect reported on four separate pages across five findings. */
 .titleLine {
@@ -33,14 +43,18 @@
   margin-left: var(--spacing-xs);
 }
 
+/* P26: the actions' one row. It never wraps (buttons are never stacked) and never shrinks; it keeps
+   to the right edge, centred on the text block. */
 .actions {
-  flex-shrink: 0;
+  flex: 0 0 auto;
+  margin-inline-start: auto;
 }
 
 .subtitle {
   color: var(--gray-color);
   margin: 0 !important;
   max-width: 68ch;
+  min-width: 0;
 }
 
 /* The composed-children exception pill. Interactive only when the child row carried a route, so a

@@ -1,0 +1,136 @@
+# The builder gate (builder-gate/, helm/builder-gate): every step it promises is RUN here, not
+# assumed. No path filter, so it can be a required check.
+#
+#   gate        unit suite: one mutation per rule, the dry-run guard (every mutating request carries
+#               dryRun=All and fieldValidation=Strict), the MCP surface end to end, the pins;
+#               then the example page draft through the gate OFFLINE — the only place the live
+#               steps are turned off, by the CLI's --offline flag — asserting every offline step
+#               ran and passed and every live step said DISABLED; then snowplow's jq modules
+#               diffed against the tag SNOWPLOW_REF names.
+#   kind        the gate's identity against a real API server, as the chart's own ServiceAccount:
+#               it reads its own Builder and no other; it may not create, get or list widgets,
+#               RESTActions or Secrets; with no caller token it judges nothing live, and that is
+#               red; nothing is stored.
+#   (gate)      also replays the secrets-rule corpus through the portal's OWN lint-ra-secrets.py.
+#
+# The image itself (multi-arch) is built by release-pullrequest.yaml / release-tag.yaml.
+name: builder-gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: builder-gate
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: builder-gate/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: builder-gate/jqcheck/go.mod
+          cache-dependency-path: builder-gate/jqcheck/go.sum
+      - name: Build jqcheck (snowplow's gojq fork and modules)
+        working-directory: builder-gate/jqcheck
+        run: go build -o ../bin/jqcheck . && echo "JQCHECK_BIN=$GITHUB_WORKSPACE/builder-gate/bin/jqcheck" >> "$GITHUB_ENV"
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      # The build also writes generated/widget-schemas.json, which the typecheck reads.
+      - name: Build
+        run: node build.mjs
+      - name: Typecheck
+        run: npx tsc --noEmit -p tsconfig.json
+      # `run`, never bare `vitest` (a watch). The global setup builds dist/ first.
+      - name: Unit tests
+        run: npx vitest run --reporter=verbose
+
+      - name: The example page draft through the gate, offline
+        run: |
+          set -euo pipefail
+          node dist/cli.cjs --offline --builder portal-builder \
+            --builders-dir ../ui/src/builders/fixtures --draft examples/pod-sizing-page.json > envelope.json \
+            || { cat envelope.json; exit 1; }
+          cat envelope.json
+          # Green, and green because every offline step RAN and passed — not because one was skipped.
+          jq -e '.ok == true and .failedStep == null' envelope.json
+          for s in builder builder-lint references jq-compile; do
+            jq -e --arg s "$s" '[.steps[] | select(.name == $s and .ok == true and (.problems | length) == 0)] | length == 1' envelope.json \
+              || { echo "::error::step $s did not run and pass"; exit 1; }
+          done
+          jq -e '.steps[] | select(.name == "builder-lint") | .notes[0] == "4 object(s) linted by the portal'"'"'s own page lint (pageLint.ts) over this release'"'"'s widget schemas"' envelope.json
+          jq -e '.steps[] | select(.name == "jq-compile") | .notes[0] | startswith("3 expression(s) compiled")' envelope.json
+          # The live steps reported themselves disabled (by the flag, in this job only).
+          for s in live-dry-run data coverage; do
+            jq -e --arg s "$s" '.steps[] | select(.name == $s) | .notes[0] | startswith("DISABLED: offline run")' envelope.json \
+              || { echo "::error::step $s did not report itself disabled"; exit 1; }
+          done
+
+      - name: The secrets rule against the portal's own lint-ra-secrets.py and fetchableDefs
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet pyyaml
+          ref="$(tr -d '[:space:]' < test/secrets/PORTAL_REF)"
+          portal="$RUNNER_TEMP/portal"
+          mkdir -p "$portal/scripts" "$portal/helm/portal/templates"
+          gh api "repos/krateo-platformops/portal/contents/scripts/lint-ra-secrets.py?ref=${ref}" --jq .content | base64 -d > "$portal/scripts/lint-ra-secrets.py"
+          gh api "repos/krateo-platformops/portal/contents/helm/portal/templates/_fetchable.tpl?ref=${ref}" --jq .content | base64 -d > "$portal/helm/portal/templates/_fetchable.tpl"
+          python3 test/secrets/conformance.py "$portal"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: snowplow's jq modules match the tag in SNOWPLOW_REF
+        run: |
+          set -euo pipefail
+          ref="$(tr -d '[:space:]' < SNOWPLOW_REF)"
+          for m in jqcheck/modules/*.jq; do
+            curl -fsSL "https://raw.githubusercontent.com/krateo-platformops/snowplow/${ref}/go/snowplow/internal/support/jq/modules/$(basename "$m")" | diff -u - "$m"
+          done
+          # And no module snowplow ships at that tag is missing here.
+          gh api "repos/krateo-platformops/snowplow/contents/go/snowplow/internal/support/jq/modules?ref=${ref}" --jq '.[].name' | sort > upstream.txt
+          (cd jqcheck/modules && ls *.jq) | sort > local.txt
+          diff -u upstream.txt local.txt
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  kind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: builder-gate/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: builder-gate/jqcheck/go.mod
+          cache-dependency-path: builder-gate/jqcheck/go.sum
+      - uses: azure/setup-helm@v5.0.0
+        with:
+          version: v3.19.0
+      - name: Build the gate
+        working-directory: builder-gate
+        run: |
+          (cd jqcheck && go build -o ../bin/jqcheck .)
+          echo "JQCHECK_BIN=$GITHUB_WORKSPACE/builder-gate/bin/jqcheck" >> "$GITHUB_ENV"
+          npm ci --no-audit --no-fund
+          node build.mjs
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: builder-gate
+      - name: The gate's identity against a real API server
+        env:
+          KUBECONFIG_FILE: /home/runner/.kube/config
+          KUBE_CONTEXT: kind-builder-gate
+        run: builder-gate/test/kind/run.sh

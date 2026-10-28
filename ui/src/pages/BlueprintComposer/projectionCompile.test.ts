@@ -9,14 +9,15 @@ import { createHash } from 'node:crypto'
 import { load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
+import stale from './__fixtures__/eventSiteStatusStale.json'
 import { edgeChart } from './__fixtures__/s4b'
 import { ARCHITECTURE_TEMPLATE_PATH, parseArchitecture, serializeArchitecture, unwrapFromConfigMapTemplate, type ChartArchitecture } from './architecture'
 import { S11_ARCH_STEP_FILTER, S11_OBJECT_FILTER, S11_TOP_FILTER } from './architectureStateJq'
-import { ARCHITECTURE_ROWS, compileProjection, PROJECTION_BUNDLE_PATH, projectionForFiles } from './projectionCompile'
+import { ARCHITECTURE_ROWS, compileProjection, FILTER_DIGEST_ANNOTATION, filterDigest, GENERATED_BY_ANNOTATION, PROJECTION_BUNDLE_PATH, projectionForFiles, recoverArchitecture, regenerateProjection } from './projectionCompile'
 import { blueprintCompositionDefinition } from './startChart'
 
 interface Step { name: string; path: string; verb: string; dependsOn?: unknown; endpointRef?: unknown; filter: string; errorKey: string; continueOnError: boolean }
-interface RestAction { apiVersion: string; kind: string; metadata: { name: string; namespace: string }; spec: { api: Step[]; filter: string } }
+interface RestAction { apiVersion: string; kind: string; metadata: { name: string; namespace: string; annotations: Record<string, string> }; spec: { api: Step[]; filter: string } }
 
 const archOf = (files: Record<string, string>): ChartArchitecture => {
   const parsed = parseArchitecture(unwrapFromConfigMapTemplate(files[ARCHITECTURE_TEMPLATE_PATH]) ?? '')
@@ -71,11 +72,12 @@ describe('the <chart>-status RESTAction', () => {
   })
 
   it('runs the S11 page filter VERBATIM — the controller and the page cannot disagree about the state', () => {
-    // The digests are the portal file's own (helm/portal/templates/restaction.composition-architecture.yaml
-    // at portal f73ad15). A change to either copy without the other fails here.
+    // These pin THIS repo's copy. They were the portal file's own at portal f73ad15, and are not any
+    // longer: portal #254 added `gateOpen` and `compositionNotSynced` to its copy and not to this one.
+    // So the guard is one-directional — it catches a change here, never a change there.
     expect(sha(S11_ARCH_STEP_FILTER)).toBe('d17b7211bda6d3277625adb5c9c0ef5a69d65c36d9da685f43ee65ae02f45f76')
     expect(sha(S11_OBJECT_FILTER)).toBe('90c0dc9ab9e5dc0cc00f428905c167becdb595a924d49e447d847849d0e2472d')
-    expect(sha(S11_TOP_FILTER)).toBe('3e88fa4ca537d455e527f415a1e3dd5b291d13d5fdc9a84acde113276dcc2161')
+    expect(sha(S11_TOP_FILTER)).toBe('92befd95d84792bcc6689c850894fdc2ae6d1cbb0ec17b0b25fce9aef067dfdd')
     const { ra } = compiled(archOf(edgeChart()))
     expect(ra.spec.api[0].filter).toBe(S11_ARCH_STEP_FILTER)
     expect(ra.spec.filter).toContain(S11_TOP_FILTER)
@@ -178,5 +180,154 @@ describe('the CompositionDefinition a projecting chart publishes', () => {
     expect(withIt.spec.statusDataTemplate).toEqual([...ARCHITECTURE_ROWS])
     expect(blueprintCompositionDefinition('orders', 'krateo-blueprints', 'orders', '0.1.0')).toBe(blueprintCompositionDefinition('orders', 'krateo-blueprints', 'orders', '0.1.0', null))
     expect(blueprintCompositionDefinition('orders', 'krateo-blueprints', 'orders', '0.1.0')).not.toContain('apiRef')
+  })
+})
+
+describe('provenance on the emitted RESTAction (#483)', () => {
+  // This RESTAction is a COPY of the generator's jq, applied with no Helm release and no
+  // ownerReferences, so no chart upgrade reaches it. These annotations do not fix that — they make
+  // "which generator wrote this, and has its filter drifted?" a query rather than an investigation.
+  // #482 is the case that proves it matters: the generator was fixed and released while event-site,
+  // published 2026-10-06, kept reporting architectureLevel 0 for resources that were Ready.
+  it('stamps the generator version and a digest OF THE FILTER THAT SHIPS', () => {
+    const { ra } = compiled(archOf(edgeChart()))
+    expect(ra.metadata.annotations['krateo.io/generated-from']).toBe('templates/architecture.yaml')
+    expect(ra.metadata.annotations[GENERATED_BY_ANNOTATION]).toMatch(/^frontend-/)
+    // The digest must be of the rendered filter, not of the template or the whole manifest —
+    // otherwise it cannot answer the only question it exists to answer.
+    expect(ra.metadata.annotations[FILTER_DIGEST_ANNOTATION]).toBe(filterDigest(ra.spec.filter))
+  })
+
+  it('changes the digest when the filter changes, and not when it does not', () => {
+    const once = compiled(archOf(edgeChart()))
+    const twice = compiled(archOf(edgeChart()))
+    expect(twice.ra.metadata.annotations[FILTER_DIGEST_ANNOTATION]).toBe(once.ra.metadata.annotations[FILTER_DIGEST_ANNOTATION])
+    // A drifted copy — one node's readyWhen switched to the condition form, exactly the #482 shape.
+    expect(filterDigest(`${once.ra.spec.filter}\n# drift`)).not.toBe(once.ra.metadata.annotations[FILTER_DIGEST_ANNOTATION])
+  })
+
+  it('does not put the stamp inside the filter, so provenance cannot change what the filter computes', () => {
+    const { ra } = compiled(archOf(edgeChart()))
+    expect(ra.spec.filter).not.toContain(GENERATED_BY_ANNOTATION)
+    expect(ra.spec.filter).not.toContain(FILTER_DIGEST_ANNOTATION)
+    expect(ra.spec.filter).not.toContain('frontend-')
+  })
+
+  it('is carried in the committed bundle, so a published blueprint records its own provenance', () => {
+    const out = projectionForFiles(edgeChart())
+    const bundle = JSON.parse(out?.bundle ?? '{}') as { restaction: RestAction }
+    expect(bundle.restaction.metadata.annotations[GENERATED_BY_ANNOTATION]).toMatch(/^frontend-/)
+    expect(bundle.restaction.metadata.annotations[FILTER_DIGEST_ANNOTATION]).toBe(filterDigest(bundle.restaction.spec.filter))
+  })
+})
+
+describe('regenerating a published projection from the live object (#483)', () => {
+  // The repair half. snowplow's `spec.filter` is a literal string with no indirection, and a stage
+  // with dependsOn makes core-provider's read-set unresolvable — so the copy cannot be removed. What
+  // it can have is an upgrade path, and the object carries everything needed to recompile itself.
+  it('round-trips: recompiling a freshly compiled RESTAction reproduces it exactly, and reports no change', () => {
+    const { ra } = compiled(archOf(edgeChart()))
+    const again = regenerateProjection(ra)
+    if (!again.ok) { throw new Error(again.reason) }
+    expect(again.restaction).toEqual(JSON.parse(JSON.stringify(ra)))
+    expect(again.changed).toEqual([])
+  })
+
+  it('recovers the kinds and the node ids each LIST serves, from the object alone', () => {
+    const { ra } = compiled(archOf(edgeChart()))
+    const recovered = recoverArchitecture(ra)
+    if (!recovered.ok) { throw new Error(recovered.reason) }
+    const source = archOf(edgeChart()).resources.filter((node) => !node.lifecycle)
+    expect(recovered.architecture.chart).toBe(archOf(edgeChart()).chart)
+    expect(recovered.architecture.resources.map((node) => node.id).sort()).toEqual(source.map((node) => node.id).sort())
+    for (const node of recovered.architecture.resources) {
+      const original = source.find((candidate) => candidate.id === node.id)
+      expect([node.apiVersion, node.resource]).toEqual([original?.apiVersion, original?.resource])
+    }
+  })
+
+  it('repairs the real event-site-status that #483 was filed about', () => {
+    // The object as it stood on krateo-057 on 2026-10-12: published 2026-10-06 from frontend 1.8.0,
+    // unstamped, still running the pre-#482 filter that read only the FIELD form of readyWhen — so
+    // both live EventSites reported architectureLevel 0 for resources that were Ready.
+    const out = regenerateProjection(stale)
+    if (!out.ok) { throw new Error(out.reason) }
+    expect(out.changed).toContain('filter')
+    expect(out.changed).toContain('provenance')
+    const spec = out.restaction.spec as { api: Step[]; filter: string }
+    // The computation is the current one...
+    expect(spec.filter).toContain(S11_TOP_FILTER)
+    expect(stale.spec.filter).not.toContain(S11_TOP_FILTER)
+    // ...and the per-chart half it was wrapped in survives verbatim: same four kinds, same ids.
+    expect(spec.api.map((step) => step.path)).toEqual(stale.spec.api.map((step) => step.path))
+    expect(spec.filter).toContain('[{"ids":["deployment"],"step":"o0"},{"ids":["service"],"step":"o1"},{"ids":["form"],"step":"o2"},{"ids":["computeinstance"],"step":"o3"}] as $steps')
+  })
+
+  it('refuses rather than guesses when the object is not one of ours', () => {
+    expect(recoverArchitecture({ metadata: { name: 'composition-events' }, spec: { filter: 'x' } }).ok).toBe(false)
+    expect(recoverArchitecture({ metadata: { name: 'a-status' }, spec: { filter: 'no steps here' } }).ok).toBe(false)
+    // A step the fold names but no stage provides: the kinds would be invented.
+    const { ra } = compiled(archOf(edgeChart()))
+    const missing = JSON.parse(JSON.stringify(ra)) as RestAction
+    missing.spec.api = missing.spec.api.filter((step) => step.name !== 'o0')
+    expect(recoverArchitecture(missing).ok).toBe(false)
+    // Path and stage filter disagreeing about the apiVersion — not this generator's output.
+    const forged = JSON.parse(JSON.stringify(ra)) as RestAction
+    forged.spec.api[1].filter = forged.spec.api[1].filter.replace(/apiVersion: "[^"]*"/, 'apiVersion: "other/v1"')
+    expect(recoverArchitecture(forged).ok).toBe(false)
+  })
+
+  it('will not move a stage path, because the composition\'s RBAC is derived from them', () => {
+    const { ra } = compiled(archOf(edgeChart()))
+    const moved = JSON.parse(JSON.stringify(ra)) as RestAction
+    moved.spec.api.pop()
+    const out = regenerateProjection(moved)
+    // Dropping a stage drops its fold entry too, so this recompiles to a DIFFERENT shape — the
+    // guard is the backstop for a live object whose stages were edited out of band.
+    if (out.ok) { expect(out.restaction.spec).toEqual(moved.spec) }
+  })
+})
+
+describe('comparing against what the apiserver returns, not against what we wrote', () => {
+  it('does not report a change when only the key ORDER differs', () => {
+    // The compiler emits a stage as name, path, verb, headers, continueOnError, errorKey, filter.
+    // The apiserver hands it back alphabetically. A serialization-order comparison calls that a
+    // change on every run, which would make the regenerator write unconditionally and never report
+    // a fleet as current — observed live on krateo-057 against the real event-site-status.
+    const { ra } = compiled(archOf(edgeChart()))
+    const reordered = JSON.parse(JSON.stringify(ra)) as RestAction
+    reordered.spec.api = reordered.spec.api.map((step) => Object.fromEntries(
+      Object.keys(step).sort().map((key) => [key, (step as unknown as Record<string, unknown>)[key]]),
+    ) as unknown as Step)
+    expect(JSON.stringify(reordered.spec.api)).not.toBe(JSON.stringify(ra.spec.api))
+    const out = regenerateProjection(reordered)
+    if (!out.ok) { throw new Error(out.reason) }
+    expect(out.changed).toEqual([])
+  })
+})
+
+describe('the regenerator stamps the generator that actually repaired the object', () => {
+  // `__APP_VERSION__` is a Vite compile-time constant, so outside a browser build — which is where
+  // regeneration runs — the stamp degrades to `frontend-unknown`. Right for a publish, wrong here:
+  // this writes onto an object it just repaired, and an annotation that looks like an answer and is
+  // not is worse than none. Observed live: the first --apply on krateo-057 wrote frontend-unknown.
+  it('writes the caller\'s version, not the build-time fallback', () => {
+    const { ra } = compiled(archOf(edgeChart()))
+    const out = regenerateProjection(ra, { generatedBy: 'frontend-1.8.2' })
+    if (!out.ok) { throw new Error(out.reason) }
+    const annotations = (out.restaction.metadata as { annotations: Record<string, string> }).annotations
+    expect(annotations[GENERATED_BY_ANNOTATION]).toBe('frontend-1.8.2')
+    expect(annotations[GENERATED_BY_ANNOTATION]).not.toContain('unknown')
+    // The override is provenance only — it must not touch what the filter computes.
+    expect(out.restaction.spec).toEqual(ra.spec)
+  })
+
+  it('reports a provenance change when only the stamped version differs', () => {
+    const { ra } = compiled(archOf(edgeChart()))
+    const stamped = JSON.parse(JSON.stringify(ra)) as RestAction
+    stamped.metadata.annotations[GENERATED_BY_ANNOTATION] = 'frontend-1.8.0'
+    const out = regenerateProjection(stamped, { generatedBy: 'frontend-1.8.2' })
+    if (!out.ok) { throw new Error(out.reason) }
+    expect(out.changed).toEqual(['provenance'])
   })
 })

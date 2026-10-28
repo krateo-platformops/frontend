@@ -281,9 +281,13 @@ export interface Button {
        */
       variant?: 'outlined' | 'dashed' | 'solid' | 'filled' | 'text' | 'link'
       /**
-       * antd Button danger
+       * antd Button danger. Design rule C26: set it on a button that DELETES content (Delete, Remove, Discard)
        */
       danger?: boolean
+      /**
+       * Krateo button role, not an antd prop (design rule C26). `dismiss`: the button closes or backs out without deleting anything (Cancel, Close) and is drawn amber and outlined; `type`, `color`, `variant` and `danger` are ignored. A button that deletes content uses `danger` instead
+       */
+      intent?: 'dismiss'
       /**
        * antd Button disabled
        */

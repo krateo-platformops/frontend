@@ -52,6 +52,7 @@ import {
   readController,
   RELEASE_NAMESPACE,
   RESTDEFINITION_PATH,
+  specCarriesField,
   statusBoundPathParams,
   verbsOf,
 } from './controllerModel'
@@ -289,7 +290,7 @@ const createBodyOf = (doc: OasDocument | undefined, restDefinition: Record<strin
  * reads must BE in status (oasgen builds status from identifiers + additionalStatusFields only), and a
  * field status carries is not also asked of the person in spec — it goes to excludedSpecFields when the
  * create body has it (petstore's `id`), and so does a path parameter every verb carrying it reads from
- * status (petstore's `petId` — oasgen injects path parameters into spec). Fields already listed are left as they are; both lists stay
+ * status (petstore's `petId` — oasgen injects an operation's own path parameters into spec; one declared on the path item only is not in spec and is left alone). Fields already listed are left as they are; both lists stay
  * editable afterwards.
  */
 const settleStatusBindings = (doc: OasDocument | undefined, restDefinition: Record<string, unknown>, resource: Record<string, unknown>): void => {
@@ -306,8 +307,9 @@ const settleStatusBindings = (doc: OasDocument | undefined, restDefinition: Reco
   const body = createBodyOf(doc, restDefinition)
   const excluded = list('excludedSpecFields')
   const exclude = bound.filter((field) => !excluded.includes(field) && !!doc && !!body && schemaHasField(doc, body, field))
-  // The path parameter itself (petstore's petId), when every verb carrying it reads it from status.
-  const params = statusBoundPathParams(restDefinition).filter((param) => !excluded.includes(param))
+  // The path parameter itself (petstore's petId), when every verb carrying it reads it from status — and
+  // spec carries it at all: one declared on the path item only is never in spec, nothing to exclude.
+  const params = statusBoundPathParams(restDefinition).filter((param) => !excluded.includes(param) && specCarriesField(doc, restDefinition, param))
   setOrDrop(resource, 'excludedSpecFields', [...excluded, ...new Set([...exclude, ...params])])
 }
 
@@ -560,13 +562,24 @@ export const exclusionCandidates = (kind: ControllerKind, model: ControllerModel
   const body = doc && create ? requestBodySchema(doc, create.method, create.path) : null
   const bound = (kind.held?.boundStatusFields ?? []).map((field) => ({ field, reason: 'status carries it — the id is read from there' }))
   for (const param of statusBoundPathParams(kind.restDefinition)) {
-    if (!bound.some((entry) => entry.field === param)) { bound.push({ field: param, reason: 'path parameter read from status — spec need not ask for it' }) }
+    if (!bound.some((entry) => entry.field === param) && specCarriesField(doc, kind.restDefinition, param)) {
+      bound.push({ field: param, reason: 'path parameter read from status — spec need not ask for it' })
+    }
   }
   const fields = doc && body
     ? [...Object.keys(schemaProperties(doc, body)), ...scalarLeaves(doc, body).map((leaf) => leaf.path).filter((path) => path.includes('.'))]
     : []
   return [...bound, ...fields.filter((field) => !bound.some((entry) => entry.field === field)).map((field) => ({ field, reason: 'sent by create' }))]
 }
+
+/**
+ * The path parameters status supplies that spec never asks for in the first place — declared on the
+ * path item, not on an operation, and not in the create body — one sentence each, so the inspector
+ * still says where the id comes from without offering an exclusion oasgen would reject.
+ */
+export const pathParamsOutsideSpec = (kind: ControllerKind, model: ControllerModel): string[] =>
+  statusBoundPathParams(kind.restDefinition).filter((param) => !specCarriesField(model.spec?.oas.doc, kind.restDefinition, param))
+    .map((param) => `${param} is read from status, and spec never asks for it — the document declares it on the path, not on an operation, so there is nothing to exclude.`)
 
 /** One header or query parameter of a Kind's verbs that may move to its Configuration, and the verbs that carry it. */
 export interface ConfigurationCandidate {

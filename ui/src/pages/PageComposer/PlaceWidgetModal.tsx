@@ -17,6 +17,8 @@
 import { Alert, Modal, Select, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 
+import { dismissButtonProps } from '../../components/DismissButton'
+
 import { listPlaceableWidgets } from './placeableWidgets'
 import type { PlaceableWidget } from './placeableWidgets'
 
@@ -68,7 +70,7 @@ export const PlaceWidgetModal = ({ into, namespace, onCancel, onPlace, open, sno
   }
 
   return (
-    <Modal
+    <Modal cancelButtonProps={dismissButtonProps}
       okButtonProps={{ disabled: !chosen }}
       okText='Place'
       onCancel={onCancel}

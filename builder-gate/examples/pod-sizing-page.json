@@ -1,0 +1,81 @@
+[
+  {
+    "apiVersion": "widgets.templates.krateo.io/v1beta1",
+    "kind": "Flex",
+    "metadata": { "name": "page-pod-sizing", "namespace": "krateo-system" },
+    "spec": {
+      "widgetData": {
+        "allowedResources": ["piecharts", "tables"],
+        "vertical": true,
+        "gap": "middle",
+        "items": [
+          { "resourceRefId": "pod-phase-pie" },
+          { "resourceRefId": "pod-sizing-table" }
+        ]
+      },
+      "resourcesRefs": {
+        "items": [
+          { "id": "pod-phase-pie", "apiVersion": "widgets.templates.krateo.io/v1beta1", "resource": "piecharts", "name": "pod-phase-pie", "namespace": "krateo-system", "verb": "GET" },
+          { "id": "pod-sizing-table", "apiVersion": "widgets.templates.krateo.io/v1beta1", "resource": "tables", "name": "pod-sizing-table", "namespace": "krateo-system", "verb": "GET" }
+        ]
+      }
+    }
+  },
+  {
+    "apiVersion": "widgets.templates.krateo.io/v1beta1",
+    "kind": "PieChart",
+    "metadata": { "name": "pod-phase-pie", "namespace": "krateo-system" },
+    "spec": {
+      "apiRef": { "name": "pod-sizing", "namespace": "krateo-system" },
+      "widgetData": {
+        "data": [],
+        "angleField": "count",
+        "colorField": "phase",
+        "innerRadius": 60,
+        "legendPosition": "right"
+      },
+      "resourcesRefs": { "items": [] },
+      "widgetDataTemplate": [
+        {
+          "forPath": "data",
+          "expression": "${ [ .pods[]? | .phase ] | group_by(.) | map({ phase: .[0], count: length }) }"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "widgets.templates.krateo.io/v1beta1",
+    "kind": "Table",
+    "metadata": { "name": "pod-sizing-table", "namespace": "krateo-system" },
+    "spec": {
+      "apiRef": { "name": "pod-sizing", "namespace": "krateo-system" },
+      "widgetData": {
+        "allowedResources": [],
+        "columns": [
+          { "valueKey": "name", "title": "Pod" },
+          { "valueKey": "phase", "title": "Phase" },
+          { "valueKey": "cpu", "title": "CPU requested (millicores)" }
+        ],
+        "dataSource": []
+      },
+      "resourcesRefs": { "items": [] },
+      "widgetDataTemplate": [
+        {
+          "forPath": "dataSource",
+          "expression": "${ [ .pods[]? | [ { valueKey: \"name\", kind: \"jsonSchemaType\", type: \"string\", stringValue: .name }, { valueKey: \"phase\", kind: \"jsonSchemaType\", type: \"string\", stringValue: .phase }, { valueKey: \"cpu\", kind: \"jsonSchemaType\", type: \"string\", stringValue: (.cpu | tostring) } ] ] }"
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "templates.krateo.io/v1",
+    "kind": "RESTAction",
+    "metadata": { "name": "pod-sizing", "namespace": "krateo-system" },
+    "spec": {
+      "api": [
+        { "name": "pods", "path": "/api/v1/namespaces/krateo-system/pods", "verb": "GET" }
+      ],
+      "filter": "include \"quantity\"; { pods: [ .pods.items[] | { name: .metadata.name, phase: .status.phase, cpu: ([ .spec.containers[] | (.resources.requests.cpu // \"0\") | millicores ] | add) } ] }"
+    }
+  }
+]

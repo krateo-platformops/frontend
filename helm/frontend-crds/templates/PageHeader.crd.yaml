@@ -167,7 +167,7 @@ spec:
                       description: the noun the counter counts, rendered inside the same brackets (e.g. '23 blueprints'). Use it when WHAT is being counted changes — a bare '(23)' beside a filtered catalog does not say 23 of what
                       type: string
                     items:
-                      description: 'the page''s actions, rendered right-aligned on the title line. At most one should be `type: primary`'
+                      description: 'the page''s actions, rendered on ONE row on the right edge, vertically centred on the title and subtitle together (level with the title when there is no subtitle); never stacked (design rule P26). At most one should be `type: primary`'
                       items:
                         properties:
                           resourceRefId:

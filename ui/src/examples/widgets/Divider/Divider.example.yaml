@@ -5,8 +5,8 @@ metadata:
   name: example-divider-plain
   namespace: krateo-system
 spec:
-  widgetData:
-
+  # The CRD requires widgetData; a plain divider simply sets nothing in it.
+  widgetData: {}
 ---
 # Divider with a label
 kind: Divider

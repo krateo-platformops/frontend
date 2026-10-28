@@ -1,0 +1,5 @@
+{
+  "portalRef": "72b9279ab6f4ef49819cd1e32ecec8f021664855",
+  "source": "helm/portal/templates/_fetchable.tpl, define \"portal.fetchableDefs\"",
+  "defs": "def fetchableCore: [\"configmaps\", \"serviceaccounts\", \"services\", \"endpoints\", \"persistentvolumeclaims\", \"persistentvolumes\", \"pods\", \"namespaces\", \"nodes\", \"events\", \"limitranges\", \"resourcequotas\", \"replicationcontrollers\", \"podtemplates\"];\ndef fetchablePath: (tostring | (split(\"?\") | .[0] // \"\") | split(\"/\")) as $p\n  | if ($p[1] // \"\") == \"apis\" then true\n    elif ($p[1] // \"\") == \"api\" then\n      ((if ($p[3] // \"\") == \"namespaces\" then ($p[5] // \"\") else ($p[3] // \"\") end)) as $res\n      | ($res == \"\" or (fetchableCore | index($res)) != null)\n    else false end;"
+}

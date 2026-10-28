@@ -103,6 +103,10 @@
               "type": "string",
               "description": "antd List footer (ReactNode in antd; string here)"
             },
+            "footerNavigateTo": {
+              "type": "string",
+              "description": "in-app route the footer opens (e.g. /incidents); when set the footer renders as a link. Not an antd prop: antd's footer is a ReactNode, and a CR can only say where it goes."
+            },
             "pagination": {
               "type": "object",
               "additionalProperties": false,
@@ -113,7 +117,7 @@
               "properties": {
                 "pageSize": {
                   "type": "integer",
-                  "description": "antd pagination.pageSize \u2014 items per page"
+                  "description": "antd pagination.pageSize — items per page"
                 },
                 "position": {
                   "type": "string",
@@ -184,7 +188,7 @@
                     "card",
                     "chip"
                   ],
-                  "description": "row layout: default (antd List.Item.Meta \u2014 avatar + stacked title/description) | tree (tight single-line mono Relations row: connector + status dot + primaryText + muted inline subPrimaryText + right-aligned colored secondaryText) | card (full antd Card tile \u2014 icon-tile + name + version badge (subPrimaryText) + category tag (secondaryText) + description + a footer of rowActions as visible buttons \u2014 the Marketplace catalog grid) | chip (compact navigable filter pill \u2014 primaryText label + optional count, solid/amber when the item's active flag is set \u2014 the data-driven Marketplace facet chips)"
+                  "description": "row layout: default (antd List.Item.Meta — avatar + stacked title/description) | tree (tight single-line mono Relations row: connector + status dot + primaryText + muted inline subPrimaryText + right-aligned colored secondaryText) | card (full antd Card tile — icon-tile + name + version badge (subPrimaryText) + category tag (secondaryText) + description + a footer of rowActions as visible buttons — the Marketplace catalog grid) | chip (compact navigable filter pill — primaryText label + optional count, solid/amber when the item's active flag is set — the data-driven Marketplace facet chips)"
                 },
                 "secondaryTextAsTag": {
                   "type": "boolean",
@@ -193,6 +197,10 @@
                 "subPrimaryTextMono": {
                   "type": "boolean",
                   "description": "render subPrimaryText as a small mono bordered pill (e.g. an event involvedObject Kind/name ref) instead of plain sub-text"
+                },
+                "ellipsis": {
+                  "type": "boolean",
+                  "description": "one line each for primaryText and subPrimaryText in the default row, the full text in a tooltip (antd Typography ellipsis)"
                 },
                 "navigateTo": {
                   "type": "string",
@@ -329,7 +337,7 @@
                 },
                 "rowActions": {
                   "type": "array",
-                  "description": "per-row action controls rendered on each row as a kebab (\u22ef) menu or as buttons (see rowActionsDisplay); each entry references an action id from widgetData.actions and is fired with the row's data as the action payload (customPayload). Distinct from navigateTo (whole-row click).",
+                  "description": "per-row action controls rendered on each row as a kebab (⋯) menu or as buttons (see rowActionsDisplay); each entry references an action id from widgetData.actions and is fired with the row's data as the action payload (customPayload). Distinct from navigateTo (whole-row click).",
                   "items": {
                     "type": "object",
                     "additionalProperties": false,
@@ -363,7 +371,7 @@
                     "menu",
                     "buttons"
                   ],
-                  "description": "how the default rowVariant presents rowActions: menu (a kebab (\u22ef) at the row's end, default) | buttons (antd Buttons at the row's end, in declared order: the first primary, the rest default, a danger entry as danger). The whole-row click (navigateTo) is unchanged either way. The card rowVariant always renders buttons."
+                  "description": "how the default rowVariant presents rowActions: menu (a kebab (⋯) at the row's end, default) | buttons (antd Buttons at the row's end, in declared order: the first primary, the rest default, a danger entry as danger). The whole-row click (navigateTo) is unchanged either way. The card rowVariant always renders buttons."
                 }
               }
             },
@@ -416,7 +424,7 @@
                       },
                       "ops": {
                         "type": "array",
-                        "description": "ordered list of DISTINCT writes applied as ONE gated set (e.g. one Form submit creating a Role AND its RoleBinding): each op resolves its OWN resourceRefId (verb + path + payload base) and builds its OWN payload/payloadToOverride against the SAME submitted values. The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics). Mutually exclusive with fanOutPath; onEventNavigateTo is not supported on a multi-op action. The action's own top-level payload/payloadToOverride are IGNORED when ops is present and its top-level resourceRefId is ignored for dispatch (it must still name a valid resource ref \u2014 point it at the first op's)",
+                        "description": "ordered list of DISTINCT writes applied as ONE gated set (e.g. one Form submit creating a Role AND its RoleBinding): each op resolves its OWN resourceRefId (verb + path + payload base) and builds its OWN payload/payloadToOverride against the SAME submitted values. The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics). Mutually exclusive with fanOutPath; onEventNavigateTo is not supported on a multi-op action. The action's own top-level payload/payloadToOverride are IGNORED when ops is present and its top-level resourceRefId is ignored for dispatch (it must still name a valid resource ref — point it at the first op's)",
                         "items": {
                           "type": "object",
                           "additionalProperties": false,
@@ -490,7 +498,7 @@
                           },
                           "reloadRoutes": {
                             "type": "boolean",
-                            "description": "Re-fetch the route table before navigating. Set it when the action creates its own destination \u2014 publishing a new page, for example \u2014 so the route exists by the time the navigation happens."
+                            "description": "Re-fetch the route table before navigating. Set it when the action creates its own destination — publishing a new page, for example — so the route exists by the time the navigation happens."
                           },
                           "loadingMessage": {
                             "type": "string",
@@ -923,7 +931,7 @@
             },
             "additionalProperties": false
           },
-          "description": "Generates resourcesRefs entries from the apiRef response \u2014 one per element the iterator yields \u2014 so a widget can reference a list whose length it does not know when authored."
+          "description": "Generates resourcesRefs entries from the apiRef response — one per element the iterator yields — so a widget can reference a list whose length it does not know when authored."
         }
       },
       "description": "The widget's contract: its own data, an optional binding to a RESTAction, the resources it references, and any templated overrides."

@@ -1,0 +1,48 @@
+{{- /*
+RBAC per instance: ONE grant — `get` on this instance's own Builder CRs, by name, so the gate can
+read the Builder it validates for. Nothing else (#442 thin gate). Every judgement of a draft
+against the cluster — the dry-run, reading an existing widget or RESTAction, resolving a
+RESTAction — goes through snowplow AS THE CALLER, under the person's own RBAC.
+*/ -}}
+{{- range .Values.instances }}
+{{- $name := include "builder-gate.name" . }}
+{{- $ctx := dict "root" $ "instance" . }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "builder-gate.labels" $ctx | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}-builders
+  namespace: {{ $.Values.buildersNamespace }}
+  labels:
+    {{- include "builder-gate.labels" $ctx | nindent 4 }}
+rules:
+  - apiGroups: [builders.templates.krateo.io]
+    resources: [builders]
+    resourceNames:
+      {{- toYaml .builders | nindent 6 }}
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}-builders
+  namespace: {{ $.Values.buildersNamespace }}
+  labels:
+    {{- include "builder-gate.labels" $ctx | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}-builders
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ $.Release.Namespace }}
+{{- end }}

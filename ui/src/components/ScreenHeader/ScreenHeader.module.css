@@ -1,0 +1,63 @@
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* P26: the text block on the left, the trailing group on the right, centred on the whole block.
+   When the row is tight the text wraps inside its own box first; only past that does the trailing
+   group drop under it — still right-aligned, still one row. */
+.row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-smd) var(--spacing-md);
+  justify-content: space-between;
+}
+
+.text {
+  display: flex;
+  flex: 1 1 32ch;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  min-width: 0;
+}
+
+/* A page title is h2 on every path (T3), as the PageHeader widget's is. It has its line to itself. */
+.title {
+  color: var(--text-color);
+  font-size: var(--krateo-text-h2);
+  font-weight: var(--font-weight-bolder);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  color: var(--gray-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-caption);
+  font-weight: var(--font-weight-light);
+  letter-spacing: 0;
+}
+
+/* P26: status first, then the actions, on the trailing edge, on ONE row: it neither wraps (no
+   stacked buttons) nor shrinks. */
+.trailing {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+  margin-inline-start: auto;
+}
+
+.subtitle {
+  color: var(--gray-color);
+  font-size: var(--krateo-text-body-sm);
+  margin: 0;
+  max-width: 68ch;
+}

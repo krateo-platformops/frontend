@@ -198,7 +198,7 @@ describe('5 — a path parameter read from status, on a Kind published before it
     const { calls, store } = await resumeLive(record)
     expect(store.get()?.files).toEqual(record.files)
     expect(calls).toEqual([])
-    expect(askedOnCreateNotes(readController(record.files).kinds[0], true)).toEqual([])
+    expect(askedOnCreateNotes(readController(record.files).kinds[0], true, readController(record.files).spec?.oas.doc)).toEqual([])
     expect(summarizeController(store.get())?.kinds[0].notes).toBeUndefined()
   })
 
@@ -210,7 +210,7 @@ describe('5 — a path parameter read from status, on a Kind published before it
     expect(calls).toEqual([])
     const { resource } = (load(store.get()?.files[PET] ?? '') as { spec: { resource: Record<string, unknown> } }).spec
     expect(resource.excludedSpecFields).toBeUndefined()
-    expect(askedOnCreateNotes(readController(files).kinds[0], true)).toEqual([SENTENCE])
+    expect(askedOnCreateNotes(readController(files).kinds[0], true, readController(files).spec?.oas.doc)).toEqual([SENTENCE])
     expect(summarizeController(store.get())?.kinds[0]).toMatchObject({ notes: [SENTENCE], published: true })
   })
 })

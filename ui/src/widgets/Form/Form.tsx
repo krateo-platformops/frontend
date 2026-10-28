@@ -8,7 +8,9 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { useAgentDraft } from '../../components/Autopilot/agentDraft'
+import { dismissButtonProps } from '../../components/DismissButton'
 import WidgetRenderer from '../../components/WidgetRenderer'
+import YamlBlock from '../../components/YamlBlock'
 import { useHandleAction } from '../../hooks/useHandleActions'
 import type { WidgetProps } from '../../types/Widget'
 import { carryScopeParams } from '../../utils/navigation'
@@ -18,6 +20,7 @@ import { useDrawerContext } from '../Drawer/DrawerContext'
 
 import styles from './Form.module.css'
 import type { Form as WidgetType } from './Form.type'
+import { setFormReviewing } from './reviewPhase'
 import { SchemaForm } from './SchemaFields'
 import { SecretFieldsContext, type SecretFieldsRegistry } from './secretFieldsRegistry'
 import { fieldlessSchemaMessage, getDefaultsFromSchema, narrowAgentDraft } from './utils'
@@ -66,7 +69,9 @@ const DRAFT_STORAGE_PREFIX = 'K_draft__'
 const FormExtra = ({ buttonConfig, disabled = false, form, loading, onDraft, submitDisabled = false, submitLabel }: FormExtraProps): React.ReactNode => {
   const navigate = useNavigate()
   // When `secondary.navigateTo` is set the secondary button is a Cancel that
-  // navigates (SPA) instead of resetting the form.
+  // navigates (SPA) instead of resetting the form. It leaves without deleting anything, so it
+  // takes the DISMISS role (C26): amber. A Reset stays neutral — it clears unsaved input on the
+  // spot, it neither leaves nor deletes anything stored.
   const secondaryNav = buttonConfig?.secondary?.navigateTo
   // Action bar: Save draft pinned LEFT, Cancel + primary grouped RIGHT (mockup `.actionbar`
   // split). With no draft action (e.g. the drawer render) the left slot is an empty spacer,
@@ -88,6 +93,7 @@ const FormExtra = ({ buttonConfig, disabled = false, form, loading, onDraft, sub
         : <span />}
       <Space>
         <Button
+          {...(secondaryNav ? dismissButtonProps : {})}
           disabled={disabled}
           form={form}
           htmlType={secondaryNav ? 'button' : 'reset'}
@@ -116,15 +122,42 @@ const FormExtra = ({ buttonConfig, disabled = false, form, loading, onDraft, sub
  * Read-only summary shown in the in-place Review step (`reviewBeforeSubmit`). Renders the
  * validated values that WILL create the resource as an antd `Descriptions`, labelled from
  * the schema (`title` → key), name+namespace first, with the per-user draft key and empty
- * values omitted. Object/array values are JSON-shown.
+ * values omitted. Object/array values are shown as YAML.
  */
-/** Display a reviewed value: objects/arrays as JSON, booleans as Yes/No, else as text. */
-const formatReviewValue = (value: unknown): string => {
-  if (typeof value === 'object') { return JSON.stringify(value) }
+/**
+ * Display a reviewed value: objects/arrays as YAML, booleans as Yes/No, else as text.
+ *
+ * Objects were `JSON.stringify` on one line, so an ingress with two hosts, their paths and a tls
+ * block read as one wrapped run of braces — while the confirm dialog one click later showed the
+ * same object as YAML. It is the same YamlBlock now (C24).
+ */
+const formatReviewValue = (value: unknown): React.ReactNode => {
+  if (typeof value === 'object') { return <YamlBlock value={value} /> }
   if (typeof value === 'boolean') { return value ? 'Yes' : 'No' }
   if (typeof value === 'number') { return String(value) }
   if (typeof value === 'string') { return value }
   return ''
+}
+
+/**
+ * The value with nothing-entered removed at every depth: empty strings, lists and objects, and
+ * `undefined`. A section the person never opened arrives as an object whose keys are all
+ * `undefined` — it serialises to `{}` and is not "nothing" to a shallow check. `undefined` when
+ * the whole value is empty.
+ */
+const pruneEmpty = (value: unknown): unknown => {
+  if (value === undefined || value === null || value === '') { return undefined }
+  if (Array.isArray(value)) {
+    const kept = value.map(pruneEmpty).filter((each) => each !== undefined)
+    return kept.length ? kept : undefined
+  }
+  if (typeof value === 'object') {
+    const kept = Object.entries(value as Record<string, unknown>)
+      .map(([key, each]) => [key, pruneEmpty(each)] as const)
+      .filter(([, each]) => each !== undefined)
+    return kept.length ? Object.fromEntries(kept) : undefined
+  }
+  return value
 }
 
 /** Sort key: identity (name, namespace) first, everything else after. */
@@ -181,7 +214,10 @@ export const ReviewSummary = ({ agentKeys, schema, secretPaths, values }: {
   const shown = maskSecretPaths(values, [...secretFieldPaths(schema), ...(secretPaths ?? [])])
   const items = Object.entries(shown)
     .filter(([key]) => key !== '__owner')
-    .filter(([, value]) => value !== undefined && value !== null && value !== '' && !(Array.isArray(value) && value.length === 0))
+    // Nothing entered is nothing to review: an empty string, list or object (a section the person
+    // never opened) is left out, as the empty list always was, and so is an empty leaf inside one.
+    .map(([key, value]) => [key, pruneEmpty(value)] as const)
+    .filter(([, value]) => value !== undefined)
     .sort(([keyA], [keyB]) => reviewFieldOrder(keyA) - reviewFieldOrder(keyB))
     .map(([key, value]) => {
       const node = schema?.properties?.[key]
@@ -197,6 +233,7 @@ export const ReviewSummary = ({ agentKeys, schema, secretPaths, values }: {
   return (
     <Descriptions
       bordered
+      className={styles.reviewSummary}
       column={1}
       items={items}
       size='small'
@@ -402,6 +439,12 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   /* https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/button#form */
   const formId = useId()
 
+  // Tell the page when the Review step is showing, so a wizard Steps can follow it (reviewPhase.ts).
+  useEffect(() => {
+    setFormReviewing(formId, reviewing)
+    return () => { setFormReviewing(formId, false) }
+  }, [formId, reviewing])
+
   useEffect(() => {
     if (insideDrawer && !alreadySetDrawerData.current) {
       setDrawerData({ extra: <FormExtra buttonConfig={buttonConfig} form={formId} loading={isActionLoading} /> })
@@ -588,7 +631,8 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
 
       {reviewing && reviewValues ? <ReviewSummary agentKeys={agentAuthoredKeys(agentAuthoredRef.current, reviewValues)} schema={jsonSchema} secretPaths={widgetSecretPaths} values={reviewValues} /> : null}
 
-      <div className={styles.extra}>{footer}</div>
+      {/* In a drawer the buttons live in the drawer's header, so there is no action bar to draw. */}
+      {footer ? <div className={styles.extra}>{footer}</div> : null}
     </div>
   )
 }

@@ -56,6 +56,8 @@ import type { Config } from '../context/ConfigContext'
 import { getAccessToken } from '../utils/getAccessToken'
 import { raiseSessionExpired } from '../utils/sessionResume'
 
+import { drainSseEvents, parseSseBlock } from './sseFrames'
+
 // ────────────────────────────────────────────────────────────────────────────
 // Protocol types
 // ────────────────────────────────────────────────────────────────────────────
@@ -132,36 +134,10 @@ export const base64UrlEncode = (input: string): string => {
     .replace(/=+$/, '')
 }
 
-/** Pull complete SSE event blocks out of a rolling buffer, returning [events, remainder]. */
-export const drainSseEvents = (buffer: string): { events: string[]; rest: string } => {
-  const events: string[] = []
-  let rest = buffer
-  let boundary = rest.indexOf('\n\n')
-  while (boundary !== -1) {
-    events.push(rest.slice(0, boundary))
-    rest = rest.slice(boundary + 2)
-    boundary = rest.indexOf('\n\n')
-  }
-  return { events, rest }
-}
-
-/**
- * Parse one SSE event block into its `event:` name and joined `data:` payload.
- * Comment lines (`:` prefix, e.g. `: keepalive`) and unknown fields are ignored.
- */
-export const parseSseBlock = (block: string): { event?: string; data?: string } => {
-  let event: string | undefined
-  const dataLines: string[] = []
-  for (const line of block.split('\n')) {
-    if (line.startsWith(':') || line.length === 0) { continue }
-    if (line.startsWith('event:')) {
-      event = line.slice(6).trim()
-    } else if (line.startsWith('data:')) {
-      dataLines.push(line.slice(5).replace(/^ /, ''))
-    }
-  }
-  return { event, data: dataLines.length ? dataLines.join('\n') : undefined }
-}
+// SSE frame parsing lives in sseFrames.ts so clients can parse without importing this
+// module (which instantiates refreshManager below). Re-exported: callers and tests that
+// imported them from here keep working.
+export { drainSseEvents, parseSseBlock }
 
 const parseNumber = (raw: string | null): number | undefined => {
   if (raw === null) { return undefined }
@@ -311,6 +287,13 @@ export class RefreshManager {
   private revalidateOnConnect = false
   /** One truncation warning per stream open, not one per armed widget. */
   private warnedTruncation = false
+  /**
+   * Sticky for the life of the manager: snowplow answered the POST subscription with 404/405,
+   * so it predates the body transport and every reconnect goes straight to `GET ?sub=`. Not
+   * reset on reconnect — a server rolled mid-session is picked up on the next page load, and
+   * re-probing POST on every retry would cost a round trip per attempt against an old server.
+   */
+  private postUnsupported = false
 
   /** Point the manager at the snowplow base URL (idempotent; set on first arm). */
   configure(baseUrl: string): void { this.baseUrl = baseUrl }
@@ -484,10 +467,9 @@ export class RefreshManager {
     }
     if (!token) { return }
 
-    const sub = base64UrlEncode(JSON.stringify(coords))
     const controller = new AbortController()
     this.controller = controller
-    void this.stream(`${this.baseUrl}/refreshes?sub=${sub}`, token, controller)
+    void this.stream(coords, token, controller)
   }
 
   /** The armed coords, capped to snowplow's limits (warning about what was dropped). */
@@ -497,6 +479,13 @@ export class RefreshManager {
       console.warn(`[live-refresh] ${coords.length} widgets armed > ${MAX_WIDGETS} cap; dropping ${coords.length - MAX_WIDGETS} from the subscription`)
       coords = coords.slice(0, MAX_WIDGETS)
     }
+    // ON THE BODY TRANSPORT THIS CAP IS THE REAL ONE. While the subscription went in the query
+    // string the EDGE bit first — and lower for a user whose Bearer token carries more group
+    // claims — so this 16 KiB cap was unreachable in
+    // that deployment and the warning below could never fire. POST removes the URL limit, so the
+    // cap below is now the binding constraint and its warning becomes live. The measurement it
+    // was added to collect is finally collectable.
+    //
     // THE BYTE CAP BITES LONG BEFORE THE COUNT CAP, and it used to bite in silence. A coordinate
     // is ~170-330 B depending on extras, so 16 KiB holds roughly 49-86 of them — far under
     // MAX_WIDGETS=512. A page denser than that lost its TAIL widgets from the subscription with
@@ -515,13 +504,69 @@ export class RefreshManager {
     return coords
   }
 
-  private async stream(url: string, token: string, controller: AbortController): Promise<void> {
-    let response: Response
-    try {
-      response = await fetch(url, {
-        headers: { Accept: 'text/event-stream', Authorization: `Bearer ${token}` },
+  /**
+   * Open the stream, preferring the POST body and falling back to `GET ?sub=`.
+   *
+   * WHY THE BODY. `GET /refreshes?sub=` carries the whole subscription base64'd in the query
+   * string, so the URL grows ~361 B per widget. Measured on 057: a 50-widget composition page
+   * produced an 18,098-character URL and the INGRESS answered 431 before snowplow saw it — 0
+   * stream chunks, 6 immediate closes — while a 17-widget page on the same build returned 200
+   * and held the stream open. A body has no length limit of that kind and needs no base64, so
+   * the 1.33x encoding inflation goes too (50 coords: 8,401 B of JSON against 11,204 B of base64).
+   *
+   * WHERE THE CLIFF ACTUALLY IS — measured on 057, 2026-10-10, and superseding the "~22 widgets"
+   * first written here. It is NOT a request-line limit: it is a ~16 KiB budget for the WHOLE
+   * HTTP/2 header block, so the query string shares its allowance with every other header. Bare
+   * client: through at 16,133 chars, refused at 16,134. Adding 1,627 bytes of headers moved the
+   * cliff by exactly 1,627.
+   *
+   * WHAT SHARES THE BUDGET IS THE BEARER TOKEN, NOT A COOKIE — and this file says so forty lines
+   * above, which is why writing "session cookie" here was wrong twice over. `document.cookie` is
+   * EMPTY on this portal; snowplow is authenticated with `Authorization: Bearer`, measured at 928
+   * bytes. So the cliff moves with the TOKEN, and a token grows with the user's role and group
+   * claims — the same page can therefore work for one user and 431 for another whose claims are
+   * fatter. There is still no fixed safe widget count to design against.
+   *
+   * HEADROOM, measured 2026-10-10: the composition detail page subscribed 30 coordinates at
+   * 10,656 characters and got a 200 — under the ~15,200 left once the token is accounted for. At
+   * ~354 encoded bytes per coordinate that is about thirteen coordinates of margin. (On 2026-10-07
+   * the same route carried 50 widgets, produced an 18,098-character URL and WAS refused, so the
+   * page's own density moved between those readings; both numbers are real.) The point is that the
+   * margin is thin and a page gaining a dozen widgets crosses it silently.
+   *
+   * The 431 is the edge's: it carries no application headers, and snowplow has no code emitting one.
+   *
+   * WHY THE FALLBACK, rather than requiring the server first. snowplow accepts the body only from
+   * 1.12.41; 1.12.38 and earlier do not. Falling back on 404/405 means this can deploy in either
+   * order — against an old server every subscription still works exactly as before, and the body
+   * transport starts being used the moment the server supports it, with no client change.
+   */
+  private async open(coords: RefreshCoords[], token: string, controller: AbortController): Promise<Response> {
+    const headers = { Accept: 'text/event-stream', Authorization: `Bearer ${token}` }
+
+    if (!this.postUnsupported) {
+      const posted = await fetch(`${this.baseUrl}/refreshes`, {
+        body: JSON.stringify(coords),
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        method: 'POST',
         signal: controller.signal,
       })
+      // 404/405 is "this server has no POST route", not "this subscription is bad". Anything
+      // else — including 401 and 5xx — is a real answer and belongs to the caller's handling.
+      if (posted.status !== 404 && posted.status !== 405) { return posted }
+      this.postUnsupported = true
+      console.warn(`[live-refresh] snowplow answered the POST subscription with ${posted.status}; it predates the body transport, falling back to GET ?sub= for this session`)
+    }
+
+    const sub = base64UrlEncode(JSON.stringify(coords))
+
+    return fetch(`${this.baseUrl}/refreshes?sub=${sub}`, { headers, signal: controller.signal })
+  }
+
+  private async stream(coords: RefreshCoords[], token: string, controller: AbortController): Promise<void> {
+    let response: Response
+    try {
+      response = await this.open(coords, token, controller)
     } catch {
       this.scheduleRetry(controller)
       return
@@ -547,6 +592,35 @@ export class RefreshManager {
       void raiseSessionExpired().then((outcome) => {
         if (outcome === 'resumed') { this.scheduleReconnect() }
       }, () => undefined)
+      return
+    }
+    if (response.status === 400) {
+      // A 400 IS NOT A TRANSPORT FAULT, and retrying one is the defect. The subscription reached
+      // snowplow and was rejected on its contents, so the identical body re-sent on a backoff
+      // timer gets the identical answer — forever, at the 30 s ceiling, with nothing live and
+      // nothing said. That is the same shape as the 401 loop handled above.
+      //
+      // DELIBERATELY NOT LATCHED FOR THE SESSION. snowplow returns 400 for two different things
+      // and only one of them is permanent:
+      //   - "subscription body too large" / "empty subscription body" — the same set can never
+      //     succeed, so there is nothing to retry.
+      //   - "no valid subscription keys" — the set arrived intact but nothing in it was armable
+      //     AT THAT MOMENT: nothing cached for those coordinates yet, or RBAC denied them. Both
+      //     can change under the user — a cell gets populated, access is granted — and the same
+      //     set would then work.
+      // Stopping `scheduleRetry` without latching gives both the right behaviour, so the client
+      // needs no way to tell them apart: arm() reaches connect() through scheduleReconnect(),
+      // which is a different path from the retry timer, so the next navigation or widget change
+      // tries again naturally. A latch would leave a page dead after its cause had cleared.
+      //
+      // The server's message is read only to SAY which one it was. Nothing branches on it —
+      // parsing prose for control flow is how this would rot.
+      void response.text().then((detail) => {
+        console.warn(`[live-refresh] snowplow rejected the subscription (400): ${detail.trim() || 'no detail'}. Not retrying this set; the next navigation or widget change will re-subscribe.`)
+      }, () => {
+        console.warn('[live-refresh] snowplow rejected the subscription (400). Not retrying this set; the next navigation or widget change will re-subscribe.')
+      })
+
       return
     }
     if (!response.ok || !response.body) {

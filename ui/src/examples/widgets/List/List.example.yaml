@@ -44,9 +44,17 @@ spec:
   resourcesRefs:
     items:
       - id: card-1
-        allowed: true
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: card-1
+        namespace: krateo-system
+        resource: cards
+        verb: GET
       - id: card-2
-        allowed: true
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: card-2
+        namespace: krateo-system
+        resource: cards
+        verb: GET
 ---
 # Streaming list (Server-Sent Events) — Krateo extension
 # Target: items arrive from an SSE topic, capped at 50.

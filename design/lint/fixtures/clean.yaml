@@ -349,3 +349,117 @@ spec:
         color: "{readyColor}"
   resourcesRefs:
     items: []
+---
+# A context eyebrow is not a trail (P27).
+kind: Paragraph
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: good-context-eyebrow}
+spec:
+  widgetData:
+    variant: eyebrow
+    text: "Platform · tenant krateo-enterprise"
+---
+# A portal with no shell breadcrumb keeps its own, and says so (P27).
+kind: Breadcrumb
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: good-own-breadcrumb
+  annotations: {krateo.io/own-breadcrumb: "true"}
+spec:
+  widgetData:
+    items:
+      - title: Home
+---
+# A4: the Autopilot entry point among the header's actions: filled, wand icon, 'Ask Autopilot →'.
+kind: PageHeader
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: good-autopilot-header}
+spec:
+  widgetData:
+    title: Controller Builder
+    items:
+      - resourceRefId: good-ask
+      - resourceRefId: good-build
+  resourcesRefs:
+    items:
+      - {id: good-build, apiVersion: widgets.templates.krateo.io/v1beta1, name: good-build, namespace: krateo-system, resource: buttons, verb: GET}
+      - {id: good-ask, apiVersion: widgets.templates.krateo.io/v1beta1, name: good-ask, namespace: krateo-system, resource: buttons, verb: GET}
+---
+kind: Button
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: good-build}
+spec:
+  widgetData:
+    label: Build a controller
+    type: primary
+    clickActionId: go
+    actions:
+      navigate:
+        - {id: go, type: navigate, path: /controller-builder/compose}
+---
+kind: Button
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: good-ask}
+spec:
+  widgetData:
+    label: Ask Autopilot →
+    icon: fa-wand-magic-sparkles
+    type: primary
+    clickActionId: ask
+    actions:
+      navigate:
+        - {id: ask, type: navigate, path: "/controller-builder/compose?ask=help"}
+---
+# A4: an href its RESTAction builds WITHOUT ?ask= is plain navigation, even beside one that has it.
+kind: RESTAction
+apiVersion: templates.krateo.io/v1
+metadata: {name: good-detail}
+spec:
+  filter: >
+    {
+      blueprintHref: ("/blueprints/" + .ns + "/" + .name),
+      diagnoseHref: ("/compositions/demo?ask=" + ("Diagnose" | @uri))
+    }
+---
+kind: Button
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: good-blueprint-link}
+spec:
+  apiRef: {name: good-detail, namespace: krateo-system}
+  widgetData:
+    label: Blueprint
+    type: default
+    icon: fa-layer-group
+    clickActionId: open
+    actions:
+      navigate:
+        - {id: open, type: navigate, path: /blueprints}
+  widgetDataTemplate:
+    - forPath: actions
+      expression: '${ { navigate: [ { id: "open", type: "navigate", path: .blueprintHref } ] } }'
+---
+# C26: the dismiss role amber, the destroy role red.
+kind: Button
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: good-cancel}
+spec:
+  widgetData:
+    label: Cancel
+    intent: dismiss
+    clickActionId: back
+    actions:
+      navigate:
+        - {id: back, type: navigate, path: /compositions}
+---
+kind: Button
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: good-delete}
+spec:
+  widgetData:
+    label: Delete composition
+    danger: true
+    type: default
+    clickActionId: del
+    actions:
+      navigate:
+        - {id: del, type: navigate, path: /compositions/delete}

@@ -20,6 +20,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
 import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
 import { emitFileRemove } from '../../components/Autopilot/previewFileRemove'
+import { dismissButtonProps } from '../../components/DismissButton'
 
 import BindDataModal from './BindDataModal'
 import { announce } from './composerAnnounce'
@@ -166,8 +167,8 @@ const toDataNode = (
               object now deletes its file, and the composer has no undo of any kind. This was a bare
               onClick on an operation that silently orphaned a file; it is now a decision.
             */}
-            <Popconfirm
-              cancelText='Keep'
+            <Popconfirm cancelButtonProps={dismissButtonProps} cancelText='Keep'
+              okButtonProps={{ danger: true }}
               okText='Remove'
               onConfirm={() => mutate(node, 'remove')}
               title={`Remove ${node.name} from this page?`}
@@ -586,7 +587,7 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
         )
         : null}
       {/* `placeNamespace`, not `namespace`. A page draft holds the TEMPLATED namespace
-          (`{{ include "page.tierNamespace" ... }}`) in every file, and draftNamespace deliberately
+          (`{{ .Release.Namespace }}`) in every file, and draftNamespace deliberately
           skips anything containing `{{` — so it returns null for exactly the drafts this modal is
           for, and the guard silently rendered nothing. The button appeared, the click set state,
           and no modal came: the failure mode a unit test cannot see, because it never mounts the

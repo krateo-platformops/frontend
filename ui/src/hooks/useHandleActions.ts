@@ -19,11 +19,13 @@ import { openModal } from '../widgets/Modal/Modal'
 
 import type { BlastRadius, BlastRadiusSet } from './blastRadius.types'
 import { buildPayloadDetailed, templateJqInput } from './buildPayload'
+import { writeTargetName } from './callPath'
 import { buildConfirmModalProps, confirmWithTimeout } from './confirmModalProps'
 import { recordProvenance, stampAgentCreated, type WriteOrigin } from './provenance'
 import { runRestFanOut } from './runRestFanOut'
 import { runRestOps } from './runRestOps'
 import { runRestSet, type SetDispatchOptions, type WriteOp, type WriteOpResult } from './runRestSet'
+import { subscribeSse } from './sseClient'
 
 /**
  * How long a blast-radius confirm may sit unanswered before it DENIES.
@@ -354,10 +356,42 @@ const runRest = async (
   let processEvent: (eventData: EventData) => void = () => undefined
 
   if (onEventNavigateTo) {
+    // Subscribe through the shared sseClient rather than opening our own connection to the
+    // same endpoint. Two reasons: the Notifications bell is almost always already streaming
+    // /notifications, so this used to hold a second socket alongside it; and the URL now
+    // carries NO credential — sseClient authenticates with `Authorization: Bearer`
+    // (installer#395 — the token used to ride as ?access_token= and reach the access logs).
     const eventsEndpoint = `${ctx.eventsBaseUrl}/notifications`
     const eventTimeoutSeconds = onEventNavigateTo.timeout ?? 30
 
-    const eventSource = new EventSource(eventsEndpoint, { withCredentials: false })
+    // Subscribed here, where the connection used to be opened. `processEvent` is assigned
+    // further down and `resourceUid` is set by the POST response, but both are declared
+    // above and only ever READ inside this callback, which fires later.
+    const unsubscribeEvents = subscribeSse(eventsEndpoint, 'krateo', {
+      onMessage: (raw) => {
+        // Guarded like every other subscriber (useGetEvents, useLiveRefresh, useSseStream):
+        // the stream is shared, so a malformed frame must be this subscriber's problem alone.
+        let eventData: EventData
+        try {
+          eventData = JSON.parse(raw) as EventData
+        } catch (error) {
+          console.error('[action] could not parse an event from the stream:', error)
+
+          return
+        }
+
+        if (!resourceUid) {
+          pendingEvents.push(eventData)
+
+          return
+        }
+
+        processEvent(eventData)
+      },
+    })
+    // The page the click happened on, and whether the widget has unmounted since.
+    const startPath = typeof window === 'undefined' ? '' : window.location.pathname
+    let detached = false
 
     let description = `Timeout waiting for event ${onEventNavigateTo.eventReason}`
     if (errorMessage) {
@@ -369,17 +403,17 @@ const runRest = async (
     const timeoutId = setTimeout(() => {
       if (!eventReceived) {
         ctx.setLoading(false)
-        eventSource.close()
+        unsubscribeEvents()
         ctx.notification.error({ description, message: 'Error while executing the action', placement: 'bottomLeft' })
       }
       ctx.message.destroy()
     }, eventTimeoutSeconds * 1000)
 
-    // (7) Close the stream + cancel the timeout if the widget unmounts before the event
-    // arrives, instead of leaking the connection (and firing toasts) until the timeout.
+    // (7) A widget that unmounts mid-wait (a refetch re-rendered it away, or the user left)
+    // keeps waiting: the timeout bounds the stream, the result still shows, and the redirect
+    // happens only if the user is still on the page of the click.
     ctx.registerCleanup(() => {
-      eventSource.close()
-      clearTimeout(timeoutId)
+      detached = true
     })
 
     const loadingMessage = onEventNavigateTo.loadingMessage
@@ -401,7 +435,7 @@ const runRest = async (
         void ctx.reloadRoutes()
       }
 
-      eventSource.close()
+      unsubscribeEvents()
       clearTimeout(timeoutId)
 
       void (async () => {
@@ -440,25 +474,17 @@ const runRest = async (
         ctx.notification.success({ description: successDescription, message: 'Successfully executed action', placement: 'bottomLeft' })
 
         ctx.setLoading(false)
+        if (detached && typeof window !== 'undefined' && window.location.pathname !== startPath) {
+          return
+        }
         ctx.closeDrawer()
         void ctx.navigate(redirectUrl)
       })()
     }
-
-    eventSource.addEventListener('krateo', (event) => {
-      const eventData = JSON.parse(event.data as string) as EventData
-      if (!resourceUid) {
-        pendingEvents.push(eventData)
-
-        return
-      }
-
-      processEvent(eventData)
-    })
   }
 
   const updatedUrl = customPayload
-    ? updateNameNamespace(url, payload?.metadata?.name, payload?.metadata?.namespace)
+    ? updateNameNamespace(url, writeTargetName(verb, payload?.metadata?.name), payload?.metadata?.namespace)
     : url
 
   const headersObject = getHeadersObject(headers)

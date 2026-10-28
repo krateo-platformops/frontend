@@ -73,6 +73,8 @@ export const SplitDivider = ({ onChange, value }: {
   }, [onChange, value])
 
   return (
+    // C8 exception: a focusable `separator` with aria-value* is an ARIA window-splitter widget, operable by arrow keys.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       aria-label='Resize the preview'
       aria-orientation='horizontal'

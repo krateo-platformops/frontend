@@ -101,6 +101,29 @@ def enforced_count_drift():
     css_mod = importlib.util.module_from_spec(css_spec)
     css_spec.loader.exec_module(css_mod)
     token = len(css_mod.RULES)
+    # Accessibility rules: the C-rule IDs the a11y gate actually cites — `// C8:` / `// C9:` beside
+    # the jsx-a11y rules in ui/eslint.config.js, and the `C10 —` heading of the trigger test. Read
+    # from the gates themselves, so a rule enforced without saying which one does not count.
+    ui = os.path.join(HERE, os.pardir, os.pardir, 'ui')
+    a11y_ids = set()
+    for rel in ('eslint.config.js', os.path.join('src', 'test', 'a11yTriggers.test.ts')):
+        path = os.path.join(ui, rel)
+        if os.path.isfile(path):
+            a11y_ids.update(re.findall(r'^\s*(?://|\*)\s*(C\d+)\s*(?::|—)', io.open(path, encoding='utf-8').read(), re.M))
+    a11y = len(a11y_ids)
+    # App-side layout rules: the P-IDs the in-app checks cite in their headings (`P26 — …`), less the
+    # ones the composition lint already counts (P27 is checked on both sides; it is one rule).
+    lint_spec = importlib.util.spec_from_file_location('lintmod_ids', LINT)
+    lint_mod = importlib.util.module_from_spec(lint_spec)
+    lint_spec.loader.exec_module(lint_mod)
+    portal_ids = {part for _, rule_id in lint_mod.RULES.values() for part in rule_id.split('+')}
+    app_ids = set()
+    for rel in (os.path.join('src', 'test', 'screenHeaders.test.ts'), os.path.join('visual', 'layout.spec.ts')):
+        path = os.path.join(ui, rel)
+        if os.path.isfile(path):
+            app_ids.update(re.findall(r'^\s*(?://|\*)\s*(P\d+)\s*(?::|—|,)', io.open(path, encoding='utf-8').read(), re.M))
+    app = len(app_ids - portal_ids)
+    held = composition + token + a11y + app
     # Total rules: the headings across the six design documents.
     total = 0
     for name in sorted(os.listdir(os.path.join(HERE, os.pardir))):
@@ -108,13 +131,15 @@ def enforced_count_drift():
             doc = io.open(os.path.join(HERE, os.pardir, name), encoding='utf-8').read()
             total += len(re.findall(r'^\s*#{2,4}\s*[A-Z]\d+\b', doc, re.M))
 
-    claim(r'they hold \*\*(\d+) of the \d+ rules\*\*', composition + token, 'machine-held total')
+    claim(r'they hold \*\*(\d+) of the \d+ rules\*\*', held, 'machine-held total')
     claim(r'they hold \*\*\d+ of the (\d+) rules\*\*', total, 'total rule count')
     claim(r'(\d+) composition rules and \d+ token rules', composition, 'composition rule count')
     claim(r'\d+ composition rules and (\d+) token rules', token, 'token rule count')
     claim(r'across all (\d+) rules against the portal chart', composition, 'portal-chart rule count')
-    claim(r'all (\d+) machine-held rules hold as of that commit', composition + token, 'machine-held total (CI sentence)')
-    claim(r'they cover the (\d+) rules no', total - composition - token, 'human-held remainder')
+    claim(r'all (\d+) machine-held rules hold as of that commit', held, 'machine-held total (CI sentence)')
+    claim(r'(\d+) accessibility rules', a11y, 'accessibility rule count')
+    claim(r'(\d+) app-side layout rule', app, 'app-side layout rule count')
+    claim(r'they cover the (\d+) rules no', total - held, 'human-held remainder')
 
     # The CSS baseline: total violations and the number of files they span.
     baseline_path = os.path.join(HERE, 'css-baseline.json')
@@ -122,10 +147,15 @@ def enforced_count_drift():
         baseline = json.load(io.open(baseline_path, encoding='utf-8'))
         files = {path for entries in baseline.values() for path in entries}
         violations = sum(count for entries in baseline.values() for count in entries.values())
-        claim(r'\*\*baseline\*\* of (\d+)\s*\n?\s*pre-existing violations', violations, 'CSS baseline violations')
-        claim(r'pre-existing violations across (\d+) files', len(files), 'CSS baseline file count')
-        worst = max(baseline.items(), key=lambda kv: sum(kv[1].values()))
-        claim(r'(\d+) of those \d+ are', sum(worst[1].values()), f'largest baseline rule ({worst[0]})')
+        if violations == 0:
+            # Paid off. "0 of those 0 are <rule>" would name an arbitrary rule; say what is true.
+            if not re.search(r'baseline is \*\*empty\*\*', text):
+                out.append('CSS baseline: it is empty, and the README should say "baseline is **empty**"')
+        else:
+            claim(r'\*\*baseline\*\* of (\d+)\s*\n?\s*pre-existing violations', violations, 'CSS baseline violations')
+            claim(r'pre-existing violations across (\d+) files', len(files), 'CSS baseline file count')
+            worst = max(baseline.items(), key=lambda kv: sum(kv[1].values()))
+            claim(r'(\d+) of those \d+ are', sum(worst[1].values()), f'largest baseline rule ({worst[0]})')
     return out
 
 

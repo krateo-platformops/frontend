@@ -23,6 +23,7 @@
  */
 import { Alert, Button, Checkbox, Collapse, Popconfirm, Radio, Select, Space } from 'antd'
 
+import { dismissButtonProps } from '../../components/DismissButton'
 import { countNoun } from '../../utils/utils'
 import styles from '../BlueprintComposer/BlueprintComposer.module.css'
 
@@ -33,6 +34,7 @@ import {
   heldItemsPath,
   heldVerb,
   pathIdBindings,
+  pathParamsOutsideSpec,
   pluralOf,
   SERVED_VERSION,
   type CompareScope,
@@ -333,7 +335,7 @@ export const KindInspector = (props: InspectorProps) => {
           : null}
         <Space wrap>
           <Button onClick={() => props.onOpenFile(kind.path)} size='small'>Open file</Button>
-          <Popconfirm cancelText='Keep it' okText='Remove' onConfirm={props.onRemove} title={`Remove ${kind.kind}? Its RestDefinition leaves the chart.`}>
+          <Popconfirm cancelButtonProps={dismissButtonProps} cancelText='Keep it' okButtonProps={{ danger: true }} okText='Remove' onConfirm={props.onRemove} title={`Remove ${kind.kind}? Its RestDefinition leaves the chart.`}>
             <Button danger size='small'>Remove Kind</Button>
           </Popconfirm>
         </Space>
@@ -409,7 +411,8 @@ export const KindInspector = (props: InspectorProps) => {
           ))}
           {!(exclusionCandidates(kind, model).length || excluded.length) ? <p className={styles.fieldText}>There is no create body to leave fields out of.</p> : null}
         </div>
-        {askedOnCreateNotes(kind, !!props.locked).map((note) => <p className={styles.note} key={note}>{note}</p>)}
+        {pathParamsOutsideSpec(kind, model).map((note) => <p className={styles.note} key={note}>{note}</p>)}
+        {askedOnCreateNotes(kind, !!props.locked, model.spec?.oas.doc).map((note) => <p className={styles.note} key={note}>{note}</p>)}
       </Section>
 
       <Section title='Compare scope'>

@@ -15,14 +15,9 @@
  * multi-class Typography.
  */
 
-import { dump } from 'js-yaml'
-import SyntaxHighlighter from 'react-syntax-highlighter'
-import atomOneDark from 'react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark.js'
-import lightfair from 'react-syntax-highlighter/dist/esm/styles/hljs/lightfair.js'
-
-import { useThemeMode } from '../../context/ThemeModeContext'
 import type { BlastRadius, BlastRadiusDiff, BlastRadiusSet, BlastRadiusSetOp, Gvr } from '../../hooks/blastRadius.types'
 import { countNoun } from '../../utils/utils'
+import SharedYamlBlock from '../YamlBlock'
 
 import styles from './BlastRadiusConfirm.module.css'
 
@@ -41,31 +36,8 @@ const formatGvr = (gvr: Gvr): string => {
   return gvr.version ? `${head}/${gvr.version}` : head
 }
 
-/** Stable YAML for the confirm bodies — the human confirms Kubernetes OBJECTS, so render
- * them the way Kubernetes writes them. Non-throwing on cyclic/odd values. */
-const toYaml = (value: unknown): string => {
-  if (value === undefined) {
-    return ''
-  }
-  try {
-    return dump(value, { lineWidth: 120, noRefs: true })
-  } catch {
-    // A value the dumper can't serialise (cyclic ref, BigInt, …) has no meaningful text form.
-    return '[unserialisable value]'
-  }
-}
-
-/** Syntax-highlighted, scroll-bounded YAML of ONE full body (same highlighter family as the
- * preview drawer — one look for "here is the object" everywhere). */
-const YamlBlock = ({ value }: { value: unknown }) => {
-  const { mode } = useThemeMode()
-  const style = (mode === 'dark' ? atomOneDark : lightfair) as { [key: string]: React.CSSProperties }
-  return (
-    <div className={styles.yamlBlock}>
-      <SyntaxHighlighter language='yaml' style={style} wrapLines wrapLongLines>{toYaml(value)}</SyntaxHighlighter>
-    </div>
-  )
-}
+/** The shared YAML block, placed inside the modal's op list. */
+const YamlBlock = ({ value }: { value: unknown }) => <SharedYamlBlock className={styles.yamlBlock} value={value} />
 
 /** One labelled mono code block (a diff side); omitted by the caller when its value is absent. */
 const DiffBlock = ({ label, tone, value }: { label: string; tone: 'before' | 'after'; value: unknown }) => (

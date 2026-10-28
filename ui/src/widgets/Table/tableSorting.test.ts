@@ -51,6 +51,12 @@ describe('sniffColumnType — column type inferred from raw values', () => {
     expect(sniffColumnType([10, '2'])).toBe('number')
   })
 
+  it('placeholders ("-", "null", "n/a", "—") count as missing, so a numeric column stays numeric', () => {
+    expect(sniffColumnType(['50', 'null', '1000', '-'])).toBe('number')
+    expect(sniffColumnType(['8h', 'n/a', '5d', '—'])).toBe('age')
+    expect(sniffColumnType(['-', 'null'])).toBe('string')
+  })
+
   it('kubectl-style age strings → age', () => {
     expect(sniffColumnType(['8h', '5d', '1w', '45s', '2mo', '11h'])).toBe('age')
   })

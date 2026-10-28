@@ -9,9 +9,9 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    allowedResources: [barcharts, buttons, columns, datagrids, filters, flowcharts, forms, linecharts, markdowns, panels, paragraphs, piecharts, rows, tables, tablists, yamlviewers]
+    allowedResources: [barcharts, buttons, cols, listies, filters, flowcharts, forms, linecharts, markdowns, cards, paragraphs, piecharts, rows, tables, tabs, yamlviewers]
     items: []
-    size: 12
+    span: 12
   resourcesRefs:
     items: []
 ---
@@ -27,10 +27,10 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    allowedResources: [barcharts, buttons, columns, datagrids, filters, flowcharts, forms, linecharts, markdowns, panels, paragraphs, piecharts, rows, tables, tablists, yamlviewers]
+    allowedResources: [barcharts, buttons, cols, listies, filters, flowcharts, forms, linecharts, markdowns, cards, paragraphs, piecharts, rows, tables, tabs, yamlviewers]
     items:
       - resourceRefId: button-nonexistent
-    size: 8
+    span: 8
   resourcesRefs:
     items: []
 ---
@@ -45,10 +45,10 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    allowedResources: [barcharts, buttons, columns, datagrids, filters, flowcharts, forms, linecharts, markdowns, panels, paragraphs, piecharts, rows, tables, tablists, yamlviewers]
+    allowedResources: [barcharts, buttons, cols, listies, filters, flowcharts, forms, linecharts, markdowns, cards, paragraphs, piecharts, rows, tables, tabs, yamlviewers]
     items:
       - resourceRefId: example-table-basic
-    size: 0
+    span: 0
   resourcesRefs:
     items:
       - id: example-table-basic
@@ -69,10 +69,10 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    allowedResources: [barcharts, buttons, columns, datagrids, filters, flowcharts, forms, linecharts, markdowns, panels, paragraphs, piecharts, rows, tables, tablists, yamlviewers]
+    allowedResources: [barcharts, buttons, cols, listies, filters, flowcharts, forms, linecharts, markdowns, cards, paragraphs, piecharts, rows, tables, tabs, yamlviewers]
     items:
       - resourceRefId: example-table-basic
-    size: 12
+    span: 12
   resourcesRefs:
     items:
       - id: example-table-basic
@@ -93,7 +93,7 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    allowedResources: [barcharts, buttons, columns, datagrids, filters, flowcharts, forms, linecharts, markdowns, panels, paragraphs, piecharts, rows, tables, tablists, yamlviewers]
+    allowedResources: [barcharts, buttons, cols, listies, filters, flowcharts, forms, linecharts, markdowns, cards, paragraphs, piecharts, rows, tables, tabs, yamlviewers]
     items:
       - resourceRefId: example-table-basic
   resourcesRefs:
@@ -116,11 +116,11 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    allowedResources: [barcharts, buttons, columns, datagrids, filters, flowcharts, forms, linecharts, markdowns, panels, paragraphs, piecharts, rows, tables, tablists, yamlviewers]
+    allowedResources: [barcharts, buttons, cols, listies, filters, flowcharts, forms, linecharts, markdowns, cards, paragraphs, piecharts, rows, tables, tabs, yamlviewers]
     items:
       - resourceRefId: non-existent-widget
       - resourceRefId: example-table-basic
-    size: 16
+    span: 16
   resourcesRefs:
     items:
       - id: example-table-basic
@@ -142,11 +142,11 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    allowedResources: [barcharts, buttons, columns, datagrids, filters, flowcharts, forms, linecharts, markdowns, panels, paragraphs, piecharts, rows, tables, tablists, yamlviewers]
+    allowedResources: [barcharts, buttons, cols, listies, filters, flowcharts, forms, linecharts, markdowns, cards, paragraphs, piecharts, rows, tables, tabs, yamlviewers]
     items:
       - resourceRefId: example-linechart-multi
       - resourceRefId: example-table-basic
-    size: 12
+    span: 12
   resourcesRefs:
     items:
       - id: example-linechart-multi
@@ -174,11 +174,11 @@ metadata:
   namespace: krateo-system
 spec:
   widgetData:
-    allowedResources: [columns, buttons, rows, paragraphs, tables]
+    allowedResources: [cols, buttons, rows, paragraphs, tables]
     items:
       - resourceRefId: example-table-basic
       - resourceRefId: example-column-multiple-child
-    size: 12
+    span: 12
   resourcesRefs:
     items:
       - id: example-table-basic

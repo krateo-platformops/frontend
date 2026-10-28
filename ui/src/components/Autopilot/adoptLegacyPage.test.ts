@@ -39,7 +39,6 @@ describe('readLegacyPageSet', () => {
     expect(read.record.renderedHash).toBeUndefined()
     expect(Object.keys(read.record.files).sort()).toEqual([
       'Chart.yaml',
-      'templates/_tiers.tpl',
       'templates/flex.page-fleet.yaml',
       'templates/pageheader.fleet-header.yaml',
       'templates/restaction.fleet-data.yaml',
@@ -50,9 +49,9 @@ describe('readLegacyPageSet', () => {
     ])
     const root = load(read.record.files['templates/flex.page-fleet.yaml']) as { metadata: Record<string, unknown>; spec: { resourcesRefs: { items: { name: string; namespace: string }[] } } }
     // The sandbox's rewrite and the apiserver's bookkeeping are gone; the author's annotation stays.
-    expect(root.metadata).toEqual({ annotations: { 'krateo.io/nav-path': '/fleet' }, name: 'page-fleet', namespace: expect.stringContaining('page.tierNamespace') as string })
+    expect(root.metadata).toEqual({ annotations: { 'krateo.io/nav-path': '/fleet' }, name: 'page-fleet', namespace: '{{ .Release.Namespace }}' })
     const refs = Object.fromEntries(root.spec.resourcesRefs.items.map((item) => [item.name, item.namespace]))
-    expect(refs['fleet-row']).toContain('page.tierNamespace')
+    expect(refs['fleet-row']).toBe('{{ .Release.Namespace }}')
     expect(refs['shared-notice']).toBe('krateo-system')
     const table = load(read.record.files['templates/table.fleet-table.yaml']) as Record<string, { apiRef?: unknown }>
     expect(table.status).toBeUndefined()

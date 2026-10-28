@@ -18,7 +18,7 @@
  * WidgetRenderer.formStability.test.tsx) so we can set `timedOut`, `error`, and
  * `data` independently without touching the network.
  */
-import { render } from '@testing-library/react'
+import { fireEvent, render } from '@testing-library/react'
 import { App } from 'antd'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -37,6 +37,12 @@ type MockState = {
 
 vi.mock('../../hooks/useWidgetQuery', async () => {
   const { useSyncExternalStore } = await import('react')
+  // `vi` is imported at module top, but vi.mock factories are hoisted above imports, so the
+  // top-level binding is not initialised yet in here -- re-import it inside the factory.
+  const { vi: vitestApi } = await import('vitest')
+  // One stable spy instance, so a test can assert HOW MANY times the widget refetched rather
+  // than merely that a button exists.
+  const refetchSpy = vitestApi.fn(() => Promise.resolve())
   let state: MockState = { error: null, isPending: true, timedOut: false }
   const listeners = new Set<() => void>()
   const subscribe = (listener: () => void) => {
@@ -44,6 +50,7 @@ vi.mock('../../hooks/useWidgetQuery', async () => {
     return () => { listeners.delete(listener) }
   }
   return {
+    __refetch: refetchSpy,
     __setState: (partial: Partial<MockState>) => {
       state = { ...state, ...partial }
       listeners.forEach((listener) => { listener() })
@@ -63,7 +70,7 @@ vi.mock('../../hooks/useWidgetQuery', async () => {
           isLoading: snap.isPending,
           isPending: snap.isPending,
           isStale: false,
-          refetch: () => Promise.resolve(),
+          refetch: refetchSpy,
         },
         serverPagination: undefined,
         timedOut: snap.timedOut,
@@ -93,6 +100,11 @@ vi.mock('../FiltesProvider/FiltersProvider', () => ({
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+const refetchSpy = async () => {
+  const module = await import('../../hooks/useWidgetQuery')
+  return (module as unknown as { __refetch: { mock: { calls: unknown[] }; mockClear: () => void } }).__refetch
+}
 
 const setState = async (partial: Partial<MockState>) => {
   const module = await import('../../hooks/useWidgetQuery')
@@ -215,6 +227,85 @@ describe('WidgetRenderer — hard error → WidgetError (red cross), not the cal
 
     expect(queryByTestId('widget-notfound')).not.toBeNull()
     expect(queryByTestId('widget-error')).toBeNull()
+  })
+
+  /**
+   * 424 Failed Dependency (snowplow#853, 1.12.55): the widget CR read fine, but something it
+   * needs is absent from this cluster — typically the operator behind its apiRef. Before #853
+   * this arrived as a 404 and got WidgetNotFound; it must not regress into the red cross now
+   * that it has its own status, for the same reason 403 did not stay there.
+   */
+  it('renders WidgetDependencyMissing for a 424 — an uninstalled dependency is not a malfunction', async () => {
+    await setState({
+      error: Object.assign(new Error('Widget fetch failed: 424 Failed Dependency'), { status: 424 }),
+      isPending: false,
+      timedOut: false,
+    })
+    const { queryByTestId } = renderWidget()
+
+    expect(queryByTestId('widget-dependency-missing')).not.toBeNull()
+    expect(queryByTestId('widget-error')).toBeNull()
+    expect(queryByTestId('widget-timeout')).toBeNull()
+    expect(queryByTestId('widget-notfound')).toBeNull()
+  })
+
+  /**
+   * The whole point of 424 over 404 is that snowplow can say WHICH dependency is missing, so
+   * that message has to reach the reader rather than being replaced by generic copy.
+   */
+  it("shows snowplow's own words for the missing dependency on a 424", async () => {
+    await setState({
+      error: Object.assign(new Error('Widget fetch failed: 424 Failed Dependency'), {
+        detail: 'resolve apiRef agents-list: stage "crd": "agents.kagent.dev" not found',
+        status: 424,
+      }),
+      isPending: false,
+      timedOut: false,
+    })
+    const { queryByTestId } = renderWidget()
+
+    // Scoped to the 424 state on purpose: WidgetError renders `detail` as its subtitle too, so an
+    // unscoped text match would pass even if 424 fell through to the red cross -- i.e. it would
+    // not be testing this change at all.
+    const state = queryByTestId('widget-dependency-missing')
+    expect(state).not.toBeNull()
+    expect(state!.textContent).toContain('"agents.kagent.dev" not found')
+  })
+
+  /**
+   * 424 DOES get a button, unlike 403 and 404, because its recovery path is different: an error
+   * answer carries no `/refreshes` arming headers, so a tab left open on a 424 is never told the
+   * operator was installed and would otherwise clear only on a reload. The wording is "Check
+   * again", not "Retry" -- before the install it honestly changes nothing.
+   */
+  it('offers "Check again" on a 424 — an open tab is never told the dependency arrived', async () => {
+    await setState({
+      error: Object.assign(new Error('Widget fetch failed: 424 Failed Dependency'), { status: 424 }),
+      isPending: false,
+      timedOut: false,
+    })
+    const { queryByRole } = renderWidget()
+
+    expect(queryByRole('button', { name: /check again/i })).not.toBeNull()
+    // Not "Retry": that word claims the failure was transient, which it is not until someone acts.
+    expect(queryByRole('button', { name: /^retry$/i })).toBeNull()
+  })
+
+  it('refetches exactly once per "Check again" click, and only that widget', async () => {
+    await setState({
+      error: Object.assign(new Error('Widget fetch failed: 424 Failed Dependency'), { status: 424 }),
+      isPending: false,
+      timedOut: false,
+    })
+    const spy = await refetchSpy()
+    spy.mockClear()
+
+    const { getByRole } = renderWidget()
+    fireEvent.click(getByRole('button', { name: /check again/i }))
+
+    // Exactly one: a button that fires two fetches per press re-creates, by hand, the retry
+    // amplification snowplow#853 exists to remove.
+    expect(spy.mock.calls.length).toBe(1)
   })
 
   it("surfaces the backend's own message when the failure response carried one", async () => {

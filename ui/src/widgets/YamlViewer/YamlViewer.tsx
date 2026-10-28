@@ -66,7 +66,7 @@ const YamlViewer = ({ uid, widgetData }: WidgetProps<YamlViewerWidgetData>) => {
             }}
             text={yamlString}
           >
-            <Button icon={<FontAwesomeIcon icon={['fas', 'copy'] as IconProp} />} size='large' />
+            <Button aria-label='Copy YAML to clipboard' icon={<FontAwesomeIcon icon={['fas', 'copy'] as IconProp} />} size='large' />
           </CopyToClipboard>
         </div>
 

@@ -28,6 +28,7 @@ import styles from './AutopilotRail.module.css'
 import AutopilotTour from './AutopilotTour'
 import { ClaimNotice } from './ClaimNotice'
 import { autopilotComposerDraftStore } from './composerDraftStore'
+import { AUTOPILOT_UNAVAILABLE } from './copy'
 import { describeArgs, deriveSessionsBase, fetchDelegationEvidence, NO_DELEGATION_SESSION, serializeEvidence, summarizeEvidence } from './evidence'
 import { useRailFocusTrap } from './focusTrap'
 import { CheckIcon, CollapseIcon, CopyIcon, EvidenceIcon, ExpandIcon, EyeIcon, HistoryIcon, LinkIcon, PlusIcon, RefusedIcon, SendIcon, ShrinkIcon, SparkIcon, StopIcon } from './icons'
@@ -191,8 +192,8 @@ const MessageBubble = ({ message, onRetryClaims, streaming }: { message: Autopil
             ? <RefusedIcon className={styles.apActRefused} />
             : <CheckIcon className={styles.apActCheck} />}
           {action.url
-            ? <a className={styles.apEvLink} href={action.url} rel='noreferrer' target='_blank'>{action.label}</a>
-            : <span>{action.label}</span>}
+            ? <a className={`${styles.apEvLink} ${styles.apActLabel}`} href={action.url} rel='noreferrer' target='_blank'>{action.label}</a>
+            : <span className={styles.apActLabel}>{action.label}</span>}
           {action.readOnly ? <span className={styles.apActRo}>read-only</span> : null}
         </div>
       ))}
@@ -366,7 +367,7 @@ const getStoredRailWidth = (): number => {
 }
 
 const AutopilotRail = () => {
-  const { approvePending, attachOasDocument, clearOasAttachment, collect, denyPending, enabled, messages, newThread, oasAttachment, open, pendingApproval, restored, retryClaims, send, sessionId, sessions, setOpen, stop, streaming, switchToThread } = useAutopilot()
+  const { approvePending, attachOasDocument, clearOasAttachment, collect, denyPending, enabled, messages, newThread, oasAttachment, open, pendingApproval, reachable, restored, retryClaims, send, sessionId, sessions, setOpen, stop, streaming, switchToThread } = useAutopilot()
   const { config } = useConfigContext()
   // The composer draft + its PROVENANCE (purely dictated vs touched by the keyboard) live in
   // a module-level store, not `useState`: a routerVersion remount used to wipe a half-written
@@ -608,6 +609,8 @@ const AutopilotRail = () => {
   const dockedWidth = Math.min(railWidth + (historyOpen ? HISTORY_EXTRA_WIDTH : 0), maxDockableWidth(viewportWidth))
 
   return (
+    // C8 exception: the rail's keyboard shortcuts, delegated from the controls inside it; the <aside> itself is not a control.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <aside
       className={`${styles.apRail} ${open ? styles.open : ''} ${open && historyOpen ? styles.split : ''} ${open && fullWidth ? styles.full : ''} ${resizing ? styles.resizing : ''}`}
       onKeyDown={onRailKeyDown}
@@ -687,7 +690,7 @@ const AutopilotRail = () => {
                   compositions, blueprints, and platform — grounded on the live page.
                   <div className={styles.apSuggest}>
                     {STARTER_PROMPTS.map((prompt, index) => (
-                      <button className={styles.apSg} key={`starter-${index}`} onClick={() => send(prompt)} type='button'>
+                      <button className={styles.apSg} disabled={!reachable} key={`starter-${index}`} onClick={() => send(prompt)} type='button'>
                         {prompt}
                       </button>
                     ))}
@@ -704,7 +707,7 @@ const AutopilotRail = () => {
               {lastSuggestions?.length ? (
                 <div className={styles.apSuggest}>
                   {lastSuggestions.map((suggestion, index) => (
-                    <button className={styles.apSg} key={`sg-${index}`} onClick={() => send(suggestion)} type='button'>
+                    <button className={styles.apSg} disabled={!reachable} key={`sg-${index}`} onClick={() => send(suggestion)} type='button'>
                       {suggestion}
                     </button>
                   ))}
@@ -713,6 +716,13 @@ const AutopilotRail = () => {
             </div>
 
             <div className={styles.apComposer}>
+              {/* A disabled <button> swallows pointer events, so the toggle's tooltip cannot
+                  reach anyone inside the rail. Dead controls with no stated reason are worse
+                  than an explanation, so the rail says it in text. Same sentence as the
+                  toggle, from one constant. */}
+              {reachable ? null : (
+                <div className={styles.apNote} data-testid='autopilot-unavailable'>{AUTOPILOT_UNAVAILABLE}</div>
+              )}
               {oasAttachment ? (
                 <div className={styles.apOas} data-testid='autopilot-oas-attachment'>
                   <span>OpenAPI attached · {Math.max(1, Math.ceil(oasAttachment.bytes / 1024))} KiB — held in the portal, substituted at publish</span>
@@ -734,6 +744,7 @@ const AutopilotRail = () => {
               <div className={styles.apInput}>
                 <textarea
                   className={styles.apTextarea}
+                  disabled={!reachable}
                   onChange={(event) => {
                     // Typing stops a spoken answer immediately (FR 75) and marks the draft
                     // keyboard-touched for good — one character is enough to make this a
@@ -758,7 +769,7 @@ const AutopilotRail = () => {
                 ) : (
                   // FR 25: Send is held while a transcription is in flight — the words that
                   // are about to arrive belong in the question being sent.
-                  <button aria-busy={voiceBusy} aria-label='Send' className={styles.apSend} disabled={!draft.trim() || voiceBusy} onClick={submit} type='button'>
+                  <button aria-busy={voiceBusy} aria-label='Send' className={styles.apSend} disabled={!reachable || !draft.trim() || voiceBusy} onClick={submit} type='button'>
                     <SendIcon />
                   </button>
                 )}
