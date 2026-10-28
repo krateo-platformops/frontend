@@ -44,6 +44,10 @@ const baseValue = {
   pendingApproval: null,
   reachable: true,
   restored: false,
+  // Added by the claim check: the rail's Retry on an unbacked-claim notice. Present here because
+  // three cases spread `baseValue` into `mockReturnValue` WITHOUT the cast `setValue` applies, so
+  // the context type is actually checked there — which is how the merge surfaced it.
+  retryClaims: vi.fn(),
   send: vi.fn(),
   sessionId: 's-current',
   sessions: vi.fn((): ThreadSummary[] => []),
@@ -56,8 +60,12 @@ const baseValue = {
   tourOpen: false,
 }
 
+// NO CAST. `baseValue` is now a complete AutopilotContextValue, so this helper is type-checked —
+// which is the point: the cast that used to sit here is why a context field added elsewhere could
+// go missing from the mock without anything saying so. It only surfaced in the three cases that
+// spread `baseValue` directly. Keep this assignable rather than restoring the cast.
 const setValue = (overrides: Partial<typeof baseValue>) => {
-  mockedUseAutopilot.mockReturnValue({ ...baseValue, ...overrides } as unknown as ReturnType<typeof useAutopilot>)
+  mockedUseAutopilot.mockReturnValue({ ...baseValue, ...overrides })
 }
 
 beforeAll(() => {
