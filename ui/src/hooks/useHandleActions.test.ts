@@ -129,6 +129,25 @@ describe('updateNameNamespace', () => {
   it('replaces any existing name / namespace params', () => {
     expect(updateNameNamespace('/api?name=old&keep=1&namespace=oldns', 'n', 'ns')).toBe('/api?keep=1&name=n&namespace=ns')
   })
+
+  /**
+   * #528. A cluster-scoped write has no namespace, and snowplow reads an ABSENT
+   * `namespace` as "cluster-scoped" (#156). Interpolating an absent one sent the literal
+   * `namespace=undefined`, which the apiserver took as a namespace of that name:
+   * POST /apis/kyverno.io/v1/namespaces/undefined/clusterpolicies -> 404. Reproduced live
+   * on krateo-demo submitting a ClusterPolicy from a Form.
+   */
+  it('OMITS namespace for a cluster-scoped target — never "undefined", never empty', () => {
+    expect(updateNameNamespace('/api', 'n', undefined)).toBe('/api?name=n')
+    expect(updateNameNamespace('/api', 'n', '')).toBe('/api?name=n')
+    expect(updateNameNamespace('/api?foo=bar', 'n')).toBe('/api?foo=bar&name=n')
+  })
+
+  it('still strips a stale namespace when the new target is cluster-scoped', () => {
+    // The param must not survive from the ref path: a leftover namespace would make a
+    // cluster-scoped write look namespaced, which is the same failure in reverse.
+    expect(updateNameNamespace('/api?namespace=oldns&keep=1', 'n', undefined)).toBe('/api?keep=1&name=n')
+  })
 })
 
 describe('interpolateRedirectUrl', () => {

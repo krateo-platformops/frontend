@@ -50,3 +50,27 @@ describe('buildCallWritePath — the snowplow /call query contract', () => {
       .toEqual({ gvr: { group: 'audit.krateo.io', resource: 'auditrecords', version: 'v1alpha1' }, name: undefined, namespace: 'demo' })
   })
 })
+
+/**
+ * #528 — the cluster-scoped shape. snowplow#156 distinguishes a cluster-scoped write from
+ * a namespaced one by the `namespace` param being ABSENT, so the builder must omit it
+ * rather than send an empty value. Verified against snowplow main's call.go, which reads
+ * name/namespace directly instead of util.ParseNamespacedName for exactly this reason.
+ */
+describe('buildCallWritePath — cluster-scoped targets omit namespace (#528)', () => {
+  it('omits the param entirely when there is no namespace', () => {
+    const path = buildCallWritePath({ group: 'kyverno.io', name: 'require-tags', resource: 'clusterpolicies', version: 'v1' })
+    expect(path).toBe('/call?apiVersion=kyverno.io%2Fv1&resource=clusterpolicies&name=require-tags')
+    expect(path).not.toContain('namespace')
+  })
+
+  it('omits it for an empty string too — present-but-empty is not the same request', () => {
+    expect(buildCallWritePath({ group: '', name: 'node-1', namespace: '', resource: 'nodes', version: 'v1' }))
+      .toBe('/call?apiVersion=v1&resource=nodes&name=node-1')
+  })
+
+  it('still sends it for a namespaced target', () => {
+    expect(buildCallWritePath({ group: '', name: 'cm', namespace: 'krateo-system', resource: 'configmaps', version: 'v1' }))
+      .toContain('namespace=krateo-system')
+  })
+})

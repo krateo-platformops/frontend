@@ -119,7 +119,13 @@ export const updateNameNamespace = (path: string, name?: string, namespace?: str
     .filter((el) => !el.startsWith('name=') && !el.startsWith('namespace='))
     .join('&')
 
-  return `${base}?${qsParameters ? `${qsParameters}&` : ''}name=${name}&namespace=${namespace}`
+  // A cluster-scoped target has no namespace, and snowplow distinguishes the two by the
+  // param being ABSENT (#156) — so it is omitted rather than interpolated. Interpolating
+  // an absent one sent `namespace=undefined`, which the apiserver read as a namespace of
+  // that name: POST /apis/kyverno.io/v1/namespaces/undefined/clusterpolicies -> 404.
+  const ns = namespace ? `&namespace=${namespace}` : ''
+
+  return `${base}?${qsParameters ? `${qsParameters}&` : ''}name=${name}${ns}`
 }
 
 /**
