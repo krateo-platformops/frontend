@@ -166,6 +166,17 @@ export const resolvePath = (item: unknown, path: string): unknown =>
     .split('.')
     .reduce<unknown>((acc, key) => (acc && typeof acc === 'object' ? (acc as Record<string, unknown>)[key] : undefined), item)
 
+/**
+ * Render a resolved value as template text. `resolvePath` returns `unknown`, so each case is
+ * spelled out: primitives stringify as themselves, everything else goes through JSON, which
+ * keeps an object, array or class instance from rendering as `[object Object]`.
+ */
+const stringifyValue = (value: unknown): string => {
+  if (typeof value === 'string') { return value }
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') { return String(value) }
+  return JSON.stringify(value) ?? ''
+}
+
 /** Replace `{path}` / `{a|b|c}` placeholders with the first non-empty resolved value. Literal text is kept. */
 export const interpolate = (template: string | undefined, item: unknown): string => {
   if (!template) { return '' }
@@ -173,7 +184,7 @@ export const interpolate = (template: string | undefined, item: unknown): string
     for (const path of expression.split('|')) {
       const value = resolvePath(item, path.trim())
       if (value !== undefined && value !== null && value !== '') {
-        return typeof value === 'object' ? JSON.stringify(value) : String(value as string | number | boolean)
+        return stringifyValue(value)
       }
     }
     return ''

@@ -6,7 +6,7 @@
  *
  * Renders nothing unless Autopilot is `enabled`. The width animates 0 → `railWidth`
  * (384 by default, drag-resizable from its left edge and persisted across sessions —
- * see RAIL_DEFAULT_WIDTH/getStoredRailWidth) so the shell reflows (it never overlays);
+ * see railWidth.ts) so the shell reflows (it never overlays);
  * toggling session history (`.apMain`'s `HistoryColumn`) widens it further by a fixed
  * HISTORY_EXTRA_WIDTH, to dock the thread list beside the transcript instead of
  * covering it. A separate "full width" toggle takes it to 100% of the shell viewport
@@ -14,228 +14,27 @@
  * driving/HITL surfaces are Phase 2/3.
  */
 
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
-import type { ClipboardEvent, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
-import { CopyToClipboard } from 'react-copy-to-clipboard-ts'
-import { default as ReactMarkdown } from 'react-markdown'
+import { type ClipboardEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import { useConfigContext } from '../../context/ConfigContext'
 
-import { isRefusedChip } from './actionBridge'
-import type { ApprovalPause } from './approval'
 import { useAutopilot } from './AutopilotProvider'
 import styles from './AutopilotRail.module.css'
 import AutopilotTour from './AutopilotTour'
-import { ClaimNotice } from './ClaimNotice'
 import { autopilotComposerDraftStore } from './composerDraftStore'
 import { AUTOPILOT_UNAVAILABLE } from './copy'
-import { describeArgs, deriveSessionsBase, fetchDelegationEvidence, NO_DELEGATION_SESSION, serializeEvidence, summarizeEvidence } from './evidence'
 import { useRailFocusTrap } from './focusTrap'
-import { CheckIcon, CollapseIcon, CopyIcon, EvidenceIcon, ExpandIcon, EyeIcon, HistoryIcon, LinkIcon, PlusIcon, RefusedIcon, SendIcon, ShrinkIcon, SparkIcon, StopIcon } from './icons'
-import { LiveActivity } from './liveActivity'
+import { CollapseIcon, ExpandIcon, EyeIcon, HistoryIcon, LinkIcon, PlusIcon, SendIcon, ShrinkIcon, SparkIcon, StopIcon } from './icons'
 import { looksLikeOpenApiDocument } from './oasAttachment'
-import { relativeTime, type ThreadSummary } from './sessionHistoryStore'
-import { a2aAuthHeader } from './transport'
-import type { AutopilotMessage, EvidenceEntry } from './types'
+import { HistoryColumn } from './RailHistory'
+import { ApprovalCard, MessageBubble } from './RailTranscript'
+import { clampRailWidth, getStoredRailWidth, HISTORY_EXTRA_WIDTH, maxDockableWidth, RAIL_WIDTH_STORAGE_KEY } from './railWidth'
 import { useComposerAutoGrow } from './useComposerAutoGrow'
 import { SpeakBackStatus, SpeakBackToggle } from './voice/speak/SpeakBackControls'
 import { autopilotSpeakBackStore } from './voice/speak/speakBackStore'
 import { useVoiceBusy, VoiceButton, VoiceStatus } from './voice/VoiceControl'
 import { autopilotVoiceStore } from './voice/voiceStore'
 import { escapeInterruptsVoice, useVoiceWiring } from './voiceWiring'
-
-/** What the agent looked up, never what it read back. */
-const EvidenceRow = ({ entry }: { entry: EvidenceEntry }) => {
-  const { source } = entry
-  const meta = source
-    ? `${source.org ? `${source.org}/` : ''}${source.repo}${source.ref ? ` @ ${source.ref}` : ''}`
-    : describeArgs(entry)
-  // Full, uncapped args for the hover title, so a value clamped in the inline display is still
-  // fully readable on hover (redaction still applies). Only meaningful for the no-source shape.
-  const metaFull = source ? undefined : describeArgs(entry, { full: true })
-  return (
-    <div className={styles.apEvRow}>
-      <span className={styles.apEvTool}>{entry.tool}</span>
-      <span className={styles.apEvMeta} title={metaFull && metaFull !== meta ? metaFull : undefined}>
-        {meta}{entry.note ? ` · ${entry.note}` : ''}{entry.failed ? ' · failed' : ''}
-      </span>
-      {source?.path ? (
-        <span>
-          {entry.url
-            ? <a className={styles.apEvLink} href={entry.url} rel='noreferrer' target='_blank'>{source.path}</a>
-            : source.path}
-        </span>
-      ) : null}
-    </div>
-  )
-}
-
-/** Sub-evidence of one delegated hop. `error` carries the REASON, not a boolean (frontend#181) —
- * see evidence.ts, which words each failure. */
-type DelegationState = { children?: EvidenceEntry[]; error?: string; loading?: boolean }
-
-/** A delegated hop: the specialist's own calls are not on this stream, so they are resolved from the
- *  session its response named. The fetch is lifted to EvidencePanel (which resolves every delegation
- *  eagerly on open, so Copy captures the nested calls too); this row just renders the shared state. */
-const DelegationRow = ({ entry, state }: { entry: EvidenceEntry; state?: DelegationState }) => {
-  const panelId = useId()
-  const [open, setOpen] = useState(false)
-  const children = state?.children
-  return (
-    <div className={styles.apEvGroup}>
-      <button aria-controls={panelId} aria-expanded={open} className={styles.apEvRow} onClick={() => setOpen((prev) => !prev)} type='button'>
-        <span className={styles.apEvTool}>{open ? '▾' : '▸'} {entry.agent}</span>
-        <span className={styles.apEvMeta}>specialist{children ? ` · ${children.length} lookups` : ''}</span>
-      </button>
-      {open ? (
-        <div className={styles.apEvNested} id={panelId}>
-          {state?.loading ? <div className={styles.apEvMeta}>loading…</div> : null}
-          {state?.error ? <div className={styles.apEvMeta}>couldn&rsquo;t read its activity — {state.error}</div> : null}
-          {children?.length === 0 ? <div className={styles.apEvMeta}>no tool calls recorded</div> : null}
-          {children?.map((child) => <EvidenceRow entry={child} key={child.id} />)}
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
-/** The tool calls behind an answer, so it can be checked rather than trusted. A turn that used no
- *  tools says so. */
-const EvidencePanel = ({ evidence }: { evidence: EvidenceEntry[] }) => {
-  const { config } = useConfigContext()
-  const panelId = useId()
-  const [open, setOpen] = useState(false)
-  // Copied-feedback flash. `react-copy-to-clipboard-ts` uses document.execCommand under the hood, so
-  // it works over plain HTTP — unlike navigator.clipboard, which is undefined in a non-secure context
-  // (the portal is often served over http://<LB-IP>).
-  const [copied, setCopied] = useState(false)
-  // Every delegation's sub-evidence, keyed by sessionId. Resolved EAGERLY when the panel opens (not
-  // per-row on expand) so the Copy button captures the specialists' nested tool calls, not just the
-  // top level — the reported bug. DelegationRow renders from this shared map (no per-row refetch),
-  // and serializeEvidence nests it under each specialist line.
-  const [delegations, setDelegations] = useState<Record<string, DelegationState>>({})
-  const base = config?.api.AUTOPILOT_API_BASE_URL
-  useEffect(() => {
-    if (!open || !base) {
-      return
-    }
-    const pending = evidence.filter((entry) => entry.agent && entry.sessionId && !delegations[entry.sessionId])
-    if (!pending.length) {
-      return
-    }
-    // Seed each pending session as in-flight in one update so the filter above stays idempotent on
-    // the effect's re-run (it depends on `delegations`), then resolve each once.
-    setDelegations((prev) => {
-      const next = { ...prev }
-      for (const entry of pending) {
-        next[entry.sessionId as string] = { loading: true }
-      }
-      return next
-    })
-    for (const entry of pending) {
-      const sid = entry.sessionId as string
-      fetchDelegationEvidence(deriveSessionsBase(base), entry, a2aAuthHeader())
-        .then((children) => setDelegations((prev) => ({ ...prev, [sid]: { children } })))
-        .catch((err: unknown) => setDelegations((prev) => ({ ...prev, [sid]: { error: err instanceof Error ? err.message : String(err) } })))
-    }
-  }, [open, base, evidence, delegations])
-  // The resolved children only (loading/error hops fall back to their bare specialist line in copy).
-  const childrenBySession = Object.fromEntries(
-    Object.entries(delegations).flatMap(([sid, state]) => (state.children ? [[sid, state.children]] : [])),
-  )
-  return (
-    <>
-      <button aria-controls={panelId} aria-expanded={open} className={styles.apEvBtn} onClick={() => setOpen((prev) => !prev)} type='button'>
-        <EvidenceIcon />
-        Evidence{evidence.length ? ` · ${evidence.length}` : ''}
-      </button>
-      {open ? (
-        <div className={styles.apEv} data-testid='autopilot-evidence' id={panelId}>
-          <div className={styles.apEvHead}>
-            <span>{summarizeEvidence(evidence)}</span>
-            <CopyToClipboard
-              onCopy={() => {
-                setCopied(true)
-                setTimeout(() => setCopied(false), 2000)
-              }}
-              text={serializeEvidence(evidence, childrenBySession)}
-            >
-              <button aria-label='Copy evidence to clipboard' className={styles.apEvCopy} title='Copy evidence to clipboard' type='button'>
-                {copied ? <CheckIcon size={11} /> : <CopyIcon />}{copied ? 'Copied' : 'Copy'}
-              </button>
-            </CopyToClipboard>
-          </div>
-          {evidence.map((entry) => (entry.agent
-            ? <DelegationRow entry={entry} key={entry.id} state={entry.sessionId ? delegations[entry.sessionId] : { error: NO_DELEGATION_SESSION }} />
-            : <EvidenceRow entry={entry} key={entry.id} />))}
-        </div>
-      ) : null}
-    </>
-  )
-}
-
-const MessageBubble = ({ message, onRetryClaims, streaming }: { message: AutopilotMessage; onRetryClaims: (messageId: string) => void; streaming: boolean }) => {
-  if (message.role === 'user') {
-    return <div className={`${styles.apMsg} ${styles.apMsgUser}`}>{message.text}</div>
-  }
-  return (
-    <div className={`${styles.apMsg} ${styles.apMsgBot}`}>
-      {/* Render the assistant's markdown properly (bold / lists / headings / inline code). The old
-          renderInline only handled `code` spans, so everything else (**bold**, `-` lists, `##`) showed
-          as RAW markdown characters. react-markdown emits NO raw HTML by default, and sanitizeChatText
-          has already stripped any code/YAML blocks the agent shouldn't show. */}
-      <div className={styles.apMd}><ReactMarkdown>{message.text}</ReactMarkdown></div>
-      {message.actions?.map((action, index) => (
-        <div className={styles.apAct} data-outcome={isRefusedChip(action) ? 'refused' : 'applied'} key={`act-${index}`}>
-          {/* A refusal never wears the applied check: it would read as success when nothing ran. */}
-          {isRefusedChip(action)
-            ? <RefusedIcon className={styles.apActRefused} />
-            : <CheckIcon className={styles.apActCheck} />}
-          {action.url
-            ? <a className={`${styles.apEvLink} ${styles.apActLabel}`} href={action.url} rel='noreferrer' target='_blank'>{action.label}</a>
-            : <span className={styles.apActLabel}>{action.label}</span>}
-          {action.readOnly ? <span className={styles.apActRo}>read-only</span> : null}
-        </div>
-      ))}
-      <ClaimNotice disabled={streaming} message={message} onRetry={onRetryClaims} />
-      {message.streaming ? <LiveActivity answering={message.text.length > 0} evidence={message.evidence ?? []} /> : null}
-      {message.evidence && !message.streaming ? <EvidencePanel evidence={message.evidence} /> : null}
-    </div>
-  )
-}
-
-/**
- * The kagent HITL approval card (Phase 2) — the calm decision surface for a paused
- * `requireApproval` tool call. BlastRadiusConfirm's language: an amber APPROVAL chip,
- * the tool + owning agent as plain facts, the arguments (the manifest, for
- * k8s_apply_manifest) as a mono block the human actually reads, then Approve (amber) /
- * Deny. DENY-BY-DEFAULT: dismissing the card denies, and an unattended card self-denies
- * after 5 minutes (the provider's governor).
- */
-const ApprovalCard = ({ onApprove, onDeny, pause }: { onApprove: () => void; onDeny: () => void; pause: ApprovalPause }) => (
-  <div className={styles.apApproval} data-testid='autopilot-approval'>
-    <div className={styles.apApprovalHead}>
-      <span className={styles.apApprovalChip}>approval</span>
-      <span className={styles.apApprovalIntent}>the agent wants to run a write tool</span>
-      <span className={styles.apSpacer} />
-      <button aria-label='Dismiss (denies)' className={styles.apIc} onClick={onDeny} title='Dismiss (denies)' type='button'>×</button>
-    </div>
-    {pause.requests.map((request) => (
-      <div className={styles.apApprovalReq} key={request.requestId}>
-        <div className={styles.apApprovalTool}>
-          <span className={styles.apApprovalToolName}>{request.toolName}</span>
-          {request.agentName ? <span className={styles.apApprovalAgent}>{request.agentName}</span> : null}
-        </div>
-        <pre className={styles.apApprovalCode}>{request.argumentsPreview}</pre>
-      </div>
-    ))}
-    <div className={styles.apApprovalBtns}>
-      <button className={styles.apBtnApprove} onClick={onApprove} type='button'>Approve</button>
-      <button className={styles.apBtnDeny} onClick={onDeny} type='button'>Deny</button>
-    </div>
-    <div className={styles.apApprovalNote}>Deny is the default — dismissing, starting a new thread, or waiting 5 minutes denies.</div>
-  </div>
-)
 
 // Curated starter prompts shown in the empty rail (before turn 1), so a zero-knowledge user
 // has an obvious first move instead of a blank box. These are universal conversation openers —
@@ -246,125 +45,6 @@ const STARTER_PROMPTS = [
   'How do I create my first resource?',
   "What's on this page?",
 ]
-
-/**
- * Session history (item P, split-view iteration). A persistent column docked beside
- * the transcript — NOT a popover — so past threads stay browsable while the live conversation
- * remains visible.
- *
- * ALWAYS mounted (same convention as the rail itself, which never unmounts and instead
- * animates `.apRail`'s width 0→384): `open` drives a width-only CSS transition, 0→220,
- * in sync with the rail's own 384→640 `.split` transition (same duration/easing). Mounting it
- * only on `historyOpen` used to make it pop in at its full 220px width WHILE the rail was still
- * narrow — an instant hard squeeze of the transcript before the rail's own width caught up a
- * moment later. Animating both widths together keeps the transcript's width monotonic (it only
- * grows when opening, only shrinks when closing) instead of squeeze-then-grow.
- *
- * Re-reads the archive when it opens, and again whenever the active thread changes (a switch or
- * a new thread both change `currentSessionId`) — keeping the list in sync without a live
- * localStorage subscription. `aria-hidden` while closed, matching its zero width.
- *
- * The search box is a local, in-memory filter over `rows` (title substring match) — not
- * PageSearch's `?q=`-bound pattern, since this list isn't URL-addressable state — and the
- * query resets on close so reopening the column never lands on a stale filter. Every
- * tabbable element here also gets `tabIndex={-1}` while closed: the column keeps rendering
- * at width:0 rather than unmounting (see the rail's own convention), and without it Tab would
- * still walk through search + rows that are invisible and `aria-hidden`.
- */
-const HistoryColumn = ({ currentSessionId, onSwitch, open, sessions }: {
-  currentSessionId: string
-  onSwitch: (sessionId: string) => void
-  open: boolean
-  sessions: () => ThreadSummary[]
-}) => {
-  const [rows, setRows] = useState<ThreadSummary[]>([])
-  const [query, setQuery] = useState('')
-
-  useEffect(() => {
-    if (open) {
-      setRows(sessions())
-    } else {
-      setQuery('')
-    }
-  }, [sessions, currentSessionId, open])
-
-  const trimmedQuery = query.trim()
-  const filteredRows = trimmedQuery
-    ? rows.filter((row) => row.title.toLowerCase().includes(trimmedQuery.toLowerCase()))
-    : rows
-
-  let listContent: React.ReactNode
-  if (rows.length === 0) {
-    listContent = <div className={styles.apHistoryEmpty}>No past conversations yet. Your threads are saved here when you start a new one.</div>
-  } else if (filteredRows.length === 0) {
-    listContent = <div className={styles.apHistoryEmpty}>No conversations match &quot;{trimmedQuery}&quot;.</div>
-  } else {
-    listContent = filteredRows.map((row) => (
-      <button
-        className={`${styles.apHistoryRow} ${row.sessionId === currentSessionId ? styles.apHistoryRowActive : ''}`}
-        key={row.sessionId}
-        onClick={() => onSwitch(row.sessionId)}
-        tabIndex={open ? 0 : -1}
-        type='button'
-      >
-        <span className={styles.apHistoryTitle}>{row.title}</span>
-        <span className={styles.apHistoryMeta}>{relativeTime(row.updatedAt)} · {row.messageCount} msg{row.messageCount === 1 ? '' : 's'}</span>
-      </button>
-    ))
-  }
-
-  return (
-    <div aria-hidden={!open} className={`${styles.apHistoryCol} ${open ? styles.apHistoryColOpen : ''}`} data-testid='autopilot-history-panel'>
-      <div className={styles.apHistoryHead}>Conversations</div>
-      {rows.length > 0 ? (
-        <div className={styles.apHistorySearchWrap}>
-          <EvidenceIcon className={styles.apHistorySearchIcon} size={11} />
-          <input
-            aria-label='Search conversations'
-            className={styles.apHistorySearchInput}
-            data-testid='autopilot-history-search'
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder='Search…'
-            tabIndex={open ? 0 : -1}
-            type='text'
-            value={query}
-          />
-        </div>
-      ) : null}
-      <div className={styles.apHistoryList}>{listContent}</div>
-    </div>
-  )
-}
-
-// User-resizable base width (the docked width before the history split's fixed +256px extra —
-// see HISTORY_EXTRA_WIDTH below — or the full-width override). Persisted across sessions the same
-// way ThemeModeContext persists its mode: read once at mount, written on drag-end only (not on
-// every pointermove, to avoid hammering localStorage mid-drag).
-const RAIL_WIDTH_STORAGE_KEY = 'krateo-autopilot-rail-width'
-const RAIL_MIN_WIDTH = 320
-const RAIL_MAX_WIDTH = 720
-const RAIL_DEFAULT_WIDTH = 384
-// Kept equal to 640 - 384, the pre-resize .apRail.open.split delta, so a never-resized rail is
-// byte-identical to the old fixed-width behavior.
-const HISTORY_EXTRA_WIDTH = 256
-
-const clampRailWidth = (value: number) => Math.min(RAIL_MAX_WIDTH, Math.max(RAIL_MIN_WIDTH, value))
-
-// Responsive guard: on a narrow viewport, a persisted-wide `railWidth` (dragged on a bigger
-// screen) or the history split's fixed +256 must not crush `main` to nothing. Mirrors the
-// max-width backstop in AutopilotRail.module.css (which wins regardless, even before this
-// runs) but also keeps the drag itself from fighting that CSS clamp mid-gesture — without it,
-// the handle would visually detach from the cursor once the box hit its CSS max-width while
-// `railWidth` kept climbing underneath. ABSOLUTE_MIN_DOCK is the floor even on a tiny viewport,
-// matching the CSS backstop's own floor (never squeeze the rail into something unusable).
-const ABSOLUTE_MIN_DOCK = 240
-const NARROW_VIEWPORT = 640
-const maxDockableWidth = (viewportWidth: number) => Math.max(ABSOLUTE_MIN_DOCK, viewportWidth - (viewportWidth <= NARROW_VIEWPORT ? 64 : 200))
-
-const getStoredRailWidth = (): number => {
-  const stored = Number(localStorage.getItem(RAIL_WIDTH_STORAGE_KEY))
-  return Number.isFinite(stored) && stored > 0 ? clampRailWidth(stored) : RAIL_DEFAULT_WIDTH
-}
 
 const AutopilotRail = () => {
   const { approvePending, attachOasDocument, clearOasAttachment, collect, denyPending, enabled, messages, newThread, oasAttachment, open, pendingApproval, reachable, restored, retryClaims, send, sessionId, sessions, setOpen, stop, streaming, switchToThread } = useAutopilot()

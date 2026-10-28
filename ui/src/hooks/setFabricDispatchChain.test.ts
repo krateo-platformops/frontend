@@ -134,14 +134,14 @@ const parseForForm = (widget: Widget): { widgetData: FormWidgetData; resourcesRe
   if (typeof widget.status === 'string') { throw new Error('string status') }
   const { resourcesRefs, widgetData } = widget.status
   return {
-    resourcesRefs: { ...resourcesRefs, items: resourcesRefs?.items?.filter(({ allowed }) => allowed) ?? [] } as ResourcesRefs,
+    resourcesRefs: { ...resourcesRefs, items: resourcesRefs?.items?.filter(({ allowed }) => allowed) ?? [] },
     widgetData: widgetData as FormWidgetData,
   }
 }
 
 /** Form's exact submit-action selection (Form.tsx). */
 const selectSubmitAction = (widgetData: FormWidgetData): WidgetAction | undefined =>
-  Object.values(widgetData.actions).flat().find(({ id }) => id === widgetData.submitActionId) as WidgetAction | undefined
+  Object.values(widgetData.actions).flat().find(({ id }) => id === widgetData.submitActionId)
 
 // Fully-mocked ActionContext (same shape as runRestOps.test.ts) so dispatch runs headless.
 const makeCtx = (over: Partial<ActionContext> = {}): ActionContext => ({

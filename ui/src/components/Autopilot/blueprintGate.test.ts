@@ -154,4 +154,3 @@ describe('isArmed / subscribe — what a surface reads to say "Preview needed"',
     expect(gate.isArmed(null)).toBe(false)
   })
 })
-

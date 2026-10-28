@@ -7,7 +7,6 @@ import { useSseStream } from '../../hooks/useSseStream'
 import type { WidgetProps } from '../../types/Widget'
 import { getEndpointUrl } from '../../utils/utils'
 
-import type { ItemTemplate } from './itemTemplate'
 import { ListView } from './ListView'
 import type { Listy as WidgetType } from './Listy.type'
 
@@ -66,7 +65,7 @@ const List = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
       header={header}
       hideWhenEmpty={hideWhenEmpty}
       itemLayout={itemLayout}
-      itemTemplate={itemTemplate as ItemTemplate | undefined}
+      itemTemplate={itemTemplate}
       items={filtered}
       loading={loading}
       pagination={pagination}

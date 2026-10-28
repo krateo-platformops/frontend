@@ -76,7 +76,7 @@ afterEach(() => {
 describe('evidence is published while the turn is still streaming', () => {
   it('a tool call reaches the STREAMING message, not only the finished one', () => {
     act(() => { api.send('what is broken?') })
-    const { onFrame } = harness.sends[0]
+    const [{ onFrame }] = harness.sends
 
     act(() => { onFrame({ args: {}, id: 'c1', kind: 'tool_call', name: 'get_resource' }) })
 
@@ -90,7 +90,7 @@ describe('evidence is published while the turn is still streaming', () => {
 
   it('the result marks that same entry done, still mid-turn', () => {
     act(() => { api.send('what is broken?') })
-    const { onFrame } = harness.sends[0]
+    const [{ onFrame }] = harness.sends
     act(() => { onFrame({ args: {}, id: 'c1', kind: 'tool_call', name: 'get_resource' }) })
     act(() => { onFrame({ id: 'c1', kind: 'tool_result', name: 'get_resource', output: 'ok' }) })
 
@@ -102,7 +102,7 @@ describe('evidence is published while the turn is still streaming', () => {
 
   it('survives the turn: the finished message still carries the evidence', () => {
     act(() => { api.send('what is broken?') })
-    const { onFrame } = harness.sends[0]
+    const [{ onFrame }] = harness.sends
     act(() => { onFrame({ args: {}, id: 'c1', kind: 'tool_call', name: 'get_resource' }) })
     act(() => { onFrame({ delta: 'done looking', kind: 'text' }) })
     act(() => { onFrame({ kind: 'done' }) })

@@ -38,6 +38,11 @@
  * host a gated action goes BELOW `CONFIRM` — that is the ordering whose absence makes a page
  * unusable rather than merely untidy.
  */
+// Listed in ASCENDING z-index, so the list reads as the stack it describes: bottom surface first,
+// front-most last. That is the whole point of collecting them here, and alphabetical order would
+// hide it — DRAWER(1000) and CONFIRM(1100) are the floor and the ceiling and would sit adjacent.
+// Hence sort-keys is off for this object: the order carries the information.
+/* eslint-disable sort-keys/sort-keys-fix -- ascending z-index IS the documentation; see above */
 export const LAYER = {
   /** Widget `Drawer` — page content. antd's `zIndexPopupBase`, now stated rather than inherited. */
   DRAWER: 1000,
@@ -48,6 +53,7 @@ export const LAYER = {
   /** Blast-radius confirm — above every surface that can host a gated action. */
   CONFIRM: 1100,
 } as const
+/* eslint-enable sort-keys/sort-keys-fix */
 
 /**
  * Guard: the confirm must outrank every other surface. A unit test asserts this, so raising one of

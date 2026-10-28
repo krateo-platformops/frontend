@@ -177,10 +177,10 @@ export const useVoiceWiring = (
       authHeader: a2aAuthHeader,
       createAudio: browserTtsAudio,
       fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
+      modelName: ttsModel,
+      stylePrompt,
       url: ttsUrl,
       voiceName: voiceName || DEFAULT_TTS_VOICE,
-      modelName: ttsModel,
-      stylePrompt: stylePrompt,
     }))
   }, [ttsUrl, voiceName, ttsModel, stylePrompt])
 

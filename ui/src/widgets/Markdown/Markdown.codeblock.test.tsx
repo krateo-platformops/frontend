@@ -22,7 +22,7 @@ const copied: string[] = []
 // clipboard, so the wrapper is stubbed to record what it was handed. That string IS the assertion:
 // the defect was never "no button", it was "the button copies the wrong text".
 vi.mock('react-copy-to-clipboard-ts', () => ({
-  CopyToClipboard: ({ children, text }: { children: React.ReactNode, text: string }) => (
+  CopyToClipboard: ({ children, text }: { children: React.ReactNode; text: string }) => (
     <span data-copytext={text} onClick={() => copied.push(text)}>{children}</span>
   ),
 }))
@@ -62,15 +62,15 @@ describe('Markdown fenced code blocks', () => {
   it('copies only that block — not the prose, and not the other block', () => {
     const { container } = renderMd(TWO_BLOCKS)
     const texts = Array.from(container.querySelectorAll('[data-copytext]'))
-      .map((n) => n.getAttribute('data-copytext') ?? '')
+      .map((node) => node.getAttribute('data-copytext') ?? '')
 
     expect(texts[0]).toContain('kubectl patch alerts provenance-test')
     expect(texts[1]).toContain('kubectl get alert provenance-test')
 
     // The whole point: neither copy carries the surrounding prose or the sibling command.
-    for (const t of texts) {
-      expect(t).not.toContain('REMEDIATE')
-      expect(t).not.toContain('Review & apply')
+    for (const text of texts) {
+      expect(text).not.toContain('REMEDIATE')
+      expect(text).not.toContain('Review & apply')
     }
     expect(texts[0]).not.toContain('kubectl get alert')
     expect(texts[1]).not.toContain('kubectl patch')
@@ -86,8 +86,8 @@ describe('Markdown fenced code blocks', () => {
     // want it (a manifest, a whole prompt). The per-block button is additive, not a replacement.
     const { container } = renderMd(TWO_BLOCKS, true)
     const texts = Array.from(container.querySelectorAll('[data-copytext]'))
-      .map((n) => n.getAttribute('data-copytext') ?? '')
-    expect(texts.some((t) => t.includes('REMEDIATE'))).toBe(true)
+      .map((node) => node.getAttribute('data-copytext') ?? '')
+    expect(texts.some((text) => text.includes('REMEDIATE'))).toBe(true)
     expect(screen.getAllByTitle('Copy this block')).toHaveLength(2)
   })
 })

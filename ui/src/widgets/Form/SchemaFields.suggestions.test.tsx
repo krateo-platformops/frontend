@@ -38,13 +38,13 @@ beforeAll(() => {
     disconnect = noop
     observe = noop
     unobserve = noop
-  } as unknown as typeof ResizeObserver
+  }
 })
 
 /** A property shaped like the one the Alert formdef would decorate server-side. */
 const withSuggestions = (suggestions: unknown, extra: JSONSchema4 = {}): JSONSchema4 => ({
   properties: {
-    where: { title: 'Where', type: 'string', 'x-krateo-suggestions': suggestions, ...extra } as JSONSchema4,
+    where: { title: 'Where', type: 'string', 'x-krateo-suggestions': suggestions, ...extra },
   },
   required: ['where'],
   type: 'object',
@@ -62,12 +62,12 @@ describe('getSuggestionGroups — reading the vendor extension', () => {
   })
 
   it('returns undefined for a non-array or empty extension rather than an empty dropdown', () => {
-    expect(getSuggestionGroups({ type: 'string', 'x-krateo-suggestions': [] } as JSONSchema4)).toBeUndefined()
-    expect(getSuggestionGroups({ type: 'string', 'x-krateo-suggestions': 'nope' } as JSONSchema4)).toBeUndefined()
+    expect(getSuggestionGroups({ type: 'string', 'x-krateo-suggestions': [] })).toBeUndefined()
+    expect(getSuggestionGroups({ type: 'string', 'x-krateo-suggestions': 'nope' })).toBeUndefined()
   })
 
   it('accepts bare strings as shorthand for { value }, in one ungrouped bucket', () => {
-    const groups = getSuggestionGroups({ type: 'string', 'x-krateo-suggestions': ['a', 'b'] } as JSONSchema4)
+    const groups = getSuggestionGroups({ type: 'string', 'x-krateo-suggestions': ['a', 'b'] })
     expect(groups).toEqual([{ entries: [{ value: 'a' }, { value: 'b' }], group: undefined }])
   })
 
@@ -82,7 +82,7 @@ describe('getSuggestionGroups — reading the vendor extension', () => {
     const groups = getSuggestionGroups({
       type: 'string',
       'x-krateo-suggestions': [null, { label: 'no value' }, { value: '   ' }, '', 42, { value: 'ok' }],
-    } as JSONSchema4)
+    })
     expect(groups).toEqual([{ entries: [{ description: undefined, group: undefined, label: undefined, value: 'ok' }], group: undefined }])
   })
 
@@ -90,7 +90,7 @@ describe('getSuggestionGroups — reading the vendor extension', () => {
     const groups = getSuggestionGroups({
       type: 'string',
       'x-krateo-suggestions': [{ group: '   ', value: 'a' }, { value: 'b' }],
-    } as JSONSchema4)
+    })
     expect(groups).toHaveLength(1)
     expect(groups?.[0].group).toBeUndefined()
     expect(groups?.[0].entries.map((entry) => entry.value)).toEqual(['a', 'b'])
@@ -162,7 +162,7 @@ describe('SchemaFields — a suggested field stays FREE TEXT', () => {
           title: 'Fields',
           type: 'array',
           'x-krateo-suggestions': ['ServiceName', 'SeverityText'],
-        } as JSONSchema4,
+        },
       },
       required: ['fields'],
       type: 'object',

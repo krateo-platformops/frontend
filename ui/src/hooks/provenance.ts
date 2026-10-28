@@ -77,12 +77,12 @@ export const stampAgentCreated = (
   if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) { return payload }
 
   const body = payload as Record<string, unknown>
-  const metadata = body.metadata
+  const { metadata } = body
   if (metadata !== undefined && (typeof metadata !== 'object' || metadata === null || Array.isArray(metadata))) {
     return payload
   }
   const meta = (metadata ?? {}) as Record<string, unknown>
-  const labels = meta.labels
+  const { labels } = meta
   if (labels !== undefined && (typeof labels !== 'object' || labels === null || Array.isArray(labels))) {
     return payload
   }

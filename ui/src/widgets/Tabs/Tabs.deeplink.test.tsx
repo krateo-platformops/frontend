@@ -7,22 +7,30 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import Tabs from './Tabs'
+import type * as UtilsModule from '../../utils/utils'
+
+import Tabs, { type TabsWidgetData } from './Tabs'
 
 // The tab body renders WidgetRenderer (which would fetch) — stub it; we only assert tab selection.
 vi.mock('../../components/WidgetRenderer', () => ({ default: () => <div data-testid='wr' /> }))
 vi.mock('../../utils/utils', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../utils/utils')>()),
+  ...(await importOriginal<typeof UtilsModule>()),
   getEndpointUrl: () => 'http://example.test/endpoint',
 }))
 
 vi.stubGlobal('matchMedia', (query: string) => ({
-  addEventListener: vi.fn(), addListener: vi.fn(), dispatchEvent: vi.fn(() => false),
-  matches: false, media: query, onchange: null, removeEventListener: vi.fn(), removeListener: vi.fn(),
+  addEventListener: vi.fn(),
+  addListener: vi.fn(),
+  dispatchEvent: vi.fn(() => false),
+  matches: false,
+  media: query,
+  onchange: null,
+  removeEventListener: vi.fn(),
+  removeListener: vi.fn(),
 }))
 vi.stubGlobal('ResizeObserver', class { disconnect = vi.fn(); observe = vi.fn(); unobserve = vi.fn() })
 
-const widgetData = {
+const widgetData: TabsWidgetData = {
   allowedResources: ['cols'],
   items: [
     { label: 'Reconciliation', resourceRefId: 'obs-tab-reconciliation' },
@@ -31,8 +39,10 @@ const widgetData = {
   ],
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const renderTabs = () => render(<Tabs resourcesRefs={{ items: [] }} uid='obs-main' widgetData={widgetData as any} />)
+// No cast: `widgetData` is declared as the widget's own TabsWidgetData, so this fixture is checked
+// against the real shape. The `as any` it replaces meant a fixture could drift from the widget
+// and the test would still compile.
+const renderTabs = () => render(<Tabs resourcesRefs={{ items: [] }} uid='obs-main' widgetData={widgetData} />)
 
 const setSearch = (search: string) => {
   Object.defineProperty(window, 'location', {

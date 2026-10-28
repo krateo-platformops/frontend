@@ -378,7 +378,8 @@ describe('a failed Cloud TTS answer falls back to the local voice', () => {
   const failing = () => {
     const calls = { n: 0 }
     const speaker: Speaker = {
-      cancel: () => {},
+      // The real cancel stops speech; this fake only has to exist and do nothing.
+      cancel: () => undefined,
       speak: (_text, _language, handlers) => {
         calls.n += 1
         ;(handlers.onFailed ?? handlers.onFinished)()

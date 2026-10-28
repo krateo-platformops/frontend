@@ -404,7 +404,7 @@ describe('stampAgentCreated — A17: an agent-created object is identifiable wit
   it('merges into existing labels rather than replacing them', () => {
     const withLabels = { ...body, metadata: { ...body.metadata, labels: { keep: 'me' } } }
     const out = stampAgentCreated(withLabels, 'POST', agent) as { metadata: { labels: Record<string, string> } }
-    expect(out.metadata.labels).toEqual({ keep: 'me', [AGENT_CREATED_LABEL]: 'autopilot' })
+    expect(out.metadata.labels).toEqual({ [AGENT_CREATED_LABEL]: 'autopilot', keep: 'me' })
   })
 
   it('creates metadata when the payload has none', () => {

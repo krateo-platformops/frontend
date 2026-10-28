@@ -12,8 +12,7 @@
  * jsdom is required for `Blob` and `FileReader`; `fetch` is a fake throughout, so no test
  * here touches a network.
  */
-import type { Mock } from 'vitest'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, type Mock, type MockInstance, vi } from 'vitest'
 
 import { VoiceError } from './errors'
 import type { RecordingResult } from './recorder'
@@ -67,7 +66,9 @@ const jsonResponse = (body: unknown, status = 200): Response =>
 // `ReturnType<typeof vi.fn>` stopped being assignable in vitest 5.
 let fetchImpl: Mock<typeof fetch>
 let raiseSessionExpired: Mock<() => Promise<'logout' | 'resumed'>>
-let warn: ReturnType<typeof vi.spyOn>
+// Typed to console.warn's own signature: `ReturnType<typeof vi.spyOn>` carries `any` args, so
+// the `.mock.calls[0][0]` assertions below would check nothing.
+let warn: MockInstance<(message: string, detail: unknown) => void>
 
 const deps = (overrides: Partial<TranscribeDeps> = {}): TranscribeDeps => ({
   authHeader: () => ({ Authorization: 'Bearer portal-jwt' }),

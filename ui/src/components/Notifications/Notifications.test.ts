@@ -10,7 +10,10 @@ beforeEach(() => { pluralCache.clear() })
 afterEach(() => { vi.unstubAllGlobals() })
 
 const respondWith = (body: unknown, ok = true) => {
-  const fetchMock = vi.fn().mockResolvedValue({ json: async () => body, ok })
+  // Typed, so `.mock.calls` is a tuple rather than `any[]`: the assertions below read the url
+  // and the init out of the recorded call, and an `any` there checks nothing.
+  const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<{ json: () => Promise<unknown>; ok: boolean }>>()
+    .mockResolvedValue({ json: () => Promise.resolve(body), ok })
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock
 }
@@ -26,7 +29,7 @@ describe('resolvePlural — the notification deep-link plural', () => {
   it('asks /api-info/names with the apiVersion and kind, bearing the token', async () => {
     const fetchMock = respondWith({ plural: 'repositories' })
     await resolvePlural(BASE, 'github.krateo.io/v2022-11-28', 'Repository')
-    const [url, init] = fetchMock.mock.calls[0]
+    const [[url, init]] = fetchMock.mock.calls
     expect(url).toContain('/api-info/names')
     expect(url).toContain(`apiVersion=${encodeURIComponent('github.krateo.io/v2022-11-28')}`)
     expect(url).toContain('kind=Repository')
