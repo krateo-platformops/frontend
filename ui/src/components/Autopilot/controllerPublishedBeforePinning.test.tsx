@@ -34,8 +34,8 @@ import {
   readController,
   restDefinitionPath,
   type LockedSnapshot,
-} from '../../pages/ControllerComposer/controllerChart'
-import { servedAsText } from '../../pages/ControllerComposer/servedVersion'
+} from '../../pages/ControllerBuilder/controllerChart'
+import { servedAsText } from '../../pages/ControllerBuilder/servedVersion'
 import type { WriteOp } from '../BlastRadius/buildBlastRadius'
 
 import { createBlueprintDraftStore } from './blueprintDraftStore'
@@ -49,7 +49,7 @@ import { publishedLocks } from './publishedLocks'
 import { createDraftAutosave, DRAFT_AUTOSAVE_DEBOUNCE_MS } from './useDraftAutosave'
 import { useDraftResumeBus } from './useDraftResumeBus'
 
-const FIXTURE = join(__dirname, '..', '..', 'pages', 'ControllerComposer', '__fixtures__', 'draft-controller-admin-petstore.record.json')
+const FIXTURE = join(__dirname, '..', '..', 'pages', 'ControllerBuilder', '__fixtures__', 'draft-controller-admin-petstore.record.json')
 const live = (): DraftRecordBody => {
   const { _comment: _ignored, ...body } = JSON.parse(readFileSync(FIXTURE, 'utf8')) as DraftRecordBody & { _comment: string }
   return body

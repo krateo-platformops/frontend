@@ -28,7 +28,7 @@ import { useEffect, useRef } from 'react'
 import { findBuilderOf } from '../../builders/builderRegistry'
 import { draftKindOf } from '../../builders/draftKinds'
 import type { SetDispatchOptions } from '../../hooks/runRestSet'
-import { pinnedOnResumeSentence } from '../../pages/ControllerComposer/servedVersion'
+import { pinnedOnResumeSentence } from '../../pages/ControllerBuilder/servedVersion'
 
 import { legacyDeleteOps, type SandboxTarget } from './adoptLegacyPage'
 import { MAX_APPLY_SET_OPS } from './applyResourceSet'

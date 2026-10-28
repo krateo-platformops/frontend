@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 
 import { createBlueprintDraftStore, type DraftKind } from '../components/Autopilot/blueprintDraftStore'
 import { draftKindOfPayload, isBuilderPayload, payloadAppliesCrs } from '../components/Autopilot/previewBus'
-import { composerModeOf } from '../components/Autopilot/previewDraftChanged'
+import { builderModeOf } from '../components/Autopilot/previewDraftChanged'
 import { publishDraft, publisherOfVerb, type PublishDraftDeps } from '../components/Autopilot/publishDraft'
 
 import { builderOf, builderRegistry, createBuilderRegistry, findBuilderOf, swapBuildersForTest } from './builderRegistry'
@@ -108,12 +108,12 @@ describe('builderRegistry — the fixtures, loaded', () => {
     expect(() => builderOf('nope')).toThrow(/No Builder declares the draft kind "nope"/)
   })
 
-  it('a composer knows its own draft and its own previews by its Builder\'s name', () => {
-    expect(composerModeOf({ files: { 'Chart.yaml': 'x' }, kind: 'blueprint' }, 'blueprint-builder')).toBe('own')
-    expect(composerModeOf({ files: { 'Chart.yaml': 'x' }, kind: 'page' }, 'blueprint-builder')).toBe('parked')
-    expect(composerModeOf({ files: { 'a.yaml': 'x' } }, 'blueprint-builder')).toBe('parked')
-    expect(composerModeOf({ files: { 'a.yaml': 'x' }, kind: null }, 'blueprint-builder')).toBe('empty')
-    expect(composerModeOf({ files: {} }, 'blueprint-builder')).toBe('empty')
+  it('a builder knows its own draft and its own previews by its Builder\'s name', () => {
+    expect(builderModeOf({ files: { 'Chart.yaml': 'x' }, kind: 'blueprint' }, 'blueprint-builder')).toBe('own')
+    expect(builderModeOf({ files: { 'Chart.yaml': 'x' }, kind: 'page' }, 'blueprint-builder')).toBe('parked')
+    expect(builderModeOf({ files: { 'a.yaml': 'x' } }, 'blueprint-builder')).toBe('parked')
+    expect(builderModeOf({ files: { 'a.yaml': 'x' }, kind: null }, 'blueprint-builder')).toBe('empty')
+    expect(builderModeOf({ files: {} }, 'blueprint-builder')).toBe('empty')
     expect(isBuilderPayload({}, 'portal-builder')).toBe(true)
     expect(isBuilderPayload({ builder: 'blueprint' }, 'portal-builder')).toBe(false)
     expect(isBuilderPayload({ builder: 'blueprint' }, 'blueprint-builder')).toBe(true)

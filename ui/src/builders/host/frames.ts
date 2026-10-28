@@ -17,8 +17,8 @@
  * work-area and design-token tests read them by path. Moving them would rename every class for no
  * change on screen.
  */
-import blueprintStyles from '../../pages/BlueprintComposer/BlueprintComposer.module.css'
-import pageStyles from '../../pages/PageComposer/PageComposer.module.css'
+import blueprintStyles from '../../pages/BlueprintBuilder/BlueprintBuilder.module.css'
+import pageStyles from '../../pages/PageBuilder/PageBuilder.module.css'
 
 import type { FrameName } from './hostTypes'
 

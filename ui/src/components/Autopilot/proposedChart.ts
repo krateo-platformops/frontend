@@ -9,9 +9,9 @@
  * planPlace already imports blueprintDraft; calling it from there would close an import cycle.
  */
 import { builderOf } from '../../builders/builderRegistry'
-import { ARCHITECTURE_TEMPLATE_PATH } from '../../pages/BlueprintComposer/architecture'
-import { gateDrift, regenerateGates } from '../../pages/BlueprintComposer/planEdge'
-import { lintControllerDraft } from '../../pages/ControllerComposer/controllerChart'
+import { ARCHITECTURE_TEMPLATE_PATH } from '../../pages/BlueprintBuilder/architecture'
+import { gateDrift, regenerateGates } from '../../pages/BlueprintBuilder/planEdge'
+import { lintControllerDraft } from '../../pages/ControllerBuilder/controllerChart'
 
 import { CHART_YAML_PATH, chartYamlName, lintBlueprintDraft, parseRawTemplates } from './blueprintDraft'
 import type { DraftKind } from './blueprintDraftStore'

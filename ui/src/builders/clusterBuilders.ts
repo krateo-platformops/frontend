@@ -96,7 +96,7 @@ const isBuilderObject = (item: unknown): boolean => {
 /**
  * Parse a listed set, then add each loaded Builder's plugin refusals as problems: a Builder naming a
  * plugin, lint or gate this frontend does not ship is reported (deny-by-default), and still loads — its
- * route then shows what is wrong with it (ComposerHost) instead of vanishing. The others load untouched.
+ * route then shows what is wrong with it (BuilderHost) instead of vanishing. The others load untouched.
  */
 export const loadedFromItems = (items: readonly unknown[]): Loaded => {
   const parsed = parseBuilderItems(items.filter(isBuilderObject))

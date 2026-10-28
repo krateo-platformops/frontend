@@ -246,13 +246,13 @@ This holds for every action, including the Autopilot entry point
 Reported on the Page composer, which put *Preview · Undo · Publish · Close draft* under its
 description, on the left — with a stylesheet rule (`.actions { align-self: flex-start }`) saying so
 on purpose — while the Controller Builder put the same buttons top-right. Both were hand-built
-`<header>`s inside one component, `ComposerHost`, one per frame: the chrome differed because nothing
+`<header>`s inside one component, `BuilderHost`, one per frame: the chrome differed because nothing
 said it could not ([C5](02-components.md#c5--pageheader--eyebrow-title-counter-tags-actions-subtitle-in-one-place)'s "the body may differ; the chrome may not",
 inside the app).
 
 - **CR pages** get it from `PageHeader`: its `items` render as that trailing row.
 - **Screens the app builds** use `components/ScreenHeader`: the same shape, with `status` and
-  `actions` slots and no alignment prop. `ComposerHost` uses it in every frame.
+  `actions` slots and no alignment prop. `BuilderHost` uses it in every frame.
 - **Checked twice:** `ui/src/test/screenHeaders.test.ts` fails on a hand-built `<header>` holding a
   button; `ui/visual/layout.spec.ts` measures both headers in a browser, at 1440/1024/600px, with
   and without a subtitle: all the buttons share one row, they read left to right, the row ends at
@@ -272,7 +272,7 @@ Generalises two narrower rules that already said the same thing for their own co
 
 *Evidence: the first version, measured, found a defect before any page did — at 1024px a long
 title and meta at h2 pushed the actions under the title. Pointing the structural check at
-`ComposerHost` as it was before ScreenHeader reports both hand-built headers; putting the actions
+`BuilderHost` as it was before ScreenHeader reports both hand-built headers; putting the actions
 back on the title's line or the subtitle's, or letting their row wrap, fails the geometric checks*
 
 ### P27 — One breadcrumb per page, and it is the shell's.
@@ -285,7 +285,7 @@ eyebrow is not a trail — `Platform · tenant x` names where you are, it does n
 there.
 
 Reported on the composers, which printed `<Builder> / Compose` as an eyebrow above the title, right
-under the shell breadcrumb that already said it — in three of `ComposerHost`'s frames. It was also a
+under the shell breadcrumb that already said it — in three of `BuilderHost`'s frames. It was also a
 [P2](#p2--no-eyebrow-label-above-a-page-title) violation, in the one place P2 had never been checked:
 the app's own code.
 
@@ -301,7 +301,7 @@ the app's own code.
 Pairs with [P1](#p1--one-way-back-the-breadcrumb-is-it): P1 says the breadcrumb is the only way
 back; P27 says there is only one of it.
 
-*Evidence: the portal chart has no Breadcrumb CR and no path eyebrow (0 violations); `ComposerHost` as
+*Evidence: the portal chart has no Breadcrumb CR and no path eyebrow (0 violations); `BuilderHost` as
 it was on main fails the app-side check on all three eyebrows*
 
 ## Behaviour and honesty

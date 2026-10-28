@@ -21,7 +21,7 @@ import { dismissButtonProps } from '../DismissButton'
 import { adoptRootFrom, ADOPT_PARAM, DISCARD_LEGACY_PARAM, readLegacyPageSet, type SandboxTarget } from './adoptLegacyPage'
 import type { DraftKind } from './blueprintDraftStore'
 import { treeHash, type DraftRecordBody } from './draftRecord'
-import { readDraftRecordByName, readiness, restoredBannerCopy, RESUME_PARAM, resumeRecordNameFrom, savedWhen, wrongComposerMessage } from './draftResume'
+import { readDraftRecordByName, readiness, restoredBannerCopy, RESUME_PARAM, resumeRecordNameFrom, savedWhen, wrongBuilderMessage } from './draftResume'
 import { emitDraftResume, emitLegacyDiscard, onDraftResumeResult, onLegacyDiscardResult } from './previewDraftResume'
 
 type Notice =
@@ -181,7 +181,7 @@ export const useDraftResume = ({ allowAdopt, kind, onResumed, sandboxNamespace, 
           return
         }
         if (read.record.kind !== kind) {
-          setNotice({ text: wrongComposerMessage(read.record), type: 'error' })
+          setNotice({ text: wrongBuilderMessage(read.record), type: 'error' })
           return
         }
         request(read.record, false, false)

@@ -4,7 +4,7 @@
  *
  * THREE LAYERS, each owning what only it can know:
  *
- * - The HOST (ComposerHost.tsx) is the same for every Builder. It owns what both composers used to
+ * - The HOST (BuilderHost.tsx) is the same for every Builder. It owns what both composers used to
  *   wire by hand: whose draft is held (the draft broadcast and its replay), the preview-surface claim,
  *   the header — title, save indicator, pills, Preview · Undo · Publish · Close draft — the publish
  *   request and its answer, Resume, the file focus and edit verdicts of the PreviewContent tabs, and
@@ -20,7 +20,7 @@ import type { ComponentType, ReactNode, RefObject } from 'react'
 
 import type { DraftKind } from '../../components/Autopilot/blueprintDraftStore'
 import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
-import type { ComposerMode, DraftChangedDetail } from '../../components/Autopilot/previewDraftChanged'
+import type { BuilderMode, DraftChangedDetail } from '../../components/Autopilot/previewDraftChanged'
 import type { FileHighlight } from '../../components/Autopilot/previewSurface'
 import type { Config } from '../../context/ConfigContext'
 import type { Builder, BuilderSpec } from '../builderSpec'
@@ -37,7 +37,7 @@ export interface HostDraft {
   api: Config['api'] | undefined
   /** The last draft broadcast. */
   held: DraftChangedDetail
-  mode: ComposerMode
+  mode: BuilderMode
   /** The held files when the draft is this Builder's own; an empty record otherwise — never another kind's. */
   files: Readonly<Record<string, string>>
   /** Reveal a file in the files pane — again, when it is asked for again. */

@@ -9,7 +9,7 @@
  * all of it, and redraws the cards in their new states the way G6 does — without a FlowGraph
  * render, which is what a re-layout is here. Where
  * nodes land is tested against the real layout class, in node, by
- * `pages/BlueprintComposer/architectureGraph.layout.test.ts`.
+ * `pages/BlueprintBuilder/architectureGraph.layout.test.ts`.
  *
  * THE GRAPH'S LIFECYCLE IS THE LIBRARY'S, on purpose — a double that is kinder than the library
  * hides the library's defects. @antv/graphin creates the G6 graph in a MOUNT EFFECT, calls

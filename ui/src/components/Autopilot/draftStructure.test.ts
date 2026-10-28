@@ -57,7 +57,7 @@ describe('summarizeDraft', () => {
     expect(summary?.roots[0].children?.[0].allows).toBeUndefined()
   })
 
-  it('does NOT report a list the composer grew — the agent must not believe a fence the canvas ignores', () => {
+  it('does NOT report a list the builder grew — the agent must not believe a fence the canvas ignores', () => {
     /*
      * `placeChild` appends each child's plural because the CRD requires the container to list it,
      * so a container the composer created ends up with a non-empty list that DESCRIBES what it

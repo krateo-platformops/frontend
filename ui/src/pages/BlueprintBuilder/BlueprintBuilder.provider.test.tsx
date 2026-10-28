@@ -1,0 +1,220 @@
+// @vitest-environment jsdom
+/**
+ * The composer against the provider's REAL hooks — the store, the gate, the file buses and the
+ * chart render — rather than a harness speaking for them. Two defects lived exactly in the seam the
+ * bare suites stand in for, so these two are held to the real thing:
+ *
+ *   - an edit the provider REFUSES (over the byte cap) used to be shown as applied: Chart files kept
+ *     the refused text while the held bytes — the ones Publish commits — stayed the old ones;
+ *   - a drawer already open on the held chart stayed open when the composer claimed the surface,
+ *     and its one-shot Files tab wrote stale bytes over the composer's edit;
+ *   - a resource added the way the canvas says — templates/architecture.yaml edited in Chart files —
+ *     left the graph block behind its descriptor, and the lint refused Preview, and so Publish, for
+ *     good: nothing regenerated the block.
+ *
+ * Only the render transport is stubbed (it is a snowplow `/call`); everything else is the code the
+ * provider runs.
+ */
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { App as AntdApp } from 'antd'
+import { useState } from 'react'
+import { MemoryRouter } from 'react-router'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { lintBlueprintDraft } from '../../components/Autopilot/blueprintDraft'
+import type { BlueprintDraftStore } from '../../components/Autopilot/blueprintDraftStore'
+import { createBlueprintGate } from '../../components/Autopilot/blueprintGate'
+import { buildBlueprintPreviewPayload } from '../../components/Autopilot/blueprintPreviewPayload'
+import { draftHistory } from '../../components/Autopilot/draftHistory'
+import { callBlueprintRenderRA } from '../../components/Autopilot/previewBridge'
+import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
+import { emitChartStart } from '../../components/Autopilot/previewDraftRender'
+import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
+import { AutopilotPreviewDrawer } from '../../components/Autopilot/previewSurface'
+import { heldDraftIdentity } from '../../components/Autopilot/publishCompile'
+import { useBlueprintAuthoringBuses } from '../../components/Autopilot/useBlueprintAuthoringBuses'
+import { createBroadcastingDraftStore, useDraftFileBuses } from '../../components/Autopilot/useDraftFileBuses'
+import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
+import { ThemeModeProvider } from '../../context/ThemeModeContext'
+
+import { ARCHITECTURE_TEMPLATE_PATH } from './architecture'
+import BlueprintBuilder from './BlueprintBuilder'
+import { installAntdShims, installScrollShim, seededChart } from './blueprintTestHarness'
+import { graphBlockIn } from './graphCompile'
+
+vi.mock('@ant-design/graphs', () => import('../../components/DependencyGraph/flowGraphDouble'))
+vi.mock('@antv/g6-extension-react', () => ({ ReactNode: vi.fn() }))
+
+vi.mock('../../components/Autopilot/previewBridge', async (importOriginal) => ({
+  ...await importOriginal<object>(),
+  callBlueprintRenderRA: vi.fn(),
+}))
+
+beforeAll(() => {
+  installAntdShims()
+  installScrollShim()
+})
+beforeEach(() => {
+  graphDouble.reset()
+  draftHistory.clear()
+  vi.mocked(callBlueprintRenderRA).mockReset()
+  vi.mocked(callBlueprintRenderRA).mockResolvedValue({ objects: [] })
+})
+afterEach(cleanup)
+
+const config = { api: { SNOWPLOW_API_BASE_URL: 'http://snowplow' }, params: { FRONTEND_NAMESPACE: 'krateo-system' } } as never
+
+let held: BlueprintDraftStore | null = null
+
+/** The provider's draft half: its store, its gate and the two hooks that answer the buses. */
+const Provider = () => {
+  const [gate] = useState(() => createBlueprintGate())
+  const [store] = useState(() => createBroadcastingDraftStore(gate))
+  held = store
+  useDraftFileBuses(store, gate, heldDraftIdentity)
+  useBlueprintAuthoringBuses(store, gate, config)
+  return null
+}
+
+const Page = ({ composer, drawer = false }: { composer: boolean; drawer?: boolean }) => (
+  <AntdApp>
+    <MemoryRouter>
+      <ThemeModeProvider>
+        <Provider />
+        {drawer ? <AutopilotPreviewDrawer /> : null}
+        {composer ? <div data-testid='builder'><BlueprintBuilder /></div> : null}
+      </ThemeModeProvider>
+    </MemoryRouter>
+  </AntdApp>
+)
+
+/** Start a chart through the provider and let its first render land: held, rendered, armed. */
+const startAndRender = async (files: Record<string, string>): Promise<void> => {
+  await act(async () => {
+    emitChartStart({ files, id: 'start-1' })
+    await Promise.resolve()
+  })
+  await act(async () => { await Promise.resolve() })
+}
+
+// The path's heading in Chart files — the one inside a file block, when the page names it elsewhere too.
+const fileBlock = (scope: HTMLElement, path: string): HTMLElement =>
+  within(scope).getAllByText(path).map((heading) => heading.closest('div[id^="preview-file-"]'))
+    .find((block): block is HTMLElement => block instanceof HTMLElement) as HTMLElement
+
+const editFile = (block: HTMLElement, path: string, text: string): void => {
+  act(() => { within(block).getByRole('button', { name: 'Edit' }).click() })
+  act(() => { fireEvent.change(within(block).getByLabelText(`Edit ${path}`), { target: { value: text } }) })
+  act(() => { within(block).getByRole('button', { name: 'Apply edits' }).click() })
+}
+
+describe('BlueprintBuilder + the provider — an edit the provider refuses', () => {
+  it('is said where it was made, and Chart files keeps showing the bytes that will publish', async () => {
+    render(<Page composer />)
+    const files = seededChart()
+    await startAndRender(files)
+    const publish = screen.getByRole<HTMLButtonElement>('button', { name: /Publish/ })
+    expect(publish.disabled).toBe(false)
+
+    // Over the 512 KiB tree cap: the store refuses it.
+    const composer = screen.getByTestId('builder')
+    editFile(fileBlock(composer, 'values.yaml'), 'values.yaml', `# ${'x'.repeat(600 * 1024)}\n{}\n`)
+
+    expect(held?.get()?.files['values.yaml']).toBe(files['values.yaml'])
+    expect(screen.getByText('This edit was not applied')).toBeTruthy()
+    expect(screen.getByText(/over the 512 KiB cap/)).toBeTruthy()
+    // The editor stays open on the person's text, so they can trim it rather than retype it…
+    expect(within(fileBlock(composer, 'values.yaml')).getByLabelText<HTMLTextAreaElement>('Edit values.yaml').value.length).toBeGreaterThan(600 * 1024)
+    // …and cancelling it shows the held bytes — what Publish (still on, for those bytes) commits.
+    act(() => { within(fileBlock(composer, 'values.yaml')).getByRole('button', { name: 'Cancel' }).click() })
+    expect(fileBlock(composer, 'values.yaml').textContent?.length).toBeLessThan(1024)
+    expect(publish.disabled).toBe(false)
+  })
+})
+
+describe('BlueprintBuilder + the provider — a drawer already open when the builder claims the surface', () => {
+  it('closes: one surface per draft, so a stale Files tab cannot write over the builder', async () => {
+    const view = render(<Page composer={false} drawer />)
+    const files = seededChart()
+    await startAndRender(files)
+    // The agent's previewBlueprint of the held chart, on another route — nothing claims it, so the drawer opens.
+    act(() => {
+      window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, {
+        detail: buildBlueprintPreviewPayload({ held: true, name: 'builder-publish', rawTemplates: files, rendered: { objects: [] } }),
+      }))
+    })
+    expect(document.querySelector('.ant-drawer-open')).not.toBeNull()
+
+    // The person navigates to the composer.
+    view.rerender(<Page composer drawer />)
+    expect(screen.getByTestId('builder').textContent).toContain('builder-publish')
+    expect(document.querySelector('.ant-drawer-open')).toBeNull()
+  })
+
+  it('leaves a drawer showing something the builder does not own — an inspection — open', () => {
+    const view = render(<Page composer={false} drawer />)
+    act(() => {
+      window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, { detail: { builder: 'inspect', summary: ['repos'], title: 'Describe — repos' } }))
+    })
+    expect(document.querySelector('.ant-drawer-open')).not.toBeNull()
+    view.rerender(<Page composer drawer />)
+    expect(document.querySelector('.ant-drawer-open')).not.toBeNull()
+  })
+})
+
+describe('BlueprintBuilder + the provider — a resource added the way the canvas says', () => {
+  const SETTINGS = 'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ printf "%s-settings" .Release.Name }}\ndata: {}\n'
+  const SETTINGS_NODE = ['- id: settings', '  class: native', '  apiVersion: v1', '  kind: ConfigMap', '  template: templates/settings.yaml', '  name: printf "%s-settings" .Release.Name']
+    .map((line) => `      ${line}`).join('\n')
+  /** templates/architecture.yaml as a person edits it in Chart files: a node added, the block untouched. */
+  const withSettingsNode = (file: string): string => file.replace('    resources: []\n', `    resources:\n${SETTINGS_NODE}\n`)
+
+  const pressPreview = async (): Promise<void> => {
+    await act(async () => {
+      screen.getByRole('button', { name: 'Preview' }).click()
+      await Promise.resolve()
+    })
+    await act(async () => { await Promise.resolve() })
+  }
+
+  it('the edit in Chart files previews — the block is regenerated as it is held — and Publish arms after the render', async () => {
+    render(<Page composer />)
+    const files = seededChart('probe-chart')
+    await startAndRender(files)
+    const publish = screen.getByRole<HTMLButtonElement>('button', { name: /Publish/ })
+    expect(vi.mocked(callBlueprintRenderRA)).toHaveBeenCalledTimes(1)
+
+    act(() => { emitFileAdd({ content: SETTINGS, path: 'templates/settings.yaml' }) })
+    const composer = screen.getByTestId('builder')
+    editFile(fileBlock(composer, ARCHITECTURE_TEMPLATE_PATH), ARCHITECTURE_TEMPLATE_PATH, withSettingsNode(files[ARCHITECTURE_TEMPLATE_PATH]))
+
+    const heldFiles = held?.get()?.files ?? {}
+    expect(graphBlockIn(heldFiles[ARCHITECTURE_TEMPLATE_PATH])).toContain('"id" "settings"')
+    expect(lintBlueprintDraft(heldFiles, 'blueprint')).toEqual([])
+    // An ordinary write: it disarmed the gate, and only a render arms it again.
+    expect(publish.disabled).toBe(true)
+
+    await pressPreview()
+    expect(vi.mocked(callBlueprintRenderRA)).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(callBlueprintRenderRA).mock.calls[1][2]).toEqual({ rawTemplates: heldFiles })
+    expect(publish.disabled).toBe(false)
+  })
+
+  it('the drawer\'s Chart files shows the bytes held after the edit — the regenerated block — not the ones typed', async () => {
+    render(<Page composer={false} drawer />)
+    const files = seededChart('probe-chart')
+    await startAndRender(files)
+    act(() => {
+      window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, {
+        detail: buildBlueprintPreviewPayload({ held: true, name: 'probe-chart', rawTemplates: files, rendered: { objects: [] } }),
+      }))
+    })
+    const drawer = document.querySelector<HTMLElement>('.ant-drawer-open')
+    expect(drawer).not.toBeNull()
+
+    editFile(fileBlock(drawer!, ARCHITECTURE_TEMPLATE_PATH), ARCHITECTURE_TEMPLATE_PATH, withSettingsNode(files[ARCHITECTURE_TEMPLATE_PATH]))
+    const block = fileBlock(drawer!, ARCHITECTURE_TEMPLATE_PATH)
+    expect(held?.get()?.files[ARCHITECTURE_TEMPLATE_PATH]).toContain('"id" "settings"')
+    expect(block.textContent).toContain('"id" "settings"')
+  })
+})

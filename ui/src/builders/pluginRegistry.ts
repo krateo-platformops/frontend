@@ -14,16 +14,16 @@
  * plugin would have been. It never throws: a Builder is data from the cluster, and a CR written for a
  * newer frontend than this one is content to report, not a crash.
  *
- * MOUNTED FROM HERE (T4, frontend#410). ComposerHost resolves a Builder's palette, canvas and
+ * MOUNTED FROM HERE (T4, frontend#410). BuilderHost resolves a Builder's palette, canvas and
  * inspector through this table and renders them. Every one of those takes the one props contract its
  * slot shares (host/hostTypes.ts `SlotProps`: the workbench of the Builder's draft kind), names the
  * draft kind it draws, and a canvas also names the frame it sits in (host/frames.ts).
  */
 import type { BlueprintDraftHeld } from '../components/Autopilot/blueprintDraftStore'
 import { type HeldDraftState, summarizeChart, summarizeController, summarizeDraft } from '../components/Autopilot/draftStructure'
-import { architectureGraphCanvas, kindsPalette, nodeInspector } from '../pages/BlueprintComposer/blueprintSlots'
-import { openapiPalette, restdefGraphCanvas, restdefMappingInspector } from '../pages/ControllerComposer/controllerSlots'
-import { objectTreeInspector, pageGridCanvas, widgetsPalette } from '../pages/PageComposer/pageSlots'
+import { architectureGraphCanvas, kindsPalette, nodeInspector } from '../pages/BlueprintBuilder/blueprintSlots'
+import { openapiPalette, restdefGraphCanvas, restdefMappingInspector } from '../pages/ControllerBuilder/controllerSlots'
+import { objectTreeInspector, pageGridCanvas, widgetsPalette } from '../pages/PageBuilder/pageSlots'
 
 import type { BuilderSpec } from './builderSpec'
 import type { CanvasPlugin, SlotPlugin } from './host/hostTypes'

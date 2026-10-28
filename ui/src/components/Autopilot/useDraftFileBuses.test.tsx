@@ -265,7 +265,7 @@ describe('a draft that CHANGES after it started', () => {
     vi.useRealTimers()
   })
 
-  it('SURVIVES a rejected apply — the composer must not die with the preview', async () => {
+  it('SURVIVES a rejected apply — the builder must not die with the preview', async () => {
     vi.useFakeTimers()
     const previewLive = vi.fn<LivePreview>().mockRejectedValue(new Error('sandbox refused'))
     await start(previewLive)

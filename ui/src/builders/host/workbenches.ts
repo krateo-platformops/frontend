@@ -4,9 +4,9 @@
  * resolves, and a draft kind with none is a sentence, never a blank composer.
  */
 import type { DraftKind } from '../../components/Autopilot/blueprintDraftStore'
-import { useBlueprintWorkbench } from '../../pages/BlueprintComposer/useBlueprintWorkbench'
-import { useControllerWorkbench } from '../../pages/ControllerComposer/useControllerWorkbench'
-import { usePageWorkbench } from '../../pages/PageComposer/usePageWorkbench'
+import { useBlueprintWorkbench } from '../../pages/BlueprintBuilder/useBlueprintWorkbench'
+import { useControllerWorkbench } from '../../pages/ControllerBuilder/useControllerWorkbench'
+import { usePageWorkbench } from '../../pages/PageBuilder/usePageWorkbench'
 
 import type { WorkbenchPlugin } from './hostTypes'
 
@@ -36,4 +36,4 @@ const WORKBENCHES = {
 export const resolveWorkbench = (draftKind: string): { ok: true; kind: DraftKind; plugin: WorkbenchPlugin } | { ok: false; refusal: string } =>
   (Object.prototype.hasOwnProperty.call(WORKBENCHES, draftKind)
     ? { kind: draftKind as DraftKind, ok: true, plugin: WORKBENCHES[draftKind as keyof typeof WORKBENCHES] }
-    : { ok: false, refusal: `This frontend has no workbench for the draft kind "${draftKind}", so the composer cannot be shown. It ships: ${Object.keys(WORKBENCHES).sort().join(', ')}.` })
+    : { ok: false, refusal: `This frontend has no workbench for the draft kind "${draftKind}", so the builder cannot be shown. It ships: ${Object.keys(WORKBENCHES).sort().join(', ')}.` })

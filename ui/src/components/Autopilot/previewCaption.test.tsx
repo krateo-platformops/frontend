@@ -52,7 +52,7 @@ describe('the live-preview caption', () => {
     expect(screen.queryByText(/Closing this drawer/)).toBeNull()
   })
 
-  it('the inline wording names a control that EXISTS in the composer', () => {
+  it('the inline wording names a control that EXISTS in the builder', () => {
     // "Close draft" is the composer's button. A caption naming a control the reader cannot find is
     // the same defect as naming a drawer that is not there.
     expect(LIVE_PREVIEW_CAPTION_INLINE.toLowerCase()).toContain('draft')

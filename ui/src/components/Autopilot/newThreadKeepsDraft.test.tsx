@@ -33,7 +33,7 @@ vi.mock('../../context/ConfigContext', async (importOriginal) => ({
 vi.mock('./askDeepLink', () => ({ useAskDeepLink: () => undefined }))
 vi.mock('./useAutopilotContext', () => ({
   buildContextDelta: () => ({}),
-  useAutopilotContext: () => ({ collect: () => ({ focus: 'Composer', route: '/', widgets: [] }) }),
+  useAutopilotContext: () => ({ collect: () => ({ focus: 'Builder', route: '/', widgets: [] }) }),
 }))
 vi.mock('./actionBridge', async (importOriginal) => ({
   ...(await importOriginal<typeof ActionBridgeModule>()),

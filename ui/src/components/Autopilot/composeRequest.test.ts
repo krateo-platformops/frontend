@@ -9,7 +9,7 @@
  * repeated verbatim or built upon as though it had landed.
  *
  * These pin the channel itself. That the COMPOSER answers on every path is pinned next door, in
- * PageComposer.agent.test.tsx.
+ * PageBuilder.agent.test.tsx.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -26,7 +26,7 @@ const answerWith = (answer: (id: string) => Parameters<typeof emitComposeResult>
   onComposeRequest((request) => { emitComposeResult(answer(request.id)) })
 
 describe('requestCompose', () => {
-  it('resolves with what the composer applied, echoing the files it rewrote', async () => {
+  it('resolves with what the builder applied, echoing the files it rewrote', async () => {
     const stop = answerWith((id) => ({
       applied: true,
       id,
@@ -38,7 +38,7 @@ describe('requestCompose', () => {
     stop()
   })
 
-  it("carries the composer's OWN reason back, not a sentence the caller invented", async () => {
+  it("carries the builder's OWN reason back, not a sentence the caller invented", async () => {
     const stop = answerWith((id) => ({
       applied: false,
       id,
@@ -50,13 +50,13 @@ describe('requestCompose', () => {
     stop()
   })
 
-  it('refuses when NO composer is open, instead of hanging or claiming success', async () => {
+  it('refuses when NO builder is open, instead of hanging or claiming success', async () => {
     vi.useFakeTimers()
     const pending = requestCompose({ op: 'move', target: 'page-x', widget: 'card-b' })
     await vi.advanceTimersByTimeAsync(4000)
     const result = await pending
     expect(result.applied).toBe(false)
-    expect(result.reason).toMatch(/no page composer is open/i)
+    expect(result.reason).toMatch(/no page builder is open/i)
   })
 
   it('ignores an answer addressed to a DIFFERENT request', async () => {

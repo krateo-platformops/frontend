@@ -695,7 +695,7 @@ export const useAutopilotActionBridge = (
       }
       const result = await requestCompose({ at: proposal.at, op: 'move', target: proposal.target, widget: proposal.widget })
       if (!result.applied) {
-        return composeRefusal('composeMove', result, 'the composer did not apply the move')
+        return composeRefusal('composeMove', result, 'the builder did not apply the move')
       }
       return { label: `Moved ${proposal.widget} into ${proposal.target}`, readOnly: true, verb: 'composeMove' }
     }
@@ -707,7 +707,7 @@ export const useAutopilotActionBridge = (
       if (proposal.layout) {
         const result = await requestCompose({ at: proposal.at, layout: proposal.layout, op: 'addContainer', target: proposal.target })
         if (!result.applied) {
-          return composeRefusal('composeAdd', result, 'the composer did not apply the add')
+          return composeRefusal('composeAdd', result, 'the builder did not apply the add')
         }
         return { label: `Added a ${proposal.layout} inside ${proposal.target}`, readOnly: true, verb: 'composeAdd' }
       }
@@ -732,14 +732,14 @@ export const useAutopilotActionBridge = (
           widgetData: proposal.widgetData,
         })
         if (!result.applied) {
-          return composeRefusal('composeAdd', result, 'the composer did not create the widget')
+          return composeRefusal('composeAdd', result, 'the builder did not create the widget')
         }
         return { label: `Created a ${proposal.kind} named ${proposal.name} inside ${proposal.target}`, readOnly: true, verb: 'composeAdd' }
       }
       if (proposal.name && proposal.resource) {
         const result = await requestCompose({ at: proposal.at, name: proposal.name, op: 'addExisting', resource: proposal.resource, target: proposal.target })
         if (!result.applied) {
-          return composeRefusal('composeAdd', result, 'the composer did not place the widget')
+          return composeRefusal('composeAdd', result, 'the builder did not place the widget')
         }
         return { label: `Placed ${proposal.name} inside ${proposal.target}`, readOnly: true, verb: 'composeAdd' }
       }
@@ -770,7 +770,7 @@ export const useAutopilotActionBridge = (
         widget: proposal.widget,
       })
       if (!result.applied) {
-        return composeRefusal('composeBind', result, 'the composer did not bind the data')
+        return composeRefusal('composeBind', result, 'the builder did not bind the data')
       }
       const source = proposal.action ? proposal.action.name : (proposal.actionRef?.name ?? 'its templates')
       return { label: `Bound ${proposal.widget} to ${source}`, readOnly: true, verb: 'composeBind' }

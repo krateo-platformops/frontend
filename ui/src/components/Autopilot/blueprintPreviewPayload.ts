@@ -7,7 +7,7 @@
  * only when it rendered (a published chart's dry run, or a draft that failed to render, is looked at,
  * not held), while the composer previews the draft the provider already holds.
  */
-import { standInSummary } from '../../pages/BlueprintComposer/previewStubs'
+import { standInSummary } from '../../pages/BlueprintBuilder/previewStubs'
 
 import { buildFormSchemaText } from './blueprintDraft'
 import type { HelmRenderResult } from './previewBridge'

@@ -33,10 +33,10 @@ import { builderRegistry, registryUnavailable } from '../../builders/builderRegi
 import type { BuilderSpec, PublishBuilder } from '../../builders/builderSpec'
 import { draftKindOf, draftKindPlugin } from '../../builders/draftKinds'
 import type { Config } from '../../context/ConfigContext'
-import { publishNameProblem } from '../../pages/BlueprintComposer/chartIdentity'
-import { PROJECTION_BUNDLE_PATH, projectionForFiles } from '../../pages/BlueprintComposer/projectionCompile'
-import { blueprintCompositionDefinition } from '../../pages/BlueprintComposer/startChart'
-import { controllerCompositionDefinition } from '../../pages/ControllerComposer/controllerChart'
+import { publishNameProblem } from '../../pages/BlueprintBuilder/chartIdentity'
+import { PROJECTION_BUNDLE_PATH, projectionForFiles } from '../../pages/BlueprintBuilder/projectionCompile'
+import { blueprintCompositionDefinition } from '../../pages/BlueprintBuilder/startChart'
+import { controllerCompositionDefinition } from '../../pages/ControllerBuilder/controllerChart'
 
 import type { PortalActionProposal } from './actionBridge'
 import type { ApplyResourceSetOp } from './applyResourceSet'
@@ -216,7 +216,7 @@ export const runDraftPublish = async (
   // blueprint claim out of page files — refused by name instead.
   if (held && held.kind !== builder.draftKind) {
     const heldNouns = draftKindOf(held.kind).nouns
-    return denied(`denied — the open draft is ${heldNouns.artifact}, and ${proposal.verb} publishes ${kind.nouns.artifact}. Publish it from the ${heldNouns.composer} composer.`, held)
+    return denied(`denied — the open draft is ${heldNouns.artifact}, and ${proposal.verb} publishes ${kind.nouns.artifact}. Publish it from the ${heldNouns.builder} builder.`, held)
   }
   // A draft that fails the chart lint is refused BY NAME, before anyone is asked where to send it.
   // Its gate is already disarmed (a dirty hand edit forgets the arming), but that refusal says

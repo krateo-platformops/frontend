@@ -9,9 +9,9 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { ARCHITECTURE_TEMPLATE_PATH, unwrapFromConfigMapTemplate, wrapAsConfigMapTemplate } from '../../pages/BlueprintComposer/architecture'
-import { graphBlockIn } from '../../pages/BlueprintComposer/graphCompile'
-import { startChart } from '../../pages/BlueprintComposer/startChart'
+import { ARCHITECTURE_TEMPLATE_PATH, unwrapFromConfigMapTemplate, wrapAsConfigMapTemplate } from '../../pages/BlueprintBuilder/architecture'
+import { graphBlockIn } from '../../pages/BlueprintBuilder/graphCompile'
+import { startChart } from '../../pages/BlueprintBuilder/startChart'
 
 import { lintBlueprintDraft } from './blueprintDraft'
 import { createBlueprintDraftStore } from './blueprintDraftStore'
@@ -89,7 +89,7 @@ describe('the held chart\'s graph block is regenerated on every write', () => {
     expect(lintBlueprintDraft(held(store), 'blueprint')).toEqual([])
   })
 
-  it('a file the composer adds, and a removal, are writes too', () => {
+  it('a file the builder adds, and a removal, are writes too', () => {
     const chart = started()
     const store = createBlueprintDraftStore()
     const { [ARCHITECTURE_TEMPLATE_PATH]: file, ...rest } = chart
@@ -105,7 +105,7 @@ describe('the held chart\'s graph block is regenerated on every write', () => {
     expect(held(store)[ARCHITECTURE_TEMPLATE_PATH]).toContain('"chart" "probe-chart"')
   })
 
-  it('a PAGE set is held exactly as given — it has no architecture file of the composer\'s to keep', () => {
+  it('a PAGE set is held exactly as given — it has no architecture file of the builder\'s to keep', () => {
     const typed = withSettingsNode(started()[ARCHITECTURE_TEMPLATE_PATH])
     const store = createBlueprintDraftStore()
     store.set({ [ARCHITECTURE_TEMPLATE_PATH]: typed, 'Chart.yaml': 'apiVersion: v2\nname: page-x\nversion: CHART_VERSION\n' }, 'page')

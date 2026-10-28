@@ -33,7 +33,7 @@ import {
   treeHash,
   type DraftRecordBody,
 } from '../components/Autopilot/draftRecord'
-import { isDraftRecordName, readDraftRecordByName, restoredBannerCopy, wrongComposerMessage } from '../components/Autopilot/draftResume'
+import { isDraftRecordName, readDraftRecordByName, restoredBannerCopy, wrongBuilderMessage } from '../components/Autopilot/draftResume'
 import { closeDraftCopy } from '../components/Autopilot/DraftSaveIndicator'
 import { draftSaveStatus } from '../components/Autopilot/draftSaveStatus'
 import { claimPreviewSurface, previewSurfaceClaimed } from '../components/Autopilot/previewDraftChanged'
@@ -218,8 +218,8 @@ describe('Resume and Discard, for a controller', () => {
     expect(read).toMatchObject({ ok: true, record: { kind: 'controller', name: 'github-provider' } })
   })
 
-  it('opened in another composer, it says where it resumes — by the Controller Builder\'s label', () => {
-    expect(wrongComposerMessage(record())).toBe('github-provider is a controller draft — resume it from the Controller Builder, at /controller-builder/compose.')
+  it('opened in another builder, it says where it resumes — by the Controller Builder\'s label', () => {
+    expect(wrongBuilderMessage(record())).toBe('github-provider is a controller draft — resume it from the Controller Builder, at /controller-builder/compose.')
     expect(restoredBannerCopy({ everPreviewed: false, kind: 'controller', previewed: false, relinked: false, updatedAt: NOW.toISOString() }, NOW).body)
       .toBe('The controller is exactly as you left it, and Undo starts here. It has not been previewed yet, so preview it before publishing.')
   })
@@ -292,7 +292,7 @@ describe('Resume and Discard, for a controller', () => {
     expect(closeDraftCopy('page').kept).toBe('Close this draft? It stays saved in your drafts; only its sandbox preview is removed.')
   })
 
-  it('a composer claims the preview surface for controllers, by kind, like the others', () => {
+  it('a builder claims the preview surface for controllers, by kind, like the others', () => {
     expect(previewSurfaceClaimed('controller')).toBe(false)
     const release = claimPreviewSurface('controller')
     expect(previewSurfaceClaimed('controller')).toBe(true)

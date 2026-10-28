@@ -6,9 +6,9 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { applyPlan, editDescriptor, edgeChart } from '../../pages/BlueprintComposer/__fixtures__/s4b'
-import { GATE_BEGIN } from '../../pages/BlueprintComposer/gateGen'
-import { gateDrift, planEdge, regenerateGates } from '../../pages/BlueprintComposer/planEdge'
+import { applyPlan, editDescriptor, edgeChart } from '../../pages/BlueprintBuilder/__fixtures__/s4b'
+import { GATE_BEGIN } from '../../pages/BlueprintBuilder/gateGen'
+import { gateDrift, planEdge, regenerateGates } from '../../pages/BlueprintBuilder/planEdge'
 
 import { lintHeldDraft, parseProposedChart } from './proposedChart'
 
@@ -60,7 +60,7 @@ describe('declared-vs-gated drift in a held chart', () => {
     return { ...chart, [PR]: bare[PR] }
   }
 
-  it('finds none in a chart the composer wrote — every fixture, as built', () => {
+  it('finds none in a chart the builder wrote — every fixture, as built', () => {
     expect(gateDrift(edgeChart())).toEqual([])
     expect(lintHeldDraft(edgeChart(), 'blueprint')).toEqual([])
   })

@@ -7,9 +7,9 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { applyPlan, edgeChart } from '../../pages/BlueprintComposer/__fixtures__/s4b'
-import { GATE_BEGIN } from '../../pages/BlueprintComposer/gateGen'
-import { planEdge } from '../../pages/BlueprintComposer/planEdge'
+import { applyPlan, edgeChart } from '../../pages/BlueprintBuilder/__fixtures__/s4b'
+import { GATE_BEGIN } from '../../pages/BlueprintBuilder/gateGen'
+import { planEdge } from '../../pages/BlueprintBuilder/planEdge'
 
 import { createBlueprintDraftStore, type BlueprintDraftStore } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
@@ -88,7 +88,7 @@ describe('chartPut', () => {
     expect(store.get()?.files[PR]).toBe(gated[PR])
   })
 
-  it('refuses a path the composer would not key, and the file the portal writes at publish', () => {
+  it('refuses a path the builder would not key, and the file the portal writes at publish', () => {
     mount(edgeChart())
     expect(run({ content: 'x', path: '../etc/passwd', verb: 'chartPut' })).toMatch(/not a chart-relative path/)
     expect(run({ content: 'x', path: './values.yaml', verb: 'chartPut' })).toMatch(/not a chart-relative path/)

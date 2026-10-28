@@ -27,7 +27,7 @@ vi.mock('./publishTargetForm', async (importOriginal) => {
   return { ...actual, askPublishDestination: vi.fn(actual.askPublishDestination) }
 })
 
-import { startChart } from '../../pages/BlueprintComposer/startChart'
+import { startChart } from '../../pages/BlueprintBuilder/startChart'
 
 import { createBlueprintDraftStore } from './blueprintDraftStore'
 import { runDraftPublish, runPersonPublish, type PersonPublishDeps } from './publishDraft'

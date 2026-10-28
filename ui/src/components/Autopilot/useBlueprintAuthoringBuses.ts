@@ -12,7 +12,7 @@
  *     person's own credential. Never the direct render-service fallback the agent's verb keeps for old
  *     installs: that is a browser fetch outside /call, which builder surfaces must not make. A
  *     CONTROLLER renders the same way through its Builder's `controller-render-draft` (T9,
- *     frontend#413; pages/ControllerComposer/controllerRender.ts), and has no fallback at all.
+ *     frontend#413; pages/ControllerBuilder/controllerRender.ts), and has no fallback at all.
  *   - A controller START with no Kind placed renders nothing — there is nothing to generate yet — and
  *     says what to do next instead of sending an empty draft to be refused.
  *   - A render ARMS only on success, and only if the draft is still the one it rendered — an edit that
@@ -25,9 +25,9 @@ import { useCallback, useEffect } from 'react'
 
 import { findBuilderOf } from '../../builders/builderRegistry'
 import type { Config } from '../../context/ConfigContext'
-import { readController } from '../../pages/ControllerComposer/controllerChart'
-import { CONTROLLER_STARTED, controllerPreviewPayload } from '../../pages/ControllerComposer/controllerPreviewPayload'
-import { renderController } from '../../pages/ControllerComposer/controllerRender'
+import { readController } from '../../pages/ControllerBuilder/controllerChart'
+import { CONTROLLER_STARTED, controllerPreviewPayload } from '../../pages/ControllerBuilder/controllerPreviewPayload'
+import { renderController } from '../../pages/ControllerBuilder/controllerRender'
 
 import { draftDisplayName } from './blueprintDraft'
 import type { BlueprintDraftHeld, BlueprintDraftStore } from './blueprintDraftStore'

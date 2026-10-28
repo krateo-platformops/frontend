@@ -10,8 +10,8 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { ARCHITECTURE_TEMPLATE_PATH, unwrapFromConfigMapTemplate, wrapAsConfigMapTemplate } from '../../pages/BlueprintComposer/architecture'
-import { placedNameExpression } from '../../pages/BlueprintComposer/naming'
+import { ARCHITECTURE_TEMPLATE_PATH, unwrapFromConfigMapTemplate, wrapAsConfigMapTemplate } from '../../pages/BlueprintBuilder/architecture'
+import { placedNameExpression } from '../../pages/BlueprintBuilder/naming'
 
 import {
   buildFormPreviewModel,
@@ -371,7 +371,7 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
         // …and so does a hand edit to the block itself.
         expect(withArch(text.replace('"level" 1', '"level" 0'))).toContain('no longer matches data.architecture')
         // Both say how it comes back, in a way a person has: any save of the chart rewrites the block.
-        expect(withArch(handEdited)).toContain('the composer rewrites it whenever the chart is saved — in Chart files, by the composer or by Autopilot. Apply any edit in Chart files to have it rewritten, or Undo.')
+        expect(withArch(handEdited)).toContain('the builder rewrites it whenever the chart is saved — in Chart files, by the builder or by Autopilot. Apply any edit in Chart files to have it rewritten, or Undo.')
         expect(withArch(wrapAsConfigMapTemplate(unwrapFromConfigMapTemplate(handEdited)!, 'pg-app'))).toBe('')
       })
 

@@ -18,7 +18,7 @@
  */
 import { dump, load, loadAll } from 'js-yaml'
 
-import { previewLookupStubs, type LookupCall } from '../../pages/BlueprintComposer/previewStubs'
+import { previewLookupStubs, type LookupCall } from '../../pages/BlueprintBuilder/previewStubs'
 import { getAccessToken } from '../../utils/getAccessToken'
 
 import type { PortalActionProposal } from './actionBridge'
@@ -273,7 +273,7 @@ export const callHelmRender = async (renderBaseUrl: string, args: BlueprintPrevi
  * resolved `.status` — snowplow places a RESTAction's jq filter output DIRECTLY there (not
  * `.status.widgetData`, the widget shape). Never throws: a non-2xx or an unreachable snowplow is
  * `{error}`, named for the RESTAction. The render RESTActions (below) and the controller's
- * (pages/ControllerComposer/controllerRender.ts) share it.
+ * (pages/ControllerBuilder/controllerRender.ts) share it.
  */
 export const callRestActionStatus = async (
   snowplowBaseUrl: string,

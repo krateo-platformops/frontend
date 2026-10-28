@@ -28,13 +28,13 @@ import { builderRegistry, buildersStatus, subscribeBuilders } from '../builderRe
 import type { Builder, BuilderSpec } from '../builderSpec'
 import { resolvePlugin } from '../pluginRegistry'
 
-import ComposerHost from './ComposerHost'
+import BuilderHost from './BuilderHost'
 
 /** The id prefix of a builder route — how the shell tells one from the portal's own. */
 export const BUILDER_ROUTE_ID = 'builder:'
 
 /** Every slot the composer draws names a plugin whose code is not shipped yet. */
-export const composerPending = (spec: BuilderSpec): boolean =>
+export const builderPending = (spec: BuilderSpec): boolean =>
   ([['palette', spec.palette.plugin], ['canvas', spec.canvas.plugin], ['inspector', spec.inspector.plugin]] as const)
     .every(([slot, name]) => {
       const resolved = resolvePlugin(slot, name)
@@ -66,7 +66,7 @@ export const BuilderRouteHost = ({ name }: { name: string }) => {
       {lastError
         ? <Alert banner showIcon title={`The Builders could not be read again from the cluster: ${lastError} The ones read earlier are still in use.`} type='warning' />
         : null}
-      <ComposerHost builder={builder} name={name} />
+      <BuilderHost builder={builder} name={name} />
     </>
   )
 }
@@ -76,7 +76,7 @@ export const builderRoutesSignature = (routes: readonly RouteObject[]): string =
   routes.map((route) => `${route.id ?? ''}@${route.path ?? ''}`).sort().join('|')
 
 export const builderRoutes = (reserved: readonly string[] = []): RouteObject[] => builderRegistry.all()
-  .filter((builder) => !composerPending(builder.spec) && unambiguous(builder) && !reserved.includes(builder.spec.route))
+  .filter((builder) => !builderPending(builder.spec) && unambiguous(builder) && !reserved.includes(builder.spec.route))
   .map((builder) => ({
     element: <BuilderRouteHost key={builder.metadata.name} name={builder.metadata.name} />,
     id: `${BUILDER_ROUTE_ID}${builder.metadata.name}`,

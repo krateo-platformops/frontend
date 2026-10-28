@@ -113,12 +113,12 @@ describe('a refusal is held for the next turn', () => {
     expect(held?.[held.length - 1].tried).toContain('g')
   })
 
-  it('records a TIMEOUT too — "no composer is open" is a correction the model can act on', async () => {
+  it('records a TIMEOUT too — "no builder is open" is a correction the model can act on', async () => {
     vi.useFakeTimers()
     const pending = requestCompose({ op: 'move', target: 'page-x', widget: 'card-b' })
     await vi.advanceTimersByTimeAsync(4000)
     await pending
-    expect(getComposeRefusals()?.[0].reason).toMatch(/no page composer is open/i)
+    expect(getComposeRefusals()?.[0].reason).toMatch(/no page builder is open/i)
   })
 })
 

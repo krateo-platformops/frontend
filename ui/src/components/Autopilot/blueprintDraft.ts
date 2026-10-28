@@ -30,11 +30,11 @@ import {
   regenerateGraphBlock,
   unwrapFromConfigMapTemplate,
   type ChartArchitecture,
-} from '../../pages/BlueprintComposer/architecture'
-import { chartIdentityProblems, chartNameProblem } from '../../pages/BlueprintComposer/chartIdentity'
-import { extractNameExpression } from '../../pages/BlueprintComposer/gateExtract'
-import { graphBlockIn } from '../../pages/BlueprintComposer/graphCompile'
-import { itemNamesMeet, readPlacedName } from '../../pages/BlueprintComposer/naming'
+} from '../../pages/BlueprintBuilder/architecture'
+import { chartIdentityProblems, chartNameProblem } from '../../pages/BlueprintBuilder/chartIdentity'
+import { extractNameExpression } from '../../pages/BlueprintBuilder/gateExtract'
+import { graphBlockIn } from '../../pages/BlueprintBuilder/graphCompile'
+import { itemNamesMeet, readPlacedName } from '../../pages/BlueprintBuilder/naming'
 
 import type { DraftKind } from './blueprintDraftStore'
 import { OAS_ATTACHMENT_MAX_BYTES, utf8ByteLength } from './oasAttachment'
@@ -472,7 +472,7 @@ const descriptorNameProblems = (arch: ChartArchitecture, files: Record<string, s
  * Every write to a held chart regenerates the block (regenerateArchitecture), so this is the backstop
  * for bytes that reached a draft some other way — and the way out it names is one a person has.
  */
-const REGENERATE = 'The block is compiled from data.architecture and never written by hand: the composer rewrites it whenever the chart is saved — in Chart files, by the composer or by Autopilot. Apply any edit in Chart files to have it rewritten, or Undo.'
+const REGENERATE = 'The block is compiled from data.architecture and never written by hand: the builder rewrites it whenever the chart is saved — in Chart files, by the builder or by Autopilot. Apply any edit in Chart files to have it rewritten, or Undo.'
 
 /**
  * The chart name and the graph block (L2, L3). The label and `graph.chart` carry Chart.yaml's name,
@@ -507,7 +507,7 @@ const lintDescriptor = (files: Record<string, string>): string[] => {
   }
   const descriptor = unwrapFromConfigMapTemplate(text)
   if (descriptor === null) {
-    return [`${ARCHITECTURE_TEMPLATE_PATH} does not carry the descriptor in data.architecture — the composer and the composition detail page read it from there.`]
+    return [`${ARCHITECTURE_TEMPLATE_PATH} does not carry the descriptor in data.architecture — the builder and the composition detail page read it from there.`]
   }
   // This lint runs INSIDE the draft broadcast and the gate's change listener, so it must never
   // throw: a throw there escapes the store write after the tree is replaced, before anything can

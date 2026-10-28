@@ -56,9 +56,9 @@ import {
   planToggleConfigurationField,
   planToggleField,
   readController,
-} from '../../pages/ControllerComposer/controllerChart'
-import { readSpec, readSpecUrl, serverRewriteSentence, startController, type StartControllerInput } from '../../pages/ControllerComposer/controllerStart'
-import { type RestAction, VERB_ORDER } from '../../pages/ControllerComposer/operationMapping'
+} from '../../pages/ControllerBuilder/controllerChart'
+import { readSpec, readSpecUrl, serverRewriteSentence, startController, type StartControllerInput } from '../../pages/ControllerBuilder/controllerStart'
+import { type RestAction, VERB_ORDER } from '../../pages/ControllerBuilder/operationMapping'
 
 import type { PortalActionProposal } from './actionBridge'
 import { draftDisplayName } from './blueprintDraft'
@@ -402,7 +402,7 @@ const removeVerb = (proposal: PortalActionProposal): AutopilotActionChip => {
   const kind = kindNamed(held.model, proposal.kind)
   if (typeof kind === 'string') { return refuse(verb, tried, kind) }
   if (held.locked?.[kind.path]) {
-    return refuse(verb, tried, `${kind.kind} was published — removing it would delete every ${kind.kind} it serves once the release installs; only the person can decide that, in the composer`)
+    return refuse(verb, tried, `${kind.kind} was published — removing it would delete every ${kind.kind} it serves once the release installs; only the person can decide that, in the builder`)
   }
   return writePlan(verb, tried, planRemoveKind(held.files, kind.path), `Removed ${kind.kind} (${kind.path}); its resource group ${kind.group} can be placed again`)
 }
