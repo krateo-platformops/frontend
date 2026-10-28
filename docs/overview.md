@@ -15,7 +15,7 @@ frontend serves the **Krateo Composable Portal** — the web UI of Krateo Platfo
 is deliberately thin: a static React SPA behind nginx that holds **no product state and
 no product pages**. Everything a user sees — the app shell, the sidebar, every route and
 every page — is described by **`Widget` custom resources** in the cluster
-(`widgets.templates.krateo.io/v1beta1`, 43 kinds — buttons, tables, forms, charts,
+(`widgets.templates.krateo.io/v1beta1`, 45 kinds — buttons, tables, forms, charts,
 layout containers…). snowplow resolves those CRs into render-ready JSON under the
 caller's own RBAC; the SPA fetches a widget, looks up the React component for its
 `kind`, and renders it. Building portal UI therefore means **applying CRs, not shipping
@@ -62,7 +62,7 @@ are the code-adjacent corpus: [ui/docs/architecture.md](../ui/docs/architecture.
 |---|---|---|
 | image | the SPA + nginx | `ghcr.io/krateo-platformops/frontend:X.Y.Z` (built from `ui/`) |
 | `frontend` chart | Deployment + Service + the `config.json`/env ConfigMaps (+ optional ingress, HPA, preview sandbox) | `oci://ghcr.io/krateo-platformops/charts/frontend:X.Y.Z` (`helm/frontend/`) |
-| `frontend-crds` chart | the 43 widget CRDs | `oci://ghcr.io/krateo-platformops/charts/frontend-crds:X.Y.Z` (`helm/frontend-crds/`) |
+| `frontend-crds` chart | the 45 widget CRDs | `oci://ghcr.io/krateo-platformops/charts/frontend-crds:X.Y.Z` (`helm/frontend-crds/`) |
 
 Widget CRDs are **generated** from each widget's `schema.json` (via krateoctl), so a
 widget's cluster schema and its renderer come from the same source tree — see

@@ -32,7 +32,7 @@ const KNOWN_KINDS = [
   'BarChart', 'Button', 'ButtonGroup', 'Card', 'Col',
   'Filters', 'Flex', 'FlowChart', 'Form', 'LineChart', 'Listy', 'Markdown',
   'Menu', 'Paragraph', 'PieChart', 'Row',
-  'Table', 'Tabs', 'YamlViewer',
+  'Table', 'Tabs', 'Timeline', 'YamlViewer',
 ]
 
 /**

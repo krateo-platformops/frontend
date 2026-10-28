@@ -41,6 +41,17 @@ const CASES: Record<string, number[]> = {
   Switch: [0],
   Table: [3],
   Tag: [0, 1],
+  // Docs 0 and 1: the plain vertical rail, then colours + icons + a `loading` node. The loading
+  // node is safe to pin because the config screenshots with `animations: 'disabled'`, so the
+  // spinner is frozen rather than caught mid-rotation.
+  //
+  // NOT doc 2, and not because it is redundant: it is `mode: alternate` with an INLINE CHILD
+  // WIDGET, and this spec mocks nothing (layout.spec.ts is the one that `page.route`s widget
+  // refs). So the referenced markdown cannot resolve here and the node renders without it — the
+  // picture would contradict the example's own stated expectation, "the second node shows the
+  // referenced markdown widget under its text", and pin a half-rendered example as correct.
+  // Screenshot it when this spec can serve a ref, not before.
+  Timeline: [0, 1],
   YamlViewer: [3],
 }
 

@@ -1,7 +1,7 @@
 ---
 type: Component
 title: frontend — index
-description: The map of the frontend doc bundle — the Krateo Composable Portal SPA, its two Helm charts and the 43 widget CRDs, plus the code-adjacent internals corpus under ui/docs/.
+description: The map of the frontend doc bundle — the Krateo Composable Portal SPA, its two Helm charts and the 45 widget CRDs, plus the code-adjacent internals corpus under ui/docs/.
 resource: oci://ghcr.io/krateo-platformops/charts/frontend
 tags: [portal, frontend, widgets]
 timestamp: 2026-08-07T00:00:00Z
@@ -13,7 +13,7 @@ frontend is the **Krateo Composable Portal**: a server-driven React SPA that ren
 hardcoded pages — the shell, navigation and every page are `Widget` custom resources,
 resolved into JSON by snowplow and mapped to React components at runtime. This monorepo
 carries the app (`ui/`), its Helm charts (`helm/frontend/`, `helm/frontend-crds/` — the
-43 widget CRDs) and one version line: image and charts ship together from a single
+45 widget CRDs) and one version line: image and charts ship together from a single
 plain-semver tag.
 
 ## The bundle (start here)
@@ -24,7 +24,7 @@ plain-semver tag.
   `helm install oci://…`; local render recipe; local development and the examples portal.
 - [configuration](./configuration.md) — the whole config surface: chart values, the
   rendered `config.json` contract, nginx/port wiring, the preview sandbox.
-- [api](./api.md) — the contract it exposes: the 43 widget CRDs and the widget spec
+- [api](./api.md) — the contract it exposes: the 45 widget CRDs and the widget spec
   model; what HTTP surface the container serves.
 - [examples](./examples.md) — the runnable examples under `examples/`.
 - [release](./release.md) — how a release ships (tag → image + both charts on GHCR) and
@@ -49,7 +49,7 @@ traced to `file:line` at the tag that matches the running build:
 - [widget-authoring](../ui/docs/widget-authoring.md) — how an antd component becomes a
   widget (schema → types → CRD; scaffolding; fidelity rules).
 - [widgets-api-reference](../ui/docs/widgets-api-reference.md) — the generated
-  per-widget reference (all 43 kinds).
+  per-widget reference (all 45 kinds).
 - [the widget concept](../ui/docs/docs.md) — widgetData, widgetDataTemplate, actions,
   resourcesRefs and templates.
 - [form-values](../ui/docs/form-values.md) — Form initialValues semantics;

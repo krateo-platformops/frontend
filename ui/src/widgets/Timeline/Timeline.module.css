@@ -1,0 +1,6 @@
+/* A child widget sits inside an item's content, which antd aligns toward the rail — so on the
+   start side of an `alternate` (or `end`) timeline it inherits `text-align: end`, and a nested
+   Markdown or Paragraph renders right-aligned. The child lays itself out from a neutral start. */
+.child {
+  text-align: start;
+}

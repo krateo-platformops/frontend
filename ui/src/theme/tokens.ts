@@ -487,6 +487,13 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   Table: { borderColor: palette.border, borderRadiusLG: radius.lg, cellPaddingBlock: 16, cellPaddingBlockSM: 8, headerBg: palette.lightgray, headerBorderRadius: radius.lg, headerColor: palette.gray, rowHoverBg: palette.light },
   Tabs: { horizontalItemGutter: 24 },
   Tag: { borderRadiusSM: radius.sm },
+  // T2: Timeline item rhythm and rail. antd 6 derives `itemPaddingBottom` as `padding * 1.25`
+  // (timeline/style/index.js), so it lands OFF the spacing scale whatever padding resolves to —
+  // 20 from antd's 16, 15 from a compacted 12. Pinning it to md puts the gap between items on the
+  // scale and makes it ours to move. `tailColor` defaults to antd's translucent `colorSplit`;
+  // taking the same border token Table's `borderColor` already takes means the rail reads as the
+  // same divider as every other one, in both modes, instead of a second kind of hairline.
+  Timeline: { itemPaddingBottom: spacing.md, tailColor: palette.border },
   // T3: antd's headings were all off the one type scale (compacted: 32/26/20/16/14). A page title
   // rendered at 32px from PageHeader or `level: 1`, and at 26px from a strong Paragraph — one role,
   // two sizes, neither on the scale. One role, one size: a page title is h2 (30), and the lower
