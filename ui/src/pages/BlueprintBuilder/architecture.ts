@@ -546,7 +546,7 @@ export const graphBlockFor = (descriptor: string, chart: string): string | null 
  * NAMED FOR THE COMPOSITION, `<compositionName>-architecture`, so the detail page can compute the
  * name from the composition it is showing. The release name cannot be computed there: CDC hashes it
  * whenever `safe-release-name` is on (its default). `compositionName` is in the `global` block CDC
- * adds to every render; `helm template` and the composer's Preview have none, and fall back to the
+ * adds to every render; `helm template` and the builder's Preview have none, and fall back to the
  * release name. No `trunc`: CDC caps the composition name at 63 characters (it is a label value),
  * so the whole name stays far below the 253 a ConfigMap may have.
  *
@@ -567,7 +567,7 @@ export const wrapAsConfigMapTemplate = (descriptor: string, chart: string): stri
   const graph = graphBlockFor(descriptor, chart)
   return [
     '{{- /* Rendered per composition so the detail page can read the chart architecture through',
-    "       snowplow /call under the caller's own RBAC. Edit data.architecture; the composer owns the rest. */}}",
+    "       snowplow /call under the caller's own RBAC. Edit data.architecture; the builder owns the rest. */}}",
     '{{- $g := .Values.global | default dict }}',
     'apiVersion: v1',
     'kind: ConfigMap',
@@ -640,7 +640,7 @@ export const regenerateGraphBlock = (template: string, chart: string | null): st
  * The inverse of `unwrapFromConfigMapTemplate`, for a template that is ALREADY in the chart: the
  * `data.architecture` block replaced by `descriptor`, and every other byte of the file kept.
  *
- * NOT `wrapAsConfigMapTemplate` again. The wrapper is the composer's, but the file is the author's
+ * NOT `wrapAsConfigMapTemplate` again. The wrapper is the builder's, but the file is the author's
  * once it is held: a label added, a comment above the ConfigMap, a second key under `data` — any of
  * them would be thrown away by writing the wrapper fresh on every placement. The block is exactly
  * the lines `unwrap` reads — the header, then every line indented four spaces or blank, up to the

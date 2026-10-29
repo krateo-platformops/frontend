@@ -526,7 +526,7 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a cha
                                       "the"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
-                                      "composer"
+                                      "builder"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
                                       "owns"
@@ -2879,7 +2879,7 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a fre
                                       "the"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
-                                      "composer"
+                                      "builder"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
                                       "owns"
@@ -3783,7 +3783,7 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                                       "the"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
-                                      "composer"
+                                      "builder"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
                                       "owns"
@@ -4704,7 +4704,7 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                                       "the"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
-                                      "composer"
+                                      "builder"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
                                       "owns"
@@ -5613,7 +5613,7 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                                       "the"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
-                                      "composer"
+                                      "builder"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
                                       "owns"
@@ -6518,7 +6518,7 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                                       "the"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
-                                      "composer"
+                                      "builder"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
                                       "owns"
@@ -7445,7 +7445,7 @@ exports[`Blueprint Builder — a chart held BEFORE it mounts (review of #427) > 
                                       "the"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
-                                      "composer"
+                                      "builder"
                                     <span>
                                     <span style="color: rgb(66, 134, 244);">
                                       "owns"
