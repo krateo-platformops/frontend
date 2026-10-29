@@ -25,7 +25,16 @@ import { step, type StepResult } from '../envelope'
 import { HttpError } from '../http'
 import type { GateContext } from '../plan'
 import { CAPABILITY_RESOLVE, type SnowplowReply, STAGE_ABORTED_REASON, STAGE_NOT_EXECUTED_MESSAGE, STAGE_NOT_EXECUTED_REASON, STAGE_NOT_RUN_REASON, STAGE_OUTCOMES, STAGE_REASONS, STAGE_SKIPPED_REASON, stageOutcomesOf } from '../snowplow'
-import { isRestAction, labelOf, rec, type Rec, str } from './drafts'
+import { isRestAction, labelOf, nameOf, rec, type Rec, str } from './drafts'
+
+/**
+ * The step, plus each RESTAction's resolved output BY NAME — what the shape step (shape.ts)
+ * resolves widget expressions against. Already stripped of anything Secret-shaped.
+ */
+export interface DataStepResult {
+  step: StepResult
+  outputs: Map<string, unknown>
+}
 
 const SAMPLE_CHARS = 1_200
 const PER_CALL_MS = 20_000
@@ -233,24 +242,26 @@ export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers
   return { failures, byDesign }
 }
 
-export const dataStep = async (drafts: readonly Rec[], ctx: GateContext): Promise<StepResult> => {
+export const dataStep = async (drafts: readonly Rec[], ctx: GateContext): Promise<DataStepResult> => {
+  // Keyed by RESTAction NAME: that is what a widget's spec.apiRef names (references.ts).
+  const outputs = new Map<string, unknown>()
   if (!ctx.live) {
-    return step('data', [], ['DISABLED: offline run (--offline) — no data was resolved'])
+    return { outputs, step: step('data', [], ['DISABLED: offline run (--offline) — no data was resolved']) }
   }
   const restActions = drafts.map((cr, index) => ({ cr, index })).filter(({ cr }) => isRestAction(cr))
   if (restActions.length === 0) {
-    return step('data', [], ['no RESTAction in the draft — nothing to resolve'])
+    return { outputs, step: step('data', [], ['no RESTAction in the draft — nothing to resolve']) }
   }
   const snowplow = ctx.snowplow
   if (!snowplow) {
-    return step('data', [`notChecked: ${ctx.snowplowMissing ?? 'no snowplow'} — the gate resolves data only through snowplow, as the caller`])
+    return { outputs, step: step('data', [`notChecked: ${ctx.snowplowMissing ?? 'no snowplow'} — the gate resolves data only through snowplow, as the caller`]) }
   }
   const capabilities = await snowplow.capabilities(PER_CALL_MS)
   if (!capabilities.ok) {
-    return step('data', [`notChecked: ${capabilities.reason}`])
+    return { outputs, step: step('data', [`notChecked: ${capabilities.reason}`]) }
   }
   if (!capabilities.offered.has(CAPABILITY_RESOLVE)) {
-    return step('data', [`live verdict missing: this snowplow cannot yet resolve a RESTAction without storing it (${CAPABILITY_RESOLVE}; snowplow 1.12.36, docs/snowplow-contract.md) — no RESTAction in the draft was run`])
+    return { outputs, step: step('data', [`live verdict missing: this snowplow cannot yet resolve a RESTAction without storing it (${CAPABILITY_RESOLVE}; snowplow 1.12.36, docs/snowplow-contract.md) — no RESTAction in the draft was run`]) }
   }
 
   const problems: string[] = []
@@ -279,9 +290,14 @@ export const dataStep = async (drafts: readonly Rec[], ctx: GateContext): Promis
         notes.push(`${label}: ${dropped} Secret-shaped object(s) dropped from the output before it reached this envelope`)
       }
       notes.push(`${label}: yields ${describe(output)}; sample ${sample(output)}`)
+      // The SANITISED output — the shape step must never see what this step dropped.
+      const raName = nameOf(cr)
+      if (raName) {
+        outputs.set(raName, output)
+      }
     } catch (error) {
       problems.push(`${label}: ${error instanceof HttpError ? `notChecked: snowplow could not be reached (${error.message})` : (error as Error).message}`)
     }
   }
-  return step('data', problems, notes)
+  return { outputs, step: step('data', problems, notes) }
 }
