@@ -8,6 +8,7 @@ import type { ReactElement } from 'react'
 import { isSecretArrayNode, isSecretSchemaNode } from '../../utils/secretFields'
 
 import styles from './Form.module.css'
+import { fieldLabel, itemCountRules, rulesFor } from './schemaRules'
 import type { SuggestionGroup } from './utils'
 import { getOptionsFromEnum, getSuggestionGroups, suggestionSearchText } from './utils'
 
@@ -17,7 +18,7 @@ import { getOptionsFromEnum, getSuggestionGroups, suggestionSearchText } from '.
  * array). antd injects `value`/`onChange`: the value stays a real object/array — edited as
  * JSON — so it is submitted correctly and never rendered as the string "[object Object]".
  */
-const JsonValueInput = ({ onChange, value }: { onChange?: (next: unknown) => void; value?: unknown }): React.ReactNode => {
+const JsonValueInput = ({ id, onChange, value }: { id?: string; onChange?: (next: unknown) => void; value?: unknown }): React.ReactNode => {
   const [text, setText] = useState<string>(() => (value === undefined || value === null ? '' : JSON.stringify(value, null, 2)))
   const [invalid, setInvalid] = useState(false)
 
@@ -41,6 +42,7 @@ const JsonValueInput = ({ onChange, value }: { onChange?: (next: unknown) => voi
   return (
     <Input.TextArea
       autoSize={{ maxRows: 12, minRows: 2 }}
+      id={id}
       onChange={handleChange}
       placeholder='{ } — JSON (key/value map)'
       status={invalid ? 'error' : undefined}
@@ -200,6 +202,16 @@ const isTypedMap = (node: JSONSchema4): boolean => {
     && typeof values.type === 'string' && values.type !== 'object' && values.type !== 'array'
 }
 
+/**
+ * A node with no `type` that still says it holds an object — `x-kubernetes-preserve-unknown-fields`
+ * or `additionalProperties` alone, the way a CRD types an open `extras` map. It used to fall
+ * through to the text input, so `{"tier":"gold"}` was submitted as that STRING. (A typeless
+ * `x-kubernetes-int-or-string` stays a text input: its value is a scalar.)
+ */
+const isUntypedObject = (node: JSONSchema4): boolean =>
+  node.type === undefined && (node['x-kubernetes-preserve-unknown-fields'] === true
+    || node.additionalProperties === true || typeof node.additionalProperties === 'object')
+
 /** Renders an antd form control for a single schema node (the schema-driven control). */
 const controlFor = (node: JSONSchema4): React.ReactNode => {
   // A SECRET (`format: password` / `writeOnly: true`) is checked FIRST: whatever else the node
@@ -282,7 +294,7 @@ const controlFor = (node: JSONSchema4): React.ReactNode => {
   if (isTypedMap(node)) {
     return <MapRowsInput valueSchema={node.additionalProperties as JSONSchema4} />
   }
-  if (node.type === 'object' || node.type === 'array') { return <JsonValueInput /> }
+  if (node.type === 'object' || node.type === 'array' || isUntypedObject(node)) { return <JsonValueInput /> }
   return <Input />
 }
 
@@ -310,7 +322,7 @@ const isObjectList = (node: JSONSchema4): boolean =>
  */
 const fieldHeader = (key: string, node: JSONSchema4, isRequired: boolean): React.ReactNode => {
   const description = typeof node.description === 'string' ? node.description : ''
-  const label = typeof node.title === 'string' && node.title.trim() ? node.title : key
+  const label = fieldLabel(key, node)
   return (
     <span className={styles.fieldLabel}>
       <span className={styles.fieldName}>
@@ -345,7 +357,7 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
 
   if (isObjectList(node)) {
     const itemSchema = node.items as JSONSchema4
-    const label = typeof node.title === 'string' && node.title.trim() ? node.title : key
+    const label = fieldLabel(key, node)
     return (
       <div className={styles.group} key={path.join('.')}>
         {fieldHeader(key, node, isRequired)}
@@ -357,9 +369,12 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
             name={path}
             // A required list keeps the rule the JSON editor had: something must be in it. A
             // form that submits without validating (the composer's create form) is unaffected.
-            rules={isRequired
-              ? [{ validator: (_rule, rows?: unknown[]) => (rows?.length ? Promise.resolve() : Promise.reject(new Error(`${key} is required`))) }]
-              : undefined}
+            rules={[
+              ...(isRequired
+                ? [{ validator: (_rule: unknown, rows: unknown) => (Array.isArray(rows) && rows.length ? Promise.resolve() : Promise.reject(new Error(`${label} is required`))) }]
+                : []),
+              ...itemCountRules(label, node),
+            ]}
           >
             {(fields, { add, remove }, { errors }) => (
               <div className={styles.listRows}>
@@ -412,7 +427,7 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
       label={fieldHeader(key, node, isRequired)}
       labelCol={{ span: 24 }}
       name={path}
-      rules={isRequired ? [{ message: `${key} is required`, required: true }] : undefined}
+      rules={rulesFor(key, node, isRequired)}
       valuePropName={node.type === 'boolean' ? 'checked' : undefined}
       wrapperCol={{ span: 24 }}
     >

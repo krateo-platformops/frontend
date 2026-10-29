@@ -421,7 +421,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                                         <div class="ant-col ant-col-24 ant-form-item-control css-dev-only-do-not-override-12q6fii css-var-id1">
                                           <div class="ant-form-item-control-input">
                                             <div class="ant-form-item-control-input-content">
-                                              <textarea class="ant-input css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var ant-input-disabled" disabled="" placeholder="{ } — JSON (key/value map)" style="font-family: var(--font-mono, monospace); overflow-y: hidden; resize: none;">
+                                              <textarea class="ant-input css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var ant-input-disabled" disabled="" id="id19" placeholder="{ } — JSON (key/value map)" style="font-family: var(--font-mono, monospace); overflow-y: hidden; resize: none;">
                     <div aria-hidden="true" aria-labelledby="id6" class="ant-tabs-content ant-tabs-content-hidden" id="id7" role="tabpanel" tabindex="-1">
                       <div class="_body_7a73aa">
                         <div id="id20">
