@@ -7,7 +7,9 @@ import type { ReactElement } from 'react'
 
 import { isSecretArrayNode, isSecretSchemaNode } from '../../utils/secretFields'
 
+import { getFieldOptionsSpec } from './fieldOptions'
 import styles from './Form.module.css'
+import { OptionsInput } from './OptionsInput'
 import { fieldLabel, itemCountRules, rulesFor } from './schemaRules'
 import type { SuggestionGroup } from './utils'
 import { getOptionsFromEnum, getSuggestionGroups, suggestionSearchText } from './utils'
@@ -229,7 +231,15 @@ const controlFor = (node: JSONSchema4): React.ReactNode => {
     return <MapRowsInput valueSchema={{ format: 'password', type: 'string' }} />
   }
 
-  // SUGGESTIONS BEFORE EVERYTHING ELSE, and deliberately so: they are an OPEN catalogue, so the
+  // Options a RESTAction returns at runtime (`x-krateo-options`). Before the static suggestions
+  // and `enum`: a node carrying both means the author added a live source to a list that used
+  // to be fixed, and the live one is the one meant.
+  const optionsSpec = getFieldOptionsSpec(node)
+  if (optionsSpec) {
+    return <OptionsInput node={node} spec={optionsSpec} />
+  }
+
+  // SUGGESTIONS BEFORE `enum`, and deliberately so: they are an OPEN catalogue, so the
   // control they produce must still accept a value that is not in the list. A node may carry
   // both `enum` and suggestions only by authoring mistake — `enum` would then silently win and
   // reject every hand-typed value, which is the exact failure suggestions exist to avoid.
