@@ -39,6 +39,13 @@ export interface FieldOptionsResult {
 }
 
 /**
+ * How long an options call may take. A source that is down can leave snowplow waiting on it far
+ * longer; past this the field reports a failed load — and, with `fallback: "manual"`, takes a
+ * typed value — instead of saying "Loading…" indefinitely.
+ */
+export const FIELD_OPTIONS_TIMEOUT_MS = 15_000
+
+/**
  * GET the RESTAction path snowplow resolved for the ref, with `extras` merged over any the path
  * already carries. Same auth contract as the widget queries: the user's Bearer token.
  */
@@ -54,7 +61,10 @@ export const fetchFieldOptions = async (baseUrl: string, path: string, extras: R
     }
     url.searchParams.set('extras', JSON.stringify({ ...base, ...extras }))
   }
-  const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${getAccessToken()}` } })
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${getAccessToken()}` },
+    signal: AbortSignal.timeout(FIELD_OPTIONS_TIMEOUT_MS),
+  })
   if (!res.ok) {
     throw new Error(`Field options fetch failed: ${res.status}`)
   }
