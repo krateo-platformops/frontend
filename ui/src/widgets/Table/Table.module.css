@@ -92,3 +92,19 @@
   text-transform: uppercase;
   white-space: normal;
 }
+
+/*
+ * Only present when the export control is (Table.tsx returns the bare table otherwise), so a
+ * table with no exportable column is laid out exactly as it was before the control existed.
+ */
+.withExport {
+  display: flex;
+  flex-direction: column;
+  gap: var(--krateo-space-xs, 4px);
+}
+
+/* Right-aligned above the table, matching where the Markdown widget puts its download button. */
+.exportBar {
+  display: flex;
+  justify-content: flex-end;
+}
