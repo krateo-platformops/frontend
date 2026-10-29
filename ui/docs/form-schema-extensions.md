@@ -4,7 +4,7 @@ title: frontend — Form schema extensions
 description: The x-krateo-* keywords a schema-driven Form reads on its fields — options loaded from a RESTAction (autocomplete, dependent fields), show/hide, list-row titles, the schema notice — what each renders, where the schema has to come from for them to survive, and the rules an options RESTAction must follow.
 resource: forms.widgets.templates.krateo.io
 tags: [widgets, form, schema, blueprints]
-timestamp: 2026-10-27T00:00:00Z
+timestamp: 2026-10-29T00:00:00Z
 ---
 
 # Form schema extensions
@@ -64,6 +64,7 @@ author wrote it:
 | `dependsOn.param` | the `extras` name the parent's value is sent under |
 | `search.param` | the `extras` name the typed text is sent under |
 | `search.minChars` | the shortest text that is sent (default 2) |
+| `fallback` | `"manual"`: a closed field whose options cannot be had takes a typed value (see *When the source is down*) |
 
 An array field picks several values (`multiple` when closed, `tags` when open).
 
@@ -86,11 +87,22 @@ values (`["eu", "us"]`). Anything else reads as a failed load.
 - A missing ref, or one snowplow resolved with `allowed: false`, disables the field and says
   why, with no call. A failed load says so under the field with a Retry. No toasts.
 
+**When the source is down.** A call that has not answered after 15 s is a failed load, never an
+endless "Loading…". An **open** field takes typed text whatever its source does, and says so
+("The options could not be loaded. You can type the value."). A **closed** field stays closed —
+an empty Select cannot be filled, so the form cannot be submitted while its source is down —
+unless it sets `"fallback": "manual"`: then a failed load, or a list loaded in full that comes
+back empty, turns it into a text input (a number input for a number, tags for an array), with
+Retry. That value is not checked against a list, since there is none; when the source answers
+again, a value not in its list is flagged as for any closed field, and the API server still
+validates what reaches it. A search that finds nothing is not a fallback case.
+
 **Refused** (the field is disabled with the reason, nothing is called): a secret as the parent
 (its value would travel in a URL, a log line and a cache key); `username`, `groups`,
 `displayName`, `email`, `sub` or `uid` as a `param` (the names a RESTAction reads the caller's
 identity from: snowplow does not strip request extras on the RESTAction path); a `dependsOn`
-cycle; `search.param` equal to `dependsOn.param`. A secret field never loads options.
+cycle; `search.param` equal to `dependsOn.param`; a `fallback` other than `"manual"`. A secret
+field never loads options.
 
 ### Where the refs come from
 

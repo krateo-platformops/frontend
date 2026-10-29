@@ -37,6 +37,14 @@ export interface FieldOptionsSpec {
    * filtered in the browser.
    */
   search?: { param: string; minChars: number }
+  /**
+   * `"manual"`: a CLOSED field whose options cannot be had — the source failed or timed out, or
+   * a list loaded in full came back empty — takes a typed value instead of blocking the form. The
+   * value is not checked against a list then (there is none); once the source answers again, a
+   * value not in its list is flagged as for any closed field. An open field always takes typed
+   * text, so this only changes closed ones.
+   */
+  fallback?: 'manual'
   /** why the extension cannot be used as written; the field is disabled and says so */
   problem?: string
 }
@@ -65,17 +73,19 @@ export const getFieldOptionsSpec = (node: JSONSchema4): FieldOptionsSpec | undef
   const raw = node[FIELD_OPTIONS_KEY] as unknown
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) { return undefined }
   if (isSecretSchemaNode(node) || isSecretArrayNode(node)) { return undefined }
-  const { closed, dependsOn: rawDependsOn, ref, search: rawSearch } = raw as { closed?: unknown; dependsOn?: unknown; ref?: unknown; search?: unknown }
+  const { closed, dependsOn: rawDependsOn, fallback, ref, search: rawSearch } = raw as { closed?: unknown; dependsOn?: unknown; fallback?: unknown; ref?: unknown; search?: unknown }
   if (typeof ref !== 'string' || !ref.trim()) { return undefined }
   const { dependsOn, problem: dependsOnProblem } = parseDependsOn(rawDependsOn)
   const { problem: searchProblem, search } = parseSearch(rawSearch)
   if (!dependsOnProblem && !searchProblem && search && dependsOn && search.param === dependsOn.param) {
     return { closed: closed === true, problem: `search.param and dependsOn.param are both "${search.param}"`, ref: ref.trim() }
   }
-  const problem = dependsOnProblem ?? searchProblem
+  const fallbackProblem = fallback === undefined || fallback === 'manual' ? undefined : 'fallback must be "manual"'
+  const problem = dependsOnProblem ?? searchProblem ?? fallbackProblem
   return {
     closed: closed === true,
     ref: ref.trim(),
+    ...(fallback === 'manual' ? { fallback: 'manual' as const } : {}),
     ...(dependsOn ? { dependsOn } : {}),
     ...(search ? { search } : {}),
     ...(problem ? { problem } : {}),

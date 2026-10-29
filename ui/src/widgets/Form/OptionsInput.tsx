@@ -1,4 +1,4 @@
-import { Form as AntdForm, AutoComplete, Button, Select } from 'antd'
+import { Form as AntdForm, AutoComplete, Button, Input, InputNumber, Select } from 'antd'
 import type { DefaultOptionType } from 'antd/es/select'
 import type { JSONSchema4 } from 'json-schema'
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
@@ -34,12 +34,13 @@ const filterOption = (input: string, option?: DefaultOptionType): boolean =>
   typeof option?.title === 'string' && option.title.includes(input.trim().toLowerCase())
 
 /** What the field says under the control when its options cannot be shown. */
-const noteFor = (state: FieldOptionsState | 'waiting', ref: string, parentLabel: string): string | undefined => {
+const noteFor = (state: FieldOptionsState | 'waiting' | 'empty', ref: string, parentLabel: string, typeable: boolean): string | undefined => {
   switch (state) {
     case 'waiting': return `Choose ${parentLabel} first.`
     case 'missing': return `This field's options are not configured (no source "${ref}" in the form).`
     case 'denied': return 'You do not have access to the options for this field.'
-    case 'error': return 'The options could not be loaded.'
+    case 'error': return typeable ? 'The options could not be loaded. You can type the value.' : 'The options could not be loaded.'
+    case 'empty': return 'No options are available right now. You can type the value.'
     default: return undefined
   }
 }
@@ -141,7 +142,13 @@ export const OptionsInput = ({ disabled, fieldPath = [], id, node, onChange, spe
   // A CLOSED list known in full (loaded at once, not searched) is what the field's value is
   // validated against; once it arrives, a value that came some other way and is not in it is
   // flagged right away rather than at submit.
-  const knownInFull = ready && spec.closed && !spec.search
+  // MANUAL FALLBACK (`fallback: "manual"`). A closed field whose source failed, timed out, or
+  // answered an empty list in full takes typed text instead of blocking the form: an empty
+  // Select cannot be filled. A search that finds nothing is not this — that list is not "in full".
+  const emptyInFull = ready && !spec.search && options.length === 0
+  const manual = spec.closed && spec.fallback === 'manual' && !unavailable && (state === 'error' || emptyInFull)
+
+  const knownInFull = ready && spec.closed && !spec.search && !manual
   useEffect(() => {
     const path = JSON.parse(pathKey) as FieldPath
     registry?.setClosed(path, knownInFull ? options : undefined)
@@ -179,7 +186,43 @@ export const OptionsInput = ({ disabled, fieldPath = [], id, node, onChange, spe
   const loading = state === 'loading' && !unavailable && !tooShort
 
   let control: React.ReactNode
-  if (node.type === 'array') {
+  if (manual && node.type === 'array') {
+    control = (
+      <Select
+        allowClear
+        disabled={disabled}
+        id={id}
+        mode='tags'
+        notFoundContent={null}
+        onChange={(next) => { onChange?.(next) }}
+        placeholder='Type values…'
+        style={{ width: '100%' }}
+        value={value as Array<string | number> | undefined}
+      />
+    )
+  } else if (manual && (node.type === 'integer' || node.type === 'number')) {
+    control = (
+      <InputNumber
+        disabled={disabled}
+        id={id}
+        onChange={(next) => { onChange?.(next ?? undefined) }}
+        placeholder='Type the value…'
+        style={{ width: '100%' }}
+        value={typeof value === 'number' ? value : undefined}
+      />
+    )
+  } else if (manual) {
+    control = (
+      <Input
+        allowClear
+        disabled={disabled}
+        id={id}
+        onChange={(event) => { onChange?.(event.target.value || undefined) }}
+        placeholder='Type the value…'
+        value={typeof value === 'string' || typeof value === 'number' ? String(value) : undefined}
+      />
+    )
+  } else if (node.type === 'array') {
     control = (
       <Select
         {...common}
@@ -217,14 +260,22 @@ export const OptionsInput = ({ disabled, fieldPath = [], id, node, onChange, spe
     )
   }
 
-  const note = problem ? `This field is misconfigured: ${problem}.` : noteFor(waiting ? 'waiting' : state, spec.ref, parentLabel)
+  let noteState: FieldOptionsState | 'waiting' | 'empty' = state
+  if (waiting) {
+    noteState = 'waiting'
+  } else if (manual && emptyInFull) {
+    noteState = 'empty'
+  }
+  // An open field takes typed text whatever its source does; a closed one only in manual fallback.
+  const typeable = manual || !spec.closed
+  const note = problem ? `This field is misconfigured: ${problem}.` : noteFor(noteState, spec.ref, parentLabel, typeable)
   return (
     <>
       {control}
       {note ? (
         <div className={styles.fieldNote} role='status'>
           {note}
-          {state === 'error' ? <Button onClick={retry} size='small' type='link'>Retry</Button> : null}
+          {state === 'error' || noteState === 'empty' ? <Button onClick={retry} size='small' type='link'>Retry</Button> : null}
         </div>
       ) : null}
     </>
