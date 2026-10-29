@@ -236,6 +236,34 @@ describe('dispatchAction — onEventNavigateTo (SSE) race + cleanup', () => {
     sseSubscriptions.length = 0
   })
 
+  it('a PLAIN-TEXT loadingMessage is shown as-is and never sent to /jq', async () => {
+    // This site guarded on TRUTHINESS, not on `${`, so a plain message went to the jq resolver —
+    // which warned and handed it back. That pass-through made the resolver double as "resolve it,
+    // or else return it". Once a malformed expression THROWS (portal#226), an unguarded plain
+    // message would abort the very action it was announcing. Nothing else covers this.
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, '{"metadata":{"uid":"U1"}}'))))
+    const action = { ...restOnEvent(), onEventNavigateTo: { eventReason: 'Ready', loadingMessage: 'Creating your page…', url: '/done' } }
+
+    const ctx = makeCtx()
+    await dispatchAction(action, { resourcesRefs: refs([postRef]) }, ctx)
+    await flush()
+
+    expect(ctx.message.loading).toHaveBeenCalledWith('Creating your page…', expect.anything())
+    expect(ctx.resolveJq).not.toHaveBeenCalled()
+  })
+
+  it('a ${…} loadingMessage still goes through /jq', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, '{"metadata":{"uid":"U1"}}'))))
+    const action = { ...restOnEvent(), onEventNavigateTo: { eventReason: 'Ready', loadingMessage: '${ "Creating " + .json.kind }', url: '/done' } }
+
+    const ctx = makeCtx()
+    await dispatchAction(action, { resourcesRefs: refs([postRef]) }, ctx)
+    await flush()
+
+    expect(ctx.resolveJq).toHaveBeenCalledWith('${ "Creating " + .json.kind }', expect.anything())
+    expect(ctx.message.loading).toHaveBeenCalledWith('jq:${ "Creating " + .json.kind }', expect.anything())
+  })
+
   it('(3) replays an event that arrived before the POST response set resourceUid', async () => {
     let resolveFetch: (r: Response) => void = () => undefined
     vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => { resolveFetch = resolve })))

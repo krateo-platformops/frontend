@@ -8,7 +8,7 @@ import { useConfigContext } from '../context/ConfigContext'
 import { useRoutesContext } from '../context/RoutesContext'
 import type { ResourceRef, ResourcesRefs, Widget, WidgetAction } from '../types/Widget'
 import { getAccessToken } from '../utils/getAccessToken'
-import { useResolveJqExpression } from '../utils/jq-expression'
+import { jqText, useResolveJqExpression } from '../utils/jq-expression'
 import { navigateOrExternal } from '../utils/navigation'
 import { omitSecretPaths, redactSecretValues, secretValuesOf, type SecretPath } from '../utils/secretFields'
 import { SecretExpressionError } from '../utils/secretJq'
@@ -218,7 +218,7 @@ export interface ActionContext {
    * when the human clicks Confirm.
    */
   confirm: (radius?: BlastRadius | BlastRadiusSet) => Promise<boolean>
-  resolveJq: (expression: string, values: Record<string, unknown>) => Promise<string>
+  resolveJq: (expression: string, values: Record<string, unknown>) => Promise<unknown>
   setLoading: (loading: boolean) => void
   invalidateQueries: () => Promise<unknown>
   reloadRoutes: () => void | Promise<void>
@@ -256,7 +256,7 @@ const runNavigate = async (action: WidgetAction & { type: 'navigate' }, runtime:
   // paths (no placeholders / no customPayload) pass through unchanged.
   let updatedUrl = action.path
   if (action.path.startsWith('${')) {
-    updatedUrl = await ctx.resolveJq(action.path, { widget: runtime.widget })
+    updatedUrl = jqText(await ctx.resolveJq(action.path, { widget: runtime.widget }))
   } else if (runtime.customPayload) {
     updatedUrl = interpolateRedirectUrl(runtime.customPayload, action.path) ?? action.path
   }
@@ -402,7 +402,7 @@ const runRest = async (
     let description = `Timeout waiting for event ${onEventNavigateTo.eventReason}`
     if (errorMessage) {
       description = errorMessage.startsWith('${')
-        ? await ctx.resolveJq(errorMessage, templateJqInput(payload, secretTargets, jsonResponse, {}, secrets))
+        ? jqText(await ctx.resolveJq(errorMessage, templateJqInput(payload, secretTargets, jsonResponse, {}, secrets)))
         : errorMessage
     }
 
@@ -422,9 +422,14 @@ const runRest = async (
       detached = true
     })
 
-    const loadingMessage = onEventNavigateTo.loadingMessage
-      ? await ctx.resolveJq(onEventNavigateTo.loadingMessage, templateJqInput(payload, secretTargets, jsonResponse, {}, secrets))
-      : 'Waiting for resource and redirecting...'
+    // GUARDED on `${`, like every other resolveJq site. This one tested only TRUTHINESS, so a
+    // plain-text loadingMessage ("Creating your page…") was handed to the jq resolver — which
+    // warned and returned it unchanged. That pass-through was load-bearing: the resolver doubled
+    // as "resolve it, or else give it back". Now that a malformed expression throws, an unguarded
+    // plain message would abort the very action it was announcing.
+    const loadingMessage = onEventNavigateTo.loadingMessage?.startsWith('${')
+      ? jqText(await ctx.resolveJq(onEventNavigateTo.loadingMessage, templateJqInput(payload, secretTargets, jsonResponse, {}, secrets)))
+      : onEventNavigateTo.loadingMessage || 'Waiting for resource and redirecting...'
 
     ctx.message.loading(loadingMessage, eventTimeoutSeconds)
 
@@ -448,7 +453,7 @@ const runRest = async (
         const redirectUrl = await (async () => {
           // if it starts with ${ resolve via the JQ endpoint, otherwise use the legacy method
           if (onEventNavigateTo.url.startsWith('${')) {
-            return ctx.resolveJq(onEventNavigateTo.url, templateJqInput(payload, secretTargets, jsonResponse, { event: eventData }, secrets))
+            return ctx.resolveJq(onEventNavigateTo.url, templateJqInput(payload, secretTargets, jsonResponse, { event: eventData }, secrets)).then(jqText)
           }
 
           if (customPayload) {
@@ -472,7 +477,7 @@ const runRest = async (
         let successDescription = 'The action has been executed successfully'
         if (successMessage) {
           successDescription = successMessage.startsWith('${')
-            ? await ctx.resolveJq(successMessage, templateJqInput(payload, secretTargets, jsonResponse, { event: eventData }, secrets))
+            ? jqText(await ctx.resolveJq(successMessage, templateJqInput(payload, secretTargets, jsonResponse, { event: eventData }, secrets)))
             : successMessage
         }
 
@@ -545,7 +550,7 @@ const runRest = async (
     let description = scrub(jsonResponse.message)
     if (errorMessage) {
       description = errorMessage.startsWith('${')
-        ? await ctx.resolveJq(errorMessage, templateJqInput(payload, secretTargets, jsonResponse, {}, secrets))
+        ? jqText(await ctx.resolveJq(errorMessage, templateJqInput(payload, secretTargets, jsonResponse, {}, secrets)))
         : errorMessage
     }
 
@@ -588,7 +593,7 @@ const runRest = async (
     let description = `Successfully ${actionName} ${resourceName} in ${resourceNamespace}`
     if (successMessage) {
       description = successMessage.startsWith('${')
-        ? await ctx.resolveJq(successMessage, templateJqInput(payload, secretTargets, jsonResponse, {}, secrets))
+        ? jqText(await ctx.resolveJq(successMessage, templateJqInput(payload, secretTargets, jsonResponse, {}, secrets)))
         : successMessage
     }
 
@@ -606,7 +611,7 @@ const runRest = async (
     ctx.closeDrawer()
 
     const onSuccessUrl = onSuccessNavigateTo.startsWith('${')
-      ? await ctx.resolveJq(onSuccessNavigateTo, templateJqInput(payload, secretTargets, jsonResponse, {}, secrets))
+      ? jqText(await ctx.resolveJq(onSuccessNavigateTo, templateJqInput(payload, secretTargets, jsonResponse, {}, secrets)))
       : onSuccessNavigateTo
 
     if (onSuccessUrl) {
