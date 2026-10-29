@@ -24,7 +24,7 @@ describe('the example passes offline', () => {
   it('every offline step ran and passed', async () => {
     const envelope = await run(example())
     expect(envelope.ok).toBe(true)
-    expect(envelope.steps.map((s) => s.name)).toEqual(['builder', 'builder-lint', 'references', 'jq-compile', 'live-dry-run', 'data', 'coverage'])
+    expect(envelope.steps.map((s) => s.name)).toEqual(['builder', 'builder-lint', 'references', 'jq-compile', 'live-dry-run', 'data', 'shape', 'coverage'])
   })
 })
 

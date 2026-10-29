@@ -27,6 +27,7 @@ import { dryRunStep } from './dryRun'
 import { rec, type Rec } from './drafts'
 import { jqCompileStep } from './jqCompile'
 import { referencesStep } from './references'
+import { shapeStep } from './shape'
 import { draftSecretsProblems } from './secrets'
 
 export const coverageOf = (verdicts: ObjectVerdict[]): Coverage => {
@@ -95,7 +96,12 @@ export const pagePlan: BuilderPlan = {
     steps.push(dry.step)
     const coverage = ctx.live ? coverageOf(dry.verdicts) : null
     if (dry.step.ok) {
-      steps.push(await dataStep(drafts, ctx))
+      const data = await dataStep(drafts, ctx)
+      steps.push(data.step)
+      // The shape step joins step 5's output to the expression that consumes it (frontend#473). It
+      // runs even when the data step found problems: a RESTAction that resolved is judged, and one
+      // that did not is reported as not judged, per widget, rather than silently skipped.
+      steps.push(await shapeStep(drafts, data.outputs, ctx))
     }
     steps.push(coverage ? coverageStep(coverage) : step('coverage', [], ['DISABLED: offline run (--offline) — nothing was submitted to an API server']))
     return { steps, coverage }
