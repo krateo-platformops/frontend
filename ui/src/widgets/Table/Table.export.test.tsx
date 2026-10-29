@@ -96,6 +96,21 @@ const openMenuAndPick = async (label: string) => {
   fireEvent.click(screen.getByText(label))
 }
 
+/**
+ * Wait for the export to FINISH, not just for its visible result.
+ *
+ * The control clears its loading state in a `finally` after the await. A test that asserted the
+ * download and ended left that state update to land after jsdom was torn down, and React's
+ * scheduler flushed it into a world with no `window`:
+ *
+ *   ReferenceError: window is not defined — at performWorkUntilDeadline
+ *
+ * Every test passed; the run still failed on the unhandled error, which is the correct outcome —
+ * a test that leaves work running is not a passing test. So each one waits for the button to stop
+ * loading before it ends.
+ */
+const waitForIdle = () => waitFor(() => expect(screen.getByLabelText('Export').className).not.toContain('ant-btn-loading'))
+
 describe('when the control appears at all', () => {
   it('is ABSENT when the widget was given no export URL — nothing to export from', () => {
     renderTable({ withUrl: false })
@@ -126,6 +141,7 @@ describe('what it asks snowplow for', () => {
     // The hook's own extras survive onto the export, so it matches the filters on screen.
     expect(params.get('extras')).toBe('{}')
     await waitFor(() => expect(clicks).toEqual([{ download: 'export.csv' }]))
+    await waitForIdle()
   })
 
   it('asks for pdf when pdf is picked', async () => {
@@ -134,6 +150,7 @@ describe('what it asks snowplow for', () => {
     await openMenuAndPick('PDF')
     await waitFor(() => expect(requested).toHaveLength(1))
     expect(new URLSearchParams(requested[0].split('?')[1]).get('format')).toBe('pdf')
+    await waitForIdle()
   })
 })
 
@@ -146,6 +163,7 @@ describe('the outcomes a person has to be told about', () => {
     expect(screen.getByText(/first 50,000 rows/)).toBeTruthy()
     // Partial is not failed: the file is valid and still handed over.
     expect(clicks).toEqual([{ download: 'export.csv' }])
+    await waitForIdle()
   })
 
   it('shows pdf\'s 422 at the row bound as an error, with no download', async () => {
@@ -155,6 +173,7 @@ describe('the outcomes a person has to be told about', () => {
     await waitFor(() => expect(screen.getByText('PDF export failed')).toBeTruthy())
     expect(screen.getByText('export exceeds the 50000 row bound for pdf')).toBeTruthy()
     expect(clicks).toEqual([])
+    await waitForIdle()
   })
 
   it('says nothing and downloads quietly when the export is complete', async () => {
@@ -164,5 +183,6 @@ describe('the outcomes a person has to be told about', () => {
     await waitFor(() => expect(clicks).toHaveLength(1))
     expect(screen.queryByText(/export is incomplete/)).toBeNull()
     expect(screen.queryByText(/export failed/)).toBeNull()
+    await waitForIdle()
   })
 })
