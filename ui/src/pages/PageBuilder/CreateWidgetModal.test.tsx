@@ -244,9 +244,27 @@ describe('a list of declared objects', () => {
     expect(onCreate).toHaveBeenCalledWith({ name: 'a-widget', widgetData: { items: [{ href: '/', title: 'Home' }] } })
   })
 
-  it('an item with NO declared fields stays JSON — a chart\'s `data` records', () => {
-    mount('PieChart')
-    expect(screen.queryByText('Add data')).toBeNull()
+  it('an item with NO declared fields gets key/value rows, and keeps an Edit-as-JSON escape', () => {
+    // PieChart's `data` is an array of objects the CRD does not describe — no `properties`, so
+    // there are no fields to lay out. That used to mean the whole ARRAY was a single JSON
+    // textarea, and adding one record meant getting brackets and commas right by hand. It is now
+    // one row per record, each a list of key/value pairs, with "Edit as JSON" still offered for a
+    // record whose shape the pairs cannot express (a nested object, an array).
+    //
+    // This test previously asserted the opposite — `queryByText('Add data')` being null. The
+    // behaviour changed deliberately (FreeObjectListInput / JsonValueInput); the assertion is
+    // updated rather than the feature.
+    const onCreate = mount('PieChart')
+    type('angleField', 'value')
+    type('colorField', 'phase')
+    fireEvent.click(screen.getByText('Add data'))
+    fireEvent.change(screen.getByLabelText('data 1 key 1'), { target: { value: 'phase' } })
+    fireEvent.change(screen.getByLabelText('data 1 value 1'), { target: { value: 'Running' } })
+    // Offered BEFORE submitting: once the modal closes there is nothing left to query.
+    expect(screen.queryByText('Edit as JSON')).not.toBeNull()
+
+    fireEvent.click(screen.getByText('Create'))
+    expect(onCreate).toHaveBeenCalledWith({ name: 'a-widget', widgetData: { angleField: 'value', colorField: 'phase', data: [{ phase: 'Running' }] } })
   })
 })
 

@@ -259,7 +259,10 @@ describe('SchemaFields — rows for lists of objects and typed maps', () => {
     fireEvent.click(screen.getByText('Add entry'))
     fireEvent.change(screen.getByLabelText('key 1'), { target: { value: 'team' } })
     fireEvent.change(screen.getByLabelText('value 1'), { target: { value: 'platform' } })
-    fireEvent.change(screen.getByPlaceholderText('{ } — JSON (key/value map)'), { target: { value: '[{"a":1}]' } })
+    // records' items declare no fields: one item, one key/value row; `1` is sent as a number
+    fireEvent.click(screen.getByText('Add records'))
+    fireEvent.change(screen.getByLabelText('records 1 key 1'), { target: { value: 'a' } })
+    fireEvent.change(screen.getByLabelText('records 1 value 1'), { target: { value: '1' } })
     fireEvent.click(screen.getByText('submit'))
 
     await vi.waitFor(() => expect(onFinish).toHaveBeenCalledTimes(1))

@@ -434,6 +434,35 @@
 }
 
 /* Repeatable rows — an array of objects (one Card per item) and a typed map (key → value). */
+
+/* A list-of-objects row: the header is a toggle that collapses the row to its title. */
+.listRowToggle {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: var(--spacing-xs);
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.listRowTitle {
+  color: var(--gray-color);
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listRowTitle::before {
+  content: '· ';
+}
+
 .listRows {
   display: flex;
   flex-direction: column;
