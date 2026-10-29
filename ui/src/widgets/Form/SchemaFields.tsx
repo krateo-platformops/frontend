@@ -16,6 +16,7 @@ import { fieldLabel, itemCountRules, rulesFor } from './schemaRules'
 import { FormRefsContext } from './useFieldOptions'
 import type { SuggestionGroup } from './utils'
 import { getOptionsFromEnum, getSuggestionGroups, suggestionSearchText } from './utils'
+import { isVisible, VISIBLE_WHEN_KEY } from './visibleWhen'
 
 /**
  * Editor for a free-form object/array node (a `type: object` map without `properties`,
@@ -495,13 +496,30 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
 const useSchemaRoot = (schema: JSONSchema4): SchemaRoot =>
   useMemo(() => ({ cyclic: collectDependencies(schema).cyclic, schema }), [schema])
 
+/**
+ * The keys of `properties` an `x-krateo-visible-when` hides for the current values. A selector
+ * watch, so the fields re-render only when that set changes, not on every keystroke.
+ */
+const useHiddenKeys = (properties: Record<string, JSONSchema4> | undefined, scope: FieldPath): string[] => {
+  const form = AntdForm.useFormInstance()
+  const conditional = Object.entries(properties ?? {}).filter(([, node]) => node[VISIBLE_WHEN_KEY] !== undefined)
+  const hidden = AntdForm.useWatch(
+    (values: unknown) => conditional.filter(([, node]) => !isVisible(node, values, scope)).map(([key]) => key),
+    { form, preserve: true },
+  ) as string[] | undefined
+  return hidden ?? []
+}
+
 const SchemaFieldsBody = ({ hide = [], namePath = [], schema, scopePath }: SchemaFieldsProps): React.ReactNode => {
   const { options: registry } = useContext(FormRefsContext)
-  if (!schema?.properties) { return null }
   const scope = scopePath ?? namePath
+  const hiddenNow = useHiddenKeys(schema?.properties, scope)
+  if (!schema?.properties) { return null }
   const required = new Set(Array.isArray(schema.required) ? schema.required : [])
 
-  const visible = Object.entries(schema.properties).filter(([key]) => !hide.includes(key))
+  // A field `x-krateo-visible-when` hides is not rendered, so it is not validated, submitted or
+  // counted under "Advanced" (see visibleWhen.ts).
+  const visible = Object.entries(schema.properties).filter(([key]) => !hide.includes(key) && !hiddenNow.includes(key))
   const requiredEntries = visible.filter(([key]) => required.has(key))
   const optionalEntries = visible.filter(([key]) => !required.has(key))
 
@@ -557,7 +575,9 @@ interface Section { id: string; label: string }
  */
 export const SchemaForm = ({ hide = [], schema }: { schema: JSONSchema4; hide?: string[] }): React.ReactNode => {
   const properties = (schema.properties ?? {}) as Record<string, JSONSchema4>
-  const groupKeys = Object.keys(properties).filter((key) => !hide.includes(key) && isGroup(properties[key]))
+  // A section whose group `x-krateo-visible-when` hides leaves the rail with its fields.
+  const hiddenGroups = useHiddenKeys(properties, [])
+  const groupKeys = Object.keys(properties).filter((key) => !hide.includes(key) && !hiddenGroups.includes(key) && isGroup(properties[key]))
   const hasLoose = Object.keys(properties).some((key) => !hide.includes(key) && !isGroup(properties[key]))
 
   const sections: Section[] = []
@@ -567,7 +587,9 @@ export const SchemaForm = ({ hide = [], schema }: { schema: JSONSchema4; hide?: 
     sections.push({ id: key, label: typeof groupTitle === 'string' && groupTitle.trim() ? groupTitle : key })
   })
 
-  const [active, setActive] = useState<string>(sections[0]?.id ?? '__general__')
+  const [chosen, setActive] = useState<string>(sections[0]?.id ?? '__general__')
+  // The section in view was hidden by a change elsewhere: show the first one instead.
+  const active = sections.some((section) => section.id === chosen) ? chosen : (sections[0]?.id ?? '__general__')
   const root = useSchemaRoot(schema)
 
   if (sections.length < 2) {
