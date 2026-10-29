@@ -230,7 +230,7 @@ describe('a seeded destination is named for its chart', () => {
       fireEvent.click(screen.getByText('Confirm destination'))
       await Promise.resolve()
     })
-    await waitFor(() => expect(settled).toEqual({ base: 'main', owner: 'krateo-blueprints', repo: 'orders-api' }))
+    await waitFor(() => expect(settled).toEqual({ base: 'main', owner: 'krateo-blueprints', repo: 'orders-api', visibility: 'public' }))
   })
 
   it('a SEEDED publish asks with the slug as the one repository it takes; an unseeded one does not', async () => {
@@ -279,7 +279,7 @@ describe('a seeded destination is named for its chart', () => {
       fireEvent.click(screen.getByText('Confirm destination'))
       await Promise.resolve()
     })
-    await waitFor(() => expect(settled).toEqual({ base: 'main', owner: 'acme', repo: 'team-pages' }))
+    await waitFor(() => expect(settled).toEqual({ base: 'main', owner: 'acme', repo: 'team-pages', visibility: 'public' }))
   })
 })
 
@@ -308,5 +308,65 @@ describe('the publish-destination form names who does what', () => {
     expect(line.textContent).toBe('Autopilot asked to publish this page. Nothing is written until you confirm the destination.')
     // Krateo does the push either way.
     expect(screen.getByTestId('publish-target-form').textContent).toMatch(/Krateo pushes the page to a branch/)
+  })
+})
+
+describe('repository visibility is the publisher’s choice, per publish', () => {
+  /** Answer the open form: optionally click a visibility button, then confirm. */
+  const confirm = (pick?: 'Public' | 'Private') => {
+    if (pick) {
+      fireEvent.click(screen.getByText(new RegExp(`^${pick}`)))
+    }
+    fireEvent.click(screen.getByText('Confirm destination'))
+  }
+
+  const openForm = async () => {
+    render(<PublishTargetFormHost />)
+    let answer: Awaited<ReturnType<typeof askPublishDestination>> | undefined
+    await act(() => {
+      void askPublishDestination({}, 'blueprint', 'my-chart', 'krateo-blueprints')
+        .then((target) => { answer = target })
+      return Promise.resolve()
+    })
+    await waitFor(() => expect(screen.getByTestId('publish-target-form')).toBeTruthy())
+    return () => answer
+  }
+
+  it('DEFAULTS TO PUBLIC — the option that does not fail silently', async () => {
+    // Not a general preference for public. A GHCR package inherits its repository's visibility and
+    // no API can change it afterwards, so a private destination publishes a chart that installs for
+    // nobody outside the org: the publish reports success and the artifact 401s at install. The
+    // failing default has to be the one the person opts into, not the one they get by not looking.
+    const get = await openForm()
+    await act(() => {
+      confirm()
+      return Promise.resolve()
+    })
+    await waitFor(() => expect(get()?.visibility).toBe('public'))
+  })
+
+  it('carries PRIVATE when the publisher picks it', async () => {
+    const get = await openForm()
+    await act(() => {
+      confirm('Private')
+      return Promise.resolve()
+    })
+    await waitFor(() => expect(get()?.visibility).toBe('private'))
+  })
+
+  it('offers the choice at every publish, next to the destination it applies to', async () => {
+    await openForm()
+    expect(screen.getByText(/^Public/)).toBeTruthy()
+    expect(screen.getByText(/^Private/)).toBeTruthy()
+    // The caveat that cannot be inferred from the control: it only applies to a repo created now.
+    expect(screen.getByText(/Only applies if the repository is created now/)).toBeTruthy()
+  })
+
+  it('resolves to NO visibility when nothing is mounted — the install default wins headlessly', async () => {
+    // A non-UI caller must not silently acquire a visibility decision. Absent is how the claim says
+    // "use the install default", which the chart distinguishes from an explicit public.
+    resetPublishTargetForTests()
+    const target = await requestPublishTarget({ base: 'main', kind: 'page', owner: 'o', repo: 'r' })
+    expect(target).toEqual({ base: 'main', owner: 'o', repo: 'r', visibility: undefined })
   })
 })

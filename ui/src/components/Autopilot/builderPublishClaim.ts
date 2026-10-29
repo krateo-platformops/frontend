@@ -31,6 +31,8 @@ export interface StructuredTarget {
   namespace: string
   repo: string
   base: string
+  /** Repo visibility if this publish CREATES the destination. Absent = the install-level default. */
+  visibility?: 'public' | 'private'
 }
 
 /** One held file — full in-repo path + exact bytes (the composition splits path→dir/base). */
@@ -48,7 +50,8 @@ export interface BuilderPublishClaim {
     name: string
     builder: BuilderKind
     branch: string
-    target: { namespace: string; repo: string; base: string }
+    /** `visibility` is OPTIONAL and its ABSENCE is meaningful — see buildBuilderPublishClaim. */
+    target: { namespace: string; repo: string; base: string; visibility?: 'public' | 'private' }
     files: BuilderPublishFile[]
     /**
      * OPTIONAL template repo the destination is seeded from BEFORE the held files are committed —
@@ -210,7 +213,16 @@ export const buildBuilderPublishClaim = (args: {
       // chart decides whether to render the Repo by testing the url for emptiness. The seed goes
       // onto the builder branch, never the base (see the field doc).
       ...(args.sourceUrl ? { source: { intoBranch: branch, krateoIgnorePath: TEMPLATE_IGNORE_DIR, url: args.sourceUrl } } : {}),
-      target: { base: args.target.base, namespace: args.target.namespace, repo: args.target.repo },
+      // Spread, so an absent visibility is an ABSENT KEY rather than present-and-undefined. The
+      // BuilderPublish CRD is generated with additionalProperties:false and the chart distinguishes
+      // "the claim said nothing" (use the install default) from "the claim said public" — a null
+      // would collapse the two.
+      target: {
+        base: args.target.base,
+        namespace: args.target.namespace,
+        repo: args.target.repo,
+        ...(args.target.visibility ? { visibility: args.target.visibility } : {}),
+      },
     },
   }
 }
