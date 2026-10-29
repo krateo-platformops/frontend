@@ -283,12 +283,11 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   const endpointPage = parseNumberParam(requestUrl.searchParams.get('page'))
   const endpointPerPage = parseNumberParam(requestUrl.searchParams.get('perPage'))
 
-  // Classic server-side pager (opt-in via `defaultPageSize`, e.g. the
-  // compositions-table). When the endpoint carries no pagination, request a
-  // BOUNDED window (`page=<serverPage>&perPage=<defaultPageSize>`) instead of
-  // snowplow's -1/-1 full-set sentinel. `serverPage` is client state so the
-  // Table's pager can jump to any page; it is part of the react-query key so
-  // each page is its own (per-page-cached, snowplow-L1-aligned) entry.
+  // Classic server-side pager, bounded by whichever window is in play — today the CHART's declared
+  // slice (the compositions table), or a caller's `defaultPageSize` if one ever supplies one. With
+  // no window in play, snowplow's -1/-1 full-set sentinel stands. `serverPage` is client state so
+  // the Table's pager can jump to any page; it is part of the react-query key so each page is its
+  // own (per-page-cached, snowplow-L1-aligned) entry.
   const [serverPage, setServerPage] = useState(endpointPage ?? 1)
 
   /**
@@ -306,9 +305,18 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
    * alive — and re-grow the un-virtualized DOM toward the full set this pager exists to bound,
    * while the pager controls silently vanished.
    *
-   * A NO-OP TODAY, deliberately: no chart declares a slice, so `endpointPerPage` is undefined for
-   * every widget and this resolves to `defaultPageSize` exactly as before. It ships first so the
-   * chart change has somewhere safe to land.
+   * NOW LIVE, AND INVERTED FROM HOW IT SHIPPED. When written this was a deliberate no-op: no
+   * chart declared a slice, so `endpointPerPage` was undefined everywhere and the window always
+   * came from `defaultPageSize`. BOTH halves have since flipped. The per-resource page-size
+   * registry was retired (2f5554e, #309 step C), so nothing in the SPA passes `defaultPageSize`
+   * at all; and `flex.page-compositions` declares `slice {page: 1, perPage: 50}` — the one ref
+   * among 41 table CRs that declares one. So `endpointPerPage` is the LIVE branch, for the
+   * compositions table, and `defaultPageSize` is the dormant one. Verified on 057: prewarm keys
+   * (50,1), the browser requests (50,1), L1 hits.
+   *
+   * The comment is corrected rather than deleted because its wrongness was the point of
+   * portal#235: that issue's cause was a premise ("the frontend's first request URL carries no
+   * slice params") which lived only in a comment and silently became false.
    */
   const boundedPerPage = boundedWindow(endpointPerPage, defaultPageSize)
   const usesClassicPager = typeof boundedPerPage === 'number'
