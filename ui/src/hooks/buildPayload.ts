@@ -11,7 +11,11 @@ import { redactSecretValues, stripSecretMaterial, templateSafeResponse, type Sec
 import { planOverride, referencedSecretFields, runOverridePlan, secretFieldLabel, SecretExpressionError } from '../utils/secretJq'
 import type { Payload, RestApiResponse } from '../utils/types'
 
-type ResolveJq = (expression: string, values: Record<string, unknown>) => Promise<string>
+/**
+ * `unknown`, not `string`: /jq returns whatever the expression evaluated to. A whole-object result
+ * is a feature — a `payloadToOverride` with `name: spec` sets a map, which three charts rely on.
+ */
+type ResolveJq = (expression: string, values: Record<string, unknown>) => Promise<unknown>
 
 /**
  * buildPayload plus the override names whose value was resolved from a SECRET form field —
