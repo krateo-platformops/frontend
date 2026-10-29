@@ -26,10 +26,10 @@
  * behavior (Enter → /search?q=…) — the hook then reports zero hits, never throws.
  */
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
 
 import { useConfigContext } from '../../context/ConfigContext'
 import { useRoutesContext } from '../../context/RoutesContext'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import type { ResourceRef, Widget } from '../../types/Widget'
 import { getAccessToken } from '../../utils/getAccessToken'
 
@@ -110,21 +110,6 @@ export const fetchSearchHits = async (baseUrl: string, endpoint: string, term: s
   const listyPath = findListyRefPath(widget)
   if (!listyPath || listyPath === endpoint) { return hits }
   return extractHits(await fetchWidget(baseUrl, listyPath, term))
-}
-
-/** Debounced mirror of `value` (trailing edge; an EMPTY value propagates immediately
- * so clearing the input clears the results without waiting out the delay). */
-export const useDebouncedValue = (value: string, delayMs: number): string => {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    if (!value) {
-      setDebounced(value)
-      return undefined
-    }
-    const timer = setTimeout(() => setDebounced(value), delayMs)
-    return () => clearTimeout(timer)
-  }, [value, delayMs])
-  return debounced
 }
 
 export type SearchTypeahead = {

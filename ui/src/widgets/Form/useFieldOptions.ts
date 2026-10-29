@@ -5,7 +5,7 @@ import { useConfigContext } from '../../context/ConfigContext'
 import type { ResourcesRefs } from '../../types/Widget'
 import { getAccessToken } from '../../utils/getAccessToken'
 
-import { type FieldOption, parseFieldOptions } from './fieldOptions'
+import { type FieldOption, type OptionRegistry, parseFieldOptions } from './fieldOptions'
 
 /**
  * The resolved `resourcesRefs` of the Form a schema field belongs to, so a field with
@@ -15,6 +15,8 @@ export interface FormRefs {
   resourcesRefs?: ResourcesRefs
   /** refs the user may not call (the WidgetRenderer's reading of `allowed: false`) */
   deniedRefIds?: string[]
+  /** what the option fields showed: labels for the Review, closed lists for validation */
+  options?: OptionRegistry
 }
 
 export const FormRefsContext = createContext<FormRefs>({})

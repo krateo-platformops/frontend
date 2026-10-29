@@ -1,14 +1,19 @@
 import { Form as AntdForm, AutoComplete, Button, Select } from 'antd'
 import type { DefaultOptionType } from 'antd/es/select'
 import type { JSONSchema4 } from 'json-schema'
-import { useContext, useMemo } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
+
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 
 import { type FieldPath, isSecretNode, nodeAt, resolveFieldPath, templateKey } from './fieldDependencies'
 import type { FieldOption, FieldOptionsSpec } from './fieldOptions'
 import styles from './Form.module.css'
 import { SchemaRootContext } from './schemaRoot'
 import { fieldLabel } from './schemaRules'
-import { type FieldOptionsState, useFieldOptions } from './useFieldOptions'
+import { type FieldOptionsState, FormRefsContext, useFieldOptions } from './useFieldOptions'
+
+/** How long typing must pause before a search is sent — the palette typeahead's delay. */
+export const SEARCH_DEBOUNCE_MS = 300
 
 /** Text matched when the person filters the list: the label, the value and the description. */
 const searchText = (option: FieldOption): string =>
@@ -42,6 +47,11 @@ const noteFor = (state: FieldOptionsState | 'waiting', ref: string, parentLabel:
 const isEmpty = (value: unknown): boolean =>
   value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)
 
+const valueAt = (values: unknown, path: FieldPath): unknown =>
+  path.reduce<unknown>((current, key) => (current && typeof current === 'object' ? (current as Record<string | number, unknown>)[key] : undefined), values)
+
+const optionKey = (value: unknown): string => `${typeof value}:${String(value)}`
+
 interface OptionsInputProps {
   node: JSONSchema4
   spec: FieldOptionsSpec
@@ -60,16 +70,19 @@ interface OptionsInputProps {
  *
  * The field stores the option's VALUE only, never the `{ label, value }` pair: the schema types
  * the field as the value, and the payload, the Review, drafts and Autopilot all read it as such.
+ * The labels it showed are recorded with the Form (OptionRegistry) for the Review to show.
+ *
+ * With `search`, what the person types is sent to the RESTAction (debounced, from `minChars`
+ * characters) and the RESTAction filters; without it the list loads once and filters here.
  *
  * A field whose source is missing or denied is disabled and says why; a failed load says so with
  * a retry, and an open field still takes typed text meanwhile.
  */
-const valueAt = (values: unknown, path: FieldPath): unknown =>
-  path.reduce<unknown>((current, key) => (current && typeof current === 'object' ? (current as Record<string | number, unknown>)[key] : undefined), values)
-
 export const OptionsInput = ({ disabled, fieldPath = [], id, node, onChange, spec, value }: OptionsInputProps): React.ReactNode => {
   const root = useContext(SchemaRootContext)
+  const { options: registry } = useContext(FormRefsContext)
   const form = AntdForm.useFormInstance()
+  const pathKey = JSON.stringify(fieldPath)
 
   // DEPENDENCIES. The options are fetched with the parent field's value as `extras[param]`, and
   // not at all while it is empty: the field waits, and says what it waits for. A dependency the
@@ -90,22 +103,80 @@ export const OptionsInput = ({ disabled, fieldPath = [], id, node, onChange, spe
   // every keystroke elsewhere in the form: antd re-renders only when the selected value changes.
   const parentValue: unknown = AntdForm.useWatch((values: unknown) => (parentPath ? valueAt(values, parentPath) : undefined), { form, preserve: true })
   const waiting = !!parentPath && isEmpty(parentValue)
-  const extras = useMemo(
-    () => (spec.dependsOn && !waiting ? { [spec.dependsOn.param]: parentValue } : undefined),
-    [spec.dependsOn, waiting, parentValue],
-  )
 
-  const { options, retry, state } = useFieldOptions(spec.ref, extras, !problem && !waiting)
+  // SEARCH. An open scalar field searches what it holds (an AutoComplete's value IS the typed
+  // text); a Select searches its own input box. A term under `minChars` makes no call: the cache
+  // cell snowplow keeps per distinct term is not spent on "a".
+  const [typed, setTyped] = useState('')
+  const searchesValue = !spec.closed && node.type !== 'array'
+  let rawTerm = ''
+  if (spec.search && !searchesValue) {
+    rawTerm = typed
+  } else if (spec.search && typeof value === 'string') {
+    rawTerm = value
+  }
+  const term = useDebouncedValue(rawTerm.trim(), SEARCH_DEBOUNCE_MS)
+  const tooShort = !!spec.search && term.length < spec.search.minChars
+
+  const extras = useMemo(() => {
+    const next: Record<string, unknown> = {}
+    if (spec.dependsOn && !waiting) { next[spec.dependsOn.param] = parentValue }
+    if (spec.search && !tooShort) { next[spec.search.param] = term }
+    return Object.keys(next).length ? next : undefined
+  }, [spec.dependsOn, spec.search, waiting, parentValue, tooShort, term])
+
+  const { options, retry, state } = useFieldOptions(spec.ref, extras, !problem && !waiting && !tooShort)
   const unavailable = !!problem || waiting || state === 'missing' || state === 'denied'
-  const antdOptions = toAntdOptions(options)
+  const ready = state === 'ready' && !waiting && !tooShort && !problem
+
+  // Every option the field has shown, so a picked value keeps its label once a new search
+  // replaces the list — and the Review can show it.
+  const seen = useRef(new Map<string, FieldOption>())
+  useEffect(() => {
+    if (!ready) { return }
+    for (const option of options) { seen.current.set(optionKey(option.value), option) }
+    registry?.record(JSON.parse(pathKey) as FieldPath, options)
+  }, [ready, options, registry, pathKey])
+
+  // A CLOSED list known in full (loaded at once, not searched) is what the field's value is
+  // validated against; once it arrives, a value that came some other way and is not in it is
+  // flagged right away rather than at submit.
+  const knownInFull = ready && spec.closed && !spec.search
+  useEffect(() => {
+    const path = JSON.parse(pathKey) as FieldPath
+    registry?.setClosed(path, knownInFull ? options : undefined)
+    if (knownInFull && !isEmpty(form.getFieldValue(path))) {
+      form.validateFields([path]).catch(() => undefined)
+    }
+    return () => { registry?.setClosed(path, undefined) }
+  }, [knownInFull, options, registry, pathKey, form])
+
+  const picked = (Array.isArray(value) ? value : [value]).filter((entry) => !isEmpty(entry))
+  const listed = new Set(options.map((option) => optionKey(option.value)))
+  const keptPicks = picked
+    .filter((entry) => !listed.has(optionKey(entry)))
+    .map((entry) => seen.current.get(optionKey(entry)))
+    .filter((option): option is FieldOption => !!option)
+  const antdOptions = toAntdOptions([...keptPicks, ...options])
+
+  let notFoundContent = 'No matches'
+  if (spec.search && tooShort) {
+    notFoundContent = `Type at least ${spec.search.minChars} characters to search`
+  } else if (state === 'loading' && !unavailable) {
+    notFoundContent = 'Loading…'
+  }
   const common = {
     disabled: disabled || unavailable,
-    filterOption,
+    // A search is filtered by the RESTAction: filtering its answer again here would hide what it
+    // matched on a field the label does not show.
+    filterOption: spec.search ? false : filterOption,
     id,
-    notFoundContent: state === 'loading' && !waiting ? 'Loading…' : 'No matches',
+    notFoundContent,
     options: antdOptions,
     style: { width: '100%' },
   }
+  const onSearch = spec.search && !searchesValue ? setTyped : undefined
+  const loading = state === 'loading' && !unavailable && !tooShort
 
   let control: React.ReactNode
   if (node.type === 'array') {
@@ -113,9 +184,10 @@ export const OptionsInput = ({ disabled, fieldPath = [], id, node, onChange, spe
       <Select
         {...common}
         allowClear
-        loading={state === 'loading' && !unavailable}
+        loading={loading}
         mode={spec.closed ? 'multiple' : 'tags'}
         onChange={(next) => { onChange?.(next) }}
+        onSearch={onSearch}
         placeholder={spec.closed ? 'Select…' : 'Select or type…'}
         value={value as Array<string | number> | undefined}
       />
@@ -125,9 +197,10 @@ export const OptionsInput = ({ disabled, fieldPath = [], id, node, onChange, spe
       <Select
         {...common}
         allowClear
-        loading={state === 'loading' && !unavailable}
+        loading={loading}
         onChange={(next) => { onChange?.(next) }}
-        placeholder='Select…'
+        onSearch={onSearch}
+        placeholder={spec.search ? 'Type to search…' : 'Select…'}
         showSearch
         value={value as string | number | undefined}
       />
@@ -138,7 +211,7 @@ export const OptionsInput = ({ disabled, fieldPath = [], id, node, onChange, spe
         {...common}
         allowClear
         onChange={(next) => { onChange?.(next) }}
-        placeholder='Select or type…'
+        placeholder={spec.search ? 'Type to search…' : 'Select or type…'}
         value={value as string | undefined}
       />
     )

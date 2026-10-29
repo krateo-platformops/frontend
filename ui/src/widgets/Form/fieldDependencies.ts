@@ -16,7 +16,8 @@ type TemplatePath = string[]
  */
 export const RESERVED_PARAMS = new Set(['username', 'groups', 'displayName', 'email', 'sub', 'uid'])
 
-const PARAM = /^[A-Za-z_][A-Za-z0-9_]*$/
+/** An extras name: a plain identifier, so it is never mistaken for a path. */
+export const PARAM_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 
 /**
  * Where a `field` reference points from a field that lives in the object at `scope`.
@@ -42,7 +43,7 @@ export const parseDependsOn = (raw: unknown): { dependsOn?: DependsOn; problem?:
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) { return { problem: 'dependsOn must be { field, param }' } }
   const { field, param } = raw as { field?: unknown; param?: unknown }
   if (typeof field !== 'string' || !field.replace('/', '').trim()) { return { problem: 'dependsOn.field must name a field' } }
-  if (typeof param !== 'string' || !PARAM.test(param)) { return { problem: 'dependsOn.param must be a plain name' } }
+  if (typeof param !== 'string' || !PARAM_NAME.test(param)) { return { problem: 'dependsOn.param must be a plain name' } }
   if (RESERVED_PARAMS.has(param)) { return { problem: `dependsOn.param cannot be "${param}": that name carries the caller's identity` } }
   return { dependsOn: { field: field.trim(), param } }
 }
