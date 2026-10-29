@@ -30,8 +30,26 @@ export type ExportFormat = 'csv' | 'json' | 'pdf'
  * The jq that lifts a column's cell out of a row. Rows are arrays of cells, each carrying its own
  * `valueKey`, so a field is selected by matching that key rather than by position — a column's
  * place in `columns` is not its place in a row.
+ *
+ * TWO THINGS HERE WERE WRONG AND SNOWPLOW CAUGHT BOTH (their review of this contract):
+ *
+ *  - the ROOT. `/call` answers with the resolved WIDGET OBJECT, not a bare array, so the rows are
+ *    at `.status.widgetData.dataSource` and the whole thing is wrapped in `[ … ]`. A leading `.[]`
+ *    read the widget object as an array and would have exported nothing at all.
+ *  - picking a cell's one populated field. A `//` chain treats `false` as ABSENT, so a
+ *    `booleanValue: false` fell through to the next alternative and exported as null. Collecting
+ *    the fields and taking `first` after `select(. != null)` keeps `false`, `0` and `""`, which are
+ *    values a table legitimately shows. A cell carrying no value field yields null (`first` of an
+ *    empty array) and the row still carries the key, which is what labelled json promises.
+ *
+ * `arrayValue` stays an array: csv JSON-encodes it, which is lossless. Joining it for display would
+ * be a rendering decision this layer should not make.
+ *
+ * Neither bug was reachable by the test that guarded this: it asserted the STRING contained
+ * `(.valueKey)` and matched no `.[N]`, which a wrong root passes happily. The behavioural test is
+ * in builder-gate, where a real gojq can evaluate it (test/exportPath.test.ts).
  */
-export const EXPORT_PATH = '.[] | map({ (.valueKey): (.stringValue // .numberValue // .decimalValue // .booleanValue // .arrayValue) }) | add'
+export const EXPORT_PATH = '[ .status.widgetData.dataSource[]? | map({ (.valueKey): ([.stringValue, .numberValue, .decimalValue, .booleanValue, .arrayValue] | map(select(. != null)) | first) }) | add ]'
 
 /** Every column that can name a cell. A column with no `valueKey` cannot be exported. */
 const exportable = (columns: Columns) => columns.filter((column) => typeof column.valueKey === 'string' && column.valueKey.length > 0)

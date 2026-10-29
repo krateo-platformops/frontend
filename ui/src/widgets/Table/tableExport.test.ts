@@ -75,10 +75,29 @@ describe('format-specific parameters', () => {
   })
 })
 
-describe('the jq path matches the dataSource cell contract', () => {
-  it('selects by valueKey, not by position — a column\'s index is not a cell\'s index', () => {
+describe('the jq path', () => {
+  /*
+   * THESE ARE STRING ASSERTIONS AND THAT IS THEIR LIMIT. An earlier version of this block asserted
+   * the same two things while the expression was wrong twice over — it read the `/call` body as a
+   * bare array when it is the resolved widget object, and its `//` chain dropped a boolean `false`.
+   * A wrong root satisfies both of these happily, so they cannot be the guard.
+   *
+   * The real guard EVALUATES it against a realistic body with a real gojq, in
+   * `builder-gate/test/exportPath.test.ts` — builder-gate has `jqcheck`, this suite has no jq.
+   * What is left here is a cheap check that the expression still addresses cells by key.
+   */
+  it('addresses cells by valueKey rather than by position', () => {
     expect(EXPORT_PATH).toContain('(.valueKey)')
     expect(EXPORT_PATH).not.toMatch(/\.\[\d\]/)
+  })
+
+  it('reads the resolved widget envelope, not a bare array', () => {
+    expect(EXPORT_PATH).toContain('.status.widgetData.dataSource')
+  })
+
+  it('does not use a // chain, which treats a boolean false as absent', () => {
+    expect(EXPORT_PATH).not.toContain('//')
+    expect(EXPORT_PATH).toContain('select(. != null)')
   })
 })
 
