@@ -24,10 +24,11 @@ ui/docs/widget-authoring.md: the schema.json → types/CRD pipeline, scaffolding
 ui/docs/widgets-api-reference.md: generated per-widget reference of all 43 kinds (npm run update-readme-widgets)
 ui/docs/docs.md: the widget concept — widgetData, widgetDataTemplate, actions, resourcesRefs(Template)
 ui/docs/form-values.md: Form initialValues semantics (precedence, drafts, re-seed)
+ui/docs/form-schema-extensions.md: the x-krateo-* keywords a schema-driven Form reads (options from a RESTAction with dependsOn/search, visible-when, row titles, notice) and the options-RESTAction rules
 ui/docs/restactions.md: pointer — RESTActions are snowplow's; how widgets consume them
 ui/docs/cr-migration-map.json: the hard-break CR migration map (legacy kinds/props → current; List/DataGrid → Listy)
 ui/docs/guides/simple-page/simple-page.md: worked guide — Button + convention Flex page + sidebar Menu item
 ui/docs/guides/action-button/action-button.md: worked guide — openDrawer action, then a Form rest action
 # Records (dated; frontmatter-flagged — re-verify against code before relying on them):
 ui/docs/antd-migration-plan.md: the executed antd-fidelity migration decision record (status: diverged — Listy note inside)
-ui/docs/autocomplete-and-dependencies.md: removed-feature note (Form autocomplete/dependencies no longer exist)
+ui/docs/autocomplete-and-dependencies.md: x-krateo-suggestions, and where the old widgetData autocomplete/dependencies went (schema extensions; the widgetData keys stay unsupported)
