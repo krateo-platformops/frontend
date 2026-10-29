@@ -186,8 +186,8 @@ describe('what each fixture says about its own builder', () => {
  */
 const PORTAL_CHART_SHA256: Record<string, string> = {
   'blueprint-builder.builder.yaml': '650e4e2b65d5648e4ccb580410cbb57c5755f67c7b1c7cfb1b0fc7a51229681a',
-  'controller-builder.builder.yaml': 'bb3b1d10d5ede73be311bff98419dbc7e0d1be35976f83cf7da54c147b02189c',
-  'portal-builder.builder.yaml': 'd42b69006a7aebb342f90c7c7663dfa6767f34dc5e874320353cbf9e88f02612',
+  'controller-builder.builder.yaml': '907b05a61a97548d05b73e035e8b9bd3bb42d57dd99bf64e1d27888c40c28e12',
+  'portal-builder.builder.yaml': '1904d21a2760a4beda8ad2675962c2546b9eaa203a34c7b9cf2e28bd2269b6e3',
 }
 
 const isTestOnly = (path: string): boolean =>
