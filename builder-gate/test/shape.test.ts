@@ -19,7 +19,7 @@ const withTableExpression = (expression: string) => {
 
 /** snowplow resolving the RESTAction to exactly these pods, and dry-running everything green. */
 const pods = (items: unknown[]) => recorder(fakeSnowplow({
-  resolve: (_url, body: { object: Record<string, unknown> }) => resolveReply(200, { ...body.object, status: { pods: items } }, [{ name: 'pods', ok: true }]),
+  resolve: (_url, body) => resolveReply(200, { ...(body.object as Record<string, unknown>), status: { pods: items } }, [{ name: 'pods', ok: true }]),
 })).transport
 
 const shapeOf = (envelope: { steps: { name: string; problems: string[]; notes: string[] }[] }) =>
@@ -33,6 +33,7 @@ describe('frontend#473: an empty result set must not read as a working widget', 
     expect(envelope.failedStep).toBe('shape')
     expect(shapeOf(envelope).problems[0]).toMatch(/pod-sizing returned no items, and this expression does not build the items Table requires at dataSource/)
     // It must name what the API server would have said, so the author sees the real consequence.
+
     expect(shapeOf(envelope).problems[0]).toMatch(/in body must be of type array/)
     expect(shapeOf(envelope).problems[0]).toMatch(/frontend#473/)
   })

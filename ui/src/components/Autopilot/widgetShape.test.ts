@@ -7,12 +7,12 @@
  * nothing, and the widget died the first time a row existed. The first test here is that exact
  * value and that exact API server message.
  */
-/* eslint-disable no-template-curly-in-string -- the ${…} jq DSL appears in the expression tests */
+
 import { describe, expect, it } from 'vitest'
 
 import { checkResolvedShape, itemSchemaConstrains, primeEmptyArrays, schemaAtPath } from './widgetShape'
 
-describe("frontend#473: the shape that shipped and the message the API server gave", () => {
+describe('frontend#473: the shape that shipped and the message the API server gave', () => {
   it('REJECTS rows that are objects, in the API server\'s own words', () => {
     // `expression: ${ .sites }` over a RESTAction whose rows are objects.
     const resolved = [{ name: 'milan', status: 'Ready' }, { name: 'rome', status: 'Ready' }]
@@ -24,7 +24,7 @@ describe("frontend#473: the shape that shipped and the message the API server ga
   })
 
   it('ACCEPTS the same table once its rows are arrays of cells', () => {
-    const resolved = [[{ kind: 'jsonSchemaType', valueKey: 'name', type: 'string', stringValue: 'milan' }]]
+    const resolved = [[{ kind: 'jsonSchemaType', stringValue: 'milan', type: 'string', valueKey: 'name' }]]
     expect(checkResolvedShape('Table', 'dataSource', resolved)).toEqual({ verdict: 'ok' })
   })
 
@@ -35,7 +35,8 @@ describe("frontend#473: the shape that shipped and the message the API server ga
   })
 
   it('names a missing required cell key, which is the other way a cell goes wrong', () => {
-    const resolved = [[{ valueKey: 'name', stringValue: 'milan' }]] // no `kind`
+    // No `kind`, which the cell schema requires alongside `valueKey`.
+    const resolved = [[{ stringValue: 'milan', valueKey: 'name' }]]
     const verdict = checkResolvedShape('Table', 'dataSource', resolved)
     expect(verdict.verdict).toBe('wrong')
     expect(verdict).toHaveProperty('detail', expect.stringContaining('dataSource[0][0].kind in body is required'))
@@ -116,9 +117,9 @@ describe('priming, and why its leaf values must not be judged', () => {
   it('structureOnly ignores a leaf type that came from the primer, but still catches a missing cell key', () => {
     // `stringValue: .` over a primed {} yields an object: that is the primer's shape, not the
     // author's, so strict judging here would be a false positive on a correct constructor.
-    expect(checkResolvedShape('Table', 'dataSource', [[{ kind: 'jsonSchemaType', valueKey: 'n', stringValue: {} }]], { structureOnly: true })).toEqual({ verdict: 'ok' })
+    expect(checkResolvedShape('Table', 'dataSource', [[{ kind: 'jsonSchemaType', stringValue: {}, valueKey: 'n' }]], { structureOnly: true })).toEqual({ verdict: 'ok' })
     // The nesting and the required keys ARE the author's, so they are still judged.
-    expect(checkResolvedShape('Table', 'dataSource', [[{ valueKey: 'n', stringValue: {} }]], { structureOnly: true }).verdict).toBe('wrong')
+    expect(checkResolvedShape('Table', 'dataSource', [[{ stringValue: {}, valueKey: 'n' }]], { structureOnly: true }).verdict).toBe('wrong')
     expect(checkResolvedShape('Table', 'dataSource', [{ not: 'an array' }], { structureOnly: true }).verdict).toBe('wrong')
   })
 })

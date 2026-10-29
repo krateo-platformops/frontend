@@ -34,7 +34,7 @@ const jsonTypeOf = (value: unknown): string => {
 }
 
 const rec = (value: unknown): Record<string, unknown> | null =>
-  typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null
+  (typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null)
 
 /**
  * The schema node a `forPath` names, or null when the kind or the path is unknown to us. Handles
@@ -81,7 +81,7 @@ export interface ShapeCheckOptions {
 export const checkResolvedShape = (widgetKind: string, forPath: string, resolved: unknown, options: ShapeCheckOptions = {}): ShapeVerdict => {
   const schema = schemaAtPath(widgetKind, forPath)
   if (!schema) {
-    return { verdict: 'unknowable', detail: `neither ${widgetKind} nor its field ${forPath} is in the widget registry, so its required shape is not known here` }
+    return { detail: `neither ${widgetKind} nor its field ${forPath} is in the widget registry, so its required shape is not known here`, verdict: 'unknowable' }
   }
 
   const walk = (node: Record<string, unknown>, value: unknown, at: string): ShapeVerdict => {
@@ -90,7 +90,7 @@ export const checkResolvedShape = (widgetKind: string, forPath: string, resolved
     }
     const expected = typeof node.type === 'string' ? node.type : ''
     if (!expected) {
-      return { verdict: 'unknowable', detail: `${at} has no declared type in the CRD, so nothing can be concluded about it` }
+      return { detail: `${at} has no declared type in the CRD, so nothing can be concluded about it`, verdict: 'unknowable' }
     }
     const actual = jsonTypeOf(value)
     // The API server accepts an integer where a number is required, and either for int-or-string.
@@ -100,7 +100,7 @@ export const checkResolvedShape = (widgetKind: string, forPath: string, resolved
       // Under structureOnly a scalar's type came from the primer, not from the author.
       || (options.structureOnly === true && expected !== 'array' && expected !== 'object')
     if (!compatible) {
-      return { verdict: 'wrong', detail: `${at}: Invalid value: "${actual}": ${at} in body must be of type ${expected}: "${actual}"` }
+      return { detail: `${at}: Invalid value: "${actual}": ${at} in body must be of type ${expected}: "${actual}"`, verdict: 'wrong' }
     }
     if (expected === 'array' && Array.isArray(value)) {
       const items = rec(node.items)
@@ -113,11 +113,11 @@ export const checkResolvedShape = (widgetKind: string, forPath: string, resolved
       }
     }
     if (expected === 'object') {
-      const required = Array.isArray(node.required) ? node.required.filter((k): k is string => typeof k === 'string') : []
+      const required = Array.isArray(node.required) ? node.required.filter((name): name is string => typeof name === 'string') : []
       const present = rec(value) ?? {}
       const missing = required.filter((key) => present[key] === undefined)
       if (missing.length > 0) {
-        return { verdict: 'wrong', detail: `${at}: Required value: ${missing.map((k) => `${at}.${k}`).join(', ')} in body is required` }
+        return { detail: `${at}: Required value: ${missing.map((name) => `${at}.${name}`).join(', ')} in body is required`, verdict: 'wrong' }
       }
       // Each DECLARED property that is present is judged too, or a cell whose `stringValue` holds
       // an object would pass: the nesting would be right and the value still unusable. Properties
