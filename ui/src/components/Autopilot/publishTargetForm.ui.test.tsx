@@ -230,7 +230,7 @@ describe('a seeded destination is named for its chart', () => {
       fireEvent.click(screen.getByText('Confirm destination'))
       await Promise.resolve()
     })
-    await waitFor(() => expect(settled).toEqual({ base: 'main', owner: 'krateo-blueprints', repo: 'orders-api' }))
+    await waitFor(() => expect(settled).toEqual({ base: 'main', owner: 'krateo-blueprints', repo: 'orders-api', visibility: 'public' }))
   })
 
   it('a SEEDED publish asks with the slug as the one repository it takes; an unseeded one does not', async () => {
@@ -279,7 +279,7 @@ describe('a seeded destination is named for its chart', () => {
       fireEvent.click(screen.getByText('Confirm destination'))
       await Promise.resolve()
     })
-    await waitFor(() => expect(settled).toEqual({ base: 'main', owner: 'acme', repo: 'team-pages' }))
+    await waitFor(() => expect(settled).toEqual({ base: 'main', owner: 'acme', repo: 'team-pages', visibility: 'public' }))
   })
 })
 
