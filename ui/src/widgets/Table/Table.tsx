@@ -18,6 +18,8 @@ import { formatISODate, formatRelativeTime } from '../../utils/utils'
 import styles from './Table.module.css'
 import type { Table as WidgetType } from './Table.type'
 import { columnLayout } from './tableColumnWidths'
+import { buildExportRequest } from './tableExport'
+import TableExportControl from './TableExportControl'
 import { computeTablePagination, shouldVirtualize, VIRTUAL_SCROLL_Y } from './tablePagination'
 import { getColumnSortProps } from './tableSorting'
 
@@ -26,7 +28,7 @@ export type TableWidgetData = WidgetType['spec']['widgetData']
 /** --krateo-text-label-sm, px: the header's font size. */
 const HEADER_FONT_SIZE = 11
 
-const Table = ({ deniedRefIds, resourcesRefs, serverPagination, uid, widgetData }: WidgetProps<TableWidgetData>) => {
+const Table = ({ deniedRefIds, exportUrlFor, resourcesRefs, serverPagination, uid, widgetData }: WidgetProps<TableWidgetData>) => {
   const { bordered, columns, dataSource, fitContent, pagination, prefix, rowNavigateTo, size } = widgetData
   const data = dataSource ?? []
   const { getFilteredData } = useFilter()
@@ -124,7 +126,7 @@ const Table = ({ deniedRefIds, resourcesRefs, serverPagination, uid, widgetData 
   // client pager.
   const paginationProp: TablePaginationConfig | false = computeTablePagination({ crPagination: pagination, rowCount, serverPagination })
 
-  return (
+  const table = (
     <AntdTable
       bordered={bordered}
       columns={columns?.map(({ color, minWidth, title, valueKey, width }, index) => ({
@@ -329,6 +331,23 @@ const Table = ({ deniedRefIds, resourcesRefs, serverPagination, uid, widgetData 
       size={size ?? 'middle'}
       virtual={virtual}
     />
+  )
+
+  // The control is rendered ONLY when there is something to export and a URL to export from, and
+  // the wrapper only when the control is. An existing table with no exportable column keeps the
+  // DOM it has always had — no element, no extra div, nothing to re-lay-out — which is why this
+  // needs no CRD flag to stay out of the way.
+  if (!exportUrlFor || buildExportRequest(columns, 'csv') === null) {
+    return table
+  }
+
+  return (
+    <div className={styles.withExport}>
+      <div className={styles.exportBar}>
+        <TableExportControl columns={columns} exportUrlFor={exportUrlFor} />
+      </div>
+      {table}
+    </div>
   )
 }
 

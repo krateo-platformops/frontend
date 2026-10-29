@@ -511,5 +511,31 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
     serverPagination: usesClassicPager
       ? { page: serverPage, pageSize: boundedPerPage, setPage: setServerPage }
       : undefined,
+    /**
+     * The full URL for an EXPORT of this widget's own read, given the export query a widget
+     * built from its columns (see widgets/Table/tableExport.ts).
+     *
+     * A capability rather than the endpoint itself, following `serverPagination.setPage`: the
+     * hook owns how a widget's URL is assembled and a widget should not be handed the raw
+     * endpoint to concatenate onto. Two details this gets right that a widget could not:
+     *
+     *  - `extras` IS carried, so the export matches what is on screen. Server-side facet and
+     *    search filters shrink the row set BEFORE it reaches the widget, so an export without
+     *    them would silently hand back the UNFILTERED table — the same class of quiet wrongness
+     *    as an export that stops at a row bound without saying so.
+     *  - `page`/`perPage` are NOT carried. snowplow re-dispatches the read with its own
+     *    `page=N&perPage=500` walk and concatenates the pages, so the export covers every row
+     *    rather than the slice on screen. Sending a page would fight that walk.
+     */
+    exportUrlFor: (exportQuery: string): string => {
+      // A FRESH URL: `requestUrl` is mutated by fetchWidget (page/perPage/extras), so reusing
+      // it here would inherit whichever page was fetched last.
+      const url = new URL(widgetFullUrl)
+      if (extrasParam) {
+        url.searchParams.set('extras', extrasParam)
+      }
+      const query = url.searchParams.toString()
+      return `${url.origin}${url.pathname}?${query ? `${query}&` : ''}${exportQuery}`
+    },
   }
 }

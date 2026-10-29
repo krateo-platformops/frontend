@@ -32,7 +32,8 @@ const parseWidget = (
   isFetching: boolean,
   isFetchingNextPage: boolean,
   isFetchingResourcesRefs: boolean,
-  serverPagination?: ServerPagination
+  serverPagination?: ServerPagination,
+  exportUrlFor?: (exportQuery: string) => string
 ) => {
   if (typeof widget.status === 'string') {
     return null
@@ -49,6 +50,11 @@ const parseWidget = (
     // removes are carried alongside instead, so a container can tell a denied child from a typo'd
     // one without either of them becoming visible to the other's audience.
     deniedRefIds: resourcesRefs?.items?.filter(({ allowed }) => !allowed).map(({ id }) => id) ?? [],
+    // The widget's own read, as a URL an export can be fetched from. The hook owns URL
+    // assembly (it carries `extras` so an export matches the filters on screen, and omits
+    // page/perPage so snowplow's own walk covers every row); a widget supplies only the
+    // query built from its columns. Undefined when there is nothing to export from.
+    exportUrlFor,
     resourcesRefs: { ...resourcesRefs, items: resourcesRefs?.items?.filter(({ allowed }) => allowed) ?? [] },
     // Classic server-side pager controls, threaded down to widgets that opt into
     // bounded pagination (e.g. the compositions Table). Undefined for all others.
@@ -109,7 +115,7 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
   // params client-side keyed every `tables` widget apart from its seed and missed L1 on every
   // request (portal#235). `useWidgetQuery` still accepts `defaultPageSize` for a caller that has a
   // window of its own; nothing in the SPA has one.
-  const { isFetchingResourcesRefs, queryResult, serverPagination, timedOut, widgetId } = useWidgetQuery(widgetEndpoint)
+  const { exportUrlFor, isFetchingResourcesRefs, queryResult, serverPagination, timedOut, widgetId } = useWidgetQuery(widgetEndpoint)
   const { data: widget, dataUpdatedAt, error, fetchNextPage, hasNextPage, isFetching, isFetchingNextPage, isLoading, isPending, isStale, refetch } = queryResult
 
   // Freshness signal fed to the FreshnessBadge overlaid on the rendered widget.
@@ -249,7 +255,7 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
   // transiently-bad payload does not leave the widget permanently stuck on its first bad render.
   const renderedWidget = (
     <WidgetErrorBoundary resetKey={dataUpdatedAt} widgetId={`${kind} @ ${widgetEndpoint}`}>
-      {parseWidget(widget, fetchNextPage, hasNextPage, isFetching, isFetchingNextPage, isFetchingResourcesRefs, serverPagination)}
+      {parseWidget(widget, fetchNextPage, hasNextPage, isFetching, isFetchingNextPage, isFetchingResourcesRefs, serverPagination, exportUrlFor)}
     </WidgetErrorBoundary>
   )
 
