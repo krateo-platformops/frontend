@@ -2,14 +2,16 @@ import { CloseOutlined, MinusCircleOutlined, PlusOutlined } from '@ant-design/ic
 import { Form as AntdForm, AutoComplete, Button, Card, Collapse, Input, InputNumber, Select, Space, Switch } from 'antd'
 import type { DefaultOptionType } from 'antd/es/select'
 import type { JSONSchema4 } from 'json-schema'
-import { cloneElement, isValidElement, useEffect, useState } from 'react'
+import { cloneElement, isValidElement, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
 
 import { isSecretArrayNode, isSecretSchemaNode } from '../../utils/secretFields'
 
+import { collectDependencies, type FieldPath } from './fieldDependencies'
 import { getFieldOptionsSpec } from './fieldOptions'
 import styles from './Form.module.css'
 import { OptionsInput } from './OptionsInput'
+import { type SchemaRoot, SchemaRootContext } from './schemaRoot'
 import { fieldLabel, itemCountRules, rulesFor } from './schemaRules'
 import type { SuggestionGroup } from './utils'
 import { getOptionsFromEnum, getSuggestionGroups, suggestionSearchText } from './utils'
@@ -214,8 +216,11 @@ const isUntypedObject = (node: JSONSchema4): boolean =>
   node.type === undefined && (node['x-kubernetes-preserve-unknown-fields'] === true
     || node.additionalProperties === true || typeof node.additionalProperties === 'object')
 
-/** Renders an antd form control for a single schema node (the schema-driven control). */
-const controlFor = (node: JSONSchema4): React.ReactNode => {
+/**
+ * Renders an antd form control for a single schema node (the schema-driven control). `fieldPath`
+ * is the field's absolute path in the form — what its `dependsOn` is resolved from.
+ */
+const controlFor = (node: JSONSchema4, fieldPath: FieldPath = []): React.ReactNode => {
   // A SECRET (`format: password` / `writeOnly: true`) is checked FIRST: whatever else the node
   // carries, its value is never shown in clear or offered back — no suggestions, no enum list.
   // `new-password` keeps the browser from autofilling a stored credential into a form that
@@ -236,7 +241,7 @@ const controlFor = (node: JSONSchema4): React.ReactNode => {
   // to be fixed, and the live one is the one meant.
   const optionsSpec = getFieldOptionsSpec(node)
   if (optionsSpec) {
-    return <OptionsInput node={node} spec={optionsSpec} />
+    return <OptionsInput fieldPath={fieldPath} node={node} spec={optionsSpec} />
   }
 
   // SUGGESTIONS BEFORE `enum`, and deliberately so: they are an OPEN catalogue, so the
@@ -354,6 +359,12 @@ interface SchemaFieldsProps {
    * list row's index inside a `Form.List`, which antd resolves relative to the list.
    */
   namePath?: Array<string | number>
+  /**
+   * the ABSOLUTE path of the object these fields live in. It differs from `namePath` only inside a
+   * list row, whose names antd resolves relative to the list; a field's `dependsOn` and watches
+   * need the absolute one. Defaults to `namePath`.
+   */
+  scopePath?: FieldPath
 }
 
 /**
@@ -362,8 +373,9 @@ interface SchemaFieldsProps {
  * are preserved verbatim regardless of which partition (required up-front or Advanced
  * collapse) the property lands in, so submission + validation are identical to a flat render.
  */
-function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: Array<string | number>, isRequired: boolean): React.ReactNode {
+function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: Array<string | number>, scopePath: FieldPath, isRequired: boolean): React.ReactNode {
   const path = [...namePath, key]
+  const scope = [...scopePath, key]
 
   if (isObjectList(node)) {
     const itemSchema = node.items as JSONSchema4
@@ -396,7 +408,7 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
                     title={`${label} ${field.name + 1}`}
                   >
                     {/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
-                    <SchemaFields hide={[]} namePath={[field.name]} schema={itemSchema} />
+                    <SchemaFields hide={[]} namePath={[field.name]} schema={itemSchema} scopePath={[...scope, field.name]} />
                   </Card>
                 ))}
                 <Button block icon={<PlusOutlined />} onClick={() => add()} type='dashed'>
@@ -418,7 +430,7 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
         <div className={styles.groupBody}>
           {/* recursion — SchemaFields partitions this nested group's own required/optional split */}
           {/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
-          <SchemaFields hide={hide} namePath={path} schema={node} />
+          <SchemaFields hide={hide} namePath={path} schema={node} scopePath={scope} />
         </div>
       </div>
     )
@@ -441,7 +453,7 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
       valuePropName={node.type === 'boolean' ? 'checked' : undefined}
       wrapperCol={{ span: 24 }}
     >
-      {controlFor(node)}
+      {controlFor(node, scope)}
     </AntdForm.Item>
   )
 }
@@ -469,8 +481,13 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
  * whose fields were all optional (Ingress) showed the same single closed bar. Those fields render
  * open instead.
  */
-export const SchemaFields = ({ hide = [], namePath = [], schema }: SchemaFieldsProps): React.ReactNode => {
+/** The root context for a schema, computed once: its dependency cycles. */
+const useSchemaRoot = (schema: JSONSchema4): SchemaRoot =>
+  useMemo(() => ({ cyclic: collectDependencies(schema).cyclic, schema }), [schema])
+
+const SchemaFieldsBody = ({ hide = [], namePath = [], schema, scopePath }: SchemaFieldsProps): React.ReactNode => {
   if (!schema?.properties) { return null }
+  const scope = scopePath ?? namePath
   const required = new Set(Array.isArray(schema.required) ? schema.required : [])
 
   const visible = Object.entries(schema.properties).filter(([key]) => !hide.includes(key))
@@ -478,17 +495,17 @@ export const SchemaFields = ({ hide = [], namePath = [], schema }: SchemaFieldsP
   const optionalEntries = visible.filter(([key]) => !required.has(key))
 
   if (requiredEntries.length === 0) {
-    return <>{optionalEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, false))}</>
+    return <>{optionalEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, false))}</>
   }
 
   return (
     <>
-      {requiredEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, true))}
+      {requiredEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, true))}
       {optionalEntries.length > 0 ? (
         <Collapse
           className={styles.advanced}
           items={[{
-            children: <>{optionalEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, false))}</>,
+            children: <>{optionalEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, false))}</>,
             // Always mount the optional fields (they're just visually hidden while collapsed) so
             // they register with the form store and submit / validate identically to an up-front
             // field — the disclosure never drops a value, even if the collapse is never opened.
@@ -500,6 +517,20 @@ export const SchemaFields = ({ hide = [], namePath = [], schema }: SchemaFieldsP
       ) : null}
     </>
   )
+}
+
+export const SchemaFields = (props: SchemaFieldsProps): React.ReactNode => {
+  const inherited = useContext(SchemaRootContext)
+  const root = useSchemaRoot(props.schema)
+  // A top-level render with no SchemaForm around it is its own root.
+  if (!inherited && !(props.namePath ?? []).length) {
+    return (
+      <SchemaRootContext.Provider value={root}>
+        <SchemaFieldsBody {...props} />
+      </SchemaRootContext.Provider>
+    )
+  }
+  return <SchemaFieldsBody {...props} />
 }
 
 interface Section { id: string; label: string }
@@ -526,39 +557,42 @@ export const SchemaForm = ({ hide = [], schema }: { schema: JSONSchema4; hide?: 
   })
 
   const [active, setActive] = useState<string>(sections[0]?.id ?? '__general__')
+  const root = useSchemaRoot(schema)
 
   if (sections.length < 2) {
     return <SchemaFields hide={hide} schema={schema} />
   }
 
   return (
-    <div className={styles.sectioned}>
-      <nav className={styles.secNav}>
-        {sections.map((section) => (
-          <button
-            className={[
-              styles.secItem,
-              active === section.id ? styles.secActive : '',
-              section.id === '__general__' ? styles.secSynthetic : '',
-            ].filter(Boolean).join(' ')}
-            key={section.id}
-            onClick={() => { setActive(section.id) }}
-            type='button'
-          >
-            {section.label}
-          </button>
-        ))}
-      </nav>
-      <div className={styles.secBody}>
-        {sections.map((section) => (
-          <div key={section.id} style={active === section.id ? undefined : { display: 'none' }}>
-            {section.id === '__general__'
-              ? <SchemaFields hide={[...hide, ...groupKeys]} schema={schema} />
-              : <SchemaFields hide={hide} namePath={[section.id]} schema={properties[section.id]} />}
-          </div>
-        ))}
+    <SchemaRootContext.Provider value={root}>
+      <div className={styles.sectioned}>
+        <nav className={styles.secNav}>
+          {sections.map((section) => (
+            <button
+              className={[
+                styles.secItem,
+                active === section.id ? styles.secActive : '',
+                section.id === '__general__' ? styles.secSynthetic : '',
+              ].filter(Boolean).join(' ')}
+              key={section.id}
+              onClick={() => { setActive(section.id) }}
+              type='button'
+            >
+              {section.label}
+            </button>
+          ))}
+        </nav>
+        <div className={styles.secBody}>
+          {sections.map((section) => (
+            <div key={section.id} style={active === section.id ? undefined : { display: 'none' }}>
+              {section.id === '__general__'
+                ? <SchemaFields hide={[...hide, ...groupKeys]} schema={schema} />
+                : <SchemaFields hide={hide} namePath={[section.id]} schema={properties[section.id]} />}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </SchemaRootContext.Provider>
   )
 }
 
