@@ -3,6 +3,51 @@ One gate per instance: Deployment, Service, and the RemoteMCPServer kagent resol
 validate_draft toolName against. The server is stateless (a fresh MCP transport per request), so
 a restart never strands a session.
 */ -}}
+{{- /*
+REFUSE AN INSTALL THAT WOULD DEPLOY NOTHING.
+
+Every object below is inside `range .Values.instances`, and `instances` defaults to []. So an
+install that forgets it rendered ZERO objects: helm reported success, the release looked healthy,
+and no gate existed. That is indistinguishable from a working install by every signal an operator
+would check, and it is how this chart sat published-and-uninstalled for two releases while
+`validate_draft` judged nothing.
+
+An empty list is always a mistake here — a chart whose only purpose is to run gates has no meaning
+with no gates — so it fails loudly instead.
+*/ -}}
+{{- if not .Values.instances }}
+{{- fail "builder-gate: .Values.instances is empty, so this chart would render NOTHING and report success. Declare one entry per authoring agent, e.g. instances: [{name: portal-builder, builders: [portal-builder]}]. Each entry needs `name` and `builders`." }}
+{{- end }}
+
+{{- /*
+AND ASSERT EACH INSTANCE'S BUILDERS EXIST — but only where that question is answerable.
+
+The RBAC below narrows to the named Builders, so a typo produces a gate with permission to read a
+Builder that is not there: it starts, serves `validate_draft`, and fails every call for a reason
+that looks like the caller's fault. The lookup turns that into an install-time error.
+
+GUARDED ON CAPABILITIES, DELIBERATELY. `helm template` disables `lookup` (it returns empty) and
+carries only built-in API versions, so an unguarded assert would fail every render in CI and every
+`helm template` a human runs. Keying on `.Capabilities.APIVersions.Has` means the assert runs when
+we are talking to a cluster that serves the kind — where an empty lookup really does mean absent —
+and is skipped where emptiness carries no information.
+
+The group is doubled and that is not a typo: the CRD is `builders.builders.templates.krateo.io`,
+plural `builders` in group `builders.templates.krateo.io`. Reading it as `templates.krateo.io`
+resolves to a group that does not exist and answers nothing, which produced a confident "there are
+zero Builders" about three that are 28 days old.
+*/ -}}
+{{- $group := "builders.templates.krateo.io/v1alpha1" }}
+{{- if .Capabilities.APIVersions.Has $group }}
+{{- range $instance := .Values.instances }}
+{{- range $builder := $instance.builders }}
+{{- if not (lookup $group "Builder" $.Values.buildersNamespace $builder) }}
+{{- fail (printf "builder-gate: instance %q names Builder %q, which does not exist in namespace %q. The gate's RBAC would grant access to a Builder that is not there, and every validate_draft call for it would fail as if the caller were at fault. List the real ones with: kubectl get builders.builders.templates.krateo.io -n %s" ($instance.name | toString) ($builder | toString) $.Values.buildersNamespace $.Values.buildersNamespace) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
 {{- range .Values.instances }}
 {{- $name := include "builder-gate.name" . }}
 {{- $ctx := dict "root" $ "instance" . }}
