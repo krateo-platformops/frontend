@@ -58,8 +58,15 @@ export interface Config {
      * production page (zero snowplow changes). When absent the verb keeps its v1
      * ZERO-NETWORK source-preview behavior EXACTLY, and the applyResourceSet guard's
      * widgets/restactions sandbox carve-out stays fully closed (total deny). The
-     * namespace itself (quota + author RBAC + TTL janitor) is chart-provisioned
-     * infrastructure (CHART-SBX) — the frontend never creates it. */
+     * namespace itself (author RBAC) is chart-provisioned infrastructure (CHART-SBX) — the
+     * frontend never creates it.
+     *
+     * NO QUOTA AND NO JANITOR, by decision (frontend#364). This used to read "quota + author RBAC
+     * + TTL janitor", and none of the three was ever true together: the quota existed until THIS
+     * chart deleted it in 1.6.73 as part of the draft-render path, and the TTL janitor never
+     * existed at all. So nothing bounds the sandbox and nothing reclaims it on a timer — each
+     * preview removes what it wrote, and a session that dies without teardown leaves its drafts
+     * until the next preview sweeps them. Objects 27 days old have been observed surviving. */
     PREVIEW_SANDBOX_NAMESPACE?: string
     /** The namespace the Builder CRs live in (ADR 0001): the frontend lists them there as the
      * signed-in person (builders/clusterBuilders.ts). Empty/absent → no builder opens, and the
