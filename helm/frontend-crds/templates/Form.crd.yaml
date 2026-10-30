@@ -411,6 +411,42 @@ spec:
                       items:
                         type: string
                       type: array
+                    autocomplete:
+                      description: Configuration for the Autocomplete form fields. The field options could be configured using enum values coming from the schema or via an API call made using a RESTAction which sould be defined below. The RESTActions shuold contain a `status` field, which is an array of object with the `{ label, value }` format.
+                      items:
+                        properties:
+                          closed:
+                            description: 'true: only a listed value is accepted (a select); false: the list suggests and typed text is kept. Default false (the previous frontend rendered autocomplete fields as an autocomplete)'
+                            type: boolean
+                          extra:
+                            description: parameter to be added to the RESTAction call
+                            properties:
+                              key:
+                                description: the key of the additional parameter
+                                type: string
+                            required:
+                              - key
+                            type: object
+                          fallback:
+                            description: '`manual`: a closed field whose options cannot be loaded (the RESTAction fails, or answers an empty list) takes a typed value instead of blocking the form'
+                            enum:
+                              - manual
+                            type: string
+                          minChars:
+                            description: 'with `extra`: the typed text is sent once it has this many characters. Default 2'
+                            format: int32
+                            minimum: 1
+                            type: integer
+                          name:
+                            description: the name of the autocomplete field
+                            type: string
+                          resourceRefId:
+                            description: the identifier of the RESTAction that should be called to retrieve autocomplete data
+                            type: string
+                        required:
+                          - name
+                        type: object
+                      type: array
                     buttonConfig:
                       description: custom labels and icons for form buttons
                       properties:
@@ -462,9 +498,115 @@ spec:
                               type: string
                           type: object
                       type: object
+                    dependencies:
+                      description: Configuration for the form fields who are dependent from other form fields. The field options are set via an API call made using a RESTAction which sould be defined below. The RESTActions shuold contain a `status` field, which is an array of object with the `{ label, value }` format.
+                      items:
+                        properties:
+                          closed:
+                            description: 'true: only a listed value is accepted (a select); false: the list suggests and typed text is kept. Default true (the previous frontend rendered dependent fields as a select)'
+                            type: boolean
+                          dependsOn:
+                            description: the field on which this field depends on
+                            properties:
+                              name:
+                                description: the name of the field on which this field depends on
+                                type: string
+                            required:
+                              - name
+                            type: object
+                          extra:
+                            description: parameter to be added to the RESTAction call
+                            properties:
+                              key:
+                                description: the key of the additional parameter
+                                type: string
+                            required:
+                              - key
+                            type: object
+                          fallback:
+                            description: '`manual`: a closed field whose options cannot be loaded (the RESTAction fails, or answers an empty list) takes a typed value instead of blocking the form'
+                            enum:
+                              - manual
+                            type: string
+                          name:
+                            description: the name of the autocomplete field
+                            type: string
+                          resourceRefId:
+                            description: the identifier of the RESTAction that should be called to retrieve dependency data
+                            type: string
+                        required:
+                          - dependsOn
+                          - extra
+                          - name
+                          - resourceRefId
+                        type: object
+                      type: array
                     disabled:
                       description: antd Form disabled (disables all fields)
                       type: boolean
+                    displayingDependencies:
+                      description: Configuration for the form fields whose displaying is dependent from other form fields.
+                      items:
+                        properties:
+                          dependsOn:
+                            description: the field on which this field depends on
+                            properties:
+                              conditionType:
+                                description: '`notEmpty` (default) indicates that the current field is displayed if the dependency field has a non-empty value. `value` indicates that the current field is displayed only when the dependency field matches a specific value.'
+                                enum:
+                                  - notEmpty
+                                  - value
+                                type: string
+                              name:
+                                description: the name of the field on which this field depends on
+                                type: string
+                              value:
+                                description: Expected value used when `type = value`.
+                                properties:
+                                  arrayValue:
+                                    description: Value if type = array
+                                    items:
+                                      type: string
+                                    type: array
+                                  booleanValue:
+                                    description: Value if type = boolean
+                                    type: boolean
+                                  integerValue:
+                                    description: Value if type = integer
+                                    format: int32
+                                    type: integer
+                                  optionValue:
+                                    description: 'Value if type = option: includes a single value or a { label, value } object'
+                                    type: object
+                                    x-kubernetes-preserve-unknown-fields: true
+                                  stringValue:
+                                    description: Value if type = string
+                                    type: string
+                                  type:
+                                    description: Expected dependency value type.
+                                    enum:
+                                      - string
+                                      - integer
+                                      - boolean
+                                      - array
+                                      - option
+                                      - 'null'
+                                    type: string
+                                required:
+                                  - type
+                                type: object
+                            required:
+                              - conditionType
+                              - name
+                            type: object
+                          name:
+                            description: the name of the field
+                            type: string
+                        required:
+                          - dependsOn
+                          - name
+                        type: object
+                      type: array
                     draftActionId:
                       description: optional id of an action fired by a 'Save draft' button that captures the CURRENT field values WITHOUT running form validation (so an incomplete form can be persisted). Pair with buttonConfig.draft to show the button.
                       type: string
@@ -490,6 +632,24 @@ spec:
                         - vertical
                         - inline
                       type: string
+                    notice:
+                      description: a message shown above the fields of a schema form (e.g. the blueprint formdef's note that the form was built from the CRD)
+                      type: string
+                    objectFields:
+                      description: configuration for object fields in the form
+                      items:
+                        properties:
+                          displayField:
+                            description: the field to display in the objects list
+                            type: string
+                          path:
+                            description: the path of the object field
+                            type: string
+                        required:
+                          - displayField
+                          - path
+                        type: object
+                      type: array
                     propertiesToHide:
                       description: top-level schema property names to omit from the schema-driven form
                       items:
@@ -536,6 +696,38 @@ spec:
                     submitDisabledWhenPristine:
                       description: when true, the primary (submit) button stays disabled until at least one field differs from its initial value (initialValues overlaid on schema defaults). Use for update forms where submitting an unchanged value is a no-op — e.g. a version picker pre-set to the currently-installed version.
                       type: boolean
+                    suggestions:
+                      description: 'a static, open catalogue for a field: the options are offered, and any typed value is kept'
+                      items:
+                        properties:
+                          name:
+                            description: the name of the field
+                            type: string
+                          options:
+                            description: the catalogue, in the order it is shown
+                            items:
+                              properties:
+                                description:
+                                  description: a muted second line
+                                  type: string
+                                group:
+                                  description: the heading the option is grouped under
+                                  type: string
+                                label:
+                                  description: shown instead of the value
+                                  type: string
+                                value:
+                                  description: the value written into the field
+                                  type: string
+                              required:
+                                - value
+                              type: object
+                            type: array
+                        required:
+                          - name
+                          - options
+                        type: object
+                      type: array
                   required:
                     - actions
                     - submitActionId

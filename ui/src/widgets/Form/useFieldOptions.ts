@@ -8,8 +8,9 @@ import { getAccessToken } from '../../utils/getAccessToken'
 import { type FieldOption, type OptionRegistry, parseFieldOptions } from './fieldOptions'
 
 /**
- * The resolved `resourcesRefs` of the Form a schema field belongs to, so a field with
- * `x-krateo-options` can find the RESTAction its `ref` names — and whether snowplow allowed it.
+ * The resolved `resourcesRefs` of the Form a schema field belongs to, so the field of an
+ * `autocomplete` or `dependencies` entry can find the RESTAction its `resourceRefId` names — and
+ * whether snowplow allowed it.
  */
 export interface FormRefs {
   resourcesRefs?: ResourcesRefs

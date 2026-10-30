@@ -1,9 +1,10 @@
 import type { JSONSchema4 } from 'json-schema'
 import { describe, expect, it } from 'vitest'
 
+import { VISIBLE_WHEN_KEY } from './fieldKeys'
 import { hiddenPaths, isVisible, omitPaths } from './visibleWhen'
 
-const when = (rule: unknown): JSONSchema4 => ({ type: 'string', 'x-krateo-visible-when': rule })
+const when = (rule: unknown): JSONSchema4 => ({ [VISIBLE_WHEN_KEY]: rule, type: 'string' })
 
 describe('isVisible', () => {
   const values = { service: { ports: [80], type: 'NodePort' }, tier: 'gold' }
@@ -12,10 +13,9 @@ describe('isVisible', () => {
     expect(isVisible({ type: 'string' }, values, [])).toBe(true)
   })
 
-  it('reads equals, in and notEmpty, relative to the object holding the field', () => {
+  it('reads equals and notEmpty, relative to the object holding the field', () => {
     expect(isVisible(when({ equals: 'NodePort', field: 'type' }), values, ['service'])).toBe(true)
     expect(isVisible(when({ equals: 'ClusterIP', field: 'type' }), values, ['service'])).toBe(false)
-    expect(isVisible(when({ field: 'type', in: ['LoadBalancer', 'NodePort'] }), values, ['service'])).toBe(true)
     expect(isVisible(when({ field: 'ports', notEmpty: true }), values, ['service'])).toBe(true)
     expect(isVisible(when({ field: 'missing', notEmpty: true }), values, ['service'])).toBe(false)
   })

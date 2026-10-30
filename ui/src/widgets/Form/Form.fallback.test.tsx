@@ -84,17 +84,26 @@ const REFS: ResourcesRefs = { items: [ref('regions'), ref('ports'), ref('cities'
 const SCHEMA = {
   type: 'object',
   properties: {
-    region: { title: 'Region', type: 'string', 'x-krateo-options': { closed: true, fallback: 'manual', ref: 'regions' } },
-    port: { title: 'Port', type: 'integer', 'x-krateo-options': { closed: true, fallback: 'manual', ref: 'ports' } },
-    strict: { title: 'Strict', type: 'string', 'x-krateo-options': { closed: true, ref: 'regions' } },
-    city: { title: 'City', type: 'string', 'x-krateo-options': { ref: 'cities' } },
-    odd: { title: 'Odd', type: 'string', 'x-krateo-options': { closed: true, fallback: 'always', ref: 'regions' } },
+    region: { title: 'Region', type: 'string' },
+    port: { title: 'Port', type: 'integer' },
+    strict: { title: 'Strict', type: 'string' },
+    city: { title: 'City', type: 'string' },
+    odd: { title: 'Odd', type: 'string' },
   },
 }
+const AUTOCOMPLETE = [
+  { name: 'region', resourceRefId: 'regions', closed: true, fallback: 'manual' },
+  { name: 'port', resourceRefId: 'ports', closed: true, fallback: 'manual' },
+  { name: 'strict', resourceRefId: 'regions', closed: true },
+  { name: 'city', resourceRefId: 'cities' },
+  // not a value the CRD admits: the field says so rather than guessing
+  { name: 'odd', resourceRefId: 'regions', closed: true, fallback: 'always' },
+] as FormWidgetData['autocomplete']
 /* eslint-enable sort-keys/sort-keys-fix */
 
 const widgetData = (): FormWidgetData => ({
   actions: { rest: [{ headers: [], id: 'submit', resourceRefId: 'ref', type: 'rest' }] },
+  autocomplete: AUTOCOMPLETE,
   stringSchema: JSON.stringify(SCHEMA),
   submitActionId: 'submit',
 })

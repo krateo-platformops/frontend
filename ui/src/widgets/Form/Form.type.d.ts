@@ -348,6 +348,186 @@ export interface Form {
         resourceRefId: string
       }[]
       /**
+       * Configuration for the Autocomplete form fields. The field options could be configured using enum values coming from the schema or via an API call made using a RESTAction which sould be defined below. The RESTActions shuold contain a `status` field, which is an array of object with the `{ label, value }` format.
+       */
+      autocomplete?: {
+        /**
+         * parameter to be added to the RESTAction call
+         */
+        extra?: {
+          /**
+           * the key of the additional parameter
+           */
+          key: string
+        }
+        /**
+         * the name of the autocomplete field
+         */
+        name: string
+        /**
+         * the identifier of the RESTAction that should be called to retrieve autocomplete data
+         */
+        resourceRefId?: string
+        /**
+         * true: only a listed value is accepted (a select); false: the list suggests and typed text is kept. Default false (the previous frontend rendered autocomplete fields as an autocomplete)
+         */
+        closed?: boolean
+        /**
+         * with `extra`: the typed text is sent once it has this many characters. Default 2
+         */
+        minChars?: number
+        /**
+         * `manual`: a closed field whose options cannot be loaded (the RESTAction fails, or answers an empty list) takes a typed value instead of blocking the form
+         */
+        fallback?: 'manual'
+      }[]
+      /**
+       * Configuration for the form fields who are dependent from other form fields. The field options are set via an API call made using a RESTAction which sould be defined below. The RESTActions shuold contain a `status` field, which is an array of object with the `{ label, value }` format.
+       */
+      dependencies?: {
+        /**
+         * the field on which this field depends on
+         */
+        dependsOn: {
+          /**
+           * the name of the field on which this field depends on
+           */
+          name: string
+        }
+        /**
+         * parameter to be added to the RESTAction call
+         */
+        extra: {
+          /**
+           * the key of the additional parameter
+           */
+          key: string
+        }
+        /**
+         * the name of the autocomplete field
+         */
+        name: string
+        /**
+         * the identifier of the RESTAction that should be called to retrieve dependency data
+         */
+        resourceRefId: string
+        /**
+         * true: only a listed value is accepted (a select); false: the list suggests and typed text is kept. Default true (the previous frontend rendered dependent fields as a select)
+         */
+        closed?: boolean
+        /**
+         * `manual`: a closed field whose options cannot be loaded (the RESTAction fails, or answers an empty list) takes a typed value instead of blocking the form
+         */
+        fallback?: 'manual'
+      }[]
+      /**
+       * Configuration for the form fields whose displaying is dependent from other form fields.
+       */
+      displayingDependencies?: {
+        /**
+         * the name of the field
+         */
+        name: string
+        /**
+         * the field on which this field depends on
+         */
+        dependsOn: {
+          /**
+           * the name of the field on which this field depends on
+           */
+          name: string
+          /**
+           * `notEmpty` (default) indicates that the current field is displayed if the dependency field has a non-empty value. `value` indicates that the current field is displayed only when the dependency field matches a specific value.
+           */
+          conditionType: 'notEmpty' | 'value'
+          /**
+           * Expected value used when `type = value`.
+           */
+          value?: {
+            /**
+             * Expected dependency value type.
+             */
+            type: 'string' | 'integer' | 'boolean' | 'array' | 'option' | 'null'
+            /**
+             * Value if type = string
+             */
+            stringValue?: string
+            /**
+             * Value if type = integer
+             */
+            integerValue?: number
+            /**
+             * Value if type = boolean
+             */
+            booleanValue?: boolean
+            /**
+             * Value if type = array
+             */
+            arrayValue?: string[]
+            /**
+             * Value if type = option: includes a single value or a { label, value } object
+             */
+            optionValue?: {
+              /**
+               * Label of the option
+               */
+              label?: string
+              /**
+               * Value of the option
+               */
+              value: string | number | boolean
+            }
+          }
+        }
+      }[]
+      /**
+       * a message shown above the fields of a schema form (e.g. the blueprint formdef's note that the form was built from the CRD)
+       */
+      notice?: string
+      /**
+       * configuration for object fields in the form
+       */
+      objectFields?: {
+        /**
+         * the path of the object field
+         */
+        path: string
+        /**
+         * the field to display in the objects list
+         */
+        displayField: string
+      }[]
+      /**
+       * a static, open catalogue for a field: the options are offered, and any typed value is kept
+       */
+      suggestions?: {
+        /**
+         * the name of the field
+         */
+        name: string
+        /**
+         * the catalogue, in the order it is shown
+         */
+        options: {
+          /**
+           * the value written into the field
+           */
+          value: string
+          /**
+           * shown instead of the value
+           */
+          label?: string
+          /**
+           * a muted second line
+           */
+          description?: string
+          /**
+           * the heading the option is grouped under
+           */
+          group?: string
+        }[]
+      }[]
+      /**
        * JSON schema (e.g. a blueprint CRD's openAPIV3Schema spec) rendered as form fields — the schema-driven alternative to `items`. Usually populated server-side via a widgetDataTemplate jq expression that extracts the spec schema. Note: a schema sourced from a CRD's openAPIV3Schema has its `properties` map serialized alphabetically (order lost); use `stringSchema` to preserve the source values.schema.json authoring order.
        */
       schema?: Record<string, unknown>

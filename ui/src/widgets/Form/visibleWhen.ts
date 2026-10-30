@@ -1,17 +1,21 @@
 import type { JSONSchema4 } from 'json-schema'
 
 import { type FieldPath, resolveFieldPath } from './fieldDependencies'
+import { VISIBLE_WHEN_KEY } from './fieldKeys'
 
 /**
- * `x-krateo-visible-when` — a field shown only while another field has a given value:
+ * A field shown only while another field has a given value: a `displayingDependencies` entry of
+ * widgetData, written on the field's node by fieldConfig.ts.
  *
- * ```json
- * "nodePort": { "type": "integer", "x-krateo-visible-when": { "field": "type", "equals": "NodePort" } }
+ * ```yaml
+ * displayingDependencies:
+ *   - name: service.nodePort
+ *     dependsOn: { name: service.type, conditionType: value, value: { type: string, stringValue: NodePort } }
  * ```
  *
- * `{ field, equals }`, `{ field, in: [...] }`, `{ field, notEmpty: true }`, or `{ all: [...] }` of
- * those. `field` resolves as `dependsOn.field` does: relative to the object holding the field
- * (inside a list row, to the row), absolute with a leading `/`.
+ * `conditionType` is `value` (the field equals the typed `value`) or `notEmpty`; entries naming
+ * the same field must all hold. On the node a rule reads `{ field, equals }`, `{ field, notEmpty:
+ * true }` or `{ all: [...] }`, `field` as `resolveFieldPath` resolves it.
  *
  * A hidden field is not rendered, so it is not validated (a required one included), not
  * submitted, not reviewed and not counted under "Advanced"; its value stays in the form store, so
@@ -19,10 +23,9 @@ import { type FieldPath, resolveFieldPath } from './fieldDependencies'
  * value alone. A rule this cannot read leaves the field VISIBLE: an authoring mistake never hides
  * a field, and with it a value, from the person.
  *
- * This is the UI's rule only. The composition CRD drops `x-krateo-*` and `if/then` alike, and the
- * API server does not apply either; Helm applies an `if/then` written beside it, at deploy time.
+ * This is the UI's rule only: the API server does not apply it. Helm applies an `if/then` written
+ * in a blueprint's values.schema.json, at deploy time.
  */
-export const VISIBLE_WHEN_KEY = 'x-krateo-visible-when'
 
 const isEmpty = (value: unknown): boolean =>
   value === undefined || value === null || value === ''
@@ -37,7 +40,7 @@ const valueAt = (values: unknown, path: FieldPath): unknown =>
 /** True, false, or undefined for a rule that cannot be read. */
 const evaluate = (rule: unknown, values: unknown, scope: FieldPath): boolean | undefined => {
   if (!rule || typeof rule !== 'object' || Array.isArray(rule)) { return undefined }
-  const { all, equals, field, in: among, notEmpty } = rule as { all?: unknown; equals?: unknown; field?: unknown; in?: unknown; notEmpty?: unknown }
+  const { all, equals, field, notEmpty } = rule as { all?: unknown; equals?: unknown; field?: unknown; notEmpty?: unknown }
   if (all !== undefined) {
     if (!Array.isArray(all) || !all.length) { return undefined }
     const results = all.map((each) => evaluate(each, values, scope))
@@ -46,7 +49,6 @@ const evaluate = (rule: unknown, values: unknown, scope: FieldPath): boolean | u
   if (typeof field !== 'string' || !field.replace('/', '').trim()) { return undefined }
   const actual = valueAt(values, resolveFieldPath(field.trim(), scope))
   if ('equals' in (rule)) { return same(actual, equals) }
-  if (Array.isArray(among)) { return among.some((each) => same(actual, each)) }
   if (notEmpty === true) { return !isEmpty(actual) }
   return undefined
 }

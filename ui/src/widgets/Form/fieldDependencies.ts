@@ -2,6 +2,8 @@ import type { JSONSchema4 } from 'json-schema'
 
 import { isSecretArrayNode, isSecretSchemaNode } from '../../utils/secretFields'
 
+import { OPTIONS_KEY } from './fieldKeys'
+
 /** A concrete form path: object keys and list-row indexes, as antd names a field. */
 export type FieldPath = Array<string | number>
 
@@ -21,13 +23,18 @@ export const PARAM_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 
 /**
  * Where a `field` reference points from a field that lives in the object at `scope`.
- * `"region"` and `"network.region"` are relative to that object — inside a list row, to the row —
- * and `"/spec.region"` starts at the root of the form.
+ * `"region"` and `"network.region"` are relative to that object, and `"/spec.region"` starts at
+ * the root of the form. A ROW in an absolute reference (`"/hosts.[].region"`, as fieldConfig.ts
+ * writes a reference into a list) takes the row of `scope` when `scope` is in that list.
  */
 export const resolveFieldPath = (field: string, scope: FieldPath): FieldPath => {
   const absolute = field.startsWith('/')
   const keys = (absolute ? field.slice(1) : field).split('.').filter(Boolean)
-  return absolute ? keys : [...scope, ...keys]
+  if (!absolute) { return [...scope, ...keys] }
+  return keys.map((key, index) => {
+    const inScope = key === ROW && index < scope.length && keys.slice(0, index).every((each, i) => each === scope[i] || (each === ROW && typeof scope[i] === 'number'))
+    return inScope ? scope[index] : key
+  })
 }
 
 export interface DependsOn {
@@ -37,14 +44,17 @@ export interface DependsOn {
   param: string
 }
 
-/** `dependsOn` as authored, or a reason it cannot be used. */
+/**
+ * A dependency as fieldConfig.ts writes it from a `dependencies` entry, or a reason it cannot be
+ * used — worded in the entry's own terms (`dependsOn.name`, `extra.key`).
+ */
 export const parseDependsOn = (raw: unknown): { dependsOn?: DependsOn; problem?: string } => {
   if (raw === undefined) { return {} }
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) { return { problem: 'dependsOn must be { field, param }' } }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) { return { problem: 'dependsOn.name must name a field' } }
   const { field, param } = raw as { field?: unknown; param?: unknown }
-  if (typeof field !== 'string' || !field.replace('/', '').trim()) { return { problem: 'dependsOn.field must name a field' } }
-  if (typeof param !== 'string' || !PARAM_NAME.test(param)) { return { problem: 'dependsOn.param must be a plain name' } }
-  if (RESERVED_PARAMS.has(param)) { return { problem: `dependsOn.param cannot be "${param}": that name carries the caller's identity` } }
+  if (typeof field !== 'string' || !field.replace('/', '').trim()) { return { problem: 'dependsOn.name must name a field of the form' } }
+  if (typeof param !== 'string' || !PARAM_NAME.test(param)) { return { problem: 'extra.key must be a plain name' } }
+  if (RESERVED_PARAMS.has(param)) { return { problem: `extra.key cannot be "${param}": that name carries the caller's identity` } }
   return { dependsOn: { field: field.trim(), param } }
 }
 
@@ -74,14 +84,15 @@ export interface Dependency {
 }
 
 /**
- * Every `x-krateo-options.dependsOn` in a schema, as template paths, and the fields caught in a
- * cycle (A depends on B depends on A) — those never load, and say why.
+ * Every dependency in a schema (the `dependencies` of widgetData, applied by fieldConfig.ts), as
+ * template paths, and the fields caught in a cycle (A depends on B depends on A) — those never
+ * load, and say why.
  */
 export const collectDependencies = (schema: JSONSchema4 | undefined): { dependencies: Dependency[]; cyclic: Set<string> } => {
   const dependencies: Dependency[] = []
   const walk = (node: JSONSchema4 | undefined, path: TemplatePath, scope: TemplatePath) => {
     if (!node || typeof node !== 'object') { return }
-    const raw = (node['x-krateo-options'] as { dependsOn?: unknown } | undefined)?.dependsOn
+    const raw = (node[OPTIONS_KEY] as { dependsOn?: unknown } | undefined)?.dependsOn
     const { dependsOn } = parseDependsOn(raw)
     if (dependsOn && path.length) {
       dependencies.push({ child: path, parent: templateOf(resolveFieldPath(dependsOn.field, scope)) })

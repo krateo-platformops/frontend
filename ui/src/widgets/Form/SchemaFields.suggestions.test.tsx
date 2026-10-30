@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * `x-krateo-suggestions` — an OPEN catalogue on a schema property.
+ * `suggestions` — an OPEN catalogue on a schema property.
  *
  * The motivating case is the Alert create form: the platform knows which telemetry it actually
  * collects, so the alert's free-text Lucene `where` should OFFER those signals instead of
@@ -13,6 +13,7 @@ import { Form as AntdForm } from 'antd'
 import type { JSONSchema4 } from 'json-schema'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { SUGGESTIONS_KEY } from './fieldKeys'
 import { SchemaFields } from './SchemaFields'
 import { getSuggestionGroups, suggestionSearchText } from './utils'
 
@@ -44,7 +45,7 @@ beforeAll(() => {
 /** A property shaped like the one the Alert formdef would decorate server-side. */
 const withSuggestions = (suggestions: unknown, extra: JSONSchema4 = {}): JSONSchema4 => ({
   properties: {
-    where: { title: 'Where', type: 'string', 'x-krateo-suggestions': suggestions, ...extra },
+    where: { [SUGGESTIONS_KEY]: suggestions, title: 'Where', type: 'string', ...extra },
   },
   required: ['where'],
   type: 'object',
@@ -62,12 +63,12 @@ describe('getSuggestionGroups — reading the vendor extension', () => {
   })
 
   it('returns undefined for a non-array or empty extension rather than an empty dropdown', () => {
-    expect(getSuggestionGroups({ type: 'string', 'x-krateo-suggestions': [] })).toBeUndefined()
-    expect(getSuggestionGroups({ type: 'string', 'x-krateo-suggestions': 'nope' })).toBeUndefined()
+    expect(getSuggestionGroups({ [SUGGESTIONS_KEY]: [], type: 'string' })).toBeUndefined()
+    expect(getSuggestionGroups({ [SUGGESTIONS_KEY]: 'nope', type: 'string' })).toBeUndefined()
   })
 
   it('accepts bare strings as shorthand for { value }, in one ungrouped bucket', () => {
-    const groups = getSuggestionGroups({ type: 'string', 'x-krateo-suggestions': ['a', 'b'] })
+    const groups = getSuggestionGroups({ [SUGGESTIONS_KEY]: ['a', 'b'], type: 'string' })
     expect(groups).toEqual([{ entries: [{ value: 'a' }, { value: 'b' }], group: undefined }])
   })
 
@@ -80,16 +81,16 @@ describe('getSuggestionGroups — reading the vendor extension', () => {
 
   it('DROPS malformed entries and keeps the rest — bad catalogue data is not a broken form', () => {
     const groups = getSuggestionGroups({
+      [SUGGESTIONS_KEY]: [null, { label: 'no value' }, { value: '   ' }, '', 42, { value: 'ok' }],
       type: 'string',
-      'x-krateo-suggestions': [null, { label: 'no value' }, { value: '   ' }, '', 42, { value: 'ok' }],
     })
     expect(groups).toEqual([{ entries: [{ description: undefined, group: undefined, label: undefined, value: 'ok' }], group: undefined }])
   })
 
   it('treats a blank group as ungrouped so it cannot collide with a real group name', () => {
     const groups = getSuggestionGroups({
+      [SUGGESTIONS_KEY]: [{ group: '   ', value: 'a' }, { value: 'b' }],
       type: 'string',
-      'x-krateo-suggestions': [{ group: '   ', value: 'a' }, { value: 'b' }],
     })
     expect(groups).toHaveLength(1)
     expect(groups?.[0].group).toBeUndefined()
@@ -158,10 +159,10 @@ describe('SchemaFields — a suggested field stays FREE TEXT', () => {
     const schema: JSONSchema4 = {
       properties: {
         fields: {
+          [SUGGESTIONS_KEY]: ['ServiceName', 'SeverityText'],
           items: { type: 'string' },
           title: 'Fields',
           type: 'array',
-          'x-krateo-suggestions': ['ServiceName', 'SeverityText'],
         },
       },
       required: ['fields'],

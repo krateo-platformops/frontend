@@ -18,6 +18,7 @@ import { maskSecretPaths, omitSecretPaths, secretFieldPaths, type SecretPath } f
 import { getEndpointUrl } from '../../utils/utils'
 import { useDrawerContext } from '../Drawer/DrawerContext'
 
+import { applyFieldConfig } from './fieldConfig'
 import { collectDependencies, dependentsToClear } from './fieldDependencies'
 import { createOptionRegistry, getFieldOptionsSpec, type OptionRegistry } from './fieldOptions'
 import styles from './Form.module.css'
@@ -207,7 +208,7 @@ export const agentAuthoredKeys = (
 })
 
 /**
- * A top-level option field (`x-krateo-options`) reviewed by the labels it showed — "United
+ * A top-level option field (`autocomplete` / `dependencies`) reviewed by the labels it showed — "United
  * States (us)" — while the payload keeps the value. A value with no recorded label, or a label
  * that is the value itself, reads as before.
  */
@@ -277,7 +278,7 @@ export const ReviewSummary = ({ agentKeys, optionLabels, schema, secretPaths, va
  * button runs the same submit action. Default (flag off) is unchanged.
  */
 const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<FormWidgetData>) => {
-  const { actions, buttonConfig, disabled, draftActionId, initialValues, items, layout, propertiesToHide, reviewBeforeSubmit, schema, size, stringSchema, submitActionId, submitActionSelector, submitDisabledWhenPristine } = widgetData
+  const { actions, autocomplete, buttonConfig, dependencies: optionDependencies, disabled, displayingDependencies, draftActionId, initialValues, items, layout, notice, objectFields, propertiesToHide, reviewBeforeSubmit, schema, size, stringSchema, submitActionId, submitActionSelector, submitDisabledWhenPristine, suggestions } = widgetData
   // Prefer `stringSchema` (the schema as a raw JSON STRING) when present: `JSON.parse`
   // preserves the object's key insertion order, so a server that hands us the blueprint's
   // values.schema.json verbatim (e.g. from the per-blueprint jsonschema ConfigMap, which
@@ -285,17 +286,20 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   // from the CRD's openAPIV3Schema, whose properties map is serialized alphabetically. Falls
   // back to the `schema` object when stringSchema is absent or not valid JSON. Memoized so
   // the (potentially large) parse doesn't run on every controlled-form keystroke.
+  // The field lists of widgetData (`autocomplete`, `dependencies`, `displayingDependencies`,
+  // `objectFields`, `suggestions`) are then written on the fields they name (fieldConfig.ts).
   const jsonSchema = useMemo<JSONSchema4 | undefined>(() => {
+    let parsed: JSONSchema4 | undefined = schema
     if (typeof stringSchema === 'string' && stringSchema.trim() !== '') {
       try {
-        return JSON.parse(stringSchema) as JSONSchema4
+        parsed = JSON.parse(stringSchema) as JSONSchema4
       } catch {
-        // malformed string schema — fall back to the object schema below
+        // malformed string schema — fall back to the object schema
       }
     }
 
-    return schema
-  }, [schema, stringSchema])
+    return applyFieldConfig(parsed, { autocomplete, dependencies: optionDependencies, displayingDependencies, objectFields, suggestions })
+  }, [schema, stringSchema, autocomplete, optionDependencies, displayingDependencies, objectFields, suggestions])
   const { insideDrawer, setDrawerData } = useDrawerContext()
   const alreadySetDrawerData = useRef(false)
 
@@ -349,12 +353,12 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   }), [])
   const secretPaths = useMemo(() => [...secretFieldPaths(jsonSchema), ...widgetSecretPaths], [jsonSchema, widgetSecretPaths])
 
-  // The RESTActions a schema field's `x-krateo-options.ref` can name (see useFieldOptions.ts), and
+  // The RESTActions a field's `resourceRefId` can name (see useFieldOptions.ts), and
   // what those fields showed — the labels the Review prints, the closed lists values must be in.
   const [optionRegistry] = useState(createOptionRegistry)
   const formRefs = useMemo(() => ({ deniedRefIds, options: optionRegistry, resourcesRefs }), [deniedRefIds, optionRegistry, resourcesRefs])
 
-  // A field whose options depend on another (`x-krateo-options.dependsOn`) is cleared when the
+  // A field whose options depend on another (`dependencies`) is cleared when the
   // PERSON changes that other field — its value was picked from options the new one no longer
   // yields — and so is whatever depends on it in turn. antd fires onValuesChange for user input
   // only: initial values, a refetch, a resumed draft and an Autopilot draft set fields
@@ -384,7 +388,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
     () => {
       const narrowed = narrowAgentDraft(agentDraft, jsonSchema?.properties, propertiesToHide)
       if (!narrowed) { return narrowed }
-      // …and a field `x-krateo-visible-when` would keep hidden once the draft lands: the person
+      // …and a field `displayingDependencies` would keep hidden once the draft lands: the person
       // could not see what the agent wrote there, so it is not written.
       const landed = { ...(jsonSchema ? getDefaultsFromSchema(jsonSchema) : {}), ...initialValues, ...savedDraft, ...narrowed }
       return omitSecretPaths(omitPaths(narrowed, hiddenPaths(jsonSchema, landed)), secretPaths)
@@ -665,9 +669,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
             ? (
               <FormRefsContext.Provider value={formRefs}>
                 {/* What the schema's source could not carry — e.g. the blueprint formdef's CRD
-                    fallback, which loses field order and every x-krateo-* extension. */}
-                {typeof jsonSchema['x-krateo-notice'] === 'string' && jsonSchema['x-krateo-notice'].trim()
-                  ? <Alert className={styles.notice} showIcon title={jsonSchema['x-krateo-notice']} type='info' />
+                    fallback, which loses the authoring order of the fields. */}
+                {typeof notice === 'string' && notice.trim()
+                  ? <Alert className={styles.notice} showIcon title={notice} type='info' />
                   : null}
                 <SchemaForm hide={propertiesToHide} schema={jsonSchema} />
               </FormRefsContext.Provider>

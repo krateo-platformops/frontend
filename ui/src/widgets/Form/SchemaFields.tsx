@@ -7,7 +7,8 @@ import type { ReactElement } from 'react'
 
 import { isSecretArrayNode, isSecretSchemaNode } from '../../utils/secretFields'
 
-import { collectDependencies, type FieldPath } from './fieldDependencies'
+import { collectDependencies, type FieldPath, nodeAt } from './fieldDependencies'
+import { ROW_TITLE_KEY, VISIBLE_WHEN_KEY } from './fieldKeys'
 import { closedOptionRule, getFieldOptionsSpec, type OptionRegistry } from './fieldOptions'
 import styles from './Form.module.css'
 import { FreeObjectListInput } from './FreeObjectListInput'
@@ -18,7 +19,7 @@ import { fieldLabel, itemCountRules, rulesFor } from './schemaRules'
 import { FormRefsContext } from './useFieldOptions'
 import type { SuggestionGroup } from './utils'
 import { getDefaultsFromSchema, getOptionsFromEnum, getSuggestionGroups, suggestionSearchText } from './utils'
-import { isVisible, VISIBLE_WHEN_KEY } from './visibleWhen'
+import { isVisible } from './visibleWhen'
 
 /** A control's onChange argument as a value: an input's event carries it in `target.value`. */
 const valueOf = (arg: unknown): unknown => {
@@ -200,7 +201,7 @@ const controlFor = (node: JSONSchema4, fieldPath: FieldPath = []): React.ReactNo
     return <MapRowsInput valueSchema={{ format: 'password', type: 'string' }} />
   }
 
-  // Options a RESTAction returns at runtime (`x-krateo-options`). Before the static suggestions
+  // Options a RESTAction returns at runtime (`autocomplete` / `dependencies`). Before the static suggestions
   // and `enum`: a node carrying both means the author added a live source to a list that used
   // to be fixed, and the live one is the one meant.
   const optionsSpec = getFieldOptionsSpec(node)
@@ -297,12 +298,15 @@ const isObjectList = (node: JSONSchema4): boolean =>
   node.type === 'array' && !!node.items && !Array.isArray(node.items)
   && node.items.type === 'object' && !!node.items.properties
 
-/** The property a list row is read by: `x-krateo-row-title`, else its first required string field, else its first string field. */
+/**
+ * The field a list row is read by, as a dotted path in the row: the list's `objectFields`
+ * `displayField`, else its first required string field, else its first string field.
+ */
 export const rowTitleKey = (node: JSONSchema4): string | undefined => {
   const item = node.items as JSONSchema4
   const properties = item.properties ?? {}
-  const explicit = node['x-krateo-row-title'] as unknown
-  if (typeof explicit === 'string' && properties[explicit]) { return explicit }
+  const explicit = node[ROW_TITLE_KEY] as unknown
+  if (typeof explicit === 'string' && nodeAt(item, explicit.split('.'))) { return explicit }
   const required = Array.isArray(item.required) ? item.required : []
   return required.find((key) => properties[key]?.type === 'string')
     ?? Object.entries(properties).find(([, child]) => child.type === 'string')?.[0]
@@ -335,7 +339,7 @@ const ObjectListRow = ({ children, index, label, listPath, onRemove, removable, 
   const title = AntdForm.useWatch((values: unknown) => {
     if (!titleKey) { return undefined }
     const row = rowPath.reduce<unknown>((at, key) => (at && typeof at === 'object' ? (at as Record<string | number, unknown>)[key] : undefined), values)
-    const value = (row as Record<string, unknown> | undefined)?.[titleKey]
+    const value = titleKey.split('.').reduce<unknown>((at, key) => (at && typeof at === 'object' ? (at as Record<string, unknown>)[key] : undefined), row)
     return typeof value === 'string' || typeof value === 'number' ? String(value) : undefined
   }, { form, preserve: true })
   const name = `${label} ${index + 1}`
@@ -582,7 +586,7 @@ const useSchemaRoot = (schema: JSONSchema4): SchemaRoot =>
   useMemo(() => ({ cyclic: collectDependencies(schema).cyclic, schema }), [schema])
 
 /**
- * The keys of `properties` an `x-krateo-visible-when` hides for the current values. A selector
+ * The keys of `properties` a `displayingDependencies` entry hides for the current values. A selector
  * watch, so the fields re-render only when that set changes, not on every keystroke.
  */
 const useHiddenKeys = (properties: Record<string, JSONSchema4> | undefined, scope: FieldPath): string[] => {
@@ -602,7 +606,7 @@ const SchemaFieldsBody = ({ hide = [], namePath = [], schema, scopePath }: Schem
   if (!schema?.properties) { return null }
   const required = new Set(Array.isArray(schema.required) ? schema.required : [])
 
-  // A field `x-krateo-visible-when` hides is not rendered, so it is not validated, submitted or
+  // A field a `displayingDependencies` entry hides is not rendered, so it is not validated, submitted or
   // counted under "Advanced" (see visibleWhen.ts).
   const visible = Object.entries(schema.properties).filter(([key]) => !hide.includes(key) && !hiddenNow.includes(key))
   const requiredEntries = visible.filter(([key]) => required.has(key))
@@ -660,7 +664,7 @@ interface Section { id: string; label: string }
  */
 export const SchemaForm = ({ hide = [], schema }: { schema: JSONSchema4; hide?: string[] }): React.ReactNode => {
   const properties = (schema.properties ?? {}) as Record<string, JSONSchema4>
-  // A section whose group `x-krateo-visible-when` hides leaves the rail with its fields.
+  // A section whose group a `displayingDependencies` entry hides leaves the rail with its fields.
   const hiddenGroups = useHiddenKeys(properties, [])
   const groupKeys = Object.keys(properties).filter((key) => !hide.includes(key) && !hiddenGroups.includes(key) && isGroup(properties[key]))
   const hasLoose = Object.keys(properties).some((key) => !hide.includes(key) && !isGroup(properties[key]))
