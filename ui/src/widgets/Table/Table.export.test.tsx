@@ -94,10 +94,24 @@ beforeEach(() => {
 // `notification.destroy()` matters as much: antd renders notifications into a document.body
 // portal that testing-library's cleanup() does not own, so the truncation warning survived into
 // the next test and made "says nothing" find a message it had not produced.
-afterEach(() => {
-  cleanup()
+afterEach(async () => {
+  // Order matters: destroy the notifications while the tree is still mounted, then unmount.
   notification.destroy()
+  cleanup()
   vi.restoreAllMocks()
+  // Then give React's scheduler ONE macrotask to drain before vitest tears the environment down.
+  //
+  // Waiting for the button to leave its loading state (waitForIdle) covers the export's own state
+  // update, and every test that starts one does that. It does not cover what antd queues on the
+  // way out: the Dropdown's close animation and the notification teardown both schedule React
+  // work, which then runs via `performWorkUntilDeadline` in a world where `window` is gone:
+  //
+  //   ReferenceError: window is not defined — at performWorkOnRootViaSchedulerTask
+  //
+  // Every test passed and the run still failed on that unhandled error, which is correct: a file
+  // that leaves work queued at teardown is not finished. A macrotask here is the cheapest way to
+  // let it finish inside the environment that owns it.
+  await new Promise((resolve) => { setTimeout(resolve, 0) })
 })
 
 const openMenuAndPick = async (label: string) => {
