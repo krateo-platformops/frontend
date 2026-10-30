@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
- * `x-krateo-notice` on the schema root: what the schema's source could not carry, said above the
+ * `notice` on the schema root: what the schema's source could not carry, said above the
  * fields — the blueprint formdef sets it when it falls back to the CRD, which loses field order and
- * every x-krateo-* extension, so the form no longer degrades silently.
+ * every form key, so the form no longer degrades silently.
  */
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -61,9 +61,9 @@ const widgetData = (schema: Record<string, unknown>): FormWidgetData => ({
 
 const FIELDS = { properties: { name: { title: 'Name', type: 'string' } }, type: 'object' }
 
-describe('Form — x-krateo-notice', () => {
+describe('Form — notice', () => {
   it('shows the notice above the fields', () => {
-    render(<Form resourcesRefs={{ items: [] }} uid='u' widgetData={widgetData({ ...FIELDS, 'x-krateo-notice': 'Built from the CRD.' })} />)
+    render(<Form resourcesRefs={{ items: [] }} uid='u' widgetData={widgetData({ ...FIELDS, notice: 'Built from the CRD.' })} />)
     const notice = screen.getByText('Built from the CRD.')
     const field = screen.getByText('Name')
     expect(notice.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()

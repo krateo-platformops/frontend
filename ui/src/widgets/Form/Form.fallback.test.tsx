@@ -84,11 +84,11 @@ const REFS: ResourcesRefs = { items: [ref('regions'), ref('ports'), ref('cities'
 const SCHEMA = {
   type: 'object',
   properties: {
-    region: { title: 'Region', type: 'string', 'x-krateo-options': { closed: true, fallback: 'manual', ref: 'regions' } },
-    port: { title: 'Port', type: 'integer', 'x-krateo-options': { closed: true, fallback: 'manual', ref: 'ports' } },
-    strict: { title: 'Strict', type: 'string', 'x-krateo-options': { closed: true, ref: 'regions' } },
-    city: { title: 'City', type: 'string', 'x-krateo-options': { ref: 'cities' } },
-    odd: { title: 'Odd', type: 'string', 'x-krateo-options': { closed: true, fallback: 'always', ref: 'regions' } },
+    region: { title: 'Region', type: 'string', autocomplete: { closed: true, fallback: 'manual', resourceRefId: 'regions' } },
+    port: { title: 'Port', type: 'integer', autocomplete: { closed: true, fallback: 'manual', resourceRefId: 'ports' } },
+    strict: { title: 'Strict', type: 'string', autocomplete: { closed: true, resourceRefId: 'regions' } },
+    city: { title: 'City', type: 'string', autocomplete: { resourceRefId: 'cities' } },
+    odd: { title: 'Odd', type: 'string', autocomplete: { closed: true, fallback: 'always', resourceRefId: 'regions' } },
   },
 }
 /* eslint-enable sort-keys/sort-keys-fix */

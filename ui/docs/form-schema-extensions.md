@@ -1,7 +1,7 @@
 ---
 type: Configuration
 title: frontend — Form schema extensions
-description: The x-krateo-* keywords a schema-driven Form reads on its fields — options loaded from a RESTAction (autocomplete, dependent fields), show/hide, list-row titles, the schema notice — what each renders, where the schema has to come from for them to survive, and the rules an options RESTAction must follow.
+description: The keys a schema-driven Form reads on its fields — autocomplete (options from a RESTAction), dependsOn, displayDependency (show/hide), objectField (list-row titles), suggestions, the schema notice — what each renders, where the schema has to come from for them to survive, and the rules an options RESTAction must follow.
 resource: forms.widgets.templates.krateo.io
 tags: [widgets, form, schema, blueprints]
 timestamp: 2026-10-29T00:00:00Z
@@ -10,16 +10,23 @@ timestamp: 2026-10-29T00:00:00Z
 # Form schema extensions
 
 A schema-driven Form (`widgetData.stringSchema` or `widgetData.schema`) renders one control
-per property. These vendor keywords, written on a property of the schema — in a blueprint, on
-its `values.schema.json` — change what that control does:
+per property. These keys, written on a property of the schema — in a blueprint, on its
+`values.schema.json` — change what that control does. They carry the names of the previous
+frontend's `widgetData` arrays (`autocomplete`, `dependencies`, `displayingDependencies`,
+`objectFields`), moved onto the field they configure:
 
-| Keyword | On | Does |
+| Key | On | Does |
 | --- | --- | --- |
-| `x-krateo-options` | a field | loads its options from a RESTAction: a list, an autocomplete, a field that depends on another |
-| `x-krateo-visible-when` | a field | shows it only while another field has a given value |
-| `x-krateo-row-title` | an array of objects | which item field titles each row |
-| `x-krateo-suggestions` | a field | a static, open catalogue — see [autocomplete-and-dependencies](./autocomplete-and-dependencies.md) |
-| `x-krateo-notice` | the schema root | a note shown above the fields |
+| `autocomplete` | a field | loads its options from a RESTAction: a list or an autocomplete |
+| `dependsOn` | a field with `autocomplete` | its options depend on another field |
+| `displayDependency` | a field | shows it only while another field has a given value |
+| `objectField` | an array of objects | `displayField`: which item field titles each row |
+| `suggestions` | a field | a static, open catalogue — see [autocomplete-and-dependencies](./autocomplete-and-dependencies.md) |
+| `notice` | the schema root | a note shown above the fields |
+
+None of them is a JSON Schema keyword, so Helm, which validates a blueprint's
+`values.schema.json`, ignores them. That is why the previous `dependencies` is not a key
+here: JSON Schema defines it, and Helm rejects a chart that uses it on a field.
 
 Standard keywords are honoured too: `required`, `enum`, `default`, `pattern`,
 `minLength`/`maxLength`, `minimum`/`maximum` (both exclusive forms), `minItems`/`maxItems`,
@@ -36,35 +43,38 @@ author wrote it:
   (`<resource>-<version>-jsonschema-configmap`, a byte copy of the chart's file). The portal's
   `blueprint-formdef` (create) and `composition-editdef` (edit) build the Form from it.
 - **The generated CRD drops them.** core-provider builds the composition CRD with
-  plumbing's crdgen, which keeps only the keywords it models: every `x-krateo-*`, `if`/`then`
-  and `const` is removed, without an error. When the ConfigMap is missing, the create form
-  falls back to the CRD schema and says so with `x-krateo-notice`.
-- **Hand-written Forms** can write the extensions directly in `widgetData.schema` (the CRD
+  plumbing's crdgen, which keeps only the keywords it models: these keys, `if`/`then` and
+  `const` are removed, without an error. When the ConfigMap is missing, the create form falls
+  back to the CRD schema and says so with `notice`.
+- **Hand-written Forms** can write the keys directly in `widgetData.schema` (the CRD
   types it `x-kubernetes-preserve-unknown-fields`) or `stringSchema`.
 
-## `x-krateo-options` — options from a RESTAction
+## `autocomplete` and `dependsOn` — options from a RESTAction
 
 ```json
 "region": { "type": "string", "title": "Region",
-  "x-krateo-options": { "ref": "regions", "closed": true } },
+  "autocomplete": { "resourceRefId": "regions", "closed": true } },
 
 "zone": { "type": "string", "title": "Zone",
-  "x-krateo-options": { "ref": "zones", "closed": true,
-    "dependsOn": { "field": "region", "param": "region" } } },
+  "autocomplete": { "resourceRefId": "zones", "closed": true },
+  "dependsOn": { "name": "region", "extra": { "key": "region" } } },
 
 "owner": { "type": "string", "title": "Owner",
-  "x-krateo-options": { "ref": "users", "search": { "param": "q", "minChars": 2 } } }
+  "autocomplete": { "resourceRefId": "users", "extra": { "key": "q" }, "minChars": 2 } }
 ```
 
 | Key | Meaning |
 | --- | --- |
-| `ref` | the id of one of the Form's `resourcesRefs`: a GET of a RESTAction. Never a URL |
-| `closed` | `true`: only a listed value is accepted (a Select). Default `false`: the list suggests and typed text is kept (an AutoComplete) |
-| `dependsOn.field` | the field the options depend on (see *Field references*) |
-| `dependsOn.param` | the `extras` name the parent's value is sent under |
-| `search.param` | the `extras` name the typed text is sent under |
-| `search.minChars` | the shortest text that is sent (default 2) |
-| `fallback` | `"manual"`: a closed field whose options cannot be had takes a typed value (see *When the source is down*) |
+| `autocomplete.resourceRefId` | the id of one of the Form's `resourcesRefs`: a GET of a RESTAction. Never a URL |
+| `autocomplete.closed` | `true`: only a listed value is accepted (a Select). Default `false`: the list suggests and typed text is kept (an AutoComplete) |
+| `autocomplete.extra.key` | search as the person types: the `extras` name the typed text is sent under |
+| `autocomplete.minChars` | with `extra`: the shortest text that is sent (default 2) |
+| `autocomplete.fallback` | `"manual"`: a closed field whose options cannot be had takes a typed value (see *When the source is down*) |
+| `dependsOn.name` | the field the options depend on (see *Field references*) |
+| `dependsOn.extra.key` | the `extras` name the parent's value is sent under |
+
+`dependsOn` sits on the field beside `autocomplete`, whose RESTAction it feeds; on a field
+with no `autocomplete` it disables the field and says why.
 
 An array field picks several values (`multiple` when closed, `tags` when open).
 
@@ -80,7 +90,7 @@ values (`["eu", "us"]`). Anything else reads as a failed load.
   calls with `extras: { region: <value> }`. When the *person* changes the parent, the field is
   cleared, and so is anything that depends on it. Initial values, a resumed draft and an
   Autopilot draft keep every value they set.
-- With `search` it sends the typed text, debounced (300 ms), from `minChars` characters; the
+- With `extra` it sends the typed text, debounced (300 ms), from `minChars` characters; the
   RESTAction filters. Without it the list loads once and is filtered in the browser.
 - A **closed** list loaded in full is enforced: a value not in it (one that arrived from a
   draft or Autopilot, say) fails validation.
@@ -99,21 +109,21 @@ validates what reaches it. A search that finds nothing is not a fallback case.
 
 **Refused** (the field is disabled with the reason, nothing is called): a secret as the parent
 (its value would travel in a URL, a log line and a cache key); `username`, `groups`,
-`displayName`, `email`, `sub` or `uid` as a `param` (the names a RESTAction reads the caller's
+`displayName`, `email`, `sub` or `uid` as an `extra.key` (the names a RESTAction reads the caller's
 identity from: snowplow does not strip request extras on the RESTAction path); a `dependsOn`
-cycle; `search.param` equal to `dependsOn.param`; a `fallback` other than `"manual"`. A secret
-field never loads options.
+cycle; `autocomplete.extra.key` equal to `dependsOn.extra.key`; a `fallback` other than
+`"manual"`; a `dependsOn` with no `autocomplete`. A secret field never loads options.
 
 ### Where the refs come from
 
 - **Blueprint forms:** `blueprint-formdef` and `composition-editdef` collect every
-  `x-krateo-options.ref` of the schema, and the Form turns each into a GET `resourcesRefs`
-  entry. A bare `ref` (`"regions"`) names a RESTAction **in the blueprint's own namespace**,
+  `autocomplete.resourceRefId` of the schema, and the Form turns each into a GET
+  `resourcesRefs` entry. A bare id (`"regions"`) names a RESTAction **in the blueprint's own namespace**,
   applied together with its CompositionDefinition; `"<namespace>/<name>"` names a shared one —
   the portal ships `form-options-namespaces` in its release namespace. snowplow resolves each
   ref's path and whether the caller may call it.
 - **Hand-written Forms** list the RESTAction in `resourcesRefs` themselves, with the `id` the
-  field's `ref` names.
+  field's `resourceRefId` names.
 
 ### Writing an options RESTAction
 
@@ -150,16 +160,18 @@ spec:
 The portal's `scripts/lint-form-options.py` checks the first three on every RESTAction
 annotated `krateo.io/form-options: "true"`.
 
-## `x-krateo-visible-when` — show or hide a field
+## `displayDependency` — show or hide a field
 
 ```json
 "type": { "type": "string", "enum": ["ClusterIP", "NodePort"] },
 "nodePort": { "type": "integer",
-  "x-krateo-visible-when": { "field": "type", "equals": "NodePort" } }
+  "displayDependency": { "dependsOn": { "name": "type" }, "conditionType": "value", "value": "NodePort" } }
 ```
 
-A rule is `{ field, equals }`, `{ field, in: [...] }`, `{ field, notEmpty: true }`, or
-`{ all: [ ...rules ] }`. A hidden field is not rendered: it is not validated (`required`
+A condition is `{ dependsOn: { name }, conditionType, value | values }`, as in the previous
+frontend's `displayingDependencies`: `conditionType` is `value` (the field equals `value` — any
+JSON value, not the typed `stringValue`/`integerValue` the CRD-bound version needed), `in` (it
+is one of `values`) or `notEmpty`. A list of conditions holds when every one does. A hidden field is not rendered: it is not validated (`required`
 included), not submitted, not reviewed, not counted under "Advanced", and a saved draft leaves
 it out. Its value stays in the form, so it comes back when the field is shown again, and an
 edit form (a merge-patch) leaves the stored value alone. A rule the form cannot read leaves
@@ -171,7 +183,7 @@ composition is deployed — its error then appears on the composition's status.
 
 ## Field references
 
-`dependsOn.field` and `x-krateo-visible-when.field` name another field **relative to the
+`dependsOn.name` (on a field, and inside a `displayDependency` condition) names another field **relative to the
 object holding the field**: `"region"` is a sibling, `"network.region"` a sibling's child,
 and inside a list row both are in the same row. A leading `/` starts at the root of the form:
 `"/spec.region"`.
@@ -179,7 +191,7 @@ and inside a list row both are in the same row. A leading `/` starts at the root
 ## Lists of objects
 
 An array whose `items` declare `properties` renders one card per row, titled by
-`x-krateo-row-title` (the name of an item field), else the first required string field, else
+`objectField.displayField` (the name of an item field), else the first required string field, else
 the first string field: *Hosts 2 · api.example.com*. Rows collapse to that title — a row with a
 validation error opens itself — and `minItems` / `maxItems` gate removing and adding rows.
 

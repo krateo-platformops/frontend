@@ -3,23 +3,23 @@ import { describe, expect, it } from 'vitest'
 
 import { changedPaths, collectDependencies, dependentsToClear, nodeAt, parseDependsOn, resolveFieldPath, templateKey } from './fieldDependencies'
 
-const options = (ref: string, field?: string, param = 'p') => ({ ref, ...(field ? { dependsOn: { field, param } } : {}) })
+const options = (ref: string, name?: string, key = 'p') => ({ autocomplete: { resourceRefId: ref }, ...(name ? { dependsOn: { extra: { key }, name } } : {}) })
 
 /* eslint-disable sort-keys/sort-keys-fix */
 const SCHEMA: JSONSchema4 = {
   type: 'object',
   properties: {
-    region: { type: 'string', 'x-krateo-options': options('regions') },
-    zone: { type: 'string', 'x-krateo-options': options('zones', 'region') },
-    subnet: { type: 'string', 'x-krateo-options': options('subnets', 'zone') },
+    region: { type: 'string', ...options('regions') },
+    zone: { type: 'string', ...options('zones', 'region') },
+    subnet: { type: 'string', ...options('subnets', 'zone') },
     hosts: {
       type: 'array',
       items: {
         type: 'object',
         properties: {
           cluster: { type: 'string' },
-          node: { type: 'string', 'x-krateo-options': options('nodes', 'cluster') },
-          pool: { type: 'string', 'x-krateo-options': options('pools', '/region') },
+          node: { type: 'string', ...options('nodes', 'cluster') },
+          pool: { type: 'string', ...options('pools', '/region') },
         },
       },
     },
@@ -36,20 +36,21 @@ describe('resolveFieldPath', () => {
 })
 
 describe('parseDependsOn', () => {
-  it('accepts { field, param }', () => {
-    expect(parseDependsOn({ field: 'region', param: 'region' })).toEqual({ dependsOn: { field: 'region', param: 'region' } })
+  it('accepts { name, extra: { key } }', () => {
+    expect(parseDependsOn({ extra: { key: 'region' }, name: 'region' })).toEqual({ dependsOn: { field: 'region', param: 'region' } })
     expect(parseDependsOn(undefined)).toEqual({})
   })
 
   it('refuses an identity name as the param', () => {
-    expect(parseDependsOn({ field: 'owner', param: 'username' }).problem).toContain('identity')
-    expect(parseDependsOn({ field: 'g', param: 'groups' }).problem).toContain('identity')
+    expect(parseDependsOn({ extra: { key: 'username' }, name: 'owner' }).problem).toContain('identity')
+    expect(parseDependsOn({ extra: { key: 'groups' }, name: 'g' }).problem).toContain('identity')
   })
 
   it('refuses a malformed spec', () => {
     expect(parseDependsOn('region').problem).toBeTruthy()
-    expect(parseDependsOn({ field: '', param: 'p' }).problem).toBeTruthy()
-    expect(parseDependsOn({ field: 'a', param: 'not a name' }).problem).toBeTruthy()
+    expect(parseDependsOn({ name: 'a' }).problem).toBeTruthy()
+    expect(parseDependsOn({ extra: { key: 'p' }, name: '' }).problem).toBeTruthy()
+    expect(parseDependsOn({ extra: { key: 'not a name' }, name: 'a' }).problem).toBeTruthy()
   })
 })
 
@@ -73,9 +74,9 @@ describe('collectDependencies', () => {
   it('marks the fields caught in a cycle', () => {
     const { cyclic } = collectDependencies({
       properties: {
-        a: { 'x-krateo-options': options('r', 'b') },
-        b: { 'x-krateo-options': options('r', 'a') },
-        c: { 'x-krateo-options': options('r', 'a') },
+        a: options('r', 'b'),
+        b: options('r', 'a'),
+        c: options('r', 'a'),
       },
     })
     expect([...cyclic].sort()).toEqual([templateKey(['a']), templateKey(['b'])])
@@ -118,8 +119,14 @@ describe('dependentsToClear', () => {
 
   it('terminates on a cycle', () => {
     const cycle = collectDependencies({
-      properties: { a: { 'x-krateo-options': options('r', 'b') }, b: { 'x-krateo-options': options('r', 'a') } },
+      properties: { a: options('r', 'b'), b: options('r', 'a') },
     }).dependencies
     expect(dependentsToClear(cycle, { a: 1 }, () => 'x')).toEqual([['b']])
+  })
+})
+
+describe('collectDependencies — dependsOn without autocomplete', () => {
+  it('ignores a dependsOn with no autocomplete beside it', () => {
+    expect(collectDependencies({ properties: { zone: { dependsOn: { extra: { key: 'r' }, name: 'region' } } } }).dependencies).toEqual([])
   })
 })

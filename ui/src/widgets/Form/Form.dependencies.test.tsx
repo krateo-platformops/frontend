@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * `x-krateo-options.dependsOn` in the real Form: a field whose options depend on another waits
+ * `dependsOn` in the real Form: a field whose options depend on another waits
  * for it (no call), loads with its value as `extras[param]`, and is cleared — with whatever
  * depends on it — when the PERSON changes it. Initial values, a resumed draft and an Autopilot
  * draft set fields programmatically and keep every value.
@@ -87,12 +87,12 @@ const REFS: ResourcesRefs = { items: [ref('regions'), ref('zones'), ref('subnets
 const SCHEMA = {
   type: 'object',
   properties: {
-    region: { title: 'Region', type: 'string', 'x-krateo-options': { closed: true, ref: 'regions' } },
-    zone: { title: 'Zone', type: 'string', 'x-krateo-options': { closed: true, dependsOn: { field: 'region', param: 'region' }, ref: 'zones' } },
-    subnet: { title: 'Subnet', type: 'string', 'x-krateo-options': { closed: true, dependsOn: { field: 'zone', param: 'zone' }, ref: 'subnets' } },
+    region: { title: 'Region', type: 'string', autocomplete: { closed: true, resourceRefId: 'regions' } },
+    zone: { title: 'Zone', type: 'string', autocomplete: { closed: true, resourceRefId: 'zones' }, dependsOn: { extra: { key: 'region' }, name: 'region' } },
+    subnet: { title: 'Subnet', type: 'string', autocomplete: { closed: true, resourceRefId: 'subnets' }, dependsOn: { extra: { key: 'zone' }, name: 'zone' } },
     token: { format: 'password', title: 'Token', type: 'string' },
-    leak: { title: 'Leak', type: 'string', 'x-krateo-options': { dependsOn: { field: 'token', param: 'token' }, ref: 'zones' } },
-    whoami: { title: 'Who', type: 'string', 'x-krateo-options': { dependsOn: { field: 'region', param: 'username' }, ref: 'zones' } },
+    leak: { title: 'Leak', type: 'string', autocomplete: { resourceRefId: 'zones' }, dependsOn: { extra: { key: 'token' }, name: 'token' } },
+    whoami: { title: 'Who', type: 'string', autocomplete: { resourceRefId: 'zones' }, dependsOn: { extra: { key: 'username' }, name: 'region' } },
   },
   required: ['region', 'zone', 'subnet', 'token', 'leak', 'whoami'],
 }

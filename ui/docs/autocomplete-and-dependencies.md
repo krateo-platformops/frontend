@@ -1,23 +1,23 @@
 ---
 type: Architecture
 title: frontend — Form suggestions, autocomplete & dependencies
-description: The `x-krateo-suggestions` schema extension (a server-computed, open option catalogue on a Form field), plus where the earlier widgetData autocomplete/dependencies configuration went (schema extensions).
+description: The `suggestions` schema key (a server-computed, open option catalogue on a Form field), plus where the earlier widgetData autocomplete/dependencies configuration went (schema extensions).
 resource: forms.widgets.templates.krateo.io
 tags: [widgets, form, schema, archive]
 timestamp: 2026-10-27T00:00:00Z
 ---
 
-# `x-krateo-suggestions` — an open option catalogue on a schema field
+# `suggestions` — an open option catalogue on a schema field
 
 A schema-driven Form field can offer a catalogue of known values while still accepting
-anything the user types. The catalogue is a vendor extension on the JSON Schema **property**,
+anything the user types. The catalogue is a key on the JSON Schema **property**,
 not a `widgetData` field:
 
 ```yaml
 where:
   type: string
   title: Where
-  x-krateo-suggestions:
+  suggestions:
     - value: 'SeverityText:"ERROR"'
       label: Errors
       description: any log line at ERROR severity
@@ -65,8 +65,8 @@ and `objectFields` (lists of objects).
 
 Those `widgetData` keys are **not** supported: the Form CRD declares none of them and rejects
 (or prunes) unknown `widgetData` fields. The behaviours are back as keywords on the schema
-field itself — `x-krateo-options` (with `dependsOn` and `search`), `x-krateo-visible-when`,
-`x-krateo-row-title` — documented in [form-schema-extensions](./form-schema-extensions.md).
+field itself, with the old names — `autocomplete` (with `extra` for search), `dependsOn`,
+`displayDependency`, `objectField` — documented in [form-schema-extensions](./form-schema-extensions.md).
 They moved onto the field because one Form serves every blueprint: only the blueprint's own
 `values.schema.json` can say which of its fields load options. Fields now store the option's
 value, not a `{ label, value }` pair.

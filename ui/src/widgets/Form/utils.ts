@@ -31,7 +31,7 @@ export const getOptionsFromEnum = (enumValues: JSONSchema4Type[] | undefined): D
 }
 
 /**
- * A single entry of the `x-krateo-suggestions` catalogue (see `getSuggestionGroups`).
+ * A single entry of the `suggestions` catalogue (see `getSuggestionGroups`).
  * `value` is the only required member — everything else is presentation.
  */
 export interface SchemaSuggestion {
@@ -51,11 +51,11 @@ export interface SuggestionGroup {
   group?: string
 }
 
-/** `x-krateo-suggestions` as it may be authored: bare strings or full entries, mixed. */
+/** `suggestions` as it may be authored: bare strings or full entries, mixed. */
 type RawSuggestion = Partial<SchemaSuggestion> | string | null | undefined
 
 /**
- * Reads the `x-krateo-suggestions` vendor extension off a JSON Schema node and normalises it
+ * Reads the `suggestions` key off a JSON Schema node and normalises it
  * into optgroups, preserving authoring order for both the groups and the entries inside them.
  *
  * WHY A VENDOR EXTENSION AND NOT `enum`. `enum` is a CLOSED set: JSON Schema validation (and
@@ -98,7 +98,7 @@ const normaliseSuggestion = (entry: RawSuggestion): SchemaSuggestion | undefined
 }
 
 export const getSuggestionGroups = (node: JSONSchema4): SuggestionGroup[] | undefined => {
-  const raw: unknown = (node as unknown as Record<string, unknown>)['x-krateo-suggestions']
+  const raw: unknown = (node as unknown as Record<string, unknown>)['suggestions']
   if (!Array.isArray(raw)) { return undefined }
 
   const groups: SuggestionGroup[] = []

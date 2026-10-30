@@ -52,7 +52,7 @@ traced to `file:line` at the tag that matches the running build:
   per-widget reference (all 43 kinds).
 - [the widget concept](../ui/docs/docs.md) — widgetData, widgetDataTemplate, actions,
   resourcesRefs and templates.
-- [form-schema-extensions](../ui/docs/form-schema-extensions.md) — the `x-krateo-*` keywords
+- [form-schema-extensions](../ui/docs/form-schema-extensions.md) — the keys
   a schema-driven Form reads: options from a RESTAction (autocomplete, dependent fields),
   show/hide, list-row titles; and the rules an options RESTAction follows.
 - [form-values](../ui/docs/form-values.md) — Form initialValues semantics;
@@ -62,6 +62,6 @@ traced to `file:line` at the tag that matches the running build:
 - Records: [antd-migration-plan](../ui/docs/antd-migration-plan.md) (executed decision,
   `status: diverged` — see its implemented-reality note),
   [autocomplete-and-dependencies](../ui/docs/autocomplete-and-dependencies.md)
-  (`x-krateo-suggestions`, and where the old `widgetData` autocomplete went),
+  (`suggestions`, and where the old `widgetData` autocomplete went),
   [cr-migration-map.json](../ui/docs/cr-migration-map.json) (the hard-break CR
   migration map).

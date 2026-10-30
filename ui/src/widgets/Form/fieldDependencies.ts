@@ -30,22 +30,40 @@ export const resolveFieldPath = (field: string, scope: FieldPath): FieldPath => 
   return absolute ? keys : [...scope, ...keys]
 }
 
+/**
+ * `extra: { key }` as authored — the extras name a value is sent to the RESTAction under — or a
+ * reason it cannot be used. `what` names the key in the message ("dependsOn.extra").
+ */
+export const parseExtraKey = (raw: unknown, what: string): { key?: string; problem?: string } => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) { return { problem: `${what} must be { key }` } }
+  const { key } = raw as { key?: unknown }
+  if (typeof key !== 'string' || !PARAM_NAME.test(key)) { return { problem: `${what}.key must be a plain name` } }
+  if (RESERVED_PARAMS.has(key)) { return { problem: `${what}.key cannot be "${key}": that name carries the caller's identity` } }
+  return { key }
+}
+
+/** The field-level key naming the field a field's options depend on. */
+export const DEPENDS_ON_KEY = 'dependsOn'
+
 export interface DependsOn {
-  /** the field whose value the options depend on (see `resolveFieldPath`) */
+  /** the field whose value the options depend on (`dependsOn.name`, see `resolveFieldPath`) */
   field: string
-  /** the extras name the RESTAction reads that value from */
+  /** the extras name the RESTAction reads that value from (`dependsOn.extra.key`) */
   param: string
 }
 
-/** `dependsOn` as authored, or a reason it cannot be used. */
+/**
+ * `dependsOn` as authored — `{ "name": "region", "extra": { "key": "region" } }`, the format of the
+ * previous frontend's `dependencies` — or a reason it cannot be used.
+ */
 export const parseDependsOn = (raw: unknown): { dependsOn?: DependsOn; problem?: string } => {
   if (raw === undefined) { return {} }
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) { return { problem: 'dependsOn must be { field, param }' } }
-  const { field, param } = raw as { field?: unknown; param?: unknown }
-  if (typeof field !== 'string' || !field.replace('/', '').trim()) { return { problem: 'dependsOn.field must name a field' } }
-  if (typeof param !== 'string' || !PARAM_NAME.test(param)) { return { problem: 'dependsOn.param must be a plain name' } }
-  if (RESERVED_PARAMS.has(param)) { return { problem: `dependsOn.param cannot be "${param}": that name carries the caller's identity` } }
-  return { dependsOn: { field: field.trim(), param } }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) { return { problem: 'dependsOn must be { name, extra: { key } }' } }
+  const { extra, name } = raw as { extra?: unknown; name?: unknown }
+  if (typeof name !== 'string' || !name.replace('/', '').trim()) { return { problem: 'dependsOn.name must name a field' } }
+  const { key, problem } = parseExtraKey(extra, 'dependsOn.extra')
+  if (problem || !key) { return { problem } }
+  return { dependsOn: { field: name.trim(), param: key } }
 }
 
 /** The schema node at a concrete or template path (list rows read the list's `items`). */
@@ -74,14 +92,14 @@ export interface Dependency {
 }
 
 /**
- * Every `x-krateo-options.dependsOn` in a schema, as template paths, and the fields caught in a
+ * Every `dependsOn` of a field with `autocomplete` in a schema, as template paths, and the fields caught in a
  * cycle (A depends on B depends on A) — those never load, and say why.
  */
 export const collectDependencies = (schema: JSONSchema4 | undefined): { dependencies: Dependency[]; cyclic: Set<string> } => {
   const dependencies: Dependency[] = []
   const walk = (node: JSONSchema4 | undefined, path: TemplatePath, scope: TemplatePath) => {
     if (!node || typeof node !== 'object') { return }
-    const raw = (node['x-krateo-options'] as { dependsOn?: unknown } | undefined)?.dependsOn
+    const raw = node.autocomplete && typeof node.autocomplete === 'object' ? node[DEPENDS_ON_KEY] as unknown : undefined
     const { dependsOn } = parseDependsOn(raw)
     if (dependsOn && path.length) {
       dependencies.push({ child: path, parent: templateOf(resolveFieldPath(dependsOn.field, scope)) })

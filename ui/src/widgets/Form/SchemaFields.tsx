@@ -200,7 +200,7 @@ const controlFor = (node: JSONSchema4, fieldPath: FieldPath = []): React.ReactNo
     return <MapRowsInput valueSchema={{ format: 'password', type: 'string' }} />
   }
 
-  // Options a RESTAction returns at runtime (`x-krateo-options`). Before the static suggestions
+  // Options a RESTAction returns at runtime (`autocomplete`). Before the static suggestions
   // and `enum`: a node carrying both means the author added a live source to a list that used
   // to be fixed, and the live one is the one meant.
   const optionsSpec = getFieldOptionsSpec(node)
@@ -297,11 +297,12 @@ const isObjectList = (node: JSONSchema4): boolean =>
   node.type === 'array' && !!node.items && !Array.isArray(node.items)
   && node.items.type === 'object' && !!node.items.properties
 
-/** The property a list row is read by: `x-krateo-row-title`, else its first required string field, else its first string field. */
+/** The property a list row is read by: `objectField.displayField`, else its first required string field, else its first string field. */
 export const rowTitleKey = (node: JSONSchema4): string | undefined => {
   const item = node.items as JSONSchema4
   const properties = item.properties ?? {}
-  const explicit = node['x-krateo-row-title'] as unknown
+  const objectField = node.objectField as { displayField?: unknown } | undefined
+  const explicit = objectField && typeof objectField === 'object' ? objectField.displayField : undefined
   if (typeof explicit === 'string' && properties[explicit]) { return explicit }
   const required = Array.isArray(item.required) ? item.required : []
   return required.find((key) => properties[key]?.type === 'string')
@@ -582,7 +583,7 @@ const useSchemaRoot = (schema: JSONSchema4): SchemaRoot =>
   useMemo(() => ({ cyclic: collectDependencies(schema).cyclic, schema }), [schema])
 
 /**
- * The keys of `properties` an `x-krateo-visible-when` hides for the current values. A selector
+ * The keys of `properties` an `displayDependency` hides for the current values. A selector
  * watch, so the fields re-render only when that set changes, not on every keystroke.
  */
 const useHiddenKeys = (properties: Record<string, JSONSchema4> | undefined, scope: FieldPath): string[] => {
@@ -602,7 +603,7 @@ const SchemaFieldsBody = ({ hide = [], namePath = [], schema, scopePath }: Schem
   if (!schema?.properties) { return null }
   const required = new Set(Array.isArray(schema.required) ? schema.required : [])
 
-  // A field `x-krateo-visible-when` hides is not rendered, so it is not validated, submitted or
+  // A field `displayDependency` hides is not rendered, so it is not validated, submitted or
   // counted under "Advanced" (see visibleWhen.ts).
   const visible = Object.entries(schema.properties).filter(([key]) => !hide.includes(key) && !hiddenNow.includes(key))
   const requiredEntries = visible.filter(([key]) => required.has(key))
@@ -660,7 +661,7 @@ interface Section { id: string; label: string }
  */
 export const SchemaForm = ({ hide = [], schema }: { schema: JSONSchema4; hide?: string[] }): React.ReactNode => {
   const properties = (schema.properties ?? {}) as Record<string, JSONSchema4>
-  // A section whose group `x-krateo-visible-when` hides leaves the rail with its fields.
+  // A section whose group `displayDependency` hides leaves the rail with its fields.
   const hiddenGroups = useHiddenKeys(properties, [])
   const groupKeys = Object.keys(properties).filter((key) => !hide.includes(key) && !hiddenGroups.includes(key) && isGroup(properties[key]))
   const hasLoose = Object.keys(properties).some((key) => !hide.includes(key) && !isGroup(properties[key]))
