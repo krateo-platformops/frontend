@@ -68,13 +68,32 @@ const messageOf = async (response: Response): Promise<string> => {
  *
  * `url` is the full widget URL with the export query already on it (`buildExportRequest`).
  */
-export const runExport = async (url: string, format: ExportFormat, filename: string, transport: ExportTransport = {}): Promise<ExportOutcome> => {
+export const runExport = async (url: string, extras: string | null, format: ExportFormat, filename: string, transport: ExportTransport = {}): Promise<ExportOutcome> => {
   const doFetch = transport.fetch ?? fetch
   const deliver = transport.deliver ?? deliverDefault
 
+  // POST, with `extras` in the body — snowplow's POST /export, the same envelope and decoder as
+  // POST /call/read. Every other parameter stays on the query, which is why the URL arrives
+  // already built. The body is what removes the URL-length ceiling a large filter would hit.
+  //
+  // `extras` reaches us as the JSON STRING the GET form would have URL-encoded, so it is parsed
+  // back into the object the body envelope wants. A string that will not parse is a bug upstream
+  // of here; it is reported rather than thrown, because an unparseable filter must not look like
+  // a failed export.
+  let body: string
+  try {
+    body = JSON.stringify({ extras: extras === null ? {} : (JSON.parse(extras) as unknown) })
+  } catch {
+    return { message: 'this widget\'s filters could not be encoded for the export', ok: false }
+  }
+
   let response: Response
   try {
-    response = await doFetch(url, { headers: { Authorization: `Bearer ${getAccessToken()}` } })
+    response = await doFetch(url, {
+      body,
+      headers: { Authorization: `Bearer ${getAccessToken()}`, 'Content-Type': 'application/json' },
+      method: 'POST',
+    })
   } catch (error) {
     return { message: (error as Error).message || 'the export could not be requested', ok: false }
   }
@@ -87,6 +106,15 @@ export const runExport = async (url: string, format: ExportFormat, filename: str
   // well-formed, the data was there, and there is still no file to hand over.
   if (response.status === 422 && format === 'pdf') {
     return { message: await messageOf(response), ok: false }
+  }
+  // 431 Request Header Fields Too Large: the gateway refused the URL, so the request never
+  // reached snowplow and its body says nothing useful. Moving `extras` into the POST body removed
+  // the big contributor, but the QUERY can still overflow on its own: `header` is sent once per
+  // column, so a very wide table carries a long URL from its labels alone. Reporting that as a
+  // generic failure would read as "the export is broken" rather than "this request is too long to
+  // send", which points at nothing the person can act on.
+  if (response.status === 431) {
+    return { message: 'this table has too many columns to export in one request — the URL exceeds what the gateway accepts. Exporting a narrower set of columns will work', ok: false }
   }
   if (!response.ok) {
     return { message: await messageOf(response), ok: false }
