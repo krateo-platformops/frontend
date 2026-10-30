@@ -24,8 +24,11 @@
  *      the deployed snowplow compiles spec→status and resolves children exactly like
  *      a production page ("Rendered (live)" + the source view, previewSurface.tsx).
  *   5. TEARDOWN (A.2.5): drawer close → best-effort silent DELETE set of THIS
- *      preview's drafts (epoch-guarded: a stale close never deletes a newer preview);
- *      the sandbox TTL janitor (CHART-SBX) is the backstop.
+ *      preview's drafts (epoch-guarded: a stale close never deletes a newer preview).
+ *      THERE IS NO BACKSTOP. This line used to name "the sandbox TTL janitor (CHART-SBX)";
+ *      no janitor has ever existed (frontend#364), and by decision none will. Teardown here
+ *      and the sweep the NEXT preview performs are the only reclaim, so a session that dies
+ *      without a drawer close leaves its drafts until someone previews again.
  */
 
 import type { SetDispatchOptions, WriteOp, WriteOpResult } from '../../hooks/runRestSet'
@@ -150,9 +153,11 @@ const compileWriteOps = (ops: readonly ApplyResourceSetOp[]): WriteOp[] =>
  * own contract promises "re-used names never 409"; it could not keep that promise while the only
  * evidence of the sweep was discarded.
  *
- * Still best-effort in the sense that a failed delete does not abort the preview — the TTL janitor
- * remains the backstop. What changes is that the caller can now SEE it and act, which is what
- * `applyWithReclaim` below does.
+ * Still best-effort in the sense that a failed delete does not abort the preview. What changes is
+ * that the caller can now SEE it and act, which is what `applyWithReclaim` below does — and that
+ * matters more than this line used to admit, because there is no backstop behind it. The sentence
+ * here once read "the TTL janitor remains the backstop"; no janitor exists (frontend#364), so an
+ * object a failed delete leaves behind stays until the next preview sweeps it.
  */
 const dispatchSilent = async (
   ops: readonly ApplyResourceSetOp[],
@@ -254,7 +259,7 @@ const patchOf = ({ cr, target }: Draft, sandboxNamespace: string, previous?: Rec
  * A create that finds its name taken becomes an in-place update. That is safe because the name IS
  * the provenance: sandbox names are owner-scoped (sandboxDraftName), so whatever holds one is this
  * person's own earlier preview, typically one a killed tab never tore down. An update that finds
- * its object gone (the TTL janitor, another tab's discard) becomes a create. Neither deletes the
+ * its object gone (another tab's discard, a manual clear) becomes a create. Neither deletes the
  * object to make room: that delete is the window the rendered page used to fall into.
  *
  * One retry, never a loop: a refusal that survives it is a different fault and must surface.

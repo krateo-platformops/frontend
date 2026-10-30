@@ -332,7 +332,7 @@ describe('previewPage v2 — an edit never deletes a widget it keeps', () => {
       .toEqual({ strong: null, text: 'Draft paragraph' })
   })
 
-  it('an update whose object is gone (the TTL janitor) creates it instead', async () => {
+  it('an update whose object is gone (another tab\'s discard) creates it instead', async () => {
     let calls = 0
     const { deps, handleActionSet } = makeDeps((ops) => {
       calls += 1
