@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { hiddenPaths, isVisible, omitPaths } from './visibleWhen'
 
-const when = (rule: unknown): JSONSchema4 => ({ type: 'string', 'x-krateo-visible-when': rule })
+const when = (rule: unknown): JSONSchema4 => ({ displayDependency: rule, type: 'string' })
 
 describe('isVisible', () => {
   const values = { service: { ports: [80], type: 'NodePort' }, tier: 'gold' }
@@ -12,29 +12,29 @@ describe('isVisible', () => {
     expect(isVisible({ type: 'string' }, values, [])).toBe(true)
   })
 
-  it('reads equals, in and notEmpty, relative to the object holding the field', () => {
-    expect(isVisible(when({ equals: 'NodePort', field: 'type' }), values, ['service'])).toBe(true)
-    expect(isVisible(when({ equals: 'ClusterIP', field: 'type' }), values, ['service'])).toBe(false)
-    expect(isVisible(when({ field: 'type', in: ['LoadBalancer', 'NodePort'] }), values, ['service'])).toBe(true)
-    expect(isVisible(when({ field: 'ports', notEmpty: true }), values, ['service'])).toBe(true)
-    expect(isVisible(when({ field: 'missing', notEmpty: true }), values, ['service'])).toBe(false)
+  it('reads value, in and notEmpty, relative to the object holding the field', () => {
+    expect(isVisible(when({ conditionType: 'value', dependsOn: { name: 'type' }, value: 'NodePort' }), values, ['service'])).toBe(true)
+    expect(isVisible(when({ conditionType: 'value', dependsOn: { name: 'type' }, value: 'ClusterIP' }), values, ['service'])).toBe(false)
+    expect(isVisible(when({ conditionType: 'in', dependsOn: { name: 'type' }, values: ['LoadBalancer', 'NodePort'] }), values, ['service'])).toBe(true)
+    expect(isVisible(when({ conditionType: 'notEmpty', dependsOn: { name: 'ports' } }), values, ['service'])).toBe(true)
+    expect(isVisible(when({ conditionType: 'notEmpty', dependsOn: { name: 'missing' } }), values, ['service'])).toBe(false)
   })
 
   it('reads an absolute field and compares objects by value', () => {
-    expect(isVisible(when({ equals: 'gold', field: '/tier' }), values, ['service'])).toBe(true)
-    expect(isVisible(when({ equals: [80], field: 'ports' }), values, ['service'])).toBe(true)
+    expect(isVisible(when({ conditionType: 'value', dependsOn: { name: '/tier' }, value: 'gold' }), values, ['service'])).toBe(true)
+    expect(isVisible(when({ conditionType: 'value', dependsOn: { name: 'ports' }, value: [80] }), values, ['service'])).toBe(true)
   })
 
-  it('combines rules with all', () => {
-    expect(isVisible(when({ all: [{ equals: 'gold', field: '/tier' }, { equals: 'NodePort', field: 'type' }] }), values, ['service'])).toBe(true)
-    expect(isVisible(when({ all: [{ equals: 'gold', field: '/tier' }, { equals: 'x', field: 'type' }] }), values, ['service'])).toBe(false)
+  it('holds a list of conditions when every one does', () => {
+    expect(isVisible(when([{ conditionType: 'value', dependsOn: { name: '/tier' }, value: 'gold' }, { conditionType: 'value', dependsOn: { name: 'type' }, value: 'NodePort' }]), values, ['service'])).toBe(true)
+    expect(isVisible(when([{ conditionType: 'value', dependsOn: { name: '/tier' }, value: 'gold' }, { conditionType: 'value', dependsOn: { name: 'type' }, value: 'x' }]), values, ['service'])).toBe(false)
   })
 
   it('leaves a field visible when its rule cannot be read', () => {
     expect(isVisible(when('NodePort'), values, [])).toBe(true)
-    expect(isVisible(when({ field: 'type' }), values, ['service'])).toBe(true)
-    expect(isVisible(when({ all: [] }), values, [])).toBe(true)
-    expect(isVisible(when({ all: [{ equals: 1, field: 'a' }, 'bad'] }), values, [])).toBe(true)
+    expect(isVisible(when({ dependsOn: { name: 'type' } }), values, ['service'])).toBe(true)
+    expect(isVisible(when([]), values, [])).toBe(true)
+    expect(isVisible(when([{ conditionType: 'value', dependsOn: { name: 'a' }, value: 1 }, 'bad']), values, [])).toBe(true)
   })
 })
 
@@ -42,12 +42,12 @@ describe('isVisible', () => {
 const SCHEMA: JSONSchema4 = {
   properties: {
     type: { enum: ['ClusterIP', 'NodePort'], type: 'string' },
-    nodePort: when({ equals: 'NodePort', field: 'type' }),
+    nodePort: when({ conditionType: 'value', dependsOn: { name: 'type' }, value: 'NodePort' }),
     hosts: {
       type: 'array',
       items: {
         type: 'object',
-        properties: { tls: { type: 'boolean' }, secretName: when({ equals: true, field: 'tls' }) },
+        properties: { tls: { type: 'boolean' }, secretName: when({ conditionType: 'value', dependsOn: { name: 'tls' }, value: true }) },
       },
     },
   },

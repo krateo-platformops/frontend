@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * Lists of objects. With declared item fields: each row is a card titled by its title field
- * (`x-krateo-row-title`, else the first required string), collapsible — a row with an error opens
+ * (`objectField.displayField`, else the first required string), collapsible — a row with an error opens
  * itself — and `minItems` / `maxItems` gate removing and adding rows. With NO declared item fields
  * (`imagePullSecrets`, `tolerations`): key/value rows per item instead of a JSON textarea, JSON
  * one click away.
@@ -74,8 +74,8 @@ const mount = (initialValues?: Record<string, unknown>, onFinish = vi.fn()) => {
 const rowToggle = (name: string) => screen.getByText(name).closest('button') as HTMLButtonElement
 
 describe('rowTitleKey', () => {
-  it('prefers x-krateo-row-title, then the first required string, then the first string', () => {
-    expect(rowTitleKey({ ...HOSTS, 'x-krateo-row-title': 'path' })).toBe('path')
+  it('prefers objectField.displayField, then the first required string, then the first string', () => {
+    expect(rowTitleKey({ ...HOSTS, objectField: { displayField: 'path' } })).toBe('path')
     expect(rowTitleKey(HOSTS)).toBe('host')
     expect(rowTitleKey({ items: { properties: { name: { type: 'string' }, port: { type: 'integer' } }, type: 'object' }, type: 'array' })).toBe('name')
   })

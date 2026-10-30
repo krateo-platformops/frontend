@@ -65,7 +65,7 @@ interface OptionsInputProps {
 }
 
 /**
- * The control of a field with `x-krateo-options`: the list a RESTAction returns, as a Select when
+ * The control of a field with `autocomplete`: the list a RESTAction returns, as a Select when
  * the list is CLOSED and as an AutoComplete (free text that happens to suggest) when it is open.
  * An array field picks several — `multiple` when closed, `tags` when open.
  *

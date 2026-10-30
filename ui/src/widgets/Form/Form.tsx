@@ -207,7 +207,7 @@ export const agentAuthoredKeys = (
 })
 
 /**
- * A top-level option field (`x-krateo-options`) reviewed by the labels it showed — "United
+ * A top-level option field (`autocomplete`) reviewed by the labels it showed — "United
  * States (us)" — while the payload keeps the value. A value with no recorded label, or a label
  * that is the value itself, reads as before.
  */
@@ -349,12 +349,12 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   }), [])
   const secretPaths = useMemo(() => [...secretFieldPaths(jsonSchema), ...widgetSecretPaths], [jsonSchema, widgetSecretPaths])
 
-  // The RESTActions a schema field's `x-krateo-options.ref` can name (see useFieldOptions.ts), and
+  // The RESTActions a schema field's `autocomplete.resourceRefId` can name (see useFieldOptions.ts), and
   // what those fields showed — the labels the Review prints, the closed lists values must be in.
   const [optionRegistry] = useState(createOptionRegistry)
   const formRefs = useMemo(() => ({ deniedRefIds, options: optionRegistry, resourcesRefs }), [deniedRefIds, optionRegistry, resourcesRefs])
 
-  // A field whose options depend on another (`x-krateo-options.dependsOn`) is cleared when the
+  // A field whose options depend on another (`dependsOn`) is cleared when the
   // PERSON changes that other field — its value was picked from options the new one no longer
   // yields — and so is whatever depends on it in turn. antd fires onValuesChange for user input
   // only: initial values, a refetch, a resumed draft and an Autopilot draft set fields
@@ -384,7 +384,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
     () => {
       const narrowed = narrowAgentDraft(agentDraft, jsonSchema?.properties, propertiesToHide)
       if (!narrowed) { return narrowed }
-      // …and a field `x-krateo-visible-when` would keep hidden once the draft lands: the person
+      // …and a field `displayDependency` would keep hidden once the draft lands: the person
       // could not see what the agent wrote there, so it is not written.
       const landed = { ...(jsonSchema ? getDefaultsFromSchema(jsonSchema) : {}), ...initialValues, ...savedDraft, ...narrowed }
       return omitSecretPaths(omitPaths(narrowed, hiddenPaths(jsonSchema, landed)), secretPaths)
@@ -665,9 +665,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
             ? (
               <FormRefsContext.Provider value={formRefs}>
                 {/* What the schema's source could not carry — e.g. the blueprint formdef's CRD
-                    fallback, which loses field order and every x-krateo-* extension. */}
-                {typeof jsonSchema['x-krateo-notice'] === 'string' && jsonSchema['x-krateo-notice'].trim()
-                  ? <Alert className={styles.notice} showIcon title={jsonSchema['x-krateo-notice']} type='info' />
+                    fallback, which loses field order and every form key (`autocomplete`, `dependsOn`, …). */}
+                {typeof jsonSchema.notice === 'string' && jsonSchema.notice.trim()
+                  ? <Alert className={styles.notice} showIcon title={jsonSchema.notice} type='info' />
                   : null}
                 <SchemaForm hide={propertiesToHide} schema={jsonSchema} />
               </FormRefsContext.Provider>

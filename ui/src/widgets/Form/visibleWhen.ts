@@ -3,15 +3,18 @@ import type { JSONSchema4 } from 'json-schema'
 import { type FieldPath, resolveFieldPath } from './fieldDependencies'
 
 /**
- * `x-krateo-visible-when` — a field shown only while another field has a given value:
+ * `displayDependency` — a field shown only while another field has a given value:
  *
  * ```json
- * "nodePort": { "type": "integer", "x-krateo-visible-when": { "field": "type", "equals": "NodePort" } }
+ * "nodePort": { "type": "integer", "displayDependency": {
+ *   "dependsOn": { "name": "type" }, "conditionType": "value", "value": "NodePort" } }
  * ```
  *
- * `{ field, equals }`, `{ field, in: [...] }`, `{ field, notEmpty: true }`, or `{ all: [...] }` of
- * those. `field` resolves as `dependsOn.field` does: relative to the object holding the field
- * (inside a list row, to the row), absolute with a leading `/`.
+ * A condition is `{ dependsOn: { name }, conditionType, value | values }`, the format of the
+ * previous frontend's `displayingDependencies`: `conditionType` is `value` (equals `value`), `in`
+ * (one of `values`) or `notEmpty`. A list of conditions holds when every one does. `dependsOn.name`
+ * resolves as a field's `dependsOn.name` does: relative to the object holding the field (inside a
+ * list row, to the row), absolute with a leading `/`.
  *
  * A hidden field is not rendered, so it is not validated (a required one included), not
  * submitted, not reviewed and not counted under "Advanced"; its value stays in the form store, so
@@ -19,10 +22,10 @@ import { type FieldPath, resolveFieldPath } from './fieldDependencies'
  * value alone. A rule this cannot read leaves the field VISIBLE: an authoring mistake never hides
  * a field, and with it a value, from the person.
  *
- * This is the UI's rule only. The composition CRD drops `x-krateo-*` and `if/then` alike, and the
+ * This is the UI's rule only. The composition CRD drops `displayDependency` and `if/then` alike, and the
  * API server does not apply either; Helm applies an `if/then` written beside it, at deploy time.
  */
-export const VISIBLE_WHEN_KEY = 'x-krateo-visible-when'
+export const VISIBLE_WHEN_KEY = 'displayDependency'
 
 const isEmpty = (value: unknown): boolean =>
   value === undefined || value === null || value === ''
@@ -36,18 +39,19 @@ const valueAt = (values: unknown, path: FieldPath): unknown =>
 
 /** True, false, or undefined for a rule that cannot be read. */
 const evaluate = (rule: unknown, values: unknown, scope: FieldPath): boolean | undefined => {
-  if (!rule || typeof rule !== 'object' || Array.isArray(rule)) { return undefined }
-  const { all, equals, field, in: among, notEmpty } = rule as { all?: unknown; equals?: unknown; field?: unknown; in?: unknown; notEmpty?: unknown }
-  if (all !== undefined) {
-    if (!Array.isArray(all) || !all.length) { return undefined }
-    const results = all.map((each) => evaluate(each, values, scope))
+  if (Array.isArray(rule)) {
+    if (!rule.length) { return undefined }
+    const results = rule.map((each) => evaluate(each, values, scope))
     return results.includes(undefined) ? undefined : results.every(Boolean)
   }
-  if (typeof field !== 'string' || !field.replace('/', '').trim()) { return undefined }
-  const actual = valueAt(values, resolveFieldPath(field.trim(), scope))
-  if ('equals' in (rule)) { return same(actual, equals) }
-  if (Array.isArray(among)) { return among.some((each) => same(actual, each)) }
-  if (notEmpty === true) { return !isEmpty(actual) }
+  if (!rule || typeof rule !== 'object') { return undefined }
+  const { conditionType, dependsOn, value, values: among } = rule as { conditionType?: unknown; dependsOn?: { name?: unknown }; value?: unknown; values?: unknown }
+  const name = dependsOn && typeof dependsOn === 'object' ? dependsOn.name : undefined
+  if (typeof name !== 'string' || !name.replace('/', '').trim()) { return undefined }
+  const actual = valueAt(values, resolveFieldPath(name.trim(), scope))
+  if (conditionType === 'value' && 'value' in rule) { return same(actual, value) }
+  if (conditionType === 'in' && Array.isArray(among)) { return among.some((each) => same(actual, each)) }
+  if (conditionType === 'notEmpty') { return !isEmpty(actual) }
   return undefined
 }
 

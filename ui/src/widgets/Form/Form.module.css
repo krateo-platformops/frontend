@@ -232,12 +232,12 @@
   white-space: normal;
 }
 
-/* A schema-level notice above the fields (`x-krateo-notice`). */
+/* A schema-level notice above the fields (`notice`). */
 .notice {
   margin-bottom: var(--spacing-md);
 }
 
-/* Why an `x-krateo-options` field shows no list (source missing, denied, failed load). */
+/* Why an `autocomplete` field shows no list (source missing, denied, failed load). */
 .fieldNote {
   align-items: center;
   color: var(--gray-color);
@@ -249,7 +249,7 @@
   margin-top: var(--spacing-xs);
 }
 
-/* An `x-krateo-suggestions` row: the value over what it IS. Same name-over-muted-caption
+/* An `suggestion` row: the value over what it IS. Same name-over-muted-caption
    shape as .fieldLabel/.fieldDesc above, so a dropdown entry reads like the form it belongs
    to. The row is a single line each, ellipsised — the full text is the option's `title`
    attribute, so hovering a truncated entry still shows it. */

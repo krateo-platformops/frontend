@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * `x-krateo-visible-when` in the real Form: a field shows only while another has a given value.
+ * `displayDependency` in the real Form: a field shows only while another has a given value.
  * Hidden, it is not rendered — so not required, not submitted, not counted under "Advanced", not
  * saved in a draft — and its value comes back when it is shown again.
  */
@@ -59,7 +59,7 @@ const SCHEMA = {
   properties: {
     name: { title: 'Name', type: 'string' },
     serviceType: { enum: ['ClusterIP', 'NodePort'], title: 'Service type', type: 'string' },
-    nodePort: { title: 'Node port', type: 'integer', 'x-krateo-visible-when': { equals: 'NodePort', field: 'serviceType' } },
+    nodePort: { title: 'Node port', type: 'integer', displayDependency: { conditionType: 'value', dependsOn: { name: 'serviceType' }, value: 'NodePort' } },
     replicas: { title: 'Replicas', type: 'integer' },
   },
   required: ['name', 'serviceType', 'nodePort'],
@@ -85,7 +85,7 @@ const pickType = (type: string) => {
 const submit = () => { fireEvent.submit(document.querySelector('form') as HTMLFormElement) }
 const nodePortShown = () => screen.queryByText('Node port', { selector: '[class*="fieldName"]' }) !== null
 
-describe('Form — x-krateo-visible-when', () => {
+describe('Form — displayDependency', () => {
   it('hides the field while the rule is false, and its required rule with it', async () => {
     renderForm()
     expect(nodePortShown()).toBe(false)
