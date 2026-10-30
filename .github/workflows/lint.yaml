@@ -42,8 +42,21 @@ jobs:
             if grep -q '^dependencies:' "${dir}/Chart.yaml"; then
               helm dependency build "${dir}" >/dev/null 2>&1 || helm dependency update "${dir}" >/dev/null 2>&1 || true
             fi
-            helm lint "${dir}" || fail=1
-            helm template smoke "${dir}" >/dev/null || fail=1
+            # A chart whose DEFAULTS are not a valid configuration supplies the smallest one
+            # that is, in ci/*-values.yaml (Helm's own convention). builder-gate is the case:
+            # `instances` defaults to [] and the chart refuses that, because an empty list
+            # rendered zero objects and still reported success. Without this the render test
+            # asserts "renders with defaults", which for that chart must fail by design.
+            # An `if` rather than `[ -f … ] && …`: under `set -e` a top-level && list that
+            # evaluates false IS a failing command, so the && form would exit the job for every
+            # chart with no ci/ directory. An unmatched glob stays literal in bash, so the -f
+            # test is what skips it.
+            vals=()
+            for f in "${dir}"/ci/*-values.yaml; do
+              if [ -f "$f" ]; then vals+=(-f "$f"); fi
+            done
+            helm lint "${dir}" "${vals[@]}" || fail=1
+            helm template smoke "${dir}" "${vals[@]}" >/dev/null || fail=1
             echo "::endgroup::"
           done
           exit $fail
