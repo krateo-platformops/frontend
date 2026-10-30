@@ -1,6 +1,6 @@
 import { mergeConfig, type Plugin } from 'vite'
 
-import base from '../vite.config'
+import base from '../vite.config.ts'
 
 /**
  * The visual-regression harness build: the app's own Vite config (same plugins, same defines),
@@ -20,7 +20,7 @@ const noRemoteFonts = (): Plugin => ({
 export default mergeConfig(base, {
   build: {
     outDir: 'dist-visual',
-    rollupOptions: { input: 'visual/index.html' },
+    rolldownOptions: { input: 'visual/index.html' },
   },
   plugins: [noRemoteFonts()],
 })
