@@ -14,9 +14,17 @@ would check, and it is how this chart sat published-and-uninstalled for two rele
 
 An empty list is always a mistake here — a chart whose only purpose is to run gates has no meaning
 with no gates — so it fails loudly instead.
+
+WITH ONE HONEST CAVEAT, WHICH IS WHY THE MESSAGE NAMES THE OPT-OUT. As an installer component this
+chart's `instances` carry a schema default, and core-provider materialises `componentValues`
+defaults onto the Installer CR as WRITTEN values (verified by installer against a live CR). So the
+leaf is not empty-able by omission — the only way to empty it is deliberately. For a typo that is
+the right failure; for someone intending to turn the gate off it is the wrong one, and they would
+read this as a broken install. The message therefore points at the feature flag, so the person who
+meant to opt out is told how rather than left to infer it.
 */ -}}
 {{- if not .Values.instances }}
-{{- fail "builder-gate: .Values.instances is empty, so this chart would render NOTHING and report success. Declare one entry per authoring agent, e.g. instances: [{name: portal-builder, builders: [portal-builder]}]. Each entry needs `name` and `builders`." }}
+{{- fail "builder-gate: .Values.instances is empty, so this chart would render NOTHING and report success. Declare one entry per authoring agent, e.g. instances: [{name: portal-builder, builders: [portal-builder]}]; each entry needs `name` and `builders`. If you meant to turn builder-gate OFF, disable its FEATURE rather than emptying instances — as an installer component its instances carry a schema default that is written onto the Installer CR, so emptying them is an explicit act that reads here as a mistake rather than as an opt-out." }}
 {{- end }}
 
 {{- /*
