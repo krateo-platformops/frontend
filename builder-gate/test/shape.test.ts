@@ -95,3 +95,46 @@ describe('what it refuses to call a defect', () => {
     expect(envelope.ok).toBe(true)
   })
 })
+
+describe('a column that names a cell no row carries (frontend#541, author-time)', () => {
+  /** The example's Table, with one extra column whose valueKey the RESTAction never emits. */
+  const withExtraColumn = (valueKey: string) => {
+    const draft = example()
+    byKind(draft, 'Table').spec.widgetData.columns.push({ title: 'Owner', valueKey })
+    return draft
+  }
+
+  it('NOTES the unbacked column, with both explanations, and stays green', async () => {
+    // Blank-exporting is not an error — snowplow emits an empty cell rather than refusing — so
+    // this must not fail the draft. It must also not be silent, because the person who sees the
+    // blank column is whoever downloaded the file.
+    const envelope = await run(withExtraColumn('owner'), liveCtx(pods([{ name: 'a', phase: 'Running' }])))
+    expect(envelope.ok).toBe(true)
+    const note = shapeOf(envelope).notes.find((n) => n.includes('"owner"'))
+    expect(note).toMatch(/column "owner" names a cell no row carries/)
+    expect(note).toMatch(/empty in csv\/pdf, null in labelled json/)
+    // It offers both readings rather than asserting the author is wrong.
+    expect(note).toMatch(/only you can tell which/)
+  })
+
+  it('says NOTHING when every column is backed', async () => {
+    const envelope = await run(example(), liveCtx(pods([{ name: 'a', phase: 'Running' }])))
+    expect(envelope.ok).toBe(true)
+    expect(shapeOf(envelope).notes.join(' | ')).not.toMatch(/names a cell no row carries/)
+  })
+
+  it('says NOTHING when the result is empty — then every column is unbacked and nothing follows', async () => {
+    // The empty case is already reported as a stand-in judgement; adding "all your columns are
+    // unbacked" there would be noise derived from the absence of data.
+    const envelope = await run(withExtraColumn('owner'), liveCtx(pods([])))
+    expect(shapeOf(envelope).notes.join(' | ')).not.toMatch(/names a cell no row carries/)
+  })
+
+  it('names several unbacked columns together', async () => {
+    const draft = example()
+    byKind(draft, 'Table').spec.widgetData.columns.push({ title: 'Owner', valueKey: 'owner' }, { title: 'Team', valueKey: 'team' })
+    const envelope = await run(draft, liveCtx(pods([{ name: 'a', phase: 'Running' }])))
+    const note = shapeOf(envelope).notes.find((n) => n.includes('"owner"'))
+    expect(note).toMatch(/columns "owner", "team" name a cell no row carries/)
+  })
+})
