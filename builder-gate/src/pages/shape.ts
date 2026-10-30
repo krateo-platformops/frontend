@@ -56,6 +56,46 @@ const templatesOf = (cr: Rec): { forPath: string; expression: string }[] => {
   })
 }
 
+/**
+ * Columns that name a cell NO row carries (frontend#541's author-time half).
+ *
+ * A Table's `columns[].valueKey` selects a cell by key, so a column whose key appears in no row
+ * renders blank and EXPORTS blank — csv and pdf get an empty cell, labelled json gets the key with
+ * `null`. snowplow confirmed that is never an error on their side, which is the right default: a
+ * renamed cell degrades instead of failing the export. But it is silent, and the person who sees
+ * the blank column is whoever downloaded the file, while the person who can fix it is whoever wrote
+ * the page.
+ *
+ * Reported as a NOTE rather than a problem, deliberately. A column can be legitimately empty for
+ * the data this query happens to return — three rows with no `description` is not evidence the
+ * column is wrong. So this says what it saw and leaves the judgement to the author, which is the
+ * difference between telling someone something and refusing their work over it.
+ *
+ * Only meaningful against rows that exist: with an empty result every column is unbacked and
+ * nothing follows from it.
+ */
+const unbackedColumns = (widgetData: Rec, resolved: unknown): string[] => {
+  const columns = widgetData.columns
+  if (!Array.isArray(columns) || !Array.isArray(resolved) || resolved.length === 0) {
+    return []
+  }
+  const present = new Set<string>()
+  for (const row of resolved) {
+    if (!Array.isArray(row)) { continue }
+    for (const cell of row) {
+      const key = str(rec(cell)?.valueKey)
+      if (key) { present.add(key) }
+    }
+  }
+  // Nothing addressable at all (not a cell-array shape) — say nothing rather than report every
+  // column as unbacked.
+  if (present.size === 0) { return [] }
+  return columns.flatMap((column) => {
+    const key = str(rec(column)?.valueKey)
+    return key && !present.has(key) ? [key] : []
+  })
+}
+
 export const shapeStep = async (drafts: readonly Rec[], outputs: Map<string, unknown>, ctx: GateContext): Promise<StepResult> => {
   if (!ctx.live) {
     // Every step that needs the cluster says DISABLED rather than reporting per-object silence.
@@ -119,6 +159,11 @@ export const shapeStep = async (drafts: readonly Rec[], outputs: Map<string, unk
           notes.push(`${at}: ${verdict.detail}`)
         } else {
           notes.push(`${at}: resolved against ${apiRefName}'s live output and matches the CRD`)
+          const unbacked = unbackedColumns(rec(rec(cr.spec)?.widgetData) ?? {}, resolved.value)
+          if (unbacked.length > 0) {
+            const one = unbacked.length === 1
+            notes.push(`${at}: ${one ? 'column' : 'columns'} ${unbacked.map((key) => `"${key}"`).join(', ')} ${one ? 'names' : 'name'} a cell no row carries, so ${one ? 'it' : 'they'} will render blank and export blank (empty in csv/pdf, null in labelled json). Either ${apiRefName} no longer emits ${one ? 'that cell' : 'those cells'}, or ${one ? 'it is' : 'they are'} empty for this data — only you can tell which.`)
+          }
         }
         continue
       }
