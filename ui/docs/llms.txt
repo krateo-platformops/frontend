@@ -29,7 +29,7 @@ docs/widget-authoring.md: how an antd component becomes a widget; the schema.jso
 docs/widgets-api-reference.md: generated per-widget API reference (npm run update-readme-widgets).
 docs/docs.md: the widget concept — widgetData, widgetDataTemplate, actions, resourcesRefs(Template).
 docs/form-values.md: Form initialValues semantics (precedence, drafts, re-seed).
-docs/form-schema-extensions.md: the keys a schema-driven Form reads on its fields (autocomplete, dependsOn, displayDependency, objectField, suggestion, notice), where the schema must come from for them to survive, and the options-RESTAction rules.
+docs/form-schema-extensions.md: the keys a schema-driven Form reads on its fields (autocomplete, dependsOn, displayDependency, objectField, suggestions, notice), where the schema must come from for them to survive, and the options-RESTAction rules.
 docs/restactions.md: pointer — RESTActions are snowplow's; how widgets consume them.
 docs/cr-migration-map.json: the hard-break CR migration map (legacy kinds/props → current).
 docs/guides/simple-page/simple-page.md: worked guide — Button + convention Flex page + sidebar Menu item.
@@ -38,7 +38,7 @@ docs/guides/action-button/action-button.md: worked guide — openDrawer action, 
 ## Records (dated; re-verify against code before relying on them)
 
 docs/antd-migration-plan.md: the executed antd-fidelity migration decision record (status: diverged — see its implemented-reality note).
-docs/autocomplete-and-dependencies.md: suggestion, and where the old widgetData autocomplete/dependencies went (schema extensions; the widgetData keys stay unsupported).
+docs/autocomplete-and-dependencies.md: suggestions, and where the old widgetData autocomplete/dependencies went (schema extensions; the widgetData keys stay unsupported).
 docs/evidence-org-guess.md: known gap — the Autopilot Evidence panel guesses a repo link's GitHub org from the repository name, and the two-line repo-mcp-server change that would remove the guess.
 
 ## Source of truth

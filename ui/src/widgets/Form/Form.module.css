@@ -249,7 +249,7 @@
   margin-top: var(--spacing-xs);
 }
 
-/* An `suggestion` row: the value over what it IS. Same name-over-muted-caption
+/* A `suggestions` row: the value over what it IS. Same name-over-muted-caption
    shape as .fieldLabel/.fieldDesc above, so a dropdown entry reads like the form it belongs
    to. The row is a single line each, ellipsised — the full text is the option's `title`
    attribute, so hovering a truncated entry still shows it. */

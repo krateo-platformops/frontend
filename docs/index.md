@@ -62,6 +62,6 @@ traced to `file:line` at the tag that matches the running build:
 - Records: [antd-migration-plan](../ui/docs/antd-migration-plan.md) (executed decision,
   `status: diverged` — see its implemented-reality note),
   [autocomplete-and-dependencies](../ui/docs/autocomplete-and-dependencies.md)
-  (`suggestion`, and where the old `widgetData` autocomplete went),
+  (`suggestions`, and where the old `widgetData` autocomplete went),
   [cr-migration-map.json](../ui/docs/cr-migration-map.json) (the hard-break CR
   migration map).

@@ -1,13 +1,13 @@
 ---
 type: Architecture
 title: frontend — Form suggestions, autocomplete & dependencies
-description: The `suggestion` schema key (a server-computed, open option catalogue on a Form field), plus where the earlier widgetData autocomplete/dependencies configuration went (schema extensions).
+description: The `suggestions` schema key (a server-computed, open option catalogue on a Form field), plus where the earlier widgetData autocomplete/dependencies configuration went (schema extensions).
 resource: forms.widgets.templates.krateo.io
 tags: [widgets, form, schema, archive]
 timestamp: 2026-10-27T00:00:00Z
 ---
 
-# `suggestion` — an open option catalogue on a schema field
+# `suggestions` — an open option catalogue on a schema field
 
 A schema-driven Form field can offer a catalogue of known values while still accepting
 anything the user types. The catalogue is a key on the JSON Schema **property**,
@@ -17,7 +17,7 @@ not a `widgetData` field:
 where:
   type: string
   title: Where
-  suggestion:
+  suggestions:
     - value: 'SeverityText:"ERROR"'
       label: Errors
       description: any log line at ERROR severity

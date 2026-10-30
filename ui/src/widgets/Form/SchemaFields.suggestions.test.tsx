@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * `suggestion` — an OPEN catalogue on a schema property.
+ * `suggestions` — an OPEN catalogue on a schema property.
  *
  * The motivating case is the Alert create form: the platform knows which telemetry it actually
  * collects, so the alert's free-text Lucene `where` should OFFER those signals instead of
@@ -44,7 +44,7 @@ beforeAll(() => {
 /** A property shaped like the one the Alert formdef would decorate server-side. */
 const withSuggestions = (suggestions: unknown, extra: JSONSchema4 = {}): JSONSchema4 => ({
   properties: {
-    where: { suggestion: suggestions, title: 'Where', type: 'string', ...extra },
+    where: { suggestions, title: 'Where', type: 'string', ...extra },
   },
   required: ['where'],
   type: 'object',
@@ -62,12 +62,12 @@ describe('getSuggestionGroups — reading the vendor extension', () => {
   })
 
   it('returns undefined for a non-array or empty extension rather than an empty dropdown', () => {
-    expect(getSuggestionGroups({ suggestion: [], type: 'string' })).toBeUndefined()
-    expect(getSuggestionGroups({ suggestion: 'nope', type: 'string' })).toBeUndefined()
+    expect(getSuggestionGroups({ suggestions: [], type: 'string' })).toBeUndefined()
+    expect(getSuggestionGroups({ suggestions: 'nope', type: 'string' })).toBeUndefined()
   })
 
   it('accepts bare strings as shorthand for { value }, in one ungrouped bucket', () => {
-    const groups = getSuggestionGroups({ suggestion: ['a', 'b'], type: 'string' })
+    const groups = getSuggestionGroups({ suggestions: ['a', 'b'], type: 'string' })
     expect(groups).toEqual([{ entries: [{ value: 'a' }, { value: 'b' }], group: undefined }])
   })
 
@@ -80,7 +80,7 @@ describe('getSuggestionGroups — reading the vendor extension', () => {
 
   it('DROPS malformed entries and keeps the rest — bad catalogue data is not a broken form', () => {
     const groups = getSuggestionGroups({
-      suggestion: [null, { label: 'no value' }, { value: '   ' }, '', 42, { value: 'ok' }],
+      suggestions: [null, { label: 'no value' }, { value: '   ' }, '', 42, { value: 'ok' }],
       type: 'string',
     })
     expect(groups).toEqual([{ entries: [{ description: undefined, group: undefined, label: undefined, value: 'ok' }], group: undefined }])
@@ -88,7 +88,7 @@ describe('getSuggestionGroups — reading the vendor extension', () => {
 
   it('treats a blank group as ungrouped so it cannot collide with a real group name', () => {
     const groups = getSuggestionGroups({
-      suggestion: [{ group: '   ', value: 'a' }, { value: 'b' }],
+      suggestions: [{ group: '   ', value: 'a' }, { value: 'b' }],
       type: 'string',
     })
     expect(groups).toHaveLength(1)
@@ -159,7 +159,7 @@ describe('SchemaFields — a suggested field stays FREE TEXT', () => {
       properties: {
         fields: {
           items: { type: 'string' },
-          suggestion: ['ServiceName', 'SeverityText'],
+          suggestions: ['ServiceName', 'SeverityText'],
           title: 'Fields',
           type: 'array',
         },

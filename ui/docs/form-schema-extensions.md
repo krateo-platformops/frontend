@@ -1,7 +1,7 @@
 ---
 type: Configuration
 title: frontend — Form schema extensions
-description: The keys a schema-driven Form reads on its fields — autocomplete (options from a RESTAction), dependsOn, displayDependency (show/hide), objectField (list-row titles), suggestion, the schema notice — what each renders, where the schema has to come from for them to survive, and the rules an options RESTAction must follow.
+description: The keys a schema-driven Form reads on its fields — autocomplete (options from a RESTAction), dependsOn, displayDependency (show/hide), objectField (list-row titles), suggestions, the schema notice — what each renders, where the schema has to come from for them to survive, and the rules an options RESTAction must follow.
 resource: forms.widgets.templates.krateo.io
 tags: [widgets, form, schema, blueprints]
 timestamp: 2026-10-29T00:00:00Z
@@ -21,7 +21,7 @@ frontend's `widgetData` arrays (`autocomplete`, `dependencies`, `displayingDepen
 | `dependsOn` | a field with `autocomplete` | its options depend on another field |
 | `displayDependency` | a field | shows it only while another field has a given value |
 | `objectField` | an array of objects | `displayField`: which item field titles each row |
-| `suggestion` | a field | a static, open catalogue — see [autocomplete-and-dependencies](./autocomplete-and-dependencies.md) |
+| `suggestions` | a field | a static, open catalogue — see [autocomplete-and-dependencies](./autocomplete-and-dependencies.md) |
 | `notice` | the schema root | a note shown above the fields |
 
 None of them is a JSON Schema keyword, so Helm, which validates a blueprint's
