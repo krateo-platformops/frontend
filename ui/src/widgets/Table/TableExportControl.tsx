@@ -32,12 +32,12 @@ const FORMATS: { format: ExportFormat; label: string }[] = [
 
 interface TableExportControlProps {
   columns: Columns | undefined
-  /** From WidgetProps — the hook that owns this widget's URL assembly. */
-  exportUrlFor: (exportQuery: string) => string
+  /** From WidgetProps — the hook that owns this widget's request assembly (url + extras). */
+  exportRequestFor: (exportQuery: string) => { url: string; extras: string | null }
   onSessionExpired?: () => void
 }
 
-const TableExportControl = ({ columns, exportUrlFor, onSessionExpired }: TableExportControlProps) => {
+const TableExportControl = ({ columns, exportRequestFor, onSessionExpired }: TableExportControlProps) => {
   const [running, setRunning] = useState<ExportFormat | null>(null)
 
   const start = async (format: ExportFormat) => {
@@ -50,7 +50,8 @@ const TableExportControl = ({ columns, exportUrlFor, onSessionExpired }: TableEx
     }
     setRunning(format)
     try {
-      const outcome = await runExport(exportUrlFor(request.params), format, exportFilename(format), { onSessionExpired })
+      const { extras, url } = exportRequestFor(request.params)
+      const outcome = await runExport(url, extras, format, exportFilename(format), { onSessionExpired })
       if (outcome.ok && outcome.truncated) {
         notification.warning({
           description: 'The file holds the first 50,000 rows. Narrow the table with a filter to export the rest.',

@@ -89,13 +89,17 @@ export type WidgetProps<T = unknown> = {
   resourcesRefs: ResourcesRefs
   serverPagination?: ServerPagination
   /**
-   * Builds the URL for an EXPORT of this widget's own read, from an export query the widget
+   * Builds the request for an EXPORT of this widget's own read, from an export query the widget
    * derives from its own columns (widgets/Table/tableExport.ts). A capability rather than the
-   * endpoint, for the same reason `serverPagination` is: URL assembly belongs to the hook that
-   * fetches, which is the only thing that knows to carry `extras` and to omit page/perPage.
-   * Undefined for widgets rendered outside a query.
+   * endpoint, for the same reason `serverPagination` is: request assembly belongs to the hook that
+   * fetches, which is the only thing that knows this widget's `extras` and that page/perPage must
+   * be omitted.
+   *
+   * Returns the URL and the widget's `extras` SEPARATELY, because snowplow's POST /export takes
+   * extras in the body while every other parameter stays on the query. Undefined for widgets
+   * rendered outside a query.
    */
-  exportUrlFor?: (exportQuery: string) => string
+  exportRequestFor?: (exportQuery: string) => { url: string; extras: string | null }
   uid: string
   widgetData: T
   widget?: Widget

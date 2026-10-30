@@ -28,7 +28,7 @@ export type TableWidgetData = WidgetType['spec']['widgetData']
 /** --krateo-text-label-sm, px: the header's font size. */
 const HEADER_FONT_SIZE = 11
 
-const Table = ({ deniedRefIds, exportUrlFor, resourcesRefs, serverPagination, uid, widgetData }: WidgetProps<TableWidgetData>) => {
+const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination, uid, widgetData }: WidgetProps<TableWidgetData>) => {
   const { bordered, columns, dataSource, fitContent, pagination, prefix, rowNavigateTo, size } = widgetData
   const data = dataSource ?? []
   const { getFilteredData } = useFilter()
@@ -337,14 +337,14 @@ const Table = ({ deniedRefIds, exportUrlFor, resourcesRefs, serverPagination, ui
   // the wrapper only when the control is. An existing table with no exportable column keeps the
   // DOM it has always had — no element, no extra div, nothing to re-lay-out — which is why this
   // needs no CRD flag to stay out of the way.
-  if (!exportUrlFor || buildExportRequest(columns, 'csv') === null) {
+  if (!exportRequestFor || buildExportRequest(columns, 'csv') === null) {
     return table
   }
 
   return (
     <div className={styles.withExport}>
       <div className={styles.exportBar}>
-        <TableExportControl columns={columns} exportUrlFor={exportUrlFor} />
+        <TableExportControl columns={columns} exportRequestFor={exportRequestFor} />
       </div>
       {table}
     </div>

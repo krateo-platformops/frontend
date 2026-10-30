@@ -45,16 +45,25 @@ const widgetData = (columns: unknown) => ({
 
 const TWO_COLUMNS = [{ title: 'Name', valueKey: 'name' }, { title: 'Phase', valueKey: 'phase' }]
 
-/** The URL the hook would build: base + endpoint + extras, with the export query appended. */
-const exportUrlFor = (query: string) => `http://sp/call?resource=tables&extras=%7B%7D&${query}`
+/**
+ * What the hook returns: the URL with every param EXCEPT extras, and the widget's extras
+ * separately — because POST /export takes extras in the body.
+ */
+const exportRequestFor = (query: string) => ({ extras: '{"q":"nginx"}', url: `http://sp/call?resource=tables&${query}` })
 
 let requested: string[] = []
+let requestedInit: { method?: string; body: string }[] = []
 let clicks: { download: string }[] = []
 
-const stubFetch = (init: { status?: number; body?: BodyInit; headers?: Record<string, string> }) => {
-  vi.stubGlobal('fetch', (url: string) => {
+const stubFetch = (reply: { status?: number; body?: BodyInit; headers?: Record<string, string> }) => {
+  // `reply` is what the stub ANSWERS with; `requestInit` is what the caller SENT. Naming both
+  // `init` shadowed the first with the second, so every response silently became a plain 200 with
+  // the request's own body — the truncation header and the 422 were never applied, and two tests
+  // failed looking for notifications the stub had stopped making possible.
+  vi.stubGlobal('fetch', (url: string, requestInit?: RequestInit) => {
     requested.push(url)
-    return Promise.resolve(new Response(init.body ?? 'a\n1\n', { headers: init.headers, status: init.status ?? 200 }))
+    if (requestInit) { requestedInit.push({ body: typeof requestInit.body === 'string' ? requestInit.body : '', method: requestInit.method }) }
+    return Promise.resolve(new Response(reply.body ?? 'a\n1\n', { headers: reply.headers, status: reply.status ?? 200 }))
   })
 }
 
@@ -63,7 +72,7 @@ const renderTable = (options: { columns?: unknown; withUrl?: boolean } = {}) => 
   return render(
     <MemoryRouter>
       <App>
-        <Table exportUrlFor={withUrl ? exportUrlFor : undefined} resourcesRefs={{ items: [] }} uid='t1' widgetData={widgetData(columns)} />
+        <Table exportRequestFor={withUrl ? exportRequestFor : undefined} resourcesRefs={{ items: [] }} uid='t1' widgetData={widgetData(columns)} />
       </App>
     </MemoryRouter>,
   )
@@ -71,6 +80,7 @@ const renderTable = (options: { columns?: unknown; withUrl?: boolean } = {}) => 
 
 beforeEach(() => {
   requested = []
+  requestedInit = []
   clicks = []
   // Capture the download instead of letting jsdom navigate.
   vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function captureDownload(this: HTMLAnchorElement) {
@@ -84,10 +94,24 @@ beforeEach(() => {
 // `notification.destroy()` matters as much: antd renders notifications into a document.body
 // portal that testing-library's cleanup() does not own, so the truncation warning survived into
 // the next test and made "says nothing" find a message it had not produced.
-afterEach(() => {
-  cleanup()
+afterEach(async () => {
+  // Order matters: destroy the notifications while the tree is still mounted, then unmount.
   notification.destroy()
+  cleanup()
   vi.restoreAllMocks()
+  // Then give React's scheduler ONE macrotask to drain before vitest tears the environment down.
+  //
+  // Waiting for the button to leave its loading state (waitForIdle) covers the export's own state
+  // update, and every test that starts one does that. It does not cover what antd queues on the
+  // way out: the Dropdown's close animation and the notification teardown both schedule React
+  // work, which then runs via `performWorkUntilDeadline` in a world where `window` is gone:
+  //
+  //   ReferenceError: window is not defined — at performWorkOnRootViaSchedulerTask
+  //
+  // Every test passed and the run still failed on that unhandled error, which is correct: a file
+  // that leaves work queued at teardown is not finished. A macrotask here is the cheapest way to
+  // let it finish inside the environment that owns it.
+  await new Promise((resolve) => { setTimeout(resolve, 0) })
 })
 
 const openMenuAndPick = async (label: string) => {
@@ -138,8 +162,11 @@ describe('what it asks snowplow for', () => {
     expect(params.get('format')).toBe('csv')
     expect(params.get('fields')).toBe('name,phase')
     expect(params.getAll('header')).toEqual(['Name', 'Phase'])
-    // The hook's own extras survive onto the export, so it matches the filters on screen.
-    expect(params.get('extras')).toBe('{}')
+    // extras is NOT on the URL any more — it travels in the POST body, which is what removes
+    // the URL-length ceiling a large filter would hit.
+    expect(params.get('extras')).toBeNull()
+    expect(requestedInit[0]?.method).toBe('POST')
+    expect(JSON.parse(requestedInit[0].body)).toEqual({ extras: { q: 'nginx' } })
     await waitFor(() => expect(clicks).toEqual([{ download: 'export.csv' }]))
     await waitForIdle()
   })

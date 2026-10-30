@@ -527,15 +527,25 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
      *    `page=N&perPage=500` walk and concatenates the pages, so the export covers every row
      *    rather than the slice on screen. Sending a page would fight that walk.
      */
-    exportUrlFor: (exportQuery: string): string => {
-      // A FRESH URL: `requestUrl` is mutated by fetchWidget (page/perPage/extras), so reusing
-      // it here would inherit whichever page was fetched last.
+    exportRequestFor: (exportQuery: string): { url: string; extras: string | null } => {
+      // A FRESH URL: `requestUrl` is mutated by fetchWidget (page/perPage/extras), so reusing it
+      // here would inherit whichever page was fetched last.
       const url = new URL(widgetFullUrl)
-      if (extrasParam) {
-        url.searchParams.set('extras', extrasParam)
-      }
+      // `extras` is NOT put on the URL. snowplow's POST /export takes it in the body
+      // (`{"extras": …}`, the same envelope and decoder as POST /call/read), which removes the URL
+      // length ceiling a large filter would otherwise hit — a Marketplace facet selection with
+      // many chips is the realistic case. A stray `?extras=` on a POST is ignored by snowplow, so
+      // sending it in both places would be silently redundant rather than harmlessly belt-and-braces.
+      //
+      // Everything else stays on the query: the widget's own identifying params from
+      // `widgetFullUrl`, plus the export's (`format`, `path`, `fields`, repeated `header`, `title`).
+      // `page`/`perPage` are still omitted — snowplow re-dispatches with its own perPage=500 walk
+      // and concatenates, so the export covers every row rather than the slice on screen.
       const query = url.searchParams.toString()
-      return `${url.origin}${url.pathname}?${query ? `${query}&` : ''}${exportQuery}`
+      return {
+        extras: extrasParam || null,
+        url: `${url.origin}${url.pathname}?${query ? `${query}&` : ''}${exportQuery}`,
+      }
     },
   }
 }
