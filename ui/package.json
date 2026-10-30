@@ -67,6 +67,7 @@
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-sort-destructure-keys": "^2.0.0",
+    "eslint-plugin-sort-keys": "^2.3.5",
     "eslint-plugin-stylistic": "^0.0.0-0",
     "eslint-plugin-stylistic-js": "^0.0.0-0",
     "globals": "^15.15.0",
