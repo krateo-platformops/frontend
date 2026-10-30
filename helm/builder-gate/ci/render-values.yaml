@@ -1,0 +1,19 @@
+# Values the CI render uses for this chart (Helm's own `ci/*-values.yaml` convention, the one
+# chart-testing reads).
+#
+# WHY THIS FILE EXISTS. `helm template` with default values is a render test, and for most charts
+# the defaults are a valid configuration. For this one they are not: `instances` defaults to [] and
+# the chart now REFUSES that, because every object it ships sits inside `range .Values.instances`
+# and an empty list rendered zero objects while reporting success.
+#
+# So "does it render with defaults" is the wrong question here — the answer is "it must not". This
+# supplies the smallest configuration that IS valid, which makes the render test ask the question it
+# was always trying to ask: does this chart produce its objects when told what to produce.
+#
+# The Builder-existence assert is keyed on `.Capabilities.APIVersions.Has`, so it stays skipped in
+# CI, where there is no cluster and an empty lookup would mean nothing. That is deliberate: see the
+# comment in templates/gate.yaml.
+instances:
+  - name: portal-builder
+    builders:
+      - portal-builder
