@@ -1,3 +1,12 @@
+---
+type: Configuration
+title: frontend — browser telemetry span contract
+description: The five OpenTelemetry span names the UI SLO is computed from, their boundaries, how they reach snowplow, and why renaming one or moving a boundary is a breaking change.
+resource: oci://ghcr.io/krateo-platformops/charts/frontend
+tags: [observability, opentelemetry, slo, tracing]
+timestamp: 2026-10-31T00:00:00Z
+---
+
 # Browser telemetry: the span contract
 
 The portal emits OpenTelemetry spans from the browser so the platform's UI SLO
@@ -79,10 +88,28 @@ would be dropped — and dropped **invisibly**, since the browser sees a 2xx and
 2. **drops**, client-side, any span the contract does not name, and any `krateo.widget.fetch`
    whose URL is not on an origin we export for — snowplow would drop it anyway, but an
    unexportable span still spends the size and rate budget a real one needs;
-3. derives those origins from the **same** set the propagator uses, so "we inject `traceparent`
-   here" and "we export spans from here" cannot drift apart.
+3. matches on the **`SNOWPLOW_API_BASE_URL` prefix**, not an origin, and at a path boundary.
+
+   An origin check is correct only where snowplow has an origin of its own. On a same-origin
+   install — 057 serves portal, snowplow *and* authn from `portal.krateo.dev` — "same origin as
+   snowplow" is also true of authn calls and of the SPA's own `/config/config.json`, so an origin
+   check exports those as widget fetches. And the prefix must match at a path boundary: a bare
+   `startsWith` on `…/content` also admits `…/contentious/call`.
+
+   The propagator uses the same derivation, so "we inject `traceparent` here" and "we export spans
+   from here" cannot drift apart. That also narrows propagation, which previously reached authn and
+   events — a header with no counterpart, since only snowplow emits a Server span to link to.
 
 ## Privacy
 
 Route templates, never raw URLs. No tokens, no query strings, no user names or display names.
-snowplow allowlists attributes independently and adds no identity, so the two layers agree.
+
+Enforced **in the browser**, in each instrumentation's `applyCustomAttributesOnSpan` — the only
+point where a span is still mutable, since by `onEnd` the attributes are frozen behind a
+`ReadableSpan`. `redactUrlAttributes` strips the query from `http.url` / `url.full` and records
+`http.route` relative to the snowplow base.
+
+The query is the part that matters: `?extras={…}` carries whatever the user filtered or searched
+for, and a page name is not ours to ship. snowplow allowlists attributes independently, but a value
+it would reject is a value the browser should not have sent — the only copy that never leaks is the
+one never transmitted. A test asserts that no exported attribute contains a `?`.

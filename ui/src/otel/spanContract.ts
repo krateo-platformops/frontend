@@ -12,7 +12,7 @@
  * span the portal already produces would be dropped, and dropped invisibly: the browser sees a 2xx
  * and nothing arrives. That is the failure this file exists to prevent.
  */
-import type { Context } from '@opentelemetry/api'
+import type { Context, Span as ApiSpan } from '@opentelemetry/api'
 import type { ReadableSpan, Span, SpanProcessor } from '@opentelemetry/sdk-trace-web'
 
 /** The complete accepted set. snowplow drops anything else; so does `ContractSpanProcessor`. */
@@ -41,6 +41,72 @@ export const ATTR_ABANDONED = 'krateo.interaction.abandoned'
 /** The auto-instrumentation span names this renames. `HTTP ${method}`, per instrumentation-fetch. */
 const isAutoHttpSpan = (name: string): boolean => /^HTTP [A-Z]+$/.test(name)
 
+/** The URL attributes auto-instrumentation writes. Older convention first; both are handled. */
+const URL_ATTRS = ['http.url', 'url.full'] as const
+
+/**
+ * Is `url` under `prefix`, matching at a PATH BOUNDARY?
+ *
+ * A bare `startsWith` is wrong and the mistake is easy to miss: with a prefix of
+ * `https://portal.krateo.dev/content`, a bare prefix test also matches
+ * `https://portal.krateo.dev/contentious/call` — a different path that happens to share the first
+ * seven characters of its segment. Same family as matching a host by prefix and admitting
+ * `portal.krateo.dev.evil.test`. So the URL must equal the prefix or continue with `/`.
+ */
+const underPrefix = (url: string, prefix: string): boolean =>
+  url === prefix || url.startsWith(`${prefix}/`) || url.startsWith(`${prefix}?`)
+
+/** Set by `redactUrlAttributes`: the path relative to the snowplow base, with no query. */
+export const ATTR_ROUTE = 'http.route'
+
+/**
+ * Replace a span's raw URL attributes with a query-free path, and record the route.
+ *
+ * Called from the instrumentations' `applyCustomAttributesOnSpan`, which is the ONLY point where
+ * the span is still mutable — by the time the contract processor sees it on `onEnd` the attributes
+ * are frozen behind a `ReadableSpan`.
+ *
+ * WHY THE QUERY MUST GO HERE rather than at the server. `?extras={…}` carries whatever the user
+ * filtered or searched for, and a page name is not ours to ship. snowplow allowlists attributes
+ * independently, but a value it would reject is a value the browser should not have sent — the
+ * only copy that never leaks is the one never transmitted.
+ */
+export const redactUrlAttributes = (span: ApiSpan, snowplowPrefix: string | null): void => {
+  // `applyCustomAttributesOnSpan` hands us the API Span, which exposes no attribute getter, so the
+  // raw URL is read through the SDK shape the web instrumentations actually pass.
+  const readable = span as unknown as { attributes?: Record<string, unknown> }
+  let raw: string | null = null
+  for (const key of URL_ATTRS) {
+    const value = readable.attributes?.[key]
+    if (typeof value === 'string' && value.length > 0) {
+      raw = value
+      break
+    }
+  }
+  if (raw === null) {
+    return
+  }
+
+  let withoutQuery = raw
+  try {
+    const url = new URL(raw, window.location.origin)
+    withoutQuery = `${url.origin}${url.pathname}`
+    if (snowplowPrefix !== null && underPrefix(withoutQuery, snowplowPrefix)) {
+      const route = withoutQuery.slice(snowplowPrefix.length) || '/'
+      span.setAttribute(ATTR_ROUTE, route)
+    }
+  } catch {
+    // Unparseable: strip from the first `?` so a query cannot survive a URL we cannot parse.
+    withoutQuery = raw.split('?')[0]
+  }
+
+  for (const key of URL_ATTRS) {
+    if (typeof readable.attributes?.[key] === 'string') {
+      span.setAttribute(key, withoutQuery)
+    }
+  }
+}
+
 /**
  * The URL attribute auto-instrumentation records. `http.url` is the older convention and what the
  * installed instrumentation emits; `url.full` is the newer one. Both are read so a dependency bump
@@ -60,19 +126,23 @@ const urlOf = (span: ReadableSpan): string | null => {
  * Renames auto-instrumented portal → snowplow requests to `krateo.widget.fetch`, and DROPS every
  * other span the contract does not name.
  *
- * Dropping client-side rather than letting snowplow drop it is deliberate (acmp's call): the
- * ingestion has a size cap and a per-user rate limit, so an unexportable span still costs budget
- * that a real one needs. It also keeps the two decisions from disagreeing — `exportOrigins` is the
- * SAME set the propagator uses, so "we propagate traceparent here" and "we export spans from here"
- * cannot drift apart.
+ * Dropping client-side rather than letting snowplow drop it is deliberate: the ingestion has a
+ * size cap and a per-user rate limit, so an unexportable span still costs budget a real one needs.
+ *
+ * MATCHED ON A PREFIX, NOT AN ORIGIN. An origin check is right only where snowplow has an origin
+ * of its own. On a same-origin install — 057 serves portal, snowplow and authn all from
+ * `portal.krateo.dev` — "same origin as snowplow" is also true of authn calls and of the SPA's own
+ * `/config/config.json`, so an origin check would rename and export those as widget fetches. The
+ * prefix `https://portal.krateo.dev/content` is what identifies a snowplow call. It is the same
+ * derivation the propagator uses, so "we propagate here" and "we export from here" cannot drift.
  */
 export class ContractSpanProcessor implements SpanProcessor {
-  private readonly exportOrigins: readonly string[]
   private readonly inner: SpanProcessor
+  private readonly snowplowPrefix: string | null
 
-  constructor(inner: SpanProcessor, exportOrigins: readonly string[]) {
-    this.exportOrigins = exportOrigins
+  constructor(inner: SpanProcessor, snowplowPrefix: string | null) {
     this.inner = inner
+    this.snowplowPrefix = snowplowPrefix
   }
 
   forceFlush(): Promise<void> {
@@ -109,8 +179,11 @@ export class ContractSpanProcessor implements SpanProcessor {
     return this.inner.shutdown()
   }
 
-  /** True when the span's URL is on one of the origins we export for. */
+  /** True when the span's URL sits under the snowplow base. */
   private isExportable(span: ReadableSpan): boolean {
+    if (this.snowplowPrefix === null) {
+      return false
+    }
     const url = urlOf(span)
     if (url === null) {
       // No URL attribute: we cannot tell whose request it was, and "cannot tell" must not read as
@@ -118,8 +191,7 @@ export class ContractSpanProcessor implements SpanProcessor {
       return false
     }
     try {
-      const { origin } = new URL(url, window.location.origin)
-      return this.exportOrigins.includes(origin)
+      return underPrefix(new URL(url, window.location.origin).href, this.snowplowPrefix)
     } catch {
       return false
     }
