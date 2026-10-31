@@ -30,7 +30,7 @@ export const isRestAction = (cr: Rec): boolean => kindOf(cr) === RESTACTION_KIND
 export const maybeQuery = (s: string): { query: string; ok: boolean; unbalanced: boolean } => {
   const at = s.indexOf('${')
   if (at === -1) {
-    return { query: s, ok: false, unbalanced: false }
+    return { ok: false, query: s, unbalanced: false }
   }
   let depth = 1
   for (let end = at + 2; end < s.length; end += 1) {
@@ -39,9 +39,9 @@ export const maybeQuery = (s: string): { query: string; ok: boolean; unbalanced:
     } else if (s[end] === '}') {
       depth -= 1
       if (depth === 0) {
-        return { query: s.slice(at + 2, end).trim(), ok: true, unbalanced: false }
+        return { ok: true, query: s.slice(at + 2, end).trim(), unbalanced: false }
       }
     }
   }
-  return { query: s, ok: false, unbalanced: true }
+  return { ok: false, query: s, unbalanced: true }
 }

@@ -19,6 +19,7 @@ import { WIDGETS_GROUP } from '@frontend/components/Autopilot/pageLint'
 import { step, type StepResult } from '../envelope'
 import type { GateContext } from '../plan'
 import { CAPABILITY_RAW_READ } from '../snowplow'
+
 import { isRestAction, labelOf, maybeQuery, nameOf, pluralOfDraft, rec, type Rec, str } from './drafts'
 import { secretsProblems } from './secrets'
 
@@ -70,7 +71,7 @@ const refsOf = (cr: Rec, label: string): { refs: Ref[]; templated: number } => {
   let templated = 0
   const items = rec(spec?.resourcesRefs)?.items
   for (const [j, raw] of (Array.isArray(items) ? items : []).entries()) {
-    refs.push({ where: `${label}: spec.resourcesRefs.items[${j}]`, item: rec(raw) ?? {} })
+    refs.push({ item: rec(raw) ?? {}, where: `${label}: spec.resourcesRefs.items[${j}]` })
   }
   const templates = spec?.resourcesRefsTemplate
   for (const [j, raw] of (Array.isArray(templates) ? templates : []).entries()) {
@@ -79,7 +80,7 @@ const refsOf = (cr: Rec, label: string): { refs: Ref[]; templated: number } => {
       templated += 1
       continue
     }
-    refs.push({ where: `${label}: spec.resourcesRefsTemplate[${j}].template`, item: template })
+    refs.push({ item: template, where: `${label}: spec.resourcesRefsTemplate[${j}].template` })
   }
   return { refs, templated }
 }
@@ -109,7 +110,7 @@ export const referencesStep = async (drafts: readonly Rec[], ctx: GateContext): 
     const label = labelOf(cr, index)
     const { refs, templated } = refsOf(cr, label)
     templatedSkipped += templated
-    for (const { where, item } of refs) {
+    for (const { item, where } of refs) {
       checked += 1
       const resource = str(item.resource)
       const name = str(item.name)

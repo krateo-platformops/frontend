@@ -46,4 +46,4 @@ export interface Envelope {
 }
 
 export const step = (name: string, problems: string[] = [], notes: string[] = []): StepResult =>
-  ({ name, ok: problems.length === 0, problems, notes })
+  ({ name, notes, ok: problems.length === 0, problems })

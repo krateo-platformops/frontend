@@ -13,6 +13,7 @@
 import { step, type StepResult } from '../envelope'
 import type { JqExpr } from '../jq'
 import type { GateContext } from '../plan'
+
 import { isRestAction, labelOf, maybeQuery, rec, type Rec, str } from './drafts'
 
 export const jqExpressionsOf = (drafts: readonly Rec[]): { exprs: JqExpr[]; problems: string[] } => {

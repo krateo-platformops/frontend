@@ -16,7 +16,7 @@ let server: ChildProcess
 let logs = ''
 
 beforeAll(async () => {
-  const env: NodeJS.ProcessEnv = { ...process.env, PORT: String(PORT), GATE_BUILDERS: 'portal-builder' }
+  const env: NodeJS.ProcessEnv = { ...process.env, GATE_BUILDERS: 'portal-builder', PORT: String(PORT) }
   delete env.KUBERNETES_SERVICE_HOST
   delete env.GATE_KUBECONFIG
   server = spawn(process.execPath, [join(ROOT, 'dist', 'server.cjs')], { env })
@@ -48,9 +48,9 @@ describe('the MCP server', () => {
 
   it('answers with the envelope; with no API server identity the Builder cannot be read and that is red', async () => {
     const client = await connect('a-caller-jwt')
-    const result = await client.callTool({ name: 'validate_draft', arguments: { builder: 'portal-builder', files: example() } })
+    const result = await client.callTool({ arguments: { builder: 'portal-builder', files: example() }, name: 'validate_draft' })
     const envelope = JSON.parse((result.content as { text: string }[])[0].text)
-    expect(envelope).toMatchObject({ ok: false, failedStep: 'builder', coverage: null })
+    expect(envelope).toMatchObject({ coverage: null, failedStep: 'builder', ok: false })
     expect(envelope.steps[0].problems[0]).toMatch(/^notChecked: the gate has no API server identity/)
     expect(logs).toContain('"caller":"present"')
     expect(logs).not.toContain('a-caller-jwt')
@@ -59,7 +59,7 @@ describe('the MCP server', () => {
 
   it('refuses a Builder this instance does not serve', async () => {
     const client = await connect()
-    const result = await client.callTool({ name: 'validate_draft', arguments: { builder: 'blueprint-builder', files: [] } })
+    const result = await client.callTool({ arguments: { builder: 'blueprint-builder', files: [] }, name: 'validate_draft' })
     const envelope = JSON.parse((result.content as { text: string }[])[0].text)
     expect(envelope.steps[0].problems[0]).toBe('this gate validates drafts for portal-builder, not "blueprint-builder"')
     await client.close()

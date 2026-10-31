@@ -19,6 +19,7 @@ import { HttpError } from '../http'
 import { PER_REQUEST_TIMEOUT_MS } from '../kube'
 import type { GateContext } from '../plan'
 import { CAPABILITY_DRY_RUN, CAPABILITY_FIELD_VALIDATION, ECHO_DRY_RUN, echoed } from '../snowplow'
+
 import { kindOf, labelOf, nameOf, pluralOfDraft, rec, type Rec } from './drafts'
 
 export const STEP_BUDGET_MS = 45_000
@@ -40,33 +41,33 @@ export const classifyDryRun = (reply: { status: number; json: unknown; body: str
   const details = rec(status.details) ?? {}
 
   if (!echoed(reply.headers, { [ECHO_DRY_RUN]: 'All' })) {
-    return { verdict: 'notChecked', detail: `snowplow answered ${reply.status} without ${ECHO_DRY_RUN}: All, so it is not the API server's verdict on a dry run: ${message}` }
+    return { detail: `snowplow answered ${reply.status} without ${ECHO_DRY_RUN}: All, so it is not the API server's verdict on a dry run: ${message}`, verdict: 'notChecked' }
   }
   if (reply.status === 200 || reply.status === 201) {
     return { verdict: 'validated' }
   }
   // Admission (schema, CEL, webhooks) runs before storage, so a name collision means it passed.
   if (reply.status === 409 && reason === 'AlreadyExists') {
-    return { verdict: 'validated', detail: 'an object of that name already exists in the sandbox; the API server validated this one before refusing the name clash' }
+    return { detail: 'an object of that name already exists in the sandbox; the API server validated this one before refusing the name clash', verdict: 'validated' }
   }
   // 422 Invalid: the schema or a CEL rule. 400 BadRequest: under Strict, an unknown or duplicate
   // field ("strict decoding error: unknown field …"), or a body the server cannot decode at all.
   if (reply.status === 422 || reply.status === 400) {
-    return { verdict: 'rejected', detail: message }
+    return { detail: message, verdict: 'rejected' }
   }
   if (reply.status === 403) {
-    return { verdict: 'notChecked', detail: `Forbidden — you may not create this kind in ${sandboxNamespace}, so preview would refuse it for you too: ${message}` }
+    return { detail: `Forbidden — you may not create this kind in ${sandboxNamespace}, so preview would refuse it for you too: ${message}`, verdict: 'notChecked' }
   }
   if (reply.status === 401) {
-    return { verdict: 'notChecked', detail: `Unauthorized — the caller's token was not accepted: ${message}` }
+    return { detail: `Unauthorized — the caller's token was not accepted: ${message}`, verdict: 'notChecked' }
   }
   if (reply.status === 404) {
     if (details.kind === 'namespaces' || new RegExp(`namespaces? "${sandboxNamespace}" not found`).test(message)) {
-      return { verdict: 'notChecked', detail: `the preview sandbox namespace ${sandboxNamespace} does not exist (previewSandbox.enabled is off?)` }
+      return { detail: `the preview sandbox namespace ${sandboxNamespace} does not exist (previewSandbox.enabled is off?)`, verdict: 'notChecked' }
     }
-    return { verdict: 'rejected', detail: `the API server does not serve this resource: ${message}` }
+    return { detail: `the API server does not serve this resource: ${message}`, verdict: 'rejected' }
   }
-  return { verdict: 'notChecked', detail: `the API server answered ${reply.status}${reason ? ` ${reason}` : ''}: ${message}` }
+  return { detail: `the API server answered ${reply.status}${reason ? ` ${reason}` : ''}: ${message}`, verdict: 'notChecked' }
 }
 
 /** The object as the sandbox would receive it: in the sandbox namespace, at its kind's apiVersion. */
@@ -85,16 +86,16 @@ export const dryRunStep = async (drafts: readonly Rec[], ctx: GateContext): Prom
     }
   }
   const verdicts: ObjectVerdict[] = drafts.map((cr, index) => ({
+    detail: 'not submitted',
     object: labelOf(cr, index),
     resource: `${pluralOfDraft(cr) ?? '?'}/${nameOf(cr) ?? '?'}`,
     verdict: 'notChecked',
-    detail: 'not submitted',
   }))
   const unjudged = (why: string): { step: StepResult; verdicts: ObjectVerdict[] } => {
     verdicts.forEach((v) => { v.detail = why })
     return { step: step('live-dry-run', [`${why} — no object was judged by the API server`]), verdicts }
   }
-  const snowplow = ctx.snowplow
+  const { snowplow } = ctx
   if (!snowplow) {
     return unjudged(`notChecked: ${ctx.snowplowMissing ?? 'no snowplow'}`)
   }

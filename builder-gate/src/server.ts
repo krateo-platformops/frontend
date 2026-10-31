@@ -44,8 +44,8 @@ const buildServer = (headers: IncomingMessage['headers']): McpServer => {
   }, async ({ builder, files }) => {
     const started = Date.now()
     const envelope = await runGate(builder, files, liveContext(config, bearerOf(headers)), liveBuilderLookup(config))
-    log({ msg: 'validate_draft', builder, objects: files.length, ok: envelope.ok, failedStep: envelope.failedStep, ms: Date.now() - started, caller: bearerOf(headers) ? 'present' : 'absent' })
-    return { content: [{ type: 'text', text: JSON.stringify(envelope, null, 2) }], isError: false }
+    log({ builder, caller: bearerOf(headers) ? 'present' : 'absent', failedStep: envelope.failedStep, ms: Date.now() - started, msg: 'validate_draft', objects: files.length, ok: envelope.ok })
+    return { content: [{ text: JSON.stringify(envelope, null, 2), type: 'text' }], isError: false }
   })
   return server
 }
@@ -90,7 +90,7 @@ const http = createServer(async (req, res) => {
   try {
     const body = await readBody(req)
     const server = buildServer(req.headers)
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true })
+    const transport = new StreamableHTTPServerTransport({ enableJsonResponse: true, sessionIdGenerator: undefined })
     res.on('close', () => {
       void transport.close()
       void server.close()
@@ -98,10 +98,10 @@ const http = createServer(async (req, res) => {
     await server.connect(transport)
     await transport.handleRequest(req, res, body)
   } catch (error) {
-    log({ msg: 'request failed', error: (error as Error).message })
+    log({ error: (error as Error).message, msg: 'request failed' })
     if (!res.headersSent) {
       res.writeHead(400, { 'Content-Type': 'application/json' })
-        .end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32700, message: (error as Error).message }, id: null }))
+        .end(JSON.stringify({ error: { code: -32700, message: (error as Error).message }, id: null, jsonrpc: '2.0' }))
     }
   }
 })
@@ -109,12 +109,12 @@ const http = createServer(async (req, res) => {
 const port = Number(process.env.PORT || 8080)
 http.listen(port, () => {
   log({
+    builders: config.builders,
+    identity: config.kube?.identity.source ?? 'none',
     msg: 'builder-gate listening',
     port,
-    version: GATE_VERSION,
-    builders: config.builders,
     sandbox: config.sandboxNamespace,
-    identity: config.kube?.identity.source ?? 'none',
     snowplow: config.snowplowUrl ?? 'not configured',
+    version: GATE_VERSION,
   })
 })

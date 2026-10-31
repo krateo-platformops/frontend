@@ -68,8 +68,6 @@
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-sort-destructure-keys": "^2.0.0",
     "eslint-plugin-sort-keys": "^2.3.5",
-    "eslint-plugin-stylistic": "^0.0.0-0",
-    "eslint-plugin-stylistic-js": "^0.0.0-0",
     "globals": "^15.15.0",
     "jsdom": "^27.0.1",
     "json-schema": "^0.4.0",
@@ -114,9 +112,6 @@
     "antd": "^6.4.4",
     "axios": "^1.20.0",
     "dayjs": "^1.11.13",
-    "eslint-plugin-import-x": "^4.6.1",
-    "eslint-plugin-sort-keys": "^2.3.5",
-    "eslint-plugin-sort-keys-fix": "^1.1.2",
     "fflate": "^0.8.2",
     "glob": "^11.0.2",
     "js-yaml": "^4.1.0",
@@ -136,10 +131,5 @@
   },
   "overrides": {
     "prismjs": "^1.30.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "prismjs": "^1.30.0"
-    }
   }
 }

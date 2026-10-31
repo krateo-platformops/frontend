@@ -6,6 +6,7 @@
  * built from `.pods` with the RESTAction that emits them — the same pairing `event-health` got
  * wrong. Each test here changes ONE thing about it.
  */
+/* eslint-disable no-template-curly-in-string -- the ${…} jq DSL is the subject under test */
 import { describe, expect, it } from 'vitest'
 
 import { byKind, example, fakeSnowplow, json, liveCtx, recorder, resolveReply, run } from './helpers'
@@ -77,7 +78,7 @@ describe('what it refuses to call a defect', () => {
   })
 
   it('does not judge a widget whose RESTAction never resolved — another step owns that', async () => {
-    const transport = recorder(fakeSnowplow({ resolve: () => json(400, { kind: 'Status', code: 400, message: 'nope' }) })).transport
+    const { transport } = recorder(fakeSnowplow({ resolve: () => json(400, { code: 400, kind: 'Status', message: 'nope' }) }))
     const envelope = await run(example(), liveCtx(transport))
     // The data step is red for it; the shape step says only that it could not judge.
     expect(shapeOf(envelope).notes.join(' | ')).toMatch(/not judged — pod-sizing was not resolved in this call/)

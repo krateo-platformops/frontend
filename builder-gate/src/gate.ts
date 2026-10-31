@@ -27,7 +27,7 @@ export const SNOWPLOW_REF = typeof __SNOWPLOW_REF__ === 'string' ? __SNOWPLOW_RE
 
 const envelopeOf = (steps: StepResult[], coverage: Envelope['coverage']): Envelope => {
   const failed = steps.find((s) => !s.ok)
-  return { ok: !failed, failedStep: failed?.name ?? null, steps, coverage }
+  return { coverage, failedStep: failed?.name ?? null, ok: !failed, steps }
 }
 
 export const runGate = async (
@@ -41,7 +41,7 @@ export const runGate = async (
   if (!lookup.ok) {
     return envelopeOf([step('builder', [lookup.problem], notes)], null)
   }
-  const builder = lookup.builder
+  const { builder } = lookup
   notes.unshift(`Builder ${builder.name} (${builder.namespace}): draftKind ${builder.draftKind}, preview ${builder.previewMode ?? 'none'}`)
   const plan = PLANS[builder.draftKind]
   if (!plan) {

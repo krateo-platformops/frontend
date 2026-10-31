@@ -46,13 +46,13 @@ export const nodeTransport: Transport = (request) => new Promise((resolve, rejec
   // A header the request names itself (a RESTAction's own Content-Type) wins over the default.
   const named = new Set(Object.keys(request.headers ?? {}).map((k) => k.toLowerCase()))
   const req = lib.request(url, {
-    method: request.method,
     headers: {
       ...(named.has('accept') ? {} : { Accept: 'application/json' }),
       ...(request.body !== undefined ? { 'Content-Length': Buffer.byteLength(request.body) } : {}),
       ...(request.body !== undefined && !named.has('content-type') ? { 'Content-Type': 'application/json' } : {}),
       ...request.headers,
     },
+    method: request.method,
     ...(url.protocol === 'https:'
       ? { ca: request.tls?.ca, cert: request.tls?.cert, key: request.tls?.key }
       : {}),
@@ -67,7 +67,7 @@ export const nodeTransport: Transport = (request) => new Promise((resolve, rejec
       }
       chunks.push(chunk)
     })
-    res.on('end', () => resolve({ status: res.statusCode ?? 0, headers: res.headers, body: Buffer.concat(chunks).toString('utf8') }))
+    res.on('end', () => resolve({ body: Buffer.concat(chunks).toString('utf8'), headers: res.headers, status: res.statusCode ?? 0 }))
     res.on('error', reject)
   })
   // A socket-level deadline: the whole request, not just the connect, has to finish in time.

@@ -4,11 +4,11 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import yaml from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
-import yaml from 'js-yaml'
-
 import { GATE_TIMEOUT_MS } from '../src/gate'
+
 import { ROOT } from './helpers'
 
 const read = (...path: string[]): string => readFileSync(join(ROOT, ...path), 'utf8')

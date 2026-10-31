@@ -6,30 +6,34 @@
 import { describe, expect, it } from 'vitest'
 
 import { secretShaped, withoutSecrets } from '../src/pages/data'
+
 import { allOk, byKind, example, fakeSnowplow, json, liveCtx, rawReply, recorder, resolveReply, run } from './helpers'
 
 const dataOf = (envelope: Awaited<ReturnType<typeof run>>) => envelope.steps.find((s) => s.name === 'data')!
 
 describe('data', () => {
+  // The sample is `JSON.stringify` of whatever snowplow returned, so its key order is the
+  // FIXTURE's insertion order on the next line — not a product decision. `sort-keys --fix` sorting
+  // that fixture changes this expected string, which is how it first failed here.
   it('shows the agent what snowplow resolved, as a count and a sample', async () => {
-    const { transport, requests } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [{ name: 'a', phase: 'Running', cpu: 750 }] } }),
+    const { requests, transport } = recorder(fakeSnowplow({
+      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [{ cpu: 750, name: 'a', phase: 'Running' }] } }),
     }))
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.ok).toBe(true)
-    expect(dataOf(envelope).notes).toContain('widgets[3] (RESTAction/pod-sizing): yields a object; sample {"pods":[{"name":"a","phase":"Running","cpu":750}]}')
+    expect(dataOf(envelope).notes).toContain('widgets[3] (RESTAction/pod-sizing): yields a object; sample {"pods":[{"cpu":750,"name":"a","phase":"Running"}]}')
     const resolve = requests.find((r) => new URL(r.url).pathname === '/call/read')!
     expect(resolve).toMatchObject({
+      headers: { Authorization: 'Bearer caller-jwt' },
       method: 'POST',
       url: 'http://snowplow.test/call/read?apiVersion=templates.krateo.io%2Fv1&resource=restactions&namespace=krateo-preview&name=pod-sizing',
-      headers: { Authorization: 'Bearer caller-jwt' },
     })
     // The design requires the body's metadata to match the query: the draft resolves in the sandbox.
     expect(JSON.parse(resolve.body!)).toMatchObject({ extras: {}, object: { kind: 'RESTAction', metadata: { name: 'pod-sizing', namespace: 'krateo-preview' } } })
   })
 
   it('a snowplow without call.read.inline: live verdict missing, red, nothing run', async () => {
-    const { transport, requests } = recorder(fakeSnowplow({ capabilities: ['call.dryRun', 'call.fieldValidation', 'call.raw'] }))
+    const { requests, transport } = recorder(fakeSnowplow({ capabilities: ['call.dryRun', 'call.fieldValidation', 'call.raw'] }))
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
     expect(dataOf(envelope).problems).toEqual([
@@ -47,7 +51,7 @@ describe('data', () => {
   })
 
   it('a RESTAction snowplow cannot resolve is red, with snowplow\'s message', async () => {
-    const { transport } = recorder(fakeSnowplow({ resolve: () => json(400, { kind: 'Status', code: 400, message: 'metadata.namespace must equal the query namespace' }) }))
+    const { transport } = recorder(fakeSnowplow({ resolve: () => json(400, { code: 400, kind: 'Status', message: 'metadata.namespace must equal the query namespace' }) }))
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
     expect(dataOf(envelope).problems[0]).toBe('widgets[3] (RESTAction/pod-sizing): snowplow could not resolve it (400): metadata.namespace must equal the query namespace')
@@ -58,7 +62,7 @@ describe('data', () => {
     byKind(draft, 'RESTAction').spec.api.push({ name: 'review', path: '/api/v1/namespaces/krateo-system/configmaps', verb: 'POST' })
     const { transport } = recorder(fakeSnowplow({
       resolve: (_url, body) => resolveReply(200,
-        { ...body.object, status: { pods: [], error: [{ code: 422, message: 'dry-run: stage "review" verb POST is not executed' }] } },
+        { ...body.object, status: { error: [{ code: 422, message: 'dry-run: stage "review" verb POST is not executed' }], pods: [] } },
         [{ name: 'pods', ok: true }, { name: 'review', ok: false, reason: 'StageNotExecuted' }]),
     }))
     const envelope = await run(draft, liveCtx(transport))
@@ -107,10 +111,10 @@ describe('data', () => {
     // "failed with an unknown reason" and the draft goes RED, where today it is two notes.
     const draft = example()
     Object.assign(byKind(draft, 'RESTAction').spec.api[0], { continueOnError: true, errorKey: 'podsErr' })
-    byKind(draft, 'RESTAction').spec.api.push({ name: 'scale', path: '/api/v1/scale', verb: 'POST', dependsOn: { name: 'pods' } })
+    byKind(draft, 'RESTAction').spec.api.push({ dependsOn: { name: 'pods' }, name: 'scale', path: '/api/v1/scale', verb: 'POST' })
     const { transport } = recorder(fakeSnowplow({
       resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [], podsErr: [{ code: 404, message: 'stage "pods": not found' }] } },
-        [{ name: 'pods', ok: false, reason: 'NotFound' }, { name: 'scale', ok: false, reason: 'Skipped', dependsOn: 'pods' }]),
+        [{ name: 'pods', ok: false, reason: 'NotFound' }, { dependsOn: 'pods', name: 'scale', ok: false, reason: 'Skipped' }]),
     }))
     const envelope = await run(draft, liveCtx(transport))
     expect(dataOf(envelope).notes).toContain('widgets[3] (RESTAction/pod-sizing): stage scale: not sent — it depends on stage pods, which is continueOnError; checked at the driven Preview')
@@ -120,10 +124,10 @@ describe('data', () => {
 
   it('snowplow#904: a write SKIPPED because its dependency failed hard is red', async () => {
     const draft = example()
-    byKind(draft, 'RESTAction').spec.api.push({ name: 'scale', path: '/api/v1/scale', verb: 'POST', dependsOn: { name: 'pods' } })
+    byKind(draft, 'RESTAction').spec.api.push({ dependsOn: { name: 'pods' }, name: 'scale', path: '/api/v1/scale', verb: 'POST' })
     const { transport } = recorder(fakeSnowplow({
       resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} },
-        [{ name: 'pods', ok: false, reason: 'Forbidden' }, { name: 'scale', ok: false, reason: 'Skipped', dependsOn: 'pods' }]),
+        [{ name: 'pods', ok: false, reason: 'Forbidden' }, { dependsOn: 'pods', name: 'scale', ok: false, reason: 'Skipped' }]),
     }))
     const envelope = await run(draft, liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
@@ -135,15 +139,15 @@ describe('data', () => {
     // attribution would blame that one for C; dependsOn makes C inherit B, which inherits A.
     const draft = example()
     Object.assign(byKind(draft, 'RESTAction').spec.api[0], { continueOnError: true })
-    byKind(draft, 'RESTAction').spec.api.push({ name: 'detach', path: '/api/v1/detach', verb: 'POST', dependsOn: { name: 'pods' } })
+    byKind(draft, 'RESTAction').spec.api.push({ dependsOn: { name: 'pods' }, name: 'detach', path: '/api/v1/detach', verb: 'POST' })
     byKind(draft, 'RESTAction').spec.api.push({ name: 'other', path: '/api/v1/other' })
-    byKind(draft, 'RESTAction').spec.api.push({ name: 'remove', path: '/api/v1/remove', verb: 'DELETE', dependsOn: { name: 'detach' } })
+    byKind(draft, 'RESTAction').spec.api.push({ dependsOn: { name: 'detach' }, name: 'remove', path: '/api/v1/remove', verb: 'DELETE' })
     const { transport } = recorder(fakeSnowplow({
       resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, [
         { name: 'pods', ok: false, reason: 'Error' },
-        { name: 'detach', ok: false, reason: 'Skipped', dependsOn: 'pods' },
+        { dependsOn: 'pods', name: 'detach', ok: false, reason: 'Skipped' },
         { name: 'other', ok: false, reason: 'Forbidden' },
-        { name: 'remove', ok: false, reason: 'Skipped', dependsOn: 'detach' },
+        { dependsOn: 'detach', name: 'remove', ok: false, reason: 'Skipped' },
       ]),
     }))
     const envelope = await run(draft, liveCtx(transport))
@@ -192,7 +196,7 @@ describe('data', () => {
     // these would be one red line each, every one of them saying the resolve "stopped before it,
     // at no failed stage the header names" — true, useless, and N times over.
     const draft = example()
-    byKind(draft, 'RESTAction').spec.api.push({ name: 'scale', path: '/api/v1/scale', verb: 'POST', dependsOn: { name: 'nope' } })
+    byKind(draft, 'RESTAction').spec.api.push({ dependsOn: { name: 'nope' }, name: 'scale', path: '/api/v1/scale', verb: 'POST' })
     const { transport } = recorder(fakeSnowplow({
       resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, [
         { name: '', ok: false, reason: 'Aborted' },
@@ -321,8 +325,8 @@ describe('data', () => {
   })
 
   it('Secret-shaped output is dropped before it reaches the envelope, and the drop is noted', async () => {
-    const leak = { kind: 'Secret', metadata: { name: 'db' }, data: { password: 'aHVudGVyMg==' } }
-    const shaped = { metadata: { name: 'no-kind' }, type: 'Opaque', data: { token: 'c2VjcmV0LXRva2Vu' } }
+    const leak = { data: { password: 'aHVudGVyMg==' }, kind: 'Secret', metadata: { name: 'db' } }
+    const shaped = { data: { token: 'c2VjcmV0LXRva2Vu' }, metadata: { name: 'no-kind' }, type: 'Opaque' }
     const { transport } = recorder(fakeSnowplow({
       resolve: (_url, body) => resolveReply(200, { ...body.object, status: { items: [leak, { name: 'ok' }, shaped] } }),
     }))
@@ -350,15 +354,15 @@ describe('data', () => {
 describe('secretShaped', () => {
   it.each([
     [{ kind: 'Secret' }, true],
-    [{ metadata: {}, data: { a: 'YQ==' } }, true],
-    [{ type: 'kubernetes.io/tls', data: { 'tls.crt': 'Y2VydA==', 'tls.key': 'a2V5' } }, true],
-    [{ kind: 'ConfigMap', metadata: {}, data: { a: 'plain text, not base64!' } }, false],
+    [{ data: { a: 'YQ==' }, metadata: {} }, true],
+    [{ data: { 'tls.crt': 'Y2VydA==', 'tls.key': 'a2V5' }, type: 'kubernetes.io/tls' }, true],
+    [{ data: { a: 'plain text, not base64!' }, kind: 'ConfigMap', metadata: {} }, false],
     [{ data: { a: 'YQ==' } }, false],
-    [{ name: 'x', count: 3 }, false],
+    [{ count: 3, name: 'x' }, false],
   ])('%j → %s', (value, shaped) => {
     expect(secretShaped(value)).toBe(shaped)
   })
   it('drops at any depth and counts', () => {
-    expect(withoutSecrets({ a: [{ b: { kind: 'Secret' } }] })).toEqual({ value: { a: [{ b: '[dropped by the gate: a Secret-shaped object]' }] }, dropped: 1 })
+    expect(withoutSecrets({ a: [{ b: { kind: 'Secret' } }] })).toEqual({ dropped: 1, value: { a: [{ b: '[dropped by the gate: a Secret-shaped object]' }] } })
   })
 })

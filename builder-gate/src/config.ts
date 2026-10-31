@@ -29,21 +29,21 @@ export const configFromEnv = (env: NodeJS.ProcessEnv = process.env): GateConfig 
   return {
     builders: list(env.GATE_BUILDERS),
     buildersNamespace: env.BUILDERS_NAMESPACE || 'krateo-system',
-    sandboxNamespace: env.SANDBOX_NAMESPACE || 'krateo-preview',
     kube: identity ? new KubeClient(identity) : null,
+    sandboxNamespace: env.SANDBOX_NAMESPACE || 'krateo-preview',
     snowplowUrl: env.SNOWPLOW_URL || null,
   }
 }
 
 /** A live context for one call, as the caller whose token arrived with it (or none). */
 export const liveContext = (config: GateConfig, callerToken: string | null, transport?: Transport): GateContext => ({
+  deadline: Date.now() + GATE_TIMEOUT_MS,
+  jq: jqcheckEngine(),
   live: true,
   snowplow: config.snowplowUrl && callerToken ? snowplowClient(config.snowplowUrl, callerToken, config.sandboxNamespace, transport) : null,
   snowplowMissing: !callerToken
     ? 'no caller token reached the gate (kagent forwards it on tool calls when the agent runs with KAGENT_PROPAGATE_TOKEN)'
     : config.snowplowUrl ? null : 'no snowplow is configured (SNOWPLOW_URL)',
-  jq: jqcheckEngine(),
-  deadline: Date.now() + GATE_TIMEOUT_MS,
 })
 
 /** The Builder lookup an instance allows: only its own Builders, read live. */

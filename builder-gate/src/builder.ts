@@ -39,13 +39,13 @@ export const builderSpecOf = (cr: unknown): BuilderSpec => {
   const start = rec(spec.start)
   const max = typeof files.heldBytes === 'number' ? files.heldBytes : typeof start.maxDraftBytes === 'number' ? start.maxDraftBytes : null
   return {
+    draftKind: String(spec.draftKind ?? ''),
+    lint: strings(spec.lint),
+    maxBytes: max,
     name: String(metadata.name ?? ''),
     namespace: String(metadata.namespace ?? ''),
-    draftKind: String(spec.draftKind ?? ''),
     previewMode: typeof rec(spec.preview).mode === 'string' ? String(rec(spec.preview).mode) : null,
-    lint: strings(spec.lint),
     verbs: strings(rec(spec.verbs).allowed),
-    maxBytes: max,
   }
 }
 
@@ -63,7 +63,7 @@ export const builderFromCluster = async (kube: KubeClient, namespace: string, na
     return { ok: false, problem: `notChecked: the Builder ${namespace}/${name} could not be read (${(error as Error).message})` }
   }
   if (reply.status === 200) {
-    return { ok: true, builder: builderSpecOf(reply.json) }
+    return { builder: builderSpecOf(reply.json), ok: true }
   }
   if (reply.status === 404) {
     return { ok: false, problem: `no Builder ${JSON.stringify(name)} in namespace ${namespace} — name one of the cluster's Builders` }
@@ -76,7 +76,7 @@ export const builderFromDirectory = (dir: string, name: string): BuilderLookup =
   for (const file of readdirSync(dir).filter((f) => f.endsWith('.yaml') || f.endsWith('.yml'))) {
     const cr = yaml.load(readFileSync(join(dir, file), 'utf8'))
     if (rec(rec(cr).metadata).name === name && rec(cr).kind === 'Builder') {
-      return { ok: true, builder: { ...builderSpecOf(cr), namespace: `(file ${file})` } }
+      return { builder: { ...builderSpecOf(cr), namespace: `(file ${file})` }, ok: true }
     }
   }
   return { ok: false, problem: `no Builder ${JSON.stringify(name)} in ${dir}` }

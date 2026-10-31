@@ -71,7 +71,8 @@ const decoded = (value: string): string => {
 }
 
 /** Whether `value` spells "secret", however it is encoded, cased or cut into pieces (names_secrets). */
-export const namesSecrets = (value: unknown): boolean => decoded(asText(value)).toLowerCase().replace(/[^a-z]/g, '').includes('secret')
+export const namesSecrets = (value: unknown): boolean => decoded(asText(value)).toLowerCase().replace(/[^a-z]/g, '')
+  .includes('secret')
 
 const normalized = (text: string): string => text.replace(/\s+/g, ' ').trim()
 
@@ -151,8 +152,8 @@ export const guarded = (api: Rec): { ok: boolean; why: string } => {
 const stepFields = (api: Rec): Record<string, unknown> => {
   const uaf = rec(api.userAccessFilter) ?? {}
   return {
-    path: api.path,
     iterator: rec(api.dependsOn)?.iterator,
+    path: api.path,
     'userAccessFilter.resource': uaf.resource,
     'userAccessFilter.resourcesFrom': uaf.resourcesFrom,
   }

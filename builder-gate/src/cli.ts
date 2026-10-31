@@ -63,11 +63,11 @@ const main = async (): Promise<void> => {
       usage('--offline needs --builders-dir (an offline run cannot read the cluster)')
     }
     envelope = await runGate(builder, files as unknown[], {
+      deadline: Date.now() + GATE_TIMEOUT_MS,
+      jq: jqcheckEngine(),
       live: false,
       snowplow: null,
       snowplowMissing: 'offline run',
-      jq: jqcheckEngine(),
-      deadline: Date.now() + GATE_TIMEOUT_MS,
     }, lookup!)
   } else {
     const config = configFromEnv(env)

@@ -22,11 +22,11 @@ export const byKind = (draft: Draft, kind: string): Record<string, any> => draft
 export const fixtureLookup = async (name: string): Promise<BuilderLookup> => builderFromDirectory(FIXTURES, name)
 
 export const offlineCtx = (): GateContext => ({
-  live: false, snowplow: null, snowplowMissing: 'offline run', jq, deadline: Date.now() + 60_000,
+  deadline: Date.now() + 60_000, jq, live: false, snowplow: null, snowplowMissing: 'offline run',
 })
 
 export const json = (status: number, body: unknown, headers: Record<string, string> = {}): HttpResponse =>
-  ({ status, headers, body: JSON.stringify(body) })
+  ({ body: JSON.stringify(body), headers, status })
 
 /** A transport that records every request and answers with `handler`. */
 export const recorder = (handler: (req: HttpRequest) => HttpResponse | Promise<HttpResponse>) => {
@@ -97,7 +97,7 @@ export const fakeSnowplow = (fake: FakeSnowplow = {}) => (req: HttpRequest): Htt
     return offered === null ? json(404, { message: 'not found' }) : json(200, { capabilities: offered })
   }
   if (url.pathname === '/call' && req.method === 'GET') {
-    return fake.read ? fake.read(url) : rawReply(404, { kind: 'Status', code: 404, reason: 'NotFound', message: 'not found' })
+    return fake.read ? fake.read(url) : rawReply(404, { code: 404, kind: 'Status', message: 'not found', reason: 'NotFound' })
   }
   if (url.pathname === '/call/dry-run' && req.method === 'POST') {
     if (fake.dryRunRoute === false) {
@@ -116,11 +116,11 @@ export const fakeSnowplow = (fake: FakeSnowplow = {}) => (req: HttpRequest): Htt
 export const liveCtx = (transport: Transport, opts: { callerToken?: string | null } = {}): GateContext => {
   const token = opts.callerToken === undefined ? 'caller-jwt' : opts.callerToken
   return {
+    deadline: Date.now() + 60_000,
+    jq,
     live: true,
     snowplow: token ? snowplowClient(SNOWPLOW, token, 'krateo-preview', transport) : null,
     snowplowMissing: token ? null : 'no caller token reached the gate',
-    jq,
-    deadline: Date.now() + 60_000,
   }
 }
 

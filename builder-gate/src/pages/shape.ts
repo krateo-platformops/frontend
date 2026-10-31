@@ -27,6 +27,7 @@ import { checkResolvedShape, itemSchemaConstrains, primeEmptyArrays, schemaAtPat
 
 import { step, type StepResult } from '../envelope'
 import type { GateContext } from '../plan'
+
 import { isRestAction, kindOf, labelOf, rec, type Rec, str } from './drafts'
 
 export const STEP_BUDGET_MS = 15_000
@@ -75,7 +76,7 @@ const templatesOf = (cr: Rec): { forPath: string; expression: string }[] => {
  * nothing follows from it.
  */
 const unbackedColumns = (widgetData: Rec, resolved: unknown): string[] => {
-  const columns = widgetData.columns
+  const { columns } = widgetData
   if (!Array.isArray(columns) || !Array.isArray(resolved) || resolved.length === 0) {
     return []
   }
@@ -116,7 +117,7 @@ export const shapeStep = async (drafts: readonly Rec[], outputs: Map<string, unk
     const kind = kindOf(cr)
     const apiRefName = str(rec(rec(cr.spec)?.apiRef)?.name)
 
-    for (const { forPath, expression } of templatesOf(cr)) {
+    for (const { expression, forPath } of templatesOf(cr)) {
       const at = `${label}: ${forPath}`
       if (Date.now() > deadline) {
         problems.push(`${at}: notChecked: the step's time budget ran out`)

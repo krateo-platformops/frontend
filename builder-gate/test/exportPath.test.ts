@@ -11,10 +11,10 @@
  * builder-gate has `jqcheck`, built against the same gojq fork snowplow's go.mod replaces gojq
  * with, so here the expression can be RUN against a realistic body and judged by what it produces.
  */
+import { join } from 'node:path'
+
 import { EXPORT_PATH } from '@frontend/widgets/Table/tableExport'
 import { describe, expect, it } from 'vitest'
-
-import { join } from 'node:path'
 
 import { jqcheckEngine } from '../src/jq'
 
@@ -27,7 +27,7 @@ const body = (rows: unknown[][]) => ({
   status: { widgetData: { columns: [{ title: 'Name', valueKey: 'name' }], dataSource: rows } },
 })
 
-const cell = (valueKey: string, field: string, value: unknown) => ({ kind: 'jsonSchemaType', valueKey, [field]: value })
+const cell = (valueKey: string, field: string, value: unknown) => ({ [field]: value, kind: 'jsonSchemaType', valueKey })
 
 const run = async (rows: unknown[][]) => {
   const result = await jq.eval(EXPORT_PATH, body(rows))

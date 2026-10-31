@@ -22,13 +22,14 @@ import type { BuilderSpec } from '../builder'
 import { pluralOf, schemaFor } from '../catalog'
 import { type Coverage, type ObjectVerdict, step, type StepResult } from '../envelope'
 import type { BuilderPlan, GateContext, PlanResult } from '../plan'
+
 import { dataStep } from './data'
-import { dryRunStep } from './dryRun'
 import { rec, type Rec } from './drafts'
+import { dryRunStep } from './dryRun'
 import { jqCompileStep } from './jqCompile'
 import { referencesStep } from './references'
-import { shapeStep } from './shape'
 import { draftSecretsProblems } from './secrets'
+import { shapeStep } from './shape'
 
 export const coverageOf = (verdicts: ObjectVerdict[]): Coverage => {
   const count = (v: ObjectVerdict['verdict']): number => verdicts.filter((x) => x.verdict === v).length
@@ -38,7 +39,7 @@ export const coverageOf = (verdicts: ObjectVerdict[]): Coverage => {
   const summary = validated === verdicts.length
     ? `API server accepted all ${verdicts.length} objects`
     : `API server accepted ${validated} of ${verdicts.length} objects (${rejected} rejected, ${notChecked} not checked)`
-  return { objects: verdicts.length, validated, rejected, notChecked, summary, verdicts }
+  return { notChecked, objects: verdicts.length, rejected, summary, validated, verdicts }
 }
 
 const coverageStep = (coverage: Coverage): StepResult => step('coverage', [], [
@@ -47,7 +48,7 @@ const coverageStep = (coverage: Coverage): StepResult => step('coverage', [], [
 ])
 
 const builderLintStep = async (drafts: readonly Rec[]): Promise<StepResult> => {
-  const problems = await lintPageDrafts(drafts, { schemaFor, pluralOf })
+  const problems = await lintPageDrafts(drafts, { pluralOf, schemaFor })
   const root = pageRootProblem(drafts)
   if (root) {
     problems.push(root)
@@ -79,7 +80,7 @@ export const pagePlan: BuilderPlan = {
     }
     if (shapeProblems.length > 0) {
       steps.push(step('builder-lint', shapeProblems))
-      return { steps, coverage: null }
+      return { coverage: null, steps }
     }
     const drafts = files as Rec[]
 
@@ -88,7 +89,7 @@ export const pagePlan: BuilderPlan = {
       const result = await run(drafts, ctx)
       steps.push(result)
       if (!result.ok) {
-        return { steps, coverage: null }
+        return { coverage: null, steps }
       }
     }
 
@@ -104,6 +105,6 @@ export const pagePlan: BuilderPlan = {
       steps.push(await shapeStep(drafts, data.outputs, ctx))
     }
     steps.push(coverage ? coverageStep(coverage) : step('coverage', [], ['DISABLED: offline run (--offline) — nothing was submitted to an API server']))
-    return { steps, coverage }
+    return { coverage, steps }
   },
 }
