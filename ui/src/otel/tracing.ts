@@ -8,6 +8,10 @@ import { resourceFromAttributes } from '@opentelemetry/resources'
 import { BatchSpanProcessor, WebTracerProvider } from '@opentelemetry/sdk-trace-web'
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
 
+import { getAccessToken } from '../utils/getAccessToken'
+
+import { ContractSpanProcessor } from './spanContract'
+
 /**
  * Minimal shape of the runtime config consumed by tracing init. We intentionally
  * accept a loosely-typed object (rather than the full `Config`) because tracing
@@ -16,7 +20,16 @@ import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
  */
 export interface TracingConfig {
   api: {
-    /** OTLP/HTTP traces endpoint (collector). When absent, init is never called. */
+    /**
+     * Where traces are POSTed, OTLP/HTTP JSON. When neither key is set, init is never called.
+     *
+     * `OTEL_TRACES_ENDPOINT` is the current name and wins. `OTEL_COLLECTOR_URL` keeps working for
+     * every install that already sets it, and is read second — it is not deprecated so much as
+     * misnamed now: under X5 the destination is snowplow's `/telemetry/v1/traces`, which validates
+     * and forwards to the collector, so nothing a collector serves lives at that URL any more.
+     * Renaming it silently would leave the next reader looking for a collector that is not there.
+     */
+    OTEL_TRACES_ENDPOINT?: string
     OTEL_COLLECTOR_URL?: string
     /** Cross-origin backends whose calls should carry W3C `traceparent`. */
     AUTHN_API_BASE_URL?: string
@@ -41,7 +54,7 @@ function escapeRegExp(value: string): string {
  * and leak trace context to third parties). Each backend must also CORS-allow
  * the `traceparent` request header, or those requests will fail preflight.
  */
-function buildCorsUrls(api: TracingConfig['api']): RegExp[] {
+function originsOf(api: TracingConfig['api']): string[] {
   const rawUrls = [
     api.AUTHN_API_BASE_URL,
     api.SNOWPLOW_API_BASE_URL,
@@ -60,7 +73,15 @@ function buildCorsUrls(api: TracingConfig['api']): RegExp[] {
     }
   }
 
-  return Array.from(origins).map((origin) => new RegExp(`^${escapeRegExp(origin)}`))
+  return Array.from(origins)
+}
+
+/**
+ * The propagator's allowlist, as origin-anchored RegExps, derived from the same origin set the
+ * exporter filters on (`originsOf`). One derivation, two consumers.
+ */
+function buildCorsUrls(api: TracingConfig['api']): RegExp[] {
+  return originsOf(api).map((origin) => new RegExp(`^${escapeRegExp(origin)}`))
 }
 
 let initialized = false
@@ -79,21 +100,46 @@ export function initTracing(cfg: TracingConfig): void {
     return
   }
 
-  const collectorUrl = cfg.api.OTEL_COLLECTOR_URL
-  if (!collectorUrl) {
+  const tracesEndpoint = cfg.api.OTEL_TRACES_ENDPOINT ?? cfg.api.OTEL_COLLECTOR_URL
+  if (!tracesEndpoint) {
     return
   }
 
   initialized = true
 
   const propagateTraceHeaderCorsUrls = buildCorsUrls(cfg.api)
+  // The SAME origins the propagator uses. Passing the derived set rather than re-deriving it is
+  // what stops "we inject traceparent here" and "we export spans from here" drifting apart: a
+  // span exported for an origin we do not propagate to has no server span to link to, and a
+  // propagated header with no exported span is a header sent for nothing.
+  const exportOrigins = originsOf(cfg.api)
 
   const provider = new WebTracerProvider({
     resource: resourceFromAttributes({
       [ATTR_SERVICE_NAME]: 'krateo-frontend',
     }),
     spanProcessors: [
-      new BatchSpanProcessor(new OTLPTraceExporter({ url: collectorUrl })),
+      // The contract processor WRAPS the batcher: it renames on start and filters on end, so only
+      // the five accepted names and only our own origins reach the batch at all. Filtering here
+      // rather than letting snowplow drop server-side protects its size cap and per-user rate
+      // limit, which an unexportable span would otherwise spend.
+      new ContractSpanProcessor(
+        new BatchSpanProcessor(new OTLPTraceExporter({
+          // A FUNCTION, evaluated per request (otlp-exporter-base: `headers: await
+          // this._parameters.headers()`), so a rotated token is picked up without rebuilding the
+          // exporter. snowplow's endpoint answers 401 without it. Wrapped because the SPA throws
+          // when no session is stored, and a telemetry export must never be the thing that throws.
+          headers: () => {
+            try {
+              return { Authorization: `Bearer ${getAccessToken()}` }
+            } catch {
+              return {}
+            }
+          },
+          url: tracesEndpoint,
+        })),
+        exportOrigins,
+      ),
     ],
   })
 
