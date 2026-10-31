@@ -46,6 +46,14 @@ jobs:
         run: go build -o ../bin/jqcheck . && echo "JQCHECK_BIN=$GITHUB_WORKSPACE/builder-gate/bin/jqcheck" >> "$GITHUB_ENV"
       - name: Install
         run: npm ci --no-audit --no-fund
+
+      - name: Install ui's deps, which the shared eslint config resolves from
+        # builder-gate/eslint.config.js imports ../ui/eslint/base.js to share the portal's rules.
+        # Node resolves a bare import from the IMPORTING file's directory, so those plugins are
+        # looked up in ui/node_modules — declaring them in builder-gate cannot satisfy them, which
+        # is what I tried first. The package that owns the config owns its plugins.
+        working-directory: ui
+        run: npm ci --no-audit --no-fund
       # The build also writes generated/widget-schemas.json, which the typecheck reads.
       - name: Build
         run: node build.mjs
