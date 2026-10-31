@@ -18,12 +18,27 @@
  * path, which preserves the current route via `/login?next=`.
  */
 
+import type { AuthFailureCause } from './authFailureCause'
 import { forceLogout } from './logout'
 
 export type SessionResumeOutcome = 'resumed' | 'logout'
 
 /** Window CustomEvent the app-level modal listens for (single mount in Shell, like Drawer). */
 export const SESSION_RESUME_EVENT = 'openSessionResume'
+
+/**
+ * Why the session failed, for the surface to present (snowplow#1029).
+ *
+ * Carried on the event's `detail` rather than read by the modal itself, because the discriminator
+ * lives in the 401 RESPONSE BODY and only the fetch site has it. The modal never sees a Response.
+ */
+export const DEFAULT_CAUSE: AuthFailureCause = { action: 'reauthenticate', reason: null }
+
+/** The cause of the pending resume, so a late-mounting surface can still read it. */
+let pendingCause: AuthFailureCause = DEFAULT_CAUSE
+
+/** The cause of the resume currently pending, or the default when none is. */
+export const pendingSessionCause = (): AuthFailureCause => pendingCause
 
 type PendingResume = {
   promise: Promise<SessionResumeOutcome>
@@ -59,6 +74,7 @@ export const isSessionResumePending = (): boolean => pending !== null
 export const settleSessionResume = (outcome: SessionResumeOutcome): void => {
   const settled = pending
   pending = null
+  pendingCause = DEFAULT_CAUSE
   settled?.resolve(outcome)
 }
 
@@ -70,8 +86,12 @@ export const settleSessionResume = (outcome: SessionResumeOutcome): void => {
  * When no modal surface is mounted (or there is no window at all), falls back to the legacy
  * `forceLogout` path and resolves 'logout' — old behavior, documented scope.
  */
-export const raiseSessionExpired = (): Promise<SessionResumeOutcome> => {
+export const raiseSessionExpired = (cause: AuthFailureCause = DEFAULT_CAUSE): Promise<SessionResumeOutcome> => {
+  // A burst of concurrent 401s coalesces onto the FIRST one's cause. They come from the same
+  // expired or under-privileged credential, so the first is representative — and re-presenting a
+  // different cause mid-resume would change the surface under the person while they type.
   if (pending) { return pending.promise }
+  pendingCause = cause
 
   let resolve!: (outcome: SessionResumeOutcome) => void
   const promise = new Promise<SessionResumeOutcome>((res) => { resolve = res })
@@ -85,12 +105,13 @@ export const raiseSessionExpired = (): Promise<SessionResumeOutcome> => {
     return promise
   }
 
-  window.dispatchEvent(new CustomEvent(SESSION_RESUME_EVENT))
+  window.dispatchEvent(new CustomEvent(SESSION_RESUME_EVENT, { detail: cause }))
   return promise
 }
 
 /** Test-only: reset the module-level store so each test starts clean. */
 export const __resetSessionResume = (): void => {
   pending = null
+  pendingCause = DEFAULT_CAUSE
   surfaces = 0
 }

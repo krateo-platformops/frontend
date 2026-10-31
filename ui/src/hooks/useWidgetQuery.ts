@@ -9,6 +9,7 @@ import { isTimeoutError } from '../components/WidgetStates'
 import { useConfigContext } from '../context/ConfigContext'
 import { useWidgetScope } from '../context/WidgetScopeContext'
 import type { Widget } from '../types/Widget'
+import { authFailureCauseOf } from '../utils/authFailureCause'
 import { getAccessToken } from '../utils/getAccessToken'
 import { getUserInfo } from '../utils/getUserInfo'
 import { raiseSessionExpired } from '../utils/sessionResume'
@@ -47,18 +48,27 @@ export class WidgetFetchError extends Error {
  * Deliberately total: a non-JSON body, an empty body, or a body that cannot be read must never
  * turn a failed fetch into a DIFFERENT failure — we are already on the error path.
  */
-const readErrorDetail = async (res: Response): Promise<string | undefined> => {
+/**
+ * The error body, read ONCE.
+ *
+ * It returns the parsed object as well as the display message because a 401's step-up
+ * discriminator lives in `details.causes[0].reason` (snowplow#1029) and a Response body cannot be
+ * read twice — the previous version parsed the JSON, kept only the message and threw the object
+ * away, so classifying a 401 would have needed a second read that is guaranteed to fail.
+ */
+const readErrorBody = async (res: Response): Promise<{ body: unknown; detail: string | undefined }> => {
   try {
     const text = await res.text()
-    if (!text) { return undefined }
+    if (!text) { return { body: null, detail: undefined } }
     try {
       const parsed = JSON.parse(text) as Record<string, unknown>
       const message = parsed.message ?? parsed.error ?? parsed.reason
-      if (typeof message === 'string' && message) { return message.slice(0, 300) }
+      if (typeof message === 'string' && message) { return { body: parsed, detail: message.slice(0, 300) } }
+      return { body: parsed, detail: text.slice(0, 300) }
     } catch { /* not JSON — fall through to the raw text */ }
-    return text.slice(0, 300)
+    return { body: null, detail: text.slice(0, 300) }
   } catch {
-    return undefined
+    return { body: null, detail: undefined }
   }
 }
 
@@ -350,17 +360,22 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
       },
     })
 
-    if (res.status === 401) {
-      // Expired/invalid token → raise the IN-PLACE session-resume modal (single app-level
-      // mount, see components/SessionResume) instead of hard-wiping the session and dumping
-      // the user on /login. Concurrent 401s (every widget failing at once) coalesce into ONE
-      // pending resume; on successful re-auth the modal invalidates all queries so this very
-      // widget refetches with the fresh token and the page resumes where it was. Non-basic
-      // auth strategies fall back to the legacy forceLogout inside the flow.
-      void raiseSessionExpired()
-    }
     if (!res.ok) {
-      const detail = await readErrorDetail(res)
+      // ONE read of the body, shared by the 401 classification and the thrown detail.
+      const { body, detail } = await readErrorBody(res)
+      if (res.status === 401) {
+        // Expired/invalid token → raise the IN-PLACE session-resume modal (single app-level
+        // mount, see components/SessionResume) instead of hard-wiping the session and dumping
+        // the user on /login. Concurrent 401s (every widget failing at once) coalesce into ONE
+        // pending resume; on successful re-auth the modal invalidates all queries so this very
+        // widget refetches with the fresh token and the page resumes where it was. Non-basic
+        // auth strategies fall back to the legacy forceLogout inside the flow.
+        //
+        // The cause decides what the surface offers: a step-up prompt, a fresh sign-in, or — for
+        // a cluster that cannot issue the credential at all — no form, because offering one would
+        // be an action that cannot succeed (snowplow#1029).
+        void raiseSessionExpired(authFailureCauseOf(body))
+      }
       throw new WidgetFetchError(`Widget fetch failed: ${res.status} ${res.statusText}`, res.status, detail)
     }
 

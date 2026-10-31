@@ -1,11 +1,22 @@
 import { App, Result } from 'antd'
 import { useCallback } from 'react'
 
+import { authFailureCauseOf } from '../utils/authFailureCause'
+import { authFailurePresentation } from '../utils/authFailureCopy'
 import { isSessionResumePending, raiseSessionExpired } from '../utils/sessionResume'
 
 export interface CatchError {
   name?: string
   data?: {
+    /**
+     * The k8s Status `details`. Carried so a 401 can be classified (snowplow#1029): the step-up
+     * discriminator is `details.causes[0].reason`, and this hook receives an error OBJECT with no
+     * `Response` on it, so a `WWW-Authenticate` header is unreachable here — the body is the only
+     * place the portal can read it app-wide.
+     */
+    details?: {
+      causes?: { reason?: unknown }[]
+    }
     message?: string
   }
   message?: string
@@ -28,8 +39,12 @@ const useCatchError = () => {
       // Session honesty: a 401 no longer hard-redirects to /login (which wiped all page/rail
       // state). Raise the single in-place session-resume modal instead; suppress the toast —
       // the modal IS the messaging, and a burst of concurrent 401s must not toast-storm.
-      description = error?.data?.message || 'Your session has expired.'
-      void raiseSessionExpired()
+      // The cause decides what the resume surface offers. A cluster that cannot issue the
+      // elevated credential gets no sign-in form at all, because offering one would be an action
+      // that cannot succeed and the person would loop through it forever.
+      const cause = authFailureCauseOf(error?.data)
+      description = error?.data?.message || authFailurePresentation(cause).description
+      void raiseSessionExpired(cause)
       if (type === 'notification') {
         return
       }
