@@ -146,3 +146,41 @@ describe('the SAME reason means different things at the two origins (authn#58)',
     expect(cause.reason).toBe(AUTH_FAILURE_REASONS.insufficientAssurance)
   })
 })
+
+describe('which TOKEN the request carried — the input no server response can give (authn#58)', () => {
+  /*
+   * When a step-up JWT expires, snowplow rejects it at JWT validation, before any Secret is
+   * selected. The answer is its GENERIC expired-token 401: not StepUpRequired, not
+   * SessionCredentialMissing, possibly no reason at all. On the wire that is indistinguishable
+   * from an expired session, so no amount of body-reading resolves it. Only the caller knows.
+   */
+  it('an unrecognised 401 on a STEP-UP token is a step-up, not a session sign-in', () => {
+    for (const value of [{}, null, { details: { causes: [] } }, { message: 'token expired' }]) {
+      expect(authFailureCauseOf(value, { tokenKind: 'step-up' }).action).toBe('step-up')
+    }
+  })
+
+  it('the same unrecognised 401 on a SESSION token is a session sign-in', () => {
+    for (const value of [{}, null, { message: 'token expired' }]) {
+      expect(authFailureCauseOf(value, { tokenKind: 'session' }).action).toBe('reauthenticate')
+    }
+  })
+
+  it('a RECOGNISED reason still wins over the token kind', () => {
+    // snowplow naming a specific fault is better information than the token kind. A step-up token
+    // hitting a misconfigured cluster must still dead-end, not re-prompt.
+    for (const reason of [AUTH_FAILURE_REASONS.stepUpNotEnabled, AUTH_FAILURE_REASONS.stepUpMisconfigured]) {
+      expect(authFailureCauseOf(body(reason), { tokenKind: 'step-up' }).action).toBe('configuration-fault')
+    }
+    expect(authFailureCauseOf(body(AUTH_FAILURE_REASONS.issuanceFailed), { tokenKind: 'step-up' }).action).toBe('server-fault')
+  })
+
+  it('defaults to the session token, which is what every wired call site sends today', () => {
+    expect(authFailureCauseOf({}).action).toBe('reauthenticate')
+  })
+
+  it('still accepts a bare origin string, so existing call sites keep working', () => {
+    expect(authFailureCauseOf(body(AUTH_FAILURE_REASONS.staleAuthentication), 'step-up-exchange').action).toBe('step-up')
+    expect(authFailureCauseOf(body(AUTH_FAILURE_REASONS.staleAuthentication), 'resource-401').action).toBe('reauthenticate')
+  })
+})

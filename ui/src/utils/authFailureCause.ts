@@ -128,13 +128,48 @@ export type AuthFailureOrigin =
  * loop this module exists to prevent, and guessing `configuration-fault` would tell someone their
  * cluster is broken on the strength of a string we do not recognise.
  */
-export const authFailureCauseOf = (body: unknown, origin: AuthFailureOrigin = 'resource-401'): AuthFailureCause => {
+/**
+ * Which credential the failed request carried.
+ *
+ * This is the input NO server response can supply, and it is what makes the classification robust
+ * (authn#58, note on expiry). When a step-up JWT expires, snowplow rejects it at JWT validation —
+ * before any Secret is selected — so the answer is its GENERIC expired-token 401: not
+ * `StepUpRequired`, not `SessionCredentialMissing`, quite possibly no `reason` at all. No amount of
+ * body-reading can tell that apart from an expired session, because on the wire it is the same
+ * thing. Only the caller knows which token it sent.
+ *
+ * Without this, an expired step-up token shows a full sign-in surface for a session that is still
+ * valid — wrong, plausible, and the kind of thing nobody reports as a bug.
+ */
+export type AuthTokenKind =
+  /** The ordinary session JWT (24h default). */
+  | 'session'
+  /** A step-up JWT, good for ~15m and used only for elevated calls. */
+  | 'step-up'
+
+export interface AuthFailureContext {
+  origin?: AuthFailureOrigin
+  tokenKind?: AuthTokenKind
+}
+
+export const authFailureCauseOf = (body: unknown, context: AuthFailureOrigin | AuthFailureContext = {}): AuthFailureCause => {
+  const { origin = 'resource-401', tokenKind = 'session' } = typeof context === 'string' ? { origin: context } : context
   const causes = (body as AuthFailureBody | null | undefined)?.details?.causes
   const first = Array.isArray(causes) ? causes[0] : undefined
   const raw = first?.reason
   const reason = typeof raw === 'string' && raw.length > 0 ? raw : null
-  const base = (reason !== null && BY_REASON[reason]) || 'reauthenticate'
-  return { action: origin === 'step-up-exchange' ? atStepUpExchange(reason, base) : base, reason }
+  const known = reason !== null && BY_REASON[reason]
+  const base = known || 'reauthenticate'
+  const action = origin === 'step-up-exchange' ? atStepUpExchange(reason, base) : base
+  // A request that carried the STEP-UP token can never resolve to a session sign-in: the session
+  // credential was not what failed, and authn never touches it during a step-up. An unrecognised
+  // or absent reason here is an expired step-up JWT, which is the common case rather than an edge
+  // one — the token lives ~15m. A recognised reason still wins, because snowplow naming a specific
+  // fault is better information than the token kind.
+  if (tokenKind === 'step-up' && !known) {
+    return { action: 'step-up', reason }
+  }
+  return { action, reason }
 }
 
 /**
