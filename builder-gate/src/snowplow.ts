@@ -23,6 +23,12 @@
 import { type HttpResponse, jsonOf, nodeTransport, type Transport } from './http'
 import { safeSegment } from './kube'
 
+/** The value of a response header, or '' (node lower-cases names). */
+export const headerOf = (headers: HttpResponse['headers'] | undefined, name: string): string => {
+  const value = headers?.[name]
+  return Array.isArray(value) ? value[0] ?? '' : value ?? ''
+}
+
 /** The capability tokens snowplow#443's design names. */
 export const CAPABILITY_DRY_RUN = 'call.dryRun'
 export const CAPABILITY_FIELD_VALIDATION = 'call.fieldValidation'
@@ -150,12 +156,6 @@ export interface SnowplowClient {
 
 /** The contract was not kept (or not offered): the request was refused, or its reply cannot be trusted. */
 export class ContractError extends Error {}
-
-/** The value of a response header, or '' (node lower-cases names). */
-export const headerOf = (headers: HttpResponse['headers'] | undefined, name: string): string => {
-  const value = headers?.[name]
-  return Array.isArray(value) ? value[0] ?? '' : value ?? ''
-}
 
 /** Whether every echo in `expected` is present with its value. */
 export const echoed = (headers: HttpResponse['headers'] | undefined, expected: Record<string, string>): boolean =>

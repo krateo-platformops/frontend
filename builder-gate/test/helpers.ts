@@ -31,32 +31,6 @@ export const example = (): Draft => JSON.parse(readFileSync(join(ROOT, 'examples
 export const byKind = (draft: Draft, kind: string): Rec => draft.find((cr) => cr.kind === kind)!
 
 /**
- * Walk to a nested OBJECT so a test can mutate it.
- *
- * `Rec`'s values are `unknown`, so `cr.spec.widgetData.x = 1` does not type-check — correctly, as
- * nothing guarantees `spec` is an object. This narrows each step with the product's own `rec()` and
- * THROWS on a path that is not there, which is what makes it better than a cast: a test whose path
- * is wrong fails loudly at that line instead of silently asserting about `undefined`.
- */
-export const objAt = (node: Rec, ...path: (number | string)[]): Rec => {
-  const at = walk(node, path)
-  const obj = rec(at)
-  if (obj === null) {
-    throw new Error(`objAt: ${path.join('.')} resolved to ${JSON.stringify(at)}, not an object`)
-  }
-  return obj
-}
-
-/** Walk to a nested ARRAY, same contract as `objAt`. */
-export const arrAt = (node: Rec, ...path: (number | string)[]): unknown[] => {
-  const at = walk(node, path)
-  if (!Array.isArray(at)) {
-    throw new Error(`arrAt: ${path.join('.')} resolved to ${JSON.stringify(at)}, not an array`)
-  }
-  return at
-}
-
-/**
  * Step through `path`, carrying `unknown`.
  *
  * It must NOT require each intermediate step to be an object. An intermediate value is frequently
@@ -84,7 +58,33 @@ const walk = (node: Rec, path: (number | string)[]): unknown => {
   return at
 }
 
-export const fixtureLookup = async (name: string): Promise<BuilderLookup> => builderFromDirectory(FIXTURES, name)
+/**
+ * Walk to a nested OBJECT so a test can mutate it.
+ *
+ * `Rec`'s values are `unknown`, so `cr.spec.widgetData.x = 1` does not type-check — correctly, as
+ * nothing guarantees `spec` is an object. This narrows each step with the product's own `rec()` and
+ * THROWS on a path that is not there, which is what makes it better than a cast: a test whose path
+ * is wrong fails loudly at that line instead of silently asserting about `undefined`.
+ */
+export const objAt = (node: Rec, ...path: (number | string)[]): Rec => {
+  const at = walk(node, path)
+  const obj = rec(at)
+  if (obj === null) {
+    throw new Error(`objAt: ${path.join('.')} resolved to ${JSON.stringify(at)}, not an object`)
+  }
+  return obj
+}
+
+/** Walk to a nested ARRAY, same contract as `objAt`. */
+export const arrAt = (node: Rec, ...path: (number | string)[]): unknown[] => {
+  const at = walk(node, path)
+  if (!Array.isArray(at)) {
+    throw new Error(`arrAt: ${path.join('.')} resolved to ${JSON.stringify(at)}, not an array`)
+  }
+  return at
+}
+
+export const fixtureLookup = (name: string): Promise<BuilderLookup> => Promise.resolve(builderFromDirectory(FIXTURES, name))
 
 export const offlineCtx = (): GateContext => ({
   deadline: Date.now() + 60_000, jq, live: false, snowplow: null, snowplowMissing: 'offline run',
@@ -115,9 +115,9 @@ export interface FakeSnowplow {
   /** GET /call?…&raw=true — default: 404, echoed. */
   read?: (url: URL) => HttpResponse
   /** POST /call/dry-run — default: 201 with the object, echoed. */
-  dryRun?: (url: URL, body: Record<string, any>) => HttpResponse
+  dryRun?: (url: URL, body: Rec) => HttpResponse
   /** POST /call/read with {extras, object} — default: resolves to {status: {pods: []}}, echoed. */
-  resolve?: (url: URL, body: Record<string, any>) => HttpResponse
+  resolve?: (url: URL, body: Rec) => HttpResponse
 }
 
 /** The echoes snowplow#443 puts on a dry-run reply. */
@@ -137,8 +137,8 @@ export type Outcome = { name: string; ok: boolean; reason?: string; dependsOn?: 
  * succeeded stage is simply absent — so it is kept only to assert the gate still reads an older
  * snowplow's answer, and is never the default.
  */
-export const allOk = (restAction: Record<string, any>): Outcome[] =>
-  ((restAction?.spec?.api ?? []) as { name: string }[]).map((api) => ({ name: api.name, ok: true }))
+export const allOk = (restAction: Rec): Outcome[] =>
+  ((rec(restAction.spec)?.api ?? []) as { name: string }[]).map((api) => ({ name: api.name, ok: true }))
 
 /**
  * An inline resolve reply: both echoes, plus X-Snowplow-Stage-Outcomes. `outcomes` defaults to
@@ -168,11 +168,11 @@ export const fakeSnowplow = (fake: FakeSnowplow = {}) => (req: HttpRequest): Htt
     if (fake.dryRunRoute === false) {
       return json(404, { message: '404 page not found' })
     }
-    return fake.dryRun ? fake.dryRun(url, JSON.parse(req.body ?? '{}')) : dryRunReply(201, JSON.parse(req.body ?? '{}'))
+    return fake.dryRun ? fake.dryRun(url, JSON.parse(req.body ?? '{}') as Rec) : dryRunReply(201, JSON.parse(req.body ?? '{}'))
   }
   if (url.pathname === '/call/read' && req.method === 'POST') {
-    const body = JSON.parse(req.body ?? '{}')
-    return fake.resolve ? fake.resolve(url, body) : resolveReply(200, { ...body.object, status: { pods: [] } })
+    const body = JSON.parse(req.body ?? '{}') as Rec
+    return fake.resolve ? fake.resolve(url, body) : resolveReply(200, { ...rec(body.object), status: { pods: [] } })
   }
   return json(404, { message: `no route ${req.method} ${url.pathname}` })
 }

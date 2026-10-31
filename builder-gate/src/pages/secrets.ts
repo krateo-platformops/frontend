@@ -55,7 +55,12 @@ const pyDumps = (value: unknown): string => {
 }
 
 /** A field as one string: a list or an object as its JSON, so its keys and values all count (as_text). */
-const asText = (value: unknown): string => (value == null ? '' : typeof value === 'string' ? value : pyDumps(value))
+const asText = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return ''
+  }
+  return typeof value === 'string' ? value : pyDumps(value)
+}
 
 /** urllib.parse.unquote: %XX runs decoded as UTF-8, anything else left as it is. */
 const unquote = (text: string): string =>
@@ -87,7 +92,7 @@ const CANONICAL = normalized(canonical.defs)
 
 /** A path literal that could walk out of the resource it names: "..", %2e, or "." + "." (climbs). */
 export const climbs = (api: Rec): string => {
-  const path = (typeof api.path === 'string' ? api.path : String(api.path ?? '')).trim()
+  const path = str(api.path) ?? ''.trim()
   if (api.endpointRef || !path) {
     return ''
   }
@@ -132,7 +137,7 @@ export const guarded = (api: Rec): { ok: boolean; why: string } => {
   if (!field) {
     return { ok: false, why: 'not a single field of the iterator item, so fetchablePath cannot guard it' }
   }
-  const iterator = normalized(String(rec(api.dependsOn)?.iterator ?? ''))
+  const iterator = normalized(str(rec(api.dependsOn)?.iterator) ?? '')
   if (!iterator.startsWith(CANONICAL)) {
     return { ok: false, why: 'its iterator does not begin with portal.fetchableDefs exactly as _fetchable.tpl renders it' }
   }

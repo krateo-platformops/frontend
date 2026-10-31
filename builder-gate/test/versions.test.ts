@@ -15,8 +15,12 @@ const read = (...path: string[]): string => readFileSync(join(ROOT, ...path), 'u
 
 describe('pins', () => {
   it('ajv is the version the portal resolves (ui/package-lock.json), so the lint compiles schemas identically', () => {
-    const portal = JSON.parse(read('..', 'ui', 'package-lock.json')).packages['node_modules/ajv'].version
-    const gate = JSON.parse(read('package.json')).dependencies.ajv
+    // JSON.parse returns `any`; name the shape so a changed lockfile layout is a type error
+    // here rather than an `undefined` that silently makes the assertion compare nothing.
+    const lock = JSON.parse(read('..', 'ui', 'package-lock.json')) as { packages: Record<string, { version: string }> }
+    const manifest = JSON.parse(read('package.json')) as { dependencies: Record<string, string> }
+    const portal = lock.packages['node_modules/ajv'].version
+    const gate = manifest.dependencies.ajv
     expect(gate).toBe(portal)
   })
 

@@ -20,6 +20,19 @@ export interface GateConfig {
 
 const list = (value: string | undefined): string[] => (value ?? '').split(',').map((part) => part.trim()).filter(Boolean)
 
+/**
+ * Why snowplow is unusable, or null when it is usable.
+ *
+ * A missing caller token is reported ahead of a missing URL: without the token the gate cannot act
+ * as the caller at all, so "no snowplow is configured" would send someone to fix the wrong thing.
+ */
+const snowplowMissingReason = (snowplowUrl: string | null | undefined, callerToken: string | null | undefined): string | null => {
+  if (!callerToken) {
+    return 'no caller token reached the gate (kagent forwards it on tool calls when the agent runs with KAGENT_PROPAGATE_TOKEN)'
+  }
+  return snowplowUrl ? null : 'no snowplow is configured (SNOWPLOW_URL)'
+}
+
 export const configFromEnv = (env: NodeJS.ProcessEnv = process.env): GateConfig => {
   // Off-cluster (CI's kind job, a local run) the identity is a kubeconfig, named explicitly —
   // never an ambient KUBECONFIG, so a developer's admin context is never picked up by accident.
@@ -41,9 +54,7 @@ export const liveContext = (config: GateConfig, callerToken: string | null, tran
   jq: jqcheckEngine(),
   live: true,
   snowplow: config.snowplowUrl && callerToken ? snowplowClient(config.snowplowUrl, callerToken, config.sandboxNamespace, transport) : null,
-  snowplowMissing: !callerToken
-    ? 'no caller token reached the gate (kagent forwards it on tool calls when the agent runs with KAGENT_PROPAGATE_TOKEN)'
-    : config.snowplowUrl ? null : 'no snowplow is configured (SNOWPLOW_URL)',
+  snowplowMissing: snowplowMissingReason(config.snowplowUrl, callerToken),
 })
 
 /** The Builder lookup an instance allows: only its own Builders, read live. */

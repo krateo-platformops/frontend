@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import yaml from 'js-yaml'
 
 import { type KubeClient, safeSegment } from './kube'
+import { str } from './pages/drafts'
 
 export const BUILDERS_API = '/apis/builders.templates.krateo.io/v1alpha1'
 
@@ -37,14 +38,17 @@ export const builderSpecOf = (cr: unknown): BuilderSpec => {
   const spec = rec(rec(cr).spec)
   const files = rec(spec.files)
   const start = rec(spec.start)
-  const max = typeof files.heldBytes === 'number' ? files.heldBytes : typeof start.maxDraftBytes === 'number' ? start.maxDraftBytes : null
+  // `files.heldBytes` wins when present; otherwise the start's declared cap; otherwise unbounded.
+  const heldBytes = typeof files.heldBytes === 'number' ? files.heldBytes : null
+  const declaredMax = typeof start.maxDraftBytes === 'number' ? start.maxDraftBytes : null
+  const max = heldBytes ?? declaredMax
   return {
-    draftKind: String(spec.draftKind ?? ''),
+    draftKind: str(spec.draftKind) ?? '',
     lint: strings(spec.lint),
     maxBytes: max,
-    name: String(metadata.name ?? ''),
-    namespace: String(metadata.namespace ?? ''),
-    previewMode: typeof rec(spec.preview).mode === 'string' ? String(rec(spec.preview).mode) : null,
+    name: str(metadata.name) ?? '',
+    namespace: str(metadata.namespace) ?? '',
+    previewMode: str(rec(spec.preview).mode),
     verbs: strings(rec(spec.verbs).allowed),
   }
 }
@@ -68,7 +72,7 @@ export const builderFromCluster = async (kube: KubeClient, namespace: string, na
   if (reply.status === 404) {
     return { ok: false, problem: `no Builder ${JSON.stringify(name)} in namespace ${namespace} — name one of the cluster's Builders` }
   }
-  return { ok: false, problem: `notChecked: reading the Builder ${namespace}/${name} answered ${reply.status} ${String(rec(reply.json).message ?? '').slice(0, 200)}` }
+  return { ok: false, problem: `notChecked: reading the Builder ${namespace}/${name} answered ${reply.status} ${(str(rec(reply.json).message) ?? '').slice(0, 200)}` }
 }
 
 /** Offline only: a directory of Builder YAML files (the repo's fixtures in CI). */

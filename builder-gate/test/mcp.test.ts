@@ -49,7 +49,7 @@ describe('the MCP server', () => {
   it('answers with the envelope; with no API server identity the Builder cannot be read and that is red', async () => {
     const client = await connect('a-caller-jwt')
     const result = await client.callTool({ arguments: { builder: 'portal-builder', files: example() }, name: 'validate_draft' })
-    const envelope = JSON.parse((result.content as { text: string }[])[0].text)
+    const envelope = JSON.parse((result.content as { text: string }[])[0].text) as { steps: { problems: string[] }[] }
     expect(envelope).toMatchObject({ coverage: null, failedStep: 'builder', ok: false })
     expect(envelope.steps[0].problems[0]).toMatch(/^notChecked: the gate has no API server identity/)
     expect(logs).toContain('"caller":"present"')
@@ -60,7 +60,7 @@ describe('the MCP server', () => {
   it('refuses a Builder this instance does not serve', async () => {
     const client = await connect()
     const result = await client.callTool({ arguments: { builder: 'blueprint-builder', files: [] }, name: 'validate_draft' })
-    const envelope = JSON.parse((result.content as { text: string }[])[0].text)
+    const envelope = JSON.parse((result.content as { text: string }[])[0].text) as { steps: { problems: string[] }[] }
     expect(envelope.steps[0].problems[0]).toBe('this gate validates drafts for portal-builder, not "blueprint-builder"')
     await client.close()
   })

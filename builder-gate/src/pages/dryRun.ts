@@ -22,6 +22,16 @@ import { CAPABILITY_DRY_RUN, CAPABILITY_FIELD_VALIDATION, ECHO_DRY_RUN, echoed }
 
 import { kindOf, labelOf, nameOf, pluralOfDraft, rec, type Rec } from './drafts'
 
+/** What to tell the agent when a dry-run call failed, chosen by how it failed. */
+const dryRunFailureDetail = (error: unknown): string => {
+  if (error instanceof HttpError) {
+    return error.code === 'timeout'
+      ? `snowplow did not answer in time (${error.message})`
+      : `snowplow could not be reached (${error.message})`
+  }
+  return (error as Error).message
+}
+
 export const STEP_BUDGET_MS = 45_000
 export const MAX_OBJECTS = 50
 const PARALLEL = 4
@@ -140,11 +150,7 @@ export const dryRunStep = async (drafts: readonly Rec[], ctx: GateContext): Prom
         verdict.detail = classified.detail
       } catch (error) {
         verdict.verdict = 'notChecked'
-        verdict.detail = error instanceof HttpError && error.code === 'timeout'
-          ? `snowplow did not answer in time (${error.message})`
-          : error instanceof HttpError
-            ? `snowplow could not be reached (${error.message})`
-            : (error as Error).message
+        verdict.detail = dryRunFailureDetail(error)
       }
     }
   }

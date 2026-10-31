@@ -9,7 +9,7 @@
  * Always LIVE. There is no switch here that turns the API server or the caller reads off; the
  * offline mode exists only in cli.ts.
  */
-import { createServer, type IncomingMessage } from 'node:http'
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
@@ -66,14 +66,14 @@ const readBody = (req: IncomingMessage): Promise<unknown> => new Promise((resolv
     try {
       resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : undefined)
     } catch (error) {
-      reject(error)
+      reject(error instanceof Error ? error : new Error(String(error)))
     }
   })
   req.on('error', reject)
 })
 
-const http = createServer(async (req, res) => {
-  const path = (req.url ?? '').split('?')[0]
+const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+  const [path] = (req.url ?? '').split('?')
   if (path === '/healthz' || path === '/readyz') {
     res.writeHead(200, { 'Content-Type': 'text/plain' }).end('ok')
     return
@@ -104,7 +104,12 @@ const http = createServer(async (req, res) => {
         .end(JSON.stringify({ error: { code: -32700, message: (error as Error).message }, id: null, jsonrpc: '2.0' }))
     }
   }
-})
+}
+
+// `createServer` wants a void-returning handler, so the async work is launched rather than
+// returned. `void` marks that deliberately: an unhandled rejection here would take the process
+// down, which is why `handle` owns its own try/catch.
+const http = createServer((req, res) => { void handle(req, res) })
 
 const port = Number(process.env.PORT || 8080)
 http.listen(port, () => {

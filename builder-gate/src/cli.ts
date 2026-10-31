@@ -54,7 +54,7 @@ const main = async (): Promise<void> => {
     env.BUILDERS_NAMESPACE = flag('builders-namespace')
   }
   const lookup = buildersDir
-    ? async (name: string) => builderFromDirectory(buildersDir, name)
+    ? (name: string) => Promise.resolve(builderFromDirectory(buildersDir, name))
     : undefined
 
   let envelope

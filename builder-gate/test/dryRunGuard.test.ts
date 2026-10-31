@@ -20,8 +20,12 @@ import { DRY_RUN_PARAMS } from '../src/snowplow'
 
 import { byKind, type Draft, example, fakeSnowplow, liveCtx, objAt, recorder, ROOT, run } from './helpers'
 
-const sources = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
-  (entry.isDirectory() ? sources(join(dir, entry.name)) : entry.name.endsWith('.ts') ? [join(dir, entry.name)] : []))
+const sources = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+  if (entry.isDirectory()) {
+    return sources(join(dir, entry.name))
+  }
+  return entry.name.endsWith('.ts') ? [join(dir, entry.name)] : []
+})
 
 const code = (file: string): string => readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
 

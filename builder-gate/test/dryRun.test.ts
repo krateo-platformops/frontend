@@ -163,6 +163,6 @@ describe('live-dry-run, through snowplow as the caller', () => {
       'http://snowplow.test/call/dry-run?apiVersion=templates.krateo.io%2Fv1&resource=restactions&namespace=krateo-preview&name=pod-sizing&dryRun=All&fieldValidation=Strict',
     ])
     expect(posts(requests).every((request) => request.headers?.Authorization === 'Bearer caller-jwt')).toBe(true)
-    expect(posts(requests).map((request) => JSON.parse(request.body!).metadata.namespace)).toEqual(['krateo-preview', 'krateo-preview', 'krateo-preview', 'krateo-preview'])
+    expect(posts(requests).map((request) => (JSON.parse(request.body!) as { metadata: { namespace: string } }).metadata.namespace)).toEqual(['krateo-preview', 'krateo-preview', 'krateo-preview', 'krateo-preview'])
   })
 })

@@ -39,6 +39,14 @@ export interface DataStepResult {
 
 const SAMPLE_CHARS = 1_200
 const PER_CALL_MS = 20_000
+/** One body value as a list: already a list, a lone value, or absent. */
+const toList = (value: unknown): unknown[] => {
+  if (Array.isArray(value)) {
+    return value
+  }
+  return value === undefined ? [] : [value]
+}
+
 export const STEP_BUDGET_MS = 40_000
 
 const describe = (value: unknown): string => {
@@ -111,8 +119,9 @@ const bodyStageMessages = (ra: Rec, output: unknown): string[] => {
   const keys = new Set(['error', ...apis.map((api) => str(api.errorKey) ?? 'error')])
   return [...keys].flatMap((key) => {
     const entries = out[key]
-    return (Array.isArray(entries) ? entries : entries === undefined ? [] : [entries])
-      .map((entry) => String(rec(entry)?.message ?? (typeof entry === 'string' ? entry : JSON.stringify(entry))))
+    const asList = toList(entries)
+    return asList
+      .map((entry) => str(rec(entry)?.message) ?? (typeof entry === 'string' ? entry : JSON.stringify(entry)))
   })
 }
 
@@ -285,7 +294,7 @@ export const dataStep = async (drafts: readonly Rec[], ctx: GateContext): Promis
       // eslint-disable-next-line no-await-in-loop -- one RESTAction at a time, inside the budget
       const reply = await snowplow.resolveInline(cr, remaining)
       if (reply.status !== 200) {
-        const message = String(rec(reply.json)?.message ?? reply.body).slice(0, 300)
+        const message = (str(rec(reply.json)?.message) ?? reply.body).slice(0, 300)
         problems.push(`${label}: ${reply.status === 401 || reply.status >= 500 ? 'notChecked: ' : ''}snowplow could not resolve it (${reply.status}): ${message}`)
         continue
       }

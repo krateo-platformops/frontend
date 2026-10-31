@@ -5,9 +5,8 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { rec } from '../src/pages/drafts'
-
 import { secretShaped, withoutSecrets } from '../src/pages/data'
+import { rec } from '../src/pages/drafts'
 
 import { allOk, arrAt, byKind, example, fakeSnowplow, json, liveCtx, objAt, rawReply, recorder, resolveReply, run } from './helpers'
 
@@ -19,7 +18,7 @@ describe('data', () => {
   // that fixture changes this expected string, which is how it first failed here.
   it('shows the agent what snowplow resolved, as a count and a sample', async () => {
     const { requests, transport } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [{ cpu: 750, name: 'a', phase: 'Running' }] } }),
+      resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: { pods: [{ cpu: 750, name: 'a', phase: 'Running' }] } }),
     }))
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.ok).toBe(true)
@@ -64,7 +63,7 @@ describe('data', () => {
     arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ name: 'review', path: '/api/v1/namespaces/krateo-system/configmaps', verb: 'POST' })
     const { transport } = recorder(fakeSnowplow({
       resolve: (_url, body) => resolveReply(200,
-        { ...body.object, status: { error: [{ code: 422, message: 'dry-run: stage "review" verb POST is not executed' }], pods: [] } },
+        { ...rec(body.object), status: { error: [{ code: 422, message: 'dry-run: stage "review" verb POST is not executed' }], pods: [] } },
         [{ name: 'pods', ok: true }, { name: 'review', ok: false, reason: 'StageNotExecuted' }]),
     }))
     const envelope = await run(draft, liveCtx(transport))
@@ -75,7 +74,7 @@ describe('data', () => {
   it('the documented message is accepted as a fallback when the header gives another reason', async () => {
     const { transport } = recorder(fakeSnowplow({
       resolve: (_url, body) => resolveReply(200,
-        { ...body.object, status: { error: [{ message: 'dry-run: stage "pods" verb PUT is not executed' }] } },
+        { ...rec(body.object), status: { error: [{ message: 'dry-run: stage "pods" verb PUT is not executed' }] } },
         [{ name: 'pods', ok: false, reason: 'Error' }]),
     }))
     const envelope = await run(example(), liveCtx(transport))
@@ -86,7 +85,7 @@ describe('data', () => {
   it('a failed stage with any other reason is red — even when a spec.filter dropped its error from the body', async () => {
     // The example's spec.filter keeps only .pods: the body carries no error at all; the header does.
     const { transport } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [] } }, [{ name: 'pods', ok: false, reason: 'Forbidden' }]),
+      resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: { pods: [] } }, [{ name: 'pods', ok: false, reason: 'Forbidden' }]),
     }))
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
@@ -98,7 +97,7 @@ describe('data', () => {
     Object.assign(objAt(byKind(draft, 'RESTAction'), 'spec', 'api', 0), { continueOnError: true, errorKey: 'podsErr' })
     arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ name: 'nodes', path: '/api/v1/nodes' })
     const { transport } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [], podsErr: [{ code: 404, message: 'stage "pods": not found' }] } },
+      resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: { pods: [], podsErr: [{ code: 404, message: 'stage "pods": not found' }] } },
         [{ name: 'pods', ok: false, reason: 'NotFound' }, { name: 'nodes', ok: false, reason: 'Forbidden' }]),
     }))
     const envelope = await run(draft, liveCtx(transport))
@@ -115,7 +114,7 @@ describe('data', () => {
     Object.assign(objAt(byKind(draft, 'RESTAction'), 'spec', 'api', 0), { continueOnError: true, errorKey: 'podsErr' })
     arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ dependsOn: { name: 'pods' }, name: 'scale', path: '/api/v1/scale', verb: 'POST' })
     const { transport } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [], podsErr: [{ code: 404, message: 'stage "pods": not found' }] } },
+      resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: { pods: [], podsErr: [{ code: 404, message: 'stage "pods": not found' }] } },
         [{ name: 'pods', ok: false, reason: 'NotFound' }, { dependsOn: 'pods', name: 'scale', ok: false, reason: 'Skipped' }]),
     }))
     const envelope = await run(draft, liveCtx(transport))
@@ -128,7 +127,7 @@ describe('data', () => {
     const draft = example()
     arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ dependsOn: { name: 'pods' }, name: 'scale', path: '/api/v1/scale', verb: 'POST' })
     const { transport } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} },
+      resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: {} },
         [{ name: 'pods', ok: false, reason: 'Forbidden' }, { dependsOn: 'pods', name: 'scale', ok: false, reason: 'Skipped' }]),
     }))
     const envelope = await run(draft, liveCtx(transport))
@@ -145,7 +144,7 @@ describe('data', () => {
     arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ name: 'other', path: '/api/v1/other' })
     arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ dependsOn: { name: 'detach' }, name: 'remove', path: '/api/v1/remove', verb: 'DELETE' })
     const { transport } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, [
+      resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: {} }, [
         { name: 'pods', ok: false, reason: 'Error' },
         { dependsOn: 'pods', name: 'detach', ok: false, reason: 'Skipped' },
         { name: 'other', ok: false, reason: 'Forbidden' },
@@ -163,7 +162,7 @@ describe('data', () => {
   it('snowplow#904: a Skipped outcome that names no dependency is red, and says so', async () => {
     const draft = example()
     const { transport } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, [{ name: 'pods', ok: false, reason: 'Skipped' }]),
+      resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: {} }, [{ name: 'pods', ok: false, reason: 'Skipped' }]),
     }))
     const envelope = await run(draft, liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
@@ -176,7 +175,7 @@ describe('data', () => {
     // ran would read [] as "no stages" and pass a draft it never looked at.
     const draft = example()
     const { transport } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [] } }, []),
+      resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: { pods: [] } }, []),
     }))
     const envelope = await run(draft, liveCtx(transport))
     expect(envelope.ok).toBe(true)
@@ -186,7 +185,7 @@ describe('data', () => {
   it('still reads an older snowplow, which listed succeeded stages as ok:true', async () => {
     const draft = example()
     const { transport } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [] } }, allOk(body.object as Record<string, unknown>)),
+      resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: { pods: [] } }, allOk(body.object as Record<string, unknown>)),
     }))
     const envelope = await run(draft, liveCtx(transport))
     expect(envelope.ok).toBe(true)
@@ -200,7 +199,7 @@ describe('data', () => {
     const draft = example()
     arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ dependsOn: { name: 'nope' }, name: 'scale', path: '/api/v1/scale', verb: 'POST' })
     const { transport } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, [
+      resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: {} }, [
         { name: '', ok: false, reason: 'Aborted' },
         { name: 'pods', ok: false, reason: 'NotRun' },
         { name: 'nodes', ok: false, reason: 'NotRun' },
@@ -222,7 +221,7 @@ describe('data', () => {
     // declared stage the value is just the resolve-level row. The verdict must not then read as
     // "all succeeded" — which is the whole reason the row exists instead of [].
     const { transport } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, [{ name: '', ok: false, reason: 'Aborted' }]),
+      resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: {} }, [{ name: '', ok: false, reason: 'Aborted' }]),
     }))
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
@@ -235,7 +234,7 @@ describe('data', () => {
     const draft = example()
     objAt(byKind(draft, 'RESTAction'), 'spec', 'api', 0).continueOnError = true
     const { transport } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [] } }, [{ name: 'pods', ok: false, reason: 'Error' }]),
+      resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: { pods: [] } }, [{ name: 'pods', ok: false, reason: 'Error' }]),
     }))
     const envelope = await run(draft, liveCtx(transport))
     expect(envelope.ok).toBe(true)
@@ -253,7 +252,7 @@ describe('data', () => {
       return draft
     }
     const resolving = (outcomes: { name: string; ok: boolean; reason?: string }[], messages: string[] = []) =>
-      recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...body.object, status: { error: messages.map((message) => ({ message })) } }, outcomes) }))
+      recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: { error: messages.map((message) => ({ message })) } }, outcomes) }))
 
     it('after a write-verb stage refused by design, the stages it stopped are notes too', async () => {
       const { transport } = resolving(
@@ -299,28 +298,28 @@ describe('data', () => {
     ['a reason outside the closed set', { name: 'pods', ok: false, reason: 'Timeout' }, /stage pods failed with an unknown reason "Timeout" — not one of snowplow's codes/],
     ['a failed stage with no reason', { name: 'pods', ok: false }, /stage pods failed with an unknown reason null/],
   ])('%s is red', async (_what, outcome, message) => {
-    const { transport } = recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, [outcome]) }))
+    const { transport } = recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: {} }, [outcome]) }))
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
     expect(dataOf(envelope).problems[0]).toMatch(message)
   })
 
   it('a truncated outcomes header is red', async () => {
-    const { transport } = recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, '{"truncated":true,"failed":7}') }))
+    const { transport } = recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: {} }, '{"truncated":true,"failed":7}') }))
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
     expect(dataOf(envelope).problems).toEqual(['widgets[3] (RESTAction/pod-sizing): 7 stage(s) did not succeed; x-snowplow-stage-outcomes was truncated, so which ones — and whether any stage ran at all — cannot be told'])
   })
 
   it('a MISSING outcomes header on an inline reply is red: a contract violation', async () => {
-    const { transport } = recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [] } }, null) }))
+    const { transport } = recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: { pods: [] } }, null) }))
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
     expect(dataOf(envelope).problems).toEqual(['widgets[3] (RESTAction/pod-sizing): snowplow answered the inline resolve without x-snowplow-stage-outcomes — a contract violation: its stage outcomes cannot be known'])
   })
 
   it('a malformed outcomes header is red', async () => {
-    const { transport } = recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, '[{"name":"pods"}]') }))
+    const { transport } = recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: {} }, '[{"name":"pods"}]') }))
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
     expect(dataOf(envelope).problems[0]).toMatch(/is not the documented shape \(an entry is not \{name, ok, reason, dependsOn\}/)
@@ -330,7 +329,7 @@ describe('data', () => {
     const leak = { data: { password: 'aHVudGVyMg==' }, kind: 'Secret', metadata: { name: 'db' } }
     const shaped = { data: { token: 'c2VjcmV0LXRva2Vu' }, metadata: { name: 'no-kind' }, type: 'Opaque' }
     const { transport } = recorder(fakeSnowplow({
-      resolve: (_url, body) => resolveReply(200, { ...body.object, status: { items: [leak, { name: 'ok' }, shaped] } }),
+      resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: { items: [leak, { name: 'ok' }, shaped] } }),
     }))
     const envelope = await run(example(), liveCtx(transport))
     const text = JSON.stringify(envelope)

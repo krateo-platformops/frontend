@@ -10,6 +10,15 @@ import { existsSync, readFileSync } from 'node:fs'
 import yaml from 'js-yaml'
 
 import { type HttpResponse, jsonOf, nodeTransport, type Transport } from './http'
+import { str } from './pages/drafts'
+
+/** One header value as a list: already a list, a lone string, or absent. */
+const asList = (value: string | string[] | undefined): string[] => {
+  if (Array.isArray(value)) {
+    return value
+  }
+  return value === undefined ? [] : [value]
+}
 
 export const PER_REQUEST_TIMEOUT_MS = 20_000
 
@@ -64,7 +73,8 @@ export class KubeClient {
       url: `${this.identity.server}${path}`,
     })
     const { warning } = res.headers
-    const warnings = (Array.isArray(warning) ? warning : warning ? [warning] : [])
+    // The `warning` header arrives as a list, as a single string, or absent.
+    const warnings = asList(warning)
     return { body: res.body, json: jsonOf(res.body), status: res.status, warnings }
   }
 }
@@ -90,43 +100,6 @@ export const inClusterIdentity = (): KubeIdentity | null => {
 
 type Rec = Record<string, unknown>
 const rec = (value: unknown): Rec => (value && typeof value === 'object' && !Array.isArray(value) ? value as Rec : {})
-const entryOf = (list: unknown, name: string, field: string): Rec =>
-  rec(rec((Array.isArray(list) ? list : []).find((entry) => rec(entry).name === name))[field])
-
-const b64 = (value: unknown): Buffer | undefined => (typeof value === 'string' ? Buffer.from(value, 'base64') : undefined)
-const file = (value: unknown): Buffer | undefined => (typeof value === 'string' ? readFileSync(value) : undefined)
-
-/**
- * A kubeconfig identity: server + CA from the context's cluster; token, token file, client
- * certificate or an exec credential plugin (GKE's gke-gcloud-auth-plugin) from its user.
- */
-export const kubeconfigIdentity = (path: string, context?: string): KubeIdentity => {
-  const config = rec(yaml.load(readFileSync(path, 'utf8')))
-  const contextName = context ?? (typeof config['current-context'] === 'string' ? config['current-context'] : '')
-  const ctx = entryOf(config.contexts, contextName, 'context')
-  const cluster = entryOf(config.clusters, String(ctx.cluster ?? ''), 'cluster')
-  if (typeof cluster.server !== 'string') {
-    throw new Error(`kubeconfig ${path}: context ${JSON.stringify(contextName)} has no cluster server`)
-  }
-  const identity: KubeIdentity = {
-    ca: b64(cluster['certificate-authority-data']) ?? file(cluster['certificate-authority']),
-    server: cluster.server.replace(/\/$/, ''),
-    source: `kubeconfig context ${contextName}`,
-  }
-  const user = entryOf(config.users, String(ctx.user ?? ''), 'user')
-  if (typeof user.token === 'string') {
-    const { token } = user
-    identity.token = () => token
-  } else if (typeof user.tokenFile === 'string') {
-    const { tokenFile } = user
-    identity.token = () => readFileSync(tokenFile, 'utf8').trim()
-  } else if (user.exec) {
-    identity.token = execCredential(rec(user.exec))
-  }
-  identity.cert = b64(user['client-certificate-data']) ?? file(user['client-certificate'])
-  identity.key = b64(user['client-key-data']) ?? file(user['client-key'])
-  return identity
-}
 
 /** client-go's exec credential plugin, cached until its expiry. */
 const execCredential = (exec: Rec): (() => string) => {
@@ -148,4 +121,41 @@ const execCredential = (exec: Rec): (() => string) => {
     cached = { token: status.token, until }
     return status.token
   }
+}
+const entryOf = (list: unknown, name: string, field: string): Rec =>
+  rec(rec((Array.isArray(list) ? list : []).find((entry) => rec(entry).name === name))[field])
+
+const b64 = (value: unknown): Buffer | undefined => (typeof value === 'string' ? Buffer.from(value, 'base64') : undefined)
+const file = (value: unknown): Buffer | undefined => (typeof value === 'string' ? readFileSync(value) : undefined)
+
+/**
+ * A kubeconfig identity: server + CA from the context's cluster; token, token file, client
+ * certificate or an exec credential plugin (GKE's gke-gcloud-auth-plugin) from its user.
+ */
+export const kubeconfigIdentity = (path: string, context?: string): KubeIdentity => {
+  const config = rec(yaml.load(readFileSync(path, 'utf8')))
+  const contextName = context ?? (typeof config['current-context'] === 'string' ? config['current-context'] : '')
+  const ctx = entryOf(config.contexts, contextName, 'context')
+  const cluster = entryOf(config.clusters, str(ctx.cluster) ?? '', 'cluster')
+  if (typeof cluster.server !== 'string') {
+    throw new Error(`kubeconfig ${path}: context ${JSON.stringify(contextName)} has no cluster server`)
+  }
+  const identity: KubeIdentity = {
+    ca: b64(cluster['certificate-authority-data']) ?? file(cluster['certificate-authority']),
+    server: cluster.server.replace(/\/$/, ''),
+    source: `kubeconfig context ${contextName}`,
+  }
+  const user = entryOf(config.users, str(ctx.user) ?? '', 'user')
+  if (typeof user.token === 'string') {
+    const { token } = user
+    identity.token = () => token
+  } else if (typeof user.tokenFile === 'string') {
+    const { tokenFile } = user
+    identity.token = () => readFileSync(tokenFile, 'utf8').trim()
+  } else if (user.exec) {
+    identity.token = execCredential(rec(user.exec))
+  }
+  identity.cert = b64(user['client-certificate-data']) ?? file(user['client-certificate'])
+  identity.key = b64(user['client-key-data']) ?? file(user['client-key'])
+  return identity
 }

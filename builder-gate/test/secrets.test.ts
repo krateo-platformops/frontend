@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest'
 
 import { secretsProblems } from '../src/pages/secrets'
 
-import { arrAt, byKind, example, fakeSnowplow, json, liveCtx, objAt, rawReply, recorder, run } from './helpers'
+import { arrAt, byKind, example, fakeSnowplow, liveCtx, objAt, rawReply, recorder, run } from './helpers'
 
 const cases = JSON.parse(readFileSync(join(__dirname, 'secrets', 'cases.json'), 'utf8')) as { name: string; step: Record<string, unknown>; refused: boolean; source: string }[]
 

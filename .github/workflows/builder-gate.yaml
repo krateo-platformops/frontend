@@ -51,6 +51,14 @@ jobs:
         run: node build.mjs
       - name: Typecheck
         run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Lint
+        # The config shares ui's rules (../ui/eslint/), so builder-gate and the portal hold the
+        # same standard rather than drifting. It was committed earlier but could not run: no eslint
+        # dependency was declared, there was no script, and the config threw on load. Now that it
+        # is clean this gate keeps it clean — 312 errors and 152 warnings is what accumulated while
+        # nothing checked.
+        run: npm run lint
       # `run`, never bare `vitest` (a watch). The global setup builds dist/ first.
       - name: Unit tests
         run: npx vitest run --reporter=verbose
