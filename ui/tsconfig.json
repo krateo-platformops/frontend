@@ -2,7 +2,12 @@
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    // ES2022, not ES2020, because the code uses ES2022 — `Array.prototype.at` in ~30 places. It
+    // compiled under ES2020 only because `@types/node@22` pulled newer lib declarations in
+    // transitively; `@types/node@24` stopped doing so and 30 TS2550s appeared at once. The lib was
+    // always under-declared relative to the source, and a transitive dependency was covering for
+    // it. `target` stays ES2020: tsc runs --noEmit here and vite owns the emitted syntax.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
     "noImplicitAny": false,
