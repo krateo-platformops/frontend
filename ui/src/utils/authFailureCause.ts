@@ -85,7 +85,42 @@ export interface AuthFailureBody {
 }
 
 /**
- * Classify a 401 from its Status body.
+ * The two reasons whose meaning changes at the step-up exchange.
+ *
+ * `InsufficientAssurance` stays `step-up` here on purpose: it is offered ONCE. Deciding that a
+ * second identical refusal is a dead end needs attempt state, which does not belong in a pure
+ * classifier — the step-up flow owns that, and `accountCannotReachLevel` below is what it shows.
+ */
+const atStepUpExchange = (reason: string | null, base: AuthFailureAction): AuthFailureAction => {
+  if (reason === AUTH_FAILURE_REASONS.staleAuthentication) {
+    // The session credential is fine; the IdP's auth_time was older than max_age. Redo the
+    // step-up redirect — `stepUpAuthCodeURL` carries max_age, so the IdP re-authenticates.
+    return 'step-up'
+  }
+  return base
+}
+
+/**
+ * WHERE the failure came from. The SAME reason means different things at the two origins, so this
+ * is a required argument rather than an option with a default — authn's correction on authn#58,
+ * and a context-free classifier would get both of the following wrong:
+ *
+ *   - `StaleAuthentication` on a resource 401 means the session is old: sign in again. From the
+ *     step-up exchange it means the IdP returned an `auth_time` older than `max_age`, and the
+ *     session credential is FINE — the fix is to redo the step-up redirect, not to sign in.
+ *   - `InsufficientAssurance` on a resource 401 means no elevated credential was presented, so a
+ *     step-up prompt is right. From the step-up exchange it means the IdP completed and still did
+ *     not reach the level (no OTP enrolled, or the realm's flow lacks the LoA) — re-prompting the
+ *     same step-up can loop, so it is offered once and then becomes a dead end.
+ */
+export type AuthFailureOrigin =
+  /** A 401 from reading a resource. Only ever snowplow's own reasons (authn#58, note 1). */
+  | 'resource-401'
+  /** A 403/500 from the step-up POST itself, handled by whoever started the step-up. */
+  | 'step-up-exchange'
+
+/**
+ * Classify an auth failure from its Status body and the origin it arrived at.
  *
  * An unrecognised or absent reason falls back to `reauthenticate`, which is what the portal did
  * for every 401 before this existed. That default is deliberate: it is the outcome that cannot
@@ -93,13 +128,23 @@ export interface AuthFailureBody {
  * loop this module exists to prevent, and guessing `configuration-fault` would tell someone their
  * cluster is broken on the strength of a string we do not recognise.
  */
-export const authFailureCauseOf = (body: unknown): AuthFailureCause => {
+export const authFailureCauseOf = (body: unknown, origin: AuthFailureOrigin = 'resource-401'): AuthFailureCause => {
   const causes = (body as AuthFailureBody | null | undefined)?.details?.causes
   const first = Array.isArray(causes) ? causes[0] : undefined
   const raw = first?.reason
   const reason = typeof raw === 'string' && raw.length > 0 ? raw : null
-  return { action: (reason !== null && BY_REASON[reason]) || 'reauthenticate', reason }
+  const base = (reason !== null && BY_REASON[reason]) || 'reauthenticate'
+  return { action: origin === 'step-up-exchange' ? atStepUpExchange(reason, base) : base, reason }
 }
+
+/**
+ * The outcome for a step-up that has already been offered once and come back
+ * `InsufficientAssurance`: the account cannot reach the level at all (no OTP enrolled, or the
+ * realm's flow lacks it). Not a cluster misconfiguration, so it does not claim to be one — but
+ * equally not something a third prompt will fix.
+ */
+export const accountCannotReachLevel = (reason: string | null): AuthFailureCause =>
+  ({ action: 'configuration-fault', reason })
 
 /** True when stepping up or signing in again can actually resolve this failure. */
 export const isUserActionable = (cause: AuthFailureCause): boolean =>

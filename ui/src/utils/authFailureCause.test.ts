@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { AUTH_FAILURE_REASONS, authFailureCauseOf, isUserActionable } from './authFailureCause'
+import { accountCannotReachLevel, AUTH_FAILURE_REASONS, authFailureCauseOf, isUserActionable } from './authFailureCause'
 
 /** A 401 Status body as snowplow sends it, with only the fields the classifier reads. */
 const body = (reason: unknown) => ({
@@ -104,5 +104,45 @@ describe('IssuanceFailed (authn sends it on 500)', () => {
     const cause = authFailureCauseOf(body(AUTH_FAILURE_REASONS.issuanceFailed))
     expect(cause.action).toBe('server-fault')
     expect(isUserActionable(cause)).toBe(false)
+  })
+})
+
+describe('the SAME reason means different things at the two origins (authn#58)', () => {
+  it('StaleAuthentication: sign in again on a resource 401, redo the step-up at the exchange', () => {
+    // On a 401 the session is old. At the exchange the session credential is FINE — the IdP
+    // returned an auth_time older than max_age, so signing in again fixes nothing.
+    expect(authFailureCauseOf(body(AUTH_FAILURE_REASONS.staleAuthentication), 'resource-401').action).toBe('reauthenticate')
+    expect(authFailureCauseOf(body(AUTH_FAILURE_REASONS.staleAuthentication), 'step-up-exchange').action).toBe('step-up')
+  })
+
+  it('InsufficientAssurance stays a step-up at BOTH origins — it is offered once', () => {
+    // Deciding that a second identical refusal is a dead end needs attempt state, which is the
+    // step-up flow's job, not the classifier's. See accountCannotReachLevel.
+    for (const origin of ['resource-401', 'step-up-exchange'] as const) {
+      expect(authFailureCauseOf(body(AUTH_FAILURE_REASONS.insufficientAssurance), origin).action).toBe('step-up')
+    }
+  })
+
+  it('defaults to resource-401, which is the only path wired today', () => {
+    expect(authFailureCauseOf(body(AUTH_FAILURE_REASONS.staleAuthentication)).action).toBe('reauthenticate')
+  })
+
+  it('the misconfiguration and server-fault reasons are origin-independent', () => {
+    for (const reason of [
+      AUTH_FAILURE_REASONS.stepUpNotEnabled,
+      AUTH_FAILURE_REASONS.stepUpMisconfigured,
+      AUTH_FAILURE_REASONS.issuanceFailed,
+    ]) {
+      const onResource = authFailureCauseOf(body(reason), 'resource-401')
+      const atExchange = authFailureCauseOf(body(reason), 'step-up-exchange')
+      expect(onResource).toEqual(atExchange)
+      expect(isUserActionable(onResource)).toBe(false)
+    }
+  })
+
+  it('a step-up offered once and refused again is a dead end, not a third prompt', () => {
+    const cause = accountCannotReachLevel(AUTH_FAILURE_REASONS.insufficientAssurance)
+    expect(isUserActionable(cause)).toBe(false)
+    expect(cause.reason).toBe(AUTH_FAILURE_REASONS.insufficientAssurance)
   })
 })
