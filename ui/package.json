@@ -7,7 +7,7 @@
     "apply-crds": "tsx scripts/apply-crds.ts",
     "apply-examples": "tsx scripts/apply-examples.ts",
     "build": "vite build",
-    "check-crd-strictness": "node scripts/check-crd-strictness.mjs",
+    "check-crd-strictness": "tsx scripts/check-crd-strictness.ts",
     "dev": "vite",
     "examples": "tsx scripts/run-examples.ts",
     "gen-antd-widgets": "tsx scripts/gen-antd-widgets.ts",

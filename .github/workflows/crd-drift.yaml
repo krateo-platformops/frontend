@@ -98,7 +98,8 @@ jobs:
         # anyone deciding it should. That is the failure mode a generator change introduces —
         # crdgen's transpileAllOf marks EVERY merged node preserve-unknown, even one merging two
         # clean object members, and so do patternProperties, divergent unions and unresolved $refs.
-        run: node ui/scripts/check-crd-strictness.mjs
+        working-directory: ui
+        run: npm run check-crd-strictness
 
       - name: Assert the generator left no tracked file dirty
         run: |

@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Fail the build when a widget CRD grows a NEW `x-kubernetes-preserve-unknown-fields` node.
  *
@@ -27,8 +26,10 @@
  */
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
+import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import chalk from 'chalk'
 import yaml from 'js-yaml'
 
 // Resolved from THIS file's location, not from cwd: CI runs it from the repo root and
@@ -39,7 +40,7 @@ const CRD_DIR = join(ROOT, 'helm/frontend-crds/templates')
 const BASELINE = join(ROOT, 'ui/scripts/crd-preserve-unknown.baseline.json')
 
 /** Every path under `node` carrying preserve-unknown, as dotted paths with array indices kept. */
-const collect = (node, path, out) => {
+const collect = (node: unknown, path: string, out: string[]): void => {
   if (Array.isArray(node)) {
     node.forEach((value, index) => collect(value, `${path}[${index}]`, out))
     return
@@ -47,19 +48,20 @@ const collect = (node, path, out) => {
   if (node === null || typeof node !== 'object') {
     return
   }
-  if (node['x-kubernetes-preserve-unknown-fields'] === true) {
+  const record = node as Record<string, unknown>
+  if (record['x-kubernetes-preserve-unknown-fields'] === true) {
     out.push(path || '<root>')
   }
-  for (const [key, value] of Object.entries(node)) {
+  for (const [key, value] of Object.entries(record)) {
     collect(value, path ? `${path}.${key}` : key, out)
   }
 }
 
 /** `<Kind>: <path>` for every preserve-unknown node in every CRD, sorted and stable. */
-const scan = () => {
-  const found = []
-  for (const file of readdirSync(CRD_DIR).filter((f) => f.endsWith('.crd.yaml')).sort()) {
-    const paths = []
+const scan = (): string[] => {
+  const found: string[] = []
+  for (const file of readdirSync(CRD_DIR).filter((name) => name.endsWith('.crd.yaml')).sort()) {
+    const paths: string[] = []
     collect(yaml.load(readFileSync(join(CRD_DIR, file), 'utf8')), '', paths)
     for (const path of paths.sort()) {
       found.push(`${file}: ${path}`)
@@ -72,15 +74,15 @@ const current = scan()
 
 if (process.argv.includes('--update')) {
   writeFileSync(BASELINE, `${JSON.stringify(current, null, 2)}\n`)
-  console.log(`crd-strictness: baseline written, ${current.length} permissive nodes`)
+  console.warn(chalk.green(`crd-strictness: baseline written, ${current.length} permissive nodes`))
   process.exit(0)
 }
 
-let baseline
+let baseline: string[]
 try {
-  baseline = JSON.parse(readFileSync(BASELINE, 'utf8'))
+  baseline = JSON.parse(readFileSync(BASELINE, 'utf8')) as string[]
 } catch {
-  console.error(`crd-strictness: no baseline at ${BASELINE}. Create it with:\n  node ui/scripts/check-crd-strictness.mjs --update`)
+  console.error(`crd-strictness: no baseline at ${BASELINE}. Create it with:\n  cd ui && npm run check-crd-strictness -- --update`)
   process.exit(2)
 }
 
@@ -93,19 +95,19 @@ const removed = baseline.filter((entry) => !seen.has(entry))
 // and failing on it would make every genuine tightening a build break. An ADDITION fails, because
 // nothing should become permissive without someone choosing it.
 if (removed.length > 0) {
-  console.log(`crd-strictness: ${removed.length} node(s) became STRICT (good, baseline is stale):`)
+  console.warn(chalk.yellow(`crd-strictness: ${removed.length} node(s) became STRICT (good, baseline is stale):`))
   for (const entry of removed) {
-    console.log(`  - ${entry}`)
+    console.warn(`  - ${entry}`)
   }
 }
 
 if (added.length > 0) {
-  console.error(`crd-strictness: ${added.length} NEW permissive node(s).`)
+  console.error(chalk.red(`crd-strictness: ${added.length} NEW permissive node(s).`))
   console.error('')
   console.error('Each one makes snowplow\'s validation of that subtree vacuous — it will accept')
   console.error('anything in there and report nothing. Narrow the source schema, or, if the node is')
   console.error('genuinely meant to hold arbitrary content, record the decision:')
-  console.error('  node ui/scripts/check-crd-strictness.mjs --update')
+  console.error('  cd ui && npm run check-crd-strictness -- --update')
   console.error('')
   for (const entry of added) {
     console.error(`  + ${entry}`)
@@ -113,4 +115,4 @@ if (added.length > 0) {
   process.exit(1)
 }
 
-console.log(`crd-strictness: ok, ${current.length} permissive nodes, all accounted for`)
+console.warn(chalk.green(`crd-strictness: ok, ${current.length} permissive nodes, all accounted for`))
