@@ -17,7 +17,7 @@ import { join } from 'node:path'
 
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { App as AntdApp } from 'antd'
-import yaml from 'js-yaml'
+import { load } from 'js-yaml'
 import { useEffect, useState } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -62,7 +62,7 @@ const STUB_ROUTE = '/stub-builder/compose'
 
 /** The Blueprint Builder's CR, re-declared as another builder: its own name, label, route and verbs. */
 const stubBuilder = (): Builder => {
-  const raw = yaml.load(readFileSync(join(__dirname, '..', 'fixtures', 'blueprint-builder.builder.yaml'), 'utf8')) as { spec: Record<string, unknown> }
+  const raw = load(readFileSync(join(__dirname, '..', 'fixtures', 'blueprint-builder.builder.yaml'), 'utf8')) as { spec: Record<string, unknown> }
   const parsed = parseBuilder({
     ...raw,
     metadata: { name: 'stub-builder' },
@@ -261,7 +261,7 @@ describe('a stub Builder, end to end in the builder host', () => {
   })
 
   it('the split frame: a Publish that is off gives its reason, as the panes frame does', () => {
-    const raw = yaml.load(readFileSync(join(__dirname, '..', 'fixtures', 'portal-builder.builder.yaml'), 'utf8')) as { spec: Record<string, unknown> }
+    const raw = load(readFileSync(join(__dirname, '..', 'fixtures', 'portal-builder.builder.yaml'), 'utf8')) as { spec: Record<string, unknown> }
     const parsed = parseBuilder({ ...raw, metadata: { name: 'stub-pages' }, spec: { ...raw.spec, label: 'Stub Pages', route: '/stub-pages/compose', verbs: { allowed: ['composeAdd', 'previewPage'] } } })
     if (!parsed.ok) { throw new Error(parsed.problems.join('; ')) }
     const back = swapBuildersForTest([parsed.builder])

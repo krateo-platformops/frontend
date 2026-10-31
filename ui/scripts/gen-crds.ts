@@ -6,7 +6,7 @@ import { promisify } from 'node:util'
 
 import chalk from 'chalk'
 import { glob } from 'glob'
-import yaml from 'js-yaml'
+import { dump, load } from 'js-yaml'
 
 const asyncExec = promisify(exec)
 
@@ -54,7 +54,7 @@ async function normalizeUnionTypes(schemaPath: string, crdPath: string): Promise
   collect((schema.properties as Record<string, unknown> | undefined)?.spec, [])
   if (unionPaths.length === 0) { return false }
 
-  const doc = yaml.load(await fs.readFile(crdPath, 'utf8')) as {
+  const doc = load(await fs.readFile(crdPath, 'utf8')) as {
     spec?: { versions?: Array<{ schema?: { openAPIV3Schema?: { properties?: { spec?: unknown } } } }> }
   }
   const crdSpec = doc.spec?.versions?.[0]?.schema?.openAPIV3Schema?.properties?.spec
@@ -74,7 +74,7 @@ async function normalizeUnionTypes(schemaPath: string, crdPath: string): Promise
       changed = true
     }
   }
-  if (changed) { await fs.writeFile(crdPath, yaml.dump(doc, { lineWidth: -1, noRefs: true })) }
+  if (changed) { await fs.writeFile(crdPath, dump(doc, { lineWidth: -1, noRefs: true })) }
   return changed
 }
 
@@ -101,7 +101,7 @@ async function normalizeTypedMaps(schemaPath: string, crdPath: string): Promise<
   collect((schema.properties as Record<string, unknown> | undefined)?.spec, [])
   if (mapPaths.length === 0) { return false }
 
-  const doc = yaml.load(await fs.readFile(crdPath, 'utf8')) as {
+  const doc = load(await fs.readFile(crdPath, 'utf8')) as {
     spec?: { versions?: Array<{ schema?: { openAPIV3Schema?: { properties?: { spec?: unknown } } } }> }
   }
   const crdSpec = doc.spec?.versions?.[0]?.schema?.openAPIV3Schema?.properties?.spec
@@ -120,7 +120,7 @@ async function normalizeTypedMaps(schemaPath: string, crdPath: string): Promise<
       changed = true
     }
   }
-  if (changed) { await fs.writeFile(crdPath, yaml.dump(doc, { lineWidth: -1, noRefs: true })) }
+  if (changed) { await fs.writeFile(crdPath, dump(doc, { lineWidth: -1, noRefs: true })) }
   return changed
 }
 
@@ -136,7 +136,7 @@ async function normalizeTypedMaps(schemaPath: string, crdPath: string): Promise<
  * docs/A6-chart-enablement-spec-2026-07-07.md §1.1.
  */
 async function injectIdentityContext(crdPath: string): Promise<void> {
-  const doc = yaml.load(await fs.readFile(crdPath, 'utf8')) as {
+  const doc = load(await fs.readFile(crdPath, 'utf8')) as {
     spec?: { versions?: Array<{ schema?: { openAPIV3Schema?: { properties?: { spec?: { properties?: Record<string, unknown> } } } } }> }
   }
   const specNode = doc.spec?.versions?.[0]?.schema?.openAPIV3Schema?.properties?.spec
@@ -145,7 +145,7 @@ async function injectIdentityContext(crdPath: string): Promise<void> {
     items: { enum: ['username', 'groups'], type: 'string' },
     type: 'array',
   }
-  await fs.writeFile(crdPath, yaml.dump(doc, { lineWidth: -1, noRefs: true }))
+  await fs.writeFile(crdPath, dump(doc, { lineWidth: -1, noRefs: true }))
 }
 
 /**
@@ -160,7 +160,7 @@ async function injectIdentityContext(crdPath: string): Promise<void> {
  * dropped. See snowplow docs/f6-portal-handoff-2026-07-13.md §1.
  */
 async function injectKeyExtras(crdPath: string): Promise<void> {
-  const doc = yaml.load(await fs.readFile(crdPath, 'utf8')) as {
+  const doc = load(await fs.readFile(crdPath, 'utf8')) as {
     spec?: { versions?: Array<{ schema?: { openAPIV3Schema?: { properties?: { spec?: { properties?: Record<string, unknown> } } } } }> }
   }
   const specNode = doc.spec?.versions?.[0]?.schema?.openAPIV3Schema?.properties?.spec
@@ -170,7 +170,7 @@ async function injectKeyExtras(crdPath: string): Promise<void> {
     items: { type: 'string' },
     type: 'array',
   }
-  await fs.writeFile(crdPath, yaml.dump(doc, { lineWidth: -1, noRefs: true }))
+  await fs.writeFile(crdPath, dump(doc, { lineWidth: -1, noRefs: true }))
 }
 
 /**
@@ -184,7 +184,7 @@ async function injectKeyExtras(crdPath: string): Promise<void> {
  * author's opt-in is silently dropped and the badge can never appear.
  */
 async function injectFreshness(crdPath: string): Promise<void> {
-  const doc = yaml.load(await fs.readFile(crdPath, 'utf8')) as {
+  const doc = load(await fs.readFile(crdPath, 'utf8')) as {
     spec?: { versions?: Array<{ schema?: { openAPIV3Schema?: { properties?: { spec?: { properties?: Record<string, unknown> } } } } }> }
   }
   const specNode = doc.spec?.versions?.[0]?.schema?.openAPIV3Schema?.properties?.spec
@@ -193,7 +193,7 @@ async function injectFreshness(crdPath: string): Promise<void> {
     description: 'Opt-in staleness indicator: when true the widget shows the stale/refreshing dot overlay (exception states only). Absent/false = no badge ever (the default; healthy widgets stay unmarked).',
     type: 'boolean',
   }
-  await fs.writeFile(crdPath, yaml.dump(doc, { lineWidth: -1, noRefs: true }))
+  await fs.writeFile(crdPath, dump(doc, { lineWidth: -1, noRefs: true }))
 }
 
 /**
@@ -223,7 +223,7 @@ async function injectFreshness(crdPath: string): Promise<void> {
  * against the REAL widget registry instead of a list frozen at schema-authoring time.
  */
 async function normalizeAllowedResources(crdPath: string): Promise<boolean> {
-  const doc = yaml.load(await fs.readFile(crdPath, 'utf8')) as {
+  const doc = load(await fs.readFile(crdPath, 'utf8')) as {
     spec?: { versions?: Array<{ schema?: { openAPIV3Schema?: { properties?: { spec?: { properties?: { widgetData?: { properties?: Record<string, unknown> } } } } } } }> }
   }
   const wd = doc.spec?.versions?.[0]?.schema?.openAPIV3Schema?.properties?.spec?.properties?.widgetData
@@ -240,7 +240,7 @@ async function normalizeAllowedResources(crdPath: string): Promise<boolean> {
     type: 'array',
   }
   if (JSON.stringify(wd.properties.allowedResources) === before) { return false }
-  await fs.writeFile(crdPath, yaml.dump(doc, { lineWidth: -1, noRefs: true }))
+  await fs.writeFile(crdPath, dump(doc, { lineWidth: -1, noRefs: true }))
   return true
 }
 

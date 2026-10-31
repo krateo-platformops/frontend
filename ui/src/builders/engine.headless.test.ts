@@ -10,7 +10,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import yaml from 'js-yaml'
+import { load } from 'js-yaml'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 // The one cluster read on the publish path (the BuilderPublish GVR, over /call) — answered here, so
@@ -46,7 +46,7 @@ const FIXTURE = join(__dirname, 'fixtures', 'blueprint-builder.builder.yaml')
  * PAGE builder's config key while its seed is the blueprint template's.
  */
 const stubBuilder = (): Builder => {
-  const raw = yaml.load(readFileSync(FIXTURE, 'utf8')) as { metadata: Record<string, unknown>; spec: Record<string, unknown> }
+  const raw = load(readFileSync(FIXTURE, 'utf8')) as { metadata: Record<string, unknown>; spec: Record<string, unknown> }
   const { spec } = raw
   delete spec.summarizer
   const parsed = parseBuilder({

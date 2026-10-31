@@ -34,7 +34,7 @@ import fs from 'node:fs/promises'
 import { basename, join } from 'node:path'
 
 import { glob } from 'glob'
-import yaml from 'js-yaml'
+import { load } from 'js-yaml'
 
 const CRD_GLOB = join(process.cwd(), '..', 'helm', 'frontend-crds', 'templates', '*.crd.yaml')
 const OUTPUT = join(process.cwd(), 'src', 'pages', 'PageBuilder', 'widgetKinds.generated.ts')
@@ -109,7 +109,7 @@ const build = async (): Promise<string> => {
   // Read them all first: the loop that follows is pure, and reading inside it is what the
   // no-await-in-loop rule is about.
   const sources = await Promise.all(files.map(async (file) => ({
-    doc: yaml.load(await fs.readFile(file, 'utf8')) as CrdDoc,
+    doc: load(await fs.readFile(file, 'utf8')) as CrdDoc,
     file,
   })))
 

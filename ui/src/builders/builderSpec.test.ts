@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import yaml from 'js-yaml'
+import { load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
 import { BUILDER_SPEC_KEYS, BUILDER_SPEC_REQUIRED, parseBuilder } from './builderSpec'
@@ -11,7 +11,7 @@ const CRD_PATH = join(__dirname, '..', '..', '..', 'helm', 'frontend-crds', 'tem
 interface SchemaNode { properties?: Record<string, SchemaNode>; required?: string[] }
 
 const crdSpec = (): SchemaNode => {
-  const crd = yaml.load(readFileSync(CRD_PATH, 'utf8')) as { spec: { versions: { schema: { openAPIV3Schema: SchemaNode } }[] } }
+  const crd = load(readFileSync(CRD_PATH, 'utf8')) as { spec: { versions: { schema: { openAPIV3Schema: SchemaNode } }[] } }
   return crd.spec.versions[0].schema.openAPIV3Schema.properties!.spec
 }
 

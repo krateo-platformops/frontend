@@ -30,7 +30,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import chalk from 'chalk'
-import yaml from 'js-yaml'
+import { load } from 'js-yaml'
 
 // Resolved from THIS file's location, not from cwd: CI runs it from the repo root and
 // `npm run check-crd-strictness` runs it from ui/, and a cwd-relative path works in exactly one
@@ -62,7 +62,7 @@ const scan = (): string[] => {
   const found: string[] = []
   for (const file of readdirSync(CRD_DIR).filter((name) => name.endsWith('.crd.yaml')).sort()) {
     const paths: string[] = []
-    collect(yaml.load(readFileSync(join(CRD_DIR, file), 'utf8')), '', paths)
+    collect(load(readFileSync(join(CRD_DIR, file), 'utf8')), '', paths)
     for (const path of paths.sort()) {
       found.push(`${file}: ${path}`)
     }

@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import yaml from 'js-yaml'
+import { load } from 'js-yaml'
 import type { RouteObject } from 'react-router'
 import { describe, expect, it } from 'vitest'
 
@@ -17,7 +17,7 @@ import { BUILDER_ROUTE_ID, builderRoutes, mergeShellChildren } from './builderRo
 
 /** The Blueprint Builder's CR under another name, route and (optionally) draft kind. */
 const builder = (name: string, route: string, draftKind = 'blueprint'): Builder => {
-  const raw = yaml.load(readFileSync(join(__dirname, '..', 'fixtures', 'blueprint-builder.builder.yaml'), 'utf8')) as { spec: Record<string, unknown> }
+  const raw = load(readFileSync(join(__dirname, '..', 'fixtures', 'blueprint-builder.builder.yaml'), 'utf8')) as { spec: Record<string, unknown> }
   const parsed = parseBuilder({ ...raw, metadata: { name }, spec: { ...raw.spec, draftKind, route, verbs: { allowed: [`publish${name.replace(/-/g, '')}`] } } })
   if (!parsed.ok) { throw new Error(parsed.problems.join('; ')) }
   return parsed.builder

@@ -13,7 +13,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import Ajv from 'ajv'
-import yaml from 'js-yaml'
+import { load as parseYaml, loadAll } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
 import { COMPOSE_VERBS } from '../components/Autopilot/actionBridge'
@@ -57,14 +57,14 @@ const closed = (node: unknown): unknown => {
 }
 
 const crdSchema = (): Schema => {
-  const crd = yaml.load(readFileSync(CRD_PATH, 'utf8')) as { spec: { versions: { schema: { openAPIV3Schema: Schema } }[] } }
+  const crd = parseYaml(readFileSync(CRD_PATH, 'utf8')) as { spec: { versions: { schema: { openAPIV3Schema: Schema } }[] } }
   const schema = closed(crd.spec.versions[0].schema.openAPIV3Schema) as Schema
   // metadata is the apiserver's, not the CRD's: open it again.
   ;(schema.properties as Record<string, Schema>).metadata = { type: 'object' }
   return schema
 }
 
-const load = (name: string): unknown => yaml.load(readFileSync(join(__dirname, 'fixtures', `${name}.builder.yaml`), 'utf8'))
+const load = (name: string): unknown => parseYaml(readFileSync(join(__dirname, 'fixtures', `${name}.builder.yaml`), 'utf8'))
 
 const parsed = (name: string): Builder => {
   const result = parseBuilder(load(name))
@@ -74,7 +74,7 @@ const parsed = (name: string): Builder => {
 
 describe('the Builder CRD', () => {
   it('is one well-formed CustomResourceDefinition in its own group', () => {
-    const docs = yaml.loadAll(readFileSync(CRD_PATH, 'utf8')) as { kind: string; metadata: { name: string }; spec: { group: string; names: { categories: string[] } } }[]
+    const docs = loadAll(readFileSync(CRD_PATH, 'utf8')) as { kind: string; metadata: { name: string }; spec: { group: string; names: { categories: string[] } } }[]
     expect(docs).toHaveLength(1)
     expect(docs[0].kind).toBe('CustomResourceDefinition')
     expect(docs[0].metadata.name).toBe('builders.builders.templates.krateo.io')

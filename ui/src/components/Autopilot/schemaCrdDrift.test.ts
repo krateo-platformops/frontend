@@ -24,7 +24,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { glob } from 'glob'
-import yaml from 'js-yaml'
+import { load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
 const REPO = join(__dirname, '..', '..', '..', '..')
@@ -43,7 +43,7 @@ describe('the portal schema agrees with the CRD it ships', () => {
 
     const offenders: string[] = []
     for (const file of crds) {
-      const doc = yaml.load(readFileSync(file, 'utf8')) as {
+      const doc = load(readFileSync(file, 'utf8')) as {
         spec?: { names?: { kind?: string }; versions?: { schema?: { openAPIV3Schema?: unknown } }[] }
       }
       const kind = doc.spec?.names?.kind

@@ -1,4 +1,4 @@
-import yaml from 'js-yaml'
+import { loadAll } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
 import './load'
@@ -18,7 +18,7 @@ const exampleFiles = import.meta.glob<string>('../examples/widgets/**/*.example.
 // referenced by Form/Button examples — only collect actual widget CRs.
 const exampleKinds = new Set<string>()
 for (const raw of Object.values(exampleFiles)) {
-  const docs = yaml.loadAll(raw) as Array<{ kind?: unknown; apiVersion?: unknown } | null>
+  const docs = loadAll(raw) as Array<{ kind?: unknown; apiVersion?: unknown } | null>
   for (const doc of docs) {
     if (doc && typeof doc.kind === 'string' && typeof doc.apiVersion === 'string'
       && doc.apiVersion.includes('widgets.templates.krateo.io')) {
