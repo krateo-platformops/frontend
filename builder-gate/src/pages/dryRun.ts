@@ -92,7 +92,7 @@ export const dryRunStep = async (drafts: readonly Rec[], ctx: GateContext): Prom
     verdict: 'notChecked',
   }))
   const unjudged = (why: string): { step: StepResult; verdicts: ObjectVerdict[] } => {
-    verdicts.forEach((v) => { v.detail = why })
+    verdicts.forEach((verdict) => { verdict.detail = why })
     return { step: step('live-dry-run', [`${why} — no object was judged by the API server`]), verdicts }
   }
   const { snowplow } = ctx
@@ -103,7 +103,7 @@ export const dryRunStep = async (drafts: readonly Rec[], ctx: GateContext): Prom
   if (!capabilities.ok) {
     return unjudged(`notChecked: ${capabilities.reason}`)
   }
-  const missing = [CAPABILITY_DRY_RUN, CAPABILITY_FIELD_VALIDATION].filter((c) => !capabilities.offered.has(c))
+  const missing = [CAPABILITY_DRY_RUN, CAPABILITY_FIELD_VALIDATION].filter((capability) => !capabilities.offered.has(capability))
   if (missing.length > 0) {
     return unjudged(`live verdict missing: this snowplow does not yet offer the dry-run route (${missing.join(', ')}; snowplow 1.12.36, docs/snowplow-contract.md)`)
   }
@@ -151,7 +151,7 @@ export const dryRunStep = async (drafts: readonly Rec[], ctx: GateContext): Prom
   await Promise.all(Array.from({ length: Math.min(PARALLEL, drafts.length) }, worker))
 
   const problems = verdicts
-    .filter((v) => v.verdict !== 'validated')
-    .map((v) => `${v.object}: ${v.verdict}: ${v.detail ?? ''}`)
+    .filter((verdict) => verdict.verdict !== 'validated')
+    .map((verdict) => `${verdict.object}: ${verdict.verdict}: ${verdict.detail ?? ''}`)
   return { step: step('live-dry-run', problems, notes), verdicts }
 }

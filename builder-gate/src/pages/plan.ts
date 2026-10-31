@@ -32,7 +32,7 @@ import { draftSecretsProblems } from './secrets'
 import { shapeStep } from './shape'
 
 export const coverageOf = (verdicts: ObjectVerdict[]): Coverage => {
-  const count = (v: ObjectVerdict['verdict']): number => verdicts.filter((x) => x.verdict === v).length
+  const count = (wanted: ObjectVerdict['verdict']): number => verdicts.filter((entry) => entry.verdict === wanted).length
   const validated = count('validated')
   const rejected = count('rejected')
   const notChecked = count('notChecked')
@@ -44,7 +44,7 @@ export const coverageOf = (verdicts: ObjectVerdict[]): Coverage => {
 
 const coverageStep = (coverage: Coverage): StepResult => step('coverage', [], [
   coverage.summary,
-  ...coverage.verdicts.map((v) => `${v.object} → ${v.resource}: ${v.verdict}${v.detail ? ` (${v.detail})` : ''}`),
+  ...coverage.verdicts.map((value) => `${value.object} → ${value.resource}: ${value.verdict}${value.detail ? ` (${value.detail})` : ''}`),
 ])
 
 const builderLintStep = async (drafts: readonly Rec[]): Promise<StepResult> => {
@@ -73,8 +73,8 @@ export const pagePlan: BuilderPlan = {
   async run(files: readonly unknown[], _builder: BuilderSpec, ctx: GateContext): Promise<PlanResult> {
     const steps: StepResult[] = []
     const shapeProblems = files
-      .map((f, i) => (rec(f) ? null : `widgets[${i}]: not a CR object (an object with kind, metadata, spec) — a page draft is ${this.input}`))
-      .filter((p): p is string => p !== null)
+      .map((doc, i) => (rec(doc) ? null : `widgets[${i}]: not a CR object (an object with kind, metadata, spec) — a page draft is ${this.input}`))
+      .filter((problem): problem is string => problem !== null)
     if (files.length === 0) {
       shapeProblems.push(`the draft is empty — a page draft is ${this.input}`)
     }

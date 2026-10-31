@@ -41,13 +41,13 @@ describe('classifyDryRun', () => {
   })
 })
 
-const posts = (requests: HttpRequest[]) => requests.filter((r) => r.method === 'POST' && new URL(r.url).pathname === '/call/dry-run')
+const posts = (requests: HttpRequest[]) => requests.filter((request) => request.method === 'POST' && new URL(request.url).pathname === '/call/dry-run')
 
 describe('live-dry-run, through snowplow as the caller', () => {
   it('every object accepted → green, and coverage says so', async () => {
     const { transport } = recorder(fakeSnowplow())
     const envelope = await run(example(), liveCtx(transport))
-    expect(envelope.steps.find((s) => s.name === 'live-dry-run')?.ok).toBe(true)
+    expect(envelope.steps.find((step) => step.name === 'live-dry-run')?.ok).toBe(true)
     expect(envelope.coverage).toMatchObject({ notChecked: 0, objects: 4, rejected: 0, summary: 'API server accepted all 4 objects', validated: 4 })
   })
 
@@ -56,11 +56,11 @@ describe('live-dry-run, through snowplow as the caller', () => {
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.ok).toBe(false)
     expect(envelope.failedStep).toBe('live-dry-run')
-    expect(envelope.steps.find((s) => s.name === 'live-dry-run')?.problems).toEqual([
+    expect(envelope.steps.find((step) => step.name === 'live-dry-run')?.problems).toEqual([
       'live verdict missing: this snowplow does not yet offer the dry-run route (call.dryRun, call.fieldValidation; snowplow 1.12.36, docs/snowplow-contract.md) — no object was judged by the API server',
     ])
     expect(envelope.coverage).toMatchObject({ notChecked: 4, validated: 0 })
-    expect(requests.filter((r) => r.method !== 'GET')).toEqual([])
+    expect(requests.filter((request) => request.method !== 'GET')).toEqual([])
   })
 
   it('call.dryRun without call.fieldValidation: still missing, nothing POSTed', async () => {
@@ -75,9 +75,9 @@ describe('live-dry-run, through snowplow as the caller', () => {
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.failedStep).toBe('live-dry-run')
     expect(envelope.coverage).toMatchObject({ notChecked: 4, validated: 0 })
-    expect(envelope.steps.find((s) => s.name === 'live-dry-run')?.problems[0]).toMatch(/snowplow answered 404 without x-snowplow-dry-run: All/)
+    expect(envelope.steps.find((step) => step.name === 'live-dry-run')?.problems[0]).toMatch(/snowplow answered 404 without x-snowplow-dry-run: All/)
     // The only writes ever attempted went to /call/dry-run, which that snowplow does not serve.
-    expect(requests.filter((r) => r.method !== 'GET').every((r) => new URL(r.url).pathname === '/call/dry-run')).toBe(true)
+    expect(requests.filter((request) => request.method !== 'GET').every((request) => new URL(request.url).pathname === '/call/dry-run')).toBe(true)
   })
 
   it('a 2xx without the echo is never a pass: the object may have been stored', async () => {
@@ -85,7 +85,7 @@ describe('live-dry-run, through snowplow as the caller', () => {
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.failedStep).toBe('live-dry-run')
     expect(envelope.coverage?.validated).toBe(0)
-    expect(envelope.steps.find((s) => s.name === 'live-dry-run')?.problems[0]).toMatch(/without x-snowplow-dry-run: All and x-snowplow-field-validation: Strict — the object may have been PERSISTED in krateo-preview/)
+    expect(envelope.steps.find((step) => step.name === 'live-dry-run')?.problems[0]).toMatch(/without x-snowplow-dry-run: All and x-snowplow-field-validation: Strict — the object may have been PERSISTED in krateo-preview/)
   })
 
   it('an echo naming another fieldValidation than Strict is never a pass', async () => {
@@ -122,7 +122,7 @@ describe('live-dry-run, through snowplow as the caller', () => {
     expect(envelope.ok).toBe(false)
     expect(envelope.failedStep).toBe('live-dry-run')
     expect(envelope.coverage).toMatchObject({ notChecked: 4, validated: 0 })
-    expect(envelope.steps.find((s) => s.name === 'live-dry-run')?.problems[0]).toMatch(/notChecked: Forbidden — you may not create this kind in krateo-preview/)
+    expect(envelope.steps.find((step) => step.name === 'live-dry-run')?.problems[0]).toMatch(/notChecked: Forbidden — you may not create this kind in krateo-preview/)
   })
 
   it('an unreachable or slow snowplow is notChecked AND red', async () => {
@@ -142,7 +142,7 @@ describe('live-dry-run, through snowplow as the caller', () => {
     const { transport } = recorder(fakeSnowplow({ dryRun: () => dryRunReply(404, { code: 404, details: { kind: 'namespaces', name: 'krateo-preview' }, kind: 'Status', message: 'namespaces "krateo-preview" not found', reason: 'NotFound' }) }))
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.failedStep).toBe('live-dry-run')
-    expect(envelope.steps.find((s) => s.name === 'live-dry-run')?.problems[0]).toMatch(/sandbox namespace krateo-preview does not exist/)
+    expect(envelope.steps.find((step) => step.name === 'live-dry-run')?.problems[0]).toMatch(/sandbox namespace krateo-preview does not exist/)
   })
 
   it('no caller token: notChecked AND red, nothing sent', async () => {
@@ -156,13 +156,13 @@ describe('live-dry-run, through snowplow as the caller', () => {
   it('submits each object to /call/dry-run in the sandbox, as the caller, whatever namespace the draft names', async () => {
     const { requests, transport } = recorder(fakeSnowplow())
     await run(example(), liveCtx(transport))
-    expect(posts(requests).map((r) => r.url)).toEqual([
+    expect(posts(requests).map((request) => request.url)).toEqual([
       'http://snowplow.test/call/dry-run?apiVersion=widgets.templates.krateo.io%2Fv1beta1&resource=flexes&namespace=krateo-preview&name=page-pod-sizing&dryRun=All&fieldValidation=Strict',
       'http://snowplow.test/call/dry-run?apiVersion=widgets.templates.krateo.io%2Fv1beta1&resource=piecharts&namespace=krateo-preview&name=pod-phase-pie&dryRun=All&fieldValidation=Strict',
       'http://snowplow.test/call/dry-run?apiVersion=widgets.templates.krateo.io%2Fv1beta1&resource=tables&namespace=krateo-preview&name=pod-sizing-table&dryRun=All&fieldValidation=Strict',
       'http://snowplow.test/call/dry-run?apiVersion=templates.krateo.io%2Fv1&resource=restactions&namespace=krateo-preview&name=pod-sizing&dryRun=All&fieldValidation=Strict',
     ])
-    expect(posts(requests).every((r) => r.headers?.Authorization === 'Bearer caller-jwt')).toBe(true)
-    expect(posts(requests).map((r) => JSON.parse(r.body!).metadata.namespace)).toEqual(['krateo-preview', 'krateo-preview', 'krateo-preview', 'krateo-preview'])
+    expect(posts(requests).every((request) => request.headers?.Authorization === 'Bearer caller-jwt')).toBe(true)
+    expect(posts(requests).map((request) => JSON.parse(request.body!).metadata.namespace)).toEqual(['krateo-preview', 'krateo-preview', 'krateo-preview', 'krateo-preview'])
   })
 })

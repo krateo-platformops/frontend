@@ -18,7 +18,7 @@ export interface GateConfig {
   snowplowUrl: string | null
 }
 
-const list = (value: string | undefined): string[] => (value ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+const list = (value: string | undefined): string[] => (value ?? '').split(',').map((part) => part.trim()).filter(Boolean)
 
 export const configFromEnv = (env: NodeJS.ProcessEnv = process.env): GateConfig => {
   // Off-cluster (CI's kind job, a local run) the identity is a kubeconfig, named explicitly —

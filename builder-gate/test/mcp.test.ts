@@ -41,7 +41,7 @@ describe('the MCP server', () => {
   it('lists validate_draft with builder and files', async () => {
     const client = await connect()
     const { tools } = await client.listTools()
-    expect(tools.map((t) => t.name)).toEqual(['validate_draft'])
+    expect(tools.map((tool) => tool.name)).toEqual(['validate_draft'])
     expect(Object.keys(tools[0].inputSchema.properties ?? {})).toEqual(['builder', 'files'])
     await client.close()
   })

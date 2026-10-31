@@ -34,7 +34,7 @@ const JQ_UNICODE = /\\u([0-9a-fA-F]{4})/g
 const CONSTRUCTED = /\bimplode\b|\bascii\b|@base64d|@base32d|\bfromjson\b|\\u[0-9a-fA-F]{4}|"\s*\*/
 const FIELD_PATH = /^\$\{\s*\.([A-Za-z_][A-Za-z0-9_]*)\s*\}$/
 
-const literalsOf = (text: string): string[] => [...text.matchAll(LITERAL)].map((m) => m[1])
+const literalsOf = (text: string): string[] => [...text.matchAll(LITERAL)].map((match) => match[1])
 
 /** Python's json.dumps(value, ensure_ascii=False, sort_keys=True): the same text, key order included. */
 const pyDumps = (value: unknown): string => {
@@ -45,7 +45,7 @@ const pyDumps = (value: unknown): string => {
     return `[${value.map(pyDumps).join(', ')}]`
   }
   if (typeof value === 'object') {
-    const entries = Object.keys(value as Rec).sort().map((k) => `${JSON.stringify(k)}: ${pyDumps((value as Rec)[k])}`)
+    const entries = Object.keys(value as Rec).sort().map((key) => `${JSON.stringify(key)}: ${pyDumps((value as Rec)[key])}`)
     return `{${entries.join(', ')}}`
   }
   if (typeof value === 'boolean') {
@@ -80,7 +80,7 @@ const normalized = (text: string): string => text.replace(/\s+/g, ' ').trim()
 const CANONICAL = normalized(canonical.defs)
 {
   const core = /def fetchableCore: (\[[^\]]*\])/.exec(CANONICAL)
-  if (!core || (JSON.parse(core[1]) as unknown[]).some((c) => namesSecrets(c))) {
+  if (!core || (JSON.parse(core[1]) as unknown[]).some((candidate) => namesSecrets(candidate))) {
     throw new Error('fetchableDefs.json: fetchableCore is not an array literal, or it names secrets')
   }
 }
@@ -119,7 +119,7 @@ export const dataDriven = (api: Rec): boolean => {
   }
   if (literals[0].startsWith('/api/')) {
     // The core group: fixed only when a later literal is the resource segment.
-    return !(CORE_FIXED_IN_FIRST.test(literals[0]) || literals.slice(1).some((l) => CORE_RESOURCE_LITERAL.test(l)))
+    return !(CORE_FIXED_IN_FIRST.test(literals[0]) || literals.slice(1).some((literal) => CORE_RESOURCE_LITERAL.test(literal)))
   }
   return true
 }
@@ -161,7 +161,7 @@ const stepFields = (api: Rec): Record<string, unknown> => {
 
 /** Why `api` may read Secrets; empty when it may not (check_step). */
 export const checkStep = (api: Rec): string[] => {
-  let hits = Object.entries(stepFields(api)).filter(([, v]) => namesSecrets(v)).map(([k]) => `"secret" in ${k}`)
+  let hits = Object.entries(stepFields(api)).filter(([, value]) => namesSecrets(value)).map(([key]) => `"secret" in ${key}`)
   const why = climbs(api)
   if (why) {
     hits.push(why)
@@ -178,10 +178,10 @@ export const checkStep = (api: Rec): string[] => {
 /** Every reason this RESTAction may read Secrets, one line per api step, prefixed with `where`. */
 export const secretsProblems = (ra: Rec, where: string): string[] => {
   const apis = rec(ra.spec)?.api
-  return (Array.isArray(apis) ? apis : []).flatMap((raw, k) => {
+  return (Array.isArray(apis) ? apis : []).flatMap((raw, index) => {
     const api = rec(raw) ?? {}
     const hits = checkStep(api)
-    return hits.length > 0 ? [`${where}: spec.api[${k}] (${str(api.name) ?? '?'}) may read Secrets: ${hits.join(', ')}`] : []
+    return hits.length > 0 ? [`${where}: spec.api[${index}] (${str(api.name) ?? '?'}) may read Secrets: ${hits.join(', ')}`] : []
   })
 }
 

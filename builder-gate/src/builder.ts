@@ -30,7 +30,7 @@ export type BuilderLookup =
 
 type Rec = Record<string, unknown>
 const rec = (value: unknown): Rec => (value && typeof value === 'object' && !Array.isArray(value) ? value as Rec : {})
-const strings = (value: unknown): string[] => (Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [])
+const strings = (value: unknown): string[] => (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [])
 
 export const builderSpecOf = (cr: unknown): BuilderSpec => {
   const metadata = rec(rec(cr).metadata)
@@ -73,7 +73,7 @@ export const builderFromCluster = async (kube: KubeClient, namespace: string, na
 
 /** Offline only: a directory of Builder YAML files (the repo's fixtures in CI). */
 export const builderFromDirectory = (dir: string, name: string): BuilderLookup => {
-  for (const file of readdirSync(dir).filter((f) => f.endsWith('.yaml') || f.endsWith('.yml'))) {
+  for (const file of readdirSync(dir).filter((name) => name.endsWith('.yaml') || name.endsWith('.yml'))) {
     const cr = yaml.load(readFileSync(join(dir, file), 'utf8'))
     if (rec(rec(cr).metadata).name === name && rec(cr).kind === 'Builder') {
       return { builder: { ...builderSpecOf(cr), namespace: `(file ${file})` }, ok: true }

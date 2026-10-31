@@ -24,7 +24,7 @@ const pods = (items: unknown[]) => recorder(fakeSnowplow({
 })).transport
 
 const shapeOf = (envelope: { steps: { name: string; problems: string[]; notes: string[] }[] }) =>
-  envelope.steps.find((s) => s.name === 'shape')!
+  envelope.steps.find((step) => step.name === 'shape')!
 
 describe('frontend#473: an empty result set must not read as a working widget', () => {
   it('REFUSES a pass-through dataSource while the query is empty — the shape that shipped', async () => {
@@ -67,7 +67,7 @@ describe('what it refuses to call a defect', () => {
     // red on this very PieChart. The rule is now the CRD's own item schema.
     const envelope = await run(example(), liveCtx(pods([])))
     expect(envelope.ok).toBe(true)
-    const chart = shapeOf(envelope).notes.find((n) => n.includes('PieChart'))
+    const chart = shapeOf(envelope).notes.find((note) => note.includes('PieChart'))
     expect(chart).toMatch(/not exercised — but PieChart lets any item stand at data/)
   })
 
@@ -111,7 +111,7 @@ describe('a column that names a cell no row carries (frontend#541, author-time)'
     // blank column is whoever downloaded the file.
     const envelope = await run(withExtraColumn('owner'), liveCtx(pods([{ name: 'a', phase: 'Running' }])))
     expect(envelope.ok).toBe(true)
-    const note = shapeOf(envelope).notes.find((n) => n.includes('"owner"'))
+    const note = shapeOf(envelope).notes.find((note) => note.includes('"owner"'))
     expect(note).toMatch(/column "owner" names a cell no row carries/)
     expect(note).toMatch(/empty in csv\/pdf, null in labelled json/)
     // It offers both readings rather than asserting the author is wrong.
@@ -135,7 +135,7 @@ describe('a column that names a cell no row carries (frontend#541, author-time)'
     const draft = example()
     arrAt(byKind(draft, 'Table'), 'spec', 'widgetData', 'columns').push({ title: 'Owner', valueKey: 'owner' }, { title: 'Team', valueKey: 'team' })
     const envelope = await run(draft, liveCtx(pods([{ name: 'a', phase: 'Running' }])))
-    const note = shapeOf(envelope).notes.find((n) => n.includes('"owner"'))
+    const note = shapeOf(envelope).notes.find((note) => note.includes('"owner"'))
     expect(note).toMatch(/columns "owner", "team" name a cell no row carries/)
   })
 })

@@ -64,7 +64,7 @@ describe('statically', () => {
   })
 
   it('no module but kube.ts and snowplow.ts builds a request', () => {
-    for (const file of files.filter((f) => !/\/(kube|snowplow|http)\.ts$/.test(f))) {
+    for (const file of files.filter((file) => !/\/(kube|snowplow|http)\.ts$/.test(file))) {
       expect(code(file), file).not.toMatch(/transport\(|nodeTransport\(|https?\.request\(/)
     }
   })
@@ -73,10 +73,10 @@ describe('statically', () => {
 describe('at run time', () => {
   const drafts: Draft[] = [example()]
   const mutations: ((d: Draft) => void)[] = [
-    (d) => { objAt(byKind(d, 'RESTAction'), 'spec', 'api', 0).verb = 'POST' },
-    (d) => { objAt(byKind(d, 'RESTAction'), 'spec', 'api', 0).userAccessFilter = { group: '', resource: 'pods', verb: 'get' } },
-    (d) => { objAt(byKind(d, 'Table'), 'spec').apiRef = { name: 'compositions-list', namespace: 'krateo-system' } },
-    (d) => { objAt(byKind(d, 'Flex'), 'spec', 'resourcesRefs', 'items', 0).name = 'existing-pie' },
+    (docs) => { objAt(byKind(docs, 'RESTAction'), 'spec', 'api', 0).verb = 'POST' },
+    (docs) => { objAt(byKind(docs, 'RESTAction'), 'spec', 'api', 0).userAccessFilter = { group: '', resource: 'pods', verb: 'get' } },
+    (docs) => { objAt(byKind(docs, 'Table'), 'spec').apiRef = { name: 'compositions-list', namespace: 'krateo-system' } },
+    (docs) => { objAt(byKind(docs, 'Flex'), 'spec', 'resourcesRefs', 'items', 0).name = 'existing-pie' },
   ]
   for (const mutation of mutations) {
     const draft = example()
@@ -90,14 +90,14 @@ describe('at run time', () => {
       // eslint-disable-next-line no-await-in-loop -- one gate call at a time, one shared recorder
       await run(draft, liveCtx(transport))
     }
-    const mutating = requests.filter((r) => r.method !== 'GET')
+    const mutating = requests.filter((request) => request.method !== 'GET')
     expect(mutating.length).toBeGreaterThan(10)
     for (const req of mutating) {
       expect(req.method).toBe('POST')
       expect(req.url).toMatch(/^http:\/\/snowplow\.test\/call\/(dry-run\?apiVersion=[^&]+&resource=[a-z]+&namespace=krateo-preview&name=[a-z0-9.-]+&dryRun=All&fieldValidation=Strict|read\?apiVersion=templates\.krateo\.io%2Fv1&resource=restactions&namespace=krateo-preview&name=[a-z0-9.-]+)$/)
     }
     // Every request is the caller's: the gate's own identity never reaches snowplow.
-    expect(requests.every((r) => r.headers?.Authorization === 'Bearer caller-jwt')).toBe(true)
+    expect(requests.every((request) => request.headers?.Authorization === 'Bearer caller-jwt')).toBe(true)
   })
 
   it('on a snowplow before 1.12.36 (no /capabilities): not one non-GET request is sent', async () => {
@@ -107,7 +107,7 @@ describe('at run time', () => {
       await run(draft, liveCtx(transport))
     }
     expect(requests.length).toBeGreaterThan(0)
-    expect(requests.filter((r) => r.method !== 'GET')).toEqual([])
-    expect(requests.every((r) => new URL(r.url).pathname === '/capabilities')).toBe(true)
+    expect(requests.filter((request) => request.method !== 'GET')).toEqual([])
+    expect(requests.every((request) => new URL(request.url).pathname === '/capabilities')).toBe(true)
   })
 })

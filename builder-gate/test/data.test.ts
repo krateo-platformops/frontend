@@ -11,7 +11,7 @@ import { secretShaped, withoutSecrets } from '../src/pages/data'
 
 import { allOk, arrAt, byKind, example, fakeSnowplow, json, liveCtx, objAt, rawReply, recorder, resolveReply, run } from './helpers'
 
-const dataOf = (envelope: Awaited<ReturnType<typeof run>>) => envelope.steps.find((s) => s.name === 'data')!
+const dataOf = (envelope: Awaited<ReturnType<typeof run>>) => envelope.steps.find((step) => step.name === 'data')!
 
 describe('data', () => {
   // The sample is `JSON.stringify` of whatever snowplow returned, so its key order is the
@@ -24,7 +24,7 @@ describe('data', () => {
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.ok).toBe(true)
     expect(dataOf(envelope).notes).toContain('widgets[3] (RESTAction/pod-sizing): yields a object; sample {"pods":[{"cpu":750,"name":"a","phase":"Running"}]}')
-    const resolve = requests.find((r) => new URL(r.url).pathname === '/call/read')!
+    const resolve = requests.find((request) => new URL(request.url).pathname === '/call/read')!
     expect(resolve).toMatchObject({
       headers: { Authorization: 'Bearer caller-jwt' },
       method: 'POST',
@@ -41,7 +41,7 @@ describe('data', () => {
     expect(dataOf(envelope).problems).toEqual([
       'live verdict missing: this snowplow cannot yet resolve a RESTAction without storing it (call.read.inline; snowplow 1.12.36, docs/snowplow-contract.md) — no RESTAction in the draft was run',
     ])
-    expect(requests.some((r) => new URL(r.url).pathname === '/call/read')).toBe(false)
+    expect(requests.some((request) => new URL(request.url).pathname === '/call/read')).toBe(false)
   })
 
   it('an OLD snowplow answers /call/read by resolving the STORED RESTAction, without the echo: never a pass', async () => {
@@ -213,7 +213,7 @@ describe('data', () => {
       'widgets[3] (RESTAction/pod-sizing): snowplow aborted the resolve before running any stage — its dependsOn graph could not be ordered (a stage naming a dependency that does not exist, or a cycle); its declared stage(s) never ran: pods, nodes, scale',
     ])
     // …and not one per-stage line: no NotRun of an aborted resolve is attributed to anything.
-    expect(dataOf(envelope).notes.filter((n) => /not run|not sent|stopped at/i.test(n))).toEqual([])
+    expect(dataOf(envelope).notes.filter((note) => /not run|not sent|stopped at/i.test(note))).toEqual([])
     expect(dataOf(envelope).problems).toHaveLength(1)
   })
 

@@ -76,7 +76,7 @@ const refsOf = (cr: Rec, label: string): { refs: Ref[]; templated: number } => {
   const templates = spec?.resourcesRefsTemplate
   for (const [j, raw] of (Array.isArray(templates) ? templates : []).entries()) {
     const template = rec(rec(raw)?.template) ?? {}
-    if ([template.resource, template.name, template.namespace, template.apiVersion].some((v) => typeof v === 'string' && (maybeQuery(v).ok || v.includes('${')))) {
+    if ([template.resource, template.name, template.namespace, template.apiVersion].some((field) => typeof field === 'string' && (maybeQuery(field).ok || field.includes('${')))) {
       templated += 1
       continue
     }

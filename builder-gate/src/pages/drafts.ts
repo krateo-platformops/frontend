@@ -27,21 +27,21 @@ export const isRestAction = (cr: Rec): boolean => kindOf(cr) === RESTACTION_KIND
  * `ok: false` means the string is a literal to snowplow. `unbalanced` flags a `${` that never
  * closes — snowplow renders that as literal text, which is never what an author meant.
  */
-export const maybeQuery = (s: string): { query: string; ok: boolean; unbalanced: boolean } => {
-  const at = s.indexOf('${')
+export const maybeQuery = (text: string): { query: string; ok: boolean; unbalanced: boolean } => {
+  const at = text.indexOf('${')
   if (at === -1) {
-    return { ok: false, query: s, unbalanced: false }
+    return { ok: false, query: text, unbalanced: false }
   }
   let depth = 1
-  for (let end = at + 2; end < s.length; end += 1) {
-    if (s[end] === '{') {
+  for (let end = at + 2; end < text.length; end += 1) {
+    if (text[end] === '{') {
       depth += 1
-    } else if (s[end] === '}') {
+    } else if (text[end] === '}') {
       depth -= 1
       if (depth === 0) {
-        return { ok: true, query: s.slice(at + 2, end).trim(), unbalanced: false }
+        return { ok: true, query: text.slice(at + 2, end).trim(), unbalanced: false }
       }
     }
   }
-  return { ok: false, query: s, unbalanced: true }
+  return { ok: false, query: text, unbalanced: true }
 }

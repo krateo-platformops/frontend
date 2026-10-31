@@ -17,25 +17,25 @@ import { arrAt, byKind, example, fakeSnowplow, json, liveCtx, objAt, rawReply, r
 const cases = JSON.parse(readFileSync(join(__dirname, 'secrets', 'cases.json'), 'utf8')) as { name: string; step: Record<string, unknown>; refused: boolean; source: string }[]
 
 describe('the secrets rule, case by case (the same corpus the portal lint replays)', () => {
-  it.each(cases.map((c) => [c.name, c] as const))('%s', (_name, c) => {
-    const problems = secretsProblems({ kind: 'RESTAction', spec: { api: [c.step] } }, 'ra')
-    expect(problems.length > 0).toBe(c.refused)
+  it.each(cases.map((testCase) => [testCase.name, testCase] as const))('%s', (_name, testCase) => {
+    const problems = secretsProblems({ kind: 'RESTAction', spec: { api: [testCase.step] } }, 'ra')
+    expect(problems.length > 0).toBe(testCase.refused)
   })
 })
 
 describe('the corpus', () => {
   it('carries the portal\'s 22 planted bypasses and 6 clean shapes', () => {
-    expect(cases.filter((c) => c.source.includes('PLANTED'))).toHaveLength(22)
-    expect(cases.filter((c) => c.source.includes('CLEAN'))).toHaveLength(6)
-    expect(cases.filter((c) => c.source.includes('PLANTED')).every((c) => c.refused)).toBe(true)
-    expect(cases.filter((c) => c.source.includes('CLEAN')).every((c) => !c.refused)).toBe(true)
+    expect(cases.filter((testCase) => testCase.source.includes('PLANTED'))).toHaveLength(22)
+    expect(cases.filter((testCase) => testCase.source.includes('CLEAN'))).toHaveLength(6)
+    expect(cases.filter((testCase) => testCase.source.includes('PLANTED')).every((testCase) => testCase.refused)).toBe(true)
+    expect(cases.filter((testCase) => testCase.source.includes('CLEAN')).every((testCase) => !testCase.refused)).toBe(true)
   })
 })
 
 describe('the review\'s bypasses (#446), each refused for its own reason', () => {
   const problemsOf = (name: string): string[] => {
-    const c = cases.find((x) => x.name === name)!
-    return secretsProblems({ kind: 'RESTAction', spec: { api: [c.step] } }, 'ra')
+    const testCase = cases.find((candidate) => candidate.name === name)!
+    return secretsProblems({ kind: 'RESTAction', spec: { api: [testCase.step] } }, 'ra')
   }
   it('#1 a guard that is not portal.fetchableDefs verbatim, or not applied to the path\'s field', () => {
     expect(problemsOf('review #1: implode-built core path, self-defined fetchablePath = identity')[0])
@@ -86,7 +86,7 @@ describe('in the gate', () => {
     }))
     const envelope = await run(draft, liveCtx(transport))
     expect(envelope.failedStep).toBe('references')
-    expect(envelope.steps.find((s) => s.name === 'references')?.problems).toContain(
+    expect(envelope.steps.find((step) => step.name === 'references')?.problems).toContain(
       'widgets[1] (PieChart/pod-phase-pie): spec.apiRef krateo-system/leaky: spec.api[0] (all) may read Secrets: "secret" in path',
     )
   })

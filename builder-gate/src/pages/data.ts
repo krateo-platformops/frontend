@@ -74,7 +74,7 @@ export const secretShaped = (value: unknown): boolean => {
   }
   const data = rec(obj.data)
   const values = data ? Object.values(data) : []
-  const base64Map = values.length > 0 && values.every((v) => typeof v === 'string' && BASE64.test(v))
+  const base64Map = values.length > 0 && values.every((value) => typeof value === 'string' && BASE64.test(value))
   const secretLike = typeof obj.type === 'string' || rec(obj.metadata) !== null || 'stringData' in obj || 'immutable' in obj
   return base64Map && secretLike
 }
@@ -91,7 +91,7 @@ export const withoutSecrets = (value: unknown): { value: unknown; dropped: numbe
       return node.map(walk)
     }
     const obj = rec(node)
-    return obj ? Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, walk(v)])) : node
+    return obj ? Object.fromEntries(Object.entries(obj).map(([key, value]) => [key, walk(value)])) : node
   }
   // `walk` increments `dropped` as it goes, so the call must happen BEFORE `dropped` is read.
   // Object literal properties evaluate in source order, which made `{ dropped, value: walk(value) }`
@@ -107,7 +107,7 @@ const bodyStageMessages = (ra: Rec, output: unknown): string[] => {
   if (!out) {
     return []
   }
-  const apis = (Array.isArray(rec(ra.spec)?.api) ? rec(ra.spec)?.api as unknown[] : []).map((a) => rec(a) ?? {})
+  const apis = (Array.isArray(rec(ra.spec)?.api) ? rec(ra.spec)?.api as unknown[] : []).map((entry) => rec(entry) ?? {})
   const keys = new Set(['error', ...apis.map((api) => str(api.errorKey) ?? 'error')])
   return [...keys].flatMap((key) => {
     const entries = out[key]
@@ -118,7 +118,7 @@ const bodyStageMessages = (ra: Rec, output: unknown): string[] => {
 
 /** The body's message for a stage, when one names it (`stage "<name>"`): detail for a note. */
 const detailFor = (messages: readonly string[], stage: string): string | undefined =>
-  messages.find((m) => m.includes(`stage ${JSON.stringify(stage)}`) || m.includes(`stage ${stage} `))
+  messages.find((message) => message.includes(`stage ${JSON.stringify(stage)}`) || message.includes(`stage ${stage} `))
 
 /**
  * Stage outcomes from X-Snowplow-Stage-Outcomes — the PRIMARY source, which no spec.filter can
@@ -157,9 +157,9 @@ export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers
   // ordered. Every row after it is a NotRun that the abort explains, so attributing them one by
   // one to a positional `stopper` would print a line per stage, each naming no cause. One red
   // line that says the resolve never started is the honest report.
-  const aborted = outcomes.stages.find((o) => o.name === '' && o.reason === STAGE_ABORTED_REASON)
+  const aborted = outcomes.stages.find((outcome) => outcome.name === '' && outcome.reason === STAGE_ABORTED_REASON)
   if (aborted) {
-    const declared = outcomes.stages.filter((o) => o.name !== '').map((o) => o.name)
+    const declared = outcomes.stages.filter((outcome) => outcome.name !== '').map((outcome) => outcome.name)
     const never = declared.length === 0 ? '' : `; its declared stage(s) never ran: ${declared.join(', ')}`
     return {
       byDesign: [],
@@ -170,8 +170,8 @@ export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers
   const byDesign: string[] = []
   // The draft's own declaration: a stage its author marked continueOnError may fail.
   const tolerant = new Set((Array.isArray(rec(ra.spec)?.api) ? rec(ra.spec)?.api as unknown[] : [])
-    .map((a) => rec(a) ?? {}).filter((api) => api.continueOnError === true).map((api) => str(api.name))
-    .filter((n): n is string => n !== null))
+    .map((entry) => rec(entry) ?? {}).filter((api) => api.continueOnError === true).map((api) => str(api.name))
+    .filter((name): name is string => name !== null))
   /** The cause of the latest stop: the nearest earlier failed stage, and whether it was a note. */
   let stopper: { name: string; reason: string; note: string | null } | null = null
   /**
@@ -186,7 +186,7 @@ export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers
    * dependency has always been judged by the time its dependent is reached.
    */
   const judged = new Map<string, string | null>()
-  for (const stage of outcomes.stages.filter((o) => !o.ok)) {
+  for (const stage of outcomes.stages.filter((outcome) => !outcome.ok)) {
     const reason = stage.reason ?? ''
     const detail = detailFor(messages, stage.name)
     const suffix = detail ? ` — ${detail}` : ''
@@ -290,8 +290,8 @@ export const dataStep = async (drafts: readonly Rec[], ctx: GateContext): Promis
         continue
       }
       const stages = stageVerdicts(cr, reply)
-      problems.push(...stages.failures.map((m) => `${label}: ${m}`))
-      notes.push(...stages.byDesign.map((m) => `${label}: ${m}`))
+      problems.push(...stages.failures.map((message) => `${label}: ${message}`))
+      notes.push(...stages.byDesign.map((message) => `${label}: ${message}`))
       const { dropped, value: output } = withoutSecrets(rec(reply.json)?.status)
       if (dropped > 0) {
         notes.push(`${label}: ${dropped} Secret-shaped object(s) dropped from the output before it reached this envelope`)

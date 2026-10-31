@@ -44,7 +44,7 @@ export const nodeTransport: Transport = (request) => new Promise((resolve, rejec
   const lib = url.protocol === 'https:' ? https : http
   const maxBytes = request.maxBytes ?? DEFAULT_MAX_BYTES
   // A header the request names itself (a RESTAction's own Content-Type) wins over the default.
-  const named = new Set(Object.keys(request.headers ?? {}).map((k) => k.toLowerCase()))
+  const named = new Set(Object.keys(request.headers ?? {}).map((name) => name.toLowerCase()))
   const req = lib.request(url, {
     headers: {
       ...(named.has('accept') ? {} : { Accept: 'application/json' }),

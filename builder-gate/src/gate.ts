@@ -26,7 +26,7 @@ export const GATE_VERSION = typeof __GATE_VERSION__ === 'string' ? __GATE_VERSIO
 export const SNOWPLOW_REF = typeof __SNOWPLOW_REF__ === 'string' ? __SNOWPLOW_REF__ : 'dev'
 
 const envelopeOf = (steps: StepResult[], coverage: Envelope['coverage']): Envelope => {
-  const failed = steps.find((s) => !s.ok)
+  const failed = steps.find((step) => !step.ok)
   return { coverage, failedStep: failed?.name ?? null, ok: !failed, steps }
 }
 
@@ -77,7 +77,7 @@ export const runGate = async (
     ])], null)), Math.max(0, ctx.deadline - Date.now()))
   })
   try {
-    return await Promise.race([plan.run(files, builder, ctx).then((r) => envelopeOf([builderStep, ...r.steps], r.coverage)), overrun])
+    return await Promise.race([plan.run(files, builder, ctx).then((result) => envelopeOf([builderStep, ...result.steps], result.coverage)), overrun])
   } finally {
     clearTimeout(timer)
   }

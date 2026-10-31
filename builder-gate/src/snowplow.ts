@@ -102,16 +102,16 @@ export const stageOutcomesOf = (headers: HttpResponse['headers'] | undefined): S
   }
   const stages: StageOutcome[] = []
   for (const entry of parsed) {
-    const e = entry as { name?: unknown; ok?: unknown; reason?: unknown; dependsOn?: unknown } | null
-    if (!e || typeof e.name !== 'string' || typeof e.ok !== 'boolean' || (e.reason !== undefined && typeof e.reason !== 'string')
-      || (e.dependsOn !== undefined && typeof e.dependsOn !== 'string')) {
+    const outcome = entry as { name?: unknown; ok?: unknown; reason?: unknown; dependsOn?: unknown } | null
+    if (!outcome || typeof outcome.name !== 'string' || typeof outcome.ok !== 'boolean' || (outcome.reason !== undefined && typeof outcome.reason !== 'string')
+      || (outcome.dependsOn !== undefined && typeof outcome.dependsOn !== 'string')) {
       return { kind: 'invalid', why: `an entry is not {name, ok, reason, dependsOn}: ${JSON.stringify(entry).slice(0, 120)}` }
     }
     stages.push({
-      name: e.name,
-      ok: e.ok,
-      ...(typeof e.reason === 'string' && e.reason ? { reason: e.reason } : {}),
-      ...(typeof e.dependsOn === 'string' && e.dependsOn ? { dependsOn: e.dependsOn } : {}),
+      name: outcome.name,
+      ok: outcome.ok,
+      ...(typeof outcome.reason === 'string' && outcome.reason ? { reason: outcome.reason } : {}),
+      ...(typeof outcome.dependsOn === 'string' && outcome.dependsOn ? { dependsOn: outcome.dependsOn } : {}),
     })
   }
   return { kind: 'stages', stages }
@@ -187,7 +187,7 @@ export const snowplowClient = (url: string, token: string, sandboxNamespace: str
     return name
   }
   const requireCapabilities = (...tokens: string[]): void => {
-    const missing = tokens.filter((t) => !offered?.has(t))
+    const missing = tokens.filter((token) => !offered?.has(token))
     if (missing.length > 0) {
       throw new ContractError(`refusing to send: this snowplow has not advertised ${missing.join(', ')}`)
     }
@@ -203,7 +203,7 @@ export const snowplowClient = (url: string, token: string, sandboxNamespace: str
         return { ok: false, reason: `snowplow GET /capabilities answered ${res.status}` }
       }
       const list = (jsonOf(res.body) as { capabilities?: unknown } | null)?.capabilities
-      offered = new Set(Array.isArray(list) ? list.filter((c): c is string => typeof c === 'string') : [])
+      offered = new Set(Array.isArray(list) ? list.filter((item): item is string => typeof item === 'string') : [])
       return { offered, ok: true }
     } catch (error) {
       return { ok: false, reason: `snowplow could not be reached (${(error as Error).message})` }
