@@ -54,10 +54,10 @@ export const jqcheckEngine = (bin: string = process.env.JQCHECK_BIN || 'jqcheck'
     if (exprs.length === 0) {
       return []
     }
-    const out = JSON.parse(await run(bin, JSON.stringify({ mode: 'compile', exprs }), timeoutMs)) as { results: JqCompileResult[] }
+    const out = JSON.parse(await run(bin, JSON.stringify({ exprs, mode: 'compile' }), timeoutMs)) as { results: JqCompileResult[] }
     return out.results
   },
   async eval(query, data) {
-    return JSON.parse(await run(bin, JSON.stringify({ mode: 'eval', query, data }), timeoutMs)) as JqEvalResult
+    return JSON.parse(await run(bin, JSON.stringify({ data, mode: 'eval', query }), timeoutMs)) as JqEvalResult
   },
 })

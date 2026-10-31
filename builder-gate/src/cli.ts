@@ -54,7 +54,7 @@ const main = async (): Promise<void> => {
     env.BUILDERS_NAMESPACE = flag('builders-namespace')
   }
   const lookup = buildersDir
-    ? async (name: string) => builderFromDirectory(buildersDir, name)
+    ? (name: string) => Promise.resolve(builderFromDirectory(buildersDir, name))
     : undefined
 
   let envelope
@@ -63,11 +63,11 @@ const main = async (): Promise<void> => {
       usage('--offline needs --builders-dir (an offline run cannot read the cluster)')
     }
     envelope = await runGate(builder, files as unknown[], {
+      deadline: Date.now() + GATE_TIMEOUT_MS,
+      jq: jqcheckEngine(),
       live: false,
       snowplow: null,
       snowplowMissing: 'offline run',
-      jq: jqcheckEngine(),
-      deadline: Date.now() + GATE_TIMEOUT_MS,
     }, lookup!)
   } else {
     const config = configFromEnv(env)

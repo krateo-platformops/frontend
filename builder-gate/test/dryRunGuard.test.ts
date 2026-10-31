@@ -10,16 +10,22 @@
  *      transport, once on a snowplow that offers the contract and once on today's snowplow, and
  *      every request is checked.
  */
+/* eslint-disable no-template-curly-in-string -- the ${…} jq DSL is the subject under test */
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
 import { DRY_RUN_PARAMS } from '../src/snowplow'
-import { byKind, type Draft, example, fakeSnowplow, liveCtx, recorder, ROOT, run } from './helpers'
 
-const sources = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
-  (entry.isDirectory() ? sources(join(dir, entry.name)) : entry.name.endsWith('.ts') ? [join(dir, entry.name)] : []))
+import { byKind, type Draft, example, fakeSnowplow, liveCtx, objAt, recorder, ROOT, run } from './helpers'
+
+const sources = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+  if (entry.isDirectory()) {
+    return sources(join(dir, entry.name))
+  }
+  return entry.name.endsWith('.ts') ? [join(dir, entry.name)] : []
+})
 
 const code = (file: string): string => readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
 
@@ -62,7 +68,7 @@ describe('statically', () => {
   })
 
   it('no module but kube.ts and snowplow.ts builds a request', () => {
-    for (const file of files.filter((f) => !/\/(kube|snowplow|http)\.ts$/.test(f))) {
+    for (const file of files.filter((file) => !/\/(kube|snowplow|http)\.ts$/.test(file))) {
       expect(code(file), file).not.toMatch(/transport\(|nodeTransport\(|https?\.request\(/)
     }
   })
@@ -71,10 +77,10 @@ describe('statically', () => {
 describe('at run time', () => {
   const drafts: Draft[] = [example()]
   const mutations: ((d: Draft) => void)[] = [
-    (d) => { byKind(d, 'RESTAction').spec.api[0].verb = 'POST' },
-    (d) => { byKind(d, 'RESTAction').spec.api[0].userAccessFilter = { verb: 'get', group: '', resource: 'pods' } },
-    (d) => { byKind(d, 'Table').spec.apiRef = { name: 'compositions-list', namespace: 'krateo-system' } },
-    (d) => { byKind(d, 'Flex').spec.resourcesRefs.items[0].name = 'existing-pie' },
+    (docs) => { objAt(byKind(docs, 'RESTAction'), 'spec', 'api', 0).verb = 'POST' },
+    (docs) => { objAt(byKind(docs, 'RESTAction'), 'spec', 'api', 0).userAccessFilter = { group: '', resource: 'pods', verb: 'get' } },
+    (docs) => { objAt(byKind(docs, 'Table'), 'spec').apiRef = { name: 'compositions-list', namespace: 'krateo-system' } },
+    (docs) => { objAt(byKind(docs, 'Flex'), 'spec', 'resourcesRefs', 'items', 0).name = 'existing-pie' },
   ]
   for (const mutation of mutations) {
     const draft = example()
@@ -83,29 +89,29 @@ describe('at run time', () => {
   }
 
   it('on a snowplow that offers the contract: every POST is a /call/dry-run into the sandbox with both parameters, or a /call/read inline resolve', async () => {
-    const { transport, requests } = recorder(fakeSnowplow())
+    const { requests, transport } = recorder(fakeSnowplow())
     for (const draft of drafts) {
       // eslint-disable-next-line no-await-in-loop -- one gate call at a time, one shared recorder
       await run(draft, liveCtx(transport))
     }
-    const mutating = requests.filter((r) => r.method !== 'GET')
+    const mutating = requests.filter((request) => request.method !== 'GET')
     expect(mutating.length).toBeGreaterThan(10)
     for (const req of mutating) {
       expect(req.method).toBe('POST')
       expect(req.url).toMatch(/^http:\/\/snowplow\.test\/call\/(dry-run\?apiVersion=[^&]+&resource=[a-z]+&namespace=krateo-preview&name=[a-z0-9.-]+&dryRun=All&fieldValidation=Strict|read\?apiVersion=templates\.krateo\.io%2Fv1&resource=restactions&namespace=krateo-preview&name=[a-z0-9.-]+)$/)
     }
     // Every request is the caller's: the gate's own identity never reaches snowplow.
-    expect(requests.every((r) => r.headers?.Authorization === 'Bearer caller-jwt')).toBe(true)
+    expect(requests.every((request) => request.headers?.Authorization === 'Bearer caller-jwt')).toBe(true)
   })
 
   it('on a snowplow before 1.12.36 (no /capabilities): not one non-GET request is sent', async () => {
-    const { transport, requests } = recorder(fakeSnowplow({ capabilities: null }))
+    const { requests, transport } = recorder(fakeSnowplow({ capabilities: null }))
     for (const draft of drafts) {
       // eslint-disable-next-line no-await-in-loop -- as above
       await run(draft, liveCtx(transport))
     }
     expect(requests.length).toBeGreaterThan(0)
-    expect(requests.filter((r) => r.method !== 'GET')).toEqual([])
-    expect(requests.every((r) => new URL(r.url).pathname === '/capabilities')).toBe(true)
+    expect(requests.filter((request) => request.method !== 'GET')).toEqual([])
+    expect(requests.every((request) => new URL(request.url).pathname === '/capabilities')).toBe(true)
   })
 })

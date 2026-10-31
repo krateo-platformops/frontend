@@ -6,14 +6,15 @@
  * built from `.pods` with the RESTAction that emits them — the same pairing `event-health` got
  * wrong. Each test here changes ONE thing about it.
  */
+/* eslint-disable no-template-curly-in-string -- the ${…} jq DSL is the subject under test */
 import { describe, expect, it } from 'vitest'
 
-import { byKind, example, fakeSnowplow, json, liveCtx, recorder, resolveReply, run } from './helpers'
+import { arrAt, byKind, example, fakeSnowplow, json, liveCtx, objAt, recorder, resolveReply, run } from './helpers'
 
 /** The example, with the Table's dataSource expression replaced. */
 const withTableExpression = (expression: string) => {
   const draft = example()
-  byKind(draft, 'Table').spec.widgetDataTemplate[0].expression = expression
+  objAt(byKind(draft, 'Table'), 'spec', 'widgetDataTemplate', 0).expression = expression
   return draft
 }
 
@@ -23,7 +24,7 @@ const pods = (items: unknown[]) => recorder(fakeSnowplow({
 })).transport
 
 const shapeOf = (envelope: { steps: { name: string; problems: string[]; notes: string[] }[] }) =>
-  envelope.steps.find((s) => s.name === 'shape')!
+  envelope.steps.find((step) => step.name === 'shape')!
 
 describe('frontend#473: an empty result set must not read as a working widget', () => {
   it('REFUSES a pass-through dataSource while the query is empty — the shape that shipped', async () => {
@@ -66,7 +67,7 @@ describe('what it refuses to call a defect', () => {
     // red on this very PieChart. The rule is now the CRD's own item schema.
     const envelope = await run(example(), liveCtx(pods([])))
     expect(envelope.ok).toBe(true)
-    const chart = shapeOf(envelope).notes.find((n) => n.includes('PieChart'))
+    const chart = shapeOf(envelope).notes.find((note) => note.includes('PieChart'))
     expect(chart).toMatch(/not exercised — but PieChart lets any item stand at data/)
   })
 
@@ -77,7 +78,7 @@ describe('what it refuses to call a defect', () => {
   })
 
   it('does not judge a widget whose RESTAction never resolved — another step owns that', async () => {
-    const transport = recorder(fakeSnowplow({ resolve: () => json(400, { kind: 'Status', code: 400, message: 'nope' }) })).transport
+    const { transport } = recorder(fakeSnowplow({ resolve: () => json(400, { code: 400, kind: 'Status', message: 'nope' }) }))
     const envelope = await run(example(), liveCtx(transport))
     // The data step is red for it; the shape step says only that it could not judge.
     expect(shapeOf(envelope).notes.join(' | ')).toMatch(/not judged — pod-sizing was not resolved in this call/)
@@ -100,7 +101,7 @@ describe('a column that names a cell no row carries (frontend#541, author-time)'
   /** The example's Table, with one extra column whose valueKey the RESTAction never emits. */
   const withExtraColumn = (valueKey: string) => {
     const draft = example()
-    byKind(draft, 'Table').spec.widgetData.columns.push({ title: 'Owner', valueKey })
+    arrAt(byKind(draft, 'Table'), 'spec', 'widgetData', 'columns').push({ title: 'Owner', valueKey })
     return draft
   }
 
@@ -110,7 +111,7 @@ describe('a column that names a cell no row carries (frontend#541, author-time)'
     // blank column is whoever downloaded the file.
     const envelope = await run(withExtraColumn('owner'), liveCtx(pods([{ name: 'a', phase: 'Running' }])))
     expect(envelope.ok).toBe(true)
-    const note = shapeOf(envelope).notes.find((n) => n.includes('"owner"'))
+    const note = shapeOf(envelope).notes.find((note) => note.includes('"owner"'))
     expect(note).toMatch(/column "owner" names a cell no row carries/)
     expect(note).toMatch(/empty in csv\/pdf, null in labelled json/)
     // It offers both readings rather than asserting the author is wrong.
@@ -132,9 +133,9 @@ describe('a column that names a cell no row carries (frontend#541, author-time)'
 
   it('names several unbacked columns together', async () => {
     const draft = example()
-    byKind(draft, 'Table').spec.widgetData.columns.push({ title: 'Owner', valueKey: 'owner' }, { title: 'Team', valueKey: 'team' })
+    arrAt(byKind(draft, 'Table'), 'spec', 'widgetData', 'columns').push({ title: 'Owner', valueKey: 'owner' }, { title: 'Team', valueKey: 'team' })
     const envelope = await run(draft, liveCtx(pods([{ name: 'a', phase: 'Running' }])))
-    const note = shapeOf(envelope).notes.find((n) => n.includes('"owner"'))
+    const note = shapeOf(envelope).notes.find((note) => note.includes('"owner"'))
     expect(note).toMatch(/columns "owner", "team" name a cell no row carries/)
   })
 })

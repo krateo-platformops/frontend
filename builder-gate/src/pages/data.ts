@@ -25,6 +25,7 @@ import { step, type StepResult } from '../envelope'
 import { HttpError } from '../http'
 import type { GateContext } from '../plan'
 import { CAPABILITY_RESOLVE, type SnowplowReply, STAGE_ABORTED_REASON, STAGE_NOT_EXECUTED_MESSAGE, STAGE_NOT_EXECUTED_REASON, STAGE_NOT_RUN_REASON, STAGE_OUTCOMES, STAGE_REASONS, STAGE_SKIPPED_REASON, stageOutcomesOf } from '../snowplow'
+
 import { isRestAction, labelOf, nameOf, rec, type Rec, str } from './drafts'
 
 /**
@@ -38,6 +39,14 @@ export interface DataStepResult {
 
 const SAMPLE_CHARS = 1_200
 const PER_CALL_MS = 20_000
+/** One body value as a list: already a list, a lone value, or absent. */
+const toList = (value: unknown): unknown[] => {
+  if (Array.isArray(value)) {
+    return value
+  }
+  return value === undefined ? [] : [value]
+}
+
 export const STEP_BUDGET_MS = 40_000
 
 const describe = (value: unknown): string => {
@@ -73,7 +82,7 @@ export const secretShaped = (value: unknown): boolean => {
   }
   const data = rec(obj.data)
   const values = data ? Object.values(data) : []
-  const base64Map = values.length > 0 && values.every((v) => typeof v === 'string' && BASE64.test(v))
+  const base64Map = values.length > 0 && values.every((value) => typeof value === 'string' && BASE64.test(value))
   const secretLike = typeof obj.type === 'string' || rec(obj.metadata) !== null || 'stringData' in obj || 'immutable' in obj
   return base64Map && secretLike
 }
@@ -90,9 +99,14 @@ export const withoutSecrets = (value: unknown): { value: unknown; dropped: numbe
       return node.map(walk)
     }
     const obj = rec(node)
-    return obj ? Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, walk(v)])) : node
+    return obj ? Object.fromEntries(Object.entries(obj).map(([key, value]) => [key, walk(value)])) : node
   }
-  return { value: walk(value), dropped }
+  // `walk` increments `dropped` as it goes, so the call must happen BEFORE `dropped` is read.
+  // Object literal properties evaluate in source order, which made `{ dropped, value: walk(value) }`
+  // return a count of 0 — a real bug introduced by `eslint --fix` sorting these two keys. Binding
+  // the result first makes the order explicit and the literal safe to sort.
+  const walked = walk(value)
+  return { dropped, value: walked }
 }
 
 /** Every per-stage error message in a resolve's body, from each stage's errorKey — detail only. */
@@ -101,18 +115,19 @@ const bodyStageMessages = (ra: Rec, output: unknown): string[] => {
   if (!out) {
     return []
   }
-  const apis = (Array.isArray(rec(ra.spec)?.api) ? rec(ra.spec)?.api as unknown[] : []).map((a) => rec(a) ?? {})
+  const apis = (Array.isArray(rec(ra.spec)?.api) ? rec(ra.spec)?.api as unknown[] : []).map((entry) => rec(entry) ?? {})
   const keys = new Set(['error', ...apis.map((api) => str(api.errorKey) ?? 'error')])
   return [...keys].flatMap((key) => {
     const entries = out[key]
-    return (Array.isArray(entries) ? entries : entries === undefined ? [] : [entries])
-      .map((entry) => String(rec(entry)?.message ?? (typeof entry === 'string' ? entry : JSON.stringify(entry))))
+    const asList = toList(entries)
+    return asList
+      .map((entry) => str(rec(entry)?.message) ?? (typeof entry === 'string' ? entry : JSON.stringify(entry)))
   })
 }
 
 /** The body's message for a stage, when one names it (`stage "<name>"`): detail for a note. */
 const detailFor = (messages: readonly string[], stage: string): string | undefined =>
-  messages.find((m) => m.includes(`stage ${JSON.stringify(stage)}`) || m.includes(`stage ${stage} `))
+  messages.find((message) => message.includes(`stage ${JSON.stringify(stage)}`) || message.includes(`stage ${stage} `))
 
 /**
  * Stage outcomes from X-Snowplow-Stage-Outcomes — the PRIMARY source, which no spec.filter can
@@ -136,35 +151,36 @@ export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers
   const messages = bodyStageMessages(ra, rec(reply.json)?.status)
   switch (outcomes.kind) {
     case 'missing':
-      return { failures: [`snowplow answered the inline resolve without ${STAGE_OUTCOMES} — a contract violation: its stage outcomes cannot be known`], byDesign: [] }
+      return { byDesign: [], failures: [`snowplow answered the inline resolve without ${STAGE_OUTCOMES} — a contract violation: its stage outcomes cannot be known`] }
     case 'invalid':
-      return { failures: [`snowplow's ${STAGE_OUTCOMES} is not the documented shape (${outcomes.why}): its stage outcomes cannot be known`], byDesign: [] }
+      return { byDesign: [], failures: [`snowplow's ${STAGE_OUTCOMES} is not the documented shape (${outcomes.why}): its stage outcomes cannot be known`] }
     case 'truncated':
       // `failed` is the number of ROWS the header would have carried, which snowplow sets to
       // len(out): every stage that did not succeed, NotRun ones included, plus the resolve-level
       // Aborted row. So it is "did not succeed", not "failed" — an aborted resolve, where nothing
       // ran at all, can arrive here too once its stage list is long enough to breach 4 KiB.
-      return { failures: [`${Number.isNaN(outcomes.failed) ? 'some' : outcomes.failed} stage(s) did not succeed; ${STAGE_OUTCOMES} was truncated, so which ones — and whether any stage ran at all — cannot be told`], byDesign: [] }
+      return { byDesign: [], failures: [`${Number.isNaN(outcomes.failed) ? 'some' : outcomes.failed} stage(s) did not succeed; ${STAGE_OUTCOMES} was truncated, so which ones — and whether any stage ran at all — cannot be told`] }
     default:
   }
   // An ABORTED resolve (snowplow#904 review F3) ran no stage at all: its graph could not be
   // ordered. Every row after it is a NotRun that the abort explains, so attributing them one by
   // one to a positional `stopper` would print a line per stage, each naming no cause. One red
   // line that says the resolve never started is the honest report.
-  const aborted = outcomes.stages.find((o) => o.name === '' && o.reason === STAGE_ABORTED_REASON)
+  const aborted = outcomes.stages.find((outcome) => outcome.name === '' && outcome.reason === STAGE_ABORTED_REASON)
   if (aborted) {
-    const declared = outcomes.stages.filter((o) => o.name !== '').map((o) => o.name)
+    const declared = outcomes.stages.filter((outcome) => outcome.name !== '').map((outcome) => outcome.name)
     const never = declared.length === 0 ? '' : `; its declared stage(s) never ran: ${declared.join(', ')}`
     return {
-      failures: [`snowplow aborted the resolve before running any stage — its dependsOn graph could not be ordered (a stage naming a dependency that does not exist, or a cycle)${never}`],
       byDesign: [],
+      failures: [`snowplow aborted the resolve before running any stage — its dependsOn graph could not be ordered (a stage naming a dependency that does not exist, or a cycle)${never}`],
     }
   }
   const failures: string[] = []
   const byDesign: string[] = []
   // The draft's own declaration: a stage its author marked continueOnError may fail.
   const tolerant = new Set((Array.isArray(rec(ra.spec)?.api) ? rec(ra.spec)?.api as unknown[] : [])
-    .map((a) => rec(a) ?? {}).filter((api) => api.continueOnError === true).map((api) => str(api.name)).filter((n): n is string => n !== null))
+    .map((entry) => rec(entry) ?? {}).filter((api) => api.continueOnError === true).map((api) => str(api.name))
+    .filter((name): name is string => name !== null))
   /** The cause of the latest stop: the nearest earlier failed stage, and whether it was a note. */
   let stopper: { name: string; reason: string; note: string | null } | null = null
   /**
@@ -179,13 +195,13 @@ export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers
    * dependency has always been judged by the time its dependent is reached.
    */
   const judged = new Map<string, string | null>()
-  for (const stage of outcomes.stages.filter((o) => !o.ok)) {
+  for (const stage of outcomes.stages.filter((outcome) => !outcome.ok)) {
     const reason = stage.reason ?? ''
     const detail = detailFor(messages, stage.name)
     const suffix = detail ? ` — ${detail}` : ''
     if (!STAGE_REASONS.has(reason)) {
       failures.push(`stage ${stage.name} failed with an unknown reason ${JSON.stringify(stage.reason ?? null)} — not one of snowplow's codes${suffix}`)
-      stopper = { name: stage.name, reason, note: null }
+      stopper = { name: stage.name, note: null, reason }
       judged.set(stage.name, null)
       continue
     }
@@ -227,19 +243,19 @@ export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers
     }
     if (reason === STAGE_NOT_EXECUTED_REASON || (detail !== undefined && STAGE_NOT_EXECUTED_MESSAGE.test(detail))) {
       byDesign.push(`stage ${stage.name}: not executed by design (a write-verb stage): checked at the driven Preview${suffix}`)
-      stopper = { name: stage.name, reason, note: 'was not executed by design' }
+      stopper = { name: stage.name, note: 'was not executed by design', reason }
       judged.set(stage.name, 'was not executed by design')
     } else if (tolerant.has(stage.name)) {
       byDesign.push(`stage ${stage.name} failed (${reason}) — continueOnError, the page is expected to cope; checked at the driven Preview${suffix}`)
-      stopper = { name: stage.name, reason, note: 'is continueOnError' }
+      stopper = { name: stage.name, note: 'is continueOnError', reason }
       judged.set(stage.name, 'is continueOnError')
     } else {
       failures.push(`stage ${stage.name} failed (${reason})${suffix}`)
-      stopper = { name: stage.name, reason, note: null }
+      stopper = { name: stage.name, note: null, reason }
       judged.set(stage.name, null)
     }
   }
-  return { failures, byDesign }
+  return { byDesign, failures }
 }
 
 export const dataStep = async (drafts: readonly Rec[], ctx: GateContext): Promise<DataStepResult> => {
@@ -252,7 +268,7 @@ export const dataStep = async (drafts: readonly Rec[], ctx: GateContext): Promis
   if (restActions.length === 0) {
     return { outputs, step: step('data', [], ['no RESTAction in the draft — nothing to resolve']) }
   }
-  const snowplow = ctx.snowplow
+  const { snowplow } = ctx
   if (!snowplow) {
     return { outputs, step: step('data', [`notChecked: ${ctx.snowplowMissing ?? 'no snowplow'} — the gate resolves data only through snowplow, as the caller`]) }
   }
@@ -278,14 +294,14 @@ export const dataStep = async (drafts: readonly Rec[], ctx: GateContext): Promis
       // eslint-disable-next-line no-await-in-loop -- one RESTAction at a time, inside the budget
       const reply = await snowplow.resolveInline(cr, remaining)
       if (reply.status !== 200) {
-        const message = String(rec(reply.json)?.message ?? reply.body).slice(0, 300)
+        const message = (str(rec(reply.json)?.message) ?? reply.body).slice(0, 300)
         problems.push(`${label}: ${reply.status === 401 || reply.status >= 500 ? 'notChecked: ' : ''}snowplow could not resolve it (${reply.status}): ${message}`)
         continue
       }
       const stages = stageVerdicts(cr, reply)
-      problems.push(...stages.failures.map((m) => `${label}: ${m}`))
-      notes.push(...stages.byDesign.map((m) => `${label}: ${m}`))
-      const { value: output, dropped } = withoutSecrets(rec(reply.json)?.status)
+      problems.push(...stages.failures.map((message) => `${label}: ${message}`))
+      notes.push(...stages.byDesign.map((message) => `${label}: ${message}`))
+      const { dropped, value: output } = withoutSecrets(rec(reply.json)?.status)
       if (dropped > 0) {
         notes.push(`${label}: ${dropped} Secret-shaped object(s) dropped from the output before it reached this envelope`)
       }

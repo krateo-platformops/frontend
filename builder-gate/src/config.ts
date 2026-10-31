@@ -18,7 +18,20 @@ export interface GateConfig {
   snowplowUrl: string | null
 }
 
-const list = (value: string | undefined): string[] => (value ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+const list = (value: string | undefined): string[] => (value ?? '').split(',').map((part) => part.trim()).filter(Boolean)
+
+/**
+ * Why snowplow is unusable, or null when it is usable.
+ *
+ * A missing caller token is reported ahead of a missing URL: without the token the gate cannot act
+ * as the caller at all, so "no snowplow is configured" would send someone to fix the wrong thing.
+ */
+const snowplowMissingReason = (snowplowUrl: string | null | undefined, callerToken: string | null | undefined): string | null => {
+  if (!callerToken) {
+    return 'no caller token reached the gate (kagent forwards it on tool calls when the agent runs with KAGENT_PROPAGATE_TOKEN)'
+  }
+  return snowplowUrl ? null : 'no snowplow is configured (SNOWPLOW_URL)'
+}
 
 export const configFromEnv = (env: NodeJS.ProcessEnv = process.env): GateConfig => {
   // Off-cluster (CI's kind job, a local run) the identity is a kubeconfig, named explicitly —
@@ -29,21 +42,19 @@ export const configFromEnv = (env: NodeJS.ProcessEnv = process.env): GateConfig 
   return {
     builders: list(env.GATE_BUILDERS),
     buildersNamespace: env.BUILDERS_NAMESPACE || 'krateo-system',
-    sandboxNamespace: env.SANDBOX_NAMESPACE || 'krateo-preview',
     kube: identity ? new KubeClient(identity) : null,
+    sandboxNamespace: env.SANDBOX_NAMESPACE || 'krateo-preview',
     snowplowUrl: env.SNOWPLOW_URL || null,
   }
 }
 
 /** A live context for one call, as the caller whose token arrived with it (or none). */
 export const liveContext = (config: GateConfig, callerToken: string | null, transport?: Transport): GateContext => ({
+  deadline: Date.now() + GATE_TIMEOUT_MS,
+  jq: jqcheckEngine(),
   live: true,
   snowplow: config.snowplowUrl && callerToken ? snowplowClient(config.snowplowUrl, callerToken, config.sandboxNamespace, transport) : null,
-  snowplowMissing: !callerToken
-    ? 'no caller token reached the gate (kagent forwards it on tool calls when the agent runs with KAGENT_PROPAGATE_TOKEN)'
-    : config.snowplowUrl ? null : 'no snowplow is configured (SNOWPLOW_URL)',
-  jq: jqcheckEngine(),
-  deadline: Date.now() + GATE_TIMEOUT_MS,
+  snowplowMissing: snowplowMissingReason(config.snowplowUrl, callerToken),
 })
 
 /** The Builder lookup an instance allows: only its own Builders, read live. */

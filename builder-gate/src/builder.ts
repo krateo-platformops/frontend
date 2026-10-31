@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import yaml from 'js-yaml'
 
 import { type KubeClient, safeSegment } from './kube'
+import { str } from './pages/drafts'
 
 export const BUILDERS_API = '/apis/builders.templates.krateo.io/v1alpha1'
 
@@ -30,22 +31,25 @@ export type BuilderLookup =
 
 type Rec = Record<string, unknown>
 const rec = (value: unknown): Rec => (value && typeof value === 'object' && !Array.isArray(value) ? value as Rec : {})
-const strings = (value: unknown): string[] => (Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [])
+const strings = (value: unknown): string[] => (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [])
 
 export const builderSpecOf = (cr: unknown): BuilderSpec => {
   const metadata = rec(rec(cr).metadata)
   const spec = rec(rec(cr).spec)
   const files = rec(spec.files)
   const start = rec(spec.start)
-  const max = typeof files.heldBytes === 'number' ? files.heldBytes : typeof start.maxDraftBytes === 'number' ? start.maxDraftBytes : null
+  // `files.heldBytes` wins when present; otherwise the start's declared cap; otherwise unbounded.
+  const heldBytes = typeof files.heldBytes === 'number' ? files.heldBytes : null
+  const declaredMax = typeof start.maxDraftBytes === 'number' ? start.maxDraftBytes : null
+  const max = heldBytes ?? declaredMax
   return {
-    name: String(metadata.name ?? ''),
-    namespace: String(metadata.namespace ?? ''),
-    draftKind: String(spec.draftKind ?? ''),
-    previewMode: typeof rec(spec.preview).mode === 'string' ? String(rec(spec.preview).mode) : null,
+    draftKind: str(spec.draftKind) ?? '',
     lint: strings(spec.lint),
-    verbs: strings(rec(spec.verbs).allowed),
     maxBytes: max,
+    name: str(metadata.name) ?? '',
+    namespace: str(metadata.namespace) ?? '',
+    previewMode: str(rec(spec.preview).mode),
+    verbs: strings(rec(spec.verbs).allowed),
   }
 }
 
@@ -63,20 +67,20 @@ export const builderFromCluster = async (kube: KubeClient, namespace: string, na
     return { ok: false, problem: `notChecked: the Builder ${namespace}/${name} could not be read (${(error as Error).message})` }
   }
   if (reply.status === 200) {
-    return { ok: true, builder: builderSpecOf(reply.json) }
+    return { builder: builderSpecOf(reply.json), ok: true }
   }
   if (reply.status === 404) {
     return { ok: false, problem: `no Builder ${JSON.stringify(name)} in namespace ${namespace} — name one of the cluster's Builders` }
   }
-  return { ok: false, problem: `notChecked: reading the Builder ${namespace}/${name} answered ${reply.status} ${String(rec(reply.json).message ?? '').slice(0, 200)}` }
+  return { ok: false, problem: `notChecked: reading the Builder ${namespace}/${name} answered ${reply.status} ${(str(rec(reply.json).message) ?? '').slice(0, 200)}` }
 }
 
 /** Offline only: a directory of Builder YAML files (the repo's fixtures in CI). */
 export const builderFromDirectory = (dir: string, name: string): BuilderLookup => {
-  for (const file of readdirSync(dir).filter((f) => f.endsWith('.yaml') || f.endsWith('.yml'))) {
+  for (const file of readdirSync(dir).filter((name) => name.endsWith('.yaml') || name.endsWith('.yml'))) {
     const cr = yaml.load(readFileSync(join(dir, file), 'utf8'))
     if (rec(rec(cr).metadata).name === name && rec(cr).kind === 'Builder') {
-      return { ok: true, builder: { ...builderSpecOf(cr), namespace: `(file ${file})` } }
+      return { builder: { ...builderSpecOf(cr), namespace: `(file ${file})` }, ok: true }
     }
   }
   return { ok: false, problem: `no Builder ${JSON.stringify(name)} in ${dir}` }

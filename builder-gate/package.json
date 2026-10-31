@@ -9,9 +9,10 @@
   },
   "scripts": {
     "build": "node build.mjs",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "gate": "node dist/cli.cjs",
+    "lint": "eslint .",
     "test": "vitest run",
-    "gate": "node dist/cli.cjs"
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.0",
@@ -23,7 +24,10 @@
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.0.0",
     "esbuild": "0.25.12",
+    "eslint": "^9.39.5",
+    "globals": "^15.15.0",
     "typescript": "5.9.3",
+    "typescript-eslint": "^8.72.1",
     "vite": "^6.4.5",
     "vitest": "^5.0.5"
   }

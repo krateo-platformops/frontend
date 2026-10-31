@@ -23,6 +23,12 @@
 import { type HttpResponse, jsonOf, nodeTransport, type Transport } from './http'
 import { safeSegment } from './kube'
 
+/** The value of a response header, or '' (node lower-cases names). */
+export const headerOf = (headers: HttpResponse['headers'] | undefined, name: string): string => {
+  const value = headers?.[name]
+  return Array.isArray(value) ? value[0] ?? '' : value ?? ''
+}
+
 /** The capability tokens snowplow#443's design names. */
 export const CAPABILITY_DRY_RUN = 'call.dryRun'
 export const CAPABILITY_FIELD_VALIDATION = 'call.fieldValidation'
@@ -94,24 +100,24 @@ export const stageOutcomesOf = (headers: HttpResponse['headers'] | undefined): S
   }
   const parsed = jsonOf(raw)
   if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && (parsed as { truncated?: unknown }).truncated === true) {
-    const failed = (parsed as { failed?: unknown }).failed
-    return { kind: 'truncated', failed: typeof failed === 'number' ? failed : NaN }
+    const { failed } = (parsed as { failed?: unknown })
+    return { failed: typeof failed === 'number' ? failed : NaN, kind: 'truncated' }
   }
   if (!Array.isArray(parsed)) {
     return { kind: 'invalid', why: 'not a JSON array' }
   }
   const stages: StageOutcome[] = []
   for (const entry of parsed) {
-    const e = entry as { name?: unknown; ok?: unknown; reason?: unknown; dependsOn?: unknown } | null
-    if (!e || typeof e.name !== 'string' || typeof e.ok !== 'boolean' || (e.reason !== undefined && typeof e.reason !== 'string')
-      || (e.dependsOn !== undefined && typeof e.dependsOn !== 'string')) {
+    const outcome = entry as { name?: unknown; ok?: unknown; reason?: unknown; dependsOn?: unknown } | null
+    if (!outcome || typeof outcome.name !== 'string' || typeof outcome.ok !== 'boolean' || (outcome.reason !== undefined && typeof outcome.reason !== 'string')
+      || (outcome.dependsOn !== undefined && typeof outcome.dependsOn !== 'string')) {
       return { kind: 'invalid', why: `an entry is not {name, ok, reason, dependsOn}: ${JSON.stringify(entry).slice(0, 120)}` }
     }
     stages.push({
-      name: e.name,
-      ok: e.ok,
-      ...(typeof e.reason === 'string' && e.reason ? { reason: e.reason } : {}),
-      ...(typeof e.dependsOn === 'string' && e.dependsOn ? { dependsOn: e.dependsOn } : {}),
+      name: outcome.name,
+      ok: outcome.ok,
+      ...(typeof outcome.reason === 'string' && outcome.reason ? { reason: outcome.reason } : {}),
+      ...(typeof outcome.dependsOn === 'string' && outcome.dependsOn ? { dependsOn: outcome.dependsOn } : {}),
     })
   }
   return { kind: 'stages', stages }
@@ -151,12 +157,6 @@ export interface SnowplowClient {
 /** The contract was not kept (or not offered): the request was refused, or its reply cannot be trusted. */
 export class ContractError extends Error {}
 
-/** The value of a response header, or '' (node lower-cases names). */
-export const headerOf = (headers: HttpResponse['headers'] | undefined, name: string): string => {
-  const value = headers?.[name]
-  return Array.isArray(value) ? value[0] ?? '' : value ?? ''
-}
-
 /** Whether every echo in `expected` is present with its value. */
 export const echoed = (headers: HttpResponse['headers'] | undefined, expected: Record<string, string>): boolean =>
   Object.entries(expected).every(([name, value]) => headerOf(headers, name) === value)
@@ -171,7 +171,7 @@ export const snowplowClient = (url: string, token: string, sandboxNamespace: str
   const auth = { Authorization: `Bearer ${token}` }
   let offered: Set<string> | null = null
   let probe: Promise<Capabilities> | null = null
-  const reply = (res: HttpResponse): SnowplowReply => ({ status: res.status, json: jsonOf(res.body), body: res.body, headers: res.headers })
+  const reply = (res: HttpResponse): SnowplowReply => ({ body: res.body, headers: res.headers, json: jsonOf(res.body), status: res.status })
   const query = (apiVersion: string, resource: string, namespace: string, name: string): string => {
     safeSegment(apiVersion, GROUP_VERSION)
     safeSegment(resource, PLURAL)
@@ -187,53 +187,51 @@ export const snowplowClient = (url: string, token: string, sandboxNamespace: str
     return name
   }
   const requireCapabilities = (...tokens: string[]): void => {
-    const missing = tokens.filter((t) => !offered?.has(t))
+    const missing = tokens.filter((token) => !offered?.has(token))
     if (missing.length > 0) {
       throw new ContractError(`refusing to send: this snowplow has not advertised ${missing.join(', ')}`)
     }
   }
   const probeCapabilities = async (timeoutMs: number): Promise<Capabilities> => {
     try {
-      const res = await transport({ method: 'GET', url: `${base}/capabilities`, headers: auth, timeoutMs })
+      const res = await transport({ headers: auth, method: 'GET', timeoutMs, url: `${base}/capabilities` })
       if (res.status === 404) {
         offered = new Set()
-        return { ok: true, offered }
+        return { offered, ok: true }
       }
       if (res.status !== 200) {
         return { ok: false, reason: `snowplow GET /capabilities answered ${res.status}` }
       }
       const list = (jsonOf(res.body) as { capabilities?: unknown } | null)?.capabilities
-      offered = new Set(Array.isArray(list) ? list.filter((c): c is string => typeof c === 'string') : [])
-      return { ok: true, offered }
+      offered = new Set(Array.isArray(list) ? list.filter((item): item is string => typeof item === 'string') : [])
+      return { offered, ok: true }
     } catch (error) {
       return { ok: false, reason: `snowplow could not be reached (${(error as Error).message})` }
     }
   }
   return {
-    url: base,
-    sandboxNamespace,
     capabilities(timeoutMs) {
       // Asked once per gate call (one client per call), whichever step asks first.
       probe ??= probeCapabilities(timeoutMs)
       return probe
     },
-    async read(apiVersion, resource, namespace, name, timeoutMs) {
-      // Raw: the stored object, NOT resolved — a resolving GET /call would run a RESTAction (and
-      // could pull Secrets into snowplow's informers) just to learn that it exists.
-      requireCapabilities(CAPABILITY_RAW_READ)
-      const res = await transport({ method: 'GET', url: `${base}/call?${query(apiVersion, resource, namespace, name)}&raw=true`, headers: auth, timeoutMs })
-      if ([200, 403, 404].includes(res.status) && !echoed(res.headers, { [ECHO_RAW]: 'true' })) {
-        throw new ContractError(`snowplow answered ${res.status} to a raw read without ${ECHO_RAW}: true — it may have resolved the object instead`)
-      }
-      return reply(res)
-    },
     async dryRunCreate(apiVersion, resource, object, timeoutMs) {
       // Only on /call/dry-run: a snowplow that does not serve it answers 404 and writes nothing.
       requireCapabilities(CAPABILITY_DRY_RUN, CAPABILITY_FIELD_VALIDATION)
       const url = `${base}/call/dry-run?${query(apiVersion, resource, sandboxNamespace, nameOf(object))}&${DRY_RUN_PARAMS}`
-      const res = await transport({ method: 'POST', url, headers: auth, body: JSON.stringify(object), timeoutMs })
+      const res = await transport({ body: JSON.stringify(object), headers: auth, method: 'POST', timeoutMs, url })
       if (res.status >= 200 && res.status < 300 && !echoed(res.headers, { [ECHO_DRY_RUN]: 'All', [ECHO_FIELD_VALIDATION]: 'Strict' })) {
         throw new ContractError(`snowplow answered ${res.status} to the dry run without ${ECHO_DRY_RUN}: All and ${ECHO_FIELD_VALIDATION}: Strict — the object may have been PERSISTED in ${sandboxNamespace}`)
+      }
+      return reply(res)
+    },
+    async read(apiVersion, resource, namespace, name, timeoutMs) {
+      // Raw: the stored object, NOT resolved — a resolving GET /call would run a RESTAction (and
+      // could pull Secrets into snowplow's informers) just to learn that it exists.
+      requireCapabilities(CAPABILITY_RAW_READ)
+      const res = await transport({ headers: auth, method: 'GET', timeoutMs, url: `${base}/call?${query(apiVersion, resource, namespace, name)}&raw=true` })
+      if ([200, 403, 404].includes(res.status) && !echoed(res.headers, { [ECHO_RAW]: 'true' })) {
+        throw new ContractError(`snowplow answered ${res.status} to a raw read without ${ECHO_RAW}: true — it may have resolved the object instead`)
       }
       return reply(res)
     },
@@ -242,12 +240,14 @@ export const snowplowClient = (url: string, token: string, sandboxNamespace: str
       const url = `${base}/call/read?${query('templates.krateo.io/v1', 'restactions', sandboxNamespace, nameOf(restAction))}`
       // The draft resolves in the sandbox namespace: the design requires metadata to match the query.
       const object = { ...restAction, metadata: { ...(restAction.metadata as Record<string, unknown>), namespace: sandboxNamespace } }
-      const res = await transport({ method: 'POST', url, headers: auth, body: JSON.stringify({ extras: {}, object }), timeoutMs })
+      const res = await transport({ body: JSON.stringify({ extras: {}, object }), headers: auth, method: 'POST', timeoutMs, url })
       if (res.status >= 200 && res.status < 300 && !echoed(res.headers, { [ECHO_DRY_RUN]: 'All', [ECHO_RESOLVE_SOURCE]: 'request-body' })) {
         throw new ContractError(`snowplow answered ${res.status} to the inline resolve without ${ECHO_DRY_RUN}: All and ${ECHO_RESOLVE_SOURCE}: request-body — it resolved something other than this draft (an older snowplow resolves the STORED RESTAction)`)
       }
       return reply(res)
     },
+    sandboxNamespace,
+    url: base,
   }
 }
 

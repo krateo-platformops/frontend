@@ -9,7 +9,7 @@
  * Always LIVE. There is no switch here that turns the API server or the caller reads off; the
  * offline mode exists only in cli.ts.
  */
-import { createServer, type IncomingMessage } from 'node:http'
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
@@ -44,8 +44,8 @@ const buildServer = (headers: IncomingMessage['headers']): McpServer => {
   }, async ({ builder, files }) => {
     const started = Date.now()
     const envelope = await runGate(builder, files, liveContext(config, bearerOf(headers)), liveBuilderLookup(config))
-    log({ msg: 'validate_draft', builder, objects: files.length, ok: envelope.ok, failedStep: envelope.failedStep, ms: Date.now() - started, caller: bearerOf(headers) ? 'present' : 'absent' })
-    return { content: [{ type: 'text', text: JSON.stringify(envelope, null, 2) }], isError: false }
+    log({ builder, caller: bearerOf(headers) ? 'present' : 'absent', failedStep: envelope.failedStep, ms: Date.now() - started, msg: 'validate_draft', objects: files.length, ok: envelope.ok })
+    return { content: [{ text: JSON.stringify(envelope, null, 2), type: 'text' }], isError: false }
   })
   return server
 }
@@ -66,14 +66,14 @@ const readBody = (req: IncomingMessage): Promise<unknown> => new Promise((resolv
     try {
       resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : undefined)
     } catch (error) {
-      reject(error)
+      reject(error instanceof Error ? error : new Error(String(error)))
     }
   })
   req.on('error', reject)
 })
 
-const http = createServer(async (req, res) => {
-  const path = (req.url ?? '').split('?')[0]
+const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+  const [path] = (req.url ?? '').split('?')
   if (path === '/healthz' || path === '/readyz') {
     res.writeHead(200, { 'Content-Type': 'text/plain' }).end('ok')
     return
@@ -90,7 +90,7 @@ const http = createServer(async (req, res) => {
   try {
     const body = await readBody(req)
     const server = buildServer(req.headers)
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true })
+    const transport = new StreamableHTTPServerTransport({ enableJsonResponse: true, sessionIdGenerator: undefined })
     res.on('close', () => {
       void transport.close()
       void server.close()
@@ -98,23 +98,28 @@ const http = createServer(async (req, res) => {
     await server.connect(transport)
     await transport.handleRequest(req, res, body)
   } catch (error) {
-    log({ msg: 'request failed', error: (error as Error).message })
+    log({ error: (error as Error).message, msg: 'request failed' })
     if (!res.headersSent) {
       res.writeHead(400, { 'Content-Type': 'application/json' })
-        .end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32700, message: (error as Error).message }, id: null }))
+        .end(JSON.stringify({ error: { code: -32700, message: (error as Error).message }, id: null, jsonrpc: '2.0' }))
     }
   }
-})
+}
+
+// `createServer` wants a void-returning handler, so the async work is launched rather than
+// returned. `void` marks that deliberately: an unhandled rejection here would take the process
+// down, which is why `handle` owns its own try/catch.
+const http = createServer((req, res) => { void handle(req, res) })
 
 const port = Number(process.env.PORT || 8080)
 http.listen(port, () => {
   log({
+    builders: config.builders,
+    identity: config.kube?.identity.source ?? 'none',
     msg: 'builder-gate listening',
     port,
-    version: GATE_VERSION,
-    builders: config.builders,
     sandbox: config.sandboxNamespace,
-    identity: config.kube?.identity.source ?? 'none',
     snowplow: config.snowplowUrl ?? 'not configured',
+    version: GATE_VERSION,
   })
 })

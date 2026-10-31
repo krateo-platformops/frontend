@@ -27,6 +27,7 @@ import { checkResolvedShape, itemSchemaConstrains, primeEmptyArrays, schemaAtPat
 
 import { step, type StepResult } from '../envelope'
 import type { GateContext } from '../plan'
+
 import { isRestAction, kindOf, labelOf, rec, type Rec, str } from './drafts'
 
 export const STEP_BUDGET_MS = 15_000
@@ -75,7 +76,7 @@ const templatesOf = (cr: Rec): { forPath: string; expression: string }[] => {
  * nothing follows from it.
  */
 const unbackedColumns = (widgetData: Rec, resolved: unknown): string[] => {
-  const columns = widgetData.columns
+  const { columns } = widgetData
   if (!Array.isArray(columns) || !Array.isArray(resolved) || resolved.length === 0) {
     return []
   }
@@ -94,6 +95,24 @@ const unbackedColumns = (widgetData: Rec, resolved: unknown): string[] => {
     const key = str(rec(column)?.valueKey)
     return key && !present.has(key) ? [key] : []
   })
+}
+
+/**
+ * The note for columns no row backs, as a list so the caller spreads it instead of branching.
+ *
+ * Split out of the shape walk so that walk stays within the nesting limit — and because the
+ * singular/plural conjugation is the kind of thing that wants reading on its own. It says only
+ * that the author must decide: a column naming a cell no row carries is either a stale column or
+ * a genuinely empty one, and the gate cannot tell those apart.
+ */
+const unbackedColumnNotes = (at: string, apiRefName: string, widgetData: Rec, resolved: unknown): string[] => {
+  const unbacked = unbackedColumns(widgetData, resolved)
+  if (unbacked.length === 0) {
+    return []
+  }
+  const one = unbacked.length === 1
+  const quoted = unbacked.map((key) => `"${key}"`).join(', ')
+  return [`${at}: ${one ? 'column' : 'columns'} ${quoted} ${one ? 'names' : 'name'} a cell no row carries, so ${one ? 'it' : 'they'} will render blank and export blank (empty in csv/pdf, null in labelled json). Either ${apiRefName} no longer emits ${one ? 'that cell' : 'those cells'}, or ${one ? 'it is' : 'they are'} empty for this data — only you can tell which.`]
 }
 
 export const shapeStep = async (drafts: readonly Rec[], outputs: Map<string, unknown>, ctx: GateContext): Promise<StepResult> => {
@@ -116,7 +135,7 @@ export const shapeStep = async (drafts: readonly Rec[], outputs: Map<string, unk
     const kind = kindOf(cr)
     const apiRefName = str(rec(rec(cr.spec)?.apiRef)?.name)
 
-    for (const { forPath, expression } of templatesOf(cr)) {
+    for (const { expression, forPath } of templatesOf(cr)) {
       const at = `${label}: ${forPath}`
       if (Date.now() > deadline) {
         problems.push(`${at}: notChecked: the step's time budget ran out`)
@@ -159,11 +178,7 @@ export const shapeStep = async (drafts: readonly Rec[], outputs: Map<string, unk
           notes.push(`${at}: ${verdict.detail}`)
         } else {
           notes.push(`${at}: resolved against ${apiRefName}'s live output and matches the CRD`)
-          const unbacked = unbackedColumns(rec(rec(cr.spec)?.widgetData) ?? {}, resolved.value)
-          if (unbacked.length > 0) {
-            const one = unbacked.length === 1
-            notes.push(`${at}: ${one ? 'column' : 'columns'} ${unbacked.map((key) => `"${key}"`).join(', ')} ${one ? 'names' : 'name'} a cell no row carries, so ${one ? 'it' : 'they'} will render blank and export blank (empty in csv/pdf, null in labelled json). Either ${apiRefName} no longer emits ${one ? 'that cell' : 'those cells'}, or ${one ? 'it is' : 'they are'} empty for this data — only you can tell which.`)
-          }
+          notes.push(...unbackedColumnNotes(at, apiRefName, rec(rec(cr.spec)?.widgetData) ?? {}, resolved.value))
         }
         continue
       }

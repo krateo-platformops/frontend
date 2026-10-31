@@ -34,7 +34,7 @@ const JQ_UNICODE = /\\u([0-9a-fA-F]{4})/g
 const CONSTRUCTED = /\bimplode\b|\bascii\b|@base64d|@base32d|\bfromjson\b|\\u[0-9a-fA-F]{4}|"\s*\*/
 const FIELD_PATH = /^\$\{\s*\.([A-Za-z_][A-Za-z0-9_]*)\s*\}$/
 
-const literalsOf = (text: string): string[] => [...text.matchAll(LITERAL)].map((m) => m[1])
+const literalsOf = (text: string): string[] => [...text.matchAll(LITERAL)].map((match) => match[1])
 
 /** Python's json.dumps(value, ensure_ascii=False, sort_keys=True): the same text, key order included. */
 const pyDumps = (value: unknown): string => {
@@ -45,7 +45,7 @@ const pyDumps = (value: unknown): string => {
     return `[${value.map(pyDumps).join(', ')}]`
   }
   if (typeof value === 'object') {
-    const entries = Object.keys(value as Rec).sort().map((k) => `${JSON.stringify(k)}: ${pyDumps((value as Rec)[k])}`)
+    const entries = Object.keys(value as Rec).sort().map((key) => `${JSON.stringify(key)}: ${pyDumps((value as Rec)[key])}`)
     return `{${entries.join(', ')}}`
   }
   if (typeof value === 'boolean') {
@@ -55,7 +55,12 @@ const pyDumps = (value: unknown): string => {
 }
 
 /** A field as one string: a list or an object as its JSON, so its keys and values all count (as_text). */
-const asText = (value: unknown): string => (value == null ? '' : typeof value === 'string' ? value : pyDumps(value))
+const asText = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return ''
+  }
+  return typeof value === 'string' ? value : pyDumps(value)
+}
 
 /** urllib.parse.unquote: %XX runs decoded as UTF-8, anything else left as it is. */
 const unquote = (text: string): string =>
@@ -71,7 +76,8 @@ const decoded = (value: string): string => {
 }
 
 /** Whether `value` spells "secret", however it is encoded, cased or cut into pieces (names_secrets). */
-export const namesSecrets = (value: unknown): boolean => decoded(asText(value)).toLowerCase().replace(/[^a-z]/g, '').includes('secret')
+export const namesSecrets = (value: unknown): boolean => decoded(asText(value)).toLowerCase().replace(/[^a-z]/g, '')
+  .includes('secret')
 
 const normalized = (text: string): string => text.replace(/\s+/g, ' ').trim()
 
@@ -79,14 +85,14 @@ const normalized = (text: string): string => text.replace(/\s+/g, ' ').trim()
 const CANONICAL = normalized(canonical.defs)
 {
   const core = /def fetchableCore: (\[[^\]]*\])/.exec(CANONICAL)
-  if (!core || (JSON.parse(core[1]) as unknown[]).some((c) => namesSecrets(c))) {
+  if (!core || (JSON.parse(core[1]) as unknown[]).some((candidate) => namesSecrets(candidate))) {
     throw new Error('fetchableDefs.json: fetchableCore is not an array literal, or it names secrets')
   }
 }
 
 /** A path literal that could walk out of the resource it names: "..", %2e, or "." + "." (climbs). */
 export const climbs = (api: Rec): string => {
-  const path = (typeof api.path === 'string' ? api.path : String(api.path ?? '')).trim()
+  const path = str(api.path) ?? ''.trim()
   if (api.endpointRef || !path) {
     return ''
   }
@@ -118,7 +124,7 @@ export const dataDriven = (api: Rec): boolean => {
   }
   if (literals[0].startsWith('/api/')) {
     // The core group: fixed only when a later literal is the resource segment.
-    return !(CORE_FIXED_IN_FIRST.test(literals[0]) || literals.slice(1).some((l) => CORE_RESOURCE_LITERAL.test(l)))
+    return !(CORE_FIXED_IN_FIRST.test(literals[0]) || literals.slice(1).some((literal) => CORE_RESOURCE_LITERAL.test(literal)))
   }
   return true
 }
@@ -131,7 +137,7 @@ export const guarded = (api: Rec): { ok: boolean; why: string } => {
   if (!field) {
     return { ok: false, why: 'not a single field of the iterator item, so fetchablePath cannot guard it' }
   }
-  const iterator = normalized(String(rec(api.dependsOn)?.iterator ?? ''))
+  const iterator = normalized(str(rec(api.dependsOn)?.iterator) ?? '')
   if (!iterator.startsWith(CANONICAL)) {
     return { ok: false, why: 'its iterator does not begin with portal.fetchableDefs exactly as _fetchable.tpl renders it' }
   }
@@ -151,8 +157,8 @@ export const guarded = (api: Rec): { ok: boolean; why: string } => {
 const stepFields = (api: Rec): Record<string, unknown> => {
   const uaf = rec(api.userAccessFilter) ?? {}
   return {
-    path: api.path,
     iterator: rec(api.dependsOn)?.iterator,
+    path: api.path,
     'userAccessFilter.resource': uaf.resource,
     'userAccessFilter.resourcesFrom': uaf.resourcesFrom,
   }
@@ -160,7 +166,7 @@ const stepFields = (api: Rec): Record<string, unknown> => {
 
 /** Why `api` may read Secrets; empty when it may not (check_step). */
 export const checkStep = (api: Rec): string[] => {
-  let hits = Object.entries(stepFields(api)).filter(([, v]) => namesSecrets(v)).map(([k]) => `"secret" in ${k}`)
+  let hits = Object.entries(stepFields(api)).filter(([, value]) => namesSecrets(value)).map(([key]) => `"secret" in ${key}`)
   const why = climbs(api)
   if (why) {
     hits.push(why)
@@ -177,10 +183,10 @@ export const checkStep = (api: Rec): string[] => {
 /** Every reason this RESTAction may read Secrets, one line per api step, prefixed with `where`. */
 export const secretsProblems = (ra: Rec, where: string): string[] => {
   const apis = rec(ra.spec)?.api
-  return (Array.isArray(apis) ? apis : []).flatMap((raw, k) => {
+  return (Array.isArray(apis) ? apis : []).flatMap((raw, index) => {
     const api = rec(raw) ?? {}
     const hits = checkStep(api)
-    return hits.length > 0 ? [`${where}: spec.api[${k}] (${str(api.name) ?? '?'}) may read Secrets: ${hits.join(', ')}`] : []
+    return hits.length > 0 ? [`${where}: spec.api[${index}] (${str(api.name) ?? '?'}) may read Secrets: ${hits.join(', ')}`] : []
   })
 }
 

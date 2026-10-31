@@ -13,6 +13,7 @@
 import { step, type StepResult } from '../envelope'
 import type { JqExpr } from '../jq'
 import type { GateContext } from '../plan'
+
 import { isRestAction, labelOf, maybeQuery, rec, type Rec, str } from './drafts'
 
 export const jqExpressionsOf = (drafts: readonly Rec[]): { exprs: JqExpr[]; problems: string[] } => {
@@ -29,22 +30,22 @@ export const jqExpressionsOf = (drafts: readonly Rec[]): { exprs: JqExpr[]; prob
       if (filter) {
         exprs.push({ id: `${label}: spec.filter`, query: filter })
       }
-      for (const [k, raw] of (Array.isArray(spec.api) ? spec.api : []).entries()) {
+      for (const [index, raw] of (Array.isArray(spec.api) ? spec.api : []).entries()) {
         const api = rec(raw) ?? {}
         const apiFilter = str(api.filter)
         if (apiFilter) {
-          exprs.push({ id: `${label}: spec.api[${k}] (${str(api.name) ?? '?'}).filter`, query: apiFilter })
+          exprs.push({ id: `${label}: spec.api[${index}] (${str(api.name) ?? '?'}).filter`, query: apiFilter })
         }
       }
       continue
     }
-    for (const [k, raw] of (Array.isArray(spec.widgetDataTemplate) ? spec.widgetDataTemplate : []).entries()) {
+    for (const [index, raw] of (Array.isArray(spec.widgetDataTemplate) ? spec.widgetDataTemplate : []).entries()) {
       const entry = rec(raw) ?? {}
       const expression = str(entry.expression)
       if (!expression) {
         continue
       }
-      const where = `${label}: spec.widgetDataTemplate[${k}] (${str(entry.forPath) ?? '?'}).expression`
+      const where = `${label}: spec.widgetDataTemplate[${index}] (${str(entry.forPath) ?? '?'}).expression`
       const template = maybeQuery(expression)
       if (template.unbalanced) {
         problems.push(`${where}: "\${" is never closed — snowplow renders the whole expression as literal text`)

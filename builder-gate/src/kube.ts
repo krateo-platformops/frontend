@@ -10,6 +10,15 @@ import { existsSync, readFileSync } from 'node:fs'
 import yaml from 'js-yaml'
 
 import { type HttpResponse, jsonOf, nodeTransport, type Transport } from './http'
+import { str } from './pages/drafts'
+
+/** One header value as a list: already a list, a lone string, or absent. */
+const asList = (value: string | string[] | undefined): string[] => {
+  if (Array.isArray(value)) {
+    return value
+  }
+  return value === undefined ? [] : [value]
+}
 
 export const PER_REQUEST_TIMEOUT_MS = 20_000
 
@@ -57,15 +66,16 @@ export class KubeClient {
   /** A read. GET, always: the gate's identity has nothing else to send. */
   async get(path: string, timeoutMs = PER_REQUEST_TIMEOUT_MS): Promise<KubeReply> {
     const res: HttpResponse = await this.transport({
-      method: 'GET',
-      url: `${this.identity.server}${path}`,
       headers: this.headers(),
-      tls: { ca: this.identity.ca, cert: this.identity.cert, key: this.identity.key },
+      method: 'GET',
       timeoutMs,
+      tls: { ca: this.identity.ca, cert: this.identity.cert, key: this.identity.key },
+      url: `${this.identity.server}${path}`,
     })
-    const warning = res.headers.warning
-    const warnings = (Array.isArray(warning) ? warning : warning ? [warning] : [])
-    return { status: res.status, json: jsonOf(res.body), body: res.body, warnings }
+    const { warning } = res.headers
+    // The `warning` header arrives as a list, as a single string, or absent.
+    const warnings = asList(warning)
+    return { body: res.body, json: jsonOf(res.body), status: res.status, warnings }
   }
 }
 
@@ -81,15 +91,37 @@ export const inClusterIdentity = (): KubeIdentity | null => {
     return null
   }
   return {
-    server: `https://${host.includes(':') ? `[${host}]` : host}:${port}`,
     ca: readFileSync(`${SA_DIR}/ca.crt`),
-    token: () => readFileSync(`${SA_DIR}/token`, 'utf8').trim(),
+    server: `https://${host.includes(':') ? `[${host}]` : host}:${port}`,
     source: 'in-cluster ServiceAccount',
+    token: () => readFileSync(`${SA_DIR}/token`, 'utf8').trim(),
   }
 }
 
 type Rec = Record<string, unknown>
 const rec = (value: unknown): Rec => (value && typeof value === 'object' && !Array.isArray(value) ? value as Rec : {})
+
+/** client-go's exec credential plugin, cached until its expiry. */
+const execCredential = (exec: Rec): (() => string) => {
+  let cached: { token: string; until: number } | null = null
+  return () => {
+    if (cached && cached.until > Date.now() + 60_000) {
+      return cached.token
+    }
+    const env = { ...process.env }
+    for (const entry of Array.isArray(exec.env) ? exec.env : []) {
+      env[String(rec(entry).name)] = String(rec(entry).value)
+    }
+    const run = spawnSync(String(exec.command), (Array.isArray(exec.args) ? exec.args : []).map(String), { encoding: 'utf8', env, timeout: 30_000 })
+    const status = rec(rec(jsonOf(run.stdout ?? '')).status)
+    if (run.status !== 0 || typeof status.token !== 'string') {
+      throw new Error(`kubeconfig exec credential ${String(exec.command)} failed: ${(run.stderr ?? '').slice(0, 300)}`)
+    }
+    const until = typeof status.expirationTimestamp === 'string' ? Date.parse(status.expirationTimestamp) : Date.now() + 5 * 60_000
+    cached = { token: status.token, until }
+    return status.token
+  }
+}
 const entryOf = (list: unknown, name: string, field: string): Rec =>
   rec(rec((Array.isArray(list) ? list : []).find((entry) => rec(entry).name === name))[field])
 
@@ -104,21 +136,21 @@ export const kubeconfigIdentity = (path: string, context?: string): KubeIdentity
   const config = rec(yaml.load(readFileSync(path, 'utf8')))
   const contextName = context ?? (typeof config['current-context'] === 'string' ? config['current-context'] : '')
   const ctx = entryOf(config.contexts, contextName, 'context')
-  const cluster = entryOf(config.clusters, String(ctx.cluster ?? ''), 'cluster')
+  const cluster = entryOf(config.clusters, str(ctx.cluster) ?? '', 'cluster')
   if (typeof cluster.server !== 'string') {
     throw new Error(`kubeconfig ${path}: context ${JSON.stringify(contextName)} has no cluster server`)
   }
   const identity: KubeIdentity = {
-    server: cluster.server.replace(/\/$/, ''),
     ca: b64(cluster['certificate-authority-data']) ?? file(cluster['certificate-authority']),
+    server: cluster.server.replace(/\/$/, ''),
     source: `kubeconfig context ${contextName}`,
   }
-  const user = entryOf(config.users, String(ctx.user ?? ''), 'user')
+  const user = entryOf(config.users, str(ctx.user) ?? '', 'user')
   if (typeof user.token === 'string') {
-    const token = user.token
+    const { token } = user
     identity.token = () => token
   } else if (typeof user.tokenFile === 'string') {
-    const tokenFile = user.tokenFile
+    const { tokenFile } = user
     identity.token = () => readFileSync(tokenFile, 'utf8').trim()
   } else if (user.exec) {
     identity.token = execCredential(rec(user.exec))
@@ -126,26 +158,4 @@ export const kubeconfigIdentity = (path: string, context?: string): KubeIdentity
   identity.cert = b64(user['client-certificate-data']) ?? file(user['client-certificate'])
   identity.key = b64(user['client-key-data']) ?? file(user['client-key'])
   return identity
-}
-
-/** client-go's exec credential plugin, cached until its expiry. */
-const execCredential = (exec: Rec): (() => string) => {
-  let cached: { token: string; until: number } | null = null
-  return () => {
-    if (cached && cached.until > Date.now() + 60_000) {
-      return cached.token
-    }
-    const env = { ...process.env }
-    for (const entry of Array.isArray(exec.env) ? exec.env : []) {
-      env[String(rec(entry).name)] = String(rec(entry).value)
-    }
-    const run = spawnSync(String(exec.command), (Array.isArray(exec.args) ? exec.args : []).map(String), { env, encoding: 'utf8', timeout: 30_000 })
-    const status = rec(rec(jsonOf(run.stdout ?? '')).status)
-    if (run.status !== 0 || typeof status.token !== 'string') {
-      throw new Error(`kubeconfig exec credential ${String(exec.command)} failed: ${(run.stderr ?? '').slice(0, 300)}`)
-    }
-    const until = typeof status.expirationTimestamp === 'string' ? Date.parse(status.expirationTimestamp) : Date.now() + 5 * 60_000
-    cached = { token: status.token, until }
-    return status.token
-  }
 }
