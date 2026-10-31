@@ -43,7 +43,10 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Matches ui/Dockerfile's build stage (node:24.2.0-alpine3.22). CI validating on an
+          # older Node than the one that produces the artifact is backwards, and it was also what
+          # held @types/node at 22 while the build had already moved on.
+          node-version: '24'
       - name: Install ui deps
         run: npm ci --no-audit --no-fund
         working-directory: ui
