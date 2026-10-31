@@ -5,9 +5,11 @@
  */
 import { describe, expect, it } from 'vitest'
 
+import { rec } from '../src/pages/drafts'
+
 import { secretShaped, withoutSecrets } from '../src/pages/data'
 
-import { allOk, byKind, example, fakeSnowplow, json, liveCtx, rawReply, recorder, resolveReply, run } from './helpers'
+import { allOk, arrAt, byKind, example, fakeSnowplow, json, liveCtx, objAt, rawReply, recorder, resolveReply, run } from './helpers'
 
 const dataOf = (envelope: Awaited<ReturnType<typeof run>>) => envelope.steps.find((s) => s.name === 'data')!
 
@@ -59,7 +61,7 @@ describe('data', () => {
 
   it('a write-verb stage refused BY DESIGN (StageNotExecuted in the outcomes header) is a note, with the body message as detail', async () => {
     const draft = example()
-    byKind(draft, 'RESTAction').spec.api.push({ name: 'review', path: '/api/v1/namespaces/krateo-system/configmaps', verb: 'POST' })
+    arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ name: 'review', path: '/api/v1/namespaces/krateo-system/configmaps', verb: 'POST' })
     const { transport } = recorder(fakeSnowplow({
       resolve: (_url, body) => resolveReply(200,
         { ...body.object, status: { error: [{ code: 422, message: 'dry-run: stage "review" verb POST is not executed' }], pods: [] } },
@@ -93,8 +95,8 @@ describe('data', () => {
 
   it('a failed continueOnError stage is a note — matched by stage name; the same failure elsewhere stays red', async () => {
     const draft = example()
-    Object.assign(byKind(draft, 'RESTAction').spec.api[0], { continueOnError: true, errorKey: 'podsErr' })
-    byKind(draft, 'RESTAction').spec.api.push({ name: 'nodes', path: '/api/v1/nodes' })
+    Object.assign(objAt(byKind(draft, 'RESTAction'), 'spec', 'api', 0), { continueOnError: true, errorKey: 'podsErr' })
+    arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ name: 'nodes', path: '/api/v1/nodes' })
     const { transport } = recorder(fakeSnowplow({
       resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [], podsErr: [{ code: 404, message: 'stage "pods": not found' }] } },
         [{ name: 'pods', ok: false, reason: 'NotFound' }, { name: 'nodes', ok: false, reason: 'Forbidden' }]),
@@ -110,8 +112,8 @@ describe('data', () => {
     // by a dependent write now reports Skipped; without semantics for it the gate calls it
     // "failed with an unknown reason" and the draft goes RED, where today it is two notes.
     const draft = example()
-    Object.assign(byKind(draft, 'RESTAction').spec.api[0], { continueOnError: true, errorKey: 'podsErr' })
-    byKind(draft, 'RESTAction').spec.api.push({ dependsOn: { name: 'pods' }, name: 'scale', path: '/api/v1/scale', verb: 'POST' })
+    Object.assign(objAt(byKind(draft, 'RESTAction'), 'spec', 'api', 0), { continueOnError: true, errorKey: 'podsErr' })
+    arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ dependsOn: { name: 'pods' }, name: 'scale', path: '/api/v1/scale', verb: 'POST' })
     const { transport } = recorder(fakeSnowplow({
       resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [], podsErr: [{ code: 404, message: 'stage "pods": not found' }] } },
         [{ name: 'pods', ok: false, reason: 'NotFound' }, { dependsOn: 'pods', name: 'scale', ok: false, reason: 'Skipped' }]),
@@ -124,7 +126,7 @@ describe('data', () => {
 
   it('snowplow#904: a write SKIPPED because its dependency failed hard is red', async () => {
     const draft = example()
-    byKind(draft, 'RESTAction').spec.api.push({ dependsOn: { name: 'pods' }, name: 'scale', path: '/api/v1/scale', verb: 'POST' })
+    arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ dependsOn: { name: 'pods' }, name: 'scale', path: '/api/v1/scale', verb: 'POST' })
     const { transport } = recorder(fakeSnowplow({
       resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} },
         [{ name: 'pods', ok: false, reason: 'Forbidden' }, { dependsOn: 'pods', name: 'scale', ok: false, reason: 'Skipped' }]),
@@ -138,10 +140,10 @@ describe('data', () => {
     // A -> B -> C, with an unrelated red stage sitting between B and C in the header. Positional
     // attribution would blame that one for C; dependsOn makes C inherit B, which inherits A.
     const draft = example()
-    Object.assign(byKind(draft, 'RESTAction').spec.api[0], { continueOnError: true })
-    byKind(draft, 'RESTAction').spec.api.push({ dependsOn: { name: 'pods' }, name: 'detach', path: '/api/v1/detach', verb: 'POST' })
-    byKind(draft, 'RESTAction').spec.api.push({ name: 'other', path: '/api/v1/other' })
-    byKind(draft, 'RESTAction').spec.api.push({ dependsOn: { name: 'detach' }, name: 'remove', path: '/api/v1/remove', verb: 'DELETE' })
+    Object.assign(objAt(byKind(draft, 'RESTAction'), 'spec', 'api', 0), { continueOnError: true })
+    arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ dependsOn: { name: 'pods' }, name: 'detach', path: '/api/v1/detach', verb: 'POST' })
+    arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ name: 'other', path: '/api/v1/other' })
+    arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ dependsOn: { name: 'detach' }, name: 'remove', path: '/api/v1/remove', verb: 'DELETE' })
     const { transport } = recorder(fakeSnowplow({
       resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, [
         { name: 'pods', ok: false, reason: 'Error' },
@@ -196,7 +198,7 @@ describe('data', () => {
     // these would be one red line each, every one of them saying the resolve "stopped before it,
     // at no failed stage the header names" — true, useless, and N times over.
     const draft = example()
-    byKind(draft, 'RESTAction').spec.api.push({ dependsOn: { name: 'nope' }, name: 'scale', path: '/api/v1/scale', verb: 'POST' })
+    arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ dependsOn: { name: 'nope' }, name: 'scale', path: '/api/v1/scale', verb: 'POST' })
     const { transport } = recorder(fakeSnowplow({
       resolve: (_url, body) => resolveReply(200, { ...body.object, status: {} }, [
         { name: '', ok: false, reason: 'Aborted' },
@@ -231,7 +233,7 @@ describe('data', () => {
 
   it('a draft whose only failed stage is continueOnError passes', async () => {
     const draft = example()
-    byKind(draft, 'RESTAction').spec.api[0].continueOnError = true
+    objAt(byKind(draft, 'RESTAction'), 'spec', 'api', 0).continueOnError = true
     const { transport } = recorder(fakeSnowplow({
       resolve: (_url, body) => resolveReply(200, { ...body.object, status: { pods: [] } }, [{ name: 'pods', ok: false, reason: 'Error' }]),
     }))
@@ -243,7 +245,7 @@ describe('data', () => {
     // Three stages in topological order; `review` is a write-verb stage.
     const threeStages = () => {
       const draft = example()
-      byKind(draft, 'RESTAction').spec.api = [
+      objAt(byKind(draft, 'RESTAction'), 'spec').api = [
         { name: 'review', path: '/apis/authorization.k8s.io/v1/selfsubjectaccessreviews', verb: 'POST' },
         { name: 'pods', path: '/api/v1/namespaces/krateo-system/pods' },
         { name: 'nodes', path: '/api/v1/nodes' },
@@ -268,7 +270,7 @@ describe('data', () => {
 
     it('after a continueOnError stage that stopped the resolve, a note', async () => {
       const draft = threeStages()
-      byKind(draft, 'RESTAction').spec.api[1].continueOnError = true
+      objAt(byKind(draft, 'RESTAction'), 'spec', 'api', 1).continueOnError = true
       const { transport } = resolving([{ name: 'review', ok: true }, { name: 'pods', ok: false, reason: 'Error' }, { name: 'nodes', ok: false, reason: 'NotRun' }])
       const envelope = await run(draft, liveCtx(transport))
       expect(envelope.ok).toBe(true)
@@ -340,8 +342,11 @@ describe('data', () => {
   it('a draft with no RESTAction has nothing to resolve', async () => {
     const draft = example().filter((cr) => cr.kind !== 'RESTAction')
     for (const cr of draft) {
-      if (cr.spec.apiRef) {
-        cr.spec.apiRef = { name: 'compositions-list', namespace: 'krateo-system' }
+      // `cr` is a Rec, so `cr.spec` is `unknown` — narrow it rather than assume. A CR without a
+      // spec is skipped, which is what the old `cr.spec.apiRef` would have thrown on.
+      const spec = rec(cr.spec)
+      if (spec?.apiRef) {
+        spec.apiRef = { name: 'compositions-list', namespace: 'krateo-system' }
       }
     }
     const { transport } = recorder(fakeSnowplow({ read: () => rawReply(200, { kind: 'RESTAction', spec: { api: [{ name: 'l', path: '/apis/composition.krateo.io' }] } }) }))

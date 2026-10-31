@@ -5,6 +5,7 @@ import { builderFromDirectory, type BuilderLookup } from '../src/builder'
 import { runGate } from '../src/gate'
 import type { HttpRequest, HttpResponse, Transport } from '../src/http'
 import { jqcheckEngine } from '../src/jq'
+import { rec, type Rec } from '../src/pages/drafts'
 import type { GateContext } from '../src/plan'
 import { snowplowClient } from '../src/snowplow'
 
@@ -12,12 +13,76 @@ export const ROOT = join(__dirname, '..')
 export const FIXTURES = join(ROOT, '..', 'ui', 'src', 'builders', 'fixtures')
 export const jq = jqcheckEngine(process.env.JQCHECK_BIN || join(ROOT, 'bin', 'jqcheck'))
 
-export type Draft = Record<string, any>[]
+/**
+ * A draft is a list of custom resources, each an untyped JSON object.
+ *
+ * `Rec` is `Record<string, unknown>` — the product's own type for exactly this (src/pages/drafts),
+ * and `unknown` rather than `any` on purpose. With `any`, every `byKind(docs, 'Flex').spec.foo` in
+ * these tests was an unchecked member access on an unchecked value, so a typo in a test's path
+ * compiled fine and the test then asserted something about a property that was never there.
+ * ui/src has zero `no-unsafe-*` eslint disables across the 70 files that use other disables, so
+ * accessors are the house pattern and suppression is not.
+ */
+export type Draft = Rec[]
 
 /** The example page draft (root Flex, PieChart, Table, RESTAction), fresh each call. */
-export const example = (): Draft => JSON.parse(readFileSync(join(ROOT, 'examples', 'pod-sizing-page.json'), 'utf8'))
+export const example = (): Draft => JSON.parse(readFileSync(join(ROOT, 'examples', 'pod-sizing-page.json'), 'utf8')) as Draft
 
-export const byKind = (draft: Draft, kind: string): Record<string, any> => draft.find((cr) => cr.kind === kind)!
+export const byKind = (draft: Draft, kind: string): Rec => draft.find((cr) => cr.kind === kind)!
+
+/**
+ * Walk to a nested OBJECT so a test can mutate it.
+ *
+ * `Rec`'s values are `unknown`, so `cr.spec.widgetData.x = 1` does not type-check — correctly, as
+ * nothing guarantees `spec` is an object. This narrows each step with the product's own `rec()` and
+ * THROWS on a path that is not there, which is what makes it better than a cast: a test whose path
+ * is wrong fails loudly at that line instead of silently asserting about `undefined`.
+ */
+export const objAt = (node: Rec, ...path: (number | string)[]): Rec => {
+  const at = walk(node, path)
+  const obj = rec(at)
+  if (obj === null) {
+    throw new Error(`objAt: ${path.join('.')} resolved to ${JSON.stringify(at)}, not an object`)
+  }
+  return obj
+}
+
+/** Walk to a nested ARRAY, same contract as `objAt`. */
+export const arrAt = (node: Rec, ...path: (number | string)[]): unknown[] => {
+  const at = walk(node, path)
+  if (!Array.isArray(at)) {
+    throw new Error(`arrAt: ${path.join('.')} resolved to ${JSON.stringify(at)}, not an array`)
+  }
+  return at
+}
+
+/**
+ * Step through `path`, carrying `unknown`.
+ *
+ * It must NOT require each intermediate step to be an object. An intermediate value is frequently
+ * an array that the next segment indexes — `spec.resourcesRefs.items[1]` walks object, object,
+ * ARRAY, then index — and asserting object-ness at every step rejects exactly that, which is the
+ * bug the tests caught in the first version of this helper. Only the caller knows what the final
+ * value should be, so only `objAt`/`arrAt` assert, and only on the result.
+ */
+const walk = (node: Rec, path: (number | string)[]): unknown => {
+  let at: unknown = node
+  for (const key of path) {
+    if (typeof key === 'number') {
+      if (!Array.isArray(at)) {
+        throw new Error(`${path.join('.')}: cannot index ${JSON.stringify(at)} with [${key}]`)
+      }
+      at = (at as unknown[])[key]
+    } else {
+      const obj = rec(at)
+      if (obj === null) {
+        throw new Error(`${path.join('.')}: cannot read '${key}' of ${JSON.stringify(at)}`)
+      }
+      at = obj[key]
+    }
+  }
+  return at
+}
 
 export const fixtureLookup = async (name: string): Promise<BuilderLookup> => builderFromDirectory(FIXTURES, name)
 

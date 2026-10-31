@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest'
 
 import { DRY_RUN_PARAMS } from '../src/snowplow'
 
-import { byKind, type Draft, example, fakeSnowplow, liveCtx, recorder, ROOT, run } from './helpers'
+import { byKind, type Draft, example, fakeSnowplow, liveCtx, objAt, recorder, ROOT, run } from './helpers'
 
 const sources = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
   (entry.isDirectory() ? sources(join(dir, entry.name)) : entry.name.endsWith('.ts') ? [join(dir, entry.name)] : []))
@@ -73,10 +73,10 @@ describe('statically', () => {
 describe('at run time', () => {
   const drafts: Draft[] = [example()]
   const mutations: ((d: Draft) => void)[] = [
-    (d) => { byKind(d, 'RESTAction').spec.api[0].verb = 'POST' },
-    (d) => { byKind(d, 'RESTAction').spec.api[0].userAccessFilter = { group: '', resource: 'pods', verb: 'get' } },
-    (d) => { byKind(d, 'Table').spec.apiRef = { name: 'compositions-list', namespace: 'krateo-system' } },
-    (d) => { byKind(d, 'Flex').spec.resourcesRefs.items[0].name = 'existing-pie' },
+    (d) => { objAt(byKind(d, 'RESTAction'), 'spec', 'api', 0).verb = 'POST' },
+    (d) => { objAt(byKind(d, 'RESTAction'), 'spec', 'api', 0).userAccessFilter = { group: '', resource: 'pods', verb: 'get' } },
+    (d) => { objAt(byKind(d, 'Table'), 'spec').apiRef = { name: 'compositions-list', namespace: 'krateo-system' } },
+    (d) => { objAt(byKind(d, 'Flex'), 'spec', 'resourcesRefs', 'items', 0).name = 'existing-pie' },
   ]
   for (const mutation of mutations) {
     const draft = example()

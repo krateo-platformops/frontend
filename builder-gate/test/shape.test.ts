@@ -9,12 +9,12 @@
 /* eslint-disable no-template-curly-in-string -- the ${…} jq DSL is the subject under test */
 import { describe, expect, it } from 'vitest'
 
-import { byKind, example, fakeSnowplow, json, liveCtx, recorder, resolveReply, run } from './helpers'
+import { arrAt, byKind, example, fakeSnowplow, json, liveCtx, objAt, recorder, resolveReply, run } from './helpers'
 
 /** The example, with the Table's dataSource expression replaced. */
 const withTableExpression = (expression: string) => {
   const draft = example()
-  byKind(draft, 'Table').spec.widgetDataTemplate[0].expression = expression
+  objAt(byKind(draft, 'Table'), 'spec', 'widgetDataTemplate', 0).expression = expression
   return draft
 }
 
@@ -101,7 +101,7 @@ describe('a column that names a cell no row carries (frontend#541, author-time)'
   /** The example's Table, with one extra column whose valueKey the RESTAction never emits. */
   const withExtraColumn = (valueKey: string) => {
     const draft = example()
-    byKind(draft, 'Table').spec.widgetData.columns.push({ title: 'Owner', valueKey })
+    arrAt(byKind(draft, 'Table'), 'spec', 'widgetData', 'columns').push({ title: 'Owner', valueKey })
     return draft
   }
 
@@ -133,7 +133,7 @@ describe('a column that names a cell no row carries (frontend#541, author-time)'
 
   it('names several unbacked columns together', async () => {
     const draft = example()
-    byKind(draft, 'Table').spec.widgetData.columns.push({ title: 'Owner', valueKey: 'owner' }, { title: 'Team', valueKey: 'team' })
+    arrAt(byKind(draft, 'Table'), 'spec', 'widgetData', 'columns').push({ title: 'Owner', valueKey: 'owner' }, { title: 'Team', valueKey: 'team' })
     const envelope = await run(draft, liveCtx(pods([{ name: 'a', phase: 'Running' }])))
     const note = shapeOf(envelope).notes.find((n) => n.includes('"owner"'))
     expect(note).toMatch(/columns "owner", "team" name a cell no row carries/)

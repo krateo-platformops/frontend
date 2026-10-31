@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest'
 
 import { secretsProblems } from '../src/pages/secrets'
 
-import { byKind, example, fakeSnowplow, json, liveCtx, rawReply, recorder, run } from './helpers'
+import { arrAt, byKind, example, fakeSnowplow, json, liveCtx, objAt, rawReply, recorder, run } from './helpers'
 
 const cases = JSON.parse(readFileSync(join(__dirname, 'secrets', 'cases.json'), 'utf8')) as { name: string; step: Record<string, unknown>; refused: boolean; source: string }[]
 
@@ -64,7 +64,7 @@ describe('the review\'s bypasses (#446), each refused for its own reason', () =>
 describe('in the gate', () => {
   it('builder-lint refuses a draft RESTAction that reads Secrets, naming the step and why', async () => {
     const draft = example()
-    byKind(draft, 'RESTAction').spec.api[0].path = '/api/v1/namespaces/krateo-system/%73ecrets'
+    objAt(byKind(draft, 'RESTAction'), 'spec', 'api', 0).path = '/api/v1/namespaces/krateo-system/%73ecrets'
     const envelope = await run(draft)
     expect(envelope.failedStep).toBe('builder-lint')
     expect(envelope.steps[1].problems).toEqual(['widgets[3] (RESTAction/pod-sizing): spec.api[0] (pods) may read Secrets: "secret" in path'])
@@ -72,15 +72,15 @@ describe('in the gate', () => {
 
   it('builder-lint refuses a data-driven path without the fetchablePath allowlist', async () => {
     const draft = example()
-    byKind(draft, 'RESTAction').spec.api.push({ dependsOn: { iterator: '[.pods.items[] | {path: .metadata.selfLink}]', name: 'pods' }, name: 'any', path: '${ .path }' })
+    arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ dependsOn: { iterator: '[.pods.items[] | {path: .metadata.selfLink}]', name: 'pods' }, name: 'any', path: '${ .path }' })
     const envelope = await run(draft)
     expect(envelope.steps[1].problems[0]).toMatch(/spec.api\[1\] \(any\) may read Secrets: data-driven path \$\{ \.path \} — its iterator does not begin with portal.fetchableDefs/)
   })
 
   it('references refuses binding an EXISTING RESTAction that reads Secrets', async () => {
     const draft = example().filter((cr) => cr.kind !== 'RESTAction')
-    byKind(draft, 'PieChart').spec.apiRef = { name: 'leaky', namespace: 'krateo-system' }
-    byKind(draft, 'Table').spec.apiRef = { name: 'leaky', namespace: 'krateo-system' }
+    objAt(byKind(draft, 'PieChart'), 'spec').apiRef = { name: 'leaky', namespace: 'krateo-system' }
+    objAt(byKind(draft, 'Table'), 'spec').apiRef = { name: 'leaky', namespace: 'krateo-system' }
     const { transport } = recorder(fakeSnowplow({
       read: () => rawReply(200, { kind: 'RESTAction', metadata: { name: 'leaky' }, spec: { api: [{ name: 'all', path: '/api/v1/secrets' }] } }),
     }))
