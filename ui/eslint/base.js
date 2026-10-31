@@ -1,5 +1,5 @@
 // @ts-check
-import stylisticJs from '@stylistic/eslint-plugin-js'
+import stylistic from '@stylistic/eslint-plugin'
 import restrictedGlobals from 'confusing-browser-globals'
 // @ts-ignore
 import pluginImport from 'eslint-plugin-import'
@@ -13,7 +13,7 @@ export const baseConfig = {
   linterOptions: { reportUnusedDisableDirectives: 'warn' },
   name: 'Base config',
   plugins: {
-    '@stylistic/js': stylisticJs,
+    '@stylistic': stylistic,
     import: pluginImport,
     // @ts-ignore
     n: pluginNode,
@@ -21,11 +21,11 @@ export const baseConfig = {
   },
   rules: {
     // http://eslint.org/docs/rules/
-    '@stylistic/js/array-bracket-spacing': ['error', 'never'],
-    '@stylistic/js/arrow-spacing': 'error',
-    '@stylistic/js/block-spacing': ['error', 'always'],
-    '@stylistic/js/brace-style': ['error', '1tbs', { allowSingleLine: true }],
-    '@stylistic/js/comma-dangle': [
+    '@stylistic/array-bracket-spacing': ['error', 'never'],
+    '@stylistic/arrow-spacing': 'error',
+    '@stylistic/block-spacing': ['error', 'always'],
+    '@stylistic/brace-style': ['error', '1tbs', { allowSingleLine: true }],
+    '@stylistic/comma-dangle': [
       'error',
       {
         arrays: 'always-multiline',
@@ -35,27 +35,27 @@ export const baseConfig = {
         objects: 'always-multiline',
       },
     ],
-    '@stylistic/js/comma-spacing': 'error',
-    '@stylistic/js/comma-style': 'error',
-    '@stylistic/js/computed-property-spacing': ['error', 'never'],
-    '@stylistic/js/dot-location': ['error', 'property'],
-    '@stylistic/js/eol-last': 'error',
-    '@stylistic/js/func-call-spacing': 'off',
-    '@stylistic/js/generator-star-spacing': 'error',
-    '@stylistic/js/indent': ['error', 2, { SwitchCase: 1 }],
-    '@stylistic/js/key-spacing': 'error',
-    '@stylistic/js/keyword-spacing': 'error',
-    '@stylistic/js/line-comment-position': 'error',
-    // '@stylistic/js/linebreak-style': ['error', 'unix'],
-    '@stylistic/js/lines-around-comment': 'off',
-    '@stylistic/js/max-statements-per-line': ['error', { max: 2 }],
-    '@stylistic/js/new-parens': 'error',
-    '@stylistic/js/newline-per-chained-call': ['error', { ignoreChainWithDepth: 3 }],
-    '@stylistic/js/no-confusing-arrow': ['error', { allowParens: true }],
-    '@stylistic/js/no-extra-parens': ['error', 'functions'],
-    '@stylistic/js/no-extra-semi': 'error',
-    '@stylistic/js/no-floating-decimal': 'error',
-    '@stylistic/js/no-mixed-operators': [
+    '@stylistic/comma-spacing': 'error',
+    '@stylistic/comma-style': 'error',
+    '@stylistic/computed-property-spacing': ['error', 'never'],
+    '@stylistic/dot-location': ['error', 'property'],
+    '@stylistic/eol-last': 'error',
+    '@stylistic/func-call-spacing': 'off',
+    '@stylistic/generator-star-spacing': 'error',
+    '@stylistic/indent': ['error', 2, { SwitchCase: 1 }],
+    '@stylistic/key-spacing': 'error',
+    '@stylistic/keyword-spacing': 'error',
+    '@stylistic/line-comment-position': 'error',
+    // '@stylistic/linebreak-style': ['error', 'unix'],
+    '@stylistic/lines-around-comment': 'off',
+    '@stylistic/max-statements-per-line': ['error', { max: 2 }],
+    '@stylistic/new-parens': 'error',
+    '@stylistic/newline-per-chained-call': ['error', { ignoreChainWithDepth: 3 }],
+    '@stylistic/no-confusing-arrow': ['error', { allowParens: true }],
+    '@stylistic/no-extra-parens': ['error', 'functions'],
+    '@stylistic/no-extra-semi': 'error',
+    '@stylistic/no-floating-decimal': 'error',
+    '@stylistic/no-mixed-operators': [
       'error',
       {
         allowSamePrecedence: false,
@@ -67,33 +67,43 @@ export const baseConfig = {
         ],
       },
     ],
-    '@stylistic/js/no-mixed-spaces-and-tabs': 'error',
-    '@stylistic/js/no-multi-spaces': 'error',
-    '@stylistic/js/no-multiple-empty-lines': ['error', { max: 1, maxBOF: 0, maxEOF: 0 }],
-    '@stylistic/js/no-tabs': 'error',
-    '@stylistic/js/no-trailing-spaces': 'error',
-    '@stylistic/js/no-whitespace-before-property': 'error',
-    '@stylistic/js/nonblock-statement-body-position': 'error',
-    '@stylistic/js/object-curly-spacing': ['error', 'always'],
-    '@stylistic/js/object-property-newline': ['error', { allowMultiplePropertiesPerLine: true }],
-    '@stylistic/js/one-var-declaration-per-line': 'error',
-    '@stylistic/js/operator-linebreak': ['error', 'before'],
-    '@stylistic/js/padded-blocks': ['error', 'never'],
-    '@stylistic/js/quote-props': ['error', 'as-needed'],
-    '@stylistic/js/quotes': ['error', 'single', { allowTemplateLiterals: true, avoidEscape: true }],
-    '@stylistic/js/rest-spread-spacing': ['error', 'never'],
-    '@stylistic/js/semi': ['error', 'never'],
-    '@stylistic/js/semi-spacing': 'error',
-    '@stylistic/js/space-before-blocks': 'error',
-    '@stylistic/js/space-before-function-paren': ['error', { anonymous: 'always', named: 'never' }],
-    '@stylistic/js/space-in-parens': 'error',
-    '@stylistic/js/space-infix-ops': 'error',
-    '@stylistic/js/space-unary-ops': 'error',
-    '@stylistic/js/spaced-comment': ['error', 'always', { exceptions: ['!'], markers: ['/'] }],
-    '@stylistic/js/template-curly-spacing': 'error',
-    '@stylistic/js/template-tag-spacing': 'error',
-    '@stylistic/js/wrap-iife': 'error',
-    '@stylistic/js/yield-star-spacing': 'error',
+    '@stylistic/no-mixed-spaces-and-tabs': 'error',
+    '@stylistic/no-multi-spaces': 'error',
+    '@stylistic/no-multiple-empty-lines': ['error', { max: 1, maxBOF: 0, maxEOF: 0 }],
+    '@stylistic/no-tabs': 'error',
+    '@stylistic/no-trailing-spaces': 'error',
+    '@stylistic/no-whitespace-before-property': 'error',
+    '@stylistic/nonblock-statement-body-position': 'error',
+    '@stylistic/object-curly-spacing': ['error', 'always'],
+    '@stylistic/object-property-newline': ['error', { allowAllPropertiesOnSameLine: true }],
+    '@stylistic/one-var-declaration-per-line': 'error',
+    // `before` is about reading a continued expression: a line starting with `||`, `&&` or `?`
+    // announces itself. An assignment is not that, and stylistic 5 began applying the rule to `=`
+    // — rewriting
+    //     export type X =
+    //       | { a: 1 }
+    // into `export type X` / `  = | { a: 1 }`, which reads worse than what it replaced.
+    //
+    // `ignore` rather than `after`: `after` is the nicer rule but reformats 49 existing `const`
+    // lines across 26 files, and a dependency bump should not carry a whole-codebase restyle.
+    // Ignoring `=` leaves every existing line alone and keeps the rule where it earns its place.
+    '@stylistic/operator-linebreak': ['error', 'before', { overrides: { '=': 'ignore' } }],
+    '@stylistic/padded-blocks': ['error', 'never'],
+    '@stylistic/quote-props': ['error', 'as-needed'],
+    '@stylistic/quotes': ['error', 'single', { allowTemplateLiterals: 'always', avoidEscape: true }],
+    '@stylistic/rest-spread-spacing': ['error', 'never'],
+    '@stylistic/semi': ['error', 'never'],
+    '@stylistic/semi-spacing': 'error',
+    '@stylistic/space-before-blocks': 'error',
+    '@stylistic/space-before-function-paren': ['error', { anonymous: 'always', named: 'never' }],
+    '@stylistic/space-in-parens': 'error',
+    '@stylistic/space-infix-ops': 'error',
+    '@stylistic/space-unary-ops': 'error',
+    '@stylistic/spaced-comment': ['error', 'always', { exceptions: ['!'], markers: ['/'] }],
+    '@stylistic/template-curly-spacing': 'error',
+    '@stylistic/template-tag-spacing': 'error',
+    '@stylistic/wrap-iife': 'error',
+    '@stylistic/yield-star-spacing': 'error',
     'array-callback-return': 'error',
     'block-scoped-var': 'error',
     camelcase: ['error', { ignoreDestructuring: true, properties: 'never' }],

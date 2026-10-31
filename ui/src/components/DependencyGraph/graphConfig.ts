@@ -161,7 +161,7 @@ export const graphLayout = (edges: GraphEdge<unknown>[]): FlowGraphOptions['layo
  *
  * With none of them — FlowChart — the options are exactly C19's object, key for key.
  */
-export const graphEdgeOptions = <E, >(
+export const graphEdgeOptions = <E >(
   palette: GraphPalette | null,
   appearance?: (edge: GraphEdge<E>) => EdgeAppearance,
   states?: EdgeStateStyles,

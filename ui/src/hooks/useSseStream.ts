@@ -10,7 +10,7 @@ import { subscribeSse } from './sseClient'
  * to a capped buffer. Decoupled from any item shape — the data source concern,
  * separate from presentation (ListView) and domain mapping (itemTemplate).
  */
-export const useSseStream = <T, >({ endpoint, initial, max = 200, topic }: {
+export const useSseStream = <T >({ endpoint, initial, max = 200, topic }: {
   endpoint?: string
   topic?: string
   initial: T[]

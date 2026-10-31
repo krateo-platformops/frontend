@@ -1,7 +1,7 @@
 import type { JSONSchema4 } from 'json-schema'
 import { describe, expect, it } from 'vitest'
 
-/* eslint-disable @stylistic/js/line-comment-position -- one-line reasons beside table rows */
+/* eslint-disable @stylistic/line-comment-position -- one-line reasons beside table rows */
 import {
   isSecretSchemaNode,
   maskSecretMaterialForDisplay,

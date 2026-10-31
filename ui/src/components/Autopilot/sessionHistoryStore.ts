@@ -86,7 +86,7 @@ export const isThreadWorthKeeping = (messages: AutopilotMessage[]): boolean =>
   messages.some((message) => message.role === 'user')
 
 /** Read + JSON-parse a key, returning `fallback` on any failure (missing/blocked/corrupt). */
-const readJson = <T, >(key: string, fallback: T): T => {
+const readJson = <T >(key: string, fallback: T): T => {
   const ls = storage()
   if (!ls) {
     return fallback

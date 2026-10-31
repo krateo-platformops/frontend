@@ -137,7 +137,7 @@ describe('"Use one that exists" offers the draft\'s own RESTActions', () => {
     const [[result]] = onDone.mock.calls as [[{ restAction?: unknown; widgetYaml: string }]]
     // Nothing new to add: the RESTAction is already a file in the draft.
     expect(result.restAction).toBeUndefined()
-    const { spec } = (load(result.widgetYaml) as { spec: Record<string, unknown> })
+    const { spec } = load(result.widgetYaml) as { spec: Record<string, unknown> }
     // The draft's file carries the TEMPLATED namespace; the apiRef names the place instead.
     expect(spec.apiRef).toEqual({ name: 'pod-sizing', namespace: 'krateo-system' })
     // The `${ }` wrapper is snowplow's jq contract, added when the author omits it.

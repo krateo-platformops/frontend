@@ -45,7 +45,7 @@ class FakeStream {
   private done = false
 
   constructor(public url: string, public init: RequestInit, public status = 200,
-              public responseHeaders: Record<string, string> = {}) {
+    public responseHeaders: Record<string, string> = {}) {
     FakeStream.instances.push(this)
   }
 

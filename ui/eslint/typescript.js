@@ -1,5 +1,5 @@
 // @ts-check
-import stylisticTs from '@stylistic/eslint-plugin-ts'
+import stylistic from '@stylistic/eslint-plugin'
 import sortDestructureKeys from 'eslint-plugin-sort-destructure-keys'
 import tsEslint from 'typescript-eslint'
 
@@ -20,15 +20,14 @@ export const typescriptConfigs = [
     },
     name: 'Typescript config',
     plugins: {
-      '@stylistic/ts': stylisticTs,
+      '@stylistic': stylistic,
       '@typescript-eslint': tsEslint.plugin,
       'sort-destructure-keys': sortDestructureKeys,
     },
     rules: {
       ...tsEslint.configs.strict[2].rules,
       ...tsEslint.configs.recommendedTypeChecked[2].rules,
-      '@stylistic/js/object-curly-spacing': ['error', 'always'],
-      '@stylistic/ts/member-delimiter-style': [
+      '@stylistic/member-delimiter-style': [
         2,
         {
           multiline: { delimiter: 'none', requireLast: false },
@@ -36,6 +35,7 @@ export const typescriptConfigs = [
           singleline: { delimiter: 'semi', requireLast: false },
         },
       ],
+      '@stylistic/object-curly-spacing': ['error', 'always'],
 
       '@typescript-eslint/consistent-type-imports': 'error',
       '@typescript-eslint/no-invalid-void-type': 'off',

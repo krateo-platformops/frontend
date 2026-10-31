@@ -207,7 +207,7 @@ describe('petstore, authored in the UI with no rail', () => {
     // THE CHART TREE.
     const held = store.get()
     expect(held?.kind).toBe('controller')
-    const { files } = (held!)
+    const { files } = held!
     expect(Object.keys(files).sort()).toEqual([
       'Chart.yaml',
       'templates/configmap-oas-petstore.yaml',

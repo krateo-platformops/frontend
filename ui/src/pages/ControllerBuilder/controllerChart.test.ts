@@ -112,7 +112,7 @@ describe('placing and mapping', () => {
     const [pet] = readController(files).kinds
     expect(pet.kind).toBe('Pet')
     expect(pet.path).toBe(restDefinitionPath('Pet'))
-    const { resource } = (pet.restDefinition.spec as { resource: Record<string, unknown> })
+    const { resource } = pet.restDefinition.spec as { resource: Record<string, unknown> }
     // PUT /pet is on the collection, so it is no update by rule (round 2) — the person maps it.
     expect((resource.verbsDescription as { action: string }[]).map((verb) => verb.action)).toEqual(['create', 'get', 'delete'])
     expect((resource.verbsDescription as { fieldMapping?: unknown }[])[1].fieldMapping).toEqual([{ inCustomResource: 'status.id', inPath: 'petId' }])
@@ -146,7 +146,7 @@ describe('placing and mapping', () => {
     files = apply(files, planToggleField(files, path, 'additionalStatusFields', 'status'))
     files = apply(files, planCompareScope(files, path, 'fullSpec'))
     files = apply(files, planToggleConfigurationField(files, path, { actions: ['delete'], in: 'header', name: 'api_key' }))
-    const { resource } = (readController(files).kinds[0].restDefinition.spec as { resource: Record<string, unknown> })
+    const { resource } = readController(files).kinds[0].restDefinition.spec as { resource: Record<string, unknown> }
     expect(resource.additionalStatusFields).toEqual(['status'])
     expect(resource.compareScope).toBe('fullSpec')
     expect(resource.configurationFields).toEqual([{ fromOpenAPI: { in: 'header', name: 'api_key' }, fromRestDefinition: { actions: ['delete'] } }])

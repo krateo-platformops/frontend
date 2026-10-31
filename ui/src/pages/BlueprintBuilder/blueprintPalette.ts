@@ -78,7 +78,7 @@ const unavailable = (sentence: string): PaletteRead => ({
 })
 
 /** A class's error record, as the RESTAction's `firstErr` shapes it, in words. */
-const classFailure = <T, >(error: unknown, noun: string, denied: string): ClassRead<T> => {
+const classFailure = <T >(error: unknown, noun: string, denied: string): ClassRead<T> => {
   const record = asRecord(error) ?? {}
   const code = typeof record.code === 'number' ? record.code : 0
   const reason = isString(record.reason) ? record.reason : ''
