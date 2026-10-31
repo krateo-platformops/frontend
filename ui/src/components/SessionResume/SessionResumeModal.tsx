@@ -30,10 +30,12 @@ import logo from '../../assets/images/logo_big.svg'
 import { useConfigContext } from '../../context/ConfigContext'
 import AuthMethods from '../../pages/Login/AuthMethods'
 import type { AuthModeType, AuthResponseType, FormType, LoginFormType } from '../../pages/Login/Login.types'
+import type { AuthFailureCause } from '../../utils/authFailureCause'
+import { authFailurePresentation } from '../../utils/authFailureCopy'
 import { invalidateAccessTokenCache } from '../../utils/getAccessToken'
 import { forceLogout } from '../../utils/logout'
 import { SESSION_RESUME_NEXT_KEY } from '../../utils/nextPath'
-import { registerSessionResumeSurface, SESSION_RESUME_EVENT, settleSessionResume } from '../../utils/sessionResume'
+import { DEFAULT_CAUSE, pendingSessionCause, registerSessionResumeSurface, SESSION_RESUME_EVENT, settleSessionResume } from '../../utils/sessionResume'
 
 const SessionResumeModal = () => {
   const { config } = useConfigContext()
@@ -41,6 +43,14 @@ const SessionResumeModal = () => {
   const { token } = theme.useToken()
 
   const [open, setOpen] = useState(false)
+  /**
+   * Why the session failed, which decides what this surface offers (snowplow#1029).
+   *
+   * It arrives on the event's `detail`, because the discriminator is in the 401 response body and
+   * only the fetch site ever holds that. `pendingSessionCause()` is the fallback for a surface
+   * that mounts after the event fired.
+   */
+  const [cause, setCause] = useState<AuthFailureCause>(DEFAULT_CAUSE)
   const [methods, setMethods] = useState<AuthModeType[] | null>(null)
   const [strategiesError, setStrategiesError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -54,9 +64,11 @@ const SessionResumeModal = () => {
   // Single app-level mount: open on the module-level event, and register this surface so
   // raiseSessionExpired knows an in-place resume is possible (otherwise it falls back).
   useEffect(() => {
-    const handleOpen = () => {
+    const handleOpen = (event: Event) => {
       setSubmitError(null)
       setMethods(null)
+      const { detail } = (event as CustomEvent<AuthFailureCause | undefined>)
+      setCause(detail ?? pendingSessionCause())
       // Stash where the user was so a social/OIDC re-auth (a full IdP redirect) can land them
       // back here via the /auth callback. Harmless for the in-place basic/ldap flows, which
       // clear it on success; a fresh visit to /login clears it too.
@@ -159,6 +171,7 @@ const SessionResumeModal = () => {
   if (!open) {
     return null
   }
+  const presentation = authFailurePresentation(cause)
   return (
     <div
       aria-label='Session expired'
@@ -188,11 +201,21 @@ const SessionResumeModal = () => {
         }}
       >
         <img alt={logoAlt} src={logoSrc} style={{ display: 'block', height: 40, marginBottom: 'var(--spacing-lg)' }} />
-        <h2 style={{ color: token.colorText, marginBottom: 'var(--spacing-sm)', marginTop: 0 }}>Session expired</h2>
+        <h2 style={{ color: token.colorText, marginBottom: 'var(--spacing-sm)', marginTop: 0 }}>{presentation.title}</h2>
         <p style={{ color: token.colorTextSecondary, marginBottom: 'var(--spacing-lg)', marginTop: 0 }}>
-          Your session has expired. Sign in to continue right where you left off.
+          {presentation.description}
         </p>
-        {strategiesError && (
+        {!presentation.showAuthForm && cause.reason !== null && (
+          // The raw reason, so the person can quote it to whoever administers the cluster.
+          // Without it, "ask an administrator" sends them to ask about nothing in particular.
+          <Alert
+            message={`Reported by the server as: ${cause.reason}`}
+            showIcon
+            style={{ marginBottom: 'var(--spacing-md)' }}
+            type='warning'
+          />
+        )}
+        {presentation.showAuthForm && strategiesError && (
           <Alert
             message='Unable to reach the authentication service. Retry in a moment, or log out.'
             showIcon
@@ -203,7 +226,7 @@ const SessionResumeModal = () => {
         {submitError && (
           <Alert message={submitError} showIcon style={{ marginBottom: 'var(--spacing-md)' }} type='error' />
         )}
-        {methods && (
+        {presentation.showAuthForm && methods && (
           <AuthMethods
             isLoading={submitting}
             methods={methods}
