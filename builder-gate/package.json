@@ -21,10 +21,17 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@stylistic/eslint-plugin-js": "^3.1.0",
+    "@stylistic/eslint-plugin-ts": "^3.1.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.0.0",
+    "confusing-browser-globals": "^1.0.11",
     "esbuild": "0.25.12",
     "eslint": "^9.39.5",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-n": "^17.24.0",
+    "eslint-plugin-sort-destructure-keys": "^2.0.0",
+    "eslint-plugin-sort-keys": "^2.3.5",
     "globals": "^15.15.0",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.72.1",
