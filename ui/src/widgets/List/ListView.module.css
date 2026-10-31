@@ -80,12 +80,12 @@
    to /marketplace?q=…&spotlight=… ; the matched tile gets an amber ring + a brief attention
    pulse (the "mouse-over" cue), settling into a persistent amber ring. */
 .spotlight {
-  animation: spotlightPulse 1.1s ease-in-out 2;
+  animation: spotlight-pulse 1.1s ease-in-out 2;
   border-color: var(--primary-color) !important;
   box-shadow: 0 0 0 1px var(--primary-color), 0 0 14px 2px color-mix(in srgb, var(--primary-color) 45%, transparent);
 }
 
-@keyframes spotlightPulse {
+@keyframes spotlight-pulse {
   0%, 100% { box-shadow: 0 0 0 1px var(--primary-color), 0 0 10px 1px color-mix(in srgb, var(--primary-color) 35%, transparent); }
   50% { box-shadow: 0 0 0 2px var(--primary-color), 0 0 22px 5px color-mix(in srgb, var(--primary-color) 60%, transparent); }
 }

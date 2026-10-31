@@ -193,11 +193,19 @@
   justify-content: space-between;
 }
 
-.counts { align-items: center; display: inline-flex; gap: var(--spacing-xsm); }
+.counts {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--spacing-xsm);
+}
 
 /* One row of the tree: name, kind, and the two badges that carry the meaning — `data` for an
    apiRef-bound widget, `placed` for one that exists on the cluster and is only referenced. */
-.node { align-items: center; display: inline-flex; gap: var(--spacing-xsm); }
+.node {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--spacing-xsm);
+}
 
 .kindTag { opacity: .75; }
 
@@ -215,7 +223,10 @@
  * alternative to dragging; this was the alternative, and it could not be seen.
  */
 @media (hover: hover) and (pointer: fine) {
-  .nodeActions { opacity: 0; transition: opacity .12s ease-in-out; }
+  .nodeActions {
+    opacity: 0;
+    transition: opacity .12s ease-in-out;
+  }
 
   .node:hover .nodeActions,
   .node:focus-within .nodeActions { opacity: 1; }
