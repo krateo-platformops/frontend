@@ -83,6 +83,23 @@ jobs:
             exit 1
           fi
           echo "all widget CRDs match the generator"
+      - name: Assert no widget CRD became permissive
+        # snowplow uses these CRD schemas as its RUNTIME validation oracle: it compiles each
+        # widget CRD's structural schema and validates the object's widgetData against it
+        # (snowplow internal/resolvers/crds/schema/schema.go). So a node that gains
+        # x-kubernetes-preserve-unknown-fields does not merely relax `kubectl apply` — it makes
+        # snowplow's validation of that whole subtree VACUOUS, accepting anything and reporting
+        # nothing. The inverse costs more: a node wrongly NARROWED makes snowplow reject valid
+        # widget content at request time. Both are silent at generation.
+        #
+        # 153 of these nodes are deliberate (open `status`, arbitrary `payload` on resourcesRefs
+        # and action ops, Form's user-authored `schema`, each chart's `data.items`), so the check
+        # is an allowlist rather than a ban: it fails on a node that became permissive without
+        # anyone deciding it should. That is the failure mode a generator change introduces —
+        # crdgen's transpileAllOf marks EVERY merged node preserve-unknown, even one merging two
+        # clean object members, and so do patternProperties, divergent unions and unresolved $refs.
+        run: node ui/scripts/check-crd-strictness.mjs
+
       - name: Assert the generator left no tracked file dirty
         run: |
           # krateoctl writes <Widget>.schema.crd.yaml next to each schema and gen-crds.ts moves it
