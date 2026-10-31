@@ -45,10 +45,10 @@ export interface Widget<WidgetDataType = unknown> {
   }
   status:
     | {
-        actions: WidgetActions
-        widgetData: WidgetDataType
-        resourcesRefs?: ResourcesRefs
-      }
+      actions: WidgetActions
+      widgetData: WidgetDataType
+      resourcesRefs?: ResourcesRefs
+    }
     | string
 }
 

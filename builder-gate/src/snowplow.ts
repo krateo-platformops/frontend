@@ -100,7 +100,7 @@ export const stageOutcomesOf = (headers: HttpResponse['headers'] | undefined): S
   }
   const parsed = jsonOf(raw)
   if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && (parsed as { truncated?: unknown }).truncated === true) {
-    const { failed } = (parsed as { failed?: unknown })
+    const { failed } = parsed as { failed?: unknown }
     return { failed: typeof failed === 'number' ? failed : NaN, kind: 'truncated' }
   }
   if (!Array.isArray(parsed)) {

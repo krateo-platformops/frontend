@@ -1,5 +1,5 @@
 // @ts-check
-import stylisticJs from '@stylistic/eslint-plugin-js'
+import stylistic from '@stylistic/eslint-plugin'
 import pluginJsxA11y from 'eslint-plugin-jsx-a11y'
 import pluginReact from 'eslint-plugin-react'
 import pluginReactHooks from 'eslint-plugin-react-hooks'
@@ -14,16 +14,16 @@ export const reactConfig = {
   },
   name: 'React config',
   plugins: {
-    '@stylistic/js': stylisticJs,
+    '@stylistic': stylistic,
     'jsx-a11y': pluginJsxA11y,
     react: pluginReact,
     'react-hooks': pluginReactHooks,
   },
   rules: {
     // http://eslint.org/docs/rules/
-    '@stylistic/js/jsx-quotes': ['error', 'prefer-single'],
-    '@stylistic/js/object-curly-spacing': ['error', 'always'],
-    '@stylistic/js/operator-linebreak': 'off',
+    '@stylistic/jsx-quotes': ['error', 'prefer-single'],
+    '@stylistic/object-curly-spacing': ['error', 'always'],
+    '@stylistic/operator-linebreak': 'off',
     // https://github.com/evcohen/eslint-plugin-jsx-a11y/tree/master/docs/rules
     'jsx-a11y/alt-text': 'error',
     'jsx-a11y/anchor-has-content': 'error',

@@ -10,7 +10,7 @@ import {
   SecretExpressionError,
 } from './secretJq'
 
-/* eslint-disable @stylistic/js/line-comment-position -- one-line reasons beside table rows */
+/* eslint-disable @stylistic/line-comment-position -- one-line reasons beside table rows */
 const VALUES = {
   __secret_key__: 'password',
   __secret_value__: 'pw-value',

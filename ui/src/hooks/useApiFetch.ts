@@ -16,7 +16,7 @@ type UseApiFetchParams = {
   endpoint: string
   config?: AxiosRequestConfig
   autoFetch?: boolean
-};
+}
 
 function useApiFetch<T>({
   autoFetch = true,

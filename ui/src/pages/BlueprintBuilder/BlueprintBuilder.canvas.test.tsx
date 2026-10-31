@@ -118,7 +118,7 @@ describe('BlueprintBuilder — the architecture graph', () => {
     hold(chartWith([native('db'), native('web', [{ ref: 'db' }]), native('svc', [{ ready: true, ref: 'web' }])]))
     const options = graphDouble.last()
     expect((options.node as { style: { size: number[] } }).style.size).toEqual([156, 72])
-    const { style } = (options.edge as { style: { lineDash: (datum: unknown) => unknown } })
+    const { style } = options.edge as { style: { lineDash: (datum: unknown) => unknown } }
     const edges = options.data?.edges as { id: string }[]
     expect(style.lineDash(edges.find((edge) => edge.id === 'web:dependsOn[0]'))).toEqual([6, 4])
     expect(style.lineDash(edges.find((edge) => edge.id === 'svc:dependsOn[0]'))).toBe(0)
@@ -128,7 +128,7 @@ describe('BlueprintBuilder — the architecture graph', () => {
     mount()
     hold(builderPublishChart())
     const options = graphDouble.last()
-    const { style } = (options.edge as { style: { labelText: (datum: unknown) => string } })
+    const { style } = options.edge as { style: { labelText: (datum: unknown) => string } }
     const edges = options.data?.edges as { id: string }[]
     expect(style.labelText(edges.find((edge) => edge.id === 'pullrequest:dependsOn[0]'))).toBe('all')
     expect(style.labelText(edges.find((edge) => edge.id === 'repo:dependsOn[0]'))).toBe('')

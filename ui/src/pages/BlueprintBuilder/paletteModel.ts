@@ -109,7 +109,7 @@ const includes = (query: string, ...texts: string[]): boolean => !query || texts
 
 const byText = (left: string, right: string): number => left.localeCompare(right)
 
-const stateOf = <T, >(read: ClassRead<T> | null): { state: SectionState; sentence: string | null; items: T[] } => {
+const stateOf = <T >(read: ClassRead<T> | null): { state: SectionState; sentence: string | null; items: T[] } => {
   if (!read) { return { items: [], sentence: null, state: 'loading' } }
   return read.state === 'ok' ? { items: read.items, sentence: null, state: 'ok' } : { items: [], sentence: read.sentence, state: read.state }
 }

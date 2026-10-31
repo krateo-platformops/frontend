@@ -22,7 +22,7 @@ type ResolveJq = (expression: string, values: Record<string, unknown>) => Promis
  * so the caller can keep those out of anything it later hands to `/jq` (success/error templates).
  */
 export const buildPayloadDetailed = async (
-  action: WidgetAction & {type: 'rest'},
+  action: WidgetAction & { type: 'rest' },
   resourcePayload: object,
   customPayload: Record<string, unknown> | undefined,
   resolveJq: ResolveJq,
@@ -88,7 +88,7 @@ export const buildPayloadDetailed = async (
  * reach `/jq`. Absent/empty = the previous behaviour exactly.
  */
 export const buildPayload = async (
-  action: WidgetAction & {type: 'rest'},
+  action: WidgetAction & { type: 'rest' },
   resourcePayload: object,
   customPayload: Record<string, unknown> | undefined,
   resolveJq: ResolveJq,

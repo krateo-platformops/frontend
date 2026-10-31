@@ -67,7 +67,7 @@ const SessionResumeModal = () => {
     const handleOpen = (event: Event) => {
       setSubmitError(null)
       setMethods(null)
-      const { detail } = (event as CustomEvent<AuthFailureCause | undefined>)
+      const { detail } = event as CustomEvent<AuthFailureCause | undefined>
       setCause(detail ?? pendingSessionCause())
       // Stash where the user was so a social/OIDC re-auth (a full IdP redirect) can land them
       // back here via the /auth callback. Harmless for the in-place basic/ldap flows, which

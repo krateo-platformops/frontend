@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react'
 
-type Callback<T> = (payload: T) => void;
+type Callback<T> = (payload: T) => void
 
 type EventMap = {
   [eventName: string]: unknown
-};
+}
 
 export function useEvents<Events extends EventMap>() {
   const listeners = useRef<{

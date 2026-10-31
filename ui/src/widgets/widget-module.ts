@@ -22,4 +22,4 @@ export interface WidgetModule<T = unknown> {
 }
 
 /** Identity helper that preserves the generic while enforcing the shape. */
-export const defineWidget = <T, >(module: WidgetModule<T>): WidgetModule<T> => module
+export const defineWidget = <T >(module: WidgetModule<T>): WidgetModule<T> => module
