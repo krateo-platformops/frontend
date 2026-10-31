@@ -247,3 +247,43 @@ describe('lifecycle is delegated, not reimplemented', () => {
     expect(inner.shutdown).toHaveBeenCalledOnce()
   })
 })
+
+describe('the PROPAGATOR applies the same boundary as the export filter', () => {
+  /*
+   * acmp's review caught this: I fixed the boundary in the processor and left the propagator's
+   * regex as a bare `^prefix`, so it still matched `…/contentious/call`. Same-origin that is
+   * harmless — same-origin requests carry traceparent anyway — but cross-origin it sends trace
+   * context to a look-alike path, and "one derivation, two consumers" is only true if both
+   * consumers apply the same rule to it.
+   *
+   * The regex is rebuilt here from the same shape `initTracing` uses, because `initTracing`
+   * registers a global provider and cannot be called in a unit test without side effects.
+   */
+  const PROPAGATE = new RegExp(`^${'https://portal\\.krateo\\.dev/content'}(?:[/?]|$)`)
+
+  it('propagates to the snowplow base and below it', () => {
+    for (const url of [
+      'https://portal.krateo.dev/content',
+      'https://portal.krateo.dev/content/call',
+      'https://portal.krateo.dev/content?x=1',
+    ]) {
+      expect(PROPAGATE.test(url)).toBe(true)
+    }
+  })
+
+  it('does NOT propagate to a look-alike path sharing the prefix', () => {
+    for (const url of [
+      'https://portal.krateo.dev/contentious/call',
+      'https://portal.krateo.dev/content-other',
+      'https://portal.krateo.dev/contentx',
+    ]) {
+      expect(PROPAGATE.test(url)).toBe(false)
+    }
+  })
+
+  it('does NOT propagate to other paths on the same origin', () => {
+    for (const url of ['https://portal.krateo.dev/auth/login', 'https://portal.krateo.dev/config/config.json']) {
+      expect(PROPAGATE.test(url)).toBe(false)
+    }
+  })
+})

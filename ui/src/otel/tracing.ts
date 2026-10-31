@@ -105,9 +105,15 @@ export function initTracing(cfg: TracingConfig): void {
   // only snowplow emits a Server span to link to (snowplow#1013), so traceparent on authn and
   // events calls had no counterpart.
   const snowplowPrefix = snowplowPrefixOf(cfg.api)
+  // The SAME path boundary the export filter applies (`underPrefix` in spanContract.ts). Without
+  // `(?:[/?]|$)` this matches `…/contentious/call` as if it were under `…/content` — the identical
+  // bug, in the second consumer. Same-origin it is harmless because same-origin requests get
+  // traceparent regardless; cross-origin it would send trace context to a look-alike path.
+  //
+  // "One derivation, two consumers" only holds if both consumers apply the same rule to it.
   const propagateTraceHeaderCorsUrls = snowplowPrefix === null
     ? []
-    : [new RegExp(`^${escapeRegExp(snowplowPrefix)}`)]
+    : [new RegExp(`^${escapeRegExp(snowplowPrefix)}(?:[/?]|$)`)]
 
   const provider = new WebTracerProvider({
     resource: resourceFromAttributes({
