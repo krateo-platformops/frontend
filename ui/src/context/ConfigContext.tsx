@@ -79,6 +79,14 @@ export interface Config {
      * authn/snowplow/events backend origins so browser→backend spans link
      * end-to-end. The collector's OTLP/HTTP receiver must CORS-allow the portal
      * origin, and authn/snowplow must allow the `traceparent` request header. */
+    /**
+     * Current name for the traces endpoint; takes precedence over OTEL_COLLECTOR_URL below.
+     * Under X5 this points at snowplow's `/telemetry/v1/traces`, which authenticates with the
+     * session's own bearer, validates size/rate, allowlists the five span names, and forwards to
+     * the in-cluster collector — so there is no browser-reachable collector route and no separate
+     * credential. Still default-OFF: absent, no provider starts and no traceparent is injected.
+     */
+    OTEL_TRACES_ENDPOINT?: string
     OTEL_COLLECTOR_URL?: string
     /** Autopilot builder publish DESTINATIONS — the `owner/repo` slug each authoring builder
      * publishes against. Config-driven so an org/repo rename is an install-values change, never a

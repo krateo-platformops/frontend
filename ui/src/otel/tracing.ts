@@ -8,6 +8,10 @@ import { resourceFromAttributes } from '@opentelemetry/resources'
 import { BatchSpanProcessor, WebTracerProvider } from '@opentelemetry/sdk-trace-web'
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
 
+import { getAccessToken } from '../utils/getAccessToken'
+
+import { ContractSpanProcessor, redactUrlAttributes } from './spanContract'
+
 /**
  * Minimal shape of the runtime config consumed by tracing init. We intentionally
  * accept a loosely-typed object (rather than the full `Config`) because tracing
@@ -16,7 +20,16 @@ import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
  */
 export interface TracingConfig {
   api: {
-    /** OTLP/HTTP traces endpoint (collector). When absent, init is never called. */
+    /**
+     * Where traces are POSTed, OTLP/HTTP JSON. When neither key is set, init is never called.
+     *
+     * `OTEL_TRACES_ENDPOINT` is the current name and wins. `OTEL_COLLECTOR_URL` keeps working for
+     * every install that already sets it, and is read second — it is not deprecated so much as
+     * misnamed now: under X5 the destination is snowplow's `/telemetry/v1/traces`, which validates
+     * and forwards to the collector, so nothing a collector serves lives at that URL any more.
+     * Renaming it silently would leave the next reader looking for a collector that is not there.
+     */
+    OTEL_TRACES_ENDPOINT?: string
     OTEL_COLLECTOR_URL?: string
     /** Cross-origin backends whose calls should carry W3C `traceparent`. */
     AUTHN_API_BASE_URL?: string
@@ -41,26 +54,19 @@ function escapeRegExp(value: string): string {
  * and leak trace context to third parties). Each backend must also CORS-allow
  * the `traceparent` request header, or those requests will fail preflight.
  */
-function buildCorsUrls(api: TracingConfig['api']): RegExp[] {
-  const rawUrls = [
-    api.AUTHN_API_BASE_URL,
-    api.SNOWPLOW_API_BASE_URL,
-    api.EVENTS_API_BASE_URL,
-    api.EVENTS_PUSH_API_BASE_URL,
-  ].filter((url): url is string => typeof url === 'string' && url.length > 0)
-
-  const origins = new Set<string>()
-  for (const url of rawUrls) {
-    try {
-      // Resolve relative URLs against the current document origin so same-origin
-      // backends still produce a usable absolute origin.
-      origins.add(new URL(url, window.location.origin).origin)
-    } catch {
-      // Ignore malformed URLs — a bad config entry must not break tracing init.
-    }
+function snowplowPrefixOf(api: TracingConfig['api']): string | null {
+  const base = api.SNOWPLOW_API_BASE_URL
+  if (typeof base !== 'string' || base.length === 0) {
+    return null
   }
-
-  return Array.from(origins).map((origin) => new RegExp(`^${escapeRegExp(origin)}`))
+  try {
+    // Resolved against the document origin so a relative base still yields an absolute prefix.
+    // Trailing slash stripped so `…/content` and `…/content/` behave identically.
+    return new URL(base, window.location.origin).href.replace(/\/+$/, '')
+  } catch {
+    // A malformed config entry must not break tracing init.
+    return null
+  }
 }
 
 let initialized = false
@@ -79,21 +85,65 @@ export function initTracing(cfg: TracingConfig): void {
     return
   }
 
-  const collectorUrl = cfg.api.OTEL_COLLECTOR_URL
-  if (!collectorUrl) {
+  const tracesEndpoint = cfg.api.OTEL_TRACES_ENDPOINT ?? cfg.api.OTEL_COLLECTOR_URL
+  if (!tracesEndpoint) {
     return
   }
 
   initialized = true
 
-  const propagateTraceHeaderCorsUrls = buildCorsUrls(cfg.api)
+  // ONE derivation, used for BOTH propagation and export, and it is a PREFIX rather than an
+  // origin.
+  //
+  // An origin check is correct only where snowplow has an origin of its own. On a same-origin
+  // install — 057 serves portal, snowplow AND authn from `portal.krateo.dev` — "same origin as
+  // snowplow" is true of authn calls and of the SPA's own `/config/config.json`, so an
+  // origin-scoped export would rename and ship those as `krateo.widget.fetch`. The prefix
+  // `https://portal.krateo.dev/content` is what actually identifies a snowplow call.
+  //
+  // Narrowing propagation to the same prefix also removes a header that was achieving nothing:
+  // only snowplow emits a Server span to link to (snowplow#1013), so traceparent on authn and
+  // events calls had no counterpart.
+  const snowplowPrefix = snowplowPrefixOf(cfg.api)
+  // The SAME path boundary the export filter applies (`underPrefix` in spanContract.ts). Without
+  // `(?:[/?]|$)` this matches `…/contentious/call` as if it were under `…/content` — the identical
+  // bug, in the second consumer. Same-origin it is harmless because same-origin requests get
+  // traceparent regardless; cross-origin it would send trace context to a look-alike path.
+  //
+  // "One derivation, two consumers" only holds if both consumers apply the same rule to it.
+  const propagateTraceHeaderCorsUrls = snowplowPrefix === null
+    ? []
+    : [new RegExp(`^${escapeRegExp(snowplowPrefix)}(?:[/?]|$)`)]
 
   const provider = new WebTracerProvider({
     resource: resourceFromAttributes({
       [ATTR_SERVICE_NAME]: 'krateo-frontend',
     }),
     spanProcessors: [
-      new BatchSpanProcessor(new OTLPTraceExporter({ url: collectorUrl })),
+      // The contract processor WRAPS the batcher: it renames on start and filters on end, so only
+      // the five accepted names and only our own origins reach the batch at all. Filtering here
+      // rather than letting snowplow drop server-side protects its size cap and per-user rate
+      // limit, which an unexportable span would otherwise spend.
+      new ContractSpanProcessor(
+        new BatchSpanProcessor(new OTLPTraceExporter({
+          // A FUNCTION, evaluated per request (otlp-exporter-base: `headers: await
+          // this._parameters.headers()`), so a rotated token is picked up without rebuilding the
+          // exporter. snowplow's endpoint answers 401 without it. Wrapped because the SPA throws
+          // when no session is stored, and a telemetry export must never be the thing that throws.
+          headers: (): Promise<Record<string, string>> => {
+            try {
+              return Promise.resolve({ Authorization: `Bearer ${getAccessToken()}` })
+            } catch {
+              // No stored session: send nothing rather than a malformed header. snowplow answers
+              // 401 and the batch is dropped, which is the right outcome — telemetry must never
+              // be the thing that throws, and an export is not worth raising to the user.
+              return Promise.resolve({})
+            }
+          },
+          url: tracesEndpoint,
+        })),
+        snowplowPrefix,
+      ),
     ],
   })
 
@@ -105,10 +155,21 @@ export function initTracing(cfg: TracingConfig): void {
   registerInstrumentations({
     instrumentations: [
       new FetchInstrumentation({
+        // Route template IN, raw URL OUT, here — where the span is still mutable. A raw
+        // `http.url` carries the query string, which is exactly what must not leave the browser:
+        // `?extras={...}` can hold a filter, and a page name is not ours to ship. snowplow
+        // allowlists attributes independently, but a value it would reject is a value we should
+        // not have sent.
+        applyCustomAttributesOnSpan: (span) => {
+          redactUrlAttributes(span, snowplowPrefix)
+        },
         clearTimingResources: true,
         propagateTraceHeaderCorsUrls,
       }),
       new XMLHttpRequestInstrumentation({
+        applyCustomAttributesOnSpan: (span) => {
+          redactUrlAttributes(span, snowplowPrefix)
+        },
         propagateTraceHeaderCorsUrls,
       }),
     ],
