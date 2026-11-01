@@ -48,7 +48,30 @@ export type SpanName = typeof SPAN_NAMES[keyof typeof SPAN_NAMES]
 
 const ACCEPTED: ReadonlySet<string> = new Set(Object.values(SPAN_NAMES))
 
-/** Marks a span the user navigated away from. Excluded from the latency SLI, not dropped. */
+/**
+ * Marks a span the user navigated away from. Excluded from the latency SLI, not dropped.
+ *
+ * SNOWPLOW ENFORCES THIS NARROWLY, agreed 2026-11-01 — the ingest accepts it
+ *
+ *   ONLY as boolean `true`, and
+ *   ONLY on krateo.composition.open, krateo.form.submit and krateo.page.publish.
+ *
+ * Anything else — `false`, a string, this attribute on any other span — is dropped AND COUNTED, so
+ * a mistake here surfaces in snowplow's drop counter rather than passing silently. Write it that
+ * way deliberately: **never emit `false`.** Absence means not abandoned; `false` means the span is
+ * discarded and the interaction is lost from the SLI entirely, which is the opposite of the intent.
+ *
+ * Not on krateo.widget.fetch (a child, not an interaction) and not on krateo.page.load (already
+ * reported outside the interaction SLO — it measures network and bundle size).
+ *
+ * WHY AN ATTRIBUTE AND NOT A SPAN STATUS: an abandoned interaction did not fail. `StatusCode.ERROR`
+ * would move it into the error-rate SLI, which is a worse distortion than the one it fixes. It
+ * still counts for throughput; it must only be excluded from p95, because its duration measures
+ * when someone left rather than when the portal finished.
+ *
+ * NOTHING EMITS THIS YET. The three interaction spans are part 2 (X5 session 2). snowplow is
+ * allowlisting it ahead of that, knowing it will carry no traffic until then.
+ */
 export const ATTR_ABANDONED = 'krateo.interaction.abandoned'
 
 /** `http.request.method` — the stable-semconv attribute every HTTP client span carries. */
