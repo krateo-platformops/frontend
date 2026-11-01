@@ -10,6 +10,7 @@ import useCatchError from '../../hooks/useCatchError'
 import { invalidateAccessTokenCache } from '../../utils/getAccessToken'
 import { resolveNextPath, SESSION_RESUME_NEXT_KEY } from '../../utils/nextPath'
 import type { AuthModeType, AuthRequestType, AuthResponseType } from '../Login/Login.types'
+import { SOCIAL_LOGIN_STATE_KEY } from '../Login/SocialLogin/SocialLogin'
 
 const Auth = () => {
   const navigate = useNavigate()
@@ -93,8 +94,16 @@ const Auth = () => {
       const methodData = methods
         ?.find((el) => (el.kind === kind) && el.extensions?.redirectURL && (el.extensions.redirectURL.indexOf(window.location.protocol) > -1))
 
-      if (methodData?.extensions?.authCodeURL && (methodData.extensions.authCodeURL.indexOf('&state=') > -1)) {
-        if (state === localStorage.getItem('KrateoSL') && code && methodData) {
+      // Validate the returned state iff WE SENT ONE, which is exactly when SocialLogin recorded it.
+      // This used to key off `authCodeURL.indexOf('&state=')` — a substring search of authn's URL —
+      // which answers a different question: whether authn's URL mentioned state, not whether the
+      // portal issued one. Those came apart in both directions. authn now always sends a state, so
+      // the search always matched and the unvalidated branch was dead; and had authn stopped sending
+      // one, the search would have stopped matching even though SocialLogin still sent its own,
+      // skipping the check on a flow that had one to check.
+      const sentState = localStorage.getItem(SOCIAL_LOGIN_STATE_KEY)
+      if (sentState !== null) {
+        if (state === sentState && code && methodData) {
           void socialAuth(code, methodData)
         }
       } else if (code && methodData) {
