@@ -29,7 +29,8 @@
     "visual": "visual/docker.sh",
     "visual:build": "vite build --config visual/vite.config.ts",
     "visual:update": "visual/docker.sh --update-snapshots",
-    "lint:css:ci": "stylelint \"src/**/*.module.css\""
+    "lint:css:ci": "stylelint \"src/**/*.module.css\"",
+    "check-yaml-keys": "tsx scripts/check-yaml-keys.ts"
   },
   "repository": {
     "type": "git",
@@ -84,7 +85,8 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.28.0",
     "vite": "^8.3.5",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "yaml": "^2.9.1"
   },
   "dependencies": {
     "@ant-design/graphs": "^2.1.1",

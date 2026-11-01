@@ -95,6 +95,16 @@ jobs:
       - name: CSS lint (fails on anything not recorded)
         run: npm run lint:css:ci
 
+      # An unquoted YAML key the APPLIER will not keep as a string (#575). The frontend is YAML 1.2
+      # and kubectl/Helm are YAML 1.1, so `y:` stays `y` in the builder's preview and becomes `true`
+      # in the cluster — the value lands on a channel nothing reads and silently no-ops. Two keys
+      # from the same bucket are worse: they collide and one value is destroyed outright.
+      #
+      # The repo is at ZERO today, which is why this guard exists now rather than after the first
+      # one: the baseline is empty and every finding will be new.
+      - name: YAML key lint (fails on a key the applier would rename)
+        run: npm run check-yaml-keys
+
   # Visual regression: every widget example, light and dark, against the PNG baselines in
   # ui/visual/__screenshots__. It runs in the SAME Playwright image `ui/visual/docker.sh` uses
   # locally, because baselines are only comparable when fonts rasterise identically; the image tag
