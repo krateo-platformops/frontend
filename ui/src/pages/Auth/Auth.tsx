@@ -10,7 +10,7 @@ import useCatchError from '../../hooks/useCatchError'
 import { invalidateAccessTokenCache } from '../../utils/getAccessToken'
 import { resolveNextPath, SESSION_RESUME_NEXT_KEY } from '../../utils/nextPath'
 import type { AuthModeType, AuthRequestType, AuthResponseType } from '../Login/Login.types'
-import { SOCIAL_LOGIN_STATE_KEY } from '../Login/SocialLogin/SocialLogin'
+import { takeSocialLoginState } from '../Login/SocialLogin/SocialLogin'
 
 const Auth = () => {
   const navigate = useNavigate()
@@ -101,7 +101,8 @@ const Auth = () => {
       // the search always matched and the unvalidated branch was dead; and had authn stopped sending
       // one, the search would have stopped matching even though SocialLogin still sent its own,
       // skipping the check on a flow that had one to check.
-      const sentState = localStorage.getItem(SOCIAL_LOGIN_STATE_KEY)
+      // Takes the state AND consumes it (#583) — see takeSocialLoginState. One login, one state.
+      const sentState = takeSocialLoginState()
       if (sentState !== null) {
         if (state === sentState && code && methodData) {
           void socialAuth(code, methodData)
