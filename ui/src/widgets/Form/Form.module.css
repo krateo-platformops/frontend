@@ -141,6 +141,12 @@
     position: sticky;
     top: 0;
 
+    /* antd 6 moved the active marker up a level: .ant-anchor-link-title-active ->
+       .ant-anchor-link-active (on the link, not its title). Both listed so this renders on antd 5
+       and antd 6 (frontend#590). Verified against antd 6.6.0: the v5 name is zero as a selector, so
+       the active section had stopped being bolded. */
+    :global .ant-anchor-link-active,
+    :global .ant-anchor-link-active .ant-anchor-link-title,
     :global .ant-anchor-link-title-active {
       font-weight: 600;
     }
@@ -287,6 +293,17 @@
 /* Valid (passed validation, via hasFeedback) → cyan rail — completes the rail's state
    language (rest = graphite, valid = cyan, focus = amber). Focus wins while editing
    (declared AFTER has-success, equal specificity). */
+
+/* DEAD ON antd 6 AND LEFT DEAD DELIBERATELY — frontend#590.
+
+   antd 6 emits no per-status form-item class: of the v5 set only .ant-form-item-has-feedback
+   survives, so there is nothing to swap this to. Verified against antd 6.6.0.
+
+   It is left rather than repointed because the portal's own rule says not to do this anyway:
+   indicators are EXCEPTION-ONLY — never mark something healthy. A cyan border on a field that
+   validated is marking success, which is the thing the rule forbids, and the error and warning
+   states below carry the information that matters. So the antd 6 rename silently removed a rule
+   that should not have existed. Recorded instead of resurrected; delete it if you agree. */
 .field:global(.ant-form-item-has-success) {
   border-left-color: var(--cyan-color);
 }
@@ -347,6 +364,11 @@
   letter-spacing: 0.02em;
 }
 
+/* antd 6 renamed the collapse body: .ant-collapse-content-box -> .ant-collapse-body (inside
+   .ant-collapse-panel). Both listed so this renders on antd 5 and antd 6 (frontend#590).
+   The owner is @rc-component/collapse — a TRANSITIVE dependency, so this can move without antd
+   itself appearing in a diff. */
+.advanced :global(.ant-collapse-body),
 .advanced :global(.ant-collapse-content-box) {
   padding-top: var(--spacing-xs);
 }
