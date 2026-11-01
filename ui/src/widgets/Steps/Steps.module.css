@@ -8,16 +8,46 @@
   border-color: var(--cyan-color) !important;
 }
 
+/* antd 6 emits NO .ant-steps-icon. Verified by RENDERING antd 6.6.0's Steps with a finished item
+   and reading the DOM, rather than by reasoning about it:
+
+     <div class="ant-steps-item-icon ant-wave-target">
+       <span class="anticon anticon-check ant-steps-item-icon-finish"><svg …>
+
+   So antd 6 provides a PURPOSE-BUILT class for exactly this, `.ant-steps-item-icon-finish`, and it
+   is listed first — narrower and more honest than reaching through the parent. The v5 nesting
+   follows it for antd 5 compatibility (frontend#590).
+
+   WHAT IS NOT ESTABLISHED: #591's `visual` job passed with the Steps baselines UNCHANGED, and the
+   Steps example does contain a finished step. So either the colour delta sits below the comparison
+   threshold or antd 6's default is already near our cyan — I did not determine which, and a green
+   visual job is NOT evidence this rule now paints. Four of the five components #590 touched have
+   ZERO visual baselines at all (Modal, Form, Anchor, Collapse), so that job verifies almost none of
+   it either way. */
+.steps :global(.ant-steps-item-icon-finish),
+.steps :global(.ant-steps-item-icon-finish svg),
+.steps :global(.ant-steps-item-finish .ant-steps-item-icon),
+.steps :global(.ant-steps-item-finish .ant-steps-item-icon svg),
 .steps :global(.ant-steps-item-finish .ant-steps-item-icon .ant-steps-icon),
 .steps :global(.ant-steps-item-finish .ant-steps-item-icon .ant-steps-icon svg) {
   color: var(--cyan-color) !important;
   fill: var(--cyan-color) !important;
 }
 
-/* Done→current connector — cyan→amber gradient (mockup `.ln.fill` cyan→amber). */
-.steps :global(.ant-steps-item-finish > .ant-steps-item-container > .ant-steps-item-tail)::after {
-  background: linear-gradient(90deg, var(--cyan-color), var(--primary-color)) !important;
-}
+/* Done→current connector — cyan→amber gradient (mockup `.ln.fill` cyan→amber).
+
+   DEAD ON antd 6 AND DELIBERATELY NOT PATCHED HERE — see frontend#590. Both segments moved:
+   `.ant-steps-item-container` became `-section`/`-wrapper`, and `.ant-steps-item-tail` became
+   `.ant-steps-item-rail` (with -rail-finish/-process/-wait/-error state variants). Verified against
+   antd 6.6.0: both old names are zero as selectors.
+
+   It is not a selector swap, which is why it is flagged rather than fixed. In antd 5 the tail's
+   ::after carried the line as a BACKGROUND, so a linear-gradient worked. In antd 6 the rail IS the
+   line — `.ant-steps-item-rail` sets border-style/border-width and `-rail-finish` sets
+   `--ant-cmp-steps-item-solid-line-color`. A background gradient does not paint a border, so
+   reproducing cyan→amber needs a different technique (`border-image` with a gradient, or a
+   positioned pseudo over the rail) and a visual decision about whether the gradient is still
+   wanted. Left to that decision rather than quietly becoming a solid colour. */
 
 /* Bezel strip frame — the stepper sits in a raised panel (mockup `.steps` bezel border+bg). */
 .steps {

@@ -1,4 +1,16 @@
+/* antd 6 renamed the modal's inner panel: .ant-modal-content -> .ant-modal-container. Both names
+   are listed on every rule below so this renders on antd 5 and antd 6, the convention
+   Table.module.css and ListView.module.css already use for Progress.
+
+   This was DEAD after the antd 6 bump and nothing said so (frontend#590). It is not cosmetic: the
+   first rule is the flex parent that makes `.ant-modal-body { flex: 1; overflow-y: auto }` scroll,
+   so tall modals stopped scrolling and overflowed the viewport instead. No test could see it —
+   jsdom computes no layout, so a style that stops applying is invisible to a component test.
+
+   `-content-bg` and `-content-padding` survive as CSS VARIABLES, which is what makes a grep for
+   "ant-modal-content" look reassuring: 8 hits, none of them a selector. */
 .modal {
+  :global(.ant-modal-container),
   :global(.ant-modal-content) {
     display: flex;
     flex-direction: column;
@@ -27,6 +39,7 @@
   max-width: 100%;
   width: 100% !important;
 
+  :global(.ant-modal-container),
   :global(.ant-modal-content) {
     border-radius: 0;
     height: 100%;
@@ -55,6 +68,7 @@
     width: 100vw !important;
   }
 
+  :global(.ant-modal-container),
   :global(.ant-modal-content) {
     border-radius: 0 !important;
     display: flex;

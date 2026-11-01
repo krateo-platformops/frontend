@@ -141,6 +141,12 @@
     position: sticky;
     top: 0;
 
+    /* antd 6 moved the active marker up a level: .ant-anchor-link-title-active ->
+       .ant-anchor-link-active (on the link, not its title). Both listed so this renders on antd 5
+       and antd 6 (frontend#590). Verified against antd 6.6.0: the v5 name is zero as a selector, so
+       the active section had stopped being bolded. */
+    :global .ant-anchor-link-active,
+    :global .ant-anchor-link-active .ant-anchor-link-title,
     :global .ant-anchor-link-title-active {
       font-weight: 600;
     }
@@ -287,6 +293,30 @@
 /* Valid (passed validation, via hasFeedback) → cyan rail — completes the rail's state
    language (rest = graphite, valid = cyan, focus = amber). Focus wins while editing
    (declared AFTER has-success, equal specificity). */
+
+/* LIVE, AND AN ACTIVE EXCEPTION-ONLY VIOLATION — frontend#590. CORRECTING AN EARLIER COMMENT HERE
+   THAT SAID THE OPPOSITE.
+
+   I previously wrote that antd 6 emits no per-status form-item class, that this rule was therefore
+   dead, and that "the antd 6 rename silently removed a rule that should not have existed". Every
+   part of that was wrong, and wrong in the comfortable direction.
+
+   antd 6 DOES emit it. `antd/es/form/FormItem/ItemHolder.js:76` composes it at runtime:
+
+       [`${itemPrefixCls}-has-success`]: mergedValidateStatus === 'success'
+
+   Confirmed by rendering a Form.Item with validateStatus="success": the class is present.
+
+   WHY I GOT IT WRONG, because the method matters more than the mistake. I audited by grepping
+   `antd/dist/antd.css` for the literal class name. That file lists what antd STYLES, not what it
+   RENDERS — and antd builds class names from a prefix variable, so a composed name never appears as
+   literal text anywhere in the stylesheet. The grep's false negative looked like proof.
+
+   SO THE DEFECT IS REAL AND PRESENT: a cyan border is painted on every field that validates. The
+   portal's indicators are EXCEPTION-ONLY — never mark something healthy — and the error and warning
+   states below carry the information that matters. This rule should be DELETED rather than kept, but
+   deleting it is a visible change to every form in the portal, so it is a decision rather than a
+   drive-by. Left in place, correctly described, pending that call. */
 .field:global(.ant-form-item-has-success) {
   border-left-color: var(--cyan-color);
 }
@@ -347,6 +377,11 @@
   letter-spacing: 0.02em;
 }
 
+/* antd 6 renamed the collapse body: .ant-collapse-content-box -> .ant-collapse-body (inside
+   .ant-collapse-panel). Both listed so this renders on antd 5 and antd 6 (frontend#590).
+   The owner is @rc-component/collapse — a TRANSITIVE dependency, so this can move without antd
+   itself appearing in a diff. */
+.advanced :global(.ant-collapse-body),
 .advanced :global(.ant-collapse-content-box) {
   padding-top: var(--spacing-xs);
 }

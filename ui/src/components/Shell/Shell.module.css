@@ -149,9 +149,23 @@
   white-space: nowrap;
 }
 
-/* Collapsed sider (antd sets .ant-layout-sider-collapsed): the narrow rail has no room for the
-   mono eyebrow or the build line, so hide the text-only chrome and let the nav icons stand alone.
-   The user avatar stays (it centres itself). */
+/* Collapsed sider: the narrow rail has no room for the mono eyebrow or the build line, so hide the
+   text-only chrome and let the nav icons stand alone. The user avatar stays (it centres itself).
+
+   THIS WORKS. A previous version of this comment claimed it was broken on antd 6 and that the build
+   line and footer name stayed visible in the collapsed rail. That was wrong (frontend#590).
+
+   antd 6 emits `.ant-layout-sider-collapsed`. `antd/es/layout/Sider.js:164` composes it:
+
+       [`${prefixCls}-collapsed`]: !!collapsed
+
+   Confirmed by rendering a collapsed `Layout.Sider`: the class is present.
+
+   The earlier claim came from grepping `antd/dist/antd.css` for the literal name. That file lists
+   what antd STYLES, not what it RENDERS, and antd builds class names from a prefix variable — so a
+   composed name is absent from the stylesheet while being emitted on every render. Nothing here
+   needs fixing; the note stays only so the next person does not re-derive the wrong conclusion from
+   the same grep. */
 :global(.ant-layout-sider-collapsed) .siderBuild,
 :global(.ant-layout-sider-collapsed) .siderFooterName {
   display: none;
