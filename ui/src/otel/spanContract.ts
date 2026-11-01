@@ -56,10 +56,20 @@ const ACCEPTED: ReadonlySet<string> = new Set(Object.values(SPAN_NAMES))
  *   ONLY as boolean `true`, and
  *   ONLY on krateo.composition.open, krateo.form.submit and krateo.page.publish.
  *
- * Anything else — `false`, a string, this attribute on any other span — is dropped AND COUNTED, so
- * a mistake here surfaces in snowplow's drop counter rather than passing silently. Write it that
- * way deliberately: **never emit `false`.** Absence means not abandoned; `false` means the span is
- * discarded and the interaction is lost from the SLI entirely, which is the opposite of the intent.
+ * SNOWPLOW DROPS THE ATTRIBUTE, NOT THE SPAN. A span carrying `false`, a string, or this flag on
+ * any other span name is still FORWARDED — without the attribute — and
+ * `snowplow_rum_ingest_attributes_dropped_total` goes up by one. Same rule as any other non-allowlisted
+ * attribute. (An earlier version of this comment said the span was discarded and the interaction
+ * lost from the SLI. That was wrong, and wrong in the reassuring direction.)
+ *
+ * So `false` is not destructive — its effect is identical to absence, and the span counts in p95.
+ * Still never emit it: it carries nothing and spends a drop-counter increment saying so.
+ *
+ * THE CASE TO FEAR IS THE OPPOSITE ONE. A genuinely abandoned interaction whose flag is mis-typed —
+ * the string `"true"`, or `false` by mistake — is forwarded WITHOUT the flag, so it silently
+ * pollutes p95 with a duration that measures when someone left. Nothing fails, nothing is missing,
+ * and the latency number is quietly wrong. The only visible trace is that counter, which is why
+ * snowplow counts rather than ignores. Emit a real boolean `true` or emit nothing.
  *
  * Not on krateo.widget.fetch (a child, not an interaction) and not on krateo.page.load (already
  * reported outside the interaction SLO — it measures network and bundle size).
