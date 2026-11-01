@@ -43,8 +43,8 @@
 .errorText {
   font-family: inherit;
   margin: 0;
+  overflow-wrap: break-word;
   white-space: pre-wrap;
-  word-break: break-word;
 }
 
 /* FE-K1 validation/immutability lines inside the drawer's Alert blocks. */

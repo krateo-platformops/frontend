@@ -28,7 +28,8 @@
     "validate-schemas": "tsx scripts/validate-schemas.ts",
     "visual": "visual/docker.sh",
     "visual:build": "vite build --config visual/vite.config.ts",
-    "visual:update": "visual/docker.sh --update-snapshots"
+    "visual:update": "visual/docker.sh --update-snapshots",
+    "lint:css:ci": "stylelint \"src/**/*.module.css\""
   },
   "repository": {
     "type": "git",
@@ -75,10 +76,10 @@
     "jsdom": "^27.0.1",
     "json-schema": "^0.4.0",
     "json-schema-to-typescript": "^15.0.4",
-    "stylelint": "^16.19.1",
+    "stylelint": "^17.16.0",
     "stylelint-config-css-modules": "^4.4.0",
-    "stylelint-config-standard": "^38.0.0",
-    "stylelint-order": "^7.0.0",
+    "stylelint-config-standard": "^40.0.0",
+    "stylelint-order": "^8.1.2",
     "tsx": "^4.19.4",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.28.0",

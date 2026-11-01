@@ -151,6 +151,7 @@
 
 /* Grows first and hardest. min-width:0 so a deeply nested page scrolls inside its own frame
    instead of pushing the other two columns off the row. */
+/* stylelint-disable-next-line no-descending-specificity -- fixing this means MOVING a rule, and the cascade decides the outcome — a wrong move changes rendering and the 78 visual shots would not catch it. See #576. */
 .canvas {
   border: 1px solid var(--border-color, rgb(0 0 0 / 10%));
   border-radius: var(--border-radius, 8px);
@@ -172,6 +173,7 @@
 
 /* Lives inside `.centre` now, under the canvas and above nothing. See `.centre` for why it moved,
    and SplitDivider for what it cost to have it anywhere else. */
+/* stylelint-disable-next-line no-descending-specificity -- fixing this means MOVING a rule, and the cascade decides the outcome — a wrong move changes rendering and the 78 visual shots would not catch it. See #576. */
 .result {
   min-width: 0;
 }
@@ -193,11 +195,19 @@
   justify-content: space-between;
 }
 
-.counts { align-items: center; display: inline-flex; gap: var(--spacing-xsm); }
+.counts {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--spacing-xsm);
+}
 
 /* One row of the tree: name, kind, and the two badges that carry the meaning — `data` for an
    apiRef-bound widget, `placed` for one that exists on the cluster and is only referenced. */
-.node { align-items: center; display: inline-flex; gap: var(--spacing-xsm); }
+.node {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--spacing-xsm);
+}
 
 .kindTag { opacity: .75; }
 
@@ -215,7 +225,10 @@
  * alternative to dragging; this was the alternative, and it could not be seen.
  */
 @media (hover: hover) and (pointer: fine) {
-  .nodeActions { opacity: 0; transition: opacity .12s ease-in-out; }
+  .nodeActions {
+    opacity: 0;
+    transition: opacity .12s ease-in-out;
+  }
 
   .node:hover .nodeActions,
   .node:focus-within .nodeActions { opacity: 1; }

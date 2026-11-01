@@ -48,5 +48,5 @@
   font-family: var(--font-mono);
   font-size: var(--krateo-text-body-sm);
   line-height: 1.5;
-  word-break: break-word;
+  overflow-wrap: break-word;
 }
