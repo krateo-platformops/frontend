@@ -7,10 +7,23 @@
  * span starts or ends changes what the p95 claims, silently.
  *
  * WHY A PROCESSOR AND NOT JUST CAREFUL NAMING. snowplow's ingestion (snowplow#1015) accepts ONLY
- * these five names and drops everything else server-side. Auto-instrumented fetch spans are named
- * `HTTP ${method}` — `instrumentation-fetch/build/src/fetch.js:138` — so without a rename EVERY
- * span the portal already produces would be dropped, and dropped invisibly: the browser sees a 2xx
- * and nothing arrives. That is the failure this file exists to prevent.
+ * these five names and drops everything else server-side. Auto-instrumented fetch spans are NOT
+ * named any of them, so without a rename every span the portal produces is dropped — and dropped
+ * invisibly: the browser sees a 2xx and nothing arrives. That is the failure this file exists to
+ * prevent, and it is a failure this file ONCE CAUSED.
+ *
+ * THE SPAN IS IDENTIFIED BY ITS ATTRIBUTES, NOT ITS NAME, AND THAT IS THE WHOLE POINT (#588).
+ * This used to match `/^HTTP [A-Z]+$/`, correct for instrumentation-fetch 0.219 and WRONG from
+ * 0.223, where `_createSpan` sets `const name = normMethod` — the bare method, `GET`, per stable
+ * semconv. The otel bump in #571 therefore silently stopped every fetch span being renamed, so
+ * every one was dropped at `onEnd`.
+ *
+ * The tests did not catch it because they CONSTRUCTED `HTTP GET` by hand: the fixture and the
+ * predicate shared the same wrong belief about what the library emits, so a control that broke the
+ * predicate failed them exactly as it should and proved nothing about reality. A span name is the
+ * library's presentation choice and it moves; `http.request.method` is a stable semantic convention
+ * and is what actually means "this is an HTTP client span". Matching the attribute cannot drift
+ * with a naming change, which is why the next bump will not repeat this.
  */
 import type { Context, Span as ApiSpan } from '@opentelemetry/api'
 import type { ReadableSpan, Span, SpanProcessor } from '@opentelemetry/sdk-trace-web'
@@ -38,8 +51,25 @@ const ACCEPTED: ReadonlySet<string> = new Set(Object.values(SPAN_NAMES))
 /** Marks a span the user navigated away from. Excluded from the latency SLI, not dropped. */
 export const ATTR_ABANDONED = 'krateo.interaction.abandoned'
 
-/** The auto-instrumentation span names this renames. `HTTP ${method}`, per instrumentation-fetch. */
-const isAutoHttpSpan = (name: string): boolean => /^HTTP [A-Z]+$/.test(name)
+/** `http.request.method` — the stable-semconv attribute every HTTP client span carries. */
+const ATTR_HTTP_REQUEST_METHOD = 'http.request.method'
+
+/**
+ * An auto-instrumented HTTP client span: one carrying the semconv method attribute that is not
+ * already one of ours.
+ *
+ * Deliberately NOT a name test — see the file header. The `ACCEPTED` guard matters: a renamed
+ * `krateo.widget.fetch` still carries the attribute, and `onStart` must not treat a span it has
+ * already named as a fresh candidate.
+ *
+ * `attributes?.` is load-bearing, not defensive noise. `onStart` runs for EVERY span the SDK
+ * creates, including ones a manual `startSpan` made with no attributes at all — and a predicate
+ * that throws in `onStart` takes the tracer down rather than losing one span. Caught by running
+ * this file's tests alongside the hand-built fixtures in spanContract.test.ts, which is the only
+ * reason it was caught before shipping.
+ */
+const isAutoHttpSpan = (span: Span): boolean =>
+  !ACCEPTED.has(span.name) && typeof span.attributes?.[ATTR_HTTP_REQUEST_METHOD] === 'string'
 
 /** The URL attributes auto-instrumentation writes. Older convention first; both are handled. */
 const URL_ATTRS = ['http.url', 'url.full'] as const
@@ -157,7 +187,7 @@ export class ContractSpanProcessor implements SpanProcessor {
    * obvious implementation and silently does nothing.
    */
   onStart(span: Span, parentContext: Context): void {
-    if (isAutoHttpSpan(span.name)) {
+    if (isAutoHttpSpan(span)) {
       span.updateName(SPAN_NAMES.widgetFetch)
     }
     this.inner.onStart(span, parentContext)

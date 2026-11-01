@@ -15,10 +15,23 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { ATTR_ABANDONED, ATTR_ROUTE, ContractSpanProcessor, redactUrlAttributes, SPAN_NAMES } from './spanContract'
 
-/** A minimal mutable span, as `onStart` receives it. `updateName` is the only mutation used. */
-const startable = (name: string) => {
+/**
+ * A minimal mutable span, as `onStart` receives it. `updateName` is the only mutation used.
+ *
+ * ATTRIBUTES ARE PART OF THE FIXTURE NOW, and that is the lesson of #588. These tests used to build
+ * a span named `HTTP GET` with no attributes, because the processor recognised fetch spans by name.
+ * instrumentation-fetch stopped using that name at 0.223 — it emits the bare method — so the
+ * fixture was asserting a rename of a name no library produced, and agreed with a predicate that
+ * looked for it. Both halves were wrong together, which is why every control passed.
+ *
+ * The real span carries `http.request.method`; that is what the processor matches now, and what a
+ * fixture has to carry to mean anything. `spanContract.instrumentation.test.ts` takes the same shape
+ * from the INSTALLED package rather than from a literal, so a future rename fails there.
+ */
+const startable = (name: string, attributes: Record<string, unknown> = {}) => {
   let current = name
   return {
+    attributes,
     get name() { return current },
     updateName(next: string) { current = next; return this },
   }
@@ -28,6 +41,9 @@ const startable = (name: string) => {
 const ended = (name: string, attributes: Record<string, unknown> = {}) => ({ attributes, name })
 
 const PREFIX = 'https://portal.krateo.dev/content'
+/** A fetch span as instrumentation-fetch 0.223+ actually makes one: bare method + the semconv attr. */
+const autoFetchSpan = (method: string) =>
+  startable(method, { 'http.request.method': method, 'url.full': `${PREFIX}/x` })
 
 const harness = (prefix: string | null = PREFIX) => {
   const inner = {
@@ -52,9 +68,9 @@ describe('the five names are the whole accepted set', () => {
 })
 
 describe('auto-instrumented fetch spans are RENAMED, and renamed at START', () => {
-  it('renames `HTTP GET` to krateo.widget.fetch', () => {
+  it('renames a fetch span to krateo.widget.fetch', () => {
     const { processor } = harness()
-    const span = startable('HTTP GET')
+    const span = autoFetchSpan('GET')
     processor.onStart(span as never, {} as never)
     expect(span.name).toBe(SPAN_NAMES.widgetFetch)
   })
@@ -62,10 +78,19 @@ describe('auto-instrumented fetch spans are RENAMED, and renamed at START', () =
   it('renames every method, not just GET', () => {
     const { processor } = harness()
     for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'HEAD']) {
-      const span = startable(`HTTP ${method}`)
+      const span = autoFetchSpan(method)
       processor.onStart(span as never, {} as never)
       expect(span.name).toBe(SPAN_NAMES.widgetFetch)
     }
+  })
+
+  it('does NOT rename a span that merely LOOKS like the old name but carries no method attribute', () => {
+    // The shape this file used to assert a rename for. Nothing emits it, and matching it by name is
+    // what broke on the 0.223 bump — so it must not be rehabilitated by accident.
+    const { processor } = harness()
+    const span = startable('HTTP GET')
+    processor.onStart(span as never, {} as never)
+    expect(span.name).toBe('HTTP GET')
   })
 
   it('leaves a contract span alone', () => {
