@@ -8,9 +8,24 @@
   border-color: var(--cyan-color) !important;
 }
 
-/* antd 6 emits NO .ant-steps-icon — the glyph sits directly in .ant-steps-item-icon. Both
-   nestings are listed so this renders on antd 5 and antd 6 (frontend#590); the antd-6 pair is
-   first. Verified against antd 6.6.0: `.ant-steps-icon` appears zero times as a selector. */
+/* antd 6 emits NO .ant-steps-icon. Verified by RENDERING antd 6.6.0's Steps with a finished item
+   and reading the DOM, rather than by reasoning about it:
+
+     <div class="ant-steps-item-icon ant-wave-target">
+       <span class="anticon anticon-check ant-steps-item-icon-finish"><svg …>
+
+   So antd 6 provides a PURPOSE-BUILT class for exactly this, `.ant-steps-item-icon-finish`, and it
+   is listed first — narrower and more honest than reaching through the parent. The v5 nesting
+   follows it for antd 5 compatibility (frontend#590).
+
+   WHAT IS NOT ESTABLISHED: #591's `visual` job passed with the Steps baselines UNCHANGED, and the
+   Steps example does contain a finished step. So either the colour delta sits below the comparison
+   threshold or antd 6's default is already near our cyan — I did not determine which, and a green
+   visual job is NOT evidence this rule now paints. Four of the five components #590 touched have
+   ZERO visual baselines at all (Modal, Form, Anchor, Collapse), so that job verifies almost none of
+   it either way. */
+.steps :global(.ant-steps-item-icon-finish),
+.steps :global(.ant-steps-item-icon-finish svg),
 .steps :global(.ant-steps-item-finish .ant-steps-item-icon),
 .steps :global(.ant-steps-item-finish .ant-steps-item-icon svg),
 .steps :global(.ant-steps-item-finish .ant-steps-item-icon .ant-steps-icon),
