@@ -84,6 +84,17 @@ jobs:
       - name: Accessibility lint (fails on any violation)
         run: npx eslint -c eslint.a11y.config.js src
 
+      # stylelint was declared, had a `lint:css` script, and ran in NO workflow — the same shape
+      # builder-gate's ESLint was in before #566. It carried 26 findings nothing looked at. 19 are
+      # fixed; the remaining 7 are recorded as `stylelint-disable-next-line` with a reason, because
+      # each needs a rule MOVED and the cascade decides the result. This gate is therefore at zero
+      # and stays there: a NEW finding fails the job.
+      #
+      # `lint:css` is the local script and carries --fix. This one must not mutate, hence a separate
+      # script rather than reusing it.
+      - name: CSS lint (fails on anything not recorded)
+        run: npm run lint:css:ci
+
   # Visual regression: every widget example, light and dark, against the PNG baselines in
   # ui/visual/__screenshots__. It runs in the SAME Playwright image `ui/visual/docker.sh` uses
   # locally, because baselines are only comparable when fonts rasterise identically; the image tag

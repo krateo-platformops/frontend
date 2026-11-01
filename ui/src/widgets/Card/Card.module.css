@@ -162,6 +162,7 @@
     /* Content-width (not flex:1) so a trailing "Live" badge hugs the title text
        instead of being pushed to the far edge of the header. Still ellipsizes
        long titles — the antd title slot bounds the width and flex-shrink applies. */
+    /* stylelint-disable-next-line no-descending-specificity -- fixing this means MOVING a rule, and the cascade decides the outcome — a wrong move changes rendering and the 78 visual shots would not catch it. See #576. */
     .text {
       flex: 0 1 auto;
       min-width: 0;

@@ -310,6 +310,7 @@
 }
 
 /* our own required asterisk lives in the title (.req) — suppress antd's native marks */
+/* stylelint-disable-next-line no-descending-specificity -- fixing this means MOVING a rule, and the cascade decides the outcome — a wrong move changes rendering and the 78 visual shots would not catch it. See #576. */
 .field :global(.ant-form-item-label) > label::before,
 .field :global(.ant-form-item-label) > label::after {
   display: none !important;

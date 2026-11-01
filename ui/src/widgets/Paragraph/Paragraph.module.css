@@ -66,6 +66,7 @@ h5.paragraph {
 
 /* A bold label sits in its container's gap like a heading does, not on antd's one-sided
    `margin-bottom: 1em` (the subtitle's reason, #81 §0.3). */
+/* stylelint-disable-next-line no-descending-specificity -- fixing this means MOVING a rule, and the cascade decides the outcome — a wrong move changes rendering and the 78 visual shots would not catch it. See #576. */
 .paragraph:has(strong) {
   margin: 0;
 }

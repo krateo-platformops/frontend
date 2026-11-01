@@ -84,7 +84,7 @@
   font-family: var(--font-mono);
   font-size: var(--krateo-text-caption);
   margin: 0;
-  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 /* Diff surface. */
@@ -127,9 +127,9 @@
   margin: 0;
   max-height: 240px;
   overflow: auto;
+  overflow-wrap: break-word;
   padding: var(--spacing-sm) var(--spacing-smd);
   white-space: pre-wrap;
-  word-break: break-word;
 }
 
 /* W0-4 set view: the ORDERED op list — one calm line per op (verb chip + target +
@@ -234,5 +234,5 @@
 
 .opHumanText {
   flex: 1;
-  word-break: break-word;
+  overflow-wrap: break-word;
 }

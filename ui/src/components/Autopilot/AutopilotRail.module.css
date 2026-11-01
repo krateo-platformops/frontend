@@ -417,8 +417,8 @@
 .apMsg {
   font-size: var(--krateo-text-body-sm);
   line-height: 1.5;
+  overflow-wrap: break-word;
   white-space: pre-wrap;
-  word-break: break-word;
 }
 
 .apMsgUser {
@@ -455,7 +455,11 @@
 .apMd > :first-child { margin-top: 0; }
 .apMd > :last-child { margin-bottom: 0; }
 .apMd p { margin: 0 0 var(--spacing-sm); }
-.apMd ul, .apMd ol { margin: var(--spacing-xsm) 0; padding-left: var(--spacing-md); }
+
+.apMd ul, .apMd ol {
+  margin: var(--spacing-xsm) 0;
+  padding-left: var(--spacing-md);
+}
 .apMd li { margin: var(--spacing-xxs) 0; }
 .apMd li > p { margin: 0; }
 
@@ -465,8 +469,16 @@
   font-weight: 700;
   margin: var(--spacing-smd) 0 var(--spacing-xs);
 }
-.apMd strong { color: var(--dark-color); font-weight: 700; }
-.apMd a { color: var(--cyan-color); text-decoration: none; }
+
+.apMd strong {
+  color: var(--dark-color);
+  font-weight: 700;
+}
+
+.apMd a {
+  color: var(--cyan-color);
+  text-decoration: none;
+}
 
 .apMd pre {
   background: var(--light-color);
@@ -478,7 +490,12 @@
   overflow-x: auto;
   padding: var(--spacing-sm) var(--spacing-smd);
 }
-.apMd pre code { background: none; color: var(--dark-color); padding: 0; }
+
+.apMd pre code {
+  background: none;
+  color: var(--dark-color);
+  padding: 0;
+}
 
 .apMd blockquote {
   border-left: 3px solid var(--border-color);
@@ -486,7 +503,7 @@
   padding-left: var(--spacing-smd);
 }
 
-@keyframes apBlink {
+@keyframes ap-blink {
   to {
     visibility: hidden;
   }
@@ -629,9 +646,9 @@
   margin: 0;
   max-height: 200px;
   overflow: auto;
+  overflow-wrap: break-word;
   padding: var(--spacing-sm) var(--spacing-smd);
   white-space: pre-wrap;
-  word-break: break-word;
 }
 
 .apApprovalBtns {
@@ -984,7 +1001,7 @@
 /* A slow breathing dot: "audio is playing" with no motion large enough to distract, and
    none at all when the user has asked for reduced motion (see the media query below). */
 .apSpeakPulse {
-  animation: apSpeakBreathe 1.6s ease-in-out infinite;
+  animation: ap-speak-breathe 1.6s ease-in-out infinite;
   background: var(--cyan-color);
   border-radius: 50%;
   box-shadow: 0 0 5px 1px var(--cyan-color);
@@ -1013,7 +1030,7 @@
   margin-left: auto;
 }
 
-@keyframes apSpeakBreathe {
+@keyframes ap-speak-breathe {
   50% {
     opacity: 0.25;
   }
@@ -1052,7 +1069,7 @@
 }
 
 .apVoice.listening {
-  animation: apVoicePulse 1.6s ease-in-out infinite;
+  animation: ap-voice-pulse 1.6s ease-in-out infinite;
   background: color-mix(in srgb, var(--primary-color) 16%, transparent);
   border-color: color-mix(in srgb, var(--primary-color) 55%, transparent);
   color: var(--primary-color);
@@ -1079,7 +1096,7 @@
 }
 
 .apVoiceSpin {
-  animation: apVoiceSpin 900ms linear infinite;
+  animation: ap-voice-spin 900ms linear infinite;
 }
 
 .apVoiceStatus {
@@ -1173,13 +1190,13 @@
   color: var(--gray-color);
 }
 
-@keyframes apVoicePulse {
+@keyframes ap-voice-pulse {
   50% {
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 14%, transparent);
   }
 }
 
-@keyframes apVoiceSpin {
+@keyframes ap-voice-spin {
   to {
     transform: rotate(360deg);
   }
@@ -1252,7 +1269,7 @@
    locked to EXACTLY this meaning (issue #49) — never a CTA/decoration/link; the token is #E8FF00 in
    both modes. (The pending-HITL approval gate stays the warning token: WAITING is not EXECUTING.) */
 .apLiveActRow[data-state='running'] .apLiveActMark {
-  animation: apBlink 1s steps(2, start) infinite;
+  animation: ap-blink 1s steps(2, start) infinite;
   background: var(--krateo-color-agent-signal-fill, var(--primary-color));
 }
 

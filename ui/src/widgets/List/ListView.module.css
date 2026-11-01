@@ -80,12 +80,12 @@
    to /marketplace?q=…&spotlight=… ; the matched tile gets an amber ring + a brief attention
    pulse (the "mouse-over" cue), settling into a persistent amber ring. */
 .spotlight {
-  animation: spotlightPulse 1.1s ease-in-out 2;
+  animation: spotlight-pulse 1.1s ease-in-out 2;
   border-color: var(--primary-color) !important;
   box-shadow: 0 0 0 1px var(--primary-color), 0 0 14px 2px color-mix(in srgb, var(--primary-color) 45%, transparent);
 }
 
-@keyframes spotlightPulse {
+@keyframes spotlight-pulse {
   0%, 100% { box-shadow: 0 0 0 1px var(--primary-color), 0 0 10px 1px color-mix(in srgb, var(--primary-color) 35%, transparent); }
   50% { box-shadow: 0 0 0 2px var(--primary-color), 0 0 22px 5px color-mix(in srgb, var(--primary-color) 60%, transparent); }
 }
@@ -212,6 +212,7 @@
    `--hair-2`) — incl. non-clickable tiles like the Marketplace Install cards. Clickable tiles
    (whole-card `navigateTo`) get the stronger AMBER border (mockup `.tile:hover`), a clear
    "this navigates" signal. (The prior 6% bg-tint was near-invisible on the bezel.) */
+/* stylelint-disable-next-line no-duplicate-selectors -- fixing this means MOVING a rule, and the cascade decides the outcome — a wrong move changes rendering and the 78 visual shots would not catch it. See #576. */
 .tileCard {
   transition: border-color 0.12s ease;
 }
