@@ -12,6 +12,7 @@ import { carryScopeParams, navigateOrExternal } from '../../utils/navigation'
 
 import styles from './Menu.module.css'
 import type { Menu as WidgetType } from './Menu.type'
+import { navItemProps, navRootProps } from './navAnchor'
 import { buildNavModel, type InlineNavItem } from './navModel'
 
 export type MenuWidgetData = WidgetType['spec']['widgetData']
@@ -55,6 +56,9 @@ export function Menu({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetPro
       (entry.type === 'divider'
         ? { key: entry.key, type: 'divider' as const }
         : {
+          // Our own anchor for the label, so the Autopilot tour can spotlight this row without
+          // reading antd's class names (navAnchor.ts).
+          ...navItemProps(entry.label),
           icon: entry.iconName ? <FontAwesomeIcon icon={entry.iconName as IconProp} /> : undefined,
           key: entry.key,
           label: entry.label,
@@ -84,6 +88,7 @@ export function Menu({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetPro
 
   return (
     <AntdMenu
+      {...navRootProps}
       className={styles.menu}
       defaultSelectedKeys={firstNavKey ? [firstNavKey] : []}
       items={menuItems}
