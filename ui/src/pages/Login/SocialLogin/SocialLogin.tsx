@@ -6,6 +6,32 @@ import type { AuthModeType } from '../Login.types'
 
 import styles from './SocialLogin.module.css'
 
+/**
+ * Where the state we sent is recorded, so Auth.tsx can tell "we sent a state" from "we did not".
+ * Exported because that check is the other half of this contract and must not re-spell the key.
+ */
+export const SOCIAL_LOGIN_STATE_KEY = 'KrateoSL'
+
+/**
+ * authn's authCodeURL with `state` replaced by ours, every other parameter untouched.
+ *
+ * Separate from the component so it can be tested without a DOM: the bug this fixes was in string
+ * handling, and the regression test for it should not need a rendered button to exercise.
+ *
+ * Falls back to string handling only if the URL cannot be parsed at all, which would mean authn sent
+ * something that is not a URL — in that case there is nothing better to do than send it on and let
+ * the browser report it, rather than navigating somewhere unintended.
+ */
+export const socialLoginURL = (authCodeURL: string, state: string): string => {
+  try {
+    const url = new URL(authCodeURL)
+    url.searchParams.set('state', state)
+    return url.toString()
+  } catch {
+    return authCodeURL
+  }
+}
+
 type SocialLoginType = {
   method: AuthModeType
 }
@@ -16,19 +42,25 @@ const SocialLogin = ({ method }: SocialLoginType) => {
 
   const getRandomString = () => {
     const rnd = Math.floor(Math.random() * Date.now()).toString(36)
-    localStorage.setItem('KrateoSL', rnd)
+    localStorage.setItem(SOCIAL_LOGIN_STATE_KEY, rnd)
     return rnd
   }
 
   const onSubmit = () => {
-    if (method.extensions?.authCodeURL) {
-      if (method.extensions.authCodeURL.indexOf('&state=') > -1) {
-        const url = method.extensions.authCodeURL.substring(0, method.extensions?.authCodeURL.indexOf('&state='))
-        window.location.href = `${url}&state=${getRandomString()}`
-      } else {
-        window.location.href = method.extensions.authCodeURL
-      }
+    if (!method.extensions?.authCodeURL) {
+      return
     }
+    // Replace `state` by PARSING the URL, never by cutting the string at '&state='. The old code
+    // truncated at the first '&state=' and appended its own, so every parameter authn placed AFTER
+    // state was discarded — silently, because the redirect still succeeded and the IdP simply
+    // received a different request than authn built. It was latent only because of where state
+    // happens to sit in authn's URL, which is parameter ordering, not a contract.
+    //
+    // `searchParams.set` adds the parameter when absent and replaces it when present, so the two
+    // branches this replaces collapse into one: there is no longer a case where we forward authn's
+    // URL unchanged and store no state. We always send our own state and always record it, which is
+    // what makes the check in Auth.tsx able to key off having sent one.
+    window.location.href = socialLoginURL(method.extensions.authCodeURL, getRandomString())
   }
 
   return (
