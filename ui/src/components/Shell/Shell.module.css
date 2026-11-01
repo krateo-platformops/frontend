@@ -152,16 +152,20 @@
 /* Collapsed sider: the narrow rail has no room for the mono eyebrow or the build line, so hide the
    text-only chrome and let the nav icons stand alone. The user avatar stays (it centres itself).
 
-   BROKEN ON antd 6 AND NOT FIXABLE HERE — frontend#590. antd 5 set `.ant-layout-sider-collapsed`;
-   antd 6 emits NO collapsed class at all. Verified against antd 6.6.0: of the whole
-   `.ant-layout-sider-*` family only `-children`, `-has-trigger`, `-light`, `-right`, `-trigger`,
-   `-zero-width` and `-zero-width-trigger*` exist, and `-zero-width` means width 0 rather than
-   collapsed-to-a-rail.
+   THIS WORKS. A previous version of this comment claimed it was broken on antd 6 and that the build
+   line and footer name stayed visible in the collapsed rail. That was wrong (frontend#590).
 
-   So there is no selector to repoint to, and the consequence is live: the build line and the
-   footer name stay VISIBLE in the collapsed rail, which has no width for them. The fix is a
-   component change — Shell must put its own class on the sider from the collapsed prop it already
-   controls — not a CSS edit, which is why this is flagged rather than patched. */
+   antd 6 emits `.ant-layout-sider-collapsed`. `antd/es/layout/Sider.js:164` composes it:
+
+       [`${prefixCls}-collapsed`]: !!collapsed
+
+   Confirmed by rendering a collapsed `Layout.Sider`: the class is present.
+
+   The earlier claim came from grepping `antd/dist/antd.css` for the literal name. That file lists
+   what antd STYLES, not what it RENDERS, and antd builds class names from a prefix variable — so a
+   composed name is absent from the stylesheet while being emitted on every render. Nothing here
+   needs fixing; the note stays only so the next person does not re-derive the wrong conclusion from
+   the same grep. */
 :global(.ant-layout-sider-collapsed) .siderBuild,
 :global(.ant-layout-sider-collapsed) .siderFooterName {
   display: none;
