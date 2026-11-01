@@ -5,10 +5,19 @@
  * a live DOM element here — so the tour spotlights actual rendered controls without
  * bolting `data-autopilot-anchor` onto every widget. A missing target degrades to a
  * centered step (antd default) rather than breaking the walkthrough.
+ *
+ * That degradation is right for an anchor the current page doesn't have, and wrong for an
+ * anchor we can no longer FIND — a resolver that has quietly stopped working looks exactly
+ * like a page without the control. So `nav:` resolves through our own hook on the Menu widget
+ * (widgets/Menu/navAnchor.ts) rather than antd's `.ant-menu-item` class, and the one case that
+ * cannot be a legitimate absence — a nav rendered on screen carrying none of our anchors — is
+ * logged instead of swallowed.
  */
 
 import { Tour } from 'antd'
 import type { TourProps } from 'antd'
+
+import { NAV_ITEM_ATTRIBUTE, findNavItem } from '../../widgets/Menu/navAnchor'
 
 import { useAutopilot } from './AutopilotProvider'
 
@@ -28,8 +37,13 @@ export const resolveAutopilotAnchor = (anchor: string): HTMLElement | null => {
   }
 
   if (kind === 'nav') {
-    return asElement([...document.querySelectorAll('.ant-menu-item')]
-      .find((el) => el.textContent?.trim() === value))
+    const lookup = findNavItem(value)
+    if (lookup.status === 'unhooked') {
+      // Not "the tour asked for a page that isn't here" — the nav IS here and we cannot read it.
+      // Silence would make every nav step centered, forever, with nothing to notice.
+      console.error(`[autopilot] the sidebar nav carries no ${NAV_ITEM_ATTRIBUTE} anchors — nav tour steps cannot spotlight anything. widgets/Menu must stamp them (see widgets/Menu/navAnchor.ts).`)
+    }
+    return lookup.element
   }
   if (kind === 'action') {
     return asElement([...document.querySelectorAll('button')]
