@@ -32,6 +32,52 @@ export const socialLoginURL = (authCodeURL: string, state: string): string => {
   }
 }
 
+/**
+ * A fresh OAuth `state`: 32 crypto-random bytes, base64url, 43 characters.
+ *
+ * WHY NOT Math.random (#583). This value is the portal's ENTIRE CSRF protection on the social-login
+ * callback — Auth.tsx accepts the callback only when the returned state matches it — and authn never
+ * stores or checks state, so nothing else is guarding that door. It used to be
+ * `Math.floor(Math.random() * Date.now()).toString(36)`, which is not a CSPRNG and is not required
+ * to be unpredictable.
+ *
+ * The part that made it worth changing rather than tolerating: authn 0.31.0 already sends 32
+ * crypto-random bytes in the same shape, and the portal was overwriting that with the weaker value.
+ * A strong state was available and being discarded.
+ *
+ * base64url rather than base64 so the value needs no escaping as a query parameter, and so it
+ * matches the shape authn uses — 43 chars of [A-Za-z0-9_-], no padding.
+ */
+/**
+ * The state we sent, removed as it is read. Null when we sent none.
+ *
+ * Read-and-remove in one place because the two must not come apart: leaving the value behind keeps
+ * it valid indefinitely, so a later callback presenting the same state validates again (#583). It
+ * removes on EVERY path, including a mismatch — a state that failed its check is spent either way,
+ * and keeping it would leave exactly the window this closes.
+ *
+ * Here rather than in Auth.tsx so the whole contract — the key, the value, writing it, taking it —
+ * lives in one file, and so it can be tested without rendering the callback page.
+ */
+export const takeSocialLoginState = (): string | null => {
+  const sent = localStorage.getItem(SOCIAL_LOGIN_STATE_KEY)
+  localStorage.removeItem(SOCIAL_LOGIN_STATE_KEY)
+  return sent
+}
+
+export const newSocialLoginState = (): string => {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  let binary = ''
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte)
+  }
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+}
+
 type SocialLoginType = {
   method: AuthModeType
 }
@@ -41,7 +87,7 @@ const SocialLogin = ({ method }: SocialLoginType) => {
   }
 
   const getRandomString = () => {
-    const rnd = Math.floor(Math.random() * Date.now()).toString(36)
+    const rnd = newSocialLoginState()
     localStorage.setItem(SOCIAL_LOGIN_STATE_KEY, rnd)
     return rnd
   }

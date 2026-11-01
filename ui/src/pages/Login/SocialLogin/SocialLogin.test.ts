@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * `socialLoginURL` — replacing `state` without destroying the rest of the URL (#561).
  *
@@ -10,9 +11,9 @@
  * The first test is the regression: a parameter positioned after `state` must survive. It is written
  * so that reverting to the truncating implementation fails it.
  */
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { socialLoginURL } from './SocialLogin'
+import { newSocialLoginState, SOCIAL_LOGIN_STATE_KEY, socialLoginURL, takeSocialLoginState } from './SocialLogin'
 
 const IDP = 'https://idp.example.com/authorize'
 
@@ -71,5 +72,76 @@ describe('socialLoginURL — every parameter except state survives', () => {
 
   it('returns the input unchanged when it is not a URL, rather than navigating somewhere unintended', () => {
     expect(socialLoginURL('not a url', 'ours')).toBe('not a url')
+  })
+})
+
+/**
+ * `newSocialLoginState` and `takeSocialLoginState` — the state's VALUE and its LIFETIME (#583).
+ *
+ * Separate concerns from the URL handling above. This value is the portal's entire CSRF protection on
+ * the social-login callback: Auth.tsx accepts the callback only when the returned state matches it,
+ * and authn never stores or checks state, so nothing else guards that door.
+ */
+describe('newSocialLoginState — the value is unguessable, and shaped like authn\'s', () => {
+  it('is 43 characters of base64url, matching authn 0.31.0\'s own state', () => {
+    // 32 bytes base64url without padding is exactly 43 chars of [A-Za-z0-9_-]. Same shape authn
+    // sends, so neither end needs escaping it as a query parameter.
+    const state = newSocialLoginState()
+    expect(state).toHaveLength(43)
+    expect(state).toMatch(/^[A-Za-z0-9_-]{43}$/)
+    // base64url, so NEVER the three characters that would need escaping in a URL.
+    expect(state).not.toMatch(/[+/=]/)
+  })
+
+  it('draws from crypto.getRandomValues, not Math.random', () => {
+    // The specific defect: Math.random is not a CSPRNG. Asserting the SOURCE rather than inspecting
+    // the output, because no test on a single value can tell a strong generator from a weak one.
+    const getRandomValues = vi.spyOn(crypto, 'getRandomValues')
+    const random = vi.spyOn(Math, 'random')
+    newSocialLoginState()
+    expect(getRandomValues).toHaveBeenCalledOnce()
+    expect(random).not.toHaveBeenCalled()
+    // 32 bytes requested, which is what gives the 43-char shape above.
+    expect((getRandomValues.mock.calls[0][0] as Uint8Array)).toHaveLength(32)
+    getRandomValues.mockRestore()
+    random.mockRestore()
+  })
+
+  it('is fresh every call', () => {
+    const states = new Set(Array.from({ length: 50 }, () => newSocialLoginState()))
+    expect(states.size).toBe(50)
+  })
+
+  it('survives a round trip through the URL unchanged', () => {
+    // base64url's `-` and `_` must not be mangled by URL/searchParams — the reason for the shape.
+    const state = newSocialLoginState()
+    const result = new URL(socialLoginURL(`${IDP}?state=authn-original`, state))
+    expect(result.searchParams.get('state')).toBe(state)
+  })
+})
+
+describe('takeSocialLoginState — one login, one state', () => {
+  beforeEach(() => { localStorage.clear() })
+
+  it('returns the stored state and REMOVES it, so it cannot validate a second callback', () => {
+    localStorage.setItem(SOCIAL_LOGIN_STATE_KEY, 'sent-once')
+    expect(takeSocialLoginState()).toBe('sent-once')
+    // The replay window this closes: before, the value stayed and a later callback presenting
+    // 'sent-once' validated again.
+    expect(localStorage.getItem(SOCIAL_LOGIN_STATE_KEY)).toBeNull()
+    expect(takeSocialLoginState()).toBeNull()
+  })
+
+  it('consumes on the MISMATCH path too — a state that failed its check is still spent', () => {
+    localStorage.setItem(SOCIAL_LOGIN_STATE_KEY, 'ours')
+    const sent = takeSocialLoginState()
+    expect(sent).toBe('ours')
+    // Auth.tsx would reject this callback, and the state must not survive for the next one.
+    expect(sent).not.toBe('attacker-supplied')
+    expect(localStorage.getItem(SOCIAL_LOGIN_STATE_KEY)).toBeNull()
+  })
+
+  it('returns null when we sent none, which is how Auth.tsx tells the two cases apart', () => {
+    expect(takeSocialLoginState()).toBeNull()
   })
 })
