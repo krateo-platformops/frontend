@@ -141,6 +141,29 @@
     position: sticky;
     top: 0;
 
+    /* CORRECTING AN EARLIER COMMENT HERE THAT REPORTED A BUG THAT NEVER EXISTED (frontend#590).
+
+       I wrote that "antd 6 moved the active marker up a level" and that the active section "had
+       stopped being bolded". Neither is true. antd 6 assigns BOTH classes, in one function:
+
+           AnchorLink.js:70   [`${prefixCls}-link-active`]: active         // on the wrapper div
+           AnchorLink.js:74   [`${prefixCls}-link-title-active`]: active   // on the <a> title
+
+       Nothing moved; both exist in antd 6 exactly as in antd 5, so the bolding never stopped
+       working. antd itself queries the title class at Anchor.js:106 to position its ink bar, which
+       is corroboration on its own: a library does not query a class it never sets.
+
+       The wrong claim came from grepping `antd/dist/antd.css`, where that name has zero selector
+       hits. That file lists what antd STYLES, not what it RENDERS — antd composes class names from
+       a prefix variable, so a composed name is absent from the stylesheet while being emitted on
+       every render.
+
+       The three selectors below are left as they are. They overlap, since the wrapper rule bolds
+       the title by inheritance and the other two target it directly, but each matches something
+       antd 6 really emits — and trimming them is a visual change to this panel that wants looking
+       at rather than doing on the way past. */
+    :global .ant-anchor-link-active,
+    :global .ant-anchor-link-active .ant-anchor-link-title,
     :global .ant-anchor-link-title-active {
       font-weight: 600;
     }
@@ -284,13 +307,26 @@
   transition: border-color 0.15s ease;
 }
 
-/* Valid (passed validation, via hasFeedback) → cyan rail — completes the rail's state
-   language (rest = graphite, valid = cyan, focus = amber). Focus wins while editing
-   (declared AFTER has-success, equal specificity). */
-.field:global(.ant-form-item-has-success) {
-  border-left-color: var(--cyan-color);
-}
+/* THE RAIL HAS NO "VALID" STATE, DELIBERATELY. It was removed, not lost — frontend#590.
 
+   The rail's state language is rest = graphite, focus = amber, and the error and warning states
+   below. There is no success colour, because the portal's indicators are EXCEPTION-ONLY: never mark
+   something healthy. A field that validated is the normal case, and colouring the normal case spends
+   the reader's attention on the 90% that is fine.
+
+   There used to be a `.field:global(.ant-form-item-has-success)` rule painting the rail cyan, and it
+   was WORKING — antd 6 composes that class at `antd/es/form/FormItem/ItemHolder.js:76`, which I
+   confirmed by rendering a Form.Item with validateStatus="success". So every validated field in the
+   portal carried a cyan border, in breach of the convention, unnoticed.
+
+   It went unnoticed because of how I audited: I grepped `antd/dist/antd.css` for the literal class
+   name and found nothing, and concluded the rule was dead. That file lists what antd STYLES, not what
+   it RENDERS — antd builds class names from a prefix variable, so a composed name never appears as
+   literal text in the stylesheet at all. The grep's false negative read as proof of absence, and I
+   wrote a comment here saying the rule was harmlessly dead. The opposite was true.
+
+   Recorded at this length because the rule is the kind of thing someone re-adds in good faith: a
+   success colour completes a palette and looks like an omission. It is not an omission. */
 .field:focus-within {
   border-left-color: var(--primary-color);
 }
@@ -347,6 +383,11 @@
   letter-spacing: 0.02em;
 }
 
+/* antd 6 renamed the collapse body: .ant-collapse-content-box -> .ant-collapse-body (inside
+   .ant-collapse-panel). Both listed so this renders on antd 5 and antd 6 (frontend#590).
+   The owner is @rc-component/collapse — a TRANSITIVE dependency, so this can move without antd
+   itself appearing in a diff. */
+.advanced :global(.ant-collapse-body),
 .advanced :global(.ant-collapse-content-box) {
   padding-top: var(--spacing-xs);
 }

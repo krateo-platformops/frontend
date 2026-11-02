@@ -34,9 +34,6 @@
       width: 100%;
     }
 
-    :global .ant-progress-steps-outer {
-      justify-content: space-between;
-    }
 
     :global .ant-progress-inner {
       vertical-align: top;
