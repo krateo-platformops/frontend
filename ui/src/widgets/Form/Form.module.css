@@ -141,10 +141,27 @@
     position: sticky;
     top: 0;
 
-    /* antd 6 moved the active marker up a level: .ant-anchor-link-title-active ->
-       .ant-anchor-link-active (on the link, not its title). Both listed so this renders on antd 5
-       and antd 6 (frontend#590). Verified against antd 6.6.0: the v5 name is zero as a selector, so
-       the active section had stopped being bolded. */
+    /* CORRECTING AN EARLIER COMMENT HERE THAT REPORTED A BUG THAT NEVER EXISTED (frontend#590).
+
+       I wrote that "antd 6 moved the active marker up a level" and that the active section "had
+       stopped being bolded". Neither is true. antd 6 assigns BOTH classes, in one function:
+
+           AnchorLink.js:70   [`${prefixCls}-link-active`]: active         // on the wrapper div
+           AnchorLink.js:74   [`${prefixCls}-link-title-active`]: active   // on the <a> title
+
+       Nothing moved; both exist in antd 6 exactly as in antd 5, so the bolding never stopped
+       working. antd itself queries the title class at Anchor.js:106 to position its ink bar, which
+       is corroboration on its own: a library does not query a class it never sets.
+
+       The wrong claim came from grepping `antd/dist/antd.css`, where that name has zero selector
+       hits. That file lists what antd STYLES, not what it RENDERS — antd composes class names from
+       a prefix variable, so a composed name is absent from the stylesheet while being emitted on
+       every render.
+
+       The three selectors below are left as they are. They overlap, since the wrapper rule bolds
+       the title by inheritance and the other two target it directly, but each matches something
+       antd 6 really emits — and trimming them is a visual change to this panel that wants looking
+       at rather than doing on the way past. */
     :global .ant-anchor-link-active,
     :global .ant-anchor-link-active .ant-anchor-link-title,
     :global .ant-anchor-link-title-active {
