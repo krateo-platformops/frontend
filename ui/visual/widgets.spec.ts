@@ -6,6 +6,7 @@
  * commit the PNGs; the reviewer then sees the before/after in the PR's file diff.
  */
 import { readdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { expect, test } from '@playwright/test'
@@ -69,6 +70,36 @@ test('every widget with an example is screenshotted or excluded with a reason', 
   const kinds = readdirSync(EXAMPLES, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name)
   const unaccounted = kinds.filter((kind) => !(kind in CASES) && !(kind in EXCLUDED))
   expect(unaccounted, 'add it to CASES, or to EXCLUDED with the reason').toEqual([])
+})
+
+/**
+ * AND THE REASON HAS TO BE TRUE, wherever it is checkable.
+ *
+ * REQUIRING A REASON AND VERIFYING A REASON ARE DIFFERENT THINGS, and the first reads exactly like
+ * the second. The test above stops a widget being dropped from the pixel suite silently, which is
+ * worth having — but it proves only that someone TYPED a justification, while a reviewer seeing a
+ * populated `EXCLUDED` entry naturally infers that someone CHECKED one.
+ *
+ * That gap was live here, not hypothetical. All three charts are excluded as "covered by its own
+ * unit tests", and LineChart and PieChart had no test file at all — so the pixel gate was
+ * delegating to a gate that did not exist, and both looked closed because each was assumed to be
+ * the other's cover. A reason that names another gate is the most dangerous kind precisely because
+ * it IS machine-checkable, which is why nobody thought to check it.
+ *
+ * So: an exclusion that delegates to unit tests must have unit tests to delegate to.
+ */
+const WIDGETS = fileURLToPath(new URL('../src/widgets', import.meta.url))
+
+test('an EXCLUDED reason that delegates to unit tests has unit tests to delegate to', () => {
+  const delegating = Object.entries(EXCLUDED).filter(([, reason]) => reason.includes('unit tests')).map(([kind]) => kind)
+
+  // Vacuity guard, same reasoning as the rest of this file: this check keys on the reason WORDING,
+  // so rewording an exclusion would empty the list and leave the assertion below passing over
+  // nothing. A check that has stopped looking is worse than no check.
+  expect(delegating.length, 'no EXCLUDED reason mentions "unit tests" any more — reword this check to match, do not delete it').toBeGreaterThan(0)
+
+  const uncovered = delegating.filter((kind) => !readdirSync(join(WIDGETS, kind)).some((file) => file.includes('.test.')))
+  expect(uncovered, 'excluded from the pixel suite as covered by its unit tests, but no *.test.* file exists in its widget directory').toEqual([])
 })
 
 for (const [kind, docs] of Object.entries(CASES)) {
