@@ -162,11 +162,11 @@ export function initTracing(cfg: TracingConfig): void {
   registerInstrumentations({
     instrumentations: [
       new FetchInstrumentation({
-        // Route template IN, raw URL OUT, here — where the span is still mutable. A raw
-        // `http.url` carries the query string, which is exactly what must not leave the browser:
-        // `?extras={...}` can hold a filter, and a page name is not ours to ship. snowplow
-        // allowlists attributes independently, but a value it would reject is a value we should
-        // not have sent.
+        // Route template IN, raw URL OUT, here — where the span is still mutable. The raw URL
+        // attribute (`url.full` at 0.223; see URL_ATTRS for the full read-set) carries the query
+        // string, which is exactly what must not leave the browser: `?extras={...}` can hold a
+        // filter, and a page name is not ours to ship. snowplow allowlists attributes
+        // independently, but a value it would reject is a value we should not have sent.
         applyCustomAttributesOnSpan: (span) => {
           redactUrlAttributes(span, snowplowPrefix)
         },
