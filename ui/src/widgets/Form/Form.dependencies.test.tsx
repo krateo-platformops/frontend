@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * `x-krateo-options.dependsOn` in the real Form: a field whose options depend on another waits
- * for it (no call), loads with its value as `extras[param]`, and is cleared — with whatever
+ * `dependencies` entries in the real Form: a field whose options depend on another waits
+ * for it (no call), loads with its value as `extras[extra.key]`, and is cleared — with whatever
  * depends on it — when the PERSON changes it. Initial values, a resumed draft and an Autopilot
  * draft set fields programmatically and keep every value.
  */
@@ -87,19 +87,27 @@ const REFS: ResourcesRefs = { items: [ref('regions'), ref('zones'), ref('subnets
 const SCHEMA = {
   type: 'object',
   properties: {
-    region: { title: 'Region', type: 'string', 'x-krateo-options': { closed: true, ref: 'regions' } },
-    zone: { title: 'Zone', type: 'string', 'x-krateo-options': { closed: true, dependsOn: { field: 'region', param: 'region' }, ref: 'zones' } },
-    subnet: { title: 'Subnet', type: 'string', 'x-krateo-options': { closed: true, dependsOn: { field: 'zone', param: 'zone' }, ref: 'subnets' } },
+    region: { title: 'Region', type: 'string' },
+    zone: { title: 'Zone', type: 'string' },
+    subnet: { title: 'Subnet', type: 'string' },
     token: { format: 'password', title: 'Token', type: 'string' },
-    leak: { title: 'Leak', type: 'string', 'x-krateo-options': { dependsOn: { field: 'token', param: 'token' }, ref: 'zones' } },
-    whoami: { title: 'Who', type: 'string', 'x-krateo-options': { dependsOn: { field: 'region', param: 'username' }, ref: 'zones' } },
+    leak: { title: 'Leak', type: 'string' },
+    whoami: { title: 'Who', type: 'string' },
   },
   required: ['region', 'zone', 'subnet', 'token', 'leak', 'whoami'],
 }
+const DEPENDENCIES: FormWidgetData['dependencies'] = [
+  { name: 'zone', dependsOn: { name: 'region' }, resourceRefId: 'zones', extra: { key: 'region' } },
+  { name: 'subnet', dependsOn: { name: 'zone' }, resourceRefId: 'subnets', extra: { key: 'zone' } },
+  { name: 'leak', dependsOn: { name: 'token' }, resourceRefId: 'zones', extra: { key: 'token' }, closed: false },
+  { name: 'whoami', dependsOn: { name: 'region' }, resourceRefId: 'zones', extra: { key: 'username' }, closed: false },
+]
 /* eslint-enable sort-keys/sort-keys-fix */
 
 const widgetData = (extra: Partial<FormWidgetData> = {}): FormWidgetData => ({
   actions: { rest: [{ headers: [], id: 'submit', resourceRefId: 'ref', type: 'rest' }] },
+  autocomplete: [{ closed: true, name: 'region', resourceRefId: 'regions' }],
+  dependencies: DEPENDENCIES,
   stringSchema: JSON.stringify(SCHEMA),
   submitActionId: 'submit',
   ...extra,

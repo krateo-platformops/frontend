@@ -2,6 +2,7 @@ import type { JSONSchema4 } from 'json-schema'
 import { describe, expect, it } from 'vitest'
 
 import { changedPaths, collectDependencies, dependentsToClear, nodeAt, parseDependsOn, resolveFieldPath, templateKey } from './fieldDependencies'
+import { OPTIONS_KEY } from './fieldKeys'
 
 const options = (ref: string, field?: string, param = 'p') => ({ ref, ...(field ? { dependsOn: { field, param } } : {}) })
 
@@ -9,17 +10,17 @@ const options = (ref: string, field?: string, param = 'p') => ({ ref, ...(field 
 const SCHEMA: JSONSchema4 = {
   type: 'object',
   properties: {
-    region: { type: 'string', 'x-krateo-options': options('regions') },
-    zone: { type: 'string', 'x-krateo-options': options('zones', 'region') },
-    subnet: { type: 'string', 'x-krateo-options': options('subnets', 'zone') },
+    region: { type: 'string', [OPTIONS_KEY]: options('regions') },
+    zone: { type: 'string', [OPTIONS_KEY]: options('zones', 'region') },
+    subnet: { type: 'string', [OPTIONS_KEY]: options('subnets', 'zone') },
     hosts: {
       type: 'array',
       items: {
         type: 'object',
         properties: {
           cluster: { type: 'string' },
-          node: { type: 'string', 'x-krateo-options': options('nodes', 'cluster') },
-          pool: { type: 'string', 'x-krateo-options': options('pools', '/region') },
+          node: { type: 'string', [OPTIONS_KEY]: options('nodes', 'cluster') },
+          pool: { type: 'string', [OPTIONS_KEY]: options('pools', '/region') },
         },
       },
     },
@@ -32,6 +33,14 @@ describe('resolveFieldPath', () => {
     expect(resolveFieldPath('region', ['spec'])).toEqual(['spec', 'region'])
     expect(resolveFieldPath('net.region', ['hosts', 0])).toEqual(['hosts', 0, 'net', 'region'])
     expect(resolveFieldPath('/spec.region', ['hosts', 0])).toEqual(['spec', 'region'])
+  })
+
+  it('reads the row of the field from an absolute reference into its own list', () => {
+    expect(resolveFieldPath('/hosts.[].region', ['hosts', 2])).toEqual(['hosts', 2, 'region'])
+    expect(resolveFieldPath('/hosts.[].region', ['hosts', 2, 'net'])).toEqual(['hosts', 2, 'region'])
+    expect(resolveFieldPath('/hosts.[].region', ['hosts', '[]'])).toEqual(['hosts', '[]', 'region'])
+    // another list: no row to take
+    expect(resolveFieldPath('/pools.[].region', ['hosts', 2])).toEqual(['pools', '[]', 'region'])
   })
 })
 
@@ -73,9 +82,9 @@ describe('collectDependencies', () => {
   it('marks the fields caught in a cycle', () => {
     const { cyclic } = collectDependencies({
       properties: {
-        a: { 'x-krateo-options': options('r', 'b') },
-        b: { 'x-krateo-options': options('r', 'a') },
-        c: { 'x-krateo-options': options('r', 'a') },
+        a: { [OPTIONS_KEY]: options('r', 'b') },
+        b: { [OPTIONS_KEY]: options('r', 'a') },
+        c: { [OPTIONS_KEY]: options('r', 'a') },
       },
     })
     expect([...cyclic].sort()).toEqual([templateKey(['a']), templateKey(['b'])])
@@ -118,7 +127,7 @@ describe('dependentsToClear', () => {
 
   it('terminates on a cycle', () => {
     const cycle = collectDependencies({
-      properties: { a: { 'x-krateo-options': options('r', 'b') }, b: { 'x-krateo-options': options('r', 'a') } },
+      properties: { a: { [OPTIONS_KEY]: options('r', 'b') }, b: { [OPTIONS_KEY]: options('r', 'a') } },
     }).dependencies
     expect(dependentsToClear(cycle, { a: 1 }, () => 'x')).toEqual([['b']])
   })

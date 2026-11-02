@@ -51,3 +51,112 @@ spec:
         namespace: krateo-system
         resource: restactions
         verb: GET
+---
+# Schema-driven Form: the fields come from `schema`; the lists beside it configure them by
+# name (a dotted path; `hosts.zone` is the zone of every `hosts` row). Each `resourceRefId`
+# is one of `resourcesRefs`.
+kind: Form
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-form-schema
+  namespace: krateo-system
+spec:
+  widgetData:
+    submitActionId: submit-form
+    actions:
+      rest:
+        - id: submit-form
+          type: rest
+          resourceRefId: create-deployment
+          headers:
+            - "Content-Type: application/json"
+    schema:
+      type: object
+      required: [region, zone]
+      properties:
+        region: { type: string, title: Region }
+        zone: { type: string, title: Zone }
+        owner: { type: string, title: Owner }
+        logLevel: { type: string, title: Log level }
+        service:
+          type: object
+          title: Service
+          properties:
+            type: { type: string, enum: [ClusterIP, NodePort], default: ClusterIP }
+            nodePort: { type: integer, title: Node port }
+        hosts:
+          type: array
+          title: Hosts
+          items:
+            type: object
+            properties:
+              host: { type: string, title: Host }
+              zone: { type: string, title: Row zone }
+    autocomplete:
+      - name: region
+        resourceRefId: regions
+        closed: true
+        fallback: manual
+      - name: owner
+        resourceRefId: users
+        extra:
+          key: q
+        minChars: 2
+    dependencies:
+      - name: zone
+        dependsOn:
+          name: region
+        resourceRefId: zones
+        extra:
+          key: region
+      - name: hosts.zone
+        dependsOn:
+          name: region
+        resourceRefId: zones
+        extra:
+          key: region
+    displayingDependencies:
+      - name: service.nodePort
+        dependsOn:
+          name: service.type
+          conditionType: value
+          value:
+            type: string
+            stringValue: NodePort
+    objectFields:
+      - path: hosts
+        displayField: host
+    suggestions:
+      - name: logLevel
+        options:
+          - value: debug
+          - value: info
+          - value: warn
+            label: Warning
+            description: only problems
+  resourcesRefs:
+    items:
+      - id: regions
+        apiVersion: templates.krateo.io/v1
+        resource: restactions
+        name: regions
+        namespace: krateo-system
+        verb: GET
+      - id: zones
+        apiVersion: templates.krateo.io/v1
+        resource: restactions
+        name: zones
+        namespace: krateo-system
+        verb: GET
+      - id: users
+        apiVersion: templates.krateo.io/v1
+        resource: restactions
+        name: users
+        namespace: krateo-system
+        verb: GET
+      - id: create-deployment
+        apiVersion: templates.krateo.io/v1
+        resource: restactions
+        name: create-deployment
+        namespace: krateo-system
+        verb: POST

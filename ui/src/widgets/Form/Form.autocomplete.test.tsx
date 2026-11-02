@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Autocomplete on `x-krateo-options` in the real Form: `search` sends what the person types
+ * `autocomplete` entries in the real Form: `extra.key` sends what the person types
  * (debounced, from `minChars`), a CLOSED list known in full rejects a value that came from
  * elsewhere, and the Review shows the label an option was picked by while the payload keeps
  * its value.
@@ -84,15 +84,21 @@ const REFS: ResourcesRefs = { items: [ref('regions'), ref('cities')] }
 const SCHEMA = {
   type: 'object',
   properties: {
-    region: { title: 'Region', type: 'string', 'x-krateo-options': { closed: true, ref: 'regions' } },
-    city: { title: 'City', type: 'string', 'x-krateo-options': { ref: 'cities', search: { minChars: 2, param: 'q' } } },
-    capital: { title: 'Capital', type: 'string', 'x-krateo-options': { closed: true, ref: 'cities', search: { param: 'q' } } },
+    region: { title: 'Region', type: 'string' },
+    city: { title: 'City', type: 'string' },
+    capital: { title: 'Capital', type: 'string' },
   },
 }
+const AUTOCOMPLETE: FormWidgetData['autocomplete'] = [
+  { name: 'region', resourceRefId: 'regions', closed: true },
+  { name: 'city', resourceRefId: 'cities', extra: { key: 'q' }, minChars: 2 },
+  { name: 'capital', resourceRefId: 'cities', closed: true, extra: { key: 'q' } },
+]
 /* eslint-enable sort-keys/sort-keys-fix */
 
 const widgetData = (extra: Partial<FormWidgetData> = {}): FormWidgetData => ({
   actions: { rest: [{ headers: [], id: 'submit', resourceRefId: 'ref', type: 'rest' }] },
+  autocomplete: AUTOCOMPLETE,
   reviewBeforeSubmit: true,
   stringSchema: JSON.stringify(SCHEMA),
   submitActionId: 'submit',
@@ -113,7 +119,7 @@ const calls = (name: string) => fetchMock.mock.calls
   .map((url) => JSON.parse(url.searchParams.get('extras') ?? 'null') as unknown)
 const optionTexts = () => [...document.querySelectorAll('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option')].map((el) => el.textContent)
 
-describe('Form — x-krateo-options search', () => {
+describe('Form — autocomplete search', () => {
   it('sends nothing under minChars, then the typed text once typing pauses', async () => {
     renderForm(widgetData())
     fireEvent.change(searchBox('City'), { target: { value: 'p' } })

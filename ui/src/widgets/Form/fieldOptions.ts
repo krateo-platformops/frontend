@@ -3,23 +3,20 @@ import type { JSONSchema4 } from 'json-schema'
 import { isSecretArrayNode, isSecretSchemaNode } from '../../utils/secretFields'
 
 import { type DependsOn, PARAM_NAME, parseDependsOn, RESERVED_PARAMS } from './fieldDependencies'
+import { OPTIONS_KEY } from './fieldKeys'
 
 /**
- * `x-krateo-options` — a field whose options come from a RESTAction at runtime.
+ * A field whose options come from a RESTAction at runtime: an `autocomplete` or `dependencies`
+ * entry of widgetData, written on the field's node by fieldConfig.ts.
  *
- * ```json
- * "region": { "type": "string", "x-krateo-options": { "ref": "regions", "closed": true } }
+ * ```yaml
+ * autocomplete:
+ *   - { name: region, resourceRefId: regions, closed: true }
  * ```
  *
- * `ref` is the id of one of the Form's `resourcesRefs`, never a URL: snowplow resolves the
- * RESTAction's path and whether this user may call it, and the browser only ever calls a path
- * snowplow handed it. For blueprint forms the formdef RESTAction emits those refs from the
- * schema; a hand-written Form lists them itself.
- *
- * The extension lives on the schema node, not in `widgetData`, because one `blueprint-create`
- * Form serves every blueprint: only the blueprint's own `values.schema.json` can say which of
- * its fields load options. It survives to the browser because the form reads that file from
- * core-provider's jsonschema ConfigMap; the generated CRD drops every `x-krateo-*` key.
+ * `resourceRefId` is the id of one of the Form's `resourcesRefs`, never a URL: snowplow resolves
+ * the RESTAction's path and whether this user may call it, and the browser only ever calls a path
+ * snowplow handed it.
  */
 export interface FieldOptionsSpec {
   /** id of the Form `resourcesRefs` entry (a RESTAction GET) that answers with the options */
@@ -28,13 +25,13 @@ export interface FieldOptionsSpec {
   closed: boolean
   /**
    * The options depend on another field's value, sent as `extras[param]`: no value there, no call.
-   * `{ "field": "region", "param": "region" }` — see `resolveFieldPath` for what `field` names.
+   * From a `dependencies` entry: `dependsOn.name` and `extra.key`.
    */
   dependsOn?: DependsOn
   /**
-   * Search as the person types: the typed text is sent as `extras[param]` once it has `minChars`
-   * characters (default 2), and the RESTAction filters. Without it the options load once and are
-   * filtered in the browser.
+   * Search as the person types (an `autocomplete` entry with `extra.key`): the typed text is sent
+   * as `extras[param]` once it has `minChars` characters (default 2), and the RESTAction filters.
+   * Without it the options load once and are filtered in the browser.
    */
   search?: { param: string; minChars: number }
   /**
@@ -45,41 +42,37 @@ export interface FieldOptionsSpec {
    * text, so this only changes closed ones.
    */
   fallback?: 'manual'
-  /** why the extension cannot be used as written; the field is disabled and says so */
+  /** why the entry cannot be used as written; the field is disabled and says so */
   problem?: string
 }
 
-export const FIELD_OPTIONS_KEY = 'x-krateo-options'
-
 const DEFAULT_MIN_CHARS = 2
 
-/** `search` as authored — the same param rules as `dependsOn.param` — or a reason it cannot be used. */
+/** The search of an `autocomplete` entry — the same rules for `extra.key` as a dependency's — or a reason it cannot be used. */
 const parseSearch = (raw: unknown): { search?: { param: string; minChars: number }; problem?: string } => {
   if (raw === undefined) { return {} }
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) { return { problem: 'search must be { param, minChars? }' } }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) { return { problem: 'extra must be { key }' } }
   const { minChars, param } = raw as { minChars?: unknown; param?: unknown }
-  if (typeof param !== 'string' || !PARAM_NAME.test(param)) { return { problem: 'search.param must be a plain name' } }
-  if (RESERVED_PARAMS.has(param)) { return { problem: `search.param cannot be "${param}": that name carries the caller's identity` } }
+  if (typeof param !== 'string' || !PARAM_NAME.test(param)) { return { problem: 'extra.key must be a plain name' } }
+  if (RESERVED_PARAMS.has(param)) { return { problem: `extra.key cannot be "${param}": that name carries the caller's identity` } }
   const min = typeof minChars === 'number' && Number.isInteger(minChars) && minChars >= 1 ? minChars : DEFAULT_MIN_CHARS
   return { search: { minChars: min, param } }
 }
 
 /**
- * Reads `x-krateo-options` off a schema node. Anything malformed reads as absent, so the field
- * falls back to the control its type would get — an authoring mistake never blanks the form.
- * A secret never loads options: its value must not be offered back or sent as a parameter.
+ * The options a schema node carries (fieldConfig.ts writes them). Without a usable
+ * `resourceRefId` the field falls back to the control its type would get — an authoring mistake
+ * never blanks the form. A secret never loads options: its value must not be offered back or sent
+ * as a parameter.
  */
 export const getFieldOptionsSpec = (node: JSONSchema4): FieldOptionsSpec | undefined => {
-  const raw = node[FIELD_OPTIONS_KEY] as unknown
+  const raw = node[OPTIONS_KEY] as unknown
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) { return undefined }
   if (isSecretSchemaNode(node) || isSecretArrayNode(node)) { return undefined }
   const { closed, dependsOn: rawDependsOn, fallback, ref, search: rawSearch } = raw as { closed?: unknown; dependsOn?: unknown; fallback?: unknown; ref?: unknown; search?: unknown }
   if (typeof ref !== 'string' || !ref.trim()) { return undefined }
   const { dependsOn, problem: dependsOnProblem } = parseDependsOn(rawDependsOn)
   const { problem: searchProblem, search } = parseSearch(rawSearch)
-  if (!dependsOnProblem && !searchProblem && search && dependsOn && search.param === dependsOn.param) {
-    return { closed: closed === true, problem: `search.param and dependsOn.param are both "${search.param}"`, ref: ref.trim() }
-  }
   const fallbackProblem = fallback === undefined || fallback === 'manual' ? undefined : 'fallback must be "manual"'
   const problem = dependsOnProblem ?? searchProblem ?? fallbackProblem
   return {

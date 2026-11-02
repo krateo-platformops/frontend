@@ -390,6 +390,57 @@
               },
               "type": "array"
             },
+            "autocomplete": {
+              "type": "array",
+              "description": "Configuration for the Autocomplete form fields. The field options could be configured using enum values coming from the schema or via an API call made using a RESTAction which sould be defined below. The RESTActions shuold contain a `status` field, which is an array of object with the `{ label, value }` format. ",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "extra": {
+                    "additionalProperties": false,
+                    "description": "parameter to be added to the RESTAction call",
+                    "properties": {
+                      "key": {
+                        "description": "the key of the additional parameter",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "key"
+                    ],
+                    "type": "object"
+                  },
+                  "name": {
+                    "description": "the name of the autocomplete field",
+                    "type": "string"
+                  },
+                  "resourceRefId": {
+                    "type": "string",
+                    "description": "the identifier of the RESTAction that should be called to retrieve autocomplete data"
+                  },
+                  "closed": {
+                    "type": "boolean",
+                    "description": "true: only a listed value is accepted (a select); false: the list suggests and typed text is kept. Default false (the previous frontend rendered autocomplete fields as an autocomplete)"
+                  },
+                  "minChars": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "with `extra`: the typed text is sent once it has this many characters. Default 2"
+                  },
+                  "fallback": {
+                    "type": "string",
+                    "enum": [
+                      "manual"
+                    ],
+                    "description": "`manual`: a closed field whose options cannot be loaded (the RESTAction fails, or answers an empty list) takes a typed value instead of blocking the form"
+                  }
+                }
+              }
+            },
             "buttonConfig": {
               "type": "object",
               "description": "custom labels and icons for form buttons",
@@ -468,9 +519,172 @@
               },
               "additionalProperties": false
             },
+            "dependencies": {
+              "type": "array",
+              "description": "Configuration for the form fields who are dependent from other form fields. The field options are set via an API call made using a RESTAction which sould be defined below. The RESTActions shuold contain a `status` field, which is an array of object with the `{ label, value }` format. ",
+              "items": {
+                "type": "object",
+                "required": [
+                  "dependsOn",
+                  "extra",
+                  "name",
+                  "resourceRefId"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "dependsOn": {
+                    "description": "the field on which this field depends on",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "the name of the field on which this field depends on"
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ]
+                  },
+                  "extra": {
+                    "additionalProperties": false,
+                    "description": "parameter to be added to the RESTAction call",
+                    "properties": {
+                      "key": {
+                        "description": "the key of the additional parameter",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "key"
+                    ],
+                    "type": "object"
+                  },
+                  "name": {
+                    "description": "the name of the autocomplete field",
+                    "type": "string"
+                  },
+                  "resourceRefId": {
+                    "type": "string",
+                    "description": "the identifier of the RESTAction that should be called to retrieve dependency data"
+                  },
+                  "closed": {
+                    "type": "boolean",
+                    "description": "true: only a listed value is accepted (a select); false: the list suggests and typed text is kept. Default true (the previous frontend rendered dependent fields as a select)"
+                  },
+                  "fallback": {
+                    "type": "string",
+                    "enum": [
+                      "manual"
+                    ],
+                    "description": "`manual`: a closed field whose options cannot be loaded (the RESTAction fails, or answers an empty list) takes a typed value instead of blocking the form"
+                  }
+                }
+              }
+            },
             "disabled": {
               "description": "antd Form disabled (disables all fields)",
               "type": "boolean"
+            },
+            "displayingDependencies": {
+              "type": "array",
+              "description": "Configuration for the form fields whose displaying is dependent from other form fields.",
+              "items": {
+                "type": "object",
+                "required": [
+                  "dependsOn",
+                  "name"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "description": "the name of the field",
+                    "type": "string"
+                  },
+                  "dependsOn": {
+                    "description": "the field on which this field depends on",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "conditionType"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "the name of the field on which this field depends on"
+                      },
+                      "conditionType": {
+                        "type": "string",
+                        "description": "`notEmpty` (default) indicates that the current field is displayed if the dependency field has a non-empty value. `value` indicates that the current field is displayed only when the dependency field matches a specific value.",
+                        "enum": [
+                          "notEmpty",
+                          "value"
+                        ]
+                      },
+                      "value": {
+                        "type": "object",
+                        "description": "Expected value used when `type = value`.",
+                        "additionalProperties": false,
+                        "required": [
+                          "type"
+                        ],
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "string",
+                              "integer",
+                              "boolean",
+                              "array",
+                              "option",
+                              "null"
+                            ],
+                            "description": "Expected dependency value type."
+                          },
+                          "stringValue": {
+                            "type": "string",
+                            "description": "Value if type = string"
+                          },
+                          "integerValue": {
+                            "type": "integer",
+                            "description": "Value if type = integer"
+                          },
+                          "booleanValue": {
+                            "type": "boolean",
+                            "description": "Value if type = boolean"
+                          },
+                          "arrayValue": {
+                            "type": "array",
+                            "description": "Value if type = array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "optionValue": {
+                            "description": "Value if type = option: includes a single value or a { label, value } object",
+                            "additionalProperties": false,
+                            "required": [
+                              "value"
+                            ],
+                            "properties": {
+                              "label": {
+                                "description": "Label of the option",
+                                "type": "string"
+                              },
+                              "value": {
+                                "description": "Value of the option. A number or a boolean is compared with type integer or boolean.",
+                                "type": "string"
+                              }
+                            },
+                            "type": "object"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             },
             "draftActionId": {
               "description": "optional id of an action fired by a 'Save draft' button that captures the CURRENT field values WITHOUT running form validation (so an incomplete form can be persisted). Pair with buttonConfig.draft to show the button.",
@@ -507,6 +721,32 @@
                 "vertical",
                 "inline"
               ]
+            },
+            "notice": {
+              "type": "string",
+              "description": "a message shown above the fields of a schema form (e.g. the blueprint formdef's note that the form was built from the CRD)"
+            },
+            "objectFields": {
+              "type": "array",
+              "description": "configuration for object fields in the form",
+              "items": {
+                "type": "object",
+                "required": [
+                  "path",
+                  "displayField"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "the path of the object field"
+                  },
+                  "displayField": {
+                    "type": "string",
+                    "description": "the field to display in the objects list"
+                  }
+                }
+              }
             },
             "propertiesToHide": {
               "description": "top-level schema property names to omit from the schema-driven form",
@@ -571,6 +811,53 @@
             "submitDisabledWhenPristine": {
               "description": "when true, the primary (submit) button stays disabled until at least one field differs from its initial value (initialValues overlaid on schema defaults). Use for update forms where submitting an unchanged value is a no-op — e.g. a version picker pre-set to the currently-installed version.",
               "type": "boolean"
+            },
+            "suggestions": {
+              "type": "array",
+              "description": "a static, open catalogue for a field: the options are offered, and any typed value is kept",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "options"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "the name of the field"
+                  },
+                  "options": {
+                    "type": "array",
+                    "description": "the catalogue, in the order it is shown",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value"
+                      ],
+                      "properties": {
+                        "value": {
+                          "type": "string",
+                          "description": "the value written into the field"
+                        },
+                        "label": {
+                          "type": "string",
+                          "description": "shown instead of the value"
+                        },
+                        "description": {
+                          "type": "string",
+                          "description": "a muted second line"
+                        },
+                        "group": {
+                          "type": "string",
+                          "description": "the heading the option is grouped under"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
           },
           "additionalProperties": false

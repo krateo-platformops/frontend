@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * `x-krateo-options`: a field whose options come from a RESTAction named by one of the Form's
+ * `autocomplete` / `dependencies`: a field whose options come from a RESTAction named by one of the Form's
  * resourcesRefs. The field calls the path snowplow resolved (never one built from the schema),
  * stores only the option's value, and says why when it cannot show a list — no toast.
  */
@@ -12,6 +12,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import type { ResourcesRefs } from '../../types/Widget'
 
+import { OPTIONS_KEY } from './fieldKeys'
 import { getFieldOptionsSpec, parseFieldOptions } from './fieldOptions'
 import { SchemaFields } from './SchemaFields'
 import { fetchFieldOptions, FormRefsContext } from './useFieldOptions'
@@ -57,18 +58,18 @@ const respond = (body: unknown, status = 200) => {
 
 describe('getFieldOptionsSpec', () => {
   it('reads ref and closed', () => {
-    expect(getFieldOptionsSpec({ type: 'string', 'x-krateo-options': { closed: true, ref: ' regions ' } })).toEqual({ closed: true, ref: 'regions' })
-    expect(getFieldOptionsSpec({ type: 'string', 'x-krateo-options': { ref: 'regions' } })).toEqual({ closed: false, ref: 'regions' })
+    expect(getFieldOptionsSpec({ [OPTIONS_KEY]: { closed: true, ref: ' regions ' }, type: 'string' })).toEqual({ closed: true, ref: 'regions' })
+    expect(getFieldOptionsSpec({ [OPTIONS_KEY]: { ref: 'regions' }, type: 'string' })).toEqual({ closed: false, ref: 'regions' })
   })
 
   it('reads a malformed extension as absent', () => {
     expect(getFieldOptionsSpec({ type: 'string' })).toBeUndefined()
-    expect(getFieldOptionsSpec({ type: 'string', 'x-krateo-options': 'regions' })).toBeUndefined()
-    expect(getFieldOptionsSpec({ type: 'string', 'x-krateo-options': { ref: '' } })).toBeUndefined()
+    expect(getFieldOptionsSpec({ [OPTIONS_KEY]: 'regions', type: 'string' })).toBeUndefined()
+    expect(getFieldOptionsSpec({ [OPTIONS_KEY]: { ref: '' }, type: 'string' })).toBeUndefined()
   })
 
   it('never loads options for a secret', () => {
-    expect(getFieldOptionsSpec({ format: 'password', type: 'string', 'x-krateo-options': { ref: 'r' } })).toBeUndefined()
+    expect(getFieldOptionsSpec({ [OPTIONS_KEY]: { ref: 'r' }, format: 'password', type: 'string' })).toBeUndefined()
   })
 })
 
@@ -139,10 +140,10 @@ const openSelect = (container: HTMLElement) => {
   fireEvent.mouseDown(container.querySelector('.ant-select') as HTMLElement)
 }
 
-describe('SchemaFields — a field with x-krateo-options', () => {
+describe('SchemaFields — a field with options from a RESTAction', () => {
   it('loads the options from the resolved path and submits the picked value only', async () => {
     respond({ status: [{ label: 'EU West', value: 'eu-west-1' }, { label: 'US East', value: 'us-east-1' }] })
-    const { container, onFinish } = renderField({ title: 'Region', type: 'string', 'x-krateo-options': { closed: true, ref: 'regions' } })
+    const { container, onFinish } = renderField({ [OPTIONS_KEY]: { closed: true, ref: 'regions' }, title: 'Region', type: 'string' })
     await waitFor(() => { expect(fetchMock).toHaveBeenCalledTimes(1) })
     expect(new URL(fetchMock.mock.calls[0][0] as string).searchParams.get('name')).toBe('regions')
     openSelect(container)
@@ -154,7 +155,7 @@ describe('SchemaFields — a field with x-krateo-options', () => {
 
   it('an open field keeps a value that is not in the list', async () => {
     respond({ status: ['eu-west-1'] })
-    const { container, onFinish } = renderField({ type: 'string', 'x-krateo-options': { ref: 'regions' } })
+    const { container, onFinish } = renderField({ [OPTIONS_KEY]: { ref: 'regions' }, type: 'string' })
     const input = container.querySelector('input#region') as HTMLInputElement
     fireEvent.change(input, { target: { value: 'my-own-region' } })
     fireEvent.click(screen.getByText('submit'))
@@ -163,14 +164,14 @@ describe('SchemaFields — a field with x-krateo-options', () => {
   })
 
   it('a ref the form does not have disables the field and says so, without calling anything', () => {
-    const { container } = renderField({ type: 'string', 'x-krateo-options': { closed: true, ref: 'nope' } })
+    const { container } = renderField({ [OPTIONS_KEY]: { closed: true, ref: 'nope' }, type: 'string' })
     expect(screen.getByRole('status').textContent).toContain('no source "nope"')
     expect(container.querySelector('.ant-select-disabled')).toBeTruthy()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('a ref snowplow denied disables the field without calling it', () => {
-    const { container } = renderField({ type: 'string', 'x-krateo-options': { closed: true, ref: 'secret-list' } })
+    const { container } = renderField({ [OPTIONS_KEY]: { closed: true, ref: 'secret-list' }, type: 'string' })
     expect(screen.getByRole('status').textContent).toContain('do not have access')
     expect(container.querySelector('.ant-select-disabled')).toBeTruthy()
     expect(fetchMock).not.toHaveBeenCalled()
@@ -178,7 +179,7 @@ describe('SchemaFields — a field with x-krateo-options', () => {
 
   it('a failed load says so on the field and retries on request', async () => {
     respond({}, 500)
-    renderField({ type: 'string', 'x-krateo-options': { closed: true, ref: 'regions' } })
+    renderField({ [OPTIONS_KEY]: { closed: true, ref: 'regions' }, type: 'string' })
     expect((await screen.findByRole('status')).textContent).toContain('could not be loaded')
     respond({ status: ['eu-west-1'] })
     fireEvent.click(screen.getByText('Retry'))
@@ -188,7 +189,7 @@ describe('SchemaFields — a field with x-krateo-options', () => {
 
   it('an array field picks several values', async () => {
     respond({ status: [{ label: 'Alpha', value: 'a' }, { label: 'Beta', value: 'b' }] })
-    const { container, onFinish } = renderField({ items: { type: 'string' }, type: 'array', 'x-krateo-options': { closed: true, ref: 'regions' } })
+    const { container, onFinish } = renderField({ [OPTIONS_KEY]: { closed: true, ref: 'regions' }, items: { type: 'string' }, type: 'array' })
     await waitFor(() => { expect(fetchMock).toHaveBeenCalled() })
     openSelect(container)
     fireEvent.click(await screen.findByText('Alpha'))

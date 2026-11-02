@@ -1,6 +1,8 @@
 import type { DefaultOptionType } from 'antd/es/select'
 import type { JSONSchema4, JSONSchema4Type } from 'json-schema'
 
+import { SUGGESTIONS_KEY } from './fieldKeys'
+
 export const getDefaultsFromSchema = (schema: JSONSchema4): Record<string, unknown> => {
   const defaults: Record<string, unknown> = {}
 
@@ -31,7 +33,7 @@ export const getOptionsFromEnum = (enumValues: JSONSchema4Type[] | undefined): D
 }
 
 /**
- * A single entry of the `x-krateo-suggestions` catalogue (see `getSuggestionGroups`).
+ * A single entry of a `suggestions` catalogue (see `getSuggestionGroups`).
  * `value` is the only required member — everything else is presentation.
  */
 export interface SchemaSuggestion {
@@ -51,26 +53,22 @@ export interface SuggestionGroup {
   group?: string
 }
 
-/** `x-krateo-suggestions` as it may be authored: bare strings or full entries, mixed. */
+/** An entry as it reaches the node; anything without a usable `value` is dropped. */
 type RawSuggestion = Partial<SchemaSuggestion> | string | null | undefined
 
 /**
- * Reads the `x-krateo-suggestions` vendor extension off a JSON Schema node and normalises it
- * into optgroups, preserving authoring order for both the groups and the entries inside them.
+ * Reads the suggestions of a schema node — a `suggestions` entry of widgetData, written on the
+ * node by fieldConfig.ts — and normalises them into optgroups, preserving authoring order for both
+ * the groups and the entries inside them.
  *
- * WHY A VENDOR EXTENSION AND NOT `enum`. `enum` is a CLOSED set: JSON Schema validation (and
- * the antd `Select` this widget renders for it) rejects anything not listed. Some fields need
- * the opposite — a known catalogue offered as a starting point while ARBITRARY text stays
- * legal. The motivating case is the Alert form's `where`, a free Lucene expression: the
- * platform knows which signals it actually collects and can offer them, but must not forbid
- * the expression a user writes by hand. `enum` cannot express "suggest, don't restrict", so
- * suggestions are a separate key and leave `type` / validation untouched.
- *
- * It travels as a schema extension rather than a new `widgetData` field because
- * `widgetData.schema` is `x-kubernetes-preserve-unknown-fields`, so a server-side jq filter can
- * graft a live catalogue onto the property it belongs to with no CRD change — and the
- * suggestions stay attached to their field instead of living in a parallel map keyed by
- * property name.
+ * WHY NOT `enum`. `enum` is a CLOSED set: JSON Schema validation (and the antd `Select` this
+ * widget renders for it) rejects anything not listed. Some fields need the opposite — a known
+ * catalogue offered as a starting point while ARBITRARY text stays legal. The motivating case is
+ * the Alert form's `where`, a free Lucene expression: the platform knows which signals it
+ * actually collects and can offer them, but must not forbid the expression a user writes by hand.
+ * `enum` cannot express "suggest, don't restrict", so suggestions are a separate list and leave
+ * `type` / validation untouched. A server-side jq filter can still fill the list from live data,
+ * through the Form's `widgetDataTemplate`.
  *
  * Tolerant by construction: the catalogue is assembled server-side from live telemetry, so a
  * malformed entry is bad DATA, not a bad form. Entries without a usable `value` are dropped and
@@ -98,7 +96,7 @@ const normaliseSuggestion = (entry: RawSuggestion): SchemaSuggestion | undefined
 }
 
 export const getSuggestionGroups = (node: JSONSchema4): SuggestionGroup[] | undefined => {
-  const raw: unknown = (node as unknown as Record<string, unknown>)['x-krateo-suggestions']
+  const raw: unknown = (node as unknown as Record<string, unknown>)[SUGGESTIONS_KEY]
   if (!Array.isArray(raw)) { return undefined }
 
   const groups: SuggestionGroup[] = []
