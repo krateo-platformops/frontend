@@ -473,9 +473,9 @@ export interface Form {
                */
               label?: string
               /**
-               * Value of the option
+               * Value of the option. A number or a boolean is compared with type integer or boolean.
                */
-              value: string | number | boolean
+              value: string
             }
           }
         }

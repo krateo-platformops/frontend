@@ -577,8 +577,16 @@ spec:
                                     type: integer
                                   optionValue:
                                     description: 'Value if type = option: includes a single value or a { label, value } object'
+                                    properties:
+                                      label:
+                                        description: Label of the option
+                                        type: string
+                                      value:
+                                        description: Value of the option. A number or a boolean is compared with type integer or boolean.
+                                        type: string
+                                    required:
+                                      - value
                                     type: object
-                                    x-kubernetes-preserve-unknown-fields: true
                                   stringValue:
                                     description: Value if type = string
                                     type: string

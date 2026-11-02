@@ -673,14 +673,11 @@
                                 "type": "string"
                               },
                               "value": {
-                                "description": "Value of the option",
-                                "type": [
-                                  "string",
-                                  "number",
-                                  "boolean"
-                                ]
+                                "description": "Value of the option. A number or a boolean is compared with type integer or boolean.",
+                                "type": "string"
                               }
-                            }
+                            },
+                            "type": "object"
                           }
                         }
                       }
