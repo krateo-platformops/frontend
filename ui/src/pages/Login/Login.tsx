@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import logo from '../../assets/images/logo_big.svg'
 import { useConfigContext } from '../../context/ConfigContext'
 import useCatchError from '../../hooks/useCatchError'
+import { loginFailureCauseOf } from '../../utils/loginFailureCause'
 import { resolveNextPath, SESSION_RESUME_NEXT_KEY } from '../../utils/nextPath'
 
 import AuthMethods from './AuthMethods'
@@ -91,8 +92,24 @@ const Login = () => {
         // Resume the pre-expiry route when the session-resume flow supplied ?next=; home otherwise.
         void navigate(nextPath)
       } else {
+        // This used to show `Login error (${status}: ${statusText})` and nothing else, which made a
+        // misconfigured cluster and a mistyped password look identical: someone whose LDAP server
+        // was down was told to check their password. authn 0.32.0 separates them — a refusal of the
+        // caller is 401/403, authn's own inability to check is 5xx — with the cause in
+        // details.causes[0].reason. loginFailureCause turns that into the one distinction a login
+        // form can act on.
+        //
+        // The body is read defensively because a proxy between us and authn may answer with
+        // something that is not a Kubernetes Status at all; the classifier takes `unknown` and
+        // never throws, so a failed parse still produces the right advice from the status code.
+        const body: unknown = await response.json().catch(() => null)
+        const { reason, text } = loginFailureCauseOf(response.status, body)
+        /*
+         * The reason is appended rather than shown alone: it is authn's vocabulary, not the
+         * person's, but without it a support conversation starts from "it didn't work".
+         */
         catchError({
-          message: `Login error (${response.status}: ${response.statusText})`,
+          message: reason === null ? text : `${text} (${reason})`,
           status: response.status,
         }, 'notification')
       }
