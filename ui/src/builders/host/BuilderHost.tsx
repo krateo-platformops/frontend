@@ -45,6 +45,7 @@ import DismissButton, { dismissButtonProps } from '../../components/DismissButto
 import ScreenHeader from '../../components/ScreenHeader'
 import StatusPill from '../../components/StatusPill'
 import { ConfigContext } from '../../context/ConfigContext'
+import { startPagePublish, type InteractionSpan } from '../../otel/interactions'
 import { SplitDivider } from '../../pages/PageBuilder/SplitDivider'
 import { registryUnavailable } from '../builderRegistry'
 import type { Builder } from '../builderSpec'
@@ -157,6 +158,10 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
 
   useEffect(() => onDraftChanged(setHeld), [])
 
+  // X5 `krateo.page.publish`: started when Publish is pressed, ended when THIS surface renders the
+  // provider's answer. See `startPagePublish` for why those are the boundaries.
+  const publishSpan = useRef<InteractionSpan | null>(null)
+
   // The answer to OUR publish, ignoring any other surface's.
   useEffect(() => onPublishResult(({ deepLink, denial, id }) => {
     if (publishId.current !== id) {
@@ -165,7 +170,23 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
     publishId.current = null
     setPublishing(false)
     setPublished({ deepLink, denial })
+    // A refusal is the outcome, and it is a failure: the person pressed Publish and nothing was
+    // published. ERROR status with no status code — the publish is not an HTTP call this surface
+    // makes, and the SLI reads "ERROR, no code" as the failure.
+    if (denial === null) {
+      publishSpan.current?.ok()
+    } else {
+      publishSpan.current?.failed('the provider refused the publish')
+    }
+    publishSpan.current = null
   }), [])
+
+  // Leaving the builder with a publish still unanswered is an abandonment: marked, never dropped,
+  // or the abandonment rate hides. Never `false` — the flag is boolean `true` or absent.
+  useEffect(() => () => {
+    publishSpan.current?.abandoned()
+    publishSpan.current = null
+  }, [])
 
   // A discard — this page's or anyone's: nothing shown describes a held draft any more. What is held
   // is the provider's to broadcast; until it does, this view holds nothing.
@@ -219,6 +240,15 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
     publishId.current = id
     setPublished(null)
     setPublishing(true)
+    // `spec.route` is the path the shell MOUNTS this Builder at (builderRoutes.tsx) — a route
+    // pattern with no parameters, so it is already the templated route and one metric series per
+    // Builder. Taking it from the spec rather than from the location also keeps this surface, which
+    // mounts bare in tests, off the router's hooks.
+    // A press while one is still unanswered (the button is `loading`, so antd swallows the click —
+    // but `publishId` would move on regardless) leaves the earlier press's answer unrenderable
+    // here. That span ends abandoned rather than being dropped on the floor unended.
+    publishSpan.current?.abandoned()
+    publishSpan.current = startPagePublish(spec.route)
     emitPublishRequest({ id, verb: publishVerb })
   }
 

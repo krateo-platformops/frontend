@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router'
 import { buildBlastRadius, isMutatingVerb } from '../components/BlastRadius/buildBlastRadius'
 import { useConfigContext } from '../context/ConfigContext'
 import { useRoutesContext } from '../context/RoutesContext'
+import { formSubmitInteraction, startFormSubmit, type FormSubmitInteraction, type InteractionHeld } from '../otel/interactions'
 import type { ResourceRef, ResourcesRefs, Widget, WidgetAction } from '../types/Widget'
 import { getAccessToken } from '../utils/getAccessToken'
 import { jqText, useResolveJqExpression } from '../utils/jq-expression'
@@ -17,6 +18,7 @@ import { getHeadersObject, getResourceRef } from '../utils/utils'
 import { closeDrawer, openDrawer } from '../widgets/Drawer/Drawer'
 import { openModal } from '../widgets/Modal/Modal'
 
+import { interpolateRedirectUrl, resolveNavigationTarget, updateNameNamespace } from './actionUrls'
 import type { BlastRadius, BlastRadiusSet } from './blastRadius.types'
 import { buildPayloadDetailed, templateJqInput } from './buildPayload'
 import { writeTargetName } from './callPath'
@@ -54,103 +56,6 @@ interface EventData {
 export const POST_WRITE_REVALIDATE_DELAYS_MS = [800, 2200]
 
 /**
- * Interpolates a route template using values from a nested payload object.
- * Placeholders in the route must follow the format `${path.to.value}`.
- * If any placeholder cannot be resolved or is not a primitive, the function returns null.
- *
- * Example:
- *   interpolateRedirectUrl({ user: { id: 123 } }, "/profile/${user.id}")
- *   → "/profile/123"
- *
- * @param payload - The object used to resolve placeholders (supports nested values)
- * @param route - The route string containing `${...}` placeholders to be replaced
- * @returns The interpolated route string or null if a placeholder could not be resolved
- */
-export const interpolateRedirectUrl = (payload: Record<string, unknown>, route: string): string | null => {
-  let allReplacementsSuccessful = true
-
-  const interpolatedRoute = route.replace(/\$\{([^}]+)\}/g, (_, key: string) => {
-    const parts = key.split('.')
-
-    let value: unknown = payload
-    for (const part of parts) {
-      if (typeof value === 'object' && value !== null && Object.prototype.hasOwnProperty.call(value, part)) {
-        value = (value as Record<string, unknown>)[part]
-      } else {
-        value = undefined
-        break
-      }
-    }
-
-    if (
-      typeof value === 'string'
-      || typeof value === 'number'
-      || typeof value === 'boolean'
-      || typeof value === 'bigint'
-      || typeof value === 'symbol'
-    ) {
-      return String(value)
-    }
-
-    allReplacementsSuccessful = false
-    return ''
-  })
-
-  return allReplacementsSuccessful ? interpolatedRoute : null
-}
-
-/**
- * Adds or replaces `name` and `namespace` query parameters in a given URL.
- * Existing `name` and `namespace` parameters (if any) are removed before appending the new values.
- *
- * Example:
- *   updateNameNamespace("/api?foo=bar&name=old", "my-app", "prod")
- *   → "/api?foo=bar&name=my-app&namespace=prod"
- *
- * @param path - The original URL (may already include query parameters)
- * @param name - The new `name` parameter to set
- * @param namespace - The new `namespace` parameter to set
- * @returns The updated URL with the new query parameters
- */
-export const updateNameNamespace = (path: string, name?: string, namespace?: string) => {
-  const [base, queryString = ''] = path.split('?')
-  const qsParameters = queryString
-    .split('&')
-    .filter((el) => !el.startsWith('name=') && !el.startsWith('namespace='))
-    .join('&')
-
-  // A cluster-scoped target has no namespace, and snowplow distinguishes the two by the
-  // param being ABSENT (#156) — so it is omitted rather than interpolated. Interpolating
-  // an absent one sent `namespace=undefined`, which the apiserver read as a namespace of
-  // that name: POST /apis/kyverno.io/v1/namespaces/undefined/clusterpolicies -> 404.
-  const ns = namespace ? `&namespace=${namespace}` : ''
-
-  return `${base}?${qsParameters ? `${qsParameters}&` : ''}name=${name}${ns}`
-}
-
-/**
- * Resolve a navigate target, MERGING query parameters when it shares the current
- * pathname. Independent filter controls (the compositions status / time-range chips)
- * each navigate with only their own param — e.g. `/compositions?status=failed` and
- * `/compositions?range=7d`. Without merging, every click would clobber the others'
- * params; with it, `status` and `range` accumulate on the same URL and compose. Targets
- * to a DIFFERENT pathname replace the query as before (a filter must not leak across
- * pages). `window.location` is read at call time so the merge always sees the latest URL.
- */
-export const resolveNavigationTarget = (path: string): string => {
-  const [targetPath, targetQuery = ''] = path.split('?')
-  if (typeof window === 'undefined' || targetPath !== window.location.pathname || !targetQuery) {
-    return path
-  }
-
-  const merged = new URLSearchParams(window.location.search)
-  new URLSearchParams(targetQuery).forEach((value, key) => { merged.set(key, value) })
-  const queryString = merged.toString()
-
-  return queryString ? `${targetPath}?${queryString}` : targetPath
-}
-
-/**
  * fetch with an abort-based timeout so an action request can't hang forever
  * (no native fetch timeout). Aborts after `ms`; the AbortError propagates to the
  * caller's catch. The timer is always cleared, including when fetch rejects.
@@ -176,6 +81,8 @@ export const parseJsonResponse = (text: string): RestApiResponse => {
 
 // buildPayload moved to ./buildPayload (max-lines); re-exported for its existing importers.
 export { buildPayload, buildPayloadDetailed, templateJqInput } from './buildPayload'
+// The three pure URL helpers moved to ./actionUrls, for the same reason; same re-export.
+export { interpolateRedirectUrl, resolveNavigationTarget, updateNameNamespace } from './actionUrls'
 
 /** Per-invocation data for an action (the widget instance it fires from). */
 export interface ActionRuntime {
@@ -198,6 +105,16 @@ export interface ActionRuntime {
   /** W0-3 origin tag: who initiated the write. Absent = a hand-clicked control ({actor:'human'});
    * the Autopilot bridge sets actor:'agent' + the session/prompt context it holds. */
   origin?: WriteOrigin
+  /**
+   * X5 — the SLO interaction this dispatch IS, and the templated route it happened on. Set only by
+   * the Form widget (`krateo.form.submit`); absent everywhere else, and absent when no templated
+   * route resolved, in which case nothing is measured rather than measured under a wrong route.
+   *
+   * THE SPAN IS STARTED HERE AND NOT BY THE CALLER, because the contract's boundary is "after
+   * validation AND after confirm": the caller cannot see the end of the HITL gate, and a gate the
+   * user can leave open for five minutes would dominate every p95 it entered.
+   */
+  interaction?: FormSubmitInteraction
 }
 
 /**
@@ -281,7 +198,10 @@ const runRest = async (
   resourceRef: ResourceRef,
   url: string,
   runtime: ActionRuntime,
-  ctx: ActionContext
+  ctx: ActionContext,
+  // X5: filled in past the HITL gate, so the dispatcher's own catch-all can end the interaction
+  // span whatever threw. Shared rather than returned because `runRest` has many exits.
+  held: InteractionHeld = {}
 ): Promise<void> => {
   const { errorMessage, headers = [], onEventNavigateTo, onSuccessNavigateTo, successMessage } = action
   const { customPayload } = runtime
@@ -293,6 +213,11 @@ const runRest = async (
   const scrub = <T>(text: T): T => (secrets ? redactSecretValues(text, secrets) : text)
   const { verb } = resourceRef
 
+  // X5, BOTH SET-FABRIC BRANCHES BELOW ARE UNINSTRUMENTED, deliberately and not silently: one
+  // `krateo.form.submit` would have to span N gated writes with N confirms between them, and the
+  // contract excludes confirm time. Measuring that wrongly is worse than not measuring it, so a
+  // set / fan-out submit produces no span and the gap is recorded in docs/observability.md.
+  //
   // W3-2: `ops` routes the whole submit through the set fabric — N DISTINCT writes
   // (each entry resolves its own ref + builds its own payload) as ONE gated set.
   // Checked FIRST so ops×fanOutPath surfaces as runRestOps' mutual-exclusion error.
@@ -353,6 +278,12 @@ const runRest = async (
     return
   }
 
+  // X5 — THE INTERACTION STARTS HERE: validation has passed, the gate (if any) has been confirmed,
+  // and from this point on every millisecond is the portal's. A declined confirm returned above
+  // and starts nothing: the user never waited on us. `verb` is the ref's, known on every path from
+  // here, which is why `http.request.method` can be always-present on this span name.
+  if (runtime.interaction) { held.span = startFormSubmit({ method: verb, route: runtime.interaction.route }) }
+
   let resourceUid: string | null = null
   let eventReceived = false
   // (3) The awaited event can arrive before the POST response sets resourceUid; buffer
@@ -411,6 +342,10 @@ const runRest = async (
         ctx.setLoading(false)
         unsubscribeEvents()
         ctx.notification.error({ description, message: 'Error while executing the action', placement: 'bottomLeft' })
+        // X5: the outcome the user got is this error. ERROR status and NO status code — the write
+        // itself answered 2xx, so a status code here would describe the wrong thing, and the SLI
+        // reads "ERROR with no code" as the failure anyway.
+        held.span?.failed('timeout waiting for the awaited event')
       }
       ctx.message.destroy()
     }, eventTimeoutSeconds * 1000)
@@ -470,6 +405,7 @@ const runRest = async (
             message: 'Error while redirecting',
             placement: 'bottomLeft',
           })
+          held.span?.failed('the awaited event resolved no redirect target')
 
           return
         }
@@ -483,6 +419,11 @@ const runRest = async (
 
         ctx.message.destroy()
         ctx.notification.success({ description: successDescription, message: 'Successfully executed action', placement: 'bottomLeft' })
+        // X5: the outcome is on screen, so the interaction ends HERE — before the detach check
+        // below, which decides only whether to also REDIRECT. The toast is raised app-wide whether
+        // or not the widget is still mounted, so this is never an abandonment: what ended the span
+        // is the awaited event, not the user leaving.
+        held.span?.ok()
 
         ctx.setLoading(false)
         if (detached && typeof window !== 'undefined' && window.location.pathname !== startPath) {
@@ -502,6 +443,7 @@ const runRest = async (
   if (!headersObject) {
     ctx.message.destroy()
     ctx.notification.error({ description: 'Headers are not in the key: value format', message: 'Error while executing the action', placement: 'bottomLeft' })
+    held.span?.failed('the action\'s headers are not in the key: value format')
 
     return
   }
@@ -556,6 +498,11 @@ const runRest = async (
 
     ctx.message.destroy()
     ctx.notification.error({ description, message: `${jsonResponse.status} - ${jsonResponse.reason}`, placement: 'bottomLeft' })
+    // X5: ERROR status, and NO `http.response.status_code` even though `res.status` is right here.
+    // The key must be ALWAYS present or ALWAYS absent per span name (it is a metric dimension with
+    // no default), and a network failure or an event timeout has no status to carry — so carrying
+    // it here would split `krateo.form.submit` into two series. Resist adding it.
+    held.span?.failed('the write was refused')
 
     return
   }
@@ -603,6 +550,10 @@ const runRest = async (
     // action reliably shows a titled success toast.
     const successTitle = scrub(jsonResponse.message) || `Successfully ${actionName}`
     ctx.notification.success({ description, message: successTitle, placement: 'bottomLeft' })
+    // X5: the outcome is rendered — the span ends OK here. Everything after it (cache
+    // invalidation, an onSuccess redirect, the staggered re-invalidations) is the portal catching
+    // up with a write the user has already been told about.
+    held.span?.ok()
   }
 
   await ctx.invalidateQueries()
@@ -647,6 +598,11 @@ const runRest = async (
  * unit-testable without React — the hook below is a thin wrapper that builds `ctx`.
  */
 export const dispatchAction = async (action: WidgetAction, runtime: ActionRuntime, ctx: ActionContext): Promise<void> => {
+  // X5: the interaction span, once `runRest` is past the gate and has started one. Held in a box
+  // rather than returned so the catch below — the dispatcher's existing catch-all for every
+  // unhandled throw — is also the span's, whatever path threw. First end wins, so a throw on the
+  // tail of an already-reported outcome cannot overwrite it.
+  const held: InteractionHeld = {}
   if (action.loading?.display) {
     ctx.setLoading(true)
   }
@@ -693,13 +649,15 @@ export const dispatchAction = async (action: WidgetAction, runtime: ActionRuntim
         runOpenModal(action, resourceRef, ctx)
         break
       case 'rest':
-        await runRest(action, resourceRef, url, runtime, ctx)
+        await runRest(action, resourceRef, url, runtime, ctx, held)
         break
       default:
         break
     }
   } catch (error) {
     ctx.message.destroy()
+    // X5: whatever threw, the interaction failed and the notification below IS its outcome.
+    held.span?.failed(error instanceof Error ? error.name : 'unhandled error')
     // A refused secret-bearing override is a definition problem, stated as such — nothing was sent.
     ctx.notification.error(error instanceof SecretExpressionError
       ? { description: error.message, message: 'Not submitted — a secret field would have left the browser', placement: 'bottomLeft' }
@@ -718,7 +676,9 @@ export const useHandleAction = () => {
   const queryClient = useQueryClient()
   const { message, modal, notification } = useApp()
   const { config } = useConfigContext()
-  const { reloadRoutes } = useRoutesContext()
+  // `routes` is the router's live table — the source of the TEMPLATED route an interaction span
+  // carries (X5). `reloadRoutes` is the existing consumer.
+  const { reloadRoutes, routes } = useRoutesContext()
   const [isActionLoading, setIsActionLoading] = useState<boolean>(false)
   const resolveJq = useResolveJqExpression()
 
@@ -805,9 +765,17 @@ export const useHandleAction = () => {
     // nothing was filtered.
     deniedRefIds?: string[],
     // The submitting Form's secret fields (utils/secretFields.ts); only the Form passes them.
-    secretPaths?: readonly SecretPath[]
+    secretPaths?: readonly SecretPath[],
+    // X5 — the SLO interaction this dispatch is. Only the Form passes it ('form.submit'); the
+    // ROUTE is resolved here rather than by the caller, because the templated route comes from the
+    // router's table and a widget has no business matching URLs.
+    interaction?: 'form.submit'
   ) => {
-    await dispatchAction(action, { customPayload, deniedRefIds, origin, resourcesRefs, secretPaths, widget }, buildCtx())
+    // `formSubmitInteraction` resolves the TEMPLATED route and returns undefined when there is
+    // none — no templated route, no span (otel/route.ts): a concrete path would poison the metric's
+    // series cap, and a missing key would split the span name into two series.
+    const asInteraction = formSubmitInteraction(routes, interaction === 'form.submit')
+    await dispatchAction(action, { customPayload, deniedRefIds, interaction: asInteraction, origin, resourcesRefs, secretPaths, widget }, buildCtx())
   }
 
   /**

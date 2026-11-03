@@ -63,10 +63,71 @@ Three consequences that are easy to get wrong, each of which would have *flatter
   `krateo.interaction.abandoned=true`, excluded from latency but still counted — a silently missing
   span hides the abandonment rate.
 
+### Where each span is produced
+
+| name | produced by |
+|---|---|
+| `krateo.composition.open` | `otel/useCompositionOpenSpan.ts`, from `components/WidgetPage` |
+| `krateo.form.submit` | `hooks/useHandleActions.ts` (`runRest`, past the HITL gate); the Form only tags the dispatch |
+| `krateo.page.publish` | `builders/host/BuilderHost.tsx` (Publish pressed → the provider's answer rendered) |
+| `krateo.page.load` | `otel/useDocumentLoadSpan.ts`, from `components/Shell` |
+| `krateo.widget.fetch` | auto-instrumentation, renamed by `ContractSpanProcessor` |
+
+The emitters are `otel/interactions.ts`. One other place in the SPA creates a span —
+`components/Autopilot/claimTelemetry.ts`, `autopilot.claim.unbacked` — and **it is not in
+`SPAN_NAMES`, so `ContractSpanProcessor` drops it in the browser**: it reaches no collector today,
+whatever that file's comment says, and snowplow would drop it too (the ingest accepts the five
+names only). Counting unbacked claims needs that name allowlisted at both ends first.
+
+**Not instrumented, deliberately** — each would be measured wrongly rather than not at all:
+
+- A **set / fan-out** form submit (`action.ops`, `action.fanOutPath`): one span would have to cover
+  N gated writes with a confirm between them, and confirm time is excluded by the rule above.
+- A document loaded at **`/login`**: the exporter authenticates with the session's bearer, so a
+  span emitted before sign-in cannot be delivered at all.
+- An interaction on a page whose **templated route cannot be resolved** (the route table has not
+  arrived, or the address matches only the `*` catch-all).
+
+**Which spans can report abandonment.** `composition.open` (the page unmounted before its reads
+settled) and `page.publish` (the builder was left, or Publish pressed again, before the provider
+answered). `form.submit` cannot: its outcome toast is raised app-wide whether or not the submitting
+widget is still mounted, so what ends that span is always the write — never the user leaving.
+
+### Attributes
+
+Route templates only, and the same keys on every span of a name. Imported from
+`@opentelemetry/semantic-conventions`, never written as literals (#589).
+
+| name | `http.route` | `http.request.method` | `http.response.status_code` |
+|---|---|---|---|
+| `krateo.composition.open` | yes | — | — |
+| `krateo.form.submit` | yes | yes | — |
+| `krateo.page.publish` | yes | — | — |
+| `krateo.page.load` | yes | — | — |
+
+Two rules from the consumer's aggregation (observability#90, the `span_metrics` connector) decide
+that table, and both are easy to break by being helpful:
+
+- **`http.route` must be the TEMPLATED route** — `/compositions/:namespace/:name`, never
+  `/compositions/krateo-system/foo-123`. Every distinct value is its own metric series and the cap
+  is 1,000 combinations per service per agent, so concrete paths exhaust it and the metric stops
+  meaning anything. Nothing fails while that happens. The route therefore comes from the router's
+  own match (`otel/route.ts`), and where none resolves **no span is emitted**.
+- **Per span name, a key is ALWAYS present or ALWAYS absent.** `http.response.status_code` is a
+  dimension with no default: carrying it sometimes splits one series into two. So no span carries
+  it — not even `krateo.form.submit`, where the status IS known whenever the server answered,
+  because a network failure or an event timeout has no status to carry.
+
 ### Errors
 
-Recorded, never dropped: span status `ERROR` plus the HTTP status attribute. Latency is computed
-over OK spans and the error rate separately, so a fast failure cannot improve the p95.
+Recorded, never dropped: span status `ERROR`, and **no** status-code attribute. `krateo.sli.error`
+is derived as "5xx, or `ERROR` with no status code", so the span status alone is what makes a
+failure count. Latency is computed over OK spans and the error rate separately, so a fast failure
+cannot improve the p95.
+
+The mirror of that rule is the dangerous one: an `ERROR` status on a span that SUCCEEDED counts
+every success as a failure. Each producer therefore has a must-not-fire test asserting that a
+successful operation leaves the status unset (`otel/interactions.instrumentation.test.ts`).
 
 ### Linking
 

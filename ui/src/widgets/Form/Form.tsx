@@ -572,7 +572,12 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
 
     const values = convertDayjsToISOString(formValues)
 
-    await handleAction(effectiveAction, resourcesRefs, values, widget, undefined, deniedRefIds, secretPaths)
+    // X5: this submit is a `krateo.form.submit` interaction. The SPAN IS NOT STARTED HERE — the
+    // dispatcher starts it once it is past the blast-radius confirm, because the contract's
+    // boundary excludes the user's own confirm time (a gate that can sit open for five minutes
+    // would dominate the p95). Reaching antd's onFinish already means validation passed, and a
+    // validation failure is correctly unmeasured: the user never waited on us.
+    await handleAction(effectiveAction, resourcesRefs, values, widget, undefined, deniedRefIds, secretPaths, 'form.submit')
   }
 
   // On a validated submit: with review-before-submit on and still editing, capture the

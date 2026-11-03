@@ -6,6 +6,8 @@ import { buildersStatus, isBuilderPath, subscribeBuilders } from '../../builders
 import BuildersUnavailable from '../../builders/host/BuildersUnavailable'
 import { useRoutesContext } from '../../context/RoutesContext'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
+import { templatedRouteOf } from '../../otel/route'
+import { useCompositionOpenSpan } from '../../otel/useCompositionOpenSpan'
 import Page404 from '../../pages/Page404'
 import { PageHealthProvider } from '../PageHealth'
 import PageSearch from '../PageSearch'
@@ -32,10 +34,14 @@ const PAGE_SEARCH: Record<string, string> = {}
  */
 export const WidgetPage = ({ defaultWidgetEndpoint }: { defaultWidgetEndpoint?: string }) => {
   const location = useLocation()
-  const { menuRoutes } = useRoutesContext()
+  const { menuRoutes, routes } = useRoutesContext()
   const currentRoute = menuRoutes.find(({ path }) => path === location.pathname)
   // Route-driven browser-tab title (relocated off the Page widget's <title>).
   useDocumentTitle(currentRoute?.title)
+  // X5: `krateo.composition.open` — the TEMPLATED route (`/compositions/:namespace/:name`), taken
+  // from the router's own match, never from the pathname: a concrete path would be one metric
+  // series per composition. Inert on every other route and whenever no provider is registered.
+  useCompositionOpenSpan(templatedRouteOf(routes, location.pathname))
   // Content resolves ONLY from the route (routes-as-data → snowplow). The legacy
   // `?widgetEndpoint=` query-param override is intentionally not supported.
   const widgetEndpoint = currentRoute?.resourceRef?.path || defaultWidgetEndpoint || ''

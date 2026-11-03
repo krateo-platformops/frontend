@@ -27,6 +27,7 @@
  */
 import type { Context, Span as ApiSpan } from '@opentelemetry/api'
 import type { ReadableSpan, Span, SpanProcessor } from '@opentelemetry/sdk-trace-web'
+import { ATTR_HTTP_REQUEST_METHOD, ATTR_HTTP_ROUTE } from '@opentelemetry/semantic-conventions'
 
 /** The complete accepted set. snowplow drops anything else; so does `ContractSpanProcessor`. */
 export const SPAN_NAMES = {
@@ -84,8 +85,15 @@ const ACCEPTED: ReadonlySet<string> = new Set(Object.values(SPAN_NAMES))
  */
 export const ATTR_ABANDONED = 'krateo.interaction.abandoned'
 
-/** `http.request.method` — the stable-semconv attribute every HTTP client span carries. */
-const ATTR_HTTP_REQUEST_METHOD = 'http.request.method'
+/**
+ * `http.request.method` — the stable-semconv attribute every HTTP client span carries — and
+ * `http.route`, below, both IMPORTED FROM THE CONVENTION PACKAGE rather than written out.
+ *
+ * This file's whole subject is that a span's NAME is the library's presentation choice and moves,
+ * while the semantic attribute does not. Spelling the attribute by hand would reintroduce exactly
+ * the drift the predicate exists to survive: a literal outlives its meaning silently, which is
+ * what #589 was.
+ */
 
 /**
  * An auto-instrumented HTTP client span: one carrying the semconv method attribute that is not
@@ -120,7 +128,7 @@ const underPrefix = (url: string, prefix: string): boolean =>
   url === prefix || url.startsWith(`${prefix}/`) || url.startsWith(`${prefix}?`)
 
 /** Set by `redactUrlAttributes`: the path relative to the snowplow base, with no query. */
-export const ATTR_ROUTE = 'http.route'
+export const ATTR_ROUTE: typeof ATTR_HTTP_ROUTE = ATTR_HTTP_ROUTE
 
 /**
  * Replace a span's raw URL attributes with a query-free path, and record the route.
