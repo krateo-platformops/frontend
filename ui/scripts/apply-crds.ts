@@ -29,8 +29,15 @@ async function main() {
   })
 
   if (yamlFiles.length === 0) {
-    console.log(chalk.gray('No CRDs to apply'))
-    return
+    // Fail rather than report success. Finding nothing used to print "No CRDs to apply" and return
+    // 0, so the three ways this goes wrong — generate-crds never run, run from the repo root
+    // instead of ui/ (CRD_DIR is cwd-relative), or run after a failed generation — were all
+    // indistinguishable from a clean apply. Then the next step that needs those CRDs on the
+    // cluster fails somewhere else entirely, with the widget's fields pruned and nothing saying
+    // why.
+    console.error(chalk.red(`No CRDs found in ${CRD_DIR}`))
+    console.error(chalk.red("Run 'npm run generate-crds' from ui/ first."))
+    process.exit(1)
   }
 
   let ok = 0
