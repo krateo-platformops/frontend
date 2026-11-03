@@ -1145,8 +1145,14 @@ def main():
     total = 0
     for name in selected:
         if name not in RULES:
-            print(f'unknown rule: {name}', file=sys.stderr)
-            return 2
+            # EXIT 64, NOT 2: this script's exit code IS the violation count (see the docstring), so
+            # returning a small number for a usage error is indistinguishable from finding that many
+            # violations. A peer hit exactly this: a typo'd `--rule` (the function name
+            # `rule_dead_kind` instead of the registry key `dead-kind`) exited 2, which reads as two
+            # real findings. CI fails either way, but whoever opens the red run chases two phantom
+            # violations instead of fixing a typo. 64 is EX_USAGE and cannot collide with a count.
+            print(f'unknown rule: {name}\n  known rules: ' + ', '.join(RULES), file=sys.stderr)
+            return 64
         fn, rule_id = RULES[name]
         hits = fn(crs)
         total += len(hits)
