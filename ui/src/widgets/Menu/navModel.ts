@@ -28,6 +28,50 @@ export interface InlineNavItem {
    * Optional, and omitting it keeps today's behaviour exactly: fall back to the configured one.
    */
   namespace?: string
+  /**
+   * A sidebar LINK, not a page: contribute an entry, claim no route and no content.
+   *
+   * WHY IT EXISTS. Every other item is both at once — its `path` registers the route AND is the
+   * entry's link — and that is right while the thing that owns the page is also the thing that
+   * links to it. It breaks when one shared page must be reached at a path only the CALLER's own
+   * context can spell. A nav item discovered from a cluster listing always resolves its content to
+   * the page root that declared it: `restaction.sidebar-nav` stamps `resourceRefId` on every root
+   * it emits, and that ref wins first in `resolveContentEndpoint`, so the content comes from that
+   * root's own namespace and no annotation redirects it elsewhere.
+   *
+   * The CMP service desk forced it: one shared set of desk pages, tickets living per tenant
+   * namespace, so the route must be `/service-desk/{namespace}` and each tenant needs a link with
+   * their own filled in. Neither existing shape can do that:
+   *
+   * - a LABELLED root on the shared pages would navigate to the literal string
+   *   `/service-desk/{namespace}`, braces and all, because an entry's key IS its path and the Menu
+   *   navigates it verbatim — nothing substitutes route params into a nav link;
+   * - a generated root in the tenant's namespace would open ITSELF, an empty page root, because of
+   *   the `resourceRefId` rule above.
+   *
+   * So the two jobs separate. The shared root carries the templated `nav-path` and NO label: it
+   * routes and owns the content. One generated object per tenant carries the label, the concrete
+   * path and this flag: it links and owns nothing. The shared templated route then matches the
+   * concrete URL, so `useParams()` yields the namespace and it reaches the data source's extras
+   * through `buildExtrasParam`.
+   *
+   * A link-only item MUST NOT register a route, which is the one thing this flag does. Registering
+   * its concrete path would shadow the templated one — a static segment outranks a dynamic one —
+   * and then content would resolve to the empty generated object with no route param at all: the
+   * exact failure the flag exists to avoid, reached from the other side.
+   *
+   * It carries no `resourceRefId`, so `isNavEntryAllowed` fail-opens and visibility rests entirely
+   * on whether the caller may `list` the object in its namespace. That IS the intended gate — the
+   * entry lives in the tenant's own namespace precisely so their own RBAC decides it.
+   *
+   * AUTHORING NOTE, because the obvious minimal object is refused. The carrier is still a `Flex`,
+   * so it must satisfy the Flex CRD: `spec.required` is `[resourcesRefs, widgetData]`,
+   * `widgetData.required` is `[allowedResources, items]` and `resourcesRefs.required` is `[items]`.
+   * `widgetData: {}` is therefore rejected at admission. The minimal valid link-only entry is
+   * `spec: { widgetData: { allowedResources: [], items: [] }, resourcesRefs: { items: [] } }` —
+   * none of those arrays declares `minItems`, so empty ones are fine.
+   */
+  linkOnly?: boolean
 }
 
 /** Antd Menu entry data (icon resolved to JSX by the component). */
@@ -149,8 +193,11 @@ export const buildNavModel = (
 ): { entries: NavEntry[]; routes: AppRoute[] } => {
   const sorted = [...items].sort((left, right) => (left.order ?? 100) - (right.order ?? 100))
 
+  // `linkOnly` is filtered out here and ONLY here: such an item still reaches `entries` below like
+  // any other labelled one. See InlineNavItem.linkOnly — registering its concrete path would
+  // shadow the templated route that owns the page and strip the route param off the match.
   const routes: AppRoute[] = sorted
-    .filter((item): item is InlineNavItem & { path: string } => !!item.path)
+    .filter((item): item is InlineNavItem & { path: string } => !!item.path && !item.linkOnly)
     .map((item) => ({
       endpoint: resolveContentEndpoint(item, resourcesRefs, namespace),
       path: item.path,

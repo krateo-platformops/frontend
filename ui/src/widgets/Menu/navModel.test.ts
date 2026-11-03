@@ -192,4 +192,56 @@ describe('resolveContentEndpoint — a page that lives in another namespace', ()
     // fails closed with a 400 — so this item still 404s/400s as the comment above intends.
     expect(endpoint).not.toContain('namespace=')
   })
+
+  // LINK-ONLY ENTRIES. The point of these is the PAIR: a link-only item and the templated root
+  // that owns the page have to coexist, and the bug they prevent only appears when both are
+  // present. Testing the flag alone would prove the filter was typed correctly and nothing else.
+
+  it('link-only: contributes a sidebar entry and NO route', () => {
+    const { entries, routes } = buildNavModel(
+      [{ label: 'Service desk', linkOnly: true, path: '/service-desk/tenant-acme' }],
+      { items: [] },
+      'krateo-system',
+    )
+    expect(entries).toEqual([{ iconName: undefined, key: '/service-desk/tenant-acme', label: 'Service desk' }])
+    expect(routes).toHaveLength(0)
+  })
+
+  it('link-only + templated root: the ONLY registered route is the templated one, so the param survives', () => {
+    // The CMP shape. If the link-only item registered its concrete path, react-router would rank
+    // that static segment above `/service-desk/:namespace`, content would resolve to the empty
+    // generated object, and `useParams().namespace` would be gone — the whole defect.
+    const { entries, routes } = buildNavModel(
+      [
+        { label: 'Service desk', linkOnly: true, order: 40, path: '/service-desk/tenant-acme' },
+        { order: 41, page: 'service-desk', path: '/service-desk/{namespace}' },
+      ],
+      { items: [] },
+      'krateo-cmp',
+    )
+    expect(routes.map((route) => route.path)).toEqual(['/service-desk/{namespace}'])
+    expect(routes[0].endpoint).toContain('page-service-desk')
+    expect(routes[0].endpoint).toContain('krateo-cmp')
+    // One entry, and it is the tenant's concrete link — not the brace-literal templated path.
+    expect(entries.map((entry) => entry.key)).toEqual(['/service-desk/tenant-acme'])
+  })
+
+  it('link-only is NOT how you hide a route: an unlabelled link-only item contributes nothing', () => {
+    // Guards against reaching for this flag to suppress a route. No label means no entry, and
+    // link-only means no route, so such an item is silently inert — which is a configuration
+    // mistake worth it being obvious about rather than a feature.
+    const { entries, routes } = buildNavModel([{ linkOnly: true, path: '/nowhere' }], { items: [] })
+    expect(entries).toHaveLength(0)
+    expect(routes).toHaveLength(0)
+  })
+
+  it('omitting linkOnly leaves an item byte-identical to before the flag existed', () => {
+    // The flag is additive: every existing nav item must be unaffected. `routes` feeds the router
+    // and `entries` the sidebar, so a drift here would move every page in the portal.
+    const items = [{ icon: 'fa-home', label: 'Home', order: 10, path: '/home', resourceRefId: 'home-page' }]
+    const withFlag = buildNavModel([{ ...items[0], linkOnly: false }], resourcesRefs)
+    const without = buildNavModel(items, resourcesRefs)
+    expect(withFlag).toEqual(without)
+    expect(without.routes).toHaveLength(1)
+  })
 })
