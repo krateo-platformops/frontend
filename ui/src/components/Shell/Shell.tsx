@@ -1,10 +1,12 @@
 import { Avatar } from 'antd'
 import { useEffect } from 'react'
-import { Outlet } from 'react-router'
+import { Outlet, useLocation } from 'react-router'
 
 import { ensureBuildersLoaded } from '../../builders/clusterBuilders'
 import { useConfigContext } from '../../context/ConfigContext'
+import { useRoutesContext } from '../../context/RoutesContext'
 import { WidgetScopeProvider } from '../../context/WidgetScopeContext'
+import { useDocumentLoadSpan } from '../../otel/useDocumentLoadSpan'
 import Drawer from '../../widgets/Drawer'
 import Modal from '../../widgets/Modal'
 import { AutopilotProvider, AutopilotShell, AutopilotToggle } from '../Autopilot'
@@ -77,6 +79,11 @@ const SiderFooter = () => {
  */
 export const ShellRoute = () => {
   const { config } = useConfigContext()
+  const { routes } = useRoutesContext()
+  const { pathname } = useLocation()
+  // X5: `krateo.page.load`, once per document, measured from navigation timing and reported as soon
+  // as the landing address resolves to a TEMPLATED route (useDocumentLoadSpan).
+  useDocumentLoadSpan(routes, pathname)
 
   useEffect(() => {
     if (!localStorage.getItem('K_user')) {
