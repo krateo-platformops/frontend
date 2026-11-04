@@ -61,4 +61,10 @@ export type AuthRequestType = {
   name: string
   code: string
   url: string
+  /**
+   * The PKCE verifier for this flow, when the authorization request carried a challenge. Absent for
+   * a flow that sent none — it must then NOT be sent, because a verifier without a challenge is
+   * itself refused (RFC 7636 §4.6).
+   */
+  codeVerifier?: string
 }
