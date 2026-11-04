@@ -533,15 +533,31 @@ def rule_missing_target(crs):
 def rule_containment(crs):
     """X5 — a child whose kind is not in its container's declared `allowedResources`.
 
-    This is the ONLY enforcement there is. `allowedResources` is validated by nothing at runtime:
-    not by OpenAPI (the CRD types it `string[]` with no enum, deliberately — the per-widget enums
-    drifted and `Menu` carried two kinds removed in the routing refactor), not by a webhook, and
-    not by the renderer, which resolves a `resourceRefId` without ever consulting it.
+    THIS IS THE POLICY HALF OF TWO ENFORCEMENT POINTS, and the division is not redundancy.
 
-    So the field is a DECLARATION OF INTENT that nothing checks. A container that says it holds
-    `paragraphs` and is handed a `Table` renders the Table quite happily. The declaration is still
-    worth having — it is how an author says what a slot is for, and how the next reader knows
-    whether a new child belongs — but only if something reads it back.
+    The CRD now carries a VOCABULARY enum on this field — every real widget plural, plus three
+    plurals naming retired kinds that live CRs still hold. It refuses a typo (`buton`) and a
+    non-widget kind (`deployments`), which is what people actually get wrong, and nothing else.
+    What it deliberately does NOT express is which of those plurals a given container accepts:
+    `allowedResources` is a PER-INSTANCE declaration — of 97 live Flex CRs, each names between one
+    and eleven plurals describing what THAT slot is for — so a per-kind enum would cap what any
+    instance may say and could not express "this slot holds cards and paragraphs".
+
+    So the two halves answer different questions and neither covers the other:
+
+        the CRD enum  does every DECLARED value name a real widget kind?   (vocabulary)
+        this rule     is every ACTUAL CHILD within that instance's list?   (policy)
+
+    This rule never inspects the declaration's vocabulary, which is why a declared `panels` passes
+    it; the enum never inspects children, which is why a Flex declaring `paragraphs` and holding a
+    Table passes that. Nothing but this rule catches the second, and nothing but the enum catches
+    the first.
+
+    The per-widget enums that USED to sit in the schemas were deleted for cause, and restoring them
+    was measured before being rejected: seeding from those lists would have refused live CRs in four
+    kinds across four clusters — Flex (alerts, descriptions, results), Menu (flexes, its only live
+    value), Row (descriptions), Tabs (flexes). They were not merely stale, they were wrong against
+    production.
 
     Checked against the CHART, not against a frozen list: the child's real plural comes from its
     own `resourcesRefs` entry, so this stays correct as widget kinds are added and cannot go stale
