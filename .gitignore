@@ -57,3 +57,6 @@ voice-bridge/voice-bridge
 # visual regression (visual/)
 dist-visual/
 test-results/
+
+# The CRD generator is built on demand by ui/scripts/gen-crds.ts (crdgen/doc.go).
+crdgen/bin/

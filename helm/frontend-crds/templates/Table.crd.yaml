@@ -1,8 +1,6 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  annotations:
-    controller-gen.kubebuilder.io/version: v0.18.0
   name: tables.widgets.templates.krateo.io
 spec:
   group: widgets.templates.krateo.io
@@ -25,23 +23,15 @@ spec:
         openAPIV3Schema:
           properties:
             apiVersion:
-              description: |-
-                APIVersion defines the versioned schema of this representation of an object.
-                Servers should convert recognized schemas to the latest internal value, and
-                may reject unrecognized values.
-                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
               type: string
             kind:
-              description: |-
-                Kind is a string value representing the REST resource this object represents.
-                Servers may infer this from the endpoint the client submits requests to.
-                Cannot be updated.
-                In CamelCase.
-                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
               type: string
             metadata:
               type: object
             spec:
+              description: 'The widget''s contract: its own data, an optional binding to a RESTAction, the resources it references, and any templated overrides.'
               properties:
                 apiRef:
                   properties:
@@ -76,16 +66,12 @@ spec:
                               continue:
                                 type: boolean
                               offset:
-                                format: int32
                                 type: integer
                               page:
-                                format: int32
                                 type: integer
                               perPage:
-                                format: int32
                                 type: integer
                             required:
-                              - page
                               - perPage
                             type: object
                           verb:
@@ -105,16 +91,12 @@ spec:
                         continue:
                           type: boolean
                         offset:
-                          format: int32
                           type: integer
                         page:
-                          format: int32
                           type: integer
                         perPage:
-                          format: int32
                           type: integer
                       required:
-                        - page
                         - perPage
                       type: object
                   required:
@@ -149,6 +131,8 @@ spec:
                               - GET
                             type: string
                         type: object
+                    required:
+                      - id
                     type: object
                   type: array
                 widgetData:
@@ -179,7 +163,6 @@ spec:
                             type: string
                           minWidth:
                             description: 'antd Table column minWidth in px. Mirrors antd ColumnType.minWidth. Usually the better lever under fitContent: a fixed width re-creates the overflow it was meant to fix, while a floor keeps a column readable and lets the others flex.'
-                            format: int32
                             type: integer
                           title:
                             description: column header label
@@ -198,6 +181,7 @@ spec:
                     dataSource:
                       description: antd Table dataSource — the table rows (renamed from `data`; `data` still accepted for back-compat)
                       items:
+                        description: Row represented as array of cells
                         items:
                           properties:
                             arrayValue:
@@ -233,7 +217,6 @@ spec:
                               type: string
                             numberValue:
                               description: value if type = number or integer
-                              format: int32
                               type: integer
                             resourceRefId:
                               description: used if kind = widget
@@ -269,18 +252,15 @@ spec:
                       properties:
                         current:
                           description: 'server-side pagination: the 1-based current page (controlled). Usually driven by the request `page` param, not the CR.'
-                          format: int32
                           type: integer
                         defaultPageSize:
                           description: default page size
-                          format: int32
                           type: integer
                         hideOnSinglePage:
                           description: hide the pager when there is a single page
                           type: boolean
                         pageSize:
                           description: number of rows per page
-                          format: int32
                           type: integer
                         position:
                           description: pager position(s)
@@ -299,7 +279,6 @@ spec:
                           type: boolean
                         total:
                           description: 'server-side pagination: the TOTAL row count across all pages (the widget''s `dataSource` holds only the current page/window). Set by the widgetDataTemplate from the full list length so the pager renders the correct number of pages. When present, the Table uses controlled server-side pagination (each page fetched on demand) instead of client-side slicing of dataSource.'
-                          format: int32
                           type: integer
                       type: object
                     prefix:
@@ -375,3 +354,9 @@ spec:
       storage: true
       subresources:
         status: {}
+status:
+  acceptedNames:
+    kind: ''
+    plural: ''
+  conditions: null
+  storedVersions: null

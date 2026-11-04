@@ -1,8 +1,6 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  annotations:
-    controller-gen.kubebuilder.io/version: v0.18.0
   name: forms.widgets.templates.krateo.io
 spec:
   group: widgets.templates.krateo.io
@@ -25,23 +23,15 @@ spec:
         openAPIV3Schema:
           properties:
             apiVersion:
-              description: |-
-                APIVersion defines the versioned schema of this representation of an object.
-                Servers should convert recognized schemas to the latest internal value, and
-                may reject unrecognized values.
-                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
               type: string
             kind:
-              description: |-
-                Kind is a string value representing the REST resource this object represents.
-                Servers may infer this from the endpoint the client submits requests to.
-                Cannot be updated.
-                In CamelCase.
-                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
               type: string
             metadata:
               type: object
             spec:
+              description: 'The widget''s contract: its own data, an optional binding to a RESTAction, the resources it references, and any templated overrides.'
               properties:
                 apiRef:
                   properties:
@@ -76,16 +66,12 @@ spec:
                               continue:
                                 type: boolean
                               offset:
-                                format: int32
                                 type: integer
                               page:
-                                format: int32
                                 type: integer
                               perPage:
-                                format: int32
                                 type: integer
                             required:
-                              - page
                               - perPage
                             type: object
                           verb:
@@ -105,16 +91,12 @@ spec:
                         continue:
                           type: boolean
                         offset:
-                          format: int32
                           type: integer
                         page:
-                          format: int32
                           type: integer
                         perPage:
-                          format: int32
                           type: integer
                       required:
-                        - page
                         - perPage
                       type: object
                   required:
@@ -149,6 +131,8 @@ spec:
                               - GET
                             type: string
                         type: object
+                    required:
+                      - id
                     type: object
                   type: array
                 widgetData:
@@ -294,6 +278,7 @@ spec:
                               headers:
                                 description: 'array of headers as strings, format ''key: value'''
                                 items:
+                                  description: 'key and value as a single, example: ''x-custom-header: value'''
                                   type: string
                                 type: array
                               id:
@@ -323,7 +308,6 @@ spec:
                                   timeout:
                                     default: 50
                                     description: the timeout in seconds to wait for the event
-                                    format: int32
                                     type: integer
                                   url:
                                     description: url to navigate to when the event is received
@@ -412,7 +396,7 @@ spec:
                         type: string
                       type: array
                     autocomplete:
-                      description: Configuration for the Autocomplete form fields. The field options could be configured using enum values coming from the schema or via an API call made using a RESTAction which sould be defined below. The RESTActions shuold contain a `status` field, which is an array of object with the `{ label, value }` format.
+                      description: 'Configuration for the Autocomplete form fields. The field options could be configured using enum values coming from the schema or via an API call made using a RESTAction which sould be defined below. The RESTActions shuold contain a `status` field, which is an array of object with the `{ label, value }` format. '
                       items:
                         properties:
                           closed:
@@ -434,7 +418,6 @@ spec:
                             type: string
                           minChars:
                             description: 'with `extra`: the typed text is sent once it has this many characters. Default 2'
-                            format: int32
                             minimum: 1
                             type: integer
                           name:
@@ -499,7 +482,7 @@ spec:
                           type: object
                       type: object
                     dependencies:
-                      description: Configuration for the form fields who are dependent from other form fields. The field options are set via an API call made using a RESTAction which sould be defined below. The RESTActions shuold contain a `status` field, which is an array of object with the `{ label, value }` format.
+                      description: 'Configuration for the form fields who are dependent from other form fields. The field options are set via an API call made using a RESTAction which sould be defined below. The RESTActions shuold contain a `status` field, which is an array of object with the `{ label, value }` format. '
                       items:
                         properties:
                           closed:
@@ -573,7 +556,6 @@ spec:
                                     type: boolean
                                   integerValue:
                                     description: Value if type = integer
-                                    format: int32
                                     type: integer
                                   optionValue:
                                     description: 'Value if type = option: includes a single value or a { label, value } object'
@@ -693,10 +675,10 @@ spec:
                           description: form field whose current value selects the submit action
                           type: string
                         map:
-                          description: map of field-value → action id
-                          type: object
                           additionalProperties:
                             type: string
+                          description: map of field-value → action id
+                          type: object
                       required:
                         - field
                         - map
@@ -775,3 +757,9 @@ spec:
       storage: true
       subresources:
         status: {}
+status:
+  acceptedNames:
+    kind: ''
+    plural: ''
+  conditions: null
+  storedVersions: null
