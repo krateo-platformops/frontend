@@ -105,7 +105,8 @@ describe('loginFailureCauseOf', () => {
   })
 
   it('the 500s absent from the 0.35.0 table still escalate by name, not only by code', () => {
-    // Read from authn's own cause constants; the release table lists the oidc/oauth additions only.
+    // In docs/api.md all along; missed here because this file was first built from the 0.35.0
+    // release notes, whose table covers only what that release changed.
     for (const reason of ['IssuerUnknown', 'IssuerConflict', 'LDAPConfigInvalid']) {
       const cause = loginFailureCauseOf(500, body(reason), 'password')
       expect(cause.action, reason).toBe('escalate')
