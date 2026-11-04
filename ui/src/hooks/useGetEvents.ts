@@ -46,6 +46,8 @@ export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
     staleTime: Infinity,
+    // A prepend shifts every index, so structural sharing would deep-copy the whole list on each event.
+    structuralSharing: false,
   })
 
   // Cleanup old events periodically to prevent memory issues
@@ -76,7 +78,9 @@ export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic
       onMessage: (raw) => {
         try {
           const data = JSON.parse(raw) as SSEK8sEvent
-          queryClient.setQueryData(queryKey, (prev: SSEK8sEvent[]) => [data, ...(prev || [])])
+          // Capped here as well as by the interval: a background tab defers that timer and react-query's
+          // notifications, and during an event burst each pending notification pins the list it carries.
+          queryClient.setQueryData(queryKey, (prev: SSEK8sEvent[]) => [data, ...(prev || [])].slice(0, MAX_EVENTS))
         } catch (error) {
           console.error('Error parsing event data:', error)
         }
