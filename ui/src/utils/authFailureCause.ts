@@ -40,6 +40,12 @@ export const AUTH_FAILURE_REASONS = {
   stepUpNotEnabled: 'StepUpNotEnabled',
   /** snowplow: a loa:2 token was required and the step-up credential is missing. */
   stepUpRequired: 'StepUpRequired',
+  /** snowplow: the credential presented was past its expiry (snowplow#1096). */
+  tokenExpired: 'TokenExpired',
+  /** snowplow: the credential presented did not validate (snowplow#1096). */
+  tokenInvalid: 'TokenInvalid',
+  /** snowplow: the request carried no credential at all (snowplow#1096). */
+  tokenMissing: 'TokenMissing',
 } as const
 
 /**
@@ -61,6 +67,30 @@ export interface AuthFailureCause {
   /** The raw reason, for the message and for support to quote. `null` when none was sent. */
   reason: string | null
 }
+
+/**
+ * TOKEN-STATE REASONS, which cannot be classified by the reason alone.
+ *
+ * Every entry in `BY_REASON` below names an ABSOLUTE fault: the same thing is wrong whoever asked,
+ * so the reason is the whole answer. These three are RELATIVE — they describe the state of
+ * whichever credential was presented, and the right outcome depends on WHICH credential that was.
+ * An expired session token means sign in again; an expired step-up token means step up again, and
+ * must not offer a session sign-in, because the session never failed.
+ *
+ * So they MUST NOT be added to `BY_REASON`. A reason listed there makes `known` truthy, which skips
+ * the `tokenKind === 'step-up'` guard at the end of `authFailureCauseOf` — so listing `TokenExpired`
+ * as `reauthenticate` would show a full sign-in for a session that is still valid. It looks like
+ * completing a table and is a regression; `authFailureCause.test.ts` pins it.
+ *
+ * Spellings are snowplow's, case-sensitive, from the closed table in its `credential_status.go`
+ * (#1096). A casing difference would fall through to the `reauthenticate` default, which is safe
+ * but would stop prompting step-up where step-up is what resolves it.
+ */
+const TOKEN_STATE_REASONS: ReadonlySet<string> = new Set([
+  AUTH_FAILURE_REASONS.tokenExpired,
+  AUTH_FAILURE_REASONS.tokenInvalid,
+  AUTH_FAILURE_REASONS.tokenMissing,
+])
 
 const BY_REASON: Record<string, AuthFailureAction> = {
   [AUTH_FAILURE_REASONS.insufficientAssurance]: 'step-up',
@@ -158,6 +188,18 @@ export const authFailureCauseOf = (body: unknown, context: AuthFailureOrigin | A
   const first = Array.isArray(causes) ? causes[0] : undefined
   const raw = first?.reason
   const reason = typeof raw === 'string' && raw.length > 0 ? raw : null
+  // RELATIVE reasons first: the reason names the state of the credential that was SENT, so the
+  // answer is the token kind, not the table. See TOKEN_STATE_REASONS.
+  //
+  // INERT TODAY, deliberately. Both callers (`useCatchError`, `useWidgetQuery`) pass no context, so
+  // `tokenKind` is always 'session' and this returns `reauthenticate` — which is also what the
+  // fallback did. It is written explicitly anyway: the correct behaviour must not rest on these
+  // three being ABSENT from a table, because the next reader sees snowplow's closed set of five,
+  // three of them unlisted, and completing the table is the obvious tidy-up. When the step-up flow
+  // lands, its requests must pass `tokenKind: 'step-up'` or this branch stays unreachable.
+  if (reason !== null && TOKEN_STATE_REASONS.has(reason)) {
+    return { action: tokenKind === 'step-up' ? 'step-up' : 'reauthenticate', reason }
+  }
   const known = reason !== null && BY_REASON[reason]
   const base = known || 'reauthenticate'
   const action = origin === 'step-up-exchange' ? atStepUpExchange(reason, base) : base
@@ -179,6 +221,26 @@ export const authFailureCauseOf = (body: unknown, context: AuthFailureOrigin | A
  * equally not something a third prompt will fix.
  */
 export const accountCannotReachLevel = (reason: string | null): AuthFailureCause =>
+  ({ action: 'configuration-fault', reason })
+
+/**
+ * The outcome for a SECOND consecutive `StepUpRequired` immediately after a step-up that succeeded.
+ *
+ * `StepUpRequired` normally means step up again, and that is what `BY_REASON` says. snowplow emits
+ * it when a validated token carries `krateo:loa:2` but the step-up credential Secret is gone —
+ * usually swept by authn after `notAfter + 5m` — and a fresh step-up makes authn issue a new one.
+ * So the first one is not a fault and prompting is right.
+ *
+ * A second one straight after a successful step-up is different: the Secret should exist, so
+ * something is wrong that another prompt cannot fix, and prompting again would loop the person
+ * through a gesture that keeps failing. snowplow asked for that case to end as a configuration
+ * fault rather than a third prompt.
+ *
+ * It lives here rather than in `authFailureCauseOf` for the same reason
+ * `accountCannotReachLevel` does: deciding that a second identical refusal is a dead end needs
+ * ATTEMPT STATE, and a pure classifier has none. The step-up flow owns that count and calls this.
+ */
+export const stepUpCredentialStillMissing = (reason: string | null): AuthFailureCause =>
   ({ action: 'configuration-fault', reason })
 
 /** True when stepping up or signing in again can actually resolve this failure. */

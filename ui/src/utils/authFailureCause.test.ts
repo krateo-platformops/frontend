@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { accountCannotReachLevel, AUTH_FAILURE_REASONS, authFailureCauseOf, isUserActionable } from './authFailureCause'
+import { accountCannotReachLevel, AUTH_FAILURE_REASONS, authFailureCauseOf, isUserActionable, stepUpCredentialStillMissing } from './authFailureCause'
 
 /** A 401 Status body as snowplow sends it, with only the fields the classifier reads. */
 const body = (reason: unknown) => ({
@@ -182,5 +182,63 @@ describe('which TOKEN the request carried — the input no server response can g
   it('still accepts a bare origin string, so existing call sites keep working', () => {
     expect(authFailureCauseOf(body(AUTH_FAILURE_REASONS.staleAuthentication), 'step-up-exchange').action).toBe('step-up')
     expect(authFailureCauseOf(body(AUTH_FAILURE_REASONS.staleAuthentication), 'resource-401').action).toBe('reauthenticate')
+  })
+
+  // TOKEN-STATE REASONS (snowplow#1096). These describe the credential that was SENT, so the right
+  // outcome depends on WHICH credential that was — the reason alone cannot say.
+
+  it('a token-state reason on a SESSION request is a re-authenticate', () => {
+    for (const reason of [AUTH_FAILURE_REASONS.tokenExpired, AUTH_FAILURE_REASONS.tokenInvalid, AUTH_FAILURE_REASONS.tokenMissing]) {
+      expect(authFailureCauseOf(body(reason)).action, reason).toBe('reauthenticate')
+      expect(authFailureCauseOf(body(reason)).reason, reason).toBe(reason)
+    }
+  })
+
+  it('the SAME reason on a STEP-UP request is a step-up, never a session sign-in', () => {
+    // The session credential was not what failed, so offering a sign-in form would ask the person
+    // to fix something that is not broken — and would drop them out of a session still valid.
+    for (const reason of [AUTH_FAILURE_REASONS.tokenExpired, AUTH_FAILURE_REASONS.tokenInvalid, AUTH_FAILURE_REASONS.tokenMissing]) {
+      expect(authFailureCauseOf(body(reason), { tokenKind: 'step-up' }).action, reason).toBe('step-up')
+    }
+  })
+
+  it('REGRESSION GUARD: a token-state reason must never be classified by a reason table', () => {
+    // The trap this pins (snowplow#1096 review): adding these three to BY_REASON as
+    // 'reauthenticate' makes `known` truthy, which skips the tokenKind step-up guard — so an
+    // expired STEP-UP token would show a full sign-in for a session that never failed. Completing
+    // the table looks like tidying. If this test fails, that is what happened.
+    expect(authFailureCauseOf(body(AUTH_FAILURE_REASONS.tokenExpired), { tokenKind: 'step-up' }).action)
+      .not.toBe('reauthenticate')
+  })
+
+  it('an ABSOLUTE reason still beats the token kind, which is the existing design', () => {
+    // Not an oversight and not changed: a step-up request failing because the SESSION credential
+    // is missing really is fixed by signing in again, even though the step-up token carried it.
+    expect(authFailureCauseOf(body(AUTH_FAILURE_REASONS.sessionCredentialMissing), { tokenKind: 'step-up' }).action)
+      .toBe('reauthenticate')
+    // And a cluster that cannot do step-up at all stays an honest dead end rather than a prompt.
+    expect(authFailureCauseOf(body(AUTH_FAILURE_REASONS.stepUpNotEnabled), { tokenKind: 'step-up' }).action)
+      .toBe('configuration-fault')
+  })
+
+  it('StepUpRequired prompts a step-up; only the flow can call the second one a fault', () => {
+    // snowplow emits StepUpRequired when a validated loa:2 token's step-up Secret was swept. A
+    // fresh step-up makes authn reissue it, so the first one is not a fault.
+    expect(authFailureCauseOf(body(AUTH_FAILURE_REASONS.stepUpRequired)).action).toBe('step-up')
+    // A second one straight after a SUCCESSFUL step-up is a fault — but that needs attempt state,
+    // which a pure classifier does not have. The flow counts and calls this.
+    expect(stepUpCredentialStillMissing(AUTH_FAILURE_REASONS.stepUpRequired))
+      .toEqual({ action: 'configuration-fault', reason: 'StepUpRequired' })
+    expect(isUserActionable(stepUpCredentialStillMissing(AUTH_FAILURE_REASONS.stepUpRequired))).toBe(false)
+  })
+
+  it('token-state spellings are snowplow\'s exactly, and a casing slip degrades safely', () => {
+    // Pinned as literals because snowplow's table is case-sensitive. A casing difference must not
+    // throw or mis-route; it falls through to the safe default.
+    expect(AUTH_FAILURE_REASONS.tokenExpired).toBe('TokenExpired')
+    expect(AUTH_FAILURE_REASONS.tokenInvalid).toBe('TokenInvalid')
+    expect(AUTH_FAILURE_REASONS.tokenMissing).toBe('TokenMissing')
+    expect(authFailureCauseOf(body('tokenexpired'), { tokenKind: 'step-up' }).action).toBe('step-up')
+    expect(authFailureCauseOf(body('tokenexpired')).action).toBe('reauthenticate')
   })
 })
