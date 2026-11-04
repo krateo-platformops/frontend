@@ -34,15 +34,13 @@ scripts/credentials*.json
 
 scratchpad.md
 
-scripts/krateoctl-output/*.yaml
-
 .env
 .env.local
 # The generator writes <Widget>.schema.crd.yaml next to each schema and gen-crds.ts moves it to
-# scripts/krateoctl-output/. It is a build intermediate, never a source file — two of them were
+# scripts/generated-crds/. It is a build intermediate, never a source file — two of them were
 # committed by accident in the monorepo move and showed up as deletions on every generator run.
 ui/src/widgets/*/*.schema.crd.yaml
-ui/scripts/krateoctl-output/
+ui/scripts/generated-crds/
 
 # Python bytecode from the design lints. It was tracked by accident and showed up as a
 # binary diff on every lint change.

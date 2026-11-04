@@ -49,7 +49,7 @@ One tag ships everything. This monorepo has a single version line: the app image
    - [`release-tag.yaml`](../.github/workflows/release-tag.yaml) `crds` → regenerates
      the widget CRDs from the schemas (`npm ci && npm run generate-crds` in `ui/`, via
      this repo's own `crdgen/` module), uploads them as the `frontend-crds-yaml-files`
-     artifact, and — gated on the `PAT` repo secret — pushes a `krateoctl-<tag>` branch and opens
+     artifact, and — gated on the `PAT` repo secret — pushes a `generated-crds-<tag>` branch and opens
      an auto-PR syncing them. Without `PAT` the release does **not** fail: the step
      skips with a run-summary warning and the manual copy command.
 

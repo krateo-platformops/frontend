@@ -11,7 +11,7 @@ import yaml from 'js-yaml'
 const asyncExec = promisify(exec)
 
 const WIDGETS_DIR = join(process.cwd(), 'src', 'widgets')
-const OUTPUT_DIR = join(process.cwd(), 'scripts', 'krateoctl-output')
+const OUTPUT_DIR = join(process.cwd(), 'scripts', 'generated-crds')
 
 /**
  * The CRD generator, which lives in THIS repo (`crdgen/`) rather than in krateoctl.

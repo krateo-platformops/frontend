@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import chalk from 'chalk'
 import { glob } from 'glob'
 
-const CRD_DIR = join(process.cwd(), 'scripts', 'krateoctl-output')
+const CRD_DIR = join(process.cwd(), 'scripts', 'generated-crds')
 
 function applyYamlFile(path: string): boolean {
   const file = path.split('/').pop()

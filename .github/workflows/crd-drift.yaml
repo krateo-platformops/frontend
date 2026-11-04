@@ -108,11 +108,11 @@ jobs:
 
       - name: Assert the chart matches the generator
         run: |
-          # The generator writes to ui/scripts/krateoctl-output/ rather than into the chart, so the
+          # The generator writes to ui/scripts/generated-crds/ rather than into the chart, so the
           # comparison is explicit. Both directions matter: a chart CRD the generator no longer
           # produces is as wrong as one it produces differently.
           fail=0
-          for f in ui/scripts/krateoctl-output/*.crd.yaml; do
+          for f in ui/scripts/generated-crds/*.crd.yaml; do
             b=$(basename "$f")
             if [ ! -f "helm/frontend-crds/templates/$b" ]; then
               echo "::error file=helm/frontend-crds/templates/$b::generated but missing from the chart"
@@ -124,11 +124,11 @@ jobs:
           done
           for f in helm/frontend-crds/templates/*.crd.yaml; do
             b=$(basename "$f")
-            [ -f "ui/scripts/krateoctl-output/$b" ] || {
+            [ -f "ui/scripts/generated-crds/$b" ] || {
               echo "::error file=$f::in the chart but no longer produced by the generator"; fail=1; }
           done
           if [ "$fail" = "1" ]; then
-            echo "::error::widget CRDs drifted — run 'cd ui && npm run generate-crds', copy ui/scripts/krateoctl-output/*.crd.yaml over helm/frontend-crds/templates/, and commit"
+            echo "::error::widget CRDs drifted — run 'cd ui && npm run generate-crds', copy ui/scripts/generated-crds/*.crd.yaml over helm/frontend-crds/templates/, and commit"
             exit 1
           fi
           echo "all widget CRDs match the generator"

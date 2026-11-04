@@ -75,7 +75,7 @@ All npm commands run from `ui/`.
    `helm/frontend-crds/templates/`):
 
    ```sh
-   npm run generate-crds   # → scripts/krateoctl-output/*.crd.yaml (gitignored)
+   npm run generate-crds   # → scripts/generated-crds/*.crd.yaml (gitignored)
    npm run apply-crds
    ```
 

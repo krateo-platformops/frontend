@@ -9,7 +9,7 @@ import { glob } from 'glob'
 
 const WIDGETS_DIR = join(process.cwd(), 'src', 'widgets')
 const EXAMPLES_DIR = join(process.cwd(), 'src', 'examples')
-const CRD_OUTPUT_DIR = join(process.cwd(), 'scripts', 'krateoctl-output')
+const CRD_OUTPUT_DIR = join(process.cwd(), 'scripts', 'generated-crds')
 
 function getCurrentKubeContext(): string {
   try {
