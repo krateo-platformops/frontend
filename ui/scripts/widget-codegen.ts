@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url'
  *   src/widgets/<Kind>/index.ts              (defineWidget → registry auto-discovery)
  *   src/examples/widgets/<Kind>/<Kind>.example.yaml
  *
- * It deliberately does NOT run krateoctl/kubectl — CRD generation and cluster
+ * It deliberately does NOT run the CRD generator or kubectl — CRD generation and cluster
  * apply remain separate, explicit steps (see docs/widget-authoring.md).
  */
 

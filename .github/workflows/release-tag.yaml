@@ -2,8 +2,10 @@
 # reusable multi-platform image build (krateo-platformops/.github) — one source of truth, no
 # per-repo drift (this is what fixes the prior amd64-only frontend image that could not run on
 # arm64 nodes). The `crds` job stays frontend-specific: widget CRDs are generated from the
-# TypeScript widget definitions via krateoctl (npm), not Go controller-gen, so it cannot use
-# the shared `make generate` entry point.
+# TypeScript widget definitions by this repo's own `crdgen/` Go module (driven from npm via
+# ui/scripts/gen-crds.ts), not by the shared Go controller-gen path, so it cannot use the shared
+# `make generate` entry point. It used to be krateoctl, installed by piping a release script to
+# bash and pinned by hand in three workflows; #604 retired that.
 name: release-tag
 
 on:
@@ -198,7 +200,7 @@ jobs:
 
           git commit -m "Update widget CRDs (helm/frontend-crds) from tag ${LATEST_TAG}
 
-          Regenerated from krateo-platformops/frontend @ ${LATEST_TAG} via krateoctl, written to
+          Regenerated from krateo-platformops/frontend @ ${LATEST_TAG} via the in-repo crdgen, written to
           helm/frontend-crds/templates/ (the published CRD chart the frontend-crd composition pulls).
           Retires the pre-monorepo orphan crds-subchart/. Chart name unchanged: frontend-crd.
           Workflow run: ${GITHUB_RUN_ID}"

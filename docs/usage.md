@@ -69,9 +69,10 @@ All npm commands run from `ui/`.
 
 1. **A cluster with Krateo installed** (e.g. Kind — see
    [docs.krateo.io](https://docs.krateo.io/)), or an existing remote cluster.
-2. **Generate + apply the widget CRDs** (requires the `krateoctl` CLI — pinned install
-   in `.github/workflows/release-tag.yaml` — plus a Go toolchain and reachable
-   `GOPROXY`; alternatively apply the committed `helm/frontend-crds/templates/`):
+2. **Generate + apply the widget CRDs** (requires a **Go toolchain only** — the
+   generator is this repo's own `crdgen/` module and `go build` replaces the install
+   script this used to need; alternatively apply the committed
+   `helm/frontend-crds/templates/`):
 
    ```sh
    npm run generate-crds   # → scripts/krateoctl-output/*.crd.yaml (gitignored)

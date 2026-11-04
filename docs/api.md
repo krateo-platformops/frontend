@@ -23,7 +23,7 @@ is `Listy` because Kubernetes reserves `List`.
 - **Shipped** as the [`frontend-crds` chart](../helm/frontend-crds/templates/)
   (`oci://ghcr.io/krateo-platformops/charts/frontend-crds`).
 - **Generated** from each widget's `ui/src/widgets/<Kind>/<Kind>.schema.json` via
-  krateoctl — the schema, the TypeScript types and the CRD all come from one source
+  `crdgen/` — the schema, the TypeScript types and the CRD all come from one source
   (see [release](./release.md) for the sync pipeline).
 - **Per-kind reference** (every `widgetData` property, generated):
   [ui/docs/widgets-api-reference.md](../ui/docs/widgets-api-reference.md).

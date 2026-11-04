@@ -119,7 +119,7 @@ RBAC-driven nav gating requires the item to carry a `resourceRefId` (ref-surviva
 ## CRDs are generated here; two copies exist in this monorepo
 
 The source of truth for a widget's cluster schema is
-`src/widgets/<Kind>/<Kind>.schema.json`; `npm run generate-crds` (krateoctl) produces the
+`src/widgets/<Kind>/<Kind>.schema.json`; `npm run generate-crds` (this repo's `crdgen/`) produces the
 CRDs as gitignored build artifacts. The **shipped** CRDs are the committed copy in
 [`helm/frontend-crds/templates/`](../../helm/frontend-crds/templates/) (43 CRDs,
 published as the `frontend-crds` chart), while the release workflow's `crds` job still
