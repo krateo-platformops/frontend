@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -45,33 +46,71 @@ func TestNoRequiredPropertyIsUndefined(t *testing.T) {
 	// That mistake was in the first version of this test, and it is the same shape as the defect it
 	// exists to catch: an instrument pointed at the adjacent artifact, reporting green about a
 	// question it never asked.
-	dirs := []string{
-		filepath.Join("..", "helm", "frontend-crds", "templates"),
+	roots := []string{
+		filepath.Join("..", "helm"),
 		filepath.Join("..", "ui", "scripts", "krateoctl-output"),
 	}
 
+	// DISCOVERED BY `kind`, RECURSIVELY — never by filename, and never one directory deep.
+	//
+	// The first version globbed `templates/*.crd.yaml`, which found 44 of the chart's 45 CRDs. The
+	// 45th is `templates/builders/Builder.yaml`: a subdirectory AND a different extension, missed
+	// on both counts. It is also the HAND-WRITTEN one, deliberately outside the widget generator's
+	// reach — so it is the CRD a person can get wrong, and it was the one not checked.
+	//
+	// Filtering on a filename convention makes a gate's reach depend on a naming habit that the
+	// repo documents as deliberately inconsistent. `kind: CustomResourceDefinition` is the property
+	// that actually decides whether this test applies.
 	var entries []string
 	checked := map[string]int{}
-	for _, dir := range dirs {
-		found, err := filepath.Glob(filepath.Join(dir, "*.crd.yaml"))
+	for _, root := range roots {
+		n := 0
+		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				// A missing root is fine: release-tag generates before any chart is in play, and a
+				// local run may not have generated yet. An unreadable one is not.
+				if os.IsNotExist(err) {
+					return fs.SkipDir
+				}
+				return err
+			}
+			if d.IsDir() {
+				return nil
+			}
+			if ext := filepath.Ext(path); ext != ".yaml" && ext != ".yml" {
+				return nil
+			}
+			raw, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return readErr
+			}
+			var head struct {
+				Kind string `json:"kind"`
+			}
+			// A file that does not parse is not a CRD this test can judge; the chart carries no
+			// templated CRDs today, and if one ever appears it will fail the count guard below
+			// rather than be skipped silently.
+			if yaml.Unmarshal(raw, &head) != nil || head.Kind != "CustomResourceDefinition" {
+				return nil
+			}
+			entries = append(entries, path)
+			n++
+			return nil
+		})
 		if err != nil {
-			t.Fatalf("globbing %s: %v", dir, err)
+			t.Fatalf("walking %s: %v", root, err)
 		}
-		// A missing directory is fine — release-tag has no chart checkout step before generating,
-		// and a local run may not have generated yet. A PRESENT but thin one is not.
-		if len(found) > 0 && len(found) < 40 {
-			t.Errorf("%s holds only %d CRDs; expected the full widget set, so this checked almost nothing", dir, len(found))
-		}
-		checked[dir] = len(found)
-		entries = append(entries, found...)
+		checked[root] = n
 	}
 
-	// A guard on the guard: an empty glob in BOTH trees would make this test pass having checked
-	// nothing at all, which is the failure mode of every gate that reads files from a path.
-	if len(entries) == 0 {
-		t.Fatalf("found no widget CRDs in any of %v — this test checked nothing", dirs)
+	// A guard on the guard: finding nothing would make this test pass having checked nothing at all,
+	// which is the failure mode of every gate that reads files from a path. 45 is the chart's own
+	// count — 44 generated widgets plus the hand-written Builder.
+	if len(entries) < 45 {
+		t.Fatalf("found %d CRDs across %v, expected at least the chart's 45 — this test checked too little: %v",
+			len(entries), roots, checked)
 	}
-	t.Logf("checking %d CRD file(s): %v", len(entries), checked)
+	t.Logf("checking %d CRD(s): %v", len(entries), checked)
 
 	for _, path := range entries {
 		raw, err := os.ReadFile(path)
