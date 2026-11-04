@@ -13,6 +13,43 @@ const asyncExec = promisify(exec)
 const WIDGETS_DIR = join(process.cwd(), 'src', 'widgets')
 const OUTPUT_DIR = join(process.cwd(), 'scripts', 'krateoctl-output')
 
+/**
+ * The CRD generator, which lives in THIS repo (`crdgen/`) rather than in krateoctl.
+ *
+ * It used to be `krateoctl gen-widget`, a binary CI installed by piping a release script to bash
+ * at a version three workflows had to keep in agreement. That put the definition of this repo's
+ * own CRDs in another repository on another release cadence. The schemas are here and the CRDs
+ * ship from here, so the generator is here too — and `go build` replaces the `curl | bash`.
+ *
+ * It still calls krateo-platformops/plumbing/crdgen, so the output is unchanged: generation is
+ * validated through the apiserver's own structural check before anything is written. See
+ * crdgen/doc.go for why that property rules out a second implementation.
+ */
+const GENERATOR_DIR = join(process.cwd(), '..', 'crdgen')
+const GENERATOR_BIN = join(GENERATOR_DIR, 'bin', 'gencrd')
+
+/**
+ * Build the generator once per run.
+ *
+ * `go build` is incremental, so this is a no-op after the first call in a warm checkout and a few
+ * seconds in CI. Building rather than expecting a prebuilt binary keeps there being exactly one
+ * way to get the generator, which is the whole point of moving it in-repo: nothing to install,
+ * nothing to pin, nothing to drift.
+ */
+async function buildGenerator() {
+  console.log(`\u{1F528}  Building the CRD generator (${chalk.cyan('crdgen/')})...`)
+  try {
+    await asyncExec(`go build -o "${GENERATOR_BIN}" .`, { cwd: GENERATOR_DIR })
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+    throw new Error(
+      `could not build the CRD generator in ${GENERATOR_DIR}.\n`
+      + 'It needs a Go toolchain at the version crdgen/go.mod declares.\n'
+      + detail,
+    )
+  }
+}
+
 async function ensureOutputDir() {
   await fs.mkdir(OUTPUT_DIR, { recursive: true })
 }
@@ -253,7 +290,7 @@ async function runKrateoctl(schemaPath: string) {
 
   try {
     // Esegue il comando krateoctl
-    await asyncExec(`krateoctl gen-widget "${schemaPath}"`, { cwd: widgetDir })
+    await asyncExec(`"${GENERATOR_BIN}" "${schemaName}"`, { cwd: widgetDir })
 
     // Il file generato è sempre <path>.crd.yaml (nella stessa cartella)
     const generatedPath = join(widgetDir, `${base}.schema.crd.yaml`)
@@ -292,6 +329,9 @@ async function runKrateoctl(schemaPath: string) {
 async function main() {
   console.log(chalk.blue('🚀 Starting Krateo widget CRD generation...\n'))
 
+  // Before anything else: a generator that will not build must stop the run here, not partway
+  // through the schemas with some CRDs regenerated and others stale.
+  await buildGenerator()
   await ensureOutputDir()
 
   const schemaFiles = await glob('**/*.schema.json', {

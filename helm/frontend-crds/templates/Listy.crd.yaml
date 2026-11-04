@@ -1,8 +1,6 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  annotations:
-    controller-gen.kubebuilder.io/version: v0.18.0
   name: listies.widgets.templates.krateo.io
 spec:
   group: widgets.templates.krateo.io
@@ -25,23 +23,15 @@ spec:
         openAPIV3Schema:
           properties:
             apiVersion:
-              description: |-
-                APIVersion defines the versioned schema of this representation of an object.
-                Servers should convert recognized schemas to the latest internal value, and
-                may reject unrecognized values.
-                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
               type: string
             kind:
-              description: |-
-                Kind is a string value representing the REST resource this object represents.
-                Servers may infer this from the endpoint the client submits requests to.
-                Cannot be updated.
-                In CamelCase.
-                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
               type: string
             metadata:
               type: object
             spec:
+              description: 'The widget''s contract: its own data, an optional binding to a RESTAction, the resources it references, and any templated overrides.'
               properties:
                 apiRef:
                   properties:
@@ -76,16 +66,12 @@ spec:
                               continue:
                                 type: boolean
                               offset:
-                                format: int32
                                 type: integer
                               page:
-                                format: int32
                                 type: integer
                               perPage:
-                                format: int32
                                 type: integer
                             required:
-                              - page
                               - perPage
                             type: object
                           verb:
@@ -105,16 +91,12 @@ spec:
                         continue:
                           type: boolean
                         offset:
-                          format: int32
                           type: integer
                         page:
-                          format: int32
                           type: integer
                         perPage:
-                          format: int32
                           type: integer
                       required:
-                        - page
                         - perPage
                       type: object
                   required:
@@ -149,6 +131,8 @@ spec:
                               - GET
                             type: string
                         type: object
+                    required:
+                      - id
                     type: object
                   type: array
                 widgetData:
@@ -294,6 +278,7 @@ spec:
                               headers:
                                 description: 'array of headers as strings, format ''key: value'''
                                 items:
+                                  description: 'key and value as a single, example: ''x-custom-header: value'''
                                   type: string
                                 type: array
                               id:
@@ -323,7 +308,6 @@ spec:
                                   timeout:
                                     default: 50
                                     description: the timeout in seconds to wait for the event
-                                    format: int32
                                     type: integer
                                   url:
                                     description: url to navigate to when the event is received
@@ -426,35 +410,27 @@ spec:
                       properties:
                         column:
                           description: Number of columns at the default breakpoint. Mirrors antd List `grid.column`.
-                          format: int32
                           type: integer
                         gutter:
                           description: Spacing between grid columns, in pixels. Mirrors antd List `grid.gutter`.
-                          format: int32
                           type: integer
                         lg:
                           description: Number of columns at the large breakpoint. Mirrors antd List `grid.lg`.
-                          format: int32
                           type: integer
                         md:
                           description: Number of columns at the medium breakpoint. Mirrors antd List `grid.md`.
-                          format: int32
                           type: integer
                         sm:
                           description: Number of columns at the small breakpoint. Mirrors antd List `grid.sm`.
-                          format: int32
                           type: integer
                         xl:
                           description: Number of columns at the extra-large breakpoint. Mirrors antd List `grid.xl`.
-                          format: int32
                           type: integer
                         xs:
                           description: Number of columns at the extra-small breakpoint. Mirrors antd List `grid.xs`.
-                          format: int32
                           type: integer
                         xxl:
                           description: Number of columns at the extra-extra-large breakpoint. Mirrors antd List `grid.xxl`.
-                          format: int32
                           type: integer
                       type: object
                     header:
@@ -482,10 +458,10 @@ spec:
                                   description: Stroke colour used when the resolved value is absent from the map.
                                   type: string
                                 map:
-                                  description: Maps a resolved value to a stroke colour token.
-                                  type: object
                                   additionalProperties:
                                     type: string
+                                  description: Maps a resolved value to a stroke colour token.
+                                  type: object
                                 value:
                                   description: '{dot.path} to the value the stroke colour is chosen from.'
                                   type: string
@@ -513,10 +489,10 @@ spec:
                               description: Colour used when the resolved value is absent from the map.
                               type: string
                             map:
-                              description: Maps a resolved value to a colour token, for example `Ready` to green.
-                              type: object
                               additionalProperties:
                                 type: string
+                              description: Maps a resolved value to a colour token, for example `Ready` to green.
+                              type: object
                             value:
                               description: '{dot.path} to the value the colour is chosen from.'
                               type: string
@@ -644,14 +620,12 @@ spec:
                       type: boolean
                     maxItems:
                       description: max items kept when streaming (Krateo extension, default 200)
-                      format: int32
                       type: integer
                     pagination:
                       description: 'antd List pagination (serializable subset); presence enables client-side paging of the delivered dataSource (e.g. the ~400-card Marketplace grid). Server-side facet/search filters (?extras) shrink the array BEFORE it reaches the widget, so paging composes with them: antd clamps the current page into the filtered range, and a single-page result hides the pager entirely (exception-only chrome). Absent = antd default (no pagination).'
                       properties:
                         pageSize:
                           description: antd pagination.pageSize — items per page
-                          format: int32
                           type: integer
                         position:
                           description: antd List pagination.position (default bottom)
@@ -739,3 +713,9 @@ spec:
       storage: true
       subresources:
         status: {}
+status:
+  acceptedNames:
+    kind: ''
+    plural: ''
+  conditions: null
+  storedVersions: null
