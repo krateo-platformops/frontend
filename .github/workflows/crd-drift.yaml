@@ -82,6 +82,30 @@ jobs:
         working-directory: crdgen
         run: go test ./... -count=1
 
+      # A DIFFERENT QUESTION from both gates above, and the one 1.8.20 turned on. Satisfiability
+      # asks whether an object can exist; drift asks whether two artifacts agree NOW. Neither asks
+      # whether the new schema still admits what the PINNED one accepted — and a tightening is
+      # silent at the roll, because stored objects are not revalidated when a CRD changes. The
+      # failure lands on the next WRITE to an existing object, attributed to whoever made it.
+      #
+      # Measured rather than argued: against the real predecessor (1.8.16 — 1.8.17 through 1.8.19
+      # shipped image-only, so the chart never moved), this reports 46 tightenings across 44 CRD
+      # versions in 1.8.20, the first being
+      # `resourcesRefsTemplate[] now requires [id]`. It would have failed that PR.
+      #
+      # Behind a build tag because it needs the network and a helm binary: left in the default
+      # `go test ./...` it would red every offline run, and the usual repair for that is a skip —
+      # at which point it skips in CI too and the gate is decoration. The comparison it calls is
+      # exercised offline by TestTightenings in the step above, so no clause depends on this step
+      # running.
+      - name: Install Helm for the baseline pull
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.19.0
+      - name: Assert no widget CRD became stricter than the PINNED one
+        working-directory: crdgen
+        run: go test -tags baseline ./... -run TestNoWidgetCRDBecameStricter -count=1 -v
+
       - name: Assert the chart matches the generator
         run: |
           # The generator writes to ui/scripts/krateoctl-output/ rather than into the chart, so the
