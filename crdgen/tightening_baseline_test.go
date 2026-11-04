@@ -75,12 +75,12 @@ func TestNoWidgetCRDBecameStricter(t *testing.T) {
 	baseline := collect(t, []string{baseDir})
 
 	// BOTH trees, for the reason TestNoRequiredPropertyIsUndefined records: the chart is what
-	// ships and what a local run sees, while ui/scripts/krateoctl-output is what the generator just
+	// ships and what a local run sees, while ui/scripts/generated-crds is what the generator just
 	// PRODUCED — and at release time the committed chart is still the old one, so checking only the
 	// chart there would gate the previous release and wave the new one through.
 	current := collect(t, []string{
 		filepath.Join("..", "helm"),
-		filepath.Join("..", "ui", "scripts", "krateoctl-output"),
+		filepath.Join("..", "ui", "scripts", "generated-crds"),
 	})
 
 	// The same guard-on-the-guard as the satisfiability test: 45 is the chart's own count, 44

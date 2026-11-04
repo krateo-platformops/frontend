@@ -53,7 +53,7 @@ jobs:
           cache-dependency-path: crdgen/go.sum
 
       # generate-crds lives in ui/package.json and gen-crds.ts writes to
-      # process.cwd()/scripts/krateoctl-output — so every npm step MUST run from ui/.
+      # process.cwd()/scripts/generated-crds — so every npm step MUST run from ui/.
       # Use the lockfile (npm ci): the old `npm install tsx chalk` both ran at the repo
       # root (no package.json → hard fail) AND omitted glob + js-yaml, which gen-crds.ts
       # also imports. npm ci installs the exact declared devDep set (tsx, chalk, glob, js-yaml, …).
@@ -78,16 +78,16 @@ jobs:
         working-directory: crdgen
         run: go test ./... -count=1
 
-      - name: List files in /scripts/krateoctl-output
+      - name: List files in /scripts/generated-crds
         working-directory: ui
         run: |
-          ls -la ./scripts/krateoctl-output
+          ls -la ./scripts/generated-crds
 
-      - name: Upload .yaml files from /scripts/krateoctl-output
+      - name: Upload .yaml files from /scripts/generated-crds
         uses: actions/upload-artifact@v4
         with:
           name: frontend-crds-yaml-files
-          path: ${{ github.workspace }}/ui/scripts/krateoctl-output/*.yaml
+          path: ${{ github.workspace }}/ui/scripts/generated-crds/*.yaml
 
       # The cross-repo push CANNOT use the default GITHUB_TOKEN: it is scoped to this repo
       # (krateo-platformops/frontend) only, so any push/PR to krateo-platformops/frontend
@@ -121,8 +121,8 @@ jobs:
               echo "the \`frontend-crds-yaml-files\` artifact):"
               echo ""
               echo '```'
-              echo "cd ui && npm ci && npm run generate-crds   # regenerates ui/scripts/krateoctl-output/*.yaml for tag ${LATEST_TAG}"
-              echo "# then copy ui/scripts/krateoctl-output/*.yaml into"
+              echo "cd ui && npm ci && npm run generate-crds   # regenerates ui/scripts/generated-crds/*.yaml for tag ${LATEST_TAG}"
+              echo "# then copy ui/scripts/generated-crds/*.yaml into"
               echo "# krateo-platformops/frontend:helm/frontend-crds/templates/ and open a PR to main"
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
@@ -135,14 +135,14 @@ jobs:
 
           TARGET_REPO="krateo-platformops/frontend"
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "main")
-          BRANCH="krateoctl-${LATEST_TAG}"
+          BRANCH="generated-crds-${LATEST_TAG}"
           echo "Target repo: $TARGET_REPO | tag: $LATEST_TAG | branch: $BRANCH"
 
           # The generated CRDs must exist locally before we touch the chart repo.
           shopt -s nullglob
-          LOCAL_CRDS=("$GITHUB_WORKSPACE"/ui/scripts/krateoctl-output/*.yaml)
+          LOCAL_CRDS=("$GITHUB_WORKSPACE"/ui/scripts/generated-crds/*.yaml)
           if [ "${#LOCAL_CRDS[@]}" -eq 0 ]; then
-            echo "ERROR: no generated CRDs found in scripts/krateoctl-output" >&2
+            echo "ERROR: no generated CRDs found in scripts/generated-crds" >&2
             exit 1
           fi
           echo "Generated ${#LOCAL_CRDS[@]} CRD file(s)."
@@ -179,7 +179,7 @@ jobs:
 
           # Refresh the CRD templates: drop the previous set, copy the freshly generated ones.
           rm -f helm/frontend-crds/templates/*.crd.yaml
-          cp "$GITHUB_WORKSPACE"/ui/scripts/krateoctl-output/*.yaml helm/frontend-crds/templates/
+          cp "$GITHUB_WORKSPACE"/ui/scripts/generated-crds/*.yaml helm/frontend-crds/templates/
 
           git add -A
 
@@ -227,13 +227,20 @@ jobs:
               ;;
           esac
 
-          # --- Supersede older CRD-sync PRs so stale krateoctl-* branches don't accumulate. ------
-          # Each release opens a fresh krateoctl-<tag> PR; older ones are obsolete (every PR is a
-          # FULL CRD snapshot, so the newest subsumes them). Close every OTHER open krateoctl-* PR
+          # --- Supersede older CRD-sync PRs so stale branches don't accumulate. -----------------
+          # Each release opens a fresh generated-crds-<tag> PR; older ones are obsolete (every PR
+          # is a FULL CRD snapshot, so the newest subsumes them). Close every OTHER open sync PR
+          #
+          # THE PREFIX HERE AND `BRANCH=` ABOVE ARE ONE THING. The matcher is how a release closes
+          # the previous release's PR, so a prefix that disagrees with the branch it creates leaves
+          # every old sync PR open forever while reporting nothing. They were renamed together from
+          # `krateoctl-*` when the retired generator's name left the output directory, and there was
+          # no open `krateoctl-*` PR at that moment — checked, because one would have become
+          # permanently unmatched by this filter.
           # and delete its head branch. Pairs with delete_branch_on_merge on the chart repo (which
           # covers the merge path); this covers supersession, so branches no longer pile up.
           gh pr list --repo "$TARGET_REPO" --state open --limit 200 --json number,headRefName \
-            --jq '.[] | select(.headRefName | startswith("krateoctl-")) | "\(.number) \(.headRefName)"' \
+            --jq '.[] | select(.headRefName | startswith("generated-crds-")) | "\(.number) \(.headRefName)"' \
           | while read -r PR_NUM PR_HEAD; do
               { [ -n "$PR_NUM" ] && [ "$PR_HEAD" != "$BRANCH" ]; } || continue
               echo "Superseding older CRD-sync PR #$PR_NUM ($PR_HEAD) — deleting its branch"

@@ -116,15 +116,13 @@ handle these by hand instead:
 ## CRDs and the cluster (the only out-of-band step)
 
 `npm run generate-crds` (run from `ui/`) builds and runs **this repo's own generator**,
-`crdgen/` — a small Go module — and writes `scripts/krateoctl-output/<Kind>.crd.yaml`.
+`crdgen/` — a small Go module — and writes `scripts/generated-crds/<Kind>.crd.yaml`.
 These are **build artifacts** (gitignored), not committed: the shipped copy is the
 `frontend-crds` chart (`helm/frontend-crds/templates/`); see the root
 [release runbook](../../docs/release.md) for how CI syncs them.
 
 **Requirements: a Go toolchain only.** `go build` replaces the `curl … | bash` install
-this used to need, so there is nothing to pin and nothing to be reachable. The output
-directory is still named `krateoctl-output` — a leftover of the tool that was retired,
-not a sign it is still involved.
+this used to need, so there is nothing to pin and nothing to be reachable.
 
 > **It used to be `krateoctl gen-widget`**, a binary CI installed by piping a release
 > script to bash, pinned by hand in three workflows. That put the definition of this
@@ -143,7 +141,7 @@ A generated widget kind is inert until its CRD and an example CR are applied to 
 cluster so snowplow can resolve it:
 
 ```
-npm run generate-crds      # crdgen → scripts/krateoctl-output/*.crd.yaml
+npm run generate-crds      # crdgen → scripts/generated-crds/*.crd.yaml
 npm run apply-crds         # kubectl apply the CRDs
 npm run apply-examples     # kubectl apply the example CRs
 ```

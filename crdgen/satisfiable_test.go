@@ -38,7 +38,7 @@ func TestNoRequiredPropertyIsUndefined(t *testing.T) {
 	// that matters in a different workflow:
 	//
 	//   helm/frontend-crds/templates  what the chart SHIPS, and what crd-drift and a local run see.
-	//   ui/scripts/krateoctl-output   what the generator just PRODUCED. release-tag regenerates into
+	//   ui/scripts/generated-crds   what the generator just PRODUCED. release-tag regenerates into
 	//                                 here and proposes it; at that point the committed chart is
 	//                                 still the old one, so checking only the chart there would gate
 	//                                 the previous release and wave the new one through.
@@ -48,7 +48,7 @@ func TestNoRequiredPropertyIsUndefined(t *testing.T) {
 	// question it never asked.
 	roots := []string{
 		filepath.Join("..", "helm"),
-		filepath.Join("..", "ui", "scripts", "krateoctl-output"),
+		filepath.Join("..", "ui", "scripts", "generated-crds"),
 	}
 
 	// DISCOVERED BY `kind`, RECURSIVELY — never by filename, and never one directory deep.
@@ -106,6 +106,29 @@ func TestNoRequiredPropertyIsUndefined(t *testing.T) {
 	// A guard on the guard: finding nothing would make this test pass having checked nothing at all,
 	// which is the failure mode of every gate that reads files from a path. 45 is the chart's own
 	// count — 44 generated widgets plus the hand-written Builder.
+	//
+	// ASSERTED PER-ROOT AND NOT ON THE TOTAL, which is a correction. The guard used to read
+	// `len(entries) < 45` across both roots, and that cannot notice a root going empty: the chart
+	// alone supplies 45, so losing the whole generator-output root still clears the threshold. The
+	// operation that produces exactly that is a RENAME of the output directory — it happened when
+	// `krateoctl-output` became `generated-crds`, and this test would have passed with one of its
+	// two roots silently contributing nothing.
+	//
+	// The chart root is the one that must always be populated, so it carries the hard floor. The
+	// generator root is deliberately allowed to be empty, for the reason the roots comment gives:
+	// a local run may not have generated yet, and release-tag generates before any chart is in
+	// play. What is NOT allowed is for the chart root to vanish behind a total that still adds up.
+	//
+	// The generator root is not left uncovered by that tolerance, which is what makes it tolerable:
+	// crd-drift regenerates before this runs and then asserts the chart matches the output BOTH
+	// ways, so an output directory that is empty or misnamed fails its second loop with "in the
+	// chart but no longer produced by the generator" (crd-drift.yaml) — 44 times. Two gates, one
+	// each, rather than one gate with a threshold that can be met by half its inputs.
+	chartRoot := roots[0]
+	if checked[chartRoot] < 45 {
+		t.Fatalf("found %d CRDs under %s, expected at least the chart's 45 — this test checked too "+
+			"little: %v", checked[chartRoot], chartRoot, checked)
+	}
 	if len(entries) < 45 {
 		t.Fatalf("found %d CRDs across %v, expected at least the chart's 45 — this test checked too little: %v",
 			len(entries), roots, checked)
