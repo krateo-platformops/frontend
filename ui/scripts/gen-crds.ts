@@ -44,8 +44,7 @@ async function buildGenerator() {
     const detail = error instanceof Error ? error.message : String(error)
     throw new Error(
       `could not build the CRD generator in ${GENERATOR_DIR}.\n`
-      + 'It needs a Go toolchain at the version crdgen/go.mod declares.\n'
-      + detail,
+      + `It needs a Go toolchain at the version crdgen/go.mod declares.\n${detail}`,
     )
   }
 }
