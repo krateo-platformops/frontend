@@ -80,6 +80,39 @@ describe('loginFailureCauseOf', () => {
     expect(cause.text).toMatch(/administrator/i)
   })
 
+  it('a refused IdP response escalates WITHOUT promising a retry, because retrying is futile', () => {
+    // authn's own comment on these four: "retrying unchanged fails again". An OIDCConfig pointing
+    // at the wrong issuer refuses identically forever, so the ordinary platform copy — which says
+    // "retry shortly" — would send someone round a loop with no exit.
+    for (const reason of ['IDTokenInvalid', 'IssuerMismatch', 'AudienceMismatch', 'TokenExpired']) {
+      const cause = loginFailureCauseOf(403, body(reason), 'redirect')
+      expect(cause.action, reason).toBe('escalate')
+      expect(cause.text, reason).toMatch(/retrying will not help/i)
+      expect(cause.text, reason).not.toMatch(/retry shortly/i)
+      // Still not the person's fault, and still nothing to retype.
+      expect(cause.text, reason).not.toMatch(/check them/i)
+    }
+  })
+
+  it('TokenExpired here is the ID token, NOT the session token authFailureCause knows', () => {
+    // Same string, different subject: authFailureCause.ts treats TokenExpired as "your session
+    // ended, sign in again" on a resource 401. On the LOGIN route it is the ID token the IdP just
+    // issued, and the advice is not "sign in again" — it is "this method is misconfigured". If
+    // someone ever unifies the two sets, this is the test that should stop them.
+    const cause = loginFailureCauseOf(403, body('TokenExpired'), 'redirect')
+    expect(cause.text).not.toMatch(/sign in again/i)
+    expect(cause.text).toMatch(/identity provider/i)
+  })
+
+  it('the 500s absent from the 0.35.0 table still escalate by name, not only by code', () => {
+    // Read from authn's own cause constants; the release table lists the oidc/oauth additions only.
+    for (const reason of ['IssuerUnknown', 'IssuerConflict', 'LDAPConfigInvalid']) {
+      const cause = loginFailureCauseOf(500, body(reason), 'password')
+      expect(cause.action, reason).toBe('escalate')
+      expect(cause.text, reason).toMatch(/not a problem with what you typed/i)
+    }
+  })
+
   // THE CASES THAT MATTER. Each is something a future authn release or a proxy really produces.
 
   it('an UNKNOWN cause falls through to the status code, and reads the 4xx FOR THE FLOW', () => {
