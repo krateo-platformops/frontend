@@ -121,51 +121,30 @@ async function normalizeUnionTypes(schemaPath: string, crdPath: string): Promise
   return changed
 }
 
-/**
- * krateoctl renders a typed string/scalar map (`additionalProperties: { type: string }` in
- * the SOURCE schema — e.g. `itemTemplate.color.map`) as a lossy
- * `x-kubernetes-preserve-unknown-fields: true`, which accepts ANY value shape and erodes
- * validation. Restore the source's typed `additionalProperties` at those exact paths so
- * value-maps stay strongly typed. Genuinely free-form nodes (no typed `additionalProperties`
- * in the source) are untouched and keep `preserve-unknown` — the only legitimate use.
+/*
+ * `normalizeTypedMaps` USED TO BE HERE, and it is gone because it had become a no-op.
+ *
+ * It existed because krateoctl rendered a typed scalar map (`additionalProperties: {type: string}`
+ * in the source) as a lossy `x-kubernetes-preserve-unknown-fields: true`, eroding validation; it
+ * restored the typed `additionalProperties` at those exact paths. The generator this repo now uses
+ * — plumbing/crdgen via `crdgen/` — gets it right, so the pass found nothing to fix.
+ *
+ * MEASURED, not inferred, and that distinction is the reason this note exists rather than a silent
+ * deletion. Diffing the RAW generator output against the shipped chart across all 44 CRDs shows
+ * what the post-passes actually do: the envelope injections on 44 each, the int-or-string repair on
+ * 5, the allowedResources normalisation on 8 — and nothing at all from this one, on any of the 5
+ * scalar-map sites (LineChart/PieChart `colorMap`, Form `submitActionSelector.map`, Listy
+ * `itemTemplate.color.map` and `.bar.color.map`). Removing it leaves all 44 CRDs byte-identical.
+ *
+ * ITS SIBLING `normalizeUnionTypes` IS NOT DEAD and must not be removed by analogy: crdgen still
+ * collapses a `type: ["integer","string"]` union to its first member, so without that pass
+ * `Image.width: "100%"` and `Flex.gap: 8` are unappliable. plumbing#77 fixes it upstream; that pass
+ * goes when the fix is released, and not before.
+ *
+ * The risk a dead pass carries is not runtime cost — it is that its comment asserts the generator
+ * still has a defect it no longer has, which is the belief that cost a day on the allowedResources
+ * enum.
  */
-async function normalizeTypedMaps(schemaPath: string, crdPath: string): Promise<boolean> {
-  const schema = JSON.parse(await fs.readFile(schemaPath, 'utf8')) as Record<string, unknown>
-  const mapPaths: Array<{ additionalProperties: unknown; path: string[] }> = []
-  const collect = (node: unknown, path: string[]): void => {
-    if (!node || typeof node !== 'object' || Array.isArray(node)) { return }
-    const obj = node as Record<string, unknown>
-    const ap = obj.additionalProperties
-    if (obj.type === 'object' && ap !== null && typeof ap === 'object' && !Array.isArray(ap) && typeof (ap as Record<string, unknown>).type === 'string') {
-      mapPaths.push({ additionalProperties: ap, path })
-    }
-    for (const [key, value] of Object.entries(obj)) { collect(value, [...path, key]) }
-  }
-  collect((schema.properties as Record<string, unknown> | undefined)?.spec, [])
-  if (mapPaths.length === 0) { return false }
-
-  const doc = yaml.load(await fs.readFile(crdPath, 'utf8')) as {
-    spec?: { versions?: Array<{ schema?: { openAPIV3Schema?: { properties?: { spec?: unknown } } } }> }
-  }
-  const crdSpec = doc.spec?.versions?.[0]?.schema?.openAPIV3Schema?.properties?.spec
-  if (!crdSpec) { return false }
-
-  let changed = false
-  for (const { additionalProperties, path } of mapPaths) {
-    let node: unknown = crdSpec
-    for (const key of path) {
-      node = node && typeof node === 'object' ? (node as Record<string, unknown>)[key] : undefined
-    }
-    if (node && typeof node === 'object' && (node as Record<string, unknown>)['x-kubernetes-preserve-unknown-fields'] === true) {
-      const target = node as Record<string, unknown>
-      delete target['x-kubernetes-preserve-unknown-fields']
-      target.additionalProperties = additionalProperties
-      changed = true
-    }
-  }
-  if (changed) { await fs.writeFile(crdPath, yaml.dump(doc, { lineWidth: -1, noRefs: true })) }
-  return changed
-}
 
 /**
  * Inject `spec.identityContext` into every widget CRD (A6 §1.1). snowplow reads
@@ -174,7 +153,7 @@ async function normalizeTypedMaps(schemaPath: string, crdPath: string): Promise<
  * L1 cache key + resolve input. The apiserver PRUNES fields absent from a structural CRD schema,
  * so the field MUST be declared in the CRD or snowplow's DeclaredIdentity always reads empty and
  * the whole author-declared cache-identity feature is silently dead. Applied here (CRD post-
- * process, mirroring normalizeUnionTypes/normalizeTypedMaps) so ALL widget kinds get it from ONE
+ * process, mirroring normalizeUnionTypes) so ALL widget kinds get it from ONE
  * place — the field is a uniform envelope member, not per-widget. See snowplow
  * docs/A6-chart-enablement-spec-2026-07-07.md §1.1.
  */
@@ -395,7 +374,6 @@ async function runKrateoctl(schemaPath: string) {
 
     // krateoctl can't emit JSON-Schema unions or typed maps as structural CRDs — fix them up.
     const normalized = await normalizeUnionTypes(schemaPath, destinationPath)
-    const mapsFixed = await normalizeTypedMaps(schemaPath, destinationPath)
     // A6 §1.1: every widget CRD carries the author-declared identity-variance field.
     await injectIdentityContext(destinationPath)
     // F6 (snowplow#130): every widget CRD carries the author-declared extras-variance field.
@@ -405,7 +383,7 @@ async function runKrateoctl(schemaPath: string) {
     // X5: every CONTAINER carries `allowedResources`, typed string[] with no enum.
     const containment = await normalizeAllowedResources(destinationPath)
 
-    console.log(`✅ ${chalk.green(finalName)} moved to ${chalk.gray(OUTPUT_DIR)}${normalized ? chalk.yellow(' (union → x-kubernetes-int-or-string)') : ''}${mapsFixed ? chalk.yellow(' (typed maps → additionalProperties)') : ''}${containment ? chalk.yellow(' (allowedResources → common contract)') : ''}`)
+    console.log(`✅ ${chalk.green(finalName)} moved to ${chalk.gray(OUTPUT_DIR)}${normalized ? chalk.yellow(' (union → x-kubernetes-int-or-string)') : ''}${containment ? chalk.yellow(' (allowedResources → common contract)') : ''}`)
     return true
   } catch (err) {
     console.error(`❌ Failed to generate CRD for ${chalk.red(schemaName)}:`)
