@@ -14,7 +14,10 @@ package main
 // table is the one place an inverted comparison would hide — it would pass the real tightening
 // while failing every harmless widening, and the four positives alone cannot tell those apart.
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestTightenings(t *testing.T) {
 	obj := func(kv ...any) map[string]any {
@@ -158,4 +161,42 @@ func TestTightenings(t *testing.T) {
 		}
 	}
 	t.Logf("%d cases", len(cases))
+}
+
+// The removed-property finding carries a QUERY, not an answer. A schema fact says what changed; the
+// count of live objects still setting the field says whether it matters, and a reviewer cannot tell
+// a dead field from a load-bearing one without it — both look identical in a diff. The count needs a
+// cluster, which CI does not have and should not require, so this pins the query's shape instead.
+func TestLiveCountHint(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		lost []string
+		want string
+	}{
+		{"a top-level spec property",
+			"tickets.servicedesk.krateo.io/v1alpha1.spec", []string{"onBehalfOf"},
+			"kubectl get tickets.servicedesk.krateo.io -A -o json | jq '[.items[] | select(.spec.onBehalfOf != null)] | length'"},
+		{"nested, with an array on the way — [] becomes jq's []?",
+			"buttons.widgets.templates.krateo.io/v1beta1.spec.resourcesRefsTemplate[]", []string{"iterator"},
+			"kubectl get buttons.widgets.templates.krateo.io -A -o json | jq '[.items[] | select(.spec.resourcesRefsTemplate[]?.iterator != null)] | length'"},
+		{"an object map — {*} also becomes []?, which iterates values in jq",
+			"x.example.io/v1.spec.data{*}", []string{"k"},
+			"kubectl get x.example.io -A -o json | jq '[.items[] | select(.spec.data[]?.k != null)] | length'"},
+	}
+	for _, c := range cases {
+		got := liveCountHint(c.path, c.lost)
+		if !strings.Contains(got, c.want) {
+			t.Errorf("%s:\n  want substring: %s\n  got:            %s", c.name, c.want, got)
+		}
+	}
+
+	// A hint that is wrong is worse than none, because it looks like evidence. Both of these must
+	// yield nothing rather than a command that counts the wrong thing.
+	if h := liveCountHint("no-slash-in-this-path", []string{"a"}); h != "" {
+		t.Errorf("a path with no CRD segment must produce no hint, got %q", h)
+	}
+	if h := liveCountHint("x.example.io/v1.spec.we'ird", []string{"a"}); h != "" {
+		t.Errorf("a path that would break the shell quoting must produce no hint, got %q", h)
+	}
 }

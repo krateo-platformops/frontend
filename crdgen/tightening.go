@@ -23,6 +23,7 @@ package main
 import (
 	"fmt"
 	"sort"
+	"strings"
 )
 
 const preserveUnknown = "x-kubernetes-preserve-unknown-fields"
@@ -124,7 +125,7 @@ func Tightenings(old, new map[string]any, path string) []Tightening {
 	if lost := missingFrom(keys(oldProps), keys(newProps)); len(lost) > 0 && new[preserveUnknown] != true {
 		add("no longer declares %v. Structural pruning drops an undeclared field SILENTLY and "+
 			"admits the object, so a stored value is lost on the next write with no error "+
-			"reported anywhere.", lost)
+			"reported anywhere.%s", lost, liveCountHint(path, lost))
 	}
 
 	for _, k := range keys(newProps) {
@@ -139,6 +140,40 @@ func Tightenings(old, new map[string]any, path string) []Tightening {
 		out = append(out, Tightenings(o, n, path+"{*}")...)
 	}
 	return out
+}
+
+// liveCountHint turns a schema fact into a decision. "removed property X" says what changed;
+// "removed property X, set on 412 live objects" says whether it matters, and a reviewer cannot
+// tell a dead field from a load-bearing one without the second number — both look identical in a
+// diff. The count needs a cluster, which CI does not have and should not require, so the finding
+// carries the query rather than the answer: one paste, and the reviewer has the number.
+//
+// Returns "" when the path cannot be turned into a selector, rather than emitting a command that
+// would silently count the wrong thing. A hint that is wrong is worse than no hint, because it
+// looks like evidence.
+func liveCountHint(path string, lost []string) string {
+	slash := strings.Index(path, "/")
+	if slash < 0 {
+		return ""
+	}
+	crd := path[:slash]
+	rest := path[slash+1:]
+	// Drop the version segment: "v1beta1.spec.widgetData" -> ".spec.widgetData".
+	dot := strings.Index(rest, ".")
+	if dot < 0 {
+		rest = ""
+	} else {
+		rest = rest[dot:]
+	}
+	// `[]?` iterates an array AND an object's values in jq, so both of this package's traversal
+	// markers map onto it.
+	sel := strings.NewReplacer("[]", "[]?", "{*}", "[]?").Replace(rest)
+	if strings.ContainsAny(sel, "'\"") {
+		return ""
+	}
+	return fmt.Sprintf("\n    Live objects still setting it (the number that makes this a "+
+		"decision rather than a diff):\n      kubectl get %s -A -o json | jq '[.items[] "+
+		"| select(%s%s != null)] | length'", crd, sel, "."+lost[0])
 }
 
 // missingFrom returns the members of `want` absent from `have`, sorted, so a finding reads the same
