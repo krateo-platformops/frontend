@@ -12,7 +12,7 @@ import type { LoginFailureCause } from '../../utils/loginFailureCause'
 import { loginFailureCauseOf } from '../../utils/loginFailureCause'
 import { resolveNextPath, SESSION_RESUME_NEXT_KEY } from '../../utils/nextPath'
 import type { AuthModeType, AuthRequestType, AuthResponseType } from '../Login/Login.types'
-import { takeSocialLoginState } from '../Login/SocialLogin/SocialLogin'
+import { takeSocialLoginState, takeSocialLoginVerifier } from '../Login/SocialLogin/SocialLogin'
 
 const Auth = () => {
   const navigate = useNavigate()
@@ -51,14 +51,19 @@ const Auth = () => {
     isError: isSocialAuthError,
     mutateAsync: socialsAuthentication,
   } = useMutation({
-    mutationFn: async (body: {
-      name: string
-      code: string
-      url: string
-    }) => {
+    mutationFn: async (body: AuthRequestType) => {
       const response = await fetch(`${config!.api.AUTHN_API_BASE_URL}${body.url}?name=${body.name}`, {
         headers: {
           'X-Auth-Code': body.code,
+          /*
+           * Sent IFF the authorization request carried a challenge — SocialLogin stashes the
+           * verifier only in that case. authn forwards this to the token endpoint as
+           * `code_verifier`; it holds nothing itself, which is why the verifier has to make the
+           * round trip through the browser that started the flow. That is also the whole protection:
+           * a code intercepted from the redirect is useless without a verifier that never left this
+           * browser, and authn WILL redeem any code posted to it with its own client secret.
+           */
+          ...(body.codeVerifier === undefined ? {} : { 'X-Code-Verifier': body.codeVerifier }),
         },
         method: 'GET',
       })
@@ -112,11 +117,12 @@ const Auth = () => {
   })
 
   useEffect(() => {
-    const socialAuth = async (code: string, methodData: AuthModeType) => {
+    const socialAuth = async (code: string, methodData: AuthModeType, codeVerifier: string | null) => {
       const request: AuthRequestType = {
         code,
         name: methodData.name,
         url: methodData.path,
+        ...(codeVerifier === null ? {} : { codeVerifier }),
       }
       /*
        * mutateAsync REJECTS when the exchange fails (see mutationFn). The rejection is deliberately
@@ -153,12 +159,20 @@ const Auth = () => {
       // skipping the check on a flow that had one to check.
       // Takes the state AND consumes it (#583) — see takeSocialLoginState. One login, one state.
       const sentState = takeSocialLoginState()
+      /*
+       * Taken HERE, beside the state, and on every path — including the mismatch path below that
+       * never reaches the exchange. One login, one verifier: a verifier left behind stays valid and
+       * would be presented by a later callback that is not the one it was issued for. Spending both
+       * together is what keeps "did we send a state" and "did we send a challenge" answering about
+       * the same flow.
+       */
+      const sentVerifier = takeSocialLoginVerifier()
       if (sentState !== null) {
         if (state === sentState && code && methodData) {
-          void socialAuth(code, methodData)
+          void socialAuth(code, methodData, sentVerifier)
         }
       } else if (code && methodData) {
-        void socialAuth(code, methodData)
+        void socialAuth(code, methodData, sentVerifier)
       }
     }
 

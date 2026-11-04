@@ -11,16 +11,16 @@
  * The first test is the regression: a parameter positioned after `state` must survive. It is written
  * so that reverting to the truncating implementation fails it.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { newSocialLoginState, SOCIAL_LOGIN_STATE_KEY, socialLoginURL, takeSocialLoginState } from './SocialLogin'
+import { codeChallengeOf, newCodeVerifier, newSocialLoginState, SOCIAL_LOGIN_STATE_KEY, SOCIAL_LOGIN_VERIFIER_KEY, socialLoginURL, takeSocialLoginState, takeSocialLoginVerifier } from './SocialLogin'
 
 const IDP = 'https://idp.example.com/authorize'
 
 describe('socialLoginURL — every parameter except state survives', () => {
   it('KEEPS a parameter positioned AFTER state, which truncation destroyed', () => {
     const authCodeURL = `${IDP}?client_id=krateo&state=authn-original&scope=openid+email&redirect_uri=https%3A%2F%2Fportal%2Fauth`
-    const result = new URL(socialLoginURL(authCodeURL, 'ours'))
+    const result = new URL(socialLoginURL(authCodeURL, 'ours', null))
 
     // The point of the issue: these two come after `state` and used to be cut off entirely.
     expect(result.searchParams.get('scope')).toBe('openid email')
@@ -30,7 +30,7 @@ describe('socialLoginURL — every parameter except state survives', () => {
   })
 
   it('replaces state when it is the FIRST parameter, with nothing before it to preserve', () => {
-    const result = new URL(socialLoginURL(`${IDP}?state=authn-original&client_id=krateo`, 'ours'))
+    const result = new URL(socialLoginURL(`${IDP}?state=authn-original&client_id=krateo`, 'ours', null))
     expect(result.searchParams.get('state')).toBe('ours')
     expect(result.searchParams.get('client_id')).toBe('krateo')
   })
@@ -38,7 +38,7 @@ describe('socialLoginURL — every parameter except state survives', () => {
   it('ADDS state when authn sent none — the branch that used to forward the URL untouched', () => {
     // Previously this took the else branch: authn's URL was used verbatim and NO state was recorded,
     // so Auth.tsx had nothing to validate against. Now one is always sent.
-    const result = new URL(socialLoginURL(`${IDP}?client_id=krateo`, 'ours'))
+    const result = new URL(socialLoginURL(`${IDP}?client_id=krateo`, 'ours', null))
     expect(result.searchParams.get('state')).toBe('ours')
     expect(result.searchParams.get('client_id')).toBe('krateo')
   })
@@ -46,7 +46,7 @@ describe('socialLoginURL — every parameter except state survives', () => {
   it('ADDS state to a URL with no query string at all, without producing a malformed one', () => {
     // The old code's `${url}&state=` assumed a query string already existed; on a bare URL it would
     // have produced '...authorize&state=ours' — a path, not a parameter.
-    const result = new URL(socialLoginURL(IDP, 'ours'))
+    const result = new URL(socialLoginURL(IDP, 'ours', null))
     expect(result.searchParams.get('state')).toBe('ours')
     expect(result.pathname).toBe('/authorize')
     expect(result.search).toBe('?state=ours')
@@ -56,7 +56,7 @@ describe('socialLoginURL — every parameter except state survives', () => {
     // A substring search cannot tell a real parameter from one spelled inside another's value. A
     // parser can: only the actual `state` parameter is touched.
     const nested = encodeURIComponent('https://portal/auth?x=1&state=not-a-parameter')
-    const result = new URL(socialLoginURL(`${IDP}?redirect_uri=${nested}&state=authn-original`, 'ours'))
+    const result = new URL(socialLoginURL(`${IDP}?redirect_uri=${nested}&state=authn-original`, 'ours', null))
     expect(result.searchParams.get('redirect_uri')).toBe('https://portal/auth?x=1&state=not-a-parameter')
     expect(result.searchParams.get('state')).toBe('ours')
   })
@@ -66,12 +66,12 @@ describe('socialLoginURL — every parameter except state survives', () => {
     // The characters `-` and `_` must not be mangled by a round-trip through URL/searchParams.
     const ours = 'abcDEF123_-xyzABCdef456_-ghiJKL789_-mnoPQRs'
     expect(ours).toHaveLength(43)
-    const result = new URL(socialLoginURL(`${IDP}?state=authn-original`, ours))
+    const result = new URL(socialLoginURL(`${IDP}?state=authn-original`, ours, null))
     expect(result.searchParams.get('state')).toBe(ours)
   })
 
   it('returns the input unchanged when it is not a URL, rather than navigating somewhere unintended', () => {
-    expect(socialLoginURL('not a url', 'ours')).toBe('not a url')
+    expect(socialLoginURL('not a url', 'ours', null)).toBe('not a url')
   })
 })
 
@@ -115,7 +115,7 @@ describe('newSocialLoginState — the value is unguessable, and shaped like auth
   it('survives a round trip through the URL unchanged', () => {
     // base64url's `-` and `_` must not be mangled by URL/searchParams — the reason for the shape.
     const state = newSocialLoginState()
-    const result = new URL(socialLoginURL(`${IDP}?state=authn-original`, state))
+    const result = new URL(socialLoginURL(`${IDP}?state=authn-original`, state, null))
     expect(result.searchParams.get('state')).toBe(state)
   })
 })
@@ -143,5 +143,83 @@ describe('takeSocialLoginState — one login, one state', () => {
 
   it('returns null when we sent none, which is how Auth.tsx tells the two cases apart', () => {
     expect(takeSocialLoginState()).toBeNull()
+  })
+})
+
+/**
+ * PKCE.
+ *
+ * The invariant worth protecting is the PAIRING: a challenge is sent iff a verifier is kept, in both
+ * directions. Break it either way and the exchange is refused as `AuthorizationCodeRejected`, which
+ * is the same answer an expired code gives — so the portal would tell the person to start over, for
+ * a cause that no number of retries can fix.
+ */
+describe('PKCE', () => {
+  const IDP_URL = 'https://idp.test/authorize'
+
+  afterEach(() => {
+    localStorage.clear()
+  })
+
+  it('a verifier is 43 base64url characters, from a CSPRNG available in an insecure context', () => {
+    const verifier = newCodeVerifier()
+    // RFC 7636 §4.1: 43..128 characters from [A-Za-z0-9-._~]. 32 bytes base64url is 43.
+    expect(verifier).toMatch(/^[A-Za-z0-9_-]{43}$/)
+    expect(newCodeVerifier()).not.toBe(verifier)
+  })
+
+  it('the challenge is the S256 digest of the verifier, base64url, and NOT the verifier itself', async () => {
+    // A worked vector from RFC 7636 appendix B, so this asserts the algorithm rather than
+    // "whatever the code happens to compute".
+    const verifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'
+    const challenge = await codeChallengeOf(verifier)
+    expect(challenge).toBe('E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM')
+    expect(challenge).not.toBe(verifier)
+  })
+
+  it('a challenge is added with method S256, and no other parameter is disturbed', () => {
+    const result = new URL(socialLoginURL(`${IDP_URL}?client_id=krateo&scope=openid`, 'ours', 'the-challenge'))
+    expect(result.searchParams.get('code_challenge')).toBe('the-challenge')
+    expect(result.searchParams.get('code_challenge_method')).toBe('S256')
+    expect(result.searchParams.get('state')).toBe('ours')
+    expect(result.searchParams.get('client_id')).toBe('krateo')
+    expect(result.searchParams.get('scope')).toBe('openid')
+  })
+
+  it('NO challenge parameters appear when there is no challenge — a flow authn cannot carry must look exactly as it did', () => {
+    const result = new URL(socialLoginURL(`${IDP_URL}?client_id=krateo`, 'ours', null))
+    // This is the OAuth case until authn forwards the verifier from /oauth/login. A challenge here
+    // with no verifier on the exchange fails EVERY login on that provider.
+    expect(result.searchParams.has('code_challenge')).toBe(false)
+    expect(result.searchParams.has('code_challenge_method')).toBe(false)
+  })
+
+  it('an insecure context yields no challenge rather than a weaker one, and says so', async () => {
+    // crypto.subtle is secure-context-only: over a bare http://<LB-IP> install it is undefined.
+    // The required behaviour is to skip PKCE entirely — never code_challenge_method=plain, which
+    // RFC 9700 tells you not to use and which looks like protection without being any.
+    const realSubtle = crypto.subtle
+    // Silenced rather than asserted-on-stderr: the call itself is the assertion below.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      Object.defineProperty(crypto, 'subtle', { configurable: true, value: undefined })
+      expect(await codeChallengeOf('any-verifier')).toBeNull()
+      // A security control that disables itself must be visible; the only reachable cause is a
+      // non-HTTPS deployment, which is actionable.
+      expect(warn).toHaveBeenCalled()
+      expect(warn.mock.calls[0].join(' ')).toMatch(/secure context/i)
+    } finally {
+      Object.defineProperty(crypto, 'subtle', { configurable: true, value: realSubtle })
+      warn.mockRestore()
+    }
+  })
+
+  it('the verifier is taken ONCE: a second callback cannot present it again', () => {
+    localStorage.setItem(SOCIAL_LOGIN_VERIFIER_KEY, 'the-verifier')
+    expect(takeSocialLoginVerifier()).toBe('the-verifier')
+    // One login, one verifier. A value left behind stays valid and would be sent by a later
+    // callback — including an OAuth one that never carried a challenge.
+    expect(takeSocialLoginVerifier()).toBeNull()
+    expect(localStorage.getItem(SOCIAL_LOGIN_VERIFIER_KEY)).toBeNull()
   })
 })
