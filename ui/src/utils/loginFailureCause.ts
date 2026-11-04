@@ -108,6 +108,33 @@ const RESTART_REASONS = new Set([
 ])
 
 /*
+ * The IdP's RESPONSE was refused, rather than the person or the code — all 403, and authn's own
+ * comment on them is "retrying unchanged fails again":
+ *
+ *   403 IDTokenInvalid     the ID token did not validate
+ *   403 IssuerMismatch     `iss` is not the configured issuer
+ *   403 AudienceMismatch   `aud` is not this client
+ *   403 TokenExpired       the ID token's `exp` has passed, beyond authn's one-minute clock skew
+ *
+ * These escalate, like any platform failure, but they must NOT carry the ordinary platform copy,
+ * because that says "retry shortly" — and for an issuer or audience mismatch every retry produces
+ * the same refusal. An OIDCConfig pointing at the wrong issuer fails identically forever, and
+ * telling someone to wait and try again sends them round a loop with no exit.
+ *
+ * NOTE ON `TokenExpired`, WHICH IS A COLLISION WAITING TO BE MISREAD. `authFailureCause.ts` also
+ * knows a `TokenExpired`, and treats it as "your session ended, sign in again". That is a DIFFERENT
+ * token: there it is the caller's own Krateo session token on a resource 401; here it is the ID
+ * token the IdP just issued, on the login route. Same string, different subject, and the right
+ * advice differs — do not unify them.
+ */
+const PLATFORM_REFUSAL_REASONS = new Set([
+  'AudienceMismatch',
+  'IDTokenInvalid',
+  'IssuerMismatch',
+  'TokenExpired',
+])
+
+/*
  * All of authn's own failures, plus the caller-side bugs that are OURS and not the person's.
  * Codes, for lining up against authn's docs/api.md:
  *
@@ -144,6 +171,12 @@ const RESTART_REASONS = new Set([
  */
 const ESCALATE_REASONS = new Set([
   'ClientSecretLookupFailed',
+  // 500, read from authn's own cause constants rather than the 0.35.0 release table, which lists
+  // the oidc/oauth additions only. `IssuerUnknown` is a configured issuer that is missing entirely;
+  // `IssuerConflict` is more than one match; `LDAPConfigInvalid` is an unusable LDAPConfig.
+  'IssuerConflict',
+  'IssuerUnknown',
+  'LDAPConfigInvalid',
   'InvalidRequestBody',
   'IssuanceFailed',
   'LDAPBindFailed',
@@ -180,6 +213,9 @@ const causeOf = (body: unknown): string | null => {
 const REFUSED = 'Those credentials were not accepted. Check them and try again.'
 const PLATFORM = 'Sign-in is unavailable: the platform could not check your credentials. '
   + 'This is not a problem with what you typed — retry shortly, and tell an administrator if it persists.'
+const MISCONFIGURED = 'Sign-in could not be completed: the platform rejected the response from your '
+  + 'identity provider. Retrying will not help — an administrator needs to check how this sign-in '
+  + 'method is configured.'
 const RESTART = 'That sign-in did not complete: the code from your identity provider was refused, '
   + 'usually because it expired or had already been used. Start the sign-in again — and if it happens '
   + 'a second time, tell an administrator, because the sign-in may be misconfigured rather than stale.'
@@ -213,6 +249,10 @@ export const loginFailureCauseOf = (
 
   if (reason !== null && RESTART_REASONS.has(reason)) {
     return { action: 'restart', reason, text: RESTART }
+  }
+  // Before ESCALATE_REASONS: these escalate too, but with copy that does not promise a retry.
+  if (reason !== null && PLATFORM_REFUSAL_REASONS.has(reason)) {
+    return { action: 'escalate', reason, text: MISCONFIGURED }
   }
   if (reason !== null && RETYPE_REASONS.has(reason)) {
     return { action: 'retype', reason, text: REFUSED }
