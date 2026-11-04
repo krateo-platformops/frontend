@@ -72,7 +72,14 @@ export interface LoginFailureCause {
 }
 
 /*
- * The causes authn documents for the login routes, as of 0.35.0.
+ * The causes authn documents for the login routes.
+ *
+ * THE SOURCE OF TRUTH IS authn's `docs/api.md`, which enumerates every cause with its code — 45 of
+ * them, and exhaustive: verified by extracting every `CauseType` constant from authn's source and
+ * finding all 45 present in that document. It is NOT the release notes for any one version. Those
+ * tables cover only what that release changed, and reading one as though it were the whole contract
+ * is exactly how the four ID-token 403s below went unhandled here. The `(0.35.0)` markers record
+ * when a cause appeared, as a reading aid; they do not mean this list came from that release.
  *
  * Grouped by what the person can do, NOT by status code, because that is the only question the
  * page has to answer. The codes are recorded in the comments so a reader can line this up against
@@ -171,8 +178,8 @@ const PLATFORM_REFUSAL_REASONS = new Set([
  */
 const ESCALATE_REASONS = new Set([
   'ClientSecretLookupFailed',
-  // 500, read from authn's own cause constants rather than the 0.35.0 release table, which lists
-  // the oidc/oauth additions only. `IssuerUnknown` is a configured issuer that is missing entirely;
+  // 500. In docs/api.md all along; missed here because this file was first built from the 0.35.0
+  // release notes. `IssuerUnknown` is a configured issuer that is missing entirely;
   // `IssuerConflict` is more than one match; `LDAPConfigInvalid` is an unusable LDAPConfig.
   'IssuerConflict',
   'IssuerUnknown',
