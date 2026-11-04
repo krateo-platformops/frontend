@@ -62,6 +62,17 @@ jobs:
       - name: Regenerate widget CRDs
         working-directory: ui
         run: npm run generate-crds
+      # BEFORE the drift comparison, because drift and validity are different questions and this
+      # one is the question the 1.8.20 outage turned on. crd-drift asserted the chart MATCHED the
+      # generator and passed, because both carried the same defect: `resourcesRefsTemplate.items`
+      # required `id` while defining only `iterator` and `template`, so every widget CR with a
+      # resourcesRefsTemplate was unappliable on all 44 kinds. A gate that compares two artifacts
+      # cannot judge either of them, and plumbing/crdgen's own apiserver validation accepts a
+      # required-but-undefined property — it is legal OpenAPI, merely unsatisfiable.
+      - name: Assert every CRD can be satisfied
+        working-directory: crdgen
+        run: go test ./... -count=1
+
       - name: Assert the chart matches the generator
         run: |
           # The generator writes to ui/scripts/krateoctl-output/ rather than into the chart, so the
