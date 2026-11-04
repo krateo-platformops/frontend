@@ -130,6 +130,8 @@ spec:
                               - DELETE
                               - GET
                             type: string
+                        required:
+                          - id
                         type: object
                     type: object
                   type: array
