@@ -12,20 +12,29 @@
 # This job regenerates on every PR and fails if the committed chart differs. Schema change and CRD
 # change now land together or not at all.
 #
-# KNOWN GAP, and the gate is how it was found. The generator is pinned to krateoctl v0.8.9, and
-# that version DROPS an `enum` on an integer property: Paragraph.schema.json declares
-# `level: {type: integer, enum: [1,2,3,4,5]}` and 0.8.9 emits `format: int32`, so the live CRD
-# accepts `level: 9`. A newer krateoctl preserves the enum — which is exactly how this surfaced: a
-# hand-"fix" made with a locally-installed newer krateoctl was rejected here by the pinned one.
+# THE KNOWN GAP THIS BLOCK USED TO DESCRIBE IS CLOSED, and the stale version of it is worth
+# recording rather than simply deleting, because it was false in every clause for weeks.
 #
-# The chart therefore tracks the PINNED generator, enum included in neither. Hand-editing the chart
-# to be stricter than the generator is the one thing this job must not permit, because a gate that
-# special-cases its most interesting file is not a gate. The real fix is a krateoctl bump, and that
-# is blocked on the Theme.schema.json regression documented in release-tag.yaml.
+# It said: "the generator is pinned to krateoctl v0.8.9, and that version DROPS an `enum` on an
+# integer property … the real fix is a krateoctl bump, and that is blocked on the Theme.schema.json
+# regression". None of that is true any more. krateoctl is retired (#604): the generator is this
+# repo's own `crdgen/`, there is nothing to pin, and the enum survives.
 #
-# Blast radius, measured rather than assumed: `level` is the ONLY integer enum across all 44 widget
-# schemas, and `Paragraph.type.d.ts` types it `1 | 2 | 3 | 4 | 5`, so authoring it wrong is caught
-# at compile time for anything built in this repo. Only a hand-written CR can slip past.
+# Verified rather than assumed, on the published artifact and not just the working tree:
+#
+#   Paragraph.schema.json          level: {type: integer, enum: [1,2,3,4,5]}
+#   generated CRD today            level: {type: integer, enum: [1,2,3,4,5]}
+#   PUBLISHED frontend-crds 1.8.21 level: {type: integer, enum: [1,2,3,4,5]}
+#
+# So `level: 9` is now refused by the apiserver, where the pinned krateoctl emitted `format: int32`
+# and admitted it. `level` was the only integer enum across all 44 widget schemas, so this was the
+# whole of the gap.
+#
+# NOTE FOR WHOEVER READS #604's DIFF: that PR removed `format: int32` in 280 places and I described
+# it as a validation LOOSENING. It was — int32 became effectively int64 — but on `level`,
+# the one property anybody had written a gap note about, it simultaneously RESTORED the enum, which
+# is a tightening that more than covers it. Judging a regeneration by one of its two effects is how
+# that went unnoticed in review.
 name: crd-drift
 
 on:
@@ -119,7 +128,7 @@ jobs:
 
       - name: Assert the generator left no tracked file dirty
         run: |
-          # krateoctl writes <Widget>.schema.crd.yaml next to each schema and gen-crds.ts moves it
+          # The generator writes <Widget>.schema.crd.yaml next to each schema and gen-crds.ts moves it
           # into the output dir. Those intermediates must not be committed — two were, and every
           # generator run then showed them as deletions.
           git diff --exit-code \

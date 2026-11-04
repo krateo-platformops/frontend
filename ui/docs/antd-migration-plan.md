@@ -34,7 +34,7 @@ This replaces the earlier conservative "freeze the schema, swap only the rendere
 Audit baseline: **46 FAITHFUL, 7 STRUCTURAL, 4 DISCUSS** — but "FAITHFUL" still hides legacy props/aliases (below), which Phase 0 removes.
 
 ### Hard constraints (server-driven contracts)
-- Source of truth = `X.schema.json` → `generate-types` → `X.type.d.ts`; `gen-crds` → real `krateoctl`. **Every schema change → regenerate types + CRDs + migrate CRs.**
+- Source of truth = `X.schema.json` → `generate-types` → `X.type.d.ts`; `gen-crds` → the repo's own `crdgen/` Go module (was `krateoctl`, retired in #604). **Every schema change → regenerate types + CRDs + migrate CRs.**
 - `validate-schemas`: if `spec.actions` exists it must contain all of `rest`/`navigate`/`openDrawer`/`openModal`.
 - `widgetData` JSON-serializable; children via `resourcesRefs` → `WidgetRenderer`; events via `WidgetActions`/`useHandleAction`.
 - Registry auto-discovers widgets via `index.ts` `defineWidget`.
@@ -70,7 +70,7 @@ Remove the `aliases` from `defineWidget`, drop the `aliases` field from `widget-
 2. Delete the back-compat read in `X.tsx` (e.g. the `legacy` cast in `Table.tsx`, the `legacyGapToSize` map in `ButtonGroup.tsx`, the `actions` fallback in `Card.tsx`, `backgroundColor` handling in `Button.tsx`).
 3. `npm run generate-types` → regenerated `X.type.d.ts` (DEPRECATED entries vanish).
 4. Update `src/examples/widgets/**/*.example.yaml` to the new shape/kind.
-5. `npm run validate-schemas`; `npm run generate-crds` (needs krateoctl — see §Cutover).
+5. `npm run validate-schemas`; `npm run generate-crds` (needs a Go toolchain only — the generator is in-repo).
 6. Update `registry.test.ts`: replace the "aliases resolve" assertions with "legacy kinds **do not** resolve; only antd kinds do."
 
 **Effort:** M–L (touches ~8 widgets + registry + tests + examples). **Risk:** breaks any un-migrated CR → mitigated by the §Cutover migration mapping.

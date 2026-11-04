@@ -186,8 +186,9 @@ route-registration widgets are **gone**, as is the `ROUTES_LOADER` config key �
 ## Build/codegen scripts
 
 `scripts/` (run via `tsx` from `ui/`, see `package.json` `scripts`) are dev/CI tooling,
-not runtime: `gen-crds.ts` (widget `schema.json` → CRD via `krateoctl gen-widget`, output
-to `scripts/krateoctl-output/`, gitignored), `generate-types.ts` (schema → `.type.d.ts`),
+not runtime: `gen-crds.ts` (widget `schema.json` → CRD via this repo's own `crdgen/` Go module,
+output to `scripts/krateoctl-output/`, gitignored — the directory name is a leftover of
+the retired `krateoctl`), `generate-types.ts` (schema → `.type.d.ts`),
 `scaffold-widget.ts`, `gen-antd-widgets.ts`, `validate-schemas.ts`,
 `update-readme-widgets.ts` (regenerates
 [widgets-api-reference.md](./widgets-api-reference.md)), and the example-portal runners

@@ -11,7 +11,8 @@ import { emitWidget, type WidgetPropDef, type WidgetSpec } from './widget-codege
  * `gen-antd-widgets` instead.
  */
 
-// Use `integer` rather than `number`: krateoctl/controller-gen rejects float
+// Use `integer` rather than `number`: the CRD generator (controller-gen under both krateoctl and
+// today's plumbing/crdgen) rejects float
 // types when generating CRDs, and the repo convention is integer everywhere.
 type JsonType = 'string' | 'integer' | 'boolean' | 'array' | 'object'
 

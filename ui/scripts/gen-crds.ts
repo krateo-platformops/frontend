@@ -64,6 +64,13 @@ async function moveFile(src: string, dest: string) {
 }
 
 /**
+ * UNVERIFIED AGAINST THE CURRENT GENERATOR, and deliberately left attributed to krateoctl rather
+ * than silently re-pointed at crdgen. #604 swapped the generator for plumbing/crdgen; these two
+ * normalizations still RUN (see below), but whether they still CHANGE anything has not been
+ * measured. Re-pointing the attribution without measuring would replace one unverified claim with
+ * another — and the plan was always to fix the five int-or-string sites at the source
+ * (generate-types.ts pre-pass) and drop these, which is an open follow-up.
+ *
  * krateoctl (via controller-gen) cannot express a JSON-Schema union like
  * `type: ["integer", "string"]` in a STRUCTURAL CRD schema — it collapses such a
  * node to `type: object`, which then rejects the real scalar values at apply time
@@ -288,7 +295,7 @@ async function runKrateoctl(schemaPath: string) {
   console.log(`⚙️  Generating CRD for ${chalk.cyan(schemaName)}...`)
 
   try {
-    // Esegue il comando krateoctl
+    // Run the generator: crdgen/, built above. (Was `krateoctl gen-widget`, retired in #604.)
     await asyncExec(`"${GENERATOR_BIN}" "${schemaName}"`, { cwd: widgetDir })
 
     // Il file generato è sempre <path>.crd.yaml (nella stessa cartella)

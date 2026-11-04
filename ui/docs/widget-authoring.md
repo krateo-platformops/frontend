@@ -115,23 +115,59 @@ handle these by hand instead:
 
 ## CRDs and the cluster (the only out-of-band step)
 
-`npm run generate-crds` (run from `ui/`) shells out to the real `krateoctl
-gen-widget` (which runs `controller-gen` via Go) to produce
-`scripts/krateoctl-output/<Kind>.crd.yaml`. These are **build artifacts**
-(gitignored), not committed — the shipped copy is the `frontend-crds` chart
-(`helm/frontend-crds/templates/`); see the root [release runbook](../../docs/release.md)
-for how CI syncs them. Requirements: `krateoctl` + a Go toolchain in `PATH` +
-reachable `GOPROXY` (krateoctl currently has no krateo-platformops home — CI pins
-its install script; see `.github/workflows/release-tag.yaml`).
+`npm run generate-crds` (run from `ui/`) builds and runs **this repo's own generator**,
+`crdgen/` — a small Go module — and writes `scripts/krateoctl-output/<Kind>.crd.yaml`.
+These are **build artifacts** (gitignored), not committed: the shipped copy is the
+`frontend-crds` chart (`helm/frontend-crds/templates/`); see the root
+[release runbook](../../docs/release.md) for how CI syncs them.
+
+**Requirements: a Go toolchain only.** `go build` replaces the `curl … | bash` install
+this used to need, so there is nothing to pin and nothing to be reachable. The output
+directory is still named `krateoctl-output` — a leftover of the tool that was retired,
+not a sign it is still involved.
+
+> **It used to be `krateoctl gen-widget`**, a binary CI installed by piping a release
+> script to bash, pinned by hand in three workflows. That put the definition of this
+> repo's own CRDs in another repository on another release cadence. The widget schemas
+> are here and the CRDs ship from here, so the generator is here too.
+>
+> **It does not reimplement CRD generation.** It calls
+> `krateo-platformops/plumbing/crdgen`, the same library core-provider and
+> oasgen-provider use, because that library validates its output through the
+> apiserver's **own** `ValidateCustomResourceDefinition` before returning. A generator
+> that cannot be refused by the apiserver cannot emit a CRD the apiserver would reject —
+> and that failure is silent, because an invalid CRD is refused at apply time while the
+> previous version keeps serving. See `crdgen/doc.go`.
 
 A generated widget kind is inert until its CRD and an example CR are applied to a
 cluster so snowplow can resolve it:
 
 ```
-npm run generate-crds      # krateoctl → scripts/krateoctl-output/*.crd.yaml
+npm run generate-crds      # crdgen → scripts/krateoctl-output/*.crd.yaml
 npm run apply-crds         # kubectl apply the CRDs
 npm run apply-examples     # kubectl apply the example CRs
 ```
+
+### What a schema change costs, end to end
+
+A new widget field is **four pieces**, and shipping three of them leaves the field
+pruned on write with nothing reporting an error:
+
+1. the widget's `schema.json` (the source of truth)
+2. the regenerated CRD in `helm/frontend-crds/templates/` (CI's `crd-drift` job fails
+   the PR if the chart and the generator disagree)
+3. `widgetKinds.generated.ts`, derived from the CRDs for the page builder
+4. a release that publishes **both** the image and the `frontend-crds` chart — they are
+   produced by two different workflows, so a green tag does not imply a published chart.
+   Verify with `helm show chart oci://ghcr.io/krateo-platformops/charts/frontend-crds
+   --version <tag>`.
+
+**A `required`, `enum`, `type` or `format` change is a TIGHTENING** and can only reject
+objects, never admit more. `crdgen`'s own test suite refuses a schema whose `required`
+names a property its `properties` does not define — unsatisfiable, and legal OpenAPI, so
+the apiserver's validator accepts it. Before tightening anything, survey the live CRs:
+`frontend-crds` 1.8.20 shipped 44 unsatisfiable widget CRDs and no widget carrying a
+`resourcesRefsTemplate` could be applied until 1.8.21.
 
 ## Verifying
 

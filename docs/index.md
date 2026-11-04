@@ -47,7 +47,11 @@ traced to `file:line` at the tag that matches the running build:
   (config.json, auth/tokens, bootstrap, actions, events, live refresh).
 - [gotchas](../ui/docs/gotchas.md) — real runtime pitfalls, each grounded in the code.
 - [widget-authoring](../ui/docs/widget-authoring.md) — how an antd component becomes a
-  widget (schema → types → CRD; scaffolding; fidelity rules).
+  widget (schema → types → CRD; scaffolding; fidelity rules). Includes **the CRD
+  generator** — `crdgen/`, this repo's own Go module since #604, which calls
+  `plumbing/crdgen` so its output is validated by the apiserver's own validator — and
+  what a schema change costs end to end (the four pieces, and why a tightening is
+  different).
 - [widgets-api-reference](../ui/docs/widgets-api-reference.md) — the generated
   per-widget reference (all 43 kinds).
 - [the widget concept](../ui/docs/docs.md) — widgetData, widgetDataTemplate, actions,

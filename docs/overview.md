@@ -64,7 +64,7 @@ are the code-adjacent corpus: [ui/docs/architecture.md](../ui/docs/architecture.
 | `frontend` chart | Deployment + Service + the `config.json`/env ConfigMaps (+ optional ingress, HPA, preview sandbox) | `oci://ghcr.io/krateo-platformops/charts/frontend:X.Y.Z` (`helm/frontend/`) |
 | `frontend-crds` chart | the 43 widget CRDs | `oci://ghcr.io/krateo-platformops/charts/frontend-crds:X.Y.Z` (`helm/frontend-crds/`) |
 
-Widget CRDs are **generated** from each widget's `schema.json` (via krateoctl), so a
+Widget CRDs are **generated** from each widget's `schema.json` (via this repo's own `crdgen/`), so a
 widget's cluster schema and its renderer come from the same source tree — see
 [release](./release.md) for how the copies stay in sync.
 
