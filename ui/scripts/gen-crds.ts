@@ -250,20 +250,31 @@ async function injectFreshness(crdPath: string): Promise<void> {
  * with no principle separating the two groups. A field that means something on `Flex` and nothing
  * on `Card` is not a contract.
  *
- * WHY NO ENUM: the per-widget enums were hand-maintained and had drifted into nonsense. `Flex`
- * listed 28 kinds, `Col` and `Row` 23, `Table` 11, and `Menu` named exactly two — `navmenuitems`
- * and `pages` — BOTH of which the registry documents as removed in the routing refactor. Dead
- * values in a live enum. Nothing could tell whether `Flex` permitting `images` while `Col` did not
- * was design or drift, and adding one widget kind meant editing six frozen lists by hand (adding
- * `pageheaders` did exactly that, and deliberately skipping `Tabs` is now indistinguishable from
- * forgetting it).
+ * NO PER-WIDGET ENUM, AND A DERIVED VOCABULARY ENUM INSTEAD. The hand-maintained per-widget enums
+ * were deleted because they had drifted into nonsense: `Flex` listed 28 kinds, `Col` and `Row` 23,
+ * `Table` 11, and `Menu` named exactly two — `navmenuitems` and `pages` — BOTH removed in the
+ * routing refactor. Dead values in a live enum. Nothing could tell whether `Flex` permitting
+ * `images` while `Col` did not was design or drift, and adding one widget kind meant editing six
+ * frozen lists by hand.
  *
- * The enum also bought nothing: `allowedResources` is enforced by NOTHING at runtime — not by
- * OpenAPI, not by a webhook, not by the renderer, which resolves `resourceRefId` without
- * consulting it. So the enum was a maintenance burden pretending to be a constraint.
+ * Measured before restoring anything, across four clusters: seeding an enum from those lists would
+ * have REJECTED live CRs in four kinds — Flex (alerts, descriptions, results), Menu (flexes, its
+ * only live value), Row (descriptions), Tabs (flexes). They were not merely stale, they were wrong
+ * against production.
  *
- * Enforcement therefore lives in the chart lint (design rule X5), which can check declarations
- * against the REAL widget registry instead of a list frozen at schema-authoring time.
+ * SO THE ENUM THIS FILE NOW WRITES IS AT A DIFFERENT LEVEL, and that distinction is the whole
+ * design. `allowedResources` is a PER-INSTANCE declaration: of 97 live Flex CRs, each lists
+ * between 1 and 11 plurals describing what THAT slot is for. A per-widget-kind enum caps what any
+ * instance may say, which cannot express "this slot holds cards and paragraphs" and is a blunter
+ * constraint than the thing it would replace. So:
+ *
+ *   the CRD enum  = the VOCABULARY. Every real widget plural. It refuses a typo (`buton`) and a
+ *                   non-widget kind (`deployments`), which is the failure people actually hit, and
+ *                   it cannot refuse an object that exists.
+ *   the X5 lint   = the POLICY. Every actual child is within that instance's own declaration.
+ *
+ * Non-overlapping: X5 compares children against the declaration and never checks the declaration's
+ * vocabulary, so a declared `panels` passes it today. The enum closes exactly that gap.
  */
 async function normalizeAllowedResources(crdPath: string): Promise<boolean> {
   const doc = yaml.load(await fs.readFile(crdPath, 'utf8')) as {
@@ -278,13 +289,84 @@ async function normalizeAllowedResources(crdPath: string): Promise<boolean> {
   if (!isContainer || !wd?.properties) { return false }
   const before = JSON.stringify(wd.properties.allowedResources ?? null)
   wd.properties.allowedResources = {
-    description: 'the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.',
+    description: 'the resource plurals this container may hold as children. The enum is the VOCABULARY — every real widget plural — so a typo or a non-widget kind is refused by the apiserver. WHICH of them a given container actually accepts is this instance\'s own declaration, checked against its real children by the chart lint (design rule X5).',
     items: { type: 'string' },
     type: 'array',
   }
   if (JSON.stringify(wd.properties.allowedResources) === before) { return false }
   await fs.writeFile(crdPath, yaml.dump(doc, { lineWidth: -1, noRefs: true }))
   return true
+}
+
+/**
+ * The plurals that are LEGACY: present in live `allowedResources` on clusters we can reach, but
+ * naming widget kinds the chart no longer ships. They are in the vocabulary so that the enum
+ * cannot make an existing object unappliable — the whole point of a vocabulary enum is that it
+ * refuses typos, not history.
+ *
+ * Measured by the installer session across four clusters (krateo-057, krateo-demo,
+ * krateo-demo-alpitour, krateo-installer-release). `navmenuitems` and `pages` are the two the
+ * routing refactor removed, which this file's own note above already recorded from the other
+ * direction; `panels` appears on a Row.
+ *
+ * They are NOT an invitation: X5 checks real children against an instance's declaration, so a page
+ * that newly declares one and then holds such a child is caught in this repo at lint time. This
+ * list should shrink as those CRs are rewritten, and a value should only ever leave it once no
+ * reachable cluster carries it.
+ *
+ * FOUR CLUSTERS IS A FLOOR, NOT THE POPULATION — three more contexts were unreachable and customer
+ * clusters are outside it entirely. That is the known limit of this list, and it is the reason the
+ * enum is the vocabulary rather than a policy: a vocabulary of every real plural plus known
+ * history can only reject a value that names nothing, which no working page depends on.
+ */
+const LEGACY_ALLOWED_RESOURCES = ['navmenuitems', 'pages', 'panels'] as const
+
+/**
+ * Write the vocabulary enum into every container's `allowedResources`, AFTER every CRD exists.
+ *
+ * A second pass rather than part of the per-schema one, because the vocabulary is every widget's
+ * plural and no single-schema pass knows them. The plurals are read from the GENERATED CRDs rather
+ * than derived from the kind: 9 of the 44 are not `kind.toLowerCase() + 's'` — `Listy` is
+ * `listies`, `Flex` is `flexes`, `Checkbox` is `checkboxes`, `Switch` is `switches`, `Progress` is
+ * `progresses`, and `Descriptions`/`Filters`/`Steps`/`Tabs` are already plural — so a derivation
+ * rule would be wrong for a fifth of them and wrong in a way that REJECTS valid values.
+ */
+async function injectContainmentVocabulary(expectedKinds: number): Promise<number> {
+  const files = await glob('*.crd.yaml', { absolute: true, cwd: OUTPUT_DIR })
+  const plurals: string[] = []
+  const docs = new Map<string, Record<string, unknown>>()
+  for (const file of files) {
+    // eslint-disable-next-line no-await-in-loop
+    const doc = yaml.load(await fs.readFile(file, 'utf8')) as Record<string, unknown>
+    const names = ((doc.spec as Record<string, unknown> | undefined)?.names ?? {}) as { plural?: string }
+    if (names.plural) { plurals.push(names.plural) }
+    docs.set(file, doc)
+  }
+
+  // A TRUNCATED VOCABULARY WOULD REJECT LIVE VALUES, so a partial run must not write one. This is
+  // the one failure mode of this pass that reaches a cluster: every other way it can go wrong
+  // produces a generation error, while a short enum produces a valid CRD that refuses real pages.
+  if (plurals.length < expectedKinds) {
+    throw new Error(
+      `refusing to write the allowedResources vocabulary from ${plurals.length} CRD(s) when `
+      + `${expectedKinds} schemas were processed: a truncated vocabulary is a valid CRD that `
+      + `refuses values live pages already use`,
+    )
+  }
+
+  const vocabulary = [...new Set([...plurals, ...LEGACY_ALLOWED_RESOURCES])].sort()
+  let touched = 0
+  for (const [file, doc] of docs) {
+    const wd = (doc as { spec?: { versions?: Array<{ schema?: { openAPIV3Schema?: { properties?: { spec?: { properties?: { widgetData?: { properties?: Record<string, { items?: Record<string, unknown> }> } } } } } } }> } })
+      .spec?.versions?.[0]?.schema?.openAPIV3Schema?.properties?.spec?.properties?.widgetData
+    const ar = wd?.properties?.allowedResources
+    if (!ar?.items) { continue }
+    ar.items.enum = vocabulary
+    // eslint-disable-next-line no-await-in-loop
+    await fs.writeFile(file, yaml.dump(doc, { lineWidth: -1, noRefs: true }))
+    touched += 1
+  }
+  return touched
 }
 
 async function runKrateoctl(schemaPath: string) {
@@ -364,6 +446,12 @@ async function main() {
       failureCount += 1
     }
   }
+
+  // AFTER the loop: the vocabulary is every widget's plural, so it is only knowable once every
+  // CRD exists. Failing here fails the run — a CRD set whose enum was never written is a CRD set
+  // that silently stops refusing typos.
+  const vocabTouched = await injectContainmentVocabulary(schemaFiles.length)
+  console.log(`\n🔤 allowedResources vocabulary written into ${vocabTouched} container CRD(s)`)
 
   console.log('\n📊 Summary:')
   console.log(`Total schemas: ${schemaFiles.length}`)

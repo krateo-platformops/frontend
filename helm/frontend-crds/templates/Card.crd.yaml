@@ -139,9 +139,57 @@ spec:
                   description: The properties Card renders. Where Card wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
                     allowedResources:
-                      description: the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.
+                      description: the resource plurals this container may hold as children. The enum is the VOCABULARY — every real widget plural — so a typo or a non-widget kind is refused by the apiserver. WHICH of them a given container actually accepts is this instance's own declaration, checked against its real children by the chart lint (design rule X5).
                       items:
                         type: string
+                        enum:
+                          - alerts
+                          - badges
+                          - barcharts
+                          - breadcrumbs
+                          - buttongroups
+                          - buttons
+                          - cards
+                          - checkboxes
+                          - cols
+                          - datepickers
+                          - descriptions
+                          - dividers
+                          - filters
+                          - flexes
+                          - flowcharts
+                          - forms
+                          - images
+                          - inputnumbers
+                          - inputs
+                          - layouts
+                          - linecharts
+                          - listies
+                          - markdowns
+                          - menus
+                          - navmenuitems
+                          - pageheaders
+                          - pages
+                          - panels
+                          - paragraphs
+                          - piecharts
+                          - progresses
+                          - qrcodes
+                          - radios
+                          - rangepickers
+                          - results
+                          - rows
+                          - selects
+                          - sliders
+                          - statistics
+                          - steps
+                          - switches
+                          - tables
+                          - tabs
+                          - tags
+                          - themes
+                          - uploads
+                          - yamlviewers
                       type: array
                     anchorId:
                       description: renders this panel with a DOM id so an in-page `[text](#anchorId)` link (e.g. a summary/table-of-contents Markdown widget) scrolls to it

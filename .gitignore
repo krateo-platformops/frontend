@@ -58,3 +58,8 @@ test-results/
 
 # The CRD generator is built on demand by ui/scripts/gen-crds.ts (crdgen/doc.go).
 crdgen/bin/
+
+# The generator binary, from `go build` in crdgen/. `npm run generate-crds` builds it to
+# crdgen/bin/gencrd, which is already ignored; a bare `go build ./...` drops one here instead and
+# it was committed by accident once.
+crdgen/crdgen

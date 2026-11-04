@@ -94,7 +94,14 @@ func TestNoWidgetCRDBecameStricter(t *testing.T) {
 		t.Fatalf("the baseline chart yielded no CRDs, so nothing was compared")
 	}
 
-	compared, newKinds := 0, 0
+	// A reviewed, evidenced exception is allowed; see accepted.go for why a gate needs one and
+	// what stops it becoming a mute button.
+	accepted, err := LoadAcceptances("accepted-tightenings.yaml")
+	if err != nil {
+		t.Fatalf("reading the accepted tightenings: %v", err)
+	}
+
+	compared, newKinds, excused := 0, 0, 0
 	for _, key := range sortedKeys(current) {
 		base, ok := baseline[key]
 		if !ok {
@@ -104,10 +111,40 @@ func TestNoWidgetCRDBecameStricter(t *testing.T) {
 		}
 		compared++
 		for _, hit := range Tightenings(base, current[key], key) {
+			covered := false
+			for _, a := range accepted {
+				if a.Accepts(hit.Path, hit.Why) {
+					covered = true
+					break
+				}
+			}
+			if covered {
+				excused++
+				continue
+			}
 			t.Errorf("%s %s\n    A tightening is SILENT at the roll: stored objects are not "+
 				"revalidated, so this surfaces on the next WRITE to an existing object and is "+
-				"attributed to whoever made that write.", hit.Path, hit.Why)
+				"attributed to whoever made that write.\n    If this is intended, it needs an "+
+				"entry in crdgen/accepted-tightenings.yaml carrying the measurement that "+
+				"justifies it — not a reason, a COUNT of the live objects it would refuse.",
+				hit.Path, hit.Why)
 		}
+	}
+
+	// A STALE ACCEPTANCE IS ITSELF A FINDING. Without this they accumulate and silently widen as
+	// the schemas move underneath them, which is how an allowlist stops describing anything — the
+	// failure this repo already paid for once in check-crd-strictness.
+	for _, a := range accepted {
+		if a.Matched() == 0 {
+			t.Errorf("accepted-tightenings.yaml: the entry for %q %s (%s) matched NO finding. "+
+				"Either the tightening it excused is gone — in which case delete the entry — or "+
+				"the finding was reworded and the entry no longer covers it, in which case it is "+
+				"excusing nothing while looking like it does.", a.Path+a.PathSuffix, a.Clause,
+				a.Accepted)
+		}
+	}
+	if excused > 0 {
+		t.Logf("%d finding(s) covered by a reviewed acceptance", excused)
 	}
 	t.Logf("compared %d CRD version(s) against the pin; %d are new and had no baseline",
 		compared, newKinds)
