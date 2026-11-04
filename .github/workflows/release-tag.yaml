@@ -65,6 +65,17 @@ jobs:
         run: |
           npm run generate-crds
 
+      # Gate the generated CRDs before they are proposed, not after. This is the workflow that
+      # produces what ships, and 1.8.20 shipped 44 unsatisfiable widget CRDs through it: every
+      # `resourcesRefsTemplate.items` required `id` while defining only `iterator` and `template`,
+      # which structural-schema pruning makes impossible to satisfy. crd-drift could not catch it
+      # (it compares the chart to the generator, and both agreed) and plumbing/crdgen's apiserver
+      # validation accepts it (legal OpenAPI, merely unsatisfiable). The test asserts the one thing
+      # neither of those asks: that an object with that field can exist.
+      - name: Assert every CRD can be satisfied
+        working-directory: crdgen
+        run: go test ./... -count=1
+
       - name: List files in /scripts/krateoctl-output
         working-directory: ui
         run: |

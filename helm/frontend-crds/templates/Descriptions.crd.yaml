@@ -131,8 +131,6 @@ spec:
                               - GET
                             type: string
                         type: object
-                    required:
-                      - id
                     type: object
                   type: array
                 widgetData:
