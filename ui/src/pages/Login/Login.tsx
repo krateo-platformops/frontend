@@ -103,7 +103,7 @@ const Login = () => {
         // something that is not a Kubernetes Status at all; the classifier takes `unknown` and
         // never throws, so a failed parse still produces the right advice from the status code.
         const body: unknown = await response.json().catch(() => null)
-        const { reason, text } = loginFailureCauseOf(response.status, body)
+        const { reason, text } = loginFailureCauseOf(response.status, body, 'password')
         /*
          * The reason is appended rather than shown alone: it is authn's vocabulary, not the
          * person's, but without it a support conversation starts from "it didn't work".

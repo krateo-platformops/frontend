@@ -8,6 +8,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useConfigContext } from '../../context/ConfigContext'
 import useCatchError from '../../hooks/useCatchError'
 import { invalidateAccessTokenCache } from '../../utils/getAccessToken'
+import type { LoginFailureCause } from '../../utils/loginFailureCause'
+import { loginFailureCauseOf } from '../../utils/loginFailureCause'
 import { resolveNextPath, SESSION_RESUME_NEXT_KEY } from '../../utils/nextPath'
 import type { AuthModeType, AuthRequestType, AuthResponseType } from '../Login/Login.types'
 import { takeSocialLoginState } from '../Login/SocialLogin/SocialLogin'
@@ -18,6 +20,12 @@ const Auth = () => {
 
   const [searchParams] = useSearchParams()
   const [showError, setShowError] = useState<boolean>(false)
+  /*
+   * Why the round trip failed, when authn told us. Null covers the two cases that carry no
+   * authn body at all: /strategies itself failing, and a state mismatch — so the Result below
+   * keeps its generic subtitle for those rather than inventing a cause.
+   */
+  const [failure, setFailure] = useState<LoginFailureCause | null>(null)
 
   const code = searchParams.get('code')
   const state = searchParams.get('state')
@@ -55,15 +63,51 @@ const Auth = () => {
         method: 'GET',
       })
 
-      const parsedResponse = await response.json() as AuthResponseType
+      /*
+       * Read the body ONCE, as `unknown`, and only then decide what it is. It used to be parsed as
+       * AuthResponseType unconditionally — a cast that is a lie on the failure path, where authn
+       * sends a Kubernetes Status, not a token — and the failure branch then ignored it entirely
+       * and printed `Login error (${status}: ${statusText})`. That is verbatim the defect
+       * loginFailureCause exists to remove, left in place on this path because before authn 0.35.0
+       * these routes answered 417/500 with no cause and there was nothing to classify.
+       *
+       * `.catch(() => null)` because a proxy between us and authn may answer with something that is
+       * not JSON at all; the classifier takes `unknown` and never throws, so a failed parse still
+       * produces the right advice from the status code.
+       */
+      const parsed: unknown = await response.json().catch(() => null)
 
       if (response.ok) {
-        return parsedResponse
+        return parsed as AuthResponseType
       }
+
+      /*
+       * `redirect`, not `password`: nobody typed anything to get here. That argument is what stops
+       * an unrecognised 4xx — including every cause authn adds after this file — from telling the
+       * person to check credentials on a page that has no password field.
+       */
+      const cause = loginFailureCauseOf(response.status, parsed, 'redirect')
+      setFailure(cause)
       catchError({
-        message: `Login error (${response.status}: ${response.statusText})`,
+        message: cause.reason === null ? cause.text : `${cause.text} (${cause.reason})`,
         status: response.status,
       }, 'notification')
+
+      /*
+       * THROW, so react-query marks the mutation as failed and `isSocialAuthError` becomes true.
+       *
+       * This branch used to fall off the end and return undefined, which react-query reads as a
+       * SUCCESSFUL mutation. `isSocialAuthError` therefore stayed false, `showError` was only ever
+       * set by the /strategies query failing, and a refused code left this page on
+       * "Authentication in progress..." indefinitely — the spinner below is the component's
+       * default state and nothing moved it. The only trace was a notification that dismisses
+       * itself, so the end state of a failed sign-in was a page that looked like it was still
+       * working. The <Result> was unreachable on this path.
+       *
+       * The message is for a developer reading the console; everything the person sees comes from
+       * `failure` above.
+       */
+      throw new Error(`social login failed (${response.status}${cause.reason === null ? '' : `: ${cause.reason}`})`)
     },
   })
 
@@ -74,7 +118,13 @@ const Auth = () => {
         name: methodData.name,
         url: methodData.path,
       }
-      const userData = await socialsAuthentication(request)
+      /*
+       * mutateAsync REJECTS when the exchange fails (see mutationFn). The rejection is deliberately
+       * swallowed here: react-query has already recorded it, `isSocialAuthError` drives the error
+       * view, and the person has been told both in the notification and in the <Result>. Letting it
+       * escape would only produce an unhandled rejection in the console.
+       */
+      const userData = await socialsAuthentication(request).catch(() => undefined)
 
       if (userData) {
         localStorage.setItem('K_user', JSON.stringify(userData))
@@ -121,10 +171,23 @@ const Auth = () => {
     showError
       ? (
         <Result
-          extra={<Link to='/login'>Return to the Login page</Link>}
-          status='warning'
-          subTitle='There seems to be an authentication problem using this method'
-          title='Authentication error'
+          /*
+           * On `restart` the link IS the remedy, so it says so. Labelling it "Return to the Login
+           * page" would describe the navigation rather than the action, and this is the one failure
+           * on this page where the person can finish the job themselves.
+           */
+          extra={(
+            <Link to='/login'>
+              {failure?.action === 'restart' ? 'Start the sign-in again' : 'Return to the Login page'}
+            </Link>
+          )}
+          status={failure?.action === 'escalate' ? 'error' : 'warning'}
+          /*
+           * The generic fallback is kept for the failures that carry no authn body: /strategies
+           * itself failing, and a state mismatch. Both are real and neither has a cause to show.
+           */
+          subTitle={failure?.text ?? 'There seems to be an authentication problem using this method'}
+          title={failure?.action === 'escalate' ? 'Sign-in unavailable' : 'Authentication error'}
         />
       )
       : (
