@@ -38,7 +38,10 @@
                         "type": "object",
                         "additionalProperties": true
                     }
-                }
+                },
+                "required": [
+                    "id"
+                ]
             }
         }
     }
