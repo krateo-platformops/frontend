@@ -17,11 +17,18 @@
  * challenge that went out, which is the only assertion that catches the two halves drifting apart.
  */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AuthModeType } from '../Login.types'
 
-import SocialLogin, { codeChallengeOf, SOCIAL_LOGIN_VERIFIER_KEY } from './SocialLogin'
+import SocialLogin, { __resetOauthVerifierSupport, codeChallengeOf, SOCIAL_LOGIN_VERIFIER_KEY } from './SocialLogin'
+
+vi.mock('../../../context/ConfigContext', () => ({
+  useConfigContext: () => ({
+    config: { api: { AUTHN_API_BASE_URL: 'http://authn.test' } },
+    isLoading: false,
+  }),
+}))
 
 /** Where the button sent us. jsdom has no navigation, so href is captured instead. */
 let navigatedTo = ''
@@ -56,9 +63,35 @@ const clickAndSettle = async (kind: string) => {
   return new URL(navigatedTo)
 }
 
+/**
+ * authn's /health, which the oauth arm consults: `/oauth/login` only forwards the PKCE verifier
+ * from 0.35.1 (authn#85), so below that a challenge would break every login on that provider.
+ * `version: null` stands for an unreachable or unparseable answer.
+ */
+const toUrl = (input: RequestInfo | URL): string => {
+  if (typeof input === 'string') { return input }
+  return input instanceof URL ? input.href : input.url
+}
+
+const installHealth = (version: string | null) => {
+  vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+    const url = toUrl(input)
+    if (!url.endsWith('/health')) {
+      return Promise.reject(new Error(`unexpected fetch: ${url}`))
+    }
+    return version === null
+      ? Promise.reject(new Error('unreachable'))
+      : Promise.resolve(new Response(JSON.stringify({ version }), { status: 200 }))
+  }))
+}
+
 beforeEach(() => {
   navigatedTo = ''
   localStorage.clear()
+  __resetOauthVerifierSupport()
+  // Default: an authn too old to carry the verifier, which is the state every cluster is in until
+  // installer rolls 0.35.2. The oauth cases below set it explicitly.
+  installHealth('0.35.0')
   Object.defineProperty(window, 'location', {
     configurable: true,
     value: {
@@ -72,6 +105,8 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   localStorage.clear()
+  __resetOauthVerifierSupport()
+  vi.unstubAllGlobals()
 })
 
 describe('SocialLogin PKCE gate', () => {
@@ -108,6 +143,47 @@ describe('SocialLogin PKCE gate', () => {
     // The rest of the flow is untouched.
     expect(url.searchParams.get('client_id')).toBe('krateo')
     expect(url.searchParams.get('state')).not.toBe('authn-original')
+  })
+
+  it('an OAuth flow DOES send a challenge once authn is new enough to forward the verifier', async () => {
+    // authn 0.35.1 is the first release whose /oauth/login forwards X-Code-Verifier (authn#85).
+    // The whole point of asking at runtime is that this turns itself on, with no follow-up PR and
+    // no constant that is true-today.
+    installHealth('0.35.1')
+    const url = await clickAndSettle('oauth')
+
+    expect(url.searchParams.get('code_challenge')).toMatch(/^[A-Za-z0-9_-]{43}$/)
+    expect(url.searchParams.get('code_challenge_method')).toBe('S256')
+    const verifier = localStorage.getItem(SOCIAL_LOGIN_VERIFIER_KEY)
+    expect(await codeChallengeOf(verifier!)).toBe(url.searchParams.get('code_challenge'))
+  })
+
+  it('a NEWER authn also counts — the comparison is a version, not an equality', async () => {
+    installHealth('1.2.3')
+    const url = await clickAndSettle('oauth')
+    expect(url.searchParams.has('code_challenge')).toBe(true)
+  })
+
+  it('an unreachable or unparseable /health FAILS CLOSED, which is today\'s behaviour', async () => {
+    // The worst case of a wrong answer must be the status quo, not a login nobody can complete.
+    const check = async (version: string | null) => {
+      __resetOauthVerifierSupport()
+      installHealth(version)
+      const url = await clickAndSettle('oauth')
+      expect(url.searchParams.has('code_challenge'), String(version)).toBe(false)
+      expect(localStorage.getItem(SOCIAL_LOGIN_VERIFIER_KEY), String(version)).toBeNull()
+    }
+    await check(null)
+    await check('not-a-version')
+    await check('')
+  })
+
+  it('OIDC never consults /health: it is unconditionally safe', async () => {
+    // authn forwards the verifier from /oidc/login in every release, so making oidc wait on a
+    // version probe would add a failure mode for no gain.
+    installHealth(null)
+    const url = await clickAndSettle('oidc')
+    expect(url.searchParams.has('code_challenge')).toBe(true)
   })
 
   it('an abandoned OIDC attempt cannot leak its verifier into a later OAuth login', async () => {

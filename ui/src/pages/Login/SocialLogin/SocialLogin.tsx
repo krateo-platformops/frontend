@@ -2,6 +2,7 @@ import type { IconProp } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Button } from 'antd'
 
+import { useConfigContext } from '../../../context/ConfigContext'
 import type { AuthModeType } from '../Login.types'
 
 import styles from './SocialLogin.module.css'
@@ -123,6 +124,63 @@ export const codeChallengeOf = async (verifier: string): Promise<string | null> 
  * let a later callback — including an OAuth one that carried no challenge — present a verifier that
  * is not its own, which the exchange then rejects.
  */
+/**
+ * The first authn release whose `/oauth/login` forwards `X-Code-Verifier` to the token endpoint
+ * (authn#85). Below it, an OAuth authorization request carrying a `code_challenge` reaches the IdP
+ * with no verifier behind it and EVERY login on that provider fails.
+ */
+const OAUTH_VERIFIER_FROM = [0, 35, 1]
+
+/** `major.minor.patch` as numbers, ignoring any suffix. Null when it is not a version at all. */
+const versionTuple = (raw: string): number[] | null => {
+  const parts = /^(\d+)\.(\d+)\.(\d+)/.exec(raw.trim())
+  return parts === null ? null : [Number(parts[1]), Number(parts[2]), Number(parts[3])]
+}
+
+const atLeast = (got: number[], want: number[]): boolean => {
+  for (let i = 0; i < want.length; i++) {
+    if (got[i] !== want[i]) { return got[i] > want[i] }
+  }
+  return true
+}
+
+/**
+ * Whether THIS cluster's authn forwards the PKCE verifier on the oauth route.
+ *
+ * WHY THIS IS A RUNTIME QUESTION RATHER THAN A CONSTANT. The alternative is a hardcoded
+ * `kind === 'oidc'` with a comment saying "flip this once 0.35.1 is pinned" — a condition that is
+ * true-today rather than true, which is the shape that rots: if the follow-up is forgotten, OAuth
+ * logins never get PKCE and nothing reports it. authn offered `/health` for exactly this, so the
+ * code asks instead of assuming, and the answer corrects itself when a cluster is upgraded.
+ *
+ * FAILS CLOSED. Unreachable, unparseable, or older than 0.35.1 all mean no PKCE on oauth — which is
+ * today's behaviour, so the worst case of a wrong answer is the status quo rather than a login
+ * nobody can complete.
+ *
+ * Memoised per base URL: the login page may render several social buttons and a person may click
+ * more than once, and this must not become a request per click.
+ */
+const oauthVerifierSupport = new Map<string, Promise<boolean>>()
+
+export const authnForwardsOAuthVerifier = (baseUrl: string): Promise<boolean> => {
+  const cached = oauthVerifierSupport.get(baseUrl)
+  if (cached !== undefined) { return cached }
+  const probe = fetch(`${baseUrl}/health`)
+    .then(async (response) => {
+      if (!response.ok) { return false }
+      const body = await response.json() as { version?: unknown }
+      const raw = typeof body.version === 'string' ? body.version : ''
+      const got = versionTuple(raw)
+      return got !== null && atLeast(got, OAUTH_VERIFIER_FROM)
+    })
+    .catch(() => false)
+  oauthVerifierSupport.set(baseUrl, probe)
+  return probe
+}
+
+/** Test seam: the memo is module-level and would otherwise leak between cases. */
+export const __resetOauthVerifierSupport = (): void => { oauthVerifierSupport.clear() }
+
 export const takeSocialLoginVerifier = (): string | null => {
   const sent = localStorage.getItem(SOCIAL_LOGIN_VERIFIER_KEY)
   localStorage.removeItem(SOCIAL_LOGIN_VERIFIER_KEY)
@@ -168,6 +226,10 @@ type SocialLoginType = {
   method: AuthModeType
 }
 const SocialLogin = ({ method }: SocialLoginType) => {
+  // BEFORE the early return below: a hook called after one runs conditionally, which React
+  // forbids and eslint catches.
+  const { config } = useConfigContext()
+
   if (!method.extensions?.authCodeURL || !method.graphics?.displayName) {
     return <></>
   }
@@ -179,20 +241,26 @@ const SocialLogin = ({ method }: SocialLoginType) => {
   }
 
   /**
-   * Whether to add PKCE to THIS flow.
+   * Whether to add PKCE to THIS flow, ASKED rather than assumed.
    *
-   * OIDC only, deliberately, and this is not caution — it is a hard constraint with a date on it.
    * authn forwards `X-Code-Verifier` to the token endpoint from `/oidc/login` and `/oidc/stepup`
-   * but NOT from `/oauth/login`, which still calls Exchange with no verifier option. Sending a
-   * challenge on an OAuth flow would therefore give the IdP a challenge and no verifier, and EVERY
-   * such login would fail — demo's social login is GitHub OAuth, so this would take demo's sign-in
-   * out entirely. authn is adding the forwarding; turn this on for `oauth` only once a release with
-   * that fix is pinned, and not before.
+   * unconditionally, so oidc is always safe. `/oauth/login` only forwards it from authn 0.35.1
+   * (authn#85) — below that, a challenge reaches the IdP with no verifier behind it and EVERY login
+   * on that provider fails. demo's social login is GitHub OAuth, so getting this wrong takes
+   * demo's sign-in out entirely.
    *
-   * An IdP that does not implement PKCE ignores both parameters (RFC 7636 §5), so there is no
-   * provider to exclude here — only the authn route that cannot carry the other half yet.
+   * So the oauth arm asks the cluster's own authn what version it is, rather than carrying a
+   * constant that is true-today. An IdP that does not implement PKCE ignores both parameters
+   * (RFC 7636 §5), so there is no provider to exclude — only the authn route that may not be able
+   * to carry the other half.
    */
-  const usesPkce = method.kind === 'oidc'
+  const authnBase = config?.api.AUTHN_API_BASE_URL ?? ''
+
+  const usesPkce = async (): Promise<boolean> => {
+    if (method.kind === 'oidc') { return true }
+    if (method.kind !== 'oauth' || authnBase === '') { return false }
+    return authnForwardsOAuthVerifier(authnBase)
+  }
 
   const onSubmit = async () => {
     if (!method.extensions?.authCodeURL) {
@@ -208,7 +276,7 @@ const SocialLogin = ({ method }: SocialLoginType) => {
     localStorage.removeItem(SOCIAL_LOGIN_VERIFIER_KEY)
 
     let codeChallenge: string | null = null
-    if (usesPkce) {
+    if (await usesPkce()) {
       const verifier = newCodeVerifier()
       codeChallenge = await codeChallengeOf(verifier)
       // Stash the verifier IFF the challenge will actually be sent — see socialLoginURL.
