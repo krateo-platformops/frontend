@@ -40,6 +40,7 @@ const CRD_GLOB = join(process.cwd(), '..', 'helm', 'frontend-crds', 'templates',
 const OUTPUT = join(process.cwd(), 'src', 'pages', 'PageBuilder', 'widgetKinds.generated.ts')
 
 interface Schema {
+  enum?: string[]
   properties?: Record<string, Schema>
   required?: string[]
   items?: Schema
@@ -129,6 +130,7 @@ const build = async (): Promise<string> => {
       `    plural: ${JSON.stringify(plural)},`,
       `    container: ${holdsChildren(widgetData)},`,
       `    slots: ${JSON.stringify(namedSlots(widgetData))},`,
+      `    accepts: ${JSON.stringify(widgetData.properties?.allowedResources?.items?.enum ?? null)},`,
       `    required: ${JSON.stringify(widgetData.required ?? [])},`,
       `    schema: ${JSON.stringify(widgetData)},`,
       '  },',
@@ -149,6 +151,8 @@ const build = async (): Promise<string> => {
     '  container: boolean',
     '  /** NAMED single-reference slots — a Card\'s cover, a Layout\'s header. Each holds one refId. */',
     '  slots: readonly string[]',
+    '  /** What this KIND can ever hold, from its CRD enum. null: it declares no children. */',
+    '  accepts: readonly string[] | null',
     '  /** widgetData fields the CRD REQUIRES — what a drop has to ask for before it can create one. */',
     '  required: readonly string[]',
     '  /** The widgetData schema, for the drop form. It is JSON Schema, which SchemaForm renders. */',

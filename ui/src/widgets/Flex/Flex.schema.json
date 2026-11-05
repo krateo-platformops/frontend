@@ -27,37 +27,7 @@
               "description": "the list of resources that are allowed to be children of this widget or referenced by it",
               "type": "array",
               "items": {
-                "type": "string",
-                "enum": [
-                  "barcharts",
-                  "buttongroups",
-                  "buttons",
-                  "cards",
-                  "cols",
-                  "dividers",
-                  "filters",
-                  "flexes",
-                  "flowcharts",
-                  "forms",
-                  "images",
-                  "inputs",
-                  "linecharts",
-                  "listies",
-                  "markdowns",
-                  "menus",
-                  "pageheaders",
-                  "paragraphs",
-                  "piecharts",
-                  "rangepickers",
-                  "rows",
-                  "selects",
-                  "statistics",
-                  "steps",
-                  "tables",
-                  "tabs",
-                  "tags",
-                  "yamlviewers"
-                ]
+                "type": "string"
               }
             },
             "vertical": {
@@ -270,7 +240,7 @@
             },
             "additionalProperties": false
           },
-          "description": "Generates resourcesRefs entries from the apiRef response \u2014 one per element the iterator yields \u2014 so a widget can reference a list whose length it does not know when authored."
+          "description": "Generates resourcesRefs entries from the apiRef response — one per element the iterator yields — so a widget can reference a list whose length it does not know when authored."
         }
       },
       "required": [

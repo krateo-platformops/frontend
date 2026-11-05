@@ -81,6 +81,22 @@ describe('canAccept — type legality and editability', () => {
   })
 })
 
+describe('canAccept — what the KIND can ever hold', () => {
+  it('a kind rule beats everything: the apiserver would refuse the container at publish', () => {
+    expect(canAccept(find('row-one'), 'themes')).toBe(false)
+    expect(canAccept(find('row-one'), 'layouts')).toBe(false)
+    expect(canAccept(find('row-one'), 'qrcodes')).toBe(true)
+  })
+
+  it('a declaration cannot widen it', () => {
+    const tree = buildObjectTree({
+      'templates/row.yaml': cr('Row', 'declared', [], ['themes']),
+    })
+    const [row] = flattenTree(tree)
+    expect(canAccept(row, 'themes')).toBe(false)
+  })
+})
+
 describe('canAccept — what the container declares it holds', () => {
   it('honours a NON-EMPTY declaration: a plural outside it is refused', () => {
     const flex = declaring(['cards', 'rows'])
@@ -95,7 +111,7 @@ describe('canAccept — what the container declares it holds', () => {
   })
 
   it('an ABSENT declaration permits — the author has not said', () => {
-    expect(canAccept(declaring(undefined), 'anything-at-all')).toBe(true)
+    expect(canAccept(declaring(undefined), 'qrcodes')).toBe(true)
   })
 
   it('reads the declaration PER CONTAINER, not per kind', () => {

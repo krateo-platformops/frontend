@@ -1,14 +1,16 @@
 /**
  * Which containers can accept a dragged widget — the legality kernel behind drag & drop.
  *
- * Three constraints, different in kind:
+ * Four constraints, different in kind:
  *
  *   1. IS IT A CONTAINER AT ALL. Only `LAYOUT_KINDS` carry `widgetData.items` +
  *      `allowedResources`; a Paragraph holds nothing and never can.
- *   2. DOES THIS CONTAINER SAY IT HOLDS THIS, read from its OWN
+ *   2. CAN THIS KIND EVER HOLD THIS, from the enum on its CRD (`WIDGET_KINDS[kind].accepts`). The
+ *      apiserver refuses anything outside it, so offering the drop would fail at publish.
+ *   3. DOES THIS CONTAINER SAY IT HOLDS THIS, read from its OWN
  *      `spec.widgetData.allowedResources` — see below, because this reverses what an earlier
  *      version of this file asserted.
- *   3. CAN WE EDIT THE PARENT. A child is a reference held by its parent, so placing one rewrites
+ *   4. CAN WE EDIT THE PARENT. A child is a reference held by its parent, so placing one rewrites
  *      the PARENT's file. A node the draft does not carry (`drafted: false`, an existing cluster
  *      widget) has no file to rewrite and cannot take a child, however legal the type would be.
  *
@@ -16,18 +18,15 @@
  * descendants, or the tree stops being a tree. That check needs the moving NODE, not its plural,
  * which is why `legalTargets` takes one and `canAccept` does not.
  *
- * WHERE THE PERMISSION COMES FROM, CORRECTED. This module used to take an injected map of
- * kind -> permitted plurals, on the stated grounds that `allowedResources` is "an ENUM on the
- * container's CRD, so a plural outside it is rejected at apply". That is false, and was checked
- * against the live CRDs: cards, rows, cols, tabs and flexes all type the field `string[]` with NO
- * enum, deliberately — the CRD's own description records that the per-widget enums drifted and
- * enforced nothing. Nothing rejects a placement at apply: not OpenAPI, not a webhook, not the
- * renderer. The only thing that reads the field back is the portal chart's design lint (rule X5).
+ * TWO LEVELS. The CRD enum says what a KIND can ever hold (scripts/containment.ts), and it is
+ * generated into this bundle, so there is no discovery and nothing to go stale. It does not say what
+ * a given CR is for: `allowedResources` is per-CR, so two Flexes on one page may legitimately declare
+ * different slots, and a map keyed by kind cannot express that. The declaration lives in the draft
+ * the canvas already holds, so it is read off the node. Both apply, and the kind rule binds first:
+ * no declaration and no `allowedDerived` can make a drop legal that the apiserver would refuse.
  *
- * The map was the wrong SHAPE for the real thing too. `allowedResources` is per-CR, so two Flexes
- * on one page may legitimately declare different slots, and a map keyed by kind cannot express
- * that. The declaration lives in the draft the canvas already holds, so it is read off the node
- * rather than fetched or injected — no discovery, nothing to go stale.
+ * NEITHER LEVEL IS CONNECTED TO THE RENDERER. A child outside its parent's declaration still renders,
+ * which is why the portal chart's design lint (rule X5) reads the declaration back.
  *
  * EMPTY MEANS UNCONSTRAINED, NOT "HOLDS NOTHING". The CRD requires the key, so `newContainerYaml`
  * writes `allowedResources: []` and every freshly created container starts there. Treating empty
@@ -51,6 +50,7 @@
  */
 import type { TreeNode } from './objectTree'
 import { LAYOUT_KINDS } from './structureEdit'
+import { WIDGET_KINDS } from './widgetKinds.generated'
 
 const isContainerKind = (kind: string | null): boolean =>
   !!kind && Object.prototype.hasOwnProperty.call(LAYOUT_KINDS, kind)
@@ -69,6 +69,12 @@ export const canAccept = (node: TreeNode, childPlural: string): boolean => {
     return false
   }
   if (!childPlural) {
+    return false
+  }
+  // The kind's own limit, before anything about this instance: outside it the apiserver refuses the
+  // container at publish, whatever the draft says.
+  const accepts = node.kind ? WIDGET_KINDS[node.kind]?.accepts : null
+  if (accepts && !accepts.includes(childPlural)) {
     return false
   }
   // WHO WROTE IT DECIDES WHETHER IT IS A RULE.

@@ -139,64 +139,13 @@ spec:
                   description: The properties Menu renders. Where Menu wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
                     allowedResources:
-                      description: the resource plurals this container may hold as children. The enum is the VOCABULARY — every real widget plural — so a typo or a non-widget kind is refused by the apiserver. WHICH of them a given container actually accepts is this instance's own declaration, checked against its real children by the chart lint (design rule X5).
+                      description: the resource plurals this container may hold as children. The enum is what this KIND can ever hold, by role. WHICH of them this instance accepts is its own declaration, checked against its real children by the X5 lint. Empty means unconstrained.
                       items:
                         type: string
                         enum:
-                          - alerts
-                          - badges
-                          - barcharts
-                          - breadcrumbs
-                          - buttongroups
-                          - buttons
-                          - cards
-                          - checkboxes
-                          - cols
-                          - columns
-                          - datagrids
-                          - datepickers
-                          - descriptions
-                          - dividers
-                          - eventlists
-                          - filters
                           - flexes
-                          - flowcharts
-                          - forms
-                          - images
-                          - inputnumbers
-                          - inputs
-                          - layouts
-                          - linecharts
-                          - listies
-                          - markdowns
-                          - menus
                           - navmenuitems
-                          - navmenus
-                          - pageheaders
                           - pages
-                          - panels
-                          - paragraphs
-                          - piecharts
-                          - progresses
-                          - qrcodes
-                          - radios
-                          - rangepickers
-                          - results
-                          - routes
-                          - routesloaders
-                          - rows
-                          - selects
-                          - sliders
-                          - statistics
-                          - steps
-                          - switches
-                          - tables
-                          - tablists
-                          - tabs
-                          - tags
-                          - themes
-                          - uploads
-                          - yamlviewers
                       type: array
                     items:
                       description: navigation entries (inline nav data); each references its content widget by resourceRefId or resolves via the path → flexes/page-<slug> convention. A label-less item registers a route with no sidebar entry.

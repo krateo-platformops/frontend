@@ -47,7 +47,7 @@ export interface PageHeader {
       /**
        * the list of resources that are allowed to be children of this widget or referenced by it
        */
-      allowedResources?: ('buttons' | 'buttongroups' | 'flexes')[]
+      allowedResources?: string[]
       /**
        * the page's actions, rendered on ONE row on the right edge, vertically centred on the title and subtitle together (level with the title when there is no subtitle); never stacked (design rule P26). At most one should be `type: primary`
        */

@@ -147,7 +147,7 @@ spec:
                         - stretch
                       type: string
                     allowedResources:
-                      description: the resource plurals this container may hold as children. The enum is the VOCABULARY — every real widget plural — so a typo or a non-widget kind is refused by the apiserver. WHICH of them a given container actually accepts is this instance's own declaration, checked against its real children by the chart lint (design rule X5).
+                      description: the resource plurals this container may hold as children. The enum is what this KIND can ever hold, by role. WHICH of them this instance accepts is its own declaration, checked against its real children by the X5 lint. Empty means unconstrained.
                       items:
                         type: string
                         enum:
@@ -173,7 +173,6 @@ spec:
                           - images
                           - inputnumbers
                           - inputs
-                          - layouts
                           - linecharts
                           - listies
                           - markdowns
@@ -202,7 +201,6 @@ spec:
                           - tablists
                           - tabs
                           - tags
-                          - themes
                           - uploads
                           - yamlviewers
                       type: array

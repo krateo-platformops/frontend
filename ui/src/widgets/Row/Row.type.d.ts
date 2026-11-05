@@ -18,31 +18,7 @@ export interface Row {
       /**
        * the list of resources that are allowed to be children of this widget or referenced by it
        */
-      allowedResources: (
-        | 'barcharts'
-        | 'buttongroups'
-        | 'buttons'
-        | 'cards'
-        | 'cols'
-        | 'dividers'
-        | 'filters'
-        | 'flexes'
-        | 'flowcharts'
-        | 'forms'
-        | 'linecharts'
-        | 'listies'
-        | 'markdowns'
-        | 'pageheaders'
-        | 'paragraphs'
-        | 'piecharts'
-        | 'rangepickers'
-        | 'rows'
-        | 'statistics'
-        | 'tables'
-        | 'tabs'
-        | 'tags'
-        | 'yamlviewers'
-      )[]
+      allowedResources: string[]
       /**
        * vertical alignment of items in the row (antd Row `align`). Default is 'stretch' (columns fill the row height so sibling cards stay equal-height when one wraps); set 'top'/'middle'/'bottom' to opt out
        */

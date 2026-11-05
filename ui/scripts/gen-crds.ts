@@ -8,6 +8,8 @@ import chalk from 'chalk'
 import { glob } from 'glob'
 import yaml from 'js-yaml'
 
+import { containmentFor, HOLDS_NOTHING } from './containment'
+
 const asyncExec = promisify(exec)
 
 const WIDGETS_DIR = join(process.cwd(), 'src', 'widgets')
@@ -191,44 +193,27 @@ async function injectFreshness(crdPath: string): Promise<void> {
 /**
  * Normalize `spec.widgetData.allowedResources` into the COMMON container contract.
  *
- * Every widget that resolves children declares this field, and it is typed `string[]` with NO
- * enum. Both halves of that are deliberate.
+ * Every widget that resolves children declares this field. It was on seven kinds and absent from
+ * others that resolve children just as dynamically (`Card`, `Filters`, `Form`, `Steps`), with no
+ * principle separating the two groups, and a field that means something on `Flex` and nothing on
+ * `Card` is not a contract. `Breadcrumb` and `Descriptions` are the exception: their `items` are
+ * plain data, so they lose the field here (HOLDS_NOTHING).
  *
- * WHY IT IS ON EVERY CONTAINER: it was on seven kinds and absent from six others that resolve
- * children just as dynamically (`Breadcrumb`, `Card`, `Descriptions`, `Filters`, `Form`, `Steps`),
- * with no principle separating the two groups. A field that means something on `Flex` and nothing
- * on `Card` is not a contract.
+ * TWO LEVELS, AND THEY ANSWER DIFFERENT QUESTIONS:
  *
- * NO PER-WIDGET ENUM, AND A DERIVED VOCABULARY ENUM INSTEAD. The hand-maintained per-widget enums
- * were deleted because they had drifted into nonsense: `Flex` listed 28 kinds, `Col` and `Row` 23,
- * `Table` 11, and `Menu` named exactly two — `navmenuitems` and `pages` — BOTH removed in the
- * routing refactor. Dead values in a live enum. Nothing could tell whether `Flex` permitting
- * `images` while `Col` did not was design or drift, and adding one widget kind meant editing six
- * frozen lists by hand.
+ *   the CRD enum  = the KIND. What this kind can ever hold, by role (scripts/containment.ts).
+ *                   Written by `injectContainment` once every plural is known. It refuses a typo
+ *                   (`buton`), a non-widget kind (`deployments`) and a kind this one has no use for.
+ *   the X5 lint   = the INSTANCE. Every actual child is within that CR's own declaration, which
+ *                   says what THAT slot is for: of 97 live Flex CRs, each lists between 1 and 11.
  *
- * Measured before restoring anything, across four clusters: seeding an enum from those lists would
- * have REJECTED live CRs in four kinds — Flex (alerts, descriptions, results), Menu (flexes, its
- * only live value), Row (descriptions), Tabs (flexes). They were not merely stale, they were wrong
- * against production.
- *
- * SO THE ENUM THIS FILE NOW WRITES IS AT A DIFFERENT LEVEL, and that distinction is the whole
- * design. `allowedResources` is a PER-INSTANCE declaration: of 97 live Flex CRs, each lists
- * between 1 and 11 plurals describing what THAT slot is for. A per-widget-kind enum caps what any
- * instance may say, which cannot express "this slot holds cards and paragraphs" and is a blunter
- * constraint than the thing it would replace. So:
- *
- *   the CRD enum  = the VOCABULARY. Every real widget plural plus the retired plurals seen live.
- *                   It refuses a typo (`buton`) and a non-widget kind (`deployments`). It WOULD
- *                   also refuse a retired plural nobody has measured yet, on a cluster we cannot
- *                   reach: see LEGACY_ALLOWED_RESOURCES.
- *   the X5 lint   = the POLICY. Every actual child is within that instance's own declaration.
- *
- * Non-overlapping: X5 compares children against the declaration and never checks the declaration's
- * vocabulary, so a declared `panels` passes it today. The enum closes exactly that gap.
+ * The enums hand-written in the schemas were deleted because they had drifted: seeding from them
+ * would have refused live CRs in four kinds. That rules out those lists, not a kind-level rule,
+ * which is why the rule now lives in one table and derives what it can.
  */
 async function normalizeAllowedResources(crdPath: string): Promise<boolean> {
   const doc = yaml.load(await fs.readFile(crdPath, 'utf8')) as {
-    spec?: { versions?: Array<{ schema?: { openAPIV3Schema?: { properties?: { spec?: { properties?: { widgetData?: { properties?: Record<string, unknown> } } } } } } }> }
+    spec?: { names?: { kind?: string }; versions?: Array<{ schema?: { openAPIV3Schema?: { properties?: { spec?: { properties?: { widgetData?: { properties?: Record<string, unknown> } } } } } } }> }
   }
   const wd = doc.spec?.versions?.[0]?.schema?.openAPIV3Schema?.properties?.spec?.properties?.widgetData
   // Only containers. Most declare children through `items`, but not all: `Table` resolves them
@@ -237,9 +222,15 @@ async function normalizeAllowedResources(crdPath: string): Promise<boolean> {
   // first pass. Already having the field is therefore also proof of containerhood.
   const isContainer = !!wd?.properties && ('items' in wd.properties || 'allowedResources' in wd.properties)
   if (!isContainer || !wd?.properties) { return false }
+  if (HOLDS_NOTHING.includes(doc.spec?.names?.kind ?? '')) {
+    if (!('allowedResources' in wd.properties)) { return false }
+    delete wd.properties.allowedResources
+    await fs.writeFile(crdPath, yaml.dump(doc, { lineWidth: -1, noRefs: true }))
+    return true
+  }
   const before = JSON.stringify(wd.properties.allowedResources ?? null)
   wd.properties.allowedResources = {
-    description: 'the resource plurals this container may hold as children. The enum is the VOCABULARY — every real widget plural — so a typo or a non-widget kind is refused by the apiserver. WHICH of them a given container actually accepts is this instance\'s own declaration, checked against its real children by the chart lint (design rule X5).',
+    description: 'the resource plurals this container may hold as children. The enum is what this KIND can ever hold, by role. WHICH of them this instance accepts is its own declaration, checked against its real children by the X5 lint. Empty means unconstrained.',
     items: { type: 'string' },
     type: 'array',
   }
@@ -271,16 +262,17 @@ const LEGACY_ALLOWED_RESOURCES = [
 ] as const
 
 /**
- * Write the vocabulary enum into every container's `allowedResources`, AFTER every CRD exists.
+ * Write each container's kind-level enum (scripts/containment.ts) into its `allowedResources`, AFTER
+ * every CRD exists.
  *
- * A second pass rather than part of the per-schema one, because the vocabulary is every widget's
- * plural and no single-schema pass knows them. The plurals are read from the GENERATED CRDs rather
+ * A second pass rather than part of the per-schema one, because a general layout's list is every
+ * widget's plural and no single-schema pass knows them. The plurals are read from the GENERATED CRDs rather
  * than derived from the kind: 9 of the 44 are not `kind.toLowerCase() + 's'` — `Listy` is
  * `listies`, `Flex` is `flexes`, `Checkbox` is `checkboxes`, `Switch` is `switches`, `Progress` is
  * `progresses`, and `Descriptions`/`Filters`/`Steps`/`Tabs` are already plural — so a derivation
  * rule would be wrong for a fifth of them and wrong in a way that REJECTS valid values.
  */
-async function injectContainmentVocabulary(expectedKinds: number): Promise<number> {
+async function injectContainment(expectedKinds: number): Promise<number> {
   const files = await glob('*.crd.yaml', { absolute: true, cwd: OUTPUT_DIR })
   const plurals: string[] = []
   const docs = new Map<string, Record<string, unknown>>()
@@ -297,7 +289,7 @@ async function injectContainmentVocabulary(expectedKinds: number): Promise<numbe
   // produces a generation error, while a short enum produces a valid CRD that refuses real pages.
   if (plurals.length < expectedKinds) {
     throw new Error(
-      `refusing to write the allowedResources vocabulary from ${plurals.length} CRD(s) when `
+      `refusing to write the allowedResources enums from ${plurals.length} CRD(s) when `
       + `${expectedKinds} schemas were processed: a truncated vocabulary is a valid CRD that `
       + `refuses values live pages already use`,
     )
@@ -310,7 +302,8 @@ async function injectContainmentVocabulary(expectedKinds: number): Promise<numbe
       .spec?.versions?.[0]?.schema?.openAPIV3Schema?.properties?.spec?.properties?.widgetData
     const ar = wd?.properties?.allowedResources
     if (!ar?.items) { continue }
-    ar.items.enum = vocabulary
+    const { kind = '' } = ((doc.spec as Record<string, unknown> | undefined)?.names ?? {}) as { kind?: string }
+    ar.items.enum = containmentFor(kind, vocabulary)
     // eslint-disable-next-line no-await-in-loop
     await fs.writeFile(file, yaml.dump(doc, { lineWidth: -1, noRefs: true }))
     touched += 1
@@ -349,7 +342,7 @@ async function runKrateoctl(schemaPath: string) {
     await injectKeyExtras(destinationPath)
     // Opt-in staleness badge: every widget CRD carries the `freshness` opt-in flag.
     await injectFreshness(destinationPath)
-    // X5: every CONTAINER carries `allowedResources`, typed string[] with no enum.
+    // X5: every CONTAINER carries `allowedResources`; its enum is written after the loop.
     const containment = await normalizeAllowedResources(destinationPath)
 
     console.log(`✅ ${chalk.green(finalName)} moved to ${chalk.gray(OUTPUT_DIR)}${containment ? chalk.yellow(' (allowedResources → common contract)') : ''}`)
@@ -394,11 +387,11 @@ async function main() {
     }
   }
 
-  // AFTER the loop: the vocabulary is every widget's plural, so it is only knowable once every
-  // CRD exists. Failing here fails the run — a CRD set whose enum was never written is a CRD set
-  // that silently stops refusing typos.
-  const vocabTouched = await injectContainmentVocabulary(schemaFiles.length)
-  console.log(`\n🔤 allowedResources vocabulary written into ${vocabTouched} container CRD(s)`)
+  // AFTER the loop: a general layout takes every widget's plural, so its list is only knowable once
+  // every CRD exists. Failing here fails the run: a CRD set whose enum was never written is a CRD
+  // set that silently stops refusing typos.
+  const enumsWritten = await injectContainment(schemaFiles.length)
+  console.log(`\n🔤 allowedResources enums written into ${enumsWritten} container CRD(s)`)
 
   console.log('\n📊 Summary:')
   console.log(`Total schemas: ${schemaFiles.length}`)

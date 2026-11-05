@@ -22,22 +22,7 @@ export interface ButtonGroup {
       /**
        * the list of resources that are allowed to be children of this widget or referenced by it
        */
-      allowedResources: (
-        | 'barcharts'
-        | 'buttons'
-        | 'filters'
-        | 'flowcharts'
-        | 'forms'
-        | 'linecharts'
-        | 'markdowns'
-        | 'cards'
-        | 'paragraphs'
-        | 'piecharts'
-        | 'rangepickers'
-        | 'tables'
-        | 'tabs'
-        | 'yamlviewers'
-      )[]
+      allowedResources: string[]
       /**
        * antd Space size — spacing between items
        */

@@ -18,36 +18,7 @@ export interface Flex {
       /**
        * the list of resources that are allowed to be children of this widget or referenced by it
        */
-      allowedResources: (
-        | 'barcharts'
-        | 'buttongroups'
-        | 'buttons'
-        | 'cards'
-        | 'cols'
-        | 'dividers'
-        | 'filters'
-        | 'flexes'
-        | 'flowcharts'
-        | 'forms'
-        | 'images'
-        | 'inputs'
-        | 'linecharts'
-        | 'listies'
-        | 'markdowns'
-        | 'menus'
-        | 'pageheaders'
-        | 'paragraphs'
-        | 'piecharts'
-        | 'rangepickers'
-        | 'rows'
-        | 'selects'
-        | 'statistics'
-        | 'steps'
-        | 'tables'
-        | 'tabs'
-        | 'tags'
-        | 'yamlviewers'
-      )[]
+      allowedResources: string[]
       /**
        * antd Flex vertical (column direction)
        */

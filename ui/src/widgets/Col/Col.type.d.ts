@@ -18,31 +18,7 @@ export interface Col {
       /**
        * the list of resources that are allowed to be children of this widget or referenced by it
        */
-      allowedResources: (
-        | 'barcharts'
-        | 'buttongroups'
-        | 'buttons'
-        | 'cards'
-        | 'cols'
-        | 'dividers'
-        | 'filters'
-        | 'flexes'
-        | 'flowcharts'
-        | 'forms'
-        | 'linecharts'
-        | 'listies'
-        | 'markdowns'
-        | 'pageheaders'
-        | 'paragraphs'
-        | 'piecharts'
-        | 'rangepickers'
-        | 'rows'
-        | 'statistics'
-        | 'tables'
-        | 'tabs'
-        | 'tags'
-        | 'yamlviewers'
-      )[]
+      allowedResources: string[]
       /**
        * the items of the column
        */
