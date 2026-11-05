@@ -253,7 +253,7 @@ Four variants for the same mechanism: *“Ask Autopilot →”* (builder pages),
 **The page** when Autopilot is the page's whole workflow. Then it is one of the header's actions,
 and sits where [P26](03-composition.md) puts every header action: on the trailing edge, on one
 row with the others, centred on the title and subtitle together (level with the title when there is
-no subtitle). It looks as [A4](#a4--one-canonical-look-for-open-autopilot-with-a-seeded-prompt-ask-autopilot--with-the-magic-wand-icon)
+no subtitle). It looks as [A4](#a4--one-canonical-look-for-open-agentiko-with-a-seeded-prompt-ask-agentiko--with-the-magic-wand-icon)
 says: filled, wand, `Ask Agentiko →`.
 
 Never a bare item in a page's top-level stack.
