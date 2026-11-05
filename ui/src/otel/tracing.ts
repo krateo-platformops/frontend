@@ -10,6 +10,7 @@ import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
 
 import { getAccessToken } from '../utils/getAccessToken'
 
+import { tracesEndpointOf } from './endpoint'
 import { ContractSpanProcessor, redactUrlAttributes } from './spanContract'
 
 /**
@@ -77,7 +78,7 @@ let initialized = false
  * and inject W3C traceparent on the allow-listed backend origins.
  *
  * This module is dynamically imported and only invoked when
- * `config.api.OTEL_COLLECTOR_URL` is set, so the default runtime path (no key)
+ * a traces endpoint is set (see endpoint.ts), so the default runtime path (no key)
  * ships byte-identical behaviour: no provider, no instrumentation, no headers.
  */
 export function initTracing(cfg: TracingConfig): void {
@@ -85,10 +86,16 @@ export function initTracing(cfg: TracingConfig): void {
     return
   }
 
-  const tracesEndpoint = cfg.api.OTEL_TRACES_ENDPOINT ?? cfg.api.OTEL_COLLECTOR_URL
+  const tracesEndpoint = tracesEndpointOf(cfg.api)
   if (!tracesEndpoint) {
     return
   }
+
+  // The export's own POST must never become a span. It goes through the patched `fetch` and sits
+  // under the snowplow prefix, so if it were instrumented it would be renamed
+  // `krateo.widget.fetch` and shipped by the next batch, and an idle tab would export forever.
+  // Absolute, because the instrumentation compares against the resolved URL.
+  const ignoreUrls = [new URL(tracesEndpoint, window.location.origin).href]
 
   initialized = true
 
@@ -164,12 +171,14 @@ export function initTracing(cfg: TracingConfig): void {
           redactUrlAttributes(span, snowplowPrefix)
         },
         clearTimingResources: true,
+        ignoreUrls,
         propagateTraceHeaderCorsUrls,
       }),
       new XMLHttpRequestInstrumentation({
         applyCustomAttributesOnSpan: (span) => {
           redactUrlAttributes(span, snowplowPrefix)
         },
+        ignoreUrls,
         propagateTraceHeaderCorsUrls,
       }),
     ],
