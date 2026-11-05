@@ -89,7 +89,7 @@ describe('useDraftResume', () => {
 
     act(() => { emitDraftResumeResult({ id: asked[1].id, outcome: 'resumed', previewed: true, relinked: true }) })
     expect(await screen.findByText(/^Restored from your drafts — last saved/)).toBeTruthy()
-    expect(screen.getByText('The chart is exactly as you left it, and Undo starts here. Autopilot\'s thread is re-linked.')).toBeTruthy()
+    expect(screen.getByText('The chart is exactly as you left it, and Undo starts here. Agentiko\'s thread is re-linked.')).toBeTruthy()
   })
 
   it('Cancel sends nothing', async () => {

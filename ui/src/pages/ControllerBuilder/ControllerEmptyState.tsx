@@ -15,7 +15,7 @@ import { findDraftKindPlugin } from '../../builders/draftKinds'
 import { dismissButtonProps } from '../../components/DismissButton'
 import { WidgetEmpty } from '../../components/WidgetStates'
 
-export const CONTROLLER_EMPTY = 'No controller open. Start one here, or ask Autopilot to draft one — either way you review every file before anything is published.'
+export const CONTROLLER_EMPTY = 'No controller open. Start one here, or ask Agentiko to draft one — either way you review every file before anything is published.'
 
 export const ControllerEmptyState = ({ builder, held, onDiscard, onStart, parked }: {
   /** This composer's Builder label. */

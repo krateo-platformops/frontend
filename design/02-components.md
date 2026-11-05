@@ -384,11 +384,11 @@ A unit test asserts the confirm outranks everything and that no two surfaces sha
 trapped-gate bug — a publish confirm opening behind the preview and becoming untouchable — is the
 reason this is a test rather than a comment.
 
-There are **three independent drawer surfaces**, each owning its own open state, with nothing coordinating them: the widget `Drawer` mounted once in the shell, the `Notifications` drawer, and the Autopilot `previewSurface`. Any of them can be open while another is.
+There are **three independent drawer surfaces**, each owning its own open state, with nothing coordinating them: the widget `Drawer` mounted once in the shell, the `Notifications` drawer, and the Agentiko `previewSurface`. Any of them can be open while another is.
 
 Within the widget drawer there is exactly one instance — a module-level `{isOpen, properties}` object that `openDrawer` overwrites. That is deliberate: the drawer sits in a subtree React remounts whenever the router version bumps or the layout refreshes, so React state would close an open drawer under the user every 30–90 seconds.
 
-**The replacement consequence:** calling `openDrawer` while a widget drawer is open swaps its contents silently, and `destroyOnHidden` tears the old content down. A partly-filled form is gone — no prompt, no undo. So never place an `openDrawer` action inside a drawer, and if the dead `openDrawer` Autopilot verb (A6) is implemented it must refuse rather than replace.
+**The replacement consequence:** calling `openDrawer` while a widget drawer is open swaps its contents silently, and `destroyOnHidden` tears the old content down. A partly-filled form is gone — no prompt, no undo. So never place an `openDrawer` action inside a drawer, and if the dead `openDrawer` Agentiko verb (A6) is implemented it must refuse rather than replace.
 
 **Cross-surface stacking is real, and in one case intended.** During a portal-builder preview the preview drawer deliberately drops its dimming mask and shifts left by the rail's width so the preview and the conversation stay visible and interactive together. That is a designed side-by-side, not an accident.
 
@@ -557,7 +557,7 @@ the colour would stop warning about the one that cannot be undone.
 The check reads labels, because a label is the only place a CR — or a `<Button>` in the app — says
 which role it has. The app-side test also requires the Cancel that antd draws inside every
 `Popconfirm`, `Modal` and confirm dialog to carry `dismissButtonProps`, since no label in the code
-names that button. A native `<button>` is outside both checks: the one there is (the Autopilot voice
+names that button. A native `<button>` is outside both checks: the one there is (the Agentiko voice
 row's *Cancel*) is styled amber in its own stylesheet.
 
 > **Decided 2026-10-08.** Reported on *Close draft*, which looked exactly like *Preview* and *Undo*

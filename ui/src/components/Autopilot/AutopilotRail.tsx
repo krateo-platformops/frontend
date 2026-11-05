@@ -307,7 +307,7 @@ const AutopilotRail = () => {
       ) : null}
       <div className={styles.apRailInner}>
         <div className={styles.apHead}>
-          <span className={styles.apTitle}><SparkIcon className={styles.apSpark} />Autopilot</span>
+          <span className={styles.apTitle}><SparkIcon className={styles.apSpark} />Agentiko</span>
           <span className={`${styles.apLive} ${streaming ? '' : styles.idle}`}>
             <span className={styles.apLiveDot} />{streaming ? 'streaming' : 'live'}
           </span>
@@ -365,7 +365,7 @@ const AutopilotRail = () => {
 
               {messages.length === 0 ? (
                 <div className={styles.apEmpty}>
-                  <div className={styles.apEmptyTitle}>Ask Autopilot</div>
+                  <div className={styles.apEmptyTitle}>Ask Agentiko</div>
                   It can see what&apos;s on your screen and answer questions about your
                   compositions, blueprints, and platform — grounded on the live page.
                   <div className={styles.apSuggest}>
@@ -436,7 +436,7 @@ const AutopilotRail = () => {
                   }}
                   onKeyDown={onKeyDown}
                   onPaste={onPaste}
-                  placeholder='Ask Autopilot to do something…'
+                  placeholder='Ask Agentiko to do something…'
                   ref={textareaRef}
                   rows={1}
                   value={draft}
@@ -456,7 +456,7 @@ const AutopilotRail = () => {
               </div>
               <div className={styles.apNote}>
                 <LinkIcon className={styles.apNoteIcon} />
-                Autopilot drives the portal — it never bypasses the UI. Docked &amp; collapsible, not an overlay.
+                Agentiko drives the portal — it never bypasses the UI. Docked &amp; collapsible, not an overlay.
               </div>
             </div>
           </div>

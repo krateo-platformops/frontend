@@ -45,7 +45,7 @@ Note the two trailing items: `alerts-hint` renders on every visit (its `hideWhen
 
 Five pages stack, three compose a Row grid, and nothing separates the groups by subject. They diverged. Here is the call: **stack.**
 
-Three reasons. A stack scales in one dimension, so adding a section never re-negotiates a grid’s spans — which is the whole of the `Row.alignment` trap, where a panel with variable-height content stretches its neighbours. A stack keeps the whole object in one context envelope, so Autopilot can reason about the incident rather than the visible third of it (A10). And a stack has one reading order, which is what a detail page *is*: a narrative about one thing.
+Three reasons. A stack scales in one dimension, so adding a section never re-negotiates a grid’s spans — which is the whole of the `Row.alignment` trap, where a panel with variable-height content stretches its neighbours. A stack keeps the whole object in one context envelope, so Agentiko can reason about the incident rather than the visible third of it (A10). And a stack has one reading order, which is what a detail page *is*: a narrative about one thing.
 
 The row grid’s advantage is density above the fold, and it is real — but it is bought by putting two unrelated panels at the same visual weight, which is P7’s failure mode dressed as layout.
 

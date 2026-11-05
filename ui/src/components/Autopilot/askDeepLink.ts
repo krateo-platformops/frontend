@@ -17,8 +17,8 @@ import { useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router'
 
 /** The honest explanation shown instead of the old silent no-op. */
-export const ASK_UNAVAILABLE_DESCRIPTION = 'Autopilot is not enabled on this portal — the Diagnose assistant is unavailable. Ask your administrator to enable it.'
-export const ASK_UNAVAILABLE_TITLE = 'Autopilot unavailable'
+export const ASK_UNAVAILABLE_DESCRIPTION = 'Agentiko is not enabled on this portal — the Diagnose assistant is unavailable. Ask your administrator to enable it.'
+export const ASK_UNAVAILABLE_TITLE = 'Agentiko unavailable'
 
 /** Anti-spam: a stable key makes a double-fire (StrictMode dev double-invoke, or a
  * re-render racing the param strip) REPLACE the notification instead of stacking it. */

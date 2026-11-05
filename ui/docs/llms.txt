@@ -39,7 +39,7 @@ docs/guides/action-button/action-button.md: worked guide — openDrawer action, 
 
 docs/antd-migration-plan.md: the executed antd-fidelity migration decision record (status: diverged — see its implemented-reality note).
 docs/autocomplete-and-dependencies.md: the suggestions list, and the history of the widgetData autocomplete/dependencies lists (back in their previous format; the x-krateo-* schema keywords are gone).
-docs/evidence-org-guess.md: known gap — the Autopilot Evidence panel guesses a repo link's GitHub org from the repository name, and the two-line repo-mcp-server change that would remove the guess.
+docs/evidence-org-guess.md: known gap — the Agentiko Evidence panel guesses a repo link's GitHub org from the repository name, and the two-line repo-mcp-server change that would remove the guess.
 
 ## Source of truth
 

@@ -34,27 +34,27 @@ afterEach(() => { cleanup() })
 const values = { name: 'my-db', namespace: 'krateo-system', replicas: 3 }
 
 describe('ReviewSummary — provenance of each value', () => {
-  it('marks only the fields Autopilot authored', () => {
+  it('marks only the fields Agentiko authored', () => {
     render(<ReviewSummary agentKeys={['name', 'replicas']} values={values} />)
-    const tags = screen.getAllByText('Autopilot')
+    const tags = screen.getAllByText('Agentiko')
     expect(tags).toHaveLength(2)
   })
 
   it('says how many of the values the agent drafted', () => {
     render(<ReviewSummary agentKeys={['name']} values={values} />)
-    expect(screen.getByText(/Autopilot drafted 1 of 3/)).toBeTruthy()
+    expect(screen.getByText(/Agentiko drafted 1 of 3/)).toBeTruthy()
   })
 
   it('marks nothing, and claims nothing, for a form the human filled alone', () => {
     const { container } = render(<ReviewSummary values={values} />)
-    expect(container.textContent).not.toContain('Autopilot')
+    expect(container.textContent).not.toContain('Agentiko')
   })
 
   it('does not count a key the agent sent that is not on screen', () => {
     // narrowAgentDraft already drops hidden/invented keys, but the count must be of what the
     // human can SEE — otherwise the header promises a row that is not there.
     render(<ReviewSummary agentKeys={['name', 'ghost']} values={values} />)
-    expect(screen.getByText(/Autopilot drafted 1 of 3/)).toBeTruthy()
+    expect(screen.getByText(/Agentiko drafted 1 of 3/)).toBeTruthy()
   })
 })
 

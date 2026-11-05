@@ -28,7 +28,7 @@ interface (`src/context/ConfigContext.tsx:4-96`). Required `api` keys:
 `AUTHN_API_BASE_URL`, `SNOWPLOW_API_BASE_URL`, `EVENTS_API_BASE_URL`,
 `EVENTS_PUSH_API_BASE_URL`, `INIT` (the bootstrap `/call` pointer to the app-shell
 `Layout` CR), `TERMINAL_SOCKET_URL`. Optional keys gate whole subsystems (each default-off
-or gracefully absent): `AUTOPILOT_API_BASE_URL` / `AUTOPILOT_AVAILABLE` (the Autopilot
+or gracefully absent): `AUTOPILOT_API_BASE_URL` / `AUTOPILOT_AVAILABLE` (the Agentiko
 rail + header toggle), `WIDGET_LIVE_REFRESH_ENABLED` (per-widget `/refreshes` SSE, on by
 default), `SNOWPLOW_IDENTITY_INJECTION` (identity-extras rollout flag),
 `PROVENANCE_ENABLED` (AuditRecord emission), `RENDER_API_BASE_URL` (helm-render dry-run

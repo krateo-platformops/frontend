@@ -104,7 +104,7 @@ describe('what the builder says', () => {
     const updatedAt = new Date(2026, 8, 29, 12, 4).toISOString()
     const stale = restoredBannerCopy({ everPreviewed: true, kind: 'blueprint', previewed: false, relinked: true, updatedAt }, now)
     expect(stale.title).toBe('Restored from your drafts — last saved today at 12:04.')
-    expect(stale.body).toBe('The chart is exactly as you left it, and Undo starts here. It changed after its last Preview, so preview it again before publishing. Autopilot\'s thread is re-linked.')
+    expect(stale.body).toBe('The chart is exactly as you left it, and Undo starts here. It changed after its last Preview, so preview it again before publishing. Agentiko\'s thread is re-linked.')
     const ready = restoredBannerCopy({ everPreviewed: true, kind: 'page', previewed: true, relinked: false, updatedAt }, now)
     expect(ready.body).toBe('The page is exactly as you left it, and Undo starts here.')
     expect(restoredBannerCopy({ everPreviewed: false, kind: 'page', previewed: false, relinked: false, updatedAt }, now).body)

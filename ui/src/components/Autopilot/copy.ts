@@ -10,4 +10,4 @@
 
 /** Why Autopilot cannot be used right now: the header toggle's tooltip AND the rail's composer
  *  notice. One sentence, two consumers — two copies of user-facing text drift. */
-export const AUTOPILOT_UNAVAILABLE = 'Autopilot is unavailable — the agent is not deployed, not reachable, or not permitted for your user'
+export const AUTOPILOT_UNAVAILABLE = 'Agentiko is unavailable — the agent is not deployed, not reachable, or not permitted for your user'

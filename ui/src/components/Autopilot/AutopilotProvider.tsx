@@ -638,7 +638,7 @@ export const AutopilotProvider = ({ children }: { children: React.ReactNode }) =
 
   const approvePending = useCallback(() => resolveApproval({ type: 'approve' }), [resolveApproval])
   const denyPending = useCallback(
-    () => resolveApproval({ reason: 'Denied by the user in the Autopilot rail.', type: 'reject' }),
+    () => resolveApproval({ reason: 'Denied by the user in the Agentiko rail.', type: 'reject' }),
     [resolveApproval],
   )
 

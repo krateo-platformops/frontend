@@ -153,7 +153,7 @@ even when server-driven pages fail) and the authenticated **Shell layout route**
   hosts the sidebar `Menu` widget, content routes render into its `<Outlet/>`. It guards
   auth client-side: no `localStorage['K_user']` → redirect to `/login`
   (`Shell.tsx:73-74`). It also mounts the imperative `Drawer`/`Modal` overlays, the
-  notifications bell, command palette, theme + Autopilot toggles.
+  notifications bell, command palette, theme + Agentiko toggles.
 - The sidebar **`Menu`** widget's inline `widgetData.items` are the single route source
   (`src/widgets/Menu/Menu.tsx:22-40`): `buildNavModel`
   (`src/widgets/Menu/navModel.ts:89`) turns each item with a `path` into an `AppRoute`,

@@ -54,7 +54,7 @@ export const compilePublishOps = (
   // Refused HERE, by name, and not only by the apply-set kernel: the kernel's refusal is a silent
   // null — no chip, nothing the model can read — so a hand-written git-write set would just vanish.
   if ((ops ?? []).some((op) => isGitWriteTarget(op.gvr))) {
-    return { denial: 'denied — Autopilot does not write gitrefs / repocontents / pullrequests: publish a chart, page or API mapping with publishBlueprint / publishPage / publishRestDef, which commit the held files through one BuilderPublish claim.', ops: null }
+    return { denial: 'denied — Agentiko does not write gitrefs / repocontents / pullrequests: publish a chart, page or API mapping with publishBlueprint / publishPage / publishRestDef, which commit the held files through one BuilderPublish claim.', ops: null }
   }
   // `$fileContent` was substituted into the RepoContent payloads of the legacy GitHub publish, which
   // is gone. Nothing substitutes it now, so a set carrying it would write the literal token into an

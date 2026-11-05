@@ -77,10 +77,10 @@ describe('claim notice in the rail', () => {
     renderWith([reply(POD_SIZING, { claims: checkClaims(POD_SIZING, []) })])
     expect(screen.getByText(POD_SIZING)).toBeTruthy()
     const notice = screen.getByTestId('autopilot-claim-check')
-    expect(notice.textContent).toContain('Autopilot said it previewed this, but no preview was produced.')
+    expect(notice.textContent).toContain('Agentiko said it previewed this, but no preview was produced.')
     // Under the reply, not instead of it.
     const bubble = notice.parentElement!
-    expect(bubble.textContent.indexOf(POD_SIZING)).toBeLessThan(bubble.textContent.indexOf('Autopilot said it'))
+    expect(bubble.textContent.indexOf(POD_SIZING)).toBeLessThan(bubble.textContent.indexOf('Agentiko said it'))
   })
 
   it('Retry re-asks for that message', () => {
@@ -101,7 +101,7 @@ describe('claim notice in the rail', () => {
   it('a REFUSED preview: the notice says it did not succeed, with no Retry', () => {
     const claims = checkClaims(POD_SIZING, [{ outcome: 'refused', verb: 'previewPage' }])
     renderWith([reply(POD_SIZING, { actions: [{ label: 'preview blocked — 2 validation errors', readOnly: true, verb: 'previewPage' }], claims })])
-    expect(screen.getByTestId('autopilot-claim-check').textContent).toContain('Autopilot said it previewed this, but the preview did not succeed.')
+    expect(screen.getByTestId('autopilot-claim-check').textContent).toContain('Agentiko said it previewed this, but the preview did not succeed.')
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
   })
 

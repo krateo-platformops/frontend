@@ -49,7 +49,7 @@ export const BlueprintEmptyState = ({ onDiscard, onStart, parkedPage }: {
   }
   return (
     <WidgetEmpty
-      description='No chart open. Start one here, or ask Autopilot to draft one — either way you review every file before anything is published.'
+      description='No chart open. Start one here, or ask Agentiko to draft one — either way you review every file before anything is published.'
     >
       <Button onClick={onStart} type='primary'>Start a chart</Button>
     </WidgetEmpty>

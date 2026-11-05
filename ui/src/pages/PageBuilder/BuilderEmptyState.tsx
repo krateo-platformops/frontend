@@ -35,7 +35,7 @@ export const BuilderEmptyState = ({ onDiscard, onStart, parkedBlueprint }: {
   }
   return (
     <WidgetEmpty
-      description='No draft open. Start a page here, or ask Autopilot to draft one — either way you review every file before anything is published.'
+      description='No draft open. Start a page here, or ask Agentiko to draft one — either way you review every file before anything is published.'
     >
       <Button onClick={onStart} type='primary'>Start a page</Button>
     </WidgetEmpty>
