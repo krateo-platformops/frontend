@@ -63,63 +63,33 @@ async function moveFile(src: string, dest: string) {
   }
 }
 
-/**
- * UNVERIFIED AGAINST THE CURRENT GENERATOR, and deliberately left attributed to krateoctl rather
- * than silently re-pointed at crdgen. #604 swapped the generator for plumbing/crdgen; these two
- * normalizations still RUN (see below), but whether they still CHANGE anything has not been
- * measured. Re-pointing the attribution without measuring would replace one unverified claim with
- * another — and the plan was always to fix the five int-or-string sites at the source
- * (generate-types.ts pre-pass) and drop these, which is an open follow-up.
+/*
+ * `normalizeUnionTypes` USED TO BE HERE. It is gone because plumbing/crdgen now does the job, as of
+ * v1.25.0 (krateo-platformops/plumbing#79), and this change bumps the dependency in the same commit
+ * so the two can never disagree.
  *
- * krateoctl (via controller-gen) cannot express a JSON-Schema union like
- * `type: ["integer", "string"]` in a STRUCTURAL CRD schema — it collapses such a
- * node to `type: object`, which then rejects the real scalar values at apply time
- * (e.g. Statistic.widgetData.value `0` / `"1.4k"` → "must be of type object").
- * Post-process the generated CRD: any schema node whose `type` is an array (a
- * union) becomes the structural-schema-legal `x-kubernetes-int-or-string: true`,
- * which accepts an integer-or-string scalar (and still rejects objects) — type-
- * accurate, not relaxed. Today the only union across all widget schemas is
- * `Statistic.widgetData.value`.
+ * What it did: crdgen collapsed a JSON Schema `type: ["integer","string"]` union to its FIRST member
+ * — `Flex.gap` became `type: string`, the other four `type: integer` — so this pass re-read the
+ * SOURCE schema, found the union paths, and rewrote those nodes to `x-kubernetes-int-or-string`. It
+ * had to read the source because the union is gone by the time the CRD exists.
+ *
+ * Five sites, and the cost of not having it: `Image.width: "100%"` and `Flex.gap: 8` were both
+ * refused by the apiserver while the widget schema accepted them.
+ *
+ * MEASURED IN TWO STEPS so the bump and the deletion could not hide each other:
+ *
+ *   bump 1.19.0 -> 1.25.0, pass still in place   0 of 44 CRDs change
+ *   then delete the pass                          0 of 44 CRDs change
+ *
+ * The first number is the interesting one: six minors of plumbing move nothing in our output, so the
+ * bump carries no surprise of its own. The second is the proof the generator now produces what the
+ * pass used to repair.
+ *
+ * Its sibling `normalizeTypedMaps` went the same way in #619 and for the same reason. What remains
+ * in this file are the ENVELOPE injections (identityContext, keyExtras, freshness), the
+ * allowedResources container contract, and the vocabulary enum — none of which is a repair of a
+ * generator defect, so none of them is waiting on an upstream fix.
  */
-async function normalizeUnionTypes(schemaPath: string, crdPath: string): Promise<boolean> {
-  // The SOURCE schema still has the union (`type: ["integer","string"]`); krateoctl
-  // has already collapsed it to `type: object` in the CRD, so we can't detect it
-  // from the CRD alone. Find the union paths in the source `spec` subtree, then
-  // patch the same paths in the generated CRD's `spec` schema.
-  const schema = JSON.parse(await fs.readFile(schemaPath, 'utf8')) as Record<string, unknown>
-  const unionPaths: string[][] = []
-  const collect = (node: unknown, path: string[]): void => {
-    if (!node || typeof node !== 'object' || Array.isArray(node)) { return }
-    const obj = node as Record<string, unknown>
-    if (Array.isArray(obj.type)) { unionPaths.push(path) }
-    for (const [key, value] of Object.entries(obj)) { collect(value, [...path, key]) }
-  }
-  collect((schema.properties as Record<string, unknown> | undefined)?.spec, [])
-  if (unionPaths.length === 0) { return false }
-
-  const doc = yaml.load(await fs.readFile(crdPath, 'utf8')) as {
-    spec?: { versions?: Array<{ schema?: { openAPIV3Schema?: { properties?: { spec?: unknown } } } }> }
-  }
-  const crdSpec = doc.spec?.versions?.[0]?.schema?.openAPIV3Schema?.properties?.spec
-  if (!crdSpec) { return false }
-
-  let changed = false
-  for (const path of unionPaths) {
-    let node: unknown = crdSpec
-    for (const key of path) {
-      node = node && typeof node === 'object' ? (node as Record<string, unknown>)[key] : undefined
-    }
-    if (node && typeof node === 'object') {
-      const target = node as Record<string, unknown>
-      delete target.type
-      delete target['x-kubernetes-preserve-unknown-fields']
-      target['x-kubernetes-int-or-string'] = true
-      changed = true
-    }
-  }
-  if (changed) { await fs.writeFile(crdPath, yaml.dump(doc, { lineWidth: -1, noRefs: true })) }
-  return changed
-}
 
 /*
  * `normalizeTypedMaps` USED TO BE HERE, and it is gone because it had become a no-op.
@@ -153,7 +123,7 @@ async function normalizeUnionTypes(schemaPath: string, crdPath: string): Promise
  * L1 cache key + resolve input. The apiserver PRUNES fields absent from a structural CRD schema,
  * so the field MUST be declared in the CRD or snowplow's DeclaredIdentity always reads empty and
  * the whole author-declared cache-identity feature is silently dead. Applied here (CRD post-
- * process, mirroring normalizeUnionTypes) so ALL widget kinds get it from ONE
+ * process, mirroring the retired normalize passes) so ALL widget kinds get it from ONE
  * place — the field is a uniform envelope member, not per-widget. See snowplow
  * docs/A6-chart-enablement-spec-2026-07-07.md §1.1.
  */
@@ -373,7 +343,6 @@ async function runKrateoctl(schemaPath: string) {
     await moveFile(generatedPath, destinationPath)
 
     // krateoctl can't emit JSON-Schema unions or typed maps as structural CRDs — fix them up.
-    const normalized = await normalizeUnionTypes(schemaPath, destinationPath)
     // A6 §1.1: every widget CRD carries the author-declared identity-variance field.
     await injectIdentityContext(destinationPath)
     // F6 (snowplow#130): every widget CRD carries the author-declared extras-variance field.
@@ -383,7 +352,7 @@ async function runKrateoctl(schemaPath: string) {
     // X5: every CONTAINER carries `allowedResources`, typed string[] with no enum.
     const containment = await normalizeAllowedResources(destinationPath)
 
-    console.log(`✅ ${chalk.green(finalName)} moved to ${chalk.gray(OUTPUT_DIR)}${normalized ? chalk.yellow(' (union → x-kubernetes-int-or-string)') : ''}${containment ? chalk.yellow(' (allowedResources → common contract)') : ''}`)
+    console.log(`✅ ${chalk.green(finalName)} moved to ${chalk.gray(OUTPUT_DIR)}${containment ? chalk.yellow(' (allowedResources → common contract)') : ''}`)
     return true
   } catch (err) {
     console.error(`❌ Failed to generate CRD for ${chalk.red(schemaName)}:`)
