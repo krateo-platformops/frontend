@@ -57,7 +57,7 @@ k get pods -n krateo-system --no-headers | grep -vE 'Running|Completed'
 k get flex page-s6-probe -n krateo-system      # expect NotFound
 ```
 
-**Warm up Autopilot.** An agent turn takes **~2 minutes** (measured). Open the rail and ask
+**Warm up Agentiko.** An agent turn takes **~2 minutes** (measured). Open the rail and ask
 anything — "what's on this page?" — so the first turn in front of the audience is not the
 cold one. Leave the rail open.
 
@@ -185,7 +185,7 @@ branch, branch to commit onto**, and optionally a scaffold source. Its primary b
 
 > *"No AI involved. A person fills a form and it opens a change request."*
 
-**Then the agent path.** In the rail: *"Add a page showing failing compositions."* Autopilot
+**Then the agent path.** In the rail: *"Add a page showing failing compositions."* Agentiko
 drafts the widget CRs, previews them, and publishing opens a **pull request** — not a cluster
 write. Show the real one: <https://github.com/krateo-blueprints/blueprints/pull/1> (open, 4
 files, authored through the portal).
@@ -244,7 +244,7 @@ from `github-provider-kog`, generated exactly this way.
 renders empty. Also avoid the four **SP ·** tabs on this install: four widgets there return
 400 and render error cards. *(Fixed in portal #210, merged; ships in chart 1.8.24.)*
 
-**If you ask Autopilot live here, ask early and keep talking — a turn takes ~2 minutes.**
+**If you ask Agentiko live here, ask early and keep talking — a turn takes ~2 minutes.**
 
 ---
 
@@ -253,7 +253,7 @@ renders empty. Also avoid the four **SP ·** tabs on this install: four widgets 
 1. **RBAC.** In the private window, log in as `cyberjoker`. Walk the same pages. The widgets
    they may not see are **absent** — not greyed out, not padlocked, not erroring. A denial
    reads as absence, so the UI never leaks that a thing exists.
-2. **Boundaries.** Autopilot's own prompt says *"You are read-only: you hold no apply tool"* —
+2. **Boundaries.** Agentiko's own prompt says *"You are read-only: you hold no apply tool"* —
    and that is **verified true of the orchestrator**: its entire tool surface is 8 read tools
    (`k8s_get_resources`, repo search/read, `validate_manifest`, `config_refs`). All mutation is
    reachable only by delegating to specialist agents. The widest of those, `k8s-agent`, has its
@@ -285,7 +285,7 @@ Someone will ask: *can I do everything the agent can, without the agent?*
 | Compositions, blueprints, marketplace, alerts, incidents, clusters | **yes** — gated buttons and forms |
 | Portal Builder (pages) | **yes** — Compose-a-page form → *Publish page* |
 | Controller Builder (APIs) | **yes** — paste OAS + define controller cards |
-| **Blueprint Builder (charts)** | **no**, in the deployed chart — header, Ask-Autopilot CTA, read-only table only; the composer below is built, not yet released |
+| **Blueprint Builder (charts)** | **no**, in the deployed chart — header, Ask-Agentiko CTA, read-only table only; the composer below is built, not yet released |
 
 **What is built but not yet deployed** (frontend source, no tag carries it yet): the Blueprint
 composer at `/blueprint-builder/compose`. A person can start a chart (the generated Kind and API
@@ -293,7 +293,7 @@ version shown as the name is typed), see its architecture file drawn as a depend
 the states that graph derives, inspect each resource read-only, preview it (the lint, then the real
 helm render), and publish it through the same destination form and confirm the agent's publish
 uses. What it cannot do yet is place resources or draw edges by hand: a resource is added by
-editing `templates/architecture.yaml` in Chart files, or by asking Autopilot. The palette, in-place
+editing `templates/architecture.yaml` in Chart files, or by asking Agentiko. The palette, in-place
 node editing and generated `lookup` gates are the next stage, and the `/blueprint-builder` entry
 link ships with the portal chart after a frontend tag carries the route.
 

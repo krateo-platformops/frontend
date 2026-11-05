@@ -128,7 +128,7 @@ syncs its output to a `crds-subchart/` path via an auto-PR — see the
 tag) and deployed CRD (chart version) can drift when a sync PR isn't merged for a tag; a
 newer widget CR applied against an older frontend image throws `Unknown widget kind`.
 
-## Autopilot dictation sends microphone audio to Google Vertex AI
+## Agentiko dictation sends microphone audio to Google Vertex AI
 
 Enabling dictation means setting `config.AUTOPILOT_VOICE_TRANSCRIBE_URL` to a
 `/chat/completions` endpoint on the agent gateway. **Its presence is the on/off switch**;

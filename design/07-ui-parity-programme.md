@@ -1,6 +1,6 @@
 # Total UI parity — removal and build plan
 
-**Decision (owner, 2026-09-15):** Autopilot and its sub-agents lose every tool that can
+**Decision (owner, 2026-09-15):** Agentiko and its sub-agents lose every tool that can
 create, patch or delete Kubernetes resources, or create, update, roll back or delete Helm
 releases. Every action goes through the UI, with the agent opening the right widgets and
 filling them.
@@ -336,7 +336,7 @@ Today's guarantees and their fate:
 | Guarantee | Survives? |
 |---|---|
 | Blast-radius confirm modal | **yes** — the chokepoint at `useHandleActions.ts:352` tests the *verb* and is blind to the caller |
-| *"Autopilot never submits"* | ~~**no** — deleted by definition~~ → **yes, and now enforced.** It was already untrue before this programme (`runAction` could reach a submit action with the ref's payload); `mayAgentDispatch` makes it true |
+| *"Agentiko never submits"* | ~~**no** — deleted by definition~~ → **yes, and now enforced.** It was already untrue before this programme (`runAction` could reach a submit action with the ref's payload); `mayAgentDispatch` makes it true |
 | `isApplySetAllowed` kernel | **no** — it guards the compile path, which goes away |
 | Preview / blueprint gates | **no** — rail-scoped, and the rail stops being the write path |
 | Provenance stamping | **not today** — `Form.tsx` passes `origin: undefined` (see B0) |

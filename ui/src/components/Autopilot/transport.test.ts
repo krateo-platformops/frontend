@@ -128,7 +128,7 @@ describe('rateLimitNotice detection', () => {
     [undefined],
     [''],
     ['Tool \'read_repo_file\' failed: repository not found (404)'],
-    ['Autopilot denied the request (403) — your user is not allowed to use this agent.'],
+    ['Agentiko denied the request (403) — your user is not allowed to use this agent.'],
     // A bare 429 in unrelated prose (e.g. a resource name) must NOT be treated as rate-limiting.
     ['the composition svc-429 is not Ready'],
   ])('leaves a non-rate-limit error untouched: %s', (raw) => {
@@ -238,12 +238,12 @@ describe('an HTTP failure before the stream ever opens', () => {
   it('carries the status structurally, beside the message a person reads', async () => {
     expect(await failWith(403)).toEqual([{
       kind: 'error',
-      message: 'Autopilot denied the request (403) — your user is not allowed to use this agent.',
+      message: 'Agentiko denied the request (403) — your user is not allowed to use this agent.',
       status: 403,
     }])
   })
 
   it('carries a status it has no opinion about just the same', async () => {
-    expect(await failWith(500)).toEqual([{ kind: 'error', message: 'Autopilot request failed (500)', status: 500 }])
+    expect(await failWith(500)).toEqual([{ kind: 'error', message: 'Agentiko request failed (500)', status: 500 }])
   })
 })

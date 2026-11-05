@@ -281,7 +281,7 @@ Worth keeping as a rule for a second reason: **nothing demonstrated it.** No tes
 
 > **Fixed** (portal#151). The orphaned control and its container are deleted and the RESTAction no longer filters on `.range`/`.from`/`.to`; the sibling chips stop carrying them. Verified before deleting that the only navigation to `/compositions?range=` came from the orphaned control itself. The dashboard is untouched — it has its own action and its own range chips.
 
-On `/compositions`, `listy.compositions-range-chips` and `rangepicker.comp-date-range` are referenced by nothing, and `flex.compositions-range-group` is marked *“SUPERSEDED / UNREFERENCED”* — yet `restaction.compositions-list` still filters on `.range`/`.from`/`.to`. **Autopilot can time-scope that list where a user cannot.** A dead control plus a live filter is a parity gap created by deletion.
+On `/compositions`, `listy.compositions-range-chips` and `rangepicker.comp-date-range` are referenced by nothing, and `flex.compositions-range-group` is marked *“SUPERSEDED / UNREFERENCED”* — yet `restaction.compositions-list` still filters on `.range`/`.from`/`.to`. **Agentiko can time-scope that list where a user cannot.** A dead control plus a live filter is a parity gap created by deletion.
 
 *Evidence: verified on the chart at origin/main*
 

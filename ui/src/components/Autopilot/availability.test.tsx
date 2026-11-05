@@ -154,7 +154,7 @@ describe('a turn outranks the probe that said yes', () => {
   })
 
   it('leaves availability alone for a 5xx — that is the agent faulting, not refusing this user', async () => {
-    await reachableThenTurn({ kind: 'error', message: 'Autopilot request failed (500)', status: 500 })
+    await reachableThenTurn({ kind: 'error', message: 'Agentiko request failed (500)', status: 500 })
     expect(api.reachable).toBe(true)
   })
 

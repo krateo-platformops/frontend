@@ -94,17 +94,17 @@ values (`["eu", "us"]`). Anything else reads as a failed load.
 
 **What the field does.**
 
-- It stores the option's **value** only: the payload, drafts and Autopilot see `"eu"`. The
+- It stores the option's **value** only: the payload, drafts and Agentiko see `"eu"`. The
   Review shows a top-level option field by the label it was picked by: *Europe (eu)*.
 - A dependent field makes no call while the parent is empty ("Choose Region first."), then
   calls with `extras: { region: <value> }`. When the *person* changes the parent, the field is
   cleared, and so is anything that depends on it. Initial values, a resumed draft and an
-  Autopilot draft keep every value they set.
+  Agentiko draft keep every value they set.
 - An `autocomplete` with `extra` sends the typed text, debounced (300 ms), from `minChars`
   characters; the RESTAction filters. Without it the list loads once and is filtered in the
   browser.
 - A **closed** list loaded in full is enforced: a value not in it (one that arrived from a
-  draft or Autopilot, say) fails validation.
+  draft or Agentiko, say) fails validation.
 - A missing ref, or one snowplow resolved with `allowed: false`, disables the field and says
   why, with no call. A failed load says so under the field with a Retry. No toasts.
 

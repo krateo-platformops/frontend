@@ -215,15 +215,15 @@ describe('chipOutcome — the bridge outcome, read from the chip', () => {
 
 describe('the notice and the retry', () => {
   it('says what was claimed and what is true', () => {
-    expect(claimNotice({ family: 'preview', outcome: 'missing', phrase: 'x' })).toBe('Autopilot said it previewed this, but no preview was produced.')
-    expect(claimNotice({ family: 'preview', outcome: 'refused', phrase: 'x' })).toBe('Autopilot said it previewed this, but the preview did not succeed.')
-    expect(claimNotice({ family: 'publish', outcome: 'declined', phrase: 'x' })).toBe('Autopilot said it published this, but the publish was not confirmed, so nothing was published.')
-    expect(claimNotice({ family: 'apply', outcome: 'failed', phrase: 'x' })).toBe('Autopilot said it applied this change, but the change did not go through.')
+    expect(claimNotice({ family: 'preview', outcome: 'missing', phrase: 'x' })).toBe('Agentiko said it previewed this, but no preview was produced.')
+    expect(claimNotice({ family: 'preview', outcome: 'refused', phrase: 'x' })).toBe('Agentiko said it previewed this, but the preview did not succeed.')
+    expect(claimNotice({ family: 'publish', outcome: 'declined', phrase: 'x' })).toBe('Agentiko said it published this, but the publish was not confirmed, so nothing was published.')
+    expect(claimNotice({ family: 'apply', outcome: 'failed', phrase: 'x' })).toBe('Agentiko said it applied this change, but the change did not go through.')
   })
 
   it('every family has notice copy', () => {
     for (const rule of CLAIM_RULES) {
-      expect(claimNotice({ family: rule.family, outcome: 'missing', phrase: 'x' })).toMatch(/^Autopilot said it .+, but .+\.$/)
+      expect(claimNotice({ family: rule.family, outcome: 'missing', phrase: 'x' })).toMatch(/^Agentiko said it .+, but .+\.$/)
     }
   })
 
@@ -289,7 +289,7 @@ describe('a refusal described as a success — the controller family', () => {
     // Two refusals and words about neither: the family copy, not a guess.
     const [generic] = checkClaims('I placed Pet.', [refusedMap, other])
     expect(generic?.reason).toBeUndefined()
-    expect(claimNotice(generic)).toBe('Autopilot said it changed the controller draft, but the portal refused the edit.')
+    expect(claimNotice(generic)).toBe('Agentiko said it changed the controller draft, but the portal refused the edit.')
   })
 
   it('a controller claim with NO controller attempt is never flagged — those words are too ordinary alone', () => {
@@ -307,7 +307,7 @@ describe('a refusal described as a success — the controller family', () => {
   })
 
   it('without a reason the notice keeps the family copy', () => {
-    expect(claimNotice({ family: 'controller', outcome: 'refused', phrase: 'x' })).toBe('Autopilot said it changed the controller draft, but the portal refused the edit.')
+    expect(claimNotice({ family: 'controller', outcome: 'refused', phrase: 'x' })).toBe('Agentiko said it changed the controller draft, but the portal refused the edit.')
   })
 
   it.each([

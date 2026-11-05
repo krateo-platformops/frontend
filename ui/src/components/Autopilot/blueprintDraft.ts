@@ -472,7 +472,7 @@ const descriptorNameProblems = (arch: ChartArchitecture, files: Record<string, s
  * Every write to a held chart regenerates the block (regenerateArchitecture), so this is the backstop
  * for bytes that reached a draft some other way — and the way out it names is one a person has.
  */
-const REGENERATE = 'The block is compiled from data.architecture and never written by hand: the builder rewrites it whenever the chart is saved — in Chart files, by the builder or by Autopilot. Apply any edit in Chart files to have it rewritten, or Undo.'
+const REGENERATE = 'The block is compiled from data.architecture and never written by hand: the builder rewrites it whenever the chart is saved — in Chart files, by the builder or by Agentiko. Apply any edit in Chart files to have it rewritten, or Undo.'
 
 /**
  * The chart name and the graph block (L2, L3). The label and `graph.chart` carry Chart.yaml's name,

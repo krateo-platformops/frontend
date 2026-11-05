@@ -13,7 +13,7 @@ something unrelated and quietly spends their trust. Prefer citing a *symbol* (`t
 | [02-components.md](02-components.md) | **C1–C25** | Shared components: what exists, what is missing, what each guarantees |
 | [03-composition.md](03-composition.md) | **P1–P25** | How a page is assembled from widget CRs |
 | [04-silent-failures.md](04-silent-failures.md) | **X1–X13** | Renders clean, behaves wrong — passes the CRD, the dry-run and the eye |
-| [05-agent-parity.md](05-agent-parity.md) | **A1–A19** | What Autopilot may do, what a page owes it, what it owes back |
+| [05-agent-parity.md](05-agent-parity.md) | **A1–A19** | What Agentiko may do, what a page owes it, what it owes back |
 | [06-composition-patterns.md](06-composition-patterns.md) | **G1–G13** | Page archetypes, widget selection, and a stated design position |
 
 ## Why this exists
@@ -102,7 +102,7 @@ they hold **30 of the 108 rules** — 18 composition rules and 8 token rules, pl
 
 - `lint-portal-consistency.py` — composition, run against a chart's widget CRs. **0 violations**
   across all 18 rules against the portal chart, except the migrations A4 and P6 were tightened to drive:
-  the two "Diagnose" buttons (composition and incident detail) are Autopilot entry points the
+  the two "Diagnose" buttons (composition and incident detail) are Agentiko entry points the
   first A4 sweep could not see, and the incident remediation's "I applied it" was a second filled
   button beside "Run apply". The portal vendors this lint, so the rules
   reach its CI together with that migration.
@@ -138,7 +138,7 @@ they hold **30 of the 108 rules** — 18 composition rules and 8 token rules, pl
   buttons and the Cancel inside every `Popconfirm`, `Modal` and confirm dialog; the composition
   lint's `button-role` rule holds the chart's.
 - **One primary per container (P6)** — the composition lint's `one-primary` rule: a header or a
-  panel names at most one filled Button among its own children. The Autopilot entry point is filled
+  panel names at most one filled Button among its own children. The Agentiko entry point is filled
   everywhere (A4) and is not counted.
 - **Visual regression** — `ui/visual/` renders every widget from its own example CR
   (`src/examples/widgets`), light and dark, and compares it pixel for pixel against the baselines in

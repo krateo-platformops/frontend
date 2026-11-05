@@ -51,7 +51,7 @@ Seven findings across five pages.
 
 *Evidence: #75 §0.2 · #79 §0.1–0.2 · #80 §0.1 · #82 §0.1 · #86 §0.4*
 
-### P6 — One primary action per container — a page header *or* a self-contained panel. The Autopilot entry point is not counted.
+### P6 — One primary action per container — a page header *or* a self-contained panel. The Agentiko entry point is not counted.
 
 **Status:** CR → **enforced** — the composition lint's `one-primary` rule
 
@@ -240,7 +240,7 @@ edge.
   tight the text block gives way first, wrapping inside its own box; only when the row cannot sit
   beside it at all does the row drop under it — still one row, still on the right edge.
 
-This holds for every action, including the Autopilot entry point
+This holds for every action, including the Agentiko entry point
 ([A4](05-agent-parity.md), [A5](05-agent-parity.md)): it is one of the actions, and sits where they do.
 
 Reported on the Page composer, which put *Preview · Undo · Publish · Close draft* under its
@@ -263,7 +263,7 @@ inside the app).
 
 Generalises two narrower rules that already said the same thing for their own containers:
 [P23](#p23--form-actions-draft-left-cancel-and-primary-grouped-right-primary-last) (forms) and A5
-(the Autopilot CTA).
+(the Agentiko CTA).
 
 > **Decided 2026-10-08, replacing the first version of this rule** ("a screen's actions sit on its
 > title's row"). The product call: no button pinned to the title's line, no buttons stacked, and the

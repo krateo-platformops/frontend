@@ -27,7 +27,7 @@ key-value structure that mirrors the form schema paths. It is the YAML author's
 responsibility to provide values matching the expected field types.
 
 The effective initial state is a layered merge (`ui/src/widgets/Form/Form.tsx:248-258`):
-**schema defaults < explicit `initialValues` < a resumed local draft < an Autopilot
+**schema defaults < explicit `initialValues` < a resumed local draft < an Agentiko
 draft** — so a schema `default` is always overridden by an `initialValues` entry, which
 in turn yields to what the user already typed (drafts). While the form is pristine,
 refetched `initialValues` are re-seeded so an idle form tracks server state; once the

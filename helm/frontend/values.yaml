@@ -127,7 +127,7 @@ affinity: {}
 
 # An agentgateway data plane in front of kagent (krateo-agentiko/agentgateway-policies) that
 # validates the caller's JWT and forwards it down. The portal always sends the logged-in user's
-# Bearer on its Autopilot A2A calls; when enabled, those calls go to the GATEWAY instead of to
+# Bearer on its Agentiko A2A calls; when enabled, those calls go to the GATEWAY instead of to
 # kagent-ui, so the token is actually validated and the gateway's per-user agent/tool/delegation
 # RBAC applies. Off, they keep going to kagent-ui through the nginx `/autopilot/` proxy.
 #
@@ -150,12 +150,12 @@ config:
   AUTHN_API_BASE_URL: http://localhost:8082
   EVENTS_PUSH_API_BASE_URL: http://localhost:8083
   EVENTS_API_BASE_URL: http://localhost:8083
-  # Autopilot copilot. Default: the same-origin path served by the nginx `location /autopilot/`
+  # Agentiko copilot. Default: the same-origin path served by the nginx `location /autopilot/`
   # reverse proxy to kagent-ui (no cross-origin → no CORS). The rail renders only when this is set.
   # With `agentgateway.enabled` this is instead the agent gateway's ORIGIN (e.g.
   # http://gateway.example.com:8080) and the chart appends the A2A path — so set the origin only.
   AUTOPILOT_API_BASE_URL: /autopilot
-  # Autopilot availability. Controls CLICKABILITY of the header toggle, NOT its visibility (the
+  # Agentiko availability. Controls CLICKABILITY of the header toggle, NOT its visibility (the
   # toggle stays visible whenever AUTOPILOT_API_BASE_URL is set, so the capability is discoverable).
   # "" (default) leaves clickability to the frontend's runtime reachability probe of the endpoint.
   # The installer sets this to "false" when agents are not deployed (features.coreAgents=false), which
@@ -197,7 +197,7 @@ config:
   #   NO schema default (scripts/gen-config-schema.py NO_DEFAULT): core-provider copies schema
   #   defaults into the composition spec, where a default freezes the value over this file.
   BUILDERS_NAMESPACE: krateo-system
-  # Autopilot builder publish DESTINATIONS — the "owner/repo" slug each authoring builder publishes
+  # Agentiko builder publish DESTINATIONS — the "owner/repo" slug each authoring builder publishes
   # against. Config-driven so an org/repo rename is an install-values change, NOT a frontend image
   # rebuild (the krateo org migration braghettos → krateo-platformops proved that). The frontend has
   # NO hardcoded fallback repo: these are the ONLY source of the default destination (plus the human's
@@ -296,7 +296,7 @@ config:
   # Changing the host also moves where the builder templates above are cloned from.
   AUTOPILOT_GIT_SCM: github
   AUTOPILOT_GIT_HOST: github.com
-  # Autopilot SPEAK-BACK — reads an answer aloud when the question was asked BY VOICE (a
+  # Agentiko SPEAK-BACK — reads an answer aloud when the question was asked BY VOICE (a
   # composer draft made purely of dictated segments; one typed character and the turn is
   # silent). ON by default; set "off" to remove the feature and its rail-header control on
   # this install. Uses the BROWSER's speech synthesis with a LOCAL (on-device) voice only:
@@ -304,7 +304,7 @@ config:
   # machine with no local voice simply reports the feature unavailable rather than falling
   # back to a cloud voice that would ship the answer text to a voice vendor.
   AUTOPILOT_VOICE_SPEAK_BACK: "on"
-  # Autopilot DICTATION — hold-to-speak into the rail's composer. ITS PRESENCE IS THE
+  # Agentiko DICTATION — hold-to-speak into the rail's composer. ITS PRESENCE IS THE
   # ON/OFF SWITCH: empty (the default) and no microphone control renders at all. Set it to
   # the FULL absolute URL of an OpenAI-shaped /chat/completions on the agent gateway —
   # the dedicated guardrail-free /stt/v1 route once the platform ships it, otherwise

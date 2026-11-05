@@ -127,9 +127,9 @@ describe('buildDecisionMessage — the documented approval response', () => {
   })
 
   it('reject carries the rejection_reason when given, omits it when not', () => {
-    const withReason = buildDecisionMessage({ reason: 'Denied by the user in the Autopilot rail.', type: 'reject' }, pause, 'mid-2')
+    const withReason = buildDecisionMessage({ reason: 'Denied by the user in the Agentiko rail.', type: 'reject' }, pause, 'mid-2')
     const [decisionPart] = withReason.parts as Record<string, unknown>[]
-    expect(decisionPart.data).toEqual({ decision_type: 'reject', rejection_reason: 'Denied by the user in the Autopilot rail.' })
+    expect(decisionPart.data).toEqual({ decision_type: 'reject', rejection_reason: 'Denied by the user in the Agentiko rail.' })
 
     const bare = buildDecisionMessage({ type: 'reject' }, pause, 'mid-3')
     const [barePart] = bare.parts as Record<string, unknown>[]

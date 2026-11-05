@@ -16,7 +16,7 @@ timestamp: 2026-09-30T00:00:00Z
 
 Everything a user *views* in the portal is declarative: widget CRs and RESTActions. The
 builders that *author* that content are not. `PageBuilder` and `BlueprintBuilder` are
-~26k lines of hardcoded React and Autopilot logic, more than all 50 widget kinds together
+~26k lines of hardcoded React and Agentiko logic, more than all 50 widget kinds together
 (#404). A third builder, the Controller Builder, written the same way would add another
 ~8–10k lines.
 
@@ -32,7 +32,7 @@ Most of what distinguishes one builder from another is still configuration:
 - which RESTActions it lists from and previews through;
 - which files a draft must keep, and which the portal writes;
 - which lints and gates apply;
-- where it publishes, and which Autopilot verbs it accepts.
+- where it publishes, and which Agentiko verbs it accepts.
 
 Today each of these is a constant scattered across `RoutesContext.tsx`, `publishDraft.ts`,
 `builderTargets.ts`, `chartVerbs.ts` and the two composers.
@@ -114,8 +114,8 @@ builder meant to stop.
     `architecture-graph` and `restdef-graph`; inspector `object-tree`, `node` and
     `restdef-mapping`; summarizer `page-tree`, `chart-files` and `controller-model`. The three
     controller slot plugins shipped with the Controller Builder's composer (T8, frontend#412);
-    `controller-model` with Autopilot's controller verbs (frontend#429).
-- **Agent verbs:** a Builder's `verbs.allowed` names which verbs Autopilot may use on its drafts;
+    `controller-model` with Agentiko's controller verbs (frontend#429).
+- **Agent verbs:** a Builder's `verbs.allowed` names which verbs Agentiko may use on its drafts;
   what each verb does is code, routed through the same kernels a person's gestures use. The
   Blueprint Builder's chart verbs (`chartPut`, `chartDelete`, `chartLink`) and the Controller
   Builder's controller verbs (`controllerStart`, `controllerPlace`, `controllerMapVerb`,

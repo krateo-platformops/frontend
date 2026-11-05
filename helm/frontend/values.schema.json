@@ -506,7 +506,7 @@
       "type": "object",
       "title": "Agent gateway",
       "additionalProperties": false,
-      "description": "An agentgateway data plane in front of kagent that validates and forwards the caller's JWT. The portal always sends the user's Bearer on its Autopilot A2A calls; when enabled, an AUTOPILOT_API_BASE_URL holding the gateway's ORIGIN becomes <origin>/api/a2a/<release-namespace>/autopilot, so the browser calls the gateway directly (cross-origin, kagent-ui out of the path) and the token is validated with per-user agent/tool/delegation RBAC applied. The Evidence panel's session read is derived from the same value and authorized by the gateway's sessionTrace clause. A relative value is left untouched, keeping the same-origin nginx /autopilot/ proxy. Needs the kagent controller in trusted-proxy mode; the Krateo installer wires both from its own agentgateway.enabled.",
+      "description": "An agentgateway data plane in front of kagent that validates and forwards the caller's JWT. The portal always sends the user's Bearer on its Agentiko A2A calls; when enabled, an AUTOPILOT_API_BASE_URL holding the gateway's ORIGIN becomes <origin>/api/a2a/<release-namespace>/autopilot, so the browser calls the gateway directly (cross-origin, kagent-ui out of the path) and the token is validated with per-user agent/tool/delegation RBAC applied. The Evidence panel's session read is derived from the same value and authorized by the gateway's sessionTrace clause. A relative value is left untouched, keeping the same-origin nginx /autopilot/ proxy. Needs the kagent controller in trusted-proxy mode; the Krateo installer wires both from its own agentgateway.enabled.",
       "properties": {
         "enabled": {
           "type": "boolean",

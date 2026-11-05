@@ -35,7 +35,7 @@ const AutopilotToggle = () => {
       type='button'
     >
       <SparkIcon size={13} />
-      Autopilot
+      Agentiko
       {/* A8: the one permanently-visible entry point could not show that a turn was in flight —
           the in-rail caret did it correctly, with three separate comments guarding the token, and
           the toggle never consumed `streaming` at all. So a user who collapsed the rail mid-answer

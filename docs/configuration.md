@@ -34,7 +34,7 @@ Everything configurable, grounded in [`helm/frontend/values.yaml`](../helm/front
 | `serviceAccount.*` | `create: true`, `automount: true` | The portal needs no cluster permissions of its own (all data access goes through snowplow as the end user). |
 | `podAnnotations` / `podLabels` / `nodeSelector` / `tolerations` / `affinity` / `podSecurityContext` / `securityContext` | `{}` | Standard pass-throughs. |
 | `env` | *(unset)* | Free-form extra env vars, rendered into the `<fullname>` ConfigMap consumed via `envFrom`. |
-| `agentgateway.enabled` | `false` | Send the Autopilot A2A calls to the agent gateway instead of kagent-ui (below). Injected by the installer from `features.agentGateway`. |
+| `agentgateway.enabled` | `false` | Send the Agentiko A2A calls to the agent gateway instead of kagent-ui (below). Injected by the installer from `features.agentGateway`. |
 | `config.*` | see below | Rendered verbatim into the `config.json` the SPA boots from. |
 | `previewSandbox.*` | `enabled: false` | The portal-builder live-preview sandbox (below). |
 
@@ -54,8 +54,8 @@ defaults:
 | `AUTHN_API_BASE_URL` | `http://localhost:8082` | Login strategies + token exchange. |
 | `EVENTS_API_BASE_URL` / `EVENTS_PUSH_API_BASE_URL` | `http://localhost:8083` | Events list (`/events`) / SSE stream (`/notifications`). |
 | `INIT` | `/call?resource=layouts&…&name=app-shell&namespace=krateo-system` | The bootstrap pointer to the app-shell `Layout` CR. There is no `ROUTES_LOADER` anymore — routing is data on the sidebar `Menu`. |
-| `AUTOPILOT_API_BASE_URL` | `/autopilot` | Same-origin path served by the nginx `/autopilot/` proxy to the kagent A2A endpoint (no CORS). The Autopilot rail renders only when set; the upstream it dials is `autopilot.upstream`. The Evidence panel's session-trace URL is derived from this value, not configured separately (see below). |
-| `AUTOPILOT_AVAILABLE` | `""` | Clickability (not visibility) of the Autopilot toggle: `"false"` (set by the installer when agents aren't deployed) grays it out; `""` defers to the runtime reachability probe, which also grays it out on a `401`/`403` (invalid session, or gateway RBAC denies this user the agent). |
+| `AUTOPILOT_API_BASE_URL` | `/autopilot` | Same-origin path served by the nginx `/autopilot/` proxy to the kagent A2A endpoint (no CORS). The Agentiko rail renders only when set; the upstream it dials is `autopilot.upstream`. The Evidence panel's session-trace URL is derived from this value, not configured separately (see below). |
+| `AUTOPILOT_AVAILABLE` | `""` | Clickability (not visibility) of the Agentiko toggle: `"false"` (set by the installer when agents aren't deployed) grays it out; `""` defers to the runtime reachability probe, which also grays it out on a `401`/`403` (invalid session, or gateway RBAC denies this user the agent). |
 | `OTEL_COLLECTOR_URL` | `""` | Browser OTel traces endpoint; empty = the browser SDK stays off. |
 | `SNOWPLOW_IDENTITY_INJECTION` | `""` | String-typed rollout flag (installer plumbing emits strings only): `""` = legacy identity-extras behavior (safe hold-off); `"true"` = snowplow injects identity server-side. Never set `"false"` (JS truthiness trap — documented in `values.yaml`). |
 | `PROVENANCE_ENABLED` | `""` | `"true"` emits one best-effort `AuditRecord` CR per gated portal write; needs the AuditRecord CRD. |
@@ -88,9 +88,9 @@ SSE-friendly settings, passing the caller's `Authorization` header through untou
 (`ui/nginx.conf`). It is used only when `agentgateway.enabled` is off — with the gateway on,
 the browser calls the gateway directly and nginx is not involved.
 
-## `agentgateway.enabled` — and where the Autopilot JWT gets checked
+## `agentgateway.enabled` — and where the Agentiko JWT gets checked
 
-The SPA sends the logged-in user's portal Bearer on **every** Autopilot A2A request. This
+The SPA sends the logged-in user's portal Bearer on **every** Agentiko A2A request. This
 flag decides who validates it, by deciding what `AUTOPILOT_API_BASE_URL` ends up as:
 
 | `agentgateway.enabled` | `AUTOPILOT_API_BASE_URL` | Path |

@@ -305,7 +305,7 @@ describe('the publish-destination form names who does what', () => {
       return Promise.resolve()
     })
     const line = await screen.findByTestId('publish-initiator')
-    expect(line.textContent).toBe('Autopilot asked to publish this page. Nothing is written until you confirm the destination.')
+    expect(line.textContent).toBe('Agentiko asked to publish this page. Nothing is written until you confirm the destination.')
     // Krateo does the push either way.
     expect(screen.getByTestId('publish-target-form').textContent).toMatch(/Krateo pushes the page to a branch/)
   })
