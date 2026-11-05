@@ -175,10 +175,10 @@ export function initTracing(cfg: TracingConfig): void {
         propagateTraceHeaderCorsUrls,
       }),
       new XMLHttpRequestInstrumentation({
-        ignoreUrls,
         applyCustomAttributesOnSpan: (span) => {
           redactUrlAttributes(span, snowplowPrefix)
         },
+        ignoreUrls,
         propagateTraceHeaderCorsUrls,
       }),
     ],

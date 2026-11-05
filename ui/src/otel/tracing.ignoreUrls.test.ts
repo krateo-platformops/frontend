@@ -15,10 +15,10 @@ const captured = vi.hoisted(() => ({ configs: [] as Array<{ ignoreUrls?: string[
 
 vi.mock('@opentelemetry/instrumentation', () => ({ registerInstrumentations: vi.fn() }))
 vi.mock('@opentelemetry/instrumentation-fetch', () => ({
-  FetchInstrumentation: class { constructor(config: { ignoreUrls?: string[] }) { captured.configs.push(config) } },
+  FetchInstrumentation: vi.fn(function capture(config: { ignoreUrls?: string[] }) { captured.configs.push(config) }),
 }))
 vi.mock('@opentelemetry/instrumentation-xml-http-request', () => ({
-  XMLHttpRequestInstrumentation: class { constructor(config: { ignoreUrls?: string[] }) { captured.configs.push(config) } },
+  XMLHttpRequestInstrumentation: vi.fn(function capture(config: { ignoreUrls?: string[] }) { captured.configs.push(config) }),
 }))
 vi.mock('@opentelemetry/sdk-trace-web', async (original) => ({
   ...(await original<object>()),
@@ -29,7 +29,7 @@ const init = async (api: Record<string, string>) => {
   vi.resetModules()
   captured.configs.length = 0
   const { initTracing } = await import('./tracing')
-  initTracing({ api } as never)
+  initTracing({ api })
 }
 
 describe('the export endpoint is excluded from instrumentation', () => {
