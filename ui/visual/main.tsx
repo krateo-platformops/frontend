@@ -97,7 +97,7 @@ const pageHeader = (subtitle?: string) => (
       items: [{ resourceRefId: 'ask-autopilot' }, { resourceRefId: 'page-action' }],
       subtitle,
       title: 'Controller Builder',
-    } as never}
+    }}
   />
 )
 const screenHeader = (subtitle?: string) => (
