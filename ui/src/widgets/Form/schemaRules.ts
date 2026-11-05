@@ -8,6 +8,25 @@ export const fieldLabel = (key: string, node: JSONSchema4): string =>
 const isEmpty = (value: unknown): boolean =>
   value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)
 
+/** Whether a form value holds anything the submit would send: an object of empties does not. */
+export const hasValue = (value: unknown): boolean => {
+  if (Array.isArray(value)) { return value.some(hasValue) }
+  if (value !== null && typeof value === 'object') { return Object.values(value).some(hasValue) }
+  return !isEmpty(value)
+}
+
+/**
+ * `required` for a field of an OPTIONAL object. JSON Schema's `required` binds only where the
+ * object exists, so the field is owed once the object holds something and not before. Without
+ * this, an optional object with a required field could not be left out of a form at all.
+ */
+export const requiredInGroup = (label: string, group: Array<string | number>): Rule =>
+  ({ getFieldValue }) => ({
+    validator: (_rule, value: unknown) => (isEmpty(value) && hasValue(getFieldValue(group))
+      ? Promise.reject(new Error(`${label} is required`))
+      : Promise.resolve()),
+  })
+
 /**
  * A JSON Schema `pattern` is an unanchored ECMA regex. One the browser cannot compile (an
  * authoring mistake, or a Go-only construct) is skipped rather than blocking the form: the API

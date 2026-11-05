@@ -25,6 +25,12 @@ export const pruneEmptyObjects = <T>(value: T): T => {
     const out: Record<string, unknown> = {}
     for (const [key, child] of Object.entries(value)) {
       const pruned = pruneEmptyObjects(child)
+      // An `undefined` property is one JSON.stringify drops anyway, so it must not keep its parent
+      // alive: antd hands back `{ metricRef: { name: undefined } }` for a group nobody touched, and
+      // that would go out as `metricRef: {}`, an object the person never asked for.
+      if (pruned === undefined) {
+        continue
+      }
       // Drop a child that is (or, after pruning, became) an empty plain object.
       if (isPlainObject(pruned) && Object.keys(pruned).length === 0) {
         continue
