@@ -207,12 +207,12 @@ Page context is **not** passed by the entry point. It is snapshotted from the li
 
 *Evidence: verified `askDeepLink.ts` · `useAutopilotContext.ts:1-10`*
 
-### A4 — One canonical look for “open Autopilot with a seeded prompt”: “Ask Autopilot →” with the magic-wand icon.
+### A4 — One canonical look for “open Agentiko with a seeded prompt”: “Ask Agentiko →” with the magic-wand icon.
 
-**Status:** gap → resolved → **enforced** — the composition lint's `autopilot-button` rule
+**Status:** gap → resolved → **enforced** — the composition lint's `autopilot-button` rule. The product name became Agentiko on 2026-11-05: the rule's id, and the quoted records below, keep the name they were written with.
 
-Every Autopilot entry point is the same object: a **filled** button (`type: primary`, never a link),
-label **`Ask Autopilot →`**, icon **`fa-wand-magic-sparkles`**. Where it sits is A5's and, in a
+Every Agentiko entry point is the same object: a **filled** button (`type: primary`, never a link),
+label **`Ask Agentiko →`**, icon **`fa-wand-magic-sparkles`**. Where it sits is A5's and, in a
 header, [P26](03-composition.md)'s. The lint recognises the entry
 point by what the Button *does* — a `?ask=` link, a template computing an `askHref`, or a template
 reading any `…Href` its RESTAction builds with `?ask=` — as well as by its label, for the reasons
@@ -253,8 +253,8 @@ Four variants for the same mechanism: *“Ask Autopilot →”* (builder pages),
 **The page** when Autopilot is the page's whole workflow. Then it is one of the header's actions,
 and sits where [P26](03-composition.md) puts every header action: on the trailing edge, on one
 row with the others, centred on the title and subtitle together (level with the title when there is
-no subtitle). It looks as [A4](#a4--one-canonical-look-for-open-autopilot-with-a-seeded-prompt-ask-autopilot--with-the-magic-wand-icon)
-says: filled, wand, `Ask Autopilot →`.
+no subtitle). It looks as [A4](#a4--one-canonical-look-for-open-agentiko-with-a-seeded-prompt-ask-agentiko--with-the-magic-wand-icon)
+says: filled, wand, `Ask Agentiko →`.
 
 Never a bare item in a page's top-level stack.
 
