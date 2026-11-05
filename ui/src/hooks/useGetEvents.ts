@@ -9,8 +9,6 @@ import type { SSEK8sEvent } from '../utils/types'
 import { type EventScope, subscribeSse } from './sseClient'
 
 const MAX_EVENTS = 200
-// 10 seconds
-const CLEANUP_INTERVAL = 10000
 
 export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic?: string; registerToSSE?: boolean }) {
   const { config } = useConfigContext()
@@ -37,7 +35,8 @@ export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic
         headers: { Authorization: `Bearer ${getAccessToken()}` },
       })
       const notifications = (await res.json()) as SSEK8sEvent[]
-      return notifications
+      // sse-proxy caps /events at 200 today; capping here keeps the bound this hook's own.
+      return notifications.slice(0, MAX_EVENTS)
     },
 
     queryKey,
@@ -49,20 +48,6 @@ export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic
     // A prepend shifts every index, so structural sharing would deep-copy the whole list on each event.
     structuralSharing: false,
   })
-
-  // Cleanup old events periodically to prevent memory issues
-  useEffect(() => {
-    const interval = setInterval(() => {
-      queryClient.setQueryData(queryKey, (prev: SSEK8sEvent[]) => {
-        if (!prev || prev.length <= MAX_EVENTS) {
-          return prev
-        }
-        return prev.slice(0, MAX_EVENTS)
-      })
-    }, CLEANUP_INTERVAL)
-
-    return () => clearInterval(interval)
-  }, [queryClient, queryKey])
 
   useEffect(() => {
     if (!registerToSSE) {
@@ -78,8 +63,8 @@ export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic
       onMessage: (raw) => {
         try {
           const data = JSON.parse(raw) as SSEK8sEvent
-          // Capped here as well as by the interval: a background tab defers that timer and react-query's
-          // notifications, and during an event burst each pending notification pins the list it carries.
+          // Capped on every event: a background tab defers react-query's notifications, and during an
+          // event burst each pending notification pins the list it carries.
           queryClient.setQueryData(queryKey, (prev: SSEK8sEvent[]) => [data, ...(prev || [])].slice(0, MAX_EVENTS))
         } catch (error) {
           console.error('Error parsing event data:', error)

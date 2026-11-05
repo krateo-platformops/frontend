@@ -189,8 +189,8 @@ describe('useGetEvents — a reopened stream refetches the baseline', () => {
 
 /**
  * An event burst (sse-proxy replaying a stalled backlog) must neither grow the list nor copy it per
- * event. In a background tab the trim interval and react-query's notifications are deferred, and each
- * pending notification pins the list it carries.
+ * event. In a background tab react-query's notifications are deferred, and each pending notification
+ * pins the list it carries. The /events baseline is bounded too, on first load and on every reopen.
  */
 describe('useGetEvents — an event burst stays bounded', () => {
   afterEach(() => {
@@ -199,12 +199,14 @@ describe('useGetEvents — an event burst stays bounded', () => {
     vi.restoreAllMocks()
   })
 
-  const event = (seq: number) => JSON.stringify({
+  const eventObject = (seq: number) => ({
     involvedObject: { kind: 'Pod', name: `pod-${seq}` },
     message: `event-${seq}`,
     reason: 'Started',
     type: 'Normal',
   })
+  const event = (seq: number) => JSON.stringify(eventObject(seq))
+  const baseline = (size: number) => Array.from({ length: size }, (_, seq) => eventObject(seq))
 
   const mount = async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve([]), ok: true, status: 200 })))
@@ -214,7 +216,28 @@ describe('useGetEvents — an event burst stays bounded', () => {
     return { push: (seq: number) => { sseSubscriptions[0]?.onMessage?.(event(seq)) }, result }
   }
 
-  it('never holds more than 200 events, without waiting for the periodic trim', async () => {
+  it('caps an oversized /events baseline on first load', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve(baseline(500)), ok: true, status: 200 })))
+    const { result } = renderHook(() => useGetEvents({}), { wrapper })
+
+    await waitFor(() => { expect(result.current.data).toHaveLength(200) })
+    expect(result.current.data?.[0]?.message).toBe('event-0')
+  })
+
+  it('caps the baseline a reopened stream refetches', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ json: () => Promise.resolve(baseline(10)), ok: true, status: 200 })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(baseline(600)), ok: true, status: 200 })
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useGetEvents({}), { wrapper })
+    await waitFor(() => { expect(result.current.data).toHaveLength(10) })
+
+    sseSubscriptions[0]?.onOpen?.({ reopened: true })
+    await waitFor(() => { expect(fetchMock).toHaveBeenCalledTimes(2) })
+    await waitFor(() => { expect(result.current.data).toHaveLength(200) })
+  })
+
+  it('never holds more than 200 events during a burst', async () => {
     const { push, result } = await mount()
     for (let seq = 0; seq < 500; seq++) { push(seq) }
 
