@@ -93,3 +93,11 @@ sync lands in `helm/frontend-crds/templates/` in lockstep — a schema (image) /
 
 `docs/llms.txt` pins this bundle to the release tag — update the pin (and
 [log](./log.md), when the release is notable) as part of the release PR.
+
+## Withdrawing a release
+
+A tag cannot be withdrawn: it stays in the registry and looks like any other release. To stop a
+published version reaching a cluster, add it to [`retracted-versions.yaml`](../retracted-versions.yaml)
+with its chart, its reason and the version to use instead. installer's CI reads that file and refuses
+a pin on a listed version.
+

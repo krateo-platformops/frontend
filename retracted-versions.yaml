@@ -1,0 +1,16 @@
+# Published versions that must not be pinned.
+#
+# A tag cannot be withdrawn: it stays in the registry and looks like any other release. This list
+# is how a release is marked bad where a pinning session will see it. installer's CI reads it and
+# refuses a pin on a listed version, so nothing depends on anyone having been told.
+#
+# Add an entry when a published version must not reach a cluster. `charts` names the chart, as in
+# the `chart:` field of installer's component-pins.yaml, not the component. `use` is the version to
+# pin instead.
+retracted:
+  - version: 1.8.24
+    charts: [frontend-crds]
+    use: 1.8.26
+    reason: >-
+      The allowedResources enum has 47 values, not 54: it was tagged before #624 and lacks seven
+      retired plurals. Three objects on alpitour would be refused at their next write.
