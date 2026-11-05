@@ -27,7 +27,12 @@
  */
 import type { Context, Span as ApiSpan } from '@opentelemetry/api'
 import type { ReadableSpan, Span, SpanProcessor } from '@opentelemetry/sdk-trace-web'
-import { ATTR_HTTP_REQUEST_METHOD, ATTR_HTTP_ROUTE } from '@opentelemetry/semantic-conventions'
+import { ATTR_HTTP_REQUEST_METHOD, ATTR_HTTP_ROUTE, ATTR_URL_FULL } from '@opentelemetry/semantic-conventions'
+// `http.url` is deprecated AND experimental on semconv's own surface, hence the `/incubating`
+// subpath. Imported anyway rather than hand-typed: if semconv removes it in a minor, this file
+// fails to BUILD, which is the loud version of the only other outcome — a legacy key quietly
+// kept alive in a literal long after it means nothing.
+import { ATTR_HTTP_URL } from '@opentelemetry/semantic-conventions/incubating'
 
 /** The complete accepted set. snowplow drops anything else; so does `ContractSpanProcessor`. */
 export const SPAN_NAMES = {
@@ -112,8 +117,29 @@ export const ATTR_ABANDONED = 'krateo.interaction.abandoned'
 const isAutoHttpSpan = (span: Span): boolean =>
   !ACCEPTED.has(span.name) && typeof span.attributes?.[ATTR_HTTP_REQUEST_METHOD] === 'string'
 
-/** The URL attributes auto-instrumentation writes. Older convention first; both are handled. */
-const URL_ATTRS = ['http.url', 'url.full'] as const
+/**
+ * THE URL KEYS THIS FILE READS. One array, because it is one contract.
+ *
+ * Both `redactUrlAttributes` (write side) and `urlOf` (read side) walk this list, and they used to
+ * each carry their own copy of the literal — so the two could disagree about which key a span's URL
+ * lives under while both compiled and both passed. Same shape of defect as #588: a belief about the
+ * library held in a literal, in more than one place, with nothing checking it against the library.
+ *
+ * `url.full` is what the INSTALLED instrumentation actually emits — instrumentation-fetch 0.223's
+ * `_createSpan` sets `ATTR_URL_FULL`, and instrumentation-xml-http-request does the same. (An
+ * earlier comment here claimed `http.url` was "what the installed instrumentation emits". That was
+ * wrong; nothing in either package has written `http.url` since the stable-semconv move.)
+ *
+ * `http.url` is kept for the older convention, so a pin to an earlier instrumentation still works.
+ * Order is read-preference and is NOT load-bearing — a span carries one or the other.
+ *
+ * WHY THIS IS PINNED BY A TEST AND NOT ONLY BY A COMMENT: if a bump moves the URL to a THIRD key,
+ * `urlOf` returns null, `isExportable` returns false, and every `krateo.widget.fetch` span is
+ * dropped before export — invisibly, with a green suite. spanContract.instrumentation.test.ts
+ * asserts the installed instrumentation's URL key is a member of this array, so that bump fails a
+ * test instead.
+ */
+export const URL_ATTRS = [ATTR_HTTP_URL, ATTR_URL_FULL] as const
 
 /**
  * Is `url` under `prefix`, matching at a PATH BOUNDARY?
@@ -179,12 +205,13 @@ export const redactUrlAttributes = (span: ApiSpan, snowplowPrefix: string | null
 }
 
 /**
- * The URL attribute auto-instrumentation records. `http.url` is the older convention and what the
- * installed instrumentation emits; `url.full` is the newer one. Both are read so a dependency bump
- * cannot silently turn every span into "origin unknown" — which would drop them all.
+ * The URL attribute auto-instrumentation records — read through the shared `URL_ATTRS`, so this
+ * cannot drift from the write side in `redactUrlAttributes`. A bump that moves the URL to a key
+ * outside that list turns every span into "origin unknown", which drops them all; the pin against
+ * the installed instrumentation lives in spanContract.instrumentation.test.ts.
  */
 const urlOf = (span: ReadableSpan): string | null => {
-  for (const key of ['http.url', 'url.full'] as const) {
+  for (const key of URL_ATTRS) {
     const value = span.attributes[key]
     if (typeof value === 'string' && value.length > 0) {
       return value

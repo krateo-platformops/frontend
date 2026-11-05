@@ -18,9 +18,10 @@
  * this fails.
  */
 import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch'
+import { ATTR_HTTP_REQUEST_METHOD, ATTR_URL_FULL } from '@opentelemetry/semantic-conventions'
 import { describe, expect, it, vi } from 'vitest'
 
-import { ContractSpanProcessor, SPAN_NAMES } from './spanContract'
+import { ContractSpanProcessor, SPAN_NAMES, URL_ATTRS } from './spanContract'
 
 const PREFIX = 'https://portal.krateo.dev/content'
 
@@ -91,7 +92,37 @@ describe('what instrumentation-fetch actually names its spans', () => {
 
   it('carries http.request.method, which is what the predicate now matches on', () => {
     const { attributes } = spanAsInstrumented('POST')
-    expect(attributes['http.request.method']).toBe('POST')
+    expect(attributes[ATTR_HTTP_REQUEST_METHOD]).toBe('POST')
+  })
+
+  /**
+   * The METHOD key was pinned here from the start; the URL key was not, and it is the same hazard
+   * with a wider blast radius. `urlOf` walks `URL_ATTRS` and feeds `isExportable`: if a bump moves
+   * the URL to a key outside that list, `urlOf` returns null, `isExportable` returns false, and
+   * EVERY krateo.widget.fetch span is dropped before export — a green suite, a 2xx on the wire and
+   * nothing arriving, which is #588's failure mode exactly.
+   *
+   * So the assertion is deliberately NOT `attributes['url.full'] === …`. It asks the question that
+   * matters: whichever key the installed instrumentation chose, is it one this file READS?
+   *
+   * HONEST ABOUT WHAT THIS ADDS. The export path was ALREADY guarded here, indirectly: "renames it
+   * to krateo.widget.fetch and EXPORTS it" below runs the real attributes through `isExportable`,
+   * so emptying the read-set fails it too (verified by doing exactly that). What it fails with is
+   * `expected "vi.fn()" to be called once, but got 0 times` — true, and silent about the cause.
+   * This test fails with the URL contract named, and pins which key, so the next bump costs a
+   * reading of the diff rather than a reading of the 0.223 tarball. It is diagnostic precision on a
+   * guard that existed, not a hole that did not.
+   */
+  it('records its URL under a key the contract READS — not merely under some key', () => {
+    const { attributes } = spanAsInstrumented('GET')
+    const readable = URL_ATTRS.filter((key) => attributes[key] === `${PREFIX}/x`)
+
+    expect(readable).not.toHaveLength(0)
+    // And WHICH key, pinned from the installed build: 0.223's `_createSpan` sets ATTR_URL_FULL.
+    // NOT `http.url`, despite that being the older convention URL_ATTRS also carries and despite
+    // the hand-built fixtures in spanContract.test.ts treating it as the primary. A failure on this
+    // line alone is informative rather than urgent — the line above is the one that guards export.
+    expect(readable).toEqual([ATTR_URL_FULL])
   })
 })
 
