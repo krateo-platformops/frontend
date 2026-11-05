@@ -24,13 +24,16 @@
  * `updatedAt`. Nothing more sensitive than what is already on screen in the rail.
  */
 
+import { ARCHIVE_KEY, CURRENT_KEY } from './storageKeys'
 import type { AgentikoMessage } from './types'
 
 // ── storage keys + bounds (tune here) ──────────────────────────────────────
-/** localStorage key for the CURRENT (live) thread — rehydrated on reload. */
-export const CURRENT_KEY = 'krateo.autopilot.current.v1'
-/** localStorage key for the ARCHIVE list (past threads, newest first). */
-export const ARCHIVE_KEY = 'krateo.autopilot.archive.v1'
+// The two KEYS now live in `storageKeys.ts` and are re-exported here, so every existing
+// importer of `CURRENT_KEY`/`ARCHIVE_KEY` still gets them from this module. They moved
+// because reading one must be impossible before the autopilot→agentiko key migration has
+// run, and an import is the only ordering guarantee ES modules give us: this module reads
+// CURRENT_KEY during `createConversationStore()`, which runs at import. See that file.
+export { ARCHIVE_KEY, CURRENT_KEY }
 /** Hard cap on archived threads — prune the oldest past this. */
 export const MAX_ARCHIVED_THREADS = 20
 /** Total-bytes budget for the archive JSON — prune oldest until it fits (belt-and-braces

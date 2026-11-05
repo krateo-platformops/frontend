@@ -7,11 +7,17 @@
  * the component that drags it. Mirrors the max-width backstop in AgentikoRail.module.css.
  */
 
+import { RAIL_WIDTH_STORAGE_KEY } from './storageKeys'
+
 // User-resizable base width (the docked width before the history split's fixed +256px extra —
 // see HISTORY_EXTRA_WIDTH below — or the full-width override). Persisted across sessions the same
 // way ThemeModeContext persists its mode: read once at mount, written on drag-end only (not on
 // every pointermove, to avoid hammering localStorage mid-drag).
-export const RAIL_WIDTH_STORAGE_KEY = 'krateo-autopilot-rail-width'
+//
+// The KEY itself lives in `storageKeys.ts` and is re-exported here (AgentikoRail.tsx imports it
+// from this module to write on drag-end). It moved there so that naming it is impossible before
+// the autopilot→agentiko key migration has run — see that file's header.
+export { RAIL_WIDTH_STORAGE_KEY }
 const RAIL_MIN_WIDTH = 320
 const RAIL_MAX_WIDTH = 720
 const RAIL_DEFAULT_WIDTH = 384

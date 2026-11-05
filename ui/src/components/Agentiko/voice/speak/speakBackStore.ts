@@ -38,6 +38,7 @@
  * (FR 39).
  */
 
+import { SPEAK_BACK_NOTICE_KEY, SPEAK_BACK_PREF_KEY } from '../../storageKeys'
 import type { AgentikoActionChip, TurnModality } from '../../types'
 
 import { speakableForMessage } from './speakable'
@@ -55,10 +56,12 @@ const UNAVAILABLE_COPY: Readonly<Record<SpeakBackUnavailableReason, string>> = O
  *  announcement speak-back produces on its own (the dictation strings arrive with capture). */
 export const REFUSAL_ANNOUNCEMENT = 'The answer was not read aloud: the browser would not start audio on its own. A Play answer button is available above the message box.'
 
-/** FR 76: the per-user preference key. */
-export const SPEAK_BACK_PREF_KEY = 'krateo.autopilot.speakback.v1'
-/** FR 77: the first-use line is offered once, then never again. */
-export const SPEAK_BACK_NOTICE_KEY = 'krateo.autopilot.speakback.notice.v1'
+// FR 76 (the per-user preference) and FR 77 (the first-use line is offered once, then never
+// again). Both KEYS live in `storageKeys.ts` and are re-exported here, so existing importers
+// are unaffected. They moved because this store reads the preference key during
+// `createSpeakBackStore()`, which runs at import — so naming the key must be impossible
+// before the autopilot→agentiko key migration has run. See that file's header.
+export { SPEAK_BACK_NOTICE_KEY, SPEAK_BACK_PREF_KEY }
 
 export interface SpeakBackState {
   /**

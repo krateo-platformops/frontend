@@ -164,7 +164,9 @@ describe('the preference control in the rail chrome (FR 76)', () => {
     expect(toggle.getAttribute('aria-label')).toMatch(/Reading answers aloud is on/)
     fireEvent.click(toggle)
     expect(getByTestId('agentiko-speakback-toggle').getAttribute('aria-pressed')).toBe('false')
-    expect(localStorage.getItem('krateo.autopilot.speakback.v1')).toBe('off')
+    // Literal on purpose: the point of this line is that the preference lands under the key
+    // a returning browser will look under, which an assertion through the constant cannot say.
+    expect(localStorage.getItem('krateo.agentiko.speakback.v1')).toBe('off')
   })
 
   it('turning it off keeps a voice turn silent', () => {
