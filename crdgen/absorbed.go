@@ -25,7 +25,7 @@ package main
 // pinned one reproduces exactly the finding the acceptance was written for, from two immutable
 // artifacts nobody can edit after the fact:
 //
-//	the entry matches that historical comparison  -> the tightening SHIPPED. Spent; delete it.
+//	the entry matches that historical comparison  -> the tightening SHIPPED. Spent; warn, delete it.
 //	it matches neither history nor today          -> not yet applicable. Case A, and fine.
 //
 // Case B's other arm — a reworded finding — needs no special handling: the tightening is still live

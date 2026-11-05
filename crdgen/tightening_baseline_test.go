@@ -178,10 +178,13 @@ func TestNoWidgetCRDBecameStricter(t *testing.T) {
 		for _, a := range unmatched {
 			switch classifyUnmatched(a, historical) {
 			case absorbed:
-				t.Errorf("accepted-tightenings.yaml: the entry for %q %s (%s) matched no finding "+
-					"because the tightening it excused HAS SHIPPED — it is present between the "+
-					"published %s and %s. The entry has done its job and is now cruft that makes "+
-					"this file overstate what is currently excused. Delete it.",
+				// A WARNING, NOT A FAILURE. Installer's release, in another repo, is what spends an
+				// entry, so failing here would red every frontend PR with no frontend commit
+				// involved. It did exactly that on the day this shipped, on 0.3.507. A spent entry
+				// excuses nothing live, so it is untidy rather than dangerous, and a gate that
+				// fails on someone else's release is how a gate gets switched off.
+				fmt.Printf("::warning file=crdgen/accepted-tightenings.yaml::the entry for %q %s "+
+					"(%s) is spent: the tightening shipped, between published %s and %s. Delete it.\n",
 					a.Path+a.PathSuffix, a.Clause, a.Accepted, prev, version)
 			case notYetApplicable:
 				t.Logf("accepted-tightenings.yaml: the entry for %q %s (%s) matches nothing yet "+
