@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { BLUEPRINT_PREVIEW_CAPTION, buildBlueprintPreviewPayload } from '../../components/Autopilot/blueprintPreviewPayload'
+import { BLUEPRINT_PREVIEW_CAPTION, buildBlueprintPreviewPayload } from '../../components/Agentiko/blueprintPreviewPayload'
 
 import {
   FAILED_RENDER_CAPTION,

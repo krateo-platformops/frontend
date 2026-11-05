@@ -8,12 +8,12 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { lintBlueprintDraft } from '../../components/Autopilot/blueprintDraft'
-import { draftHistory } from '../../components/Autopilot/draftHistory'
-import { emitDraftClose } from '../../components/Autopilot/previewDraftClose'
-import { AUTOPILOT_DRAFT_RENDER_REQUEST_EVENT, type DraftRenderRequestDetail } from '../../components/Autopilot/previewDraftRender'
-import { AUTOPILOT_PREVIEW_FILE_EDIT_EVENT, type FileEditDetail } from '../../components/Autopilot/previewFileEdit'
-import { AUTOPILOT_PREVIEW_FILES_BATCH_EVENT, onFilesBatch, type FilesBatchDetail } from '../../components/Autopilot/previewFilesBatch'
+import { lintBlueprintDraft } from '../../components/Agentiko/blueprintDraft'
+import { draftHistory } from '../../components/Agentiko/draftHistory'
+import { emitDraftClose } from '../../components/Agentiko/previewDraftClose'
+import { AGENTIKO_DRAFT_RENDER_REQUEST_EVENT, type DraftRenderRequestDetail } from '../../components/Agentiko/previewDraftRender'
+import { AGENTIKO_PREVIEW_FILE_EDIT_EVENT, type FileEditDetail } from '../../components/Agentiko/previewFileEdit'
+import { AGENTIKO_PREVIEW_FILES_BATCH_EVENT, onFilesBatch, type FilesBatchDetail } from '../../components/Agentiko/previewFilesBatch'
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 import { invalidateAccessTokenCache } from '../../utils/getAccessToken'
 
@@ -111,7 +111,7 @@ const refusalUnder = (button: HTMLElement): string | null =>
 describe('BlueprintBuilder — placing (screen 5)', () => {
   it('1. Repository: its CRD is read by name, then EXACTLY ONE batch — the template (golden) and the descriptor', async () => {
     const { fetched, provider } = await start()
-    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     const files = await placeRepository(provider)
     batches.stop()
     expect(crdReads(fetched)).toEqual(['repositories.github.krateo.io'])
@@ -211,7 +211,7 @@ describe('BlueprintBuilder — placing (screen 5)', () => {
     const { provider } = await start()
     filter('LocalResource')
     await place(/^LocalResource/)
-    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     act(() => { fireEvent.change(within(inspector()).getByLabelText('One per item of'), { target: { value: '.Values.files' } }) })
     act(() => { within(inspector()).getByRole('button', { name: 'Set' }).click() })
     batches.stop()
@@ -241,7 +241,7 @@ describe('BlueprintBuilder — placing (screen 5)', () => {
     const { provider } = await start()
     const publish = () => screen.getByRole<HTMLButtonElement>('button', { name: 'Publish' })
     const rendered = provider.store.get()?.files ?? {}
-    const asked = listen<DraftRenderRequestDetail>(AUTOPILOT_DRAFT_RENDER_REQUEST_EVENT)
+    const asked = listen<DraftRenderRequestDetail>(AGENTIKO_DRAFT_RENDER_REQUEST_EVENT)
     act(() => { screen.getByRole('button', { name: 'Preview' }).click() })
     asked.stop()
     answer({ id: asked.seen[0].id, message: null, outcome: 'rendered', payload: renderedPayload(rendered, []) })
@@ -265,7 +265,7 @@ describe('BlueprintBuilder — placing (screen 5)', () => {
     await place(/^Deployment/)
     const placed = provider.store.get()?.files ?? {}
     expect(placed[ARCHITECTURE_TEMPLATE_PATH]).toContain('id: deployment')
-    const edits = listen<FileEditDetail>(AUTOPILOT_PREVIEW_FILE_EDIT_EVENT)
+    const edits = listen<FileEditDetail>(AGENTIKO_PREVIEW_FILE_EDIT_EVENT)
     act(() => { within(block()).getByRole('button', { name: 'Apply edits' }).click() })
     edits.stop()
     // Nothing is sent: the text started from the file as it was before the placement.
@@ -315,7 +315,7 @@ describe('BlueprintBuilder — placing (screen 5)', () => {
     const read = holdRead()
     filter('Repository')
     act(() => { row(/^Repository · v2022-11-28/).click() })
-    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     act(() => { emitDraftClose() })
     act(() => { provider.store.set(seededChart('billing'), 'blueprint') })
     await waitFor(() => expect(within(palette()).getByText('72 kinds · 4 groups')).toBeTruthy())
@@ -335,7 +335,7 @@ describe('BlueprintBuilder — placing (screen 5)', () => {
     const read = holdRead()
     filter('Repository')
     act(() => { row(/^Repository · v2022-11-28/).click() })
-    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     act(() => { emitDraftClose() })
     act(() => { provider.store.set(seededChart('orders'), 'blueprint') })
     await read.release()
@@ -363,7 +363,7 @@ describe('BlueprintBuilder — placing (screen 5)', () => {
     const read = holdRead()
     filter('Repository')
     act(() => { row(/^Repository · v2022-11-28/).click() })
-    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     act(() => { provider.store.set(seededChart('billing'), 'blueprint') })
     await read.release()
     batches.stop()
@@ -379,7 +379,7 @@ describe('BlueprintBuilder — placing (screen 5)', () => {
     await waitFor(() => expect(within(palette()).getByText('72 kinds · 4 groups')).toBeTruthy())
     filter('Repository')
     act(() => { row(/^Repository · v2022-11-28/).click() })
-    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     page.unmount()
     await read.release()
     batches.stop()
@@ -392,7 +392,7 @@ describe('BlueprintBuilder — placing (screen 5)', () => {
     filter('Repository')
     act(() => { row(/^Repository · v2022-11-28/).click() })
     filter('')
-    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     await place(/^Deployment/)
     expect(batches.seen).toHaveLength(1)
     expect(Object.keys(batches.seen[0].add ?? {})).toEqual(['templates/deployment.yaml'])
@@ -421,7 +421,7 @@ describe('BlueprintBuilder — placing (screen 5)', () => {
   it('Enter in an unchanged "One per item of" asks for nothing — no refusal, no batch — as the disabled Set says', async () => {
     const { provider } = await start()
     await placeRepository(provider)
-    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     const field = within(inspector()).getByLabelText('One per item of')
     act(() => {
       fireEvent.keyDown(field, { code: 'Enter', key: 'Enter', keyCode: 13, which: 13 })

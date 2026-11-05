@@ -13,7 +13,7 @@ import { join } from 'node:path'
 import { load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
-import { createBlueprintDraftStore } from '../../components/Autopilot/blueprintDraftStore'
+import { createBlueprintDraftStore } from '../../components/Agentiko/blueprintDraftStore'
 
 import {
   askedOnCreateNotes,

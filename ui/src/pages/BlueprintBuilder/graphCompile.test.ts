@@ -12,7 +12,7 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { lintBlueprintDraft } from '../../components/Autopilot/blueprintDraft'
+import { lintBlueprintDraft } from '../../components/Agentiko/blueprintDraft'
 
 import {
   ARCHITECTURE_API_VERSION,

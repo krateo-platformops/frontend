@@ -49,7 +49,7 @@
 
 /* A fixed height, and the cards at their designed size inside it (fit="natural"): a graph that
    does not fit keeps its first column in view and is dragged for the rest. The WIDTH follows the
-   page — the Autopilot rail sets it — and DependencyGraph observes the box and resizes its canvas. */
+   page — the Agentiko rail sets it — and DependencyGraph observes the box and resizes its canvas. */
 .graph {
   height: 360px;
   position: relative;

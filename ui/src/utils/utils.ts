@@ -101,7 +101,7 @@ export const getHeadersObject = (headers: string[]): Record<string, string> | un
  * so calling it there throws "crypto.randomUUID is not a function" and crashes the app.
  * `crypto.getRandomValues()` IS available in insecure contexts, so derive the UUID from
  * it (with a Math.random fallback for ancient runtimes). These IDs are non-security-
- * sensitive (Autopilot session/message keys); cryptographic strength is not required. */
+ * sensitive (Agentiko session/message keys); cryptographic strength is not required. */
 export const randomId = (): string => {
   const webCrypto = globalThis.crypto
   if (webCrypto && typeof webCrypto.randomUUID === 'function') {

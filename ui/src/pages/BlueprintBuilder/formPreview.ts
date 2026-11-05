@@ -6,7 +6,7 @@
  * says what to do: the first blocks publishing (the lint says so too), the second is a typo to fix,
  * the third is simply a chart nobody has placed a field in yet (mockup screen 3).
  */
-import { VALUES_SCHEMA_PATH, buildFormPreviewModel } from '../../components/Autopilot/blueprintDraft'
+import { VALUES_SCHEMA_PATH, buildFormPreviewModel } from '../../components/Agentiko/blueprintDraft'
 
 /** Why the create form cannot be previewed, or null when it can. */
 export const formPreviewGap = (schemaText: string | undefined): string | null => {

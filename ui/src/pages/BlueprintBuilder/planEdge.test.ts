@@ -7,7 +7,7 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { lintBlueprintDraft } from '../../components/Autopilot/blueprintDraft'
+import { lintBlueprintDraft } from '../../components/Agentiko/blueprintDraft'
 
 import { applyPlan, edgeChart, editDescriptor, gatedGolden, nodeIn } from './__fixtures__/s4b'
 import { ARCHITECTURE_API_VERSION, ARCHITECTURE_KIND, ARCHITECTURE_TEMPLATE_PATH, serializeArchitecture, wrapAsConfigMapTemplate, type ChartArchitecture, type ResourceNode } from './architecture'

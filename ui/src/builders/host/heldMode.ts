@@ -8,9 +8,9 @@
  * protocol rather than per composer: the Page Composer drew a kind-less draft, the Blueprint Composer
  * parked it, and both still do.
  */
-import type { DraftKind } from '../../components/Autopilot/blueprintDraftStore'
-import { LEGACY_PAYLOAD_DRAFT_KIND } from '../../components/Autopilot/previewBus'
-import type { BuilderMode, DraftChangedDetail } from '../../components/Autopilot/previewDraftChanged'
+import type { DraftKind } from '../../components/Agentiko/blueprintDraftStore'
+import { LEGACY_PAYLOAD_DRAFT_KIND } from '../../components/Agentiko/previewBus'
+import type { BuilderMode, DraftChangedDetail } from '../../components/Agentiko/previewDraftChanged'
 
 export const heldModeOf = ({ files, kind }: Pick<DraftChangedDetail, 'files' | 'kind'>, draftKind: DraftKind): BuilderMode => {
   const legacy = Object.keys(files).length ? LEGACY_PAYLOAD_DRAFT_KIND : null

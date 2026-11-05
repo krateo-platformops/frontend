@@ -70,7 +70,7 @@ interface OptionsInputProps {
  * An array field picks several — `multiple` when closed, `tags` when open.
  *
  * The field stores the option's VALUE only, never the `{ label, value }` pair: the schema types
- * the field as the value, and the payload, the Review, drafts and Autopilot all read it as such.
+ * the field as the value, and the payload, the Review, drafts and Agentiko all read it as such.
  * The labels it showed are recorded with the Form (OptionRegistry) for the Review to show.
  *
  * With `search`, what the person types is sent to the RESTAction (debounced, from `minChars`

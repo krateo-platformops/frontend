@@ -90,14 +90,14 @@
 
   /* #80 §0.11: allow the utility cluster to yield horizontal space so the search trigger inside it
      (flex:0 1 280px, min-width:0) absorbs the shrink and stops overlapping `.headerLeft`. The
-     fixed-size icon buttons + the Autopilot/user controls hold their min-content size, so only the
+     fixed-size icon buttons + the Agentiko/user controls hold their min-content size, so only the
      search actually shrinks. */
   flex-shrink: 1;
   gap: var(--spacing-md);
   min-width: 0;
 }
 
-/* Thin separator that sets the Autopilot toggle apart from the page utilities. */
+/* Thin separator that sets the Agentiko toggle apart from the page utilities. */
 .headerDivider {
   align-self: center;
   background: var(--line-color);

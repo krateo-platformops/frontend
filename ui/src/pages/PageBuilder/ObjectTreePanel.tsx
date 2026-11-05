@@ -17,9 +17,9 @@ import { App, Button, Dropdown, Empty, Popconfirm, Space, Tag, Tooltip, Tree, Ty
 import type { DataNode } from 'antd/es/tree'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
-import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
-import { emitFileRemove } from '../../components/Autopilot/previewFileRemove'
+import { emitFileAdd } from '../../components/Agentiko/previewFileAdd'
+import { emitFileEdit } from '../../components/Agentiko/previewFileEdit'
+import { emitFileRemove } from '../../components/Agentiko/previewFileRemove'
 import { dismissButtonProps } from '../../components/DismissButton'
 
 import BindDataModal from './BindDataModal'

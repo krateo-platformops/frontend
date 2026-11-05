@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * A chart HELD BEFORE the composer mounts — a navigation away and back, or a chart Autopilot started
+ * A chart HELD BEFORE the composer mounts — a navigation away and back, or a chart Agentiko started
  * on another page — must be as editable as one started here (review of #427).
  *
  * The provider answers a replay synchronously. The host once asked for it in the same effect that put
@@ -15,11 +15,11 @@ import { useState } from 'react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createBlueprintGate } from '../../components/Autopilot/blueprintGate'
-import { draftHistory } from '../../components/Autopilot/draftHistory'
-import { AUTOPILOT_PREVIEW_FILES_BATCH_EVENT, type FilesBatchDetail } from '../../components/Autopilot/previewFilesBatch'
-import { heldDraftIdentity } from '../../components/Autopilot/publishCompile'
-import { createBroadcastingDraftStore, useDraftFileBuses } from '../../components/Autopilot/useDraftFileBuses'
+import { createBlueprintGate } from '../../components/Agentiko/blueprintGate'
+import { draftHistory } from '../../components/Agentiko/draftHistory'
+import { AGENTIKO_PREVIEW_FILES_BATCH_EVENT, type FilesBatchDetail } from '../../components/Agentiko/previewFilesBatch'
+import { heldDraftIdentity } from '../../components/Agentiko/publishCompile'
+import { createBroadcastingDraftStore, useDraftFileBuses } from '../../components/Agentiko/useDraftFileBuses'
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 import { ConfigContext } from '../../context/ConfigContext'
 import { ThemeModeProvider } from '../../context/ThemeModeContext'
@@ -95,7 +95,7 @@ describe('BlueprintBuilder — a chart held before it mounted', () => {
     const palette = () => screen.getByRole('region', { name: 'Add' })
     await waitFor(() => expect(within(palette()).getByText('72 kinds · 4 groups')).toBeTruthy())
 
-    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     act(() => { fireEvent.change(within(palette()).getByLabelText('Filter by kind or group'), { target: { value: 'Repository' } }) })
     await act(async () => {
       within(palette()).getByRole('button', { name: /^Repository · v2022-11-28/ }).click()

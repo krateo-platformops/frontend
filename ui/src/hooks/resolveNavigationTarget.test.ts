@@ -7,12 +7,12 @@ import { resolveNavigationTarget } from './useHandleActions'
  *
  * Every independent filter control navigates with only its OWN param — the compositions status
  * chips emit `?status=failed`, the range chips `?range=7d`. Without merging, each click would
- * clobber the others and filters could never compose. Autopilot's `setExtras` rides the same
+ * clobber the others and filters could never compose. Agentiko's `setExtras` rides the same
  * dispatcher, and `buildExtrasPath` deliberately builds a bare `pathname?whitelisted-only` URL
  * BECAUSE this merge restores the rest.
  *
  * That indirection is exactly why an audit read `buildExtrasPath` in isolation, saw
- * `new URLSearchParams()`, and reported that Autopilot silently discards every other URL param.
+ * `new URLSearchParams()`, and reported that Agentiko silently discards every other URL param.
  * It does not — but nothing in the codebase demonstrated that, and a plausible "fix" would have
  * double-merged. These tests make the contract visible at the seam where it actually lives.
  */

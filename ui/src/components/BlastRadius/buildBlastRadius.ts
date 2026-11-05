@@ -13,7 +13,7 @@
  * Target (GVR + namespace + name) is parsed from the ResourceRef `path` — a raw /apis/…
  * or /api/… apiserver URL (RESTAction refs), or snowplow's own /call?… query shape (the
  * paths real widget actions and the /call write-path builders carry) — the SAME parse the
- * Autopilot page-context uses — so the gate shows exactly the object the request will hit. `cluster` is 'local' for a same-cluster
+ * Agentiko page-context uses — so the gate shows exactly the object the request will hit. `cluster` is 'local' for a same-cluster
  * write and the spoke name when the payload declares a hub→spoke target (W0-4 / W3-1).
  * `count` is 1 for a scalar write, or writeSet.length for an N-fan-out apply.
  */

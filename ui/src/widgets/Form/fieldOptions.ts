@@ -141,7 +141,7 @@ const valueKey = (value: unknown): string => `${typeof value}:${String(value)}`
  * path: the label of every option a field showed (so the Review can say "United States", not
  * "us", while the payload keeps "us"), and the complete list of a CLOSED field that loads its
  * options at once (so a value that arrived some other way — initial values, a resumed draft, an
- * Autopilot draft — and is not in it fails validation instead of being submitted).
+ * Agentiko draft — and is not in it fails validation instead of being submitted).
  */
 export interface OptionRegistry {
   record: (path: readonly (string | number)[], options: FieldOption[]) => void

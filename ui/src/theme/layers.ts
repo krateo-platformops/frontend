@@ -3,7 +3,7 @@
  *
  * There are four surfaces that can be open at once, each owning its own state with nothing
  * coordinating them: the widget `Drawer` mounted in the shell, the `Notifications` drawer, the
- * Autopilot preview drawer, and the blast-radius confirm. Before this module, two of the four
+ * Agentiko preview drawer, and the blast-radius confirm. Before this module, two of the four
  * declared a z-index at all — and those two lived in different files, with the upper one written
  * as a bare `1100` rather than derived from the 1000 it has to beat.
  *
@@ -18,7 +18,7 @@
  *                         at antd's own base — this is the value it already had by default; it is
  *                         declared now so it is a decision rather than an inheritance.
  *
- *   PREVIEW (1010)        The Autopilot preview. Deliberately side-by-side: it drops its mask and
+ *   PREVIEW (1010)        The Agentiko preview. Deliberately side-by-side: it drops its mask and
  *                         shifts left by the rail's width so preview and conversation stay usable
  *                         together. Above a page drawer because it is the surface you are working
  *                         IN while the page sits behind it.
@@ -46,7 +46,7 @@
 export const LAYER = {
   /** Widget `Drawer` — page content. antd's `zIndexPopupBase`, now stated rather than inherited. */
   DRAWER: 1000,
-  /** Autopilot preview — the mask-less side-by-side working surface. */
+  /** Agentiko preview — the mask-less side-by-side working surface. */
   PREVIEW: 1010,
   /** Notifications — transient chrome; the bell must always reach the front. */
   NOTIFICATIONS: 1050,

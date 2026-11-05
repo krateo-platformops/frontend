@@ -1,0 +1,323 @@
+/**
+ * The PUBLISH DESTINATION form — the human declares WHERE a publish commits (owner /
+ * repository / base branch) in a proper form BEFORE the publish claim is built. The
+ * model's fence coords (and the builder defaults) are only PREFILLS: the destination is
+ * user-owned and asked at every publish; the last confirmed OWNER and BASE prefill the next
+ * ask, and the repository is always the one this artifact names.
+ *
+ * Wiring mirrors the preview drawer's global-overlay pattern: ONE host mounted by
+ * AgentikoProvider, driven by a promise-based request seam so the (non-React) publish
+ * branches can await the human's answer. HEADLESS-SAFE: with no mounted host (unit tests,
+ * non-UI callers) the request resolves to its prefills, keeping those flows
+ * non-interactive and byte-identical to the pre-form behavior.
+ */
+import { Form, Input, Modal, Radio, Typography } from 'antd'
+import { useEffect, useState } from 'react'
+
+import { ABOVE_PREVIEW_DRAWER_Z_INDEX } from '../../hooks/confirmModalProps'
+import { dismissButtonProps } from '../DismissButton'
+
+import { seededRepoProblem } from './builderPublishClaim'
+
+export interface PublishTarget {
+  owner: string
+  repo: string
+  base: string
+  /**
+   * Visibility of the destination repository IF THIS PUBLISH CREATES IT.
+   *
+   * Asked here rather than fixed at install because it is a per-publish decision: most blueprints
+   * exist to be installed by someone else, and some destinations are deliberately internal. The
+   * install-level default (`repository.private` in builder-publish) remains what a claim that says
+   * nothing gets, so a headless caller is unaffected.
+   *
+   * OPTIONAL, and the absence is meaningful rather than lazy: it is how a non-UI caller says "use
+   * the install default", which the chart distinguishes from an explicit `public`. The form always
+   * sets it, so an interactive publish is never ambiguous.
+   */
+  visibility?: 'public' | 'private'
+}
+
+export interface PublishTargetRequest extends PublishTarget {
+  /** What is being published — labels the form (a page, a blueprint chart, or a controller chart). */
+  kind: 'page' | 'blueprint' | 'controller'
+  /**
+   * The ONLY repository this publish may name — the artifact's slug — set when the destination is
+   * seeded from a builder template. A seeded repository is one chart's (seededRepoProblem), so the
+   * form refuses any other name, with the reason, as it is typed. Absent: any repository is taken.
+   */
+  requiredRepo?: string
+  /**
+   * WHO ASKED FOR THIS PUBLISH — a person's Publish button, or Agentiko's publish verb. The form
+   * says so, because the copy used to name Agentiko on every page publish, including one a person
+   * built and published by hand. Neither of them pushes anything: the claim this confirms is what
+   * Krateo reconciles into the branch and the change request. Absent reads as a person.
+   */
+  initiator?: PublishInitiator
+}
+
+export type PublishInitiator = 'autopilot' | 'person'
+
+/** The artifact a page / blueprint publish is FOR: its slug, and whether its new repo is seeded. */
+export interface PublishArtifact {
+  slug: string
+  seeded: boolean
+}
+
+/** Human noun for the artifact kind (form title). Keep in sync with the kind union. */
+const KIND_NOUN: Record<PublishTargetRequest['kind'], string> = {
+  blueprint: 'blueprint',
+  controller: 'controller',
+  page: 'page',
+}
+
+/** The write-gate blurb for the artifact kind — what a publish of THIS kind actually commits. */
+const KIND_BLURB: Record<PublishTargetRequest['kind'], string> = {
+  blueprint: 'The Helm chart tree (Chart.yaml, values.schema.json, templates/) is pushed to a branch and opened as a change request into the base branch — once merged, CI publishes it as a versioned OCI chart. Nothing merges without your review.',
+  controller: 'The controller chart (Chart.yaml, its RestDefinitions and the OpenAPI ConfigMap they read, and the CompositionDefinition that registers it) is pushed to a branch and opened as a change request into the base branch — once merged, CI publishes it as a versioned OCI chart, and registering it lets a composition install the Kinds. Nothing merges without your review.',
+  page: 'Krateo pushes the page to a branch and opens a change request into the base branch. Nothing merges without your review.',
+}
+
+/**
+ * Said first when Agentiko, not a person, started the publish. The blurbs above are true for
+ * either initiator — they say what Krateo does once the destination is confirmed — so only this
+ * line depends on who asked.
+ */
+export const initiatorLine = (req: Pick<PublishTargetRequest, 'initiator' | 'kind'>): string | null =>
+  (req.initiator === 'autopilot'
+    ? `Agentiko asked to publish this ${KIND_NOUN[req.kind]}. Nothing is written until you confirm the destination.`
+    : null)
+
+type PendingResolve = (target: PublishTarget | null) => void
+type Handler = (req: PublishTargetRequest) => Promise<PublishTarget | null>
+
+let activeHandler: Handler | null = null
+/**
+ * The last OWNER and BASE the human confirmed, PER KIND — prefill the next ask of that same
+ * kind (session-lived). NOT the repository.
+ *
+ * THE REPOSITORY IS NEVER CARRIED OVER. It used to be: the whole confirmed destination was
+ * remembered, so the second publish in a session defaulted to the FIRST one's repository —
+ * whatever that artifact was called. That is how fifteen page sets landed in one repository
+ * (`demo-service-catalog`) and two blueprints in a shared `blueprints`, each prefill looking
+ * like a considered default. Every artifact has its own repository now (#163), named for it, so
+ * the prefill is always the caller's — the artifact's slug — and the owner and base, which really
+ * are the same from one publish to the next, are what is worth repeating.
+ *
+ * Keyed by kind, not global. A single memo made one confirmed destination prefill every
+ * later publish of every kind, so confirming a KOG mapping into krateo-oas left the next
+ * PAGE publish pointing at the KOG registry — while the preview chip beside the form still
+ * read "Publishes to krateo-portal-chart". A tester's screenshot showed exactly that pair.
+ * The artifacts live in different repos by design (blueprints in krateo-blueprints, pages
+ * in the portal chart, KOG mappings in krateo-oas), so carrying one kind's answer over to
+ * another is never the helpful default — it is a mis-publish with a plausible-looking
+ * prefill. Within a kind, repeating the last owner and base is genuinely useful, so that stays.
+ */
+let lastConfirmed: Partial<Record<PublishTargetRequest['kind'], Pick<PublishTarget, 'base' | 'owner'>>> = {}
+
+/** Ask the human for the publish destination. Resolves null on cancel (the publish is
+ * denied). With no mounted host, resolves the prefills immediately (headless-safe). */
+export const requestPublishTarget = async (req: PublishTargetRequest): Promise<PublishTarget | null> => {
+  if (!activeHandler) {
+    return { base: req.base, owner: req.owner, repo: req.repo, visibility: req.visibility }
+  }
+
+  return activeHandler(req)
+}
+
+/** Coerce a publish fence's coords into prefills and ask the human for the destination
+ * (one-liner for the provider's publish branches; null = cancelled → deny the publish). The
+ * owner default is per-builder (`defaultOwner`) because the builders live in different orgs —
+ * blueprints in krateo-blueprints, pages + the KOG/oas registry in krateo-platformops. It stays
+ * optional (defaulting to krateo-blueprints) so callers/tests that don't pass it are unchanged.
+ *
+ * `artifact` — a page or blueprint publish names the chart it is for, and then the repository
+ * prefill IS that slug, whatever the proposal says. A model-emitted repo used to win here, and the
+ * rail's own re-prompt handed the model the install's fallback repo to emit — so a page set could
+ * be prefilled into `portal`. The owner and base of a proposal still win. When the new repo is
+ * seeded, the slug is also the only repository the form accepts. */
+export const askPublishDestination = (
+  proposal: { base?: string; owner?: string; repo?: string },
+  kind: PublishTargetRequest['kind'],
+  defaultRepo: string,
+  defaultOwner = 'krateo-blueprints',
+  artifact?: PublishArtifact,
+  initiator: PublishInitiator = 'autopilot',
+): Promise<PublishTarget | null> => requestPublishTarget({
+  base: typeof proposal.base === 'string' && proposal.base ? proposal.base : 'main',
+  initiator,
+  kind,
+  owner: typeof proposal.owner === 'string' && proposal.owner ? proposal.owner : defaultOwner,
+  repo: artifact?.slug || (typeof proposal.repo === 'string' && proposal.repo ? proposal.repo : defaultRepo),
+  ...(artifact?.slug && artifact.seeded ? { requiredRepo: artifact.slug } : {}),
+  // NO visibility here, deliberately. Headless (no mounted host) this resolves straight to the
+  // prefills, and a visibility set here would ride into the claim and OVERRIDE the operator's
+  // install-level `repository.private`. A non-UI publish should honour that choice, not silently
+  // replace it. The PUBLIC default belongs to the form below, where a person sees and confirms it.
+})
+
+/**
+ * The form's repository rule: a seeded destination must be named for its artifact. An EMPTY value
+ * is left to the field's required rule, so the person reads one message, not two.
+ */
+export const repositoryProblem = (req: Pick<PublishTargetRequest, 'requiredRepo'> | undefined, repo: unknown): string | null => {
+  const value = typeof repo === 'string' ? repo : ''
+  if (!req?.requiredRepo || !value.trim()) {
+    return null
+  }
+  return seededRepoProblem(req.requiredRepo, value)
+}
+
+/** TEST SEAM — reset the module-level state between specs. */
+export const resetPublishTargetForTests = (): void => {
+  activeHandler = null
+  lastConfirmed = {}
+}
+
+export const PublishTargetFormHost = () => {
+  const [form] = Form.useForm<PublishTarget>()
+  const [pending, setPending] = useState<{ req: PublishTargetRequest; resolve: PendingResolve } | null>(null)
+
+  useEffect(() => {
+    activeHandler = (req) => new Promise((resolve) => {
+      setPending({ req, resolve })
+    })
+
+    return () => {
+      activeHandler = null
+    }
+  }, [])
+
+  useEffect(() => {
+    if (pending) {
+      // The repository is ALWAYS the request's: never the last one confirmed (see lastConfirmed).
+      const remembered = lastConfirmed[pending.req.kind]
+      form.setFieldsValue({
+        base: remembered?.base ?? pending.req.base,
+        owner: remembered?.owner ?? pending.req.owner,
+        repo: pending.req.repo,
+        // PUBLIC unless the person says otherwise — and not because public is the safer default in
+        // general, but because it is the one that does not fail SILENTLY. A GHCR package inherits
+        // the visibility of the repository that published it and no API can change it afterwards,
+        // so a private destination publishes a chart that installs for nobody outside the org: the
+        // publish reports success and the artifact 401s at install. The failing option has to be
+        // the one someone opts into rather than the one they get by not looking.
+        //
+        // NOT remembered between publishes, and that is a consequence of `lastConfirmed` keeping
+        // only base and owner (see `close`). Each publish re-asks. A remembered `private` would
+        // otherwise apply silently to a later destination the person never considered.
+        visibility: pending.req.visibility ?? 'public',
+      })
+    }
+  }, [pending, form])
+
+  const close = (target: PublishTarget | null) => {
+    if (target && pending) {
+      lastConfirmed[pending.req.kind] = { base: target.base, owner: target.owner }
+    }
+    pending?.resolve(target)
+    setPending(null)
+  }
+
+  return (
+    <Modal cancelButtonProps={dismissButtonProps}
+      cancelText='Cancel publish'
+      // AN IN-FLIGHT PUBLISH IS NOT DISCARDED BY AN INCIDENTAL CLICK (frontend#279).
+      //
+      // antd fires `onCancel` for the mask and for Escape as well as for the Cancel button, and
+      // `onCancel` here resolves the awaited destination as null — which aborts the whole publish
+      // with "publish cancelled — destination not confirmed" and sends the user back to re-preview.
+      // This modal sits ABOVE the preview drawer, so its mask covers the drawer: a click aimed at
+      // anything behind it — the drawer's own close button included — lands on the mask and throws
+      // the publish away. Reproduced exactly that way.
+      //
+      // Losing composed work to a stray click is never what someone meant. Abandoning a publish now
+      // requires saying so, via "Cancel publish".
+      keyboard={false}
+      maskClosable={false}
+      okText='Confirm destination'
+      onCancel={() => close(null)}
+      onOk={() => {
+        void form.validateFields().then((values) => close(values)).catch(() => { /* invalid — stay open */ })
+      }}
+      open={pending !== null}
+      title={`Where should this ${pending ? KIND_NOUN[pending.req.kind] : 'page'} be committed?`}
+      // ABOVE THE PREVIEW DRAWER. This form is opened BY a publish the user started from
+      // the preview, so the drawer is always up behind it. In antd 6 both surfaces default
+      // to `token.zIndexPopupBase` (1000) and the drawer pins itself there explicitly, so a
+      // tie is decided by DOM order — and the always-mounted drawer wins, clipping this
+      // form and putting "Confirm destination" somewhere the user can neither see nor
+      // click. The blast-radius confirm was raised for exactly this reason; this second
+      // gate on the same flow was missed until a tester hit it.
+      zIndex={ABOVE_PREVIEW_DRAWER_Z_INDEX}
+    >
+      <div data-testid='publish-target-form'>
+        {pending && initiatorLine(pending.req) ? (
+          <Typography.Paragraph data-testid='publish-initiator' type='secondary'>{initiatorLine(pending.req)}</Typography.Paragraph>
+        ) : null}
+        <Typography.Paragraph type='secondary'>
+          {/* Name the artifact at the write gate: what a publish of THIS kind actually commits. */}
+          {pending ? KIND_BLURB[pending.req.kind] : KIND_BLURB.page}
+        </Typography.Paragraph>
+        <Typography.Paragraph data-testid='publish-repo-precondition' type='secondary'>
+          {/* THIS TEXT WAS WRONG AND SENT PEOPLE TO DO WORK THE PLATFORM ALREADY DOES. It used to say
+              the repository "must already exist ... it does not create the repository", dating from
+              when the publish only cloned a destination. builder-publish now renders a github
+              `Repository` (values.yaml `repository.create: true`, `autoInit: true`) and creates it,
+              which is why a brand-new page set no longer needs a repo made by hand first. Verified on
+              krateo-057: a publish to krateo-blueprints/demo-destination rendered
+              `publish-team-health-repo` with `auto_init: true`.
+
+              ONE SENTENCE, SAID ONCE. It used to go on to repeat the blurb above — branch, change
+              request, "nothing merges without your review" — so the form said each of those twice. */}
+          The repository is <strong>created if it doesn&rsquo;t exist</strong>.
+        </Typography.Paragraph>
+        <Form form={form} layout='vertical'>
+          <Form.Item label='Repository owner' name='owner' rules={[{ message: 'the owner/org (or GitLab group) is required', required: true }]}>
+            <Input placeholder='krateo-blueprints' />
+          </Form.Item>
+          <Form.Item
+            extra={pending?.req.requiredRepo
+              ? `Named for this ${KIND_NOUN[pending.req.kind]}: the repository is seeded with a release workflow for exactly one chart.`
+              : undefined}
+            label='Repository'
+            name='repo'
+            rules={[
+              { message: 'the repository is required', required: true },
+              {
+                validator: (_rule, value) => {
+                  const problem = repositoryProblem(pending?.req, value)
+                  return problem ? Promise.reject(new Error(problem)) : Promise.resolve()
+                },
+              },
+            ]}
+          >
+            <Input placeholder='portal' />
+          </Form.Item>
+          <Form.Item label='Base branch (the change-request target)' name='base' rules={[{ message: 'the base branch is required', required: true }]}>
+            <Input placeholder='main' />
+          </Form.Item>
+          {/* Only meaningful when the repository does not exist yet — an existing one keeps its
+              visibility, because a create call cannot change one. Said in the help text rather
+              than by disabling the control: whether the repo exists is not known here, and a
+              disabled control with no explanation is worse than an honest caveat. */}
+          <Form.Item
+            extra='Only applies if the repository is created now. A private one publishes a chart nobody outside the org can install — a package inherits its repository&rsquo;s visibility and cannot be changed afterwards.'
+            label='Repository visibility'
+            name='visibility'
+          >
+            <Radio.Group
+              optionType='button'
+              options={[
+                { label: 'Public — anyone can install it', value: 'public' },
+                { label: 'Private — internal only', value: 'private' },
+              ]}
+            />
+          </Form.Item>
+        </Form>
+      </div>
+    </Modal>
+  )
+}
+
+export default PublishTargetFormHost

@@ -38,7 +38,7 @@
  */
 import { dump, load } from 'js-yaml'
 
-import { asRecord } from '../../components/Autopilot/kogRestDefSchema'
+import { asRecord } from '../../components/Agentiko/kogRestDefSchema'
 
 /** The version every Kind of a controller is served under. */
 export const SERVED_VERSION = 'v1alpha1'

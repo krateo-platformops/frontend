@@ -23,7 +23,7 @@
  * nesting is fixed by the expression and holds for any input, so one primed element makes it
  * observable, and only its nesting and required keys are judged (widgetShape.ts structureOnly).
  */
-import { checkResolvedShape, itemSchemaConstrains, primeEmptyArrays, schemaAtPath } from '@frontend/components/Autopilot/widgetShape'
+import { checkResolvedShape, itemSchemaConstrains, primeEmptyArrays, schemaAtPath } from '@frontend/components/Agentiko/widgetShape'
 
 import { step, type StepResult } from '../envelope'
 import type { GateContext } from '../plan'

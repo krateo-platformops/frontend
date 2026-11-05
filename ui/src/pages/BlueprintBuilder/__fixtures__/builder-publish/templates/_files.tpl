@@ -1,7 +1,7 @@
 {{/*
   THE HELD FILES, from either input shape.
 
-  `files` is an array of {path, content} — what the Autopilot rail sends, because it composes the
+  `files` is an array of {path, content} — what the Agentiko rail sends, because it composes the
   list in code. A human authoring in the portal cannot produce that: the Form widget renders an
   array only as an enum multi-select (SchemaFields `controlFor`), so an array of objects has no
   control and a blueprint could only ever be authored by the agent. That was the last real UI

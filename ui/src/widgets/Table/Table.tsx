@@ -99,7 +99,7 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
   // other columns share what is left, ellipsized with the full text on hover. Its horizontal scroll
   // is the virtual list's own scrollbar, hidden at rest and drawn at the foot of the 640px viewport,
   // so a scrolling virtual table read as clipped ("Underprovisio" in a Portal Builder preview with
-  // the Autopilot rail open, 151 pods) with nothing on screen to scroll it by.
+  // the Agentiko rail open, 151 pods) with nothing on screen to scroll it by.
   const truncating = Boolean(fitContent) || virtual
   const layout = columnLayout(columns, dataTable ?? [], {
     cellFontSize: token.fontSize,

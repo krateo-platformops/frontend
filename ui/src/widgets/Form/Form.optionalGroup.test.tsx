@@ -17,7 +17,7 @@ const handleAction = vi.fn((..._args: unknown[]) => Promise.resolve())
 vi.mock('../../hooks/useHandleActions', () => ({
   useHandleAction: () => ({ handleAction, isActionLoading: false }),
 }))
-vi.mock('../../components/Autopilot/agentDraft', () => ({
+vi.mock('../../components/Agentiko/agentDraft', () => ({
   useAgentDraft: () => ({ draft: null, nonce: 1 }),
 }))
 vi.mock('../Drawer/DrawerContext', () => ({

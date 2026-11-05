@@ -21,19 +21,19 @@ import { useState } from 'react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { lintBlueprintDraft } from '../../components/Autopilot/blueprintDraft'
-import type { BlueprintDraftStore } from '../../components/Autopilot/blueprintDraftStore'
-import { createBlueprintGate } from '../../components/Autopilot/blueprintGate'
-import { buildBlueprintPreviewPayload } from '../../components/Autopilot/blueprintPreviewPayload'
-import { draftHistory } from '../../components/Autopilot/draftHistory'
-import { callBlueprintRenderRA } from '../../components/Autopilot/previewBridge'
-import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
-import { emitChartStart } from '../../components/Autopilot/previewDraftRender'
-import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
-import { AutopilotPreviewDrawer } from '../../components/Autopilot/previewSurface'
-import { heldDraftIdentity } from '../../components/Autopilot/publishCompile'
-import { useBlueprintAuthoringBuses } from '../../components/Autopilot/useBlueprintAuthoringBuses'
-import { createBroadcastingDraftStore, useDraftFileBuses } from '../../components/Autopilot/useDraftFileBuses'
+import { lintBlueprintDraft } from '../../components/Agentiko/blueprintDraft'
+import type { BlueprintDraftStore } from '../../components/Agentiko/blueprintDraftStore'
+import { createBlueprintGate } from '../../components/Agentiko/blueprintGate'
+import { buildBlueprintPreviewPayload } from '../../components/Agentiko/blueprintPreviewPayload'
+import { draftHistory } from '../../components/Agentiko/draftHistory'
+import { callBlueprintRenderRA } from '../../components/Agentiko/previewBridge'
+import { AGENTIKO_PREVIEW_EVENT } from '../../components/Agentiko/previewBus'
+import { emitChartStart } from '../../components/Agentiko/previewDraftRender'
+import { emitFileAdd } from '../../components/Agentiko/previewFileAdd'
+import { AgentikoPreviewDrawer } from '../../components/Agentiko/previewSurface'
+import { heldDraftIdentity } from '../../components/Agentiko/publishCompile'
+import { useBlueprintAuthoringBuses } from '../../components/Agentiko/useBlueprintAuthoringBuses'
+import { createBroadcastingDraftStore, useDraftFileBuses } from '../../components/Agentiko/useDraftFileBuses'
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 import { ThemeModeProvider } from '../../context/ThemeModeContext'
 
@@ -45,7 +45,7 @@ import { graphBlockIn } from './graphCompile'
 vi.mock('@ant-design/graphs', () => import('../../components/DependencyGraph/flowGraphDouble'))
 vi.mock('@antv/g6-extension-react', () => ({ ReactNode: vi.fn() }))
 
-vi.mock('../../components/Autopilot/previewBridge', async (importOriginal) => ({
+vi.mock('../../components/Agentiko/previewBridge', async (importOriginal) => ({
   ...await importOriginal<object>(),
   callBlueprintRenderRA: vi.fn(),
 }))
@@ -81,7 +81,7 @@ const Page = ({ composer, drawer = false }: { composer: boolean; drawer?: boolea
     <MemoryRouter>
       <ThemeModeProvider>
         <Provider />
-        {drawer ? <AutopilotPreviewDrawer /> : null}
+        {drawer ? <AgentikoPreviewDrawer /> : null}
         {composer ? <div data-testid='builder'><BlueprintBuilder /></div> : null}
       </ThemeModeProvider>
     </MemoryRouter>
@@ -139,7 +139,7 @@ describe('BlueprintBuilder + the provider — a drawer already open when the bui
     await startAndRender(files)
     // The agent's previewBlueprint of the held chart, on another route — nothing claims it, so the drawer opens.
     act(() => {
-      window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, {
+      window.dispatchEvent(new CustomEvent(AGENTIKO_PREVIEW_EVENT, {
         detail: buildBlueprintPreviewPayload({ held: true, name: 'builder-publish', rawTemplates: files, rendered: { objects: [] } }),
       }))
     })
@@ -154,7 +154,7 @@ describe('BlueprintBuilder + the provider — a drawer already open when the bui
   it('leaves a drawer showing something the builder does not own — an inspection — open', () => {
     const view = render(<Page composer={false} drawer />)
     act(() => {
-      window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, { detail: { builder: 'inspect', summary: ['repos'], title: 'Describe — repos' } }))
+      window.dispatchEvent(new CustomEvent(AGENTIKO_PREVIEW_EVENT, { detail: { builder: 'inspect', summary: ['repos'], title: 'Describe — repos' } }))
     })
     expect(document.querySelector('.ant-drawer-open')).not.toBeNull()
     view.rerender(<Page composer drawer />)
@@ -205,7 +205,7 @@ describe('BlueprintBuilder + the provider — a resource added the way the canva
     const files = seededChart('probe-chart')
     await startAndRender(files)
     act(() => {
-      window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, {
+      window.dispatchEvent(new CustomEvent(AGENTIKO_PREVIEW_EVENT, {
         detail: buildBlueprintPreviewPayload({ held: true, name: 'probe-chart', rawTemplates: files, rendered: { objects: [] } }),
       }))
     })

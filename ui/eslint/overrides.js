@@ -22,7 +22,7 @@ export const overrides = [
   // #86 §0.10: the shared drawer surfaces legitimately import antd `Drawer`; allow-list them so the
   // ban above applies everywhere else (a 5th hand-rolled drawer can't bypass components/DrawerHeader).
   {
-    files: ['src/widgets/Drawer/Drawer.tsx', 'src/components/Notifications/Notifications.tsx', 'src/components/Autopilot/previewSurface.tsx'],
+    files: ['src/widgets/Drawer/Drawer.tsx', 'src/components/Notifications/Notifications.tsx', 'src/components/Agentiko/previewSurface.tsx'],
     name: 'Allow raw antd Drawer in the shared drawer surfaces (#86 §0.10)',
     rules: { 'no-restricted-imports': 'off' },
   },
@@ -39,7 +39,7 @@ export const overrides = [
   // has no way to know which one the agent will act on, and the transcript is what an incident
   // review reads afterwards. Making the import fail turns that from a promise into a fact.
   {
-    files: ['src/components/Autopilot/voice/**/*.{ts,tsx}'],
+    files: ['src/components/Agentiko/voice/**/*.{ts,tsx}'],
     name: 'Voice cannot send a turn (voice spec FR 65)',
     rules: {
       'no-restricted-imports': ['error', {
@@ -49,8 +49,8 @@ export const overrides = [
           name: 'antd',
         }],
         patterns: [{
-          group: ['**/transport*', '**/AutopilotProvider*'],
-          message: 'Nothing under Autopilot/voice/ may import the A2A transport or the provider\'s send(): a spoken turn is submitted by the RAIL, outside this fence, via the sink injected through voiceStore.installConversationSink() — the voice modules report that a draft is complete and never hold the means to send one (voice spec FR 11/65). What the transcription call needs from outside this fence — the portal bearer, the rate-limit detector, the session resume — is INJECTED the same way, through voiceStore.installTranscribeDeps().',
+          group: ['**/transport*', '**/AgentikoProvider*'],
+          message: 'Nothing under Agentiko/voice/ may import the A2A transport or the provider\'s send(): a spoken turn is submitted by the RAIL, outside this fence, via the sink injected through voiceStore.installConversationSink() — the voice modules report that a draft is complete and never hold the means to send one (voice spec FR 11/65). What the transcription call needs from outside this fence — the portal bearer, the rate-limit detector, the session resume — is INJECTED the same way, through voiceStore.installTranscribeDeps().',
         }],
       }],
     },
@@ -76,7 +76,7 @@ export const overrides = [
   // by voiceWiring.ts through speakBackStore.installSpeaker(). Moving the file in here to
   // save an import would quietly re-open the path this rule exists to close.
   {
-    files: ['src/components/Autopilot/voice/speak/**/*.{ts,tsx}'],
+    files: ['src/components/Agentiko/voice/speak/**/*.{ts,tsx}'],
     name: 'Speak-back cannot call a model (voice spec FR 68)',
     rules: {
       'no-restricted-imports': ['error', {
@@ -86,8 +86,8 @@ export const overrides = [
           name: 'antd',
         }],
         patterns: [{
-          group: ['**/transport*', '**/AutopilotProvider*', '**/transcribe*', '**/speakTts*'],
-          message: 'Nothing under Autopilot/voice/speak/ may import the A2A transport, the provider\'s send(), the transcription client, or the Cloud TTS client: the spoken answer is a pure local transform of the exact words already written in the chat, never a second model call, and this directory makes no network calls at all (voice spec FR 65/68). The TTS speaker is INJECTED from voiceWiring.ts via speakBackStore.installSpeaker().',
+          group: ['**/transport*', '**/AgentikoProvider*', '**/transcribe*', '**/speakTts*'],
+          message: 'Nothing under Agentiko/voice/speak/ may import the A2A transport, the provider\'s send(), the transcription client, or the Cloud TTS client: the spoken answer is a pure local transform of the exact words already written in the chat, never a second model call, and this directory makes no network calls at all (voice spec FR 65/68). The TTS speaker is INJECTED from voiceWiring.ts via speakBackStore.installSpeaker().',
         }],
       }],
     },

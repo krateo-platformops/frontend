@@ -18,7 +18,7 @@
  * followed down; a populated array default becomes `[]`. A combinator has no mechanical fix: the
  * constraint it expresses belongs in the templates, and only a person can move it there.
  */
-import { VALUES_SCHEMA_PATH, schemaDefaultsFindings, type SchemaFinding } from '../../components/Autopilot/blueprintDraft'
+import { VALUES_SCHEMA_PATH, schemaDefaultsFindings, type SchemaFinding } from '../../components/Agentiko/blueprintDraft'
 
 export interface SchemaProblemAt {
   code: 'CRDGEN-DEFAULTS' | 'CRDGEN-COMBINATOR' | 'JSON'

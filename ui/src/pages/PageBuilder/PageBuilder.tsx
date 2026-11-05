@@ -10,8 +10,8 @@
  * named, for whoever mounts the Portal Builder directly.
  *
  * WHY IT EXISTS AT ALL. The authoring surface — live render, Files tab with its per-file editor, the
- * RestDefinition editor — used to be reachable only as the Autopilot drawer, something the AGENT
- * opens. Here a person can start a draft, shape it and publish it. Autopilot loses nothing: it still
+ * RestDefinition editor — used to be reachable only as the Agentiko drawer, something the AGENT
+ * opens. Here a person can start a draft, shape it and publish it. Agentiko loses nothing: it still
  * proposes drafts onto the same bus, and publishing still ends at a form a person submits.
  */
 import { builderRegistry } from '../../builders/builderRegistry'

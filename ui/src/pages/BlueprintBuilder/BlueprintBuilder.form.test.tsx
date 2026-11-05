@@ -8,7 +8,7 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AUTOPILOT_PREVIEW_FILE_EDIT_EVENT, onFileEdit, type FileEditDetail } from '../../components/Autopilot/previewFileEdit'
+import { AGENTIKO_PREVIEW_FILE_EDIT_EVENT, onFileEdit, type FileEditDetail } from '../../components/Agentiko/previewFileEdit'
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 
 import { MOCKUP_10_FIXED, MOCKUP_10_SCHEMA } from './__fixtures__/s4a'
@@ -69,7 +69,7 @@ describe('BlueprintBuilder — the form editor (screen 10)', () => {
 
   it('4. Fix it for me: ONE file edit of values.schema.json, the golden bytes — and once held, no problems and Credentials renders', async () => {
     openEditor()
-    const edits = listen<FileEditDetail>(AUTOPILOT_PREVIEW_FILE_EDIT_EVENT)
+    const edits = listen<FileEditDetail>(AGENTIKO_PREVIEW_FILE_EDIT_EVENT)
     act(() => { within(schemaPane()).getByRole('button', { name: 'Fix it for me' }).click() })
     edits.stop()
     expect(edits.seen).toHaveLength(1)
@@ -91,7 +91,7 @@ describe('BlueprintBuilder — the form editor (screen 10)', () => {
   it('6. Form fields "String" opens the editor on a String field: "region" is added; "name" is refused with its reason', async () => {
     mount()
     hold(seededChart())
-    const edits = listen<FileEditDetail>(AUTOPILOT_PREVIEW_FILE_EDIT_EVENT)
+    const edits = listen<FileEditDetail>(AGENTIKO_PREVIEW_FILE_EDIT_EVENT)
     act(() => { within(screen.getByRole('region', { name: 'Add' })).getByRole('button', { name: 'String' }).click() })
     const dialog = within(screen.getByRole('dialog'))
     await waitFor(() => expect(document.activeElement).toBe(dialog.getByLabelText('Field name')))
@@ -119,7 +119,7 @@ describe('BlueprintBuilder — the form editor (screen 10)', () => {
 
   it('Edit, then Apply: the text is written as typed, and text that is not JSON is refused before it is', () => {
     openEditor(MOCKUP_10_FIXED)
-    const edits = listen<FileEditDetail>(AUTOPILOT_PREVIEW_FILE_EDIT_EVENT)
+    const edits = listen<FileEditDetail>(AGENTIKO_PREVIEW_FILE_EDIT_EVENT)
     act(() => { within(schemaPane()).getByRole('button', { name: 'Edit' }).click() })
     act(() => { fireEvent.change(within(schemaPane()).getByLabelText('Edit values.schema.json'), { target: { value: '{ "type": ' } }) })
     act(() => { within(schemaPane()).getByRole('button', { name: 'Apply' }).click() })

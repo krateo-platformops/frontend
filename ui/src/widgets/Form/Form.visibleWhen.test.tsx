@@ -15,7 +15,7 @@ let agentDraft: Record<string, unknown> | null = null
 vi.mock('../../hooks/useHandleActions', () => ({
   useHandleAction: () => ({ handleAction, isActionLoading: false }),
 }))
-vi.mock('../../components/Autopilot/agentDraft', () => ({
+vi.mock('../../components/Agentiko/agentDraft', () => ({
   useAgentDraft: () => ({ draft: agentDraft, nonce: 1 }),
 }))
 vi.mock('../Drawer/DrawerContext', () => ({

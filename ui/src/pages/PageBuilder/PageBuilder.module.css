@@ -5,7 +5,7 @@
  * A CONTAINER, and the height the columns measure against.
  *
  * `container-type: inline-size` rather than a media query for the same reason `.build` wraps rather
- * than breaking: the composer's width is set by the Autopilot rail, not by the viewport, so a
+ * than breaking: the composer's width is set by the Agentiko rail, not by the viewport, so a
  * viewport breakpoint would lay the page out for space it does not have. It also keeps T6 honest —
  * the lint stops a sixth `@media` width appearing, and this adds none.
  */
@@ -49,7 +49,7 @@
 
    NO MEDIA QUERY, deliberately. `flex-wrap` collapses the columns when there is no room, which is
    what a breakpoint would give without inventing a sixth breakpoint value (design/lint T6). It also
-   reacts to the available width rather than the viewport, so it behaves with the Autopilot rail
+   reacts to the available width rather than the viewport, so it behaves with the Agentiko rail
    open. The bases are ordered palette < structure < canvas, so the palette is the last thing
    squeezed and the canvas the first thing grown. */
 .build {

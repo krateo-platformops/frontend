@@ -18,10 +18,10 @@
  */
 import type { ComponentType, ReactNode, RefObject } from 'react'
 
-import type { DraftKind } from '../../components/Autopilot/blueprintDraftStore'
-import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
-import type { BuilderMode, DraftChangedDetail } from '../../components/Autopilot/previewDraftChanged'
-import type { FileHighlight } from '../../components/Autopilot/previewSurface'
+import type { DraftKind } from '../../components/Agentiko/blueprintDraftStore'
+import type { AgentikoPreviewPayload } from '../../components/Agentiko/previewBus'
+import type { BuilderMode, DraftChangedDetail } from '../../components/Agentiko/previewDraftChanged'
+import type { FileHighlight } from '../../components/Agentiko/previewSurface'
 import type { Config } from '../../context/ConfigContext'
 import type { Builder, BuilderSpec } from '../builderSpec'
 
@@ -55,7 +55,7 @@ export interface HostDraft {
 export interface Workbench<S = unknown> {
   kind: DraftKind
   /** The files pane's payload, or null — nothing of this Builder's is shown, and the empty state is. */
-  shown: AutopilotPreviewPayload | null
+  shown: AgentikoPreviewPayload | null
   /** The draft's name and a mono meta line, for the in-page head (the `panes` frame). */
   title: { name: string; meta: string }
   /** A render preview: the request, and whether one is on the wire. Absent for a live (sandbox-apply) preview. */

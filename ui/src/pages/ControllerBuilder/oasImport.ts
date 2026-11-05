@@ -20,9 +20,9 @@
  */
 import { dump, load, loadAll, YAMLException } from 'js-yaml'
 
-import { BLUEPRINT_DRAFT_MAX_BYTES } from '../../components/Autopilot/blueprintDraftStore'
-import { asRecord } from '../../components/Autopilot/kogRestDefSchema'
-import { utf8ByteLength } from '../../components/Autopilot/oasAttachment'
+import { BLUEPRINT_DRAFT_MAX_BYTES } from '../../components/Agentiko/blueprintDraftStore'
+import { asRecord } from '../../components/Agentiko/kogRestDefSchema'
+import { utf8ByteLength } from '../../components/Agentiko/oasAttachment'
 
 /** The HTTP methods an OpenAPI path item can carry, in the spec's order. */
 export const OAS_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const

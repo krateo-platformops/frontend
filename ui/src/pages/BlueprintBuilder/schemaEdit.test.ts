@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { lintBlueprintDraft } from '../../components/Autopilot/blueprintDraft'
+import { lintBlueprintDraft } from '../../components/Agentiko/blueprintDraft'
 
 import { MOCKUP_10_FIXED, MOCKUP_10_SCHEMA } from './__fixtures__/s4a'
 import { addFormField, fixPopulatedDefault, formSuppressions, schemaProblemsAt } from './schemaEdit'

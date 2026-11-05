@@ -11,9 +11,9 @@ import { join } from 'node:path'
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { lintBlueprintDraft } from '../../components/Autopilot/blueprintDraft'
-import { draftHistory } from '../../components/Autopilot/draftHistory'
-import { AUTOPILOT_PREVIEW_FILES_BATCH_EVENT, type FilesBatchDetail } from '../../components/Autopilot/previewFilesBatch'
+import { lintBlueprintDraft } from '../../components/Agentiko/blueprintDraft'
+import { draftHistory } from '../../components/Agentiko/draftHistory'
+import { AGENTIKO_PREVIEW_FILES_BATCH_EVENT, type FilesBatchDetail } from '../../components/Agentiko/previewFilesBatch'
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 import { invalidateAccessTokenCache } from '../../utils/getAccessToken'
 
@@ -88,7 +88,7 @@ describe('BlueprintBuilder — the generated gate (screen 7)', () => {
   it('1. Accept emits ONE batch: the descriptor (ready: true; the target\'s readyWhen) and the dependent\'s template, golden', async () => {
     const provider = await start()
     const before = held(provider)
-    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     await acceptScreen07()
     batches.stop()
     expect(batches.seen).toHaveLength(1)
@@ -189,7 +189,7 @@ describe('BlueprintBuilder — the generated gate (screen 7)', () => {
     const provider = await start({ ...chart, [PR]: bare[PR] })
     expect(screen.getByText(/pullrequest\.yaml: its dependency gate does not match/)).toBeTruthy()
     const regenerate = screen.getByRole('button', { name: 'Regenerate gates (1 template)' })
-    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     act(() => { fireEvent.click(regenerate) })
     batches.stop()
     expect(batches.seen).toHaveLength(1)
@@ -212,7 +212,7 @@ describe('BlueprintBuilder — the generated gate (screen 7)', () => {
     const provider = await start()
     await acceptScreen07()
     act(() => { card('localresource').click() })
-    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     act(() => { fireEvent.click(within(inspector()).getByRole('switch', { name: 'Wait for repository to be ready' })) })
     batches.stop()
     expect(batches.seen).toHaveLength(1)
@@ -271,7 +271,7 @@ describe('BlueprintBuilder — the generated gate (screen 7)', () => {
       fireEvent.mouseDown(select.querySelector('.ant-select-content') as HTMLElement)
       await Promise.resolve()
     })
-    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     act(() => { fireEvent.click([...document.querySelectorAll<HTMLElement>('.ant-select-item-option')].find((option) => option.textContent === '.status.html_url') as HTMLElement) })
     batches.stop()
     expect(batches.seen).toHaveLength(1)
@@ -286,7 +286,7 @@ describe('BlueprintBuilder — the generated gate (screen 7)', () => {
     const provider = await start(waited)
     act(() => { card('repository').click() })
     act(() => { within(inspector()).getByRole('button', { name: 'Remove from chart' }).click() })
-    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     act(() => { screen.getByRole('button', { name: 'Remove' }).click() })
     batches.stop()
     expect(batches.seen).toHaveLength(1)

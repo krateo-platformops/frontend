@@ -1,7 +1,7 @@
 import { load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
-import { draftDisplayName, lintBlueprintDraft } from '../../components/Autopilot/blueprintDraft'
+import { draftDisplayName, lintBlueprintDraft } from '../../components/Agentiko/blueprintDraft'
 
 import { ARCHITECTURE_TEMPLATE_PATH, deriveStates, parseArchitecture, serializeArchitecture, unwrapFromConfigMapTemplate } from './architecture'
 import { PUBLISH_NAME_MAX, chartIdentityProblems, pluralGrowthBound } from './chartIdentity'

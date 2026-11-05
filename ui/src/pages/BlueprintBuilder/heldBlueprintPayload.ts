@@ -15,10 +15,10 @@
  * shows it in the inspector beside the graph (mockup screen 3), and one form in two places would
  * be two things to read that must say the same.
  */
-import { draftDisplayName } from '../../components/Autopilot/blueprintDraft'
-import { buildBlueprintPreviewPayload } from '../../components/Autopilot/blueprintPreviewPayload'
-import type { HelmRenderResult } from '../../components/Autopilot/previewBridge'
-import type { AutopilotPreviewPayload, PreviewObjectEntry } from '../../components/Autopilot/previewBus'
+import { draftDisplayName } from '../../components/Agentiko/blueprintDraft'
+import { buildBlueprintPreviewPayload } from '../../components/Agentiko/blueprintPreviewPayload'
+import type { HelmRenderResult } from '../../components/Agentiko/previewBridge'
+import type { AgentikoPreviewPayload, PreviewObjectEntry } from '../../components/Agentiko/previewBus'
 
 /** Before any Preview: what the two tabs are, and that Source fills only on request. */
 export const UNRENDERED_CAPTION = 'Chart files is the tree the change request commits — edit a file in place. Source fills when you press Preview: the chart rendered by helm as a dry run, nothing applied to the cluster.'
@@ -44,7 +44,7 @@ export interface LastRender {
 }
 
 /** A render result's payload, reduced to what the Source tab shows and what it was a render of. */
-export const lastRenderOf = (payload: Pick<AutopilotPreviewPayload, 'error' | 'files' | 'objects' | 'problems' | 'renderedWarnings' | 'summary'>): LastRender => ({
+export const lastRenderOf = (payload: Pick<AgentikoPreviewPayload, 'error' | 'files' | 'objects' | 'problems' | 'renderedWarnings' | 'summary'>): LastRender => ({
   objects: payload.objects ?? [],
   ...(payload.error ? { error: payload.error } : {}),
   ...(payload.summary?.length ? { summary: payload.summary } : {}),
@@ -79,7 +79,7 @@ export const heldBlueprintPayload = (
   files: Record<string, string>,
   render: LastRender | null,
   caption?: string,
-): AutopilotPreviewPayload | null => {
+): AgentikoPreviewPayload | null => {
   if (!Object.keys(files).length) {
     return null
   }

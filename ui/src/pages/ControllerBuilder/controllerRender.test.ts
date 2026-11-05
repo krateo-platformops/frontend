@@ -8,8 +8,8 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { sandboxDraftName, type SandboxWriter } from '../../components/Autopilot/blueprintRenderSandbox'
-import { lintHeldDraft } from '../../components/Autopilot/proposedChart'
+import { sandboxDraftName, type SandboxWriter } from '../../components/Agentiko/blueprintRenderSandbox'
+import { lintHeldDraft } from '../../components/Agentiko/proposedChart'
 import type { WriteOp } from '../../components/BlastRadius/buildBlastRadius'
 
 import { planPlaceGroup, readController, restDefinitionPath, type ControllerPlan } from './controllerChart'

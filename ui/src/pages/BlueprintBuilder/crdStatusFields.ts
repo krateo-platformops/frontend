@@ -12,7 +12,7 @@
  * THE VERSION is describeResource's `pickCrdVersion` — the one asked for, else served-and-stored,
  * else served — never an unserved storage version.
  */
-import { pickCrdVersion } from '../../components/Autopilot/describeResource'
+import { pickCrdVersion } from '../../components/Agentiko/describeResource'
 
 export interface CrdStatusFields {
   /** `.status.a.b` paths of scalar leaves, in schema order. */

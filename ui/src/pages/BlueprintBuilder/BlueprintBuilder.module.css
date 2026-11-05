@@ -10,7 +10,7 @@
    The Architecture pane's own rules are in ArchitectureCanvas.module.css. */
 
 /* The page: one screen tall, the header fixed and the work area below it scrolling. `container-type`
-   for the same reason as the Page Composer: the width is set by the Autopilot rail, not the
+   for the same reason as the Page Composer: the width is set by the Agentiko rail, not the
    viewport, so the two columns wrap on the space they actually have and no sixth breakpoint is
    invented (T6). */
 .page {

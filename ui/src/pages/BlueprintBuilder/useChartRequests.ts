@@ -23,14 +23,14 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { DraftKind } from '../../components/Autopilot/blueprintDraftStore'
+import type { DraftKind } from '../../components/Agentiko/blueprintDraftStore'
 import {
   AGENT_RENDER_ID_PREFIX,
   emitChartStart,
   emitDraftRenderRequest,
   onDraftRenderResult,
   type DraftRenderResultDetail,
-} from '../../components/Autopilot/previewDraftRender'
+} from '../../components/Agentiko/previewDraftRender'
 
 import { lastRenderOf, type LastRender } from './heldBlueprintPayload'
 

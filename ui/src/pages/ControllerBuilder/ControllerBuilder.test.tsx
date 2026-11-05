@@ -25,21 +25,21 @@ import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { builderRoutes } from '../../builders/host/builderRoutes'
-import type { BlueprintDraftStore } from '../../components/Autopilot/blueprintDraftStore'
-import { createBlueprintGate } from '../../components/Autopilot/blueprintGate'
-import type { SandboxWriter } from '../../components/Autopilot/blueprintRenderSandbox'
-import type { BuilderTargets } from '../../components/Autopilot/builderTargets'
-import { readDraftRecord, treeHash, type DraftRecordBody } from '../../components/Autopilot/draftRecord'
-import { emitDraftChanged } from '../../components/Autopilot/previewDraftChanged'
-import { emitDraftResume } from '../../components/Autopilot/previewDraftResume'
-import { lintHeldDraft } from '../../components/Autopilot/proposedChart'
-import { heldDraftIdentity } from '../../components/Autopilot/publishCompile'
-import { publishDraft, REGISTRATION_PATH } from '../../components/Autopilot/publishDraft'
-import { publishedLocks } from '../../components/Autopilot/publishedLocks'
-import { CONTROLLER_RENDER_FAILED, CONTROLLER_RENDER_NOT_CONFIGURED, CONTROLLER_STARTED, useBlueprintAuthoringBuses } from '../../components/Autopilot/useBlueprintAuthoringBuses'
-import { createDraftAutosave, type DraftAutosave } from '../../components/Autopilot/useDraftAutosave'
-import { createBroadcastingDraftStore, useDraftFileBuses } from '../../components/Autopilot/useDraftFileBuses'
-import { useDraftResumeBus } from '../../components/Autopilot/useDraftResumeBus'
+import type { BlueprintDraftStore } from '../../components/Agentiko/blueprintDraftStore'
+import { createBlueprintGate } from '../../components/Agentiko/blueprintGate'
+import type { SandboxWriter } from '../../components/Agentiko/blueprintRenderSandbox'
+import type { BuilderTargets } from '../../components/Agentiko/builderTargets'
+import { readDraftRecord, treeHash, type DraftRecordBody } from '../../components/Agentiko/draftRecord'
+import { emitDraftChanged } from '../../components/Agentiko/previewDraftChanged'
+import { emitDraftResume } from '../../components/Agentiko/previewDraftResume'
+import { lintHeldDraft } from '../../components/Agentiko/proposedChart'
+import { heldDraftIdentity } from '../../components/Agentiko/publishCompile'
+import { publishDraft, REGISTRATION_PATH } from '../../components/Agentiko/publishDraft'
+import { publishedLocks } from '../../components/Agentiko/publishedLocks'
+import { CONTROLLER_RENDER_FAILED, CONTROLLER_RENDER_NOT_CONFIGURED, CONTROLLER_STARTED, useBlueprintAuthoringBuses } from '../../components/Agentiko/useBlueprintAuthoringBuses'
+import { createDraftAutosave, type DraftAutosave } from '../../components/Agentiko/useDraftAutosave'
+import { createBroadcastingDraftStore, useDraftFileBuses } from '../../components/Agentiko/useDraftFileBuses'
+import { useDraftResumeBus } from '../../components/Agentiko/useDraftResumeBus'
 import type { WriteOp } from '../../components/BlastRadius/buildBlastRadius'
 import { ConfigContext } from '../../context/ConfigContext'
 import { ThemeModeProvider } from '../../context/ThemeModeContext'
@@ -296,7 +296,7 @@ describe('petstore, authored in the UI with no rail', () => {
 /**
  * T9 (frontend#413) — PREVIEW RENDERS THE CONTROLLER, and the publish acceptance #412 moved here.
  *
- * The provider's real hooks as AutopilotProvider mounts them — the store with the draft-record
+ * The provider's real hooks as AgentikoProvider mounts them — the store with the draft-record
  * autosave, the gate, the file buses, the authoring buses WITH a config and the audited sandbox
  * writer, and the resume bus. The only fakes are at the wire: the sandbox writer (it records every
  * op and answers OK) and `fetch` — snowplow /call, answering controller-render-draft with the three

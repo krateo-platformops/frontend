@@ -21,7 +21,7 @@
  * words the reason as a whole clause ("Its CRD could not be read (…)", "Its CRD declares no spec
  * schema at …"), so a read that succeeded is never reported as one that failed.
  */
-import type { CrdSpecExtract, CrdSpecField } from '../../components/Autopilot/describeResource'
+import type { CrdSpecExtract, CrdSpecField } from '../../components/Agentiko/describeResource'
 
 import type { ResourceClass } from './architecture'
 import { placedNameExpression } from './naming'

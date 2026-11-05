@@ -6,10 +6,10 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { createBlueprintDraftStore, type DraftKind } from '../components/Autopilot/blueprintDraftStore'
-import { draftKindOfPayload, isBuilderPayload, payloadAppliesCrs } from '../components/Autopilot/previewBus'
-import { builderModeOf } from '../components/Autopilot/previewDraftChanged'
-import { publishDraft, publisherOfVerb, type PublishDraftDeps } from '../components/Autopilot/publishDraft'
+import { createBlueprintDraftStore, type DraftKind } from '../components/Agentiko/blueprintDraftStore'
+import { draftKindOfPayload, isBuilderPayload, payloadAppliesCrs } from '../components/Agentiko/previewBus'
+import { builderModeOf } from '../components/Agentiko/previewDraftChanged'
+import { publishDraft, publisherOfVerb, type PublishDraftDeps } from '../components/Agentiko/publishDraft'
 
 import { builderOf, builderRegistry, createBuilderRegistry, findBuilderOf, swapBuildersForTest } from './builderRegistry'
 import type { Builder } from './builderSpec'

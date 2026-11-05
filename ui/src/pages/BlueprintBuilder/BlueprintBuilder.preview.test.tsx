@@ -13,14 +13,14 @@ import { App as AntdApp } from 'antd'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { draftHistory } from '../../components/Autopilot/draftHistory'
-import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
-import { AUTOPILOT_PREVIEW_DRAFT_CLOSE_EVENT, emitDraftClose } from '../../components/Autopilot/previewDraftClose'
-import { AUTOPILOT_CHART_START_EVENT, AUTOPILOT_DRAFT_RENDER_REQUEST_EVENT, type ChartStartDetail, type DraftRenderRequestDetail } from '../../components/Autopilot/previewDraftRender'
-import { AUTOPILOT_PREVIEW_DRAFT_UNDO_EVENT } from '../../components/Autopilot/previewDraftUndo'
-import { AUTOPILOT_PREVIEW_FILE_EDIT_EVENT, type FileEditDetail } from '../../components/Autopilot/previewFileEdit'
-import { AUTOPILOT_PUBLISH_REQUEST_EVENT, emitPublishResult, type PublishRequestDetail } from '../../components/Autopilot/previewPublishRequest'
-import { AutopilotPreviewDrawer } from '../../components/Autopilot/previewSurface'
+import { draftHistory } from '../../components/Agentiko/draftHistory'
+import { AGENTIKO_PREVIEW_EVENT } from '../../components/Agentiko/previewBus'
+import { AGENTIKO_PREVIEW_DRAFT_CLOSE_EVENT, emitDraftClose } from '../../components/Agentiko/previewDraftClose'
+import { AGENTIKO_CHART_START_EVENT, AGENTIKO_DRAFT_RENDER_REQUEST_EVENT, type ChartStartDetail, type DraftRenderRequestDetail } from '../../components/Agentiko/previewDraftRender'
+import { AGENTIKO_PREVIEW_DRAFT_UNDO_EVENT } from '../../components/Agentiko/previewDraftUndo'
+import { AGENTIKO_PREVIEW_FILE_EDIT_EVENT, type FileEditDetail } from '../../components/Agentiko/previewFileEdit'
+import { AGENTIKO_PUBLISH_REQUEST_EVENT, emitPublishResult, type PublishRequestDetail } from '../../components/Agentiko/previewPublishRequest'
+import { AgentikoPreviewDrawer } from '../../components/Agentiko/previewSurface'
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 import { ThemeModeProvider } from '../../context/ThemeModeContext'
 
@@ -45,7 +45,7 @@ const publishButton = (): HTMLButtonElement => screen.getByRole('button', { name
 
 /** Press Preview and return the id the provider must answer. */
 const pressPreview = (): string => {
-  const asked = listen<DraftRenderRequestDetail>(AUTOPILOT_DRAFT_RENDER_REQUEST_EVENT)
+  const asked = listen<DraftRenderRequestDetail>(AGENTIKO_DRAFT_RENDER_REQUEST_EVENT)
   act(() => { screen.getByRole('button', { name: 'Preview' }).click() })
   asked.stop()
   expect(asked.seen).toHaveLength(1)
@@ -224,14 +224,14 @@ describe('BlueprintBuilder — Preview, and every answer in the person\'s words'
         <MemoryRouter>
           <ThemeModeProvider>
             <BlueprintBuilder />
-            <AutopilotPreviewDrawer />
+            <AgentikoPreviewDrawer />
           </ThemeModeProvider>
         </MemoryRouter>
       </AntdApp>,
     )
     hold(files, { previewed: true })
     act(() => {
-      window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, { detail: renderedPayload(files, OBJECTS) }))
+      window.dispatchEvent(new CustomEvent(AGENTIKO_PREVIEW_EVENT, { detail: renderedPayload(files, OBJECTS) }))
     })
     expect(document.querySelector('.ant-drawer-open')).toBeNull()
     act(() => { fireEvent.click(screen.getByRole('tab', { name: 'Source' })) })
@@ -249,7 +249,7 @@ describe('BlueprintBuilder — only the HELD chart\'s preview is adopted', () =>
     mount()
     hold(files, { previewed: true })
     act(() => {
-      window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, { detail: { ...renderedPayload(files, OBJECTS), builder: undefined, ...builder } }))
+      window.dispatchEvent(new CustomEvent(AGENTIKO_PREVIEW_EVENT, { detail: { ...renderedPayload(files, OBJECTS), builder: undefined, ...builder } }))
     })
     act(() => { fireEvent.click(screen.getByRole('tab', { name: 'Source' })) })
     expect(screen.queryByText('builder-publish-repo')).toBeNull()
@@ -259,7 +259,7 @@ describe('BlueprintBuilder — only the HELD chart\'s preview is adopted', () =>
 
 describe('BlueprintBuilder — Chart files, edited in place', () => {
   it('an accepted edit rides the file-edit bus, tagged as a blueprint', () => {
-    const edits = listen<FileEditDetail>(AUTOPILOT_PREVIEW_FILE_EDIT_EVENT)
+    const edits = listen<FileEditDetail>(AGENTIKO_PREVIEW_FILE_EDIT_EVENT)
     mount()
     hold(seededChart(), { previewed: true })
     const block = screen.getByText('values.yaml').closest('div')?.parentElement?.parentElement as HTMLElement
@@ -285,7 +285,7 @@ describe('BlueprintBuilder — Chart files, edited in place', () => {
 
 describe('BlueprintBuilder — publish, undo, close', () => {
   it('Publish asks the provider with publishBlueprint — the person confirms the write there, not here', () => {
-    const asked = listen<PublishRequestDetail>(AUTOPILOT_PUBLISH_REQUEST_EVENT)
+    const asked = listen<PublishRequestDetail>(AGENTIKO_PUBLISH_REQUEST_EVENT)
     mount()
     hold(seededChart(), { previewed: true })
     act(() => { publishButton().click() })
@@ -296,7 +296,7 @@ describe('BlueprintBuilder — publish, undo, close', () => {
   })
 
   it('reports the change request when the publish lands, a refusal as a refusal, and ignores other surfaces', () => {
-    const asked = listen<PublishRequestDetail>(AUTOPILOT_PUBLISH_REQUEST_EVENT)
+    const asked = listen<PublishRequestDetail>(AGENTIKO_PUBLISH_REQUEST_EVENT)
     mount()
     hold(seededChart(), { previewed: true })
     act(() => { publishButton().click() })
@@ -309,7 +309,7 @@ describe('BlueprintBuilder — publish, undo, close', () => {
   })
 
   it('a declined publish reads as declined', () => {
-    const asked = listen<PublishRequestDetail>(AUTOPILOT_PUBLISH_REQUEST_EVENT)
+    const asked = listen<PublishRequestDetail>(AGENTIKO_PUBLISH_REQUEST_EVENT)
     mount()
     hold(seededChart(), { previewed: true })
     act(() => { publishButton().click() })
@@ -320,19 +320,19 @@ describe('BlueprintBuilder — publish, undo, close', () => {
 
   it('Undo is off with no history, and on with one: it asks the provider for one step back', () => {
     const undos = vi.fn()
-    window.addEventListener(AUTOPILOT_PREVIEW_DRAFT_UNDO_EVENT, undos)
+    window.addEventListener(AGENTIKO_PREVIEW_DRAFT_UNDO_EVENT, undos)
     mount()
     hold(seededChart())
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Undo' }).disabled).toBe(true)
     act(() => draftHistory.push({ files: seededChart(), kind: 'blueprint' }))
     act(() => { screen.getByRole('button', { name: 'Undo' }).click() })
-    window.removeEventListener(AUTOPILOT_PREVIEW_DRAFT_UNDO_EVENT, undos)
+    window.removeEventListener(AGENTIKO_PREVIEW_DRAFT_UNDO_EVENT, undos)
     expect(undos).toHaveBeenCalledTimes(1)
   })
 
   it('Close draft confirms, then asks the provider to discard — and this page forgets the render', () => {
     const closes = vi.fn()
-    window.addEventListener(AUTOPILOT_PREVIEW_DRAFT_CLOSE_EVENT, closes)
+    window.addEventListener(AGENTIKO_PREVIEW_DRAFT_CLOSE_EVENT, closes)
     const files = seededChart()
     mount()
     hold(files, { previewed: false })
@@ -340,7 +340,7 @@ describe('BlueprintBuilder — publish, undo, close', () => {
     act(() => { screen.getByRole('button', { name: 'Close draft' }).click() })
     expect(screen.getByText('Discard this chart draft? Its unpublished files are deleted.')).toBeTruthy()
     act(() => { screen.getByRole('button', { name: 'Discard' }).click() })
-    window.removeEventListener(AUTOPILOT_PREVIEW_DRAFT_CLOSE_EVENT, closes)
+    window.removeEventListener(AGENTIKO_PREVIEW_DRAFT_CLOSE_EVENT, closes)
     expect(closes).toHaveBeenCalledTimes(1)
     // The provider answers with an empty broadcast; the next chart starts with nothing of this one's.
     hold({}, { kind: null })
@@ -353,7 +353,7 @@ describe('BlueprintBuilder — publish, undo, close', () => {
 
 describe('BlueprintBuilder — a discard forgets everything that described the discarded chart', () => {
   it('the step, the selection and "Published" do not carry over to the next chart', () => {
-    const asked = listen<PublishRequestDetail>(AUTOPILOT_PUBLISH_REQUEST_EVENT)
+    const asked = listen<PublishRequestDetail>(AGENTIKO_PUBLISH_REQUEST_EVENT)
     const files = builderPublishChart()
     mount()
     hold(files, { previewed: true })
@@ -373,7 +373,7 @@ describe('BlueprintBuilder — a discard forgets everything that described the d
   })
 
   it('a started chart that is discarded does not bring the Start modal back', () => {
-    const starts = listen<ChartStartDetail>(AUTOPILOT_CHART_START_EVENT)
+    const starts = listen<ChartStartDetail>(AGENTIKO_CHART_START_EVENT)
     mount()
     act(() => { screen.getByRole('button', { name: 'Start a chart' }).click() })
     act(() => { fireEvent.change(screen.getByLabelText('Chart name'), { target: { value: 'builder-publish' } }) })

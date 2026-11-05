@@ -3,7 +3,7 @@
  * for EVERY portal write, human- or agent-originated, AFTER the write resolves (success OR
  * failure). The record carries the SAME blast radius the human confirmed at the W0-2/W0-4
  * gate (reused verbatim, never rebuilt), the origin tag (actor + the agent session/prompt
- * context when Autopilot dispatched it), the outcome, and requestedAt/resolvedAt.
+ * context when Agentiko dispatched it), the outcome, and requestedAt/resolvedAt.
  *
  * SINK: the `audit.krateo.io/v1alpha1` namespaced AuditRecord CRD (ships separately in the
  * portal chart). The record is POSTed through the SAME fetch shape `runRest` uses (snowplow
@@ -34,7 +34,7 @@ import { fetchWithTimeout } from './useHandleActions'
 export const AUDIT_API_GROUP = 'audit.krateo.io'
 export const AUDIT_API_VERSION = 'v1alpha1'
 
-/** The one agent that dispatches writes through the bridge today (Autopilot). */
+/** The one agent that dispatches writes through the bridge today (Agentiko). */
 export const AUTOPILOT_AGENT_ID = 'autopilot'
 
 /**
@@ -98,7 +98,7 @@ export const stampAgentCreated = (
 
 /**
  * Who initiated a write. Threaded OPTIONALLY into runRest/runRestSet dispatch — absent
- * means a hand-clicked control, i.e. `{actor: 'human'}`. The Autopilot action bridge tags
+ * means a hand-clicked control, i.e. `{actor: 'human'}`. The Agentiko action bridge tags
  * its mutating dispatches (runAction / patchField / applyResourceSet) with `actor: 'agent'`
  * plus the identity context the provider actually holds at dispatch time: the
  * frontend-owned session id and the user's latest chat message (the prompt that produced
@@ -106,7 +106,7 @@ export const stampAgentCreated = (
  */
 export interface WriteOrigin {
   actor: 'human' | 'agent'
-  /** AutopilotProvider's frontend-owned session/thread id (agent-origin only). */
+  /** AgentikoProvider's frontend-owned session/thread id (agent-origin only). */
   agentSessionId?: string
   /** The user's latest chat message — the prompt that produced the agent's proposal. */
   prompt?: string

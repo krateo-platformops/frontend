@@ -47,7 +47,7 @@ spec:
     plugin: architecture-graph
   inspector:
     plugin: node
-  # draftStructure.ts summarizeChart — the chart's files Autopilot is told.
+  # draftStructure.ts summarizeChart — the chart's files Agentiko is told.
   summarizer:
     plugin: chart-files
   # blueprintRenderSandbox.ts: the chart is written to the sandbox and rendered by name; nothing is applied.

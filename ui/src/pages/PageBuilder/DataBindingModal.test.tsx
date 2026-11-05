@@ -14,7 +14,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { load } from 'js-yaml'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { pageDraftFiles } from '../../components/Autopilot/pageDraft'
+import { pageDraftFiles } from '../../components/Agentiko/pageDraft'
 
 import { installAntdShims } from './builderTestHarness'
 import { DataBindingModal } from './DataBindingModal'

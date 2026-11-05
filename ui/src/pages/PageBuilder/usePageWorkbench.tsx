@@ -3,14 +3,14 @@
  * inspector (`object-tree`) share about a held page, for BuilderHost to mount (T4, frontend#410).
  * The host owns the page, its header, the split and the files pane; this owns the page draft.
  *
- * WHAT A PAGE IS HERE. The same surface Autopilot opens when it previews a draft — the live render,
+ * WHAT A PAGE IS HERE. The same surface Agentiko opens when it previews a draft — the live render,
  * the Files tab with its per-file editor, the RestDefinition editor, the validation verdicts — with a
  * palette, a canvas and the object tree above it. A Form cannot express a tree, and `SchemaFields` has
  * no repeatable-row control, so the Form widgets this replaced could only emit a FLAT page of widgets
  * with STATIC widgetData — no Rows, Cols, Tabs, no `apiRef`, no `widgetDataTemplate`: locked out of
  * the half of the corpus that computes its data server-side (212 of 425 shipped widget templates).
  *
- * WHAT IT DOES NOT CHANGE. Autopilot still proposes drafts onto the same CustomEvent bus, and its
+ * WHAT IT DOES NOT CHANGE. Agentiko still proposes drafts onto the same CustomEvent bus, and its
  * drawer still opens. Publishing still ends at a form a person submits — the agent's never-submit
  * guarantee is not weakened by any of this.
  */
@@ -23,14 +23,14 @@ import { Alert } from 'antd'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import type { HostDraft, Workbench } from '../../builders/host/hostTypes'
-import { emitComposeResult, onComposeRequest } from '../../components/Autopilot/composeRequest'
-import { AUTOPILOT_PREVIEW_EVENT, isBuilderPayload } from '../../components/Autopilot/previewBus'
-import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
-import { emitDraftClose, onDraftClose } from '../../components/Autopilot/previewDraftClose'
-import { emitDraftStart } from '../../components/Autopilot/previewDraftStart'
-import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
-import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
-import { LIVE_PREVIEW_CAPTION_INLINE } from '../../components/Autopilot/previewPageV2'
+import { emitComposeResult, onComposeRequest } from '../../components/Agentiko/composeRequest'
+import { AGENTIKO_PREVIEW_EVENT, isBuilderPayload } from '../../components/Agentiko/previewBus'
+import type { AgentikoPreviewPayload } from '../../components/Agentiko/previewBus'
+import { emitDraftClose, onDraftClose } from '../../components/Agentiko/previewDraftClose'
+import { emitDraftStart } from '../../components/Agentiko/previewDraftStart'
+import { emitFileAdd } from '../../components/Agentiko/previewFileAdd'
+import { emitFileEdit } from '../../components/Agentiko/previewFileEdit'
+import { LIVE_PREVIEW_CAPTION_INLINE } from '../../components/Agentiko/previewPageV2'
 
 import { announce, onAnnounce } from './builderAnnounce'
 import { BuilderEmptyState } from './BuilderEmptyState'
@@ -159,9 +159,9 @@ export const usePageWorkbench = (host: HostDraft) => {
   const snowplowBaseUrl = api?.SNOWPLOW_API_BASE_URL ?? ''
   /** Where drafts — and anything an agent authors for one — are actually applied. */
   const previewSandboxNamespace = api?.PREVIEW_SANDBOX_NAMESPACE ?? ''
-  const [payload, setPayload] = useState<AutopilotPreviewPayload | null>(null)
+  const [payload, setPayload] = useState<AgentikoPreviewPayload | null>(null)
   // The payload as ADOPTED, not as rendered — see the discard listener.
-  const adopted = useRef<AutopilotPreviewPayload | null>(null)
+  const adopted = useRef<AgentikoPreviewPayload | null>(null)
   // Why a move can be refused, shown where the other outcomes are shown. Not antd `message`: the
   // composer already reports through Alerts, and a toast that vanishes is the wrong surface for
   // "this drop was rejected and here is why".
@@ -318,13 +318,13 @@ export const usePageWorkbench = (host: HostDraft) => {
   }, [])
   const [starting, setStarting] = useState(false)
 
-  // The SAME bus the drawer listens on. A preview proposed by Autopilot while this page is open
+  // The SAME bus the drawer listens on. A preview proposed by Agentiko while this page is open
   // therefore lands here too — which is the point: one draft, two doors. Deliberately not a
   // separate channel; a second bus would be a second source of truth about what is being authored.
   // (The host claims the preview surface for this draft kind, so the drawer does not ALSO open.)
   const builderName = builder.metadata.name
   useEffect(() => {
-    const onPreview = (event: CustomEvent<AutopilotPreviewPayload>) => {
+    const onPreview = (event: CustomEvent<AgentikoPreviewPayload>) => {
       // Only a PAGE preview is ours. The drawer defers to this page for exactly those and opens for
       // everything else, so adopting a chart or an inspection here would take it from the one
       // surface that can show it — and hand this one a payload it would render under page rules.
@@ -335,8 +335,8 @@ export const usePageWorkbench = (host: HostDraft) => {
       setPayload(event.detail)
       resetVerdicts()
     }
-    window.addEventListener(AUTOPILOT_PREVIEW_EVENT, onPreview as EventListener)
-    return () => window.removeEventListener(AUTOPILOT_PREVIEW_EVENT, onPreview as EventListener)
+    window.addEventListener(AGENTIKO_PREVIEW_EVENT, onPreview as EventListener)
+    return () => window.removeEventListener(AGENTIKO_PREVIEW_EVENT, onPreview as EventListener)
   }, [builderName, resetVerdicts])
 
   /**
@@ -620,7 +620,7 @@ export const usePageWorkbench = (host: HostDraft) => {
           {announcement}
         </div>
         {/* NEW_DRAFT_NAMESPACE, not a namespace read from the draft: there IS no draft yet, which is
-            the whole point of this control. It matches what every Autopilot-published page already
+            the whole point of this control. It matches what every Agentiko-published page already
             carries, so starting one here and asking the agent for one produce the same bytes. */}
         <StartDraftModal
           namespace={NEW_DRAFT_NAMESPACE}

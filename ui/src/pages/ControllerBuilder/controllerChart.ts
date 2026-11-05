@@ -34,9 +34,9 @@
  */
 import { dump, load } from 'js-yaml'
 
-import { CHART_YAML_PATH } from '../../components/Autopilot/blueprintDraft'
-import { BLUEPRINT_DRAFT_MAX_BYTES } from '../../components/Autopilot/blueprintDraftStore'
-import { asRecord, isNonEmptyString } from '../../components/Autopilot/kogRestDefSchema'
+import { CHART_YAML_PATH } from '../../components/Agentiko/blueprintDraft'
+import { BLUEPRINT_DRAFT_MAX_BYTES } from '../../components/Agentiko/blueprintDraftStore'
+import { asRecord, isNonEmptyString } from '../../components/Agentiko/kogRestDefSchema'
 
 import { lockedChangesOf, lockedChanges, type LockedSnapshot } from './controllerLocks'
 import {

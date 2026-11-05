@@ -124,7 +124,7 @@ const GIT_PUBLISH_KINDS = new Set(['gitrefs', 'repocontents', 'pullrequests'])
 /**
  * The W0-4 SET decision surface. A PUBLISH set — the single `builderpublishes` claim every builder
  * publishes through, OR a set made only of github.krateo.io write kinds (gitrefs/repocontents/
- * pullrequests — a FORM may still write those; Autopilot no longer can) — reads as a CHANGE REQUEST: a plain "Open a change request" summary
+ * pullrequests — a FORM may still write those; Agentiko no longer can) — reads as a CHANGE REQUEST: a plain "Open a change request" summary
  * (branch/files counts) + one plain-language line per op ("Create file …", "Open a change
  * request …"), with the raw GVR dropped — the human decides on WHAT it does, not on kubernetes
  * resource strings. Copy is host-neutral ("change request") because a publish may land as a

@@ -25,7 +25,7 @@
  */
 import { dump } from 'js-yaml'
 
-import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from '../../components/Autopilot/blueprintDraft'
+import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from '../../components/Agentiko/blueprintDraft'
 
 import { ARCHITECTURE_API_VERSION, ARCHITECTURE_KIND, ARCHITECTURE_TEMPLATE_PATH, serializeArchitecture, wrapAsConfigMapTemplate } from './architecture'
 import { chartIdentityProblems, chartIdentityWarnings, claimApiVersion, compositionKind, publishNameProblem } from './chartIdentity'

@@ -17,12 +17,12 @@ import { countNoun } from '../utils/utils'
 import type { BlastRadius, BlastRadiusSet } from './blastRadius.types'
 
 /**
- * The blast-radius confirm modal's z-index. It MUST sit above the Autopilot preview
+ * The blast-radius confirm modal's z-index. It MUST sit above the Agentiko preview
  * Drawer (previewSurface.tsx). Root cause of the "confirm opens BEHIND the preview"
  * bug (item Q): in antd 6 BOTH surfaces default to `token.zIndexPopupBase`
  * (1000) — the persistent, mask-less preview Drawer and the confirm Modal wrapper get
  * the SAME z-index, so DOM source order decides stacking and the always-mounted drawer
- * (rendered by AutopilotProvider) wins, trapping the confirm beneath the `size='large'`
+ * (rendered by AgentikoProvider) wins, trapping the confirm beneath the `size='large'`
  * panel where the user can neither see nor click it. Raising ONLY the confirm to 1100
  * guarantees it paints above the 1000 drawer regardless of stacking context, for EVERY
  * mutating path (apply via runRest, publish/set via runRestSet, runRestOps, runRestFanOut)

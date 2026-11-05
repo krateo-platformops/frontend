@@ -86,7 +86,7 @@ describe('RoutesContext — a re-read with the same Builders never rebuilds the 
     const version = context!.routerVersion
     act(() => { markBuildersLoading() })
     act(() => { installBuilders(fixtureBuilders()) })
-    // A RouterProvider remount (routerVersion) would drop Autopilot's held draft and its streams.
+    // A RouterProvider remount (routerVersion) would drop Agentiko's held draft and its streams.
     expect(context!.routerVersion).toBe(version)
     expect(context!.routes).toBe(routes)
   })

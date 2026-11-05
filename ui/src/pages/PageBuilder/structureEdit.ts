@@ -26,7 +26,7 @@
  */
 import { dump, load } from 'js-yaml'
 
-import { pageDraftSlug } from '../../components/Autopilot/pageDraft'
+import { pageDraftSlug } from '../../components/Agentiko/pageDraft'
 
 export interface PlaceChild {
   /** metadata.name of the widget being placed — also used as the reference id. */

@@ -21,7 +21,7 @@
  * EVERY WRITE RIDES THE FILE-EDIT BUS — a fix, a field added, a hand edit — as `values.schema.json`
  * of a blueprint. The provider writes it into the held draft and forgets the chart's arming, so
  * Publish is off until Preview renders the chart again; a refusal (the byte cap, the other kind's
- * draft) is shown where the edit was made, and nothing changes. Autopilot is never involved.
+ * draft) is shown where the edit was made, and nothing changes. Agentiko is never involved.
  *
  * A DRAWER OF ITS OWN, from the house parts: DrawerHeader for the title (C2), drawerCloseProps for
  * the close, and the page-content layer (C23) — nothing it holds is a gated action. Esc closes it,
@@ -34,9 +34,9 @@ import SyntaxHighlighter from 'react-syntax-highlighter'
 import atomOneDark from 'react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark.js'
 import lightfair from 'react-syntax-highlighter/dist/esm/styles/hljs/lightfair.js'
 
-import { VALUES_SCHEMA_PATH } from '../../components/Autopilot/blueprintDraft'
-import { emitFileEdit } from '../../components/Autopilot/previewFileEdit'
-import { PreviewFormSection } from '../../components/Autopilot/previewFormSection'
+import { VALUES_SCHEMA_PATH } from '../../components/Agentiko/blueprintDraft'
+import { emitFileEdit } from '../../components/Agentiko/previewFileEdit'
+import { PreviewFormSection } from '../../components/Agentiko/previewFormSection'
 import DismissButton from '../../components/DismissButton'
 import { DrawerHeader, drawerCloseProps } from '../../components/DrawerHeader/DrawerHeader'
 import StatusPill from '../../components/StatusPill'

@@ -45,8 +45,8 @@
  *   - status field candidates — source fields the create body does not send (the server assigned them),
  *     plus any declared readOnly, plus nested id/name-like leaves the create body does not send.
  */
-import { asRecord } from '../../components/Autopilot/kogRestDefSchema'
-import type { REST_DEF_ACTIONS } from '../../components/Autopilot/kogRestDefSchema'
+import { asRecord } from '../../components/Agentiko/kogRestDefSchema'
+import type { REST_DEF_ACTIONS } from '../../components/Agentiko/kogRestDefSchema'
 
 import { deref, type OasDocument, type OasOperation } from './oasImport'
 import { isParam, normalizedPath, parentOf, pathParamsOf, type PathShape, pathShapeOf, segmentsOf, standInName } from './pathShape'

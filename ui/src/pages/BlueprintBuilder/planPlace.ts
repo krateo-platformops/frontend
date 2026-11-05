@@ -25,8 +25,8 @@
  * `expect` pins the bytes the plan was made from. A write that landed in between — the agent's, a
  * hand edit in Chart files — makes the provider refuse the batch instead of losing that write.
  */
-import { CHART_YAML_PATH, chartYamlName } from '../../components/Autopilot/blueprintDraft'
-import type { CrdSpecExtract } from '../../components/Autopilot/describeResource'
+import { CHART_YAML_PATH, chartYamlName } from '../../components/Agentiko/blueprintDraft'
+import type { CrdSpecExtract } from '../../components/Agentiko/describeResource'
 
 import { ARCHITECTURE_TEMPLATE_PATH, parseArchitecture, rewrapDescriptor, serializeArchitecture, unwrapFromConfigMapTemplate, type ChartArchitecture } from './architecture'
 import { compositionKind } from './chartIdentity'

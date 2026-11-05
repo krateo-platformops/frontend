@@ -14,7 +14,7 @@ let insideDrawer = false
 vi.mock('../../hooks/useHandleActions', () => ({
   useHandleAction: () => ({ handleAction: vi.fn(() => Promise.resolve()), isActionLoading: false }),
 }))
-vi.mock('../../components/Autopilot/agentDraft', () => ({
+vi.mock('../../components/Agentiko/agentDraft', () => ({
   useAgentDraft: () => ({ draft: null, nonce: 1 }),
 }))
 vi.mock('../Drawer/DrawerContext', () => ({

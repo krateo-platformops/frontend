@@ -13,9 +13,9 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { lintBlueprintDraft, regenerateArchitecture } from '../../components/Autopilot/blueprintDraft'
-import { createBlueprintDraftStore } from '../../components/Autopilot/blueprintDraftStore'
-import { extractCrdSpecFields } from '../../components/Autopilot/describeResource'
+import { lintBlueprintDraft, regenerateArchitecture } from '../../components/Agentiko/blueprintDraft'
+import { createBlueprintDraftStore } from '../../components/Agentiko/blueprintDraftStore'
+import { extractCrdSpecFields } from '../../components/Agentiko/describeResource'
 
 import { CRDS } from './__fixtures__/s4a'
 import { ARCHITECTURE_TEMPLATE_PATH, parseArchitecture, unwrapFromConfigMapTemplate, wrapAsConfigMapTemplate, type ResourceNode } from './architecture'

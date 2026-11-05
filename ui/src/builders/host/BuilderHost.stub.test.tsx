@@ -24,11 +24,11 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 vi.mock('@ant-design/graphs', () => import('../../components/DependencyGraph/flowGraphDouble'))
 vi.mock('@antv/g6-extension-react', () => ({ ReactNode: vi.fn() }))
-vi.mock('../../components/Autopilot/previewBridge', async (importOriginal) => ({
+vi.mock('../../components/Agentiko/previewBridge', async (importOriginal) => ({
   ...await importOriginal<object>(),
   callBlueprintRenderRA: vi.fn(),
 }))
-vi.mock('../../components/Autopilot/builderPublishGvr', async (importOriginal) => ({
+vi.mock('../../components/Agentiko/builderPublishGvr', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   resolveBuilderPublishGvr: () => Promise.resolve({
     apiVersion: 'builder.krateo.io/v1alpha1',
@@ -36,18 +36,18 @@ vi.mock('../../components/Autopilot/builderPublishGvr', async (importOriginal) =
   }),
 }))
 
-import type { ApplyResourceSetOp } from '../../components/Autopilot/applyResourceSet'
-import { createBlueprintGate } from '../../components/Autopilot/blueprintGate'
-import type { BuilderTargets } from '../../components/Autopilot/builderTargets'
-import { draftHistory } from '../../components/Autopilot/draftHistory'
-import { callBlueprintRenderRA } from '../../components/Autopilot/previewBridge'
-import { emitDraftChanged } from '../../components/Autopilot/previewDraftChanged'
-import { emitPublishResult, onPublishRequest } from '../../components/Autopilot/previewPublishRequest'
-import { heldDraftIdentity } from '../../components/Autopilot/publishCompile'
-import { runPersonPublish } from '../../components/Autopilot/publishDraft'
-import type { AutopilotActionChip } from '../../components/Autopilot/types'
-import { useBlueprintAuthoringBuses } from '../../components/Autopilot/useBlueprintAuthoringBuses'
-import { createBroadcastingDraftStore, useDraftFileBuses } from '../../components/Autopilot/useDraftFileBuses'
+import type { ApplyResourceSetOp } from '../../components/Agentiko/applyResourceSet'
+import { createBlueprintGate } from '../../components/Agentiko/blueprintGate'
+import type { BuilderTargets } from '../../components/Agentiko/builderTargets'
+import { draftHistory } from '../../components/Agentiko/draftHistory'
+import { callBlueprintRenderRA } from '../../components/Agentiko/previewBridge'
+import { emitDraftChanged } from '../../components/Agentiko/previewDraftChanged'
+import { emitPublishResult, onPublishRequest } from '../../components/Agentiko/previewPublishRequest'
+import { heldDraftIdentity } from '../../components/Agentiko/publishCompile'
+import { runPersonPublish } from '../../components/Agentiko/publishDraft'
+import type { AgentikoActionChip } from '../../components/Agentiko/types'
+import { useBlueprintAuthoringBuses } from '../../components/Agentiko/useBlueprintAuthoringBuses'
+import { createBroadcastingDraftStore, useDraftFileBuses } from '../../components/Agentiko/useDraftFileBuses'
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 import { ConfigContext } from '../../context/ConfigContext'
 import { ThemeModeProvider } from '../../context/ThemeModeContext'
@@ -105,7 +105,7 @@ const Provider = () => {
       const answer = await runPersonPublish({
         apply: (ops) => {
           applied.push(ops)
-          return Promise.resolve<AutopilotActionChip>({ label: 'Publish', readOnly: false, verb: 'applyResourceSet' })
+          return Promise.resolve<AgentikoActionChip>({ label: 'Publish', readOnly: false, verb: 'applyResourceSet' })
         },
         blueprintGate: gate,
         blueprintStore: store,

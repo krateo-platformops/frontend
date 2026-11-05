@@ -198,7 +198,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                               <ul class="_issueList_7a73aa">
                                 <li>
                                   "krateo-preview/petstore-pet: security scheme not supported, skipped: petstore_auth (type: oauth2, in: )"
-                        <section data-testid="autopilot-form-preview">
+                        <section data-testid="agentiko-form-preview">
                           <h5 class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                             "Pet — create form"
                           <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -305,7 +305,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                                         <div class="ant-form-item-control-input">
                                           <div class="ant-form-item-control-input-content">
                                             <input class="ant-input ant-input-disabled css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var" disabled="" id="id17" type="text" value="">
-                        <section data-testid="autopilot-form-preview">
+                        <section data-testid="agentiko-form-preview">
                           <h5 class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                             "Store — create form"
                           <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -364,7 +364,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                                             <div class="ant-form-item-control-input-content">
                                               <div class="ant-input-number ant-input-number-mode-input css-var-id1 ant-input-number-css-var css-dev-only-do-not-override-12q6fii ant-input-number-outlined ant-input-number-in-form-item ant-input-number-without-controls ant-input-number-disabled" style="width: 100%;">
                                                 <input autocomplete="off" class="ant-input-number-input" disabled="" id="id18" role="spinbutton" step="1" value="">
-                        <section data-testid="autopilot-form-preview">
+                        <section data-testid="agentiko-form-preview">
                           <h5 class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                             "PetConfiguration — create form"
                           <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">

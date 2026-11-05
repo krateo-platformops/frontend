@@ -53,7 +53,7 @@ const Row = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<RowWi
       <AntdRow
         // Default to 'stretch' so columns fill the row height and sibling cards stay
         // equal-height when one wraps to an extra line (e.g. the dashboard stat cards
-        // once the Autopilot rail narrows the content). Matches the `.ant-row > div > *
+        // once the Agentiko rail narrows the content). Matches the `.ant-row > div > *
         // { height: 100% }` rule in Row.module.css; an explicit `alignment` still wins.
         align={alignment ?? 'stretch'}
         gutter={[spacing.md, spacing.md]}
@@ -64,7 +64,7 @@ const Row = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<RowWi
           .map(({ index, item: { alignment, lg, md, resourceRefId, size, sm, xl, xs, xxl } }) => {
             return (
               // `size` is the base span; the optional xs/sm/md/lg/xl/xxl overrides let a row reflow
-              // responsively (e.g. when the Autopilot rail narrows the content column).
+              // responsively (e.g. when the Agentiko rail narrows the content column).
               <AntdColumn
                 className={styles.column}
                 key={`${uid}-col-${index}`}

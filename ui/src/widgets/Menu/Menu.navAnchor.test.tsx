@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * The nav-anchor contract, pinned end to end against a REAL render: the Menu widget stamps
- * `navAnchor`'s attributes, and `findNavItem` — which the Autopilot tour resolves `nav:<Label>`
+ * `navAnchor`'s attributes, and `findNavItem` — which the Agentiko tour resolves `nav:<Label>`
  * steps through — finds the rendered row by them.
  *
  * This is the loud half of the fix. The tour's miss is silent on purpose (a step with no target
@@ -93,7 +93,7 @@ describe('the sidebar nav carries our own anchors', () => {
     expect(document.querySelectorAll(`[class*="divider"][${NAV_ITEM_ATTRIBUTE}]`)).toHaveLength(0)
   })
 
-  it('findNavItem resolves a rendered row — the contract the Autopilot tour reads', () => {
+  it('findNavItem resolves a rendered row — the contract the Agentiko tour reads', () => {
     renderMenu()
 
     const lookup = findNavItem('Blueprints')

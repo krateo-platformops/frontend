@@ -7,7 +7,7 @@
  * - WHOSE DRAFT IS HELD. The draft broadcast, and a replay asked for on mount so a draft held before
  *   this page opened is shown. A draft of the Builder's kind is drawn; any other is parked behind the
  *   empty state and never read (heldMode.ts).
- * - THE PREVIEW SURFACE CLAIM for the Builder's draft kind while mounted, so the Autopilot drawer
+ * - THE PREVIEW SURFACE CLAIM for the Builder's draft kind while mounted, so the Agentiko drawer
  *   does not open over the same draft — its close would tear down what this page still shows.
  * - THE HEADER. Title and copy from `spec.label` and the draft kind's words; the draft record's save
  *   indicator; Preview · Undo · Publish · Close draft. Preview renders (`preview.mode: render`) or
@@ -30,17 +30,17 @@ import {
   type CSSProperties, type ReactNode,
 } from 'react'
 
-import type { DraftKind } from '../../components/Autopilot/blueprintDraftStore'
-import { draftHistory } from '../../components/Autopilot/draftHistory'
-import { DraftProblemsAlert } from '../../components/Autopilot/DraftProblemsAlert'
-import DraftSaveIndicator, { useCloseDraftCopy } from '../../components/Autopilot/DraftSaveIndicator'
-import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
-import { claimPreviewSurface, onDraftChanged, requestDraftReplay, type DraftChangedDetail } from '../../components/Autopilot/previewDraftChanged'
-import { emitDraftClose, onDraftClose } from '../../components/Autopilot/previewDraftClose'
-import { emitDraftUndo } from '../../components/Autopilot/previewDraftUndo'
-import { emitPublishRequest, onPublishResult, type PublishRequestDetail } from '../../components/Autopilot/previewPublishRequest'
-import { PreviewContent, type RestDefVerdicts } from '../../components/Autopilot/previewSurface'
-import { useDraftResume } from '../../components/Autopilot/useDraftResume'
+import type { DraftKind } from '../../components/Agentiko/blueprintDraftStore'
+import { draftHistory } from '../../components/Agentiko/draftHistory'
+import { DraftProblemsAlert } from '../../components/Agentiko/DraftProblemsAlert'
+import DraftSaveIndicator, { useCloseDraftCopy } from '../../components/Agentiko/DraftSaveIndicator'
+import type { AgentikoPreviewPayload } from '../../components/Agentiko/previewBus'
+import { claimPreviewSurface, onDraftChanged, requestDraftReplay, type DraftChangedDetail } from '../../components/Agentiko/previewDraftChanged'
+import { emitDraftClose, onDraftClose } from '../../components/Agentiko/previewDraftClose'
+import { emitDraftUndo } from '../../components/Agentiko/previewDraftUndo'
+import { emitPublishRequest, onPublishResult, type PublishRequestDetail } from '../../components/Agentiko/previewPublishRequest'
+import { PreviewContent, type RestDefVerdicts } from '../../components/Agentiko/previewSurface'
+import { useDraftResume } from '../../components/Agentiko/useDraftResume'
 import DismissButton, { dismissButtonProps } from '../../components/DismissButton'
 import ScreenHeader from '../../components/ScreenHeader'
 import StatusPill from '../../components/StatusPill'
@@ -288,7 +288,7 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
   const { Component: Canvas } = parts.canvas
   const { Component: Inspector } = parts.inspector
   const wrap = workbench.wrapBody ?? ((node: ReactNode) => node)
-  const filesPane = (payload: AutopilotPreviewPayload, hideDraftProblems: boolean) => (
+  const filesPane = (payload: AgentikoPreviewPayload, hideDraftProblems: boolean) => (
     <PreviewContent
       caption={workbench.files.caption}
       editVerdicts={editVerdicts}

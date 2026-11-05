@@ -1,6 +1,6 @@
 /**
  * The DOM contract between the sidebar nav (this widget) and whatever has to FIND a nav item
- * on screen — today the Autopilot tour's `nav:<Label>` spotlight anchors.
+ * on screen — today the Agentiko tour's `nav:<Label>` spotlight anchors.
  *
  * The tour used to locate nav items with `.ant-menu-item`, antd's own class, and its miss is
  * silent by design (a step with no target renders centered). Those two together are the trap:

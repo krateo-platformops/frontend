@@ -12,7 +12,7 @@
  * Bounds, from core-provider-agent's live_dry_run.py: 20 s per object, 45 s for the step, at most
  * 50 objects; anything cut is named notChecked rather than dropped.
  */
-import { expectedApiVersionOf } from '@frontend/components/Autopilot/pageLint'
+import { expectedApiVersionOf } from '@frontend/components/Agentiko/pageLint'
 
 import { type ObjectVerdict, step, type StepResult } from '../envelope'
 import { HttpError } from '../http'

@@ -16,7 +16,7 @@
  * The gate emulates nothing snowplow does and holds no RBAC beyond reading its own Builder: steps
  * 1–3 are static, steps 2 (for out-of-draft refs), 4 and 5 are snowplow's (docs/snowplow-contract.md).
  */
-import { lintPageDrafts, pageRootProblem } from '@frontend/components/Autopilot/pageLint'
+import { lintPageDrafts, pageRootProblem } from '@frontend/components/Agentiko/pageLint'
 
 import type { BuilderSpec } from '../builder'
 import { pluralOf, schemaFor } from '../catalog'

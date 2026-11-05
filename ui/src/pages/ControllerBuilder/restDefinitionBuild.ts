@@ -23,9 +23,9 @@
  *   4. Notices — warnings, never errors (controllerNotices): a jq valueMapping on a request-direction
  *      fieldMapping, which oasgen ≤0.25.1 ignores, and a Kind with findby but no get.
  */
-import { REST_DEFINITION_API_VERSION, REST_DEFINITION_KIND, validateRestDefinitionDraft } from '../../components/Autopilot/kogMapping'
-import { asRecord, isNonEmptyString } from '../../components/Autopilot/kogRestDefSchema'
-import { restDefinitionWarnings } from '../../components/Autopilot/kogRestDefVerbs'
+import { REST_DEFINITION_API_VERSION, REST_DEFINITION_KIND, validateRestDefinitionDraft } from '../../components/Agentiko/kogMapping'
+import { asRecord, isNonEmptyString } from '../../components/Agentiko/kogRestDefSchema'
+import { restDefinitionWarnings } from '../../components/Agentiko/kogRestDefVerbs'
 
 import { OAS_METHODS, type OasDocument, securitySchemeSupport, type SecuritySchemeSupport, deref } from './oasImport'
 import {

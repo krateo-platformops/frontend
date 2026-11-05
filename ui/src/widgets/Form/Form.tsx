@@ -7,7 +7,7 @@ import type { JSONSchema4 } from 'json-schema'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
-import { useAgentDraft } from '../../components/Autopilot/agentDraft'
+import { useAgentDraft } from '../../components/Agentiko/agentDraft'
 import { dismissButtonProps } from '../../components/DismissButton'
 import WidgetRenderer from '../../components/WidgetRenderer'
 import YamlBlock from '../../components/YamlBlock'
@@ -174,7 +174,7 @@ const reviewFieldOrder = (key: string): number => {
 }
 
 /**
- * The review step, with the fields Autopilot authored marked as such.
+ * The review step, with the fields Agentiko authored marked as such.
  *
  * WHY THE MARK MATTERS. "The agent fills, the human submits" is only a safeguard if the human
  * can tell WHICH values came from the agent. Without it the review reads as the user's own
@@ -186,7 +186,7 @@ const reviewFieldOrder = (key: string): number => {
  * value on screen, and the mark is about PROVENANCE, not content.
  */
 /**
- * Which fields in the review still hold the value Autopilot wrote?
+ * Which fields in the review still hold the value Agentiko wrote?
  *
  * Not simply "which keys did the agent touch". A field the human CORRECTED after the agent filled
  * it is the human's own, and marking it would over-claim in the other direction — so the mark is
@@ -317,9 +317,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   const reviewing = !insideDrawer && !!reviewBeforeSubmit && reviewValues !== null
   const [failedFields, setFailedFields] = useState<FieldPath[] | null>(null)
 
-  // Autopilot AgentDraft (Phase 3 gated form-fill): values Autopilot proposes for the create form;
+  // Agentiko AgentDraft (Phase 3 gated form-fill): values Agentiko proposes for the create form;
   // the user still reviews and presses Create. Applied imperatively below via setFieldsValue (NOT
-  // via initialValues — see that effect for why). Empty/absent when Autopilot isn't driving.
+  // via initialValues — see that effect for why). Empty/absent when Agentiko isn't driving.
   // `nonce` is bumped by the provider on each NEW draft — the apply effect keys off it so a
   // widget refetch (which recomputes `safeAgentDraft`'s identity) can't re-apply a stale draft.
   const { draft: agentDraft, nonce: draftNonce } = useAgentDraft()
@@ -342,7 +342,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   }, [draftStorageKey])
 
   // The form's SECRET fields (`format: password` / `writeOnly: true`). Only ever typed by the
-  // human: never prefilled (schema default, initialValues, a refetch, a saved draft, an Autopilot
+  // human: never prefilled (schema default, initialValues, a refetch, a saved draft, an Agentiko
   // draft), never saved to a local draft, and never sent to /jq (handed to the action below).
   // A composable Form (`items`) learns its secret fields from its child widgets — a password
   // Input registers itself (secretFieldsRegistry.ts).
@@ -363,7 +363,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   // A field whose options depend on another (`dependencies`) is cleared when the
   // PERSON changes that other field — its value was picked from options the new one no longer
   // yields — and so is whatever depends on it in turn. antd fires onValuesChange for user input
-  // only: initial values, a refetch, a resumed draft and an Autopilot draft set fields
+  // only: initial values, a refetch, a resumed draft and an Agentiko draft set fields
   // programmatically and keep every value they set, dependent ones included.
   const dependencies = useMemo(() => collectDependencies(jsonSchema).dependencies, [jsonSchema])
   const onValuesChange = (changed: unknown) => {
@@ -373,7 +373,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
     }
   }
 
-  // Filter the Autopilot draft to the form's REAL field names (top-level schema properties). The model
+  // Filter the Agentiko draft to the form's REAL field names (top-level schema properties). The model
   // is told to use exact field names, but an invented or "closest-match" key would otherwise be held in
   // the form store by setFieldsValue while the chip still claims "drafted the form" — a value landing
   // nowhere. Apply only keys that are actual fields, so the draft can't mis-fill or silently vanish.
@@ -399,7 +399,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   )
 
   // Effective initial values = schema defaults < explicit initialValues < the resumed localStorage
-  // draft < the Autopilot draft — the SAME object handed to <AntdForm initialValues> below. Factored
+  // draft < the Agentiko draft — the SAME object handed to <AntdForm initialValues> below. Factored
   // out so the pristine check compares against exactly what the form was seeded with.
   const effectiveInitialValues = useMemo<Record<string, unknown>>(
     () => {
@@ -411,20 +411,20 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
     [jsonSchema, initialValues, savedDraft, safeAgentDraft, secretPaths],
   )
 
-  // Apply an Autopilot draft IMPERATIVELY. Seeding it through `initialValues` (above) does NOT work
+  // Apply an Agentiko draft IMPERATIVELY. Seeding it through `initialValues` (above) does NOT work
   // for blueprint forms: every schema field <SchemaForm> renders carries its own per-field
   // `initialValue` (the schema default), and antd lets a field's own initialValue WIN over the
   // form-level initialValues — so the draft only landed on fields WITHOUT a default (e.g. namespace)
   // and silently dropped name/region/cidr/…. setFieldsValue overrides per-field defaults AND avoids
-  // a remount (so values the user already typed survive), so the Autopilot fills EVERY field it
+  // a remount (so values the user already typed survive), so the Agentiko fills EVERY field it
   // drafted. Fires ONCE per new draft, keyed by the provider's `nonce` (bumped on each
   // prefillForm): `safeAgentDraft` alone is not a safe trigger because a widget refetch replaces
   // the schema identity and recomputes it — re-applying the SAME draft over values the user has
   // edited since (issue #33). The nonce guard keeps a genuinely-new draft applying (even over
-  // dirty fields — the user asked Autopilot to fill the form) while refetches are inert.
+  // dirty fields — the user asked Agentiko to fill the form) while refetches are inert.
   const appliedDraftNonceRef = useRef<number | null>(null)
-  // key -> the value Autopilot last wrote there. Read at review time to decide which fields carry
-  // the "Autopilot" mark; see the accumulation in the apply effect below.
+  // key -> the value Agentiko last wrote there. Read at review time to decide which fields carry
+  // the "Agentiko" mark; see the accumulation in the apply effect below.
   const agentAuthoredRef = useRef<Record<string, unknown>>({})
   useEffect(() => {
     if (!safeAgentDraft || Object.keys(safeAgentDraft).length === 0) {
@@ -441,7 +441,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
     // latest draft under-marked: fields the agent chose were presented as the human's own, and
     // under-marking is the unsafe direction for a control whose job is to make the difference
     // between review and rubber-stamp. Multi-turn incremental prefill is the designed usage
-    // (useAutopilotContext keeps a mounted form's field inventory in the envelope every turn
+    // (useAgentikoContext keeps a mounted form's field inventory in the envelope every turn
     // precisely so the model can fill it as the user names things).
     agentAuthoredRef.current = { ...agentAuthoredRef.current, ...safeAgentDraft }
   }, [safeAgentDraft, draftNonce, form])

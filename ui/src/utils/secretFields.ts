@@ -3,8 +3,8 @@
  *
  * A value typed into such a field is a credential. It is rendered masked (Input.Password), never
  * redisplayed in cleartext (the review step shows a mask), never prefilled from anything the page
- * or the browser holds (schema defaults, initialValues, a refetch, a saved draft, an Autopilot
- * draft), never persisted to a local draft, never named to Autopilot, and never sent to
+ * or the browser holds (schema defaults, initialValues, a refetch, a saved draft, an Agentiko
+ * draft), never persisted to a local draft, never named to Agentiko, and never sent to
  * snowplow's `/jq` endpoint — see `resolveOverride` in `secretJq.ts` for how an action payload
  * that needs one is built without it leaving the browser except in the write itself.
  *

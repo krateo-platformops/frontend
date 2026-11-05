@@ -2,7 +2,7 @@
 /**
  * `dependencies` entries in the real Form: a field whose options depend on another waits
  * for it (no call), loads with its value as `extras[extra.key]`, and is cleared — with whatever
- * depends on it — when the PERSON changes it. Initial values, a resumed draft and an Autopilot
+ * depends on it — when the PERSON changes it. Initial values, a resumed draft and an Agentiko
  * draft set fields programmatically and keep every value.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -19,7 +19,7 @@ let agentDraft: Record<string, unknown> | null = null
 vi.mock('../../hooks/useHandleActions', () => ({
   useHandleAction: () => ({ handleAction, isActionLoading: false }),
 }))
-vi.mock('../../components/Autopilot/agentDraft', () => ({
+vi.mock('../../components/Agentiko/agentDraft', () => ({
   useAgentDraft: () => ({ draft: agentDraft, nonce: 1 }),
 }))
 vi.mock('../Drawer/DrawerContext', () => ({

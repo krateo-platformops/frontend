@@ -204,11 +204,11 @@ describe('PageBuilder — structural edits from the tree', () => {
     const listener = (event: Event) => {
       seen.push((event as CustomEvent<{ path: string; content: string }>).detail)
     }
-    window.addEventListener('autopilotPreviewFileEdited', listener)
+    window.addEventListener('agentikoPreviewFileEdited', listener)
     openTwoChildDraft()
 
     act(() => { screen.getByLabelText('Move second up').click() })
-    window.removeEventListener('autopilotPreviewFileEdited', listener)
+    window.removeEventListener('agentikoPreviewFileEdited', listener)
 
     // One bus, one place that re-checks the cap and re-arms the gate — rather than this panel
     // growing a second way to mutate a draft.
@@ -237,7 +237,7 @@ describe('PageBuilder — structural edits from the tree', () => {
     const listener = (event: Event) => {
       seen.push((event as CustomEvent<{ path: string; content: string }>).detail)
     }
-    window.addEventListener('autopilotPreviewFileEdited', listener)
+    window.addEventListener('agentikoPreviewFileEdited', listener)
 
     mount()
     emit({
@@ -248,7 +248,7 @@ describe('PageBuilder — structural edits from the tree', () => {
     act(() => { screen.getByLabelText('Move third up').click() })
     held({ 'templates/flex.page-x.yaml': seen[0].content })
     act(() => { screen.getByLabelText('Move third up').click() })
-    window.removeEventListener('autopilotPreviewFileEdited', listener)
+    window.removeEventListener('agentikoPreviewFileEdited', listener)
 
     const order = (yaml: string) => (load(yaml) as {
       spec: { widgetData: { items: { resourceRefId: string }[] } }
@@ -271,11 +271,11 @@ describe('PageBuilder — structural edits from the tree', () => {
     const listener = (event: Event) => {
       seen.push((event as CustomEvent<{ content: string }>).detail)
     }
-    window.addEventListener('autopilotPreviewFileEdited', listener)
+    window.addEventListener('agentikoPreviewFileEdited', listener)
     openTwoChildDraft()
 
     confirmRemove('Remove first')
-    window.removeEventListener('autopilotPreviewFileEdited', listener)
+    window.removeEventListener('agentikoPreviewFileEdited', listener)
 
     expect(seen[0].content).not.toContain('first')
     expect(seen[0].content).toContain('second')
@@ -290,7 +290,7 @@ describe('PageBuilder — structural edits from the tree', () => {
      */
     const removed: { path: string }[] = []
     const listener = (event: Event) => { removed.push((event as CustomEvent<{ path: string }>).detail) }
-    window.addEventListener('autopilotPreviewFileRemoved', listener)
+    window.addEventListener('agentikoPreviewFileRemoved', listener)
     // A draft that CARRIES the child. The two-child fixture references widgets the draft does not
     // hold — external cluster widgets — and those have no file to remove, which is why the guard
     // asks for `drafted` before emitting anything.
@@ -304,7 +304,7 @@ describe('PageBuilder — structural edits from the tree', () => {
     })
 
     confirmRemove('Remove row-a')
-    window.removeEventListener('autopilotPreviewFileRemoved', listener)
+    window.removeEventListener('agentikoPreviewFileRemoved', listener)
 
     expect(removed).toHaveLength(1)
     expect(removed[0].path).toBe('templates/row.row-a.yaml')
@@ -313,11 +313,11 @@ describe('PageBuilder — structural edits from the tree', () => {
   it('leaves an EXTERNAL widget\'s file alone — there is none, and the CR is not ours to delete', () => {
     const removed: { path: string }[] = []
     const listener = (event: Event) => { removed.push((event as CustomEvent<{ path: string }>).detail) }
-    window.addEventListener('autopilotPreviewFileRemoved', listener)
+    window.addEventListener('agentikoPreviewFileRemoved', listener)
     openTwoChildDraft()
 
     confirmRemove('Remove first')
-    window.removeEventListener('autopilotPreviewFileRemoved', listener)
+    window.removeEventListener('agentikoPreviewFileRemoved', listener)
 
     // The reference goes; nothing is deleted, because the widget lives on the cluster and this page
     // merely pointed at it.
@@ -327,14 +327,14 @@ describe('PageBuilder — structural edits from the tree', () => {
   it('asks before removing — the one destructive edit in the tree, and there is no undo', () => {
     const removed: { path: string }[] = []
     const listener = (event: Event) => { removed.push((event as CustomEvent<{ path: string }>).detail) }
-    window.addEventListener('autopilotPreviewFileRemoved', listener)
+    window.addEventListener('agentikoPreviewFileRemoved', listener)
     openTwoChildDraft()
 
     // The click alone must not delete anything.
     act(() => { screen.getByLabelText('Remove first').click() })
     expect(removed).toHaveLength(0)
     expect(screen.getByText('Remove first from this page?')).toBeTruthy()
-    window.removeEventListener('autopilotPreviewFileRemoved', listener)
+    window.removeEventListener('agentikoPreviewFileRemoved', listener)
   })
 })
 
@@ -441,8 +441,8 @@ describe('PageBuilder — binding live data', () => {
     const edits: { path: string; content: string }[] = []
     const onAdd = (event: Event) => { adds.push((event as CustomEvent<{ path: string; content: string }>).detail) }
     const onEdit = (event: Event) => { edits.push((event as CustomEvent<{ path: string; content: string }>).detail) }
-    window.addEventListener('autopilotPreviewFileAdded', onAdd)
-    window.addEventListener('autopilotPreviewFileEdited', onEdit)
+    window.addEventListener('agentikoPreviewFileAdded', onAdd)
+    window.addEventListener('agentikoPreviewFileEdited', onEdit)
 
     mount()
     emit({ files: [flexFile], title: 'x' })
@@ -455,8 +455,8 @@ describe('PageBuilder — binding live data', () => {
     })
     act(() => { screen.getByText('Generate').click() })
 
-    window.removeEventListener('autopilotPreviewFileAdded', onAdd)
-    window.removeEventListener('autopilotPreviewFileEdited', onEdit)
+    window.removeEventListener('agentikoPreviewFileAdded', onAdd)
+    window.removeEventListener('agentikoPreviewFileEdited', onEdit)
 
     // RESTAction first: the widget's apiRef names it, so the reverse order points at nothing.
     // Bare held keys — a repo path here is prefixed again at publish.
@@ -474,8 +474,8 @@ describe('PageBuilder — binding live data', () => {
     const edits: unknown[] = []
     const onAdd = (event: Event) => { adds.push(event) }
     const onEdit = (event: Event) => { edits.push(event) }
-    window.addEventListener('autopilotPreviewFileAdded', onAdd)
-    window.addEventListener('autopilotPreviewFileEdited', onEdit)
+    window.addEventListener('agentikoPreviewFileAdded', onAdd)
+    window.addEventListener('agentikoPreviewFileEdited', onEdit)
 
     mount()
     // The draft already holds a table called `fleet`.
@@ -494,8 +494,8 @@ describe('PageBuilder — binding live data', () => {
     })
     act(() => { screen.getByText('Generate').click() })
 
-    window.removeEventListener('autopilotPreviewFileAdded', onAdd)
-    window.removeEventListener('autopilotPreviewFileEdited', onEdit)
+    window.removeEventListener('agentikoPreviewFileAdded', onAdd)
+    window.removeEventListener('agentikoPreviewFileEdited', onEdit)
 
     // `addFile` refuses an existing path, but it refuses SILENTLY from here — so this used to drop
     // both generated files on the floor while the place still went through, leaving the parent

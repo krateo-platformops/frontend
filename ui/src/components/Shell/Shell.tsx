@@ -9,7 +9,7 @@ import { WidgetScopeProvider } from '../../context/WidgetScopeContext'
 import { useDocumentLoadSpan } from '../../otel/useDocumentLoadSpan'
 import Drawer from '../../widgets/Drawer'
 import Modal from '../../widgets/Modal'
-import { AutopilotProvider, AutopilotShell, AutopilotToggle } from '../Autopilot'
+import { AgentikoProvider, AgentikoShell, AgentikoToggle } from '../Agentiko'
 import Breadcrumb from '../Breadcrumb'
 import CommandPalette from '../CommandPalette'
 import { NotificationsBell, NotificationsDrawer, NotificationsProvider } from '../Notifications'
@@ -42,9 +42,9 @@ const HeaderChrome = () => {
           <WidgetRenderer key='header-context' widgetEndpoint={headerContext} />
         </WidgetScopeProvider>
       </div>
-      {/* Autopilot is a distinct surface, not a page utility — pull its toggle out of the
+      {/* Agentiko is a distinct surface, not a page utility — pull its toggle out of the
           search/notifications/theme cluster and set it beside the user menu, behind a divider. */}
-      <div className={styles.headerRight}><CommandPalette /><NotificationsBell /><ThemeToggle /><span className={styles.headerDivider} /><AutopilotToggle /><UserMenu /></div>
+      <div className={styles.headerRight}><CommandPalette /><NotificationsBell /><ThemeToggle /><span className={styles.headerDivider} /><AgentikoToggle /><UserMenu /></div>
     </>
   )
 }
@@ -102,17 +102,17 @@ export const ShellRoute = () => {
   return (
     <ShellSlotsProvider value={{ content: <><div className={styles.contentCrumb}><Breadcrumb /></div><Outlet /></>, header: <HeaderChrome />, siderFooter: <SiderFooter /> }}>
       <NotificationsProvider>
-        <AutopilotProvider>
-          <AutopilotShell>
+        <AgentikoProvider>
+          <AgentikoShell>
             <WidgetRenderer key='shell' widgetEndpoint={config!.api.INIT} />
-          </AutopilotShell>
+          </AgentikoShell>
           <Drawer />
           <Modal />
           <SessionResumeModal />
           {/* Rendered here (not in the header chrome) so the server-driven Layout widget's
               remounts never tear it down — the header only carries the bell. */}
           <NotificationsDrawer />
-        </AutopilotProvider>
+        </AgentikoProvider>
       </NotificationsProvider>
     </ShellSlotsProvider>
   )

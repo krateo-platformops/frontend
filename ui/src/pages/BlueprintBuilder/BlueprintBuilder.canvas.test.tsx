@@ -10,8 +10,8 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { lintBlueprintDraft } from '../../components/Autopilot/blueprintDraft'
-import { AUTOPILOT_PREVIEW_FILE_ADD_EVENT, type FileAddDetail } from '../../components/Autopilot/previewFileAdd'
+import { lintBlueprintDraft } from '../../components/Agentiko/blueprintDraft'
+import { AGENTIKO_PREVIEW_FILE_ADD_EVENT, type FileAddDetail } from '../../components/Agentiko/previewFileAdd'
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 
 import { ARCHITECTURE_TEMPLATE_PATH, parseArchitecture, unwrapFromConfigMapTemplate, wrapAsConfigMapTemplate, type ResourceNode } from './architecture'
@@ -158,7 +158,7 @@ describe('BlueprintBuilder — the architecture graph', () => {
   })
 
   it('NO architecture file: its own state, and one button that adds an empty, readable descriptor', () => {
-    const adds = listen<FileAddDetail>(AUTOPILOT_PREVIEW_FILE_ADD_EVENT)
+    const adds = listen<FileAddDetail>(AGENTIKO_PREVIEW_FILE_ADD_EVENT)
     const { [ARCHITECTURE_TEMPLATE_PATH]: _descriptor, ...agentAuthored } = seededChart()
     mount()
     hold(agentAuthored)
@@ -438,7 +438,7 @@ describe('BlueprintBuilder — the create-form preview, under the inspector', ()
     const schema = JSON.stringify({ properties: { replicas: { title: 'Replicas', type: 'integer' } }, type: 'object' })
     mount()
     hold({ ...seededChart(), 'values.schema.json': schema })
-    expect(screen.getAllByTestId('autopilot-form-preview')).toHaveLength(1)
-    expect(within(screen.getByLabelText('Inspector')).getByTestId('autopilot-form-preview')).toBeTruthy()
+    expect(screen.getAllByTestId('agentiko-form-preview')).toHaveLength(1)
+    expect(within(screen.getByLabelText('Inspector')).getByTestId('agentiko-form-preview')).toBeTruthy()
   })
 })

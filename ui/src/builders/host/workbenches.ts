@@ -3,7 +3,7 @@
  * hostTypes.ts for what a workbench is. Deny by default, like pluginRegistry: only an own key
  * resolves, and a draft kind with none is a sentence, never a blank composer.
  */
-import type { DraftKind } from '../../components/Autopilot/blueprintDraftStore'
+import type { DraftKind } from '../../components/Agentiko/blueprintDraftStore'
 import { useBlueprintWorkbench } from '../../pages/BlueprintBuilder/useBlueprintWorkbench'
 import { useControllerWorkbench } from '../../pages/ControllerBuilder/useControllerWorkbench'
 import { usePageWorkbench } from '../../pages/PageBuilder/usePageWorkbench'

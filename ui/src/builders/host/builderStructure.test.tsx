@@ -27,12 +27,12 @@ import { useState } from 'react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createBlueprintGate } from '../../components/Autopilot/blueprintGate'
-import { emitDraftChanged } from '../../components/Autopilot/previewDraftChanged'
-import { AUTOPILOT_DRAFT_RENDER_REQUEST_EVENT, type DraftRenderRequestDetail } from '../../components/Autopilot/previewDraftRender'
-import { AUTOPILOT_PUBLISH_REQUEST_EVENT, emitPublishResult, type PublishRequestDetail } from '../../components/Autopilot/previewPublishRequest'
-import { heldDraftIdentity } from '../../components/Autopilot/publishCompile'
-import { createBroadcastingDraftStore, useDraftFileBuses } from '../../components/Autopilot/useDraftFileBuses'
+import { createBlueprintGate } from '../../components/Agentiko/blueprintGate'
+import { emitDraftChanged } from '../../components/Agentiko/previewDraftChanged'
+import { AGENTIKO_DRAFT_RENDER_REQUEST_EVENT, type DraftRenderRequestDetail } from '../../components/Agentiko/previewDraftRender'
+import { AGENTIKO_PUBLISH_REQUEST_EVENT, emitPublishResult, type PublishRequestDetail } from '../../components/Agentiko/previewPublishRequest'
+import { heldDraftIdentity } from '../../components/Agentiko/publishCompile'
+import { createBroadcastingDraftStore, useDraftFileBuses } from '../../components/Agentiko/useDraftFileBuses'
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 import { ConfigContext } from '../../context/ConfigContext'
 import { ThemeModeProvider } from '../../context/ThemeModeContext'
@@ -135,8 +135,8 @@ describe('Blueprint Builder — DOM structure, unchanged by the host', () => {
   })
 
   it('own: previewing, then rendered — Publish on — then published', () => {
-    const renders = listen<DraftRenderRequestDetail>(AUTOPILOT_DRAFT_RENDER_REQUEST_EVENT)
-    const publishes = listen<PublishRequestDetail>(AUTOPILOT_PUBLISH_REQUEST_EVENT)
+    const renders = listen<DraftRenderRequestDetail>(AGENTIKO_DRAFT_RENDER_REQUEST_EVENT)
+    const publishes = listen<PublishRequestDetail>(AGENTIKO_PUBLISH_REQUEST_EVENT)
     const { container } = mountWithOwner()
     const files = seededChart()
     hold(files, { previewed: false })
@@ -201,7 +201,7 @@ describe('Page Builder — DOM structure, unchanged by the host', () => {
   })
 
   it('own: publishing, then a denial', () => {
-    const publishes = listen<PublishRequestDetail>(AUTOPILOT_PUBLISH_REQUEST_EVENT)
+    const publishes = listen<PublishRequestDetail>(AGENTIKO_PUBLISH_REQUEST_EVENT)
     const { container } = mountPage()
     emit({ files: [{ content: widgetCr('Flex', 'page-x'), path: 'flex.page-x.yaml' }], title: 'x' })
     act(() => { screen.getByRole('button', { name: 'Publish' }).click() })

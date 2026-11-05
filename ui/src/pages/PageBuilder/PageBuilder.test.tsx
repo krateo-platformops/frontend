@@ -3,8 +3,8 @@
  * The DRAFT LIFECYCLE: opening one, starting one, owning it, publishing it, closing it.
  *
  * The point of these is the UN-COUPLING, not the markup. Before this change the preview surface —
- * live render, per-file editor, RestDefinition editor — was the body of `AutopilotPreviewDrawer`,
- * which `AutopilotProvider` renders, and was therefore reachable ONLY through the Autopilot rail as
+ * live render, per-file editor, RestDefinition editor — was the body of `AgentikoPreviewDrawer`,
+ * which `AgentikoProvider` renders, and was therefore reachable ONLY through the Agentiko rail as
  * something the agent opens. What is asserted here is that the same surface now renders outside the
  * provider, from the same bus, with no rail present — and that a PERSON can start and ship a draft.
  *
@@ -13,13 +13,13 @@
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
-import { emitDraftChanged, previewSurfaceClaimed } from '../../components/Autopilot/previewDraftChanged'
-import { emitDraftClose, onDraftClose } from '../../components/Autopilot/previewDraftClose'
-import { AUTOPILOT_DRAFT_START_EVENT } from '../../components/Autopilot/previewDraftStart'
-import type { DraftStartDetail } from '../../components/Autopilot/previewDraftStart'
-import { AUTOPILOT_PUBLISH_REQUEST_EVENT, emitPublishResult } from '../../components/Autopilot/previewPublishRequest'
-import type { PublishRequestDetail } from '../../components/Autopilot/previewPublishRequest'
+import { AGENTIKO_PREVIEW_EVENT } from '../../components/Agentiko/previewBus'
+import { emitDraftChanged, previewSurfaceClaimed } from '../../components/Agentiko/previewDraftChanged'
+import { emitDraftClose, onDraftClose } from '../../components/Agentiko/previewDraftClose'
+import { AGENTIKO_DRAFT_START_EVENT } from '../../components/Agentiko/previewDraftStart'
+import type { DraftStartDetail } from '../../components/Agentiko/previewDraftStart'
+import { AGENTIKO_PUBLISH_REQUEST_EVENT, emitPublishResult } from '../../components/Agentiko/previewPublishRequest'
+import type { PublishRequestDetail } from '../../components/Agentiko/previewPublishRequest'
 
 import { emit, installAntdShims, mount, widgetCr } from './builderTestHarness'
 
@@ -27,7 +27,7 @@ afterEach(cleanup)
 beforeAll(installAntdShims)
 
 describe('PageBuilder — the preview surface, outside the rail', () => {
-  it('renders with NO AutopilotProvider around it', () => {
+  it('renders with NO AgentikoProvider around it', () => {
     // The whole un-coupling in one assertion: this component is mounted bare. Before the split it
     // could not be — the surface lived inside the provider's subtree.
     expect(() => mount()).not.toThrow()
@@ -77,7 +77,7 @@ describe('PageBuilder — the preview surface, outside the rail', () => {
   it('does not adopt a chart, RestDefinition or inspection preview — the drawer shows those', () => {
     mount()
     act(() => {
-      window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, { detail: { builder: 'blueprint', summary: ['nginx-demo-rendered'], title: 'Blueprint preview — nginx-demo' } }))
+      window.dispatchEvent(new CustomEvent(AGENTIKO_PREVIEW_EVENT, { detail: { builder: 'blueprint', summary: ['nginx-demo-rendered'], title: 'Blueprint preview — nginx-demo' } }))
     })
     expect(screen.queryByText('nginx-demo-rendered')).toBeNull()
     expect(screen.getByText(/No draft open/i)).toBeTruthy()
@@ -111,7 +111,7 @@ describe('PageBuilder — the preview surface, outside the rail', () => {
     const onClose = vi.fn()
     mount()
     act(() => {
-      window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, { detail: { onClose, summary: ['flex.page-x'], title: 'x' } }))
+      window.dispatchEvent(new CustomEvent(AGENTIKO_PREVIEW_EVENT, { detail: { onClose, summary: ['flex.page-x'], title: 'x' } }))
       emitDraftClose()
     })
     expect(onClose).toHaveBeenCalledTimes(1)
@@ -127,7 +127,7 @@ describe('PageBuilder — the preview surface, outside the rail', () => {
     expect(screen.getByText(/No draft open/i)).toBeTruthy()
   })
 
-  it('picks up a draft from the SAME bus Autopilot proposes on', () => {
+  it('picks up a draft from the SAME bus Agentiko proposes on', () => {
     mount()
     emit({ summary: ['flex.page-fleet-health', 'table.fleet-failing'], title: 'Fleet health' })
 
@@ -164,7 +164,7 @@ describe('PageBuilder — the preview surface, outside the rail', () => {
 
     emit({ summary: ['second draft'], title: 'second' })
     // Carrying the old verdicts forward would report the PREVIOUS draft's errors against the
-    // current one — the under-reporting shape that made the Autopilot review mark wrong.
+    // current one — the under-reporting shape that made the Agentiko review mark wrong.
     expect(screen.queryByText('first draft was broken')).toBeNull()
     expect(screen.getByText('second draft')).toBeTruthy()
   })
@@ -196,7 +196,7 @@ describe('PageBuilder — a person starts the draft', () => {
     mount()
 
     // The button shipped DISABLED, with a note saying start-a-page landed next. Until it did, the
-    // surface built to let a human author a page could only ever receive Autopilot's — which
+    // surface built to let a human author a page could only ever receive Agentiko's — which
     // inverts the parity rule it was built to satisfy.
     const button = screen.getByText('Start a page').closest('button')
     expect(button).toBeTruthy()
@@ -206,7 +206,7 @@ describe('PageBuilder — a person starts the draft', () => {
   it('emits the seed on the start bus, root first', () => {
     const seen: DraftStartDetail[] = []
     const listener = (event: Event) => { seen.push((event as CustomEvent<DraftStartDetail>).detail) }
-    window.addEventListener(AUTOPILOT_DRAFT_START_EVENT, listener)
+    window.addEventListener(AGENTIKO_DRAFT_START_EVENT, listener)
 
     mount()
     act(() => { screen.getByText('Start a page').click() })
@@ -214,7 +214,7 @@ describe('PageBuilder — a person starts the draft', () => {
       fireEvent.change(screen.getByPlaceholderText('fleet-health'), { target: { value: 'fleet-health' } })
     })
     act(() => { screen.getByText('Start').click() })
-    window.removeEventListener(AUTOPILOT_DRAFT_START_EVENT, listener)
+    window.removeEventListener(AGENTIKO_DRAFT_START_EVENT, listener)
 
     // Raw CRs, not YAML: the provider routes them through `recordPagePreview`, the SAME entry an
     // agent-proposed page takes, so the two are indistinguishable downstream.
@@ -228,7 +228,7 @@ describe('PageBuilder — a person starts the draft', () => {
   it('refuses a bad slug in the form rather than seeding an unpublishable draft', () => {
     const seen: unknown[] = []
     const listener = (event: Event) => { seen.push(event) }
-    window.addEventListener(AUTOPILOT_DRAFT_START_EVENT, listener)
+    window.addEventListener(AGENTIKO_DRAFT_START_EVENT, listener)
 
     mount()
     act(() => { screen.getByText('Start a page').click() })
@@ -236,7 +236,7 @@ describe('PageBuilder — a person starts the draft', () => {
       fireEvent.change(screen.getByPlaceholderText('fleet-health'), { target: { value: 'Fleet Health' } })
     })
     act(() => { screen.getByText('Start').click() })
-    window.removeEventListener(AUTOPILOT_DRAFT_START_EVENT, listener)
+    window.removeEventListener(AGENTIKO_DRAFT_START_EVENT, listener)
 
     expect(seen).toHaveLength(0)
     // Scoped to the Alert: the field's own help text also says "lower-case", and matching that
@@ -254,11 +254,11 @@ describe('PageBuilder — publishing without leaving the page', () => {
   it('asks the provider to publish, rather than sending the author to the chat rail', () => {
     const seen: PublishRequestDetail[] = []
     const listener = (event: Event) => { seen.push((event as CustomEvent<PublishRequestDetail>).detail) }
-    window.addEventListener(AUTOPILOT_PUBLISH_REQUEST_EVENT, listener)
+    window.addEventListener(AGENTIKO_PUBLISH_REQUEST_EVENT, listener)
 
     openDraft()
     act(() => { screen.getByText('Publish').click() })
-    window.removeEventListener(AUTOPILOT_PUBLISH_REQUEST_EVENT, listener)
+    window.removeEventListener(AGENTIKO_PUBLISH_REQUEST_EVENT, listener)
 
     // The provider runs the SAME runDraftPublish the agent's verb takes — one destination form,
     // one gate, one cap. Until now the only way to ship a draft authored here was to ask the agent.
@@ -276,10 +276,10 @@ describe('PageBuilder — publishing without leaving the page', () => {
   it('shows the change request on its own page when the publish lands', () => {
     let id = ''
     const listener = (event: Event) => { id = (event as CustomEvent<PublishRequestDetail>).detail.id }
-    window.addEventListener(AUTOPILOT_PUBLISH_REQUEST_EVENT, listener)
+    window.addEventListener(AGENTIKO_PUBLISH_REQUEST_EVENT, listener)
     openDraft()
     act(() => { screen.getByText('Publish').click() })
-    window.removeEventListener(AUTOPILOT_PUBLISH_REQUEST_EVENT, listener)
+    window.removeEventListener(AGENTIKO_PUBLISH_REQUEST_EVENT, listener)
 
     act(() => { emitPublishResult({ deepLink: 'https://example.invalid/compare/x', denial: null, id }) })
 
@@ -290,10 +290,10 @@ describe('PageBuilder — publishing without leaving the page', () => {
   it('shows a refusal as a refusal, not as success', () => {
     let id = ''
     const listener = (event: Event) => { id = (event as CustomEvent<PublishRequestDetail>).detail.id }
-    window.addEventListener(AUTOPILOT_PUBLISH_REQUEST_EVENT, listener)
+    window.addEventListener(AGENTIKO_PUBLISH_REQUEST_EVENT, listener)
     openDraft()
     act(() => { screen.getByText('Publish').click() })
-    window.removeEventListener(AUTOPILOT_PUBLISH_REQUEST_EVENT, listener)
+    window.removeEventListener(AGENTIKO_PUBLISH_REQUEST_EVENT, listener)
 
     act(() => { emitPublishResult({ deepLink: null, denial: 'publish cancelled — destination not confirmed', id }) })
 

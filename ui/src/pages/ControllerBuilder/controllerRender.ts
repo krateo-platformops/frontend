@@ -33,10 +33,10 @@ import {
   sandboxDraftName,
   type SandboxWriter,
   withSandboxDraft,
-} from '../../components/Autopilot/blueprintRenderSandbox'
-import { asRecord } from '../../components/Autopilot/kogRestDefSchema'
-import { callRestActionStatus } from '../../components/Autopilot/previewBridge'
-import type { PreviewObjectEntry } from '../../components/Autopilot/previewBus'
+} from '../../components/Agentiko/blueprintRenderSandbox'
+import { asRecord } from '../../components/Agentiko/kogRestDefSchema'
+import { callRestActionStatus } from '../../components/Agentiko/previewBridge'
+import type { PreviewObjectEntry } from '../../components/Agentiko/previewBus'
 
 import {
   carriesHelmAction,

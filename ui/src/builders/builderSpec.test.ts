@@ -126,13 +126,13 @@ describe('parseBuilder', () => {
     specOf(builder).canvas.plugin = 'PageGrid'
     ;(builder.spec as Record<string, unknown>).route = 'portal-builder'
     specOf(builder).preview.mode = 'apply'
-    specOf(builder).publish.targetKey = 'autopilot_repo'
+    specOf(builder).publish.targetKey = 'agentiko_repo'
     const problems = problemsOf(builder)
     expect(problems).toHaveLength(4)
     expect(problems.join('\n')).toMatch(/spec\.canvas\.plugin "PageGrid"/)
     expect(problems.join('\n')).toMatch(/spec\.route "portal-builder"/)
     expect(problems.join('\n')).toMatch(/spec\.preview\.mode "apply" is not one of sandbox-apply, render/)
-    expect(problems.join('\n')).toMatch(/spec\.publish\.targetKey "autopilot_repo"/)
+    expect(problems.join('\n')).toMatch(/spec\.publish\.targetKey "agentiko_repo"/)
   })
 
   it('refuses a render preview with no RESTAction — the CRD\'s CEL rule', () => {
