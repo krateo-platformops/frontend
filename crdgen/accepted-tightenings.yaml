@@ -17,16 +17,40 @@
 - path: "*"
   pathSuffix: ".spec.widgetData.allowedResources[]"
   clause: enum
-  accepted: 2026-11-04
+  accepted: 2026-11-05
   reason: >-
-    `allowedResources` gains a VOCABULARY enum: every real widget plural, plus every known retired
-    plural (ten, read from the CRDs on krateo-demo-alpitour). It refuses a typo (`buton`), a
-    non-widget kind (`deployments`), and any retired plural nobody has recorded. The per-instance
-    containment policy it does NOT express stays where it was: each container CR declares what its
-    own slot is for, checked against its real children by design rule X5.
+    `allowedResources` carries a kind-level enum, by role (ui/scripts/containment.ts). General
+    layouts take every widget plural, including the ten retired ones, except `layouts` and `themes`.
+    Purpose-built kinds take what they exist for. It refuses a typo (`buton`), a non-widget kind
+    (`deployments`) and a kind that container has no use for. What each CR is for stays its own
+    declaration, checked against its real children by design rule X5.
   evidence: >-
-    Measured before shipping: 30 distinct values live in that field across krateo-057, demo,
-    alpitour and installer-release (that last cluster has since been deleted), and the vocabulary
-    rejects 0 of them. Control, because a zero otherwise proves nothing: the same vocabulary rejects
-    `buton`, `deployments`, `Flex`, `flex` and the empty string. That census is a floor and not the
-    population, so re-take it against the release actually cut.
+    Measured against the published 54-value vocabulary: 326 values on krateo-057, 61 on alpitour,
+    298 on demo and 335 in portal main, none outside it. Per kind, 1402 live objects on krateo-057
+    and alpitour, demo, and 619 rendered portal widgets fit these lists: nothing declared falls
+    outside them. Card holds 15 child kinds while declaring 7, so children were read as well as
+    declarations. Control, because a zero otherwise proves nothing: the same census finds `cards`
+    and `panels`. WHAT THIS DOES NOT PROVE: every Table declares `[]`, no Form or Filters sets the
+    field, and no ButtonGroup exists on these clusters, so those four lists rest on the design and
+    the repo's examples, not on live use. That census is a floor and not the population, so re-take
+    it against the release actually cut.
+
+- path: "breadcrumbs.widgets.templates.krateo.io/v1beta1.spec.widgetData"
+  clause: properties
+  accepted: 2026-11-05
+  reason: >-
+    `allowedResources` removed: a Breadcrumb's `items` are plain data and it resolves no children, so
+    a declaration on it could only mislead.
+  evidence: >-
+    0 Breadcrumb objects on krateo-057 and on demo, where the CRD is served, and alpitour serves no
+    such kind. Control: the same walk finds the field on 93 of 93 Flexes on demo.
+
+- path: "descriptions.widgets.templates.krateo.io/v1beta1.spec.widgetData"
+  clause: properties
+  accepted: 2026-11-05
+  reason: >-
+    `allowedResources` removed: a Descriptions' `items` are label/value pairs and it resolves no
+    children, so a declaration on it could only mislead.
+  evidence: >-
+    0 of 16 Descriptions on krateo-057 and 0 of 16 on demo set the field, and alpitour serves no such
+    kind. Control: the same walk finds the field on 93 of 93 Flexes on demo.

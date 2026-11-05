@@ -26,7 +26,7 @@ export interface Menu {
       /**
        * the list of resources that are allowed to be children of this widget or referenced by it
        */
-      allowedResources: ('navmenuitems' | 'pages')[]
+      allowedResources: string[]
       /**
        * navigation entries (inline nav data); each references its content widget by resourceRefId or resolves via the path → flexes/page-<slug> convention. A label-less item registers a route with no sidebar entry.
        */

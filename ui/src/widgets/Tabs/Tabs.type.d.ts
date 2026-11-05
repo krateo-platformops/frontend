@@ -34,29 +34,7 @@ export interface Tabs {
       /**
        * the list of resources that are allowed to be children of this widget or referenced by it
        */
-      allowedResources: (
-        | 'alerts'
-        | 'barcharts'
-        | 'buttongroups'
-        | 'buttons'
-        | 'cards'
-        | 'cols'
-        | 'dividers'
-        | 'filters'
-        | 'flowcharts'
-        | 'forms'
-        | 'linecharts'
-        | 'listies'
-        | 'markdowns'
-        | 'paragraphs'
-        | 'piecharts'
-        | 'rangepickers'
-        | 'rows'
-        | 'steps'
-        | 'tables'
-        | 'tabs'
-        | 'yamlviewers'
-      )[]
+      allowedResources: string[]
       /**
        * the items of the tab list
        */

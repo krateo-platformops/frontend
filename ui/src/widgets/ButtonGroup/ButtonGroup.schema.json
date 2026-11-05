@@ -36,27 +36,11 @@
               "description": "the list of resources that are allowed to be children of this widget or referenced by it",
               "type": "array",
               "items": {
-                "type": "string",
-                "enum": [
-                  "barcharts",
-                  "buttons",
-                  "filters",
-                  "flowcharts",
-                  "forms",
-                  "linecharts",
-                  "markdowns",
-                  "cards",
-                  "paragraphs",
-                  "piecharts",
-                  "rangepickers",
-                  "tables",
-                  "tabs",
-                  "yamlviewers"
-                ]
+                "type": "string"
               }
             },
             "size": {
-              "description": "antd Space size \u2014 spacing between items",
+              "description": "antd Space size — spacing between items",
               "enum": [
                 "small",
                 "middle",
@@ -274,7 +258,7 @@
             },
             "additionalProperties": false
           },
-          "description": "Generates resourcesRefs entries from the apiRef response \u2014 one per element the iterator yields \u2014 so a widget can reference a list whose length it does not know when authored."
+          "description": "Generates resourcesRefs entries from the apiRef response — one per element the iterator yields — so a widget can reference a list whose length it does not know when authored."
         }
       },
       "required": [

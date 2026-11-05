@@ -104,7 +104,7 @@ export const widgetCr = (
   children.length ? `    items:\n${children.map((ref) => `      - resourceRefId: ${ref}`).join('\n')}` : '    items: []',
   '  resourcesRefs:',
   children.length
-    ? `    items:\n${children.map((ref) => `      - id: ${ref}\n        name: ${ref}\n        resource: widgets\n        namespace: krateo-system`).join('\n')}`
+    ? `    items:\n${children.map((ref) => `      - id: ${ref}\n        name: ${ref}\n        resource: cards\n        namespace: krateo-system`).join('\n')}`
     : '    items: []',
 ].join('\n')
 

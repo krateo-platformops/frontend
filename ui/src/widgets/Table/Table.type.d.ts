@@ -18,19 +18,7 @@ export interface Table {
       /**
        * the list of resources that are allowed to be children of this widget or referenced by it
        */
-      allowedResources: (
-        | 'barcharts'
-        | 'buttons'
-        | 'buttongroups'
-        | 'filters'
-        | 'flowcharts'
-        | 'linecharts'
-        | 'markdowns'
-        | 'paragraphs'
-        | 'piecharts'
-        | 'rangepickers'
-        | 'yamlviewers'
-      )[]
+      allowedResources: string[]
       /**
        * configuration of the table's columns
        */

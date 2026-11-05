@@ -533,31 +533,27 @@ def rule_missing_target(crs):
 def rule_containment(crs):
     """X5 — a child whose kind is not in its container's declared `allowedResources`.
 
-    THIS IS THE POLICY HALF OF TWO ENFORCEMENT POINTS, and the division is not redundancy.
+    THIS IS THE INSTANCE HALF OF TWO ENFORCEMENT POINTS, and the division is not redundancy.
 
-    The CRD now carries a VOCABULARY enum on this field — every real widget plural, plus three
-    plurals naming retired kinds that live CRs still hold. It refuses a typo (`buton`) and a
-    non-widget kind (`deployments`), and any other retired plural it was not told about.
-    What it deliberately does NOT express is which of those plurals a given container accepts:
-    `allowedResources` is a PER-INSTANCE declaration — of 97 live Flex CRs, each names between one
-    and eleven plurals describing what THAT slot is for — so a per-kind enum would cap what any
-    instance may say and could not express "this slot holds cards and paragraphs".
+    The CRD carries a KIND-LEVEL enum on this field, by role (ui/scripts/containment.ts): a general
+    layout takes every widget plural except `layouts` and `themes`, and a purpose-built kind takes
+    what it exists for. It refuses a typo (`buton`), a non-widget kind (`deployments`) and a kind
+    that one has no use for. What it does not express is what a given CR is for:
+    `allowedResources` is a PER-INSTANCE declaration, and of 97 live Flex CRs each names between one
+    and eleven plurals describing what THAT slot is for.
 
     So the two halves answer different questions and neither covers the other:
 
-        the CRD enum  does every DECLARED value name a real widget kind?   (vocabulary)
-        this rule     is every ACTUAL CHILD within that instance's list?   (policy)
+        the CRD enum  can this KIND ever hold that DECLARED value?       (kind)
+        this rule     is every ACTUAL CHILD within this CR's own list?   (instance)
 
-    This rule never inspects the declaration's vocabulary, which is why a declared `panels` passes
-    it; the enum never inspects children, which is why a Flex declaring `paragraphs` and holding a
-    Table passes that. Nothing but this rule catches the second, and nothing but the enum catches
-    the first.
+    This rule never inspects the declaration against the kind, and the enum never inspects
+    children, which is why a Flex declaring `paragraphs` and holding a Table passes the enum.
+    Nothing but this rule catches that.
 
-    The per-widget enums that USED to sit in the schemas were deleted for cause, and restoring them
-    was measured before being rejected: seeding from those lists would have refused live CRs in four
-    kinds across four clusters — Flex (alerts, descriptions, results), Menu (flexes, its only live
-    value), Row (descriptions), Tabs (flexes). They were not merely stale, they were wrong against
-    production.
+    The enums once hand-written in the schemas were deleted for cause: seeding from them would have
+    refused live CRs in four kinds. That rules out those lists, which had drifted, and not a
+    kind-level rule. The rule now lives in one table and derives its general lists.
 
     Checked against the CHART, not against a frozen list: the child's real plural comes from its
     own `resourcesRefs` entry, so this stays correct as widget kinds are added and cannot go stale
