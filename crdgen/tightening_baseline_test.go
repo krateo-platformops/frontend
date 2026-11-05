@@ -47,6 +47,9 @@ const pinName = "frontend-crd"
 
 const chartRef = "oci://ghcr.io/krateo-platformops/charts/frontend-crds"
 
+// DefaultCRDsRef is chartRef under the name absorbed.go's probe reads, so the two cannot drift.
+const DefaultCRDsRef = chartRef
+
 // crdVersions is every CRD version schema in a tree, keyed "<crd name>/<version>".
 type crdVersions map[string]map[string]any
 
@@ -66,7 +69,11 @@ func TestNoWidgetCRDBecameStricter(t *testing.T) {
 
 	baseDir := os.Getenv("PINNED_CRDS_DIR")
 	if baseDir == "" {
-		baseDir = pullChart(t, version)
+		var perr error
+		baseDir, perr = pullChart(t, version)
+		if perr != nil {
+			t.Fatalf("reading the baseline: %v", perr)
+		}
 		t.Logf("baseline: frontend-crds %s (%s)", version, source)
 	} else {
 		t.Logf("baseline: unpacked chart at %s (PINNED_CRDS_DIR)", baseDir)
@@ -131,16 +138,60 @@ func TestNoWidgetCRDBecameStricter(t *testing.T) {
 		}
 	}
 
-	// A STALE ACCEPTANCE IS ITSELF A FINDING. Without this they accumulate and silently widen as
-	// the schemas move underneath them, which is how an allowlist stops describing anything — the
-	// failure this repo already paid for once in check-crd-strictness.
+	// A STALE ACCEPTANCE IS ITSELF A FINDING — but only once it is known to be stale rather than
+	// merely early. See absorbed.go for why the published history is the record that tells those
+	// apart, and why there is no lock file.
+	var unmatched []*Acceptance
 	for _, a := range accepted {
 		if a.Matched() == 0 {
-			t.Errorf("accepted-tightenings.yaml: the entry for %q %s (%s) matched NO finding. "+
-				"Either the tightening it excused is gone — in which case delete the entry — or "+
-				"the finding was reworded and the entry no longer covers it, in which case it is "+
-				"excusing nothing while looking like it does.", a.Path+a.PathSuffix, a.Clause,
-				a.Accepted)
+			unmatched = append(unmatched, a)
+		}
+	}
+	if len(unmatched) > 0 {
+		// Only paid for when something is already unmatched, which is rare by design.
+		prev, err := previousPublished(DefaultCRDsRef, version)
+		if err != nil {
+			// NOT degraded to "assume no history": that would classify every unmatched entry as
+			// merely early and excuse genuine rot, which is the exact failure this check exists to
+			// prevent. A probe that cannot answer must say so.
+			t.Fatalf("could not probe the published version before %s, so an unmatched acceptance "+
+				"cannot be told from a stale one: %v", version, err)
+		}
+		historical := map[string][]Tightening{}
+		switch prev {
+		case "":
+			t.Logf("no published version below %s within the walk, so an unmatched acceptance can "+
+				"only be one added ahead of the change that needs it", version)
+		default:
+			older, perr := pullChart(t, prev)
+			if perr != nil {
+				t.Fatalf("could not read the published version before %s (%s): %v", version, prev, perr)
+			}
+			oldBaseline := collect(t, []string{older})
+			for key, schema := range baseline {
+				if o, ok := oldBaseline[key]; ok {
+					if hits := Tightenings(o, schema, key); len(hits) > 0 {
+						historical[key] = hits
+					}
+				}
+			}
+			t.Logf("classifying %d unmatched acceptance(s) against the published history %s -> %s",
+				len(unmatched), prev, version)
+		}
+		for _, a := range unmatched {
+			switch classifyUnmatched(a, historical) {
+			case absorbed:
+				t.Errorf("accepted-tightenings.yaml: the entry for %q %s (%s) matched no finding "+
+					"because the tightening it excused HAS SHIPPED — it is present between the "+
+					"published %s and %s. The entry has done its job and is now cruft that makes "+
+					"this file overstate what is currently excused. Delete it.",
+					a.Path+a.PathSuffix, a.Clause, a.Accepted, prev, version)
+			case notYetApplicable:
+				t.Logf("accepted-tightenings.yaml: the entry for %q %s (%s) matches nothing yet "+
+					"and the tightening is in neither the published history nor the working tree, "+
+					"so it was added ahead of the change that needs it. Allowed.",
+					a.Path+a.PathSuffix, a.Clause, a.Accepted)
+			}
 		}
 	}
 	if excused > 0 {
@@ -198,15 +249,15 @@ func pinnedVersion() (string, error) {
 	return "", fmt.Errorf("after 3 attempts: %w", lastErr)
 }
 
-func pullChart(t *testing.T, version string) string {
+func pullChart(t *testing.T, version string) (string, error) {
 	t.Helper()
 	dir := t.TempDir()
 	out, err := exec.Command("helm", "pull", chartRef, "--version", version,
 		"--untar", "-d", dir).CombinedOutput()
 	if err != nil {
-		t.Fatalf("helm pull %s --version %s: %v\n%s", chartRef, version, err, out)
+		return "", fmt.Errorf("helm pull %s --version %s: %w\n%s", chartRef, version, err, out)
 	}
-	return filepath.Join(dir, "frontend-crds")
+	return filepath.Join(dir, "frontend-crds"), nil
 }
 
 // collect walks for CRDs by `kind`, recursively — never by filename and never one directory deep.
