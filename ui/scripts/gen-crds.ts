@@ -217,9 +217,10 @@ async function injectFreshness(crdPath: string): Promise<void> {
  * instance may say, which cannot express "this slot holds cards and paragraphs" and is a blunter
  * constraint than the thing it would replace. So:
  *
- *   the CRD enum  = the VOCABULARY. Every real widget plural. It refuses a typo (`buton`) and a
- *                   non-widget kind (`deployments`), which is the failure people actually hit, and
- *                   it cannot refuse an object that exists.
+ *   the CRD enum  = the VOCABULARY. Every real widget plural plus the retired plurals seen live.
+ *                   It refuses a typo (`buton`) and a non-widget kind (`deployments`). It WOULD
+ *                   also refuse a retired plural nobody has measured yet, on a cluster we cannot
+ *                   reach: see LEGACY_ALLOWED_RESOURCES.
  *   the X5 lint   = the POLICY. Every actual child is within that instance's own declaration.
  *
  * Non-overlapping: X5 compares children against the declaration and never checks the declaration's
@@ -263,10 +264,10 @@ async function normalizeAllowedResources(crdPath: string): Promise<boolean> {
  * list should shrink as those CRs are rewritten, and a value should only ever leave it once no
  * reachable cluster carries it.
  *
- * FOUR CLUSTERS IS A FLOOR, NOT THE POPULATION — three more contexts were unreachable and customer
- * clusters are outside it entirely. That is the known limit of this list, and it is the reason the
- * enum is the vocabulary rather than a policy: a vocabulary of every real plural plus known
- * history can only reject a value that names nothing, which no working page depends on.
+ * FOUR CLUSTERS IS A FLOOR, NOT THE POPULATION, and this list does not make the enum safe on the
+ * rest. Three more contexts were unreachable and customer clusters are outside it entirely. A live
+ * value naming a retired kind that none of the four carried is refused on its next write, so
+ * re-take the census against the release actually cut, not against the day this was written.
  */
 const LEGACY_ALLOWED_RESOURCES = ['navmenuitems', 'pages', 'panels'] as const
 

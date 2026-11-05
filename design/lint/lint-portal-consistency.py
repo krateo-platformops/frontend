@@ -537,7 +537,7 @@ def rule_containment(crs):
 
     The CRD now carries a VOCABULARY enum on this field — every real widget plural, plus three
     plurals naming retired kinds that live CRs still hold. It refuses a typo (`buton`) and a
-    non-widget kind (`deployments`), which is what people actually get wrong, and nothing else.
+    non-widget kind (`deployments`), and any other retired plural it was not told about.
     What it deliberately does NOT express is which of those plurals a given container accepts:
     `allowedResources` is a PER-INSTANCE declaration — of 97 live Flex CRs, each names between one
     and eleven plurals describing what THAT slot is for — so a per-kind enum would cap what any

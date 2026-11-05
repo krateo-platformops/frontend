@@ -20,8 +20,8 @@
   accepted: 2026-11-04
   reason: >-
     `allowedResources` gains a VOCABULARY enum: every real widget plural, plus three plurals that
-    name retired kinds which live CRs still carry. It refuses a typo (`buton`) and a non-widget
-    kind (`deployments`) and nothing else. The per-instance containment policy it does NOT express
+    name retired kinds which live CRs still carry. It refuses a typo (`buton`), a non-widget kind
+    (`deployments`), and any retired plural the census did not see. The per-instance containment policy it does NOT express
     stays where it was — each container CR declares what its own slot is for, checked against its
     real children by design rule X5.
   evidence: >-
@@ -31,6 +31,21 @@
     vocabulary rejects `buton`, `deployments`, `Flex`, `flex` and the empty string. The three
     retired plurals (`navmenuitems`, `pages`, `panels`) are included FOR this reason — excluding
     them would make specific live CRs unappliable on their next write, which is the 1.8.20 shape.
-    Four clusters is a floor and not the population, which is why the enum is the vocabulary rather
-    than a policy: a vocabulary of every real plural plus known history can only reject a value
-    that names nothing.
+    Four clusters is a floor and not the population: a retired plural none of them carried would
+    be refused on its next write on a cluster outside the census. Re-take it against the release
+    actually cut.
+
+- path: "*"
+  pathSuffix: ".spec.resourcesRefsTemplate[].template"
+  clause: required
+  accepted: 2026-11-05
+  reason: >-
+    #612 requires `id` on a resourcesRefsTemplate template. It is in frontend-crds 1.8.22, which
+    installer's main pins and no release has rolled, so the released pin still reads 1.8.21 and this
+    is a live tightening until that changes. Without an id the frontend cannot resolve the ref.
+  evidence: >-
+    Measured on krateo-057 only: 683 widget CRs, 29 with a resourcesRefsTemplate, 36 entries, 0
+    missing `id`. Control: the same scan found all 36 ids (Button/alert-detail-delete has
+    delete-alert). The installer session reached the same count independently, on 057. Demo,
+    alpitour and installer-release were NOT measured for this field, so this evidence covers one
+    cluster.
