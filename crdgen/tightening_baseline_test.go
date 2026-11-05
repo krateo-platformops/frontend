@@ -19,27 +19,23 @@ package main
 // would refuse.
 //
 // Overrides, matching lint-pinned-crds.py's names so there is one convention:
-//   FRONTEND_CRDS_VERSION=<v>   compare against that version instead of the pin
+//   FRONTEND_CRDS_VERSION=<v>   compare against that version instead of the released pin
 //   PINNED_CRDS_DIR=<dir>       use an already-unpacked chart (no network)
 
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/fs"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"testing"
-	"time"
 
 	"sigs.k8s.io/yaml"
 )
 
-const pinsURL = "https://raw.githubusercontent.com/krateo-platformops/installer/main/" +
-	"chart/files/component-pins.yaml"
+const installerRef = "oci://ghcr.io/krateo-platformops/charts/installer"
 
 // The pin entry is named `frontend-crd` while the chart it names is `frontend-crds`, plural. Read
 // the entry rather than guessing either name — lint-pinned-crds.py records the same trap.
@@ -58,13 +54,14 @@ func TestNoWidgetCRDBecameStricter(t *testing.T) {
 	source := "FRONTEND_CRDS_VERSION"
 	if dir := os.Getenv("PINNED_CRDS_DIR"); dir == "" && version == "" {
 		var err error
-		version, err = pinnedVersion()
+		var installer string
+		version, installer, err = pinnedVersion(t.TempDir())
 		if err != nil {
 			// NOT a skip. A gate that cannot read its baseline has not checked anything, and
 			// reporting that as a pass is the exact failure this file argues against elsewhere.
 			t.Fatalf("could not determine the pinned frontend-crds version: %v", err)
 		}
-		source = "installer component-pins.yaml (.components[] name=" + pinName + ")"
+		source = "released installer " + installer + " files/component-pins.yaml (name=" + pinName + ")"
 	}
 
 	baseDir := os.Getenv("PINNED_CRDS_DIR")
@@ -204,49 +201,36 @@ func TestNoWidgetCRDBecameStricter(t *testing.T) {
 	}
 }
 
-func pinnedVersion() (string, error) {
-	// Three attempts: a transient blip should not red an unrelated PR, but a gate that cannot read
-	// the pin must not pass either — hence t.Fatalf at the call site rather than a skip.
-	var lastErr error
-	for attempt := 0; attempt < 3; attempt++ {
-		if attempt > 0 {
-			time.Sleep(time.Duration(3*attempt) * time.Second)
-		}
-		resp, err := http.Get(pinsURL)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		body, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		if resp.StatusCode != http.StatusOK {
-			lastErr = fmt.Errorf("GET %s returned %d", pinsURL, resp.StatusCode)
-			continue
-		}
-		var pins struct {
-			Components []struct {
-				Name    string `json:"name"`
-				Version string `json:"version"`
-			} `json:"components"`
-		}
-		if err := yaml.Unmarshal(body, &pins); err != nil {
-			return "", fmt.Errorf("parsing the installer pins: %w", err)
-		}
-		for _, c := range pins.Components {
-			if c.Name == pinName {
-				if c.Version == "" {
-					return "", fmt.Errorf("the %s pin entry carries no version", pinName)
-				}
-				return c.Version, nil
-			}
-		}
-		return "", fmt.Errorf("no .components[] entry named %s in the installer pins", pinName)
+// pinnedVersion reads the pin out of the RELEASED installer chart, and returns the installer version
+// it read so the run log can name its source.
+//
+// NOT installer's `main`, which this first read, and that was wrong in a way this gate cannot detect
+// by itself. A merged pin describes no cluster: on 2026-11-05 main said frontend-crd 1.8.22 and
+// portal 1.8.91, the released chart said 1.8.21 and 1.8.88, and krateo-057 served the released
+// ones. Reading main moved the baseline forward on a merge, so #612's `required: [id]` on 44 CRDs
+// had stopped being a finding before any cluster had received it. The baseline must advance on
+// release, never on merge: ahead of deployment is the direction that hides a tightening.
+func pinnedVersion(dir string) (version, installer string, err error) {
+	out, err := exec.Command("helm", "pull", installerRef, "--untar", "-d", dir).CombinedOutput()
+	if err != nil {
+		return "", "", fmt.Errorf("helm pull %s: %w\n%s", installerRef, err, out)
 	}
-	return "", fmt.Errorf("after 3 attempts: %w", lastErr)
+	chart, err := os.ReadFile(filepath.Join(dir, "installer", "Chart.yaml"))
+	if err != nil {
+		return "", "", err
+	}
+	var meta struct {
+		Version string `json:"version"`
+	}
+	if err := yaml.Unmarshal(chart, &meta); err != nil {
+		return "", "", fmt.Errorf("parsing the installer chart metadata: %w", err)
+	}
+	pins, err := os.ReadFile(filepath.Join(dir, "installer", "files", "component-pins.yaml"))
+	if err != nil {
+		return "", "", fmt.Errorf("the released installer %s carries no pins file: %w", meta.Version, err)
+	}
+	version, err = pinFrom(pins, pinName)
+	return version, meta.Version, err
 }
 
 func pullChart(t *testing.T, version string) (string, error) {

@@ -104,7 +104,9 @@ jobs:
           version: v3.19.0
       - name: Assert no widget CRD became stricter than the PINNED one
         working-directory: crdgen
-        run: go test -tags baseline ./... -run TestNoWidgetCRDBecameStricter -count=1 -v
+        # No -run filter. It used to select only the gate, so every other test behind this tag — the
+        # classifier and the probe-failure arm — compiled in nobody's CI and protected nothing.
+        run: go test -tags baseline ./... -count=1 -v
 
       - name: Assert the chart matches the generator
         run: |
