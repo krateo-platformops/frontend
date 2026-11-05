@@ -34,18 +34,3 @@
     Four clusters is a floor and not the population: a retired plural none of them carried would
     be refused on its next write on a cluster outside the census. Re-take it against the release
     actually cut.
-
-- path: "*"
-  pathSuffix: ".spec.resourcesRefsTemplate[].template"
-  clause: required
-  accepted: 2026-11-05
-  reason: >-
-    #612 requires `id` on a resourcesRefsTemplate template. It is in frontend-crds 1.8.22, which
-    installer's main pins and no release has rolled, so the released pin still reads 1.8.21 and this
-    is a live tightening until that changes. Without an id the frontend cannot resolve the ref.
-  evidence: >-
-    Measured on krateo-057 only: 683 widget CRs, 29 with a resourcesRefsTemplate, 36 entries, 0
-    missing `id`. Control: the same scan found all 36 ids (Button/alert-detail-delete has
-    delete-alert). The installer session reached the same count independently, on 057. Demo,
-    alpitour and installer-release were NOT measured for this field, so this evidence covers one
-    cluster.
