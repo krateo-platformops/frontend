@@ -13,9 +13,9 @@ package main
 //      fails, so accepting an enum does not quietly accept a later `required`.
 //   2. `reason` and `evidence` are both mandatory and non-trivial. An entry that cannot say what
 //      was measured is not an acceptance, it is a shrug.
-//   3. An entry matching NOTHING is itself a finding. Without that, acceptances accumulate and
-//      silently widen as the schemas move underneath them — the same failure as a stale allowlist,
-//      which this repo has already paid for once in check-crd-strictness.
+//   3. An entry matching NOTHING is reported. Without that, acceptances accumulate as the schemas
+//      move underneath them, the same failure as a stale allowlist. It warns rather than fails:
+//      absorbed.go says why.
 
 import (
 	"fmt"

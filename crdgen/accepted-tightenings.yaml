@@ -19,18 +19,14 @@
   clause: enum
   accepted: 2026-11-04
   reason: >-
-    `allowedResources` gains a VOCABULARY enum: every real widget plural, plus three plurals that
-    name retired kinds which live CRs still carry. It refuses a typo (`buton`), a non-widget kind
-    (`deployments`), and any retired plural the census did not see. The per-instance containment policy it does NOT express
-    stays where it was — each container CR declares what its own slot is for, checked against its
-    real children by design rule X5.
+    `allowedResources` gains a VOCABULARY enum: every real widget plural, plus every known retired
+    plural (ten, read from the CRDs on krateo-demo-alpitour). It refuses a typo (`buton`), a
+    non-widget kind (`deployments`), and any retired plural nobody has recorded. The per-instance
+    containment policy it does NOT express stays where it was: each container CR declares what its
+    own slot is for, checked against its real children by design rule X5.
   evidence: >-
-    Measured across four clusters (krateo-057, krateo-demo, krateo-demo-alpitour,
-    krateo-installer-release) before shipping: 30 distinct values are live in that field and the
-    vocabulary rejects 0 of them. Control, because a zero otherwise proves nothing: the same
-    vocabulary rejects `buton`, `deployments`, `Flex`, `flex` and the empty string. The three
-    retired plurals (`navmenuitems`, `pages`, `panels`) are included FOR this reason — excluding
-    them would make specific live CRs unappliable on their next write, which is the 1.8.20 shape.
-    Four clusters is a floor and not the population: a retired plural none of them carried would
-    be refused on its next write on a cluster outside the census. Re-take it against the release
-    actually cut.
+    Measured before shipping: 30 distinct values live in that field across krateo-057, demo,
+    alpitour and installer-release (that last cluster has since been deleted), and the vocabulary
+    rejects 0 of them. Control, because a zero otherwise proves nothing: the same vocabulary rejects
+    `buton`, `deployments`, `Flex`, `flex` and the empty string. That census is a floor and not the
+    population, so re-take it against the release actually cut.

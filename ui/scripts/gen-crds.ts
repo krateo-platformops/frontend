@@ -249,27 +249,26 @@ async function normalizeAllowedResources(crdPath: string): Promise<boolean> {
 }
 
 /**
- * The plurals that are LEGACY: present in live `allowedResources` on clusters we can reach, but
- * naming widget kinds the chart no longer ships. They are in the vocabulary so that the enum
- * cannot make an existing object unappliable — the whole point of a vocabulary enum is that it
- * refuses typos, not history.
+ * Every retired widget plural we know of. They are in the vocabulary so that the enum refuses typos
+ * and not history: a live CR naming one must stay writable.
  *
- * Measured by the installer session across four clusters (krateo-057, krateo-demo,
- * krateo-demo-alpitour, krateo-installer-release). `navmenuitems` and `pages` are the two the
- * routing refactor removed, which this file's own note above already recorded from the other
- * direction; `panels` appears on a Row.
+ * Read from the CRDs on krateo-demo-alpitour, an older portal generation, on 2026-11-05: every
+ * widget plural there that the current 44 do not have. Three of the ten (`navmenuitems`, `pages`,
+ * `panels`) were also seen live in `allowedResources`; the other seven are listed because they are
+ * known to have existed, which costs a few enum values and keeps a cluster we cannot reach writable.
  *
  * They are NOT an invitation: X5 checks real children against an instance's declaration, so a page
- * that newly declares one and then holds such a child is caught in this repo at lint time. This
- * list should shrink as those CRs are rewritten, and a value should only ever leave it once no
- * reachable cluster carries it.
+ * that newly declares one and holds such a child is caught in this repo at lint time.
  *
  * FOUR CLUSTERS IS A FLOOR, NOT THE POPULATION, and this list does not make the enum safe on the
  * rest. Three more contexts were unreachable and customer clusters are outside it entirely. A live
  * value naming a retired kind that none of the four carried is refused on its next write, so
  * re-take the census against the release actually cut, not against the day this was written.
  */
-const LEGACY_ALLOWED_RESOURCES = ['navmenuitems', 'pages', 'panels'] as const
+const LEGACY_ALLOWED_RESOURCES = [
+  'columns', 'datagrids', 'eventlists', 'navmenuitems', 'navmenus',
+  'pages', 'panels', 'routes', 'routesloaders', 'tablists',
+] as const
 
 /**
  * Write the vocabulary enum into every container's `allowedResources`, AFTER every CRD exists.
