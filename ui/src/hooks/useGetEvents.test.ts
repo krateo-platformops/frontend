@@ -22,13 +22,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useGetEvents } from './useGetEvents'
 import { LIVE_REFRESH_FIREHOSE_ENABLED, useLiveRefreshFirehose } from './useLiveRefresh'
 
+type Subscriber = { onMessage?: (raw: string) => void; onOpen?: (info: { reopened: boolean }) => void }
+
 const { sseSubscriptions } = vi.hoisted(() => ({
-  sseSubscriptions: [] as { url: string; topic: string; onOpen?: (info: { reopened: boolean }) => void }[],
+  sseSubscriptions: [] as ({ url: string; topic: string } & Subscriber)[],
 }))
 
 vi.mock('./sseClient', () => ({
-  subscribeSse: (url: string, topic: string, subscriber: { onOpen?: (info: { reopened: boolean }) => void }) => {
-    sseSubscriptions.push({ onOpen: subscriber.onOpen, topic, url })
+  subscribeSse: (url: string, topic: string, subscriber: Subscriber) => {
+    sseSubscriptions.push({ onMessage: subscriber.onMessage, onOpen: subscriber.onOpen, topic, url })
 
     return () => undefined
   },
@@ -182,5 +184,78 @@ describe('useGetEvents — a reopened stream refetches the baseline', () => {
     sseSubscriptions[0]?.onOpen?.({ reopened: false })
     await new Promise<void>((resolve) => { setTimeout(resolve, 20) })
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+/**
+ * An event burst (sse-proxy replaying a stalled backlog) must neither grow the list nor copy it per
+ * event. In a background tab react-query's notifications are deferred, and each pending notification
+ * pins the list it carries. The /events baseline is bounded too, on first load and on every reopen.
+ */
+describe('useGetEvents — an event burst stays bounded', () => {
+  afterEach(() => {
+    sseSubscriptions.length = 0
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  const eventObject = (seq: number) => ({
+    involvedObject: { kind: 'Pod', name: `pod-${seq}` },
+    message: `event-${seq}`,
+    reason: 'Started',
+    type: 'Normal',
+  })
+  const event = (seq: number) => JSON.stringify(eventObject(seq))
+  const baseline = (size: number) => Array.from({ length: size }, (_, seq) => eventObject(seq))
+
+  const mount = async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve([]), ok: true, status: 200 })))
+    const { result } = renderHook(() => useGetEvents({}), { wrapper })
+    await waitFor(() => { expect(result.current.data).toEqual([]) })
+
+    return { push: (seq: number) => { sseSubscriptions[0]?.onMessage?.(event(seq)) }, result }
+  }
+
+  it('caps an oversized /events baseline on first load', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve(baseline(500)), ok: true, status: 200 })))
+    const { result } = renderHook(() => useGetEvents({}), { wrapper })
+
+    await waitFor(() => { expect(result.current.data).toHaveLength(200) })
+    expect(result.current.data?.[0]?.message).toBe('event-0')
+  })
+
+  it('caps the baseline a reopened stream refetches', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ json: () => Promise.resolve(baseline(10)), ok: true, status: 200 })
+      .mockResolvedValueOnce({ json: () => Promise.resolve(baseline(600)), ok: true, status: 200 })
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useGetEvents({}), { wrapper })
+    await waitFor(() => { expect(result.current.data).toHaveLength(10) })
+
+    sseSubscriptions[0]?.onOpen?.({ reopened: true })
+    await waitFor(() => { expect(fetchMock).toHaveBeenCalledTimes(2) })
+    await waitFor(() => { expect(result.current.data).toHaveLength(200) })
+  })
+
+  it('never holds more than 200 events during a burst', async () => {
+    const { push, result } = await mount()
+    for (let seq = 0; seq < 500; seq++) { push(seq) }
+
+    await waitFor(() => { expect(result.current.data?.[0]?.message).toBe('event-499') })
+    expect(result.current.data).toHaveLength(200)
+    expect(result.current.data?.[199]?.message).toBe('event-300')
+  })
+
+  it('prepends without copying the events already in the list', async () => {
+    const { push, result } = await mount()
+    push(0)
+    push(1)
+    await waitFor(() => { expect(result.current.data?.[0]?.message).toBe('event-1') })
+    const [newest, older] = result.current.data ?? []
+
+    push(2)
+    await waitFor(() => { expect(result.current.data?.[0]?.message).toBe('event-2') })
+    expect(result.current.data?.[1]).toBe(newest)
+    expect(result.current.data?.[2]).toBe(older)
   })
 })
