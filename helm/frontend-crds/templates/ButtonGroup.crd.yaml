@@ -159,12 +159,9 @@ spec:
                           - cards
                           - checkboxes
                           - cols
-                          - columns
-                          - datagrids
                           - datepickers
                           - descriptions
                           - dividers
-                          - eventlists
                           - filters
                           - flexes
                           - flowcharts
@@ -178,7 +175,6 @@ spec:
                           - markdowns
                           - menus
                           - navmenuitems
-                          - navmenus
                           - pageheaders
                           - pages
                           - panels
@@ -189,8 +185,6 @@ spec:
                           - radios
                           - rangepickers
                           - results
-                          - routes
-                          - routesloaders
                           - rows
                           - selects
                           - sliders
@@ -198,7 +192,6 @@ spec:
                           - steps
                           - switches
                           - tables
-                          - tablists
                           - tabs
                           - tags
                           - themes
