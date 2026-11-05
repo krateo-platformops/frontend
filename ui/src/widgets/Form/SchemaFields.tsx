@@ -7,19 +7,20 @@ import type { ReactElement } from 'react'
 
 import { isSecretArrayNode, isSecretSchemaNode } from '../../utils/secretFields'
 
+import { useAdvancedPanels, useShowFailedSection } from './failedFields'
 import { collectDependencies, type FieldPath, nodeAt } from './fieldDependencies'
-import { ROW_TITLE_KEY, VISIBLE_WHEN_KEY } from './fieldKeys'
+import { ROW_TITLE_KEY } from './fieldKeys'
 import { closedOptionRule, getFieldOptionsSpec, type OptionRegistry } from './fieldOptions'
 import styles from './Form.module.css'
 import { FreeObjectListInput } from './FreeObjectListInput'
 import { JsonValueInput } from './JsonValueInput'
 import { OptionsInput } from './OptionsInput'
 import { type SchemaRoot, SchemaRootContext } from './schemaRoot'
-import { fieldLabel, itemCountRules, rulesFor } from './schemaRules'
+import { fieldLabel, hasValue, itemCountRules, requiredInGroup, rulesFor } from './schemaRules'
 import { FormRefsContext } from './useFieldOptions'
+import { useHiddenKeys } from './useHiddenKeys'
 import type { SuggestionGroup } from './utils'
 import { getDefaultsFromSchema, getOptionsFromEnum, getSuggestionGroups, suggestionSearchText } from './utils'
-import { isVisible } from './visibleWhen'
 
 /** A control's onChange argument as a value: an input's event carries it in `target.value`. */
 const valueOf = (arg: unknown): unknown => {
@@ -389,8 +390,10 @@ const ObjectListRow = ({ children, index, label, listPath, onRemove, removable, 
  * row gets the required / Advanced split and its own dependsOn / visible-when scope), named
  * relative to the list. `minItems` / `maxItems` gate removing and adding rows, and are rules too.
  */
-const ObjectList = ({ fieldKey, isRequired, listPath, name, node }: {
+const ObjectList = ({ fieldKey, group, isRequired, listPath, name, node }: {
   fieldKey: string
+  /** the enclosing optional object, whose presence decides whether a required list is owed */
+  group?: FieldPath
   isRequired: boolean
   /** the list's absolute path */
   listPath: FieldPath
@@ -398,6 +401,7 @@ const ObjectList = ({ fieldKey, isRequired, listPath, name, node }: {
   name: Array<string | number>
   node: JSONSchema4
 }): React.ReactNode => {
+  const form = AntdForm.useFormInstance()
   const itemSchema = node.items as JSONSchema4
   const label = fieldLabel(fieldKey, node)
   const titleKey = rowTitleKey(node)
@@ -414,7 +418,7 @@ const ObjectList = ({ fieldKey, isRequired, listPath, name, node }: {
       // form that submits without validating (the composer's create form) is unaffected.
       rules={[
         ...(isRequired
-          ? [{ validator: (_rule: unknown, rows: unknown) => (Array.isArray(rows) && rows.length ? Promise.resolve() : Promise.reject(new Error(`${label} is required`))) }]
+          ? [{ validator: (_rule: unknown, rows: unknown) => ((Array.isArray(rows) && rows.length) || (group && !hasValue(form.getFieldValue(group))) ? Promise.resolve() : Promise.reject(new Error(`${label} is required`))) }]
           : []),
         ...itemCountRules(label, node),
       ]}
@@ -477,6 +481,8 @@ const fieldHeader = (key: string, node: JSONSchema4, isRequired: boolean): React
 interface SchemaFieldsProps {
   /** the (sub)schema whose `properties` become form fields */
   schema: JSONSchema4
+  /** the nearest enclosing OPTIONAL object: this schema's `required` binds only while it holds a value */
+  group?: FieldPath
   /** top-level property names to omit (e.g. legacy CustomForm `propertiesToHide`) */
   hide?: string[]
   /**
@@ -499,15 +505,18 @@ interface SchemaFieldsProps {
  * collapse) the property lands in, so submission + validation are identical to a flat render.
  */
 /** The rules a field's schema implies, plus a closed option field's "must be listed". */
-const fieldRules = (key: string, node: JSONSchema4, isRequired: boolean, fieldPath: FieldPath, registry?: OptionRegistry) => {
-  const rules = rulesFor(key, node, isRequired) ?? []
+const fieldRules = (key: string, node: JSONSchema4, isRequired: boolean, fieldPath: FieldPath, group: FieldPath | undefined, registry?: OptionRegistry) => {
+  const rules = rulesFor(key, node, isRequired && !group) ?? []
+  if (isRequired && group) {
+    rules.unshift(requiredInGroup(fieldLabel(key, node), group))
+  }
   if (getFieldOptionsSpec(node)?.closed) {
     rules.push(closedOptionRule(fieldLabel(key, node), fieldPath, registry))
   }
   return rules.length ? rules : undefined
 }
 
-function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: Array<string | number>, scopePath: FieldPath, isRequired: boolean, registry?: OptionRegistry): React.ReactNode {
+function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: Array<string | number>, scopePath: FieldPath, isRequired: boolean, group: FieldPath | undefined, registry?: OptionRegistry): React.ReactNode {
   const path = [...namePath, key]
   const scope = [...scopePath, key]
 
@@ -517,7 +526,7 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
         {fieldHeader(key, node, isRequired)}
         <div className={styles.groupBody}>
           { }
-          <ObjectList fieldKey={key} isRequired={isRequired} listPath={scope} name={path} node={node} />
+          <ObjectList fieldKey={key} group={group} isRequired={isRequired} listPath={scope} name={path} node={node} />
         </div>
       </div>
     )
@@ -530,7 +539,7 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
         <div className={styles.groupBody}>
           {/* recursion — SchemaFields partitions this nested group's own required/optional split */}
           {/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
-          <SchemaFields hide={hide} namePath={path} schema={node} scopePath={scope} />
+          <SchemaFields group={isRequired ? group : scope} hide={hide} namePath={path} schema={node} scopePath={scope} />
         </div>
       </div>
     )
@@ -549,7 +558,7 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
       label={fieldHeader(key, node, isRequired)}
       labelCol={{ span: 24 }}
       name={path}
-      rules={fieldRules(key, node, isRequired, scope, registry)}
+      rules={fieldRules(key, node, isRequired, scope, group, registry)}
       valuePropName={node.type === 'boolean' ? 'checked' : undefined}
       wrapperCol={{ span: 24 }}
     >
@@ -585,26 +594,13 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
 const useSchemaRoot = (schema: JSONSchema4): SchemaRoot =>
   useMemo(() => ({ cyclic: collectDependencies(schema).cyclic, schema }), [schema])
 
-/**
- * The keys of `properties` a `displayingDependencies` entry hides for the current values. A selector
- * watch, so the fields re-render only when that set changes, not on every keystroke.
- */
-const useHiddenKeys = (properties: Record<string, JSONSchema4> | undefined, scope: FieldPath): string[] => {
-  const form = AntdForm.useFormInstance()
-  const conditional = Object.entries(properties ?? {}).filter(([, node]) => node[VISIBLE_WHEN_KEY] !== undefined)
-  const hidden = AntdForm.useWatch(
-    (values: unknown) => conditional.filter(([, node]) => !isVisible(node, values, scope)).map(([key]) => key),
-    { form, preserve: true },
-  ) as string[] | undefined
-  return hidden ?? []
-}
-
-const SchemaFieldsBody = ({ hide = [], namePath = [], schema, scopePath }: SchemaFieldsProps): React.ReactNode => {
+const SchemaFieldsBody = ({ group, hide = [], namePath = [], schema, scopePath }: SchemaFieldsProps): React.ReactNode => {
   const { options: registry } = useContext(FormRefsContext)
   const scope = scopePath ?? namePath
   const hiddenNow = useHiddenKeys(schema?.properties, scope)
+  const required = new Set(Array.isArray(schema?.required) ? schema.required : [])
+  const [openPanels, setOpenPanels] = useAdvancedPanels(scope, required)
   if (!schema?.properties) { return null }
-  const required = new Set(Array.isArray(schema.required) ? schema.required : [])
 
   // A field a `displayingDependencies` entry hides is not rendered, so it is not validated, submitted or
   // counted under "Advanced" (see visibleWhen.ts).
@@ -613,17 +609,18 @@ const SchemaFieldsBody = ({ hide = [], namePath = [], schema, scopePath }: Schem
   const optionalEntries = visible.filter(([key]) => !required.has(key))
 
   if (requiredEntries.length === 0) {
-    return <>{optionalEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, false, registry))}</>
+    return <>{optionalEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, false, group, registry))}</>
   }
 
   return (
     <>
-      {requiredEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, true, registry))}
+      {requiredEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, true, group, registry))}
       {optionalEntries.length > 0 ? (
         <Collapse
+          activeKey={openPanels}
           className={styles.advanced}
           items={[{
-            children: <>{optionalEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, false, registry))}</>,
+            children: <>{optionalEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, false, group, registry))}</>,
             // Always mount the optional fields (they're just visually hidden while collapsed) so
             // they register with the form store and submit / validate identically to an up-front
             // field — the disclosure never drops a value, even if the collapse is never opened.
@@ -631,6 +628,7 @@ const SchemaFieldsBody = ({ hide = [], namePath = [], schema, scopePath }: Schem
             key: 'advanced',
             label: `Advanced · ${optionalEntries.length} setting${optionalEntries.length === 1 ? '' : 's'}`,
           }]}
+          onChange={(keys) => { setOpenPanels(Array.isArray(keys) ? keys : [keys]) }}
         />
       ) : null}
     </>
@@ -677,9 +675,11 @@ export const SchemaForm = ({ hide = [], schema }: { schema: JSONSchema4; hide?: 
   })
 
   const [chosen, setActive] = useState<string>(sections[0]?.id ?? '__general__')
+  useShowFailedSection(groupKeys, setActive, '__general__')
   // The section in view was hidden by a change elsewhere: show the first one instead.
   const active = sections.some((section) => section.id === chosen) ? chosen : (sections[0]?.id ?? '__general__')
   const root = useSchemaRoot(schema)
+  const rootRequired: string[] = Array.isArray(schema.required) ? schema.required : []
 
   if (sections.length < 2) {
     return <SchemaFields hide={hide} schema={schema} />
@@ -709,7 +709,7 @@ export const SchemaForm = ({ hide = [], schema }: { schema: JSONSchema4; hide?: 
             <div key={section.id} style={active === section.id ? undefined : { display: 'none' }}>
               {section.id === '__general__'
                 ? <SchemaFields hide={[...hide, ...groupKeys]} schema={schema} />
-                : <SchemaFields hide={hide} namePath={[section.id]} schema={properties[section.id]} />}
+                : <SchemaFields group={rootRequired.includes(section.id) ? undefined : [section.id]} hide={hide} namePath={[section.id]} schema={properties[section.id]} />}
             </div>
           ))}
         </div>

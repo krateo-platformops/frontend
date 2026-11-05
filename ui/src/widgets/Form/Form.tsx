@@ -18,8 +18,9 @@ import { maskSecretPaths, omitSecretPaths, secretFieldPaths, type SecretPath } f
 import { getEndpointUrl } from '../../utils/utils'
 import { useDrawerContext } from '../Drawer/DrawerContext'
 
+import { FailedFieldsContext } from './failedFields'
 import { applyFieldConfig } from './fieldConfig'
-import { collectDependencies, dependentsToClear } from './fieldDependencies'
+import { collectDependencies, dependentsToClear, type FieldPath } from './fieldDependencies'
 import { createOptionRegistry, getFieldOptionsSpec, type OptionRegistry } from './fieldOptions'
 import styles from './Form.module.css'
 import type { Form as WidgetType } from './Form.type'
@@ -314,6 +315,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   // In-place Review state: the validated values captured on "Review →" (null = editing).
   const [reviewValues, setReviewValues] = useState<Record<string, unknown> | null>(null)
   const reviewing = !insideDrawer && !!reviewBeforeSubmit && reviewValues !== null
+  const [failedFields, setFailedFields] = useState<FieldPath[] | null>(null)
 
   // Autopilot AgentDraft (Phase 3 gated form-fill): values Autopilot proposes for the create form;
   // the user still reviews and presses Create. Applied imperatively below via setFieldsValue (NOT
@@ -667,6 +669,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
           initialValues={effectiveInitialValues}
           layout={layout}
           onFinish={(formValues) => { onFinish(formValues as Record<string, unknown>) }}
+          onFinishFailed={({ errorFields }) => { setFailedFields(errorFields.map(({ name }) => name)) }}
           onValuesChange={onValuesChange}
           size={size}
         >
@@ -678,7 +681,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
                 {typeof notice === 'string' && notice.trim()
                   ? <Alert className={styles.notice} showIcon title={notice} type='info' />
                   : null}
-                <SchemaForm hide={propertiesToHide} schema={jsonSchema} />
+                <FailedFieldsContext.Provider value={failedFields}>
+                  <SchemaForm hide={propertiesToHide} schema={jsonSchema} />
+                </FailedFieldsContext.Provider>
               </FormRefsContext.Provider>
             )
             : (
