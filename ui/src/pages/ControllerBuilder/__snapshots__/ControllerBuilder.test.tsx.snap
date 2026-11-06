@@ -11,7 +11,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
             <span class="_meta_ec3666">
               "0.1.0 · Pet, Store · petstore.example.io"
         <div class="_trailing_ec3666" data-screen-header="trailing">
-          <span aria-live="polite" class="_indicator_314ebb _saved_314ebb" role="status">
+          <span aria-live="polite" class="_indicator_27f4a4 _saved_27f4a4" role="status">
             <span aria-hidden="true" aria-label="check" class="anticon anticon-check" role="img">
               <svg aria-hidden="true" data-icon="check" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
                 <path d="M912 190h-69.9c-9.8 0-19.1 4.5-25.1 12.2L404.7 724.5 207 474a32 32 0 00-25.1-12.2H112c-6.7 0-10.4 7.7-6.3 12.9l273.9 347c12.8 16.2 37.4 16.2 50.3 0l488.4-618.9c4.1-5.1.4-12.8-6.3-12.8z">
@@ -146,10 +146,10 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                   "api_key"
         <section aria-label="Controller files and Source" class="_pane_61220e _filesPane_61220e">
           <div class="_section_61220e">
-            <div class="_body_7a73aa">
+            <div class="_body_d6a6bc">
               <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
                 "Rendered is the create form of each Kind oasgen-render generated; Source is the CRDs themselves — rendered, nothing applied to the cluster. Chart files is the tree the change request commits."
-              <div class="_target_7a73aa">
+              <div class="_target_d6a6bc">
                 <span class="ant-tag ant-tag-filled ant-tag-geekblue css-dev-only-do-not-override-12q6fii css-var-id1">
                   "Publishes to"
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -185,7 +185,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                 <div class="ant-tabs-body-holder">
                   <div class="ant-tabs-body ant-tabs-body-top">
                     <div aria-hidden="false" aria-labelledby="id3" class="ant-tabs-content ant-tabs-content-active" id="id4" role="tabpanel" tabindex="0">
-                      <div class="_body_7a73aa">
+                      <div class="_body_d6a6bc">
                         <div class="ant-alert ant-alert-warning ant-alert-outlined ant-alert-with-description css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
                           <span class="ant-alert-icon">
                             <span aria-label="exclamation-circle" class="anticon anticon-exclamation-circle" role="img">
@@ -195,7 +195,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                             <div class="ant-alert-title">
                               "Generated with warnings — the controller applies these as they are"
                             <div class="ant-alert-description">
-                              <ul class="_issueList_7a73aa">
+                              <ul class="_issueList_d6a6bc">
                                 <li>
                                   "krateo-preview/petstore-pet: security scheme not supported, skipped: petstore_auth (type: oauth2, in: )"
                         <section data-testid="agentiko-form-preview">
@@ -423,83 +423,83 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                                             <div class="ant-form-item-control-input-content">
                                               <textarea class="ant-input css-dev-only-do-not-override-12q6fii ant-input-outlined css-var-id1 ant-input-css-var ant-input-disabled" disabled="" id="id19" placeholder="{ } — JSON (key/value map)" style="font-family: var(--font-mono, monospace); overflow-y: hidden; resize: none;">
                     <div aria-hidden="true" aria-labelledby="id6" class="ant-tabs-content ant-tabs-content-hidden" id="id7" role="tabpanel" tabindex="-1">
-                      <div class="_body_7a73aa">
+                      <div class="_body_d6a6bc">
                         <div id="id20">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "Chart.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …11 lines
                         <div id="id21">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/configmap-oas-petstore.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …1284 lines
                         <div id="id22">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/restdefinition-pet.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …40 lines
                         <div id="id23">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/restdefinition-store.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …37 lines
                         <div id="id24">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.schema.json"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …47 lines
                         <div id="id25">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …4 lines
       <div class="_side_61220e">
@@ -979,10 +979,10 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                   "api_key"
         <section aria-label="Controller files and Source" class="_pane_61220e _filesPane_61220e">
           <div class="_section_61220e">
-            <div class="_body_7a73aa">
+            <div class="_body_d6a6bc">
               <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
                 "Chart files is the tree the change request commits — each Kind is its RestDefinition, and the OpenAPI document rides in its ConfigMap. Edit a file in place; the canvas and the inspector read it back."
-              <div class="_target_7a73aa">
+              <div class="_target_d6a6bc">
                 <span class="ant-tag ant-tag-filled ant-tag-geekblue css-dev-only-do-not-override-12q6fii css-var-id1">
                   "Publishes to"
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -1018,83 +1018,83 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                 <div class="ant-tabs-body-holder">
                   <div class="ant-tabs-body ant-tabs-body-top">
                     <div aria-hidden="false" aria-labelledby="id7" class="ant-tabs-content ant-tabs-content-active" id="id8" role="tabpanel" tabindex="0">
-                      <div class="_body_7a73aa">
+                      <div class="_body_d6a6bc">
                         <div id="id14">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "Chart.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …11 lines
                         <div id="id15">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/configmap-oas-petstore.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …1284 lines
                         <div id="id16">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/restdefinition-pet.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …47 lines
                         <div id="id17">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/restdefinition-store.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …37 lines
                         <div id="id18">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.schema.json"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …47 lines
                         <div id="id19">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …4 lines
       <div class="_side_61220e">
@@ -1638,10 +1638,10 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                   "api_key"
         <section aria-label="Controller files and Source" class="_pane_61220e _filesPane_61220e">
           <div class="_section_61220e">
-            <div class="_body_7a73aa">
+            <div class="_body_d6a6bc">
               <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
                 "Chart files is the tree the change request commits — each Kind is its RestDefinition, and the OpenAPI document rides in its ConfigMap. Edit a file in place; the canvas and the inspector read it back."
-              <div class="_target_7a73aa">
+              <div class="_target_d6a6bc">
                 <span class="ant-tag ant-tag-filled ant-tag-geekblue css-dev-only-do-not-override-12q6fii css-var-id1">
                   "Publishes to"
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -1677,70 +1677,70 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                 <div class="ant-tabs-body-holder">
                   <div class="ant-tabs-body ant-tabs-body-top">
                     <div aria-hidden="false" aria-labelledby="id7" class="ant-tabs-content ant-tabs-content-active" id="id8" role="tabpanel" tabindex="0">
-                      <div class="_body_7a73aa">
+                      <div class="_body_d6a6bc">
                         <div id="id14">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "Chart.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …11 lines
                         <div id="id15">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/configmap-oas-petstore.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …1284 lines
                         <div id="id16">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/restdefinition-pet.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …34 lines
                         <div id="id17">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.schema.json"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …47 lines
                         <div id="id18">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …4 lines
       <div class="_side_61220e">
@@ -2234,10 +2234,10 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                 "Drag a resource group from Add onto this canvas, or press Place on one — each group becomes one Kind, its operations its verbs."
         <section aria-label="Controller files and Source" class="_pane_61220e _filesPane_61220e">
           <div class="_section_61220e">
-            <div class="_body_7a73aa">
+            <div class="_body_d6a6bc">
               <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
                 "Chart files is the tree the change request commits — each Kind is its RestDefinition, and the OpenAPI document rides in its ConfigMap. Edit a file in place; the canvas and the inspector read it back."
-              <div class="_target_7a73aa">
+              <div class="_target_d6a6bc">
                 <span class="ant-tag ant-tag-filled ant-tag-geekblue css-dev-only-do-not-override-12q6fii css-var-id1">
                   "Publishes to"
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -2273,57 +2273,57 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                 <div class="ant-tabs-body-holder">
                   <div class="ant-tabs-body ant-tabs-body-top">
                     <div aria-hidden="false" aria-labelledby="id7" class="ant-tabs-content ant-tabs-content-active" id="id8" role="tabpanel" tabindex="0">
-                      <div class="_body_7a73aa">
+                      <div class="_body_d6a6bc">
                         <div id="id14">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "Chart.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …11 lines
                         <div id="id15">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/configmap-oas-petstore.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …1284 lines
                         <div id="id16">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.schema.json"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …47 lines
                         <div id="id17">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 …4 lines
       <div class="_side_61220e">
