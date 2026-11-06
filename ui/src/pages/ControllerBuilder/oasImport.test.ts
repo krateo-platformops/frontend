@@ -7,7 +7,7 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { BLUEPRINT_DRAFT_MAX_BYTES } from '../../components/Autopilot/blueprintDraftStore'
+import { BLUEPRINT_DRAFT_MAX_BYTES } from '../../components/Agentiko/blueprintDraftStore'
 
 import { listOperations, type OasImport, parseOas, securitySchemeSupport, trimOas } from './oasImport'
 

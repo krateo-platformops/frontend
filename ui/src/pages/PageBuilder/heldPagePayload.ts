@@ -12,13 +12,13 @@
  * what a just-started page shows while its first apply is on the wire, so the caption claims no
  * history.)
  */
-import { pageDisplayName, pageDraftWidgets } from '../../components/Autopilot/pageDraft'
-import { buildPagePreviewPayload } from '../../components/Autopilot/previewBridge'
-import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
+import { pageDisplayName, pageDraftWidgets } from '../../components/Agentiko/pageDraft'
+import { buildPagePreviewPayload } from '../../components/Agentiko/previewBridge'
+import type { AgentikoPreviewPayload } from '../../components/Agentiko/previewBus'
 
 export const HELD_PAGE_CAPTION = 'The held draft, shown from its files — its live render appears here when it is next applied.'
 
-export const heldPagePayload = (files: Record<string, string>): AutopilotPreviewPayload | null => {
+export const heldPagePayload = (files: Record<string, string>): AgentikoPreviewPayload | null => {
   if (!Object.keys(files).length) {
     return null
   }

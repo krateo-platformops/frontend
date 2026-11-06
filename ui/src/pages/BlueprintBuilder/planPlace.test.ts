@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { extractCrdSpecFields } from '../../components/Autopilot/describeResource'
+import { extractCrdSpecFields } from '../../components/Agentiko/describeResource'
 
 import { CRDS, golden } from './__fixtures__/s4a'
 import {

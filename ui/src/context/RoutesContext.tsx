@@ -135,7 +135,7 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // The Builders arrive after sign-in, from the cluster. Subscribed to the REGISTRY OBJECT, which
   // changes only when the Builders do — never on a `loading` status. And the routes are replaced only
   // when the set of (id, path) they mount changes: rebuilding them bumps routerVersion, a full
-  // RouterProvider remount that would drop Autopilot's held draft and its streams. A re-read with the
+  // RouterProvider remount that would drop Agentiko's held draft and its streams. A re-read with the
   // same Builders reaches each composer through BuilderRouteHost instead.
   const registry = useSyncExternalStore(subscribeBuilders, currentBuilderRegistry)
   const mountedSignature = useRef('')

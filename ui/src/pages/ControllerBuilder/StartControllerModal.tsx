@@ -22,7 +22,7 @@ import { Alert, Button, Checkbox, Form, Input, Modal, Radio, Space, Upload } fro
 import { useId, useMemo, useState } from 'react'
 
 import type { StartField } from '../../builders/builderSpec'
-import type { DraftRenderResultDetail } from '../../components/Autopilot/previewDraftRender'
+import type { DraftRenderResultDetail } from '../../components/Agentiko/previewDraftRender'
 import { dismissButtonProps } from '../../components/DismissButton'
 import styles from '../BlueprintBuilder/BlueprintBuilder.module.css'
 

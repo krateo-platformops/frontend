@@ -16,10 +16,10 @@
  *   - the document's info.version is held as v1alpha1 — the version every Kind is served under — and
  *     the vendor's own is kept on Chart.yaml (servedVersion.ts; the store re-pins it on every write).
  */
-import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from '../../components/Autopilot/blueprintDraft'
-import { kogValuesSchema } from '../../components/Autopilot/kogChart'
-import { KOG_MANAGED_BY_LABEL } from '../../components/Autopilot/kogMapping'
-import { utf8ByteLength } from '../../components/Autopilot/oasAttachment'
+import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from '../../components/Agentiko/blueprintDraft'
+import { kogValuesSchema } from '../../components/Agentiko/kogChart'
+import { KOG_MANAGED_BY_LABEL } from '../../components/Agentiko/kogMapping'
+import { utf8ByteLength } from '../../components/Agentiko/oasAttachment'
 import { chartIdentityProblems, publishNameProblem } from '../BlueprintBuilder/chartIdentity'
 
 import {

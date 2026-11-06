@@ -1,6 +1,6 @@
 /**
  * runRestSet — the P1 applySet fabric (W0-4). Pure-logic coverage (no RTL/jsdom),
- * matching the repo's other hook/Autopilot tests. Proves the fabric's contract:
+ * matching the repo's other hook/Agentiko tests. Proves the fabric's contract:
  *   - ONE aggregated set-level confirm for the WHOLE set; DECLINE = NOTHING dispatched
  *     (fetch never called, null returned, no toasts);
  *   - the radius passed to confirm carries the ordered per-op targets, payload previews,

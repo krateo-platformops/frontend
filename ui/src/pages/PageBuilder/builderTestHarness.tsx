@@ -10,9 +10,9 @@ import { act, render, screen } from '@testing-library/react'
 import { App as AntdApp } from 'antd'
 import { vi } from 'vitest'
 
-import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
-import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
-import { emitDraftChanged } from '../../components/Autopilot/previewDraftChanged'
+import { AGENTIKO_PREVIEW_EVENT } from '../../components/Agentiko/previewBus'
+import type { AgentikoPreviewPayload } from '../../components/Agentiko/previewBus'
+import { emitDraftChanged } from '../../components/Agentiko/previewDraftChanged'
 import { ConfigContext } from '../../context/ConfigContext'
 import { ThemeModeProvider } from '../../context/ThemeModeContext'
 
@@ -46,7 +46,7 @@ export const installAntdShims = () => {
  *
  * The surface reads the theme to pick a syntax-highlighter palette, and that provider is mounted
  * app-wide at index.tsx above the router — so every route already has it. Nothing here supplies an
- * AutopilotProvider, which is the whole point: that is the coupling this change removes, and its
+ * AgentikoProvider, which is the whole point: that is the coupling this change removes, and its
  * absence is what these tests assert.
  */
 /**
@@ -71,7 +71,7 @@ export const mount = () => render(inApp(<ThemeModeProvider><PageBuilder /></Them
  *
  * Legitimate rather than a convenience: `ConfigProvider` sits at App.tsx above the router, so this
  * route always has it in production. The bare `mount` stays, because "renders with no
- * AutopilotProvider" is a property worth keeping asserted — this adds config, not the rail.
+ * AgentikoProvider" is a property worth keeping asserted — this adds config, not the rail.
  */
 export const mountWithConfig = (snowplow = 'http://snowplow.test', sandbox = 'krateo-preview') => render(
   inApp(
@@ -118,9 +118,9 @@ export const widgetCr = (
  * silently reverted each other. In the app the provider broadcasts the held draft after each
  * accepted write; here the test plays that part.
  */
-export const emit = (payload: Partial<AutopilotPreviewPayload>) => {
+export const emit = (payload: Partial<AgentikoPreviewPayload>) => {
   act(() => {
-    window.dispatchEvent(new CustomEvent(AUTOPILOT_PREVIEW_EVENT, { detail: { title: 'Draft', ...payload } }))
+    window.dispatchEvent(new CustomEvent(AGENTIKO_PREVIEW_EVENT, { detail: { title: 'Draft', ...payload } }))
     emitDraftChanged({
       files: Object.fromEntries((payload.files ?? []).map((file) => [file.path, file.content])),
     })
@@ -143,13 +143,13 @@ export const capture = () => {
   const log: { op: 'add' | 'edit'; path: string; content: string }[] = []
   const onAdd = (event: Event) => { log.push({ op: 'add', ...(event as CustomEvent<{ path: string; content: string }>).detail }) }
   const onEdit = (event: Event) => { log.push({ op: 'edit', ...(event as CustomEvent<{ path: string; content: string }>).detail }) }
-  window.addEventListener('autopilotPreviewFileAdded', onAdd)
-  window.addEventListener('autopilotPreviewFileEdited', onEdit)
+  window.addEventListener('agentikoPreviewFileAdded', onAdd)
+  window.addEventListener('agentikoPreviewFileEdited', onEdit)
   return {
     log,
     stop: () => {
-      window.removeEventListener('autopilotPreviewFileAdded', onAdd)
-      window.removeEventListener('autopilotPreviewFileEdited', onEdit)
+      window.removeEventListener('agentikoPreviewFileAdded', onAdd)
+      window.removeEventListener('agentikoPreviewFileEdited', onEdit)
     },
   }
 }

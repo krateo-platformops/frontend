@@ -56,7 +56,7 @@ export function Menu({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetPro
       (entry.type === 'divider'
         ? { key: entry.key, type: 'divider' as const }
         : {
-          // Our own anchor for the label, so the Autopilot tour can spotlight this row without
+          // Our own anchor for the label, so the Agentiko tour can spotlight this row without
           // reading antd's class names (navAnchor.ts).
           ...navItemProps(entry.label),
           icon: entry.iconName ? <FontAwesomeIcon icon={entry.iconName as IconProp} /> : undefined,

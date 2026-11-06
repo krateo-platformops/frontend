@@ -14,7 +14,7 @@ import '../index.css'
 import './widgets/load'
 
 import styles from './App.module.css'
-import { onPreviewApplied } from './components/Autopilot/previewApplied'
+import { onPreviewApplied } from './components/Agentiko/previewApplied'
 import FiltersProvider from './components/FiltesProvider/FiltersProvider'
 import { ConfigProvider, useConfigContext } from './context/ConfigContext'
 import { RoutesProvider, useRoutesContext } from './context/RoutesContext'

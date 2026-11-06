@@ -13,8 +13,8 @@
  * A render that no longer describes the files is kept on screen and said to be old — the same rule
  * the Blueprint Composer's Source follows.
  */
-import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
-import type { DraftRenderResultDetail } from '../../components/Autopilot/previewDraftRender'
+import type { AgentikoPreviewPayload } from '../../components/Agentiko/previewBus'
+import type { DraftRenderResultDetail } from '../../components/Agentiko/previewDraftRender'
 import { sameFiles, type LastRender } from '../BlueprintBuilder/heldBlueprintPayload'
 import { renderOutcomeCopy, type OutcomeCopy } from '../BlueprintBuilder/renderOutcome'
 
@@ -73,7 +73,7 @@ const placeholderOf = (render: LastRender | null): string => {
   return render.problems?.length ? RENDERED_FAILED_PLACEHOLDER : RENDERED_NO_FORM_PLACEHOLDER
 }
 
-const initialTabOf = (hasForms: boolean, render: LastRender | null): AutopilotPreviewPayload['initialTab'] => {
+const initialTabOf = (hasForms: boolean, render: LastRender | null): AgentikoPreviewPayload['initialTab'] => {
   if (hasForms) { return 'rendered' }
   return render?.problems?.length ? 'source' : 'files'
 }
@@ -106,7 +106,7 @@ export const controllerPreviewPayload = (
   model: ControllerModel,
   name: string,
   render: LastRender | null,
-): AutopilotPreviewPayload => {
+): AgentikoPreviewPayload => {
   const forms = render && !render.problems?.length ? renderedForms(render.objects) : []
   const served = servedAsLine(model)
   const notices = controllerPreviewNotices(model)

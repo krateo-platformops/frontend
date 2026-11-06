@@ -12,8 +12,8 @@ import { act, cleanup, screen } from '@testing-library/react'
 import { load } from 'js-yaml'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { emitComposeRequest, onComposeResult } from '../../components/Autopilot/composeRequest'
-import type { ComposeOp, ComposeResult } from '../../components/Autopilot/composeRequest'
+import { emitComposeRequest, onComposeResult } from '../../components/Agentiko/composeRequest'
+import type { ComposeOp, ComposeResult } from '../../components/Agentiko/composeRequest'
 
 import { capture, emit, installAntdShims, mountWithConfig, widgetCr } from './builderTestHarness'
 

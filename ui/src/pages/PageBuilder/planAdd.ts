@@ -18,7 +18,7 @@
  * NOTHING IS EMITTED HERE. The placement is computed in memory first, so a refusal costs nothing —
  * there is no orphan file to clean up, because nothing has been written yet.
  */
-import { pageDraftSlug } from '../../components/Autopilot/pageDraft'
+import { pageDraftSlug } from '../../components/Agentiko/pageDraft'
 
 import { canAccept } from './dropTargets'
 import type { TreeNode } from './objectTree'

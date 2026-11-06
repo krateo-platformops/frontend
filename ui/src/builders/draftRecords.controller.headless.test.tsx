@@ -19,10 +19,10 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from '../components/Autopilot/blueprintDraft'
-import { BLUEPRINT_DRAFT_MAX_BYTES, createBlueprintDraftStore, type BlueprintDraftStore } from '../components/Autopilot/blueprintDraftStore'
-import { createBlueprintGate, type BlueprintGate } from '../components/Autopilot/blueprintGate'
-import type { SandboxWriter } from '../components/Autopilot/blueprintRenderSandbox'
+import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from '../components/Agentiko/blueprintDraft'
+import { BLUEPRINT_DRAFT_MAX_BYTES, createBlueprintDraftStore, type BlueprintDraftStore } from '../components/Agentiko/blueprintDraftStore'
+import { createBlueprintGate, type BlueprintGate } from '../components/Agentiko/blueprintGate'
+import type { SandboxWriter } from '../components/Agentiko/blueprintRenderSandbox'
 import {
   DRAFT_RECORD_KEY,
   draftRecordName,
@@ -32,16 +32,16 @@ import {
   readDraftRecord,
   treeHash,
   type DraftRecordBody,
-} from '../components/Autopilot/draftRecord'
-import { isDraftRecordName, readDraftRecordByName, restoredBannerCopy, wrongBuilderMessage } from '../components/Autopilot/draftResume'
-import { closeDraftCopy } from '../components/Autopilot/DraftSaveIndicator'
-import { draftSaveStatus } from '../components/Autopilot/draftSaveStatus'
-import { claimPreviewSurface, previewSurfaceClaimed } from '../components/Autopilot/previewDraftChanged'
-import { emitDraftResume, onDraftReapply, onDraftResumeResult, type DraftResumeResultDetail } from '../components/Autopilot/previewDraftResume'
-import { heldDraftIdentity } from '../components/Autopilot/publishCompile'
-import { PUBLISH_VERBS, publisherOfVerb } from '../components/Autopilot/publishDraft'
-import { createDraftAutosave, DRAFT_AUTOSAVE_DEBOUNCE_MS, draftRecordDisplayName } from '../components/Autopilot/useDraftAutosave'
-import { heldDraftName, useDraftResumeBus } from '../components/Autopilot/useDraftResumeBus'
+} from '../components/Agentiko/draftRecord'
+import { isDraftRecordName, readDraftRecordByName, restoredBannerCopy, wrongBuilderMessage } from '../components/Agentiko/draftResume'
+import { closeDraftCopy } from '../components/Agentiko/DraftSaveIndicator'
+import { draftSaveStatus } from '../components/Agentiko/draftSaveStatus'
+import { claimPreviewSurface, previewSurfaceClaimed } from '../components/Agentiko/previewDraftChanged'
+import { emitDraftResume, onDraftReapply, onDraftResumeResult, type DraftResumeResultDetail } from '../components/Agentiko/previewDraftResume'
+import { heldDraftIdentity } from '../components/Agentiko/publishCompile'
+import { PUBLISH_VERBS, publisherOfVerb } from '../components/Agentiko/publishDraft'
+import { createDraftAutosave, DRAFT_AUTOSAVE_DEBOUNCE_MS, draftRecordDisplayName } from '../components/Agentiko/useDraftAutosave'
+import { heldDraftName, useDraftResumeBus } from '../components/Agentiko/useDraftResumeBus'
 import type { WriteOp } from '../components/BlastRadius/buildBlastRadius'
 import type { SetDispatchOptions, WriteOpResult } from '../hooks/runRestSet'
 

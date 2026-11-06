@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
-import { lintValuesSchemaDefaults } from '../../components/Autopilot/blueprintDraft'
+import { lintValuesSchemaDefaults } from '../../components/Agentiko/blueprintDraft'
 
 import {
   controllerCompositionDefinition,

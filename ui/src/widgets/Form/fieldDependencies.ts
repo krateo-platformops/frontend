@@ -184,7 +184,7 @@ const expand = (template: TemplatePath, rows: number[], getValue: (path: FieldPa
 
 /**
  * The fields to clear after the PERSON changed `changed` (antd's `onValuesChange`, which a
- * programmatic set — initial values, a resumed draft, an Autopilot draft — never fires): every
+ * programmatic set — initial values, a resumed draft, an Agentiko draft — never fires): every
  * field whose options depend on a changed one, then whatever depends on those, once each. Its
  * old value was picked from options the new parent no longer yields.
  */

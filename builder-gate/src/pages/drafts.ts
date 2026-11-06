@@ -1,5 +1,5 @@
 /** Small, shared readers over a page draft set (the ordered CR objects previewPage receives). */
-import { RESTACTION_KIND, RESTACTIONS_PLURAL } from '@frontend/components/Autopilot/pageLint'
+import { RESTACTION_KIND, RESTACTIONS_PLURAL } from '@frontend/components/Agentiko/pageLint'
 
 import { pluralOf } from '../catalog'
 

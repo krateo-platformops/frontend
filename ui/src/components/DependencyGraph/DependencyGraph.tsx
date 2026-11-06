@@ -27,7 +27,7 @@
  *   - TRUE SIZE, IN A BOX THAT CHANGES (`fit="natural"`). FlowChart's fit scales the graph to fill
  *     its box; a caller whose cards are designed at a pixel size draws at zoom 1 instead, placed by
  *     `placeAtNaturalSize` after each layout. And G6 sizes its canvas from its container once — its
- *     own `autoResize` hears only the WINDOW — so a box resized by the page around it (the Autopilot
+ *     own `autoResize` hears only the WINDOW — so a box resized by the page around it (the Agentiko
  *     rail opening) left the canvas at its old width: clipped when narrower, stranded in a corner when
  *     wider. With `natural`, the box is observed, and a new size resizes the canvas and places the
  *     graph again. A graph at true size can also be wider than its box, so a card focused past the

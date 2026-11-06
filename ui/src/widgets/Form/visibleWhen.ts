@@ -101,7 +101,7 @@ const without = (value: unknown, path: FieldPath): unknown => {
 
 /**
  * `values` without the fields at `paths`. Removed, not set to `undefined`: merged over initial
- * values (an Autopilot draft is), an `undefined` would erase the value it was merged over.
+ * values (an Agentiko draft is), an `undefined` would erase the value it was merged over.
  */
 export const omitPaths = <T extends Record<string, unknown>>(values: T, paths: FieldPath[]): T =>
   paths.reduce<unknown>((current, path) => without(current, path), values) as T

@@ -5,7 +5,7 @@
  */
 import { load } from 'js-yaml'
 
-import { asRecord } from '../../components/Autopilot/kogRestDefSchema'
+import { asRecord } from '../../components/Agentiko/kogRestDefSchema'
 
 import { RESTDEFINITION_PATH } from './controllerModel'
 import { IMMUTABLE_REST_DEF_FIELDS, immutableFieldDiff } from './immutableDiff'

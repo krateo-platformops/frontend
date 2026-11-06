@@ -31,7 +31,7 @@
 import { Button, Input, Popconfirm, Select, Switch } from 'antd'
 import { useEffect, useId, useState } from 'react'
 
-import { PreviewFormSection } from '../../components/Autopilot/previewFormSection'
+import { PreviewFormSection } from '../../components/Agentiko/previewFormSection'
 import { dismissButtonProps } from '../../components/DismissButton'
 
 import { levelOf, type ResourceNode } from './architecture'

@@ -11,7 +11,7 @@
  * list equals an empty one (the live github-provider-kog CRs carry `configurationFields: []` where
  * the builder omits the key).
  */
-import { asRecord } from '../../components/Autopilot/kogRestDefSchema'
+import { asRecord } from '../../components/Agentiko/kogRestDefSchema'
 
 export const IMMUTABLE_REST_DEF_FIELDS = [
   'kind',

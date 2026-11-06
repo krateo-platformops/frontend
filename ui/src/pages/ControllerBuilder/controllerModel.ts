@@ -7,9 +7,9 @@
  */
 import { load } from 'js-yaml'
 
-import { CHART_YAML_PATH, chartYamlName, chartYamlVersion } from '../../components/Autopilot/blueprintDraft'
-import { REST_DEFINITION_KIND } from '../../components/Autopilot/kogMapping'
-import { asRecord, isNonEmptyString } from '../../components/Autopilot/kogRestDefSchema'
+import { CHART_YAML_PATH, chartYamlName, chartYamlVersion } from '../../components/Agentiko/blueprintDraft'
+import { REST_DEFINITION_KIND } from '../../components/Agentiko/kogMapping'
+import { asRecord, isNonEmptyString } from '../../components/Agentiko/kogRestDefSchema'
 
 import { deref, type OasDocument, type OasImport, type OasOperation, parseOas } from './oasImport'
 import {

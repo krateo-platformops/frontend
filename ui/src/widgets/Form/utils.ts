@@ -126,7 +126,7 @@ export const suggestionSearchText = (entry: SchemaSuggestion): string =>
   [entry.label, entry.value, entry.description].filter(Boolean).join(' ').toLowerCase()
 
 /**
- * Narrow an Autopilot draft to the fields the human will actually SEE.
+ * Narrow an Agentiko draft to the fields the human will actually SEE.
  *
  * Two filters, and the second is a safety property rather than a correctness one:
  *

@@ -8,7 +8,7 @@
 import { Button } from 'antd'
 import { useMemo, useState } from 'react'
 
-import { emitFilesBatch } from '../../components/Autopilot/previewFilesBatch'
+import { emitFilesBatch } from '../../components/Agentiko/previewFilesBatch'
 
 import { counted } from './architectureView'
 import styles from './BlueprintBuilder.module.css'

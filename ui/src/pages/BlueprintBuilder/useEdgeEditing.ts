@@ -21,7 +21,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { emitFilesBatch, type FilesBatchDetail } from '../../components/Autopilot/previewFilesBatch'
+import { emitFilesBatch, type FilesBatchDetail } from '../../components/Agentiko/previewFilesBatch'
 import type { EdgeDraw } from '../../components/DependencyGraph'
 
 import { ARCHITECTURE_TEMPLATE_PATH, parseArchitecture, serializeResource, unwrapFromConfigMapTemplate, type ChartArchitecture, type ResourceNode } from './architecture'

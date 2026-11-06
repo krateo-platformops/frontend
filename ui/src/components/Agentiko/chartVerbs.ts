@@ -1,0 +1,213 @@
+/**
+ * The agent's verbs for a chart that is ALREADY OPEN in the Blueprint Composer (S5): chartPut and
+ * chartDelete (a whole file) and chartLink (one dependency edge).
+ *
+ * WHY VERBS AND NOT A NEW previewBlueprint. previewBlueprint REPLACES the held tree, so to change one
+ * template the agent had to hand back all of them — and anything the person had changed in the
+ * composer since was silently overwritten by the agent's older copy. These verbs change one thing,
+ * against the bytes held NOW.
+ *
+ * THE SAME PATHS A PERSON'S EDITS TAKE. Every write goes through the provider's atomic batch bus
+ * (emitFilesBatch) with an `expect` of the bytes the verb read, so a write that raced a person's
+ * edit is refused, not applied; every accepted write disarms publish until Preview renders the
+ * chart again (render-gated, exactly as a person's edit). chartLink goes through planEdge — the
+ * legality kernel and gate generator a drawn edge goes through — so the agent cannot declare an edge
+ * a person could not draw, and gets the same refusal, with the same reason.
+ *
+ * GATES FOLLOW THE DESCRIPTOR. The agent writes templates WITHOUT gates (the composer owns them) and
+ * may declare an edge by rewriting the descriptor, so chartPut regenerates every node's gate over the
+ * tree it would leave — exactly what a proposed whole tree gets on ingest (parseProposedChart) — and
+ * writes all of it in the one guarded batch. A put can never strip a declared edge's gate, and a
+ * `dependsOn` added through the descriptor is enforced like a drawn one.
+ *
+ * DRAFT ONLY. Nothing here reaches the cluster or a repository: a verb edits the held draft in the
+ * browser, and the person still previews and publishes it. A refusal is the chip's text for the
+ * person and a `composeRefusals` entry on the next turn's envelope for the model — a chip never
+ * leaves the browser, so that entry is the only way the model learns why. The model reads the bytes
+ * it rewrites from the envelope's `chart` (summarizeChart).
+ */
+import { findBuilderOf } from '../../builders/builderRegistry'
+import { draftKindOf } from '../../builders/draftKinds'
+import { planEdge, regenerateGates, type EdgeOp } from '../../pages/BlueprintBuilder/planEdge'
+
+import type { PortalActionProposal } from './actionBridge'
+import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from './blueprintDraft'
+import type { DraftKind } from './blueprintDraftStore'
+import { recordChartOutcome } from './composeRequest'
+import { type DraftChangedDetail, onDraftChanged, requestDraftReplay } from './previewDraftChanged'
+import { emitFilesBatch } from './previewFilesBatch'
+import type { AgentikoActionChip } from './types'
+
+export const CHART_VERBS = new Set(['chartPut', 'chartDelete', 'chartLink'])
+
+export const isChartVerb = (verb: string): boolean => CHART_VERBS.has(verb)
+
+const ARCHITECTURE = 'templates/architecture.yaml'
+
+/** The files a chart cannot do without — deleting one is refused by name. */
+const REQUIRED: Record<string, string> = {
+  [ARCHITECTURE]: 'it is the chart\'s descriptor — remove resources from it with chartPut instead',
+  [CHART_YAML_PATH]: 'without it this is not a chart',
+  [VALUES_SCHEMA_PATH]: 'it is the generated CRD\'s type — a chart without one can never be installed',
+}
+
+/** Paths the agent never writes: the portal writes them at publish. */
+const PORTAL_OWNED: Record<string, string> = {
+  'compositiondefinition.yaml': 'the portal writes the registration file when the chart is published',
+}
+
+/** Outcomes the model is told of: a chip's reason when refused, and whether it wrote at all. */
+const REFUSED = new WeakMap<AgentikoActionChip, string>()
+const WROTE = new WeakSet<AgentikoActionChip>()
+
+const chip = (verb: string, label: string): AgentikoActionChip => ({ label, readOnly: true, verb })
+const refusal = (verb: string, reason: string): AgentikoActionChip => {
+  const refused = chip(verb, `${verb} — this portal did not run it (${reason})`)
+  REFUSED.set(refused, reason)
+  return refused
+}
+
+/** What a model sees in a composeRefusals entry's `tried` — the proposal, restated in one line. */
+const describe = (proposal: PortalActionProposal): string => {
+  if (proposal.verb === 'chartLink') {
+    return `${proposal.unlink ? 'unlink' : 'link'} ${String(proposal.from)} → ${String(proposal.to)}`
+  }
+  return `${proposal.verb === 'chartPut' ? 'write' : 'delete'} ${String(proposal.path)}`
+}
+
+/** A redactor marker in content means it was copied from a redacted view — writing it would lose the real value. */
+const REDACTION_MARKER = /\[redacted(-jwt)?\]/
+
+/**
+ * The held draft, read synchronously: the replay request is answered on the draft-changed bus in the
+ * same tick (useDraftFileBuses). Null when the provider is not mounted.
+ */
+export const readHeldDraft = (): DraftChangedDetail | null => {
+  // No window (a server-side or non-DOM caller) means no provider, and so no held draft.
+  if (typeof window === 'undefined') { return null }
+  let held: DraftChangedDetail | null = null
+  const stop = onDraftChanged((detail) => { held = detail })
+  requestDraftReplay()
+  stop()
+  return held
+}
+
+/** The held draft a chart verb may write — its files, and the kind every write is filed under. */
+interface HeldChart {
+  files: Record<string, string>
+  kind: DraftKind
+}
+
+/** A chart-relative path spelled the way the composer keys a tree, or why not. */
+const pathProblem = (path: unknown): string | null => {
+  if (typeof path !== 'string' || !path.trim()) { return 'a path is required' }
+  if (path.startsWith('/') || path.split('/').some((segment) => segment === '' || segment === '.' || segment === '..')) {
+    return `"${path}" is not a chart-relative path (no leading "/", no empty, "." or ".." segment)`
+  }
+  return null
+}
+
+/**
+ * VERB GATING, by the held draft's Builder: a chart verb runs only against a draft whose Builder
+ * allows it (`spec.verbs.allowed`). A draft of another kind is named, by its draft-kind plugin, as
+ * what it is; no draft at all is told to propose one.
+ */
+const heldChart = (verb: string): HeldChart | AgentikoActionChip => {
+  const held = readHeldDraft()
+  const builder = findBuilderOf(held?.kind)
+  if (!held?.kind || !builder) {
+    return refusal(verb, 'no chart is open — propose one with previewBlueprint first')
+  }
+  if (!builder.verbs.allowed.includes(verb)) {
+    return refusal(verb, `the open draft is ${draftKindOf(held.kind).nouns.artifact}, not a chart`)
+  }
+  return { files: held.files, kind: held.kind }
+}
+
+const written = (verb: string, outcome: ReturnType<typeof emitFilesBatch>, label: string): AgentikoActionChip => {
+  if (!outcome) { return refusal(verb, 'the builder is not reachable in this portal') }
+  if (!outcome.ok) { return refusal(verb, outcome.error) }
+  const done = chip(verb, `${label} — Preview needed before it can be published`)
+  WROTE.add(done)
+  return done
+}
+
+const put = (proposal: PortalActionProposal): AgentikoActionChip => {
+  const problem = pathProblem(proposal.path)
+  if (problem) { return refusal('chartPut', problem) }
+  if (typeof proposal.content !== 'string') { return refusal('chartPut', 'content must be the whole file, as text') }
+  const path = proposal.path as string
+  if (PORTAL_OWNED[path]) { return refusal('chartPut', PORTAL_OWNED[path]) }
+  if (REDACTION_MARKER.test(proposal.content)) {
+    return refusal('chartPut', 'the content carries a "[redacted]" marker — the real value was never sent to you, so writing this would replace it with the marker')
+  }
+  const held = heldChart('chartPut')
+  if (!('files' in held)) { return held }
+  const current = held.files[path]
+  const next = regenerateGates({ ...held.files, [path]: proposal.content })
+  const changed = Object.keys(next).filter((key) => next[key] !== held.files[key])
+  if (!changed.length) { return chip('chartPut', `${path} is already exactly that — nothing changed`) }
+  const add = Object.fromEntries(changed.filter((key) => held.files[key] === undefined).map((key) => [key, next[key]]))
+  const existing = changed.filter((key) => held.files[key] !== undefined)
+  const outcome = emitFilesBatch({
+    add,
+    edit: Object.fromEntries(existing.map((key) => [key, next[key]])),
+    expect: Object.fromEntries(existing.map((key) => [key, held.files[key]])),
+    kind: held.kind,
+  })
+  const regated = changed.filter((key) => key !== path)
+  const label = `${current === undefined ? 'Added' : 'Rewrote'} ${path}${regated.length ? ` (gates regenerated in ${regated.join(', ')})` : ''}`
+  return written('chartPut', outcome, label)
+}
+
+const remove = (proposal: PortalActionProposal): AgentikoActionChip => {
+  const problem = pathProblem(proposal.path)
+  if (problem) { return refusal('chartDelete', problem) }
+  const path = proposal.path as string
+  if (REQUIRED[path]) { return refusal('chartDelete', `${path} cannot be deleted: ${REQUIRED[path]}`) }
+  const held = heldChart('chartDelete')
+  if (!('files' in held)) { return held }
+  if (held.files[path] === undefined) { return refusal('chartDelete', `${path} is not in the chart`) }
+  return written('chartDelete', emitFilesBatch({ expect: { [path]: held.files[path] }, kind: held.kind, remove: [path] }), `Deleted ${path}`)
+}
+
+const link = (proposal: PortalActionProposal): AgentikoActionChip => {
+  const { from, readyWhen, to } = proposal
+  if (typeof from !== 'string' || !from || typeof to !== 'string' || !to) {
+    return refusal('chartLink', 'an edge needs `from` (the dependent) and `to` (what it waits for), by node id')
+  }
+  if (readyWhen !== undefined && readyWhen !== null && typeof readyWhen !== 'string') { return refusal('chartLink', 'readyWhen must be text') }
+  const held = heldChart('chartLink')
+  if (!('files' in held)) { return held }
+  const op: EdgeOp = proposal.unlink
+    ? { from, op: 'remove', to }
+    : { from, op: 'add', ready: proposal.ready === true, to, ...(typeof readyWhen === 'string' ? { readyWhen } : {}) }
+  const plan = planEdge(held.files, op)
+  if (!plan.ok) { return refusal('chartLink', plan.reason) }
+  const label = proposal.unlink
+    ? `Removed ${from} → ${to}`
+    : `${from} now waits for ${to}${op.op === 'add' && op.ready ? ' to be ready' : ' to exist'}${plan.regated.length ? ` (also re-gates ${plan.regated.join(', ')})` : ''}`
+  return written('chartLink', emitFilesBatch({ edit: plan.edit, expect: plan.expect, kind: held.kind }), label)
+}
+
+const run = (proposal: PortalActionProposal): AgentikoActionChip | null => {
+  switch (proposal.verb) {
+    case 'chartPut': return put(proposal)
+    case 'chartDelete': return remove(proposal)
+    case 'chartLink': return link(proposal)
+    default: return null
+  }
+}
+
+/** Run a chart verb, and tell the next turn how it went. Null for a verb that is not one. */
+export const applyChartVerb = (proposal: PortalActionProposal): AgentikoActionChip | null => {
+  const result = run(proposal)
+  if (!result) { return null }
+  const reason = REFUSED.get(result)
+  if (reason !== undefined) {
+    recordChartOutcome(describe(proposal), reason)
+  } else if (WROTE.has(result)) {
+    recordChartOutcome(describe(proposal), null)
+  }
+  return result
+}

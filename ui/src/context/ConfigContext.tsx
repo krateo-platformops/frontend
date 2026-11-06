@@ -9,11 +9,11 @@ export interface Config {
     EVENTS_PUSH_API_BASE_URL: string
     INIT: string
     TERMINAL_SOCKET_URL: string
-    /** Base URL of the Krateo Autopilot (kagent) A2A endpoint. Optional: when
-     * absent the Autopilot rail + header toggle do not render (graceful absence
-     * for installs without autopilot deployed). */
+    /** Base URL of the Krateo Agentiko (kagent) A2A endpoint. Optional: when
+     * absent the Agentiko rail + header toggle do not render (graceful absence
+     * for installs without agentiko deployed). */
     AUTOPILOT_API_BASE_URL?: string
-    /** Installer availability flag for Autopilot. When set to the string "false" (the installer
+    /** Installer availability flag for Agentiko. When set to the string "false" (the installer
      * sets it when agents are not deployed/licensed, features.coreAgents=false) the header toggle
      * still RENDERS — so the capability is discoverable — but is grayed-out and non-clickable.
      * Any other value (absent/"true") leaves clickability to the runtime reachability probe. */
@@ -46,12 +46,12 @@ export interface Config {
     PROVENANCE_ENABLED?: boolean | string
     /** Base URL of the Wave-4 helm-render dry-run service (`POST {chart, values}` to
      * `${RENDER_API_BASE_URL}/render` → rendered manifests, NO cluster write). Optional
-     * — the service is not deployed everywhere yet: when absent/empty the Autopilot
+     * — the service is not deployed everywhere yet: when absent/empty the Agentiko
      * `previewBlueprint` verb degrades to a graceful "preview unavailable" chip and
-     * issues ZERO network calls (see components/Autopilot/previewHandlers.ts). */
+     * issues ZERO network calls (see components/Agentiko/previewHandlers.ts). */
     RENDER_API_BASE_URL?: string
     /** Namespace of the QUARANTINED preview sandbox (portal-builder Addendum A.2 —
-     * previewPage v2). When set, the Autopilot `previewPage` verb APPLIES the draft
+     * previewPage v2). When set, the Agentiko `previewPage` verb APPLIES the draft
      * widget CRs into EXACTLY this namespace (through the gated set fabric, under the
      * user's identity, agent-audited) and the preview drawer renders the ROOT draft's
      * REAL served `widgetEndpoint` — the deployed snowplow compiles the drafts like any
@@ -88,7 +88,7 @@ export interface Config {
      */
     OTEL_TRACES_ENDPOINT?: string
     OTEL_COLLECTOR_URL?: string
-    /** Autopilot builder publish DESTINATIONS — the `owner/repo` slug each authoring builder
+    /** Agentiko builder publish DESTINATIONS — the `owner/repo` slug each authoring builder
      * publishes against. Config-driven so an org/repo rename is an install-values change, never a
      * frontend rebuild — the `braghettos`→`krateo-platformops` (+ `krateo-oas`→`oas`) migration is
      * exactly why these exist. There is NO hardcoded fallback repo (#163): absent/empty/malformed →
@@ -129,7 +129,7 @@ export interface Config {
      * Absent → github / github.com, so existing installs are unchanged. */
     AUTOPILOT_GIT_SCM?: string
     AUTOPILOT_GIT_HOST?: string
-    /** Operator kill-switch for Autopilot SPEAK-BACK — reading an answer aloud when the
+    /** Operator kill-switch for Agentiko SPEAK-BACK — reading an answer aloud when the
      * question was asked by voice (voice spec FR 46/76). `"off"` removes the feature and its
      * rail-header control entirely; any other value (absent/`"on"`) leaves it to the per-user
      * preference, which defaults on. Independent of the capture half: speak-back needs no

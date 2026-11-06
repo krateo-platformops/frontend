@@ -7,7 +7,7 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AUTOPILOT_PREVIEW_FILES_BATCH_EVENT, type FilesBatchDetail } from '../../components/Autopilot/previewFilesBatch'
+import { AGENTIKO_PREVIEW_FILES_BATCH_EVENT, type FilesBatchDetail } from '../../components/Agentiko/previewFilesBatch'
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 import { invalidateAccessTokenCache } from '../../utils/getAccessToken'
 
@@ -113,7 +113,7 @@ describe('BlueprintBuilder — the palette (screen 4)', () => {
 
   it('7. the RESTAction 404s: ONE sentence for the pane — and a native kind still places', async () => {
     routeFetch({})
-    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     mountWithConfig()
     hold(seededChart())
     await waitFor(() => expect(within(palette()).getByText(PALETTE_RA_MISSING)).toBeTruthy())
@@ -136,7 +136,7 @@ describe('BlueprintBuilder — the palette (screen 4)', () => {
   it('9. nesting the chart into itself: said beside the row, refused when tried, and no batch is emitted', async () => {
     const fetched = await open(PALETTE_STATUS, 'builder-publish')
     expect(within(section('Krateo compositions')).getByText('Nesting the chart you are composing (builder-publish into builder-publish) is refused as a cycle when you try it — the same kernel that refuses a cyclic edge.')).toBeTruthy()
-    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     act(() => { within(section('Krateo compositions')).getByRole('button', { name: /^builder-publish/ }).click() })
     batches.stop()
     // Said under the row that was refused — at the top of the pane it would be off-screen.

@@ -23,7 +23,7 @@
  */
 import { dump } from 'js-yaml'
 
-import { pageDraftSlug } from '../../components/Autopilot/pageDraft'
+import { pageDraftSlug } from '../../components/Agentiko/pageDraft'
 
 import type { GeneratedFile } from './generateBinding'
 import { WIDGET_KINDS } from './widgetKinds.generated'

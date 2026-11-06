@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { summarizeChart, summarizeDraft } from '../components/Autopilot/draftStructure'
+import { summarizeChart, summarizeDraft } from '../components/Agentiko/draftStructure'
 import { architectureGraphCanvas, kindsPalette, nodeInspector } from '../pages/BlueprintBuilder/blueprintSlots'
 import { openapiPalette, restdefGraphCanvas, restdefMappingInspector } from '../pages/ControllerBuilder/controllerSlots'
 import { objectTreeInspector, pageGridCanvas, widgetsPalette } from '../pages/PageBuilder/pageSlots'

@@ -4,7 +4,7 @@ import { CONFIRM_OUTRANKS_ALL, LAYER } from './layers'
 
 /*
  * The trapped-gate bug is the reason this file exists: a publish confirm once opened BEHIND the
- * Autopilot preview and became untouchable, because both surfaces defaulted to antd's
+ * Agentiko preview and became untouchable, because both surfaces defaulted to antd's
  * `zIndexPopupBase` and the tie went to DOM order.
  *
  * These assertions are cheap and the failure they prevent is not: a page you cannot use.

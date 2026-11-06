@@ -19,8 +19,8 @@
  * slot shares (host/hostTypes.ts `SlotProps`: the workbench of the Builder's draft kind), names the
  * draft kind it draws, and a canvas also names the frame it sits in (host/frames.ts).
  */
-import type { BlueprintDraftHeld } from '../components/Autopilot/blueprintDraftStore'
-import { type HeldDraftState, summarizeChart, summarizeController, summarizeDraft } from '../components/Autopilot/draftStructure'
+import type { BlueprintDraftHeld } from '../components/Agentiko/blueprintDraftStore'
+import { type HeldDraftState, summarizeChart, summarizeController, summarizeDraft } from '../components/Agentiko/draftStructure'
 import { architectureGraphCanvas, kindsPalette, nodeInspector } from '../pages/BlueprintBuilder/blueprintSlots'
 import { openapiPalette, restdefGraphCanvas, restdefMappingInspector } from '../pages/ControllerBuilder/controllerSlots'
 import { objectTreeInspector, pageGridCanvas, widgetsPalette } from '../pages/PageBuilder/pageSlots'
@@ -33,7 +33,7 @@ export type PluginSlot = 'palette' | 'canvas' | 'inspector' | 'parser' | 'summar
 /** An import parser: source text in, a held tree out — or a sentence saying why not. */
 export type ParserPlugin = (source: string) => { files: Record<string, string> } | { refusal: string }
 
-/** What Autopilot is told about the held draft, or undefined when there is nothing to say. `state` is
+/** What Agentiko is told about the held draft, or undefined when there is nothing to say. `state` is
  *  what the provider knows that the files do not say — whether the held draft's preview stands. */
 export type SummarizerPlugin = (held: BlueprintDraftHeld | null, state?: HeldDraftState) => object | undefined
 

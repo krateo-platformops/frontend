@@ -2,7 +2,7 @@
  * Seed an empty page draft — the half that makes this a BUILDER rather than a viewer.
  *
  * WHY THIS IS THE KEYSTONE. Everything else on this page edits a draft that already exists, and
- * until now the only thing that could create one was Autopilot proposing it. So the surface that
+ * until now the only thing that could create one was Agentiko proposing it. So the surface that
  * was built to let a person author a page could only ever receive the agent's. The design's first
  * of "the four things a person does" is *Start a draft*, and its absence quietly inverted the whole
  * premise — the parity rule says the agent is a faster path to a draft, never the only one.
@@ -13,7 +13,7 @@
  * else: what goes ON the page is the author's next decision, and guessing it produces a draft whose
  * defaults look chosen.
  *
- * WHY CONCRETE NAMESPACES. Every page Autopilot publishes today carries one — `pageDraftFiles`
+ * WHY CONCRETE NAMESPACES. Every page Agentiko publishes today carries one — `pageDraftFiles`
  * dumps the CR verbatim — so this matches the existing publisher rather than inventing a second
  * convention. There is a real argument that a published page should instead carry the literal
  * `{{ .Release.Namespace }}`, the way `form.compose-page` does, since these files are chart

@@ -7,12 +7,12 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createBlueprintDraftStore } from '../../components/Autopilot/blueprintDraftStore'
-import type { SandboxWriter } from '../../components/Autopilot/blueprintRenderSandbox'
-import { DRAFT_RECORD_KEY, readDraftRecord, treeHash, type DraftRecordBody } from '../../components/Autopilot/draftRecord'
-import { lintHeldDraft } from '../../components/Autopilot/proposedChart'
-import { lockedFor, publishedLocks } from '../../components/Autopilot/publishedLocks'
-import { createDraftAutosave } from '../../components/Autopilot/useDraftAutosave'
+import { createBlueprintDraftStore } from '../../components/Agentiko/blueprintDraftStore'
+import type { SandboxWriter } from '../../components/Agentiko/blueprintRenderSandbox'
+import { DRAFT_RECORD_KEY, readDraftRecord, treeHash, type DraftRecordBody } from '../../components/Agentiko/draftRecord'
+import { lintHeldDraft } from '../../components/Agentiko/proposedChart'
+import { lockedFor, publishedLocks } from '../../components/Agentiko/publishedLocks'
+import { createDraftAutosave } from '../../components/Agentiko/useDraftAutosave'
 
 import { controllerCompositionDefinition, oasConfigMapPath, planPlaceGroup, restDefinitionPath, type ControllerPlan } from './controllerChart'
 import { readSpecUrl, SPEC_TEXT_MAX_BYTES, startController } from './controllerStart'

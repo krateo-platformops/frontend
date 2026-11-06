@@ -8,7 +8,7 @@ const CREDENTIAL_PARAM = /key|token|secret|passw(?:or)?d|signature/i
 /**
  * Why a URL may not be used because it CARRIES A CREDENTIAL, or null. A base URL is written into
  * Chart.yaml and every `servers` entry of a chart that is committed to a repository and shown to
- * Autopilot; a spec URL is fetched and named in a chip. A credential in either — `user:pass@` or a
+ * Agentiko; a spec URL is fetched and named in a chip. A credential in either — `user:pass@` or a
  * key/token/secret/password/signature query parameter — would be published with it. The sentence
  * names the parameter, never its value. Credentials belong in the Kind's Configuration Secret.
  */

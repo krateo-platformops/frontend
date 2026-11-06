@@ -161,7 +161,7 @@ const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
             return <a href={href} rel='noopener noreferrer' target='_blank'>{children}</a>
           },
           // Fenced code blocks WRAP instead of scrolling horizontally: in the narrow content
-          // column (and the docked Autopilot rail) a JSON payload or a shell command on one long
+          // column (and the docked Agentiko rail) a JSON payload or a shell command on one long
           // line would hide behind a horizontal scrollbar. `pre-wrap` keeps the authored newlines
           // + indentation but soft-wraps long lines; `overflowWrap: anywhere` breaks a single
           // unbreakable token (a long ref/URL) so nothing ever needs a scrollbar to be read.

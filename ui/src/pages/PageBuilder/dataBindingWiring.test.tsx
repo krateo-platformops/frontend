@@ -17,7 +17,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { App } from 'antd'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { pageDraftFiles } from '../../components/Autopilot/pageDraft'
+import { pageDraftFiles } from '../../components/Agentiko/pageDraft'
 
 import { ObjectTreePanel } from './ObjectTreePanel'
 

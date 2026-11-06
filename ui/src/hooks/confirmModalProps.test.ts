@@ -95,7 +95,7 @@ describe('buildConfirmModalProps — the set count agrees with its noun', () => 
 /**
  * The blast-radius confirm modal props (the HITL gate). The load-bearing assertion here is
  * the raised zIndex (1100 > the preview Drawer's 1000): it is what keeps the confirm ABOVE
- * the Autopilot preview drawer — the "confirm opens BEHIND the preview" fix (item Q).
+ * the Agentiko preview drawer — the "confirm opens BEHIND the preview" fix (item Q).
  * A z-index cannot be visually unit-tested, so we assert the prop is passed on EVERY path
  * (scalar write, W0-4 set, and the plain read-only "Are you sure?" opt-in).
  */

@@ -8,10 +8,10 @@ import styles from './DrawerHeader.module.css'
  * #86 §0.10: the shared drawer-header title content. Rendered INTO antd `Drawer`'s `title` slot so
  * every drawer gets ONE typographic treatment (previously each of the three antd drawers hand-rolled
  * its own). Two emphasis tiers keep a deliberate hierarchy: `default` (16px — the generic widget
- * Drawer + the Autopilot preview) and `prominent` (18px — Notifications).
+ * Drawer + the Agentiko preview) and `prominent` (18px — Notifications).
  *
  * Renders NO close button: antd injects the Drawer's own X (its placement is standardised once via
- * `drawerCloseProps` below). The Autopilot rail is a docked `<aside>`, NOT a Drawer, so it keeps its
+ * `drawerCloseProps` below). The Agentiko rail is a docked `<aside>`, NOT a Drawer, so it keeps its
  * own collapse control and does not use this component.
  */
 export interface DrawerHeaderProps {

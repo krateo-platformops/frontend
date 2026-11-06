@@ -24,7 +24,7 @@ import type { Widget } from '../../types/Widget'
 import FormModule from '../../widgets/Form'
 import { registerWidget } from '../../widgets/registry'
 import type { WidgetModule } from '../../widgets/widget-module'
-import { AgentDraftProvider } from '../Autopilot/agentDraft'
+import { AgentDraftProvider } from '../Agentiko/agentDraft'
 
 import WidgetRenderer from './WidgetRenderer'
 
@@ -307,7 +307,7 @@ describe('Form widget survives a live-refresh refetch (issue #33)', () => {
     await assertWrapperStable(true)
   })
 
-  it('an Autopilot draft applies once per draft — a refetch does NOT re-clobber a user edit, a NEW draft does apply', async () => {
+  it('an Agentiko draft applies once per draft — a refetch does NOT re-clobber a user edit, a NEW draft does apply', async () => {
     await setQueryState({ data: makeFormWidget(), dataUpdatedAt: Date.now() })
     const { rerender } = renderWidget(
       <AgentDraftProvider value={{ draft: { clusterName: 'drafted' }, nonce: 1 }}>
@@ -326,7 +326,7 @@ describe('Form widget survives a live-refresh refetch (issue #33)', () => {
     await simulateRefetch(makeFormWidget())
     expect(getInput().value).toBe('user-edit')
 
-    // A genuinely NEW draft (nonce bump) still applies — the Autopilot path keeps working.
+    // A genuinely NEW draft (nonce bump) still applies — the Agentiko path keeps working.
     rerender(
       <MemoryRouter>
         <App>

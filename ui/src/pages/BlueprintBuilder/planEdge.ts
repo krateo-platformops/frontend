@@ -296,7 +296,7 @@ const held = (files: Files): Extract<DescriptorRead, { ok: true }> | EdgeRefusal
 }
 
 /**
- * EVERY node's gate regenerated from the descriptor — for a tree that arrives WHOLE (Autopilot's
+ * EVERY node's gate regenerated from the descriptor — for a tree that arrives WHOLE (Agentiko's
  * previewBlueprint), where no edge was drawn in the composer to trigger `planEdge`. The agent
  * declares edges and never writes a gate; without this the edges it declared were drawn on the
  * canvas and the detail page but NOT enforced when the chart rendered. The same kernel the composer

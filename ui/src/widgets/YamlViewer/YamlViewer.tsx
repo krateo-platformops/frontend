@@ -71,7 +71,7 @@ const YamlViewer = ({ uid, widgetData }: WidgetProps<YamlViewerWidgetData>) => {
         </div>
 
         {/* Non-antd: react-syntax-highlighter — antd has no code/syntax component (see docs/widget-authoring.md). */}
-        {/* lineProps: a block line keeps its spaces when it wraps — see BLOCK_LINE in Autopilot/previewSurface.tsx. */}
+        {/* lineProps: a block line keeps its spaces when it wraps — see BLOCK_LINE in Agentiko/previewSurface.tsx. */}
         <SyntaxHighlighter
           language='yaml'
           lineProps={{ style: { display: 'block' } }}

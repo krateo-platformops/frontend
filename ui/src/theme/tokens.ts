@@ -12,7 +12,7 @@ import { theme as antdAlgorithms, type ThemeConfig } from 'antd'
  * Interaction blue: Krateo Blue #11B2E2 (dark primary #2FBFE6) / Sovereign Blue #05629A
  * (light primary + nav surface). Status is a Tier-2-locked semantic set: green #00D690,
  * amber #FFAA00, red #F84C4C, info blue. Signal Yellow #E8FF00 is RESERVED for the
- * "Autopilot/AI agent is EXECUTING" state ONLY (never a CTA/decoration/link). The sidebar rail
+ * "Agentiko/AI agent is EXECUTING" state ONLY (never a CTA/decoration/link). The sidebar rail
  * gradient is DERIVED per-mode from colorPrimary (issue #52, navGradient()); the focus ring is #2FBFE6
  * (dark) / #05629A (light). Values retargeted onto the fork's runtime emitter (this file →
  * `cssVariables` + antd bridge). `cssVariables` now ALSO emits the canonical `--krateo-*` token
@@ -149,7 +149,7 @@ export const spacing = { xxs: 2, xs: 4, xsm: 6, sm: 8, smd: 12, md: 16, lg: 24, 
 export const radius = { sm: 2, md: 4, lg: 8, xl: 12 } as const
 
 // #86 §0.10: the single source for the app-chrome header height. The main header (Layout.module.css)
-// and the docked Autopilot rail header (AutopilotRail.module.css) both consumed a hardcoded `64px`
+// and the docked Agentiko rail header (AgentikoRail.module.css) both consumed a hardcoded `64px`
 // that only COINCIDENTALLY matched; emitting `--header-h` from here links them so a future change
 // moves both together.
 export const layout = { headerHeight: 64, headerIconSize: 36 } as const
@@ -586,7 +586,7 @@ export const cssVariables = (mode: ThemeMode = 'light') => {
   root.style.setProperty('--font-family', typography.family)
   root.style.setProperty('--font-display', typography.display)
   root.style.setProperty('--font-mono', typography.mono)
-  // #86 §0.10: shared app-chrome header height (main header + Autopilot rail header).
+  // #86 §0.10: shared app-chrome header height (main header + Agentiko rail header).
   root.style.setProperty('--header-h', `${layout.headerHeight}px`)
   root.style.setProperty('--header-icon-size', `${layout.headerIconSize}px`)
 

@@ -8,8 +8,8 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { draftHistory } from '../../components/Autopilot/draftHistory'
-import { AUTOPILOT_PREVIEW_FILES_BATCH_EVENT, type FilesBatchDetail } from '../../components/Autopilot/previewFilesBatch'
+import { draftHistory } from '../../components/Agentiko/draftHistory'
+import { AGENTIKO_PREVIEW_FILES_BATCH_EVENT, type FilesBatchDetail } from '../../components/Agentiko/previewFilesBatch'
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 import { invalidateAccessTokenCache } from '../../utils/getAccessToken'
 
@@ -129,7 +129,7 @@ describe('BlueprintBuilder — drawing an edge (screen 6)', () => {
   it('3 + 4. nothing is written before Accept; the palette is disabled and the canvas says what is drawn', async () => {
     const provider = await start()
     const before = provider.store.get()?.files
-    const batches = listen<FilesBatchDetail>(AUTOPILOT_PREVIEW_FILES_BATCH_EVENT)
+    const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     await addDependency('localresource', 'repository')
     act(() => { fireEvent.click(radio(/\.status\.html_url/)) })
     batches.stop()

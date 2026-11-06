@@ -14,7 +14,7 @@
  * "In the draft" is matched the way the portal's preview re-points refs (previewSandbox.ts
  * rewriteDraftsForSandbox): a ref by `<resource>/<name>`, an apiRef by RESTAction name.
  */
-import { WIDGETS_GROUP } from '@frontend/components/Autopilot/pageLint'
+import { WIDGETS_GROUP } from '@frontend/components/Agentiko/pageLint'
 
 import { step, type StepResult } from '../envelope'
 import type { GateContext } from '../plan'

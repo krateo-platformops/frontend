@@ -7,7 +7,7 @@
  *
  * It gained a second consumer and broke. Centring against the panel means the taller the body, the
  * further the action travels into it. On the portal-builder card (a four-step Steps, ~200px of
- * body) the "Ask Autopilot" button landed on top of step four and overprinted it, legibly:
+ * body) the "Ask Agentiko" button landed on top of step four and overprinted it, legibly:
  * "Publishing commits every file — the page ro̶o̶t̶, e̶a̶c̶h̶". Caught in a recording of the live
  * page, and invisible to every test and lint in either repo.
  *

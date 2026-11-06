@@ -1,9 +1,9 @@
 /**
  * One glyph per widget kind, for the palette and anywhere else that lists kinds.
  *
- * ANTD ICONS, NOT THE AUTOPILOT STROKE SET, and that is a deliberate reading of two existing
- * vocabularies rather than a third. `components/Autopilot/icons.tsx` says why it exists — "not antd
- * icons — these carry the exact petrol line weight/shape" — and it is Autopilot RAIL chrome. The
+ * ANTD ICONS, NOT THE AGENTIKO STROKE SET, and that is a deliberate reading of two existing
+ * vocabularies rather than a third. `components/Agentiko/icons.tsx` says why it exists — "not antd
+ * icons — these carry the exact petrol line weight/shape" — and it is Agentiko RAIL chrome. The
  * composer's own vocabulary is already antd: ObjectTreePanel draws every one of its actions with
  * them. The palette lives in the composer, so it speaks the composer's language.
  *

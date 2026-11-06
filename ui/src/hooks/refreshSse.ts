@@ -19,8 +19,8 @@
  * Bearer token (`getAccessToken()`, see useWidgetQuery's `/call` fetch), NOT a
  * session cookie — so we take the doc's explicitly-sanctioned alternative
  * ("Non-browser clients … may instead send `Authorization: Bearer <jwt>`") and
- * stream via `fetch` + `ReadableStream`, mirroring the Autopilot transport
- * (components/Autopilot/transport.ts). Trade-off vs EventSource: fetch-SSE has no
+ * stream via `fetch` + `ReadableStream`, mirroring the Agentiko transport
+ * (components/Agentiko/transport.ts). Trade-off vs EventSource: fetch-SSE has no
  * built-in auto-reconnect, so we reconnect with capped backoff ourselves.
  *
  * ── Forgery-proof arming ─────────────────────────────────────────────────────

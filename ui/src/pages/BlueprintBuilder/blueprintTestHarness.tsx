@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * Shared scaffolding for the Blueprint Composer suites — the mirror of the Page Composer's
- * builderTestHarness, and bare in the same sense: NO AutopilotProvider. The provider's part is
+ * builderTestHarness, and bare in the same sense: NO AgentikoProvider. The provider's part is
  * played here on the buses it would answer on (the draft broadcast, the render result, the publish
  * result), which is exactly the seam the page is written against.
  *
@@ -30,12 +30,12 @@ import { useState } from 'react'
 import { MemoryRouter } from 'react-router'
 import { vi } from 'vitest'
 
-import type { BlueprintDraftStore } from '../../components/Autopilot/blueprintDraftStore'
-import { createBlueprintGate, type BlueprintGate } from '../../components/Autopilot/blueprintGate'
-import { emitDraftChanged, type DraftChangedDetail } from '../../components/Autopilot/previewDraftChanged'
-import { emitDraftRenderResult, type DraftRenderResultDetail } from '../../components/Autopilot/previewDraftRender'
-import { heldDraftIdentity } from '../../components/Autopilot/publishCompile'
-import { createBroadcastingDraftStore, useDraftFileBuses } from '../../components/Autopilot/useDraftFileBuses'
+import type { BlueprintDraftStore } from '../../components/Agentiko/blueprintDraftStore'
+import { createBlueprintGate, type BlueprintGate } from '../../components/Agentiko/blueprintGate'
+import { emitDraftChanged, type DraftChangedDetail } from '../../components/Agentiko/previewDraftChanged'
+import { emitDraftRenderResult, type DraftRenderResultDetail } from '../../components/Agentiko/previewDraftRender'
+import { heldDraftIdentity } from '../../components/Agentiko/publishCompile'
+import { createBroadcastingDraftStore, useDraftFileBuses } from '../../components/Agentiko/useDraftFileBuses'
 import { ConfigContext } from '../../context/ConfigContext'
 import { ThemeModeProvider } from '../../context/ThemeModeContext'
 

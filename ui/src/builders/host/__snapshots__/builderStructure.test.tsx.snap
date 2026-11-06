@@ -324,10 +324,10 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a cha
               "cannot show, because it has nothing to look up."
         <section aria-label="Chart files and Source" class="_pane_61220e _filesPane_61220e">
           <div class="_section_61220e">
-            <div class="_body_7a73aa">
+            <div class="_body_d6a6bc">
               <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
                 "Chart files is the tree the change request commits — edit a file in place. Source fills when you press Preview: the chart rendered by helm as a dry run, nothing applied to the cluster."
-              <div class="_target_7a73aa">
+              <div class="_target_d6a6bc">
                 <span class="ant-tag ant-tag-filled ant-tag-geekblue css-dev-only-do-not-override-12q6fii css-var-id1">
                   "Publishes to"
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -360,18 +360,18 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a cha
                 <div class="ant-tabs-body-holder">
                   <div class="ant-tabs-body ant-tabs-body-top">
                     <div aria-hidden="false" aria-labelledby="id8" class="ant-tabs-content ant-tabs-content-active" id="id9" role="tabpanel" tabindex="0">
-                      <div class="_body_7a73aa">
+                      <div class="_body_d6a6bc">
                         <div id="id15">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "Chart.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -429,16 +429,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a cha
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "6"
                         <div id="id16">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/architecture.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -2254,16 +2254,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a cha
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "97"
                         <div id="id17">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/localresources.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -2279,16 +2279,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a cha
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "2"
                         <div id="id18">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/pullrequest.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -2304,16 +2304,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a cha
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "2"
                         <div id="id19">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/repo.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -2329,16 +2329,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a cha
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "2"
                         <div id="id20">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/repository.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -2354,16 +2354,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a cha
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "2"
                         <div id="id21">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/username-secret.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -2379,16 +2379,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a cha
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "2"
                         <div id="id22">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.schema.json"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -2436,16 +2436,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a cha
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "6"
                         <div id="id23">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -2677,10 +2677,10 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a fre
                   "Open templates/architecture.yaml"
         <section aria-label="Chart files and Source" class="_pane_61220e _filesPane_61220e">
           <div class="_section_61220e">
-            <div class="_body_7a73aa">
+            <div class="_body_d6a6bc">
               <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
                 "Chart files is the tree the change request commits — edit a file in place. Source fills when you press Preview: the chart rendered by helm as a dry run, nothing applied to the cluster."
-              <div class="_target_7a73aa">
+              <div class="_target_d6a6bc">
                 <span class="ant-tag ant-tag-filled ant-tag-geekblue css-dev-only-do-not-override-12q6fii css-var-id1">
                   "Publishes to"
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -2713,18 +2713,18 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a fre
                 <div class="ant-tabs-body-holder">
                   <div class="ant-tabs-body ant-tabs-body-top">
                     <div aria-hidden="false" aria-labelledby="id8" class="ant-tabs-content ant-tabs-content-active" id="id9" role="tabpanel" tabindex="0">
-                      <div class="_body_7a73aa">
+                      <div class="_body_d6a6bc">
                         <div id="id15">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "Chart.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -2782,16 +2782,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a fre
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "6"
                         <div id="id16">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/architecture.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -3296,16 +3296,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a fre
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "23"
                         <div id="id17">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.schema.json"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -3353,16 +3353,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a fre
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "6"
                         <div id="id18">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -3581,10 +3581,10 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                   "Open templates/architecture.yaml"
         <section aria-label="Chart files and Source" class="_pane_61220e _filesPane_61220e">
           <div class="_section_61220e">
-            <div class="_body_7a73aa">
+            <div class="_body_d6a6bc">
               <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
                 "Chart files is the tree the change request commits — edit a file in place. Source fills when you press Preview: the chart rendered by helm as a dry run, nothing applied to the cluster."
-              <div class="_target_7a73aa">
+              <div class="_target_d6a6bc">
                 <span class="ant-tag ant-tag-filled ant-tag-geekblue css-dev-only-do-not-override-12q6fii css-var-id1">
                   "Publishes to"
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -3617,18 +3617,18 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                 <div class="ant-tabs-body-holder">
                   <div class="ant-tabs-body ant-tabs-body-top">
                     <div aria-hidden="false" aria-labelledby="id8" class="ant-tabs-content ant-tabs-content-active" id="id9" role="tabpanel" tabindex="0">
-                      <div class="_body_7a73aa">
+                      <div class="_body_d6a6bc">
                         <div id="id15">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "Chart.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -3686,16 +3686,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "6"
                         <div id="id16">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/architecture.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -4200,16 +4200,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "23"
                         <div id="id17">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.schema.json"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -4257,16 +4257,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "6"
                         <div id="id18">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -4502,10 +4502,10 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                   "Open templates/architecture.yaml"
         <section aria-label="Chart files and Source" class="_pane_61220e _filesPane_61220e">
           <div class="_section_61220e">
-            <div class="_body_7a73aa">
+            <div class="_body_d6a6bc">
               <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
                 "This blueprint is a Helm chart — Chart files is the tree the change request commits; Source is its helm-rendered objects (dry run, nothing applied to the cluster)"
-              <div class="_target_7a73aa">
+              <div class="_target_d6a6bc">
                 <span class="ant-tag ant-tag-filled ant-tag-geekblue css-dev-only-do-not-override-12q6fii css-var-id1">
                   "Publishes to"
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -4538,18 +4538,18 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                 <div class="ant-tabs-body-holder">
                   <div class="ant-tabs-body ant-tabs-body-top">
                     <div aria-hidden="false" aria-labelledby="id7" class="ant-tabs-content ant-tabs-content-active" id="id8" role="tabpanel" tabindex="0">
-                      <div class="_body_7a73aa">
+                      <div class="_body_d6a6bc">
                         <div id="id14">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "Chart.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -4607,16 +4607,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "6"
                         <div id="id15">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/architecture.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -5121,16 +5121,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "23"
                         <div id="id16">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.schema.json"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -5178,16 +5178,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "6"
                         <div id="id17">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -5411,10 +5411,10 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                   "Open templates/architecture.yaml"
         <section aria-label="Chart files and Source" class="_pane_61220e _filesPane_61220e">
           <div class="_section_61220e">
-            <div class="_body_7a73aa">
+            <div class="_body_d6a6bc">
               <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
                 "This blueprint is a Helm chart — Chart files is the tree the change request commits; Source is its helm-rendered objects (dry run, nothing applied to the cluster)"
-              <div class="_target_7a73aa">
+              <div class="_target_d6a6bc">
                 <span class="ant-tag ant-tag-filled ant-tag-geekblue css-dev-only-do-not-override-12q6fii css-var-id1">
                   "Publishes to"
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -5447,18 +5447,18 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                 <div class="ant-tabs-body-holder">
                   <div class="ant-tabs-body ant-tabs-body-top">
                     <div aria-hidden="false" aria-labelledby="id7" class="ant-tabs-content ant-tabs-content-active" id="id8" role="tabpanel" tabindex="0">
-                      <div class="_body_7a73aa">
+                      <div class="_body_d6a6bc">
                         <div id="id14">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "Chart.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -5516,16 +5516,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "6"
                         <div id="id15">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/architecture.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -6030,16 +6030,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "23"
                         <div id="id16">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.schema.json"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -6087,16 +6087,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "6"
                         <div id="id17">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -6316,10 +6316,10 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                   "Open templates/architecture.yaml"
         <section aria-label="Chart files and Source" class="_pane_61220e _filesPane_61220e">
           <div class="_section_61220e">
-            <div class="_body_7a73aa">
+            <div class="_body_d6a6bc">
               <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
                 "This blueprint is a Helm chart — Chart files is the tree the change request commits; Source is its helm-rendered objects (dry run, nothing applied to the cluster)"
-              <div class="_target_7a73aa">
+              <div class="_target_d6a6bc">
                 <span class="ant-tag ant-tag-filled ant-tag-geekblue css-dev-only-do-not-override-12q6fii css-var-id1">
                   "Publishes to"
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -6352,18 +6352,18 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                 <div class="ant-tabs-body-holder">
                   <div class="ant-tabs-body ant-tabs-body-top">
                     <div aria-hidden="false" aria-labelledby="id7" class="ant-tabs-content ant-tabs-content-active" id="id8" role="tabpanel" tabindex="0">
-                      <div class="_body_7a73aa">
+                      <div class="_body_d6a6bc">
                         <div id="id14">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "Chart.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -6421,16 +6421,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "6"
                         <div id="id15">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/architecture.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -6935,16 +6935,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "23"
                         <div id="id16">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.schema.json"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -6992,16 +6992,16 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "6"
                         <div id="id17">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -7243,10 +7243,10 @@ exports[`Blueprint Builder — a chart held BEFORE it mounts (review of #427) > 
                   "Open templates/architecture.yaml"
         <section aria-label="Chart files and Source" class="_pane_61220e _filesPane_61220e">
           <div class="_section_61220e">
-            <div class="_body_7a73aa">
+            <div class="_body_d6a6bc">
               <div class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1">
                 "Chart files is the tree the change request commits — edit a file in place. Source fills when you press Preview: the chart rendered by helm as a dry run, nothing applied to the cluster."
-              <div class="_target_7a73aa">
+              <div class="_target_d6a6bc">
                 <span class="ant-tag ant-tag-filled ant-tag-geekblue css-dev-only-do-not-override-12q6fii css-var-id1">
                   "Publishes to"
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -7279,18 +7279,18 @@ exports[`Blueprint Builder — a chart held BEFORE it mounts (review of #427) > 
                 <div class="ant-tabs-body-holder">
                   <div class="ant-tabs-body ant-tabs-body-top">
                     <div aria-hidden="false" aria-labelledby="id7" class="ant-tabs-content ant-tabs-content-active" id="id8" role="tabpanel" tabindex="0">
-                      <div class="_body_7a73aa">
+                      <div class="_body_d6a6bc">
                         <div id="id14">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "Chart.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -7348,16 +7348,16 @@ exports[`Blueprint Builder — a chart held BEFORE it mounts (review of #427) > 
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "6"
                         <div id="id15">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "templates/architecture.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -7862,16 +7862,16 @@ exports[`Blueprint Builder — a chart held BEFORE it mounts (review of #427) > 
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 2.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "23"
                         <div id="id16">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.schema.json"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -7919,16 +7919,16 @@ exports[`Blueprint Builder — a chart held BEFORE it mounts (review of #427) > 
                                     <span class="comment linenumber react-syntax-highlighter-line-number" style="display: inline-block; min-width: 1.25em; padding-right: 1em; text-align: right; user-select: none;">
                                       "6"
                         <div id="id17">
-                          <div class="_file_7a73aa">
-                            <div class="_fileHead_7a73aa">
-                              <div class="_filePath_7a73aa">
+                          <div class="_file_d6a6bc">
+                            <div class="_fileHead_d6a6bc">
+                              <div class="_filePath_d6a6bc">
                                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                   <code>
                                     "values.yaml"
                               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                                 <span>
                                   "Edit"
-                            <div class="_yaml_7a73aa">
+                            <div class="_yaml_d6a6bc">
                               <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                                 <code class="language-yaml" style="white-space: pre-wrap;">
                                   <span style="display: block;">
@@ -8375,7 +8375,7 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: a page hel
                   <div style="background: transparent; border-radius: 2px; height: 2px; opacity: 0;">
         <div aria-label="Resize the preview" aria-orientation="horizontal" aria-valuemax="80" aria-valuemin="20" aria-valuenow="60" class="_split_03b493" data-testid="builder-split" role="separator" tabindex="0">
         <div class="_result_03b493">
-          <div class="_body_7a73aa">
+          <div class="_body_d6a6bc">
             <div class="ant-tabs ant-tabs-top css-dev-only-do-not-override-12q6fii css-var-id1 ant-tabs-css-var">
               <div aria-orientation="horizontal" class="ant-tabs-nav" role="tablist">
                 <div class="ant-tabs-nav-wrap">
@@ -8395,18 +8395,18 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: a page hel
               <div class="ant-tabs-body-holder">
                 <div class="ant-tabs-body ant-tabs-body-top">
                   <div aria-hidden="false" aria-labelledby="id4" class="ant-tabs-content ant-tabs-content-active" id="id5" role="tabpanel" tabindex="0">
-                    <div class="_body_7a73aa">
+                    <div class="_body_d6a6bc">
                       <div id="id11">
-                        <div class="_file_7a73aa">
-                          <div class="_fileHead_7a73aa">
-                            <div class="_filePath_7a73aa">
+                        <div class="_file_d6a6bc">
+                          <div class="_fileHead_d6a6bc">
+                            <div class="_filePath_d6a6bc">
                               <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                 <code>
                                   "flex.page-x.yaml"
                             <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                               <span>
                                 "Edit"
-                          <div class="_yaml_7a73aa">
+                          <div class="_yaml_d6a6bc">
                             <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                               <code class="language-yaml" style="white-space: pre-wrap;">
                                 <span style="display: block;">
@@ -8554,16 +8554,16 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: a page hel
                                   <span style="color: rgb(66, 134, 244);">
                                     "krateo-system"
                       <div id="id12">
-                        <div class="_file_7a73aa">
-                          <div class="_fileHead_7a73aa">
-                            <div class="_filePath_7a73aa">
+                        <div class="_file_d6a6bc">
+                          <div class="_fileHead_d6a6bc">
+                            <div class="_filePath_d6a6bc">
                               <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                 <code>
                                   "panel.card-a.yaml"
                             <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                               <span>
                                 "Edit"
-                          <div class="_yaml_7a73aa">
+                          <div class="_yaml_d6a6bc">
                             <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                               <code class="language-yaml" style="white-space: pre-wrap;">
                                 <span style="display: block;">
@@ -9128,7 +9128,7 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                   <div style="background: transparent; border-radius: 2px; height: 2px; opacity: 0;">
         <div aria-label="Resize the preview" aria-orientation="horizontal" aria-valuemax="80" aria-valuemin="20" aria-valuenow="60" class="_split_03b493" data-testid="builder-split" role="separator" tabindex="0">
         <div class="_result_03b493">
-          <div class="_body_7a73aa">
+          <div class="_body_d6a6bc">
             <div class="ant-tabs ant-tabs-top css-dev-only-do-not-override-12q6fii css-var-id1 ant-tabs-css-var">
               <div aria-orientation="horizontal" class="ant-tabs-nav" role="tablist">
                 <div class="ant-tabs-nav-wrap">
@@ -9148,18 +9148,18 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
               <div class="ant-tabs-body-holder">
                 <div class="ant-tabs-body ant-tabs-body-top">
                   <div aria-hidden="false" aria-labelledby="id4" class="ant-tabs-content ant-tabs-content-active" id="id5" role="tabpanel" tabindex="0">
-                    <div class="_body_7a73aa">
+                    <div class="_body_d6a6bc">
                       <div id="id11">
-                        <div class="_file_7a73aa">
-                          <div class="_fileHead_7a73aa">
-                            <div class="_filePath_7a73aa">
+                        <div class="_file_d6a6bc">
+                          <div class="_fileHead_d6a6bc">
+                            <div class="_filePath_d6a6bc">
                               <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                 <code>
                                   "flex.page-x.yaml"
                             <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                               <span>
                                 "Edit"
-                          <div class="_yaml_7a73aa">
+                          <div class="_yaml_d6a6bc">
                             <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                               <code class="language-yaml" style="white-space: pre-wrap;">
                                 <span style="display: block;">
@@ -9663,7 +9663,7 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                   <div style="background: transparent; border-radius: 2px; height: 2px; opacity: 0;">
         <div aria-label="Resize the preview" aria-orientation="horizontal" aria-valuemax="80" aria-valuemin="20" aria-valuenow="60" class="_split_03b493" data-testid="builder-split" role="separator" tabindex="0">
         <div class="_result_03b493">
-          <div class="_body_7a73aa">
+          <div class="_body_d6a6bc">
             <div class="ant-tabs ant-tabs-top css-dev-only-do-not-override-12q6fii css-var-id1 ant-tabs-css-var">
               <div aria-orientation="horizontal" class="ant-tabs-nav" role="tablist">
                 <div class="ant-tabs-nav-wrap">
@@ -9683,18 +9683,18 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
               <div class="ant-tabs-body-holder">
                 <div class="ant-tabs-body ant-tabs-body-top">
                   <div aria-hidden="false" aria-labelledby="id4" class="ant-tabs-content ant-tabs-content-active" id="id5" role="tabpanel" tabindex="0">
-                    <div class="_body_7a73aa">
+                    <div class="_body_d6a6bc">
                       <div id="id11">
-                        <div class="_file_7a73aa">
-                          <div class="_fileHead_7a73aa">
-                            <div class="_filePath_7a73aa">
+                        <div class="_file_d6a6bc">
+                          <div class="_fileHead_d6a6bc">
+                            <div class="_filePath_d6a6bc">
                               <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
                                 <code>
                                   "flex.page-x.yaml"
                             <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
                               <span>
                                 "Edit"
-                          <div class="_yaml_7a73aa">
+                          <div class="_yaml_d6a6bc">
                             <pre style="display: block; overflow-x: auto; padding: 0.5em; background: rgb(255, 255, 255); color: rgb(68, 68, 68);">
                               <code class="language-yaml" style="white-space: pre-wrap;">
                                 <span style="display: block;">

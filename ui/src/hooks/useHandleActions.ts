@@ -32,10 +32,10 @@ import { subscribeSse } from './sseClient'
 /**
  * How long a blast-radius confirm may sit unanswered before it DENIES.
  *
- * Deliberately the same five minutes as the Autopilot approval governor
- * (`components/Autopilot/approval.ts`), and deliberately duplicated rather than imported: this
+ * Deliberately the same five minutes as the Agentiko approval governor
+ * (`components/Agentiko/approval.ts`), and deliberately duplicated rather than imported: this
  * hook gates every portal write, human or agent, and must not take a dependency on the
- * Autopilot component tree to do it. If one moves, move the other.
+ * Agentiko component tree to do it. If one moves, move the other.
  */
 const CONFIRM_TIMEOUT_MS = 5 * 60 * 1000
 
@@ -103,7 +103,7 @@ export interface ActionRuntime {
   secretPaths?: readonly SecretPath[]
   widget?: Widget
   /** W0-3 origin tag: who initiated the write. Absent = a hand-clicked control ({actor:'human'});
-   * the Autopilot bridge sets actor:'agent' + the session/prompt context it holds. */
+   * the Agentiko bridge sets actor:'agent' + the session/prompt context it holds. */
   origin?: WriteOrigin
   /**
    * X5 — the SLO interaction this dispatch IS, and the templated route it happened on. Set only by
@@ -261,7 +261,7 @@ const runRest = async (
   // must confirm the structured BlastRadius (verb+gvr+cluster/ns+object-count+diff) — regardless
   // of the CR's `requireConfirmation` opt-in (which is thus superseded for writes; it still gates
   // a read-only ref that opts in). This single chokepoint covers Form submit, row actions, AND
-  // the Autopilot runAction (which already routes through this dispatcher).
+  // the Agentiko runAction (which already routes through this dispatcher).
   // The gated radius is kept for W0-3 provenance: the SAME shape the human confirmed is
   // logged verbatim on the audit record (reused, never rebuilt). undefined = read-only ref.
   let radius: BlastRadius | undefined
@@ -567,7 +567,7 @@ const runRest = async (
 
     if (onSuccessUrl) {
       // SPA navigation — NOT window.location.replace. A hard reload remounted the whole app,
-      // which (a) closed the Autopilot rail + wiped its conversation and (b) 404'd because the
+      // which (a) closed the Agentiko rail + wiped its conversation and (b) 404'd because the
       // server was asked for a client-only route. Routes are static conventions now, so no full
       // reload is needed; invalidate first so the destination reflects the just-written object.
       await ctx.invalidateQueries()
@@ -702,7 +702,7 @@ export const useHandleAction = () => {
     // BlastRadiusConfirm — the scalar verb+gvr+cluster/ns+object-count+diff shape, or the
     // aggregated ordered-op list for a W0-4 set — as the modal body and title the intent;
     // otherwise keep the plain "Are you sure?" prompt (read-only opt-in). The props (incl.
-    // the raised zIndex that keeps this gate ABOVE the Autopilot preview Drawer) are built by
+    // the raised zIndex that keeps this gate ABOVE the Agentiko preview Drawer) are built by
     // the pure buildConfirmModalProps so the fix is unit-testable. The Confirm button goes
     // danger for anything irreversible (a DELETE, or a set containing one).
     confirm: (radius?: BlastRadius | BlastRadiusSet) => new Promise<boolean>((resolve) => {
@@ -758,7 +758,7 @@ export const useHandleAction = () => {
     customPayload?: Record<string, unknown>,
     widget?: Widget,
     // W0-3 origin tag — omitted by every widget call site (default {actor:'human'});
-    // only the Autopilot bridge passes an agent origin.
+    // only the Agentiko bridge passes an agent origin.
     origin?: WriteOrigin,
     // X2 — the caller's `deniedRefIds` prop. Optional so a call site that has none behaves exactly
     // as before: an absent ref is still reported as a broken definition, which is correct when

@@ -22,11 +22,11 @@ import { Alert } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import type { HostDraft, Workbench } from '../../builders/host/hostTypes'
-import { draftDisplayName } from '../../components/Autopilot/blueprintDraft'
-import type { AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
-import { emitDraftClose, onDraftClose } from '../../components/Autopilot/previewDraftClose'
-import { emitFilesBatch } from '../../components/Autopilot/previewFilesBatch'
-import { lockedFor, usePublishedLocks } from '../../components/Autopilot/publishedLocks'
+import { draftDisplayName } from '../../components/Agentiko/blueprintDraft'
+import type { AgentikoPreviewPayload } from '../../components/Agentiko/previewBus'
+import { emitDraftClose, onDraftClose } from '../../components/Agentiko/previewDraftClose'
+import { emitFilesBatch } from '../../components/Agentiko/previewFilesBatch'
+import { lockedFor, usePublishedLocks } from '../../components/Agentiko/publishedLocks'
 import { useChartRequests } from '../BlueprintBuilder/useChartRequests'
 
 import {
@@ -140,7 +140,7 @@ export const useControllerWorkbench = (host: HostDraft) => {
   const name = model.name ?? draftDisplayName(files)
   // The held files with the last render (its CRDs, forms, problems) — said to be old once they differ.
   const { lastRender } = requests
-  const shown = useMemo((): AutopilotPreviewPayload | null => (mode === 'own' && Object.keys(files).length
+  const shown = useMemo((): AgentikoPreviewPayload | null => (mode === 'own' && Object.keys(files).length
     ? controllerPreviewPayload(files, model, name, lastRender)
     : null), [files, lastRender, mode, model, name])
 

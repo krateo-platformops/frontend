@@ -30,7 +30,7 @@
 import { Alert, Form, Input, Modal, type InputRef } from 'antd'
 import { useEffect, useId, useRef, useState } from 'react'
 
-import type { DraftRenderResultDetail } from '../../components/Autopilot/previewDraftRender'
+import type { DraftRenderResultDetail } from '../../components/Agentiko/previewDraftRender'
 import { dismissButtonProps } from '../../components/DismissButton'
 
 import styles from './BlueprintBuilder.module.css'

@@ -1,0 +1,137 @@
+/**
+ * W4 BLUEPRINT-BUILDER (FE-BP2) — the blueprint PREVIEW GATE.
+ *
+ * THE RULE (now the only preview gate — the KOG one went with RestDefinition writes, frontend#429): an
+ * `applyResourceSet` that writes a blueprint PUBLISH resource — the BuilderPublish
+ * claim (`builderpublishes`) or the REGISTER `compositiondefinitions` (core.krateo.io)
+ * — is DENIED unless a `previewBlueprint`
+ * of the SAME chart happened earlier in the SAME thread. This enforces
+ * preview-before-publish deterministically on the host: the prompt teaches the
+ * workflow, but prompts decay across a thread — the gate does not.
+ *
+ * WHY MATCH ON THE HELD DRAFT'S CHART NAME (not an in-payload identity): a blueprint publish (a claim, or a register CompositionDefinition)
+ * does NOT carry the Chart.yaml name in a single
+ * reliable field. The held draft (blueprintDraftStore, FE-BP1) IS the source of the
+ * published bytes, so its Chart.yaml name (blueprintDraft.draftDisplayName) is the
+ * authoritative identity of what is being published. Matching the previewed name
+ * against the currently-held draft therefore also guarantees published == previewed.
+ *
+ * Owned by AgentikoProvider (thread-scoped), evaluated BEFORE dispatch; reset on newThread. A denial produces the standard denied chip
+ * (nothing dispatched). Defense-in-depth ON TOP of the blast-radius confirm.
+ *
+ * NOTE ON SCOPE: `compositiondefinitions` is also how a normal marketplace Install
+ * writes — but that path is the FORM dispatcher (runRestSet via a Form action), which
+ * never flows through AgentikoProvider.finalize, so this gate never sees it. In the
+ * Agentiko applyResourceSet path a `compositiondefinitions` write IS a blueprint
+ * register, so guarding it here is correct.
+ *
+ * Pure module: a tiny factory + pure detection. No React, no module state.
+ */
+
+import type { ApplyResourceSetOp } from './applyResourceSet'
+
+/**
+ * The op resources a blueprint publish writes — any set touching one is a publish:
+ *   - builderpublishes (composition.krateo.io) — the ONE claim every builder publishes through
+ *   - compositiondefinitions (core.krateo.io) — the REGISTER write
+ * The github.krateo.io git-write kinds (gitrefs / repocontents / pullrequests) are not listed:
+ * no set may write them at all (applyResourceSet's NEVER-WRITE-GIT rule), so there is nothing to gate.
+ */
+export const BLUEPRINT_PUBLISH_RESOURCES: readonly string[] = [
+  'builderpublishes',
+  'compositiondefinitions',
+]
+
+/** True iff any op in the set writes a blueprint-publish resource (so the gate applies). */
+export const opsArePublishSet = (ops: readonly ApplyResourceSetOp[] | undefined): boolean =>
+  (ops ?? []).some((op) => BLUEPRINT_PUBLISH_RESOURCES.includes(op?.gvr?.resource ?? ''))
+
+/** The gate's evaluation of one op set: allowed, or denied with the chip message. */
+export type BlueprintGateVerdict =
+  | { allowed: true }
+  | { allowed: false; reason: string }
+
+export interface BlueprintGate {
+  /** Record a successfully previewed draft's chart name (called after previewBlueprint applies). */
+  recordPreview: (chartName: string | null | undefined) => void
+  /**
+   * Evaluate an applyResourceSet's ops BEFORE dispatch. Sets that touch no
+   * blueprint-publish resource always pass. A publish set passes ONLY when the
+   * currently-held draft's chart name was previewed this thread.
+   */
+  evaluate: (
+    ops: readonly ApplyResourceSetOp[] | undefined,
+    heldChartName: string | null | undefined,
+  ) => BlueprintGateVerdict
+  /**
+   * Forget ONE previewed chart name — the held draft changed in a way that makes the last preview a
+   * lie. A schema edit does not change the chart name, so "not re-arming" would leave the name
+   * armed from its last clean preview; only forgetting it puts the gate back to deny.
+   */
+  forget: (chartName: string | null | undefined) => void
+  /** Thread reset (newThread): every recorded preview is forgotten — deny again. */
+  reset: () => void
+  /** Whether `chartName` is armed right now — what a surface reads to say "Preview needed". */
+  isArmed: (chartName: string | null | undefined) => boolean
+  /**
+   * Notified after every change to what is armed. The gate changes without the held draft changing
+   * (a preview arms a draft the store already holds; newThread forgets everything), so the draft
+   * broadcast cannot be its only signal. Returns the unsubscribe fn.
+   */
+  subscribe: (listener: () => void) => () => void
+}
+
+/** The standard "preview first" denial copy (the chip label). */
+export const blueprintPreviewFirstMessage = (chartName: string | null): string => (chartName
+  ? `denied — preview first: run previewBlueprint for "${chartName}" before publishing it`
+  : 'denied — preview first: no held blueprint draft to match a previewBlueprint against (draft + preview the chart before publishing)')
+
+/**
+ * Create a thread-scoped blueprint preview gate. Previews ACCUMULATE within a thread
+ * (iterating on a draft re-previews the same chart name; previewing two charts allows
+ * either) and are all forgotten on reset().
+ */
+export const createBlueprintGate = (): BlueprintGate => {
+  let previewed = new Set<string>()
+  const listeners = new Set<() => void>()
+  const changed = (): void => {
+    for (const listener of listeners) {
+      listener()
+    }
+  }
+  return {
+    evaluate: (ops, heldChartName) => {
+      if (!opsArePublishSet(ops)) {
+        return { allowed: true }
+      }
+      const name = typeof heldChartName === 'string' && heldChartName ? heldChartName : null
+      if (!name || !previewed.has(name)) {
+        return { allowed: false, reason: blueprintPreviewFirstMessage(name) }
+      }
+      return { allowed: true }
+    },
+    forget: (chartName) => {
+      if (chartName && previewed.delete(chartName)) {
+        changed()
+      }
+    },
+    isArmed: (chartName) => typeof chartName === 'string' && previewed.has(chartName),
+    recordPreview: (chartName) => {
+      if (typeof chartName === 'string' && chartName && !previewed.has(chartName)) {
+        previewed.add(chartName)
+        changed()
+      }
+    },
+    reset: () => {
+      const had = previewed.size > 0
+      previewed = new Set<string>()
+      if (had) {
+        changed()
+      }
+    },
+    subscribe: (listener) => {
+      listeners.add(listener)
+      return () => { listeners.delete(listener) }
+    },
+  }
+}

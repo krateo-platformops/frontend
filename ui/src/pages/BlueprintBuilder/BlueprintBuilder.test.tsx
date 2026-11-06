@@ -11,10 +11,10 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AUTOPILOT_PREVIEW_EVENT } from '../../components/Autopilot/previewBus'
-import { AUTOPILOT_DRAFT_REPLAY_EVENT, emitDraftChanged, previewSurfaceClaimed } from '../../components/Autopilot/previewDraftChanged'
-import { onDraftClose } from '../../components/Autopilot/previewDraftClose'
-import { AUTOPILOT_CHART_START_EVENT, type ChartStartDetail } from '../../components/Autopilot/previewDraftRender'
+import { AGENTIKO_PREVIEW_EVENT } from '../../components/Agentiko/previewBus'
+import { AGENTIKO_DRAFT_REPLAY_EVENT, emitDraftChanged, previewSurfaceClaimed } from '../../components/Agentiko/previewDraftChanged'
+import { onDraftClose } from '../../components/Agentiko/previewDraftClose'
+import { AGENTIKO_CHART_START_EVENT, type ChartStartDetail } from '../../components/Agentiko/previewDraftRender'
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 
 import BlueprintBuilder from './BlueprintBuilder'
@@ -43,7 +43,7 @@ const type = (label: string, value: string) => {
 
 describe('BlueprintBuilder — mounted bare, like the Page Builder', () => {
   it('renders with NO provider of any kind around it', () => {
-    // No AutopilotProvider, no router, no theme, no config: the page talks to the provider only
+    // No AgentikoProvider, no router, no theme, no config: the page talks to the provider only
     // through window buses, so there is nothing above it to require.
     expect(() => render(<BlueprintBuilder />)).not.toThrow()
     expect(screen.getByText(/No chart open/)).toBeTruthy()
@@ -51,9 +51,9 @@ describe('BlueprintBuilder — mounted bare, like the Page Builder', () => {
 
   it('asks for a replay on mount, so a chart held before it opened is shown', () => {
     const replays = vi.fn()
-    window.addEventListener(AUTOPILOT_DRAFT_REPLAY_EVENT, replays)
+    window.addEventListener(AGENTIKO_DRAFT_REPLAY_EVENT, replays)
     mount()
-    window.removeEventListener(AUTOPILOT_DRAFT_REPLAY_EVENT, replays)
+    window.removeEventListener(AGENTIKO_DRAFT_REPLAY_EVENT, replays)
     expect(replays).toHaveBeenCalledTimes(1)
   })
 
@@ -179,7 +179,7 @@ describe('BlueprintBuilder — Start a chart (screen 2)', () => {
   })
 
   it('refuses a name inline, as typed, and sends nothing', () => {
-    const starts = listen<ChartStartDetail>(AUTOPILOT_CHART_START_EVENT)
+    const starts = listen<ChartStartDetail>(AGENTIKO_CHART_START_EVENT)
     mount()
     openStart()
     type('Chart name', 'Builder Publish')
@@ -199,7 +199,7 @@ describe('BlueprintBuilder — Start a chart (screen 2)', () => {
   })
 
   it('WARNS about the metrics Service budget without refusing — Start still starts the chart', () => {
-    const starts = listen<ChartStartDetail>(AUTOPILOT_CHART_START_EVENT)
+    const starts = listen<ChartStartDetail>(AGENTIKO_CHART_START_EVENT)
     mount()
     openStart()
     // Kind 34 at 10.20.30: over the metrics Service's 33, inside the container's 41 and the
@@ -250,7 +250,7 @@ describe('BlueprintBuilder — Start a chart (screen 2)', () => {
   })
 
   it('emits exactly the files startChart seeds, with a correlation id, on the chart-start bus', () => {
-    const starts = listen<ChartStartDetail>(AUTOPILOT_CHART_START_EVENT)
+    const starts = listen<ChartStartDetail>(AGENTIKO_CHART_START_EVENT)
     mount()
     openStart()
     type('Chart name', 'builder-publish')
@@ -264,7 +264,7 @@ describe('BlueprintBuilder — Start a chart (screen 2)', () => {
   })
 
   it('keeps a REFUSED start in the modal, in the provider\'s words — and ignores answers that are not its own', () => {
-    const starts = listen<ChartStartDetail>(AUTOPILOT_CHART_START_EVENT)
+    const starts = listen<ChartStartDetail>(AGENTIKO_CHART_START_EVENT)
     mount()
     openStart()
     type('Chart name', 'builder-publish')
@@ -277,7 +277,7 @@ describe('BlueprintBuilder — Start a chart (screen 2)', () => {
   })
 
   it('an accepted start: the modal closes when the chart is held, and the builder takes over', () => {
-    const starts = listen<ChartStartDetail>(AUTOPILOT_CHART_START_EVENT)
+    const starts = listen<ChartStartDetail>(AGENTIKO_CHART_START_EVENT)
     mount()
     openStart()
     type('Chart name', 'builder-publish')
@@ -295,7 +295,7 @@ describe('BlueprintBuilder — Start a chart (screen 2)', () => {
     ['unavailable', 'This portal has no chart render configured', /no chart render configured/],
     ['failed', 'The chart did not render, so it cannot be published yet.', /did not render.*The render error is in Source/],
   ] as const)('reports a %s first render in the builder, not the modal', (outcome, message, shown) => {
-    const starts = listen<ChartStartDetail>(AUTOPILOT_CHART_START_EVENT)
+    const starts = listen<ChartStartDetail>(AGENTIKO_CHART_START_EVENT)
     mount()
     openStart()
     type('Chart name', 'builder-publish')
@@ -308,7 +308,7 @@ describe('BlueprintBuilder — Start a chart (screen 2)', () => {
   })
 
   it('a rendered first render fills Source and says how many objects', () => {
-    const starts = listen<ChartStartDetail>(AUTOPILOT_CHART_START_EVENT)
+    const starts = listen<ChartStartDetail>(AGENTIKO_CHART_START_EVENT)
     mount()
     openStart()
     type('Chart name', 'builder-publish')
@@ -323,8 +323,8 @@ describe('BlueprintBuilder — Start a chart (screen 2)', () => {
   })
 
   it('opens NO drawer along the way — the answer comes on the result bus, never the preview bus', () => {
-    const previews = listen(AUTOPILOT_PREVIEW_EVENT)
-    const starts = listen<ChartStartDetail>(AUTOPILOT_CHART_START_EVENT)
+    const previews = listen(AGENTIKO_PREVIEW_EVENT)
+    const starts = listen<ChartStartDetail>(AGENTIKO_CHART_START_EVENT)
     mount()
     openStart()
     type('Chart name', 'builder-publish')

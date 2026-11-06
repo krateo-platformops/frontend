@@ -5,7 +5,7 @@
  *
  * WHAT A CHART IS HERE. A chart and the file that describes it: its resources, what depends on what,
  * and the states it moves through — drawn as a graph, stepped as a machine, and published as one
- * change request. It is the same draft Autopilot authors, started and previewed by a person.
+ * change request. It is the same draft Agentiko authors, started and previewed by a person.
  *
  * WHAT IT READS, AND AS WHOM. Two things, both through snowplow `/call` under the person's own
  * credential, never a service identity: the palette (the portal's `blueprint-palette` RESTAction —
@@ -36,15 +36,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { heldModeOf } from '../../builders/host/heldMode'
 import type { HostDraft, Workbench } from '../../builders/host/hostTypes'
-import { CHART_YAML_PATH, VALUES_SCHEMA_PATH, chartYamlName, chartYamlVersion, draftDisplayName } from '../../components/Autopilot/blueprintDraft'
-import { resolveBuilderTarget } from '../../components/Autopilot/builderTargets'
-import { extractCrdSpecFields, type CrdSpecExtract } from '../../components/Autopilot/describeResource'
-import { AUTOPILOT_PREVIEW_EVENT, isBuilderPayload, type AutopilotPreviewPayload } from '../../components/Autopilot/previewBus'
-import { onDraftChanged } from '../../components/Autopilot/previewDraftChanged'
-import { emitDraftClose, onDraftClose } from '../../components/Autopilot/previewDraftClose'
-import { emitFileAdd } from '../../components/Autopilot/previewFileAdd'
-import { emitFilesBatch } from '../../components/Autopilot/previewFilesBatch'
-import type { FileHighlight } from '../../components/Autopilot/previewSurface'
+import { CHART_YAML_PATH, VALUES_SCHEMA_PATH, chartYamlName, chartYamlVersion, draftDisplayName } from '../../components/Agentiko/blueprintDraft'
+import { resolveBuilderTarget } from '../../components/Agentiko/builderTargets'
+import { extractCrdSpecFields, type CrdSpecExtract } from '../../components/Agentiko/describeResource'
+import { AGENTIKO_PREVIEW_EVENT, isBuilderPayload, type AgentikoPreviewPayload } from '../../components/Agentiko/previewBus'
+import { onDraftChanged } from '../../components/Agentiko/previewDraftChanged'
+import { emitDraftClose, onDraftClose } from '../../components/Agentiko/previewDraftClose'
+import { emitFileAdd } from '../../components/Agentiko/previewFileAdd'
+import { emitFilesBatch } from '../../components/Agentiko/previewFilesBatch'
+import type { FileHighlight } from '../../components/Agentiko/previewSurface'
 
 import {
   ARCHITECTURE_API_VERSION,
@@ -140,13 +140,13 @@ export const useBlueprintWorkbench = (host: HostDraft) => {
   const builderName = builder.metadata.name
   useEffect(() => {
     const onPreview = (event: Event): void => {
-      const payload = (event as CustomEvent<AutopilotPreviewPayload>).detail
+      const payload = (event as CustomEvent<AgentikoPreviewPayload>).detail
       if (payload && isBuilderPayload(payload, builderName)) {
         adopt(lastRenderOf(payload))
       }
     }
-    window.addEventListener(AUTOPILOT_PREVIEW_EVENT, onPreview)
-    return () => window.removeEventListener(AUTOPILOT_PREVIEW_EVENT, onPreview)
+    window.addEventListener(AGENTIKO_PREVIEW_EVENT, onPreview)
+    return () => window.removeEventListener(AGENTIKO_PREVIEW_EVENT, onPreview)
   }, [adopt, builderName])
 
   // A discard (this page's, or anyone's) or a `?resume=` that replaced the draft: nothing shown

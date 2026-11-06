@@ -16,7 +16,7 @@ let agentDraft: Record<string, unknown> | null = null
 vi.mock('../../hooks/useHandleActions', () => ({
   useHandleAction: () => ({ handleAction, isActionLoading: false }),
 }))
-vi.mock('../../components/Autopilot/agentDraft', () => ({
+vi.mock('../../components/Agentiko/agentDraft', () => ({
   useAgentDraft: () => ({ draft: agentDraft, nonce: 1 }),
 }))
 vi.mock('../Drawer/DrawerContext', () => ({
@@ -88,7 +88,7 @@ describe.each(['schema', 'stringSchema'] as const)('Form secret fields — via %
     expect(input(container, 'username').type).toBe('text')
   })
 
-  it('prefills neither from initialValues, the schema default, a saved draft nor an Autopilot draft', () => {
+  it('prefills neither from initialValues, the schema default, a saved draft nor an Agentiko draft', () => {
     localStorage.setItem('K_draft__me__ns__form', JSON.stringify({ apiKey: 'draft-key', password: 'draft-pw' }))
     agentDraft = { apiKey: 'agent-key', password: 'agent-pw', username: 'agent-user' }
     const { container } = renderForm(widgetData(variant))

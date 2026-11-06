@@ -3,7 +3,7 @@
  * A tag in a truncating table is never cut mid-word.
  *
  * Seen on a Portal Builder preview (krateo-057, fe 1.6.89): a fitContent pods table with a "Verdict"
- * column of colored tags, narrowed by the Autopilot rail, showed "Underprovision" with the rest cut
+ * column of colored tags, narrowed by the Agentiko rail, showed "Underprovision" with the rest cut
  * off and no ellipsis. A Tag is an atomic inline-block, so the cell's ellipsis cannot reach inside it.
  * The tag column now gets a fixed width that fits its widest tag and the table a numeric scroll.x, so
  * a narrow container scrolls instead of clipping; the tag itself ellipsizes (title = full text) as a
@@ -58,7 +58,7 @@ const podsTable = (rows: number, extra: Partial<TableWidgetData> = {}) => ({
 
 const renderTable = (widgetData: TableWidgetData, width = 320) => {
   const view = render(
-    // The narrow container of the defect: the preview pane with the Autopilot rail open.
+    // The narrow container of the defect: the preview pane with the Agentiko rail open.
     <div style={{ width }}>
       <MemoryRouter>
         <Table resourcesRefs={{ items: [] }} uid='t' widgetData={widgetData} />
@@ -126,7 +126,7 @@ describe('Table — tag cells in a narrow container', () => {
   it('virtual: the tag column is sized and the table fits its container instead of scrolling', () => {
     // A virtual table's horizontal scroll is the virtual list's own scrollbar: hidden at rest and drawn
     // at the foot of the 640px viewport. A scrolling virtual table read as clipped ("Underprovisio",
-    // Portal Builder preview, 151 pods, Autopilot rail open), so it fits instead: the tag column keeps
+    // Portal Builder preview, 151 pods, Agentiko rail open), so it fits instead: the tag column keeps
     // its width and the other columns share the rest, ellipsized with the full text on hover.
     const { colWidths, container } = renderTable(podsTable(VIRTUAL_ROW_THRESHOLD))
 

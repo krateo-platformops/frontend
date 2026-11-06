@@ -9,7 +9,7 @@
  * route is the Builder's too (builders/host/builderRoutes.tsx) — this component is the same host,
  * named, for whoever mounts the Blueprint Builder directly.
  *
- * It mounts bare, with no AutopilotProvider above it: it WRITES only through the window buses — start,
+ * It mounts bare, with no AgentikoProvider above it: it WRITES only through the window buses — start,
  * preview, file edit/add, the files batch, undo, close, publish — and never publishes (Publish asks
  * the provider, which runs the destination form and the blast-radius confirm a person answers).
  */

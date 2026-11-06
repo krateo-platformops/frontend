@@ -13,8 +13,8 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { regenerateArchitecture } from '../../../components/Autopilot/blueprintDraft'
-import { extractCrdSpecFields } from '../../../components/Autopilot/describeResource'
+import { regenerateArchitecture } from '../../../components/Agentiko/blueprintDraft'
+import { extractCrdSpecFields } from '../../../components/Agentiko/describeResource'
 import { ARCHITECTURE_TEMPLATE_PATH, parseArchitecture, rewrapDescriptor, serializeArchitecture, unwrapFromConfigMapTemplate, type ResourceNode } from '../architecture'
 import { planEdge } from '../planEdge'
 import { planPlace, setForEach, type PalettePick } from '../planPlace'

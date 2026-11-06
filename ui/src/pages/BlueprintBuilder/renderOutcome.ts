@@ -7,7 +7,7 @@
  * nobody ran. What the portal does know is the LINT (it refuses before anything is sent) and the
  * RENDER (the blueprint-render RESTAction's answer), so the outcome says exactly those.
  */
-import type { DraftRenderResultDetail } from '../../components/Autopilot/previewDraftRender'
+import type { DraftRenderResultDetail } from '../../components/Agentiko/previewDraftRender'
 
 import { counted } from './architectureView'
 

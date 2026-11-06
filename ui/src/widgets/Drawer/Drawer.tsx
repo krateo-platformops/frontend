@@ -78,10 +78,10 @@ const Drawer = () => {
         setDrawerData({})
       }}
       open={isOpen}
-      // Inset the drawer's right edge by the docked Autopilot rail width (a :root var the rail
+      // Inset the drawer's right edge by the docked Agentiko rail width (a :root var the rail
       // publishes; 0 when the rail is closed/absent) so the mask + panel cover the content and
       // never sit over the rail — honouring "the rail is never overlaid".
-      rootStyle={{ right: 'var(--autopilot-rail-width, 0px)' }}
+      rootStyle={{ right: 'var(--agentiko-rail-width, 0px)' }}
       size={size || 'default'}
       // #86 §0.10: title via the shared DrawerHeader (default 16px tier) — consistent typography
       // across every drawer. The title string is unchanged (openDrawer dispatch untouched).

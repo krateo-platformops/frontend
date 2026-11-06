@@ -12,8 +12,8 @@
  *
  * DENY BY DEFAULT, like pluginRegistry: only an own key resolves.
  */
-import { draftDisplayName } from '../components/Autopilot/blueprintDraft'
-import { pageRootSlug } from '../components/Autopilot/pageDraft'
+import { draftDisplayName } from '../components/Agentiko/blueprintDraft'
+import { pageRootSlug } from '../components/Agentiko/pageDraft'
 import { completeLockedSnapshot, lockedSnapshot, servedVersionUnknownProblems } from '../pages/ControllerBuilder/controllerChart'
 
 import { builderOf, findBuilderOf } from './builderRegistry'
