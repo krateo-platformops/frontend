@@ -67,7 +67,7 @@ spec:
   # operationMapping.ts / restDefinitionBuild.ts).
   inspector:
     plugin: restdef-mapping
-  # draftStructure.ts summarizeController — what Agentiko is told about the held controller: the
+  # draftStructure.ts summarizeController — what Autopilot is told about the held controller: the
   # document's resource groups, each Kind's verbs and unsettled conflicts, identifiers, status
   # fields, the publish lint and whether a preview stands (frontend#429).
   summarizer:
@@ -109,7 +109,7 @@ spec:
     registration:
       kind: CompositionDefinition
       path: compositiondefinition.yaml
-  # controllerVerbs.ts CONTROLLER_VERBS — Agentiko authoring a controller through this builder's own
+  # controllerVerbs.ts CONTROLLER_VERBS — Autopilot authoring a controller through this builder's own
   # kernels (frontend#429): start it from a document, place resource groups as Kinds, map or leave out
   # a verb (a conflict is settled only this way), set identifiers and status fields, remove a Kind —
   # and (frontend#405 round 2) bind and confirm a path id, set the fields spec leaves out, name a

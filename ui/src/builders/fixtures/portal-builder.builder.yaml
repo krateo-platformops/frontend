@@ -43,7 +43,7 @@ spec:
     plugin: page-grid
   inspector:
     plugin: object-tree
-  # draftStructure.ts summarizeDraft — the widget tree Agentiko is told.
+  # draftStructure.ts summarizeDraft — the widget tree Autopilot is told.
   summarizer:
     plugin: page-tree
   # previewSandbox.ts: the draft's widget CRs are applied into the preview sandbox and rendered live.
