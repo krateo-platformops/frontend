@@ -219,7 +219,7 @@ const requestStart = (files: Record<string, string>): Promise<DraftRenderResultD
   const sub: { stop?: () => void } = {}
   const timer = setTimeout(() => {
     sub.stop?.()
-    resolve({ id, message: 'no Autopilot provider answered, so nothing was started', outcome: 'refused' })
+    resolve({ id, message: 'no Agentiko provider answered, so nothing was started', outcome: 'refused' })
   }, START_TIMEOUT_MS)
   sub.stop = onDraftRenderResult((detail) => {
     if (detail.id !== id) { return }

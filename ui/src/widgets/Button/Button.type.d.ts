@@ -110,6 +110,8 @@ export interface Button {
           type: 'rest'
           /**
            * array of headers as strings, format 'key: value'
+           *
+           * Items: key and value as a single, example: 'x-custom-header: value'
            */
           headers: string[]
           /**
@@ -285,9 +287,9 @@ export interface Button {
        */
       danger?: boolean
       /**
-       * Krateo button role, not an antd prop (design rule C26). `dismiss`: the button closes or backs out without deleting anything (Cancel, Close) and is drawn amber and outlined; `type`, `color`, `variant` and `danger` are ignored. A button that deletes content uses `danger` instead
+       * Krateo button role, not an antd prop (design rules C26, A4). `dismiss`: the button closes or backs out without deleting anything (Cancel, Close) and is drawn amber and outlined; `type`, `color`, `variant` and `danger` are ignored. A button that deletes content uses `danger` instead. `autopilot`: the button opens the Agentiko agent with a seeded prompt (a `?ask=` link; label it `Ask Agentiko →`) and is drawn filled with the Agentiko gradient and mark, or outlined with a lock when the agent is not licensed; `type`, `color`, `variant`, `danger`, `ghost` and `icon` are ignored
        */
-      intent?: 'dismiss'
+      intent?: 'dismiss' | 'autopilot'
       /**
        * antd Button disabled
        */

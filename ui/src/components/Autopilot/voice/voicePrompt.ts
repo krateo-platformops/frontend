@@ -57,7 +57,7 @@ export const languageHint = (language: string | undefined): string => {
  * that must stay small for the gate to keep its headroom.
  */
 export const VOICE_VOCABULARY: readonly string[] = Object.freeze([
-  'Krateo', 'Autopilot', 'Snowplow', 'blueprint', 'composition', 'CompositionDefinition',
+  'Krateo', 'Agentiko', 'Snowplow', 'blueprint', 'composition', 'CompositionDefinition',
   'kubectl', 'Kubernetes', 'namespace', 'ConfigMap', 'CRD', 'Helm', 'kagent', 'agentgateway',
   'ClickHouse', 'OpenTelemetry', 'RBAC', 'apiVersion', 'NotReady', 'NotSynced', 'Unhealthy',
   'RESTAction', 'widget', 'claim', 'tenant', 'PodDisruptionBudget', 'StatefulSet', 'DaemonSet',

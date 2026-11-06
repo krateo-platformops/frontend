@@ -38,7 +38,7 @@ import { autopilotSpeakBackStore } from './voice/speak/speakBackStore'
 import { autopilotVoiceStore } from './voice/voiceStore'
 
 const TRANSCRIBE_URL = 'https://gateway.krateo.dev/stt/v1/chat/completions'
-const PLACEHOLDER = 'Ask Autopilot to do something…'
+const PLACEHOLDER = 'Ask Agentiko to do something…'
 
 const mockedUseAutopilot = vi.mocked(useAutopilot)
 
@@ -50,6 +50,7 @@ const baseValue = {
   collect: vi.fn(() => ({ focus: 'Home', route: '/', widgets: [] })),
   denyPending: vi.fn(),
   enabled: true,
+  licensed: true,
   messages: [] as AutopilotMessage[],
   newThread: vi.fn(),
   oasAttachment: null,

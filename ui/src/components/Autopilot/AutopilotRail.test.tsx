@@ -37,6 +37,7 @@ const baseValue = {
   collect: vi.fn(() => ({ focus: 'Home', route: '/', widgets: [] })),
   denyPending: vi.fn(),
   enabled: true,
+  licensed: true,
   messages: [] as AutopilotMessage[],
   newThread: vi.fn(),
   oasAttachment: null,

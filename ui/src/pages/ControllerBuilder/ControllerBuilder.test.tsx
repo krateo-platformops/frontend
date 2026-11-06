@@ -161,7 +161,7 @@ describe('the Controller Builder has its builder', () => {
 describe('petstore, authored in the UI with no rail', () => {
   it('start → place pet and store → settle the findby conflict → auth → a chart tree T7\'s validator passes', () => {
     const { container, store } = mount()
-    expect(screen.getByText(/No controller open\. Start one here, or ask Autopilot to draft one/)).toBeTruthy()
+    expect(screen.getByText(/No controller open\. Start one here, or ask Agentiko to draft one/)).toBeTruthy()
     expect(page(container)).toMatchSnapshot('empty')
 
     startPetstore()

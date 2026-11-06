@@ -168,7 +168,7 @@ const NodeFields = ({ editing, hasFile, levels, node, onOpenFile, onRefusal }: {
             <span className={styles.fieldValue}>{node.template}</span>
             <span className={styles.fieldText}>
               not in the chart yet — nothing renders this resource until the file exists. Write it in Chart files, or
-              ask Autopilot to.
+              ask Agentiko to.
             </span>
           </>
         )}

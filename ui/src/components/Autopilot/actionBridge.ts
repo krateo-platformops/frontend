@@ -783,7 +783,7 @@ export const useAutopilotActionBridge = (
         // person is told the rule rather than sent hunting for a button that is on their screen.
         return refused(
           'runAction',
-          `${proposal.actionId ?? 'that control'} submits ${proposal.widget ?? 'this form'} — Autopilot never submits. The form is filled; press the button to submit it.`,
+          `${proposal.actionId ?? 'that control'} submits ${proposal.widget ?? 'this form'} — Agentiko never submits. The form is filled; press the button to submit it.`,
         )
       }
       if (!found) {

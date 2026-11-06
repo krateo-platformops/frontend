@@ -411,6 +411,21 @@ spec:
       navigate:
         - {id: ask, type: navigate, path: "/controller-builder/compose?ask=help"}
 ---
+# A4: the pre-2026-11-03 canonical look — filled, wand, right label — but no `intent: autopilot`,
+# so it is drawn as an ordinary primary button, not as the agent's entry point.
+kind: Button
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata: {name: bad-ask-no-intent}
+spec:
+  widgetData:
+    label: Ask Agentiko →
+    icon: fa-wand-magic-sparkles
+    type: primary
+    clickActionId: ask
+    actions:
+      navigate:
+        - {id: ask, type: navigate, path: "/controller-builder/compose?ask=help"}
+---
 # A4: the shape that got through — a "Diagnose" reading an href its RESTAction builds with ?ask=.
 kind: RESTAction
 apiVersion: templates.krateo.io/v1

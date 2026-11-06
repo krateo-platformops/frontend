@@ -370,7 +370,7 @@ spec:
     items:
       - title: Home
 ---
-# A4: the Autopilot entry point among the header's actions: filled, wand icon, 'Ask Autopilot →'.
+# A4: the Agentiko entry point among the header's actions: `intent: autopilot`, 'Ask Agentiko →'.
 kind: PageHeader
 apiVersion: widgets.templates.krateo.io/v1beta1
 metadata: {name: good-autopilot-header}
@@ -402,9 +402,8 @@ apiVersion: widgets.templates.krateo.io/v1beta1
 metadata: {name: good-ask}
 spec:
   widgetData:
-    label: Ask Autopilot →
-    icon: fa-wand-magic-sparkles
-    type: primary
+    label: Ask Agentiko →
+    intent: autopilot
     clickActionId: ask
     actions:
       navigate:

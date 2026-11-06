@@ -15,7 +15,7 @@
 import { theme as antdTheme } from 'antd'
 import { describe, expect, it } from 'vitest'
 
-import { color, colorDark, lightTheme, darkTheme } from './tokens'
+import { autopilotAntdTheme, autopilotBrand, color, colorDark, lightTheme, darkTheme } from './tokens'
 
 // ---------------------------------------------------------------------------
 // WCAG helpers
@@ -229,7 +229,8 @@ describe('Preset blue Tags — WCAG AA ink on fill', () => {
 
   it('dark: the blue ramps are seeded from the dark palette', () => {
     expect(darkTheme.token?.blue).toBe(colorDark.blue)
-    expect(darkTheme.token?.geekblue).toBe(colorDark.primary)
+    // Seeded from Krateo Blue's dark value, not the (now violet) primary: geekblue stays blue.
+    expect(darkTheme.token?.geekblue).toBe('#2FBFE6')
   })
 
   it('light: the preset ramps are antd\'s own — unchanged', () => {
@@ -238,5 +239,61 @@ describe('Preset blue Tags — WCAG AA ink on fill', () => {
     const tokens = antdTheme.getDesignToken(lightTheme) as unknown as Record<string, unknown>
     expect(ink(tokens, 'blue').toLowerCase()).toBe('#0958d9')
     expect(ink(tokens, 'geekblue').toLowerCase()).toBe('#1d39c4')
+  })
+})
+
+/**
+ * T11: the whole portal wears Agentiko. The agent's accent IS the primary (the brand violet on light
+ * ground, the tint #C27AFF on dark ground, where #9E00FF is only 3.6:1 — pinned so nobody
+ * "restores" the pure violet in dark mode). The agent's filled controls use the brand gradient
+ * under WHITE in both modes, the brand manual's pairing, never dark ink.
+ */
+describe('Agentiko — WCAG AA for the primary and the agent\'s surfaces', () => {
+  it('light accent is the Agentiko brand violet and the gradient is the brand pair', () => {
+    expect(autopilotBrand.light.accent).toBe('#9E00FF')
+    expect(autopilotBrand.light.gradientStart).toBe('#9E00FF')
+    expect(autopilotBrand.light.gradientEnd).toBe('#2213CF')
+  })
+
+  ;(['light', 'dark'] as const).forEach((mode) => {
+    const ap = autopilotBrand[mode]
+    const panel = mode === 'dark' ? colorDark.panelbg : color.panelbg
+    const ground = mode === 'dark' ? colorDark.background : color.background
+
+    it(`${mode}: the primary is the agent's accent`, () => {
+      expect(mode === 'dark' ? colorDark.primary : color.primary).toBe(ap.accent)
+      expect((mode === 'dark' ? darkTheme : lightTheme).token?.colorPrimary).toBe(ap.accent)
+    })
+
+    it(`${mode}: accent text on the panel and the page ground passes AA >= 4.5:1`, () => {
+      expect(contrastRatio(ap.accent, panel)).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(ap.accent, ground)).toBeGreaterThanOrEqual(4.5)
+    })
+
+    it(`${mode}: the agent's filled controls are the brand gradient under white, AA at both ends`, () => {
+      expect(ap.fillStart).toBe('#9E00FF')
+      expect(ap.fillEnd).toBe('#2213CF')
+      expect(ap.onFill).toBe('#FFFFFF')
+      ;[ap.fillStart, ap.fillEnd].forEach((fill) => {
+        expect(contrastRatio(ap.onFill, fill)).toBeGreaterThanOrEqual(4.5)
+      })
+    })
+
+    it(`${mode}: the nested antd theme carries the same accent and the white label`, () => {
+      const nested = autopilotAntdTheme(mode)
+      expect(nested.token?.colorPrimary).toBe(ap.accent)
+      expect(nested.components?.Button?.primaryColor).toBe(ap.onFill)
+    })
+  })
+
+  it('the pure brand violet FAILS AA on the dark panel (documents the dark tint)', () => {
+    expect(contrastRatio('#9E00FF', colorDark.panelbg)).toBeLessThan(4.5)
+    expect(autopilotBrand.dark.accent).not.toBe('#9E00FF')
+  })
+
+  it('the selected sidebar item is the brand violet under white (the rail is black in both modes)', () => {
+    expect(color.menuitembg).toBe('#9E00FF')
+    expect(colorDark.menuitembg).toBe('#9E00FF')
+    expect(contrastRatio('#FFFFFF', '#9E00FF')).toBeGreaterThanOrEqual(4.5)
   })
 })

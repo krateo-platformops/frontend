@@ -620,7 +620,7 @@ export const usePageWorkbench = (host: HostDraft) => {
           {announcement}
         </div>
         {/* NEW_DRAFT_NAMESPACE, not a namespace read from the draft: there IS no draft yet, which is
-            the whole point of this control. It matches what every Autopilot-published page already
+            the whole point of this control. It matches what every Agentiko-published page already
             carries, so starting one here and asking the agent for one produce the same bytes. */}
         <StartDraftModal
           namespace={NEW_DRAFT_NAMESPACE}

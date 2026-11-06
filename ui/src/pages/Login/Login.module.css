@@ -1,6 +1,6 @@
-/* Split-screen login (enterprise-login mockup): left blue-gradient branding
- * panel + right form panel. The gradient is a saturated brand blue in BOTH
- * themes (menubgstart/menubgend are bright in light AND dark), so text on the
+/* Split-screen login (enterprise-login mockup): left branding panel on the
+ * Agentiko gradient (violet → blue, T11) + right form panel. The gradient is the
+ * same saturated pair in BOTH themes (menubgstart/menubgend), so text on the
  * aside is literal white / translucent-white — NOT `--light-color`, which flips
  * to a translucent surface fill in dark mode. The form `.section` uses theme
  * tokens (panelbg/text/gray) so it follows the light/dark toggle correctly. */

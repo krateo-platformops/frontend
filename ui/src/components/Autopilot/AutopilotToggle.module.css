@@ -1,38 +1,67 @@
-/* Header "Autopilot" toggle — amber brand pill (mockup `.ap-toggle`). */
+/* Header "Agentiko" toggle. Licensed, it is the one place in the header that wears the brand
+   "sfumatura": the gradient violet → blue, left → right, under a WHITE label in both modes — the
+   brand manual's pairing (white is 5.4:1 on the violet end, 11.5:1 on the blue end). The rest of
+   the portal is violet too (T11), so the gradient is what marks this as the agent. */
 .apToggle {
   align-items: center;
-  background: color-mix(in srgb, var(--primary-color) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--primary-color) 40%, transparent);
+  background: linear-gradient(90deg, var(--krateo-color-autopilot-fill-start), var(--krateo-color-autopilot-fill-end));
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
-  color: var(--primary-color);
+  color: var(--krateo-color-autopilot-on-fill);
   cursor: pointer;
   display: inline-flex;
-  font-family: var(--font-mono);
+  font-family: var(--krateo-font-autopilot);
   font-size: var(--krateo-text-caption);
+  font-weight: var(--font-weight-bold);
   gap: var(--spacing-xsm);
   height: 30px;
   padding: 0 var(--spacing-smd);
-  transition: background var(--motion-fast, 0.1s) ease;
+  transition: filter var(--motion-fast, 0.1s) ease;
   white-space: nowrap;
 }
 
+/* Hover/pressed darken the fill instead of switching colours, so the gradient stays the brand's. */
 .apToggle:hover {
-  background: color-mix(in srgb, var(--primary-color) 18%, transparent);
+  filter: brightness(0.92);
 }
 
 .apToggle.active {
-  background: color-mix(in srgb, var(--primary-color) 22%, transparent);
-  border-color: color-mix(in srgb, var(--primary-color) 60%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--krateo-color-autopilot-on-fill) 55%, transparent);
 }
 
-/* Unavailable: agent not deployed/licensed (installer flag) or the reachability probe failed.
-   Visible but plainly inert — neutral gray, dimmed, no hover, not-allowed cursor. */
+.apToggle:focus-visible {
+  outline: 2px solid var(--krateo-color-border-focus);
+  outline-offset: 2px;
+}
+
+/* Not licensed: neutral, with a lock — but live: it opens the rail on the licence panel. */
+.apToggle.locked {
+  background: transparent;
+  border-color: var(--krateo-color-border-strong);
+  color: var(--krateo-color-text-secondary);
+  filter: none;
+}
+
+.apToggle.locked:hover {
+  background: var(--krateo-color-background-hover);
+  color: var(--krateo-color-text-default);
+}
+
+.apToggle.locked.active {
+  background: var(--krateo-color-background-selected);
+  box-shadow: none;
+  color: var(--krateo-color-text-default);
+}
+
+/* Licensed but unavailable: the probe failed or this user may not drive the agent. Visible but
+   plainly inert — neutral gray, dimmed, no hover, not-allowed cursor. */
 .apToggle.disabled,
 .apToggle.disabled:hover {
-  background: color-mix(in srgb, var(--text-color, #888) 8%, transparent);
-  border-color: color-mix(in srgb, var(--text-color, #888) 20%, transparent);
-  color: color-mix(in srgb, var(--text-color, #888) 55%, transparent);
+  background: color-mix(in srgb, var(--text-color) 8%, transparent);
+  border-color: color-mix(in srgb, var(--text-color) 20%, transparent);
+  color: color-mix(in srgb, var(--text-color) 55%, transparent);
   cursor: not-allowed;
+  filter: none;
   opacity: 0.6;
 }
 
@@ -42,10 +71,10 @@
   display: inline-flex;
 }
 
-/* ⌘G / Ctrl G chip — mirrors CommandPalette's own kbd hint, tinted to the toggle's amber. */
+/* ⌘G / Ctrl G chip — mirrors CommandPalette's own kbd hint, drawn in the label's white. */
 .kbd {
-  background: color-mix(in srgb, var(--primary-color) 16%, transparent);
-  border: 1px solid color-mix(in srgb, var(--primary-color) 35%, transparent);
+  background: color-mix(in srgb, var(--krateo-color-autopilot-on-fill) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--krateo-color-autopilot-on-fill) 45%, transparent);
   border-radius: var(--radius-sm);
   color: inherit;
   flex-shrink: 0;
@@ -56,7 +85,7 @@
 }
 
 /*
- * "Autopilot is EXECUTING" — Signal Yellow, Tier-2 locked to this one meaning (issue #49), the
+ * "The agent is EXECUTING" — Signal Yellow, Tier-2 locked to this one meaning (issue #49), the
  * same token the rail's live-activity mark uses. Deliberately static: a blink here would loop for the
  * whole turn in the page header, which is the motion G13 rules out. Its presence is the signal.
  */

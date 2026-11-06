@@ -9,15 +9,22 @@
   padding: var(--spacing-lg) var(--spacing-xl);
 }
 
-/* Sider: by default the rail equals colorBgContainer (the app surface), so it BLENDS into the app
-   and has no colour of its own (issue #52, per the maintainer's clarification). --krateo-nav-gradient-*
-   is emitted flat (identical stops = the surface colour) by cssVariables() (tokens.ts); nav text is
-   mode-aware (dark on the light-mode surface). A tenant Theme CR's custom.sidebar can still set a
-   distinct/branded two-stop gradient. The divider uses --border-color (not the now-invisible
-   gradient end) so there's a subtle separation from the content when the rail matches the surface. */
+/* Sider: black in both modes (T11, the Agentiko style) — --krateo-nav-gradient-* is emitted flat
+   (identical stops) by cssVariables() (tokens.ts). A tenant Theme CR's custom.sidebar can still set
+   a distinct two-stop gradient (inline style wins).
+
+   Everything INSIDE the rail sits on black whatever the page mode, so the rail re-points the text
+   and line aliases its children read (the sider footer's name and build line, chart-declared
+   widgets in the sider) to light values for its own subtree. The rail's edge is a faint light
+   hairline: against the pale canvas the black needs none, against the dark canvas it needs one. */
 .shell :global(.ant-layout-sider) {
+  --border-color: rgb(255 255 255 / 12%);
+  --gray-color: var(--krateo-nav-item);
+  --line-color: rgb(255 255 255 / 12%);
+  --text-color: var(--krateo-nav-item-active);
+
   background: linear-gradient(180deg, var(--krateo-nav-gradient-start), var(--krateo-nav-gradient-end));
-  border-right: 1px solid var(--border-color);
+  border-right: 1px solid rgb(255 255 255 / 8%);
 }
 
 /* Sider column: a scrollable body (the declarative brand logo + nav, both from

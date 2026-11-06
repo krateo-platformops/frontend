@@ -82,7 +82,7 @@ const asRecord = (value: unknown): Record<string, unknown> | undefined =>
  * limit, not an auth or config failure, so the honest, actionable message is "retry in a moment".
  */
 export const RATE_LIMIT_NOTICE
-  = 'Krateo Autopilot is temporarily rate-limited by the AI provider. Please retry in a moment.'
+  = 'Agentiko is temporarily rate-limited by the AI provider. Please retry in a moment.'
 
 /**
  * Detect a provider rate-limit / quota-exhausted signal in a raw error string, robustly across the
@@ -124,7 +124,7 @@ interface KagentStreamState {
  * failed agent — an empty bubble (the pre-fix behaviour) reads as "the agent had nothing to say".
  */
 export const STREAM_LOST_NOTICE
-  = 'Lost the connection before Autopilot finished answering. The turn may still be running — ask again in a moment.'
+  = 'Lost the connection before Agentiko finished answering. The turn may still be running — ask again in a moment.'
 
 /** Text of a part list, ignoring tool DataParts. Used by the `tasks/get` recovery, which must not
  *  re-emit tool frames the live stream already delivered. */
@@ -293,16 +293,16 @@ const handleKagentPayload = (
 /** Name the gateway's two auth statuses — otherwise they read as a broken agent. */
 const describeHttpFailure = (status: number): string => {
   if (status === 401) {
-    return 'Autopilot rejected the request (401) — your session is not valid. Sign in again.'
+    return 'Agentiko rejected the request (401) — your session is not valid. Sign in again.'
   }
   if (status === 403) {
-    return 'Autopilot denied the request (403) — your user is not allowed to use this agent.'
+    return 'Agentiko denied the request (403) — your user is not allowed to use this agent.'
   }
   // A rate-limit can also surface as an HTTP 429 at the gateway (not just an in-band JSON-RPC error).
   if (status === 429) {
     return RATE_LIMIT_NOTICE
   }
-  return `Autopilot request failed (${status})`
+  return `Agentiko request failed (${status})`
 }
 
 /** Pull complete SSE events out of a rolling buffer, returning [events, remainder]. */

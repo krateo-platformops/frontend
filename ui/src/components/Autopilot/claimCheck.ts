@@ -449,7 +449,7 @@ export const claimNotice = (claim: UnbackedClaim): string => {
   } else if (claim.outcome === 'declined') {
     truth = copy.declined
   }
-  return `Autopilot said it ${copy.said}, but ${truth}.`
+  return `Agentiko said it ${copy.said}, but ${truth}.`
 }
 
 /** Only a claim with NOTHING behind it is worth re-asking; a refused or declined action has its answer. */

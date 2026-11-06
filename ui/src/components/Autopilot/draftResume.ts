@@ -150,7 +150,7 @@ export const restoredBannerCopy = (
   // Only when a conversation was actually found and switched to: a sentence about a thread that no
   // longer exists would send the person looking for it.
   if (resumed.relinked) {
-    sentences.push('Autopilot\'s thread is re-linked.')
+    sentences.push('Agentiko\'s thread is re-linked.')
   }
   return { body: sentences.join(' '), title: `Restored from your drafts — last saved ${savedWhen(resumed.updatedAt, now)}.` }
 }

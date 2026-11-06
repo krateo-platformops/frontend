@@ -55,16 +55,16 @@ export const VOICE_ERROR_COPY: Readonly<Record<VoiceErrorCode, string>> = Object
   'no-audio': 'The recording didn\'t reach the transcriber — nothing was added. Try again.',
   'no-mic': 'No microphone found.',
   'no-speech': 'No speech detected — nothing was added. Try again.',
-  'rate-limited': 'Krateo Autopilot is temporarily rate-limited by the AI provider. Please retry in a moment.',
-  session: 'Autopilot rejected the request — your session is not valid. Sign in again.',
+  'rate-limited': 'Agentiko is temporarily rate-limited by the AI provider. Please retry in a moment.',
+  session: 'Agentiko rejected the request — your session is not valid. Sign in again.',
   timeout: 'Transcription took too long — try a shorter dictation.',
   'too-large': 'Recording too large to send — keep it under a minute.',
 })
 
 /** The 401 / 403 lines, kept identical to the A2A turn path's `describeHttpFailure`. */
 export const SESSION_COPY: Readonly<Record<401 | 403, string>> = Object.freeze({
-  401: 'Autopilot rejected the request (401) — your session is not valid. Sign in again.',
-  403: 'Autopilot denied the request (403) — your user is not allowed to use this agent.',
+  401: 'Agentiko rejected the request (401) — your session is not valid. Sign in again.',
+  403: 'Agentiko denied the request (403) — your user is not allowed to use this agent.',
 })
 
 /** A dictation failure with a code the UI can branch on and copy it can render as-is. */

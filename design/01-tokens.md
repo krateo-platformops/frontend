@@ -215,6 +215,12 @@ Two exemptions were added along the way, both because the rule was asking the wr
 > Also removed: `Barlow+Condensed` from the Google Fonts `@import`, which is one fewer font file on
 > every page load.
 
+> **2026-11-06 — the face is Syne (T11).** `family` and `display` are both Syne, Agentiko's text
+> face, with Inter as the first fallback; still ONE family for text and display, so the mechanism
+> this rule removed does not come back. Mono stays JetBrains Mono for data: Syne's "1" and "0" read
+> as "ı" and "o", which ids, versions and counts cannot afford. TEXAR, Agentiko's headline face, is
+> deliberately not used.
+
 The `typography` export has `family`, `display`, `mono`, `size`, `weight` — and **no `lineHeight` keys at all**. 32 hardcoded `line-height` declarations exist across 10 distinct values.
 
 The root cause [#86](https://github.com/krateo-platformops/frontend/issues/86) identified — Barlow Condensed’s ascent/descent against Inter’s baseline — is untouched: `ascent-override`, `descent-override` and `@font-face` return **zero hits repo-wide**. Both visible symptoms were patched per-component instead; the mechanism that produced them is unchanged and will produce more.
@@ -325,6 +331,68 @@ Not absent — *inconsistent*. The voice UI guards both its animations correctly
 The main header and the docked rail previously shared a hardcoded `64px` that matched only by coincidence.
 
 *Evidence: #86 §0.10 — verified `tokens.ts` `export const layout`*
+
+### T11 — The portal wears Agentiko; the agent is set apart by the gradient, and gated by the licence.
+
+**Status:** holds — pinned by `tokens.contrast.test.ts` ("Agentiko — WCAG AA for the primary and the agent's surfaces")
+
+> **2026-11-06 — the whole portal, not just the agent.** Krateo PlatformOps has no brand manual of
+> its own; Agentiko has one (*Brand Guidelines — AGENTIKO*, SocialFOX 09/2026). One style is
+> maintained instead of two: every install — open source or licensed — wears Agentiko. Until this
+> date T11 read "Autopilot wears Agentiko's image, and only Autopilot does", with the platform in
+> Krateo blue; that scoping is retired. The agent is now named **Agentiko** in the UI (the code
+> keeps its `Autopilot*` identifiers and `intent: autopilot`).
+
+**The style.** `tokens.ts` `color` / `colorDark` and the `--krateo-*` semantic set:
+
+| | light | dark |
+|---|---|---|
+| primary (text, outlines, the primary wash) | `#9E00FF` brand violet — 5.4:1 on white | `#C27AFF` tint — the brand violet is 3.6:1 on the dark panel |
+| canvas / surface | `#F7F6FB` / `#FFFFFF` (neutrals with a violet bias) | `#07050C` / `#120E1A` |
+| sidebar | black `#141414`, selected item `#9E00FF` under white | black `#000000`, same selected item |
+| login panel | the brand gradient `#9E00FF` → `#2213CF` under white | same |
+| face | Syne for every role but data; JetBrains Mono for data (T5) | same |
+
+The Krateo PlatformOps logo stays, drawn in the brand lilac `#DCD8F1` on the black sidebar (the
+portal chart's `image.brand-logo`). Status colours and Signal Yellow keep their meanings (Tier-2).
+
+**The agent stands apart by the "sfumatura".** With violet everywhere, the agent's own surfaces —
+the header toggle, every `intent: autopilot` Button (A4), the licence panel's call to action — are
+the only FILLED controls in the brand gradient (`--krateo-color-autopilot-fill-start/-end`,
+violet → blue, left → right) under a WHITE label in both modes: the manual puts white on violet,
+blue and the gradient, never dark ink (5.4:1 at the violet end, 11.5:1 at the blue end). The rail
+marks itself with a 2px gradient band and the gradient monogram. `autopilotBrand` holds these
+values; it is not tenant-overridable (a product mark, not a skin).
+
+**The licence gates the agent, not the style.** Licensed = an agent endpoint is configured and the
+installer's `AUTOPILOT_AVAILABLE` is not `"false"` (`components/Autopilot/licence.ts`). Unlicensed,
+the agent stays visible but locked: the toggle is neutral with a lock and opens the rail on the
+"Activate licence" panel (→ https://agentiko.eu/); `intent: autopilot` Buttons are outlined with a
+lock and their `?ask=` link opens that same panel. Licensed but unreachable keeps the grey,
+non-clickable toggle with its tooltip.
+
+The mark is the brand's own vector monogram (`AgentikoMark`, `currentColor` or the gradient); the
+guidelines rule out recolouring outside the palette, rotating, stroking it or adding effects.
+
+*Evidence: verified `tokens.ts` `color` / `colorDark` / `autopilotBrand` · `licence.ts` · `AutopilotToggle.tsx` · `AutopilotLockedRail.tsx` · `Button.module.css`*
+
+---|---|---|
+| accent | `#9E00FF` brand violet — 5.39:1 on white | `#C27AFF` — 6.6:1 on `#141414` |
+| filled label | white | dark ink `#141414` |
+| gradient | `#9E00FF` → `#2213CF` (the brand pair) | `#C27AFF` → `#9C8FFF` |
+
+The brand violet is only 3.6:1 on the dark panel and the brand blue 1.9:1, so dark mode tints both
+— the same flip the Krateo primary makes. **Scoping, not overriding:** an Autopilot surface
+re-points `--primary-color` on its own root (`.apRail`, `.apToggle`) and nests
+`AutopilotBrandScope` (an antd `ConfigProvider` over `autopilotAntdTheme`) for what antd draws. It
+never writes `color.primary`, and the Theme widget does not touch it — a product mark, not a skin.
+Syne is for the rail's title and empty-state greeting only, where it has no neighbouring text to
+drift against (T5). Signal Yellow keeps its one meaning (Autopilot is EXECUTING) beside it.
+
+The mark is the brand's own vector monogram (`AgentikoMark`, `currentColor` or the gradient); the
+guidelines rule out recolouring outside the palette, rotating, stroking it or adding effects.
+
+*Evidence: verified `tokens.ts` `autopilotBrand` · `AutopilotBrandScope.tsx` · `icons.tsx` `AgentikoMark`*
 
 ---
 

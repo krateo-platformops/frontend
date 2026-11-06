@@ -85,7 +85,7 @@ const KIND_BLURB: Record<PublishTargetRequest['kind'], string> = {
  */
 export const initiatorLine = (req: Pick<PublishTargetRequest, 'initiator' | 'kind'>): string | null =>
   (req.initiator === 'autopilot'
-    ? `Autopilot asked to publish this ${KIND_NOUN[req.kind]}. Nothing is written until you confirm the destination.`
+    ? `Agentiko asked to publish this ${KIND_NOUN[req.kind]}. Nothing is written until you confirm the destination.`
     : null)
 
 type PendingResolve = (target: PublishTarget | null) => void

@@ -9,7 +9,7 @@ something unrelated and quietly spends their trust. Prefer citing a *symbol* (`t
 
 | | | |
 |---|---|---|
-| [01-tokens.md](01-tokens.md) | **T1–T10** | Colour, spacing, type, density, breakpoints, contrast |
+| [01-tokens.md](01-tokens.md) | **T1–T11** | Colour, spacing, type, density, breakpoints, contrast, the Agentiko style and licence gate |
 | [02-components.md](02-components.md) | **C1–C25** | Shared components: what exists, what is missing, what each guarantees |
 | [03-composition.md](03-composition.md) | **P1–P25** | How a page is assembled from widget CRs |
 | [04-silent-failures.md](04-silent-failures.md) | **X1–X13** | Renders clean, behaves wrong — passes the CRD, the dry-run and the eye |
@@ -90,7 +90,7 @@ existence and count of resources outside a tenant's scope.
 ## What is enforced today
 
 Two lints run from [`lint/`](lint/) and an accessibility gate runs from `ui/`; between them
-they hold **30 of the 108 rules** — 18 composition rules and 8 token rules, plus the
+they hold **30 of the 109 rules** — 18 composition rules and 8 token rules, plus the
 3 accessibility rules C8–C10 and 1 app-side layout rule (P26). Everything else is a rule a human applies.
 
 - **Accessibility (C8–C10)** — `ui/eslint.a11y.config.js` runs the `jsx-a11y` rules of
@@ -163,7 +163,7 @@ workflow of the same name runs the composition lint against its rendered chart.
 **The CI check is the live status; this section is a claim about it.** To read the real state,
 look at the `design-system` check on any open PR in either repo — it fails on a violation, and a
 green one means all 30 machine-held rules hold as of that commit. The per-rule `Status:`
-markers in the six rule documents are the other half of the picture: they cover the 78 rules no
+markers in the six rule documents are the other half of the picture: they cover the 79 rules no
 lint can decide, and a human keeps them true. Prefer the check over both.
 
 > This section said "Neither is wired into CI yet. Until they are, this document is still the thing
