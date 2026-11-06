@@ -55,7 +55,7 @@ export const VOICE_ERROR_COPY: Readonly<Record<VoiceErrorCode, string>> = Object
   'no-audio': 'The recording didn\'t reach the transcriber — nothing was added. Try again.',
   'no-mic': 'No microphone found.',
   'no-speech': 'No speech detected — nothing was added. Try again.',
-  'rate-limited': 'Krateo Agentiko is temporarily rate-limited by the AI provider. Please retry in a moment.',
+  'rate-limited': 'Agentiko is temporarily rate-limited by the AI provider. Please retry in a moment.',
   session: 'Agentiko rejected the request — your session is not valid. Sign in again.',
   timeout: 'Transcription took too long — try a shorter dictation.',
   'too-large': 'Recording too large to send — keep it under a minute.',

@@ -435,9 +435,10 @@ spec:
                       description: palette color name (e.g. green / orange / red / cyan) applied to the icon independently of the button color — e.g. a leading fa-circle status dot on a filter chip
                       type: string
                     intent:
-                      description: 'Krateo button role, not an antd prop (design rule C26). `dismiss`: the button closes or backs out without deleting anything (Cancel, Close) and is drawn amber and outlined; `type`, `color`, `variant` and `danger` are ignored. A button that deletes content uses `danger` instead'
+                      description: 'Krateo button role, not an antd prop (design rules C26, A4). `dismiss`: the button closes or backs out without deleting anything (Cancel, Close) and is drawn amber and outlined; `type`, `color`, `variant` and `danger` are ignored. A button that deletes content uses `danger` instead. `autopilot`: the button opens the Agentiko agent with a seeded prompt (a `?ask=` link; label it `Ask Agentiko →`) and is drawn filled with the Agentiko gradient and mark, or outlined with a lock when the agent is not licensed; `type`, `color`, `variant`, `danger`, `ghost` and `icon` are ignored'
                       enum:
                         - dismiss
+                        - autopilot
                       type: string
                     label:
                       description: the label of the button

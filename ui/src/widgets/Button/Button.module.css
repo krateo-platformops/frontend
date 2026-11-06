@@ -1,0 +1,23 @@
+/* A4: the agent entry point ("Ask Agentiko →", `intent: autopilot`). The brand "sfumatura" — violet
+   → blue, left → right — under a WHITE label in both modes (the brand manual's pairing: white is
+   5.4:1 on the violet end, 11.5:1 on the blue end). It is the one filled primary in the portal:
+   every other primary gets ui/index.css's tinted wash, so these selectors out-rank the wash's
+   (`.ant-btn.ant-btn-color-primary.ant-btn-variant-solid:not(:disabled, .ant-btn-disabled)`, plus
+   :hover/:focus-visible/:active) by one class, and the same states step the brightness instead of
+   switching colours, so the gradient stays the brand's. Disabled keeps antd's disabled look. */
+.agentiko:global(.ant-btn.ant-btn-color-primary.ant-btn-variant-solid):not(:disabled, :global(.ant-btn-disabled)) {
+  background: linear-gradient(90deg, var(--krateo-color-autopilot-fill-start), var(--krateo-color-autopilot-fill-end));
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--krateo-color-autopilot-on-fill);
+  font-family: var(--krateo-font-autopilot);
+}
+
+.agentiko:global(.ant-btn.ant-btn-color-primary.ant-btn-variant-solid):not(:disabled, :global(.ant-btn-disabled)):hover,
+.agentiko:global(.ant-btn.ant-btn-color-primary.ant-btn-variant-solid):not(:disabled, :global(.ant-btn-disabled)):focus-visible,
+.agentiko:global(.ant-btn.ant-btn-color-primary.ant-btn-variant-solid):not(:disabled, :global(.ant-btn-disabled)):active {
+  background: linear-gradient(90deg, var(--krateo-color-autopilot-fill-start), var(--krateo-color-autopilot-fill-end));
+  border-color: transparent;
+  color: var(--krateo-color-autopilot-on-fill);
+  filter: brightness(0.92);
+}

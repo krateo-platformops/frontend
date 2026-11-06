@@ -4,7 +4,7 @@
  *   body    — context strip (what it SEES), transcript, per-turn suggestions
  *   composer— textarea + send + the drive-via-real-controls trust note
  *
- * Renders nothing unless Agentiko is `enabled`. The width animates 0 → `railWidth`
+ * Unlicensed (licence.ts), it renders the locked licence panel instead (AutopilotLockedRail). The width animates 0 → `railWidth`
  * (384 by default, drag-resizable from its left edge and persisted across sessions —
  * see railWidth.ts) so the shell reflows (it never overlays);
  * toggling session history (`.apMain`'s `HistoryColumn`) widens it further by a fixed
@@ -16,16 +16,19 @@
 
 import { type ClipboardEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
+import gekoThinking from '../../assets/images/agentiko/geko-thinking.webp'
 import { agentikoConfig } from '../../context/agentikoConfig'
 import { useConfigContext } from '../../context/ConfigContext'
 
 import { useAgentiko } from './AgentikoProvider'
 import styles from './AgentikoRail.module.css'
 import AgentikoTour from './AgentikoTour'
+import AutopilotBrandScope from './AutopilotBrandScope'
+import AutopilotLockedRail from './AutopilotLockedRail'
 import { agentikoComposerDraftStore } from './composerDraftStore'
 import { AGENTIKO_CHECKING, AGENTIKO_UNAVAILABLE } from './copy'
 import { useRailFocusTrap } from './focusTrap'
-import { CollapseIcon, ExpandIcon, EyeIcon, HistoryIcon, LinkIcon, PlusIcon, SendIcon, ShrinkIcon, SparkIcon, StopIcon } from './icons'
+import { AgentikoMark, CollapseIcon, ExpandIcon, EyeIcon, HistoryIcon, LinkIcon, PlusIcon, SendIcon, ShrinkIcon, StopIcon } from './icons'
 import { looksLikeOpenApiDocument } from './oasAttachment'
 import { HistoryColumn } from './RailHistory'
 import { ApprovalCard, MessageBubble } from './RailTranscript'
@@ -48,7 +51,7 @@ const STARTER_PROMPTS = [
 ]
 
 const AgentikoRail = () => {
-  const { approvePending, attachOasDocument, checking, clearOasAttachment, collect, denyPending, enabled, messages, newThread, oasAttachment, open, pendingApproval, reachable, restored, retryClaims, send, sessionId, sessions, setOpen, stop, streaming, switchToThread } = useAgentiko()
+  const { approvePending, attachOasDocument, checking, clearOasAttachment, collect, denyPending, licensed, messages, newThread, oasAttachment, open, pendingApproval, reachable, restored, retryClaims, send, sessionId, sessions, setOpen, stop, streaming, switchToThread } = useAgentiko()
   const { config } = useConfigContext()
   // The composer draft + its PROVENANCE (purely dictated vs touched by the keyboard) live in
   // a module-level store, not `useState`: a routerVersion remount used to wipe a half-written
@@ -103,12 +106,13 @@ const AgentikoRail = () => {
   // closed/disabled, `railWidth` (user-resizable, defaults 384) open, +HISTORY_EXTRA_WIDTH
   // when the history split view widens it further, 100% in full-width mode.
   useEffect(() => {
-    const rawWidth = enabled && open ? railWidth + (historyOpen ? HISTORY_EXTRA_WIDTH : 0) : 0
+    // The rail docks whenever it is open: live when licensed, the licence panel when not.
+    const rawWidth = open ? railWidth + (licensed && historyOpen ? HISTORY_EXTRA_WIDTH : 0) : 0
     const dockedWidth = Math.min(rawWidth, maxDockableWidth(viewportWidth))
-    const width = enabled && open && fullWidth ? '100%' : `${dockedWidth}px`
+    const width = licensed && open && fullWidth ? '100%' : `${dockedWidth}px`
     document.documentElement.style.setProperty('--agentiko-rail-width', width)
     return () => { document.documentElement.style.setProperty('--agentiko-rail-width', '0px') }
-  }, [enabled, open, historyOpen, fullWidth, railWidth, viewportWidth])
+  }, [licensed, open, historyOpen, fullWidth, railWidth, viewportWidth])
 
   // Keyboard nav: Tab cycles within the rail while it's open (see focusTrap.ts). Autofocus
   // lands in the composer on open, mirroring CommandPalette's own autofocus-on-open.
@@ -192,9 +196,9 @@ const AgentikoRail = () => {
 
   // Live page-context snapshot for the "seeing …" strip (real cache, not memory).
   // Cheap (a synchronous map over the widget cache); recomputed each render so it
-  // tracks navigation and new turns without a stale memo. Computed ABOVE the `enabled`
+  // tracks navigation and new turns without a stale memo. Computed ABOVE the `licensed`
   // guard so the dictation hook below it stays unconditional.
-  const context = enabled && open ? collect() : null
+  const context = licensed && open ? collect() : null
 
   const submit = () => {
     // Read the draft from the STORE, not the `draft` render value. Conversation mode calls
@@ -223,10 +227,10 @@ const AgentikoRail = () => {
   // The spoken turn sends itself (voice spec FR 11, revised): the store reports a completed
   // purely-dictated draft, the rail submits it, and the turn is stamped `voice`, so the
   // answer is spoken back AND written to the transcript like any other turn.
-  useVoiceWiring(enabled && open, context, submit)
+  useVoiceWiring(licensed && open, context, submit)
 
-  if (!enabled) {
-    return null
+  if (!licensed) {
+    return <AutopilotLockedRail onClose={() => setOpen(false)} open={open} width={Math.min(railWidth, maxDockableWidth(viewportWidth))} />
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -308,7 +312,7 @@ const AgentikoRail = () => {
       ) : null}
       <div className={styles.apRailInner}>
         <div className={styles.apHead}>
-          <span className={styles.apTitle}><SparkIcon className={styles.apSpark} />Agentiko</span>
+          <span className={styles.apTitle}><AgentikoMark className={styles.apSpark} gradient size={20} />Agentiko</span>
           <span className={`${styles.apLive} ${streaming ? '' : styles.idle}`}>
             <span className={styles.apLiveDot} />{streaming ? 'streaming' : 'live'}
           </span>
@@ -366,6 +370,9 @@ const AgentikoRail = () => {
 
               {messages.length === 0 ? (
                 <div className={styles.apEmpty}>
+                  {/* Agentiko's mascot, the gecko (the agent's surfaces, see AutopilotBrandScope).
+                      Decorative: the title below already says what this state is. */}
+                  <img alt='' className={styles.apMascot} decoding='async' height={120} src={gekoThinking} width={101} />
                   <div className={styles.apEmptyTitle}>Ask Agentiko</div>
                   It can see what&apos;s on your screen and answer questions about your
                   compositions, blueprints, and platform — grounded on the live page.
@@ -472,13 +479,15 @@ export default AgentikoRail
 /**
  * Reflow container: wraps the app shell so the rail docks side-by-side. When the
  * rail opens, its width animates 0 → 384 and the main column (`flex:1`) shrinks —
- * the page reflows rather than being overlaid. With Agentiko disabled the rail
- * renders null and main takes the full width.
+ * the page reflows rather than being overlaid. Collapsed — or unlicensed and not opened —
+ * the rail is zero-width and main takes the full width.
  */
 export const AgentikoShell = ({ children }: { children: React.ReactNode }) => (
   <div className={styles.shellViewport}>
     <div className={styles.shellMain}>{children}</div>
-    <AgentikoRail />
-    <AgentikoTour />
+    <AutopilotBrandScope>
+      <AgentikoRail />
+      <AgentikoTour />
+    </AutopilotBrandScope>
   </div>
 )

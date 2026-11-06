@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@400;500;600;700;800&display=swap');
 
 html, body, #root {
   height: 100%;
@@ -13,9 +13,9 @@ body {
   font-family: var(--font-family, Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
 }
 
-/* Stat value: display numerals, tight, tabular so columns of telemetry align. The face is Inter
-   since T5 retired Barlow Condensed — the weight, tracking and tabular figures carry the
-   treatment, not the family. */
+/* Stat value: display numerals, tight, tabular so columns of telemetry align. The face is the
+   display role (Syne since T5's 2026-11-06 revision) — the weight, tracking and tabular figures
+   carry the treatment, not the family. */
 .ant-statistic-content-value {
   font-family: var(--font-display, Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif);
   font-variant-numeric: tabular-nums;
@@ -56,8 +56,8 @@ body {
  * fill, a brand hairline border and a brand label — it reads as "your move" without
  * antd's heavy solid fill. Overrides the antd v6 solid-primary variant (type="primary"
  * → color-primary + variant-solid) at the cascade level so EVERY Button widget converts
- * at once; color-mix off --primary-color keeps it theme-adaptive (Sovereign #05629A light
- * / Krateo Blue #2FBFE6 dark). `danger` primaries map to color-dangerous, so destructive
+ * at once; color-mix off --primary-color keeps it theme-adaptive (the Agentiko violet
+ * #9E00FF light / its tint #C27AFF dark, T11). `danger` primaries map to color-dangerous, so destructive
  * buttons stay crimson untouched.
  *
  * NOT when disabled. This selector outranks antd's own `:disabled` rule, so without the :not() a

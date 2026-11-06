@@ -548,6 +548,10 @@ Three roles, decided by what the button does, not by where it sits:
   antd's `danger`, on the button that opens the confirmation and on the confirmation's own OK. When
   one dialog can do either — *Close draft* keeps the draft if it was saved and discards it if not —
   its OK is red only in the case that deletes.
+- **Ask Agentiko** — it opens the agent with a seeded prompt. **Filled with the Agentiko gradient
+  under white, the Agentiko mark** (outlined with a lock when the agent is not licensed):
+  `intent: autopilot` on the `Button` widget, which ignores the CR's colour, type, variant and icon. That is A4's look ([05-agent-parity.md](05-agent-parity.md)), carried by a role
+  for the same reason Dismiss is: the look should not be re-spelled on every CR.
 - **Everything else** keeps its place in the primary / secondary hierarchy
   ([P6](03-composition.md#p6--one-primary-action-per-container--a-page-header-or-a-self-contained-panel)).
 

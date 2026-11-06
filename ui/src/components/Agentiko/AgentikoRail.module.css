@@ -2,7 +2,7 @@
    Mirrors /tmp/petrol/autopilot.html `.ap-*`. Uses the app's theme CSS vars (not
    hard-coded petrol hex) so the rail is legible in BOTH dark (petrol) and light
    (paper) themes: panelbg=bezel, background=void, light=bezel-2, dark=ink,
-   gray=graphite, border=hair, amber=brand, cyan/magenta/red=status. */
+   gray=graphite, border=hair, amber=decision, cyan/magenta/red=status; the brand accent is Agentiko violet via the scoped --primary-color on .apRail. */
 
 /* Reflow seam: the shell + rail share a flex row; opening the rail shrinks main. */
 .shellViewport {
@@ -31,6 +31,11 @@
    once open, and mirrors the live width into the `--agentiko-rail-width` CSS var so
    body-portalled overlays inset correctly. */
 .apRail {
+  /* Autopilot wears Agentiko's image (theme/tokens.ts `autopilotBrand`): every rule below that
+     reads the primary — accents, the resize grip, chips, focus halos — reads the Agentiko violet,
+     inside the rail only. antd's own drawing is re-themed by AutopilotBrandScope. */
+  --primary-color: var(--krateo-color-autopilot-accent);
+
   flex: none;
   overflow: hidden;
   position: relative;
@@ -144,6 +149,18 @@
      hardcoded 64px that only coincidentally matched). Fallback 64px for the pre-paint window. */
   height: var(--header-h, 64px);
   padding: 0 var(--spacing-smd);
+  position: relative;
+}
+
+/* The Agentiko "sfumatura" as a 2px band along the head's top edge: the one place the rail shows
+   the brand gradient outright, so the rail reads as Agentiko's at a glance without tinting a
+   surface the transcript has to stay legible on. */
+.apHead::before {
+  background: linear-gradient(90deg, var(--krateo-color-autopilot-gradient-start), var(--krateo-color-autopilot-gradient-end));
+  content: '';
+  height: 2px;
+  inset: 0 0 auto;
+  position: absolute;
 }
 
 .apTitle {
@@ -151,17 +168,19 @@
   color: var(--dark-color);
   display: flex;
 
-  /* #86 §0.10 Release C (fedepini): bring the rail header title in line with the shared DrawerHeader
-     tier — the body/UI font at the default 16px tier, NOT the condensed display font at 14px, so the
-     docked rail reads as part of the same drawer-chrome family as the three overlay Drawers. */
+  /* #86 §0.10 Release C kept the title at the DrawerHeader tier (16px, 600). The size and weight
+     still match it; the FACE is Agentiko's Syne (`--krateo-font-autopilot`), because this title is
+     where Autopilot says whose it is. One line, no neighbour text to share a baseline with. */
+  font-family: var(--krateo-font-autopilot);
   font-size: var(--krateo-text-body);
-  font-weight: 600;
+  font-weight: 700;
   gap: var(--spacing-sm);
 }
 
+/* The Agentiko monogram, painted with the brand gradient by <AgentikoMark gradient>. No glow:
+   the brand guidelines rule out effects on the mark (the old spark carried a drop-shadow). */
 .apSpark {
-  color: var(--primary-color);
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--primary-color) 55%, transparent));
+  flex: none;
 }
 
 .apLive {
@@ -735,9 +754,22 @@
 
 .apEmpty .apEmptyTitle {
   color: var(--dark-color);
-  font-family: var(--font-display);
+  font-family: var(--krateo-font-autopilot);
   font-size: var(--krateo-text-body-lg);
+  font-weight: 700;
   margin-bottom: var(--spacing-smd);
+}
+
+/* Agentiko's gecko greets the empty thread. A cut-out (transparent) illustration, so it sits on
+   either theme's panel without a box; sized to stay a greeting, not a hero. */
+.apEmpty .apMascot {
+  display: block;
+  height: 120px;
+  margin: 0 auto var(--spacing-sm);
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  width: auto;
 }
 
 /* The starter-prompt row (unlike the per-turn .apSuggest, which follows a message and stays
@@ -1292,4 +1324,107 @@
 
 .apLiveActRow[data-state='done'] {
   opacity: 0.65;
+}
+
+/* ── locked: the agent is not licensed (AutopilotLockedRail) ──
+   The rail's own dock and header, switched off: no brand band on the head, the gecko in grey,
+   neutral text. The one coloured control is the licence link, in the brand gradient under white
+   (the brand manual's pairing). */
+.apLockedRail .apHead::before {
+  display: none;
+}
+
+.apLockedRail .apTitle {
+  color: var(--gray-color);
+}
+
+.apLockedIcon {
+  flex: none;
+}
+
+.apLocked {
+  align-items: center;
+  color: var(--gray-color);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  font-size: var(--krateo-text-body-sm);
+  gap: var(--spacing-smd);
+  line-height: 1.55;
+  overflow-y: auto;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  text-align: center;
+}
+
+.apLockedMascot {
+  filter: grayscale(1);
+  height: 110px;
+  object-fit: contain;
+  opacity: 0.55;
+  pointer-events: none;
+  user-select: none;
+  width: auto;
+}
+
+.apLockedTitle {
+  color: var(--dark-color);
+  font-family: var(--krateo-font-autopilot);
+  font-size: var(--krateo-text-body-lg);
+  font-weight: 700;
+}
+
+.apLockedText,
+.apLockedNote {
+  margin: 0;
+  max-width: 34ch;
+}
+
+.apLockedNote {
+  font-size: var(--krateo-text-caption);
+}
+
+.apLockedList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.apLockedList li {
+  align-items: flex-start;
+  color: var(--dark-color);
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.apLockedCheck {
+  color: var(--gray-color);
+  flex: none;
+  margin-top: 3px;
+}
+
+.apLockedCta {
+  align-items: center;
+  background: linear-gradient(90deg, var(--krateo-color-autopilot-fill-start), var(--krateo-color-autopilot-fill-end));
+  border-radius: var(--radius-md);
+  color: var(--krateo-color-autopilot-on-fill);
+  display: inline-flex;
+  font-family: var(--krateo-font-autopilot);
+  font-weight: var(--font-weight-bold);
+  height: 34px;
+  padding: 0 var(--spacing-md);
+  text-decoration: none;
+}
+
+.apLockedCta:hover {
+  color: var(--krateo-color-autopilot-on-fill);
+  filter: brightness(0.92);
+}
+
+.apLockedCta:focus-visible {
+  outline: 2px solid var(--krateo-color-border-focus);
+  outline-offset: 2px;
 }

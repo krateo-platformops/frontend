@@ -8,9 +8,14 @@ import { theme as antdAlgorithms, type ThemeConfig } from 'antd'
  * here: the antd `ThemeConfig` (`lightTheme` / `darkTheme`) and the `:root` CSS
  * custom properties (`cssVariables`) consumed by `*.module.css`.
  *
- * BRAND = "Krateo Brand Identity v2" (blue) — krateo-platformops/frontend issue #49.
- * Interaction blue: Krateo Blue #11B2E2 (dark primary #2FBFE6) / Sovereign Blue #05629A
- * (light primary + nav surface). Status is a Tier-2-locked semantic set: green #00D690,
+ * BRAND = Agentiko (since 2026-11-06, design rule T11). Krateo PlatformOps has no brand manual of
+ * its own; Agentiko's ("Brand Guidelines — AGENTIKO", SocialFOX 09/2026) is applied to the whole
+ * portal, open source or licensed alike — the licence only switches the agent on. Primary Violet
+ * #9E00FF (dark-mode text tint #C27AFF), Blue #2213CF, Lilac #DCD8F1, Black; neutrals carry a
+ * slight violet bias; the sidebar is black in both modes; the face is Syne (JetBrains Mono stays
+ * for data). The Krateo logo stays, drawn in lilac. Before that the brand was "Krateo Brand
+ * Identity v2" (blue, issue #49) — the key NAMES below are from that era and unchanged, so
+ * widget CRs and getColorCode() keep working. Status is a Tier-2-locked semantic set: green #00D690,
  * amber #FFAA00, red #F84C4C, info blue. Signal Yellow #E8FF00 is RESERVED for the
  * "Agentiko/AI agent is EXECUTING" state ONLY (never a CTA/decoration/link). The sidebar rail
  * gradient is DERIVED per-mode from colorPrimary (issue #52, navGradient()); the focus ring is #2FBFE6
@@ -31,10 +36,10 @@ export type ThemeMode = 'light' | 'dark'
 // added for getColorCode() parity with the v2 chart palette.
 export const color = {
   accent2: '#0E9488',
-  accentSoft: '#E6F7FC',
-  background: '#F5F5F5',
+  accentSoft: '#F4EEFF',
+  background: '#F7F6FB',
   blue: '#11B2E2',
-  border: '#E1E3E8',
+  border: '#E5E2F0',
   dark: '#141414',
   darkBlue: '#05629A',
   // Status keys double as widget-CR Tag INK (getTagStyle), so in light mode they use the v2
@@ -46,27 +51,28 @@ export const color = {
   // theme — which measured 3.94-4.29:1 on the surfaces it is used on and FAILED WCAG AA for
   // normal-size text (it is used at 12-14px in CommandPalette). Now per-mode and >= 4.68:1 on
   // every surface, while staying subordinate to `gray`. Pinned by tokens.contrast.test.ts.
-  faint: '#6E6E6E',
-  gray: '#5C5C5C',
+  faint: '#6A6480',
+  gray: '#5E5873',
   green: '#00744E',
   info: '#5F7285',
   light: '#FFFFFF',
-  lightgray: '#F5F5F5',
-  line: '#E1E3E8',
-  // Sovereign gradient — used by the LOGIN marketing panel only (Login.module.css). The APP
-  // sidebar rail no longer uses these; it derives per-mode from colorPrimary (issue #52).
-  menubgend: '#002F46',
-  menubgstart: '#005D8B',
+  lightgray: '#F1EFF7',
+  line: '#E5E2F0',
+  // Agentiko's "sfumatura", violet → blue — the LOGIN marketing panel only (Login.module.css).
+  menubgend: '#2213CF',
+  menubgstart: '#9E00FF',
   // Text ON the login gradient. Theme-INVARIANT on purpose, exactly like the two stops above:
   // that gradient is the same in both palettes, so a theme-aware text token would put dark text
-  // on a dark ground in light mode. White measures 7.15:1 on menubgstart and 14.05:1 on
-  // menubgend, so it clears AA comfortably at both ends.
+  // on a dark ground in light mode. White measures 5.4:1 on menubgstart (the brand violet) and
+  // 11.5:1 on menubgend (the brand blue), so it clears AA at both ends.
   onmenubg: '#FFFFFF',
-  menuitem: 'rgba(255,255,255,0.50)',
-  menuitembg: 'rgba(17,178,226,0.40)',
+  menuitem: 'rgba(255,255,255,0.62)',
+  // The selected sidebar item: the brand violet, filled, under a white label (5.4:1). The sidebar
+  // is black in both modes, so this is mode-invariant.
+  menuitembg: '#9E00FF',
   orange: '#8A5C00',
-  panelbg: '#FBFBFB',
-  primary: '#05629A',
+  panelbg: '#FFFFFF',
+  primary: '#9E00FF',
   red: '#B92F2F',
   success: '#00744E',
   successSoft: '#E3FBF2',
@@ -85,39 +91,40 @@ export const color = {
 } as const
 
 /**
- * Dark mode — the deep-ink canvas. `background` = true black (app), `panelbg` = surface
- * (#141414 card), `light` = elevated (#1C1C1C popover/hover), `dark` = ink (#FFFFFF strongest
- * foreground). Brand = Krateo Blue (#2FBFE6 interactive); status brighter for the void.
+ * Dark mode — a violet-black canvas. `background` = app, `panelbg` = surface (card),
+ * `light` = elevated (popover/hover), `dark` = ink (#FFFFFF strongest foreground). Brand violet
+ * as TEXT is the tint #C27AFF (the brand #9E00FF is 3.6:1 here); filled controls keep the brand
+ * violet under white (see the `action-primary-fill` tokens). Status brighter for the void.
  */
 export const colorDark: Record<keyof typeof color, string> = {
   accent2: '#2CC5B9',
-  accentSoft: 'rgba(17,178,226,0.16)',
-  background: '#000000',
+  accentSoft: 'rgba(158,0,255,0.18)',
+  background: '#07050C',
   blue: '#11B2E2',
-  border: '#414141',
+  border: '#3A3148',
   dark: '#FFFFFF',
   darkBlue: '#05629A',
   error: '#F84C4C',
   errorSoft: '#401010',
-  faint: '#8A8A8A',
-  gray: '#A0A0A0',
+  faint: '#8C86A0',
+  gray: '#A39DB5',
   green: '#00D690',
   info: '#8496AD',
-  light: '#1C1C1C',
-  lightgray: '#1C1C1C',
-  line: '#2A2A2A',
-  menubgend: '#002F46',
-  menubgstart: '#005D8B',
+  light: '#1C1626',
+  lightgray: '#1C1626',
+  line: '#2A2238',
+  menubgend: '#2213CF',
+  menubgstart: '#9E00FF',
   // Text ON the login gradient. Theme-INVARIANT on purpose, exactly like the two stops above:
   // that gradient is the same in both palettes, so a theme-aware text token would put dark text
-  // on a dark ground in light mode. White measures 7.15:1 on menubgstart and 14.05:1 on
-  // menubgend, so it clears AA comfortably at both ends.
+  // on a dark ground in light mode. White measures 5.4:1 on menubgstart and 11.5:1 on
+  // menubgend, so it clears AA at both ends.
   onmenubg: '#FFFFFF',
-  menuitem: 'rgba(255,255,255,0.50)',
-  menuitembg: 'rgba(17,178,226,0.40)',
+  menuitem: 'rgba(255,255,255,0.62)',
+  menuitembg: '#9E00FF',
   orange: '#FFAA00',
-  panelbg: '#141414',
-  primary: '#2FBFE6',
+  panelbg: '#120E1A',
+  primary: '#C27AFF',
   red: '#F84C4C',
   success: '#00D690',
   successSoft: '#003323',
@@ -169,7 +176,9 @@ export const elevationDark = {
 } as const
 
 export const typography = {
-  family: 'Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif',
+  // T5 (2026-11-06): Syne, Agentiko's text face, for every role but data. Inter stays as the
+  // first fallback so a blocked font CDN degrades to the face the layout was tuned on.
+  family: 'Syne, Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif',
   // T5: the display role is Inter, the same family as body. It was Barlow Condensed, whose
   // ascent/descent against Inter's baseline is the cross-font drift #86 identified — patched
   // per-component four times (see #78 'reiteration 4') and never at the cause. Retiring the
@@ -177,7 +186,7 @@ export const typography = {
   // by size, weight and tracking. Mono stays JetBrains Mono for data (ids/counts/durations/
   // versions/namespaces). Faces load from the @import at the top of ui/index.css — NOT from an
   // index.html <link>, which is what this comment used to claim.
-  display: 'Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif',
+  display: 'Syne, Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif',
   mono: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, "Courier New", monospace',
   // No `size` here any more. The legacy 6-step `--font-size-*` scale (12/14/16/18/24/30) shipped
   // beside the canonical `--krateo-text-*` roles until every consumer moved; 14, 16 and 24 had no
@@ -213,9 +222,12 @@ const KRATEO_BASE: Record<string, string> = {
   'motion-standard': '240ms',
   'motion-deliberate': '400ms',
   'motion-ease': 'cubic-bezier(0.16, 1, 0.3, 1)',
-  'font-display': 'Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif',
-  'font-ui': 'Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
+  'font-display': 'Syne, Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif',
+  'font-ui': 'Syne, Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
   'font-mono': '"JetBrains Mono", "Courier New", monospace',
+  // The agent's own face. Since T5 moved the whole UI to Syne it equals `font-ui`; kept as its
+  // own token so the agent's surfaces can diverge again without touching their CSS.
+  'font-autopilot': 'Syne, Inter, Roboto, "Helvetica Neue", Arial, sans-serif',
   'text-display': '64px',
   'text-h1': '40px',
   'text-h2': '30px',
@@ -236,12 +248,10 @@ const KRATEO_BASE: Record<string, string> = {
   'text-label-xs': '10px',
   'text-code': '13px',
   'text-metric': '28px',
-  // Nav-item colours are mode-independent (light text on the dark rail). The rail GRADIENT is
-  // NOT hardcoded here — it is derived per-mode from colorPrimary (issue #52: the sidebar default
-  // must FOLLOW the active theme, not be a mode-invariant hardcode); see navGradient() + its emit
-  // in cssVariables().
-  'nav-item': 'rgba(255, 255, 255, 0.50)',
-  'nav-item-active': '#F5F5F5',
+  // Nav-item colours are mode-independent: the Agentiko sidebar is black in both modes, so its
+  // text is light in both. The rail colour itself is emitted in cssVariables().
+  'nav-item': 'rgba(255, 255, 255, 0.62)',
+  'nav-item-active': '#FFFFFF',
 }
 
 /**
@@ -261,25 +271,117 @@ export const navGradientFrom = (primary: string, mode: ThemeMode): { start: stri
 export const navGradient = (mode: ThemeMode): { start: string; end: string } =>
   navGradientFrom(mode === 'dark' ? colorDark.primary : color.primary, mode)
 
+/**
+ * The agent's own surfaces — the header toggle, the rail, the Button widget's `intent: autopilot`,
+ * the Form's provenance tag. The whole portal wears Agentiko since 2026-11-06 (T11), so the
+ * accent here equals the primary; what still sets the agent apart is the "sfumatura" — the brand
+ * gradient violet → blue, left → right — which only the agent's filled controls and marks use.
+ *
+ * Filled agent controls use the BRAND colours in both modes under a WHITE label: the brand manual
+ * puts white on violet, blue and the gradient, never dark ink (white is 5.4:1 on #9E00FF and
+ * 11.5:1 on #2213CF). `accent` is the violet as TEXT or a thin line: the brand violet on light
+ * ground, the tint #C27AFF on dark ground, where #9E00FF is only 3.6:1. The `gradient*` pair is
+ * for marks and hairlines on the page ground, tinted in dark mode for the same reason (the brand
+ * blue on the dark ground is 1.9:1); `fillStart`/`fillEnd` are the brand gradient itself, for
+ * fills. Not tenant-overridable (the Theme widget does not touch it): it is a product mark.
+ */
+export const autopilotBrand: Record<ThemeMode, {
+  accent: string
+  accentHover: string
+  accentActive: string
+  onAccent: string
+  subtle: string
+  border: string
+  gradientStart: string
+  gradientEnd: string
+  fillStart: string
+  fillEnd: string
+  onFill: string
+}> = {
+  light: {
+    accent: '#9E00FF',
+    accentHover: '#8700DB',
+    accentActive: '#7200B8',
+    onAccent: '#FFFFFF',
+    subtle: '#F4EEFF',
+    border: '#DCD8F1',
+    gradientStart: '#9E00FF',
+    gradientEnd: '#2213CF',
+    fillStart: '#9E00FF',
+    fillEnd: '#2213CF',
+    onFill: '#FFFFFF',
+  },
+  dark: {
+    accent: '#C27AFF',
+    accentHover: '#CF94FF',
+    accentActive: '#B35CFF',
+    onAccent: '#141414',
+    subtle: 'rgba(158, 0, 255, 0.18)',
+    border: 'rgba(194, 122, 255, 0.45)',
+    gradientStart: '#C27AFF',
+    gradientEnd: '#9C8FFF',
+    fillStart: '#9E00FF',
+    fillEnd: '#2213CF',
+    onFill: '#FFFFFF',
+  },
+}
+
+const autopilotSemantic = (mode: ThemeMode): Record<string, string> => {
+  const ap = autopilotBrand[mode]
+  return {
+    'color-autopilot-accent': ap.accent,
+    'color-autopilot-accent-hover': ap.accentHover,
+    'color-autopilot-accent-active': ap.accentActive,
+    'color-autopilot-on-accent': ap.onAccent,
+    'color-autopilot-subtle': ap.subtle,
+    'color-autopilot-border': ap.border,
+    'color-autopilot-gradient-start': ap.gradientStart,
+    'color-autopilot-gradient-end': ap.gradientEnd,
+    'color-autopilot-fill-start': ap.fillStart,
+    'color-autopilot-fill-end': ap.fillEnd,
+    'color-autopilot-on-fill': ap.onFill,
+  }
+}
+
+/** The antd theme Autopilot surfaces nest under their own ConfigProvider (it merges onto the root
+ * theme): antd's buttons, links and focus inside the rail follow Agentiko, nothing outside does. */
+export const autopilotAntdTheme = (mode: ThemeMode): ThemeConfig => {
+  const ap = autopilotBrand[mode]
+  return {
+    token: {
+      colorPrimary: ap.accent,
+      colorPrimaryHover: ap.accentHover,
+      colorPrimaryActive: ap.accentActive,
+      colorLink: ap.accent,
+      colorLinkHover: ap.accentHover,
+      colorLinkActive: ap.accentActive,
+    },
+    components: {
+      Button: { primaryColor: ap.onFill, primaryShadow: 'none' },
+    },
+  }
+}
+
 const KRATEO_SEMANTIC_DARK: Record<string, string> = {
-  'color-background-base': '#000000',
-  'color-background-surface': '#141414',
-  'color-background-elevated': '#1C1C1C',
-  'color-background-selected': 'rgba(17, 178, 226, 0.16)',
+  'color-background-base': '#07050C',
+  'color-background-surface': '#120E1A',
+  'color-background-elevated': '#1C1626',
+  'color-background-selected': 'rgba(158, 0, 255, 0.18)',
   'color-background-hover': 'rgba(255, 255, 255, 0.06)',
-  'color-border-subtle': '#2A2A2A',
-  'color-border-strong': '#414141',
-  'color-border-focus': '#2FBFE6',
+  'color-border-subtle': '#2A2238',
+  'color-border-strong': '#3A3148',
+  'color-border-focus': '#C27AFF',
   'color-text-default': '#FFFFFF',
-  'color-text-secondary': '#A0A0A0',
-  'color-text-muted': '#6E6E6E',
+  'color-text-secondary': '#A39DB5',
+  'color-text-muted': '#76708A',
   'color-text-inverse': '#141414',
-  'color-text-link': '#5CCDEB',
-  'color-text-link-hover': '#8FDDF2',
-  'color-action-primary': '#2FBFE6',
-  'color-action-primary-hover': '#5CCDEB',
-  'color-action-primary-active': '#11B2E2',
+  'color-text-link': '#CF94FF',
+  'color-text-link-hover': '#E2C4FF',
+  'color-action-primary': '#C27AFF',
+  'color-action-primary-hover': '#CF94FF',
+  'color-action-primary-active': '#B35CFF',
   'color-action-on-primary': '#141414',
+  'color-nav-background': '#000000',
   'color-agent-signal': '#E8FF00',
   'color-agent-signal-fill': '#E8FF00',
   'color-agent-on-signal': '#141414',
@@ -295,31 +397,33 @@ const KRATEO_SEMANTIC_DARK: Record<string, string> = {
   'color-status-error-subtle': '#401010',
   'color-status-error-border': '#8F2424',
   'color-status-error-text': '#F97A7A',
-  'color-status-info': '#2FBFE6',
-  'color-status-info-subtle': '#043F5F',
-  'color-status-info-border': '#0A7194',
-  'color-status-info-text': '#5CCDEB',
+  'color-status-info': '#9C8FFF',
+  'color-status-info-subtle': '#1A1544',
+  'color-status-info-border': '#3A2FB0',
+  'color-status-info-text': '#B3AAFF',
+  ...autopilotSemantic('dark'),
 }
 
 const KRATEO_SEMANTIC_LIGHT: Record<string, string> = {
-  'color-background-base': '#F5F5F5',
-  'color-background-surface': '#FBFBFB',
+  'color-background-base': '#F7F6FB',
+  'color-background-surface': '#FFFFFF',
   'color-background-elevated': '#FFFFFF',
-  'color-background-selected': '#E6F7FC',
-  'color-background-hover': 'rgba(2, 47, 74, 0.05)',
-  'color-border-subtle': '#E1E3E8',
-  'color-border-strong': '#C9CCD3',
-  'color-border-focus': '#05629A',
+  'color-background-selected': '#F4EEFF',
+  'color-background-hover': 'rgba(34, 19, 207, 0.05)',
+  'color-border-subtle': '#E5E2F0',
+  'color-border-strong': '#CBC6DD',
+  'color-border-focus': '#9E00FF',
   'color-text-default': '#141414',
-  'color-text-secondary': '#5C5C5C',
-  'color-text-muted': '#8A8A8A',
+  'color-text-secondary': '#5E5873',
+  'color-text-muted': '#8A849E',
   'color-text-inverse': '#FFFFFF',
-  'color-text-link': '#0A7194',
-  'color-text-link-hover': '#05629A',
-  'color-action-primary': '#05629A',
-  'color-action-primary-hover': '#04517F',
-  'color-action-primary-active': '#034064',
+  'color-text-link': '#8700DB',
+  'color-text-link-hover': '#7200B8',
+  'color-action-primary': '#9E00FF',
+  'color-action-primary-hover': '#8700DB',
+  'color-action-primary-active': '#7200B8',
   'color-action-on-primary': '#FFFFFF',
+  'color-nav-background': '#141414',
   'color-agent-signal': '#879500',
   'color-agent-signal-fill': '#E8FF00',
   'color-agent-on-signal': '#141414',
@@ -335,10 +439,11 @@ const KRATEO_SEMANTIC_LIGHT: Record<string, string> = {
   'color-status-error-subtle': '#FEECEC',
   'color-status-error-border': '#FBA6A6',
   'color-status-error-text': '#B92F2F',
-  'color-status-info': '#05629A',
-  'color-status-info-subtle': '#E6F7FC',
-  'color-status-info-border': '#8FDDF2',
-  'color-status-info-text': '#0A7194',
+  'color-status-info': '#2213CF',
+  'color-status-info-subtle': '#ECEAFE',
+  'color-status-info-border': '#A8A0F5',
+  'color-status-info-text': '#2213CF',
+  ...autopilotSemantic('light'),
 }
 
 const KRATEO_CHART_DARK: Record<string, string> = {
@@ -412,11 +517,10 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
     controlHeight: 32,
     fontWeight: typography.weight.bold,
     primaryShadow: 'none',
-    // WCAG AA (brand v2): the primary-button label is `colorTextLightSolid`. Light primary is
-    // Sovereign #05629A — WHITE text yields ~6.5:1 (antd default, no override needed). DARK
-    // primary is the bright Krateo Blue #2FBFE6 — white would be only ~2.2:1, so the label
-    // flips to the DARK ink (surface #141414 = palette.panelbg) → ~8.3:1. The amber-era override
-    // (dark-ink in LIGHT) is retired; the pairing is inverted for blue.
+    // WCAG AA: a solid fill's label is `colorTextLightSolid`. The PRIMARY solid never shows its
+    // fill — ui/index.css's primary wash draws it as a tint with a `--primary-color` label — so
+    // this pairing is what antd's other solid fills (danger, …) and the wash-less states get. Light
+    // keeps antd's white; dark, where the primary is the light tint #C27AFF, flips to dark ink.
     ...(mode === 'dark' ? { colorTextLightSolid: palette.panelbg } : {}),
   },
   Card: {
@@ -459,6 +563,9 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
     headerHeight: layout.headerHeight,
     headerPadding: `0 ${spacing.md}px`,
     siderBg: palette.panelbg,
+    // The collapse trigger sits at the foot of the black rail (T11): antd's default is its navy.
+    triggerBg: mode === 'dark' ? '#000000' : '#141414',
+    triggerColor: '#FFFFFF',
   },
   List: { borderRadiusLG: radius.lg },
   // Sidebar nav density — `.nav-item` (~36px tall, bumped from 30 per issue #80 §0.5). NB: the
@@ -509,10 +616,10 @@ export const lightTheme: ThemeConfig = {
     colorBgElevated: color.light,
     colorBgLayout: color.background,
     colorBorder: color.border,
-    colorBorderSecondary: '#C9CCD3',
+    colorBorderSecondary: '#CBC6DD',
     colorError: color.error,
     colorInfo: color.info,
-    colorLink: '#0A7194',
+    colorLink: '#8700DB',
     colorPrimary: color.primary,
     colorSuccess: color.success,
     colorTextBase: color.text,
@@ -541,7 +648,7 @@ export const darkTheme: ThemeConfig = {
     colorBorderSecondary: colorDark.line,
     colorError: colorDark.error,
     colorInfo: colorDark.info,
-    colorLink: '#5CCDEB',
+    colorLink: '#CF94FF',
     colorPrimary: colorDark.primary,
     colorSuccess: colorDark.success,
     colorTextBase: colorDark.text,
@@ -556,9 +663,11 @@ export const darkTheme: ThemeConfig = {
     // #3C89E8 on #111A2C (4.91:1, `blue`) and #5273E0 on #131629 (4.16:1, `geekblue`, below AA),
     // which is why "data" in the object tree and the "Publishes to" chip read faint in the dark
     // theme. Seeded from the brand blues instead they measure 7.16:1 and 7.91:1. Dark only: the
-    // light theme keeps antd's stock ramps. Pinned by tokens.contrast.test.ts.
+    // light theme keeps antd's stock ramps. Pinned by tokens.contrast.test.ts. (`geekblue` was
+    // seeded from the old blue primary; the violet primary would make it purple, so it keeps
+    // Krateo Blue's dark value as its own seed.)
     blue: colorDark.blue,
-    geekblue: colorDark.primary,
+    geekblue: '#2FBFE6',
   },
   components: buildComponents(colorDark, 'dark'),
 }
@@ -599,20 +708,19 @@ export const cssVariables = (mode: ThemeMode = 'light') => {
   Object.entries(krateoSemantic).forEach(([key, value]) => root.style.setProperty(`--krateo-${key}`, value))
   Object.entries(krateoChart).forEach(([key, value]) => root.style.setProperty(`--krateo-${key}`, value))
 
-  // Sidebar rail — issue #52 (per the maintainer's clarification on the issue): the DEFAULT rail
-  // has NO colour of its own; it equals colorBgContainer (the app surface = palette.panelbg),
-  // emitted flat (identical stops) so the two-stop shape is unchanged but renders flat and the rail
-  // blends into the rest of the app. Nav text follows the mode too — light text would vanish on the
-  // light-mode surface. The LOGIN marketing panel keeps the Sovereign gradient via the SEPARATE
-  // --menubgstart/end-color aliases (Login.module.css); those are deliberately left untouched here.
-  // A tenant Theme CR's custom.sidebar overrides the rail at runtime (inline style wins);
-  // navGradient()/navGradientFrom() stay exported as an OPT-IN helper for a tenant who wants the
-  // rail to track a custom colorPrimary (no longer the default — issue #52 comment).
-  const railBg = palette.panelbg
+  // Sidebar rail — black in both modes (T11, the Agentiko style): the brand's own pairing of
+  // black and violet, and what lets the lilac Krateo logo read. Light mode's rail is the near-
+  // black ink #141414 (pure black against the pale canvas reads as a hole); dark mode's is true
+  // black, one step below its violet-black canvas. Nav text is light in both. A tenant Theme CR's
+  // custom.sidebar still overrides the rail at runtime (inline style wins), and
+  // navGradient()/navGradientFrom() stay exported as the opt-in helper for a tenant rail that
+  // tracks a custom colorPrimary. The LOGIN marketing panel uses --menubgstart/end (the brand
+  // gradient), not these.
+  const railBg = krateoSemantic['color-nav-background']
   root.style.setProperty('--krateo-nav-gradient-start', railBg)
   root.style.setProperty('--krateo-nav-gradient-end', railBg)
-  const navItem = mode === 'dark' ? 'rgba(255, 255, 255, 0.62)' : 'rgba(0, 0, 0, 0.62)'
-  const navItemActive = mode === 'dark' ? '#F5F5F5' : palette.text
+  const navItem = KRATEO_BASE['nav-item']
+  const navItemActive = KRATEO_BASE['nav-item-active']
   root.style.setProperty('--menuitem-color', navItem)
   root.style.setProperty('--krateo-nav-item', navItem)
   root.style.setProperty('--krateo-nav-item-active', navItemActive)

@@ -80,7 +80,7 @@ test('ScreenHeader without a subtitle: status and actions level with the title, 
 
 /** The PageHeader fixtures fetch their two Buttons like any widget; serve them from the chart's shape. */
 const BUTTONS: Record<string, object> = {
-  'ask-autopilot': { actions: { navigate: [{ id: 'ask', path: '/x?ask=help', type: 'navigate' }] }, clickActionId: 'ask', icon: 'fa-wand-magic-sparkles', label: 'Ask Autopilot →', size: 'middle', type: 'primary' },
+  'ask-autopilot': { actions: { navigate: [{ id: 'ask', path: '/x?ask=help', type: 'navigate' }] }, clickActionId: 'ask', intent: 'autopilot', label: 'Ask Agentiko →', size: 'middle' },
   'page-action': { actions: { navigate: [{ id: 'go', path: '/x', type: 'navigate' }] }, clickActionId: 'go', label: 'Build a controller', size: 'middle', type: 'primary' },
 }
 
@@ -94,14 +94,14 @@ const openPageHeader = async (page: Page, fixture: string, width: number) => {
   })
   await page.goto(`/visual/index.html?fixture=${fixture}&mode=light`)
   await page.getByRole('button', { name: 'Build a controller' }).waitFor()
-  await page.getByRole('button', { name: 'Ask Autopilot' }).waitFor()
+  await page.getByRole('button', { name: 'Ask Agentiko' }).waitFor()
   await page.evaluate(() => document.fonts.ready)
 }
 
-const pageButtons = (page: Page) => Promise.all([box(page.getByRole('button', { name: 'Ask Autopilot' })), box(page.getByRole('button', { name: 'Build a controller' }))])
+const pageButtons = (page: Page) => Promise.all([box(page.getByRole('button', { name: 'Ask Agentiko' })), box(page.getByRole('button', { name: 'Build a controller' }))])
 const pageHeaderBox = (page: Page) => box(page.getByTestId('case').locator('> div').first())
 
-test('PageHeader at 1440px: Ask Autopilot and the page action on the trailing edge, one row, centred on title + subtitle', async ({ page }) => {
+test('PageHeader at 1440px: Ask Agentiko and the page action on the trailing edge, one row, centred on title + subtitle', async ({ page }) => {
   await openPageHeader(page, 'page-header', 1440)
   const subtitle = await box(page.locator('.ant-typography').filter({ hasText: 'OpenAPI' }))
   expectP26(await pageHeaderBox(page), [await box(page.locator('h1')), subtitle], await pageButtons(page))
