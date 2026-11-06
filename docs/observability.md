@@ -74,7 +74,7 @@ Three consequences that are easy to get wrong, each of which would have *flatter
 | `krateo.widget.fetch` | auto-instrumentation, renamed by `ContractSpanProcessor` |
 
 The emitters are `otel/interactions.ts`. One other place in the SPA creates a span —
-`components/Autopilot/claimTelemetry.ts`, `autopilot.claim.unbacked` — and **it is not in
+`components/Agentiko/claimTelemetry.ts`, `autopilot.claim.unbacked` — and **it is not in
 `SPAN_NAMES`, so `ContractSpanProcessor` drops it in the browser**: it reaches no collector today,
 whatever that file's comment says, and snowplow would drop it too (the ingest accepts the five
 names only). Counting unbacked claims needs that name allowlisted at both ends first.

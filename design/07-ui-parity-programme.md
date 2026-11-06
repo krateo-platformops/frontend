@@ -9,7 +9,7 @@ This is strictly stronger than rule **A1**, which asks that every agent capabili
 UI control. This asks that the UI be the agent's **only** means.
 
 Sourced from a read-only audit of the live agent CRs on `krateo-057`, the frontend write
-paths in `ui/src/components/Autopilot`, both portal charts, and the frontend's write-gate
+paths in `ui/src/components/Agentiko`, both portal charts, and the frontend's write-gate
 implementation, all on 2026-09-15.
 
 ---

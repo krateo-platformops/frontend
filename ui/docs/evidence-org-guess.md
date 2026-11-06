@@ -10,7 +10,7 @@ timestamp: 2026-08-25T00:00:00Z
 # The Evidence panel's GitHub org is a guess
 
 **Status: known gap, deliberate.** Recorded 2026-08-25 with the Evidence panel
-(`src/components/Autopilot/evidence.ts`, `orgOfRepo`). Re-verify against the code before relying
+(`src/components/Agentiko/evidence.ts`, `orgOfRepo`). Re-verify against the code before relying
 on any line here.
 
 ## What the panel shows, and what it does not know
