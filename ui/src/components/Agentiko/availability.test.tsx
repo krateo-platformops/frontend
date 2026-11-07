@@ -22,6 +22,7 @@ import type * as ConfigContextModule from '../../context/ConfigContext'
 
 import type * as ActionBridgeModule from './actionBridge'
 import { AgentikoProvider, useAgentiko } from './AgentikoProvider'
+import { PROBE_TIMEOUT_MS } from './availability'
 import { agentikoConversationStore } from './conversationStore'
 import type * as PreviewSurfaceModule from './previewSurface'
 import type * as PublishTargetFormModule from './publishTargetForm'
@@ -135,6 +136,35 @@ describe('availability is not assumed before it is known', () => {
     mount()
     await settle(new Error('network unreachable'))
     expect(api.reachable).toBe(false)
+  })
+})
+
+describe('"not known yet" is not "unavailable"', () => {
+  it('is checking until the probe answers, then not', async () => {
+    mount()
+    expect(api.checking).toBe(true)
+    await settle({ status: 200 })
+    expect(api.checking).toBe(false)
+  })
+
+  it('stops checking on a refusal, so the failure sentence shows', async () => {
+    mount()
+    await settle({ status: 403 })
+    expect(api.checking).toBe(false)
+    expect(api.reachable).toBe(false)
+  })
+
+  it('stops checking when a probe never answers', () => {
+    vi.useFakeTimers()
+    try {
+      mount()
+      expect(api.checking).toBe(true)
+      act(() => { vi.advanceTimersByTime(PROBE_TIMEOUT_MS) })
+      expect(api.checking).toBe(false)
+      expect(api.reachable).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

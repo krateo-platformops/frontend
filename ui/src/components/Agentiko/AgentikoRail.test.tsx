@@ -32,6 +32,7 @@ const mockedUseAgentiko = vi.mocked(useAgentiko)
 const baseValue = {
   approvePending: vi.fn(),
   attachOasDocument: vi.fn(),
+  checking: false,
   clearOasAttachment: vi.fn(),
   closeTour: vi.fn(),
   collect: vi.fn(() => ({ focus: 'Home', route: '/', widgets: [] })),
@@ -253,6 +254,21 @@ describe('AgentikoRail — unusable agent', () => {
 
     expect((getByText('Show me around') as HTMLButtonElement).disabled).toBe(false)
     expect(queryByTestId('agentiko-unavailable')).toBeNull()
+  })
+
+  it('says it is connecting, not that the agent is unavailable, while the first check is out', () => {
+    mockedUseAgentiko.mockReturnValue({ ...baseValue, checking: true, reachable: false })
+    const { getByTestId, getByText } = render(<AgentikoRail />)
+
+    expect(getByTestId('agentiko-unavailable').textContent).toBe('Connecting to Agentiko…')
+    expect((getByText('Show me around') as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('names the failure once the check has answered', () => {
+    mockedUseAgentiko.mockReturnValue({ ...baseValue, checking: false, reachable: false })
+    const { getByTestId } = render(<AgentikoRail />)
+
+    expect(getByTestId('agentiko-unavailable').textContent).toMatch(/^Agentiko is unavailable/)
   })
 
   it('sends nothing when a starter prompt is clicked while unreachable', () => {

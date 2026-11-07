@@ -50,6 +50,7 @@ const fakeSynthesis = (voices: SpeechVoiceLike[]) => {
 const baseValue = {
   approvePending: vi.fn(),
   attachOasDocument: vi.fn(),
+  checking: false,
   clearOasAttachment: vi.fn(),
   closeTour: vi.fn(),
   collect: vi.fn(() => ({ focus: 'Home', route: '/', widgets: [] })),

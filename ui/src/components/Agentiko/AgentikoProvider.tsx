@@ -65,6 +65,8 @@ interface AgentikoContextValue extends ClaimRetryApi {
    * witness than the probe. When `enabled && !reachable` the toggle renders grayed-out and
    * non-clickable, and the rail disables its controls behind a notice saying why. */
   reachable: boolean
+  /** The first reachability probe has not answered, so `reachable: false` isn't a failure yet. */
+  checking: boolean
   /** Whether the docked rail is open. */
   open: boolean
   setOpen: (open: boolean) => void
@@ -129,7 +131,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   // Per-builder publish destinations, resolved from install config (owner/repo slug) → the built-in
   // canonical fallback. Config-driven so an org/repo rename is a values change, not a rebuild.
   const builderTargets = useBuilderTargets(config)
-  const { markUnavailable, reachable } = useAgentikoAvailability({ enabled, endpoint, flagAvailable, useEcho })
+  const { checking, markUnavailable, reachable } = useAgentikoAvailability({ enabled, endpoint, flagAvailable, useEcho })
 
   const { collect, readRenderedWidgets } = useAgentikoContext()
   // DRAFT RECORDS: the held draft autosaved to the sandbox (useDraftAutosave). Built before the bridge
@@ -875,8 +877,8 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   // `sessions` is a stable bound-free store method (closes over its own state, no `this`) — passed
   // through directly; it reads the archive lazily each call, re-read on every provider re-render.
   const value = useMemo<AgentikoContextValue>(() => ({
-    approvePending, attachOasDocument, clearOasAttachment, closeTour, collect, denyPending, enabled, messages, newThread, oasAttachment: oasHeld, open, pendingApproval, reachable, restored, retryClaims, send, sessionId, sessions: agentikoConversationStore.sessions, setOpen, stop, streaming, switchToThread, toggle, tour, tourOpen,
-  }), [approvePending, attachOasDocument, clearOasAttachment, closeTour, collect, denyPending, enabled, messages, newThread, oasHeld, open, pendingApproval, reachable, restored, retryClaims, send, sessionId, stop, streaming, switchToThread, toggle, tour, tourOpen])
+    approvePending, attachOasDocument, checking, clearOasAttachment, closeTour, collect, denyPending, enabled, messages, newThread, oasAttachment: oasHeld, open, pendingApproval, reachable, restored, retryClaims, send, sessionId, sessions: agentikoConversationStore.sessions, setOpen, stop, streaming, switchToThread, toggle, tour, tourOpen,
+  }), [approvePending, attachOasDocument, checking, clearOasAttachment, closeTour, collect, denyPending, enabled, messages, newThread, oasHeld, open, pendingApproval, reachable, restored, retryClaims, send, sessionId, stop, streaming, switchToThread, toggle, tour, tourOpen])
 
   return (
     <AgentikoReactContext.Provider value={value}>

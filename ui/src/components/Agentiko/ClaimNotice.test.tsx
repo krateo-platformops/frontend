@@ -25,6 +25,7 @@ const POD_SIZING = 'I have authored and previewed the pod-sizing-23 page in the 
 const baseValue = {
   approvePending: vi.fn(),
   attachOasDocument: vi.fn(),
+  checking: false,
   clearOasAttachment: vi.fn(),
   closeTour: vi.fn(),
   collect: vi.fn(() => ({ focus: 'Home', route: '/', widgets: [] })),

@@ -11,3 +11,6 @@
 /** Why Agentiko cannot be used right now: the header toggle's tooltip AND the rail's composer
  *  notice. One sentence, two consumers — two copies of user-facing text drift. */
 export const AGENTIKO_UNAVAILABLE = 'Agentiko is unavailable — the agent is not deployed, not reachable, or not permitted for your user'
+
+/** Same two consumers, while the first reachability check is still out: nothing has failed yet. */
+export const AGENTIKO_CHECKING = 'Connecting to Agentiko…'

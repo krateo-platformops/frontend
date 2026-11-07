@@ -12,6 +12,10 @@
  * round-trip of every page load, which is precisely the first-login window the dead clicks were
  * reported from. Being briefly disabled while we find out is the honest direction to be wrong in.
  *
+ * BUT "not yet known" is not "unavailable", and the rail must not say it is. `checking` is true
+ * until the probe answers, so the copy can say so instead of naming three failures that have not
+ * happened. A probe that never answers is a failure, so PROBE_TIMEOUT_MS ends the wait.
+ *
  * THE TURN — `markUnavailable`, called when a real turn comes back 401/403. A gateway that answers
  * a bare GET while denying the actual turn reads as reachable to the probe, and stays that way for
  * every later click. The turn is authoritative because it IS the request rather than a guess about
@@ -40,7 +44,12 @@ export interface Availability {
   markUnavailable: () => void
   /** What the rail consumes to decide whether its controls are live. */
   reachable: boolean
+  /** The first probe has not answered yet, so `reachable: false` says nothing has failed. */
+  checking: boolean
 }
+
+/** How long a silent probe counts as still checking, before it is treated as unreachable. */
+export const PROBE_TIMEOUT_MS = 10_000
 
 export const useAgentikoAvailability = ({ enabled, endpoint, flagAvailable, useEcho }: AvailabilityInput): Availability => {
   const [probeOk, setProbeOk] = useState<boolean | null>(null)
@@ -49,6 +58,7 @@ export const useAgentikoAvailability = ({ enabled, endpoint, flagAvailable, useE
       return
     }
     const ctrl = new AbortController()
+    const timer = setTimeout(() => { setProbeOk((known) => known ?? false) }, PROBE_TIMEOUT_MS)
     const probe = () => {
       fetch(`${endpoint.replace(/\/$/, '')}/`, { headers: a2aAuthHeader(), method: 'GET', signal: ctrl.signal })
         .then((res) => setProbeOk(res.status !== 401 && res.status !== 403 && (res.status < 502 || res.status > 504)))
@@ -61,11 +71,16 @@ export const useAgentikoAvailability = ({ enabled, endpoint, flagAvailable, useE
     probe()
     window.addEventListener('focus', probe)
     return () => {
+      clearTimeout(timer)
       ctrl.abort()
       window.removeEventListener('focus', probe)
     }
   }, [enabled, useEcho, flagAvailable, endpoint])
 
   const markUnavailable = useCallback(() => setProbeOk(false), [])
-  return { markUnavailable, reachable: enabled && flagAvailable && (useEcho || probeOk === true) }
+  return {
+    checking: enabled && flagAvailable && !useEcho && Boolean(endpoint) && probeOk === null,
+    markUnavailable,
+    reachable: enabled && flagAvailable && (useEcho || probeOk === true),
+  }
 }

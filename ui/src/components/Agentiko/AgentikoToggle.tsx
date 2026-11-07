@@ -9,7 +9,7 @@ import { Tooltip } from 'antd'
 
 import { useAgentiko } from './AgentikoProvider'
 import styles from './AgentikoToggle.module.css'
-import { AGENTIKO_UNAVAILABLE } from './copy'
+import { AGENTIKO_CHECKING, AGENTIKO_UNAVAILABLE } from './copy'
 import { SparkIcon } from './icons'
 
 // ⌘ on Mac, Ctrl elsewhere — for the visible hint only; AgentikoProvider's global handler
@@ -18,7 +18,7 @@ const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.userAgen
 const shortcutHint = isMac ? '⌘G' : 'Ctrl G'
 
 const AgentikoToggle = () => {
-  const { enabled, open, reachable, streaming, toggle } = useAgentiko()
+  const { checking, enabled, open, reachable, streaming, toggle } = useAgentiko()
 
   if (!enabled) {
     return null
@@ -61,7 +61,7 @@ const AgentikoToggle = () => {
 
   // A disabled <button> swallows pointer events, so wrap it in a span the Tooltip can hover over.
   return (
-    <Tooltip title={AGENTIKO_UNAVAILABLE}>
+    <Tooltip title={checking ? AGENTIKO_CHECKING : AGENTIKO_UNAVAILABLE}>
       <span className={styles.disabledWrap}>{button}</span>
     </Tooltip>
   )
