@@ -32,6 +32,7 @@
 import { builderRegistry, registryUnavailable } from '../../builders/builderRegistry'
 import type { BuilderSpec, PublishBuilder } from '../../builders/builderSpec'
 import { draftKindOf, draftKindPlugin } from '../../builders/draftKinds'
+import { agentikoConfig } from '../../context/agentikoConfig'
 import type { Config } from '../../context/ConfigContext'
 import { publishNameProblem } from '../../pages/BlueprintBuilder/chartIdentity'
 import { PROJECTION_BUNDLE_PATH, projectionForFiles } from '../../pages/BlueprintBuilder/projectionCompile'
@@ -250,7 +251,7 @@ export const runDraftPublish = async (
   // SEED the new repository from the builder's template, for EITHER builder: a composed chart in a
   // bare repo has no release workflow, so it can never be released or registered. Null when no
   // template is configured — the claim then omits `source` and the repo is auto-init'd bare.
-  const sourceUrl = builderTemplateUrl(builderTargetFor(builderTargets, builder.publish.templateKey), config?.api.AUTOPILOT_GIT_HOST)
+  const sourceUrl = builderTemplateUrl(builderTargetFor(builderTargets, builder.publish.templateKey), agentikoConfig(config?.api, 'GIT_HOST'))
   const dest = await askPublishDestination(proposal, publisher.formKind, destRepo, bt.owner, slug ? { seeded: sourceUrl !== null, slug } : undefined, deps.initiator ?? 'autopilot')
 
   if (!dest) {

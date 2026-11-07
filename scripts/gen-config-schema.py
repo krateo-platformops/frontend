@@ -76,7 +76,36 @@ def prop(key: str, value: object) -> dict:
     return entry
 
 
-schema["properties"]["config"]["properties"] = {key: prop(key, value) for key, value in config.items()}
+# The Autopilot -> Agentiko rename: every AUTOPILOT_<KEY> in values.yaml is also accepted as
+# AGENTIKO_<KEY> (templates/configmap.yaml emits both, and AGENTIKO_ wins when values set it).
+# The new names are typed and NEVER defaulted, for two reasons. The NO_DEFAULT one above: a schema
+# default is copied into the composition spec. And precedence: a defaulted AGENTIKO_<KEY> would
+# always be present, so it would beat every installer override still written under the AUTOPILOT_
+# name, which is every installer today. values.yaml keeps the defaults under the old names until
+# the installers have moved; then the old names, and this block, go.
+DEPRECATED_PREFIX, CURRENT_PREFIX = "AUTOPILOT_", "AGENTIKO_"
+
+
+def current_name(key: str) -> str:
+    return CURRENT_PREFIX + key[len(DEPRECATED_PREFIX):]
+
+
+def current_prop(key: str, value: object) -> dict:
+    return {
+        "type": json_type(key, value),
+        "title": title_for(current_name(key)),
+        "description": f"Agentiko name of {key}; wins over it when set. Not defaulted: an unset key falls back to {key}.",
+    }
+
+
+properties = {}
+for key, value in config.items():
+    properties[key] = prop(key, value)
+for key, value in config.items():
+    if key.startswith(DEPRECATED_PREFIX):
+        properties[current_name(key)] = current_prop(key, value)
+
+schema["properties"]["config"]["properties"] = properties
 schema["properties"]["config"]["default"] = {key: value for key, value in config.items() if key not in NO_DEFAULT}
 
 (CHART / "values.schema.json").write_text(json.dumps(schema, indent=2) + "\n")

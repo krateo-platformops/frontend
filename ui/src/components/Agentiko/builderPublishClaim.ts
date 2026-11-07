@@ -15,6 +15,7 @@
  *     each held path into fileName + toRepo.path. The frontend just sends the full path.
  */
 
+import { agentikoConfig } from '../../context/agentikoConfig'
 import type { Config } from '../../context/ConfigContext'
 import { PUBLISH_CLAIM_PREFIX } from '../../pages/BlueprintBuilder/chartIdentity'
 
@@ -96,12 +97,12 @@ export interface BuilderPublishClaim {
   }
 }
 
-type BuilderRepoKey = 'AUTOPILOT_BLUEPRINT_BUILDER_REPO' | 'AUTOPILOT_KOG_BUILDER_REPO' | 'AUTOPILOT_PAGE_BUILDER_REPO'
+type BuilderRepoKey = 'BLUEPRINT_BUILDER_REPO' | 'KOG_BUILDER_REPO' | 'PAGE_BUILDER_REPO'
 
 const PER_BUILDER: Record<BuilderKind, BuilderRepoKey> = {
-  blueprint: 'AUTOPILOT_BLUEPRINT_BUILDER_REPO',
-  controller: 'AUTOPILOT_KOG_BUILDER_REPO',
-  page: 'AUTOPILOT_PAGE_BUILDER_REPO',
+  blueprint: 'BLUEPRINT_BUILDER_REPO',
+  controller: 'KOG_BUILDER_REPO',
+  page: 'PAGE_BUILDER_REPO',
 }
 
 /** Parse an install-config `namespace/repo` slug (GitLab subgroups → a multi-segment namespace).
@@ -169,13 +170,13 @@ const DEFAULT_BASE = 'main'
  */
 export const resolveStructuredTarget = (builder: BuilderKind, config: Config | undefined): StructuredTarget => {
   const api = config?.api
-  const { namespace, repo } = parseSlug(api?.[PER_BUILDER[builder]])
+  const { namespace, repo } = parseSlug(agentikoConfig(api, PER_BUILDER[builder]))
   return {
     base: DEFAULT_BASE,
-    host: api?.AUTOPILOT_GIT_HOST || 'github.com',
+    host: agentikoConfig(api, 'GIT_HOST') || 'github.com',
     namespace,
     repo,
-    scm: api?.AUTOPILOT_GIT_SCM || 'github',
+    scm: agentikoConfig(api, 'GIT_SCM') || 'github',
   }
 }
 

@@ -16,6 +16,7 @@
 
 import { type ClipboardEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
+import { agentikoConfig } from '../../context/agentikoConfig'
 import { useConfigContext } from '../../context/ConfigContext'
 
 import { useAgentiko } from './AgentikoProvider'
@@ -144,7 +145,7 @@ const AgentikoRail = () => {
   //  - opening an unavailable rail says once, in the console, why nothing will be spoken
   //    (FR 79) — the same courtesy the capture half owes an insecure context.
   useEffect(() => {
-    agentikoSpeakBackStore.setConfigValue(config?.api.AUTOPILOT_VOICE_SPEAK_BACK)
+    agentikoSpeakBackStore.setConfigValue(agentikoConfig(config?.api, 'VOICE_SPEAK_BACK'))
   }, [config])
   useEffect(() => {
     if (open) {

@@ -12,6 +12,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
+import { agentikoConfig } from '../../context/agentikoConfig'
 import { useConfigContext } from '../../context/ConfigContext'
 import type { WriteOrigin } from '../../hooks/provenance'
 import { randomId } from '../../utils/utils'
@@ -119,7 +120,7 @@ const AgentikoReactContext = createContext<AgentikoContextValue | null>(null)
 
 export const AgentikoProvider = ({ children }: { children: React.ReactNode }) => {
   const { config } = useConfigContext()
-  const endpoint = config?.api.AUTOPILOT_API_BASE_URL
+  const endpoint = agentikoConfig(config?.api, 'API_BASE_URL')
   // Dev/demo escape hatch: an "echo" endpoint (or VITE_AUTOPILOT_ECHO) drives the
   // local stub transport so the rail is exercisable before the live A2A handshake.
   const useEcho = endpoint === 'echo' || (import.meta.env.DEV && import.meta.env.VITE_AUTOPILOT_ECHO === 'true')
@@ -127,7 +128,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
 
   // Availability (CLICKABILITY — distinct from `enabled`/visibility): the installer's flag, the
   // reachability probe and a turn's own verdict, in ./availability.
-  const flagAvailable = config?.api.AUTOPILOT_AVAILABLE !== 'false'
+  const flagAvailable = agentikoConfig(config?.api, 'AVAILABLE') !== 'false'
   // Per-builder publish destinations, resolved from install config (owner/repo slug) → the built-in
   // canonical fallback. Config-driven so an org/repo rename is a values change, not a rebuild.
   const builderTargets = useBuilderTargets(config)

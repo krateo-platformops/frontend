@@ -644,6 +644,81 @@
           "type": "string",
           "title": "Autopilot Voice Name",
           "default": "en-US-Chirp3-HD-Achernar"
+        },
+        "AGENTIKO_API_BASE_URL": {
+          "type": "string",
+          "title": "Agentiko API base URL",
+          "description": "Agentiko name of AUTOPILOT_API_BASE_URL; wins over it when set. Not defaulted: an unset key falls back to AUTOPILOT_API_BASE_URL."
+        },
+        "AGENTIKO_AVAILABLE": {
+          "type": "string",
+          "title": "Agentiko Available",
+          "description": "Agentiko name of AUTOPILOT_AVAILABLE; wins over it when set. Not defaulted: an unset key falls back to AUTOPILOT_AVAILABLE."
+        },
+        "AGENTIKO_PAGE_BUILDER_REPO": {
+          "type": "string",
+          "title": "Agentiko Page Builder Repo",
+          "description": "Agentiko name of AUTOPILOT_PAGE_BUILDER_REPO; wins over it when set. Not defaulted: an unset key falls back to AUTOPILOT_PAGE_BUILDER_REPO."
+        },
+        "AGENTIKO_PAGE_BUILDER_TEMPLATE": {
+          "type": "string",
+          "title": "Agentiko Page Builder Template",
+          "description": "Agentiko name of AUTOPILOT_PAGE_BUILDER_TEMPLATE; wins over it when set. Not defaulted: an unset key falls back to AUTOPILOT_PAGE_BUILDER_TEMPLATE."
+        },
+        "AGENTIKO_BLUEPRINT_BUILDER_TEMPLATE": {
+          "type": "string",
+          "title": "Agentiko Blueprint Builder Template",
+          "description": "Agentiko name of AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE; wins over it when set. Not defaulted: an unset key falls back to AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE."
+        },
+        "AGENTIKO_KOG_BUILDER_TEMPLATE": {
+          "type": "string",
+          "title": "Agentiko Kog Builder Template",
+          "description": "Agentiko name of AUTOPILOT_KOG_BUILDER_TEMPLATE; wins over it when set. Not defaulted: an unset key falls back to AUTOPILOT_KOG_BUILDER_TEMPLATE."
+        },
+        "AGENTIKO_BLUEPRINT_BUILDER_REPO": {
+          "type": "string",
+          "title": "Agentiko Blueprint Builder Repo",
+          "description": "Agentiko name of AUTOPILOT_BLUEPRINT_BUILDER_REPO; wins over it when set. Not defaulted: an unset key falls back to AUTOPILOT_BLUEPRINT_BUILDER_REPO."
+        },
+        "AGENTIKO_KOG_BUILDER_REPO": {
+          "type": "string",
+          "title": "Agentiko Kog Builder Repo",
+          "description": "Agentiko name of AUTOPILOT_KOG_BUILDER_REPO; wins over it when set. Not defaulted: an unset key falls back to AUTOPILOT_KOG_BUILDER_REPO."
+        },
+        "AGENTIKO_GIT_SCM": {
+          "type": "string",
+          "title": "Agentiko Git Scm",
+          "description": "Agentiko name of AUTOPILOT_GIT_SCM; wins over it when set. Not defaulted: an unset key falls back to AUTOPILOT_GIT_SCM."
+        },
+        "AGENTIKO_GIT_HOST": {
+          "type": "string",
+          "title": "Agentiko Git Host",
+          "description": "Agentiko name of AUTOPILOT_GIT_HOST; wins over it when set. Not defaulted: an unset key falls back to AUTOPILOT_GIT_HOST."
+        },
+        "AGENTIKO_VOICE_SPEAK_BACK": {
+          "type": "string",
+          "title": "Agentiko Voice Speak Back",
+          "description": "Agentiko name of AUTOPILOT_VOICE_SPEAK_BACK; wins over it when set. Not defaulted: an unset key falls back to AUTOPILOT_VOICE_SPEAK_BACK."
+        },
+        "AGENTIKO_VOICE_TRANSCRIBE_URL": {
+          "type": "string",
+          "title": "Agentiko Voice Transcribe URL",
+          "description": "Agentiko name of AUTOPILOT_VOICE_TRANSCRIBE_URL; wins over it when set. Not defaulted: an unset key falls back to AUTOPILOT_VOICE_TRANSCRIBE_URL."
+        },
+        "AGENTIKO_VOICE_MODEL": {
+          "type": "string",
+          "title": "Agentiko Voice Model",
+          "description": "Agentiko name of AUTOPILOT_VOICE_MODEL; wins over it when set. Not defaulted: an unset key falls back to AUTOPILOT_VOICE_MODEL."
+        },
+        "AGENTIKO_VOICE_TTS_URL": {
+          "type": "string",
+          "title": "Agentiko Voice Tts URL",
+          "description": "Agentiko name of AUTOPILOT_VOICE_TTS_URL; wins over it when set. Not defaulted: an unset key falls back to AUTOPILOT_VOICE_TTS_URL."
+        },
+        "AGENTIKO_VOICE_NAME": {
+          "type": "string",
+          "title": "Agentiko Voice Name",
+          "description": "Agentiko name of AUTOPILOT_VOICE_NAME; wins over it when set. Not defaulted: an unset key falls back to AUTOPILOT_VOICE_NAME."
         }
       },
       "default": {

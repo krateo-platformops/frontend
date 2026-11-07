@@ -62,6 +62,26 @@ defaults:
 | `PREVIEW_SANDBOX_NAMESPACE` | `""` | The namespace draft widget CRs are applied into for live preview. **Do not set by hand when `previewSandbox.enabled`** — the chart then forces it to `previewSandbox.namespace` so config and provisioning cannot drift. |
 | `BUILDERS_NAMESPACE` | `krateo-system` | The namespace the Builder CRs (Portal, Blueprint, Controller Builders) live in. The frontend lists them as the signed-in user (snowplow `/list?category=builders`), so that user needs `get`/`list` on `builders.builders.templates.krateo.io` there. Empty, or a failed read, means no builder opens and the builder routes say why; there is no bundled fallback. No schema default (see `NO_DEFAULT`). |
 
+### `AGENTIKO_*` and `AUTOPILOT_*`: one key, two names
+
+Every `AUTOPILOT_<KEY>` (the two above, the builder, git and voice keys in `values.yaml`, and
+`AUTOPILOT_VOICE_TTS_MODEL` / `AUTOPILOT_VOICE_STYLE_PROMPT`) is also accepted as
+`AGENTIKO_<KEY>`, the name after the product's rename. Values may set either name:
+
+- **Precedence:** `AGENTIKO_<KEY>` wins whenever it is set, an empty string included. Unset, the
+  `AUTOPILOT_<KEY>` value is used.
+- **The chart** emits both names into `config.json` with that one value, and appends the
+  gateway A2A path to both when `agentgateway.enabled`. `values.yaml` and the schema default only
+  the `AUTOPILOT_` names; the `AGENTIKO_` names are typed in `values.schema.json` and never
+  defaulted, because a default would always be present and beat an installer override still
+  written under the old name.
+- **The SPA** reads each key through one resolver, `agentikoConfig()` in
+  `ui/src/context/agentikoConfig.ts`, with the same precedence.
+
+The rollout order: this frontend first, then the installer switches its values to the
+`AGENTIKO_` names, and once every cluster runs that installer the `AUTOPILOT_` fallback is removed
+from the resolver, the chart template and `scripts/gen-config-schema.py`.
+
 The SPA additionally understands optional keys not in the chart defaults —
 `WIDGET_LIVE_REFRESH_ENABLED` (default on), `RENDER_API_BASE_URL`,
 `TERMINAL_SOCKET_URL`, and a `login` branding block — the full typed contract with

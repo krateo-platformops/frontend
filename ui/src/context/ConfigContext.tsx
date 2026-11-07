@@ -1,6 +1,130 @@
 import type { UseQueryResult } from '@tanstack/react-query'
 import { useQuery } from '@tanstack/react-query'
 import React, { createContext, useContext } from 'react'
+/**
+ * The Agentiko runtime config keys, by the name after their prefix.
+ *
+ * Each one is published in config.json under two names: `AGENTIKO_<KEY>`, the current one, and
+ * `AUTOPILOT_<KEY>`, the name from before the product was renamed. Read them ONLY through
+ * `agentikoConfig(api, '<KEY>')` (context/agentikoConfig.ts), which returns the `AGENTIKO_` value
+ * when that one is present and the `AUTOPILOT_` value otherwise, so the fallback lives in one place.
+ * A test (agentikoConfig.reads.test.ts) fails on a read of either name outside that resolver.
+ */
+export interface AgentikoConfigValues {
+  /** Base URL of the Krateo Agentiko (kagent) A2A endpoint. Optional: when
+   * absent the Agentiko rail + header toggle do not render (graceful absence
+   * for installs without agentiko deployed). */
+  API_BASE_URL?: string
+  /** Installer availability flag for Agentiko. When set to the string "false" (the installer
+   * sets it when agents are not deployed/licensed, features.coreAgents=false) the header toggle
+   * still RENDERS — so the capability is discoverable — but is grayed-out and non-clickable.
+   * Any other value (absent/"true") leaves clickability to the runtime reachability probe. */
+  AVAILABLE?: string
+  /** Agentiko builder publish DESTINATIONS — the `owner/repo` slug each authoring builder
+   * publishes against. Config-driven so an org/repo rename is an install-values change, never a
+   * frontend rebuild — the `braghettos`→`krateo-platformops` (+ `krateo-oas`→`oas`) migration is
+   * exactly why these exist. There is NO hardcoded fallback repo (#163): absent/empty/malformed →
+   * an EMPTY prefill and the human supplies the destination (or the publish is denied). All three
+   * supply the OWNER while the repo is per-artifact — each blueprint, RestDefinition and page set
+   * gets its own repo, since a page set became its own chart (#277). Consumed as the publish-form
+   * prefill — the human confirms every destination. For a page or a blueprint the repository
+   * prefill is always the artifact's own name, so only the OWNER of a model-emitted destination
+   * still wins; the repo segment here is a fallback nothing reaches while a draft is held. */
+  KOG_BUILDER_REPO?: string
+  PAGE_BUILDER_REPO?: string
+  BLUEPRINT_BUILDER_REPO?: string
+  /** Template repos a NEW page-set / blueprint repository is seeded from, as `owner/repo` slugs.
+   *
+   * `builder-publish` creates the destination repo and auto-inits it, so without one a composed
+   * chart lands in a bare repo: a valid chart with no release workflow, and therefore no way to
+   * release itself. Setting one makes the claim render a git-provider `Repo` (`fromRepo` →
+   * `toRepo`) that copies the template in first, onto the builder branch so it is reviewed with
+   * the chart. It is cloned from AGENTIKO_GIT_HOST, so a self-hosted SCM needs a mirror of it at
+   * the same slug, or both keys empty. The template must be chart-free — git-provider
+   * copies every file, and `.krateoignore` only stops rendering — which is why both default to
+   * `krateo-blueprints/builder-scaffold`: a release workflow, `.helmignore`, `.gitignore`, a
+   * README, and nothing a composed chart could collide with. The CompositionDefinition is NOT
+   * the template's: the publish writes one for the chart it commits.
+   *
+   * A seeded repository is one chart's, so with a template configured the publish refuses a
+   * repository named anything but the chart (seededRepoProblem).
+   *
+   * Config-driven and with NO hardcoded fallback, for the same reason as the destinations above.
+   * Absent/empty/malformed → no seeding. */
+  PAGE_BUILDER_TEMPLATE?: string
+  BLUEPRINT_BUILDER_TEMPLATE?: string
+  /** The Controller Builder's seed (T8, frontend#412) — builder-scaffold, like the other two. */
+  KOG_BUILDER_TEMPLATE?: string
+  /* SCM-agnostic publishing (git-provider LocalResource path). The builder publish targets are
+   * install config; these two say WHICH SCM flavour + host so the frontend builds the right
+   * change-request deep link + citation URLs (the write itself is scm-blind, done by git-provider).
+   * Absent → github / github.com, so existing installs are unchanged. */
+  GIT_SCM?: string
+  GIT_HOST?: string
+  /** Operator kill-switch for Agentiko SPEAK-BACK — reading an answer aloud when the
+   * question was asked by voice (voice spec FR 46/76). `"off"` removes the feature and its
+   * rail-header control entirely; any other value (absent/`"on"`) leaves it to the per-user
+   * preference, which defaults on. Independent of the capture half: speak-back needs no
+   * microphone, no HTTPS and no transcription URL — only a local (on-device) voice. */
+  VOICE_SPEAK_BACK?: string
+  /** Where dictated audio is POSTed — a full absolute URL to an OpenAI-shaped
+   * `/chat/completions` on the agent gateway (the dedicated `/stt/v1` route when the
+   * platform ships it, `<gateway>/llm/v1/chat/completions` otherwise). ITS PRESENCE IS
+   * THE ON/OFF SWITCH (voice spec FR 4): absent or empty, the microphone control does
+   * not render and the composer's DOM is unchanged. Nothing is hard-coded — no default
+   * path, no derived origin — because the route is still with the platform team.
+   * Dictation ALSO requires `isSecureContext`, so this key alone does not enable it. */
+  VOICE_TRANSCRIBE_URL?: string
+  /** The model that transcribes. Must be one the gateway routes to a backend that
+   * accepts an inline audio `file` part; defaults to `gemini-3.8-flash`. */
+  VOICE_MODEL?: string
+  /** Where an answer is sent to be SPOKEN — a full absolute URL to a Google Cloud
+   * Text-to-Speech `text:synthesize` on the agent gateway (`<portal-origin>/tts/v1/text:synthesize`
+   * on the platform TLS listener). ITS PRESENCE IS THE ON/OFF SWITCH, the same way
+   * `AGENTIKO_VOICE_TRANSCRIBE_URL` gates dictation: absent or empty, speak-back keeps
+   * using the browser's `speechSynthesis` pinned to on-device voices, byte for byte as
+   * before this key existed. The browser carries only ITS OWN portal bearer — the gateway
+   * route is Strict-JWT gated and holds the GCP credential, so no Google credential ever
+   * reaches the page. Independent of `AGENTIKO_VOICE_SPEAK_BACK`, which stays the
+   * operator kill-switch and still wins over this. */
+  VOICE_TTS_URL?: string
+  /** Gemini-TTS model. Absent = the Chirp/standard request shape, unchanged. Naming one
+   *  switches to the generative tier and enables `AGENTIKO_VOICE_STYLE_PROMPT`.
+   *
+   *  CLOUD TTS NAMES ARE NOT GEMINI API NAMES — this is a trap worth stating, because the
+   *  obvious cross-check gives the wrong answer. This value goes to Cloud TTS
+   *  `text:synthesize`, whose Gemini models are `gemini-3.1-flash-tts-preview` (newest),
+   *  `gemini-2.5-flash-tts`, `gemini-2.5-flash-lite-preview-tts`, `gemini-2.5-pro-tts`. The
+   *  Gemini API's own list spells the 2.5 one `gemini-2.5-flash-preview-tts`, so reading THAT
+   *  list makes the value here look like a typo and invites a "fix" that would break a working
+   *  install. Check the Cloud TTS docs, not the Gemini API docs.
+   *
+   *  `gemini-3.1-flash-tts-preview` is the current choice for a new install. */
+  VOICE_TTS_MODEL?: string
+  /** Gemini-TTS styling instruction, sent as `input.prompt`. This is the field that can ask
+   *  for one language's prose with another language's pronunciation for the jargon inside
+   *  it — which no single locale-pinned voice can do. Read only when a model is named. */
+  VOICE_STYLE_PROMPT?: string
+  /** The Cloud TTS voice that reads answers, e.g. `en-US-Chirp3-HD-Achernar` (the
+   * in-code default). Only consulted when `AGENTIKO_VOICE_TTS_URL` is set. The NAME
+   * carries the language — a voice serves one — so an install that wants answers read in
+   * another language names a voice for it here rather than relying on the browser's
+   * `navigator.language`. */
+  VOICE_NAME?: string
+}
+
+/** The current names, `AGENTIKO_<KEY>`. Present, they win. */
+export type AgentikoApiConfig = { [K in keyof AgentikoConfigValues as `AGENTIKO_${K}`]: AgentikoConfigValues[K] }
+
+/**
+ * @deprecated The pre-rename names, `AUTOPILOT_<KEY>`. Still read as the fallback for a key whose
+ * `AGENTIKO_` name is absent, because every deployed cluster sets only these today.
+ *
+ * Remove this type, and the fallback in agentikoConfig.ts, once every cluster (057, demo, alpitour)
+ * runs an installer that sets the `AGENTIKO_` names.
+ */
+export type AutopilotApiConfig = { [K in keyof AgentikoConfigValues as `AUTOPILOT_${K}`]: AgentikoConfigValues[K] }
+
 export interface Config {
   api: {
     AUTHN_API_BASE_URL: string
@@ -9,15 +133,6 @@ export interface Config {
     EVENTS_PUSH_API_BASE_URL: string
     INIT: string
     TERMINAL_SOCKET_URL: string
-    /** Base URL of the Krateo Agentiko (kagent) A2A endpoint. Optional: when
-     * absent the Agentiko rail + header toggle do not render (graceful absence
-     * for installs without agentiko deployed). */
-    AUTOPILOT_API_BASE_URL?: string
-    /** Installer availability flag for Agentiko. When set to the string "false" (the installer
-     * sets it when agents are not deployed/licensed, features.coreAgents=false) the header toggle
-     * still RENDERS — so the capability is discoverable — but is grayed-out and non-clickable.
-     * Any other value (absent/"true") leaves clickability to the runtime reachability probe. */
-    AUTOPILOT_AVAILABLE?: string
     /** Kill-switch for snowplow's per-widget live-refresh SSE (`/refreshes`), which makes
      * widgets push-update when their backing cluster object changes (see hooks/refreshSse.ts).
      * **ON by default** (verified delivering on snowplow ≥1.5.13; older snowplow degrades to a
@@ -88,98 +203,7 @@ export interface Config {
      */
     OTEL_TRACES_ENDPOINT?: string
     OTEL_COLLECTOR_URL?: string
-    /** Agentiko builder publish DESTINATIONS — the `owner/repo` slug each authoring builder
-     * publishes against. Config-driven so an org/repo rename is an install-values change, never a
-     * frontend rebuild — the `braghettos`→`krateo-platformops` (+ `krateo-oas`→`oas`) migration is
-     * exactly why these exist. There is NO hardcoded fallback repo (#163): absent/empty/malformed →
-     * an EMPTY prefill and the human supplies the destination (or the publish is denied). All three
-     * supply the OWNER while the repo is per-artifact — each blueprint, RestDefinition and page set
-     * gets its own repo, since a page set became its own chart (#277). Consumed as the publish-form
-     * prefill — the human confirms every destination. For a page or a blueprint the repository
-     * prefill is always the artifact's own name, so only the OWNER of a model-emitted destination
-     * still wins; the repo segment here is a fallback nothing reaches while a draft is held. */
-    AUTOPILOT_KOG_BUILDER_REPO?: string
-    AUTOPILOT_PAGE_BUILDER_REPO?: string
-    AUTOPILOT_BLUEPRINT_BUILDER_REPO?: string
-    /** Template repos a NEW page-set / blueprint repository is seeded from, as `owner/repo` slugs.
-     *
-     * `builder-publish` creates the destination repo and auto-inits it, so without one a composed
-     * chart lands in a bare repo: a valid chart with no release workflow, and therefore no way to
-     * release itself. Setting one makes the claim render a git-provider `Repo` (`fromRepo` →
-     * `toRepo`) that copies the template in first, onto the builder branch so it is reviewed with
-     * the chart. It is cloned from AUTOPILOT_GIT_HOST, so a self-hosted SCM needs a mirror of it at
-     * the same slug, or both keys empty. The template must be chart-free — git-provider
-     * copies every file, and `.krateoignore` only stops rendering — which is why both default to
-     * `krateo-blueprints/builder-scaffold`: a release workflow, `.helmignore`, `.gitignore`, a
-     * README, and nothing a composed chart could collide with. The CompositionDefinition is NOT
-     * the template's: the publish writes one for the chart it commits.
-     *
-     * A seeded repository is one chart's, so with a template configured the publish refuses a
-     * repository named anything but the chart (seededRepoProblem).
-     *
-     * Config-driven and with NO hardcoded fallback, for the same reason as the destinations above.
-     * Absent/empty/malformed → no seeding. */
-    AUTOPILOT_PAGE_BUILDER_TEMPLATE?: string
-    AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE?: string
-    /** The Controller Builder's seed (T8, frontend#412) — builder-scaffold, like the other two. */
-    AUTOPILOT_KOG_BUILDER_TEMPLATE?: string
-    /* SCM-agnostic publishing (git-provider LocalResource path). The builder publish targets are
-     * install config; these two say WHICH SCM flavour + host so the frontend builds the right
-     * change-request deep link + citation URLs (the write itself is scm-blind, done by git-provider).
-     * Absent → github / github.com, so existing installs are unchanged. */
-    AUTOPILOT_GIT_SCM?: string
-    AUTOPILOT_GIT_HOST?: string
-    /** Operator kill-switch for Agentiko SPEAK-BACK — reading an answer aloud when the
-     * question was asked by voice (voice spec FR 46/76). `"off"` removes the feature and its
-     * rail-header control entirely; any other value (absent/`"on"`) leaves it to the per-user
-     * preference, which defaults on. Independent of the capture half: speak-back needs no
-     * microphone, no HTTPS and no transcription URL — only a local (on-device) voice. */
-    AUTOPILOT_VOICE_SPEAK_BACK?: string
-    /** Where dictated audio is POSTed — a full absolute URL to an OpenAI-shaped
-     * `/chat/completions` on the agent gateway (the dedicated `/stt/v1` route when the
-     * platform ships it, `<gateway>/llm/v1/chat/completions` otherwise). ITS PRESENCE IS
-     * THE ON/OFF SWITCH (voice spec FR 4): absent or empty, the microphone control does
-     * not render and the composer's DOM is unchanged. Nothing is hard-coded — no default
-     * path, no derived origin — because the route is still with the platform team.
-     * Dictation ALSO requires `isSecureContext`, so this key alone does not enable it. */
-    AUTOPILOT_VOICE_TRANSCRIBE_URL?: string
-    /** The model that transcribes. Must be one the gateway routes to a backend that
-     * accepts an inline audio `file` part; defaults to `gemini-3.8-flash`. */
-    AUTOPILOT_VOICE_MODEL?: string
-    /** Where an answer is sent to be SPOKEN — a full absolute URL to a Google Cloud
-     * Text-to-Speech `text:synthesize` on the agent gateway (`<portal-origin>/tts/v1/text:synthesize`
-     * on the platform TLS listener). ITS PRESENCE IS THE ON/OFF SWITCH, the same way
-     * `AUTOPILOT_VOICE_TRANSCRIBE_URL` gates dictation: absent or empty, speak-back keeps
-     * using the browser's `speechSynthesis` pinned to on-device voices, byte for byte as
-     * before this key existed. The browser carries only ITS OWN portal bearer — the gateway
-     * route is Strict-JWT gated and holds the GCP credential, so no Google credential ever
-     * reaches the page. Independent of `AUTOPILOT_VOICE_SPEAK_BACK`, which stays the
-     * operator kill-switch and still wins over this. */
-    AUTOPILOT_VOICE_TTS_URL?: string
-    /** Gemini-TTS model. Absent = the Chirp/standard request shape, unchanged. Naming one
-     *  switches to the generative tier and enables `AUTOPILOT_VOICE_STYLE_PROMPT`.
-     *
-     *  CLOUD TTS NAMES ARE NOT GEMINI API NAMES — this is a trap worth stating, because the
-     *  obvious cross-check gives the wrong answer. This value goes to Cloud TTS
-     *  `text:synthesize`, whose Gemini models are `gemini-3.1-flash-tts-preview` (newest),
-     *  `gemini-2.5-flash-tts`, `gemini-2.5-flash-lite-preview-tts`, `gemini-2.5-pro-tts`. The
-     *  Gemini API's own list spells the 2.5 one `gemini-2.5-flash-preview-tts`, so reading THAT
-     *  list makes the value here look like a typo and invites a "fix" that would break a working
-     *  install. Check the Cloud TTS docs, not the Gemini API docs.
-     *
-     *  `gemini-3.1-flash-tts-preview` is the current choice for a new install. */
-    AUTOPILOT_VOICE_TTS_MODEL?: string
-    /** Gemini-TTS styling instruction, sent as `input.prompt`. This is the field that can ask
-     *  for one language's prose with another language's pronunciation for the jargon inside
-     *  it — which no single locale-pinned voice can do. Read only when a model is named. */
-    AUTOPILOT_VOICE_STYLE_PROMPT?: string
-    /** The Cloud TTS voice that reads answers, e.g. `en-US-Chirp3-HD-Achernar` (the
-     * in-code default). Only consulted when `AUTOPILOT_VOICE_TTS_URL` is set. The NAME
-     * carries the language — a voice serves one — so an install that wants answers read in
-     * another language names a voice for it here rather than relying on the browser's
-     * `navigator.language`. */
-    AUTOPILOT_VOICE_NAME?: string
-  }
+  } & AgentikoApiConfig & AutopilotApiConfig
   params: {
     FRONTEND_NAMESPACE: string
     DELAY_SAVE_NOTIFICATION: string
