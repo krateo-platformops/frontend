@@ -1,8 +1,10 @@
 /**
- * `sources` in the COMMITTED Chart.yaml: the repository a chart is published from, written at
- * publish from the confirmed destination (the krateo-blueprints publishing standard). The repository
- * is not known when a chart starts, so no start can write it; the blueprints index publishes the
- * archive release-oci packs from the committed tree, so nothing after the publish can add it either.
+ * The publishing fields in the COMMITTED Chart.yaml (the krateo-blueprints publishing standard).
+ * `sources` is the repository a chart is published from, written at publish from the confirmed
+ * destination: the repository is not known when a chart starts, so no start can write it. The kind's
+ * keyword, the icon and a page set's krateo.io/kind are filled at publish too when missing, so a draft
+ * started before they existed is not refused at its first release. The blueprints index publishes the
+ * archive release-oci packs from the committed tree, so nothing after the publish can add them.
  *
  * `buildClaimPublish` is mocked: what is under test is the Chart.yaml this function hands it.
  */
@@ -107,5 +109,27 @@ describe('a publish writes the confirmed repository into Chart.yaml sources', ()
     expect(sourcesOf(committedChart(0))).toEqual(['https://github.com/krateo-blueprints/orders-api'])
     expect(committedChart(1)).toBe(committedChart(0))
     expect(deps.blueprintStore.get()?.files['Chart.yaml']).toBe(files['Chart.yaml'])
+  })
+})
+
+describe('a publish fills every other publishing field that is missing, and overwrites none', () => {
+  /** Chart.yaml as the Blueprint Composer wrote it before keywords and the icon existed. */
+  const OLD_CHART = 'apiVersion: v2\nname: orders-api\ntype: application\nversion: 1.4.2\n'
+
+  it('an old-style draft with none of them gets the icon, its keyword and sources', async () => {
+    await runDraftPublish(depsHolding({ ...startedChart(), 'Chart.yaml': OLD_CHART }, 'blueprint'), { verb: 'publishBlueprint' })
+    const committed = committedChart()
+    expect(committed.startsWith(OLD_CHART)).toBe(true)
+    expect(load(committed)).toMatchObject({
+      icon: 'https://raw.githubusercontent.com/krateo-platformops/.github/main/brand/logo.svg',
+      keywords: ['blueprint'],
+      sources: ['https://github.com/krateo-blueprints/orders-api'],
+    })
+  })
+
+  it('a chart with the author\'s own keywords and icon, and nothing missing, is committed byte for byte', async () => {
+    const authored = `${OLD_CHART}icon: https://example.com/orders.png\nkeywords:\n  - payments\nsources:\n  - https://github.com/krateo-blueprints/orders-api\n`
+    await runDraftPublish(depsHolding({ ...startedChart(), 'Chart.yaml': authored }, 'blueprint'), { verb: 'publishBlueprint' })
+    expect(committedChart()).toBe(authored)
   })
 })
