@@ -30,6 +30,7 @@
 
 import { useEffect, useRef } from 'react'
 
+import { agentikoConfig } from '../../context/agentikoConfig'
 import { useConfigContext } from '../../context/ConfigContext'
 import { raiseSessionExpired } from '../../utils/sessionResume'
 
@@ -128,8 +129,8 @@ export const useVoiceWiring = (
   submitSpokenTurn: (text: string) => void,
 ): void => {
   const { config } = useConfigContext()
-  const transcribeUrl = config?.api.AUTOPILOT_VOICE_TRANSCRIBE_URL
-  const model = config?.api.AUTOPILOT_VOICE_MODEL
+  const transcribeUrl = agentikoConfig(config?.api, 'VOICE_TRANSCRIBE_URL')
+  const model = agentikoConfig(config?.api, 'VOICE_MODEL')
 
   // FR 6: capability is re-evaluated when config loads AND on window focus, so a portal
   // that gains TLS (or an operator who fills the key in) does not need a page reload.
@@ -161,13 +162,13 @@ export const useVoiceWiring = (
   // `speakableForMessage()` string, so nothing on the FR 68 fidelity path moves. The bearer
   // is `a2aAuthHeader` and NOTHING else: the gateway route holds the GCP credential, and a
   // page that never has one cannot leak one.
-  const ttsUrl = config?.api.AUTOPILOT_VOICE_TTS_URL
+  const ttsUrl = agentikoConfig(config?.api, 'VOICE_TTS_URL')
   // Gemini-TTS. Absent leaves the Chirp request shape untouched, so this is inert until an
   // install opts in. The style prompt is the reason to: it is the only field that can ask for
   // Italian prose AND English pronunciation of the technical terms inside it.
-  const ttsModel = config?.api.AUTOPILOT_VOICE_TTS_MODEL
-  const stylePrompt = config?.api.AUTOPILOT_VOICE_STYLE_PROMPT
-  const voiceName = config?.api.AUTOPILOT_VOICE_NAME
+  const ttsModel = agentikoConfig(config?.api, 'VOICE_TTS_MODEL')
+  const stylePrompt = agentikoConfig(config?.api, 'VOICE_STYLE_PROMPT')
+  const voiceName = agentikoConfig(config?.api, 'VOICE_NAME')
   useEffect(() => {
     if (!ttsUrl) {
       agentikoSpeakBackStore.installSpeaker(null)

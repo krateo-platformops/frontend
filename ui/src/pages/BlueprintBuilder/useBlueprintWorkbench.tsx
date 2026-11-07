@@ -45,6 +45,7 @@ import { emitDraftClose, onDraftClose } from '../../components/Agentiko/previewD
 import { emitFileAdd } from '../../components/Agentiko/previewFileAdd'
 import { emitFilesBatch } from '../../components/Agentiko/previewFilesBatch'
 import type { FileHighlight } from '../../components/Agentiko/previewSurface'
+import { configValueByName } from '../../context/agentikoConfig'
 
 import {
   ARCHITECTURE_API_VERSION,
@@ -91,7 +92,7 @@ export const useBlueprintWorkbench = (host: HostDraft) => {
   const { api, builder, files, held, kind, mode, openFile, sideRef: side } = host
   // Config supplies the owner the Start modal shows a location under, and the snowplow URL the
   // palette's CRD reads go to.
-  const { owner } = resolveBuilderTarget((api as Record<string, string | undefined> | undefined)?.[host.spec.publish.targetKey])
+  const { owner } = resolveBuilderTarget(configValueByName(api, host.spec.publish.targetKey))
   const crds = useCrdSchema(api?.SNOWPLOW_API_BASE_URL)
   const [startOpen, setStartOpen] = useState(false)
   // Done on "What just happened" unmounts the button it was pressed on: focus goes to the inspector

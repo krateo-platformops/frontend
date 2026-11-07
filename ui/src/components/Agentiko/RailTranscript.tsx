@@ -11,6 +11,7 @@ import { useEffect, useId, useState } from 'react'
 import { CopyToClipboard } from 'react-copy-to-clipboard-ts'
 import { default as ReactMarkdown } from 'react-markdown'
 
+import { agentikoConfig } from '../../context/agentikoConfig'
 import { useConfigContext } from '../../context/ConfigContext'
 
 import { isRefusedChip } from './actionBridge'
@@ -93,7 +94,7 @@ const EvidencePanel = ({ evidence }: { evidence: EvidenceEntry[] }) => {
   // top level — the reported bug. DelegationRow renders from this shared map (no per-row refetch),
   // and serializeEvidence nests it under each specialist line.
   const [delegations, setDelegations] = useState<Record<string, DelegationState>>({})
-  const base = config?.api.AUTOPILOT_API_BASE_URL
+  const base = agentikoConfig(config?.api, 'API_BASE_URL')
   useEffect(() => {
     if (!open || !base) {
       return

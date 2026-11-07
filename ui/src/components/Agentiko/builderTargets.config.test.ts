@@ -17,7 +17,7 @@ import { join } from 'node:path'
 import { load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 
-import { builderTemplateUrl, resolveBuilderTarget, type BuilderTargetSlugs } from './builderTargets'
+import { builderTemplateUrl, resolveBuilderTarget, type BuilderTargetKey } from './builderTargets'
 
 const CHART = join(__dirname, '..', '..', '..', '..', 'helm', 'frontend')
 
@@ -38,15 +38,21 @@ const commentAbove = (key: string): string => {
   return block.join(' ')
 }
 
-/** Every key builderTargets reads. Typed against BuilderTargetSlugs, so a key added there and not here fails to compile. */
-const BUILDER_KEYS: Record<keyof BuilderTargetSlugs, true> = {
-  AUTOPILOT_BLUEPRINT_BUILDER_REPO: true,
-  AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE: true,
-  AUTOPILOT_KOG_BUILDER_REPO: true,
-  AUTOPILOT_KOG_BUILDER_TEMPLATE: true,
-  AUTOPILOT_PAGE_BUILDER_REPO: true,
-  AUTOPILOT_PAGE_BUILDER_TEMPLATE: true,
+/**
+ * Every key builderTargets reads, under the name values.yaml defaults it by (the AUTOPILOT_ one),
+ * mapped to the AGENTIKO_ name that also reaches it. Typed against BuilderTargetKey, so a key added
+ * there and not here fails to compile.
+ */
+const BUILDER_KEYS: Record<BuilderTargetKey, readonly [deprecated: string, current: string]> = {
+  BLUEPRINT_BUILDER_REPO: ['AUTOPILOT_BLUEPRINT_BUILDER_REPO', 'AGENTIKO_BLUEPRINT_BUILDER_REPO'],
+  BLUEPRINT_BUILDER_TEMPLATE: ['AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE', 'AGENTIKO_BLUEPRINT_BUILDER_TEMPLATE'],
+  KOG_BUILDER_REPO: ['AUTOPILOT_KOG_BUILDER_REPO', 'AGENTIKO_KOG_BUILDER_REPO'],
+  KOG_BUILDER_TEMPLATE: ['AUTOPILOT_KOG_BUILDER_TEMPLATE', 'AGENTIKO_KOG_BUILDER_TEMPLATE'],
+  PAGE_BUILDER_REPO: ['AUTOPILOT_PAGE_BUILDER_REPO', 'AGENTIKO_PAGE_BUILDER_REPO'],
+  PAGE_BUILDER_TEMPLATE: ['AUTOPILOT_PAGE_BUILDER_TEMPLATE', 'AGENTIKO_PAGE_BUILDER_TEMPLATE'],
 }
+const DEFAULTED_NAMES = Object.values(BUILDER_KEYS).map(([deprecated]) => deprecated)
+const CURRENT_NAMES = Object.values(BUILDER_KEYS).map(([, current]) => current)
 
 /** What the installer deploys for a key: the config block's default map, which the per-key default must agree with. */
 const deployed = (key: string): unknown => schema.properties.config.default[key]
@@ -68,11 +74,24 @@ describe('the builder keys the frontend reads have schema defaults, in step with
     expect(values.config[key]).toBe('krateo-blueprints/builder-scaffold')
   })
 
-  it.each(Object.keys(BUILDER_KEYS).filter((key) => !UNDEFAULTED.has(key)))('%s is declared, defaulted and agrees with values.yaml', (key) => {
+  it.each(DEFAULTED_NAMES.filter((key) => !UNDEFAULTED.has(key)))('%s is declared, defaulted and agrees with values.yaml', (key) => {
     const property = schema.properties.config.properties[key]
     expect(property, `${key} is not in values.schema.json — run python3 scripts/gen-config-schema.py`).toBeDefined()
     expect(property.default).toBe(values.config[key])
     expect(deployed(key)).toBe(values.config[key])
+  })
+})
+
+describe('the AGENTIKO_ names of the builder keys are accepted, and never defaulted', () => {
+  // A default would be copied into the composition spec, and would then beat every installer override
+  // still written under the AUTOPILOT_ name — which is every installer today.
+  it.each(CURRENT_NAMES)('%s is declared and typed, carries NO default, and values.yaml does not set it', (key) => {
+    const property = schema.properties.config.properties[key] as { default?: unknown; type?: string } | undefined
+    expect(property, `${key} is not in values.schema.json — run python3 scripts/gen-config-schema.py`).toBeDefined()
+    expect(property?.type).toBe('string')
+    expect(property).not.toHaveProperty('default')
+    expect(schema.properties.config.default).not.toHaveProperty(key)
+    expect(values.config).not.toHaveProperty(key)
   })
 })
 

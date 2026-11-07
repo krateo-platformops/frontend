@@ -14,6 +14,7 @@
  */
 import { useMemo } from 'react'
 
+import { agentikoConfig, agentikoKeyOf, type AgentikoKey } from '../../context/agentikoConfig'
 import type { Config } from '../../context/ConfigContext'
 
 export interface BuilderTarget {
@@ -65,65 +66,81 @@ export interface BuilderTargets {
   pageTemplate: BuilderTarget
 }
 
-/** The install-config slugs the builder targets are resolved from — `config.api`'s six keys. */
-export type BuilderTargetSlugs = Pick<Config['api'],
-  | 'AUTOPILOT_BLUEPRINT_BUILDER_REPO'
-  | 'AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE'
-  | 'AUTOPILOT_KOG_BUILDER_REPO'
-  | 'AUTOPILOT_KOG_BUILDER_TEMPLATE'
-  | 'AUTOPILOT_PAGE_BUILDER_REPO'
-  | 'AUTOPILOT_PAGE_BUILDER_TEMPLATE'>
+/** The six Agentiko config keys the builder targets are resolved from, by the name after the prefix. */
+export type BuilderTargetKey = Extract<AgentikoKey,
+  | 'BLUEPRINT_BUILDER_REPO'
+  | 'BLUEPRINT_BUILDER_TEMPLATE'
+  | 'KOG_BUILDER_REPO'
+  | 'KOG_BUILDER_TEMPLATE'
+  | 'PAGE_BUILDER_REPO'
+  | 'PAGE_BUILDER_TEMPLATE'>
+
+/** The install-config slugs the builder targets are resolved from — `config.api`'s six keys, under either name. */
+export type BuilderTargetSlugs = Pick<Config['api'], `AGENTIKO_${BuilderTargetKey}` | `AUTOPILOT_${BuilderTargetKey}`>
+
+/** The six slugs, already resolved from whichever name each was set under. */
+type ResolvedSlugs = Record<BuilderTargetKey, string | undefined>
+
+const targetsOf = (slugs: ResolvedSlugs): BuilderTargets => ({
+  blueprint: resolveBuilderTarget(slugs.BLUEPRINT_BUILDER_REPO),
+  blueprintTemplate: resolveBuilderTarget(slugs.BLUEPRINT_BUILDER_TEMPLATE),
+  kog: resolveBuilderTarget(slugs.KOG_BUILDER_REPO),
+  kogTemplate: resolveBuilderTarget(slugs.KOG_BUILDER_TEMPLATE),
+  page: resolveBuilderTarget(slugs.PAGE_BUILDER_REPO),
+  pageTemplate: resolveBuilderTarget(slugs.PAGE_BUILDER_TEMPLATE),
+})
+
+const slugsOf = (api: BuilderTargetSlugs | undefined): ResolvedSlugs => ({
+  BLUEPRINT_BUILDER_REPO: agentikoConfig(api, 'BLUEPRINT_BUILDER_REPO'),
+  BLUEPRINT_BUILDER_TEMPLATE: agentikoConfig(api, 'BLUEPRINT_BUILDER_TEMPLATE'),
+  KOG_BUILDER_REPO: agentikoConfig(api, 'KOG_BUILDER_REPO'),
+  KOG_BUILDER_TEMPLATE: agentikoConfig(api, 'KOG_BUILDER_TEMPLATE'),
+  PAGE_BUILDER_REPO: agentikoConfig(api, 'PAGE_BUILDER_REPO'),
+  PAGE_BUILDER_TEMPLATE: agentikoConfig(api, 'PAGE_BUILDER_TEMPLATE'),
+})
 
 /**
  * Resolve every builder target from install config. Pure — the hook below only memoizes it — so
  * which key feeds which target is testable without rendering anything, and a key wired to the wrong
  * target is a failed assertion rather than a publish seeded from the other builder's template.
  */
-export const resolveBuilderTargets = (api: BuilderTargetSlugs | undefined): BuilderTargets => ({
-  blueprint: resolveBuilderTarget(api?.AUTOPILOT_BLUEPRINT_BUILDER_REPO),
-  blueprintTemplate: resolveBuilderTarget(api?.AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE),
-  kog: resolveBuilderTarget(api?.AUTOPILOT_KOG_BUILDER_REPO),
-  kogTemplate: resolveBuilderTarget(api?.AUTOPILOT_KOG_BUILDER_TEMPLATE),
-  page: resolveBuilderTarget(api?.AUTOPILOT_PAGE_BUILDER_REPO),
-  pageTemplate: resolveBuilderTarget(api?.AUTOPILOT_PAGE_BUILDER_TEMPLATE),
-})
+export const resolveBuilderTargets = (api: BuilderTargetSlugs | undefined): BuilderTargets => targetsOf(slugsOf(api))
 
 /**
  * Which resolved target each install-config key fills. A Builder names its destination by config key
  * (`spec.publish.targetKey` / `templateKey`, never an owner/repo — ADR 0001), and this is how the engine
- * reads the target that key resolved to.
+ * reads the target that key resolved to. Keyed by the name after the prefix, so a Builder may spell the
+ * key either way: the deployed Builders say `AUTOPILOT_…`.
  */
-const TARGET_OF_KEY: Record<keyof BuilderTargetSlugs, keyof BuilderTargets> = {
-  AUTOPILOT_BLUEPRINT_BUILDER_REPO: 'blueprint',
-  AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE: 'blueprintTemplate',
-  AUTOPILOT_KOG_BUILDER_REPO: 'kog',
-  AUTOPILOT_KOG_BUILDER_TEMPLATE: 'kogTemplate',
-  AUTOPILOT_PAGE_BUILDER_REPO: 'page',
-  AUTOPILOT_PAGE_BUILDER_TEMPLATE: 'pageTemplate',
+const TARGET_OF_KEY: Record<BuilderTargetKey, keyof BuilderTargets> = {
+  BLUEPRINT_BUILDER_REPO: 'blueprint',
+  BLUEPRINT_BUILDER_TEMPLATE: 'blueprintTemplate',
+  KOG_BUILDER_REPO: 'kog',
+  KOG_BUILDER_TEMPLATE: 'kogTemplate',
+  PAGE_BUILDER_REPO: 'page',
+  PAGE_BUILDER_TEMPLATE: 'pageTemplate',
 }
 
 /** The target a Builder's config key resolved to — empty for a key this frontend does not resolve. */
-export const builderTargetFor = (targets: BuilderTargets, key: string): BuilderTarget =>
-  (Object.prototype.hasOwnProperty.call(TARGET_OF_KEY, key)
-    ? targets[TARGET_OF_KEY[key as keyof BuilderTargetSlugs]]
-    : { owner: '', repo: '' })
+export const builderTargetFor = (targets: BuilderTargets, key: string): BuilderTarget => {
+  const suffix = agentikoKeyOf(key)
+  return suffix !== null && Object.prototype.hasOwnProperty.call(TARGET_OF_KEY, suffix)
+    ? targets[TARGET_OF_KEY[suffix as BuilderTargetKey]]
+    : { owner: '', repo: '' }
+}
 
 /** Resolve the builders' publish destinations from install config, memoized on the slugs. */
 export const useBuilderTargets = (config: Config | undefined): BuilderTargets => {
-  const blueprintSlug = config?.api.AUTOPILOT_BLUEPRINT_BUILDER_REPO
-  const blueprintTemplateSlug = config?.api.AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE
-  const kogSlug = config?.api.AUTOPILOT_KOG_BUILDER_REPO
-  const kogTemplateSlug = config?.api.AUTOPILOT_KOG_BUILDER_TEMPLATE
-  const pageSlug = config?.api.AUTOPILOT_PAGE_BUILDER_REPO
-  const pageTemplateSlug = config?.api.AUTOPILOT_PAGE_BUILDER_TEMPLATE
-  return useMemo(() => resolveBuilderTargets({
-    AUTOPILOT_BLUEPRINT_BUILDER_REPO: blueprintSlug,
-    AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE: blueprintTemplateSlug,
-    AUTOPILOT_KOG_BUILDER_REPO: kogSlug,
-    AUTOPILOT_KOG_BUILDER_TEMPLATE: kogTemplateSlug,
-    AUTOPILOT_PAGE_BUILDER_REPO: pageSlug,
-    AUTOPILOT_PAGE_BUILDER_TEMPLATE: pageTemplateSlug,
-  }), [blueprintSlug, blueprintTemplateSlug, kogSlug, kogTemplateSlug, pageSlug, pageTemplateSlug])
+  const slugs = slugsOf(config?.api)
+  const { BLUEPRINT_BUILDER_REPO, BLUEPRINT_BUILDER_TEMPLATE, KOG_BUILDER_REPO, KOG_BUILDER_TEMPLATE, PAGE_BUILDER_REPO, PAGE_BUILDER_TEMPLATE } = slugs
+  return useMemo(() => targetsOf({
+    BLUEPRINT_BUILDER_REPO,
+    BLUEPRINT_BUILDER_TEMPLATE,
+    KOG_BUILDER_REPO,
+    KOG_BUILDER_TEMPLATE,
+    PAGE_BUILDER_REPO,
+    PAGE_BUILDER_TEMPLATE,
+  }), [BLUEPRINT_BUILDER_REPO, BLUEPRINT_BUILDER_TEMPLATE, KOG_BUILDER_REPO, KOG_BUILDER_TEMPLATE, PAGE_BUILDER_REPO, PAGE_BUILDER_TEMPLATE])
 }
 
 /**
