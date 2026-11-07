@@ -27,6 +27,7 @@ import { compositionKind } from '../../pages/BlueprintBuilder/chartIdentity'
 import { ociChartLocation } from '../../pages/BlueprintBuilder/startChart'
 
 import type { BlueprintDraftHeld } from './blueprintDraftStore'
+import { CHART_ICON, CHART_KEYWORD, KRATEO_KIND_ANNOTATION } from './chartPublishing'
 
 /** Where a page chart keeps its widget CRs — the same place any Helm chart keeps its templates. */
 export const PAGE_TEMPLATES_DIR = 'templates'
@@ -48,15 +49,26 @@ const PAGE_ROOT_KEY = /^templates\/flex\.page-([a-z0-9-]+)\.yaml$/i
  * The NAME becomes the generated CRD's Kind, so it is the page slug: a page set called
  * `fleet-health` installs as `FleetHealth`. That is also why it must be a valid DNS name, which the
  * slug already is.
+ *
+ * THE PUBLISHING STANDARD'S FIELDS (chartPublishing.ts): the https icon the blueprints index
+ * requires, the one `page-set` keyword, and `krateo.io/kind: page-set`, which routes the chart to the
+ * index's `pages` channel and keeps page sets off the Marketplace. `sources` is added at publish,
+ * once the destination repository is confirmed.
  */
-export const pageChartYaml = (slug: string): string => dump({
-  apiVersion: 'v2',
-  appVersion: 'CHART_VERSION',
-  description: `Krateo Composable Portal pages — ${slug}.`,
-  name: slug,
-  type: 'application',
-  version: 'CHART_VERSION',
-}, { lineWidth: -1, noRefs: true, sortKeys: false })
+export const pageChartYaml = (slug: string): string => {
+  // Built by assignment: the lint alphabetises object literals, and a file's key order is its format.
+  const chart: Record<string, unknown> = {}
+  chart.apiVersion = 'v2'
+  chart.appVersion = 'CHART_VERSION'
+  chart.description = `Krateo Composable Portal pages — ${slug}.`
+  chart.name = slug
+  chart.icon = CHART_ICON
+  chart.type = 'application'
+  chart.version = 'CHART_VERSION'
+  chart.keywords = [CHART_KEYWORD.page]
+  chart.annotations = { [KRATEO_KIND_ANNOTATION]: CHART_KEYWORD.page }
+  return dump(chart, { lineWidth: -1, noRefs: true, sortKeys: false })
+}
 
 /**
  * The generated CRD's spec, which is what `values.schema.json` IS — core-provider reads this file

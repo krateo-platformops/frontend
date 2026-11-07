@@ -46,8 +46,10 @@ import { CHART_YAML_PATH, chartYamlVersion } from './blueprintDraft'
 import { heldPublishFiles, type BlueprintDraftHeld, type BlueprintDraftStore } from './blueprintDraftStore'
 import type { createBlueprintGate } from './blueprintGate'
 import { buildClaimPublish } from './builderClaimPublish'
+import { repositoryWebUrl, resolveStructuredTarget } from './builderPublishClaim'
 import type { PublishStatusClaim } from './builderPublishStatus'
 import { builderTargetFor, builderTemplateUrl, type useBuilderTargets } from './builderTargets'
+import { withChartSource } from './chartPublishing'
 import { pageCompositionDefinition } from './pageDraft'
 import type { PublishRequestDetail, PublishResultDetail } from './previewPublishRequest'
 import { lintHeldDraft } from './proposedChart'
@@ -267,10 +269,21 @@ export const runDraftPublish = async (
   // the chart releases to OCI and nothing installs it — inert until a CompositionDefinition
   // registers it. It lands because the builder scaffold carries none: the claim never overwrites a
   // file the seed already put there. (A blueprint used to publish without one at all.)
-  const registration = publisher.registration(slug, dest.owner || bt.owner, dest.repo || destRepo, held.files)
+  const owner = dest.owner || bt.owner
+  const repo = dest.repo || destRepo
+  const registration = publisher.registration(slug, owner, repo, held.files)
   const projection = publisher.projection(held.files)
+  // `sources` IN Chart.yaml, for every builder, for the same reason: it names the repository this
+  // chart is published from (the krateo-blueprints publishing standard), and that repository is
+  // settled only now. The blueprints index publishes the archive release-oci packs from the
+  // committed tree, so it must be in the COMMITTED Chart.yaml; nothing later adds it. Merged into
+  // what the author wrote (withChartSource): their own sources stay, the repository is added once,
+  // and the held draft is not touched, so a second publish adds it to the same bytes again.
+  const chartYaml = held.files[CHART_YAML_PATH]
+  const source = repositoryWebUrl({ ...resolveStructuredTarget(builder.publish.builder, config), namespace: owner, repo })
   const publishFiles = {
     ...held.files,
+    ...(chartYaml !== undefined ? { [CHART_YAML_PATH]: withChartSource(chartYaml, source) } : {}),
     ...(registration ? { [REGISTRATION_PATH]: registration } : {}),
     ...(projection ? { [PROJECTION_BUNDLE_PATH]: projection.bundle } : {}),
   }

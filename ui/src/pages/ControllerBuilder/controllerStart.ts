@@ -17,6 +17,7 @@
  *     the vendor's own is kept on Chart.yaml (servedVersion.ts; the store re-pins it on every write).
  */
 import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from '../../components/Agentiko/blueprintDraft'
+import { CHART_ICON, CHART_KEYWORD } from '../../components/Agentiko/chartPublishing'
 import { kogValuesSchema } from '../../components/Agentiko/kogChart'
 import { KOG_MANAGED_BY_LABEL } from '../../components/Agentiko/kogMapping'
 import { utf8ByteLength } from '../../components/Agentiko/oasAttachment'
@@ -201,16 +202,14 @@ export const validateStartController = (input: StartControllerInput, reading: Sp
 }
 
 /**
- * The icon a started controller chart carries, the same brand path a started BLUEPRINT uses (#454).
- * The Marketplace's blueprints index (krateo-blueprints/charts publish-chart.yaml) REFUSES a chart
- * without an https icon — it logs "it needs an https icon in Chart.yaml" and the release's index job
- * is skipped — so without this a merged controller is released and silently left out of the
- * Marketplace, and nobody can Install it from there. #454 fixed that for the Blueprint Composer only.
- * The author can point it at another image in the Files tab like any other Chart.yaml line.
+ * Chart.yaml in the order Helm's own files read — built by assignment, since the order is the file's.
+ *
+ * The icon (chartPublishing.ts CHART_ICON) is the same brand path a started BLUEPRINT uses (#454):
+ * the Marketplace's blueprints index REFUSES a chart without an https icon, so without it a merged
+ * controller is released and silently left out of the Marketplace. Its one keyword is `controller`,
+ * its kind (the publishing standard's rule 3); `sources` is added at publish, once the destination
+ * repository is confirmed. The author can change any of them in the Files tab.
  */
-const CHART_ICON = 'https://raw.githubusercontent.com/krateo-platformops/.github/main/brand/logo.svg'
-
-/** Chart.yaml in the order Helm's own files read — built by assignment, since the order is the file's. */
 const chartYaml = (name: string, group: string, baseUrl: string, title: string, sourceVersion: string | null): string => {
   const chart: Record<string, unknown> = {}
   chart.apiVersion = 'v2'
@@ -219,6 +218,7 @@ const chartYaml = (name: string, group: string, baseUrl: string, title: string, 
   chart.icon = CHART_ICON
   chart.type = 'application'
   chart.version = CONTROLLER_START_VERSION
+  chart.keywords = [CHART_KEYWORD.controller]
   const annotations: Record<string, string> = {}
   annotations[GROUP_ANNOTATION] = group
   annotations[BASE_URL_ANNOTATION] = baseUrl

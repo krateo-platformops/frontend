@@ -239,14 +239,27 @@ export const buildBuilderPublishOps = (claim: BuilderPublishClaim, gvr: ApplyRes
   { gvr: { ...gvr }, namespace: claim.metadata.namespace, payload: claim, verb: 'POST' },
 ]
 
+/** Azure DevOps, under either name a target may carry. */
+const isAdo = (scm: string): boolean => scm === 'ado' || scm === 'azuredevops'
+
+/**
+ * The repository's https web URL on its SCM — `https://github.com/<owner>/<repo>` on the default
+ * host. What a published Chart.yaml lists in `sources` (publishDraft.ts), and the root every change
+ * request link below hangs off. ADO nests org/project/_git/repo; `namespace` carries org[/project].
+ */
+export const repositoryWebUrl = (target: Pick<StructuredTarget, 'host' | 'namespace' | 'repo' | 'scm'>): string => {
+  const { host, namespace, repo, scm } = target
+  return isAdo(scm) ? `https://${host}/${namespace}/_git/${repo}` : `https://${host}/${namespace}/${repo}`
+}
+
 /**
  * Host-aware "Open change request" URL (Option A: the human opens it). Always an https web URL
  * (the browser opens the SCM's UI, independent of the git push scheme). Branch names carry a slash,
  * so they are encoded in query params.
  */
 export const changeRequestDeepLink = (target: StructuredTarget, branch: string): string => {
-  const { base, host, namespace, repo, scm } = target
-  const repoUrl = `https://${host}/${namespace}/${repo}`
+  const { base, scm } = target
+  const repoUrl = repositoryWebUrl(target)
   const branchEnc = encodeURIComponent(branch)
   const baseEnc = encodeURIComponent(base)
   switch (scm) {
@@ -256,8 +269,8 @@ export const changeRequestDeepLink = (target: StructuredTarget, branch: string):
       return `${repoUrl}/pull-requests/new?source=${branchEnc}&dest=${baseEnc}`
     case 'ado':
     case 'azuredevops':
-      // ADO nests org/project/_git/repo; `namespace` carries org[/project]. Best-effort.
-      return `https://${host}/${namespace}/_git/${repo}/pullrequestcreate?sourceRef=${branchEnc}&targetRef=${baseEnc}`
+      // Best-effort: the ADO repository URL (repositoryWebUrl) plus its PR-create page.
+      return `${repoUrl}/pullrequestcreate?sourceRef=${branchEnc}&targetRef=${baseEnc}`
     default:
       // github (and github-enterprise) — the compare/open-PR page.
       return `${repoUrl}/compare/${base}...${branch}?expand=1`

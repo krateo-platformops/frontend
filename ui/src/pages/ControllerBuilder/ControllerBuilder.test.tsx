@@ -528,7 +528,8 @@ describe('T9 — Preview renders the controller through controller-render-draft'
     await waitFor(() => expect(publishButton().disabled).toBe(false))
 
     // THE PUBLISH PATH: one BuilderPublish claim, builder=controller, seeded from builder-scaffold,
-    // the chart files verbatim plus compositiondefinition.yaml.
+    // the chart files verbatim plus compositiondefinition.yaml — but for Chart.yaml, which gains the
+    // destination repository in `sources` (chartPublishing.ts) and nothing else.
     const { files } = store.get()!
     const published = await publishDraft(publishDeps(gate, store), { label: 'Publish', verb: 'publishRestDef' })
     expect(published.compiled.denial).toBeNull()
@@ -551,7 +552,7 @@ describe('T9 — Preview renders the controller through controller-render-draft'
       'values.yaml',
     ])
     for (const file of claim.spec.files.filter((entry) => entry.path !== REGISTRATION_PATH)) {
-      expect(file.content, file.path).toBe(files[file.path])
+      expect(file.content, file.path).toBe(file.path === 'Chart.yaml' ? `${files[file.path]}sources:\n  - https://github.com/krateo-platformops/petstore\n` : files[file.path])
     }
     expect(load(claim.spec.files.find((file) => file.path === REGISTRATION_PATH)!.content)).toMatchObject({
       kind: 'CompositionDefinition',
