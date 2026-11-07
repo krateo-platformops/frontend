@@ -467,12 +467,12 @@
 
 /* The "Agentiko" provenance tag in the review step. Sized down and nudged so it reads as a
    mark ON the field label rather than a second label beside it — the field name must stay the
-   thing the eye lands on. Agentiko violet, like every Autopilot surface (theme/tokens.ts
-   `autopilotBrand`): the mark says WHO wrote the value, so it wears Autopilot's colours. */
+   thing the eye lands on. Agentiko violet, like every agent surface (theme/tokens.ts
+   `agentikoBrand`): the mark says WHO wrote the value, so it wears the agent's colours. */
 .agentTag {
-  background: var(--krateo-color-autopilot-subtle);
-  border-color: var(--krateo-color-autopilot-border);
-  color: var(--krateo-color-autopilot-accent);
+  background: var(--krateo-color-agentiko-subtle);
+  border-color: var(--krateo-color-agentiko-border);
+  color: var(--krateo-color-agentiko-accent);
   font-size: var(--krateo-text-label-xs);
   line-height: 16px;
   margin-inline-start: var(--spacing-xsm);

@@ -422,9 +422,9 @@ metadata: {name: bad-ask-old-label}
 spec:
   widgetData:
     label: Ask Autopilot →
-    intent: autopilot
+    intent: agentiko
 ---
-# A4: the pre-2026-11-03 canonical look — filled, wand, right label — but no `intent: autopilot`,
+# A4: the pre-2026-11-03 canonical look — filled, wand, right label — but no `intent: agentiko`,
 # so it is drawn as an ordinary primary button, not as the agent's entry point.
 kind: Button
 apiVersion: widgets.templates.krateo.io/v1beta1

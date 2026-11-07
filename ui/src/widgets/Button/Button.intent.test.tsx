@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * A4: `intent: autopilot` is a role, not a skin — the widget draws every agent entry point the
+ * A4: `intent: agentiko` is a role, not a skin — the widget draws every agent entry point the
  * same way (filled with the Agentiko gradient, white label, the Agentiko mark) whatever `type`,
  * `color`, `variant`, `danger`, `ghost` or `icon` the CR carries. Unlicensed it is outlined, neutral
  * and locked, but still live. Without the intent a Button keeps the CR's own look.
@@ -11,7 +11,7 @@ import { App } from 'antd'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { AutopilotLicenceContext } from '../../components/Agentiko/licence'
+import { AgentikoLicenceContext } from '../../components/Agentiko/licence'
 
 import type { ButtonWidgetData } from './Button'
 import Button from './Button'
@@ -34,27 +34,27 @@ const renderButton = (data: Partial<ButtonWidgetData>, licensed: boolean | null 
     ...data,
   }
   const { container } = render(
-    <AutopilotLicenceContext.Provider value={licensed}>
+    <AgentikoLicenceContext.Provider value={licensed}>
       <MemoryRouter>
         <App>
           <Button resourcesRefs={{ items: [] }} uid='btn-test' widget={{} as never} widgetData={widgetData} />
         </App>
       </MemoryRouter>
-    </AutopilotLicenceContext.Provider>,
+    </AgentikoLicenceContext.Provider>,
   )
   return container.querySelector('button')!
 }
 
-describe('Button widget — intent: autopilot (A4)', () => {
+describe('Button widget — intent: agentiko (A4)', () => {
   it('is filled and carries the Agentiko mark', () => {
-    const btn = renderButton({ intent: 'autopilot' })
+    const btn = renderButton({ intent: 'agentiko' })
     expect(btn.className).toMatch(/ant-btn-color-primary/)
     expect(btn.className).toMatch(/ant-btn-variant-solid/)
     expect(btn.querySelector(`svg[viewBox="${AGENTIKO_VIEWBOX}"]`)).not.toBeNull()
   })
 
   it('ignores the CR\'s type, colour, variant, danger, ghost and icon', () => {
-    const btn = renderButton({ color: 'green', danger: true, ghost: true, icon: 'fa-wand-magic-sparkles', intent: 'autopilot', type: 'link', variant: 'outlined' })
+    const btn = renderButton({ color: 'green', danger: true, ghost: true, icon: 'fa-wand-magic-sparkles', intent: 'agentiko', type: 'link', variant: 'outlined' })
     expect(btn.className).toMatch(/ant-btn-color-primary/)
     expect(btn.className).toMatch(/ant-btn-variant-solid/)
     expect(btn.className).not.toMatch(/ant-btn-dangerous|ant-btn-background-ghost/)
@@ -63,14 +63,14 @@ describe('Button widget — intent: autopilot (A4)', () => {
   })
 
   it('the mark is decorative: the visible label stays the accessible name', () => {
-    const btn = renderButton({ intent: 'autopilot' })
+    const btn = renderButton({ intent: 'agentiko' })
     expect(btn.hasAttribute('aria-label')).toBe(false)
     expect(btn.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true')
     expect(btn.textContent).toContain('Ask Agentiko →')
   })
 
   it('unlicensed, it is outlined and neutral with a lock — and still clickable', () => {
-    const btn = renderButton({ intent: 'autopilot' }, false)
+    const btn = renderButton({ intent: 'agentiko' }, false)
     expect(btn.className).not.toMatch(/ant-btn-color-primary/)
     expect(btn.querySelector(`svg[viewBox="${AGENTIKO_VIEWBOX}"]`)).toBeNull()
     expect(btn.querySelector('svg rect')).not.toBeNull()

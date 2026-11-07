@@ -227,7 +227,7 @@ const KRATEO_BASE: Record<string, string> = {
   'font-mono': '"JetBrains Mono", "Courier New", monospace',
   // The agent's own face. Since T5 moved the whole UI to Syne it equals `font-ui`; kept as its
   // own token so the agent's surfaces can diverge again without touching their CSS.
-  'font-autopilot': 'Syne, Inter, Roboto, "Helvetica Neue", Arial, sans-serif',
+  'font-agentiko': 'Syne, Inter, Roboto, "Helvetica Neue", Arial, sans-serif',
   'text-display': '64px',
   'text-h1': '40px',
   'text-h2': '30px',
@@ -272,7 +272,7 @@ export const navGradient = (mode: ThemeMode): { start: string; end: string } =>
   navGradientFrom(mode === 'dark' ? colorDark.primary : color.primary, mode)
 
 /**
- * The agent's own surfaces — the header toggle, the rail, the Button widget's `intent: autopilot`,
+ * The agent's own surfaces — the header toggle, the rail, the Button widget's `intent: agentiko`,
  * the Form's provenance tag. The whole portal wears Agentiko since 2026-11-06 (T11), so the
  * accent here equals the primary; what still sets the agent apart is the "sfumatura" — the brand
  * gradient violet → blue, left → right — which only the agent's filled controls and marks use.
@@ -285,7 +285,7 @@ export const navGradient = (mode: ThemeMode): { start: string; end: string } =>
  * blue on the dark ground is 1.9:1); `fillStart`/`fillEnd` are the brand gradient itself, for
  * fills. Not tenant-overridable (the Theme widget does not touch it): it is a product mark.
  */
-export const autopilotBrand: Record<ThemeMode, {
+export const agentikoBrand: Record<ThemeMode, {
   accent: string
   accentHover: string
   accentActive: string
@@ -326,27 +326,27 @@ export const autopilotBrand: Record<ThemeMode, {
   },
 }
 
-const autopilotSemantic = (mode: ThemeMode): Record<string, string> => {
-  const ap = autopilotBrand[mode]
+const agentikoSemantic = (mode: ThemeMode): Record<string, string> => {
+  const ap = agentikoBrand[mode]
   return {
-    'color-autopilot-accent': ap.accent,
-    'color-autopilot-accent-hover': ap.accentHover,
-    'color-autopilot-accent-active': ap.accentActive,
-    'color-autopilot-on-accent': ap.onAccent,
-    'color-autopilot-subtle': ap.subtle,
-    'color-autopilot-border': ap.border,
-    'color-autopilot-gradient-start': ap.gradientStart,
-    'color-autopilot-gradient-end': ap.gradientEnd,
-    'color-autopilot-fill-start': ap.fillStart,
-    'color-autopilot-fill-end': ap.fillEnd,
-    'color-autopilot-on-fill': ap.onFill,
+    'color-agentiko-accent': ap.accent,
+    'color-agentiko-accent-hover': ap.accentHover,
+    'color-agentiko-accent-active': ap.accentActive,
+    'color-agentiko-on-accent': ap.onAccent,
+    'color-agentiko-subtle': ap.subtle,
+    'color-agentiko-border': ap.border,
+    'color-agentiko-gradient-start': ap.gradientStart,
+    'color-agentiko-gradient-end': ap.gradientEnd,
+    'color-agentiko-fill-start': ap.fillStart,
+    'color-agentiko-fill-end': ap.fillEnd,
+    'color-agentiko-on-fill': ap.onFill,
   }
 }
 
-/** The antd theme Autopilot surfaces nest under their own ConfigProvider (it merges onto the root
+/** The antd theme the agent's surfaces nest under their own ConfigProvider (it merges onto the root
  * theme): antd's buttons, links and focus inside the rail follow Agentiko, nothing outside does. */
-export const autopilotAntdTheme = (mode: ThemeMode): ThemeConfig => {
-  const ap = autopilotBrand[mode]
+export const agentikoAntdTheme = (mode: ThemeMode): ThemeConfig => {
+  const ap = agentikoBrand[mode]
   return {
     token: {
       colorPrimary: ap.accent,
@@ -401,7 +401,7 @@ const KRATEO_SEMANTIC_DARK: Record<string, string> = {
   'color-status-info-subtle': '#1A1544',
   'color-status-info-border': '#3A2FB0',
   'color-status-info-text': '#B3AAFF',
-  ...autopilotSemantic('dark'),
+  ...agentikoSemantic('dark'),
 }
 
 const KRATEO_SEMANTIC_LIGHT: Record<string, string> = {
@@ -443,7 +443,7 @@ const KRATEO_SEMANTIC_LIGHT: Record<string, string> = {
   'color-status-info-subtle': '#ECEAFE',
   'color-status-info-border': '#A8A0F5',
   'color-status-info-text': '#2213CF',
-  ...autopilotSemantic('light'),
+  ...agentikoSemantic('light'),
 }
 
 const KRATEO_CHART_DARK: Record<string, string> = {

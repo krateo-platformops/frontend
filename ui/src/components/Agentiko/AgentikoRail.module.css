@@ -31,10 +31,10 @@
    once open, and mirrors the live width into the `--agentiko-rail-width` CSS var so
    body-portalled overlays inset correctly. */
 .apRail {
-  /* Autopilot wears Agentiko's image (theme/tokens.ts `autopilotBrand`): every rule below that
+  /* The agent wears Agentiko's image (theme/tokens.ts `agentikoBrand`): every rule below that
      reads the primary — accents, the resize grip, chips, focus halos — reads the Agentiko violet,
-     inside the rail only. antd's own drawing is re-themed by AutopilotBrandScope. */
-  --primary-color: var(--krateo-color-autopilot-accent);
+     inside the rail only. antd's own drawing is re-themed by AgentikoBrandScope. */
+  --primary-color: var(--krateo-color-agentiko-accent);
 
   flex: none;
   overflow: hidden;
@@ -156,7 +156,7 @@
    the brand gradient outright, so the rail reads as Agentiko's at a glance without tinting a
    surface the transcript has to stay legible on. */
 .apHead::before {
-  background: linear-gradient(90deg, var(--krateo-color-autopilot-gradient-start), var(--krateo-color-autopilot-gradient-end));
+  background: linear-gradient(90deg, var(--krateo-color-agentiko-gradient-start), var(--krateo-color-agentiko-gradient-end));
   content: '';
   height: 2px;
   inset: 0 0 auto;
@@ -169,9 +169,9 @@
   display: flex;
 
   /* #86 §0.10 Release C kept the title at the DrawerHeader tier (16px, 600). The size and weight
-     still match it; the FACE is Agentiko's Syne (`--krateo-font-autopilot`), because this title is
-     where Autopilot says whose it is. One line, no neighbour text to share a baseline with. */
-  font-family: var(--krateo-font-autopilot);
+     still match it; the FACE is Agentiko's Syne (`--krateo-font-agentiko`), because this title is
+     where the agent says whose it is. One line, no neighbour text to share a baseline with. */
+  font-family: var(--krateo-font-agentiko);
   font-size: var(--krateo-text-body);
   font-weight: 700;
   gap: var(--spacing-sm);
@@ -754,7 +754,7 @@
 
 .apEmpty .apEmptyTitle {
   color: var(--dark-color);
-  font-family: var(--krateo-font-autopilot);
+  font-family: var(--krateo-font-agentiko);
   font-size: var(--krateo-text-body-lg);
   font-weight: 700;
   margin-bottom: var(--spacing-smd);
@@ -1326,7 +1326,7 @@
   opacity: 0.65;
 }
 
-/* ── locked: the agent is not licensed (AutopilotLockedRail) ──
+/* ── locked: the agent is not licensed (AgentikoLockedRail) ──
    The rail's own dock and header, switched off: no brand band on the head, the gecko in grey,
    neutral text. The one coloured control is the licence link, in the brand gradient under white
    (the brand manual's pairing). */
@@ -1368,7 +1368,7 @@
 
 .apLockedTitle {
   color: var(--dark-color);
-  font-family: var(--krateo-font-autopilot);
+  font-family: var(--krateo-font-agentiko);
   font-size: var(--krateo-text-body-lg);
   font-weight: 700;
 }
@@ -1403,16 +1403,16 @@
 .apLockedCheck {
   color: var(--gray-color);
   flex: none;
-  margin-top: 3px;
+  margin-top: var(--spacing-xxs);
 }
 
 .apLockedCta {
   align-items: center;
-  background: linear-gradient(90deg, var(--krateo-color-autopilot-fill-start), var(--krateo-color-autopilot-fill-end));
+  background: linear-gradient(90deg, var(--krateo-color-agentiko-fill-start), var(--krateo-color-agentiko-fill-end));
   border-radius: var(--radius-md);
-  color: var(--krateo-color-autopilot-on-fill);
+  color: var(--krateo-color-agentiko-on-fill);
   display: inline-flex;
-  font-family: var(--krateo-font-autopilot);
+  font-family: var(--krateo-font-agentiko);
   font-weight: var(--font-weight-bold);
   height: 34px;
   padding: 0 var(--spacing-md);
@@ -1420,7 +1420,7 @@
 }
 
 .apLockedCta:hover {
-  color: var(--krateo-color-autopilot-on-fill);
+  color: var(--krateo-color-agentiko-on-fill);
   filter: brightness(0.92);
 }
 

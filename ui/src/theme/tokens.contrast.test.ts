@@ -15,7 +15,7 @@
 import { theme as antdTheme } from 'antd'
 import { describe, expect, it } from 'vitest'
 
-import { autopilotAntdTheme, autopilotBrand, color, colorDark, lightTheme, darkTheme } from './tokens'
+import { agentikoAntdTheme, agentikoBrand, color, colorDark, lightTheme, darkTheme } from './tokens'
 
 // ---------------------------------------------------------------------------
 // WCAG helpers
@@ -250,13 +250,13 @@ describe('Preset blue Tags — WCAG AA ink on fill', () => {
  */
 describe('Agentiko — WCAG AA for the primary and the agent\'s surfaces', () => {
   it('light accent is the Agentiko brand violet and the gradient is the brand pair', () => {
-    expect(autopilotBrand.light.accent).toBe('#9E00FF')
-    expect(autopilotBrand.light.gradientStart).toBe('#9E00FF')
-    expect(autopilotBrand.light.gradientEnd).toBe('#2213CF')
+    expect(agentikoBrand.light.accent).toBe('#9E00FF')
+    expect(agentikoBrand.light.gradientStart).toBe('#9E00FF')
+    expect(agentikoBrand.light.gradientEnd).toBe('#2213CF')
   })
 
   ;(['light', 'dark'] as const).forEach((mode) => {
-    const ap = autopilotBrand[mode]
+    const ap = agentikoBrand[mode]
     const panel = mode === 'dark' ? colorDark.panelbg : color.panelbg
     const ground = mode === 'dark' ? colorDark.background : color.background
 
@@ -280,7 +280,7 @@ describe('Agentiko — WCAG AA for the primary and the agent\'s surfaces', () =>
     })
 
     it(`${mode}: the nested antd theme carries the same accent and the white label`, () => {
-      const nested = autopilotAntdTheme(mode)
+      const nested = agentikoAntdTheme(mode)
       expect(nested.token?.colorPrimary).toBe(ap.accent)
       expect(nested.components?.Button?.primaryColor).toBe(ap.onFill)
     })
@@ -288,7 +288,7 @@ describe('Agentiko — WCAG AA for the primary and the agent\'s surfaces', () =>
 
   it('the pure brand violet FAILS AA on the dark panel (documents the dark tint)', () => {
     expect(contrastRatio('#9E00FF', colorDark.panelbg)).toBeLessThan(4.5)
-    expect(autopilotBrand.dark.accent).not.toBe('#9E00FF')
+    expect(agentikoBrand.dark.accent).not.toBe('#9E00FF')
   })
 
   it('the selected sidebar item is the brand violet under white (the rail is black in both modes)', () => {

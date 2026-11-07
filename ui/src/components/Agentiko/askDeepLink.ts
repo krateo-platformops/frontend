@@ -1,6 +1,6 @@
 /**
  * The `?ask=` deep-link: a widget can start an agent turn via `?ask=<prompt>` (every
- * `intent: autopilot` button — "Ask Agentiko →" — navigates that way). When the agent is LICENSED
+ * `intent: agentiko` button — "Ask Agentiko →" — navigates that way). When the agent is LICENSED
  * the prompt is handed to the provider's seed callback once per visit (guarded so a refresh
  * doesn't re-ask); the context collector already carries the page's telemetry, so the analysis is
  * grounded.

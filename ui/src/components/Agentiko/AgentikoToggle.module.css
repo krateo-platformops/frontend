@@ -4,13 +4,13 @@
    the portal is violet too (T11), so the gradient is what marks this as the agent. */
 .apToggle {
   align-items: center;
-  background: linear-gradient(90deg, var(--krateo-color-autopilot-fill-start), var(--krateo-color-autopilot-fill-end));
+  background: linear-gradient(90deg, var(--krateo-color-agentiko-fill-start), var(--krateo-color-agentiko-fill-end));
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-  color: var(--krateo-color-autopilot-on-fill);
+  color: var(--krateo-color-agentiko-on-fill);
   cursor: pointer;
   display: inline-flex;
-  font-family: var(--krateo-font-autopilot);
+  font-family: var(--krateo-font-agentiko);
   font-size: var(--krateo-text-caption);
   font-weight: var(--font-weight-bold);
   gap: var(--spacing-xsm);
@@ -26,7 +26,7 @@
 }
 
 .apToggle.active {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--krateo-color-autopilot-on-fill) 55%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--krateo-color-agentiko-on-fill) 55%, transparent);
 }
 
 .apToggle:focus-visible {
@@ -73,8 +73,8 @@
 
 /* ⌘G / Ctrl G chip — mirrors CommandPalette's own kbd hint, drawn in the label's white. */
 .kbd {
-  background: color-mix(in srgb, var(--krateo-color-autopilot-on-fill) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--krateo-color-autopilot-on-fill) 45%, transparent);
+  background: color-mix(in srgb, var(--krateo-color-agentiko-on-fill) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--krateo-color-agentiko-on-fill) 45%, transparent);
   border-radius: var(--radius-sm);
   color: inherit;
   flex-shrink: 0;

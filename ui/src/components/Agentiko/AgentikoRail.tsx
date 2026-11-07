@@ -4,7 +4,7 @@
  *   body    — context strip (what it SEES), transcript, per-turn suggestions
  *   composer— textarea + send + the drive-via-real-controls trust note
  *
- * Unlicensed (licence.ts), it renders the locked licence panel instead (AutopilotLockedRail). The width animates 0 → `railWidth`
+ * Unlicensed (licence.ts), it renders the locked licence panel instead (AgentikoLockedRail). The width animates 0 → `railWidth`
  * (384 by default, drag-resizable from its left edge and persisted across sessions —
  * see railWidth.ts) so the shell reflows (it never overlays);
  * toggling session history (`.apMain`'s `HistoryColumn`) widens it further by a fixed
@@ -20,11 +20,11 @@ import gekoThinking from '../../assets/images/agentiko/geko-thinking.webp'
 import { agentikoConfig } from '../../context/agentikoConfig'
 import { useConfigContext } from '../../context/ConfigContext'
 
+import AgentikoBrandScope from './AgentikoBrandScope'
+import AgentikoLockedRail from './AgentikoLockedRail'
 import { useAgentiko } from './AgentikoProvider'
 import styles from './AgentikoRail.module.css'
 import AgentikoTour from './AgentikoTour'
-import AutopilotBrandScope from './AutopilotBrandScope'
-import AutopilotLockedRail from './AutopilotLockedRail'
 import { agentikoComposerDraftStore } from './composerDraftStore'
 import { AGENTIKO_CHECKING, AGENTIKO_UNAVAILABLE } from './copy'
 import { useRailFocusTrap } from './focusTrap'
@@ -230,7 +230,7 @@ const AgentikoRail = () => {
   useVoiceWiring(licensed && open, context, submit)
 
   if (!licensed) {
-    return <AutopilotLockedRail onClose={() => setOpen(false)} open={open} width={Math.min(railWidth, maxDockableWidth(viewportWidth))} />
+    return <AgentikoLockedRail onClose={() => setOpen(false)} open={open} width={Math.min(railWidth, maxDockableWidth(viewportWidth))} />
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -370,7 +370,7 @@ const AgentikoRail = () => {
 
               {messages.length === 0 ? (
                 <div className={styles.apEmpty}>
-                  {/* Agentiko's mascot, the gecko (the agent's surfaces, see AutopilotBrandScope).
+                  {/* Agentiko's mascot, the gecko (the agent's surfaces, see AgentikoBrandScope).
                       Decorative: the title below already says what this state is. */}
                   <img alt='' className={styles.apMascot} decoding='async' height={120} src={gekoThinking} width={101} />
                   <div className={styles.apEmptyTitle}>Ask Agentiko</div>
@@ -485,9 +485,9 @@ export default AgentikoRail
 export const AgentikoShell = ({ children }: { children: React.ReactNode }) => (
   <div className={styles.shellViewport}>
     <div className={styles.shellMain}>{children}</div>
-    <AutopilotBrandScope>
+    <AgentikoBrandScope>
       <AgentikoRail />
       <AgentikoTour />
-    </AutopilotBrandScope>
+    </AgentikoBrandScope>
   </div>
 )

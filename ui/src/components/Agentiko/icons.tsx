@@ -13,7 +13,7 @@ const stroke = (size: number, className: string | undefined, children: React.Rea
 
 // The Agentiko monogram — the "A" fused with a gecko — from the brand's own vector artwork
 // (Brand Guidelines AGENTIKO, "Pittogramma"; EPS → SVG, geometry untouched). It is the agent's
-// identity mark, carried by the header toggle, the rail title and every `intent: autopilot` Button,
+// identity mark, carried by the header toggle, the rail title and every `intent: agentiko` Button,
 // and it is DELIBERATELY solid-fill (not the shared stroke() outline set): a brand glyph, not a
 // generic action icon. The guidelines forbid recolouring outside the palette, rotating, stroking
 // or adding effects — so it is `currentColor` (callers pass an Agentiko token) or the brand
@@ -28,7 +28,7 @@ const AGENTIKO_MARK_PATHS = [
 
 type MarkProps = IconProps & {
   /** Paint the brand "sfumatura" (violet → blue, bottom-left → top-right of each shape) instead of
-   * currentColor. Reads the Autopilot gradient tokens, so it follows the theme mode. */
+   * currentColor. Reads the Agentiko gradient tokens, so it follows the theme mode. */
   gradient?: boolean
   /** Accessible name; omit when the mark sits beside a visible "Agentiko" label. */
   title?: string
@@ -50,8 +50,8 @@ export const AgentikoMark = ({ className, gradient = false, size = 16, title }: 
         <defs>
           {/* In the group's user space y runs upward (the matrix flips it), so y1=0 is the BOTTOM. */}
           <linearGradient id={gradientId} x1='0' x2='1' y1='0' y2='1'>
-            <stop offset='0' stopColor='var(--krateo-color-autopilot-gradient-start)' />
-            <stop offset='1' stopColor='var(--krateo-color-autopilot-gradient-end)' />
+            <stop offset='0' stopColor='var(--krateo-color-agentiko-gradient-start)' />
+            <stop offset='1' stopColor='var(--krateo-color-agentiko-gradient-end)' />
           </linearGradient>
         </defs>
       ) : null}

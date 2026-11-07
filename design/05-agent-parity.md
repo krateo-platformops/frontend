@@ -207,12 +207,12 @@ Page context is **not** passed by the entry point. It is snapshotted from the li
 
 *Evidence: verified `askDeepLink.ts` · `useAutopilotContext.ts:1-10`*
 
-### A4 — One canonical look for “open the agent with a seeded prompt”: “Ask Agentiko →” with `intent: autopilot`.
+### A4 — One canonical look for “open the agent with a seeded prompt”: “Ask Agentiko →” with `intent: agentiko`.
 
 **Status:** gap → resolved → **enforced** — the composition lint's `autopilot-button` rule. The product name became Agentiko on 2026-11-05: the rule's id, and the quoted records below, keep the name they were written with.
 
 Every agent entry point is the same object: label **`Ask Agentiko →`** and
-**`intent: autopilot`**, which the Button widget draws **filled** (never a link) with the Agentiko
+**`intent: agentiko`**, which the Button widget draws **filled** (never a link) with the Agentiko
 gradient under white and the Agentiko mark — outlined with a lock, and still live, when the agent is
 not licensed — ignoring the CR's `type`, `color`, `variant`, `danger`, `ghost` and `icon`
 ([T11](01-tokens.md)). Where it sits is A5's and, in a
@@ -224,14 +224,14 @@ recorded below. Being filled does not spend its container's one primary (P6).
 > **2026-11-06: the agent is named Agentiko.** The portal itself now wears Agentiko (T11), so the
 > entry point is told apart from the violet primaries by the brand gradient, and its label is
 > `Ask Agentiko →`. The lint still recognises the old `Ask Autopilot` spelling as an entry point,
-> and flags its label. The intent keeps its technical name.
+> and flags its label. The intent is `intent: agentiko`.
 >
-> **2026-11-03: the look moves into a role.** Autopilot now wears Agentiko's image inside Krateo,
+> **2026-11-03: the look moves into a role.** The agent now wears Agentiko's image inside Krateo,
 > so its entry point is Agentiko violet with the Agentiko mark in place of the wand. Rather than
 > spell that out on every CR (`type`, `color`, `icon`), the Button widget carries it as
-> `intent: autopilot`, the way `intent: dismiss` carries C26. The lint now asks for the intent and
+> `intent: agentiko`, the way `intent: dismiss` carries C26. The lint now asks for the intent and
 > the label; a Button with the old explicit look but no intent is drawn in the Krateo primary and is
-> reported. The portal chart's entry points need `intent: autopilot` added.
+> reported. The portal chart's entry points need `intent: agentiko` added.
 
 > **Decided 2026-10-08: filled, and the arrow and the wand are part of the label.** portal#151 dropped
 > the trailing arrow ("it implied navigation away"), one CTA had drifted to a robot icon, and the

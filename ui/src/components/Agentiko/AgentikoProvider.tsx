@@ -33,7 +33,7 @@ import { agentikoConversationStore } from './conversationStore'
 import { withHeldDraft } from './draftStructure'
 import { recordToolFrame } from './evidence'
 import { useAgentikoShortcut } from './keyboardShortcut'
-import { AutopilotLicenceContext } from './licence'
+import { AgentikoLicenceContext } from './licence'
 import { createOasAttachmentStore, type OasAttachmentResult } from './oasAttachment'
 import { PREVIEW_SELF_CORRECTION_NUDGE, setPreviewRender } from './previewBus'
 import { emitPublishResult, onPublishRequest } from './previewPublishRequest'
@@ -889,7 +889,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
 
   return (
     <AgentikoReactContext.Provider value={value}>
-      <AutopilotLicenceContext.Provider value={licensed}>
+      <AgentikoLicenceContext.Provider value={licensed}>
         <AgentDraftProvider value={{ draft: agentDraft, nonce: draftNonce }}>
           {children}
           {/* Wave-4 preview surface: the read-only preview verbs (previewBlueprint /
@@ -898,7 +898,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
           {/* The publish-destination form (user-owned owner/repo/base, asked at every publish). */}
           <PublishTargetFormHost />
         </AgentDraftProvider>
-      </AutopilotLicenceContext.Provider>
+      </AgentikoLicenceContext.Provider>
     </AgentikoReactContext.Provider>
   )
 }

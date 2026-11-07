@@ -80,7 +80,7 @@ test('ScreenHeader without a subtitle: status and actions level with the title, 
 
 /** The PageHeader fixtures fetch their two Buttons like any widget; serve them from the chart's shape. */
 const BUTTONS: Record<string, object> = {
-  'ask-autopilot': { actions: { navigate: [{ id: 'ask', path: '/x?ask=help', type: 'navigate' }] }, clickActionId: 'ask', intent: 'autopilot', label: 'Ask Agentiko →', size: 'middle' },
+  'ask-autopilot': { actions: { navigate: [{ id: 'ask', path: '/x?ask=help', type: 'navigate' }] }, clickActionId: 'ask', intent: 'agentiko', label: 'Ask Agentiko →', size: 'middle' },
   'page-action': { actions: { navigate: [{ id: 'go', path: '/x', type: 'navigate' }] }, clickActionId: 'go', label: 'Build a controller', size: 'middle', type: 'primary' },
 }
 

@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Button as AntdButton } from 'antd'
 import useApp from 'antd/es/app/useApp'
 
-import AutopilotBrandScope from '../../components/Agentiko/AutopilotBrandScope'
+import AgentikoBrandScope from '../../components/Agentiko/AgentikoBrandScope'
 import { AgentikoMark, LockIcon } from '../../components/Agentiko/icons'
 import { useAgentikoLicensed } from '../../components/Agentiko/licence'
 import { dismissButtonProps } from '../../components/DismissButton'
@@ -60,18 +60,18 @@ const Button = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: Widget
   // label and carries the Agentiko mark — the same object everywhere, so `type`, `color`,
   // `variant`, `danger`, `ghost` and `icon` are ignored. Unlicensed (licence.ts) it is outlined and
   // neutral with a lock, and still live: its `?ask=` link opens the rail on the licence panel.
-  const isAutopilot = intent === 'autopilot'
-  const isLocked = isAutopilot && !licensed
+  const isAgentiko = intent === 'agentiko'
+  const isLocked = isAgentiko && !licensed
   const roleProps = () => {
     if (intent === 'dismiss') { return { ...dismissButtonProps, danger: false, type: 'default' as const } }
     if (isLocked) { return { danger: false, type: 'default' as const } }
-    if (isAutopilot) { return { className: styles.agentiko, danger: false, type: 'primary' as const } }
+    if (isAgentiko) { return { className: styles.agentiko, danger: false, type: 'primary' as const } }
     return { color, danger, type: type || 'primary', variant }
   }
 
   const iconNode = () => {
     if (isLocked) { return <LockIcon size={14} /> }
-    if (isAutopilot) { return <AgentikoMark size={16} /> }
+    if (isAgentiko) { return <AgentikoMark size={16} /> }
     if (!icon) { return undefined }
     return <FontAwesomeIcon icon={icon as IconProp} style={iconColor ? { color: getColorCode(iconColor) } : undefined} />
   }
@@ -82,7 +82,7 @@ const Button = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: Widget
       block={block}
       {...roleProps()}
       disabled={disabled}
-      ghost={isAutopilot ? false : ghost}
+      ghost={isAgentiko ? false : ghost}
       icon={iconNode()}
       key={uid}
       loading={isActionLoading}
@@ -94,7 +94,7 @@ const Button = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: Widget
     </AntdButton>
   )
 
-  return <div>{isAutopilot ? <AutopilotBrandScope>{button}</AutopilotBrandScope> : button}</div>
+  return <div>{isAgentiko ? <AgentikoBrandScope>{button}</AgentikoBrandScope> : button}</div>
 }
 
 export default Button

@@ -33,7 +33,7 @@ const AgentikoToggle = () => {
         aria-label='Agentiko — locked, opens the licence panel'
         aria-pressed={open}
         className={`${styles.apToggle} ${styles.locked} ${open ? styles.active : ''}`}
-        data-testid='autopilot-toggle-locked'
+        data-testid='agentiko-toggle-locked'
         onClick={toggle}
         type='button'
       >

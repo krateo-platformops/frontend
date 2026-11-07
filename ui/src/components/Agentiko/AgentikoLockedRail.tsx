@@ -20,11 +20,11 @@ const CAPABILITIES = [
   'Drafts pages, charts and controllers for you to review',
 ]
 
-const AutopilotLockedRail = ({ onClose, open, width }: { onClose: () => void; open: boolean; width: number }) => (
+const AgentikoLockedRail = ({ onClose, open, width }: { onClose: () => void; open: boolean; width: number }) => (
   <aside
     aria-label='Agentiko'
     className={`${styles.apRail} ${styles.apLockedRail} ${open ? styles.open : ''}`}
-    data-testid='autopilot-locked-rail'
+    data-testid='agentiko-locked-rail'
     style={open ? { width: `${width}px` } : undefined}
   >
     <div className={styles.apRailInner}>
@@ -53,4 +53,4 @@ const AutopilotLockedRail = ({ onClose, open, width }: { onClose: () => void; op
   </aside>
 )
 
-export default AutopilotLockedRail
+export default AgentikoLockedRail

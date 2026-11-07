@@ -339,9 +339,9 @@ The main header and the docked rail previously shared a hardcoded `64px` that ma
 > **2026-11-06 — the whole portal, not just the agent.** Krateo PlatformOps has no brand manual of
 > its own; Agentiko has one (*Brand Guidelines — AGENTIKO*, SocialFOX 09/2026). One style is
 > maintained instead of two: every install — open source or licensed — wears Agentiko. Until this
-> date T11 read "Autopilot wears Agentiko's image, and only Autopilot does", with the platform in
-> Krateo blue; that scoping is retired. The agent is now named **Agentiko** in the UI (the code
-> keeps its `Autopilot*` identifiers and `intent: autopilot`).
+> date T11 scoped Agentiko's image to the agent's own surfaces, with the platform in Krateo blue;
+> that scoping is retired. The agent is named **Agentiko** in the UI and in the code, and its
+> Button role is `intent: agentiko`.
 
 **The style.** `tokens.ts` `color` / `colorDark` and the `--krateo-*` semantic set:
 
@@ -357,24 +357,24 @@ The Krateo PlatformOps logo stays, drawn in the brand lilac `#DCD8F1` on the bla
 portal chart's `image.brand-logo`). Status colours and Signal Yellow keep their meanings (Tier-2).
 
 **The agent stands apart by the "sfumatura".** With violet everywhere, the agent's own surfaces —
-the header toggle, every `intent: autopilot` Button (A4), the licence panel's call to action — are
-the only FILLED controls in the brand gradient (`--krateo-color-autopilot-fill-start/-end`,
+the header toggle, every `intent: agentiko` Button (A4), the licence panel's call to action — are
+the only FILLED controls in the brand gradient (`--krateo-color-agentiko-fill-start/-end`,
 violet → blue, left → right) under a WHITE label in both modes: the manual puts white on violet,
 blue and the gradient, never dark ink (5.4:1 at the violet end, 11.5:1 at the blue end). The rail
-marks itself with a 2px gradient band and the gradient monogram. `autopilotBrand` holds these
+marks itself with a 2px gradient band and the gradient monogram. `agentikoBrand` holds these
 values; it is not tenant-overridable (a product mark, not a skin).
 
 **The licence gates the agent, not the style.** Licensed = an agent endpoint is configured and the
 installer's `AUTOPILOT_AVAILABLE` is not `"false"` (`components/Agentiko/licence.ts`). Unlicensed,
 the agent stays visible but locked: the toggle is neutral with a lock and opens the rail on the
-"Activate licence" panel (→ https://agentiko.eu/); `intent: autopilot` Buttons are outlined with a
+"Activate licence" panel (→ https://agentiko.eu/); `intent: agentiko` Buttons are outlined with a
 lock and their `?ask=` link opens that same panel. Licensed but unreachable keeps the grey,
 non-clickable toggle with its tooltip.
 
 The mark is the brand's own vector monogram (`AgentikoMark`, `currentColor` or the gradient); the
 guidelines rule out recolouring outside the palette, rotating, stroking it or adding effects.
 
-*Evidence: verified `tokens.ts` `color` / `colorDark` / `autopilotBrand` · `licence.ts` · `AgentikoToggle.tsx` · `AutopilotLockedRail.tsx` · `Button.module.css`*
+*Evidence: verified `tokens.ts` `color` / `colorDark` / `agentikoBrand` · `licence.ts` · `AgentikoToggle.tsx` · `AgentikoLockedRail.tsx` · `Button.module.css`*
 
 ---|---|---|
 | accent | `#9E00FF` brand violet — 5.39:1 on white | `#C27AFF` — 6.6:1 on `#141414` |
@@ -382,17 +382,17 @@ guidelines rule out recolouring outside the palette, rotating, stroking it or ad
 | gradient | `#9E00FF` → `#2213CF` (the brand pair) | `#C27AFF` → `#9C8FFF` |
 
 The brand violet is only 3.6:1 on the dark panel and the brand blue 1.9:1, so dark mode tints both
-— the same flip the Krateo primary makes. **Scoping, not overriding:** an Autopilot surface
+— the same flip the Krateo primary makes. **Scoping, not overriding:** an agent surface
 re-points `--primary-color` on its own root (`.apRail`, `.apToggle`) and nests
-`AutopilotBrandScope` (an antd `ConfigProvider` over `autopilotAntdTheme`) for what antd draws. It
+`AgentikoBrandScope` (an antd `ConfigProvider` over `agentikoAntdTheme`) for what antd draws. It
 never writes `color.primary`, and the Theme widget does not touch it — a product mark, not a skin.
 Syne is for the rail's title and empty-state greeting only, where it has no neighbouring text to
-drift against (T5). Signal Yellow keeps its one meaning (Autopilot is EXECUTING) beside it.
+drift against (T5). Signal Yellow keeps its one meaning (Agentiko is EXECUTING) beside it.
 
 The mark is the brand's own vector monogram (`AgentikoMark`, `currentColor` or the gradient); the
 guidelines rule out recolouring outside the palette, rotating, stroking it or adding effects.
 
-*Evidence: verified `tokens.ts` `autopilotBrand` · `AutopilotBrandScope.tsx` · `icons.tsx` `AgentikoMark`*
+*Evidence: verified `tokens.ts` `agentikoBrand` · `AgentikoBrandScope.tsx` · `icons.tsx` `AgentikoMark`*
 
 ---
 
