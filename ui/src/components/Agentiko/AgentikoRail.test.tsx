@@ -38,6 +38,7 @@ const baseValue = {
   collect: vi.fn(() => ({ focus: 'Home', route: '/', widgets: [] })),
   denyPending: vi.fn(),
   enabled: true,
+  licensed: true,
   messages: [] as AgentikoMessage[],
   newThread: vi.fn(),
   oasAttachment: null,

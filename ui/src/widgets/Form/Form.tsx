@@ -245,7 +245,7 @@ export const ReviewSummary = ({ agentKeys, optionLabels, schema, secretPaths, va
       const node = schema?.properties?.[key]
       const base = (typeof node?.title === 'string' && node.title) || key
       const label = authored.has(key)
-        ? <span>{base} <Tag className={styles.agentTag} color='processing'>Agentiko</Tag></span>
+        ? <span>{base} <Tag className={styles.agentTag}>Agentiko</Tag></span>
         : base
 
       return { children: formatReviewValue(withOptionLabels(key, value, node, optionLabels)), key, label }

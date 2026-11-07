@@ -33,6 +33,7 @@ import { agentikoConversationStore } from './conversationStore'
 import { withHeldDraft } from './draftStructure'
 import { recordToolFrame } from './evidence'
 import { useAgentikoShortcut } from './keyboardShortcut'
+import { AgentikoLicenceContext } from './licence'
 import { createOasAttachmentStore, type OasAttachmentResult } from './oasAttachment'
 import { PREVIEW_SELF_CORRECTION_NUDGE, setPreviewRender } from './previewBus'
 import { emitPublishResult, onPublishRequest } from './previewPublishRequest'
@@ -59,6 +60,10 @@ interface AgentikoContextValue extends ClaimRetryApi {
    * VISIBILITY. The toggle renders whenever this is true, even if the agent is not currently
    * reachable, so the capability stays discoverable. */
   enabled: boolean
+  /** Whether the agent is LICENSED (licence.ts): configured AND not switched off by the installer's
+   * AGENTIKO_AVAILABLE="false". Unlicensed, the toggle still renders — locked — and opens the rail
+   * on the "Activate licence" panel instead of the conversation. */
+  licensed: boolean
   /** Whether the configured agent is actually USABLE right now — controls CLICKABILITY. False when
    * the installer marks Agentiko unavailable (AUTOPILOT_AVAILABLE="false", e.g. agents not
    * deployed/licensed), while the runtime reachability probe has not yet answered, when that probe
@@ -133,6 +138,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   // canonical fallback. Config-driven so an org/repo rename is a values change, not a rebuild.
   const builderTargets = useBuilderTargets(config)
   const { checking, markUnavailable, reachable } = useAgentikoAvailability({ enabled, endpoint, flagAvailable, useEcho })
+  const licensed = enabled && flagAvailable
 
   const { collect, readRenderedWidgets } = useAgentikoContext()
   // DRAFT RECORDS: the held draft autosaved to the sandbox (useDraftAutosave). Built before the bridge
@@ -869,28 +875,30 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   // nothing the user had is lost — the previous conversation stays browsable in the rail's
   // history. Both calls are synchronous store writes, and `send` reads the store rather than
   // React state, so the turn lands in the new thread and not the old one.
-  useAskDeepLink(enabled, useCallback((ask: string) => {
+  useAskDeepLink(licensed, useCallback((ask: string) => {
     setOpen(true)
     newThread()
     send(ask)
-  }, [newThread, send]))
+  }, [newThread, send]), useCallback(() => setOpen(true), []))
 
   // `sessions` is a stable bound-free store method (closes over its own state, no `this`) — passed
   // through directly; it reads the archive lazily each call, re-read on every provider re-render.
   const value = useMemo<AgentikoContextValue>(() => ({
-    approvePending, attachOasDocument, checking, clearOasAttachment, closeTour, collect, denyPending, enabled, messages, newThread, oasAttachment: oasHeld, open, pendingApproval, reachable, restored, retryClaims, send, sessionId, sessions: agentikoConversationStore.sessions, setOpen, stop, streaming, switchToThread, toggle, tour, tourOpen,
-  }), [approvePending, attachOasDocument, checking, clearOasAttachment, closeTour, collect, denyPending, enabled, messages, newThread, oasHeld, open, pendingApproval, reachable, restored, retryClaims, send, sessionId, stop, streaming, switchToThread, toggle, tour, tourOpen])
+    approvePending, attachOasDocument, checking, clearOasAttachment, closeTour, collect, denyPending, enabled, licensed, messages, newThread, oasAttachment: oasHeld, open, pendingApproval, reachable, restored, retryClaims, send, sessionId, sessions: agentikoConversationStore.sessions, setOpen, stop, streaming, switchToThread, toggle, tour, tourOpen,
+  }), [approvePending, attachOasDocument, checking, clearOasAttachment, closeTour, collect, denyPending, enabled, licensed, messages, newThread, oasHeld, open, pendingApproval, reachable, restored, retryClaims, send, sessionId, stop, streaming, switchToThread, toggle, tour, tourOpen])
 
   return (
     <AgentikoReactContext.Provider value={value}>
-      <AgentDraftProvider value={{ draft: agentDraft, nonce: draftNonce }}>
-        {children}
-        {/* Wave-4 preview surface: the read-only preview verbs (previewBlueprint /
+      <AgentikoLicenceContext.Provider value={licensed}>
+        <AgentDraftProvider value={{ draft: agentDraft, nonce: draftNonce }}>
+          {children}
+          {/* Wave-4 preview surface: the read-only preview verbs (previewBlueprint /
             previewPage / previewRestDef) render into this global drawer. */}
-        <AgentikoPreviewDrawer />
-        {/* The publish-destination form (user-owned owner/repo/base, asked at every publish). */}
-        <PublishTargetFormHost />
-      </AgentDraftProvider>
+          <AgentikoPreviewDrawer />
+          {/* The publish-destination form (user-owned owner/repo/base, asked at every publish). */}
+          <PublishTargetFormHost />
+        </AgentDraftProvider>
+      </AgentikoLicenceContext.Provider>
     </AgentikoReactContext.Provider>
   )
 }

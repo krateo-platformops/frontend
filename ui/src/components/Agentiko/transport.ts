@@ -82,7 +82,7 @@ const asRecord = (value: unknown): Record<string, unknown> | undefined =>
  * limit, not an auth or config failure, so the honest, actionable message is "retry in a moment".
  */
 export const RATE_LIMIT_NOTICE
-  = 'Krateo Agentiko is temporarily rate-limited by the AI provider. Please retry in a moment.'
+  = 'Agentiko is temporarily rate-limited by the AI provider. Please retry in a moment.'
 
 /**
  * Detect a provider rate-limit / quota-exhausted signal in a raw error string, robustly across the

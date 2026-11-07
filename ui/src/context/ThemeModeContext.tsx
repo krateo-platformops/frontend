@@ -31,6 +31,10 @@ export const useThemeMode = (): ThemeModeContextValue => {
   return context
 }
 
+/** The active mode where a provider exists, light otherwise — for leaf components (e.g. a widget
+ * rendered in a test or the visual harness) that only need to pick a per-mode value. */
+export const useThemeModeOrLight = (): ThemeMode => useContext(ThemeModeContext)?.mode ?? 'light'
+
 /**
  * Owns the active color mode (light/dark), the antd `ConfigProvider` theme, and
  * the `:root` CSS custom properties consumed by `*.module.css`. The mode is

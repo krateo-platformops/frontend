@@ -876,13 +876,18 @@ def _is_autopilot_entry(button_doc, rest_actions=None):
 
 
 AUTOPILOT_LABEL = 'Ask Agentiko →'
-AUTOPILOT_ICON = 'fa-wand-magic-sparkles'
+AGENTIKO_INTENT = 'agentiko'
 
 
 def rule_autopilot_button(crs):
-    """A4 — every Agentiko entry point looks the same: a filled (`type: primary`) Button labelled
-    "Ask Agentiko →" with the magic-wand icon. Never a link: the product's decision, recorded once
-    here instead of re-litigated per page.
+    """A4 — every agent entry point looks the same: a Button labelled "Ask Agentiko →" with
+    `intent: agentiko`, which the widget draws filled with the Agentiko gradient and mark —
+    ignoring the CR's `type`, `color`, `variant`, `danger`, `ghost` and `icon`. Never a link: the
+    product's decision, recorded once here instead of re-litigated per page. (Until 2026-11-03 the
+    look was spelled out per CR — `type: primary` plus the wand icon; the role now carries it, the
+    way `intent: dismiss` carries C26's. Since 2026-11-06 the agent is named Agentiko in the UI, so
+    the label is "Ask Agentiko →"; the old "Ask Autopilot" spelling is still recognised as an entry
+    point, and flagged for its label. The intent is `agentiko`.)
 
     Recognised by what the Button does, not what it says (a `?ask=` link or an `askHref` template),
     as well as by its label — the sweep that resolved A4 the first time missed a CTA precisely
@@ -893,13 +898,11 @@ def rule_autopilot_button(crs):
         if doc.get('kind') != 'Button' or not _is_autopilot_entry(doc, rest_actions):
             continue
         data = widget_data(doc)
-        label, icon, kind = str(data.get('label') or ''), str(data.get('icon') or ''), data.get('type')
+        label, intent = str(data.get('label') or ''), data.get('intent')
         if label != AUTOPILOT_LABEL:
             out.append((fname, f'Agentiko entry point labelled "{label}" — the canonical label is "{AUTOPILOT_LABEL}"'))
-        if icon != AUTOPILOT_ICON:
-            out.append((fname, f'Agentiko entry point with icon "{icon or "none"}" — it carries {AUTOPILOT_ICON}'))
-        if kind != 'primary':
-            out.append((fname, f'Agentiko entry point is a `type: {kind or "default"}` Button — it is a filled `type: primary` button, not a link'))
+        if intent != AGENTIKO_INTENT and 'intent' not in templated_paths(doc):
+            out.append((fname, f'Agentiko entry point without `intent: {AGENTIKO_INTENT}` — the role draws it filled with the Agentiko gradient and mark'))
     return out
 
 
@@ -1020,7 +1023,7 @@ PALETTE_KEYS = {
     'accent2', 'accentSoft', 'amber', 'background', 'blue', 'border',
     'cyan', 'dark', 'darkBlue', 'error', 'errorSoft', 'faint',
     'gold', 'gray', 'green', 'info', 'light', 'lightgray',
-    'line', 'magenta', 'menubgend', 'menubgstart', 'olive', 'onmenubg',
+    'line', 'magenta', 'menubgend', 'menubgstart', 'menuitembg', 'olive', 'onmenubg',
     'orange', 'panelbg', 'primary', 'red', 'slate', 'success',
     'successSoft', 'teal', 'text', 'violet', 'warning', 'warningSoft',
 }
