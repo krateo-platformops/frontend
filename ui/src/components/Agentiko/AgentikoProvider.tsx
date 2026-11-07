@@ -61,7 +61,7 @@ interface AgentikoContextValue extends ClaimRetryApi {
    * reachable, so the capability stays discoverable. */
   enabled: boolean
   /** Whether the agent is LICENSED (licence.ts): configured AND not switched off by the installer's
-   * AUTOPILOT_AVAILABLE="false". Unlicensed, the toggle still renders — locked — and opens the rail
+   * AGENTIKO_AVAILABLE="false". Unlicensed, the toggle still renders — locked — and opens the rail
    * on the "Activate licence" panel instead of the conversation. */
   licensed: boolean
   /** Whether the configured agent is actually USABLE right now — controls CLICKABILITY. False when

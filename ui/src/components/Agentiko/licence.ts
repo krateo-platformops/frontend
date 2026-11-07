@@ -2,7 +2,7 @@
  * Whether the agent is LICENSED on this install — distinct from `reachable` (usable right now).
  *
  * Agentiko is the licensed part of the portal. The licence is the installer's existing switch:
- * an agent endpoint is configured AND `AUTOPILOT_AVAILABLE` is not `"false"` (the installer sets
+ * an agent endpoint is configured AND `AGENTIKO_AVAILABLE` (read through `agentikoConfig`) is not `"false"` (the installer sets
  * it when agents are not deployed or not licensed). Without a licence the agent stays VISIBLE but
  * locked — the header toggle shows a lock and opens the rail on an "Activate licence" panel, and
  * every `intent: agentiko` button is drawn locked — so the capability is discoverable.

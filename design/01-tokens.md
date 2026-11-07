@@ -365,7 +365,7 @@ marks itself with a 2px gradient band and the gradient monogram. `agentikoBrand`
 values; it is not tenant-overridable (a product mark, not a skin).
 
 **The licence gates the agent, not the style.** Licensed = an agent endpoint is configured and the
-installer's `AUTOPILOT_AVAILABLE` is not `"false"` (`components/Agentiko/licence.ts`). Unlicensed,
+installer's `AGENTIKO_AVAILABLE` (read through `agentikoConfig`) is not `"false"` (`components/Agentiko/licence.ts`). Unlicensed,
 the agent stays visible but locked: the toggle is neutral with a lock and opens the rail on the
 "Activate licence" panel (→ https://agentiko.eu/); `intent: agentiko` Buttons are outlined with a
 lock and their `?ask=` link opens that same panel. Licensed but unreachable keeps the grey,

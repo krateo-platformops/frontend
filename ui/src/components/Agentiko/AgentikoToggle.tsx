@@ -3,7 +3,7 @@
  *
  * - LICENSED and reachable: the Agentiko pill — the brand gradient under a white label — that
  *   opens and closes the rail.
- * - NOT LICENSED (licence.ts: no agent endpoint, or the installer's AUTOPILOT_AVAILABLE="false"):
+ * - NOT LICENSED (licence.ts: no agent endpoint, or the installer's AGENTIKO_AVAILABLE="false"):
  *   locked — neutral, with a lock — but CLICKABLE: it opens the rail on the "Activate licence"
  *   panel, which says what the agent does and where to get it.
  * - LICENSED but not reachable (the first check has not answered yet, the probe failed, or
