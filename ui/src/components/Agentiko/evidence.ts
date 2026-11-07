@@ -52,7 +52,7 @@ const classify = (name: string): EvidenceKind => {
 /** No tool reports the org, so it is guessed from repo-mcp-server's tier name shapes; a wrong
  *  guess only costs the row its link. See ui/docs/evidence-org-guess.md. */
 export const orgOfRepo = (repo: string): string => {
-  if (repo === 'krateo-autopilot' || repo === 'codegen-agents') {
+  if (repo === 'agentiko' || repo === 'krateo-autopilot' || repo === 'codegen-agents') {
     return 'krateo-agentiko'
   }
   return /blueprint|-kog(-chart)?$|^openstack-/.test(repo) ? 'krateo-blueprints' : 'krateo-platformops'

@@ -22,7 +22,7 @@ import { useAgentiko } from './AgentikoProvider'
 import styles from './AgentikoRail.module.css'
 import AgentikoTour from './AgentikoTour'
 import { agentikoComposerDraftStore } from './composerDraftStore'
-import { AGENTIKO_UNAVAILABLE } from './copy'
+import { AGENTIKO_CHECKING, AGENTIKO_UNAVAILABLE } from './copy'
 import { useRailFocusTrap } from './focusTrap'
 import { CollapseIcon, ExpandIcon, EyeIcon, HistoryIcon, LinkIcon, PlusIcon, SendIcon, ShrinkIcon, SparkIcon, StopIcon } from './icons'
 import { looksLikeOpenApiDocument } from './oasAttachment'
@@ -47,7 +47,7 @@ const STARTER_PROMPTS = [
 ]
 
 const AgentikoRail = () => {
-  const { approvePending, attachOasDocument, clearOasAttachment, collect, denyPending, enabled, messages, newThread, oasAttachment, open, pendingApproval, reachable, restored, retryClaims, send, sessionId, sessions, setOpen, stop, streaming, switchToThread } = useAgentiko()
+  const { approvePending, attachOasDocument, checking, clearOasAttachment, collect, denyPending, enabled, messages, newThread, oasAttachment, open, pendingApproval, reachable, restored, retryClaims, send, sessionId, sessions, setOpen, stop, streaming, switchToThread } = useAgentiko()
   const { config } = useConfigContext()
   // The composer draft + its PROVENANCE (purely dictated vs touched by the keyboard) live in
   // a module-level store, not `useState`: a routerVersion remount used to wipe a half-written
@@ -401,7 +401,7 @@ const AgentikoRail = () => {
                   than an explanation, so the rail says it in text. Same sentence as the
                   toggle, from one constant. */}
               {reachable ? null : (
-                <div className={styles.apNote} data-testid='agentiko-unavailable'>{AGENTIKO_UNAVAILABLE}</div>
+                <div className={styles.apNote} data-testid='agentiko-unavailable'>{checking ? AGENTIKO_CHECKING : AGENTIKO_UNAVAILABLE}</div>
               )}
               {oasAttachment ? (
                 <div className={styles.apOas} data-testid='agentiko-oas-attachment'>

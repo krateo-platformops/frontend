@@ -44,7 +44,7 @@ allow-list) and never says it.
 
 | shape | org |
 |---|---|
-| `krateo-autopilot`, `codegen-agents` | `krateo-agentiko` |
+| `agentiko`, `krateo-autopilot`, `codegen-agents` | `krateo-agentiko` |
 | contains `blueprint`, ends `-kog` / `-kog-chart`, starts `openstack-` | `krateo-blueprints` |
 | anything else | `krateo-platformops` |
 

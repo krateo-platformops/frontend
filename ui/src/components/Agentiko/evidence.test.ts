@@ -282,6 +282,7 @@ describe('panel headline and naming', () => {
     expect(orgOfRepo('krateo-aws-blueprint')).toBe('krateo-blueprints')
     expect(orgOfRepo('krateo-zendesk-kog')).toBe('krateo-blueprints')
     expect(orgOfRepo('krateo-autopilot')).toBe('krateo-agentiko')
+    expect(orgOfRepo('agentiko')).toBe('krateo-agentiko')
   })
 
   it('reads a specialist name out of the agent tool name', () => {
