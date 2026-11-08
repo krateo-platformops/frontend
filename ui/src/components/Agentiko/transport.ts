@@ -22,6 +22,7 @@
 import { getAccessToken } from '../../utils/getAccessToken'
 import { randomId } from '../../utils/utils'
 
+import { a2aUrl } from './a2aEndpoint'
 import type { ApprovalDecision, ApprovalPause } from './approval'
 import { buildDecisionMessage, parseApprovalPause } from './approval'
 import { readToolPart } from './evidence'
@@ -36,9 +37,10 @@ import type { AgentikoSendRequest, AgentikoStreamHandlers, AgentikoTransport } f
  * nginx `/autopilot/` proxy, e.g.
  *   /autopilot  ->  /api/a2a/<namespace>/<agent-name>
  * We POST a JSON-RPC `message/stream` to it (trailing slash), and it streams SSE of
- * `status-update` results (A2A protocol 0.3).
+ * `status-update` results (A2A protocol 0.3). Built in a2aEndpoint.ts, beside the derivation
+ * of the agent this URL reaches, so the two read the same value.
  */
-const buildA2aUrl = (baseUrl: string): string => `${baseUrl.replace(/\/$/, '')}/`
+const buildA2aUrl = a2aUrl
 
 /** The portal Bearer, as a header pair (empty when no session is stored — dev/echo).
  * Mandatory in practice: the gateway validates it and applies per-user RBAC, and the

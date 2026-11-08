@@ -25,7 +25,7 @@ describe('persist → rehydrate (page reload)', () => {
   it('a fresh store rehydrates the last persisted current thread', () => {
     const first = createConversationStore()
     first.setMessages([userMsg('remember me')])
-    first.setContextId('ctx-1')
+    first.setContextId('ctx-1', 'autopilot')
     const sid = first.getSnapshot().sessionId
 
     // Simulate a page reload: a brand-new store instance reads localStorage on construction.
@@ -118,7 +118,7 @@ describe('loadThread — switch to an archived transcript', () => {
     store.archiveAndReset()
     store.loadThread(sidA)
     expect(store.getSnapshot().restored).toBe(true)
-    store.setContextId('new-ctx')
+    store.setContextId('new-ctx', 'autopilot')
     expect(store.getSnapshot().restored).toBe(false)
   })
 })

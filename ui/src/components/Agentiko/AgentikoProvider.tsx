@@ -17,6 +17,7 @@ import { useConfigContext } from '../../context/ConfigContext'
 import type { WriteOrigin } from '../../hooks/provenance'
 import { randomId } from '../../utils/utils'
 
+import { agentOfA2aBase } from './a2aEndpoint'
 import type { PortalActionProposal, PortalTour } from './actionBridge'
 import { isComposeVerb, isRefusedChip, parseAgentikoDirectives, previewSkippedChip, sanitizeChatText, selectProposalsToRun, useAgentikoActionBridge } from './actionBridge'
 import { AgentDraftProvider } from './agentDraft'
@@ -164,7 +165,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   // from the SURVIVING store on remount. The transcript is folded through the store's
   // `setMessages` (same value-or-updater setState contract), called directly as a stable
   // module member below — so it is NOT a hook dependency and the fold code is unchanged.
-  const { contextId, messages, restored, sessionId } = useSyncExternalStore(
+  const { messages, restored, sessionId } = useSyncExternalStore(
     agentikoConversationStore.subscribe,
     agentikoConversationStore.getSnapshot,
   )
@@ -232,6 +233,10 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   const { beginRun, checkLivePreview, holdsPublish, reset: resetPreviewDataLoop } = usePreviewDataLoop({ readRenderedWidgets, sandboxNamespace: config?.api.PREVIEW_SANDBOX_NAMESPACE, sendRef, setMessages, streaming })
 
   const transport: AgentikoTransport = useMemo(() => (endpoint && endpoint !== 'echo' ? createKagentTransport(endpoint) : createEchoTransport()), [endpoint])
+  // The agent the transport above reaches, derived from the same endpoint on the same condition, so
+  // a stored contextId is compared against the agent this turn will actually go to. A thread's
+  // contextId is only sent to the agent that assigned it (conversationStore `bindToAgent`).
+  const agent = endpoint && endpoint !== 'echo' ? agentOfA2aBase(endpoint) : 'echo'
 
   // Abort any in-flight stream when the provider unmounts; disarm (without deciding)
   // any pending approval governor so its timer can't fire into an unmounted tree.
@@ -540,7 +545,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
         break
       }
       case 'session':
-        agentikoConversationStore.setContextId(frame.contextId)
+        agentikoConversationStore.setContextId(frame.contextId, agent)
         break
       case 'tool_call':
         if (frame.name === 'propose_portal_action' && frame.args && typeof frame.args === 'object') {
@@ -592,7 +597,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
       default:
         break
     }
-  }, [finalize, markUnavailable, publishEvidence, setMessages])
+  }, [agent, finalize, markUnavailable, publishEvidence, setMessages])
 
   // Send a HITL decision over A2A (the `{decision_type}` DataPart on the paused task —
   // see approval.ts) and stream the agent's continuation into a NEW assistant bubble,
@@ -681,6 +686,10 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
     // The collector reads the live widget cache and cannot see the held draft; the store is here.
     const heldNow = blueprintStore.get()
     const envelope = withHeldDraft(collect(), heldNow, { previewed: blueprintGate.isArmed(heldDraftIdentity(heldNow)) })
+    // A thread opened against another agent keeps its transcript but not its contextId or delta base:
+    // that agent's kagent session would refuse this one's writes. Must run before the delta below.
+    agentikoConversationStore.bindToAgent(agent)
+    const { contextId } = agentikoConversationStore.getSnapshot()
     const baseContext = buildContextDelta(envelope, agentikoConversationStore.getLastEnvelope())
     agentikoConversationStore.setLastEnvelope(envelope)
 
@@ -696,7 +705,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
     setStreaming(true)
 
     abortRef.current = transport.send({ context: baseContext, contextId, sessionId, text: trimmed }, { onFrame: (frame) => applyFrame(assistantId, frame, modality) })
-  }, [applyFrame, blueprintGate, blueprintStore, collect, contextId, resetPreviewDataLoop, sessionId, setMessages, streaming, transport])
+  }, [agent, applyFrame, blueprintGate, blueprintStore, collect, resetPreviewDataLoop, sessionId, setMessages, streaming, transport])
 
   // Keep the finalize-side recovery trampoline pointing at the CURRENT send closure.
   useEffect(() => { sendRef.current = send }, [send])
