@@ -282,6 +282,10 @@
                       "type": "string",
                       "description": "optional trailing {dot.path} label (e.g. the % text or 7/7)"
                     },
+                    "tooltip": {
+                      "type": "string",
+                      "description": "{dot.path} tooltip text shown when the bar's label is hovered or focused (e.g. {rail.reason}). Resolving to empty leaves the label without a tooltip."
+                    },
                     "variant": {
                       "type": "string",
                       "enum": [

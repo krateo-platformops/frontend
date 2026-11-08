@@ -472,6 +472,9 @@ spec:
                             percent:
                               description: '{dot.path} to a 0-100 number (e.g. {healthPercent})'
                               type: string
+                            tooltip:
+                              description: '{dot.path} tooltip text shown when the bar''s label is hovered or focused (e.g. {rail.reason}). Resolving to empty leaves the label without a tooltip.'
+                              type: string
                             variant:
                               description: 'Bar style: `line` for a standalone progress line, `rail` for the denser reconciliation-rail treatment.'
                               enum:

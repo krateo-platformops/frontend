@@ -231,6 +231,10 @@ export interface Listy {
            */
           label?: string
           /**
+           * {dot.path} tooltip text shown when the bar's label is hovered or focused (e.g. {rail.reason}). Resolving to empty leaves the label without a tooltip.
+           */
+          tooltip?: string
+          /**
            * Bar style: `line` for a standalone progress line, `rail` for the denser reconciliation-rail treatment.
            */
           variant?: 'line' | 'rail'
