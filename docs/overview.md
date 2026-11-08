@@ -25,7 +25,7 @@ frontend code**.
 
 ```
 browser ──/config/config.json──▶ nginx (this container) ── static SPA bundle
-   │                                   └── /autopilot/* ──▶ kagent A2A (same-origin proxy)
+   │                                   └── /agentiko/* ──▶ kagent A2A (same-origin proxy)
    ├──/strategies, login ────────────▶ authn
    ├──GET /call?resource=…&name=… ───▶ snowplow  ──▶ Widget CRs + RESTActions (user's RBAC)
    ├──GET /events, SSE /notifications▶ eventrouter/sse
@@ -47,8 +47,8 @@ browser ──/config/config.json──▶ nginx (this container) ── static 
   against the referenced resources under the user's identity; nothing talks to the
   Kubernetes apiserver directly from the browser.
 - **nginx runtime**: the official nginx image serves the bundle with the SPA
-  `try_files` fallback and reverse-proxies `/autopilot/` to the kagent A2A endpoint on
-  the same origin (resolved at request time, so the portal runs fine when autopilot is
+  `try_files` fallback and reverse-proxies `/agentiko/` (and, until Agent `autopilot` is
+  retired, `/autopilot/`) to the kagent A2A endpoint on the same origin (resolved at request time, so the portal runs fine when autopilot is
   absent — the header toggle then grays out). The listen port is substituted at boot
   from `FRONTEND_CONTAINER_PORT`, which the chart wires to `service.port`.
 
@@ -76,7 +76,7 @@ widget's cluster schema and its renderer come from the same source tree — see
 - **eventrouter / sse** — the notifications bell list + SSE streams, also used by
   event-driven action completion.
 - **autopilot (kagent)** — optional copilot rail, reached through the same-origin
-  `/autopilot/` proxy; gated by `AUTOPILOT_API_BASE_URL` / `AUTOPILOT_AVAILABLE`. Every
+  `/agentiko/` proxy; gated by `AUTOPILOT_API_BASE_URL` / `AUTOPILOT_AVAILABLE`. Every
   A2A request carries the user's portal Bearer, and `agentgateway.enabled` points those
   calls at the agent gateway (a direct cross-origin call, like every other backend) so it
   validates the token and enforces per-user RBAC.

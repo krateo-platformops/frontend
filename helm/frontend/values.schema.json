@@ -506,11 +506,18 @@
       "type": "object",
       "title": "Agent gateway",
       "additionalProperties": false,
-      "description": "An agentgateway data plane in front of kagent that validates and forwards the caller's JWT. The portal always sends the user's Bearer on its Agentiko A2A calls; when enabled, an AUTOPILOT_API_BASE_URL holding the gateway's ORIGIN becomes <origin>/api/a2a/<release-namespace>/autopilot, so the browser calls the gateway directly (cross-origin, kagent-ui out of the path) and the token is validated with per-user agent/tool/delegation RBAC applied. The Evidence panel's session read is derived from the same value and authorized by the gateway's sessionTrace clause. A relative value is left untouched, keeping the same-origin nginx /autopilot/ proxy. Needs the kagent controller in trusted-proxy mode; the Krateo installer wires both from its own agentgateway.enabled.",
+      "description": "An agentgateway data plane in front of kagent that validates and forwards the caller's JWT. The portal always sends the user's Bearer on its Agentiko A2A calls; when enabled, an AUTOPILOT_API_BASE_URL holding the gateway's ORIGIN becomes <origin>/api/a2a/<release-namespace>/<agentName>, so the browser calls the gateway directly (cross-origin, kagent-ui out of the path) and the token is validated with per-user agent/tool/delegation RBAC applied. The Evidence panel's session read is derived from the same value and authorized by the gateway's sessionTrace clause. A relative value is left untouched, keeping the same-origin nginx proxy (/agentiko/ by default, /autopilot/ while Agent autopilot exists). Needs the kagent controller in trusted-proxy mode; the Krateo installer wires both from its own agentgateway.enabled.",
       "properties": {
         "enabled": {
           "type": "boolean",
           "default": false
+        },
+        "agentName": {
+          "type": "string",
+          "title": "Agent name",
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "maxLength": 63,
+          "description": "The kagent Agent the portal talks to through the gateway: the last segment of <origin>/api/a2a/<release-namespace>/<agentName>. Read only when enabled and the base URL is an origin. Not defaulted here: an unset key falls back to values.yaml (agentiko)."
         }
       }
     },
@@ -545,7 +552,7 @@
         "AUTOPILOT_API_BASE_URL": {
           "type": "string",
           "title": "Autopilot API base URL",
-          "default": "/autopilot"
+          "default": "/agentiko"
         },
         "AUTOPILOT_AVAILABLE": {
           "type": "string",
@@ -726,7 +733,7 @@
         "AUTHN_API_BASE_URL": "http://localhost:8082",
         "EVENTS_PUSH_API_BASE_URL": "http://localhost:8083",
         "EVENTS_API_BASE_URL": "http://localhost:8083",
-        "AUTOPILOT_API_BASE_URL": "/autopilot",
+        "AUTOPILOT_API_BASE_URL": "/agentiko",
         "AUTOPILOT_AVAILABLE": "",
         "INIT": "/call?resource=layouts&apiVersion=widgets.templates.krateo.io/v1beta1&name=app-shell&namespace=krateo-system",
         "OTEL_COLLECTOR_URL": "",

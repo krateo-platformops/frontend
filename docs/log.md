@@ -13,6 +13,22 @@ Curated history, newest first. Durable decision records and dated notes live wit
 code under [`ui/docs/`](../ui/docs/llms.txt) (e.g. the executed
 [antd-migration-plan](../ui/docs/antd-migration-plan.md)).
 
+## 2026-11-08 — the portal defaults to Agent `agentiko`
+
+The orchestrator is renamed from `autopilot` to `agentiko`, and both Agents run side by side
+until `autopilot` is retired. The chart now defaults to the new one:
+
+- **`agentgateway.agentName`** (default `agentiko`) names the Agent in the gateway A2A path,
+  `<origin>/api/a2a/<ns>/<agentName>`, in place of the literal `autopilot`.
+- **`config.AUTOPILOT_API_BASE_URL`** defaults to `/agentiko`, a new nginx location (with its
+  `/agentiko/sessions/` sibling) that rewrites to Agent `agentiko`. `/autopilot/` still rewrites
+  to Agent `autopilot`.
+- **An install that takes these defaults talks to Agent `agentiko`, so that Agent must exist.**
+  To stay on `autopilot`, set `agentgateway.agentName=autopilot` (gateway on) or
+  `config.AUTOPILOT_API_BASE_URL=/autopilot` (gateway off); with both, `config.json` is
+  byte-identical to 1.8.33's. A thread opened against one Agent is not continued on the other
+  (frontend#639): after a switch, the next message starts a new thread.
+
 ## 2026-08-25 — Evidence: the sources behind an Autopilot answer
 
 An answer that lists a component's environment variables is unverifiable in prose: the reader

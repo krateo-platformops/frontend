@@ -217,8 +217,8 @@ export const evidenceFromParts = (parts: unknown[]): EvidenceEntry[] => {
 
 /**
  * Derived from the A2A endpoint so no second setting exists:
- *   `<gateway>/api/a2a/<ns>/autopilot` → `<gateway>/api/sessions`
- *   `/autopilot`                       → `/autopilot/sessions`
+ *   `<gateway>/api/a2a/<ns>/agentiko` → `<gateway>/api/sessions`
+ *   `/agentiko`                       → `/agentiko/sessions`
  */
 export const deriveSessionsBase = (agentikoBase: string): string => {
   const base = agentikoBase.replace(/\/$/, '')
