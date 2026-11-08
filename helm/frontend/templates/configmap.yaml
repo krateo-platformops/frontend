@@ -21,6 +21,13 @@ data:
        AUTOPILOT_<KEY> value is copied to the new name. values.yaml defaults only the AUTOPILOT_
        names, so an installer that overrides only those still decides the value.
        Remove the AUTOPILOT_ half once every cluster sets the AGENTIKO_ names. */ -}}
+{{- /* The orchestrator Agent: one knob for both modes. Neither base-URL name set → the base is
+       `/<agentName>`, the same-origin nginx location named after that Agent (ui/nginx.conf). Set
+       under either name, an empty string included, the value wins. Set before the dual-emit below
+       so both names carry it. */ -}}
+{{- if not (or (hasKey $config "AGENTIKO_API_BASE_URL") (hasKey $config "AUTOPILOT_API_BASE_URL")) -}}
+{{- $_ := set $config "AUTOPILOT_API_BASE_URL" (printf "/%s" (required "agentName must name the orchestrator Agent the portal talks to" .Values.agentName)) -}}
+{{- end -}}
 {{- range $k := keys $config | sortAlpha -}}
 {{- if hasPrefix "AGENTIKO_" $k -}}
 {{- $_ := set $config (printf "AUTOPILOT_%s" (trimPrefix "AGENTIKO_" $k)) (get $config $k) -}}
@@ -35,13 +42,13 @@ data:
 {{- end -}}
 {{- end -}}
 {{- /* Agent gateway on: the API base URL arrives as the gateway's origin (installer exposure
-       model), and the A2A path for this namespace and agentgateway.agentName is appended here,
-       under both names. Skipped for a relative value, so an unresolved origin degrades to the
-       kagent-ui proxy path; there the agent is the one the proxy location rewrites to. */ -}}
+       model), and the A2A path for this namespace and agentName is appended here, under both
+       names. Skipped for a relative value, so an unresolved origin degrades to the kagent-ui
+       proxy path; there the agent is the one the proxy location rewrites to. */ -}}
 {{- if .Values.agentgateway.enabled -}}
 {{- $gw := $config.AGENTIKO_API_BASE_URL | default "" | toString -}}
 {{- if hasPrefix "http" $gw -}}
-{{- $agent := required "agentgateway.agentName must name the kagent Agent the portal talks to" .Values.agentgateway.agentName -}}
+{{- $agent := required "agentName must name the orchestrator Agent the portal talks to" .Values.agentName -}}
 {{- $a2a := printf "%s/api/a2a/%s/%s" (trimSuffix "/" $gw) .Release.Namespace $agent -}}
 {{- $_ := set $config "AGENTIKO_API_BASE_URL" $a2a -}}
 {{- $_ := set $config "AUTOPILOT_API_BASE_URL" $a2a -}}

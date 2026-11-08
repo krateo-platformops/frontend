@@ -98,10 +98,24 @@ def current_prop(key: str, value: object) -> dict:
     }
 
 
+# Keys the chart DERIVES when values leave them unset, so values.yaml must not set them: any value
+# there, or a schema default, would count as explicitly set and switch the derivation off. They are
+# typed here (with their AGENTIKO_ twins, as above) but absent from values.yaml and never defaulted.
+DERIVED = {
+    "AUTOPILOT_API_BASE_URL": (
+        "Unset: derived as /<agentName>, the same-origin nginx location for that Agent. Set it to "
+        "override; \"\" hides the rail. With agentgateway.enabled, the gateway ORIGIN, to which the "
+        "chart appends /api/a2a/<release-namespace>/<agentName>."
+    ),
+}
+
 properties = {}
 for key, value in config.items():
     properties[key] = prop(key, value)
-for key, value in config.items():
+for key, description in DERIVED.items():
+    assert key not in config, f"{key} is derived by the chart; values.yaml must not set it"
+    properties[key] = {"type": "string", "title": title_for(key), "description": description}
+for key, value in [*config.items(), *((k, "") for k in DERIVED)]:
     if key.startswith(DEPRECATED_PREFIX):
         properties[current_name(key)] = current_prop(key, value)
 
