@@ -20,7 +20,7 @@
  * WHAT IS PERSISTED: only what already lives in the in-memory ConversationState — the
  * redaction-safe transcript `messages` (the collector/redactor already scrubbed the
  * page-context that produced them; the transcript itself is user+assistant prose), the
- * frontend-owned `sessionId`, the server `contextId`, plus a derived `title` +
+ * frontend-owned `sessionId`, the server `contextId` and the `agent` that assigned it, plus a derived `title` +
  * `updatedAt`. Nothing more sensitive than what is already on screen in the rail.
  */
 
@@ -46,6 +46,12 @@ const TITLE_MAX_CHARS = 60
 export interface PersistedThread {
   sessionId: string
   contextId: string | undefined
+  /**
+   * The agent `contextId` was assigned by (a2aEndpoint.ts `agentOfA2aBase`). Optional because
+   * threads persisted before it existed do not carry it; conversationStore.ts reads a missing
+   * value as `autopilot` (LEGACY_THREAD_AGENT). No storage migration rewrites old records.
+   */
+  agent?: string
   messages: AgentikoMessage[]
   /** Derived from the first user message (truncated) — the history-list label. */
   title: string

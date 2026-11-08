@@ -56,6 +56,26 @@ import type { AgentikoMessage, PageContextEnvelope } from './types'
 /** A fresh frontend-owned session id (mirrors the provider's previous `newSessionId`). */
 const newSessionId = (): string => `s_${randomId()}`
 
+/**
+ * The agent a persisted thread with NO `agent` field was opened against. Every thread stored before
+ * the field existed was opened with `autopilot`: it was the only orchestrator agent the portal
+ * called (nginx `location /autopilot/`, the chart's `/api/a2a/<ns>/autopilot`). So a missing field
+ * reads as `autopilot` — such a thread keeps its contextId while the portal still calls `autopilot`,
+ * and starts a fresh A2A conversation once it calls another agent. The stored history is kept either
+ * way; nothing rewrites old records.
+ */
+export const LEGACY_THREAD_AGENT = 'autopilot'
+
+/** The agent of a rehydrated thread: a missing field is the legacy default; a non-string one is unknown. */
+const persistedAgent = (thread: PersistedThread): string | undefined => {
+  // Parsed JSON: the type says string, the browser may hold anything.
+  const stored: unknown = thread.agent
+  if (stored === undefined) {
+    return LEGACY_THREAD_AGENT
+  }
+  return typeof stored === 'string' ? stored : undefined
+}
+
 /** The durable slice of Agentiko state that must survive a provider remount. */
 export interface ConversationState {
   /** The conversation transcript for the current thread. */
@@ -64,6 +84,13 @@ export interface ConversationState {
   sessionId: string
   /** A2A conversation id assigned by the server on the first turn (thread continuity). */
   contextId: string | undefined
+  /**
+   * The agent that assigned `contextId` (a2aEndpoint.ts `agentOfA2aBase`). kagent refuses a write
+   * to a session another agent owns, so the contextId is sent only to this agent — see
+   * `bindToAgent`. Undefined whenever there is no contextId (and for a corrupt stored value, which
+   * then matches no agent).
+   */
+  agent: string | undefined
   /**
    * True when the CURRENT thread was RESTORED from the archive (the user switched to a
    * past session) — v1 loads its transcript for VIEWING. Live-resume of the exact server
@@ -89,8 +116,16 @@ export interface ConversationStore {
   subscribe: (listener: () => void) => () => void
   /** Replace the transcript (value or updater), mirroring React's setState contract. */
   setMessages: (update: AgentikoMessage[] | ((prev: AgentikoMessage[]) => AgentikoMessage[])) => void
-  /** Set the server-assigned A2A contextId (or clear it). */
-  setContextId: (contextId: string | undefined) => void
+  /** Set the server-assigned A2A contextId, with the agent that assigned it. */
+  setContextId: (contextId: string | undefined, agent: string) => void
+  /**
+   * Call before every send with the agent the turn is addressed to. When the thread's contextId was
+   * assigned by a DIFFERENT agent, it is dropped together with the page-context delta base (which
+   * describes what that other agent's session was told), so the turn opens a fresh A2A conversation
+   * with the full envelope. The transcript and session id stay: the old messages remain on screen as
+   * history and the thread carries on, under a new contextId recorded against `agent`.
+   */
+  bindToAgent: (agent: string) => void
   /**
    * The page context sent on the PREVIOUS turn, against which the next turn's delta is
    * computed (buildContextDelta: same route + widgets + pageStatus ⇒ a ~22-token
@@ -134,8 +169,8 @@ export const createConversationStore = (): ConversationStore => {
   // back to a fresh empty thread when nothing is persisted / storage is unavailable.
   const rehydrated = loadCurrentThread()
   let state: ConversationState = rehydrated
-    ? { contextId: rehydrated.contextId, messages: rehydrated.messages, restored: false, sessionId: rehydrated.sessionId, updatedAt: rehydrated.updatedAt }
-    : { contextId: undefined, messages: [], restored: false, sessionId: newSessionId(), updatedAt: Date.now() }
+    ? { agent: rehydrated.contextId === undefined ? undefined : persistedAgent(rehydrated), contextId: rehydrated.contextId, messages: rehydrated.messages, restored: false, sessionId: rehydrated.sessionId, updatedAt: rehydrated.updatedAt }
+    : { agent: undefined, contextId: undefined, messages: [], restored: false, sessionId: newSessionId(), updatedAt: Date.now() }
   // Outside `state` on purpose: the delta base is not rendered, so writing it must not emit.
   let lastEnvelope: PageContextEnvelope | undefined
   const listeners = new Set<() => void>()
@@ -150,7 +185,7 @@ export const createConversationStore = (): ConversationStore => {
   const persistCurrent = (): void => {
     saveCurrentThread(
       isThreadWorthKeeping(state.messages)
-        ? { contextId: state.contextId, messages: state.messages, sessionId: state.sessionId, title: deriveThreadTitle(state.messages), updatedAt: state.updatedAt }
+        ? { agent: state.agent, contextId: state.contextId, messages: state.messages, sessionId: state.sessionId, title: deriveThreadTitle(state.messages), updatedAt: state.updatedAt }
         : null,
     )
   }
@@ -169,10 +204,10 @@ export const createConversationStore = (): ConversationStore => {
     if (!isThreadWorthKeeping(state.messages)) {
       return null
     }
-    return { contextId: state.contextId, messages: state.messages, sessionId: state.sessionId, title: deriveThreadTitle(state.messages), updatedAt: state.updatedAt }
+    return { agent: state.agent, contextId: state.contextId, messages: state.messages, sessionId: state.sessionId, title: deriveThreadTitle(state.messages), updatedAt: state.updatedAt }
   }
 
-  const freshState = (): ConversationState => ({ contextId: undefined, messages: [], restored: false, sessionId: newSessionId(), updatedAt: Date.now() })
+  const freshState = (): ConversationState => ({ agent: undefined, contextId: undefined, messages: [], restored: false, sessionId: newSessionId(), updatedAt: Date.now() })
 
   return {
     archiveAndReset: () => {
@@ -182,6 +217,13 @@ export const createConversationStore = (): ConversationStore => {
       }
       lastEnvelope = undefined
       set(freshState())
+    },
+    bindToAgent: (agent) => {
+      if (state.contextId === undefined || state.agent === agent) {
+        return
+      }
+      lastEnvelope = undefined
+      set({ ...state, agent: undefined, contextId: undefined })
     },
     getLastEnvelope: () => lastEnvelope,
     getSnapshot: () => state,
@@ -200,7 +242,7 @@ export const createConversationStore = (): ConversationStore => {
       // NOT resume the server A2A session (phase-2); the next send starts a fresh contextId.
       // updatedAt carries over from the archive entry (not Date.now()) — merely opening a past
       // thread to read it must not make it look freshly active.
-      set({ contextId: undefined, messages: target.messages, restored: true, sessionId: target.sessionId, updatedAt: target.updatedAt })
+      set({ agent: undefined, contextId: undefined, messages: target.messages, restored: true, sessionId: target.sessionId, updatedAt: target.updatedAt })
       return true
     },
     reset: () => {
@@ -208,11 +250,12 @@ export const createConversationStore = (): ConversationStore => {
       set(freshState())
     },
     sessions: () => summarize(loadArchive()),
-    setContextId: (contextId) => {
-      if (contextId === state.contextId && !state.restored) { return }
+    setContextId: (contextId, agent) => {
+      const owner = contextId === undefined ? undefined : agent
+      if (contextId === state.contextId && owner === state.agent && !state.restored) { return }
       // A server contextId assignment means a live turn is under way — the thread is no
       // longer merely "restored for viewing", so clear the hint.
-      set({ ...state, contextId, restored: false })
+      set({ ...state, agent: owner, contextId, restored: false })
     },
     setLastEnvelope: (envelope) => { lastEnvelope = envelope },
     setMessages: (update) => {
