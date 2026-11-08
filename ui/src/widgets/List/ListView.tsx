@@ -4,7 +4,7 @@ import { Avatar, Card, List as AntdList, Button, Dropdown, Progress, Space, Tag,
 import useApp from 'antd/es/app/useApp'
 import type { ListGridType } from 'antd/es/list'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
-import { useId, useMemo } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 
 import { childHealthFromRow, useReportChildHealth } from '../../components/PageHealth'
@@ -101,6 +101,46 @@ const oneLine = (text: string | undefined, ellipsis: boolean | undefined, type?:
   if (!text) { return undefined }
   if (!ellipsis) { return text }
   return <Typography.Text className={styles.oneLine} ellipsis={{ tooltip: text }} type={type}>{text}</Typography.Text>
+}
+
+/**
+ * `bar.tooltip`: a default row's bar label with the reason behind it (a reconciliation-rail row's
+ * "No signal" names why it has none). The same `{path}` shape as the card variant's
+ * `status.tooltip`, on the default row's own label.
+ *
+ * The label takes focus so the reason is reachable without a mouse (WCAG 2.1.1), and Escape closes
+ * it where focus stays (1.4.13), as ArchitectureStateNode does. Keyboard focus only: a click
+ * focuses the label too, but hover has already opened the tooltip, and one opened by the click's
+ * focus would stay open after the pointer left. The row's onKeyDown ignores keys aimed at a child,
+ * so Enter on the label does not navigate.
+ */
+const BarLabelTooltip = ({ color, label, title }: { color: string; label: string; title: string }) => {
+  const [byFocus, setByFocus] = useState(false)
+  const [byHover, setByHover] = useState(false)
+  const open = byFocus || byHover
+  return (
+    <Tooltip onOpenChange={setByHover} open={open} title={title}>
+      {/* C8 exception: not a control. A focusable label whose only key is Escape, to close the
+          reason it discloses; antd links the open tooltip to it through aria-describedby. */}
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+      <span
+        className={styles.barLabel}
+        onBlur={() => { setByFocus(false) }}
+        onFocus={(event) => { setByFocus(event.currentTarget.matches(':focus-visible')) }}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && open) {
+            event.stopPropagation()
+            setByFocus(false)
+            setByHover(false)
+          }
+        }}
+        style={{ color }}
+        tabIndex={0}
+      >
+        {label}
+      </span>
+    </Tooltip>
+  )
 }
 
 /**
@@ -418,7 +458,9 @@ export const ListView = ({
                 size='small'
                 strokeColor={isRail ? getColorCode('cyan') : barStateColor}
               />
-              {row.bar.label && <span className={styles.barLabel} style={{ color: barStateColor }}>{row.bar.label}</span>}
+              {row.bar.label && (row.bar.tooltip
+                ? <BarLabelTooltip color={barStateColor} label={row.bar.label} title={row.bar.tooltip} />
+                : <span className={styles.barLabel} style={{ color: barStateColor }}>{row.bar.label}</span>)}
             </div>
           )
           : null

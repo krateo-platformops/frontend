@@ -132,4 +132,10 @@ describe('itemTemplate — resolveRow', () => {
   it('leaves navigateTo empty when the template is absent (non-clickable row)', () => {
     expect(resolveRow({ primaryText: '{x}' }, { x: 'a' }).navigateTo).toBe('')
   })
+
+  it('resolves bar.tooltip per item, and to empty when the template does not set it', () => {
+    const item = { rail: { label: 'No signal', reason: 'Ready=Unknown · ZeroEvidence' } }
+    expect(resolveRow({ bar: { label: '{rail.label}', tooltip: '{rail.reason}' } }, item).bar?.tooltip).toBe('Ready=Unknown · ZeroEvidence')
+    expect(resolveRow({ bar: { label: '{rail.label}' } }, item).bar?.tooltip).toBe('')
+  })
 })

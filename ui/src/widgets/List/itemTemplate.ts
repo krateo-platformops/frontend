@@ -43,6 +43,11 @@ export interface BarSpec {
   color?: ColorSpec
   /** Optional trailing `{path}` label (e.g. the % text or `7/7`). */
   label?: string
+  /**
+   * `{path}` tooltip text on the label, shown on hover or focus (e.g. why a rail row reads
+   * "No signal"). Same shape as `status.tooltip` on the card variant. Empty → no tooltip.
+   */
+  tooltip?: string
   /** `line` (plain) or `rail` (hatched diff + amber target-tick variant). */
   variant?: 'line' | 'rail'
 }
@@ -132,6 +137,8 @@ export interface ResolvedBar {
   percent: number
   color: string
   label: string
+  /** Resolved label tooltip (empty string → no tooltip). */
+  tooltip: string
   variant: 'line' | 'rail'
 }
 
@@ -219,6 +226,7 @@ export const resolveRow = (template: ItemTemplate, item: unknown): ResolvedRow =
       color: resolveColor(template.bar.color, item),
       label: interpolate(template.bar.label, item),
       percent: Math.max(0, Math.min(100, Number(interpolate(template.bar.percent, item)) || 0)),
+      tooltip: interpolate(template.bar.tooltip, item),
       variant: template.bar.variant ?? 'line',
     }
     : undefined,
