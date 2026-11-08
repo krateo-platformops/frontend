@@ -10,7 +10,7 @@ global:
 
 replicaCount: 1
 
-# The orchestrator Agent the portal talks to. One knob for both ways the portal reaches it:
+# The orchestrator Agent the portal talks to, in both gateway modes. One knob for both:
 #   - agent gateway on: the chart appends `/api/a2a/<release namespace>/<agentName>` to the
 #     gateway origin in `config.AUTOPILOT_API_BASE_URL` (see `agentgateway` below);
 #   - otherwise, when values set neither `config.AGENTIKO_API_BASE_URL` nor

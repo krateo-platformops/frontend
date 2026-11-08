@@ -507,7 +507,7 @@
       "title": "Agent name",
       "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
       "maxLength": 63,
-      "description": "The orchestrator Agent the portal talks to. With agentgateway.enabled and a gateway origin as the base URL, the A2A URL is <origin>/api/a2a/<release-namespace>/<agentName>. Otherwise, when config sets neither AGENTIKO_API_BASE_URL nor AUTOPILOT_API_BASE_URL, the base URL is /<agentName>, the same-origin nginx location for that Agent. An explicitly set base URL wins. Not defaulted here: an unset key falls back to values.yaml (agentiko)."
+      "description": "The orchestrator Agent the portal talks to, in both gateway modes. With agentgateway.enabled and a gateway origin as the base URL, the A2A URL is <origin>/api/a2a/<release-namespace>/<agentName>. Otherwise, when config sets neither AGENTIKO_API_BASE_URL nor AUTOPILOT_API_BASE_URL, the base URL is /<agentName>, the same-origin nginx location for that Agent. An explicitly set base URL wins. Not defaulted here: an unset key falls back to values.yaml (agentiko)."
     },
     "agentgateway": {
       "type": "object",
