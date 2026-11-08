@@ -55,8 +55,8 @@ the requesting user. There is no frontend controller.
 ## HTTP surface
 
 The container itself exposes no application API — it serves the static SPA (nginx,
-`try_files` fallback on the chart's `service.port`) and reverse-proxies `/autopilot/*`
-to the kagent A2A endpoint on the same origin, forwarding the caller's Bearer. With
+`try_files` fallback on the chart's `service.port`) and reverse-proxies `/agentiko/*`
+(and `/autopilot/*`, until Agent `autopilot` is retired) to the kagent A2A endpoint on the same origin, forwarding the caller's Bearer. With
 `agentgateway.enabled` the rail calls the agent gateway directly instead and this proxy is
 unused. The portal's data plane is entirely
 **consumed** upstream APIs (authn `/strategies`, snowplow `/call` + `/refreshes`,

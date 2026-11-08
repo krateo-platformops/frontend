@@ -78,8 +78,9 @@ export default defineConfig({
   server: {
     port: 4000,
     // Optional dev-only same-origin proxy for the Autopilot A2A endpoint, mirroring the
-    // production nginx `location /autopilot/`. Opt in by pointing it at a reachable kagent-ui,
-    // then set AUTOPILOT_API_BASE_URL to "/autopilot" in the active config. (In-cluster with
+    // production nginx `location /agentiko/` and `location /autopilot/`. Opt in by pointing it at a
+    // reachable kagent-ui, then set AGENTIKO_API_BASE_URL to "/agentiko" (Agent `agentiko`) or
+    // "/autopilot" (Agent `autopilot`) in the active config. (In-cluster with
     // agentgateway on, the rail calls the gateway's URL directly and no proxy is involved.)
     //   VITE_AUTOPILOT_PROXY_TARGET=http://<kagent-ui-or-gateway>:8080 npm run dev
     // Unset → no proxy is registered (no behavior change). Replaces the throwaway CORS proxy.
@@ -91,7 +92,18 @@ export default defineConfig({
           // catch-all or it is rewritten to the A2A agent path and the panel reads an agent turn
           // instead of its trace. sort-keys would put the catch-all first, which is why it is off
           // for this object and only this object.
+          // `/agentiko` and `/autopilot` mirror nginx's two agent locations, one per Agent.
           /* eslint-disable sort-keys/sort-keys-fix -- see above: declaration order routes requests */
+          '/agentiko/sessions': {
+            changeOrigin: true,
+            rewrite: (path: string) => path.replace(/^\/agentiko\/sessions/, '/api/sessions'),
+            target: autopilotProxyTarget,
+          },
+          '/agentiko': {
+            changeOrigin: true,
+            rewrite: (path: string) => path.replace(/^\/agentiko/, '/api/a2a/krateo-system/agentiko'),
+            target: autopilotProxyTarget,
+          },
           '/autopilot/sessions': {
             changeOrigin: true,
             rewrite: (path: string) => path.replace(/^\/autopilot\/sessions/, '/api/sessions'),

@@ -35,6 +35,7 @@ Everything configurable, grounded in [`helm/frontend/values.yaml`](../helm/front
 | `podAnnotations` / `podLabels` / `nodeSelector` / `tolerations` / `affinity` / `podSecurityContext` / `securityContext` | `{}` | Standard pass-throughs. |
 | `env` | *(unset)* | Free-form extra env vars, rendered into the `<fullname>` ConfigMap consumed via `envFrom`. |
 | `agentgateway.enabled` | `false` | Send the Agentiko A2A calls to the agent gateway instead of kagent-ui (below). Injected by the installer from `features.agentGateway`. |
+| `agentName` | `agentiko` | The orchestrator Agent the portal talks to, in both modes: with the gateway on, the last segment of `<origin>/api/a2a/<release-ns>/<agentName>`; otherwise the derived same-origin base `/<agentName>`, used when `config` sets neither `AGENTIKO_API_BASE_URL` nor `AUTOPILOT_API_BASE_URL`. An explicit base URL wins. Typed in the schema, defaulted only in `values.yaml`. |
 | `config.*` | see below | Rendered verbatim into the `config.json` the SPA boots from. |
 | `previewSandbox.*` | `enabled: false` | The portal-builder live-preview sandbox (below). |
 
@@ -54,7 +55,7 @@ defaults:
 | `AUTHN_API_BASE_URL` | `http://localhost:8082` | Login strategies + token exchange. |
 | `EVENTS_API_BASE_URL` / `EVENTS_PUSH_API_BASE_URL` | `http://localhost:8083` | Events list (`/events`) / SSE stream (`/notifications`). |
 | `INIT` | `/call?resource=layouts&…&name=app-shell&namespace=krateo-system` | The bootstrap pointer to the app-shell `Layout` CR. There is no `ROUTES_LOADER` anymore — routing is data on the sidebar `Menu`. |
-| `AUTOPILOT_API_BASE_URL` | `/autopilot` | Same-origin path served by the nginx `/autopilot/` proxy to the kagent A2A endpoint (no CORS). The Agentiko rail renders only when set; the upstream it dials is `autopilot.upstream`. The Evidence panel's session-trace URL is derived from this value, not configured separately (see below). |
+| `AUTOPILOT_API_BASE_URL` | *(unset → `/<agentName>`)* | Unset under both names, the chart derives `/<agentName>` (`/agentiko` by default): the same-origin path served by the nginx location for that Agent, proxied to its kagent A2A endpoint (no CORS). Set it explicitly to override; `""` hides the rail. It is deliberately absent from `values.yaml` and has no schema default, since either would count as set. The Agentiko rail renders only when the value is non-empty; the upstream it dials is `autopilot.upstream`. The Evidence panel's session-trace URL is derived from this value, not configured separately (see below). |
 | `AUTOPILOT_AVAILABLE` | `""` | Clickability (not visibility) of the Agentiko toggle: `"false"` (set by the installer when agents aren't deployed) grays it out; `""` defers to the runtime reachability probe, which also grays it out on a `401`/`403` (invalid session, or gateway RBAC denies this user the agent). |
 | `OTEL_COLLECTOR_URL` | `""` | Browser OTel traces endpoint; empty = the browser SDK stays off. |
 | `SNOWPLOW_IDENTITY_INJECTION` | `""` | String-typed rollout flag (installer plumbing emits strings only): `""` = legacy identity-extras behavior (safe hold-off); `"true"` = snowplow injects identity server-side. Never set `"false"` (JS truthiness trap — documented in `values.yaml`). |
@@ -98,12 +99,24 @@ The image is the official nginx serving `/app`; at boot
 1. the **listen port** from `FRONTEND_CONTAINER_PORT` (default `8080`) — which the
    Deployment sets to `service.port`, so Service, container, probes and nginx always
    agree;
-2. the **cluster DNS resolver** into the `/autopilot/` proxy block, so `kagent-ui`
-   resolves at *request* time — the portal starts (and `/autopilot/` degrades to 502)
-   when autopilot is absent, instead of nginx crashlooping.
+2. the **cluster DNS resolver** into every proxy block, so `kagent-ui`
+   resolves at *request* time — the portal starts (and the proxy degrades to 502)
+   when kagent is absent, instead of nginx crashlooping.
 
-The `/autopilot/` location rewrites to the kagent A2A path
-(`/api/a2a/krateo-system/autopilot/…`) and dials the kagent-ui Service on port 8080 with
+There is one proxy location per Agent, named after it, plus its sessions sibling for the
+Evidence panel:
+
+| Location | Rewrites to |
+|---|---|
+| `/agentiko/` | `/api/a2a/krateo-system/agentiko/…` |
+| `/agentiko/sessions/` | `/api/sessions/…` (`GET` only) |
+| `/autopilot/` | `/api/a2a/krateo-system/autopilot/…` |
+| `/autopilot/sessions/` | `/api/sessions/…` (`GET` only) |
+
+The portal reads the agent a thread belongs to from the location's name, so a location must
+rewrite to the Agent it is named after (`ui/src/components/Agentiko/a2aEndpoint.test.ts`
+checks `nginx.conf` and the vite dev proxy). `/autopilot/` is removed once Agent `autopilot`
+is retired. Each A2A location dials the kagent-ui Service on port 8080 with
 SSE-friendly settings, passing the caller's `Authorization` header through untouched
 (`ui/nginx.conf`). It is used only when `agentgateway.enabled` is off — with the gateway on,
 the browser calls the gateway directly and nginx is not involved.
@@ -115,8 +128,8 @@ flag decides who validates it, by deciding what `AUTOPILOT_API_BASE_URL` ends up
 
 | `agentgateway.enabled` | `AUTOPILOT_API_BASE_URL` | Path |
 |---|---|---|
-| `false` (default) | `/autopilot` — the same-origin nginx proxy | → kagent-ui → kagent controller. No gateway, so nothing validates the token. |
-| `true` | the chart turns the gateway **origin** into `<origin>/api/a2a/<release-ns>/autopilot` | browser → the agent gateway → kagent controller, directly, like every other backend. The gateway validates the token against `authn`'s JWKS and applies per-user agent / tool / delegation RBAC. |
+| `false` (default) | `/<agentName>` (default `/agentiko`) — the same-origin nginx proxy | → kagent-ui → kagent controller. No gateway, so nothing validates the token. |
+| `true` | the chart turns the gateway **origin** into `<origin>/api/a2a/<release-ns>/<agentName>` (default `agentiko`) | browser → the agent gateway → kagent controller, directly, like every other backend. The gateway validates the token against `authn`'s JWKS and applies per-user agent / tool / delegation RBAC. |
 
 The origin comes from the installer, resolved by the same exposure model that produces
 `SNOWPLOW_API_BASE_URL` and friends — so set `config.AUTOPILOT_API_BASE_URL` to the **origin
@@ -125,7 +138,7 @@ has not resolved yet degrades to the kagent-ui proxy instead of rendering a brok
 
 The **Evidence** panel's session read follows the same split, derived from the same value:
 `<origin>/api/sessions/<id>/tasks` through the gateway (allowed by `sessionTrace` on
-`agentgateway-policies`, `GET` only), or `/autopilot/sessions/<id>/tasks` through the nginx
+`agentgateway-policies`, `GET` only), or `/agentiko/sessions/<id>/tasks` through the nginx
 proxy. Nothing configures it separately, and a denied or unreachable read only costs the panel
 its delegated rows.
 
@@ -133,7 +146,7 @@ The installer injects `true` from `features.agentGateway`, which also puts the k
 controller in `trusted-proxy` mode. That mode is why the flag matters twice over: a request
 with **no** `Authorization` header is rejected (`401` — the rail is simply dead), and a
 request that does carry one is *trusted without verification*. Only the gateway verifies, so
-leaving the rail on `/autopilot` with the gateway installed both works and is wrong — it
+leaving the rail on a relative path with the gateway installed both works and is wrong — it
 bypasses every RBAC layer and would accept a forged token.
 
 > **This is a cross-origin call, so the gateway must answer CORS.** A browser precedes it

@@ -5,11 +5,12 @@
  * `AGENTIKO_API_BASE_URL` (read through `agentikoConfig`). The chart writes that value in one of
  * two forms, and the agent is the last path segment of both:
  *
- *   - agent gateway on:  `<gateway origin>/api/a2a/<release namespace>/autopilot`
+ *   - agent gateway on:  `<gateway origin>/api/a2a/<release namespace>/<agentName>`
  *     (helm/frontend/templates/configmap.yaml appends the A2A path to the origin), so the last
  *     segment IS the agent name kagent routes on.
- *   - agent gateway off: `/autopilot`, the same-origin nginx `location /autopilot/` that rewrites
- *     to `/api/a2a/krateo-system/autopilot/` (ui/nginx.conf; the vite dev proxy does the same).
+ *   - agent gateway off: `/<agentName>`, the same-origin nginx location named after the agent:
+ *     `location /agentiko/` rewrites to `/api/a2a/krateo-system/agentiko/`, and `/autopilot/` to
+ *     Agent `autopilot` (ui/nginx.conf; the vite dev proxy does the same).
  *     Here the last segment is the proxy location, and it names the agent because the location is
  *     named after the agent it fronts. a2aEndpoint.test.ts reads nginx.conf and vite.config.ts and
  *     fails if a location stops rewriting to the agent it is named after.

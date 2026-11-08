@@ -29,16 +29,22 @@ describe('agentOfA2aBase', () => {
   })
 
   it('reads the proxy location from the same-origin default', () => {
+    expect(agentOfA2aBase('/agentiko')).toBe('agentiko')
+    expect(agentOfA2aBase('/agentiko/')).toBe('agentiko')
     expect(agentOfA2aBase('/autopilot')).toBe('autopilot')
   })
 
   it('names the agent a2aUrl posts to', () => {
-    for (const base of ['https://gw/api/a2a/ns/agentiko', 'https://gw/api/a2a/ns/agentiko/', '/autopilot']) {
+    for (const base of ['https://gw/api/a2a/ns/agentiko', 'https://gw/api/a2a/ns/agentiko/', '/agentiko', '/autopilot']) {
       const url = a2aUrl(base)
       expect(url.endsWith(`/${agentOfA2aBase(base)}/`)).toBe(true)
     }
   })
 })
+
+// Both Agents are served side by side while the orchestrator is renamed: `/agentiko` is the
+// chart's same-origin default, and `/autopilot` stays until Agent `autopilot` is retired.
+const SAME_ORIGIN_AGENTS = ['agentiko', 'autopilot']
 
 describe('a same-origin proxy path is named after the agent it rewrites to', () => {
   it('nginx.conf: every `/api/a2a/` rewrite targets the agent its location is named after', () => {
@@ -46,9 +52,17 @@ describe('a same-origin proxy path is named after the agent it rewrites to', () 
     const rewrites = [...nginx.matchAll(/rewrite \^\/([\w-]+)\/\(\.\*\)\$ \/api\/a2a\/[^/\s]+\/([\w-]+)\/\$1/g)]
 
     // Guard against the pattern silently matching nothing after an edit to the file.
-    expect(rewrites.length).toBeGreaterThan(0)
+    expect(rewrites.map(([, location]) => location).sort()).toEqual(SAME_ORIGIN_AGENTS)
     for (const [line, location, agent] of rewrites) {
       expect(agentOfA2aBase(`/${location}`), line).toBe(agent)
+    }
+  })
+
+  it('nginx.conf: each agent location has the sessions location the Evidence panel reads', () => {
+    const nginx = readFileSync(join(UI, 'nginx.conf'), 'utf8')
+    for (const agent of SAME_ORIGIN_AGENTS) {
+      expect(nginx).toContain(`location /${agent}/sessions/ {`)
+      expect(nginx).toContain(`rewrite ^/${agent}/sessions/(.*)$ /api/sessions/$1 break;`)
     }
   })
 
@@ -56,9 +70,12 @@ describe('a same-origin proxy path is named after the agent it rewrites to', () 
     const vite = readFileSync(join(UI, 'vite.config.ts'), 'utf8')
     const rewrites = [...vite.matchAll(/replace\(\/\^\\\/([\w-]+)\/, '\/api\/a2a\/[^/']+\/([\w-]+)'\)/g)]
 
-    expect(rewrites.length).toBeGreaterThan(0)
+    expect(rewrites.map(([, location]) => location).sort()).toEqual(SAME_ORIGIN_AGENTS)
     for (const [line, location, agent] of rewrites) {
       expect(agentOfA2aBase(`/${location}`), line).toBe(agent)
+    }
+    for (const agent of SAME_ORIGIN_AGENTS) {
+      expect(vite).toContain(`path.replace(/^\\/${agent}\\/sessions/, '/api/sessions')`)
     }
   })
 })

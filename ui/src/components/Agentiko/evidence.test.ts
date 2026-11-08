@@ -135,6 +135,9 @@ describe('reaching the session trace', () => {
   it('derives the trace base from the configured A2A endpoint in both exposure modes', () => {
     expect(deriveSessionsBase('http://krateo.localhost:8084/api/a2a/krateo-system/autopilot'))
       .toBe('http://krateo.localhost:8084/api/sessions')
+    expect(deriveSessionsBase('http://krateo.localhost:8084/api/a2a/krateo-system/agentiko'))
+      .toBe('http://krateo.localhost:8084/api/sessions')
+    expect(deriveSessionsBase('/agentiko')).toBe('/agentiko/sessions')
     expect(deriveSessionsBase('/autopilot')).toBe('/autopilot/sessions')
     expect(deriveSessionsBase('/autopilot/')).toBe('/autopilot/sessions')
   })

@@ -10,6 +10,16 @@ global:
 
 replicaCount: 1
 
+# The orchestrator Agent the portal talks to, in both gateway modes. One knob for both:
+#   - agent gateway on: the chart appends `/api/a2a/<release namespace>/<agentName>` to the
+#     gateway origin in `config.AUTOPILOT_API_BASE_URL` (see `agentgateway` below);
+#   - otherwise, when values set neither `config.AGENTIKO_API_BASE_URL` nor
+#     `config.AUTOPILOT_API_BASE_URL`, the base is `/<agentName>`, the same-origin nginx location
+#     named after it (ui/nginx.conf serves `/agentiko/` and `/autopilot/`).
+# An explicitly set base URL wins over the derived one. The default `agentiko` needs Agent
+# `agentiko` to exist; `autopilot` renders the same config.json as frontend 1.8.33.
+agentName: agentiko
+
 image:
   registry: ghcr.io
   repository: krateo-platformops/frontend
@@ -129,13 +139,14 @@ affinity: {}
 # validates the caller's JWT and forwards it down. The portal always sends the logged-in user's
 # Bearer on its Agentiko A2A calls; when enabled, those calls go to the GATEWAY instead of to
 # kagent-ui, so the token is actually validated and the gateway's per-user agent/tool/delegation
-# RBAC applies. Off, they keep going to kagent-ui through the nginx `/autopilot/` proxy.
+# RBAC applies. Off, they keep going to kagent-ui through the nginx `/<agentName>/` proxy.
 #
 # `enabled` turns `config.AUTOPILOT_API_BASE_URL` from the gateway's ORIGIN into the full A2A URL
-# for this release's namespace — the installer supplies that origin the same way it supplies the
-# snowplow/authn/events ones (exposure model), so the browser calls the gateway directly, exactly
-# like every other Krateo backend. A relative value (the chart default `/autopilot`) is left alone,
-# so a not-yet-resolved origin degrades to the old path instead of rendering a broken URL.
+# `<origin>/api/a2a/<release namespace>/<agentName>` (top-level `agentName`) — the installer
+# supplies that origin the same way it supplies the snowplow/authn/events ones (exposure model), so
+# the browser calls the gateway directly, exactly like every other Krateo backend. A relative value
+# (including the derived `/<agentName>`) is left alone, so a not-yet-resolved origin degrades to the
+# same-origin proxy path instead of rendering a broken URL.
 #
 # Needs `cors.enabled` on the gateway (the installer's features.agentGateway sets both): a
 # cross-origin browser call is preceded by an unauthenticated OPTIONS preflight that the gateway's
@@ -150,11 +161,13 @@ config:
   AUTHN_API_BASE_URL: http://localhost:8082
   EVENTS_PUSH_API_BASE_URL: http://localhost:8083
   EVENTS_API_BASE_URL: http://localhost:8083
-  # Agentiko copilot. Default: the same-origin path served by the nginx `location /autopilot/`
-  # reverse proxy to kagent-ui (no cross-origin → no CORS). The rail renders only when this is set.
-  # With `agentgateway.enabled` this is instead the agent gateway's ORIGIN (e.g.
-  # http://gateway.example.com:8080) and the chart appends the A2A path — so set the origin only.
-  AUTOPILOT_API_BASE_URL: /autopilot
+  # AUTOPILOT_API_BASE_URL (or AGENTIKO_API_BASE_URL): the Agentiko copilot's A2A base. DELIBERATELY
+  # NOT SET HERE: unset, the chart derives `/<agentName>`, the same-origin nginx location that
+  # reverse-proxies to kagent-ui and that Agent (no cross-origin → no CORS). Set it explicitly to
+  # override; "" hides the rail. With `agentgateway.enabled` it is instead the agent gateway's
+  # ORIGIN (e.g. http://gateway.example.com:8080) and the chart appends the A2A path for
+  # `agentName` — so set the origin only. Typed in values.schema.json, never defaulted there: a
+  # schema default is written into the composition spec, where it would count as explicitly set.
   # Agentiko availability. Controls CLICKABILITY of the header toggle, NOT its visibility (the
   # toggle stays visible whenever AUTOPILOT_API_BASE_URL is set, so the capability is discoverable).
   # "" (default) leaves clickability to the frontend's runtime reachability probe of the endpoint.

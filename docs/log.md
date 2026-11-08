@@ -13,6 +13,26 @@ Curated history, newest first. Durable decision records and dated notes live wit
 code under [`ui/docs/`](../ui/docs/llms.txt) (e.g. the executed
 [antd-migration-plan](../ui/docs/antd-migration-plan.md)).
 
+## 2026-11-08 — the portal defaults to Agent `agentiko`
+
+The orchestrator is renamed from `autopilot` to `agentiko`, and both Agents run side by side
+until `autopilot` is retired. The chart now defaults to the new one:
+
+- **One knob, top-level `agentName`** (default `agentiko`), picks the Agent in both modes. With
+  the gateway on it ends the A2A path, `<origin>/api/a2a/<ns>/<agentName>`, in place of the
+  literal `autopilot`. Otherwise the same-origin base is derived as `/<agentName>`.
+- **`config.AUTOPILOT_API_BASE_URL` is no longer defaulted** (it was `/autopilot`): unset under
+  both names, it is derived from `agentName`. An explicitly set value still wins, and `""` still
+  hides the rail.
+- New nginx locations `/agentiko/` and `/agentiko/sessions/` rewrite to Agent `agentiko`.
+  `/autopilot/` still rewrites to Agent `autopilot`.
+- **An install that takes these defaults talks to Agent `agentiko`, so that Agent must exist.**
+  To stay on `autopilot`, set `agentName=autopilot`: `config.json` is then byte-identical to
+  1.8.33's in both modes. An `AUTOPILOT_API_BASE_URL` already stored in a composition spec, such
+  as 1.8.33's schema default `/autopilot`, counts as explicitly set and keeps winning. A thread
+  opened against one Agent is not continued on the other (frontend#639): after a switch, the
+  next message starts a new thread.
+
 ## 2026-08-25 — Evidence: the sources behind an Autopilot answer
 
 An answer that lists a component's environment variables is unverifiable in prose: the reader
