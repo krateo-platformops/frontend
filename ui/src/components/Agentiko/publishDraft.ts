@@ -46,8 +46,10 @@ import { CHART_YAML_PATH, chartYamlVersion } from './blueprintDraft'
 import { heldPublishFiles, type BlueprintDraftHeld, type BlueprintDraftStore } from './blueprintDraftStore'
 import type { createBlueprintGate } from './blueprintGate'
 import { buildClaimPublish } from './builderClaimPublish'
+import { repositoryWebUrl, resolveStructuredTarget } from './builderPublishClaim'
 import type { PublishStatusClaim } from './builderPublishStatus'
 import { builderTargetFor, builderTemplateUrl, type useBuilderTargets } from './builderTargets'
+import { withPublishingFields } from './chartPublishing'
 import { pageCompositionDefinition } from './pageDraft'
 import type { PublishRequestDetail, PublishResultDetail } from './previewPublishRequest'
 import { lintHeldDraft } from './proposedChart'
@@ -267,10 +269,24 @@ export const runDraftPublish = async (
   // the chart releases to OCI and nothing installs it — inert until a CompositionDefinition
   // registers it. It lands because the builder scaffold carries none: the claim never overwrites a
   // file the seed already put there. (A blueprint used to publish without one at all.)
-  const registration = publisher.registration(slug, dest.owner || bt.owner, dest.repo || destRepo, held.files)
+  const owner = dest.owner || bt.owner
+  const repo = dest.repo || destRepo
+  const registration = publisher.registration(slug, owner, repo, held.files)
   const projection = publisher.projection(held.files)
+  // THE PUBLISHING FIELDS IN Chart.yaml (the krateo-blueprints publishing standard), for every
+  // builder. The blueprints index publishes the archive release-oci packs from the committed tree,
+  // so they must be in the COMMITTED Chart.yaml; nothing later adds them. `sources` names the
+  // repository this chart is published from, settled only now, which is why it is written here
+  // rather than at start. The kind's keyword, the icon and a page set's krateo.io/kind are written
+  // at start too, but only as a convenience: a draft started before they existed, or one whose
+  // author deleted them, would have its first release refused, so this is where they are
+  // guaranteed. Only what is MISSING is filled (withPublishingFields): an author's value is never
+  // overwritten, and the held draft is not touched, so a second publish fills the same bytes again.
+  const chartYaml = held.files[CHART_YAML_PATH]
+  const source = repositoryWebUrl({ ...resolveStructuredTarget(builder.publish.builder, config), namespace: owner, repo })
   const publishFiles = {
     ...held.files,
+    ...(chartYaml !== undefined ? { [CHART_YAML_PATH]: withPublishingFields(chartYaml, held.kind, source) } : {}),
     ...(registration ? { [REGISTRATION_PATH]: registration } : {}),
     ...(projection ? { [PROJECTION_BUNDLE_PATH]: projection.bundle } : {}),
   }

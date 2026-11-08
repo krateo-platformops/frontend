@@ -26,6 +26,7 @@
 import { dump } from 'js-yaml'
 
 import { CHART_YAML_PATH, VALUES_SCHEMA_PATH } from '../../components/Agentiko/blueprintDraft'
+import { CHART_ICON, CHART_KEYWORD } from '../../components/Agentiko/chartPublishing'
 
 import { ARCHITECTURE_API_VERSION, ARCHITECTURE_KIND, ARCHITECTURE_TEMPLATE_PATH, serializeArchitecture, wrapAsConfigMapTemplate } from './architecture'
 import { chartIdentityProblems, chartIdentityWarnings, claimApiVersion, compositionKind, publishNameProblem } from './chartIdentity'
@@ -144,18 +145,20 @@ export const validateStartChart = (input: StartChartInput): StartChartProblem[] 
 export const startChartWarnings = (input: StartChartInput): StartChartProblem[] =>
   chartIdentityWarnings({ name: input.name, version: input.version })
 
-/** The icon a started chart carries; the platform charts publish under the same brand path. */
-const CHART_ICON = 'https://raw.githubusercontent.com/krateo-platformops/.github/main/brand/logo.svg'
-
-/** Build by assignment: the lint alphabetises object literals, and a file's key order is its format. */
+/**
+ * Build by assignment: the lint alphabetises object literals, and a file's key order is its format.
+ * The icon and the one `blueprint` keyword are the publishing standard's (chartPublishing.ts);
+ * `sources` is added at publish, once the destination repository is confirmed.
+ */
 const chartYaml = (name: string, version: string, description: string): string => {
-  const chart: Record<string, string> = {}
+  const chart: Record<string, unknown> = {}
   chart.apiVersion = 'v2'
   chart.name = name
   if (description) { chart.description = description }
   chart.icon = CHART_ICON
   chart.type = 'application'
   chart.version = version
+  chart.keywords = [CHART_KEYWORD.blueprint]
   return dump(chart, { lineWidth: -1, noRefs: true, sortKeys: false })
 }
 
