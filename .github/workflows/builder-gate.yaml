@@ -6,8 +6,9 @@
 #               then the example page draft through the gate OFFLINE — the only place the live
 #               steps are turned off, by the CLI's --offline flag — asserting every offline step
 #               ran and passed and every live step said DISABLED; then snowplow's jq modules
-#               diffed against the tag SNOWPLOW_REF names; then the stage reason codes the gate
-#               knows (STAGE_REASONS) compared with snowplow's, at the snowplow installer pins.
+#               diffed against the tag SNOWPLOW_REF names, at every depth; then the stage reason
+#               codes the gate knows (STAGE_REASONS) compared with snowplow's at the snowplow
+#               installer main pins, and SNOWPLOW_REF itself compared with the RELEASED installer's.
 #   kind        the gate's identity against a real API server, as the chart's own ServiceAccount:
 #               it reads its own Builder and no other; it may not create, get or list widgets,
 #               RESTActions or Secrets; with no caller token it judges nothing live, and that is
@@ -45,6 +46,11 @@ jobs:
       - name: Build jqcheck (snowplow's gojq fork and modules)
         working-directory: builder-gate/jqcheck
         run: go build -o ../bin/jqcheck . && echo "JQCHECK_BIN=$GITHUB_WORKSPACE/builder-gate/bin/jqcheck" >> "$GITHUB_ENV"
+      - name: jqcheck's module loader resolves names as snowplow's does
+        # main_test.go: every vendored module is embedded (a nested directory needs its own
+        # //go:embed pattern), and a name outside the vendored set is "not found".
+        working-directory: builder-gate/jqcheck
+        run: go test ./... -count=1
       - name: Install
         run: npm ci --no-audit --no-fund
 
@@ -106,25 +112,44 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: snowplow's jq modules match the tag in SNOWPLOW_REF
+      - name: snowplow's jq modules match the tag in SNOWPLOW_REF, at every depth
+        # The listing is the git tree of snowplow's modules/ directory, recursive, so a nested
+        # module (modules/krateo/architecture/v1.jq, snowplow 1.12.50+) is listed like a top-level
+        # one: the old `contents` listing named only the `krateo` directory, and the old diff loop
+        # read only jqcheck/modules/*.jq. Every file, not only *.jq, so nothing can sit in either
+        # tree unseen.
         run: |
           set -euo pipefail
           ref="$(tr -d '[:space:]' < SNOWPLOW_REF)"
-          for m in jqcheck/modules/*.jq; do
-            curl -fsSL "https://raw.githubusercontent.com/krateo-platformops/snowplow/${ref}/go/snowplow/internal/support/jq/modules/$(basename "$m")" | diff -u - "$m"
-          done
-          # And no module snowplow ships at that tag is missing here.
-          gh api "repos/krateo-platformops/snowplow/contents/go/snowplow/internal/support/jq/modules?ref=${ref}" --jq '.[].name' | sort > upstream.txt
-          (cd jqcheck/modules && ls *.jq) | sort > local.txt
+          base=go/snowplow/internal/support/jq
+          sha="$(gh api "repos/krateo-platformops/snowplow/contents/${base}?ref=${ref}" --jq '.[] | select(.name == "modules" and .type == "dir") | .sha')"
+          test -n "$sha" || { echo "::error::snowplow ${ref} has no ${base}/modules directory"; exit 1; }
+          gh api "repos/krateo-platformops/snowplow/git/trees/${sha}?recursive=1" > tree.json
+          jq -e '.truncated == false' tree.json > /dev/null || { echo "::error::the modules tree listing was truncated"; exit 1; }
+          jq -r '.tree[] | select(.type == "blob") | .path' tree.json | sort > upstream.txt
+          (cd jqcheck/modules && find . -type f | sed 's|^\./||') | sort > local.txt
+          test -s upstream.txt || { echo "::error::snowplow ${ref} lists no module file"; exit 1; }
           diff -u upstream.txt local.txt
+          while read -r m; do
+            curl -fsSL "https://raw.githubusercontent.com/krateo-platformops/snowplow/${ref}/${base}/modules/${m}" | diff -u - "jqcheck/modules/${m}"
+          done < upstream.txt
+          echo "$(wc -l < upstream.txt) module file(s) at snowplow ${ref}, identical: $(tr '\n' ' ' < upstream.txt)"
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: snowplow's stage reason codes match the snowplow the installer pins
-        # test/drift/stageReasons.test.ts: reads installer main's snowplow pin, then that tag's
-        # stage_outcomes.go (resolving a constant assigned from another snowplow package), and
-        # fails naming every code missing on either side. Out of the unit run above because it
-        # needs the network; a read that fails is a red here, never a pass.
+      # snowplowRef.test.ts pulls the released installer chart, as crdgen's baseline does.
+      - uses: azure/setup-helm@v5.0.0
+        with:
+          version: v3.19.0
+      - name: snowplow's stage reason codes and SNOWPLOW_REF match the snowplow the installer pins
+        # test/drift/, out of the unit run above because it needs the network; a read that fails
+        # is a red here, never a pass.
+        #   stageReasons.test.ts  installer MAIN's snowplow pin, then that tag's stage_outcomes.go
+        #                         (resolving a constant assigned from another snowplow package);
+        #                         fails naming every code missing on either side.
+        #   snowplowRef.test.ts   SNOWPLOW_REF equals the RELEASED installer chart's snowplow pin;
+        #                         fails naming both. Released, not main: a module vendored ahead of
+        #                         the cluster would let the gate accept an include snowplow cannot.
         run: npx vitest run --config vitest.drift.config.ts --reporter=verbose
         env:
           GH_TOKEN: ${{ github.token }}

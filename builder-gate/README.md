@@ -123,12 +123,22 @@ SNOWPLOW_URL=http://<snowplow> node dist/cli.cjs --kubeconfig ~/.kube/config --c
   - the example, offline;
   - the secrets corpus through **the portal's own** `lint-ra-secrets.py` at
     `test/secrets/PORTAL_REF`;
-  - a diff of the snowplow modules against `SNOWPLOW_REF`;
-  - `npm run test:drift`: the gate's stage reason codes against snowplow's `stage_outcomes.go`, at
-    the snowplow version installer `main` pins. It needs the network, so `npm test` leaves it out;
+  - jqcheck's Go tests: every vendored module is embedded, and a module name outside the vendored
+    set is "not found", as in snowplow's loader;
+  - a diff of the snowplow modules against `SNOWPLOW_REF`, at every depth (nested names such as
+    `krateo/architecture/v1` included), both the file list and each file's content;
+  - `npm run test:drift`, which needs the network (and helm), so `npm test` leaves it out:
+    - the gate's stage reason codes against snowplow's `stage_outcomes.go`, at the snowplow
+      version installer `main` pins;
+    - `SNOWPLOW_REF` against the snowplow version the **released** installer chart pins;
   - a kind job, against a real API server as the chart's own ServiceAccount. It proves the gate
     reads its own Builder and no other, may not create, get or list widgets, RESTActions or
     Secrets, and is red with no caller token.
 - The image is built multi-arch by the shared `component-image-build` workflow, on PRs without
   pushing and on tags with pushing. Never push it from a workstation.
-- `SNOWPLOW_REF` and `jqcheck/go.mod` follow the snowplow tag the installer pins.
+- `SNOWPLOW_REF` follows the snowplow version the **released** installer chart pins, and CI fails
+  when it does not. Released, not `main`: a module vendored ahead of the cluster would let the
+  gate accept an `include` the deployed snowplow cannot resolve. To move it, set the tag, then
+  copy snowplow's `go/snowplow/internal/support/jq/modules/` at that tag into `jqcheck/modules/`
+  (every file, nested directories included), and add any new directory to jqcheck's `//go:embed`
+  line. `jqcheck/go.mod`'s gojq replace follows snowplow's `go.mod` at the same tag.
