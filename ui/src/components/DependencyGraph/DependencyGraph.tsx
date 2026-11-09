@@ -1,7 +1,8 @@
 /**
- * A left-to-right graph of things and what they depend on — the presentational half of `FlowChart`,
- * extracted so a second surface (the Blueprint Composer's architecture canvas) draws with the SAME
- * machinery rather than a copy of it (C24). The geometry and colours are in `graphConfig.ts`.
+ * A left-to-right graph of things and what they depend on (top to bottom, by `direction`) — the
+ * presentational half of `FlowChart`, extracted so a second surface (the Blueprint Composer's
+ * architecture canvas) draws with the SAME machinery rather than a copy of it (C24). The geometry
+ * and colours are in `graphConfig.ts`.
  *
  * WHAT IT ADDS OVER RENDERING `FlowGraph` DIRECTLY — each fixes a measured defect of the inline use:
  *
@@ -64,10 +65,12 @@ import {
   type EdgeAppearance,
   type EdgeDrawBehavior,
   type EdgeStateStyles,
+  type GraphDirection,
   type GraphEdge,
   type GraphFit,
   type GraphNode,
   type GraphPalette,
+  type GraphSpacing,
 } from './graphConfig'
 import { placeAtNaturalSize, revealOffset } from './naturalViewport'
 
@@ -196,6 +199,10 @@ export interface DependencyGraphProps<N, E> {
   fit?: GraphFit
   /** Drawing an edge by drag. Absent, no drawing behaviour is added. */
   edgeDraw?: EdgeDraw
+  /** Which way the ranks run — `LR` (default, C19) or `TB`. TB turns the ports and the edge curve too. */
+  direction?: GraphDirection
+  /** dagre's rank and node gaps. Absent, C19's. Must be stable (a module constant), or each render is a re-layout. */
+  spacing?: GraphSpacing
 }
 
 interface CanvasProps {
@@ -222,6 +229,7 @@ const placeNatural = (graph: G6.Graph): void => {
 }
 
 const DependencyGraph = <N, E = Record<string, unknown>>({
+  direction,
   edgeAppearance,
   edgeDraw,
   edgeStates,
@@ -232,6 +240,7 @@ const DependencyGraph = <N, E = Record<string, unknown>>({
   nodes,
   onNodeClick,
   renderNode,
+  spacing,
   themed = true,
 }: DependencyGraphProps<N, E>) => {
   const mode = useDocumentThemeMode()
@@ -372,8 +381,8 @@ const DependencyGraph = <N, E = Record<string, unknown>>({
   // options, because Graphin answers new options with a full re-layout. New data still picks up
   // the mode active then. The flip itself repaints the live graph, below.
   const options = useMemo(
-    () => buildGraphOptions({ edgeAppearance, edgeDraw: drawBehavior, edgeStates, edges, fit, nodeSize, nodes, palette: themed ? graphPalette(activeThemeMode()) : null, renderNode }),
-    [drawBehavior, edgeAppearance, edgeStates, edges, fit, nodeSize, nodes, renderNode, themed],
+    () => buildGraphOptions({ direction, edgeAppearance, edgeDraw: drawBehavior, edgeStates, edges, fit, nodeSize, nodes, palette: themed ? graphPalette(activeThemeMode()) : null, renderNode, spacing }),
+    [direction, drawBehavior, edgeAppearance, edgeStates, edges, fit, nodeSize, nodes, renderNode, spacing, themed],
   )
 
   // NATURAL: the box, observed. A new size is a canvas resize (no layout) and a new placement; the

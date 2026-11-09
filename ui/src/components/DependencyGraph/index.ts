@@ -8,7 +8,9 @@ export {
   graphPalette,
   type EdgeAppearance,
   type EdgeStateStyles,
+  type GraphDirection,
   type GraphEdge,
   type GraphNode,
   type GraphPalette,
+  type GraphSpacing,
 } from './graphConfig'

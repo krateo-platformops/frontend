@@ -416,3 +416,102 @@ spec:
         uid: "svc-b"
         version: "v1"
         resourceVersion: "1"
+---
+# Architecture variant, top to bottom and compact: a service path in a narrow box
+# Target: `direction: TB` and `density: compact` on `variant: architecture`.
+# Expected behavior: three 180x56 cards in one column, one per rank, joined by vertical curves. The
+#   whole path fits a box ~415px wide (180px drawn), so no overflow fade. The long name wraps onto
+#   a second line instead of being cut; its tooltip has the kind and the full name. There is no kind
+#   line on a compact card, and the detail line ("2 spans") stays.
+# Notes: absent, `direction` is LR and `density` is regular, which is the composition page's
+#   diagram: the same three cards left to right at 220x84 are 980px wide. The resource variant
+#   ignores both fields.
+kind: FlowChart
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-flowchart-architecture-tb-compact
+  namespace: krateo-system
+spec:
+  widgetData:
+    variant: architecture
+    direction: TB
+    density: compact
+    data:
+      - uid: "krateo-frontend"
+        kind: "Service"
+        name: "krateo-frontend"
+        names: ["krateo-frontend"]
+        state: "done"
+        detail: "1 span"
+      - uid: "krateo-agent-gateway-platform"
+        kind: "Service"
+        name: "krateo-agent-gateway-platform"
+        names: ["krateo-agent-gateway-platform"]
+        state: "done"
+        detail: "2 spans"
+        parentRefs:
+          - uid: "krateo-frontend"
+      - uid: "snowplow"
+        kind: "Service"
+        name: "snowplow"
+        names: ["snowplow"]
+        state: "done"
+        detail: "1 span"
+        parentRefs:
+          - uid: "krateo-agent-gateway-platform"
+---
+# Architecture variant, top to bottom and compact: four ranks fanning out
+# Target: a deeper path whose last rank holds two siblings.
+# Expected behavior: four rows. The last row has two cards side by side, 376px wide in all, so the
+#   graph still fits a ~415px box with no fade. The NotReady exception on `model` is a dot in the
+#   card's top-right corner; hover or keyboard focus opens its tooltip, and the card's accessible name
+#   has the condition. A third sibling would be 572px wide: the right-edge fade then says there is
+#   more, and drag or Tab brings it into view.
+kind: FlowChart
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-flowchart-architecture-tb-compact-fan-out
+  namespace: krateo-system
+spec:
+  widgetData:
+    variant: architecture
+    direction: TB
+    density: compact
+    data:
+      - uid: "krateo-frontend"
+        kind: "Service"
+        name: "krateo-frontend"
+        state: "done"
+        detail: "1 span"
+      - uid: "krateo-agent-gateway-platform"
+        kind: "Service"
+        name: "krateo-agent-gateway-platform"
+        state: "done"
+        detail: "2 spans"
+        parentRefs:
+          - uid: "krateo-frontend"
+      - uid: "agentiko"
+        kind: "Service"
+        name: "agentiko"
+        state: "done"
+        detail: "6 spans"
+        parentRefs:
+          - uid: "krateo-agent-gateway-platform"
+      - uid: "model"
+        kind: "Service"
+        name: "model"
+        state: "done"
+        detail: "2 spans"
+        exception:
+          label: "NotReady"
+          reason: "Error"
+          message: "the model call returned status 429"
+        parentRefs:
+          - uid: "agentiko"
+      - uid: "k8s-agent"
+        kind: "Service"
+        name: "k8s-agent"
+        state: "done"
+        detail: "3 spans"
+        parentRefs:
+          - uid: "agentiko"

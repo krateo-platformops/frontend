@@ -186,6 +186,14 @@ export interface FlowChart {
         version?: string
       }[]
       /**
+       * architecture variant: which way the graph runs. LR, when absent: one column per rank, left to right. TB: one row per rank, top to bottom, for a box narrower than the chain is long; the drawing is then as wide as its broadest row. The resource variant ignores it.
+       */
+      direction?: 'LR' | 'TB'
+      /**
+       * architecture variant: the card size. regular, when absent: 220x84, with the kind, the name and the detail line. compact: 180x56, with the name on up to two lines and then cut with an ellipsis (the full name and the kind in its tooltip), the detail line, and an exception drawn as the dot alone; closer gaps between cards. The resource variant ignores it.
+       */
+      density?: 'regular' | 'compact'
+      /**
        * resource: one node per live object, the original card. architecture: one node per resource a chart declares, drawn in the state the composition is in
        */
       variant?: 'resource' | 'architecture'

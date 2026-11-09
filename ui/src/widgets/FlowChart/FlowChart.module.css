@@ -41,3 +41,18 @@
   top: 0;
   width: 48px;
 }
+
+/* The same, at the BOTTOM, for a `direction: TB` graph deeper than the box: the placement pins its
+   top edge, so the rows that do not fit are below. Measured only in TB (the LR diagram has never had
+   one). Painted by ::before, so a graph that overflows both ways shows both fades. */
+.architecture[data-overflows-below='true']::before {
+  background: linear-gradient(to bottom, transparent, var(--background-color));
+  bottom: 0;
+  content: '';
+  height: 48px;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  z-index: 1;
+}

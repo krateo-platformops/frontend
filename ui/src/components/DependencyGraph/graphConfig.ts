@@ -85,14 +85,44 @@ export interface GraphPalette {
  */
 export const GRAPH_EDGE_TYPE = 'cubic-horizontal'
 
+/** The same curve for a graph whose ranks run top to bottom: it leaves downwards and arrives from above. */
+export const GRAPH_EDGE_TYPE_TB = 'cubic-vertical'
+
 /**
  * C19. dagre (layered, left-to-right). ranksep/nodesep were once the library's small-node values
- * while the cards were 400px wide, so columns sat closer together than the cards themselves.
+ * while the cards were 400px wide, so columns sat closer together than the cards themselves. A
+ * caller may turn it top to bottom and give its own gaps (`GraphFlow`); absent both, this object.
  */
 export const GRAPH_LAYOUT = { nodesep: 32, rankdir: 'LR', ranksep: 160, type: 'dagre' } as const
 
 /** Edges enter on the left and leave on the right — the reading direction of an LR layout. */
 export const GRAPH_PORTS: { placement: 'left' | 'right' }[] = [{ placement: 'left' }, { placement: 'right' }]
+
+/** …and in a TB layout they enter at the top and leave at the bottom. */
+export const GRAPH_PORTS_TB: { placement: 'bottom' | 'top' }[] = [{ placement: 'top' }, { placement: 'bottom' }]
+
+/**
+ * Which way the ranks run. `LR`, C19's, is the default: one column per rank, left to right. `TB` is
+ * one row per rank, top to bottom — for a box that is narrower than the chain is long, where LR
+ * at true size shows the first card and little else.
+ */
+export type GraphDirection = 'LR' | 'TB'
+
+/**
+ * The gaps dagre leaves: `ranksep` between consecutive ranks (columns in LR, rows in TB), `nodesep`
+ * between neighbours in one rank. Absent, C19's (GRAPH_LAYOUT). Smaller cards want smaller gaps, so
+ * a caller with a compact card passes its own — a module constant, like every other option input.
+ */
+export interface GraphSpacing {
+  nodesep: number
+  ranksep: number
+}
+
+/** The layout's direction and gaps. Each is optional, and absent each is exactly C19's. */
+export interface GraphFlow {
+  direction?: GraphDirection
+  spacing?: GraphSpacing
+}
 
 /** Pan and zoom only. Selection is a click handler, not G6's `click-select` state. */
 export const GRAPH_BEHAVIORS = ['drag-canvas', 'zoom-canvas']
@@ -145,8 +175,16 @@ const carriesMinLen = (edge: GraphEdge<unknown>): boolean => typeof edge.data?.m
  * columns become the levels (measured against dagre 0.8.5 in `architectureGraph.layout.test.ts`).
  * @antv/layout's DagreLayout reads it per edge from the G6 edge datum (`edgeMinLen`).
  */
-export const graphLayout = (edges: GraphEdge<unknown>[]): FlowGraphOptions['layout'] =>
-  (edges.some(carriesMinLen) ? { ...GRAPH_LAYOUT, edgeMinLen } : { ...GRAPH_LAYOUT })
+export const graphLayout = (edges: GraphEdge<unknown>[], flow: GraphFlow = {}): FlowGraphOptions['layout'] => {
+  // Spread over C19's object, so the keys keep its order and a caller that passes neither gets it
+  // unchanged — key for key, which FlowChart's tests hold it to.
+  const layout = {
+    ...GRAPH_LAYOUT,
+    ...(flow.spacing ? { nodesep: flow.spacing.nodesep, ranksep: flow.spacing.ranksep } : {}),
+    ...(flow.direction === 'TB' ? { rankdir: 'TB' as const } : {}),
+  }
+  return edges.some(carriesMinLen) ? { ...layout, edgeMinLen } : layout
+}
 
 /**
  * The edge options. Two independent layers over C19's `{ style: { router: false }, type }`:
@@ -165,6 +203,7 @@ export const graphEdgeOptions = <E >(
   palette: GraphPalette | null,
   appearance?: (edge: GraphEdge<E>) => EdgeAppearance,
   states?: EdgeStateStyles,
+  direction: GraphDirection = 'LR',
 ): FlowGraphOptions['edge'] => {
   const style: Record<string, unknown> = { router: false }
   if (appearance) {
@@ -175,7 +214,8 @@ export const graphEdgeOptions = <E >(
   if (palette) {
     Object.assign(style, { labelBackground: true, ...edgePaletteStyle(palette) })
   }
-  return states ? { state: states, style, type: GRAPH_EDGE_TYPE } : { style, type: GRAPH_EDGE_TYPE }
+  const type = direction === 'TB' ? GRAPH_EDGE_TYPE_TB : GRAPH_EDGE_TYPE
+  return states ? { state: states, style, type } : { style, type }
 }
 
 /**
@@ -224,18 +264,22 @@ export interface GraphOptionsInput<N, E> {
   edgeStates?: EdgeStateStyles
   /** Appended to the behaviours when given — absent, the behaviours are exactly C19's. */
   edgeDraw?: EdgeDrawBehavior
+  /** Default `LR`. `TB` also turns the ports and the edge curve, so edges leave a card downwards. */
+  direction?: GraphDirection
+  /** The rank and node gaps. Absent, C19's. */
+  spacing?: GraphSpacing
 }
 
 /** Everything FlowGraph is given, from one place. */
 export const buildGraphOptions = <N, E>(input: GraphOptionsInput<N, E>): FlowGraphOptions => {
-  const { edgeAppearance, edgeDraw, edgeStates, edges, fit = 'view', nodeSize, nodes, palette, renderNode } = input
+  const { direction = 'LR', edgeAppearance, edgeDraw, edgeStates, edges, fit = 'view', nodeSize, nodes, palette, renderNode, spacing } = input
   const behaviors = fit === 'natural' ? NATURAL_BEHAVIORS : GRAPH_BEHAVIORS
   return {
     autoFit: fit === 'natural' ? NATURAL_AUTO_FIT : 'view',
     behaviors: edgeDraw ? [...behaviors, edgeDraw] : behaviors,
     data: { edges: edges as G6.EdgeData[], nodes: nodes as unknown as G6.NodeData[] },
-    edge: graphEdgeOptions(palette, edgeAppearance, edgeStates),
-    layout: graphLayout(edges),
+    edge: graphEdgeOptions(palette, edgeAppearance, edgeStates, direction),
+    layout: graphLayout(edges, { direction, spacing }),
     node: {
       style: {
         // Each node is its OWN React root (g6-extension-react), so no context reaches the card —
@@ -249,7 +293,7 @@ export const buildGraphOptions = <N, E>(input: GraphOptionsInput<N, E>): FlowGra
           id: String(datum.id),
           ...(datum.states?.length ? { states: [...datum.states] } : {}),
         }),
-        ports: GRAPH_PORTS,
+        ports: direction === 'TB' ? GRAPH_PORTS_TB : GRAPH_PORTS,
         size: nodeSize,
       },
       type: 'react',

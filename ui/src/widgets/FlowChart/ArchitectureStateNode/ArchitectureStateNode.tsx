@@ -18,16 +18,26 @@
  *
  * The state is drawn by the stylesheet, keyed on `data-state`, and said in the accessible name,
  * because colour is never the only signal (G12).
+ *
+ * COMPACT (`density='compact'`, 180×56): for a narrow box. Two lines, not three: the name, which
+ * wraps to a second line and is then cut with an ellipsis, and the detail. The kind line goes — it
+ * stays in the accessible name and leads the name's tooltip — and the exception is the dot alone,
+ * in the card's top-right corner, since a chip with the condition's name would take a third of the
+ * width. The dot keeps its tooltip, opened by hover and by keyboard focus as on the regular card,
+ * and the condition stays in the accessible name. The state treatments (border, dashes, muting) are
+ * the regular card's, unchanged.
  */
 import { Tooltip } from 'antd'
 import { useState, type FocusEvent, type KeyboardEvent } from 'react'
 
 import { architectureNodeLabel, architectureState, architectureTitle, exceptionText } from '../architectureVariant'
+import type { ArchitectureDensity } from '../architectureVariant'
 import type { FlowChartNodeData } from '../FlowChart'
 
 import styles from './ArchitectureStateNode.module.css'
 
-const ArchitectureStateNode = ({ data }: { data: FlowChartNodeData }) => {
+const ArchitectureStateNode = ({ data, density = 'regular' }: { data: FlowChartNodeData; density?: ArchitectureDensity }) => {
+  const compact = density === 'compact'
   const { detail, exception, kind, name, names, version } = data
   // Who opened the exception's tooltip: focus on the card, or the pointer on the marker.
   const [byFocus, setByFocus] = useState(false)
@@ -46,12 +56,26 @@ const ArchitectureStateNode = ({ data }: { data: FlowChartNodeData }) => {
     }
   }
 
+  const marker = exception
+    ? (
+      <Tooltip onOpenChange={setByHover} open={open} title={exceptionText(exception)}>
+        <span className={compact ? styles.corner : styles.exception} data-testid='architecture-exception'>
+          <span aria-hidden className={styles.dot} />
+          {compact ? null : exception.label}
+        </span>
+      </Tooltip>
+    )
+    : null
+
+  const title = architectureTitle(names, name, version)
+
   return (
     // C8 exception: a focusable group that discloses its details on focus and closes them on Escape.
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       aria-label={architectureNodeLabel(data)}
       className={styles.card}
+      data-density={compact ? 'compact' : undefined}
       data-state={architectureState(data.state)}
       onBlur={() => setByFocus(false)}
       onFocus={onFocus}
@@ -59,24 +83,19 @@ const ArchitectureStateNode = ({ data }: { data: FlowChartNodeData }) => {
       role='group'
       tabIndex={0}
     >
-      <span className={styles.eyebrow}>
-        <span className={styles.kind} title={version ? `${kind} · ${version}` : kind}>{kind}</span>
-        {exception
-          ? (
-            <Tooltip onOpenChange={setByHover} open={open} title={exceptionText(exception)}>
-              <span className={styles.exception} data-testid='architecture-exception'>
-                <span aria-hidden className={styles.dot} />
-                {exception.label}
-              </span>
-            </Tooltip>
-          )
-          : null}
-      </span>
+      {compact
+        ? marker
+        : (
+          <span className={styles.eyebrow}>
+            <span className={styles.kind} title={version ? `${kind} · ${version}` : kind}>{kind}</span>
+            {marker}
+          </span>
+        )}
       {/* portal#311: `name` is a DISPLAY string the RESTAction already shortened, so a title of
           `name` repeated the elision and the full value was reachable nowhere. `names` carries the
           real ones; where a chart predates portal 1.8.74 it is absent and `name` stands in, which is
           exactly today's behaviour. */}
-      <span className={styles.name} title={architectureTitle(names, name, version)}>{name}</span>
+      <span className={styles.name} title={compact ? `${kind}\n${title}` : title}>{name}</span>
       {detail ? <span className={styles.detail} title={detail}>{detail}</span> : null}
     </div>
   )
