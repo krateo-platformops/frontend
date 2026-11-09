@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest'
 
 import { GATE_TIMEOUT_MS } from '../src/gate'
 
+import { replaceOf } from './goMod'
 import { ROOT } from './helpers'
 
 const read = (...path: string[]): string => readFileSync(join(ROOT, ...path), 'utf8')
@@ -24,8 +25,10 @@ describe('pins', () => {
     expect(gate).toBe(portal)
   })
 
-  it('jqcheck builds against the gojq fork snowplow replaces gojq with', () => {
-    expect(read('jqcheck', 'go.mod')).toMatch(/^replace github\.com\/itchyny\/gojq => github\.com\/krateo-platformops\/gojq v0\.13\.0$/m)
+  // Shape only: the fork and its VERSION are snowplow's to decide, so test/drift/gojqFork.test.ts
+  // reads them from snowplow's go.mod at SNOWPLOW_REF rather than this file writing one down.
+  it('jqcheck replaces gojq with a fork (which one: the drift check, against snowplow\'s go.mod)', () => {
+    expect(replaceOf(read('jqcheck', 'go.mod'), 'github.com/itchyny/gojq', 'jqcheck/go.mod').to).not.toBe('github.com/itchyny/gojq')
   })
 
   it('SNOWPLOW_REF names one snowplow tag; its modules are what jqcheck embeds (CI diffs them against that tag)', () => {

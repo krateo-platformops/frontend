@@ -63,3 +63,8 @@ crdgen/bin/
 # crdgen/bin/gencrd, which is already ignored; a bare `go build ./...` drops one here instead and
 # it was committed by accident once.
 crdgen/crdgen
+
+# The same for builder-gate's jq checker: a bare `go build` in builder-gate/jqcheck/ writes this
+# file, and an arm64 build of it was committed by accident (#616). CI, the tests and the image
+# build their own (bin/jqcheck, /out/jqcheck); nothing reads this one.
+builder-gate/jqcheck/jqcheck
