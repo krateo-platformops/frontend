@@ -138,6 +138,7 @@ SNOWPLOW_URL=http://<snowplow> node dist/cli.cjs --kubeconfig ~/.kube/config --c
     - the gate's stage reason codes against snowplow's `stage_outcomes.go`, at the snowplow
       version installer `main` pins;
     - `SNOWPLOW_REF` against the snowplow version the **released** installer chart pins;
+    - `jqcheck/go.mod`'s gojq `replace` against snowplow's `go.mod` at `SNOWPLOW_REF`;
   - a kind job, against a real API server as the chart's own ServiceAccount. It proves the gate
     reads its own Builder and no other, may not create, get or list widgets, RESTActions or
     Secrets, and is red with no caller token.
@@ -148,4 +149,4 @@ SNOWPLOW_URL=http://<snowplow> node dist/cli.cjs --kubeconfig ~/.kube/config --c
   gate accept an `include` the deployed snowplow cannot resolve. To move it, set the tag, then
   copy snowplow's `go/snowplow/internal/support/jq/modules/` at that tag into `jqcheck/modules/`
   (every file, nested directories included), and add any new directory to jqcheck's `//go:embed`
-  line. `jqcheck/go.mod`'s gojq replace follows snowplow's `go.mod` at the same tag.
+  line. `jqcheck/go.mod`'s gojq replace follows snowplow's `go.mod` at the same tag (CI checks it).

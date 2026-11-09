@@ -150,6 +150,8 @@ jobs:
         #   snowplowRef.test.ts   SNOWPLOW_REF equals the RELEASED installer chart's snowplow pin;
         #                         fails naming both. Released, not main: a module vendored ahead of
         #                         the cluster would let the gate accept an include snowplow cannot.
+        #   gojqFork.test.ts      jqcheck/go.mod's gojq replace equals snowplow's go.mod at
+        #                         SNOWPLOW_REF; fails naming both.
         run: npx vitest run --config vitest.drift.config.ts --reporter=verbose
         env:
           GH_TOKEN: ${{ github.token }}
