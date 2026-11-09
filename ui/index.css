@@ -34,21 +34,14 @@ body {
 }
 
 /*
- * Brand-logo on the Sovereign gradient sider. The Krateo lockup (brand-logo Image widget)
- * ships dark; the sider rail now equals colorBgContainer per mode (issue #52), so the lockup is
- * flattened to a crisp MONOCHROME mark that follows the mode: WHITE on the dark-mode surface,
- * BLACK on the light-mode surface (else a white mark vanishes on the light rail). The filter
- * preserves the SVG's alpha, so only the glyph is recoloured, not a box. Scoped to the Sider's
- * only image so no other Image widget is touched.
+ * Brand-logo in the sider: NO recolouring. The sider is black in both modes (T11), and the logo
+ * is drawn in its own colours — the portal ships the Krateo PlatformOps lockup in the brand lilac
+ * #DCD8F1 (a brand secondary, paired with black; the Agentiko kit has a "viola chiaro" logo
+ * colourway). A filter used to flatten it to white on dark and BLACK on light, from when the
+ * light-mode rail was light: on the black rail that hid it in light mode and drew it white in
+ * dark mode. An opacity of 0.92 also dimmed the lilac to about #CAC6DE. A sider logo must be a
+ * light mark.
  */
-.ant-layout-sider .ant-image-img {
-  filter: brightness(0) invert(1);
-  opacity: 0.92;
-}
-
-:root[data-theme='light'] .ant-layout-sider .ant-image-img {
-  filter: brightness(0);
-}
 
 /*
  * Primary CTA = brand-blue WASH, not a solid block (Brand v2). The primary action
