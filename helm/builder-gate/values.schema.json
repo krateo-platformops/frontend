@@ -50,6 +50,12 @@
       "type": "string",
       "pattern": "^https?://"
     },
+    "snowplowJqModulesConfigMap": {
+      "type": "string",
+      "description": "The name of snowplow's operator jq-modules ConfigMap (snowplow's chart: <fullname>-jq-custom-modules, snowplow-jq-custom-modules on a standard install), in this release's namespace. Mounted at /jq-modules with JQ_MODULES_PATH set, so the gate resolves `include \"custom\"` as snowplow does. Empty: built-in modules only.",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$",
+      "maxLength": 253
+    },
     "remoteMCPServer": {
       "type": "object",
       "additionalProperties": false,

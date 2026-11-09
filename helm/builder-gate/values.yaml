@@ -21,6 +21,19 @@ sandboxNamespace: krateo-preview
 # (builder-gate/docs/snowplow-contract.md).
 snowplowUrl: http://snowplow.krateo-system.svc:8081
 
+# snowplow's OPERATOR jq modules: the ConfigMap snowplow mounts at its JQ_MODULES_PATH. snowplow's
+# chart names it <snowplow fullname>-jq-custom-modules, `snowplow-jq-custom-modules` on a standard
+# install, and it holds `custom.jq`. Set this to THAT ConfigMap's name, which must be in this
+# release's namespace (a pod mounts only its own namespace's ConfigMaps), and each gate mounts it at
+# /jq-modules with JQ_MODULES_PATH pointing there. jqcheck then resolves `include "custom"` exactly
+# as snowplow does, from the same files. Empty: built-in modules only, so a draft that includes an
+# operator module is red ("module not found") although snowplow would run it.
+#
+# The mount is NOT optional: a name that does not exist keeps the pod in ContainerCreating with a
+# "configmap not found" event, rather than starting a gate that silently lacks the modules. It is
+# a whole-directory mount, never subPath, so an edited ConfigMap reaches the gate without a restart.
+snowplowJqModulesConfigMap: ""
+
 # Registers each instance with kagent so the agent's toolName resolves to it.
 remoteMCPServer:
   enabled: true

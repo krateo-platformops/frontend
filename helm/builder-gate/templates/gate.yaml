@@ -105,6 +105,11 @@ spec:
               value: {{ $.Values.sandboxNamespace | quote }}
             - name: SNOWPLOW_URL
               value: {{ $.Values.snowplowUrl | quote }}
+            {{- with $.Values.snowplowJqModulesConfigMap }}
+            # jqcheck reads snowplow's operator modules from here, with snowplow's loader rules.
+            - name: JQ_MODULES_PATH
+              value: /jq-modules
+            {{- end }}
           # The gate needs nothing remote to be alive; an unreachable API server is a verdict
           # inside the envelope, not a dead pod. The liveness budget (15 s x 8) is longer than the
           # tool's 100 s deadline, so the tool's own deadline always fires first.
@@ -131,6 +136,19 @@ spec:
               drop: [ALL]
           resources:
             {{- toYaml $.Values.resources | nindent 12 }}
+          {{- with $.Values.snowplowJqModulesConfigMap }}
+          volumeMounts:
+            - name: jq-modules
+              mountPath: /jq-modules
+              readOnly: true
+      # snowplow's own operator-modules ConfigMap, the files snowplow loads. A whole-directory mount
+      # (never subPath), so an edit reaches the gate as it reaches snowplow; not optional, so a wrong
+      # name is a pod that will not start rather than a gate that silently lacks the modules.
+      volumes:
+        - name: jq-modules
+          configMap:
+            name: {{ . | quote }}
+          {{- end }}
 ---
 apiVersion: v1
 kind: Service

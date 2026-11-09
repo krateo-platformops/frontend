@@ -3,11 +3,14 @@
  * is refused at the step that owns it, with a problem line that names the object.
  */
 /* eslint-disable no-template-curly-in-string -- the ${…} jq DSL is the subject under test */
+import { join } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import type { Envelope } from '../src/envelope'
+import { jqcheckEngine } from '../src/jq'
 
-import { byKind, type Draft, example, fakeSnowplow, json, liveCtx, objAt, rawReply, recorder, run } from './helpers'
+import { byKind, type Draft, example, fakeSnowplow, JQCHECK, json, liveCtx, objAt, offlineCtx, rawReply, recorder, ROOT, run } from './helpers'
 
 const failsAt = (envelope: Envelope, stepName: string, pattern: RegExp): void => {
   expect(envelope.ok).toBe(false)
@@ -186,6 +189,29 @@ describe('jq-compile (snowplow\'s gojq fork and modules)', () => {
     const step = envelope.steps.find((candidate) => candidate.name === 'jq-compile')
     expect(step?.problems).toEqual([])
     expect(step?.ok).toBe(true)
+  })
+  describe('operator modules (JQ_MODULES_PATH, snowplow\'s ConfigMap snowplow-jq-custom-modules)', () => {
+    // jqcheck reads JQ_MODULES_PATH from the environment it is spawned with: given per test, so
+    // no test depends on the shell's.
+    const withModulesPath = (dir: string | undefined) => {
+      const env = { ...process.env }
+      delete env.JQ_MODULES_PATH
+      return { ...offlineCtx(), jq: jqcheckEngine(JQCHECK, 30_000, dir === undefined ? env : { ...env, JQ_MODULES_PATH: dir }) }
+    }
+    const customDraft = () => mutate((docs) => { objAt(byKind(docs, 'RESTAction'), 'spec').filter = 'include "custom"; update_string_schema_defaults("{}"; {}; {}) | { pods: [] }' })
+
+    it('an include "custom" draft passes jq-compile with the operator-modules directory mounted', async () => {
+      const envelope = await run(customDraft(), withModulesPath(join(ROOT, 'test', 'jq-modules')))
+      const step = envelope.steps.find((candidate) => candidate.name === 'jq-compile')
+      expect(step?.problems).toEqual([])
+      expect(step?.ok).toBe(true)
+    })
+    it('the same draft fails without it: the false red the mount closes', async () => {
+      failsAt(await run(customDraft(), withModulesPath(undefined)), 'jq-compile', /spec\.filter: unable to compile jq query: module "custom" not found/)
+    })
+    it('a directory without the module: not found', async () => {
+      failsAt(await run(customDraft(), withModulesPath(join(ROOT, 'test', 'secrets'))), 'jq-compile', /module "custom" not found/)
+    })
   })
   it.each([
     ['krateo/architecture/v2', /spec\.filter: unable to compile jq query: module "krateo\/architecture\/v2" not found/],

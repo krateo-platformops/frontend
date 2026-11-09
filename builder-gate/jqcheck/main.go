@@ -18,11 +18,13 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -30,16 +32,24 @@ import (
 	"github.com/itchyny/gojq"
 )
 
-// The built-in half of snowplow's loader (internal/support/jq/modules.go at SNOWPLOW_REF),
-// ported rule for rule. This is the built-in half only: snowplow also loads operator modules from
-// the directory JQ_MODULES_PATH names, and this loader does not yet, so a draft that includes an
-// operator module is reported "not found" here while snowplow resolves it.
+// snowplow's module loader (internal/support/jq/modules.go at SNOWPLOW_REF), ported rule for
+// rule: the built-in modules embedded below, and the operator modules in the directory
+// JQ_MODULES_PATH names, read the same way snowplow reads them. The chart mounts snowplow's own
+// operator-modules ConfigMap there (values `snowplowJqModulesConfigMap`), so both read one source.
 //
-//   - A module named N is the file modules/N.jq. A name may contain '/':
+//   - A built-in module named N is the file modules/N.jq. A name may contain '/':
 //     `include "krateo/architecture/v1"` loads modules/krateo/architecture/v1.jq.
 //   - The names that resolve are ENUMERATED by walking the embedded tree for *.jq files at any
 //     depth. A name outside that set is "not found", whatever path it spells — `./health` or
 //     `krateo/../health` resolves in neither snowplow nor here.
+//   - Every built-in name is RESERVED: it always loads the built-in, and an operator file of the
+//     same name is never read (#639). Any other name is an operator module: the file
+//     $JQ_MODULES_PATH/N.jq, refused when N is not a local path (absolute, or climbing out with
+//     ".."). Only a missing file is "not found"; an unreadable or unparsable one FAILS the
+//     expression, as in snowplow. JQ_MODULES_PATH unset, or blank, means built-ins only.
+//   - Files are read when an expression includes them, never cached: jqcheck runs once per
+//     request, so an edited ConfigMap is seen as soon as the kubelet updates the mount — as
+//     snowplow, which also reads the file on every load, sees it.
 //   - A `*.jq` embed pattern does not descend into subdirectories, so each nested directory is
 //     listed on the line below, as on snowplow's. TestEveryModuleSourceIsEmbedded fails when a
 //     vendored file is missing from it.
@@ -67,28 +77,45 @@ func builtinModuleNames(fsys fs.FS, root string) []string {
 	return names
 }
 
-// moduleLoader is snowplow's layeredModuleLoader with no operator directory: a reserved name
-// loads from the embedded set, and any other name is not found, with snowplow's message.
-type moduleLoader struct {
-	builtin  fs.FS
-	root     string
-	reserved map[string]struct{}
+// envModulesPath names the operator-modules directory, as in snowplow (EnvModulesPath).
+const envModulesPath = "JQ_MODULES_PATH"
+
+// customDirFromEnv is snowplow's ModuleLoader reading of the variable: set means its trimmed
+// value, and a blank value means no operator modules.
+func customDirFromEnv() string {
+	if basePath, ok := os.LookupEnv(envModulesPath); ok {
+		return strings.TrimSpace(basePath)
+	}
+	return ""
 }
 
-func newModuleLoader(builtin fs.FS, root string) moduleLoader {
-	l := moduleLoader{builtin: builtin, root: root, reserved: map[string]struct{}{}}
+// moduleLoader is snowplow's layeredModuleLoader: a reserved name loads from the embedded set,
+// any other name from the operator directory.
+type moduleLoader struct {
+	builtin   fs.FS
+	root      string
+	reserved  map[string]struct{}
+	customDir string // "" = no operator modules
+}
+
+func newModuleLoader(builtin fs.FS, root, customDir string) moduleLoader {
+	l := moduleLoader{builtin: builtin, root: root, reserved: map[string]struct{}{}, customDir: customDir}
 	for _, n := range builtinModuleNames(builtin, root) {
 		l.reserved[n] = struct{}{}
 	}
 	return l
 }
 
-var loader = newModuleLoader(modulesFS, builtinRoot)
+var loader = newModuleLoader(modulesFS, builtinRoot, customDirFromEnv())
 
 func (l moduleLoader) LoadModule(name string) (*gojq.Query, error) {
-	if _, ok := l.reserved[name]; !ok {
-		return nil, fmt.Errorf("module %q not found", name)
+	if _, ok := l.reserved[name]; ok {
+		return l.loadBuiltin(name)
 	}
+	return l.loadCustom(name)
+}
+
+func (l moduleLoader) loadBuiltin(name string) (*gojq.Query, error) {
 	dat, err := fs.ReadFile(l.builtin, path.Join(l.root, name+moduleExt))
 	if err != nil {
 		return nil, fmt.Errorf("built-in module %q: %w", name, err)
@@ -98,6 +125,40 @@ func (l moduleLoader) LoadModule(name string) (*gojq.Query, error) {
 		return nil, fmt.Errorf("error parsing built-in module %q: %w", name, err)
 	}
 	return parsed, nil
+}
+
+// loadCustom is snowplow's: only a missing file is "not found"; every other failure — an
+// unreadable file, a parse error, a name that would escape the directory — fails the expression.
+func (l moduleLoader) loadCustom(name string) (*gojq.Query, error) {
+	if l.customDir == "" {
+		return nil, fmt.Errorf("module %q not found", name)
+	}
+	p, ok := l.customPath(name)
+	if !ok {
+		return nil, fmt.Errorf("module %q: invalid module name", name)
+	}
+	dat, err := os.ReadFile(p)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("module %q not found", name)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("custom module %q: unable to read: %w", name, err)
+	}
+	parsed, err := gojq.Parse(string(dat))
+	if err != nil {
+		return nil, fmt.Errorf("custom module %q: parse error: %w", name, err)
+	}
+	return parsed, nil
+}
+
+// customPath is snowplow's: a name that is not a local path (absolute, or climbing out with "..")
+// is refused.
+func (l moduleLoader) customPath(name string) (string, bool) {
+	rel := filepath.FromSlash(name) + moduleExt
+	if !filepath.IsLocal(rel) {
+		return "", false
+	}
+	return filepath.Join(l.customDir, rel), true
 }
 
 type expr struct {
@@ -118,12 +179,14 @@ type result struct {
 	Error string `json:"error,omitempty"`
 }
 
-func compile(q string) (*gojq.Code, error) {
+func compile(q string) (*gojq.Code, error) { return compileWith(loader, q) }
+
+func compileWith(l gojq.ModuleLoader, q string) (*gojq.Code, error) {
 	parsed, err := gojq.Parse(q)
 	if err != nil {
 		return nil, fmt.Errorf("invalid jq query: %w", err)
 	}
-	code, err := gojq.Compile(parsed, gojq.WithModuleLoader(loader))
+	code, err := gojq.Compile(parsed, gojq.WithModuleLoader(l))
 	if err != nil {
 		return nil, fmt.Errorf("unable to compile jq query: %w", err)
 	}
