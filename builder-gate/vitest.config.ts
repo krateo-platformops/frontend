@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
   resolve: {
@@ -11,6 +11,8 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // Network-dependent; vitest.drift.config.ts runs them (`npm run test:drift`).
+    exclude: [...configDefaults.exclude, 'test/drift/**'],
     globalSetup: ['test/globalSetup.ts'],
     include: ['test/**/*.test.ts'],
     testTimeout: 30_000,

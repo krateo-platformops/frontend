@@ -43,7 +43,6 @@ export const CAPABILITY_RESOLVE = 'call.read.inline'
 export const STAGE_NOT_EXECUTED_REASON = 'StageNotExecuted'
 /** A stage that never ran: the resolve stopped (truncated) at an earlier stage, in topological order. */
 export const STAGE_NOT_RUN_REASON = 'NotRun'
-/** The CLOSED set of stage reason codes (snowplow PR #469, stage_outcomes.go). Anything else is unknown. */
 /**
  * A write stage snowplow did not dial because the stage it `dependsOn` failed or was itself
  * skipped (snowplow#904). Unlike NotRun, which must be attributed to the nearest earlier
@@ -58,8 +57,44 @@ export const STAGE_SKIPPED_REASON = 'Skipped'
  * what makes "all succeeded" and "nothing ran" tellable apart.
  */
 export const STAGE_ABORTED_REASON = 'Aborted'
+/**
+ * snowplow#1112 D2 / #1116: a stage, or one item of it, that snowplow refused to send because the
+ * rendered path failed the #288 guard (a segment rendered empty, not a valid Kubernetes object
+ * path, or a value that cannot be one segment, #1123/#1137). Nothing was sent. The draft's path
+ * template is wrong for the data it read, so it is the author's to fix.
+ */
+export const STAGE_INVALID_PATH_REASON = 'InvalidPath'
+/**
+ * snowplow#1112 D2 / #1116: the stage's path, payload or a header did not render — a jq error
+ * (#302) or an unrendered `${...}` (#293). Nothing was sent. The author's to fix.
+ */
+export const STAGE_TEMPLATE_ERROR_REASON = 'TemplateError'
+/**
+ * snowplow#1112 D2: a write stage's catch-all — planned, not sent, and no other failure recorded.
+ * It names no cause, so it says nothing about the draft: the stage was not judged.
+ */
+export const STAGE_NOT_SENT_REASON = 'NotSent'
+/**
+ * snowplow#1115: the request's page budget (snowplow's 10 s goal) ended the stage's exchange, a
+ * 504. A property of that one run, not of the draft: the stage was not judged.
+ */
+export const STAGE_TIMEOUT_REASON = 'Timeout'
+/**
+ * snowplow#1131 (`credhttp.DestinationRefusedReason`): the destination policy refused the address
+ * the stage's endpoint resolved to, a 502, nothing sent — "asking again gives the same answer".
+ * Like Forbidden, it is the platform's answer for this endpoint, so it follows the same rule.
+ */
+export const STAGE_DESTINATION_REFUSED_REASON = 'DestinationRefused'
 
-export const STAGE_REASONS: ReadonlySet<string> = new Set([STAGE_NOT_EXECUTED_REASON, 'Forbidden', 'NotFound', 'Unauthorized', STAGE_NOT_RUN_REASON, STAGE_SKIPPED_REASON, STAGE_ABORTED_REASON, 'Error'])
+/**
+ * The CLOSED set of stage reason codes: snowplow's `StageReason*` constants (stage_outcomes.go).
+ * Anything else is unknown, and red. `test/drift/` holds it equal to snowplow's set at the version
+ * the installer pins, so a code snowplow adds fails CI here before a cluster reports it as unknown.
+ */
+export const STAGE_REASONS: ReadonlySet<string> = new Set([
+  STAGE_NOT_EXECUTED_REASON, 'Forbidden', 'NotFound', 'Unauthorized', STAGE_NOT_RUN_REASON, STAGE_SKIPPED_REASON, STAGE_ABORTED_REASON, 'Error',
+  STAGE_INVALID_PATH_REASON, STAGE_TEMPLATE_ERROR_REASON, STAGE_NOT_SENT_REASON, STAGE_TIMEOUT_REASON, STAGE_DESTINATION_REFUSED_REASON,
+])
 export const STAGE_NOT_EXECUTED_MESSAGE = /^dry-run: stage .* is not executed$/
 
 /**

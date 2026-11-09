@@ -40,7 +40,7 @@ RBAC beyond reading its own Builder and emulates nothing snowplow does.
 | 2 | `references` | Checks every widget's `resourcesRefs` items, every literal `resourcesRefsTemplate` entry and every `spec.apiRef`. Each must resolve to the draft, or to an object snowplow reads **raw** (stored, not resolved) as the caller. An existing RESTAction the page binds is held to the secrets rule too. |
 | 3 | `jq-compile` | Compiles every RESTAction `spec.filter`, per-api `filter` and `widgetDataTemplate` expression with snowplow's gojq fork and modules (`jqcheck/`). It only compiles. |
 | 4 | `live-dry-run` | Sends every object to snowplow `POST /call/dry-run?…&dryRun=All&fieldValidation=Strict` as the caller. Classifies an echoed reply as `validated`, `rejected` or `notChecked`; an unechoed reply is `notChecked`. |
-| 5 | `data` | Asks snowplow to resolve each draft RESTAction inline (`POST /call/read`, the draft in the body), as the caller, persisting nothing. Reads stage outcomes from the `X-Snowplow-Stage-Outcomes` header, which a filter cannot hide. A write-verb stage refused by design, a failed stage the draft marks `continueOnError`, and a `NotRun` stage the resolve skipped because of either, are notes. Any other failed stage, an unknown reason code, or a truncated or missing header is red. Reports a count and a short sample, with anything Secret-shaped dropped first. |
+| 5 | `data` | Asks snowplow to resolve each draft RESTAction inline (`POST /call/read`, the draft in the body), as the caller, persisting nothing. Reads stage outcomes from the `X-Snowplow-Stage-Outcomes` header, which a filter cannot hide. A write-verb stage refused by design, a failed stage the draft marks `continueOnError`, and a `NotRun` stage the resolve skipped because of either, are notes. A stage snowplow would not send because the draft's template is wrong (`InvalidPath`, `TemplateError`) is red whatever `continueOnError` says; `Timeout` and `NotSent` are `notChecked`. Any other failed stage, an unknown reason code, or a truncated or missing header is red. The reason codes are listed in `docs/snowplow-contract.md`. Reports a count and a short sample, with anything Secret-shaped dropped first. |
 | 6 | `coverage` | Informational. It names what the API server accepted. |
 
 **What is red:**
@@ -124,6 +124,8 @@ SNOWPLOW_URL=http://<snowplow> node dist/cli.cjs --kubeconfig ~/.kube/config --c
   - the secrets corpus through **the portal's own** `lint-ra-secrets.py` at
     `test/secrets/PORTAL_REF`;
   - a diff of the snowplow modules against `SNOWPLOW_REF`;
+  - `npm run test:drift`: the gate's stage reason codes against snowplow's `stage_outcomes.go`, at
+    the snowplow version installer `main` pins. It needs the network, so `npm test` leaves it out;
   - a kind job, against a real API server as the chart's own ServiceAccount. It proves the gate
     reads its own Builder and no other, may not create, get or list widgets, RESTActions or
     Secrets, and is red with no caller token.

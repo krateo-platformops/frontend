@@ -12,6 +12,7 @@
     "gate": "node dist/cli.cjs",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:drift": "vitest run --config vitest.drift.config.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
