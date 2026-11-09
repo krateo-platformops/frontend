@@ -397,6 +397,8 @@ export interface Listy {
           type: 'rest'
           /**
            * array of headers as strings, format 'key: value'
+           *
+           * Items: key and value as a single, example: 'x-custom-header: value'
            */
           headers: string[]
           /**

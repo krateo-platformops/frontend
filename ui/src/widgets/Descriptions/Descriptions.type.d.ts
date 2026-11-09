@@ -16,25 +16,13 @@ export interface Descriptions {
      */
     widgetData: {
       /**
-       * the title displayed above the description list
-       */
-      title?: string
-      /**
-       * the number of label/value pairs per row (antd Descriptions `column`)
-       */
-      column?: number
-      /**
        * whether to render cell borders (antd Descriptions `bordered`)
        */
       bordered?: boolean
       /**
-       * the size of the description list
+       * the number of label/value pairs per row (antd Descriptions `column`)
        */
-      size?: 'default' | 'middle' | 'small'
-      /**
-       * rendering style. 'default' = antd Descriptions definition list; 'form' = read-only mirror of the create Form's property layout — each item a connector-rail field (bold label above a mono value), grouped into sections by the item's `section` (nested objects each become a labelled section)
-       */
-      variant?: 'default' | 'form'
+      column?: number
       /**
        * the label/value pairs to display
        */
@@ -56,6 +44,18 @@ export interface Descriptions {
          */
         span?: number
       }[]
+      /**
+       * the size of the description list
+       */
+      size?: 'default' | 'middle' | 'small'
+      /**
+       * the title displayed above the description list
+       */
+      title?: string
+      /**
+       * rendering style. 'default' = antd Descriptions definition list; 'form' = read-only mirror of the create Form's property layout — each item a connector-rail field (bold label above a mono value), grouped into sections by the item's `section` (nested objects each become a labelled section)
+       */
+      variant?: 'default' | 'form'
     }
     /**
      * Binds this widget to a RESTAction whose response feeds the widgetDataTemplate and resourcesRefsTemplate expressions. Omit it for a widget whose data is entirely static.
