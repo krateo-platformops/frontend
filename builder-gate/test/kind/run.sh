@@ -38,6 +38,13 @@ helm template gate "$WORK/builder-gate" --namespace krateo-system \
 helm template gate "$WORK/builder-gate" --namespace krateo-system \
   --set 'instances[0].name=ci' --set 'instances[0].builders[0]=portal-builder' --set remoteMCPServer.enabled=false \
   --show-only templates/gate.yaml | kubectl apply --dry-run=server -f -
+# With snowplow's operator-modules ConfigMap named: the API server accepts the mount and the env.
+rendered="$(helm template gate "$WORK/builder-gate" --namespace krateo-system \
+  --set 'instances[0].name=ci' --set 'instances[0].builders[0]=portal-builder' --set remoteMCPServer.enabled=false \
+  --set snowplowJqModulesConfigMap=snowplow-jq-custom-modules --show-only templates/gate.yaml)"
+grep -q 'name: "snowplow-jq-custom-modules"' <<<"$rendered" || { echo "::error::the operator-modules volume did not render"; exit 1; }
+grep -q 'name: JQ_MODULES_PATH' <<<"$rendered" || { echo "::error::JQ_MODULES_PATH did not render"; exit 1; }
+kubectl apply --dry-run=server -f - <<<"$rendered"
 echo "::endgroup::"
 
 echo "::group::What the gate's ServiceAccount may do"
