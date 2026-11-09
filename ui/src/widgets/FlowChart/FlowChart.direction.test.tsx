@@ -26,6 +26,8 @@ const serialise = (options: Record<string, unknown>): string => {
   return JSON.stringify(options, (key, value: unknown) => {
     if (typeof value !== 'function') { return value }
     if (key === 'component' || key === 'onInit' || key === 'onReady') { return `ƒ ${key}` }
+    // Key order is the snapshot's, which main wrote: sorting it would mean re-recording it here.
+    // eslint-disable-next-line sort-keys/sort-keys-fix
     return { ƒ: key, perEdge: edges.map((edge) => (value as (datum: unknown) => unknown)(edge)) }
   }, 2)
 }
@@ -40,7 +42,7 @@ const drawn = (widgetData: FlowChartWidgetData) => {
 }
 
 const architecture = (data: FlowChartData, extra: Record<string, unknown> = {}): FlowChartWidgetData =>
-  ({ data, variant: 'architecture', ...extra }) as FlowChartWidgetData
+  ({ data, variant: 'architecture', ...extra })
 
 /** One service of a service path: what a page drawing a trace's services would send. */
 const service = (uid: string, detail: string, parents: string[] = []): FlowChartData[number] => ({
