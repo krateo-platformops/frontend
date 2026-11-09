@@ -1,5 +1,6 @@
 /**
- * The five span names the SLI is computed from, and the processor that enforces them (X5).
+ * The five span names the SLI is computed from, the one counted span outside it, and the processor
+ * that enforces them (X5).
  *
  * THESE NAMES ARE A CONTRACT, not labels. The SLI query and the SLO dashboard key on them
  * literally, so renaming one is a breaking change for the consumer even though nothing here fails
@@ -7,7 +8,7 @@
  * span starts or ends changes what the p95 claims, silently.
  *
  * WHY A PROCESSOR AND NOT JUST CAREFUL NAMING. snowplow's ingestion (snowplow#1015) accepts ONLY
- * these five names and drops everything else server-side. Auto-instrumented fetch spans are NOT
+ * the names it allowlists and drops everything else server-side. Auto-instrumented fetch spans are NOT
  * named any of them, so without a rename every span the portal produces is dropped — and dropped
  * invisibly: the browser sees a 2xx and nothing arrives. That is the failure this file exists to
  * prevent, and it is a failure this file ONCE CAUSED.
@@ -34,7 +35,7 @@ import { ATTR_HTTP_REQUEST_METHOD, ATTR_HTTP_ROUTE, ATTR_URL_FULL } from '@opent
 // kept alive in a literal long after it means nothing.
 import { ATTR_HTTP_URL } from '@opentelemetry/semantic-conventions/incubating'
 
-/** The complete accepted set. snowplow drops anything else; so does `ContractSpanProcessor`. */
+/** The five SLI span names. With `COUNTED_SPAN_NAMES`, the whole set `ContractSpanProcessor` exports. */
 export const SPAN_NAMES = {
   /** A composition detail opened: navigation intent → every initial widget resolved. */
   compositionOpen: 'krateo.composition.open',
@@ -52,7 +53,20 @@ export const SPAN_NAMES = {
 
 export type SpanName = typeof SPAN_NAMES[keyof typeof SPAN_NAMES]
 
-const ACCEPTED: ReadonlySet<string> = new Set(Object.values(SPAN_NAMES))
+/**
+ * Spans that are COUNTED, not timed: no SLI keys on them and their duration means nothing. Kept out
+ * of `SPAN_NAMES` so that set stays exactly what the SLI is computed from.
+ *
+ * `krateo.agentiko.claim.unbacked` — one per reply that claims an action its turn did not back
+ * (`components/Agentiko/claimTelemetry.ts`). Name and attributes agreed with snowplow 2026-11; its
+ * ingest forwards the span only once its allowlist names it, and drops it until then (per span, as
+ * `dropped_name`: the rest of the batch is unaffected).
+ */
+export const COUNTED_SPAN_NAMES = {
+  agentikoClaimUnbacked: 'krateo.agentiko.claim.unbacked',
+} as const
+
+const ACCEPTED: ReadonlySet<string> = new Set([...Object.values(SPAN_NAMES), ...Object.values(COUNTED_SPAN_NAMES)])
 
 /**
  * Marks a span the user navigated away from. Excluded from the latency SLI, not dropped.

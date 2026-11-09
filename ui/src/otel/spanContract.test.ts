@@ -13,7 +13,7 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 
-import { ATTR_ABANDONED, ATTR_ROUTE, ContractSpanProcessor, redactUrlAttributes, SPAN_NAMES } from './spanContract'
+import { ATTR_ABANDONED, ATTR_ROUTE, ContractSpanProcessor, COUNTED_SPAN_NAMES, redactUrlAttributes, SPAN_NAMES } from './spanContract'
 
 /**
  * A minimal mutable span, as `onStart` receives it. `updateName` is the only mutation used.
@@ -64,6 +64,11 @@ describe('the five names are the whole accepted set', () => {
       'krateo.page.publish',
       'krateo.widget.fetch',
     ])
+  })
+
+  it('plus one counted span, outside the SLI set', () => {
+    expect(Object.values(COUNTED_SPAN_NAMES)).toEqual(['krateo.agentiko.claim.unbacked'])
+    expect(Object.values(SPAN_NAMES)).not.toContain(COUNTED_SPAN_NAMES.agentikoClaimUnbacked)
   })
 })
 
@@ -131,6 +136,13 @@ describe('on END, only contract spans survive', () => {
       processor.onEnd(ended(name) as never)
     }
     expect(inner.onEnd).toHaveBeenCalledTimes(3)
+  })
+
+  it('passes the unbacked-claim span through, and drops its old name', () => {
+    const { inner, processor } = harness()
+    processor.onEnd(ended(COUNTED_SPAN_NAMES.agentikoClaimUnbacked) as never)
+    processor.onEnd(ended('autopilot.claim.unbacked') as never)
+    expect(inner.onEnd).toHaveBeenCalledOnce()
   })
 
   it('passes page.load through — outside the SLO, but still exported', () => {

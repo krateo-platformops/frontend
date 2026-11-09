@@ -79,12 +79,11 @@ export const collectTurnActions = ({ chips, decision, proposals, toRun, tracked 
 interface Deps {
   messages: AgentikoMessage[]
   sendRef: MutableRefObject<((text: string, opts?: { modality?: TurnModality; recovery?: boolean }) => void) | undefined>
-  sessionId: string
   setMessages: (updater: (prev: AgentikoMessage[]) => AgentikoMessage[]) => void
   streaming: boolean
 }
 
-export const useClaimCheck = ({ messages, sendRef, sessionId, setMessages, streaming }: Deps) => {
+export const useClaimCheck = ({ messages, sendRef, setMessages, streaming }: Deps) => {
   const decisionsRef = useRef(new Map<string, 'approve' | 'reject'>())
 
   const track = useCallback(<Rest extends unknown[]>(apply: Apply<Rest>): TrackedApply<Rest> => {
@@ -110,8 +109,8 @@ export const useClaimCheck = ({ messages, sendRef, sessionId, setMessages, strea
       return
     }
     setMessages((prev) => prev.map((message) => (message.id === assistantId ? { ...message, claims } : message)))
-    recordUnbackedClaims(claims, sessionId)
-  }, [sessionId, setMessages])
+    recordUnbackedClaims(claims)
+  }, [setMessages])
 
   const retryClaims = useCallback((messageId: string) => {
     const message = messages.find((candidate) => candidate.id === messageId)

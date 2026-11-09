@@ -128,7 +128,7 @@ export function initTracing(cfg: TracingConfig): void {
     }),
     spanProcessors: [
       // The contract processor WRAPS the batcher: it renames on start and filters on end, so only
-      // the five accepted names and only our own origins reach the batch at all. Filtering here
+      // the accepted names (spanContract.ts) and only our own origins reach the batch at all. Filtering here
       // rather than letting snowplow drop server-side protects its size cap and per-user rate
       // limit, which an unexportable span would otherwise spend.
       new ContractSpanProcessor(
