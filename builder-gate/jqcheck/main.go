@@ -31,8 +31,9 @@ import (
 )
 
 // The built-in half of snowplow's loader (internal/support/jq/modules.go at SNOWPLOW_REF),
-// ported rule for rule. JQ_MODULES_PATH is unset on the clusters the gate serves, so snowplow
-// loads only its built-ins there, and this port carries only that half.
+// ported rule for rule. This is the built-in half only: snowplow also loads operator modules from
+// the directory JQ_MODULES_PATH names, and this loader does not yet, so a draft that includes an
+// operator module is reported "not found" here while snowplow resolves it.
 //
 //   - A module named N is the file modules/N.jq. A name may contain '/':
 //     `include "krateo/architecture/v1"` loads modules/krateo/architecture/v1.jq.
