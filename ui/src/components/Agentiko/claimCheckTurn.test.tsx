@@ -99,7 +99,8 @@ describe('finalize runs the claim check on what the turn actually did', () => {
     const reply = await turn(POD_SIZING)
     expect(reply.text).toBe(POD_SIZING)
     expect(reply.claims).toEqual([{ family: 'preview', outcome: 'missing', phrase: 'I have authored and previewed' }])
-    expect(harness.record).toHaveBeenCalledWith(reply.claims, api.sessionId)
+    // The claims and nothing else: no session or conversation id reaches the telemetry call.
+    expect(harness.record).toHaveBeenCalledWith(reply.claims)
   })
 
   it('a previewPage the portal REFUSED: still unbacked, as refused', async () => {

@@ -227,7 +227,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   const sendRef = useRef<((text: string, opts?: { modality?: TurnModality; recovery?: boolean }) => void) | undefined>(undefined)
   const recoveryCountRef = useRef(0)
   // THE CLAIM CHECK (useClaimCheck / claimCheck.ts): what a reply SAYS it did, against what its turn did.
-  const { flag: flagClaims, noteDecision, retryClaims, track: trackTurn } = useClaimCheck({ messages, sendRef, sessionId, setMessages, streaming })
+  const { flag: flagClaims, noteDecision, retryClaims, track: trackTurn } = useClaimCheck({ messages, sendRef, setMessages, streaming })
   // PREVIEW-DATA TRAMPOLINE (frontend#442 D10): a live preview of a specialist's page is read back
   // once rendered, and a render with problems earns a bounded follow-up turn. See usePreviewDataLoop.
   const { beginRun, checkLivePreview, holdsPublish, reset: resetPreviewDataLoop } = usePreviewDataLoop({ readRenderedWidgets, sandboxNamespace: config?.api.PREVIEW_SANDBOX_NAMESPACE, sendRef, setMessages, streaming })

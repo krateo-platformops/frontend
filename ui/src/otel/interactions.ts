@@ -1,8 +1,9 @@
 /**
  * The four spans the contract reserves and NOTHING produced until now (X5 session 2).
  *
- * `spanContract.ts` names five and its processor drops everything else; only `krateo.widget.fetch`
- * had a producer, and only because the processor RENAMES auto-instrumented fetch spans to it. The
+ * `spanContract.ts` names five SLI spans and its processor drops everything it does not name; only
+ * `krateo.widget.fetch` had a producer, and only because the processor RENAMES auto-instrumented
+ * fetch spans to it. The
  * other four — `krateo.page.load`, `krateo.composition.open`, `krateo.form.submit`,
  * `krateo.page.publish` — were declared, allowlisted by snowplow, keyed on by the SLI query, and
  * emitted by no one. This module is their producer. Where each is emitted:

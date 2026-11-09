@@ -515,7 +515,7 @@ The unmounted-control case is the same silent-failure shape as P10’s inert row
 > each ended, and the rail adds an antd warning `Alert` under the reply — the reply's text is never
 > altered. A refused, failed, declined or cap-dropped action does not back a claim of success.
 > Offers, questions, futures, negations and conditionals never match; the notice is only useful
-> while it is never wrong. Countable as the `autopilot.claim.unbacked` span.
+> while it is never wrong. Countable as the `krateo.agentiko.claim.unbacked` span.
 >
 > **A refusal described as a success** is the same bug with the evidence in hand. Observed on
 > krateo-057 (1.6.89): the chip "controllerMapVerb — this portal did not run it (GET /pets/{petId}

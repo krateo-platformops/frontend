@@ -38,8 +38,16 @@
  */
 import type { AgentikoActionChip, EvidenceEntry } from './types'
 
-/** The families a reply can claim. Each maps to the portal verbs that would make it true. */
-export type ClaimFamily = 'preview' | 'publish' | 'apply' | 'controller' | 'compose' | 'chart'
+/**
+ * The families a reply can claim. Each maps to the portal verbs that would make it true.
+ *
+ * A VALUE, and the type is derived from it, so the list cannot be incomplete: a family exists only
+ * by being added here. Each one is also a telemetry attribute value (`claimTelemetry.ts`), which
+ * snowplow forwards only if it matches `^[a-z][a-z0-9_]{0,31}$`; claimTelemetry.test.ts checks
+ * every member against that pattern.
+ */
+export const CLAIM_FAMILIES = ['preview', 'publish', 'apply', 'controller', 'compose', 'chart'] as const
+export type ClaimFamily = typeof CLAIM_FAMILIES[number]
 
 /**
  * How one action of the turn ended. `applied` is the only outcome that backs a claim.
@@ -48,7 +56,7 @@ export type ClaimFamily = 'preview' | 'publish' | 'apply' | 'controller' | 'comp
  *  - `declined`: the PERSON said no — the blast-radius confirm, or the destination form cancelled
  *  - `dropped`:  it arrived but was not run (the one-action cap kept another proposal)
  */
-export type ActionOutcome = 'applied' | 'refused' | 'failed' | 'declined' | 'dropped'
+export type ActionOutcome = 'applied' | Exclude<UnbackedOutcome, 'missing'>
 
 /** One portal action of the turn and how it ended. */
 export interface TurnAction {
@@ -60,8 +68,13 @@ export interface TurnAction {
   reason?: string
 }
 
-/** Why a claim is unbacked: nothing of its family arrived, or what arrived did not succeed. */
-export type UnbackedOutcome = 'missing' | Exclude<ActionOutcome, 'applied'>
+/**
+ * Why a claim is unbacked: nothing of its family arrived (`missing`), or what arrived did not
+ * succeed. A value for the same reason as `CLAIM_FAMILIES`: `ActionOutcome` is derived from it, so
+ * a new way for an action to end cannot be added without appearing here, and in the pattern check.
+ */
+export const UNBACKED_OUTCOMES = ['missing', 'refused', 'failed', 'declined', 'dropped'] as const
+export type UnbackedOutcome = typeof UNBACKED_OUTCOMES[number]
 
 /** A claim the turn did not back — stored on the assistant message, rendered under it. */
 export interface UnbackedClaim {

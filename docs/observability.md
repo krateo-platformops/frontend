@@ -73,11 +73,8 @@ Three consequences that are easy to get wrong, each of which would have *flatter
 | `krateo.page.load` | `otel/useDocumentLoadSpan.ts`, from `components/Shell` |
 | `krateo.widget.fetch` | auto-instrumentation, renamed by `ContractSpanProcessor` |
 
-The emitters are `otel/interactions.ts`. One other place in the SPA creates a span —
-`components/Agentiko/claimTelemetry.ts`, `autopilot.claim.unbacked` — and **it is not in
-`SPAN_NAMES`, so `ContractSpanProcessor` drops it in the browser**: it reaches no collector today,
-whatever that file's comment says, and snowplow would drop it too (the ingest accepts the five
-names only). Counting unbacked claims needs that name allowlisted at both ends first.
+The emitters are `otel/interactions.ts`. One other place in the SPA creates a span — see
+[The counted span](#the-counted-span-krateoagentikoclaimunbacked) below.
 
 **Not instrumented, deliberately** — each would be measured wrongly rather than not at all:
 
@@ -136,9 +133,35 @@ carry W3C `traceparent` to snowplow — which emits its own Server span. So one 
 interaction → fetch → server, and an interaction that took 2.4s can be attributed rather than
 merely observed.
 
+## The counted span: `krateo.agentiko.claim.unbacked`
+
+Outside the SLI. One span per reply in which Agentiko claims an action its turn did not back,
+produced by `components/Agentiko/claimTelemetry.ts` under the tracer `krateo-agentiko`. It is
+counted, not timed: its duration means nothing. Agreed with snowplow:
+
+| attribute | values |
+|---|---|
+| `krateo.agentiko.claim.family` | `preview`, `publish`, `apply`, `controller`, `compose`, `chart` |
+| `krateo.agentiko.claim.outcome` | `missing`, `refused`, `failed`, `declined`, `dropped` |
+
+Those two and nothing else. Not the claimed phrase (model output about the person's resources),
+and **no session or conversation id**: no identity on spans, plain or hashed (snowplow#848), and a
+conversation id leads to a person through the conversation store. snowplow forwards a value only
+if it matches `^[a-z][a-z0-9_]{0,31}$`; `claimTelemetry.test.ts` checks every family and outcome
+`claimCheck.ts` defines against it.
+
+`ContractSpanProcessor` exports it (`COUNTED_SPAN_NAMES` in `otel/spanContract.ts`, kept apart
+from the five `SPAN_NAMES`). snowplow forwards it only once its own allowlist names it; until then
+the ingest drops it per span, counted as `dropped_name`, and the rest of the batch is forwarded.
+
+```
+SpanName = 'krateo.agentiko.claim.unbacked'
+GROUP BY SpanAttributes['krateo.agentiko.claim.family'], SpanAttributes['krateo.agentiko.claim.outcome']
+```
+
 ## How the names are enforced
 
-snowplow accepts **only** these five and drops anything else server-side. Auto-instrumented fetch
+snowplow accepts **only** the names it allowlists and drops anything else server-side. Auto-instrumented fetch
 spans are named `HTTP GET` / `HTTP POST`, so without intervention every span the portal produces
 would be dropped — and dropped **invisibly**, since the browser sees a 2xx and nothing arrives.
 
