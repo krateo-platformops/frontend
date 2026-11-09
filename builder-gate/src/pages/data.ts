@@ -24,7 +24,10 @@
 import { step, type StepResult } from '../envelope'
 import { HttpError } from '../http'
 import type { GateContext } from '../plan'
-import { CAPABILITY_RESOLVE, type SnowplowReply, STAGE_ABORTED_REASON, STAGE_NOT_EXECUTED_MESSAGE, STAGE_NOT_EXECUTED_REASON, STAGE_NOT_RUN_REASON, STAGE_OUTCOMES, STAGE_REASONS, STAGE_SKIPPED_REASON, stageOutcomesOf } from '../snowplow'
+import {
+  CAPABILITY_RESOLVE, type SnowplowReply, STAGE_ABORTED_REASON, STAGE_DESTINATION_REFUSED_REASON, STAGE_INVALID_PATH_REASON, STAGE_NOT_EXECUTED_MESSAGE, STAGE_NOT_EXECUTED_REASON,
+  STAGE_NOT_RUN_REASON, STAGE_NOT_SENT_REASON, STAGE_OUTCOMES, STAGE_REASONS, STAGE_SKIPPED_REASON, STAGE_TEMPLATE_ERROR_REASON, STAGE_TIMEOUT_REASON, stageOutcomesOf,
+} from '../snowplow'
 
 import { isRestAction, labelOf, nameOf, rec, type Rec, str } from './drafts'
 
@@ -125,6 +128,31 @@ const bodyStageMessages = (ra: Rec, output: unknown): string[] => {
   })
 }
 
+/**
+ * Reasons that are a defect of the DRAFT: snowplow refused to send the stage because the draft's
+ * own template did not produce a valid request. Red always, with what to fix — even under
+ * continueOnError. The body's errorKey message, appended as detail, names the exact cause.
+ */
+const DRAFT_DEFECTS: ReadonlyMap<string, string> = new Map([
+  [STAGE_INVALID_PATH_REASON, 'snowplow refused the rendered path (a segment rendered empty, or it is not a valid object path): fix the stage\'s path template, or the value it reads'],
+  [STAGE_TEMPLATE_ERROR_REASON, 'its path, payload or a header did not render (a jq error, or a placeholder left unrendered): fix that template'],
+])
+
+/**
+ * Reasons that say nothing about the draft: this run could not answer. Red, as every notChecked
+ * is in this gate's contract, but worded as "not judged", never as "the draft is wrong". A
+ * continueOnError stage is still a note: its author declared the page copes with a failed stage.
+ */
+const NOT_JUDGED: ReadonlyMap<string, string> = new Map([
+  [STAGE_TIMEOUT_REASON, 'snowplow\'s page budget ran out before the stage answered'],
+  [STAGE_NOT_SENT_REASON, 'snowplow planned it, did not send it, and recorded no cause'],
+])
+
+/** What a red reason means, where the bare code does not say it. */
+const REASON_MEANINGS: ReadonlyMap<string, string> = new Map([
+  [STAGE_DESTINATION_REFUSED_REASON, 'the destination policy refused the address its endpoint resolves to, so the page would never get this data: point it at an endpoint the policy allows'],
+])
+
 /** The body's message for a stage, when one names it (`stage "<name>"`): detail for a note. */
 const detailFor = (messages: readonly string[], stage: string): string | undefined =>
   messages.find((message) => message.includes(`stage ${JSON.stringify(stage)}`) || message.includes(`stage ${stage} `))
@@ -135,8 +163,12 @@ const detailFor = (messages: readonly string[], stage: string): string | undefin
  *   - a reason outside the closed set (or none): red, "unknown reason";
  *   - StageNotExecuted, or — the documented fallback — the body message `dry-run: stage "<name>"
  *     verb <V> is not executed`: a NOTE, refused by design, checked at the driven Preview;
+ *   - InvalidPath, TemplateError (DRAFT_DEFECTS): red, with what to fix — snowplow refused to
+ *     build the request from the draft's own template, so continueOnError does not excuse it;
  *   - a stage the draft marks continueOnError (by name): a NOTE — its author declared the
  *     tolerance, and the driven Preview judges what renders;
+ *   - Timeout, NotSent (NOT_JUDGED): red as `notChecked`, worded "not judged" — the run could not
+ *     answer, which says nothing about the draft;
  *   - NotRun: the resolve stopped before this stage. snowplow truncates a resolve at the first
  *     stage that fails hard (stage_outcomes.go, resolve.go), and every later stage in topological
  *     order reports NotRun — whatever its dependsOn. So the cause is the nearest earlier failed
@@ -241,16 +273,28 @@ export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers
       }
       continue
     }
+    const defect = DRAFT_DEFECTS.get(reason)
     if (reason === STAGE_NOT_EXECUTED_REASON || (detail !== undefined && STAGE_NOT_EXECUTED_MESSAGE.test(detail))) {
       byDesign.push(`stage ${stage.name}: not executed by design (a write-verb stage): checked at the driven Preview${suffix}`)
       stopper = { name: stage.name, note: 'was not executed by design', reason }
       judged.set(stage.name, 'was not executed by design')
+    } else if (defect) {
+      // Before continueOnError, on purpose: that flag tolerates what an endpoint ANSWERS, and here
+      // snowplow refused to build the request, so no endpoint was asked anything.
+      const excuse = tolerant.has(stage.name) ? '; continueOnError does not excuse it, because no request was sent' : ''
+      failures.push(`stage ${stage.name}: not sent (${reason}) — ${defect}${excuse}${suffix}`)
+      stopper = { name: stage.name, note: null, reason }
+      judged.set(stage.name, null)
     } else if (tolerant.has(stage.name)) {
       byDesign.push(`stage ${stage.name} failed (${reason}) — continueOnError, the page is expected to cope; checked at the driven Preview${suffix}`)
       stopper = { name: stage.name, note: 'is continueOnError', reason }
       judged.set(stage.name, 'is continueOnError')
     } else {
-      failures.push(`stage ${stage.name} failed (${reason})${suffix}`)
+      const unjudged = NOT_JUDGED.get(reason)
+      const meaning = REASON_MEANINGS.get(reason)
+      failures.push(unjudged
+        ? `notChecked: stage ${stage.name} (${reason}): ${unjudged} — the gate could not judge it; call again${suffix}`
+        : `stage ${stage.name} failed (${reason})${meaning ? ` — ${meaning}` : ''}${suffix}`)
       stopper = { name: stage.name, note: null, reason }
       judged.set(stage.name, null)
     }

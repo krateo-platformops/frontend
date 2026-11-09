@@ -120,13 +120,25 @@ Authorization: Bearer <caller JWT>
   compact JSON in topological stage order:
   `[{"name":"<stage>","ok":true},{"name":"<stage>","ok":false,"reason":"<code>"}]`.
   - It is never set on a stored resolve, and never carries a message, a path or data.
-  - `reason` comes from a CLOSED set:
-    - `StageNotExecuted`: a write-verb stage, refused;
-    - `Forbidden`;
-    - `NotFound`;
-    - `Unauthorized`;
-    - `NotRun`: the resolve stopped (truncated) before this stage;
-    - `Error`: anything else.
+  - `reason` comes from a CLOSED set, snowplow's `StageReason*` constants. The gate's copy is
+    `STAGE_REASONS` in `src/snowplow.ts`, and `test/drift/` holds it equal to snowplow's at the
+    snowplow version the installer pins (CI step "snowplow's stage reason codes match…").
+
+    | Code | snowplow's meaning | What the gate does |
+    |---|---|---|
+    | `StageNotExecuted` | a write-verb stage the dry run refused (#443) | note: checked at the driven Preview |
+    | `Forbidden`, `NotFound`, `Unauthorized` | the endpoint's answer, by status code | red, or a note under `continueOnError` |
+    | `Error` | any other failure | red, or a note under `continueOnError` |
+    | `NotRun` | the resolve stopped (truncated) before this stage | inherits the nearest earlier failed stage |
+    | `Skipped` | a write not sent because the stage it `dependsOn` did not succeed (#904) | inherits that stage's verdict |
+    | `Aborted` | the resolve-level row (name `""`): no stage ran (#904 F3) | red, one line |
+    | `InvalidPath` | the #288 guard refused the rendered path; nothing sent (#1112, #1116) | red, a draft defect: fix the path template. `continueOnError` does not excuse it |
+    | `TemplateError` | the path, payload or a header did not render (#302, #293); nothing sent | red, a draft defect: fix the template. `continueOnError` does not excuse it |
+    | `DestinationRefused` | the destination policy refused the endpoint's address; nothing sent (#1131) | red, saying so, or a note under `continueOnError` |
+    | `Timeout` | the request's page budget ended the exchange, a 504 (#1115) | `notChecked` (red), worded "not judged", or a note under `continueOnError` |
+    | `NotSent` | a write planned and not sent, with no other failure recorded (#1112) | `notChecked` (red), worded "not judged", or a note under `continueOnError` |
+
+    Any other code, or none, is red as "unknown reason".
   - Above 4 KiB the header is `{"truncated":true,"failed":N}`.
   - A refused write-verb stage that is not `continueOnError` is a hard failure, so snowplow stops
     the resolve there. Every later stage in topological order then reports `NotRun`, whatever its
@@ -139,8 +151,13 @@ Authorization: Bearer <caller JWT>
     - **Note:** reason `StageNotExecuted`, or a body message matching the documented
       `dry-run: stage "<name>" verb <V> is not executed`. Reads "not executed by design: checked at
       the driven Preview".
+    - **Red, a draft defect:** `InvalidPath` and `TemplateError`, with what to fix. snowplow refused
+      to build the request from the draft's own template, so no endpoint was asked anything, and
+      `continueOnError` (which tolerates an endpoint's answer) does not excuse it.
     - **Note:** a stage the draft marks `continueOnError` (matched by name). Reads "continueOnError,
       the page is expected to cope; checked at the driven Preview".
+    - **`notChecked` (red):** `Timeout` and `NotSent`. This run could not answer, which says nothing
+      about the draft, so the line says "not judged; call again" rather than what to fix.
     - **`NotRun`:** its cause is the nearest earlier failed stage, the one where the resolve
       stopped. It is a note when that stage is a note, and red otherwise. With no earlier failed
       stage, it is red.

@@ -6,7 +6,8 @@
 #               then the example page draft through the gate OFFLINE — the only place the live
 #               steps are turned off, by the CLI's --offline flag — asserting every offline step
 #               ran and passed and every live step said DISABLED; then snowplow's jq modules
-#               diffed against the tag SNOWPLOW_REF names.
+#               diffed against the tag SNOWPLOW_REF names; then the stage reason codes the gate
+#               knows (STAGE_REASONS) compared with snowplow's, at the snowplow installer pins.
 #   kind        the gate's identity against a real API server, as the chart's own ServiceAccount:
 #               it reads its own Builder and no other; it may not create, get or list widgets,
 #               RESTActions or Secrets; with no caller token it judges nothing live, and that is
@@ -116,6 +117,15 @@ jobs:
           gh api "repos/krateo-platformops/snowplow/contents/go/snowplow/internal/support/jq/modules?ref=${ref}" --jq '.[].name' | sort > upstream.txt
           (cd jqcheck/modules && ls *.jq) | sort > local.txt
           diff -u upstream.txt local.txt
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: snowplow's stage reason codes match the snowplow the installer pins
+        # test/drift/stageReasons.test.ts: reads installer main's snowplow pin, then that tag's
+        # stage_outcomes.go (resolving a constant assigned from another snowplow package), and
+        # fails naming every code missing on either side. Out of the unit run above because it
+        # needs the network; a read that fails is a red here, never a pass.
+        run: npx vitest run --config vitest.drift.config.ts --reporter=verbose
         env:
           GH_TOKEN: ${{ github.token }}
 

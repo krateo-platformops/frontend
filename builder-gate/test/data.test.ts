@@ -295,13 +295,77 @@ describe('data', () => {
   })
 
   it.each([
-    ['a reason outside the closed set', { name: 'pods', ok: false, reason: 'Timeout' }, /stage pods failed with an unknown reason "Timeout" — not one of snowplow's codes/],
+    ['a reason outside the closed set', { name: 'pods', ok: false, reason: 'NotACode' }, /stage pods failed with an unknown reason "NotACode" — not one of snowplow's codes/],
     ['a failed stage with no reason', { name: 'pods', ok: false }, /stage pods failed with an unknown reason null/],
   ])('%s is red', async (_what, outcome, message) => {
     const { transport } = recorder(fakeSnowplow({ resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: {} }, [outcome]) }))
     const envelope = await run(example(), liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
     expect(dataOf(envelope).problems[0]).toMatch(message)
+  })
+
+  describe('the snowplow#1112/#1115/#1131 reasons, each by what it means', () => {
+    const resolving = (reason: string, message?: string) => recorder(fakeSnowplow({
+      resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: message ? { error: [{ message }] } : {} }, [{ name: 'pods', ok: false, reason }]),
+    }))
+    const tolerant = () => {
+      const draft = example()
+      objAt(byKind(draft, 'RESTAction'), 'spec', 'api', 0).continueOnError = true
+      return draft
+    }
+
+    it.each([
+      ['InvalidPath', 'read stage "pods" verb GET was not sent: a path segment rendered empty (#288)',
+        'widgets[3] (RESTAction/pod-sizing): stage pods: not sent (InvalidPath) — snowplow refused the rendered path (a segment rendered empty, or it is not a valid object path): fix the stage\'s path template, or the value it reads — read stage "pods" verb GET was not sent: a path segment rendered empty (#288)'],
+      ['TemplateError', 'read stage "pods" verb GET was not sent: its path template failed to evaluate (#302)',
+        'widgets[3] (RESTAction/pod-sizing): stage pods: not sent (TemplateError) — its path, payload or a header did not render (a jq error, or a placeholder left unrendered): fix that template — read stage "pods" verb GET was not sent: its path template failed to evaluate (#302)'],
+    ])('%s is a draft defect: red, saying what to fix', async (reason, message, problem) => {
+      const { transport } = resolving(reason, message)
+      const envelope = await run(example(), liveCtx(transport))
+      expect(envelope.failedStep).toBe('data')
+      expect(dataOf(envelope).problems).toEqual([problem])
+    })
+
+    it.each(['InvalidPath', 'TemplateError'])('%s stays red under continueOnError: no request was sent, so there was no answer to tolerate', async (reason) => {
+      const { transport } = resolving(reason)
+      const envelope = await run(tolerant(), liveCtx(transport))
+      expect(envelope.failedStep).toBe('data')
+      expect(dataOf(envelope).problems[0]).toMatch(new RegExp(`^widgets\\[3\\] \\(RESTAction/pod-sizing\\): stage pods: not sent \\(${reason}\\) — .*; continueOnError does not excuse it, because no request was sent$`))
+    })
+
+    it.each([
+      ['Timeout', 'widgets[3] (RESTAction/pod-sizing): notChecked: stage pods (Timeout): snowplow\'s page budget ran out before the stage answered — the gate could not judge it; call again'],
+      ['NotSent', 'widgets[3] (RESTAction/pod-sizing): notChecked: stage pods (NotSent): snowplow planned it, did not send it, and recorded no cause — the gate could not judge it; call again'],
+    ])('%s says nothing about the draft: notChecked, which is red, worded as not judged', async (reason, problem) => {
+      const { transport } = resolving(reason)
+      const envelope = await run(example(), liveCtx(transport))
+      expect(envelope.failedStep).toBe('data')
+      expect(dataOf(envelope).problems).toEqual([problem])
+    })
+
+    it('DestinationRefused is red, saying what it means', async () => {
+      const { transport } = resolving('DestinationRefused')
+      const envelope = await run(example(), liveCtx(transport))
+      expect(envelope.failedStep).toBe('data')
+      expect(dataOf(envelope).problems).toEqual(['widgets[3] (RESTAction/pod-sizing): stage pods failed (DestinationRefused) — the destination policy refused the address its endpoint resolves to, so the page would never get this data: point it at an endpoint the policy allows'])
+    })
+
+    it.each(['Timeout', 'NotSent', 'DestinationRefused'])('%s on a continueOnError stage is a note, as any answered failure is', async (reason) => {
+      const { transport } = resolving(reason)
+      const envelope = await run(tolerant(), liveCtx(transport))
+      expect(envelope.ok).toBe(true)
+      expect(dataOf(envelope).notes).toContain(`widgets[3] (RESTAction/pod-sizing): stage pods failed (${reason}) — continueOnError, the page is expected to cope; checked at the driven Preview`)
+    })
+
+    it('a NotRun after a Timeout is red with it, naming the cause', async () => {
+      const draft = example()
+      arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ name: 'nodes', path: '/api/v1/nodes' })
+      const { transport } = recorder(fakeSnowplow({
+        resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: {} }, [{ name: 'pods', ok: false, reason: 'Timeout' }, { name: 'nodes', ok: false, reason: 'NotRun' }]),
+      }))
+      const envelope = await run(draft, liveCtx(transport))
+      expect(dataOf(envelope).problems).toContain('widgets[3] (RESTAction/pod-sizing): stage nodes: not run — the resolve stopped at stage pods (Timeout)')
+    })
   })
 
   it('a truncated outcomes header is red', async () => {
