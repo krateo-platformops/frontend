@@ -46,14 +46,16 @@ function escapeRegExp(value: string): string {
 }
 
 /**
- * Build the `propagateTraceHeaderCorsUrls` allowlist as origin-anchored RegExps.
+ * The snowplow URL prefix (`SNOWPLOW_API_BASE_URL`, resolved against the document origin, no
+ * trailing slash) — the ONE derivation behind both the export filter and the
+ * `propagateTraceHeaderCorsUrls` allowlist built from it in `initTracing`.
  *
- * CRITICAL: traceparent is ONLY injected on requests whose URL matches one of
- * these patterns. We derive them strictly from the configured backend origins
- * (authn / snowplow / events / events-push) so we never blanket-inject the
- * header on arbitrary cross-origin calls (which would trigger CORS preflights
- * and leak trace context to third parties). Each backend must also CORS-allow
- * the `traceparent` request header, or those requests will fail preflight.
+ * What that allowlist does and does not decide: `@opentelemetry/sdk-trace-web`'s
+ * `shouldPropagateTraceHeaders` ALWAYS injects traceparent on same-origin requests; the list only
+ * governs CROSS-origin ones. So the list exists to keep trace context away from every other
+ * origin (third parties, CORS preflights) and to reach a snowplow that lives on its own origin —
+ * which must then CORS-allow the `traceparent` request header. authn and events are deliberately
+ * NOT listed: only snowplow emits a Server span to link to.
  */
 function snowplowPrefixOf(api: TracingConfig['api']): string | null {
   const base = api.SNOWPLOW_API_BASE_URL
