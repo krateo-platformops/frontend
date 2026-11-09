@@ -1,0 +1,180 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`FlowChart architecture — LR and regular are main, byte for byte > draws what main drew when neither field is set > markup 1`] = `"<div class="_architecture_dc6893" data-testid="architecture-graph-box" data-overflows="true"><div style="height: inherit; position: relative;"><div data-testid="flow-graph"><div data-node-id="arch:repository"><div aria-label="Repository publish-pod-sizing-v1b-repo, done" class="_card_029026" data-state="done" role="group" tabindex="0"><span class="_eyebrow_029026"><span class="_kind_029026" title="Repository">Repository</span></span><span class="_name_029026" title="publish-pod-sizing-v1b-repo">publish-pod-sizing-v1b-repo</span><span class="_detail_029026" title="default_branch · main">default_branch · main</span></div></div><div data-node-id="arch:repo"><div aria-label="Repo publish-pod-sizing-v1b-source, waiting, NotSynced: ReconcileError — cannot determine creation result - remove the krateo.io/external-create-pending annotation if it is safe to proceed" class="_card_029026" data-state="waiting" role="group" tabindex="0"><span class="_eyebrow_029026"><span class="_kind_029026" title="Repo">Repo</span><span class="_exception_029026" data-testid="architecture-exception"><span aria-hidden="true" class="_dot_029026"></span>NotSynced</span></span><span class="_name_029026" title="publish-pod-sizing-v1b-source">publish-pod-sizing-v1b-source</span><span class="_detail_029026" title="targetCommitId · 0 of 1">targetCommitId · 0 of 1</span></div></div><div data-node-id="arch:localresources"><div aria-label="LocalResource ×10 publish-pod-sizing-v1b-000 … 009, withheld" class="_card_029026" data-state="withheld" role="group" tabindex="0"><span class="_eyebrow_029026"><span class="_kind_029026" title="LocalResource ×10">LocalResource ×10</span></span><span class="_name_029026" title="publish-pod-sizing-v1b-000 … 009">publish-pod-sizing-v1b-000 … 009</span><span class="_detail_029026" title="waits for Repository, Repo">waits for Repository, Repo</span></div></div><div data-node-id="arch:pullrequest"><div aria-label="PullRequest publish-pod-sizing-v1b-pr, withheld" class="_card_029026" data-state="withheld" role="group" tabindex="0"><span class="_eyebrow_029026"><span class="_kind_029026" title="PullRequest">PullRequest</span></span><span class="_name_029026" title="publish-pod-sizing-v1b-pr">publish-pod-sizing-v1b-pr</span><span class="_detail_029026" title="waits for all 10 LocalResource">waits for all 10 LocalResource</span></div></div></div></div></div>"`;
+
+exports[`FlowChart architecture — LR and regular are main, byte for byte > draws what main drew when neither field is set > options 1`] = `
+"{
+  "autoFit": {
+    "animation": false,
+    "type": "center"
+  },
+  "behaviors": [
+    "drag-canvas"
+  ],
+  "data": {
+    "edges": [
+      {
+        "data": {
+          "withheld": false
+        },
+        "id": "arch:repository→arch:repo",
+        "source": "arch:repository",
+        "target": "arch:repo"
+      },
+      {
+        "data": {
+          "withheld": true
+        },
+        "id": "arch:repository→arch:localresources",
+        "source": "arch:repository",
+        "target": "arch:localresources"
+      },
+      {
+        "data": {
+          "withheld": true
+        },
+        "id": "arch:repo→arch:localresources",
+        "source": "arch:repo",
+        "target": "arch:localresources"
+      },
+      {
+        "data": {
+          "withheld": true
+        },
+        "id": "arch:localresources→arch:pullrequest",
+        "source": "arch:localresources",
+        "target": "arch:pullrequest"
+      }
+    ],
+    "nodes": [
+      {
+        "data": {
+          "detail": "default_branch · main",
+          "kind": "Repository",
+          "name": "publish-pod-sizing-v1b-repo",
+          "parentRefs": [],
+          "state": "done",
+          "uid": "arch:repository"
+        },
+        "id": "arch:repository"
+      },
+      {
+        "data": {
+          "detail": "targetCommitId · 0 of 1",
+          "exception": {
+            "label": "NotSynced",
+            "message": "cannot determine creation result - remove the krateo.io/external-create-pending annotation if it is safe to proceed",
+            "reason": "ReconcileError"
+          },
+          "kind": "Repo",
+          "name": "publish-pod-sizing-v1b-source",
+          "parentRefs": [
+            {
+              "uid": "arch:repository"
+            }
+          ],
+          "state": "waiting",
+          "uid": "arch:repo"
+        },
+        "id": "arch:repo"
+      },
+      {
+        "data": {
+          "detail": "waits for Repository, Repo",
+          "kind": "LocalResource ×10",
+          "name": "publish-pod-sizing-v1b-000 … 009",
+          "parentRefs": [
+            {
+              "uid": "arch:repository"
+            },
+            {
+              "uid": "arch:repo"
+            }
+          ],
+          "state": "withheld",
+          "uid": "arch:localresources"
+        },
+        "id": "arch:localresources"
+      },
+      {
+        "data": {
+          "detail": "waits for all 10 LocalResource",
+          "kind": "PullRequest",
+          "name": "publish-pod-sizing-v1b-pr",
+          "parentRefs": [
+            {
+              "uid": "arch:localresources"
+            }
+          ],
+          "state": "withheld",
+          "uid": "arch:pullrequest"
+        },
+        "id": "arch:pullrequest"
+      }
+    ]
+  },
+  "edge": {
+    "style": {
+      "router": false,
+      "labelText": {
+        "ƒ": "labelText",
+        "perEdge": [
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      "lineDash": {
+        "ƒ": "lineDash",
+        "perEdge": [
+          0,
+          [
+            6,
+            4
+          ],
+          [
+            6,
+            4
+          ],
+          [
+            6,
+            4
+          ]
+        ]
+      },
+      "labelBackground": true,
+      "labelBackgroundFill": "#FFFFFF",
+      "labelFill": "#5E5873",
+      "stroke": "#6A6480"
+    },
+    "type": "cubic-horizontal"
+  },
+  "layout": {
+    "nodesep": 32,
+    "rankdir": "LR",
+    "ranksep": 160,
+    "type": "dagre"
+  },
+  "node": {
+    "style": {
+      "component": "ƒ component",
+      "ports": [
+        {
+          "placement": "left"
+        },
+        {
+          "placement": "right"
+        }
+      ],
+      "size": [
+        220,
+        84
+      ]
+    },
+    "type": "react"
+  },
+  "onInit": "ƒ onInit",
+  "onReady": "ƒ onReady"
+}"
+`;
