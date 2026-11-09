@@ -1,7 +1,7 @@
 // jqcheck compiles (and, for the data step's oversized inputs, evaluates) jq exactly the way
 // snowplow does: the same gojq fork (go.mod's replace, as in snowplow's own go.mod) and the same
-// built-in modules (modules/*.jq, copied from snowplow at the tag in SNOWPLOW_REF and embedded
-// here, as snowplow embeds them).
+// built-in modules (modules/, copied from snowplow at the tag in SNOWPLOW_REF and embedded here,
+// as snowplow embeds them, nested names included).
 //
 // The gate talks to it over stdin/stdout, one JSON request per process:
 //
@@ -20,29 +20,84 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
+	"path"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/itchyny/gojq"
 )
 
-//go:embed modules/*.jq
+// The built-in half of snowplow's loader (internal/support/jq/modules.go at SNOWPLOW_REF),
+// ported rule for rule. This is the built-in half only: snowplow also loads operator modules from
+// the directory JQ_MODULES_PATH names, and this loader does not yet, so a draft that includes an
+// operator module is reported "not found" here while snowplow resolves it.
+//
+//   - A module named N is the file modules/N.jq. A name may contain '/':
+//     `include "krateo/architecture/v1"` loads modules/krateo/architecture/v1.jq.
+//   - The names that resolve are ENUMERATED by walking the embedded tree for *.jq files at any
+//     depth. A name outside that set is "not found", whatever path it spells — `./health` or
+//     `krateo/../health` resolves in neither snowplow nor here.
+//   - A `*.jq` embed pattern does not descend into subdirectories, so each nested directory is
+//     listed on the line below, as on snowplow's. TestEveryModuleSourceIsEmbedded fails when a
+//     vendored file is missing from it.
+const (
+	builtinRoot = "modules"
+	moduleExt   = ".jq"
+)
+
+//go:embed modules/*.jq modules/krateo/architecture/*.jq
 var modulesFS embed.FS
 
-// moduleLoader resolves `include "quantity";` / `import "health" as h;` from the embedded copy
-// of snowplow's built-in modules (internal/support/jq/modules.go layeredModuleLoader's fallback).
-type moduleLoader struct{}
+// builtinModuleNames is snowplow's builtinModuleNames: every *.jq under root, at any depth, as the
+// name an import or include uses. Sorted.
+func builtinModuleNames(fsys fs.FS, root string) []string {
+	var names []string
+	_ = fs.WalkDir(fsys, root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(p, moduleExt) {
+			return nil
+		}
+		rel := strings.TrimPrefix(p, root+"/")
+		names = append(names, strings.TrimSuffix(rel, moduleExt))
+		return nil
+	})
+	sort.Strings(names)
+	return names
+}
 
-func (moduleLoader) LoadModule(name string) (*gojq.Query, error) {
-	dat, err := modulesFS.ReadFile("modules/" + name + ".jq")
-	if err != nil {
-		return nil, fmt.Errorf("module %q not found: %w", name, err)
+// moduleLoader is snowplow's layeredModuleLoader with no operator directory: a reserved name
+// loads from the embedded set, and any other name is not found, with snowplow's message.
+type moduleLoader struct {
+	builtin  fs.FS
+	root     string
+	reserved map[string]struct{}
+}
+
+func newModuleLoader(builtin fs.FS, root string) moduleLoader {
+	l := moduleLoader{builtin: builtin, root: root, reserved: map[string]struct{}{}}
+	for _, n := range builtinModuleNames(builtin, root) {
+		l.reserved[n] = struct{}{}
 	}
-	q, err := gojq.Parse(string(dat))
+	return l
+}
+
+var loader = newModuleLoader(modulesFS, builtinRoot)
+
+func (l moduleLoader) LoadModule(name string) (*gojq.Query, error) {
+	if _, ok := l.reserved[name]; !ok {
+		return nil, fmt.Errorf("module %q not found", name)
+	}
+	dat, err := fs.ReadFile(l.builtin, path.Join(l.root, name+moduleExt))
+	if err != nil {
+		return nil, fmt.Errorf("built-in module %q: %w", name, err)
+	}
+	parsed, err := gojq.Parse(string(dat))
 	if err != nil {
 		return nil, fmt.Errorf("error parsing built-in module %q: %w", name, err)
 	}
-	return q, nil
+	return parsed, nil
 }
 
 type expr struct {
@@ -68,7 +123,7 @@ func compile(q string) (*gojq.Code, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid jq query: %w", err)
 	}
-	code, err := gojq.Compile(parsed, gojq.WithModuleLoader(moduleLoader{}))
+	code, err := gojq.Compile(parsed, gojq.WithModuleLoader(loader))
 	if err != nil {
 		return nil, fmt.Errorf("unable to compile jq query: %w", err)
 	}

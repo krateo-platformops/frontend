@@ -178,4 +178,22 @@ describe('jq-compile (snowplow\'s gojq fork and modules)', () => {
     const envelope = await run(example())
     expect(envelope.steps.find((step) => step.name === 'jq-compile')?.ok).toBe(true)
   })
+  // snowplow 1.12.50+ ships a NESTED built-in (modules/krateo/architecture/v1.jq). A gate whose
+  // jqcheck predates it — or embeds only modules/*.jq — calls this draft broken while snowplow runs it.
+  it('the nested krateo/architecture/v1 module resolves, as in snowplow', async () => {
+    const draft = mutate((docs) => { objAt(byKind(docs, 'RESTAction'), 'spec').filter = 'include "krateo/architecture/v1"; architecture_state' })
+    const envelope = await run(draft)
+    const step = envelope.steps.find((candidate) => candidate.name === 'jq-compile')
+    expect(step?.problems).toEqual([])
+    expect(step?.ok).toBe(true)
+  })
+  it.each([
+    ['krateo/architecture/v2', /spec\.filter: unable to compile jq query: module "krateo\/architecture\/v2" not found/],
+    ['krateo/architecture', /spec\.filter: unable to compile jq query: module "krateo\/architecture" not found/],
+    ['architecture/v1', /spec\.filter: unable to compile jq query: module "architecture\/v1" not found/],
+    ['krateo/../health', /spec\.filter: unable to compile jq query: module "krateo\/\.\.\/health" not found/],
+  ])('a module name snowplow does not ship (%s) is not found, whatever path it spells', async (name, message) => {
+    const draft = mutate((docs) => { objAt(byKind(docs, 'RESTAction'), 'spec').filter = `include "${name}"; .` })
+    failsAt(await run(draft), 'jq-compile', message)
+  })
 })
