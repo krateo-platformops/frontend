@@ -119,3 +119,42 @@
   color: var(--gray-color);
   font-weight: var(--font-weight-light);
 }
+
+/* COMPACT (`data-density='compact'`): 180×56, the box ARCHITECTURE_COMPACT_NODE_SIZE tells dagre.
+   For a narrow box (the trace page's ~415px services column), where three regular cards left to
+   right were 980px and only the first was in view.
+
+   Two lines of name, then an ellipsis: 154px of text holds `krateo-agent-gateway-platform` on two
+   lines (it breaks after a hyphen), and `overflow-wrap: anywhere` lets a name with no hyphen wrap
+   rather than run out of the card. The full name is the line's `title`. The detail line stays one
+   line. No vertical padding: the content (2 × 15px of name, 2px, 14px of detail) is centred in the
+   54px inside the border. The state rules above apply as they are. */
+.card[data-density='compact'] {
+  height: 56px;
+  padding: 0 var(--spacing-smd);
+  position: relative;
+  width: 180px;
+}
+
+.card[data-density='compact'] .name {
+  -webkit-box-orient: vertical;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.card[data-density='compact'] .detail {
+  line-height: 1.2;
+}
+
+/* The compact card's exception: the dot alone, in the top-right corner, inside the 12px side
+   padding so it never sits over the name. Its tooltip and the card's accessible name carry the
+   condition, reason and message, as the chip's label does on the regular card. */
+.corner {
+  display: flex;
+  position: absolute;
+  right: var(--spacing-xs);
+  top: var(--spacing-xs);
+}

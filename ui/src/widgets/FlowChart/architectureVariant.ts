@@ -12,7 +12,14 @@
  * is the `exception` dot, which the RESTAction sets only for NotSynced or NotReady (P13). Edges
  * take the theme's neutral tokens, dashed where they point into a node that is still withheld.
  */
-import { GRAPH_LAYOUT, type EdgeAppearance, type GraphEdge, type GraphNode } from '../../components/DependencyGraph'
+import {
+  GRAPH_LAYOUT,
+  type EdgeAppearance,
+  type GraphDirection,
+  type GraphEdge,
+  type GraphNode,
+  type GraphSpacing,
+} from '../../components/DependencyGraph'
 
 import type { FlowChartData, FlowChartNodeData } from './FlowChart'
 
@@ -32,30 +39,46 @@ export interface ArchitectureEdgeData {
  */
 export const ARCHITECTURE_NODE_SIZE: [number, number] = [220, 84]
 
+/** How big the card is: `regular` (absent), the 220×84 card; `compact`, a 180×56 one. */
+export type ArchitectureDensity = 'regular' | 'compact'
+
 /**
- * The drawn width of an architecture graph, in px, at the cards' true size.
- *
- * dagre lays the graph out LR, so one RANK is one column and the drawn width is
- * `ranks × cardWidth + (ranks − 1) × ranksep`. A rank is a step in the longest chain of active
- * dependencies, which is what `level` means in the descriptor — computed here from the edges rather
- * than read from the data, because the widget is given `parentRefs` and not levels.
- *
- * Used to tell the card whether the graph runs past its box (portal#310). Before this, a graph wider
- * than the box was simply clipped at the right edge with nothing on screen saying so: the last
- * column was cut mid-card and read as a rendering fault rather than as "there is more, drag it".
- * `fit="natural"` pins the LEFT edge, so overflow is always on the right on first paint.
+ * The compact card's box: two lines of name and the detail line, no kind line. 180px leaves 154px
+ * of text, so a long service name such as `krateo-agent-gateway-platform` (~190px at the card's
+ * type size) takes its second line rather than an ellipsis; only a name that needs a third is cut.
+ */
+export const ARCHITECTURE_COMPACT_NODE_SIZE: [number, number] = [180, 56]
+
+/**
+ * The compact card's gaps. C19's 160px between ranks was sized for 220px cards side by side; under
+ * a 56px card it is three cards of empty space. 32px between ranks keeps an edge with its arrowhead
+ * legible and puts four ranks top to bottom (4×56 + 3×32 = 320px) inside the 360px box with the
+ * placement's 16px margins; 16px between siblings puts two side by side (376px) inside ~415px.
+ */
+export const ARCHITECTURE_COMPACT_SPACING: GraphSpacing = { nodesep: 16, ranksep: 32 }
+
+/**
+ * Each density's card box and dagre gaps. `regular` has no spacing of its own: it is C19's, and
+ * leaving it undefined is what keeps a CR that sets no density handing G6 exactly what it did.
+ */
+export const ARCHITECTURE_DENSITY: Record<ArchitectureDensity, { nodeSize: [number, number]; spacing?: GraphSpacing }> = {
+  compact: { nodeSize: ARCHITECTURE_COMPACT_NODE_SIZE, spacing: ARCHITECTURE_COMPACT_SPACING },
+  regular: { nodeSize: ARCHITECTURE_NODE_SIZE },
+}
+
+/**
+ * Each node's rank: its step in the longest chain of active dependencies, which is what `level`
+ * means in the descriptor — computed here from the edges rather than read from the data, because
+ * the widget is given `parentRefs` and not levels.
  *
  * A cycle cannot happen (the descriptor is a DAG and `toArchitectureGraphData` drops an edge whose
  * source is not drawn) but the walk is depth-capped anyway: a malformed payload must not hang the
- * page, and a wrong width only costs a fade that should not be there.
+ * page, and a wrong rank only costs a fade that should not be there.
  */
-export const architectureGraphWidth = (
+const architectureRanks = (
   nodes: readonly { id: string }[],
   edges: readonly { source: string; target: string }[],
-  cardWidth = ARCHITECTURE_NODE_SIZE[0],
-  ranksep = GRAPH_LAYOUT.ranksep,
-): number => {
-  if (nodes.length === 0) { return 0 }
+): number[] => {
   const parents = new Map<string, string[]>()
   for (const { source, target } of edges) {
     parents.set(target, [...(parents.get(target) ?? []), source])
@@ -71,9 +94,66 @@ export const architectureGraphWidth = (
     depth.set(id, own)
     return own
   }
-  const ranks = nodes.reduce((most, { id }) => Math.max(most, rankOf(id, new Set())), 0) + 1
-  return ranks * cardWidth + (ranks - 1) * ranksep
+  return nodes.map(({ id }) => rankOf(id, new Set()))
 }
+
+/** What the drawn size depends on besides the graph: which way it runs, the card, and the gaps. */
+export interface ArchitectureGeometry {
+  direction: GraphDirection
+  nodeSize: [number, number]
+  spacing: GraphSpacing
+}
+
+/**
+ * The drawn size of an architecture graph, [width, height] in px, at the cards' true size.
+ *
+ * ALONG the direction the graph is as long as its ranks: `ranks × card + (ranks − 1) × ranksep`.
+ * ACROSS it, as broad as its broadest rank: `n × card + (n − 1) × nodesep` for the rank holding the
+ * most nodes. So in LR the width is the ranks and the height the broadest column; in TB the width is
+ * the broadest ROW — three ranks of one card each are one card wide, however long the chain.
+ *
+ * Used to tell the card whether the graph runs past its box (portal#310). Before this, a graph wider
+ * than the box was simply clipped at the right edge with nothing on screen saying so: the last
+ * column was cut mid-card and read as a rendering fault rather than as "there is more, drag it".
+ * `fit="natural"` pins the LEFT (and top) edge, so overflow is on the right, or the bottom, on first
+ * paint.
+ *
+ * The across-axis is the broadest rank by this walk's ranks, which are dagre's for a tree and for
+ * the graphs a service path or a chart's descriptor draws (checked against the real dagre layout in
+ * `architectureGraphSize.layout.test.ts`). Where dagre packs a rank wider than its own cards — an
+ * edge that skips a rank takes a lane in it — the estimate is under by that lane.
+ */
+export const architectureGraphSize = (
+  nodes: readonly { id: string }[],
+  edges: readonly { source: string; target: string }[],
+  { direction, nodeSize: [cardWidth, cardHeight], spacing: { nodesep, ranksep } }: ArchitectureGeometry,
+): [number, number] => {
+  if (nodes.length === 0) { return [0, 0] }
+  const perRank = new Map<number, number>()
+  for (const rank of architectureRanks(nodes, edges)) {
+    perRank.set(rank, (perRank.get(rank) ?? 0) + 1)
+  }
+  const ranks = Math.max(...perRank.keys()) + 1
+  const broadest = Math.max(...perRank.values())
+  const along = (card: number) => ranks * card + (ranks - 1) * ranksep
+  const across = (card: number) => broadest * card + (broadest - 1) * nodesep
+  return direction === 'TB' ? [across(cardWidth), along(cardHeight)] : [along(cardWidth), across(cardHeight)]
+}
+
+/**
+ * The drawn WIDTH of an LR graph of 220px cards with C19's gaps — what the composition page's
+ * diagram has always measured: `ranks × cardWidth + (ranks − 1) × ranksep`.
+ */
+export const architectureGraphWidth = (
+  nodes: readonly { id: string }[],
+  edges: readonly { source: string; target: string }[],
+  cardWidth = ARCHITECTURE_NODE_SIZE[0],
+  ranksep = GRAPH_LAYOUT.ranksep,
+): number => architectureGraphSize(nodes, edges, {
+  direction: 'LR',
+  nodeSize: [cardWidth, ARCHITECTURE_NODE_SIZE[1]],
+  spacing: { nodesep: GRAPH_LAYOUT.nodesep, ranksep },
+})[0]
 
 const STATES: readonly ArchitectureState[] = ['done', 'waiting', 'withheld', 'unreadable', 'unavailable', 'unknown']
 
