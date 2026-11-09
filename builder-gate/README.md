@@ -92,6 +92,13 @@ Each instance, named `builder-gate-<name>`, gets:
 | `BUILDERS_NAMESPACE` | Where Builder CRs live (`krateo-system`). |
 | `SANDBOX_NAMESPACE` | The only namespace a dry-run or an inline resolve names (`krateo-preview`). |
 | `SNOWPLOW_URL` | snowplow, which the gate calls as the caller. |
+| `JQ_MODULES_PATH` | Set to `/jq-modules` only when values `snowplowJqModulesConfigMap` names snowplow's operator-modules ConfigMap, which the chart mounts there. jqcheck then loads operator modules (`include "custom"`) with snowplow's rules: a built-in name always wins, a name that climbs out of the directory is refused, and only a missing file is "not found". |
+
+`snowplowJqModulesConfigMap` must name **the ConfigMap snowplow itself mounts** at its own
+`JQ_MODULES_PATH`: snowplow's chart creates `<fullname>-jq-custom-modules`, which is
+`snowplow-jq-custom-modules` on a standard install. It must be in the gate's namespace. Empty (the
+default) means built-in modules only, so a draft that includes an operator module is red although
+snowplow would run it. A name that does not exist keeps the pod from starting, by design.
 
 ## Examples
 

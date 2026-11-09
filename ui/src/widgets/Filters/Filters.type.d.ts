@@ -16,9 +16,9 @@ export interface Filters {
      */
     widgetData: {
       /**
-       * the prefix used to share filter values with the widgets being filtered
+       * the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.
        */
-      prefix: string
+      allowedResources?: string[]
       /**
        * resourceRefIds of form-control widgets (Input/Select/Switch/DatePicker/…) composed as filter fields. Each control's `name` is the dotted data path it filters; the match strategy is inferred from the value type.
        */
@@ -28,6 +28,10 @@ export interface Filters {
          */
         resourceRefId: string
       }[]
+      /**
+       * the prefix used to share filter values with the widgets being filtered
+       */
+      prefix: string
     }
     /**
      * The resources this widget references by id. Each entry is resolved server-side and its endpoint handed to the widget; entries the caller may not read are removed before the widget renders, so a denied reference reads as absence rather than as an error.

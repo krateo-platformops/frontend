@@ -16,18 +16,6 @@ export interface Form {
      */
     widgetData: {
       /**
-       * antd Form layout
-       */
-      layout?: 'horizontal' | 'vertical' | 'inline'
-      /**
-       * antd Form size
-       */
-      size?: 'small' | 'middle' | 'large'
-      /**
-       * antd Form disabled (disables all fields)
-       */
-      disabled?: boolean
-      /**
        * the actions of the widget
        */
       actions: {
@@ -122,6 +110,8 @@ export interface Form {
           type: 'rest'
           /**
            * array of headers as strings, format 'key: value'
+           *
+           * Items: key and value as a single, example: 'x-custom-header: value'
            */
           headers: string[]
           /**
@@ -269,6 +259,44 @@ export interface Form {
         }[]
       }
       /**
+       * the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.
+       */
+      allowedResources?: string[]
+      /**
+       * Configuration for the Autocomplete form fields. The field options could be configured using enum values coming from the schema or via an API call made using a RESTAction which sould be defined below. The RESTActions shuold contain a `status` field, which is an array of object with the `{ label, value }` format.
+       */
+      autocomplete?: {
+        /**
+         * parameter to be added to the RESTAction call
+         */
+        extra?: {
+          /**
+           * the key of the additional parameter
+           */
+          key: string
+        }
+        /**
+         * the name of the autocomplete field
+         */
+        name: string
+        /**
+         * the identifier of the RESTAction that should be called to retrieve autocomplete data
+         */
+        resourceRefId?: string
+        /**
+         * true: only a listed value is accepted (a select); false: the list suggests and typed text is kept. Default false (the previous frontend rendered autocomplete fields as an autocomplete)
+         */
+        closed?: boolean
+        /**
+         * with `extra`: the typed text is sent once it has this many characters. Default 2
+         */
+        minChars?: number
+        /**
+         * `manual`: a closed field whose options cannot be loaded (the RESTAction fails, or answers an empty list) takes a typed value instead of blocking the form
+         */
+        fallback?: 'manual'
+      }[]
+      /**
        * custom labels and icons for form buttons
        */
       buttonConfig?: {
@@ -335,53 +363,6 @@ export interface Form {
         }
       }
       /**
-       * optional object with initial values for form fields. Keys should match form field names (supports nested objects). These values override schema defaults.
-       */
-      initialValues?: Record<string, unknown>
-      /**
-       * resourceRefIds of form-control widgets (Input, Select, Switch, …) to compose inside the Form. Composable mode — an alternative to the schema/stringSchema generator.
-       */
-      items?: {
-        /**
-         * the identifier of the form-control widget to render
-         */
-        resourceRefId: string
-      }[]
-      /**
-       * Configuration for the Autocomplete form fields. The field options could be configured using enum values coming from the schema or via an API call made using a RESTAction which sould be defined below. The RESTActions shuold contain a `status` field, which is an array of object with the `{ label, value }` format.
-       */
-      autocomplete?: {
-        /**
-         * parameter to be added to the RESTAction call
-         */
-        extra?: {
-          /**
-           * the key of the additional parameter
-           */
-          key: string
-        }
-        /**
-         * the name of the autocomplete field
-         */
-        name: string
-        /**
-         * the identifier of the RESTAction that should be called to retrieve autocomplete data
-         */
-        resourceRefId?: string
-        /**
-         * true: only a listed value is accepted (a select); false: the list suggests and typed text is kept. Default false (the previous frontend rendered autocomplete fields as an autocomplete)
-         */
-        closed?: boolean
-        /**
-         * with `extra`: the typed text is sent once it has this many characters. Default 2
-         */
-        minChars?: number
-        /**
-         * `manual`: a closed field whose options cannot be loaded (the RESTAction fails, or answers an empty list) takes a typed value instead of blocking the form
-         */
-        fallback?: 'manual'
-      }[]
-      /**
        * Configuration for the form fields who are dependent from other form fields. The field options are set via an API call made using a RESTAction which sould be defined below. The RESTActions shuold contain a `status` field, which is an array of object with the `{ label, value }` format.
        */
       dependencies?: {
@@ -420,6 +401,10 @@ export interface Form {
          */
         fallback?: 'manual'
       }[]
+      /**
+       * antd Form disabled (disables all fields)
+       */
+      disabled?: boolean
       /**
        * Configuration for the form fields whose displaying is dependent from other form fields.
        */
@@ -481,6 +466,27 @@ export interface Form {
         }
       }[]
       /**
+       * optional id of an action fired by a 'Save draft' button that captures the CURRENT field values WITHOUT running form validation (so an incomplete form can be persisted). Pair with buttonConfig.draft to show the button.
+       */
+      draftActionId?: string
+      /**
+       * optional object with initial values for form fields. Keys should match form field names (supports nested objects). These values override schema defaults.
+       */
+      initialValues?: Record<string, unknown>
+      /**
+       * resourceRefIds of form-control widgets (Input, Select, Switch, …) to compose inside the Form. Composable mode — an alternative to the schema/stringSchema generator.
+       */
+      items?: {
+        /**
+         * the identifier of the form-control widget to render
+         */
+        resourceRefId: string
+      }[]
+      /**
+       * antd Form layout
+       */
+      layout?: 'horizontal' | 'vertical' | 'inline'
+      /**
        * a message shown above the fields of a schema form (e.g. the blueprint formdef's note that the form was built from the CRD)
        */
       notice?: string
@@ -497,6 +503,53 @@ export interface Form {
          */
         displayField: string
       }[]
+      /**
+       * top-level schema property names to omit from the schema-driven form
+       */
+      propertiesToHide?: string[]
+      /**
+       * when true (inline render only), the primary button validates and reveals an in-place read-only Review of the entered values before the real submit — the form stays mounted so 'Back to edit' preserves every value. Pair with buttonConfig.review / buttonConfig.reviewBack for custom labels.
+       */
+      reviewBeforeSubmit?: boolean
+      /**
+       * JSON schema (e.g. a blueprint CRD's openAPIV3Schema spec) rendered as form fields — the schema-driven alternative to `items`. Usually populated server-side via a widgetDataTemplate jq expression that extracts the spec schema. Note: a schema sourced from a CRD's openAPIV3Schema has its `properties` map serialized alphabetically (order lost); use `stringSchema` to preserve the source values.schema.json authoring order.
+       */
+      schema?: Record<string, unknown>
+      /**
+       * antd Form size
+       */
+      size?: 'small' | 'middle' | 'large'
+      /**
+       * Same JSON schema as `schema`, but as a raw JSON STRING. Preferred over `schema` when present: the client JSON.parses it, preserving key insertion order, so fields render in the source values.schema.json order rather than the alphabetized order a CRD-sourced object schema yields. Typically populated server-side from the blueprint's per-version jsonschema ConfigMap (which keeps authoring order). Falls back to `schema` when absent or not valid JSON.
+       */
+      stringSchema?: string
+      /**
+       * the id of the action to be called when the form is submitted
+       */
+      submitActionId: string
+      /**
+       * optional field-conditional submit routing: when present, the submit action is chosen at submit time from the value of the named field. Routes one form to different create targets (e.g. a 'target cluster' select where 'local' posts the blueprint instance and a remote spoke posts a RemoteInstall). Falls back to `default` (or `submitActionId`) when the field value has no mapping.
+       */
+      submitActionSelector?: {
+        /**
+         * form field whose current value selects the submit action
+         */
+        field: string
+        /**
+         * map of field-value → action id
+         */
+        map: {
+          [k: string]: string
+        }
+        /**
+         * action id used when the field value is not present in `map`
+         */
+        default?: string
+      }
+      /**
+       * when true, the primary (submit) button stays disabled until at least one field differs from its initial value (initialValues overlaid on schema defaults). Use for update forms where submitting an unchanged value is a no-op — e.g. a version picker pre-set to the currently-installed version.
+       */
+      submitDisabledWhenPristine?: boolean
       /**
        * a static, open catalogue for a field: the options are offered, and any typed value is kept
        */
@@ -527,53 +580,6 @@ export interface Form {
           group?: string
         }[]
       }[]
-      /**
-       * JSON schema (e.g. a blueprint CRD's openAPIV3Schema spec) rendered as form fields — the schema-driven alternative to `items`. Usually populated server-side via a widgetDataTemplate jq expression that extracts the spec schema. Note: a schema sourced from a CRD's openAPIV3Schema has its `properties` map serialized alphabetically (order lost); use `stringSchema` to preserve the source values.schema.json authoring order.
-       */
-      schema?: Record<string, unknown>
-      /**
-       * Same JSON schema as `schema`, but as a raw JSON STRING. Preferred over `schema` when present: the client JSON.parses it, preserving key insertion order, so fields render in the source values.schema.json order rather than the alphabetized order a CRD-sourced object schema yields. Typically populated server-side from the blueprint's per-version jsonschema ConfigMap (which keeps authoring order). Falls back to `schema` when absent or not valid JSON.
-       */
-      stringSchema?: string
-      /**
-       * top-level schema property names to omit from the schema-driven form
-       */
-      propertiesToHide?: string[]
-      /**
-       * when true (inline render only), the primary button validates and reveals an in-place read-only Review of the entered values before the real submit — the form stays mounted so 'Back to edit' preserves every value. Pair with buttonConfig.review / buttonConfig.reviewBack for custom labels.
-       */
-      reviewBeforeSubmit?: boolean
-      /**
-       * when true, the primary (submit) button stays disabled until at least one field differs from its initial value (initialValues overlaid on schema defaults). Use for update forms where submitting an unchanged value is a no-op — e.g. a version picker pre-set to the currently-installed version.
-       */
-      submitDisabledWhenPristine?: boolean
-      /**
-       * the id of the action to be called when the form is submitted
-       */
-      submitActionId: string
-      /**
-       * optional id of an action fired by a 'Save draft' button that captures the CURRENT field values WITHOUT running form validation (so an incomplete form can be persisted). Pair with buttonConfig.draft to show the button.
-       */
-      draftActionId?: string
-      /**
-       * optional field-conditional submit routing: when present, the submit action is chosen at submit time from the value of the named field. Routes one form to different create targets (e.g. a 'target cluster' select where 'local' posts the blueprint instance and a remote spoke posts a RemoteInstall). Falls back to `default` (or `submitActionId`) when the field value has no mapping.
-       */
-      submitActionSelector?: {
-        /**
-         * form field whose current value selects the submit action
-         */
-        field: string
-        /**
-         * map of field-value → action id
-         */
-        map: {
-          [k: string]: string
-        }
-        /**
-         * action id used when the field value is not present in `map`
-         */
-        default?: string
-      }
     }
     /**
      * Binds this widget to a RESTAction whose response feeds the widgetDataTemplate and resourcesRefsTemplate expressions. Omit it for a widget whose data is entirely static.

@@ -11,7 +11,8 @@ import { snowplowClient } from '../src/snowplow'
 
 export const ROOT = join(__dirname, '..')
 export const FIXTURES = join(ROOT, '..', 'ui', 'src', 'builders', 'fixtures')
-export const jq = jqcheckEngine(process.env.JQCHECK_BIN || join(ROOT, 'bin', 'jqcheck'))
+export const JQCHECK = process.env.JQCHECK_BIN || join(ROOT, 'bin', 'jqcheck')
+export const jq = jqcheckEngine(JQCHECK)
 
 /**
  * A draft is a list of custom resources, each an untyped JSON object.

@@ -16,6 +16,10 @@ export interface Steps {
      */
     widgetData: {
       /**
+       * the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.
+       */
+      allowedResources?: string[]
+      /**
        * the index of the current step (0-based)
        */
       current?: number
@@ -23,26 +27,6 @@ export interface Steps {
        * the step to show as current (0-based) while a Form on the same page shows its Review step (`reviewBeforeSubmit`). Not an antd prop: a wizard's header and its Form are separate widgets, and this is how the header follows the review. Unset, `current` never changes.
        */
       reviewCurrent?: number
-      /**
-       * the layout orientation of the steps (antd Steps `orientation`)
-       */
-      orientation?: 'horizontal' | 'vertical'
-      /**
-       * the size of the steps
-       */
-      size?: 'default' | 'small'
-      /**
-       * the status of the current step
-       */
-      status?: 'wait' | 'process' | 'finish' | 'error'
-      /**
-       * where the title is placed relative to the step icon (antd Steps `titlePlacement`)
-       */
-      titlePlacement?: 'horizontal' | 'vertical'
-      /**
-       * the visual type of the steps
-       */
-      type?: 'default' | 'navigation' | 'inline'
       /**
        * the steps to display
        */
@@ -76,6 +60,26 @@ export interface Steps {
          */
         resourceRefId?: string
       }[]
+      /**
+       * the layout orientation of the steps (antd Steps `orientation`)
+       */
+      orientation?: 'horizontal' | 'vertical'
+      /**
+       * the size of the steps
+       */
+      size?: 'default' | 'small'
+      /**
+       * the status of the current step
+       */
+      status?: 'wait' | 'process' | 'finish' | 'error'
+      /**
+       * where the title is placed relative to the step icon (antd Steps `titlePlacement`)
+       */
+      titlePlacement?: 'horizontal' | 'vertical'
+      /**
+       * the visual type of the steps
+       */
+      type?: 'default' | 'navigation' | 'inline'
     }
     /**
      * Binds this widget to a RESTAction whose response feeds the widgetDataTemplate and resourcesRefsTemplate expressions. Omit it for a widget whose data is entirely static.

@@ -1,7 +1,8 @@
 /**
  * snowplow's jq engine, out of process: the `jqcheck` binary (jqcheck/main.go) is built against
- * the same gojq fork snowplow's go.mod replaces gojq with, and embeds snowplow's built-in modules
- * at the tag in SNOWPLOW_REF. Node never parses jq itself — a second parser would be a second
+ * the same gojq fork snowplow's go.mod replaces gojq with, embeds snowplow's built-in modules at
+ * the tag in SNOWPLOW_REF, and loads snowplow's operator modules from JQ_MODULES_PATH (inherited
+ * from this process; the chart mounts snowplow's ConfigMap there). Node never parses jq itself — a second parser would be a second
  * opinion on what compiles.
  */
 import { spawn } from 'node:child_process'
@@ -24,8 +25,8 @@ export interface JqEngine {
   eval(query: string, data: unknown): Promise<JqEvalResult>
 }
 
-const run = (bin: string, input: string, timeoutMs: number): Promise<string> => new Promise((resolve, reject) => {
-  const child = spawn(bin, [], { stdio: ['pipe', 'pipe', 'pipe'] })
+const run = (bin: string, input: string, timeoutMs: number, env: NodeJS.ProcessEnv): Promise<string> => new Promise((resolve, reject) => {
+  const child = spawn(bin, [], { env, stdio: ['pipe', 'pipe', 'pipe'] })
   const out: Buffer[] = []
   const err: Buffer[] = []
   const timer = setTimeout(() => {
@@ -49,15 +50,16 @@ const run = (bin: string, input: string, timeoutMs: number): Promise<string> => 
   child.stdin.end(input)
 })
 
-export const jqcheckEngine = (bin: string = process.env.JQCHECK_BIN || 'jqcheck', timeoutMs = 30_000): JqEngine => ({
+/** `env` is jqcheck's environment — this process's unless given; JQ_MODULES_PATH is the one it reads. */
+export const jqcheckEngine = (bin: string = process.env.JQCHECK_BIN || 'jqcheck', timeoutMs = 30_000, env: NodeJS.ProcessEnv = process.env): JqEngine => ({
   async compile(exprs) {
     if (exprs.length === 0) {
       return []
     }
-    const out = JSON.parse(await run(bin, JSON.stringify({ exprs, mode: 'compile' }), timeoutMs)) as { results: JqCompileResult[] }
+    const out = JSON.parse(await run(bin, JSON.stringify({ exprs, mode: 'compile' }), timeoutMs, env)) as { results: JqCompileResult[] }
     return out.results
   },
   async eval(query, data) {
-    return JSON.parse(await run(bin, JSON.stringify({ data, mode: 'eval', query }), timeoutMs)) as JqEvalResult
+    return JSON.parse(await run(bin, JSON.stringify({ data, mode: 'eval', query }), timeoutMs, env)) as JqEvalResult
   },
 })
