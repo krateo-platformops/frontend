@@ -16,9 +16,135 @@ export interface Card {
      */
     widgetData: {
       /**
+       * the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.
+       */
+      allowedResources?: string[]
+      /**
        * renders this panel with a DOM id so an in-page `[text](#anchorId)` link (e.g. a summary/table-of-contents Markdown widget) scrolls to it
        */
       anchorId?: string
+      /**
+       * the id of the action to be executed when the panel is clicked
+       */
+      clickActionId?: string
+      /**
+       * resourceRefId of a widget rendered as the antd Card cover
+       */
+      cover?: string
+      /**
+       * antd Card extra — content shown top-right of the card header (renamed from `headerRight`)
+       */
+      extra?: string
+      /**
+       * resourceRefId of a widget (e.g. a Button) rendered top-right of the card header — a real, independently-actioned slot with its own icon/size/navigation, distinct from the plain-text `extra`. Mirrors the `cover`/`footer` widget slots; renders a nested WidgetRenderer, so it does NOT make the whole card the click target the way `extra` + `clickActionId` does.
+       */
+      extraRefId?: string
+      /**
+       * colour token: antd Badge status for `extraVariant: badge`; antd Tag color for `extraVariant: tag`
+       */
+      extraStatus?:
+        'success' | 'processing' | 'warning' | 'error' | 'default' | 'green' | 'gold' | 'red' | 'blue' | 'violet'
+      /**
+       * how `extra` renders top-right: `text` (default, plain), `badge` (glow dot + uppercase mono, for CONVERGED/DRIFT/DEGRADED), or `tag` (soft antd Tag pill — for Up to date / status labels)
+       */
+      extraVariant?: 'text' | 'badge' | 'tag'
+      /**
+       * footer section of the panel containing additional items
+       */
+      footer?: {
+        /**
+         * the identifier of the k8s custom resource that should be represented, usually a widget
+         */
+        resourceRefId: string
+      }[]
+      /**
+       * optional text to be displayed under the title, on the left side of the Card
+       */
+      headerLeft?: string
+      /**
+       * icon displayed in the panel header
+       */
+      icon?: {
+        /**
+         * name of the icon to display (font awesome icon name eg: `fa-inbox`)
+         */
+        name: string
+        /**
+         * color of the icon
+         */
+        color?: string
+      }
+      /**
+       * list of resource references to display as main content in the panel
+       */
+      items: {
+        /**
+         * the identifier of the k8s custom resource that should be represented, usually a widget
+         */
+        resourceRefId: string
+      }[]
+      /**
+       * optional legend key shown top-right of the card header (e.g. the reconciliation-rail actual/drift/target swatches): each item is a small colour swatch + label
+       */
+      legend?: {
+        /**
+         * swatch colour (palette name, e.g. cyan / magenta / amber)
+         */
+        color: string
+        /**
+         * swatch label (e.g. actual / drift / target)
+         */
+        label: string
+      }[]
+      /**
+       * show a pulsing "Live" badge next to the card title (for cards backed by a live/SSE feed)
+       */
+      live?: boolean
+      /**
+       * antd Card size
+       */
+      size?: 'default' | 'small'
+      /**
+       * list of string tags to be displayed in the footer
+       */
+      tags?: string[]
+      /**
+       * text to be displayed as the panel title
+       */
+      title?: string
+      /**
+       * how the panel title is rendered. 'heading' (default) = readable card heading (marketplace tiles, detail headers). 'eyebrow' = small mono uppercase letter-spaced muted caption (flight-deck section/panel labels).
+       */
+      titleVariant?: 'heading' | 'eyebrow'
+      /**
+       * optional tooltip text shown on the top right side of the card to provide additional context
+       */
+      tooltip?: string
+      /**
+       * antd Card variant
+       */
+      variant?: 'outlined' | 'borderless'
+      /**
+       * live-refresh watch: involvedObject(s) this widget is tied to (see src/schemas/watch.schema.json). A matching k8s event refetches the widget.
+       */
+      watch?: {
+        /**
+         * group/version, e.g. composition.krateo.io/v1alpha1
+         */
+        apiVersion: string
+        /**
+         * e.g. DemoClaim
+         */
+        kind: string
+        /**
+         * scope to a namespace; omit to match any
+         */
+        namespace?: string
+        /**
+         * a specific object; omit to match any object of this kind ("GVR-level")
+         */
+        name?: string
+      }[]
       /**
        * the Krateo event actions of the widget (renamed from `actions`, which collides with antd Card.actions)
        */
@@ -114,6 +240,8 @@ export interface Card {
           type: 'rest'
           /**
            * array of headers as strings, format 'key: value'
+           *
+           * Items: key and value as a single, example: 'x-custom-header: value'
            */
           headers: string[]
           /**
@@ -260,128 +388,6 @@ export interface Card {
           size?: 'default' | 'large' | 'fullscreen' | 'custom'
         }[]
       }
-      /**
-       * the id of the action to be executed when the panel is clicked
-       */
-      clickActionId?: string
-      /**
-       * footer section of the panel containing additional items
-       */
-      footer?: {
-        /**
-         * the identifier of the k8s custom resource that should be represented, usually a widget
-         */
-        resourceRefId: string
-      }[]
-      /**
-       * optional text to be displayed under the title, on the left side of the Card
-       */
-      headerLeft?: string
-      /**
-       * antd Card extra — content shown top-right of the card header (renamed from `headerRight`)
-       */
-      extra?: string
-      /**
-       * how `extra` renders top-right: `text` (default, plain), `badge` (glow dot + uppercase mono, for CONVERGED/DRIFT/DEGRADED), or `tag` (soft antd Tag pill — for Up to date / status labels)
-       */
-      extraVariant?: 'text' | 'badge' | 'tag'
-      /**
-       * colour token: antd Badge status for `extraVariant: badge`; antd Tag color for `extraVariant: tag`
-       */
-      extraStatus?:
-        'success' | 'processing' | 'warning' | 'error' | 'default' | 'green' | 'gold' | 'red' | 'blue' | 'violet'
-      /**
-       * resourceRefId of a widget (e.g. a Button) rendered top-right of the card header — a real, independently-actioned slot with its own icon/size/navigation, distinct from the plain-text `extra`. Mirrors the `cover`/`footer` widget slots; renders a nested WidgetRenderer, so it does NOT make the whole card the click target the way `extra` + `clickActionId` does.
-       */
-      extraRefId?: string
-      /**
-       * show a pulsing "Live" badge next to the card title (for cards backed by a live/SSE feed)
-       */
-      live?: boolean
-      /**
-       * optional legend key shown top-right of the card header (e.g. the reconciliation-rail actual/drift/target swatches): each item is a small colour swatch + label
-       */
-      legend?: {
-        /**
-         * swatch colour (palette name, e.g. cyan / magenta / amber)
-         */
-        color: string
-        /**
-         * swatch label (e.g. actual / drift / target)
-         */
-        label: string
-      }[]
-      /**
-       * antd Card variant
-       */
-      variant?: 'outlined' | 'borderless'
-      /**
-       * antd Card size
-       */
-      size?: 'default' | 'small'
-      /**
-       * resourceRefId of a widget rendered as the antd Card cover
-       */
-      cover?: string
-      /**
-       * icon displayed in the panel header
-       */
-      icon?: {
-        /**
-         * name of the icon to display (font awesome icon name eg: `fa-inbox`)
-         */
-        name: string
-        /**
-         * color of the icon
-         */
-        color?: string
-      }
-      /**
-       * list of resource references to display as main content in the panel
-       */
-      items: {
-        /**
-         * the identifier of the k8s custom resource that should be represented, usually a widget
-         */
-        resourceRefId: string
-      }[]
-      /**
-       * list of string tags to be displayed in the footer
-       */
-      tags?: string[]
-      /**
-       * text to be displayed as the panel title
-       */
-      title?: string
-      /**
-       * how the panel title is rendered. 'heading' (default) = readable card heading (marketplace tiles, detail headers). 'eyebrow' = small mono uppercase letter-spaced muted caption (flight-deck section/panel labels).
-       */
-      titleVariant?: 'heading' | 'eyebrow'
-      /**
-       * optional tooltip text shown on the top right side of the card to provide additional context
-       */
-      tooltip?: string
-      /**
-       * live-refresh watch: involvedObject(s) this widget is tied to (see src/schemas/watch.schema.json). A matching k8s event refetches the widget.
-       */
-      watch?: {
-        /**
-         * group/version, e.g. composition.krateo.io/v1alpha1
-         */
-        apiVersion: string
-        /**
-         * e.g. DemoClaim
-         */
-        kind: string
-        /**
-         * scope to a namespace; omit to match any
-         */
-        namespace?: string
-        /**
-         * a specific object; omit to match any object of this kind ("GVR-level")
-         */
-        name?: string
-      }[]
     }
     /**
      * The resources this widget references by id. Each entry is resolved server-side and its endpoint handed to the widget; entries the caller may not read are removed before the widget renders, so a denied reference reads as absence rather than as an error.

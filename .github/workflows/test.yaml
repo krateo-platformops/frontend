@@ -43,3 +43,10 @@ jobs:
       # request instead of an apiserver rejection at publish, which is where it used to surface.
       - name: Widget kinds in step with the CRDs
         run: npx tsx scripts/gen-widget-kinds.ts --check
+
+      # Each widget's <Widget>.type.d.ts is generated from its <Widget>.schema.json and committed.
+      # Nothing checked that, and seven drifted: hand-edited, or left behind when a schema gained a
+      # field. This regenerates in memory and fails, naming the file, when a committed type file
+      # differs from its schema's output.
+      - name: Widget types in step with the schemas
+        run: npx tsx scripts/generate-types.ts --check
