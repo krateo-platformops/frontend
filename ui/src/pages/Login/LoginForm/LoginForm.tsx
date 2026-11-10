@@ -10,6 +10,22 @@ type LoginType = {
   isLoading: boolean
 }
 
+/*
+ * The form's antd `name`, which antd prefixes to every field id (`<name>_username`) and so to every
+ * label's `for`. It was the literal 'basic' on every form, so with two credential strategies stacked
+ * (basic and an LDAPConfig, or two LDAPConfigs) the inputs shared ids and the second form's labels
+ * pointed at the first form's inputs: clicking "Password" focused the wrong field, and assistive tech
+ * announced the wrong association.
+ *
+ * Derived from the /strategies entry, so it is unique on the page and stable across renders: `kind`
+ * tells basic from ldap, and `name` — the LDAPConfig's, absent for basic — tells two LDAPConfigs
+ * apart. `_` joins them because a Kubernetes object name cannot contain one, so no two entries can
+ * meet on the same string.
+ */
+const loginFormNameOf = ({ kind, name }: AuthModeType): string => (
+  name ? `login_${kind}_${name}` : `login_${kind}`
+)
+
 const LoginForm = ({ isLoading, method, onSubmit }: LoginType) => {
   return (
     <section className={styles.form}>
@@ -17,7 +33,7 @@ const LoginForm = ({ isLoading, method, onSubmit }: LoginType) => {
         autoComplete='off'
         disabled={isLoading}
         layout='vertical'
-        name='basic'
+        name={loginFormNameOf(method)}
         onFinish={onSubmit}
         requiredMark={false}
       >

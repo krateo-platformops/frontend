@@ -15,7 +15,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { App } from 'antd'
-import { MemoryRouter } from 'react-router'
+import { MemoryRouter, useLocation } from 'react-router'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import Login from './Login'
@@ -51,17 +51,35 @@ const installFetchMock = (
   return fetchMock
 }
 
-const renderLogin = () => {
+// Where the router is: the page navigates on success, and must NOT when it has nothing to store.
+const LocationProbe = () => {
+  const { pathname, search } = useLocation()
+  return <output data-testid='location'>{`${pathname}${search}`}</output>
+}
+
+const renderLogin = (entry = '/login') => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <App>
-      <MemoryRouter initialEntries={['/login']}>
+      <MemoryRouter initialEntries={[entry]}>
         <QueryClientProvider client={queryClient}>
           <Login />
+          <LocationProbe />
         </QueryClientProvider>
       </MemoryRouter>
     </App>
   )
+}
+
+const submitCredentials = async () => {
+  fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'ada' } })
+  fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } })
+  fireEvent.click(screen.getByRole('button', { name: /ldap sign in/i }))
+}
+
+const resultText = async () => {
+  await waitFor(() => expect(document.querySelector('.ant-result')).not.toBeNull())
+  return document.querySelector('.ant-result')?.textContent ?? ''
 }
 
 const signIn = async () => {
@@ -95,6 +113,7 @@ afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
   document.body.innerHTML = ''
+  localStorage.clear()
 })
 
 describe('Login failure notification', () => {
@@ -174,5 +193,52 @@ describe('Login page failures shown in place of the form', () => {
     expect(text).toMatch(/the platform could not check your credentials/i)
     expect(text).toMatch(/\(LoginNoAnswer\)/)
     expect(text).not.toMatch(/ops!|error during the login operation/i)
+  })
+
+  /*
+   * The no-answer <Result> used to replace the form with nothing to press: only a reload brought the
+   * form back. It now offers the callback page's own "Start the sign-in again", and following it
+   * must give a clean form on the same URL — the ?next= the session-resume flow parked included.
+   */
+  it('the no-answer <Result> offers "Start the sign-in again", which brings back an empty form on the same URL', async () => {
+    installFetchMock(200, '{}', { login: () => Promise.reject(new TypeError('Failed to fetch')) })
+    renderLogin('/login?next=%2Fcompositions')
+    await submitCredentials()
+    expect(await resultText()).toMatch(/\(LoginNoAnswer\)/)
+
+    fireEvent.click(screen.getByRole('link', { name: 'Start the sign-in again' }))
+
+    await waitFor(() => expect(document.querySelector('.ant-result')).toBeNull())
+    expect(screen.getByLabelText<HTMLInputElement>('Username').value).toBe('')
+    expect(screen.getByLabelText<HTMLInputElement>('Password').value).toBe('')
+    expect(screen.getByTestId('location').textContent).toBe('/login?next=%2Fcompositions')
+  })
+})
+
+describe('Login stores only a session in K_user', () => {
+  it('authn\'s login response is stored as given, and the page moves on', async () => {
+    const session = { accessToken: 'tok', groups: ['devs'], user: { avatarURL: '', displayName: 'Ada', username: 'ada' } }
+    installFetchMock(200, JSON.stringify(session))
+    renderLogin()
+    await submitCredentials()
+
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/'))
+    expect(JSON.parse(localStorage.getItem('K_user')!)).toEqual(session)
+  })
+
+  /*
+   * The reply was cast to `AuthModeType[]` — the /strategies list — and stored unchecked, so a 2xx
+   * that was not a session became one: K_user without a token, and a page that moved on into a
+   * portal whose every call would go out unauthenticated. The /strategies list itself is the body
+   * here, the very shape the cast named.
+   */
+  it('a 2xx that is not a session is not stored as one: no K_user, no navigation, the no-answer <Result>', async () => {
+    installFetchMock(200, JSON.stringify([LDAP]))
+    renderLogin()
+    await submitCredentials()
+
+    expect(await resultText()).toMatch(/\(LoginNoAnswer\)/)
+    expect(localStorage.getItem('K_user')).toBeNull()
+    expect(screen.getByTestId('location').textContent).toBe('/login')
   })
 })

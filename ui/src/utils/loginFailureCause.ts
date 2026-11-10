@@ -642,8 +642,24 @@ export const credentialUrlFailureOf = (
 ): LoginFailureCause => (reason === 'StrategyWithoutPath' ? STRATEGY_WITHOUT_PATH : LDAP_STRATEGY_WITHOUT_NAME)
 
 /*
+ * The password form was submitted with the username or the password empty. Nothing was sent, so
+ * nothing was refused: REFUSED's "not accepted" would be false, and so would authn's
+ * `MissingCredentials`, which means no Authorization header reached authn. It used to say "Wrong
+ * username or password, try again with different credentials" — about credentials nobody had typed.
+ * The form's `required` rules stop this submit today; the branch that uses this stays so that a form
+ * without those rules still says what happened. No `reason`: this is the page's own check, not a
+ * cause anyone needs to look up.
+ */
+export const CREDENTIALS_REQUIRED: LoginFailureCause = {
+  action: 'retype',
+  reason: null,
+  text: 'A username and a password are both required.',
+}
+
+/*
  * The password form's call to authn did not produce an answer: the fetch was rejected (authn
- * unreachable) or a 2xx body was not JSON (something in front of authn answered for it). Every
+ * unreachable), or a 2xx body was not JSON or not a session (something in front of authn answered
+ * for it — authn's own 2xx always carries an access token). Every
  * answer authn DOES give is classified by loginFailureCauseOf and shown as a notification; this is
  * the case with no answer, which is exactly what PLATFORM describes — the platform could not check
  * the credentials, and a retry may well work.

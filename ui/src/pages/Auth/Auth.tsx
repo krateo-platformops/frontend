@@ -21,6 +21,7 @@ import { resolveNextPath, SESSION_RESUME_NEXT_KEY } from '../../utils/nextPath'
 import { fetchStrategies, strategiesFailureFrom } from '../../utils/strategies'
 import type { AuthModeType, AuthRequestType, AuthResponseType } from '../Login/Login.types'
 import { takeSocialLoginState, takeSocialLoginVerifier } from '../Login/SocialLogin/SocialLogin'
+import StartSignInAgain from '../Login/StartSignInAgain'
 
 const Auth = () => {
   const navigate = useNavigate()
@@ -293,11 +294,9 @@ const Auth = () => {
            * page" would describe the navigation rather than the action, and this is the one failure
            * on this page where the person can finish the job themselves.
            */
-          extra={(
-            <Link to='/login'>
-              {failure?.action === 'restart' ? 'Start the sign-in again' : 'Return to the Login page'}
-            </Link>
-          )}
+          extra={failure?.action === 'restart'
+            ? <StartSignInAgain />
+            : <Link to='/login'>Return to the Login page</Link>}
           status={failure?.action === 'escalate' ? 'error' : 'warning'}
           /*
            * Every failure path now sets `failure` before `showError`. The generic fallback stays only
