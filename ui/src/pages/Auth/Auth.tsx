@@ -2,14 +2,20 @@ import type { IconProp } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Result, Space, Spin, Typography } from 'antd'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 
 import { useConfigContext } from '../../context/ConfigContext'
 import useCatchError from '../../hooks/useCatchError'
 import { invalidateAccessTokenCache } from '../../utils/getAccessToken'
 import type { LoginFailureCause } from '../../utils/loginFailureCause'
-import { callbackFailureOf, LOGIN_FAILURE_TITLE, loginFailureCauseOf } from '../../utils/loginFailureCause'
+import {
+  CALLBACK_NO_STRATEGY,
+  CALLBACK_STATE_MISMATCH,
+  callbackFailureOf,
+  LOGIN_FAILURE_TITLE,
+  loginFailureCauseOf,
+} from '../../utils/loginFailureCause'
 import { resolveNextPath, SESSION_RESUME_NEXT_KEY } from '../../utils/nextPath'
 import type { AuthModeType, AuthRequestType, AuthResponseType } from '../Login/Login.types'
 import { takeSocialLoginState, takeSocialLoginVerifier } from '../Login/SocialLogin/SocialLogin'
@@ -22,9 +28,9 @@ const Auth = () => {
   const [showError, setShowError] = useState<boolean>(false)
   /*
    * Why the round trip failed: from authn's answer to the exchange, or from the IdP's `?error=`
-   * when the callback carried no code. Null covers the two cases that have neither: /strategies
-   * itself failing, and a state mismatch — so the Result below keeps its generic subtitle for those
-   * rather than inventing a cause.
+   * when the callback carried no code, or from this page's own refusal of a callback it will not
+   * exchange (a state mismatch, no matching strategy). Null covers only /strategies itself failing,
+   * so the Result below keeps its generic subtitle for that rather than inventing a cause.
    */
   const [failure, setFailure] = useState<LoginFailureCause | null>(null)
 
@@ -32,6 +38,17 @@ const Auth = () => {
   const state = searchParams.get('state')
   const kind = searchParams.get('kind')
   const idpError = searchParams.get('error')
+  // An empty `?code=` is no code: there is nothing to exchange, and sending it would only earn
+  // authn's MissingAuthorizationCode for a fault that is not the install's.
+  const hasCode = code !== null && code !== ''
+  /*
+   * Set once this callback's fate is decided — exchanged, or refused below. The main effect below
+   * re-runs whenever its dependencies change — a /strategies refetch that returns a changed list is
+   * enough — and the state and verifier it reads are SPENT on the first run: a second run would find
+   * no state, take the unvalidated branch, and exchange a code this page had just refused for a
+   * state mismatch. One callback, one decision.
+   */
+  const decided = useRef(false)
 
   /*
    * A callback with no `?code=` — the IdP sent back `?error=` (a cancelled consent, a refused
@@ -50,12 +67,12 @@ const Auth = () => {
    * callback that is not this one (#583).
    */
   useEffect(() => {
-    if (code !== null) { return }
+    if (hasCode) { return }
     takeSocialLoginState()
     takeSocialLoginVerifier()
     setFailure(callbackFailureOf(idpError))
     setShowError(true)
-  }, [code, idpError])
+  }, [hasCode, idpError])
 
   const { config } = useConfigContext()
 
@@ -179,7 +196,8 @@ const Auth = () => {
       }
     }
 
-    if (!isSocialAuthError && isMethodSuccess) {
+    if (hasCode && !decided.current && !isSocialAuthError && isMethodSuccess) {
+      decided.current = true
       const methodData = methods
         ?.find((el) => (el.kind === kind) && el.extensions?.redirectURL && (el.extensions.redirectURL.indexOf(window.location.protocol) > -1))
 
@@ -200,11 +218,26 @@ const Auth = () => {
        * the same flow.
        */
       const sentVerifier = takeSocialLoginVerifier()
-      if (sentState !== null) {
-        if (state === sentState && code && methodData) {
-          void socialAuth(code, methodData, sentVerifier)
-        }
-      } else if (code && methodData) {
+      /*
+       * Neither refusal below exchanges the code, and both used to stop here silently — the page
+       * stayed on its spinner forever. See CALLBACK_STATE_MISMATCH and CALLBACK_NO_STRATEGY.
+       *
+       * The state mismatch gets no notification, like the code-less callback: nobody did anything
+       * wrong, and the <Result> says all there is. The missing strategy does, because it carries a
+       * cause an administrator needs to see.
+       */
+      if (sentState !== null && state !== sentState) {
+        setFailure(CALLBACK_STATE_MISMATCH)
+        setShowError(true)
+      } else if (!methodData) {
+        setFailure(CALLBACK_NO_STRATEGY)
+        catchError({
+          description: `${CALLBACK_NO_STRATEGY.text} (${CALLBACK_NO_STRATEGY.reason})`,
+          // No `status`: there was no HTTP failure to report, and inventing one would mislabel it.
+          message: LOGIN_FAILURE_TITLE[CALLBACK_NO_STRATEGY.action],
+        }, 'notification')
+        setShowError(true)
+      } else {
         void socialAuth(code, methodData, sentVerifier)
       }
     }
@@ -212,7 +245,7 @@ const Auth = () => {
     if (isMethodsError || isSocialAuthError) {
       setShowError(true)
     }
-  }, [code, methods, isSocialAuthError, isMethodsError, isMethodSuccess, navigate, socialsAuthentication, state, kind])
+  }, [catchError, code, hasCode, methods, isSocialAuthError, isMethodsError, isMethodSuccess, navigate, socialsAuthentication, state, kind])
 
   return (
     showError

@@ -202,30 +202,43 @@ const REQUEST_ACCESS_REASONS = new Set([
 ])
 
 /*
+ * 403 TokenExpired — the ID token the IdP just issued has an `exp` more than authn's one-minute
+ *     clock skew in the past. authn's docs/api.md: "Start the sign-in again" — and "Repeating means
+ *     the clocks of authn and the IdP disagree".
+ *
+ *     So it is a restart, not an escalation. It used to sit with the three refusals below and say
+ *     "Retrying will not help", which contradicts authn: an ID token that was merely slow to arrive
+ *     is replaced by a fresh one. What a fresh attempt cannot fix is skewed clocks, and that is the
+ *     only thing the hand-off in the copy names.
+ *
+ * NOTE ON `TokenExpired`, WHICH IS A COLLISION WAITING TO BE MISREAD. `authFailureCause.ts` also
+ * knows a `TokenExpired`, and treats it as "your session ended, sign in again". That is a DIFFERENT
+ * token: there it is the caller's own Krateo session token on a resource 401; here it is the ID
+ * token the IdP just issued, on the login route. Same string, different subject, and the right
+ * advice differs — this one's repeat is a clock problem for an administrator, which a session
+ * expiry never is — so do not unify them.
+ */
+const RESTART_CLOCK_REASONS = new Set([
+  'TokenExpired',
+])
+
+/*
  * The IdP's RESPONSE was refused, rather than the person or the code — all 403, and authn's own
  * comment on them is "retrying unchanged fails again":
  *
  *   403 IDTokenInvalid     the ID token did not validate
  *   403 IssuerMismatch     `iss` is not the configured issuer
  *   403 AudienceMismatch   `aud` is not this client
- *   403 TokenExpired       the ID token's `exp` has passed, beyond authn's one-minute clock skew
  *
  * These escalate, like any platform failure, but they must NOT carry the ordinary platform copy,
  * because that says "retry shortly" — and for an issuer or audience mismatch every retry produces
  * the same refusal. An OIDCConfig pointing at the wrong issuer fails identically forever, and
  * telling someone to wait and try again sends them round a loop with no exit.
- *
- * NOTE ON `TokenExpired`, WHICH IS A COLLISION WAITING TO BE MISREAD. `authFailureCause.ts` also
- * knows a `TokenExpired`, and treats it as "your session ended, sign in again". That is a DIFFERENT
- * token: there it is the caller's own Krateo session token on a resource 401; here it is the ID
- * token the IdP just issued, on the login route. Same string, different subject, and the right
- * advice differs — do not unify them.
  */
 const PLATFORM_REFUSAL_REASONS = new Set([
   'AudienceMismatch',
   'IDTokenInvalid',
   'IssuerMismatch',
-  'TokenExpired',
 ])
 
 /*
@@ -351,6 +364,9 @@ const NOT_ADMITTED = 'Your identity provider signed you in, but your account is 
 const RESTART_HERE = 'That sign-in could not be finished in this browser. Start the sign-in again '
   + 'from here — and if it keeps happening, tell an administrator, because the sign-in may be '
   + 'misconfigured.'
+const STALE_ID_TOKEN = 'That sign-in did not complete: the answer from your identity provider had '
+  + 'already expired when it arrived here. Start the sign-in again — and if it keeps happening, tell '
+  + 'an administrator: a repeat means the clocks of this platform and your identity provider disagree.'
 const RESTART = 'That sign-in did not complete: the code from your identity provider was refused, '
   + 'usually because it expired or had already been used. Start the sign-in again — and if it happens '
   + 'a second time, tell an administrator, because the sign-in may be misconfigured rather than stale.'
@@ -393,6 +409,9 @@ export const loginFailureCauseOf = (
   }
   if (reason !== null && RESTART_HERE_REASONS.has(reason)) {
     return { action: 'restart', reason, text: RESTART_HERE }
+  }
+  if (reason !== null && RESTART_CLOCK_REASONS.has(reason)) {
+    return { action: 'restart', reason, text: STALE_ID_TOKEN }
   }
   if (reason !== null && REQUEST_ACCESS_REASONS.has(reason)) {
     return { action: 'request-access', reason, text: NOT_ADMITTED }
@@ -510,4 +529,33 @@ export const callbackFailureOf = (error: string | null): LoginFailureCause => {
     return { action: 'escalate', reason, text: IDP_REFUSED }
   }
   return { action: 'escalate', reason, text: IDP_REFUSED }
+}
+
+/*
+ * THE CALLBACK THAT CARRIES A CODE THE PAGE WILL NOT EXCHANGE. Both used to leave the page on
+ * "Authentication in progress..." forever: the exchange was skipped, and nothing else moved it.
+ *
+ * State mismatch — the returned `state` is not the one this browser stored when it started the
+ * sign-in. The callback does not belong to a sign-in started here: an older tab finishing after a
+ * newer attempt replaced the state, or a callback link opened a second time. The code is NOT
+ * exchanged — refusing a callback that cannot be tied to this browser is the whole point of the
+ * state (#583). Starting over is the remedy, and nobody did anything wrong.
+ *
+ * No matching strategy — /strategies offers no method of the callback's `kind` whose redirectURL
+ * uses this page's protocol. The page was reached through a redirect authn's own config pointed
+ * at, so a method that is now missing, or one whose redirectURL says https while the portal is
+ * served over http (or the reverse), is the install's fault, and no retry changes it.
+ * `NoMatchingStrategy` is the portal's own cause name, not authn's — there is no authn answer here.
+ */
+export const CALLBACK_STATE_MISMATCH: LoginFailureCause = {
+  action: 'restart',
+  reason: null,
+  text: 'This page does not belong to a sign-in started in this browser — it may be from an older tab, '
+    + 'or a link that was already used — so it was not completed. Start the sign-in again.',
+}
+
+export const CALLBACK_NO_STRATEGY: LoginFailureCause = {
+  action: 'escalate',
+  reason: 'NoMatchingStrategy',
+  text: PLATFORM_FAULT,
 }

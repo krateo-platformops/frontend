@@ -12,7 +12,13 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { callbackFailureOf, LOGIN_FAILURE_TITLE, loginFailureCauseOf } from './loginFailureCause'
+import {
+  CALLBACK_NO_STRATEGY,
+  CALLBACK_STATE_MISMATCH,
+  callbackFailureOf,
+  LOGIN_FAILURE_TITLE,
+  loginFailureCauseOf,
+} from './loginFailureCause'
 
 const body = (reason: string) => ({ details: { causes: [{ message: 'human text', reason }] } })
 
@@ -138,10 +144,11 @@ describe('loginFailureCauseOf', () => {
   })
 
   it('a refused IdP response escalates WITHOUT promising a retry, because retrying is futile', () => {
-    // authn's own comment on these four: "retrying unchanged fails again". An OIDCConfig pointing
+    // authn's own comment on these three: "retrying unchanged fails again". An OIDCConfig pointing
     // at the wrong issuer refuses identically forever, so the ordinary platform copy — which says
-    // "retry shortly" — would send someone round a loop with no exit.
-    for (const reason of ['IDTokenInvalid', 'IssuerMismatch', 'AudienceMismatch', 'TokenExpired']) {
+    // "retry shortly" — would send someone round a loop with no exit. (TokenExpired used to be the
+    // fourth; authn says "Start the sign-in again" for it — see the next test.)
+    for (const reason of ['IDTokenInvalid', 'IssuerMismatch', 'AudienceMismatch']) {
       const cause = loginFailureCauseOf(403, body(reason), 'redirect')
       expect(cause.action, reason).toBe('escalate')
       expect(cause.text, reason).toMatch(/retrying will not help/i)
@@ -151,13 +158,26 @@ describe('loginFailureCauseOf', () => {
     }
   })
 
+  it('TokenExpired is a restart, as authn says — and a repeat is named as a clock problem for an administrator', () => {
+    // authn's docs/api.md: "Start the sign-in again. Repeating means the clocks of authn and the IdP
+    // disagree." It used to escalate with "Retrying will not help", which contradicts that: an ID
+    // token that was merely slow to arrive is replaced by a fresh one.
+    const cause = loginFailureCauseOf(403, body('TokenExpired'), 'redirect')
+    expect(cause.action).toBe('restart')
+    expect(cause.reason).toBe('TokenExpired')
+    expect(cause.text).toMatch(/start the sign-in again/i)
+    expect(cause.text).toMatch(/if it keeps happening, tell an administrator/i)
+    expect(cause.text).toMatch(/clocks/i)
+    expect(cause.text).not.toMatch(/retrying will not help/i)
+  })
+
   it('TokenExpired here is the ID token, NOT the session token authFailureCause knows', () => {
     // Same string, different subject: authFailureCause.ts treats TokenExpired as "your session
     // ended, sign in again" on a resource 401. On the LOGIN route it is the ID token the IdP just
-    // issued, and the advice is not "sign in again" — it is "this method is misconfigured". If
-    // someone ever unifies the two sets, this is the test that should stop them.
+    // issued, and its repeat is a clock problem — something a session expiry never is. If someone
+    // ever unifies the two sets, this is the test that should stop them.
     const cause = loginFailureCauseOf(403, body('TokenExpired'), 'redirect')
-    expect(cause.text).not.toMatch(/sign in again/i)
+    expect(cause.text).not.toMatch(/session/i)
     expect(cause.text).toMatch(/identity provider/i)
   })
 
@@ -314,5 +334,21 @@ describe('LOGIN_FAILURE_TITLE', () => {
     expect(LOGIN_FAILURE_TITLE.restart).toBe('Sign-in not completed')
     expect(LOGIN_FAILURE_TITLE.escalate).toBe('Sign-in unavailable')
     expect(LOGIN_FAILURE_TITLE['request-access']).toBe('Access not granted')
+  })
+})
+
+describe('a callback carrying a code the page will not exchange', () => {
+  it('a state mismatch is a restart that blames nobody', () => {
+    expect(CALLBACK_STATE_MISMATCH.action).toBe('restart')
+    expect(CALLBACK_STATE_MISMATCH.text).toMatch(/does not belong to a sign-in started in this browser/i)
+    expect(CALLBACK_STATE_MISMATCH.text).toMatch(/start the sign-in again/i)
+    expect(CALLBACK_STATE_MISMATCH.text).not.toMatch(/platform|fault|administrator/i)
+  })
+
+  it('no matching strategy is the install\'s fault: platform-fault copy, with its own cause', () => {
+    expect(CALLBACK_NO_STRATEGY.action).toBe('escalate')
+    expect(CALLBACK_NO_STRATEGY.reason).toBe('NoMatchingStrategy')
+    expect(CALLBACK_NO_STRATEGY.text).toMatch(/retrying will not help/i)
+    expect(CALLBACK_NO_STRATEGY.text).not.toMatch(/retry shortly/i)
   })
 })

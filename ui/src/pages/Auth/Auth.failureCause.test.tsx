@@ -71,13 +71,14 @@ const installFetchMock = (loginStatus: number, loginBody: string) => {
  */
 const renderCallback = (entry = '/auth?code=the-code&kind=oidc') => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
+  render(
     <MemoryRouter initialEntries={[entry]}>
       <QueryClientProvider client={queryClient}>
         <Auth />
       </QueryClientProvider>
     </MemoryRouter>
   )
+  return queryClient
 }
 
 beforeEach(() => {
@@ -257,5 +258,72 @@ describe('Auth callback failures', () => {
 
     await waitFor(() => expect(screen.getByText(/no sign-in to finish here/i)).toBeTruthy())
     expect(screen.queryByText(/authentication in progress/i)).toBeNull()
+  })
+
+  // THE CALLBACK CARRYING A CODE THE PAGE WILL NOT EXCHANGE. Both used to spin forever.
+
+  it('a state mismatch is refused without exchanging the code, says start again, and spends the stored state', async () => {
+    // An older tab finishing after a newer attempt replaced the state, or a callback link opened
+    // twice: the callback cannot be tied to a sign-in this browser started.
+    const fetchMock = installFetchMock(200, '{}')
+    localStorage.setItem('KrateoSL', 'the-state-this-browser-sent')
+    localStorage.setItem('KrateoSLV', 'the-verifier')
+    renderCallback('/auth?code=the-code&state=some-other-state&kind=oidc')
+
+    await waitFor(() => expect(screen.getByText('Sign-in not completed')).toBeTruthy())
+    expect(screen.getByText(/does not belong to a sign-in started in this browser/i)).toBeTruthy()
+    expect(screen.getByRole('link', { name: /start the sign-in again/i })).toBeTruthy()
+    expect(screen.queryByText(/authentication in progress/i)).toBeNull()
+    expect(localStorage.getItem('KrateoSL')).toBeNull()
+    expect(localStorage.getItem('KrateoSLV')).toBeNull()
+    expect(catchError).not.toHaveBeenCalled()
+    // Give any re-run of the effect its chance: with the state now spent, a second pass must still
+    // not fall into the unvalidated branch and exchange the code it just refused.
+    await new Promise((resolve) => { setTimeout(resolve, 50) })
+    expect(fetchMock.mock.calls.some(([input]) => toUrl(input).includes('/oidc/'))).toBe(false)
+  })
+
+  it('a refused code stays refused when /strategies refetches and the effect runs again', async () => {
+    // The first run spends the stored state and refuses the mismatch. Anything that re-runs the
+    // effect afterwards — here a /strategies refetch that returns a changed list, as a focus refetch
+    // can — finds NO state, and without a once-only guard would take the unvalidated branch and
+    // exchange the very code it just refused.
+    const fetchMock = installFetchMock(200, '{}')
+    localStorage.setItem('KrateoSL', 'the-state-this-browser-sent')
+    const queryClient = renderCallback('/auth?code=the-code&state=some-other-state&kind=oidc')
+
+    await waitFor(() => expect(screen.getByText('Sign-in not completed')).toBeTruthy())
+    fetchMock.mockImplementation((input: RequestInfo | URL) => Promise.resolve(toUrl(input).endsWith('/strategies')
+      ? new Response(JSON.stringify([GITHUB_OIDC, { ...GITHUB_OIDC, name: 'another' }]), { status: 200 })
+      : new Response('{}', { status: 200 })))
+    await queryClient.refetchQueries()
+    await new Promise((resolve) => { setTimeout(resolve, 50) })
+    expect(fetchMock.mock.calls.filter(([input]) => toUrl(input).endsWith('/strategies')).length).toBeGreaterThan(1)
+    expect(fetchMock.mock.calls.some(([input]) => toUrl(input).includes('/oidc/'))).toBe(false)
+  })
+
+  it('a code with no matching strategy escalates with the platform-fault copy and its cause', async () => {
+    // /strategies offers only an oidc method; the callback says oauth.
+    const fetchMock = installFetchMock(200, '{}')
+    renderCallback('/auth?code=the-code&kind=oauth')
+
+    await waitFor(() => expect(screen.getByText('Sign-in unavailable')).toBeTruthy())
+    expect(screen.getByText(/retrying will not help/i)).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/retry shortly/i)
+    expect(screen.queryByText(/authentication in progress/i)).toBeNull()
+    expect(catchError).toHaveBeenCalledTimes(1)
+    const [{ description, message }] = catchError.mock.calls[0] as [{ description: string; message: string }]
+    expect(message).toBe('Sign-in unavailable')
+    expect(description).toMatch(/\(NoMatchingStrategy\)$/)
+    expect(fetchMock.mock.calls.some(([input]) => /\/(oidc|oauth)\//.test(toUrl(input)))).toBe(false)
+  })
+
+  it('an expired ID token (TokenExpired) offers to start again, and names the clocks if it repeats', async () => {
+    installFetchMock(403, statusBody('TokenExpired'))
+    renderCallback()
+
+    await waitFor(() => expect(screen.getByRole('link', { name: /start the sign-in again/i })).toBeTruthy())
+    expect(screen.getByText('Sign-in not completed')).toBeTruthy()
+    expect(screen.getByText(/clocks of this platform and your identity provider disagree/i)).toBeTruthy()
   })
 })
