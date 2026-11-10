@@ -1,12 +1,13 @@
 /**
  * The gate, and specifically THE ORDER OF ITS TESTS.
  *
- * The first two cases are the ones that matter: a browser with `getUserMedia` and
- * `MediaRecorder` sitting on a plain-HTTP origin must come back UNAVAILABLE with reason
- * `insecure-context`, because API presence there is a proven false positive and rendering
- * a microphone would produce a control that can only ever fail. And an unconfigured
- * transcription URL must come back unavailable too, because the endpoint is the on/off
- * switch and there is no default to fall back on.
+ * The cases that matter: a browser with `getUserMedia` and `MediaRecorder` sitting on a
+ * plain-HTTP origin must come back UNAVAILABLE with reason `insecure-context`, because API
+ * presence there is a proven false positive and an enabled microphone would be a control
+ * that can only ever fail. An unconfigured transcription URL must come back unavailable
+ * too, because the endpoint is the on/off switch and there is no default to fall back on.
+ * And when several apply, the reason is the first of not-configured → insecure-context →
+ * no-recorder, because that is the one the disabled control tells the user.
  */
 import { describe, expect, it } from 'vitest'
 
@@ -30,7 +31,7 @@ const scope = (overrides: Partial<VoiceCapabilityGlobal> = {}): VoiceCapabilityG
   ...overrides,
 })
 
-describe('detectVoiceCapability — the secure context is tested FIRST', () => {
+describe('detectVoiceCapability — configuration, then the secure context, then the APIs', () => {
   it('is available when the context is secure, the URL is configured and the APIs exist', () => {
     expect(detectVoiceCapability(URL_OK, scope())).toEqual({ available: true, mimeType: 'audio/webm;codecs=opus' })
   })
@@ -44,9 +45,27 @@ describe('detectVoiceCapability — the secure context is tested FIRST', () => {
     expect(detectVoiceCapability(URL_OK, insecure)).toEqual({ available: false, reason: 'insecure-context' })
   })
 
-  it('reports insecure-context BEFORE not-configured, so the operator fixes the real blocker first', () => {
+  // The precedence the control explains itself in (decided 2026-11-10): not configured,
+  // then insecure, then unsupported. Every case below has ALL the lower blockers present
+  // too, so a reordering of the checks shows up as the wrong reason.
+  it('reports not-configured BEFORE insecure-context and no-recorder — the feature is off here first', () => {
+    const everythingWrong = scope({ MediaRecorder: undefined, isSecureContext: false, navigator: {} })
+    expect(detectVoiceCapability(undefined, everythingWrong)).toEqual({ available: false, reason: 'not-configured' })
     expect(detectVoiceCapability(undefined, scope({ isSecureContext: false })))
-      .toEqual({ available: false, reason: 'insecure-context' })
+      .toEqual({ available: false, reason: 'not-configured' })
+  })
+
+  it('reports insecure-context BEFORE no-recorder once configured', () => {
+    const insecureNoApis = scope({ MediaRecorder: undefined, isSecureContext: false, navigator: {} })
+    expect(detectVoiceCapability(URL_OK, insecureNoApis)).toEqual({ available: false, reason: 'insecure-context' })
+  })
+
+  it('never probes the recording APIs on an insecure origin', () => {
+    const insecure = scope({
+      MediaRecorder: { isTypeSupported: () => { throw new Error('probed on an insecure origin') } },
+      isSecureContext: false,
+    })
+    expect(detectVoiceCapability(URL_OK, insecure)).toEqual({ available: false, reason: 'insecure-context' })
   })
 
   it('is unavailable with no transcription URL — presence of the key is the only switch (FR 4)', () => {
