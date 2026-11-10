@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Paragraph > renders a paragraph without a variant as before, with no eyebrow class 1`] = `
+<div
+  class="ant-typography _paragraph_3fa86a css-dev-only-do-not-override-12q6fii css-var-root"
+>
+  Plain body text
+</div>
+`;

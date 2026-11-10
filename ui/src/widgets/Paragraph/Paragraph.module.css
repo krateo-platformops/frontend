@@ -18,17 +18,20 @@
   margin: 0;
 }
 
-/* Flight-deck page-header / panel EYEBROW (variant: eyebrow) — small IBM Plex
-   Mono, uppercase, letter-spaced, muted graphite: the instrument-panel context
-   caption above an H1 ("PLATFORM · TENANT <t>"). Compound selector .paragraph.eyebrow
-   out-specifies antd's .ant-typography color. Mirrors the Card titleVariant:eyebrow. */
+/* EYEBROW (variant: eyebrow): small mono, uppercase, letter-spaced, muted. A body section caption:
+   the label in front of a chip group (/audit's RANGE, NAMESPACE; Observability's TIME RANGE), or
+   the line above a table. Same tokens as the Card titleVariant:eyebrow and the shell breadcrumb.
+   The compound selector out-specifies antd's .ant-typography colour.
+   `margin: 0`: these labels sit in `align: center` Flex rows beside chips, where antd's one-sided
+   margin-bottom would centre the label above the chips (the subtitle's reason, #81 §0.3). The row's
+   gap spaces it. */
 .paragraph.eyebrow {
   color: var(--gray-color);
   font-family: var(--font-mono);
   font-size: var(--krateo-text-label-sm);
   font-weight: var(--font-weight-medium);
   letter-spacing: 0.08em;
-  margin-bottom: var(--spacing-xs);
+  margin: 0;
   text-transform: uppercase;
 }
 
