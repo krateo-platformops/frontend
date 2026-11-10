@@ -297,3 +297,79 @@ describe('Agentiko — WCAG AA for the primary and the agent\'s surfaces', () =>
     expect(contrastRatio('#FFFFFF', '#9E00FF')).toBeGreaterThanOrEqual(4.5)
   })
 })
+
+/**
+ * C1 (X4 audit, WCAG 1.4.3): every text token antd emits for the theme, on every neutral surface.
+ *
+ * The theme used to set only `colorTextBase`, so antd derived secondary, tertiary and placeholder
+ * text as see-through blends of it: 2.95:1 for secondary text in light mode, 1.74:1 (light) and
+ * 2.19:1 (dark) for placeholders. The palette roles above all passed, and nothing checked what antd
+ * actually paints. This block reads the tokens from antd itself (`getDesignToken`), so the list is
+ * whatever antd derives today: a token antd adds later, or an override that brings a blend back, is
+ * covered without anyone editing this file. An rgba token is composited over the surface first,
+ * which is what the eye (and axe) sees.
+ *
+ * `colorTextLightSolid` is the one emitted text token not swept here, because antd paints it only
+ * ON a solid colour fill (a primary or danger button, a badge count), never on these surfaces: on
+ * white it is white. The Button's pairing is pinned by the CTA block at the top of this file; the
+ * token's other fills (badge counts, solid tags) are not pinned here.
+ */
+describe('antd text tokens — WCAG AA on every neutral surface (C1)', () => {
+  const ON_FILL_ONLY = ['colorTextLightSolid']
+  const SURFACES = ['background', 'panelbg', 'lightgray'] as const
+
+  /** `#rgb`, `#rrggbb` or `rgb[a](r, g, b[, a])` → channels 0-255 and alpha 0-1. */
+  const parseColour = (value: string): { a: number; b: number; g: number; r: number } => {
+    const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(value)
+    if (hex) {
+      const digits = hex[1].length === 3 ? [...hex[1]].map((digit) => digit + digit).join('') : hex[1]
+      return { a: 1, b: parseInt(digits.slice(4, 6), 16), g: parseInt(digits.slice(2, 4), 16), r: parseInt(digits.slice(0, 2), 16) }
+    }
+    const rgb = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/i.exec(value)
+    if (rgb) {
+      return { a: rgb[4] === undefined ? 1 : Number(rgb[4]), b: Number(rgb[3]), g: Number(rgb[2]), r: Number(rgb[1]) }
+    }
+    throw new Error(`unparseable colour ${value}`)
+  }
+
+  /** The opaque colour a (possibly translucent) token renders as over an opaque surface. */
+  const composite = (token: string, surface: string): string => {
+    const fg = parseColour(token)
+    const bg = parseColour(surface)
+    const mix = (top: number, under: number) => Math.round(top * fg.a + under * (1 - fg.a)).toString(16).padStart(2, '0')
+    return `#${mix(fg.r, bg.r)}${mix(fg.g, bg.g)}${mix(fg.b, bg.b)}`
+  }
+
+  const modes = [
+    { name: 'light', palette: color, theme: lightTheme },
+    { name: 'dark', palette: colorDark, theme: darkTheme },
+  ] as const
+
+  modes.forEach(({ name, palette, theme }) => {
+    const emitted = antdTheme.getDesignToken(theme) as unknown as Record<string, unknown>
+    const textTokens = Object.keys(emitted).filter((key) => key.startsWith('colorText')).sort()
+
+    it(`${name}: antd emits the text tokens this sweep expects to find`, () => {
+      // Guards the sweep itself: if the filter matched nothing (a renamed token family, a broken
+      // getDesignToken), every assertion below would pass vacuously.
+      expect(textTokens).toEqual(expect.arrayContaining(['colorText', 'colorTextPlaceholder', 'colorTextSecondary', 'colorTextTertiary', ...ON_FILL_ONLY]))
+    })
+
+    textTokens.filter((token) => !ON_FILL_ONLY.includes(token)).forEach((token) => {
+      SURFACES.forEach((surface) => {
+        it(`${name}: ${token} on ${surface} passes AA >= 4.5:1`, () => {
+          const value = String(emitted[token])
+          const ratio = contrastRatio(composite(value, palette[surface]), palette[surface])
+          expect(ratio, `${name} ${token} (${value}) on ${surface} (${palette[surface]}) = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5)
+        })
+      })
+    })
+  })
+
+  it('the derived tiers are the palette roles, not blends — secondary is `gray`, placeholder is `faint`', () => {
+    expect(lightTheme.token?.colorTextSecondary).toBe(color.gray)
+    expect(lightTheme.token?.colorTextPlaceholder).toBe(color.faint)
+    expect(darkTheme.token?.colorTextSecondary).toBe(colorDark.gray)
+    expect(darkTheme.token?.colorTextPlaceholder).toBe(colorDark.faint)
+  })
+})
