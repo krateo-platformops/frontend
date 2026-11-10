@@ -19,6 +19,12 @@ import {
 } from './evidence'
 import type { EvidenceEntry } from './types'
 
+/** A real `Response`, so the code under test sees the status, the content type and the body exactly
+ *  as the browser hands them over — a hand-built `{ json, ok }` object has no headers, and could not
+ *  express the HTML-with-200 answer this file now has to catch. Fresh per call: a body reads once. */
+const serve = (body: unknown, status = 200, contentType = 'application/json') =>
+  vi.fn(() => Promise.resolve(new Response(typeof body === 'string' ? body : JSON.stringify(body), { headers: { 'content-type': contentType }, status })))
+
 const call = (name: string, args: Record<string, unknown> | undefined, id: string, prefix = 'adk') => ({
   data: { args, id, name },
   kind: 'data',
@@ -160,14 +166,14 @@ describe('reaching the session trace', () => {
 
   it('fetches a specialist\'s rows, and refuses to attribute the wrong task', async () => {
     const tasks = [{ history: [{ parts: [{ kind: 'text', text: 'which env vars?' }], role: 'user' }, { parts: [call('read_repo_file', { path: 'main.go', repo: 'core-provider' }, 'x1')], role: 'agent' }], id: 't1' }]
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ data: tasks }), ok: true })))
+    vi.stubGlobal('fetch', serve({ data: tasks }))
     const rows = await fetchDelegationEvidence('/autopilot/sessions', delegation('which env vars?'), {})
     expect(rows.map((row) => row.tool)).toEqual(['read_repo_file'])
     await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('a different request'), {})).rejects.toThrow()
   })
 
   it('surfaces an unreadable trace instead of an empty one', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({}), ok: false, status: 403 })))
+    vi.stubGlobal('fetch', serve({ error: true, message: 'forbidden' }, 403))
     await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {})).rejects.toThrow('403')
   })
 
@@ -181,7 +187,7 @@ describe('reaching the session trace', () => {
     [404, /kept no session|never/i],
     [503, /returned 503/],
   ])('names WHY a trace could not be read (%i)', async (status, expected) => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({}), ok: false, status })))
+    vi.stubGlobal('fetch', serve({ error: true, message: 'x' }, status))
     await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {})).rejects.toThrow(expected)
   })
 
@@ -190,12 +196,12 @@ describe('reaching the session trace', () => {
     // opening this panel is trying to find out. It deliberately does NOT claim the specialist
     // "answered": it may equally have failed before it started, which is what actually happened in
     // the outage traced through agentgateway-policies#55 (see the failed-task case below).
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ data: [] }), ok: true })))
+    vi.stubGlobal('fetch', serve({ data: [] }))
     await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {}))
       .rejects.toThrow(/recorded no activity/i)
 
     const other = [{ history: [{ parts: [{ kind: 'text', text: 'someone else\'s turn' }], role: 'user' }], id: 't9' }]
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ data: other }), ok: true })))
+    vi.stubGlobal('fetch', serve({ data: other }))
     await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {}))
       .rejects.toThrow(/not identifiable among the 1 task/i)
   })
@@ -212,14 +218,14 @@ describe('reaching the session trace', () => {
         state: 'failed',
       },
     }]
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ data: failed }), ok: true })))
+    vi.stubGlobal('fetch', serve({ data: failed }))
     await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {}))
       .rejects.toThrow(/failed before returning — failed to append instructions/i)
   })
 
   it('says a failed task failed even when it recorded no reason', async () => {
     const bare = [{ ...task('x', 't8'), status: { state: 'failed' } }]
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ data: bare }), ok: true })))
+    vi.stubGlobal('fetch', serve({ data: bare }))
     await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {}))
       .rejects.toThrow(/failed before returning, and recorded no reason/i)
   })
@@ -227,7 +233,7 @@ describe('reaching the session trace', () => {
   it('still returns the trace for a task that did not fail', async () => {
     // Guard the happy path: a completed task must not be swallowed by the failed-state branch.
     const ok = [{ ...task('x', 't9'), status: { state: 'completed' } }]
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({ data: ok }), ok: true })))
+    vi.stubGlobal('fetch', serve({ data: ok }))
     await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {})).resolves.toEqual([])
   })
 
@@ -254,15 +260,65 @@ describe('reaching the session trace', () => {
       .rejects.toThrow(/could not reach the session store/i)
   })
 
-  it('says a proxy answered when a 200 body is not a trace', async () => {
-    // An auth proxy or ingress standing in for the session store answers with its own HTML page and a
-    // 200, so every named status looks fine and json() rejects with `Unexpected token '<'` instead.
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
-      json: () => Promise.reject(new SyntaxError('Unexpected token \'<\', "<!DOCTYPE "... is not valid JSON')),
-      ok: true,
-    })))
-    await expect(fetchDelegationEvidence('/autopilot/sessions', delegation('x'), {}))
-      .rejects.toThrow(/proxy or login page/i)
+  // What krateo-057 actually answered on 2026-11-10 for the rail's session read: `curl -D -` on
+  // https://portal.krateo.dev/api/sessions/<id>/tasks gave `HTTP/2 200`, `server: nginx/1.30.6`,
+  // `content-type: text/html` and this page — the portal's own index.html, because the TLS gateway
+  // listener had no /api/sessions route and the SPA's catch-all `try_files … /index.html` took it.
+  const PORTAL_INDEX = '<!DOCTYPE html>\n<html lang="en">\n  <head>\n    <meta charset="UTF-8" />\n    <title>Krateo</title>\n'
+
+  it('calls the session store at the path 057\'s config derives', async () => {
+    // AGENTIKO_API_BASE_URL in 057's frontend-config-vars, verbatim. The rail fetched the right path;
+    // the gateway did not route it (agentgateway-policies). Pinned so a fix there is not chased here.
+    const fetchSpy = serve({ data: [] })
+    vi.stubGlobal('fetch', fetchSpy)
+    const base = deriveSessionsBase('https://portal.krateo.dev/api/a2a/krateo-system/agentiko')
+    expect(base).toBe('https://portal.krateo.dev/api/sessions')
+    await fetchDelegationEvidence(base, delegation('x'), { Authorization: 'Bearer t' }).catch(() => undefined)
+    expect(fetchSpy).toHaveBeenCalledWith('https://portal.krateo.dev/api/sessions/sess-9/tasks', { headers: { Authorization: 'Bearer t' } })
+  })
+
+  it('says a web page came back instead of data, with the status, when 057\'s answer arrives', async () => {
+    vi.stubGlobal('fetch', serve(PORTAL_INDEX, 200, 'text/html'))
+    await expect(fetchDelegationEvidence('https://portal.krateo.dev/api/sessions', delegation('x'), {}))
+      .rejects.toThrow('the activity endpoint returned a web page instead of data (HTTP 200, text/html)')
+  })
+
+  it('does not read an HTML 404 as "no session was kept"', async () => {
+    // kagent answers a missing session with a JSON 404. A web server's HTML 404 says nothing about
+    // the specialist, so it must not get the 404 sentence from the status table.
+    vi.stubGlobal('fetch', serve('<html><body>404 Not Found</body></html>', 404, 'text/html; charset=utf-8'))
+    await expect(fetchDelegationEvidence('/agentiko/sessions', delegation('x'), {}))
+      .rejects.toThrow('web page instead of data (HTTP 404, text/html; charset=utf-8)')
+  })
+
+  it('catches an HTML page even when it is mislabelled', async () => {
+    vi.stubGlobal('fetch', serve(PORTAL_INDEX, 200, 'application/json'))
+    await expect(fetchDelegationEvidence('/agentiko/sessions', delegation('x'), {}))
+      .rejects.toThrow('web page instead of data (HTTP 200, application/json)')
+  })
+
+  it('names a body that is not JSON at all', async () => {
+    vi.stubGlobal('fetch', serve('upstream connect error', 200, 'text/plain'))
+    await expect(fetchDelegationEvidence('/agentiko/sessions', delegation('x'), {}))
+      .rejects.toThrow('the activity endpoint returned something that is not JSON (HTTP 200, text/plain)')
+  })
+
+  it('will not read some other service\'s JSON as "recorded no activity"', async () => {
+    vi.stubGlobal('fetch', serve([{ id: 'not-a-task-list-envelope' }]))
+    await expect(fetchDelegationEvidence('/agentiko/sessions', delegation('x'), {}))
+      .rejects.toThrow('JSON that is not a session\'s task list (HTTP 200)')
+    vi.stubGlobal('fetch', serve({ data: 'nope' }))
+    await expect(fetchDelegationEvidence('/agentiko/sessions', delegation('x'), {}))
+      .rejects.toThrow('JSON that is not a session\'s task list')
+  })
+
+  it('reads kagent\'s empty session, which omits `data`, as a session with no tasks', async () => {
+    // StandardResponse tags Data `json:"data,omitempty"` (kagent 0.10.1 go/api/httpapi/types.go), so
+    // a session with no tasks arrives with no `data` key at all. The stricter shape check above must
+    // not turn that into a failure.
+    vi.stubGlobal('fetch', serve({ error: false, message: 'Successfully retrieved session tasks' }))
+    await expect(fetchDelegationEvidence('/agentiko/sessions', delegation('x'), {}))
+      .rejects.toThrow(/recorded no activity/i)
   })
 })
 
