@@ -351,7 +351,15 @@ The main header and the docked rail previously shared a hardcoded `64px` that ma
 | canvas / surface | `#F7F6FB` / `#FFFFFF` (neutrals with a violet bias) | `#07050C` / `#120E1A` |
 | sidebar | black `#141414`, selected item `#9E00FF` under white | black `#000000`, same selected item |
 | login panel | the brand gradient `#9E00FF` → `#2213CF` under white | same |
+| `blue` (tags, cells, stats) | `#2213CF` brand blue — 11.5:1 on white | `#9C8FFF` tint — the brand blue is 1.9:1 on the dark panel |
 | face | Syne for every role but data; JetBrains Mono for data (T5) | same |
+
+> **2026-11-10 — `blue` is the Agentiko blue.** It was still the Krateo blue `#11B2E2` in both
+> modes, 2.4:1 on white, so every `color: blue` tag, cell and stat failed AA in light. It now ends
+> the brand gradient in each mode (`agentikoBrand.*.gradientEnd`). In light it shares its value with
+> `menubgend` on purpose (T8): both are the brand blue. The chart palette is Tier-2 and keeps its
+> own blue; the line chart's area fill now reads `chart-cat-01` instead of `blue`, which only
+> matched while both were the Krateo blue.
 
 The Krateo PlatformOps logo stays, drawn in the brand lilac `#DCD8F1` on the black sidebar (the
 portal chart's `image.brand-logo`). Status colours and Signal Yellow keep their meanings (Tier-2).

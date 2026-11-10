@@ -12,14 +12,15 @@ import type { LineChart as WidgetType } from './LineChart.type'
 export type LineChartWidgetData = WidgetType['spec']['widgetData']
 
 /**
- * Gradient area fill beneath the line when `widgetData.area` is true: brand blue (Krateo
- * Blue #11B2E2) at 0.30 alpha fading to transparent, so it matches the auto-assigned line
- * colour (chart-cat-01 = brand blue). Theme-aware — resolved from getColorCode('blue') at
- * render so it follows the light/dark toggle. (G2 parses the CSS linear-gradient; rgba keeps
+ * Gradient area fill beneath the line when `widgetData.area` is true: the first categorical
+ * chart colour at 0.30 alpha fading to transparent, so it matches the auto-assigned line colour
+ * (chart-cat-01, read per mode). It used getColorCode('blue'), which equalled cat-01 only while
+ * both were the Krateo blue; `blue` is now the Agentiko brand blue, and the chart palette is
+ * Tier-2 locked. (G2 parses the CSS linear-gradient; rgba keeps
  * its colour parser happy — color-mix is not.)
  */
 const brandAreaFill = (): { style: { fill: string } } => {
-  const hex = getColorCode('blue')
+  const [hex] = getChartCatPalette()
   const channel = (start: number) => parseInt(hex.slice(start, start + 2), 16)
   const rgb = `${channel(1)},${channel(3)},${channel(5)}`
   return { style: { fill: `linear-gradient(180deg, rgba(${rgb},0.30) 0%, rgba(${rgb},0) 100%)` } }
