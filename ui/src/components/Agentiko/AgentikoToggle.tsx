@@ -18,6 +18,7 @@ import { useAgentiko } from './AgentikoProvider'
 import styles from './AgentikoToggle.module.css'
 import { AGENTIKO_CHECKING, AGENTIKO_UNAVAILABLE } from './copy'
 import { AgentikoMark, LockIcon } from './icons'
+import { railOpenerRef } from './railFocus'
 
 // ⌘ on Mac, Ctrl elsewhere — for the visible hint only; AgentikoProvider's global handler
 // accepts both. Mirrors CommandPalette's own ⌘K hint.
@@ -35,6 +36,7 @@ const AgentikoToggle = () => {
         className={`${styles.apToggle} ${styles.locked} ${open ? styles.active : ''}`}
         data-testid='agentiko-toggle-locked'
         onClick={toggle}
+        ref={railOpenerRef}
         type='button'
       >
         <LockIcon size={13} />
@@ -51,6 +53,7 @@ const AgentikoToggle = () => {
       className={`${styles.apToggle} ${open ? styles.active : ''} ${reachable ? '' : styles.disabled}`}
       disabled={!reachable}
       onClick={reachable ? toggle : undefined}
+      ref={railOpenerRef}
       type='button'
     >
       <AgentikoMark size={15} />

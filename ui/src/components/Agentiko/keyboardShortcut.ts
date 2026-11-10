@@ -7,6 +7,8 @@
 
 import { useEffect } from 'react'
 
+import { returnFocusToOpener } from './railFocus'
+
 /** Gated on `reachable` — same reason the header button disables itself — so the shortcut
  * can't pop open a rail with no usable agent behind it. preventDefault suppresses
  * Chrome/Firefox's own Cmd+G "Find Next" binding, which the combo would otherwise trigger. */
@@ -20,6 +22,8 @@ export const useAgentikoShortcut = (reachable: boolean, toggle: () => void): voi
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'g') {
         event.preventDefault()
+        // Closing from inside the rail: focus to the toggle before the rail turns inert.
+        returnFocusToOpener()
         toggle()
       }
     }

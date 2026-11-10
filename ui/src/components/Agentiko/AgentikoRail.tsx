@@ -30,6 +30,7 @@ import { AGENTIKO_CHECKING, AGENTIKO_UNAVAILABLE } from './copy'
 import { useRailFocusTrap } from './focusTrap'
 import { AgentikoMark, CollapseIcon, ExpandIcon, EyeIcon, HistoryIcon, LinkIcon, PlusIcon, SendIcon, ShrinkIcon, StopIcon } from './icons'
 import { looksLikeOpenApiDocument } from './oasAttachment'
+import { railRef, returnFocusToOpener } from './railFocus'
 import { HistoryColumn } from './RailHistory'
 import { MessageBubble } from './RailTranscript'
 import { clampRailWidth, getStoredRailWidth, HISTORY_EXTRA_WIDTH, maxDockableWidth, RAIL_WIDTH_STORAGE_KEY } from './railWidth'
@@ -80,7 +81,6 @@ const AgentikoRail = () => {
   // transition still on feels laggy (the rail visibly trails the cursor).
   const [railWidth, setRailWidth] = useState(getStoredRailWidth)
   const [resizing, setResizing] = useState(false)
-  const railElRef = useRef<HTMLElement>(null)
   // Live viewport width, for the resize/history-split clamp above — see maxDockableWidth.
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
   useEffect(() => {
@@ -106,6 +106,13 @@ const AgentikoRail = () => {
 
   useComposerAutoGrow(textareaRef, draft)
 
+  // Every in-rail collapse: focus goes to the header toggle FIRST, because the collapsed rail is
+  // inert and would drop focus to <body> (audit X4 K3, railFocus.ts).
+  const collapse = () => {
+    returnFocusToOpener()
+    setOpen(false)
+  }
+
   // Publish the rail's actual width as a :root CSS var so body-portalled overlays (the
   // Filters Drawer) can inset their right edge and never sit over the rail — 0 when
   // closed/disabled, `railWidth` (user-resizable, defaults 384) open, +HISTORY_EXTRA_WIDTH
@@ -129,15 +136,16 @@ const AgentikoRail = () => {
   //
   //   1. a spoken answer is playing  → stop the voice, leave the rail open (FR 75);
   //   2. the microphone is live      → cancel dictation, draft untouched (FR 13);
-  //   3. otherwise                   → collapse, as the "Collapse rail" button does.
+  //   3. otherwise                   → collapse, as the "Collapse rail" button does, handing
+  //                                    focus to the header toggle first (railFocus.ts).
   //
   // Innermost-first is what makes Escape usable in conversation mode: the gesture that
   // interrupts a voice reading an answer must not also close the rail it was read from. A
   // pending approval is untouched at every layer; only its own dismiss/deny/5-minute
   // governor resolves it.
-  useRailFocusTrap(open, railElRef, () => {
+  useRailFocusTrap(open, railRef, () => {
     if (!escapeInterruptsVoice()) {
-      setOpen(false)
+      collapse()
     }
   })
   useEffect(() => {
@@ -171,7 +179,7 @@ const AgentikoRail = () => {
   // just the resizable base (consistent with the CSS-var effect above and RAIL_DEFAULT_WIDTH).
   const onResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault()
-    const anchorRight = railElRef.current?.getBoundingClientRect().right ?? window.innerWidth
+    const anchorRight = railRef.current?.getBoundingClientRect().right ?? window.innerWidth
     const extra = historyOpen ? HISTORY_EXTRA_WIDTH : 0
     setResizing(true)
     document.body.style.cursor = 'col-resize'
@@ -235,7 +243,7 @@ const AgentikoRail = () => {
   useVoiceWiring(licensed && open, context, submit)
 
   if (!licensed) {
-    return <AgentikoLockedRail onClose={() => setOpen(false)} open={open} width={Math.min(railWidth, maxDockableWidth(viewportWidth))} />
+    return <AgentikoLockedRail onClose={collapse} open={open} width={Math.min(railWidth, maxDockableWidth(viewportWidth))} />
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -260,11 +268,11 @@ const AgentikoRail = () => {
   // FR 57: matched on `event.code`, so macOS does not insert "µ" into the textarea, and
   // only with Alt alone — a chord that happens to include Alt belongs to someone else.
   const onRailKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    // The `open` test is load-bearing: A COLLAPSED RAIL IS STILL FOCUSABLE. `.apRail` closes
-    // with `width: 0; overflow: hidden`, not `display: none`, so the body — including the
-    // Collapse button just pressed — keeps receiving keys. Opening the microphone here would
-    // clip the meter, timer and Cancel to zero width: a live mic with no visible way to stop
-    // it, which is what FR 44's collapse teardown exists to prevent.
+    // `.apRail` closes with `width: 0; overflow: hidden`, not `display: none`, so its controls
+    // stay mounted. The collapsed rail is `inert` and every collapse hands focus to the header
+    // toggle first (railFocus.ts), so no key should reach it; the `open` test still guards the one
+    // outcome that must never happen: a microphone opened into a zero-width rail, its meter, timer
+    // and Cancel clipped away, which is what FR 44's collapse teardown exists to prevent.
     if (open && event.altKey && event.code === 'KeyM' && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
       event.preventDefault()
       agentikoVoiceStore.toggle()
@@ -303,8 +311,9 @@ const AgentikoRail = () => {
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <aside
       className={`${styles.apRail} ${open ? styles.open : ''} ${open && historyOpen ? styles.split : ''} ${open && fullWidth ? styles.full : ''} ${resizing ? styles.resizing : ''}`}
+      inert={!open}
       onKeyDown={onRailKeyDown}
-      ref={railElRef}
+      ref={railRef}
       style={open ? { width: fullWidth ? '100%' : `${dockedWidth}px` } : undefined}
     >
       {open && !fullWidth ? (
@@ -348,7 +357,7 @@ const AgentikoRail = () => {
           >
             {fullWidth ? <ShrinkIcon /> : <ExpandIcon />}
           </button>
-          <button aria-label='Collapse rail' className={styles.apIc} onClick={() => setOpen(false)} title='Collapse rail' type='button'>
+          <button aria-label='Collapse rail' className={styles.apIc} onClick={collapse} title='Collapse rail' type='button'>
             <CollapseIcon />
           </button>
         </div>
