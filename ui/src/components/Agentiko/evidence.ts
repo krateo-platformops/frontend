@@ -286,6 +286,13 @@ const unreachable = (cause: unknown): Error => {
   return new Error(`could not reach the session store — it is down, or the browser was blocked from reaching it (${detail})`)
 }
 
+/** An HTML page where the session store's JSON should be. Says what came back and with which
+ *  status, not what probably caused it: the page may be the portal's own index.html (no gateway
+ *  route for the path), a login page, or an error page, and the status plus content type are what
+ *  tell those apart. */
+const notData = (status: number, contentType: string): Error =>
+  new Error(`the activity endpoint returned a web page instead of data (HTTP ${status}${contentType ? `, ${contentType}` : ''})`)
+
 /** The specialist's own rows, from its session's stored tasks. */
 export const fetchDelegationEvidence = async (
   sessionsBase: string,
@@ -305,6 +312,16 @@ export const fetchDelegationEvidence = async (
     // applied to it and the browser's raw `Failed to fetch` went straight to the reader.
     throw unreachable(cause)
   }
+  // The session store (kagent's controller) serves no HTML: its answers and its own errors are JSON.
+  // So an HTML answer, at ANY status, means something else answered the path. On krateo-057 that was the
+  // portal's own nginx: the browser-facing gateway listener had no route for /api/sessions, the
+  // request fell through to the SPA's catch-all, and `try_files … /index.html` answered 200
+  // text/html. Checked BEFORE the status table, because an HTML 404 from a web server is not "the
+  // specialist kept no session", which is what the table would have said.
+  const contentType = response.headers.get('content-type') ?? ''
+  if (/\btext\/html\b/i.test(contentType)) {
+    throw notData(response.status, contentType)
+  }
   if (!response.ok) {
     // NAME the failure. A bare status told a reader nothing they could act on, and the panel then
     // reduced even that to "not readable from here" (frontend#181). These three are genuinely
@@ -312,17 +329,33 @@ export const fetchDelegationEvidence = async (
     // refusal is an authorization boundary, and a missing session means the trace was never kept.
     throw new Error(TRACE_FETCH_FAILURES[response.status] ?? `the session store returned ${response.status}`)
   }
-  // A 200 does not guarantee a trace. An auth proxy or ingress that answers in the session store's
-  // place typically returns its own HTML login/error page WITH a 200, and `json()` then rejects with
-  // `Unexpected token '<'` — parser noise the reader cannot act on, and the one failure mode that
-  // survived #181 precisely because the status looked fine.
-  let body: Record<string, unknown> | undefined
+  // A 200 does not guarantee a trace, and a missing or wrong content-type does not rule an HTML page
+  // out either — so the body is read as text and parsed here, where a failure can still be named.
+  // `json()` rejected with `Unexpected token '<'`, parser noise the reader cannot act on.
+  let text: string
   try {
-    body = asRecord(await response.json())
-  } catch {
-    throw new Error('the session store answered with something that is not a trace — a proxy or login page probably answered in its place')
+    text = await response.text()
+  } catch (cause) {
+    throw unreachable(cause)
   }
-  const tasks: unknown[] = Array.isArray(body?.data) ? body.data : []
+  if (/^\s*</.test(text)) {
+    throw notData(response.status, contentType)
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    throw new Error(`the activity endpoint returned something that is not JSON (HTTP ${response.status}${contentType ? `, ${contentType}` : ''})`)
+  }
+  const body = asRecord(parsed)
+  // kagent wraps every answer as `{ error, data, message }` with `data` omitted when empty
+  // (`json:"data,omitempty"`), so an absent `data` is a session with no tasks. A `data` that is
+  // present but not a list, or a body that is not an object at all, is some other service's JSON —
+  // which used to be read as "the specialist recorded no activity", a claim nobody checked.
+  if (!body || (body.data !== undefined && body.data !== null && !Array.isArray(body.data))) {
+    throw new Error(`the activity endpoint returned JSON that is not a session's task list (HTTP ${response.status})`)
+  }
+  const tasks: unknown[] = Array.isArray(body.data) ? body.data : []
   const task = selectDelegationTask(tasks, entry.request)
   if (!task) {
     // Distinguish "nothing was recorded at all" from "recorded, but not this delegation". The first
