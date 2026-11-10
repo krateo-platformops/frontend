@@ -8,7 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import logo from '../../assets/images/logo_big.svg'
 import { useConfigContext } from '../../context/ConfigContext'
 import useCatchError from '../../hooks/useCatchError'
-import { loginFailureCauseOf } from '../../utils/loginFailureCause'
+import { LOGIN_FAILURE_TITLE, loginFailureCauseOf } from '../../utils/loginFailureCause'
 import { resolveNextPath, SESSION_RESUME_NEXT_KEY } from '../../utils/nextPath'
 
 import AuthMethods from './AuthMethods'
@@ -103,13 +103,20 @@ const Login = () => {
         // something that is not a Kubernetes Status at all; the classifier takes `unknown` and
         // never throws, so a failed parse still produces the right advice from the status code.
         const body: unknown = await response.json().catch(() => null)
-        const { reason, text } = loginFailureCauseOf(response.status, body, 'password')
+        const { action, reason, text } = loginFailureCauseOf(response.status, body, 'password')
         /*
          * The reason is appended rather than shown alone: it is authn's vocabulary, not the
          * person's, but without it a support conversation starts from "it didn't work".
+         *
+         * Passed as `description`, with the action's title as `message`, so useCatchError shows it
+         * as given. As `message` alone it met the hook's status defaults: a 4xx got "Please check
+         * your input or permissions." added under it, and a 500 had it REPLACED by "The server hit
+         * an unexpected error" — on a page where this notification is the only failure surface, so
+         * every classified 5xx (LDAPUnavailable, IssuanceFailed …) reached nobody.
          */
         catchError({
-          message: reason === null ? text : `${text} (${reason})`,
+          description: reason === null ? text : `${text} (${reason})`,
+          message: LOGIN_FAILURE_TITLE[action],
           status: response.status,
         }, 'notification')
       }
