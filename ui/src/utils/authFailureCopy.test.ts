@@ -45,6 +45,21 @@ describe('the two actionable outcomes DO offer the form', () => {
     expect(shown.description).toContain('right where you left off')
   })
 
+  it('a revoked sign-in (KeyNotPublished) says revoked, not expired, and still offers the form', () => {
+    // The session was cut short by a retired signing key; "expired" would point at a clock that
+    // is fine. Signing in again is still what fixes it, so the form stays.
+    const shown = authFailurePresentation({ action: 'reauthenticate', reason: AUTH_FAILURE_REASONS.keyNotPublished })
+    expect(shown.showAuthForm).toBe(true)
+    expect(shown.title).toBe('Sign-in revoked')
+    expect(shown.description).toContain('Your sign-in was revoked')
+    expect(shown.description).not.toMatch(/expired/i)
+  })
+
+  it('an expired-token reason keeps the "Session expired" wording', () => {
+    const shown = authFailurePresentation({ action: 'reauthenticate', reason: AUTH_FAILURE_REASONS.tokenExpired })
+    expect(shown.title).toBe('Session expired')
+  })
+
   it('a step-up surface does NOT claim the session expired — it has not', () => {
     const shown = authFailurePresentation({ action: 'step-up', reason: AUTH_FAILURE_REASONS.insufficientAssurance })
     expect(shown.title).not.toMatch(/expired/i)
