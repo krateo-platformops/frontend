@@ -15,6 +15,9 @@ import type { AgentikoFrame, EvidenceEntry, EvidenceKind, EvidenceSource } from 
 const asRecord = (value: unknown): Record<string, unknown> | undefined =>
   (value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined)
 
+const clamp = (text: string, max: number): string =>
+  (text.length > max ? `${text.slice(0, max)}…` : text)
+
 /** Protocol, not sources: these drive the portal or ask the human something. */
 const PROTOCOL_TOOLS = new Set(['adk_request_confirmation', 'adk_request_credential', 'ask_user', 'propose_portal_action'])
 
@@ -137,8 +140,8 @@ export const readToolPart = (part: unknown): ToolPart | undefined => {
   }
 }
 
-/** A row for a call, before its result arrives. */
-export const entryFromCall = (part: ToolPart): EvidenceEntry => {
+/** A row for a call, before its result arrives. `startedAt` is set by the live path only. */
+export const entryFromCall = (part: ToolPart, startedAt?: number): EvidenceEntry => {
   const kind = classify(part.name)
   const agent = agentFromToolName(part.name)
   const repo = typeof part.args?.repo === 'string' ? part.args.repo : undefined
@@ -151,12 +154,27 @@ export const entryFromCall = (part: ToolPart): EvidenceEntry => {
     kind,
     ...(request ? { request } : {}),
     ...(repo ? { source: { org: orgOfRepo(repo), repo, ...(path ? { path } : {}) } } : {}),
+    ...(startedAt === undefined ? {} : { startedAt }),
     tool: part.name,
   }
 }
 
-/** Merge a result into the row its call opened. */
-export const mergeToolResult = (entries: EvidenceEntry[], part: ToolPart): EvidenceEntry[] => {
+const REASON_MAX = 200
+
+/** The first line of an error result, as a reason a reader can act on. Redacted like the args, and
+ *  clamped: this is a label, not the payload. */
+const failureReason = (output: string | undefined): string | undefined => {
+  const line = output?.split('\n').map((text) => text.trim()).find(Boolean)
+  if (!line) {
+    return undefined
+  }
+  const text = String(redactValue(line.replace(/^Error:\s*/i, ''))).trim()
+  return text ? clamp(text, REASON_MAX) : undefined
+}
+
+/** Merge a result into the row its call opened. `endedAt` is set by the live path only; a repeated
+ *  result (the final artifact re-carrying a part) keeps the first arrival time. */
+export const mergeToolResult = (entries: EvidenceEntry[], part: ToolPart, endedAt?: number): EvidenceEntry[] => {
   const index = entries.findIndex((entry) => entry.id === part.id && entry.tool === part.name)
   if (index === -1) {
     return entries
@@ -167,10 +185,14 @@ export const mergeToolResult = (entries: EvidenceEntry[], part: ToolPart): Evide
   const source: EvidenceSource | undefined = entry.source
     ? { ...entry.source, ...(provenance.ref ? { ref: provenance.ref } : {}), ...(provenance.lines ? { lines: provenance.lines } : {}) }
     : undefined
+  const reason = failed ? failureReason(part.output) : undefined
+  const ended = entry.endedAt ?? endedAt
   const merged: EvidenceEntry = {
     ...entry,
     done: true,
     ...(failed ? { failed: true } : {}),
+    ...(reason ? { reason } : {}),
+    ...(ended === undefined ? {} : { endedAt: ended }),
     ...(provenance.note ? { note: provenance.note } : {}),
     ...(part.sessionId ? { sessionId: part.sessionId } : {}),
     ...(source ? { source, ...(permalink(source) ? { url: permalink(source) } : {}) } : {}),
@@ -179,14 +201,15 @@ export const mergeToolResult = (entries: EvidenceEntry[], part: ToolPart): Evide
 }
 
 /** The final artifact can repeat a part the status stream already carried. */
-const appendCall = (entries: EvidenceEntry[], part: ToolPart): EvidenceEntry[] =>
-  (entries.some((entry) => entry.id === part.id) ? entries : [...entries, entryFromCall(part)])
+const appendCall = (entries: EvidenceEntry[], part: ToolPart, startedAt?: number): EvidenceEntry[] =>
+  (entries.some((entry) => entry.id === part.id) ? entries : [...entries, entryFromCall(part, startedAt)])
 
-/** Buffer one live tool frame into the turn's rows. */
-export const recordToolFrame = (entries: EvidenceEntry[], frame: AgentikoFrame): EvidenceEntry[] => {
+/** Buffer one live tool frame into the turn's rows, stamped with when it arrived — the run
+ *  timeline's clocks and its stall check are built on these two times. */
+export const recordToolFrame = (entries: EvidenceEntry[], frame: AgentikoFrame, now: number = Date.now()): EvidenceEntry[] => {
   if (frame.kind === 'tool_call') {
     return isEvidenceTool(frame.name)
-      ? appendCall(entries, { args: asRecord(frame.args), id: frame.id ?? frame.name, name: frame.name, type: 'call' })
+      ? appendCall(entries, { args: asRecord(frame.args), id: frame.id ?? frame.name, name: frame.name, type: 'call' }, now)
       : entries
   }
   if (frame.kind === 'tool_result') {
@@ -197,7 +220,7 @@ export const recordToolFrame = (entries: EvidenceEntry[], frame: AgentikoFrame):
       output: frame.output,
       sessionId: frame.sessionId,
       type: 'result',
-    })
+    }, now)
   }
   return entries
 }
@@ -414,9 +437,6 @@ export const summarizeEvidence = (entries: EvidenceEntry[]): string => {
 // title so nothing is ever truly lost.
 const ARG_MAX = 600
 const ARGS_MAX = 1200
-
-const clamp = (text: string, max: number): string =>
-  (text.length > max ? `${text.slice(0, max)}…` : text)
 
 /**
  * `key: value` list for a row with no richer shape. Arguments go through the same redactor as the

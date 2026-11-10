@@ -31,8 +31,10 @@ import { useRailFocusTrap } from './focusTrap'
 import { AgentikoMark, CollapseIcon, ExpandIcon, EyeIcon, HistoryIcon, LinkIcon, PlusIcon, SendIcon, ShrinkIcon, StopIcon } from './icons'
 import { looksLikeOpenApiDocument } from './oasAttachment'
 import { HistoryColumn } from './RailHistory'
-import { ApprovalCard, MessageBubble } from './RailTranscript'
+import { MessageBubble } from './RailTranscript'
 import { clampRailWidth, getStoredRailWidth, HISTORY_EXTRA_WIDTH, maxDockableWidth, RAIL_WIDTH_STORAGE_KEY } from './railWidth'
+import { approvalOutcome, approvalOwnerId } from './runSteps'
+import { questionBefore, useAskAgain } from './useAskAgain'
 import { useComposerAutoGrow } from './useComposerAutoGrow'
 import { SpeakBackStatus, SpeakBackToggle } from './voice/speak/SpeakBackControls'
 import { agentikoSpeakBackStore } from './voice/speak/speakBackStore'
@@ -52,6 +54,9 @@ const STARTER_PROMPTS = [
 
 const AgentikoRail = () => {
   const { approvePending, attachOasDocument, checking, clearOasAttachment, collect, denyPending, licensed, messages, newThread, oasAttachment, open, pendingApproval, reachable, restored, retryClaims, send, sessionId, sessions, setOpen, stop, streaming, switchToThread } = useAgentiko()
+  // The run timeline's stall state: stop the turn and send its question again.
+  const askAgain = useAskAgain({ send, stop, streaming })
+  const approvalOwner = pendingApproval ? approvalOwnerId(messages) : undefined
   const { config } = useConfigContext()
   // The composer draft + its PROVENANCE (purely dictated vs touched by the keyboard) live in
   // a module-level store, not `useState`: a routerVersion remount used to wipe a half-written
@@ -385,12 +390,18 @@ const AgentikoRail = () => {
                   </div>
                 </div>
               ) : (
-                messages.map((message) => <MessageBubble key={message.id} message={message} onRetryClaims={retryClaims} streaming={streaming} />)
+                messages.map((message, index) => (
+                  <MessageBubble
+                    approval={pendingApproval && message.id === approvalOwner ? { onApprove: approvePending, onDeny: denyPending, pause: pendingApproval } : undefined}
+                    approvalOutcome={message.approvalAt ? approvalOutcome(messages, index) : undefined}
+                    key={message.id}
+                    message={message}
+                    onAskAgain={message.streaming ? () => askAgain(questionBefore(messages, index) ?? '') : undefined}
+                    onRetryClaims={retryClaims}
+                    streaming={streaming}
+                  />
+                ))
               )}
-
-              {pendingApproval ? (
-                <ApprovalCard onApprove={approvePending} onDeny={denyPending} pause={pendingApproval} />
-              ) : null}
 
               {lastSuggestions?.length ? (
                 <div className={styles.apSuggest}>

@@ -1,0 +1,309 @@
+/* ── The run timeline: one card per assistant turn, live and after (RunTimeline.tsx) ──
+   Theme tokens only, so it reads in dark and light. Tones:
+   - running: --krateo-color-agent-signal — the Tier-2 "Agentiko is EXECUTING" meaning (issue #49),
+     in its text/stroke form; the -fill form is the 6px dot the old live strip used, invisible as a
+     1.5px ring on the light canvas.
+   - ok / bad / warn: the status-*-text tokens.
+   - idle: the rail's grey. A run that didn't finish recedes; it does not alarm. */
+
+.run {
+  --run-ok: var(--krateo-color-status-success-text);
+  --run-bad: var(--krateo-color-status-error-text);
+  --run-warn: var(--krateo-color-status-warning-text);
+  --run-running: var(--krateo-color-agent-signal);
+
+  background: var(--light-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--dark-color);
+  font-size: var(--krateo-text-label-sm);
+  line-height: 1.45;
+  margin-bottom: var(--spacing-sm);
+  overflow: hidden;
+  white-space: normal;
+}
+
+.head {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--dark-color);
+  display: flex;
+  font: inherit;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-smd);
+  text-align: left;
+  width: 100%;
+}
+
+.headFolded {
+  border-bottom: 0;
+}
+
+button.head {
+  cursor: pointer;
+}
+
+.chev {
+  color: var(--gray-color);
+  flex: none;
+  font-size: var(--krateo-text-label-xs);
+  width: 10px;
+}
+
+button.head:hover .chev,
+button.head:focus-visible .chev {
+  color: var(--dark-color);
+}
+
+.word {
+  flex: none;
+  font-weight: 600;
+}
+
+.word[data-tone='running'] { color: var(--run-running); }
+.word[data-tone='ok'] { color: var(--run-ok); }
+.word[data-tone='bad'] { color: var(--run-bad); }
+.word[data-tone='warn'] { color: var(--run-warn); }
+.word[data-tone='idle'] { color: var(--gray-color); }
+
+.secondary {
+  color: var(--gray-color);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.time {
+  color: var(--gray-color);
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* ── lanes and steps ── */
+.body {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-xsm) 0;
+}
+
+.lane {
+  align-items: center;
+  color: var(--gray-color);
+  display: flex;
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+  gap: var(--spacing-xsm);
+  letter-spacing: 0.04em;
+  padding: var(--spacing-xsm) var(--spacing-smd) var(--spacing-xxs);
+  text-transform: uppercase;
+}
+
+.laneDot {
+  background: var(--primary-color);
+  border-radius: 50%;
+  height: 6px;
+  width: 6px;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.step {
+  align-items: start;
+  display: grid;
+  gap: var(--spacing-xsm);
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  padding: var(--spacing-xs) var(--spacing-smd);
+}
+
+.tx {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tx small {
+  color: var(--gray-color);
+  display: block;
+  font-size: var(--krateo-text-label-xs);
+}
+
+.step[data-tone='bad'] .tx,
+.step[data-tone='bad'] .tx small {
+  color: var(--run-bad);
+}
+
+.link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--border-color);
+  text-underline-offset: 2px;
+}
+
+.link:hover {
+  color: var(--primary-color);
+}
+
+.stepTime {
+  color: var(--gray-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+  padding-top: 1px;
+  white-space: nowrap;
+}
+
+/* The status mark: a shape per state, so no state is told by colour alone. */
+.mark {
+  border-radius: 50%;
+  display: grid;
+  font-size: 9px;
+  font-weight: 700;
+  height: 14px;
+  line-height: 1;
+  margin-top: 1px;
+  place-items: center;
+  width: 14px;
+}
+
+.mark[data-tone='ok'] {
+  background: color-mix(in srgb, var(--run-ok) 18%, transparent);
+  color: var(--run-ok);
+}
+
+.mark[data-tone='bad'] {
+  background: color-mix(in srgb, var(--run-bad) 18%, transparent);
+  color: var(--run-bad);
+}
+
+.mark[data-tone='warn'] {
+  background: color-mix(in srgb, var(--run-warn) 22%, transparent);
+  color: var(--run-warn);
+}
+
+.mark[data-tone='idle'] {
+  border: 1.5px dashed var(--gray-color);
+}
+
+.mark[data-tone='running'] {
+  animation: run-spin 1s linear infinite;
+  border: 2px solid color-mix(in srgb, var(--run-running) 25%, transparent);
+  border-top-color: var(--run-running);
+}
+
+@keyframes run-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* A spinner that stops is still a full ring in the running colour: its presence is the signal. */
+@media (prefers-reduced-motion: reduce) {
+  .mark[data-tone='running'] {
+    animation: none;
+    border-color: var(--run-running);
+  }
+}
+
+/* A specialist's own steps, nested under its hand-off. */
+.nest {
+  border-left: 1.5px solid var(--border-color);
+  margin-left: calc(var(--spacing-smd) + 7px);
+}
+
+.nest .lane {
+  padding-left: var(--spacing-smd);
+}
+
+.nest .step {
+  padding-left: var(--spacing-smd);
+}
+
+.note {
+  color: var(--gray-color);
+  font-size: var(--krateo-text-label-xs);
+  padding: var(--spacing-xxs) var(--spacing-smd) var(--spacing-xs);
+}
+
+.noteBad {
+  color: var(--run-bad);
+}
+
+.request {
+  background: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--dark-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+  margin: var(--spacing-xs) 0 0;
+  max-height: 200px;
+  overflow: auto;
+  padding: var(--spacing-xsm) var(--spacing-sm);
+  white-space: pre-wrap;
+}
+
+.inlineBtn {
+  font-size: var(--krateo-text-label-xs);
+  height: auto;
+  padding: 0;
+}
+
+/* ── the approval, as a step ── */
+.approval {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding-bottom: var(--spacing-sm);
+}
+
+.approval .step {
+  align-items: center;
+}
+
+.approvalBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: 0 var(--spacing-smd) 0 calc(var(--spacing-smd) + 16px + var(--spacing-xsm));
+}
+
+/* ── actions and footer ── */
+.actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xsm);
+  padding: var(--spacing-xs) var(--spacing-smd) var(--spacing-sm) calc(var(--spacing-smd) + 16px + var(--spacing-xsm));
+}
+
+.foot {
+  align-items: center;
+  border-top: 1px solid var(--border-color);
+  color: var(--gray-color);
+  display: flex;
+  font-size: var(--krateo-text-label-xs);
+  gap: var(--spacing-sm);
+  justify-content: space-between;
+  padding: var(--spacing-xsm) var(--spacing-smd);
+}
+
+.copy {
+  font-size: var(--krateo-text-label-xs);
+}
+
+.srOnly {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}

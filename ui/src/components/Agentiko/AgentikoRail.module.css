@@ -456,6 +456,12 @@
   max-width: 96%;
 }
 
+/* A turn with a run timeline takes the full width, so the card is one width folded or open. */
+.apMsgBotRun {
+  align-self: stretch;
+  max-width: 100%;
+}
+
 .apMsgBot code {
   background: var(--light-color);
   border-radius: 3px;
@@ -589,51 +595,10 @@
   white-space: nowrap;
 }
 
-/* ── kagent HITL approval card (Phase 2) ──
+/* ── kagent HITL approval (Phase 2), rendered as a step of the run timeline (RunTimeline.tsx) ──
    BlastRadiusConfirm's calm decision language, in the rail: amber = the brand's
    attention color for a pending human gate (not an error), mono args block, quiet
    deny-by-default note. Theme vars only, so it reads in both dark and light. */
-.apApproval {
-  background: color-mix(in srgb, var(--amber-color) 6%, transparent);
-  border: 1px solid color-mix(in srgb, var(--amber-color) 38%, transparent);
-  border-radius: var(--radius-md);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-smd);
-}
-
-.apApprovalHead {
-  align-items: center;
-  display: flex;
-  gap: var(--spacing-sm);
-}
-
-/* Mirrors BlastRadiusConfirm .verb — the chip naming the gate. */
-.apApprovalChip {
-  background: color-mix(in srgb, var(--amber-color) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--amber-color) 32%, transparent);
-  border-radius: var(--radius-sm);
-  color: var(--amber-color);
-  font-family: var(--font-mono);
-  font-size: var(--krateo-text-label-xs);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  padding: var(--spacing-xxs) var(--spacing-sm);
-  text-transform: uppercase;
-}
-
-.apApprovalIntent {
-  color: var(--gray-color);
-  font-size: var(--krateo-text-label-sm);
-}
-
-.apApprovalReq {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
-}
-
 .apApprovalTool {
   align-items: baseline;
   display: flex;
@@ -883,91 +848,8 @@
   margin-bottom: var(--spacing-sm);
 }
 
-/* ── Evidence (per-answer source trace) ──
-   A quiet ghost affordance under the answer, opening a mono list of the tool calls behind it.
-   Deliberately colorless: it is a fact surface, not a CTA. */
-.apEvBtn {
-  align-items: center;
-  background: none;
-  border: none;
-  color: var(--gray-color);
-  cursor: pointer;
-  display: flex;
-  font-family: var(--font-mono);
-  font-size: var(--krateo-text-label-xs);
-  gap: var(--spacing-xsm);
-  letter-spacing: 0.04em;
-  padding: var(--spacing-xs) 0 0;
-  text-transform: uppercase;
-}
-
-.apEvBtn:hover {
-  color: var(--primary-color);
-}
-
-.apEv {
-  border-left: 2px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xsm);
-  margin-top: var(--spacing-xsm);
-  padding-left: var(--spacing-sm);
-}
-
-.apEvHead {
-  align-items: center;
-  color: var(--dark-color);
-  display: flex;
-  font-family: var(--font-mono);
-  font-size: var(--krateo-text-label-xs);
-  gap: var(--spacing-sm);
-  justify-content: space-between;
-}
-
-.apEvCopy {
-  align-items: center;
-  background: none;
-  border: none;
-  color: var(--gray-color);
-  cursor: pointer;
-  display: inline-flex;
-  flex: none;
-  font-family: var(--font-mono);
-  font-size: var(--krateo-text-label-xs);
-  gap: var(--spacing-xs);
-  padding: 0;
-}
-
-.apEvCopy:hover {
-  color: var(--primary-color);
-}
-
-.apEvRow {
-  background: none;
-  border: none;
-  color: var(--gray-color);
-  cursor: default;
-  display: flex;
-  flex-direction: column;
-  font-family: var(--font-mono);
-  font-size: var(--krateo-text-label-xs);
-  gap: var(--spacing-xxs);
-  line-height: 1.45;
-  padding: 0;
-  text-align: left;
-  word-break: break-all;
-}
-
-.apEvTool {
-  color: var(--dark-color);
-}
-
-.apEvMeta {
-  color: var(--gray-color);
-  font-family: var(--font-mono);
-  font-size: var(--krateo-text-label-xs);
-}
-
+/* A link inside the transcript (an action chip's target). Named for the evidence panel it was
+   first written for; the run timeline (RunTimeline.module.css) has its own. */
 .apEvLink {
   color: var(--primary-color);
   text-decoration: none;
@@ -975,25 +857,6 @@
 
 .apEvLink:hover {
   text-decoration: underline;
-}
-
-.apEvGroup {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
-}
-
-.apEvGroup > .apEvRow {
-  cursor: pointer;
-}
-
-.apEvNested {
-  border-left: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
-  margin-left: var(--spacing-xs);
-  padding-left: var(--spacing-sm);
 }
 
 /* ── speak-back (voice spec §3): the chrome for an answer being READ ALOUD. Colours are
@@ -1247,83 +1110,6 @@
   .apVoiceLevelFill {
     transition: none;
   }
-}
-
-/* --- Live activity: what the agent is doing while the answer is still being written ---------- */
-.apLiveAct {
-  border-left: 2px solid var(--krateo-color-agent-signal-fill, var(--primary-color));
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xxs);
-  margin-top: var(--spacing-xsm);
-  padding-left: var(--spacing-sm);
-}
-
-.apLiveActRow {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
-  font-size: var(--krateo-text-label-xs);
-  gap: var(--spacing-xxs);
-}
-
-/* THE LABEL NEVER SHRINKS. It sat in a flex row beside the request text, both shrinkable, and the
-   request — a long delegation brief — won: "asking core-provider-agent" was squeezed into a column
-   one letter wide, on camera, in the V2 blueprint take. The label keeps its width; the request takes
-   what is left, or wraps onto its own line under a narrow rail.
-   The row's gap is --spacing-xxs (2px): right between the state mark and the label, but not between
-   the label and a mono brief beside it. At 10px those read as one word ("frontend-agentBuild a page…",
-   the Portal Builder V2 take on 1.6.78), so the label owns the wider separation. */
-.apLiveActLabel {
-  flex: 0 0 auto;
-  margin-inline-end: var(--spacing-sm);
-  white-space: nowrap;
-}
-
-.apLiveActRequest {
-  flex: 1 1 12rem;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-/* The state is carried by the mark, not by colouring the text: a row that has finished should
-   recede, not compete with the one still running. */
-.apLiveActMark {
-  align-self: center;
-  border-radius: 50%;
-  flex: 0 0 auto;
-  height: 6px;
-  width: 6px;
-}
-
-/* THE "Agentiko is EXECUTING" indicator, and now the only one — the blinking caret that used to
-   sit above this carried the same meaning with none of the words. Signal Yellow #E8FF00 is Tier-2
-   locked to EXACTLY this meaning (issue #49) — never a CTA/decoration/link; the token is #E8FF00 in
-   both modes. (The pending-HITL approval gate stays the warning token: WAITING is not EXECUTING.) */
-.apLiveActRow[data-state='running'] .apLiveActMark {
-  animation: ap-blink 1s steps(2, start) infinite;
-  background: var(--krateo-color-agent-signal-fill, var(--primary-color));
-}
-
-/* The mark's PRESENCE is the signal, so stopping the blink loses nothing — and an indefinite loop
-   is exactly what this media query exists to stop. Neither this nor the caret it replaces was ever
-   guarded; the caret is gone, so this is the one that needed it. */
-@media (prefers-reduced-motion: reduce) {
-  .apLiveActRow[data-state='running'] .apLiveActMark {
-    animation: none;
-  }
-}
-
-.apLiveActRow[data-state='done'] .apLiveActMark {
-  background: var(--border-color);
-}
-
-.apLiveActRow[data-state='failed'] .apLiveActMark {
-  background: var(--error-color, #d4380d);
-}
-
-.apLiveActRow[data-state='done'] {
-  opacity: 0.65;
 }
 
 /* ── locked: the agent is not licensed (AgentikoLockedRail) ──

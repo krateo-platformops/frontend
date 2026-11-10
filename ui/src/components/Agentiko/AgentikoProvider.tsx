@@ -540,7 +540,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
         assistantTextRef.current.set(assistantId, next)
         const rendered = sanitizeChatText(next)
         setMessages((prev) => prev.map((message) => (
-          message.id === assistantId ? { ...message, text: rendered } : message
+          message.id === assistantId ? { ...message, lastEventAt: Date.now(), text: rendered } : message
         )))
         break
       }
@@ -591,6 +591,8 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
         approvalRef.current?.governor.dispose()
         const governor = createApprovalGovernor(() => timeoutDenyRef.current(frame.pause))
         approvalRef.current = { governor, pause: frame.pause }
+        // Stamped on the turn that paused, so the run timeline renders the approval as ITS step.
+        setMessages((prev) => prev.map((message) => (message.id === assistantId ? { ...message, approvalAt: Date.now() } : message)))
         setPendingApproval(frame.pause)
         break
       }

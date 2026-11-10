@@ -43,6 +43,18 @@ export interface AgentikoMessage {
   /** The turn's source trace. Empty array = the turn used no tools. */
   evidence?: EvidenceEntry[]
   /**
+   * When the stream last delivered answer text (epoch ms). The run timeline's stall check reads
+   * this alongside each step's `startedAt`/`endedAt`: a turn that is writing its answer is not
+   * silent, even though no tool frame has arrived for a while.
+   */
+  lastEventAt?: number
+  /**
+   * When this turn paused on a kagent HITL approval (epoch ms). It is how the run timeline knows
+   * WHICH turn the pending approval belongs to, so the approval renders as a step of that turn at
+   * the moment it happened rather than after whatever was said since.
+   */
+  approvalAt?: number
+  /**
    * How the user asked the turn this message belongs to (voice spec FR 67). Stamped on the
    * assistant bubble at Send so the transcript RECORDS which turns were asked by voice —
    * through a routerVersion remount, a thread switch and a page reload.
@@ -82,6 +94,13 @@ export interface EvidenceEntry {
   request?: string
   note?: string
   failed?: boolean
+  /** Why a failed call failed: the first line of its error output, redacted and clamped. Only
+   *  set when `failed`; a successful result's payload is still never kept. */
+  reason?: string
+  /** When the call frame / the result frame reached the browser (epoch ms). Frame arrival is the
+   *  only clock the frontend has; a row folded from stored history has neither. */
+  startedAt?: number
+  endedAt?: number
   /**
    * The result frame arrived. Absent means the call is STILL IN FLIGHT — which is the whole
    * distinction the live activity view is built on, and one `failed` cannot carry: a call that has
