@@ -4,11 +4,24 @@
  * checkbox row via `optionRender`. Petrol discipline: boldness (amber) only on the live control. */
 
 /* #80 §0.6: `showSearch={false}` (Select.tsx) does NOT remove antd 6's inline search input in
- * multi-mode — the readonly `.ant-select-input` stays mounted and blinks a text caret inside the
- * closed control. This select filters via its custom checkbox popup, not inline typing, so hide
- * that input outright. Scoped to `.checkSelect` so ordinary searchable (form) selects are untouched. */
+ * multi-mode — the readonly `.ant-select-input` stays mounted, and it used to blink a text caret
+ * inside the control. This select filters via its custom checkbox popup, not inline typing, so the
+ * caret must not show. Hide only the CARET: that input is antd's combobox, the element that takes
+ * focus, carries role=combobox and the accessible name, and drives the popup from the keyboard.
+ * `display: none` (the earlier fix) took the whole picker out of the Tab order and the
+ * accessibility tree. antd 6.6 already clears the caret of a readonly input; this keeps it cleared
+ * whatever antd does. Scoped to `.checkSelect` so ordinary searchable (form) selects are untouched. */
 .checkSelect :global(.ant-select-input) {
-  display: none !important;
+  caret-color: transparent;
+}
+
+/* The readonly input still has a few px of width, and its overflow item sits after the value: in the
+ * centred "All projects" state that pulled the value off centre, and rc-overflow reserves the item's
+ * width when it decides how many project pills fit. A zero-width item gives the control the layout it
+ * had while the input was hidden; the input itself overflows it, so it keeps a real box to focus. */
+.checkSelect :global(.ant-select-content-item-suffix) {
+  flex: none;
+  width: 0;
 }
 
 /* ── option rows (left amber-fill checkbox + mono name) ── */
