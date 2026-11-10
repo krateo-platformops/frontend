@@ -5,6 +5,7 @@
  * is a pure function with its own tests, rather than a conditional buried in JSX.
  */
 import type { AuthFailureCause } from './authFailureCause'
+import { AUTH_FAILURE_REASONS } from './authFailureCause'
 
 export interface AuthFailurePresentation {
   /** The body copy. Says what happened and what they can do, never "please try later". */
@@ -43,6 +44,15 @@ export const authFailurePresentation = (cause: AuthFailureCause): AuthFailurePre
         title: 'Additional verification required',
       }
     default:
+      // The session did not run out: the key that signed it was retired, so it was cut short.
+      // Saying "expired" would point the person at a clock that is fine.
+      if (cause.reason === AUTH_FAILURE_REASONS.keyNotPublished) {
+        return {
+          description: 'Your sign-in was revoked, so this session can no longer be used. Sign in again to continue right where you left off.',
+          showAuthForm: true,
+          title: 'Sign-in revoked',
+        }
+      }
       return {
         description: 'Your session has expired. Sign in to continue right where you left off.',
         showAuthForm: true,

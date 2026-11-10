@@ -232,12 +232,22 @@ describe('which TOKEN the request carried — the input no server response can g
     expect(isUserActionable(stepUpCredentialStillMissing(AUTH_FAILURE_REASONS.stepUpRequired))).toBe(false)
   })
 
+  it('KeyNotPublished (snowplow#1315) follows the token kind like the other token-state reasons', () => {
+    // A retired signing key invalidates whichever token it signed. A session token is fixed by
+    // signing in again; a step-up token by stepping up again — the session never failed.
+    const reason = AUTH_FAILURE_REASONS.keyNotPublished
+    expect(authFailureCauseOf(body(reason))).toEqual({ action: 'reauthenticate', reason })
+    expect(authFailureCauseOf(body(reason), { tokenKind: 'step-up' })).toEqual({ action: 'step-up', reason })
+  })
+
   it('token-state spellings are snowplow\'s exactly, and a casing slip degrades safely', () => {
     // Pinned as literals because snowplow's table is case-sensitive. A casing difference must not
     // throw or mis-route; it falls through to the safe default.
     expect(AUTH_FAILURE_REASONS.tokenExpired).toBe('TokenExpired')
     expect(AUTH_FAILURE_REASONS.tokenInvalid).toBe('TokenInvalid')
     expect(AUTH_FAILURE_REASONS.tokenMissing).toBe('TokenMissing')
+    // As read from snowplow's merged credential_status.go (CauseKeyNotPublished, d328f6e).
+    expect(AUTH_FAILURE_REASONS.keyNotPublished).toBe('KeyNotPublished')
     expect(authFailureCauseOf(body('tokenexpired'), { tokenKind: 'step-up' }).action).toBe('step-up')
     expect(authFailureCauseOf(body('tokenexpired')).action).toBe('reauthenticate')
   })

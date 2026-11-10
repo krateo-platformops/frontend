@@ -30,6 +30,12 @@ export const AUTH_FAILURE_REASONS = {
   insufficientAssurance: 'InsufficientAssurance',
   /** authn: the token could not be issued. A server fault, not the person's and not a setting. */
   issuanceFailed: 'IssuanceFailed',
+  /**
+   * snowplow: the credential was signed with an authn key that is no longer published (retired or
+   * rotated out), so it can never validate again (snowplow#1315, from 1.12.69). Checked before
+   * `TokenInvalid`, on both UserConfig and RefreshAuth.
+   */
+  keyNotPublished: 'KeyNotPublished',
   /** snowplow: the session credential itself is absent — the ordinary expired-session 401. */
   sessionCredentialMissing: 'SessionCredentialMissing',
   /** authn: authentication is too old for the resource's freshness requirement. */
@@ -74,6 +80,8 @@ export interface AuthFailureCause {
  * Every entry in `BY_REASON` below names an ABSOLUTE fault: the same thing is wrong whoever asked,
  * so the reason is the whole answer. These three are RELATIVE — they describe the state of
  * whichever credential was presented, and the right outcome depends on WHICH credential that was.
+ * `KeyNotPublished` is one of them: a retired signing key invalidates whichever token it signed,
+ * session or step-up, and the fix is to obtain that same kind of token again.
  * An expired session token means sign in again; an expired step-up token means step up again, and
  * must not offer a session sign-in, because the session never failed.
  *
@@ -87,6 +95,7 @@ export interface AuthFailureCause {
  * but would stop prompting step-up where step-up is what resolves it.
  */
 const TOKEN_STATE_REASONS: ReadonlySet<string> = new Set([
+  AUTH_FAILURE_REASONS.keyNotPublished,
   AUTH_FAILURE_REASONS.tokenExpired,
   AUTH_FAILURE_REASONS.tokenInvalid,
   AUTH_FAILURE_REASONS.tokenMissing,
