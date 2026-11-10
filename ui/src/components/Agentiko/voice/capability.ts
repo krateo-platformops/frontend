@@ -1,35 +1,66 @@
 /**
- * CAPABILITY GATE — the pure predicate that decides whether the microphone control
- * exists at all. Voice spec FR 1–6.
+ * CAPABILITY GATE — the pure predicate that decides whether the microphone control can
+ * record, and when it cannot, WHY. Voice spec FR 1–6.
  *
- * THE ORDER OF THE TESTS IS THE WHOLE POINT, and it is `isSecureContext` FIRST.
+ * THE ORDER OF THE TESTS IS THE WHOLE POINT. It is also the order the control explains
+ * itself in when several things are wrong at once (decided 2026-11-10): not configured,
+ * then insecure, then unsupported — and only after all three does a denied microphone
+ * permission get a say (that one is the control's, in `VoiceControl.tsx`).
  *
- * `getUserMedia` and `MediaRecorder` being present is a PROVEN FALSE POSITIVE for "this
- * browser can record": on a plain-HTTP origin some browsers still expose the constructors
- * and only fail at call time, and the great majority of Krateo installs are still plain
- * HTTP (the portal is HTTPS now, but every deployment that has not enabled TLS is not).
- * Testing the APIs first would render a microphone button that can only ever produce a
- * permission error. So the context is tested before anything else touches `navigator`.
+ * Configuration comes first because it decides whether the feature exists on this
+ * platform at all: TLS on a portal with no transcription endpoint still leaves dictation
+ * off, so "needs HTTPS" would send someone to fix the wrong thing first. It reads nothing
+ * from the browser, so putting it first costs the rule below nothing.
+ *
+ * `isSecureContext` is tested BEFORE ANYTHING TOUCHES `navigator`. `getUserMedia` and
+ * `MediaRecorder` being present is a PROVEN FALSE POSITIVE for "this browser can record":
+ * on a plain-HTTP origin some browsers still expose the constructors and only fail at call
+ * time. Testing the APIs first would call a browser able to record when the only thing it
+ * can ever produce is a permission error.
  *
  * THE URL IS THE ON/OFF SWITCH (FR 4). There is no `AUTOPILOT_VOICE_ENGINE` and no
- * boolean: the transcription endpoint is configuration, ABSENT BY DEFAULT, and with it
- * unset the control does not render and the composer's DOM is byte-identical to what it
- * was before this feature existed. The dedicated `/stt/v1` route this feature wants is
- * still with the platform team, so nothing is hard-coded — not `/llm/v1`, not the gateway
- * origin, not a path. Whatever the operator configures is where the audio goes.
+ * boolean: the transcription endpoint is configuration, ABSENT BY DEFAULT. The dedicated
+ * `/stt/v1` route this feature wants is still with the platform team, so nothing is
+ * hard-coded — not `/llm/v1`, not the gateway origin, not a path. Whatever the operator
+ * configures is where the audio goes.
  *
- * UNAVAILABLE IS HIDDEN, NOT GREYED. A permanently disabled microphone on every
- * plain-HTTP portal would be a permanent indicator for the DEFAULT state, which the
- * house rule forbids (status markers are exception-only). One `console.info` on first
- * rail open names the reason and the origin so an operator can act on it; the UI says
- * nothing at all.
+ * UNAVAILABLE IS SHOWN, DISABLED, AND SAYS WHY (decided 2026-11-10, superseding the
+ * original "hidden, not greyed"). The control is always rendered; where it cannot work it
+ * gets exactly the blocked microphone's treatment — focusable, `aria-disabled`, the reason
+ * in its label and in a keyboard-reachable tooltip — with the copy in
+ * `VOICE_UNAVAILABLE_COPY` below. A missing control explains nothing to the person looking
+ * for it. The one `console.info` on first rail open (FR 5) still names the reason AND the
+ * origin for the operator, who is the one who can act on most of these.
  *
  * Pure and window-injectable: jsdom has neither `MediaRecorder` nor `getUserMedia`, so
  * every branch here is unit-testable by handing in a fake global.
  */
 
-/** Why dictation is not available. Each maps to one operator-actionable console line. */
+/**
+ * Why dictation is not available. Each maps to one operator-actionable console line and
+ * to one user-facing label + hint.
+ */
 export type VoiceUnavailableReason = 'insecure-context' | 'no-recorder' | 'not-configured'
+
+/**
+ * What the disabled control says for each reason. `label` is its accessible name and says
+ * WHY, because that is the one string every assistive technology reads; `hint` is the
+ * tooltip and the `aria-describedby` text.
+ */
+export const VOICE_UNAVAILABLE_COPY: Readonly<Record<VoiceUnavailableReason, { hint: string; label: string }>> = Object.freeze({
+  'insecure-context': {
+    hint: 'Dictation needs a secure (HTTPS) connection.',
+    label: 'Dictate — needs HTTPS',
+  },
+  'no-recorder': {
+    hint: 'This browser can\'t record audio. Try a current version of Chrome, Edge, Firefox or Safari.',
+    label: 'Dictate — not supported here',
+  },
+  'not-configured': {
+    hint: 'Dictation isn\'t set up on this platform. Ask an administrator to configure it.',
+    label: 'Dictate — not set up',
+  },
+})
 
 /** Available carries the chosen container, so the recorder never re-picks it. */
 export type VoiceCapability
@@ -116,19 +147,21 @@ export const pickRecordingMimeType = (scope: VoiceCapabilityGlobal): string | nu
 }
 
 /**
- * The gate. Order is normative (FR 1–3): secure context, then configuration, then the
- * recording APIs. `transcribeUrl` is `config.api.AUTOPILOT_VOICE_TRANSCRIBE_URL`.
+ * The gate. Order is normative — configuration, then secure context, then the recording
+ * APIs; the header says why each sits where it does. `transcribeUrl` is
+ * `agentikoConfig(config.api, 'VOICE_TRANSCRIBE_URL')`.
  */
 export const detectVoiceCapability = (
   transcribeUrl: string | undefined,
   scope: VoiceCapabilityGlobal = globalThis,
 ): VoiceCapability => {
-  // FIRST, ALWAYS. API presence on an insecure origin is a measured false positive.
-  if (scope.isSecureContext !== true) {
-    return { available: false, reason: 'insecure-context' }
-  }
+  // First: whether the feature exists on this platform at all. Reads nothing from the browser.
   if (!isTranscribeUrl(transcribeUrl)) {
     return { available: false, reason: 'not-configured' }
+  }
+  // Before ANY API probe: API presence on an insecure origin is a measured false positive.
+  if (scope.isSecureContext !== true) {
+    return { available: false, reason: 'insecure-context' }
   }
   if (typeof scope.navigator?.mediaDevices?.getUserMedia !== 'function') {
     return { available: false, reason: 'no-recorder' }

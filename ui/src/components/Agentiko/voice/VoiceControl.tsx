@@ -3,18 +3,25 @@
  * `AgentikoRail.tsx` so the rail stays inside its 500-line budget.
  * Voice spec FR 1, 7, 12, 18, 21, 25, 29–36.
  *
- * WHAT IS NOT HERE IS THE POINT: when dictation is unavailable this file renders
- * NOTHING — no greyed microphone, no explanatory copy, no tab stop, no wrapper element.
- * The composer's DOM is byte-identical to what it was before the feature existed (FR 1/4).
- * A permanently disabled microphone on every plain-HTTP portal would be a permanent
- * indicator for the DEFAULT state, which the house rule forbids; and the fix — TLS on the
- * portal and every backend origin — is not something the person looking at the button can
- * do. One `console.info` tells the operator, who can.
+ * THE MICROPHONE IS ALWAYS THERE (decided 2026-11-10, superseding the original "render
+ * nothing when unavailable"). A control that exists on one portal and silently does not on
+ * another tells the person looking for it nothing — not that the feature exists, not why
+ * it is off here, not who could turn it on. So wherever dictation cannot work the control
+ * is rendered DISABLED AND EXPLAINED, and every reason gets the treatment the blocked
+ * microphone already had:
  *
- * BLOCKED IS THE OPPOSITE CASE and IS shown. A denied microphone permission is fixable by
- * the person in front of the screen, from the address bar, in seconds — so the control
- * stays visible, keeps its place in the tab order (`aria-disabled`, still focusable, FR 29)
- * and carries the instruction in a tooltip reachable by keyboard.
+ *   · it keeps its place in the tab order (`aria-disabled`, still focusable, FR 29);
+ *   · its accessible name says WHY ("Dictate — needs HTTPS"), because the name is the one
+ *     string every assistive technology reads;
+ *   · the full reason is in a tooltip reachable by keyboard AND behind `aria-describedby`.
+ *
+ * When several things are wrong the control names ONE, in a fixed precedence: not set up,
+ * then needs HTTPS, then not supported here (that order is `detectVoiceCapability`'s), and
+ * only then microphone blocked — a permission means nothing where nothing can record.
+ *
+ * A DISABLED CONTROL NEVER RECORDS. The press handler returns before touching the store,
+ * and the store's own `start()` independently refuses an unavailable capability or a denied
+ * permission, so neither layer alone stands between a click and an open microphone.
  *
  * Raw `<button>` + CSS modules + the inline stroke SVGs from `icons.tsx`: this is app
  * chrome under `src/components/`, where the antd-mirror rule does not bind. antd's
@@ -27,6 +34,9 @@ import { useSyncExternalStore } from 'react'
 import styles from '../AgentikoRail.module.css'
 import { MicIcon, MicOffIcon, SpinnerIcon } from '../icons'
 
+import type { VoiceCapability } from './capability'
+import { VOICE_UNAVAILABLE_COPY } from './capability'
+import type { MicrophonePermission } from './permission'
 import { MICROPHONE_BLOCKED_HINT } from './permission'
 import { MAX_RECORDING_MS } from './recorder'
 import { agentikoVoiceStore } from './voiceStore'
@@ -36,19 +46,37 @@ const useVoice = () => useSyncExternalStore(agentikoVoiceStore.subscribe, agenti
 /** FR 25: the rail holds Send while a transcription is in flight. */
 export const useVoiceBusy = (): boolean => useVoice().phase === 'transcribing'
 
-/** FR 32: the id the blocked button's `aria-describedby` points at. */
-export const VOICE_BLOCKED_HINT_ID = 'agentiko-voice-blocked-hint'
+/** FR 32: the id a disabled button's `aria-describedby` points at. */
+export const VOICE_DISABLED_HINT_ID = 'agentiko-voice-disabled-hint'
 
-/** FR 30: one control, two meanings — the label has to say which one it currently has. */
-const buttonLabel = (blocked: boolean, listening: boolean): string => {
-  if (blocked) {
-    return 'Dictate — microphone blocked'
-  }
-  return listening ? 'Stop dictating' : 'Dictate'
+/** What a disabled control says: its accessible name, and the reason behind it. */
+export interface VoiceDisabledCopy {
+  hint: string
+  label: string
 }
 
-const VoiceGlyph = ({ blocked, busy }: { blocked: boolean; busy: boolean }) => {
-  if (blocked) {
+const BLOCKED_COPY: VoiceDisabledCopy = Object.freeze({
+  hint: MICROPHONE_BLOCKED_HINT,
+  label: 'Dictate — microphone blocked',
+})
+
+/**
+ * Why the control cannot be pressed, or `null` when it can. The precedence IS the order of
+ * these checks: the capability's own reason first (not set up → needs HTTPS → not supported
+ * here, as `detectVoiceCapability` orders them), then a denied permission.
+ */
+export const voiceDisabledCopy = (
+  capability: VoiceCapability,
+  permission: MicrophonePermission,
+): VoiceDisabledCopy | null => {
+  if (!capability.available) {
+    return VOICE_UNAVAILABLE_COPY[capability.reason]
+  }
+  return permission === 'denied' ? BLOCKED_COPY : null
+}
+
+const VoiceGlyph = ({ busy, disabled }: { busy: boolean; disabled: boolean }) => {
+  if (disabled) {
     return <MicOffIcon />
   }
   return busy ? <SpinnerIcon className={styles.apVoiceSpin} /> : <MicIcon />
@@ -60,7 +88,8 @@ const mmss = (elapsedMs: number): string => {
 }
 
 /**
- * The microphone, between the textarea and Send. Four states and one absence.
+ * The microphone, between the textarea and Send. Always rendered: idle, listening,
+ * transcribing, or disabled with its reason.
  *
  * `aria-pressed` reflects listening rather than a separate "stop" control, because there
  * is one affordance with two meanings and a screen-reader user needs to know which one it
@@ -68,62 +97,62 @@ const mmss = (elapsedMs: number): string => {
  */
 export const VoiceButton = () => {
   const { capability, permission, phase } = useVoice()
-  if (!capability.available) {
-    return null
-  }
-
-  const blocked = permission === 'denied'
+  const disabled = voiceDisabledCopy(capability, permission)
   const listening = phase === 'listening'
   const busy = phase === 'transcribing'
-  const label = buttonLabel(blocked, listening)
+  const label = disabled?.label ?? (listening ? 'Stop dictating' : 'Dictate')
   const className = [
     styles.apVoice,
     listening ? styles.listening : '',
     busy ? styles.busy : '',
-    blocked ? styles.blocked : '',
+    disabled ? styles.blocked : '',
   ].filter(Boolean).join(' ')
 
   const button = (
     <button
       aria-busy={busy}
-      aria-describedby={blocked ? VOICE_BLOCKED_HINT_ID : undefined}
-      aria-disabled={blocked || busy}
+      aria-describedby={disabled ? VOICE_DISABLED_HINT_ID : undefined}
+      aria-disabled={disabled !== null || busy}
       aria-label={label}
       aria-pressed={listening}
       className={className}
       data-testid='agentiko-voice-button'
       onClick={() => {
-        // A blocked permission triggers NO prompt (FR 18): the browser will not show one,
-        // so a press that appears to do nothing is the honest behaviour, and the tooltip
-        // is where the actual fix lives.
-        if (blocked || busy) {
+        // A disabled control does nothing on press: no prompt (FR 18 — for a blocked
+        // permission the browser would not show one anyway), no microphone, no upload. The
+        // tooltip is where the actual reason lives.
+        if (disabled || busy) {
           return
         }
         agentikoVoiceStore.toggle()
       }}
-      title={blocked ? MICROPHONE_BLOCKED_HINT : label}
+      title={disabled ? disabled.hint : label}
       type='button'
     >
-      <VoiceGlyph blocked={blocked} busy={busy} />
+      <VoiceGlyph busy={busy} disabled={disabled !== null} />
     </button>
   )
 
-  if (!blocked) {
+  if (!disabled) {
     return button
   }
   // FR 32: the reason is reachable BOTH as a tooltip and via `aria-describedby`, because a
   // hover-only explanation is not an explanation for a keyboard or screen-reader user —
-  // and this is the one voice state whose fix is entirely outside the page.
+  // and every one of these reasons is fixed somewhere outside the page.
   //
   // The Tooltip wraps a SPAN rather than the button itself: rc-trigger clones its child and
   // writes its own `aria-describedby` (undefined while the tooltip is closed), which would
-  // silently clobber the one pointing at the instruction below.
+  // silently clobber the one pointing at the reason below.
+  //
+  // `focus` is in the trigger list because antd's default is hover ONLY: tabbing onto the
+  // control showed nothing. React's `onFocus` bubbles (it is `focusin`), so the span's
+  // trigger fires when the button inside it takes keyboard focus.
   return (
     <>
-      <Tooltip title={MICROPHONE_BLOCKED_HINT}>
+      <Tooltip title={disabled.hint} trigger={['hover', 'focus']}>
         <span className={styles.apVoiceTip}>{button}</span>
       </Tooltip>
-      <span className={styles.apSrOnly} id={VOICE_BLOCKED_HINT_ID}>{MICROPHONE_BLOCKED_HINT}</span>
+      <span className={styles.apSrOnly} id={VOICE_DISABLED_HINT_ID}>{disabled.hint}</span>
     </>
   )
 }

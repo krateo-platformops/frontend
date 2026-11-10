@@ -1,15 +1,12 @@
 // @vitest-environment jsdom
 /**
- * DICTATION IN THE REAL COMPOSER — the states the microphone control renders, and the
- * one case that has to render NOTHING.
+ * DICTATION IN THE REAL COMPOSER — the states the microphone control renders.
  *
- * The first test is the important one and it is a DOM-equality test: with dictation
- * unavailable — which is every plain-HTTP deployment, and every deployment where the
- * operator has not configured a transcription endpoint, i.e. all of them today — the
- * composer must be byte-identical to what it was before this feature existed. Not a
- * greyed button, not a tooltip, not a wrapper element, not a tab stop. The reference
- * snapshot is taken from the same component with the store left unavailable, so the
- * assertion cannot drift as the composer changes for other reasons.
+ * The control is ALWAYS rendered (decided 2026-11-10). Where dictation cannot work — no
+ * transcription endpoint configured, a plain-HTTP origin, a browser that cannot record —
+ * it is disabled the way a blocked microphone is: focusable, `aria-disabled`, the reason
+ * in its label and behind `aria-describedby`, and a press that opens nothing and sends
+ * nothing. One test per reason, plus the precedence when several apply.
  *
  * The last test closes the loop the whole feature exists for: a purely dictated draft
  * sends `modality: 'voice'`, which is what makes speak-back fire at all.
@@ -86,6 +83,9 @@ let fetchImpl: Mock<typeof fetch>
 
 const stream: MediaStreamLike = { getTracks: () => [{ stop: () => undefined }] }
 
+/** The ONE way the store opens a microphone. A disabled control must never reach it. */
+let getUserMediaSpy: Mock<RecorderDeps['getUserMedia']>
+
 const recorderDeps = (): RecorderDeps => ({
   createLevelMeter: () => ({ close: () => undefined, rms: () => level }),
   createRecorder: () => {
@@ -101,7 +101,7 @@ const recorderDeps = (): RecorderDeps => ({
     }
     return made
   },
-  getUserMedia: () => Promise.resolve(stream),
+  getUserMedia: getUserMediaSpy,
   now: () => clock,
 })
 
@@ -163,6 +163,12 @@ beforeAll(() => {
     value: (query: string) => ({ addEventListener: noop, addListener: noop, dispatchEvent: () => false, matches: false, media: query, onchange: null, removeEventListener: noop, removeListener: noop }),
     writable: true,
   })
+  // jsdom has none, and antd's Tooltip measures its anchor with one once it opens.
+  globalThis.ResizeObserver = class {
+    disconnect = noop
+    observe = noop
+    unobserve = noop
+  }
 })
 
 beforeEach(() => {
@@ -170,6 +176,7 @@ beforeEach(() => {
   clock = 0
   level = SPEECH_RMS_THRESHOLD * 5
   fetchImpl = vi.fn().mockResolvedValue(jsonResponse(transcript('scale payments to three replicas')))
+  getUserMediaSpy = vi.fn(() => Promise.resolve(stream))
   localStorage.clear()
   agentikoComposerDraftStore.clear()
   agentikoSpeakBackStore.installSpeechDeps(null)
@@ -220,37 +227,105 @@ describe('the one console line (FR 5)', () => {
 })
 
 // ────────────────────────────────────────────────────────────────────────────────────
-describe('unavailable renders NOTHING (FR 1, 4)', () => {
-  it('produces a composer byte-identical to the one with no voice feature at all', () => {
-    makeUnavailable()
-    const { container } = render(<AgentikoRail />)
-    const composer = container.querySelector('[class*="apComposer"]')!.outerHTML
+/** Secure and configured, but the browser has no recorder at all. */
+const makeUnsupported = (): void => {
+  makeAvailable()
+  Object.defineProperty(globalThis, 'MediaRecorder', { configurable: true, value: undefined })
+}
 
-    // The reference: the same composer with the microphone available, minus the microphone.
-    // If ANY voice markup leaked into the unavailable path, these diverge.
-    cleanup()
-    makeAvailable()
-    const second = render(<AgentikoRail />)
-    const available = second.container.querySelector('[class*="apComposer"]')!.outerHTML
+/**
+ * ALWAYS RENDERED (decided 2026-11-10): where dictation cannot work, the control is there,
+ * focusable, `aria-disabled`, and says why — the blocked microphone's treatment, per reason.
+ * The strings are written out rather than imported, so the test pins the decided copy.
+ */
+describe('a microphone that cannot work is shown disabled, and says why', () => {
+  const CASES = [
+    {
+      arrange: () => {
+        makeAvailable()
+        mockConfig.api = {}
+      },
+      hint: 'Dictation isn\'t set up on this platform. Ask an administrator to configure it.',
+      label: 'Dictate — not set up',
+      reason: 'not configured (no transcription URL, even over HTTPS)',
+    },
+    {
+      arrange: makeUnavailable,
+      hint: 'Dictation needs a secure (HTTPS) connection.',
+      label: 'Dictate — needs HTTPS',
+      reason: 'insecure context (both APIs present — the measured false positive)',
+    },
+    {
+      arrange: makeUnsupported,
+      hint: 'This browser can\'t record audio. Try a current version of Chrome, Edge, Firefox or Safari.',
+      label: 'Dictate — not supported here',
+      reason: 'the browser cannot record',
+    },
+  ]
 
-    expect(composer).not.toBe(available)
-    expect(composer).not.toContain('agentiko-voice')
-    expect(composer).not.toContain('Dictate')
-    expect(available).toContain('agentiko-voice-button')
-  })
+  it.each(CASES)('$reason: rendered, focusable, aria-disabled, labelled, described — and a press records nothing', async ({ arrange, hint, label }) => {
+    arrange()
+    const { getByTestId, queryByTestId } = render(<AgentikoRail />)
+    withFakeTranscriber()
 
-  it('adds no tab stop and no control when the context is insecure, APIs present or not', () => {
-    makeUnavailable()
-    const { queryByTestId } = render(<AgentikoRail />)
-    expect(queryByTestId('agentiko-voice-button')).toBeNull()
+    const button = getByTestId('agentiko-voice-button')
+    expect(button.getAttribute('aria-label')).toBe(label)
+    expect(button.getAttribute('aria-disabled')).toBe('true')
+    // Still focusable: NOT the `disabled` attribute, and not taken out of the tab order.
+    expect(button.hasAttribute('disabled')).toBe(false)
+    expect(button.tabIndex).toBe(0)
+    act(() => button.focus())
+    expect(document.activeElement).toBe(button)
+    // Keyboard focus alone opens the tooltip — not only a hover.
+    await act(() => settle())
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toBe(hint)
+    const hintId = button.getAttribute('aria-describedby')!
+    expect(hintId).toBeTruthy()
+    expect(document.getElementById(hintId)?.textContent).toBe(hint)
+    expect(button.getAttribute('title')).toBe(hint)
+
+    // Neither the click nor the Alt+M shortcut opens a microphone or sends anything.
+    fireEvent.click(button)
+    fireEvent.keyDown(button, { altKey: true, code: 'KeyM', key: 'µ' })
+    await act(() => settle())
+    expect(getUserMediaSpy).not.toHaveBeenCalled()
+    expect(fetchImpl).not.toHaveBeenCalled()
+    expect(agentikoVoiceStore.getSnapshot().phase).toBe('idle')
     expect(queryByTestId('agentiko-voice-status')).toBeNull()
   })
 
-  it('renders nothing when no transcription endpoint is configured, even over HTTPS', () => {
-    makeAvailable()
+  it('names ONE reason, in precedence: not set up → needs HTTPS → not supported → blocked', () => {
+    // Everything wrong at once, permission denied included.
+    makeUnsupported()
+    Object.defineProperty(window, 'isSecureContext', { configurable: true, value: false })
     mockConfig.api = {}
-    const { queryByTestId } = render(<AgentikoRail />)
-    expect(queryByTestId('agentiko-voice-button')).toBeNull()
+    const { getByTestId, rerender } = render(<AgentikoRail />)
+    act(() => agentikoVoiceStore.setPermission('denied'))
+    const label = () => getByTestId('agentiko-voice-button').getAttribute('aria-label')
+    // Each fix re-evaluates through the real wiring: config via a re-render, the browser
+    // via the window-focus re-check (FR 6).
+    const recheck = () => {
+      rerender(<AgentikoRail />)
+      act(() => { window.dispatchEvent(new Event('focus')) })
+    }
+    expect(label()).toBe('Dictate — not set up')
+
+    mockConfig.api = { AUTOPILOT_VOICE_TRANSCRIBE_URL: TRANSCRIBE_URL }
+    recheck()
+    expect(label()).toBe('Dictate — needs HTTPS')
+
+    Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true })
+    recheck()
+    expect(label()).toBe('Dictate — not supported here')
+
+    Object.defineProperty(globalThis, 'MediaRecorder', { configurable: true, value: { isTypeSupported: () => true } })
+    recheck()
+    expect(label()).toBe('Dictate — microphone blocked')
+
+    act(() => agentikoVoiceStore.setPermission('granted'))
+    expect(label()).toBe('Dictate')
+    expect(getByTestId('agentiko-voice-button').getAttribute('aria-disabled')).toBe('false')
+    expect(getByTestId('agentiko-voice-button').hasAttribute('aria-describedby')).toBe(false)
   })
 })
 
