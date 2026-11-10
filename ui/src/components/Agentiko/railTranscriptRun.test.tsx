@@ -4,7 +4,7 @@
  * work is one line over it. And the old two views are gone — no "Evidence" disclosure under it.
  */
 import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type * as ConfigContextModule from '../../context/ConfigContext'
 
@@ -15,6 +15,15 @@ vi.mock('../../context/ConfigContext', async (importOriginal) => ({
   ...(await importOriginal<typeof ConfigContextModule>()),
   useConfigContext: () => ({ config: { api: {} } }),
 }))
+
+// antd Timeline renders antd Steps, which reads window.matchMedia; jsdom has none (as in ClaimNotice.test.tsx).
+beforeAll(() => {
+  const noop = () => undefined
+  Object.defineProperty(window, 'matchMedia', {
+    value: (query: string) => ({ addEventListener: noop, addListener: noop, dispatchEvent: () => false, matches: false, media: query, onchange: null, removeEventListener: noop, removeListener: noop }),
+    writable: true,
+  })
+})
 
 afterEach(cleanup)
 

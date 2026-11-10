@@ -109,20 +109,25 @@ button.head:focus-visible .chev {
   width: 6px;
 }
 
-.steps {
-  display: flex;
-  flex-direction: column;
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* One Timeline item's content. antd Steps gives item content its own type (token fontSize, a 20px
+   line, colorText at 85%); the card's steps keep the card's own, as they did before Timeline. */
+.item {
+  color: var(--dark-color);
+  font-size: var(--krateo-text-label-sm);
+  line-height: 1.45;
+}
+
+/* The lane's antd Timeline sits inside this; the card's inset is ours, the Timeline's rhythm is its
+   own tokens (RUN_TIMELINE_THEME in RunTimeline.tsx). */
+.timeline {
+  padding: var(--spacing-xs) var(--spacing-smd) 0;
 }
 
 .step {
   align-items: start;
   display: grid;
   gap: var(--spacing-xsm);
-  grid-template-columns: 16px minmax(0, 1fr) auto;
-  padding: var(--spacing-xs) var(--spacing-smd);
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .tx {
@@ -164,11 +169,11 @@ button.head:focus-visible .chev {
 .mark {
   border-radius: 50%;
   display: grid;
+  flex: none;
   font-size: var(--krateo-text-label-xs);
   font-weight: 700;
   height: 14px;
   line-height: 1;
-  margin-top: var(--spacing-xxs);
   place-items: center;
   width: 14px;
 }
@@ -213,14 +218,7 @@ button.head:focus-visible .chev {
 /* A specialist's own steps, nested under its hand-off. */
 .nest {
   border-left: 1.5px solid var(--border-color);
-  margin-left: calc(var(--spacing-smd) + 7px);
-}
-
-.nest .lane {
-  padding-left: var(--spacing-smd);
-}
-
-.nest .step {
+  margin-top: var(--spacing-xs);
   padding-left: var(--spacing-smd);
 }
 
@@ -232,6 +230,11 @@ button.head:focus-visible .chev {
 
 .noteBad {
   color: var(--run-bad);
+}
+
+.nest .lane,
+.nest .note {
+  padding-inline: 0;
 }
 
 .request {
@@ -259,18 +262,10 @@ button.head:focus-visible .chev {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
-  padding-bottom: var(--spacing-sm);
 }
 
 .approval .step {
   align-items: center;
-}
-
-.approvalBody {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-  padding: 0 var(--spacing-smd) 0 calc(var(--spacing-smd) + 16px + var(--spacing-xsm));
 }
 
 /* ── actions and footer ── */
