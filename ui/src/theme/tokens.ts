@@ -39,7 +39,8 @@ export const color = {
   accent2: '#0E9488',
   accentSoft: '#F4EEFF',
   background: '#F7F6FB',
-  blue: '#11B2E2',
+  // The Agentiko brand blue (T11): AA on the light grounds; the pair the brand gradient ends on.
+  blue: '#2213CF',
   border: '#E5E2F0',
   dark: '#141414',
   darkBlue: '#05629A',
@@ -101,7 +102,8 @@ export const colorDark: Record<keyof typeof color, string> = {
   accent2: '#2CC5B9',
   accentSoft: 'rgba(158,0,255,0.18)',
   background: '#07050C',
-  blue: '#11B2E2',
+  // The brand blue is 1.9:1 here: its tint, the end of the dark marks' gradient (agentikoBrand).
+  blue: '#9C8FFF',
   border: '#3A3148',
   dark: '#FFFFFF',
   darkBlue: '#05629A',

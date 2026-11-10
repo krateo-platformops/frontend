@@ -444,3 +444,27 @@ describe('antd text tokens — WCAG AA on every neutral surface (C1)', () => {
     expect(darkTheme.token?.colorTextPlaceholder).toBe(colorDark.faint)
   })
 })
+
+/**
+ * `blue` is the Agentiko brand blue (T11): #2213CF on light ground, its tint #9C8FFF on dark, where
+ * the brand blue is 1.9:1 — the same pair the brand gradient ends on. It was the Krateo blue
+ * #11B2E2 in both modes, 2.4:1 on white: every `color: blue` tag, cell and stat failed AA in light.
+ */
+describe('blue — the Agentiko brand blue, AA in both modes', () => {
+  it('is the end of the brand gradient in each mode', () => {
+    expect(color.blue).toBe(agentikoBrand.light.gradientEnd)
+    expect(colorDark.blue).toBe(agentikoBrand.dark.gradientEnd)
+  })
+
+  ;([['light', color], ['dark', colorDark]] as const).forEach(([mode, palette]) => {
+    it(`${mode}: blue text on the panel and the page ground passes AA >= 4.5:1`, () => {
+      expect(contrastRatio(palette.blue, palette.panelbg)).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(palette.blue, palette.background)).toBeGreaterThanOrEqual(4.5)
+    })
+  })
+
+  it('stays apart from the primary violet in both modes', () => {
+    expect(color.blue).not.toBe(color.primary)
+    expect(colorDark.blue).not.toBe(colorDark.primary)
+  })
+})
