@@ -446,55 +446,55 @@ export const RunTimeline = ({ approval, approvalOutcome, message, onAskAgain }: 
   return (
     <ConfigProvider theme={RUN_TIMELINE_THEME}>
       <div aria-live='polite' className={styles.run} data-phase={phase} data-testid='agentiko-run'>
-      {collapsible
-        ? (
-          <button
-            aria-controls={bodyId}
-            aria-expanded={open}
-            className={headClass}
-            data-testid='agentiko-run-head'
-            onClick={() => setOverride({ open: !open, phase })}
-            type='button'
-          >
-            {headInner}
-          </button>
-        )
-        : <div className={headClass} data-testid='agentiko-run-head'>{headInner}</div>}
-      {showBody ? (
-        <div className={styles.body} id={bodyId}>
-          {counts.agents.length ? <div className={styles.lane}><span className={styles.laneDot} />Agentiko</div> : null}
-          <div className={styles.timeline}><Timeline items={items} /></div>
-          {stalled ? (
-            <div className={styles.actions}>
-              <Button onClick={() => setKeptWaitingAt(Date.now())} size='small'>Keep waiting</Button>
-              {onAskAgain ? <Button onClick={onAskAgain} size='small'>Stop and ask again</Button> : null}
-            </div>
-          ) : null}
-          {phase === 'done' ? (
-            <div className={styles.foot}>
-              <span>{plural(counts.agents.length + 1, 'agent')} · {plural(counts.steps, 'step')}{counts.failed ? ` · ${counts.failed} failed` : ''}</span>
-              <CopyToClipboard
-                onCopy={() => {
-                  setCopied(true)
-                  setTimeout(() => setCopied(false), 2000)
-                }}
-                text={serializeEvidence(entries, childrenBySession)}
-              >
-                <Button
-                  aria-label='Copy steps to clipboard'
-                  className={styles.copy}
-                  icon={copied ? <CheckIcon size={11} /> : <CopyIcon />}
-                  size='small'
-                  title='Copy steps to clipboard'
-                  type='text'
+        {collapsible
+          ? (
+            <button
+              aria-controls={bodyId}
+              aria-expanded={open}
+              className={headClass}
+              data-testid='agentiko-run-head'
+              onClick={() => setOverride({ open: !open, phase })}
+              type='button'
+            >
+              {headInner}
+            </button>
+          )
+          : <div className={headClass} data-testid='agentiko-run-head'>{headInner}</div>}
+        {showBody ? (
+          <div className={styles.body} id={bodyId}>
+            {counts.agents.length ? <div className={styles.lane}><span className={styles.laneDot} />Agentiko</div> : null}
+            <div className={styles.timeline}><Timeline items={items} /></div>
+            {stalled ? (
+              <div className={styles.actions}>
+                <Button onClick={() => setKeptWaitingAt(Date.now())} size='small'>Keep waiting</Button>
+                {onAskAgain ? <Button onClick={onAskAgain} size='small'>Stop and ask again</Button> : null}
+              </div>
+            ) : null}
+            {phase === 'done' ? (
+              <div className={styles.foot}>
+                <span>{plural(counts.agents.length + 1, 'agent')} · {plural(counts.steps, 'step')}{counts.failed ? ` · ${counts.failed} failed` : ''}</span>
+                <CopyToClipboard
+                  onCopy={() => {
+                    setCopied(true)
+                    setTimeout(() => setCopied(false), 2000)
+                  }}
+                  text={serializeEvidence(entries, childrenBySession)}
                 >
-                  {copied ? 'Copied' : 'Copy steps'}
-                </Button>
-              </CopyToClipboard>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+                  <Button
+                    aria-label='Copy steps to clipboard'
+                    className={styles.copy}
+                    icon={copied ? <CheckIcon size={11} /> : <CopyIcon />}
+                    size='small'
+                    title='Copy steps to clipboard'
+                    type='text'
+                  >
+                    {copied ? 'Copied' : 'Copy steps'}
+                  </Button>
+                </CopyToClipboard>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </ConfigProvider>
   )

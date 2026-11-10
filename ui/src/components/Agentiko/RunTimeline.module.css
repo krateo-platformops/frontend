@@ -169,8 +169,8 @@ button.head:focus-visible .chev {
 .mark {
   border-radius: 50%;
   display: grid;
-  font-size: var(--krateo-text-label-xs);
   flex: none;
+  font-size: var(--krateo-text-label-xs);
   font-weight: 700;
   height: 14px;
   line-height: 1;
@@ -222,11 +222,6 @@ button.head:focus-visible .chev {
   padding-left: var(--spacing-smd);
 }
 
-.nest .lane,
-.nest .note {
-  padding-inline: 0;
-}
-
 .note {
   color: var(--gray-color);
   font-size: var(--krateo-text-label-xs);
@@ -235,6 +230,11 @@ button.head:focus-visible .chev {
 
 .noteBad {
   color: var(--run-bad);
+}
+
+.nest .lane,
+.nest .note {
+  padding-inline: 0;
 }
 
 .request {
