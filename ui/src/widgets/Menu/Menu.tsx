@@ -101,6 +101,10 @@ export function Menu({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetPro
       onClick={(item) => { navigateOrExternal(navigate, item.key) }}
       selectedKeys={selectedKey ? [selectedKey] : []}
       theme={theme}
+      // R1: in the collapsed icon rail (a Sider below `lg`) antd names each icon in a tooltip, on
+      // hover only by default. A keyboard user arrowing through the icons needs the same name, so
+      // it opens on focus too. Outside a collapsed Sider antd shows no tooltip at all.
+      tooltip={{ trigger: ['hover', 'focus'] }}
     />
   )
 }

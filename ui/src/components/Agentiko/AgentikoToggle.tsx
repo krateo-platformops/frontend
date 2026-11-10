@@ -12,7 +12,7 @@
  *
  * Sits in HeaderChrome's right slot. */
 
-import { Tooltip } from 'antd'
+import { Grid, Tooltip } from 'antd'
 
 import { useAgentiko } from './AgentikoProvider'
 import styles from './AgentikoToggle.module.css'
@@ -27,6 +27,7 @@ const shortcutHint = isMac ? '⌘G' : 'Ctrl G'
 
 const AgentikoToggle = () => {
   const { checking, licensed, open, reachable, streaming, toggle } = useAgentiko()
+  const compact = Grid.useBreakpoint().sm === false
 
   if (!licensed) {
     return (
@@ -73,7 +74,9 @@ const AgentikoToggle = () => {
       {streaming ? <span aria-hidden className={styles.executing} /> : null}
       {/* No point advertising the shortcut while it can't do anything — the global handler
           itself is gated on the same `reachable` flag (AgentikoProvider.tsx). */}
-      {reachable ? <kbd className={styles.kbd}>{shortcutHint}</kbd> : null}
+      {/* R1: nor below `sm`, where it is a phone: no keyboard to press it on, and the header
+          needs the room for the account menu. */}
+      {reachable && !compact ? <kbd className={styles.kbd}>{shortcutHint}</kbd> : null}
     </button>
   )
 

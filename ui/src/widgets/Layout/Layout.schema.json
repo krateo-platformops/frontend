@@ -77,7 +77,7 @@
                     "xl",
                     "xxl"
                   ],
-                  "description": "antd Sider responsive `breakpoint`; auto-collapses below it"
+                  "description": "antd Sider responsive `breakpoint`; auto-collapses below it, to `collapsedWidth`. When unset the Sider collapses below `lg`. Below `md` a Layout with a header shows the Sider's content in a drawer opened from a header button instead"
                 },
                 "theme": {
                   "type": "string",

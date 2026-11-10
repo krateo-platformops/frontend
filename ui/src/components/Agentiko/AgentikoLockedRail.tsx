@@ -11,7 +11,7 @@
 import gekoThinking from '../../assets/images/agentiko/geko-thinking.webp'
 
 import styles from './AgentikoRail.module.css'
-import { CheckIcon, CollapseIcon, LockIcon } from './icons'
+import { CheckIcon, CloseIcon, CollapseIcon, LockIcon } from './icons'
 import { AGENTIKO_LICENCE_URL } from './licence'
 import { railRef } from './railFocus'
 
@@ -21,21 +21,23 @@ const CAPABILITIES = [
   'Drafts pages, charts and controllers for you to review',
 ]
 
-const AgentikoLockedRail = ({ onClose, open, width }: { onClose: () => void; open: boolean; width: number }) => (
+// `width` is px, or '100%' when the rail takes the whole width (a phone); `sheet` lays it over the
+// page on a tablet, closed by a ✕ (railLayout.ts, AgentikoRail.tsx).
+const AgentikoLockedRail = ({ onClose, open, sheet, width }: { onClose: () => void; open: boolean; sheet: boolean; width: number | string }) => (
   <aside
     aria-label='Agentiko'
-    className={`${styles.apRail} ${styles.apLockedRail} ${open ? styles.open : ''}`}
+    className={`${styles.apRail} ${styles.apLockedRail} ${open ? styles.open : ''} ${open && sheet ? styles.sheet : ''}`}
     data-testid='agentiko-locked-rail'
     inert={!open}
     ref={railRef}
-    style={open ? { width: `${width}px` } : undefined}
+    style={open ? { width } : undefined}
   >
     <div className={styles.apRailInner}>
       <div className={styles.apHead}>
         <span className={styles.apTitle}><LockIcon className={styles.apLockedIcon} size={16} />Agentiko</span>
         <span className={styles.apSpacer} />
-        <button aria-label='Collapse rail' className={styles.apIc} onClick={onClose} title='Collapse rail' type='button'>
-          <CollapseIcon />
+        <button aria-label={sheet ? 'Close Agentiko' : 'Collapse rail'} className={styles.apIc} onClick={onClose} title={sheet ? 'Close Agentiko' : 'Collapse rail'} type='button'>
+          {sheet ? <CloseIcon /> : <CollapseIcon />}
         </button>
       </div>
       <div className={styles.apLocked}>

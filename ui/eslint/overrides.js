@@ -21,8 +21,14 @@ export const overrides = [
 
   // #86 §0.10: the shared drawer surfaces legitimately import antd `Drawer`; allow-list them so the
   // ban above applies everywhere else (a 5th hand-rolled drawer can't bypass components/DrawerHeader).
+  //
+  // widgets/Layout/Layout.tsx is the fourth surface: the app shell's navigation drawer on phones
+  // (X4 audit item R1, WCAG 1.4.10 Reflow — below `md` the Sider opens over the page from a header
+  // button). It is HEADERLESS on purpose, so it takes no DrawerHeader: the sidebar's own logo heads
+  // it, as in the mockup Diego approved on 2026-11-10 (design/audits/x4-remediation-backlog-2026-11.md
+  // item 1). Its accessible name is an aria-label.
   {
-    files: ['src/widgets/Drawer/Drawer.tsx', 'src/components/Notifications/Notifications.tsx', 'src/components/Agentiko/previewSurface.tsx'],
+    files: ['src/widgets/Drawer/Drawer.tsx', 'src/components/Notifications/Notifications.tsx', 'src/components/Agentiko/previewSurface.tsx', 'src/widgets/Layout/Layout.tsx'],
     name: 'Allow raw antd Drawer in the shared drawer surfaces (#86 §0.10)',
     rules: { 'no-restricted-imports': 'off' },
   },

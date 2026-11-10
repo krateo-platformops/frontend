@@ -1,15 +1,19 @@
 import type { IconProp } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Button, Tooltip } from 'antd'
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 
 import styles from './HeaderIconButton.module.css'
 
 interface Props {
+  /** For a button that opens and closes something (the phone navigation drawer): its state. */
+  ariaExpanded?: boolean
   /** Required. The control is icon-only, so nothing else gives it an accessible name. */
   ariaLabel: string
   icon: IconProp
   onClick: () => void
+  /** The button element, for a caller that hands focus back to it (the phone navigation drawer). */
+  ref?: Ref<HTMLButtonElement>
   /** Shown on hover. Use it to convey what the action will DO when the icon cannot. */
   tooltip?: ReactNode
 }
@@ -33,13 +37,15 @@ interface Props {
  * keyboard hint, not an icon button. Forcing it in here would make this component a shape it is
  * not, which is how shared components stop being shared.
  */
-const HeaderIconButton = ({ ariaLabel, icon, onClick, tooltip }: Props) => {
+const HeaderIconButton = ({ ariaExpanded, ariaLabel, icon, onClick, ref, tooltip }: Props) => {
   const button = (
     <Button
+      aria-expanded={ariaExpanded}
       aria-label={ariaLabel}
       className={styles.headerIcon}
       icon={<FontAwesomeIcon icon={icon} />}
       onClick={onClick}
+      ref={ref}
       shape='circle'
       type='text'
     />

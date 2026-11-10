@@ -9,6 +9,34 @@
   display: flex;
   height: 100%;
   min-height: 0;
+
+  /* The containing block for the tablet sheet and its scrim (.sheet, .sheetScrim). */
+  position: relative;
+}
+
+/* R2, 768–991 px (railLayout.ts `sheet`, set from antd's breakpoints, not a media query): the open
+   rail lies over the page instead of squeezing it. The page keeps its full width behind a scrim and
+   is inert (AgentikoShell). `isolation` keeps anything the page stacks with a z-index under the
+   scrim and the sheet. */
+.underSheet {
+  isolation: isolate;
+}
+
+.sheetScrim {
+  /* antd's own mask colour (colorBgMask), so this scrim and the phone navigation Drawer's match. */
+  background: var(--ant-color-bg-mask, rgb(0 0 0 / 45%));
+  inset: 0;
+  position: absolute;
+  z-index: 1;
+}
+
+.apRail.open.sheet {
+  bottom: 0;
+  box-shadow: var(--elevation-lg);
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 2;
 }
 
 .shellMain {

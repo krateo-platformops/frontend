@@ -20,6 +20,10 @@ export interface ShellSlots {
   siderHeader?: ReactNode
   /** User block + build marker pinned to the bottom of the Sider. */
   siderFooter?: ReactNode
+  /** Changes on every navigation (the routed pathname). On a phone the Sider is a drawer over the
+   * page, and picking a page from it has to close it; this is how the router-free Layout learns
+   * that a navigation happened. */
+  routeKey?: string
 }
 
 const ShellSlotsContext = createContext<ShellSlots>({})

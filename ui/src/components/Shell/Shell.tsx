@@ -1,4 +1,4 @@
-import { Avatar } from 'antd'
+import { Avatar, Grid } from 'antd'
 import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router'
 
@@ -21,30 +21,46 @@ import WidgetRenderer from '../WidgetRenderer'
 import styles from './Shell.module.css'
 import { ShellSlotsProvider } from './ShellSlots'
 
-/** Interactive app chrome rendered in the Layout header. Mostly client-state-driven controls
- * (breadcrumb, search, notifications…), PLUS the declarative `header-context` flex — the tenant
- * label + project (= namespace) switcher, moved from the sider into the topbar per the
- * multitenancy screenshot. The shell namespace is read from the INIT endpoint (nothing
- * hardcoded). */
-const HeaderChrome = () => {
+/** The declarative `header-context` flex — the tenant label + project (= namespace) switcher. The
+ * shell namespace is read from the INIT endpoint (nothing hardcoded). It sits in the header, and
+ * below `md` at the top of the navigation drawer instead (R1: the phone header has no room). */
+const HeaderContext = () => {
   const { config } = useConfigContext()
   const ns = new URLSearchParams((config?.api.INIT ?? '').split('?')[1] ?? '').get('namespace') ?? 'krateo-system'
   const headerContext = `/call?resource=flexes&apiVersion=widgets.templates.krateo.io/v1beta1&name=header-context&namespace=${ns}`
   return (
+    // snowplow#777: chrome is mounted ABOVE the outlet, so react-router hands it the child route's
+    // params and the page's query — which header-context, tenant-chip and project-select all declare
+    // nothing for and read nothing from. Scoping the tree to 'chrome' stops them entering its extras
+    // envelope at all, instead of being sent and then declined (74 declines in 7 days, 33% of all
+    // logged /call declines).
+    <WidgetScopeProvider scope='chrome'>
+      <WidgetRenderer key='header-context' widgetEndpoint={headerContext} />
+    </WidgetScopeProvider>
+  )
+}
+
+/** Interactive app chrome rendered in the Layout header. Mostly client-state-driven controls
+ * (breadcrumb, search, notifications…), PLUS the header-context, moved from the sider into the
+ * topbar per the multitenancy screenshot. */
+export const HeaderChrome = () => {
+  const screens = Grid.useBreakpoint()
+  // `=== false`, not `!`: an unanswered media query keeps the full header.
+  const narrow = screens.md === false
+  const compact = screens.sm === false
+  return (
     <>
-      <div className={styles.headerLeft}>
-        {/* snowplow#777: chrome is mounted ABOVE the outlet, so react-router hands it the child
-            route's params and the page's query — which header-context, tenant-chip and
-            project-select all declare nothing for and read nothing from. Scoping the tree to
-            'chrome' stops them entering its extras envelope at all, instead of being sent and
-            then declined (74 declines in 7 days, 33% of all logged /call declines). */}
-        <WidgetScopeProvider scope='chrome'>
-          <WidgetRenderer key='header-context' widgetEndpoint={headerContext} />
-        </WidgetScopeProvider>
-      </div>
+      {narrow ? null : <div className={styles.headerLeft}><HeaderContext /></div>}
       {/* Agentiko is a distinct surface, not a page utility — pull its toggle out of the
-          search/notifications/theme cluster and set it beside the user menu, behind a divider. */}
-      <div className={styles.headerRight}><CommandPalette /><NotificationsBell /><ThemeToggle /><span className={styles.headerDivider} /><AgentikoToggle /><UserMenu /></div>
+          search/notifications/theme cluster and set it beside the user menu, behind a divider.
+          R1: below `sm` the header cannot hold all five, so the theme toggle and the bell move into
+          the account menu and search, Agentiko and the account menu stay. */}
+      <div className={`${styles.headerRight} ${compact ? styles.headerRightCompact : ''}`}>
+        <CommandPalette />
+        {compact ? null : <><NotificationsBell /><ThemeToggle /><span className={styles.headerDivider} /></>}
+        <AgentikoToggle />
+        <UserMenu withPageUtilities={compact} />
+      </div>
     </>
   )
 }
@@ -81,6 +97,7 @@ export const ShellRoute = () => {
   const { config } = useConfigContext()
   const { routes } = useRoutesContext()
   const { pathname } = useLocation()
+  const narrow = Grid.useBreakpoint().md === false
   // X5: `krateo.page.load`, once per document, measured from navigation timing and reported as soon
   // as the landing address resolves to a TEMPLATED route (useDocumentLoadSpan).
   useDocumentLoadSpan(routes, pathname)
@@ -100,7 +117,15 @@ export const ShellRoute = () => {
   }, [config])
 
   return (
-    <ShellSlotsProvider value={{ content: <><div className={styles.contentCrumb}><Breadcrumb /></div><Outlet /></>, header: <HeaderChrome />, siderFooter: <SiderFooter /> }}>
+    <ShellSlotsProvider value={{
+      content: <><div className={styles.contentCrumb}><Breadcrumb /></div><Outlet /></>,
+      header: <HeaderChrome />,
+      routeKey: pathname,
+      siderFooter: <SiderFooter />,
+      // R1: below `md` the Sider is the navigation drawer, and the header-context moves to its top.
+      siderHeader: narrow ? <div className={styles.siderScope}><HeaderContext /></div> : undefined,
+    }}
+    >
       <NotificationsProvider>
         <AgentikoProvider>
           <AgentikoShell>

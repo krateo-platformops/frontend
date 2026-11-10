@@ -1,16 +1,28 @@
+import type { IconProp } from '@fortawesome/fontawesome-svg-core'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import type { MenuProps } from 'antd'
-import { Avatar, Menu, Popover, Typography } from 'antd'
+import { Avatar, Badge, Menu, Popover, Typography } from 'antd'
 import { useState } from 'react'
 import { Link } from 'react-router'
 
 import { useConfigContext } from '../../context/ConfigContext'
+import { useThemeMode } from '../../context/ThemeModeContext'
 import type { AuthResponseType } from '../../pages/Login/Login.types'
 import { clearClientSession } from '../../utils/logout'
+import { useNotifications } from '../Notifications/NotificationsContext'
 
 import styles from './UserMenu.module.css'
 
-const UserMenu = () => {
+interface Props {
+  /** R1: below `sm` the header has no room for the bell and the theme toggle, so they move in here
+   * (HeaderChrome sets this). Same actions, same names, as the header buttons they stand in for. */
+  withPageUtilities?: boolean
+}
+
+const UserMenu = ({ withPageUtilities = false }: Props) => {
   const { refetch } = useConfigContext()
+  const { mode, toggle } = useThemeMode()
+  const { notifications, setOpen: setNotificationsOpen } = useNotifications()
   // Controlled so the trigger can announce its state via aria-expanded. antd's Popover is
   // uncontrolled by default, which leaves a screen reader no way to know the menu is open.
   const [open, setOpen] = useState(false)
@@ -43,7 +55,28 @@ const UserMenu = () => {
     }
   }
 
+  // The bell's warning dot travels with it (Notifications.tsx NotificationsBell).
+  const hasWarning = (notifications ?? []).some(ev => ev.type === 'Warning')
+  const pageUtilities: MenuProps['items'] = withPageUtilities
+    ? [
+      {
+        icon: <FontAwesomeIcon icon={['fas', 'bell'] as IconProp} />,
+        key: 'notifications',
+        label: hasWarning ? <Badge dot offset={[6, 0]} status='warning'>Notifications</Badge> : 'Notifications',
+        onClick: () => { setOpen(false); setNotificationsOpen(true) },
+      },
+      {
+        icon: <FontAwesomeIcon icon={['fas', 'circle-half-stroke'] as IconProp} />,
+        key: 'theme',
+        label: mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode',
+        onClick: toggle,
+      },
+      { key: 'page-utilities-divider', type: 'divider' },
+    ]
+    : []
+
   const items: MenuProps['items'] = [
+    ...pageUtilities,
     {
       key: '1',
       label: <Link to='/profile'>Profile</Link>,
