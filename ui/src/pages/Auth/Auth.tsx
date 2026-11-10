@@ -15,8 +15,10 @@ import {
   callbackFailureOf,
   LOGIN_FAILURE_TITLE,
   loginFailureCauseOf,
+  strategiesFailureOf,
 } from '../../utils/loginFailureCause'
 import { resolveNextPath, SESSION_RESUME_NEXT_KEY } from '../../utils/nextPath'
+import { fetchStrategies, strategiesFailureFrom } from '../../utils/strategies'
 import type { AuthModeType, AuthRequestType, AuthResponseType } from '../Login/Login.types'
 import { takeSocialLoginState, takeSocialLoginVerifier } from '../Login/SocialLogin/SocialLogin'
 
@@ -83,10 +85,8 @@ const Auth = () => {
     error: isMethodsError,
     isSuccess: isMethodSuccess,
   } = useQuery({
-    queryFn: async () => {
-      const res = await fetch(authUrl)
-      return await res.json() as AuthModeType[]
-    },
+    // Shared with Login.tsx under the same key — see utils/strategies.ts.
+    queryFn: () => fetchStrategies(authUrl),
     queryKey: ['methods', authUrl],
   })
 
@@ -95,7 +95,13 @@ const Auth = () => {
     mutateAsync: socialsAuthentication,
   } = useMutation({
     mutationFn: async (body: AuthRequestType) => {
-      const response = await fetch(`${config!.api.AUTHN_API_BASE_URL}${body.url}?name=${body.name}`, {
+      /*
+       * The name is ENCODED. It is a Kubernetes object name from /strategies, so today it is DNS-safe —
+       * but it went into the query raw, and a name carrying `&`, `#`, `?`, `%` or `/` would have cut
+       * or reshaped the request: `a&b` asks authn for config `a`. Nothing here should depend on what
+       * names happen to look like.
+       */
+      const response = await fetch(`${config!.api.AUTHN_API_BASE_URL}${body.url}?name=${encodeURIComponent(body.name)}`, {
         headers: {
           'X-Auth-Code': body.code,
           /*
@@ -141,12 +147,19 @@ const Auth = () => {
        * authn's cause appended for support. Passing `description` keeps useCatchError's status-based
        * defaults out of it — they appended "Please check your input or permissions." to every 4xx
        * here, and replaced a 500's text with "The server hit an unexpected error".
+       *
+       * NOT for a restart. A restart is an attempt that did not finish — a spent code, a lost
+       * verifier, a stale ID token — and the <Result> with its "Start the sign-in again" link is the
+       * whole message. A red error toast beside it reads as blame, and the callback's own restarts
+       * (no code, a state mismatch) never raised one; this path now matches them.
        */
-      catchError({
-        description: cause.reason === null ? cause.text : `${cause.text} (${cause.reason})`,
-        message: LOGIN_FAILURE_TITLE[cause.action],
-        status: response.status,
-      }, 'notification')
+      if (cause.action !== 'restart') {
+        catchError({
+          description: cause.reason === null ? cause.text : `${cause.text} (${cause.reason})`,
+          message: LOGIN_FAILURE_TITLE[cause.action],
+          status: response.status,
+        }, 'notification')
+      }
 
       /*
        * THROW, so react-query marks the mutation as failed and `isSocialAuthError` becomes true.
@@ -177,7 +190,8 @@ const Auth = () => {
       /*
        * mutateAsync REJECTS when the exchange fails (see mutationFn). The rejection is deliberately
        * swallowed here: react-query has already recorded it, `isSocialAuthError` drives the error
-       * view, and the person has been told both in the notification and in the <Result>. Letting it
+       * view, and the person has been told in the <Result> (and, unless it is a restart, in the
+       * notification). Letting it
        * escape would only produce an unhandled rejection in the console.
        */
       const userData = await socialsAuthentication(request).catch(() => undefined)
@@ -242,6 +256,29 @@ const Auth = () => {
       }
     }
 
+    /*
+     * /strategies could not be read, on a callback that carries a code. This used to show only the
+     * generic "There seems to be an authentication problem using this method", and it left the
+     * stored state and verifier behind: the branch above that spends them runs only on success.
+     * This attempt is over either way, so they are spent here too — one login, one state (#583) —
+     * and the failure is classified: a gateway's 502/503/504 or an unreachable authn is a restart
+     * worth trying again in a moment; anything else is the install's (see strategiesFailureOf).
+     * A code-less callback already has its classified failure from the effect above.
+     */
+    if (hasCode && !decided.current && isMethodsError) {
+      decided.current = true
+      takeSocialLoginState()
+      takeSocialLoginVerifier()
+      const cause = strategiesFailureOf(strategiesFailureFrom(isMethodsError), 'callback')
+      setFailure(cause)
+      if (cause.action !== 'restart') {
+        catchError({
+          description: `${cause.text} (${cause.reason})`,
+          message: LOGIN_FAILURE_TITLE[cause.action],
+        }, 'notification')
+      }
+    }
+
     if (isMethodsError || isSocialAuthError) {
       setShowError(true)
     }
@@ -263,8 +300,8 @@ const Auth = () => {
           )}
           status={failure?.action === 'escalate' ? 'error' : 'warning'}
           /*
-           * The generic fallback is kept for the failures that carry no authn body: /strategies
-           * itself failing, and a state mismatch. Both are real and neither has a cause to show.
+           * Every failure path now sets `failure` before `showError`. The generic fallback stays only
+           * so the page can never render an empty subtitle if a future path forgets to.
            */
           subTitle={failure?.text ?? 'There seems to be an authentication problem using this method'}
           title={failure === null ? 'Authentication error' : LOGIN_FAILURE_TITLE[failure.action]}

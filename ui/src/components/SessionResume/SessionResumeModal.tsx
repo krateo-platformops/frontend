@@ -33,9 +33,11 @@ import type { AuthModeType, AuthResponseType, FormType, LoginFormType } from '..
 import type { AuthFailureCause } from '../../utils/authFailureCause'
 import { authFailurePresentation } from '../../utils/authFailureCopy'
 import { invalidateAccessTokenCache } from '../../utils/getAccessToken'
+import { credentialUrlFailureOf } from '../../utils/loginFailureCause'
 import { forceLogout } from '../../utils/logout'
 import { SESSION_RESUME_NEXT_KEY } from '../../utils/nextPath'
 import { DEFAULT_CAUSE, pendingSessionCause, registerSessionResumeSurface, SESSION_RESUME_EVENT, settleSessionResume } from '../../utils/sessionResume'
+import { credentialLoginUrlOf } from '../../utils/strategies'
 
 const SessionResumeModal = () => {
   const { config } = useConfigContext()
@@ -123,17 +125,25 @@ const SessionResumeModal = () => {
   }, [])
 
   // In-place resume for the credential strategies (basic AND ldap): the same authn flow the
-  // Login page uses — a Basic-auth GET against the chosen strategy's path.
+  // Login page uses — a Basic-auth GET against the chosen strategy's URL, which for LDAP must carry
+  // the LDAPConfig's name (see credentialLoginUrlOf; without it authn refuses every LDAP resume with
+  // 400 MissingConfigName).
   const onCredentialSubmit = useCallback(async (
     { password, username }: LoginFormType,
     _kind: FormType,
     method: AuthModeType,
   ) => {
     if (!authBaseUrl) { return }
+    const target = credentialLoginUrlOf(authBaseUrl, method)
+    if (!target.ok) {
+      const cause = credentialUrlFailureOf(target.reason)
+      setSubmitError(`${cause.text} (${cause.reason})`)
+      return
+    }
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const res = await fetch(`${authBaseUrl}${method.path}`, {
+      const res = await fetch(target.url, {
         headers: {
           Authorization: `Basic ${btoa(`${username}:${password}`)}`,
         },

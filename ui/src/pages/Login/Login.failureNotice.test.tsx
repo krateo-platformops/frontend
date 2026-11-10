@@ -27,21 +27,31 @@ vi.mock('../../context/ConfigContext', () => ({
   }),
 }))
 
-const LDAP = { kind: 'ldap', name: 'corp', path: '/ldap/login?name=corp' }
+// The shape authn's /strategies really sends: `path` is the bare route, `name` is separate
+// (authn internal/routes/auth/strategies/strategies.go).
+const LDAP = { kind: 'ldap', name: 'corp', path: '/ldap/login' }
 
 const statusBody = (reason: string) => JSON.stringify({ details: { causes: [{ message: 'human text', reason }] } })
 
-const installFetchMock = (loginStatus: number, loginBody: string) => {
-  vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
-    const url = input instanceof Request ? input.url : String(input)
+const toUrl = (input: RequestInfo | URL): string => (input instanceof Request ? input.url : String(input))
+
+const installFetchMock = (
+  loginStatus: number,
+  loginBody: string,
+  { login, strategies }: { login?: () => Promise<Response>; strategies?: () => Promise<Response> } = {},
+) => {
+  const fetchMock = vi.fn((input: RequestInfo | URL) => {
+    const url = toUrl(input)
     if (url.endsWith('/strategies')) {
-      return Promise.resolve(new Response(JSON.stringify([LDAP]), { status: 200 }))
+      return strategies ? strategies() : Promise.resolve(new Response(JSON.stringify([LDAP]), { status: 200 }))
     }
-    return Promise.resolve(new Response(loginBody, { status: loginStatus }))
-  }))
+    return login ? login() : Promise.resolve(new Response(loginBody, { status: loginStatus }))
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  return fetchMock
 }
 
-const signIn = async () => {
+const renderLogin = () => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <App>
@@ -52,6 +62,10 @@ const signIn = async () => {
       </MemoryRouter>
     </App>
   )
+}
+
+const signIn = async () => {
+  renderLogin()
   fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'ada' } })
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } })
   fireEvent.click(screen.getByRole('button', { name: /ldap sign in/i }))
@@ -102,5 +116,63 @@ describe('Login failure notification', () => {
     expect(text).toMatch(/Authentication error/)
     expect(text).toMatch(/Those credentials were not accepted\. Check them and try again\. \(InvalidCredentials\)/)
     expect(text).not.toMatch(/check your input/i)
+  })
+
+  it('a strategy with no `path` is a configuration fault — never "Wrong username or password"', async () => {
+    const fetchMock = installFetchMock(200, '{}', {
+      strategies: () => Promise.resolve(new Response(JSON.stringify([{ kind: 'ldap', name: 'corp' }]), { status: 200 })),
+    })
+    const text = await signIn()
+
+    expect(text).toMatch(/Sign-in unavailable/)
+    expect(text).toMatch(/retrying will not help/i)
+    expect(text).toMatch(/\(StrategyWithoutPath\)/)
+    expect(text).not.toMatch(/wrong username or password/i)
+    // Nothing was sent: there was nowhere to send it.
+    expect(fetchMock.mock.calls.filter(([input]) => !toUrl(input).endsWith('/strategies'))).toHaveLength(0)
+  })
+})
+
+describe('Login page failures shown in place of the form', () => {
+  const pageText = async () => {
+    renderLogin()
+    await waitFor(() => expect(document.querySelector('.ant-result')).not.toBeNull())
+    return document.querySelector('.ant-result')?.textContent ?? ''
+  }
+
+  it('a gateway 503 on /strategies says try again in a moment — not "Ops! Something didn\'t work"', async () => {
+    installFetchMock(200, '{}', { strategies: () => Promise.resolve(new Response('<html>503</html>', { status: 503 })) })
+    const text = await pageText()
+
+    expect(text).toMatch(/Sign-in unavailable/)
+    expect(text).toMatch(/did not answer just now/i)
+    expect(text).toMatch(/try again in a moment/i)
+    expect(text).toMatch(/\(StrategiesHTTP503\)/)
+    expect(text).not.toMatch(/ops!|something didn't work|unable to retrieve/i)
+  })
+
+  it('a 404 on /strategies is the install\'s: no retry promised, cause shown', async () => {
+    installFetchMock(200, '{}', { strategies: () => Promise.resolve(new Response('nope', { status: 404 })) })
+    const text = await pageText()
+
+    expect(text).toMatch(/Sign-in unavailable/)
+    expect(text).toMatch(/retrying will not help/i)
+    expect(text).toMatch(/\(StrategiesHTTP404\)/)
+    expect(text).not.toMatch(/ops!/i)
+  })
+
+  it('a sign-in call that gets no answer at all says the platform could not check — not "Error during the login operation"', async () => {
+    installFetchMock(200, '{}', { login: () => Promise.reject(new TypeError('Failed to fetch')) })
+    renderLogin()
+    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'ada' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } })
+    fireEvent.click(screen.getByRole('button', { name: /ldap sign in/i }))
+    await waitFor(() => expect(document.querySelector('.ant-result')).not.toBeNull())
+    const text = document.querySelector('.ant-result')?.textContent ?? ''
+
+    expect(text).toMatch(/Sign-in unavailable/)
+    expect(text).toMatch(/the platform could not check your credentials/i)
+    expect(text).toMatch(/\(LoginNoAnswer\)/)
+    expect(text).not.toMatch(/ops!|error during the login operation/i)
   })
 })
