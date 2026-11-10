@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as ConfigContextModule from '../../context/ConfigContext'
 
 import type { ApprovalPause } from './approval'
-import { mergeToolResult } from './evidence'
+import { fetchDelegationEvidence, mergeToolResult } from './evidence'
 import { RunTimeline } from './RunTimeline'
 import type { AgentikoMessage, EvidenceEntry } from './types'
 
@@ -265,14 +265,19 @@ describe('specialists as lanes, filled in when they reply', () => {
   })
 
   it('says why the steps could not be loaded, and Retry fetches again', async () => {
+    const loginPage = () => Promise.resolve(new Response('<html>login</html>', { headers: { 'Content-Type': 'text/html' }, status: 200 }))
+    // The reason is evidence.ts's to word; the timeline's job is to show it, plainly and whole.
+    vi.stubGlobal('fetch', loginPage)
+    const reason = await fetchDelegationEvidence('/agentiko/sessions', handOff({ done: true, sessionId: 's-1' }), {}).then(() => '', (err: Error) => err.message)
+    expect(reason).not.toBe('')
     const fetchSpy = vi.fn()
-      .mockImplementationOnce(() => Promise.resolve(new Response('<html>login</html>', { status: 200 })))
+      .mockImplementationOnce(loginPage)
       .mockImplementationOnce(() => respond(sessionWith([{ args: { namespace: 'krateo-system', resource_type: 'pods' }, id: 'c1', name: 'k8s_get_resources' }])))
     vi.stubGlobal('fetch', fetchSpy)
     render(<RunTimeline message={turn({ evidence: [handOff({ done: true, sessionId: 's-1' })], streaming: true })} />)
     await act(async () => { await vi.runOnlyPendingTimersAsync() })
     const alert = screen.getByRole('alert')
-    expect(alert.textContent).toContain('Couldn’t load its steps: the session store answered with something that is not a trace')
+    expect(alert.textContent).toContain(`Couldn’t load its steps: ${reason}`)
     fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }))
     await act(async () => { await vi.runOnlyPendingTimersAsync() })
     expect(fetchSpy).toHaveBeenCalledTimes(2)
