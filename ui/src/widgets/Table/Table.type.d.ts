@@ -57,7 +57,7 @@ export interface Table {
          */
         kind: 'jsonSchemaType' | 'icon' | 'widget' | 'tag' | 'bar' | 'conditions'
         /**
-         * per-cell color — for a `tag` cell, an antd Tag color (e.g. green / red / gold / blue); for a jsonSchemaType cell it overrides the column color. Lets each row carry its own color (e.g. status).
+         * per-cell color — a KRATEO PALETTE name (gray, red, orange, green, blue, primary…), resolved for the light or dark mode; never a hex, which is one value in both modes. On a jsonSchemaType cell it overrides the column color, and a value that is not a palette name is applied as CSS as written. Lets each row carry its own color (e.g. status).
          */
         color?: string
         /**

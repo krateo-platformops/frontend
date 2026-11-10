@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { graphPalette } from '../components/DependencyGraph/graphConfig'
 
 import { getChartCatPalette } from './chart-utils'
-import { activeThemeMode, getColorCode, themeColors, useDocumentThemeMode } from './palette'
+import { activeThemeMode, getColorCode, resolveTextColor, themeColors, useDocumentThemeMode } from './palette'
 import { color, colorDark } from './tokens'
 
 afterEach(() => {
@@ -58,5 +58,21 @@ describe('useDocumentThemeMode — the mode as a value a canvas re-renders on', 
       document.documentElement.dataset.theme = 'dark'
     })
     expect(await screen.findByText('mode dark')).toBeTruthy()
+  })
+})
+
+describe('resolveTextColor — a CR text colour, by palette name or as written', () => {
+  it('resolves a palette name for the active mode, not as the CSS keyword', () => {
+    expect(resolveTextColor('gray')).toBe(color.gray)
+    document.documentElement.dataset.theme = 'dark'
+    expect(resolveTextColor('gray')).toBe(colorDark.gray)
+    expect(resolveTextColor('primary')).toBe(colorDark.primary)
+  })
+
+  it('passes anything else through, and no value stays no colour (never near-black)', () => {
+    expect(resolveTextColor('#8c8c8c')).toBe('#8c8c8c')
+    expect(resolveTextColor('var(--gray-color)')).toBe('var(--gray-color)')
+    expect(resolveTextColor(undefined)).toBeUndefined()
+    expect(resolveTextColor('')).toBeUndefined()
   })
 })

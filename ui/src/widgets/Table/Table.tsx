@@ -10,7 +10,7 @@ import { useFilter } from '../../components/FiltesProvider/FiltersProvider'
 import RefChild from '../../components/RefChild'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { useMeasuredWidth } from '../../hooks/useMeasuredWidth'
-import { getColorCode, getTagStyle } from '../../theme/palette'
+import { getColorCode, getTagStyle, resolveTextColor } from '../../theme/palette'
 import type { WidgetProps } from '../../types/Widget'
 import { navigateOrExternal } from '../../utils/navigation'
 import { formatISODate, formatRelativeTime } from '../../utils/utils'
@@ -216,7 +216,7 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
             }
 
             case 'icon':
-              if (stringValue) { return <FontAwesomeIcon color={color} icon={stringValue as IconProp} /> }
+              if (stringValue) { return <FontAwesomeIcon color={resolveTextColor(color)} icon={stringValue as IconProp} /> }
               console.error('Table rendering error: icon value has incorrect format')
               return <span>-</span>
 
@@ -256,17 +256,17 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
                     if (format === 'date' || format === 'datetime') { return formatISODate(stringValue, format === 'datetime') }
                     return stringValue
                   })()
-                  return <span style={{ color: cellColor ?? color }}>{formatted}</span>
+                  return <span style={{ color: resolveTextColor(cellColor ?? color) }}>{formatted}</span>
                 }
                 case 'number':
                 case 'integer':
-                  return <span style={{ color }}>{numberValue ?? '-'}</span>
+                  return <span style={{ color: resolveTextColor(color) }}>{numberValue ?? '-'}</span>
                 case 'decimal':
-                  return <span style={{ color }}>{String(decimalValue) ?? '-'}</span>
+                  return <span style={{ color: resolveTextColor(color) }}>{String(decimalValue) ?? '-'}</span>
                 case 'boolean':
-                  return <span style={{ color }}>{booleanValue !== undefined ? String(booleanValue) : '-'}</span>
+                  return <span style={{ color: resolveTextColor(color) }}>{booleanValue !== undefined ? String(booleanValue) : '-'}</span>
                 case 'array':
-                  return <span style={{ color }}>{arrayValue ? arrayValue.join(', ') : '-'}</span>
+                  return <span style={{ color: resolveTextColor(color) }}>{arrayValue ? arrayValue.join(', ') : '-'}</span>
                 case 'null':
                   return <span>-</span>
                 default:
