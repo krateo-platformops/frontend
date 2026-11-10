@@ -5,7 +5,7 @@
  */
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { cloneElement, type ReactElement } from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type * as ConfigContextModule from '../../context/ConfigContext'
 
@@ -77,6 +77,15 @@ const sessionWith = (calls: { id: string; name: string; args: Record<string, unk
 
 const respond = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' }, status }))
 
+// antd Timeline renders antd Steps, which reads window.matchMedia; jsdom has none (as in ClaimNotice.test.tsx).
+beforeAll(() => {
+  const noop = () => undefined
+  Object.defineProperty(window, 'matchMedia', {
+    value: (query: string) => ({ addEventListener: noop, addListener: noop, dispatchEvent: () => false, matches: false, media: query, onchange: null, removeEventListener: noop, removeListener: noop }),
+    writable: true,
+  })
+})
+
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: false })
   vi.setSystemTime(T0)
@@ -101,7 +110,10 @@ describe('live → done: one object that folds', () => {
     render(<RunTimeline message={turn({ evidence: [read('a', 'pods', { done: undefined, endedAt: undefined })], streaming: true })} />)
     const run = screen.getByTestId('agentiko-run')
     expect(run.getAttribute('aria-live')).toBe('polite')
-    for (const clock of run.querySelectorAll('[class*="time"], [class*="stepTime"]')) {
+    const clocks = run.querySelectorAll('[data-clock]')
+    // The header's total and the in-flight step's clock: two, so the loop below cannot pass vacuously.
+    expect(clocks).toHaveLength(2)
+    for (const clock of clocks) {
       expect(clock.getAttribute('aria-hidden')).toBe('true')
     }
   })
@@ -357,5 +369,28 @@ describe('the approval, as a step', () => {
     expect(screen.queryByTestId('agentiko-approval')).toBeNull()
     fireEvent.click(head())
     expect(screen.getByTestId('agentiko-approval-decided').textContent).toContain('denied k8s_apply_manifest')
+  })
+})
+
+describe('the steps are an antd Timeline', () => {
+  it('each step is a Timeline item whose icon is the status mark, and the step in flight is antd’s in-progress item', () => {
+    render(<RunTimeline message={turn({ evidence: [read('a', 'pods'), handOff()], streaming: true })} />)
+    const timeline = screen.getByTestId('agentiko-run').querySelector('.ant-timeline')
+    expect(timeline).not.toBeNull()
+    const items = [...(timeline as Element).querySelectorAll(':scope > .ant-timeline-item')]
+    expect(items).toHaveLength(steps().length)
+    expect(items.map((item) => item.querySelector('.ant-timeline-item-icon [data-tone]')?.getAttribute('data-tone'))).toEqual(['ok', 'running'])
+    expect(items.map((item) => item.classList.contains('ant-steps-item-process'))).toEqual([false, true])
+  })
+
+  it('a specialist’s lane is its own Timeline, nested in its hand-off', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => respond(sessionWith([
+      { args: { namespace: 'krateo-system', resource_type: 'pods' }, id: 'c1', name: 'k8s_get_resources' },
+    ]))))
+    render(<RunTimeline message={turn({ evidence: [handOff({ done: true, sessionId: 's-1' })], streaming: true })} />)
+    await act(async () => { await vi.runOnlyPendingTimersAsync() })
+    const lane = screen.getByTestId('agentiko-run-lane')
+    expect(lane.closest('.ant-timeline-item')).not.toBeNull()
+    expect(lane.querySelectorAll('.ant-timeline .ant-timeline-item')).toHaveLength(1)
   })
 })
