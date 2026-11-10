@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * fetchStrategies must turn every way `/strategies` can fail into a StrategiesError that says which
  * way, because the classification — wait, or tell an administrator — depends on it. It used to be
@@ -6,7 +7,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { fetchStrategies, StrategiesError, strategiesFailureFrom } from './strategies'
+import { credentialLoginUrlOf, fetchStrategies, StrategiesError, strategiesFailureFrom } from './strategies'
 
 const failureOf = async (response: () => Promise<Response>) => {
   vi.stubGlobal('fetch', vi.fn(response))
@@ -39,5 +40,34 @@ describe('fetchStrategies', () => {
 
   it('an error it did not raise has no failure to report', () => {
     expect(strategiesFailureFrom(new Error('other'))).toBeNull()
+  })
+})
+
+describe('credentialLoginUrlOf', () => {
+  const base = 'http://authn.test'
+
+  it('LDAP gets ?name=, encoded, on authn\'s real shape (a bare path, the name separate)', () => {
+    const target = credentialLoginUrlOf(base, { kind: 'ldap', name: 'a/b?c&d%e', path: '/ldap/login' })
+    expect(target.ok).toBe(true)
+    const url = new URL(target.ok ? target.url : '')
+    expect(url.pathname).toBe('/ldap/login')
+    expect(url.searchParams.get('name')).toBe('a/b?c&d%e')
+    expect([...url.searchParams.keys()]).toEqual(['name'])
+  })
+
+  it('a query the path already carries is kept, not clobbered by a second "?"', () => {
+    const target = credentialLoginUrlOf(base, { kind: 'ldap', name: 'corp', path: '/ldap/login?tenant=x' })
+    const url = new URL(target.ok ? target.url : '')
+    expect(url.searchParams.get('tenant')).toBe('x')
+    expect(url.searchParams.get('name')).toBe('corp')
+  })
+
+  it('basic is left exactly as it was: no name', () => {
+    expect(credentialLoginUrlOf(base, { kind: 'basic', name: '', path: '/basic/login' })).toEqual({ ok: true, url: 'http://authn.test/basic/login' })
+  })
+
+  it('no path, or an LDAP strategy with no name, has no URL — and says which', () => {
+    expect(credentialLoginUrlOf(base, { kind: 'ldap', name: 'corp', path: '' })).toEqual({ ok: false, reason: 'StrategyWithoutPath' })
+    expect(credentialLoginUrlOf(base, { kind: 'ldap', name: '', path: '/ldap/login' })).toEqual({ ok: false, reason: 'LdapStrategyWithoutName' })
   })
 })

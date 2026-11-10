@@ -625,6 +625,23 @@ export const STRATEGY_WITHOUT_PATH: LoginFailureCause = {
 }
 
 /*
+ * An LDAP strategy with no `name` cannot be signed in to either: `/ldap/login` needs the LDAPConfig's
+ * name, and without one authn answers 400 MissingConfigName before it reads the credentials. authn
+ * always sends one, so a nameless entry is a broken /strategies answer — configuration. Nothing is
+ * sent: the outcome is already known.
+ */
+export const LDAP_STRATEGY_WITHOUT_NAME: LoginFailureCause = {
+  action: 'escalate',
+  reason: 'LdapStrategyWithoutName',
+  text: PLATFORM_FAULT,
+}
+
+/** The cause for a credential URL that could not be built — see credentialLoginUrlOf. */
+export const credentialUrlFailureOf = (
+  reason: 'LdapStrategyWithoutName' | 'StrategyWithoutPath',
+): LoginFailureCause => (reason === 'StrategyWithoutPath' ? STRATEGY_WITHOUT_PATH : LDAP_STRATEGY_WITHOUT_NAME)
+
+/*
  * The password form's call to authn did not produce an answer: the fetch was rejected (authn
  * unreachable) or a 2xx body was not JSON (something in front of authn answered for it). Every
  * answer authn DOES give is classified by loginFailureCauseOf and shown as a notification; this is

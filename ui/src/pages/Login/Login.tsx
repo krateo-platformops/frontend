@@ -10,18 +10,18 @@ import { useConfigContext } from '../../context/ConfigContext'
 import useCatchError from '../../hooks/useCatchError'
 import type { LoginFailureCause } from '../../utils/loginFailureCause'
 import {
+  credentialUrlFailureOf,
   LOGIN_FAILURE_TITLE,
   LOGIN_NO_ANSWER,
   loginFailureCauseOf,
-  STRATEGY_WITHOUT_PATH,
   strategiesFailureOf,
 } from '../../utils/loginFailureCause'
 import { resolveNextPath, SESSION_RESUME_NEXT_KEY } from '../../utils/nextPath'
-import { fetchStrategies, strategiesFailureFrom } from '../../utils/strategies'
+import { credentialLoginUrlOf, fetchStrategies, strategiesFailureFrom } from '../../utils/strategies'
 
 import AuthMethods from './AuthMethods'
 import styles from './Login.module.css'
-import type { AuthModeType, FormType, LoginFormType } from './Login.types'
+import type { AuthModeType, LoginFormType } from './Login.types'
 
 // Branding-panel defaults. The login screen renders BEFORE any backend identity,
 // so its copy is config-driven (`config.login`, ConfigMap-mountable per install)
@@ -82,10 +82,8 @@ const Login = () => {
     isPending: isLoginLoading,
     mutateAsync: login,
   } = useMutation({
-    mutationFn: async (credentials: { username: string; password: string; path: string }) => {
-      const authUrl = `${config!.api.AUTHN_API_BASE_URL}${credentials.path}`
-
-      const response = await fetch(authUrl, {
+    mutationFn: async (credentials: { username: string; password: string; url: string }) => {
+      const response = await fetch(credentials.url, {
         headers: {
           Authorization: `Basic ${btoa(`${credentials.username}:${credentials.password}`)}`,
         },
@@ -129,20 +127,27 @@ const Login = () => {
     },
   })
 
-  const onFormSubmit = useCallback(async (body: LoginFormType, type: FormType) => {
+  /*
+   * `method` is the /strategies entry whose form was submitted. AuthMethods renders one form per
+   * credential strategy and passes its own entry back; this used to drop it and re-find the method
+   * by `kind`, so with two LDAPConfigs every sign-in went to whichever came first.
+   */
+  const onFormSubmit = useCallback(async (body: LoginFormType, method: AuthModeType) => {
     const { password, username } = body
-    const method = methods?.find(({ kind }) => kind === type)
 
     /*
-     * A strategy with no `path` has nowhere to send the credentials: a broken /strategies entry,
-     * never the person's typing. This used to fall into the same branch as empty fields and say
-     * "Wrong username or password, try again with different credentials" — sending someone to
-     * retype a password that was never even sent. Checked FIRST, so it cannot be read that way.
+     * A strategy with no `path`, or an LDAP strategy with no `name`, has nowhere to send the
+     * credentials: a broken /strategies entry, never the person's typing. The first used to fall
+     * into the same branch as empty fields and say "Wrong username or password, try again with
+     * different credentials" — sending someone to retype a password that was never even sent.
+     * Checked FIRST, so neither can be read that way. See credentialLoginUrlOf.
      */
-    if (!method?.path) {
+    const target = credentialLoginUrlOf(config!.api.AUTHN_API_BASE_URL, method)
+    if (!target.ok) {
+      const cause = credentialUrlFailureOf(target.reason)
       catchError({
-        description: `${STRATEGY_WITHOUT_PATH.text} (${STRATEGY_WITHOUT_PATH.reason})`,
-        message: LOGIN_FAILURE_TITLE[STRATEGY_WITHOUT_PATH.action],
+        description: `${cause.text} (${cause.reason})`,
+        message: LOGIN_FAILURE_TITLE[cause.action],
       }, 'notification')
       return
     }
@@ -154,11 +159,11 @@ const Login = () => {
        * rejection. react-query has already recorded it and `isLoginError` drives the <Result>, as
        * Auth.tsx does for its own exchange; there is nothing more to do with it here.
        */
-      await login({ password, path: method.path, username }).catch(() => undefined)
+      await login({ password, url: target.url, username }).catch(() => undefined)
     } else {
       catchError({ data: { message: 'Wrong username or password, try again with different credentials' }, status: 403 })
     }
-  }, [catchError, login, methods])
+  }, [catchError, config, login])
 
   /*
    * What the page shows in place of the form when it cannot offer one. These used to read "Ops!
@@ -202,7 +207,7 @@ const Login = () => {
         <AuthMethods
           isLoading={isLoginLoading}
           methods={methods}
-          onCredentialSubmit={(values, kind) => { void onFormSubmit(values, kind) }}
+          onCredentialSubmit={(values, _kind, method) => { void onFormSubmit(values, method) }}
         />
       )
     }

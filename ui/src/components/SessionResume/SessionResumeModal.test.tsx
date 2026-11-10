@@ -64,7 +64,16 @@ const installFetchMock = (opts: { loginStatus?: number; strategies?: unknown[] }
     if (url.endsWith('/strategies')) {
       return Promise.resolve(new Response(JSON.stringify(strategies), { status: 200 }))
     }
-    // Any other URL is a strategy login GET (basic or ldap).
+    // Any other URL is a strategy login GET (basic or ldap). An LDAP one without `?name=` gets what
+    // authn really answers — 400 MissingConfigName (ldap/login.go:97-99) — so a stub that said 200 to
+    // anything can no longer hide a nameless LDAP request, as it did.
+    const parsed = new URL(url)
+    if (parsed.pathname.endsWith('/ldap/login') && !parsed.searchParams.get('name')) {
+      return Promise.resolve(new Response(
+        JSON.stringify({ code: 400, details: { causes: [{ reason: 'MissingConfigName' }] }, kind: 'Status' }),
+        { status: 400, statusText: 'Bad Request' },
+      ))
+    }
     return loginStatus === 200
       ? Promise.resolve(new Response(JSON.stringify(FRESH_LOGIN), { status: 200 }))
       : Promise.resolve(new Response('nope', { status: loginStatus, statusText: 'Unauthorized' }))
@@ -187,9 +196,12 @@ describe('SessionResumeModal — in-place resume (credential strategies)', () =>
     await waitFor(() => { expect(screen.getByRole('button', { name: 'LDAP Sign In' })).toBeTruthy() })
     submitCredentials('diego', 'secret', 'LDAP Sign In')
 
+    // The in-place resume hit the LDAP strategy's path, not a hard-coded /basic/login — and named
+    // the LDAPConfig, which /ldap/login requires. (This used to assert the bare path, pinning the bug.)
+    // Asserted BEFORE the outcome: a nameless request is refused, the outcome then never settles, and
+    // the failure should name the URL rather than time out.
+    await waitFor(() => { expect(fetchMock).toHaveBeenCalledWith('http://authn.test/ldap/login?name=ldap', expect.anything()) })
     await expect(outcome).resolves.toBe('resumed')
-    // The in-place resume hit the LDAP strategy's path, not a hard-coded /basic/login.
-    expect(fetchMock).toHaveBeenCalledWith('http://authn.test/ldap/login', expect.anything())
     expect(forceLogout).not.toHaveBeenCalled()
   })
 
