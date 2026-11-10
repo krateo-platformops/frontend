@@ -7,7 +7,7 @@ The values here are correct and the light/dark parity is structurally guaranteed
 **Status:** holds — and now at zero across `ui/src`, not just `ui/src/widgets`.
 
 > **2026-11-10 — the CRs, too: enforced by the composition lint's `hex-colour` rule.** `ui/src` was at
-> zero, but the portal chart computed 40 hex literals into table cells, in `widgetDataTemplate`
+> zero, but the portal chart computed 46 hex literals into table cells, in `widgetDataTemplate`
 > expressions and RESTAction jq (`sevColor`, `resultColor`) where no rule looked: antd v4's
 > `#8c8c8c` / `#cf1322` / `#d48806`, and one "Ask Agentiko" cell in the retired Krateo blue
 > `#11B2E2`. A hex is one value in both modes; `#595959` was under AA on the dark panel. The Table
