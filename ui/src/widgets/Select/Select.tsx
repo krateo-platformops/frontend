@@ -10,6 +10,16 @@ import type { Select as WidgetType } from './Select.type'
 export type SelectWidgetData = WidgetType['spec']['widgetData']
 
 /**
+ * The multi-mode switcher's "all" choice as a VALUE (C1, X4 audit). An empty scope means every
+ * project, and the trigger used to say so through antd's placeholder, so "All projects" was drawn
+ * in placeholder grey and exposed as a hint rather than as the control's value. While nothing is
+ * staged the Select now holds this one entry instead, which renders through `tagRender` like any
+ * selection. It never leaves the component: staging strips it, so the URL still carries no
+ * `?<queryParam>=` for "all". `*` cannot collide with an option, because a namespace is a DNS label.
+ */
+const ALL_SCOPE = '*'
+
+/**
  * Faithful wrapper of antd `Select`. Two modes:
  *  • default — a `Form.Item` control bound by `name`, for use inside a `Form`.
  *  • `queryParam` set — a STANDALONE, URL-query-bound filter Select (no Form context),
@@ -51,8 +61,10 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
     // Multi model mirrors the mockup's checkbox switcher: an EMPTY selection means "All projects" —
     // the master row is lit and individual boxes reflect the STAGED (working) selection, applied to
     // the URL only on Apply. (Single mode keeps the scalar value, applied immediately.)
-    const value = isMulti ? staged : (raw || undefined)
     const isAll = staged.length === 0
+    const allLabel = placeholder ?? 'All projects'
+    const multiValue = isAll ? [ALL_SCOPE] : staged
+    const value = isMulti ? multiValue : (raw || undefined)
     const commit = (selected: string[]) => {
       setSearchParams((prev) => {
         const params = new URLSearchParams(prev)
@@ -76,13 +88,10 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
     }
     // Multi-select: toggling a checkbox only STAGES it; nothing is applied until Apply commits the
     // staged set. (Single mode keeps `onChange` above, which applies immediately.)
+    // Picking a project while "all" is the value hands back [ALL_SCOPE, project]; removing the "all"
+    // entry hands back []. Both resolve by dropping ALL_SCOPE: the staged set holds projects only.
     const onStage = (next?: string | string[]) => {
-      if (Array.isArray(next)) {
-        setStaged(next)
-
-        return
-      }
-      setStaged(next ? [next] : [])
+      setStaged(([] as string[]).concat(next ?? []).filter((entry) => entry !== ALL_SCOPE))
     }
     // Apply: commit the staged selection to the URL and close the popup.
     const apply = () => {
@@ -144,7 +153,7 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
           type='button'
         >
           <span className={`${styles.checkBox} ${isAll ? styles.checkBoxOn : ''}`}>{isAll ? '✓' : ''}</span>
-          <span className={styles.checkOptionLabel} title={placeholder ?? 'All projects'}>{placeholder ?? 'All projects'}</span>
+          <span className={styles.checkOptionLabel} title={allLabel}>{allLabel}</span>
           <span className={styles.optionCount}>{optionValues.length} ns</span>
         </button>
         <div className={styles.panelHr} />
@@ -171,7 +180,7 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
 
     return (
       <AntdSelect
-        className={styles.checkSelect}
+        className={isAll ? `${styles.checkSelect} ${styles.checkSelectAll}` : styles.checkSelect}
         classNames={{ popup: { root: styles.checkPopup } }}
         disabled={disabled}
         key={uid}
@@ -186,11 +195,10 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
         open={open}
         optionRender={renderCheckOption}
         options={options}
-        placeholder={placeholder}
         popupMatchSelectWidth={popupWidth}
         popupRender={renderPanel}
         // #86 §0.1: the leading prefix dot was removed — it read as a stray indicator, and the
-        // "All projects" placeholder now centres in the control (Select.module.css .checkSelect).
+        // "All projects" value centres in the control (Select.module.css .allScope).
         // #80 §0.6: this multi-select filters via its custom checkbox popup (popupRender), so antd's
         // inline search input isn't needed. `showSearch={false}` alone does NOT remove it in antd 6
         // multi-mode (the readonly `.ant-select-input` stays and blinks a text caret), so the
@@ -199,10 +207,13 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
         size={size}
         // #86 §0.2: was a fixed `minWidth: 170` that pinned the switcher to its content width so it
         // couldn't shrink with the header (colliding with the search box at narrow widths). Now a
-        // 170px flex-basis that CAN shrink to 0 (the placeholder ellipsises) — matching the search
-        // trigger's responsive behaviour so the whole left cluster yields together.
+        // 170px flex-basis that CAN shrink to 0 (the "All projects" value ellipsises) — matching the
+        // search trigger's responsive behaviour so the whole left cluster yields together.
         style={{ flex: '0 1 170px', minWidth: 0 }}
-        tagRender={(props) => (
+        tagRender={(props) => (props.value === ALL_SCOPE ? (
+          // The "all" value: plain text in the control, no pill and nothing to remove.
+          <span className={styles.allScope} title={allLabel}>{allLabel}</span>
+        ) : (
           // C8 exception: not a control; it only stops the mousedown reaching the Select, which would open the dropdown.
           // eslint-disable-next-line jsx-a11y/no-static-element-interactions
           <span className={styles.ptag} onMouseDown={(event) => event.stopPropagation()}>
@@ -212,7 +223,7 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
               <button aria-label={typeof props.label === 'string' ? `Remove ${props.label}` : 'Remove'} className={styles.ptagClose} onClick={props.onClose} type='button'>✕</button>
             ) : null}
           </span>
-        )}
+        ))}
         value={value}
       />
     )

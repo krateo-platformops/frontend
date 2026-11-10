@@ -55,7 +55,7 @@
    `.ant-select-selector` box this used to target, so the old selector matched nothing and the
    control stayed ~16px. On the root it lands at exactly 24px (verified live) = the Tag height.
    #86 §0.2: also allow it to shrink (flex-shrink) — the Select.tsx flex-basis (0 1 170px) does the
-   rest; the "All projects" placeholder ellipsises. */
+   rest; the "All projects" value ellipsises. */
 .headerLeft :global(.ant-select-sm) {
   flex-shrink: 1;
 

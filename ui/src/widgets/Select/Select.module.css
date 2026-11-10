@@ -146,14 +146,24 @@
    selected-tag rows stack from the top) — which top-aligns the single placeholder too. Centring the
    root's cross-axis drops the vertical offset to 0 (verified live). The placeholder itself is the
    antd 6 element `.ant-select-placeholder` (NOT the v5 `.ant-select-selection-*` names — those were
-   no-ops here); `text-align: center` centres it horizontally. `:global(.ant-select)` on the same
-   `.checkSelect` element out-specifies antd's base root rule. */
+   no-ops here). `:global(.ant-select)` on the same `.checkSelect` element out-specifies antd's base
+   root rule. */
 .checkSelect:global(.ant-select) {
   align-items: center;
 }
 
-.checkSelect :global(.ant-select-placeholder) {
-  text-align: center;
+/* C1 (X4 audit): "All projects" is the control's VALUE (Select.tsx ALL_SCOPE), drawn in the value's
+   text colour, where it used to be antd's placeholder in placeholder grey. It keeps the place the
+   placeholder had: centred in the control, ellipsised when the header squeezes it. */
+.checkSelectAll :global(.ant-select-content) {
+  justify-content: center;
+}
+
+.allScope {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* selected namespaces → amber pills in the trigger (mockup .ptag) */

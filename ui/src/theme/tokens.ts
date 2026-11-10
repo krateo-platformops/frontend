@@ -604,6 +604,18 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   Upload: { pictureCardSize: 88 },
 })
 
+/**
+ * antd's text tokens, per mode (C1, WCAG 1.4.3). With only `colorTextBase` set, antd derives the
+ * rest as see-through blends of it (65 / 45 / 25 % alpha), and those blends failed AA: secondary
+ * text measured 2.95:1 in light mode, placeholders 1.74:1 (light) and 2.19:1 (dark). The derived
+ * tiers point at the palette's own text roles instead, which tokens.contrast.test.ts pins on every
+ * surface: secondary and description text → `gray`, tertiary, quaternary and placeholder → `faint`.
+ * Inside antd, `colorTextLabel` follows `colorTextSecondary`, and `colorTextDisabled` and
+ * `colorIcon` follow the quaternary / tertiary tier, so they land on `faint` too (disabled text
+ * still equals placeholder text, as in antd's own derivation).
+ */
+const textTokens = (palette: Record<keyof typeof color, string>) => ({ colorTextBase: palette.text, colorTextDescription: palette.gray, colorTextSecondary: palette.gray, colorTextPlaceholder: palette.faint, colorTextQuaternary: palette.faint, colorTextTertiary: palette.faint })
+
 /** Light antd theme (brand v2 blue). compactAlgorithm = the instrument-density pass. */
 export const lightTheme: ThemeConfig = {
   algorithm: [antdAlgorithms.defaultAlgorithm, antdAlgorithms.compactAlgorithm],
@@ -622,7 +634,7 @@ export const lightTheme: ThemeConfig = {
     colorLink: '#8700DB',
     colorPrimary: color.primary,
     colorSuccess: color.success,
-    colorTextBase: color.text,
+    ...textTokens(color),
     colorWarning: color.warning,
     colorWhite: color.light,
     controlHeight: 32,
@@ -651,7 +663,7 @@ export const darkTheme: ThemeConfig = {
     colorLink: '#CF94FF',
     colorPrimary: colorDark.primary,
     colorSuccess: colorDark.success,
-    colorTextBase: colorDark.text,
+    ...textTokens(colorDark),
     colorWarning: colorDark.warning,
     controlHeight: 32,
     fontFamily: typography.family,
