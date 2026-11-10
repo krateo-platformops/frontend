@@ -81,12 +81,21 @@ export interface LoginFailureCause {
 /*
  * The causes authn documents for the login routes.
  *
- * THE SOURCE OF TRUTH IS authn's `docs/api.md`, which enumerates every cause with its code — 45 of
- * them, and exhaustive: verified by extracting every `CauseType` constant from authn's source and
- * finding all 45 present in that document. It is NOT the release notes for any one version. Those
- * tables cover only what that release changed, and reading one as though it were the whole contract
- * is exactly how the four ID-token 403s below went unhandled here. The `(0.35.0)` markers record
- * when a cause appeared, as a reading aid; they do not mean this list came from that release.
+ * THE SOURCE OF TRUTH IS authn's `docs/api.md`, which enumerates every cause with its code. At
+ * authn 0.36.0 it lists 46, and those are exactly the 46 `CauseType` constants in authn's source.
+ * It is NOT the release notes for any one version. Those tables cover only what that release
+ * changed, and reading one as though it were the whole contract is exactly how the four ID-token
+ * 403s below went unhandled here. The `(0.35.0)` markers record when a cause appeared, as a reading
+ * aid; they do not mean this list came from that release.
+ *
+ * WHAT WAS AND WAS NOT CHECKED. An earlier version of this comment said the list here had been
+ * checked against all 45 documented causes. What had been checked was the DOCUMENT against authn's
+ * SOURCE — not this file against the document. `GroupNotAllowed` has been in docs/api.md since
+ * authn 0.34.0 and was missing here until a person refused by allowedGroups was told to retry
+ * shortly; `MissingCodeVerifier` (0.36.0) was missing too. As of authn 0.36.0 this file names every
+ * cause the basic, ldap, oidc and oauth login routes can send. The 11 documented causes it does NOT
+ * name belong to `/oidc/stepup` (4) and `/serviceaccount/login` (7), which neither sign-in page
+ * calls.
  *
  * Grouped by what the person can do, NOT by status code, because that is the only question the
  * page has to answer. The codes are recorded in the comments so a reader can line this up against
@@ -141,6 +150,11 @@ const RESTART_REASONS = new Set([
  *         on, so the callback reads another origin's storage, which never held the verifier
  *     Hence "if it keeps happening, tell an administrator" — the same hand-off RESTART carries,
  *     and for the same reason: a loop that cannot terminate has to end somewhere.
+ *
+ *     authn's docs say "Fix the client" for it. That is written for a client that NEVER sends a
+ *     verifier. The portal always sends one when it sent a challenge, and it only fails to send a
+ *     challenge in the plain-http case above, so for the portal the ordinary cause is a verifier
+ *     that was stored and then lost.
  */
 const RESTART_HERE_REASONS = new Set([
   'MissingCodeVerifier',
@@ -192,10 +206,11 @@ const PLATFORM_REFUSAL_REASONS = new Set([
 ])
 
 /*
- * All of authn's own failures, plus the caller-side bugs that are OURS and not the person's.
- * Codes, for lining up against authn's docs/api.md:
+ * authn's own failures: authn or its IdP could not complete the sign-in. These carry PLATFORM's
+ * "retry shortly", because for most of them a retry is exactly what helps — a directory or token
+ * endpoint that was unreachable, a read of a config or Secret that failed. Codes, for lining up
+ * against authn's docs/api.md:
  *
- *   authn or its IdP could not complete the sign-in
  *   500  IssuanceFailed             could not mint the token
  *   500  LDAPBindFailed             bind rejected — authn's OWN service account, not the person's
  *   500  LDAPConfigLookupFailed     could not read the LDAPConfig
@@ -212,19 +227,6 @@ const PLATFORM_REFUSAL_REASONS = new Set([
  *   500  ClientSecretLookupFailed   (0.35.0)
  *   500  UserInfoFailed             (0.35.0)
  *   500  RESTActionFailed           (0.35.0)
- *
- *   the named config does not exist. NOT the person's fault: the method list the page offers comes
- *   from authn's own /strategies, so offering a method that is not there is our bug or a broken
- *   install, never something to retype.
- *   404  LDAPConfigNotFound
- *   404  OIDCConfigNotFound         (0.35.0)
- *   404  OAuthConfigNotFound        (0.35.0)
- *
- *   the portal sent a malformed request. Also never the person's text — these are OUR bugs, and the
- *   person cannot act on them, so they escalate rather than ask for a retype.
- *   400  MissingConfigName          (0.35.0) no ?name= on ldap/oauth/oidc/step-up
- *   400  MissingAuthorizationCode   (0.35.0) no X-Auth-Code
- *   400  InvalidRequestBody         (0.35.0) ldap body is not JSON
  */
 const ESCALATE_REASONS = new Set([
   'ClientSecretLookupFailed',
@@ -234,20 +236,14 @@ const ESCALATE_REASONS = new Set([
   'IssuerConflict',
   'IssuerUnknown',
   'LDAPConfigInvalid',
-  'InvalidRequestBody',
   'IssuanceFailed',
   'LDAPBindFailed',
   'LDAPConfigLookupFailed',
-  'LDAPConfigNotFound',
   'LDAPSearchFailed',
   'LDAPUnavailable',
-  'MissingAuthorizationCode',
-  'MissingConfigName',
   'OAuthConfigLookupFailed',
-  'OAuthConfigNotFound',
   'OIDCConfigInvalid',
   'OIDCConfigLookupFailed',
-  'OIDCConfigNotFound',
   'OIDCDiscoveryFailed',
   'PasswordLookupFailed',
   'PasswordSecretMissing',
@@ -255,6 +251,41 @@ const ESCALATE_REASONS = new Set([
   'TokenExchangeFailed',
   'UserInfoFailed',
   'UserLookupFailed',
+])
+
+/*
+ * The 4xx that are OURS — the portal's or the install's — and that no retry can change. They used
+ * to share PLATFORM's copy, which says "retry shortly": the same class of wrong advice this file
+ * exists to remove, because each of these fails identically on every attempt.
+ *
+ *   the portal sent a request authn cannot act on. authn: "Fix the client" — and the client is us.
+ *   400  MissingConfigName          (0.35.0) no ?name=. Both pages build the request from authn's
+ *                                   own /strategies entry (Auth.tsx from its `name`, Login.tsx from
+ *                                   its `path`), so only a broken entry or a portal bug produces it.
+ *   400  MissingAuthorizationCode   (0.35.0) no X-Auth-Code, or an empty one. NOT a restart case:
+ *                                   Auth.tsx exchanges only when the callback carries a non-empty
+ *                                   `?code=`, and sends it as that header unchanged. A callback that
+ *                                   arrives WITHOUT a code never reaches authn at all. So this needs
+ *                                   something between the browser and authn dropping the header —
+ *                                   an install fault, and the next attempt meets the same proxy.
+ *   400  InvalidRequestBody         (0.35.0) the ldap body is not JSON. The form sends NO body —
+ *                                   the credentials go in the Basic header, and authn accepts an
+ *                                   empty body — so this too needs something in between.
+ *
+ *   the named config does not exist. authn: "Tell an administrator". The method list both pages
+ *   offer comes from authn's own /strategies, so offering a method that is not there is our bug or
+ *   a broken install, never something to retype — and it does not appear by waiting.
+ *   404  LDAPConfigNotFound
+ *   404  OIDCConfigNotFound         (0.35.0)
+ *   404  OAuthConfigNotFound        (0.35.0)
+ */
+const PLATFORM_FAULT_REASONS = new Set([
+  'InvalidRequestBody',
+  'LDAPConfigNotFound',
+  'MissingAuthorizationCode',
+  'MissingConfigName',
+  'OAuthConfigNotFound',
+  'OIDCConfigNotFound',
 ])
 
 /** The first cause's reason, or null when the body is not authn's shape or carries none. */
@@ -270,6 +301,12 @@ const causeOf = (body: unknown): string | null => {
 const REFUSED = 'Those credentials were not accepted. Check them and try again.'
 const PLATFORM = 'Sign-in is unavailable: the platform could not check your credentials. '
   + 'This is not a problem with what you typed — retry shortly, and tell an administrator if it persists.'
+/*
+ * For the 4xx that are ours (PLATFORM_FAULT_REASONS). Keeps PLATFORM's "not a problem with what you
+ * typed" and drops its "retry shortly", which is false for every cause that reaches it.
+ */
+const PLATFORM_FAULT = 'Sign-in could not be completed because of a fault on the platform\'s side. '
+  + 'This is not a problem with what you typed, and retrying will not help — tell an administrator.'
 const MISCONFIGURED = 'Sign-in could not be completed: the platform rejected the response from your '
   + 'identity provider. Retrying will not help — an administrator needs to check how this sign-in '
   + 'method is configured.'
@@ -329,6 +366,9 @@ export const loginFailureCauseOf = (
   }
   if (reason !== null && RETYPE_REASONS.has(reason)) {
     return { action: 'retype', reason, text: REFUSED }
+  }
+  if (reason !== null && PLATFORM_FAULT_REASONS.has(reason)) {
+    return { action: 'escalate', reason, text: PLATFORM_FAULT }
   }
   if (reason !== null && ESCALATE_REASONS.has(reason)) {
     return { action: 'escalate', reason, text: PLATFORM }

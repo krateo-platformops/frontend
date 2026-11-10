@@ -19,6 +19,17 @@ export interface CatchError {
     }
     message?: string
   }
+  /**
+   * What to show under `message`, from a caller that has ALREADY classified the failure. When set,
+   * it is shown as given, and the status-based defaults below stay out of the way: the 4xx line
+   * "Please check your input or permissions." and the 500 branch's replacement of `message` as well.
+   * Those defaults are right for a caller that knows only a status, and wrong beside copy that
+   * already says what happened — the sign-in callback put "Please check your input" under "your
+   * account is not allowed into this control plane", on a page with no input.
+   *
+   * Not honoured on a 401, whose surface is the session-resume modal rather than this text.
+   */
+  description?: string
   message?: string
   status?: number
   code?: number
@@ -48,6 +59,8 @@ const useCatchError = () => {
       if (type === 'notification') {
         return
       }
+    } else if (error?.description !== undefined) {
+      description = error.description
     } else if (error?.status === 500 || error?.code === 500) {
       message = 'The server hit an unexpected error'
       description = error?.data?.message || 'The server encountered an unexpected condition.'

@@ -39,6 +39,8 @@ describe('loginFailureCauseOf', () => {
       // ever says "check them and try again" for a server fault, the fix has been undone.
       expect(cause.text, reason).not.toMatch(/check them/i)
       expect(cause.text, reason).toMatch(/not a problem with what you typed/i)
+      // A failure to reach or read something is the case a retry CAN fix, so this copy keeps it.
+      expect(cause.text, reason).toMatch(/retry shortly/i)
     }
   })
 
@@ -47,7 +49,11 @@ describe('loginFailureCauseOf', () => {
     // our bug or a broken install — never something to retype. LDAPConfigNotFound established the
     // rule; 0.35.0 added the other two and they must follow it.
     for (const reason of ['LDAPConfigNotFound', 'OIDCConfigNotFound', 'OAuthConfigNotFound']) {
-      expect(loginFailureCauseOf(404, body(reason), 'redirect').action, reason).toBe('escalate')
+      const cause = loginFailureCauseOf(404, body(reason), 'redirect')
+      expect(cause.action, reason).toBe('escalate')
+      // A config that is not there does not appear by waiting: no "retry shortly".
+      expect(cause.text, reason).not.toMatch(/retry shortly/i)
+      expect(cause.text, reason).toMatch(/retrying will not help/i)
     }
   })
 
@@ -58,6 +64,12 @@ describe('loginFailureCauseOf', () => {
       const cause = loginFailureCauseOf(400, body(reason), 'redirect')
       expect(cause.action, reason).toBe('escalate')
       expect(cause.text, reason).not.toMatch(/check them/i)
+      // Our bug or the install's, identical on every attempt. These used to share PLATFORM's
+      // "retry shortly" — the same class of wrong advice as the GroupNotAllowed defect.
+      expect(cause.text, reason).not.toMatch(/retry shortly/i)
+      expect(cause.text, reason).toMatch(/retrying will not help/i)
+      expect(cause.text, reason).toMatch(/not a problem with what you typed/i)
+      expect(cause.text, reason).toMatch(/administrator/i)
     }
     // And the same holds on the password form, where the 400 is equally not the person's text.
     expect(loginFailureCauseOf(400, body('InvalidRequestBody'), 'password').action).toBe('escalate')

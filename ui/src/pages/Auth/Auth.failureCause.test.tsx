@@ -113,6 +113,31 @@ describe('Auth callback failures', () => {
     expect(document.body.textContent).not.toMatch(/sign-in unavailable/i)
   })
 
+  it('a request the portal could not make right says retrying will not help — not "retry shortly"', async () => {
+    // MissingAuthorizationCode is unreachable from a normal callback: Auth.tsx exchanges only with a
+    // non-empty ?code=. Arriving here means something between the browser and authn dropped the
+    // header, and the next attempt meets the same thing.
+    installFetchMock(400, statusBody('MissingAuthorizationCode'))
+    renderCallback()
+
+    await waitFor(() => expect(screen.getByText(/retrying will not help/i)).toBeTruthy())
+    expect(screen.getByText('Sign-in unavailable')).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/retry shortly/i)
+  })
+
+  it('the notification for a refusal carries the page\'s title and classified text, and nothing else', async () => {
+    installFetchMock(403, statusBody('GroupNotAllowed'))
+    renderCallback()
+
+    await waitFor(() => expect(screen.getByText('Access not granted')).toBeTruthy())
+    expect(catchError).toHaveBeenCalledTimes(1)
+    const [{ description, message, status }] = catchError.mock.calls[0] as [{ description: string; message: string; status: number }]
+    expect(message).toBe('Access not granted')
+    expect(description).toBe('Your identity provider signed you in, but your account is not allowed into '
+      + 'this control plane. Ask its owner to give you access. (GroupNotAllowed)')
+    expect(status).toBe(403)
+  })
+
   it("authn's own failure reads as unavailable, not as the person's fault", async () => {
     installFetchMock(500, statusBody('TokenExchangeFailed'))
     renderCallback()
@@ -155,11 +180,14 @@ describe('Auth callback failures', () => {
 
     await waitFor(() => expect(screen.getByRole('link', { name: /start the sign-in again/i })).toBeTruthy())
     expect(document.body.textContent).not.toMatch(/Login error \(403/)
-    // The notification carries the same classified text, with authn's cause appended for support.
+    // The notification carries the Result's title, and the same classified text with authn's cause
+    // appended for support — as its OWN description, so useCatchError adds none of its defaults.
     expect(catchError).toHaveBeenCalled()
-    const [{ message }] = catchError.mock.calls[0] as [{ message: string }]
-    expect(message).toMatch(/AuthorizationCodeRejected/)
-    expect(message).not.toMatch(/Login error \(403/)
+    const [{ description, message }] = catchError.mock.calls[0] as [{ description: string; message: string }]
+    expect(message).toBe('Authentication error')
+    expect(description).toMatch(/the code from your identity provider was refused/i)
+    expect(description).toMatch(/\(AuthorizationCodeRejected\)$/)
+    expect(`${message} ${description}`).not.toMatch(/Login error \(403/)
   })
 
   it('a body that is not authn\'s shape still explains itself rather than throwing', async () => {

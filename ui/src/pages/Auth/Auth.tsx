@@ -105,8 +105,15 @@ const Auth = () => {
        */
       const cause = loginFailureCauseOf(response.status, parsed, 'redirect')
       setFailure(cause)
+      /*
+       * The notification says what the <Result> says: its title, then the classified text with
+       * authn's cause appended for support. Passing `description` keeps useCatchError's status-based
+       * defaults out of it — they appended "Please check your input or permissions." to every 4xx
+       * here, and replaced a 500's text with "The server hit an unexpected error".
+       */
       catchError({
-        message: cause.reason === null ? cause.text : `${cause.text} (${cause.reason})`,
+        description: cause.reason === null ? cause.text : `${cause.text} (${cause.reason})`,
+        message: FAILURE_TITLE[cause.action],
         status: response.status,
       }, 'notification')
 
