@@ -107,7 +107,7 @@ const scope = (args: Record<string, unknown>): string | undefined =>
 
 /** The imperative verbs an orchestrator's delegation request typically opens with. Only these get
  *  "Asked X to <request>"; anything else (a question, a sentence about the user) is quoted. */
-const IMPERATIVE = /^(analy[sz]e|apply|author|build|check|compare|confirm|create|deploy|describe|determine|diagnose|draft|explain|fetch|find|fix|generate|get|help|identify|inspect|investigate|list|look|preview|propose|publish|read|render|report|review|run|scaffold|search|show|summari[sz]e|tell|trace|update|validate|verify|write)\b/i
+const IMPERATIVE = /^(add|analy[sz]e|apply|author|build|change|check|clean|compare|configure|confirm|create|delete|deploy|describe|determine|diagnose|disable|draft|edit|enable|ensure|explain|fetch|find|fix|generate|get|help|identify|inspect|install|investigate|list|look|make|migrate|patch|preview|propose|publish|read|remove|rename|render|report|restart|review|roll|run|scaffold|scale|search|set|show|summari[sz]e|tell|trace|uninstall|update|upgrade|validate|verify|write)\b/i
 
 const INTENT_MAX = 80
 

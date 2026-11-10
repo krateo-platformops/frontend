@@ -28,6 +28,7 @@
   background: none;
   border: 0;
   border-bottom: 1px solid var(--border-color);
+  box-sizing: border-box;
   color: var(--dark-color);
   display: flex;
   font: inherit;
@@ -71,9 +72,6 @@ button.head:focus-visible .chev {
 .secondary {
   color: var(--gray-color);
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .time {

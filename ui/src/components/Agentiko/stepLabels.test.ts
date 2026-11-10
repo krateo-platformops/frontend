@@ -94,6 +94,11 @@ describe('labelStep — delegations', () => {
       .toBe('Asked core-provider-agent to diagnose composition event-health in krateo-system')
   })
 
+  it('reads a write instruction the same way', () => {
+    expect(labelStep(delegation('Remove the readinessProbe from Deployment readiness-probe-test.')).text)
+      .toBe('Asked core-provider-agent to remove the readinessProbe from Deployment readiness-probe-test')
+  })
+
   it('quotes a request that is not an instruction, under the label', () => {
     const label = labelStep(delegation('Is it healthy? If not, explain why.'))
     expect(label.text).toBe('Asked core-provider-agent')

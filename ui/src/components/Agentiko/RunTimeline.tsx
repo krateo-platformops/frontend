@@ -105,12 +105,12 @@ const openNote = (status: StepStatus, waitingOnYou: boolean): string | undefined
 const stepNote = (step: RunStep, waitingOnYou: boolean): string | undefined =>
   (step.status === 'failed' ? step.reason ?? 'failed' : openNote(step.status, waitingOnYou))
 
-const FullRequest = ({ request }: { request: string }) => {
+const FullRequest = ({ request, separated }: { request: string; separated: boolean }) => {
   const id = useId()
   const [open, setOpen] = useState(false)
   return (
     <>
-      {' · '}
+      {separated ? ' · ' : null}
       <Button aria-controls={id} aria-expanded={open} className={styles.inlineBtn} onClick={() => setOpen((prev) => !prev)} size='small' type='link'>
         {open ? 'hide request' : 'full request'}
       </Button>
@@ -124,7 +124,12 @@ const StepLine = ({ now, stalled, step, waitingOnYou }: { now: number; stalled: 
   const tone: Tone = isStalled ? 'warn' : TONE[step.status]
   const single = step.entries.length === 1 ? step.entries[0] : undefined
   const text = isStalled && step.delegation ? `${step.delegation.agent} hasn’t answered` : step.text
-  const note = isStalled ? 'No reply yet. It may still be working, or the run stopped.' : stepNote(step, waitingOnYou)
+  // A hand-off that is open says why in its lane, right under it; saying it twice is noise.
+  const laneSaysIt = Boolean(step.delegation) && (step.status === 'paused' || step.status === 'unfinished')
+  let note = laneSaysIt ? undefined : stepNote(step, waitingOnYou)
+  if (isStalled) {
+    note = 'No reply yet. It may still be working, or the run stopped.'
+  }
   return (
     <div className={styles.step} data-status={step.status} data-testid='agentiko-run-step' data-tone={tone} title={rawTitle(step.entries)}>
       <Mark tone={tone} />
@@ -134,7 +139,7 @@ const StepLine = ({ now, stalled, step, waitingOnYou }: { now: number; stalled: 
         {step.detail || step.delegation?.request ? (
           <small>
             {step.detail}
-            {step.delegation?.request ? <FullRequest request={step.delegation.request} /> : null}
+            {step.delegation?.request ? <FullRequest request={step.delegation.request} separated={Boolean(step.detail)} /> : null}
           </small>
         ) : null}
         {note ? <small>{note}</small> : null}
