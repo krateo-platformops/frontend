@@ -156,7 +156,7 @@ button.head:focus-visible .chev {
   color: var(--gray-color);
   font-family: var(--font-mono);
   font-size: var(--krateo-text-label-xs);
-  padding-top: 1px;
+  padding-top: var(--spacing-xxs);
   white-space: nowrap;
 }
 
@@ -164,11 +164,11 @@ button.head:focus-visible .chev {
 .mark {
   border-radius: 50%;
   display: grid;
-  font-size: 9px;
+  font-size: var(--krateo-text-label-xs);
   font-weight: 700;
   height: 14px;
   line-height: 1;
-  margin-top: 1px;
+  margin-top: var(--spacing-xxs);
   place-items: center;
   width: 14px;
 }
