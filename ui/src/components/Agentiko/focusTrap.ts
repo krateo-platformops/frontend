@@ -9,18 +9,11 @@
 import { useEffect } from 'react'
 import type { RefObject } from 'react'
 
-const FOCUSABLE_SELECTOR = [
-  'a[href]',
-  'button:not([disabled])',
-  'textarea:not([disabled])',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])',
-].join(', ')
+import { tabbableIn } from '../../utils/focus'
 
 /** Active only while `active` (the rail's own `open`) — a closed-but-mounted rail (width 0)
  * must never intercept Tab/Escape for the page behind it. Escape mirrors the existing
- * "Collapse rail" button (setOpen(false)) exactly, so there's no separate close path to
+ * "Collapse rail" button (the rail's `collapse`) exactly, so there's no separate close path to
  * keep in sync — including that a pending approval is left untouched (only Deny/Approve/
  * dismiss/the 5-minute governor resolve it, not collapsing the rail). */
 export const useRailFocusTrap = (active: boolean, containerRef: RefObject<HTMLElement | null>, onEscape: () => void): void => {
@@ -41,7 +34,7 @@ export const useRailFocusTrap = (active: boolean, containerRef: RefObject<HTMLEl
       if (event.key !== 'Tab') {
         return
       }
-      const focusable = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+      const focusable = tabbableIn(container)
       if (!focusable.length) {
         return
       }

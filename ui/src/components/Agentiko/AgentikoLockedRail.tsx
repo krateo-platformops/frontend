@@ -13,6 +13,7 @@ import gekoThinking from '../../assets/images/agentiko/geko-thinking.webp'
 import styles from './AgentikoRail.module.css'
 import { CheckIcon, CollapseIcon, LockIcon } from './icons'
 import { AGENTIKO_LICENCE_URL } from './licence'
+import { railRef } from './railFocus'
 
 const CAPABILITIES = [
   'Explains why a composition is failing, from what is on your screen',
@@ -25,6 +26,8 @@ const AgentikoLockedRail = ({ onClose, open, width }: { onClose: () => void; ope
     aria-label='Agentiko'
     className={`${styles.apRail} ${styles.apLockedRail} ${open ? styles.open : ''}`}
     data-testid='agentiko-locked-rail'
+    inert={!open}
+    ref={railRef}
     style={open ? { width: `${width}px` } : undefined}
   >
     <div className={styles.apRailInner}>

@@ -24,10 +24,11 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { Alert, Button, theme } from 'antd'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 
 import logo from '../../assets/images/logo_big.svg'
 import { useConfigContext } from '../../context/ConfigContext'
+import { useModalFocus } from '../../hooks/useModalFocus'
 import AuthMethods from '../../pages/Login/AuthMethods'
 import type { AuthModeType, AuthResponseType, FormType, LoginFormType } from '../../pages/Login/Login.types'
 import type { AuthFailureCause } from '../../utils/authFailureCause'
@@ -57,6 +58,10 @@ const SessionResumeModal = () => {
   const [strategiesError, setStrategiesError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const headingId = useId()
 
   const authBaseUrl = config?.api.AUTHN_API_BASE_URL
   // Config-driven branding, mirroring the real Login page (falls back to the built-in logo).
@@ -174,6 +179,11 @@ const SessionResumeModal = () => {
     }
   }, [authBaseUrl, queryClient])
 
+  const presentation = authFailurePresentation(cause)
+  // A modal dialog over the whole app (audit X4 K1): focus moves in, Tab stays in, the app behind
+  // is inert, and focus goes back on close. See useModalFocus.
+  useModalFocus(open, dialogRef, headingRef, presentation.showAuthForm && methods !== null)
+
   // A background 401 must NOT leave the errored dashboard peeking through a floating modal
   // (that read as "broken"). Instead this renders a FULL-VIEWPORT opaque login surface that
   // fully covers the stale/errored content — visually a clean login page — while the in-place
@@ -181,11 +191,11 @@ const SessionResumeModal = () => {
   if (!open) {
     return null
   }
-  const presentation = authFailurePresentation(cause)
   return (
     <div
-      aria-label='Session expired'
+      aria-labelledby={headingId}
       aria-modal='true'
+      ref={dialogRef}
       role='dialog'
       style={{
         alignItems: 'center',
@@ -211,7 +221,9 @@ const SessionResumeModal = () => {
         }}
       >
         <img alt={logoAlt} src={logoSrc} style={{ display: 'block', height: 40, marginBottom: 'var(--spacing-lg)' }} />
-        <h2 style={{ color: token.colorText, marginBottom: 'var(--spacing-sm)', marginTop: 0 }}>{presentation.title}</h2>
+        <h2 id={headingId} ref={headingRef} style={{ color: token.colorText, marginBottom: 'var(--spacing-sm)', marginTop: 0 }} tabIndex={-1}>
+          {presentation.title}
+        </h2>
         <p style={{ color: token.colorTextSecondary, marginBottom: 'var(--spacing-lg)', marginTop: 0 }}>
           {presentation.description}
         </p>
