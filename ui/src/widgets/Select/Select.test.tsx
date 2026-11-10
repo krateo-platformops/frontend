@@ -11,12 +11,17 @@
  * never fires there even for a bare antd Select). These tests therefore assert the OPEN/CLOSE
  * behaviour that the controlled `open` state governs — the part of the fix that is testable here.
  */
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { App as AntdApp } from 'antd'
 import { MemoryRouter, useLocation } from 'react-router'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import Select, { type SelectWidgetData } from './Select'
+import styles from './Select.module.css'
 
 // jsdom lacks the browser APIs antd's Select (resize/virtual list, responsive) touches. The trigger
 // uses `maxTagCount: 'responsive'`, and rc-overflow shows a value only once it has measured room
@@ -199,5 +204,81 @@ describe('project switcher — "All projects" is the value, not a placeholder', 
     await settle()
     expect(values(container)).toEqual(['All projects'])
     expect(search()).toBe('')
+  })
+})
+
+/**
+ * The header project picker must be reachable by keyboard and by screen readers. Select.module.css
+ * used to hide antd's `.ant-select-input` with `display: none` (to stop a caret blinking in the
+ * closed control), but that input IS the combobox: it takes focus, carries role=combobox, and turns
+ * Enter / Space / ArrowDown into "open the list". With it hidden, Tab skipped the picker and the
+ * accessibility tree had no combobox at all.
+ *
+ * Vitest does not apply CSS modules to jsdom, so a test that only renders the component cannot see
+ * a stylesheet bug. These tests inject the REAL Select.module.css, its local class names rewritten
+ * to the ones the component receives (`styles.*`), so the rule under test is the shipped one:
+ * user-event's Tab skips an element whose computed `display` is `none`, and Testing Library's role
+ * queries leave out elements hidden from the accessibility tree.
+ */
+describe('project switcher — reachable by keyboard and screen readers', () => {
+  let sheet: HTMLStyleElement | undefined
+
+  beforeAll(() => {
+    const source = readFileSync(resolve(__dirname, 'Select.module.css'), 'utf-8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+    // `:global(x)` is antd's own class: keep it verbatim. Every other `.name` is a local class, which
+    // the module maps to `styles.name`. Local names here are camelCase, so a hyphenated class (antd's)
+    // or a decimal like `0.08em` never matches.
+    const globals: string[] = []
+    const css = source
+      .replace(/:global\(([^)]*)\)/g, (_match, inner: string) => `@@${globals.push(inner) - 1}@@`)
+      .replace(/\.([A-Za-z]\w*)(?![\w-])/g, (_match, name: string) => `.${(styles as Record<string, string>)[name]}`)
+      .replace(/@@(\d+)@@/g, (_match, index: string) => globals[Number(index)])
+    sheet = document.createElement('style')
+    sheet.textContent = css
+    document.head.append(sheet)
+  })
+
+  afterAll(() => { sheet?.remove() })
+
+  const name = widgetData.label!
+
+  const renderInPage = () => render(
+    <MemoryRouter initialEntries={['/dashboard']}>
+      <AntdApp>
+        <button type='button'>before the picker</button>
+        <Select resourcesRefs={{ items: [] }} uid='sw' widgetData={widgetData} />
+      </AntdApp>
+    </MemoryRouter>,
+  )
+
+  it('is exposed as a combobox named by the panel heading', async () => {
+    renderInPage()
+    await settle()
+    expect(screen.getByRole('combobox', { name })).toBeTruthy()
+  })
+
+  it('Tab reaches it from the control before it', async () => {
+    const user = userEvent.setup()
+    const { container } = renderInPage()
+    await settle()
+    screen.getByRole('button', { name: 'before the picker' }).focus()
+    await user.tab()
+    // antd's input element itself, not a role query, so this fails on focus alone.
+    expect(document.activeElement).toBe(container.querySelector('.ant-select-input'))
+  })
+
+  // ArrowDown opens it too, but rc-select reads that key from the legacy `which`, which user-event
+  // leaves at 0 in jsdom; the Playwright check in the offline harness covers ArrowDown in Chromium.
+  it.each(['{Enter}', ' '])('the keyboard opens it (%j)', async (key) => {
+    const user = userEvent.setup()
+    renderInPage()
+    await settle()
+    screen.getByRole('button', { name: 'before the picker' }).focus()
+    await user.tab()
+    await user.keyboard(key)
+    await settle()
+    expect(screen.getByRole('combobox', { name }).getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('option', { name: 'alpha' })).toBeTruthy()
   })
 })
