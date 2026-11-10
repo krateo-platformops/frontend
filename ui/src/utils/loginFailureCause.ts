@@ -59,8 +59,15 @@ export type LoginFlow = 'password' | 'redirect'
  * incomplete for a redirect flow: authn's `AuthorizationCodeRejected` is neither — there is
  * nothing to retype, and no administrator is needed for the ordinary case. authn's own guidance for
  * it is "start the sign-in again", so `restart` is a third real outcome rather than an invented one.
+ *
+ * `request-access` is the fourth, for the same reason: authn's `GroupNotAllowed` is a person whose
+ * identity provider signed them in and whom this control plane then declined to admit. Nothing is
+ * wrong to retype, starting over returns the same answer, and nothing is broken for an
+ * administrator to repair — what is missing is a grant, and only the person can go and ask for it.
+ * authn's own guidance for it is "Ask for access". Folding it into `escalate` told that person the
+ * platform could not check their credentials and to retry shortly — wrong on both counts.
  */
-export type LoginFailureAction = 'escalate' | 'restart' | 'retype'
+export type LoginFailureAction = 'escalate' | 'request-access' | 'restart' | 'retype'
 
 export interface LoginFailureCause {
   /** What to do about it. */
@@ -112,6 +119,24 @@ const RETYPE_REASONS = new Set([
  */
 const RESTART_REASONS = new Set([
   'AuthorizationCodeRejected',
+])
+
+/*
+ * 403 GroupNotAllowed (0.34.0) — the OIDCConfig sets `spec.allowedGroups` and the person holds none
+ *     of them (read after the RESTAction, and after authn strips its reserved `krateo:loa:` groups).
+ *     The sign-in itself SUCCEEDED: the IdP authenticated them, the code was redeemed, the ID token
+ *     validated. Only admission was refused. authn's docs/api.md: "Caller should — Ask for access".
+ *
+ *     It is oidc-only. OAuthConfig has no `allowedGroups`, so /oauth/login cannot send it; the set is
+ *     consulted for every flow anyway, because the classification follows the cause, not the route.
+ *
+ *     Before this set existed it fell through: an unknown 403 on a redirect escalates, and the
+ *     person was told "the platform could not check your credentials … retry shortly". Every word
+ *     of that was false for them — the credentials were checked, and no retry admits someone who is
+ *     not in the group.
+ */
+const REQUEST_ACCESS_REASONS = new Set([
+  'GroupNotAllowed',
 ])
 
 /*
@@ -174,6 +199,12 @@ const PLATFORM_REFUSAL_REASONS = new Set([
  *   person cannot act on them, so they escalate rather than ask for a retype.
  *   400  MissingConfigName          (0.35.0) no ?name= on ldap/oauth/oidc/step-up
  *   400  MissingAuthorizationCode   (0.35.0) no X-Auth-Code
+ *   400  MissingCodeVerifier        (0.36.0) the OIDCConfig is a public client (no clientSecret) and
+ *                                   no X-Code-Verifier came with the code. authn: "Fix the client".
+ *                                   The portal sends a verifier only when it sent a challenge, and
+ *                                   it cannot compute one outside a secure context (crypto.subtle)
+ *                                   — so a public client on a plain-http portal fails this way on
+ *                                   every attempt. Ours or the install's, never the person's.
  *   400  InvalidRequestBody         (0.35.0) ldap body is not JSON
  */
 const ESCALATE_REASONS = new Set([
@@ -192,6 +223,7 @@ const ESCALATE_REASONS = new Set([
   'LDAPSearchFailed',
   'LDAPUnavailable',
   'MissingAuthorizationCode',
+  'MissingCodeVerifier',
   'MissingConfigName',
   'OAuthConfigLookupFailed',
   'OAuthConfigNotFound',
@@ -223,6 +255,13 @@ const PLATFORM = 'Sign-in is unavailable: the platform could not check your cred
 const MISCONFIGURED = 'Sign-in could not be completed: the platform rejected the response from your '
   + 'identity provider. Retrying will not help — an administrator needs to check how this sign-in '
   + 'method is configured.'
+/*
+ * Says what DID happen (the identity provider signed them in) so that it cannot be read as a
+ * credential problem, and names the one person who can change the answer. No "retry": retrying
+ * returns the same refusal until someone grants access.
+ */
+const NOT_ADMITTED = 'Your identity provider signed you in, but your account is not allowed into '
+  + 'this control plane. Ask its owner to give you access.'
 const RESTART = 'That sign-in did not complete: the code from your identity provider was refused, '
   + 'usually because it expired or had already been used. Start the sign-in again — and if it happens '
   + 'a second time, tell an administrator, because the sign-in may be misconfigured rather than stale.'
@@ -256,6 +295,9 @@ export const loginFailureCauseOf = (
 
   if (reason !== null && RESTART_REASONS.has(reason)) {
     return { action: 'restart', reason, text: RESTART }
+  }
+  if (reason !== null && REQUEST_ACCESS_REASONS.has(reason)) {
+    return { action: 'request-access', reason, text: NOT_ADMITTED }
   }
   // Before ESCALATE_REASONS: these escalate too, but with copy that does not promise a retry.
   if (reason !== null && PLATFORM_REFUSAL_REASONS.has(reason)) {

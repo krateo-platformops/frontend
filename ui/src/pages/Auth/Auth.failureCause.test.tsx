@@ -112,6 +112,22 @@ describe('Auth callback failures', () => {
     expect(screen.getByRole('link', { name: /return to the login page/i })).toBeTruthy()
   })
 
+  it('a person outside allowedGroups is told to ask for access, under its own title — not "Sign-in unavailable"', async () => {
+    // The reported defect, end to end: authn 0.36.0 answered /oidc/login with 403 GroupNotAllowed
+    // and this page titled it "Sign-in unavailable" with copy saying the credentials could not be
+    // checked and to retry shortly. The classifier's own test cannot see the title — only this can.
+    installFetchMock(403, statusBody('GroupNotAllowed'))
+    renderCallback()
+
+    await waitFor(() => expect(screen.getByText('Access not granted')).toBeTruthy())
+    expect(screen.getByText(/not allowed into this control plane/i)).toBeTruthy()
+    expect(screen.getByText(/ask its owner/i)).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/sign-in unavailable/i)
+    expect(document.body.textContent).not.toMatch(/could not check your credentials/i)
+    expect(document.body.textContent).not.toMatch(/retry/i)
+    expect(screen.getByRole('link', { name: /return to the login page/i })).toBeTruthy()
+  })
+
   it('an UNKNOWN 4xx cause does not become "check your password" — this is what proves the redirect flow is passed', async () => {
     // A cause newer than our classifier, on a 403. Read as a password form this falls through to
     // retype; read as a redirect it escalates. Auth.tsx must produce the second.

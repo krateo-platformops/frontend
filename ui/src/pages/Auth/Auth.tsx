@@ -8,11 +8,23 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useConfigContext } from '../../context/ConfigContext'
 import useCatchError from '../../hooks/useCatchError'
 import { invalidateAccessTokenCache } from '../../utils/getAccessToken'
-import type { LoginFailureCause } from '../../utils/loginFailureCause'
+import type { LoginFailureAction, LoginFailureCause } from '../../utils/loginFailureCause'
 import { loginFailureCauseOf } from '../../utils/loginFailureCause'
 import { resolveNextPath, SESSION_RESUME_NEXT_KEY } from '../../utils/nextPath'
 import type { AuthModeType, AuthRequestType, AuthResponseType } from '../Login/Login.types'
 import { takeSocialLoginState, takeSocialLoginVerifier } from '../Login/SocialLogin/SocialLogin'
+
+/*
+ * A Record, not a ternary, so that a new action has to choose its own title here rather than
+ * inherit the ternary's else. `request-access` would otherwise have read "Authentication error" —
+ * wrong for a person whose authentication worked and who was refused only admission.
+ */
+const FAILURE_TITLE: Record<LoginFailureAction, string> = {
+  escalate: 'Sign-in unavailable',
+  'request-access': 'Access not granted',
+  restart: 'Authentication error',
+  retype: 'Authentication error',
+}
 
 const Auth = () => {
   const navigate = useNavigate()
@@ -201,7 +213,7 @@ const Auth = () => {
            * itself failing, and a state mismatch. Both are real and neither has a cause to show.
            */
           subTitle={failure?.text ?? 'There seems to be an authentication problem using this method'}
-          title={failure?.action === 'escalate' ? 'Sign-in unavailable' : 'Authentication error'}
+          title={failure === null ? 'Authentication error' : FAILURE_TITLE[failure.action]}
         />
       )
       : (

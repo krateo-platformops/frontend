@@ -54,7 +54,9 @@ describe('loginFailureCauseOf', () => {
   it('a malformed request from the portal escalates: it is our bug, and 400 must not read as "retype"', () => {
     // These are 4xx, which is exactly where the old status-only reading sent people to retype. A
     // person cannot fix a missing ?name= or a missing X-Auth-Code by typing anything.
-    for (const reason of ['MissingConfigName', 'MissingAuthorizationCode', 'InvalidRequestBody']) {
+    // MissingCodeVerifier (0.36.0) is the same kind of 400: a public-client OIDCConfig and no PKCE
+    // verifier sent. authn's guidance is "Fix the client" — the client is the portal.
+    for (const reason of ['MissingConfigName', 'MissingAuthorizationCode', 'MissingCodeVerifier', 'InvalidRequestBody']) {
       const cause = loginFailureCauseOf(400, body(reason), 'redirect')
       expect(cause.action, reason).toBe('escalate')
       expect(cause.text, reason).not.toMatch(/check them/i)
@@ -78,6 +80,33 @@ describe('loginFailureCauseOf', () => {
     // hand off on the second failure rather than send someone round a loop that cannot terminate.
     expect(cause.text).toMatch(/second time/i)
     expect(cause.text).toMatch(/administrator/i)
+  })
+
+  // THE CASE THAT NEEDED A FOURTH ACTION.
+
+  it('a person the control plane will not admit is told to ask for access — not to retry, not that the credentials failed', () => {
+    // GroupNotAllowed: the IdP signed them in, the code and the ID token were accepted, and the
+    // OIDCConfig's allowedGroups then refused them. It used to fall through to escalate, and the
+    // page said "the platform could not check your credentials … retry shortly" — false on every
+    // count. This is the reported defect; each assertion below is one of its wrong claims.
+    const cause = loginFailureCauseOf(403, body('GroupNotAllowed'), 'redirect')
+    expect(cause.action).toBe('request-access')
+    expect(cause.reason).toBe('GroupNotAllowed')
+    expect(cause.text).toMatch(/not allowed into this control plane/i)
+    expect(cause.text).toMatch(/ask its owner/i)
+    // The credentials WERE checked, and they were fine.
+    expect(cause.text).not.toMatch(/could not check/i)
+    expect(cause.text).not.toMatch(/credentials were not accepted/i)
+    expect(cause.text).not.toMatch(/check them/i)
+    // No retry admits someone who is not in the group.
+    expect(cause.text).not.toMatch(/retry|try again|start the sign-in again/i)
+  })
+
+  it('GroupNotAllowed is read by its cause, so the flow does not change the answer', () => {
+    // authn sends it only from /oidc/login and /oidc/stepup — OAuthConfig has no allowedGroups, and
+    // the password routes never send it. The classification follows the cause anyway, so a route
+    // that gains the field later is already covered and cannot fall back into "retype".
+    expect(loginFailureCauseOf(403, body('GroupNotAllowed'), 'password').action).toBe('request-access')
   })
 
   it('a refused IdP response escalates WITHOUT promising a retry, because retrying is futile', () => {
