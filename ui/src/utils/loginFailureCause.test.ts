@@ -54,9 +54,7 @@ describe('loginFailureCauseOf', () => {
   it('a malformed request from the portal escalates: it is our bug, and 400 must not read as "retype"', () => {
     // These are 4xx, which is exactly where the old status-only reading sent people to retype. A
     // person cannot fix a missing ?name= or a missing X-Auth-Code by typing anything.
-    // MissingCodeVerifier (0.36.0) is the same kind of 400: a public-client OIDCConfig and no PKCE
-    // verifier sent. authn's guidance is "Fix the client" — the client is the portal.
-    for (const reason of ['MissingConfigName', 'MissingAuthorizationCode', 'MissingCodeVerifier', 'InvalidRequestBody']) {
+    for (const reason of ['MissingConfigName', 'MissingAuthorizationCode', 'InvalidRequestBody']) {
       const cause = loginFailureCauseOf(400, body(reason), 'redirect')
       expect(cause.action, reason).toBe('escalate')
       expect(cause.text, reason).not.toMatch(/check them/i)
@@ -79,6 +77,24 @@ describe('loginFailureCauseOf', () => {
     // number of retries fixes, and it cannot tell those apart from an expiry. So the copy has to
     // hand off on the second failure rather than send someone round a loop that cannot terminate.
     expect(cause.text).toMatch(/second time/i)
+    expect(cause.text).toMatch(/administrator/i)
+  })
+
+  it('a missing PKCE verifier says start over HERE, and does not claim the code was refused', () => {
+    // MissingCodeVerifier is a 400 authn sends before it calls the IdP: this browser had no
+    // verifier to send (callback reloaded, another browser, storage cleared). Nothing was refused,
+    // so RESTART's "the code from your identity provider was refused" would be a false statement.
+    const cause = loginFailureCauseOf(400, body('MissingCodeVerifier'), 'redirect')
+    expect(cause.action).toBe('restart')
+    expect(cause.reason).toBe('MissingCodeVerifier')
+    expect(cause.text).toMatch(/could not be finished in this browser/i)
+    expect(cause.text).toMatch(/start the sign-in again/i)
+    expect(cause.text).not.toMatch(/refused/i)
+    // It is a 400, which the password reading would send to "check them".
+    expect(cause.text).not.toMatch(/check them/i)
+    // A plain-http portal or a cross-origin redirectURI loses the verifier on every attempt, so the
+    // copy has to hand off rather than loop.
+    expect(cause.text).toMatch(/keeps happening/i)
     expect(cause.text).toMatch(/administrator/i)
   })
 

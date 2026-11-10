@@ -103,6 +103,16 @@ describe('Auth callback failures', () => {
     expect(document.body.textContent).not.toMatch(/credentials were not accepted/i)
   })
 
+  it('a missing PKCE verifier offers to start again, without saying a code was refused', async () => {
+    installFetchMock(400, statusBody('MissingCodeVerifier'))
+    renderCallback()
+
+    await waitFor(() => expect(screen.getByRole('link', { name: /start the sign-in again/i })).toBeTruthy())
+    expect(screen.getByText(/could not be finished in this browser/i)).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/was refused/i)
+    expect(document.body.textContent).not.toMatch(/sign-in unavailable/i)
+  })
+
   it("authn's own failure reads as unavailable, not as the person's fault", async () => {
     installFetchMock(500, statusBody('TokenExchangeFailed'))
     renderCallback()

@@ -122,6 +122,31 @@ const RESTART_REASONS = new Set([
 ])
 
 /*
+ * 400 MissingCodeVerifier (0.36.0) — the OIDCConfig is a public client (no clientSecret) and the
+ *     callback brought no X-Code-Verifier. authn answers it BEFORE calling the IdP, so — unlike
+ *     AuthorizationCodeRejected — nothing was refused: this browser simply had no verifier to send.
+ *     It needs its own copy for that reason; RESTART's "the code … was refused" would be false.
+ *
+ *     Where a portal-started sign-in loses it. SocialLogin keeps the verifier, beside the state, in
+ *     LOCALSTORAGE (`KrateoSLV`, frontend#609) — per origin and shared by every tab of the browser,
+ *     so a callback in another tab of the same browser still finds it. Auth.tsx takes both on the
+ *     first callback load. So the verifier is missing when:
+ *       - the callback page is reloaded — the first load spent it; with no state left either, the
+ *         page exchanges the code with no verifier, and authn answers this
+ *       - the callback lands in another browser, profile or private window, or storage was cleared
+ *     Starting over fixes every one of those. It cannot fix the two repeatable causes:
+ *       - the portal is not a secure context (plain http), so `crypto.subtle` is absent, no
+ *         challenge is computed, and no verifier is ever stored — every attempt fails alike
+ *       - the OIDCConfig's redirectURI is on a different origin from the page the sign-in started
+ *         on, so the callback reads another origin's storage, which never held the verifier
+ *     Hence "if it keeps happening, tell an administrator" — the same hand-off RESTART carries,
+ *     and for the same reason: a loop that cannot terminate has to end somewhere.
+ */
+const RESTART_HERE_REASONS = new Set([
+  'MissingCodeVerifier',
+])
+
+/*
  * 403 GroupNotAllowed (0.34.0) — the OIDCConfig sets `spec.allowedGroups` and the person holds none
  *     of them (read after the RESTAction, and after authn strips its reserved `krateo:loa:` groups).
  *     The sign-in itself SUCCEEDED: the IdP authenticated them, the code was redeemed, the ID token
@@ -199,12 +224,6 @@ const PLATFORM_REFUSAL_REASONS = new Set([
  *   person cannot act on them, so they escalate rather than ask for a retype.
  *   400  MissingConfigName          (0.35.0) no ?name= on ldap/oauth/oidc/step-up
  *   400  MissingAuthorizationCode   (0.35.0) no X-Auth-Code
- *   400  MissingCodeVerifier        (0.36.0) the OIDCConfig is a public client (no clientSecret) and
- *                                   no X-Code-Verifier came with the code. authn: "Fix the client".
- *                                   The portal sends a verifier only when it sent a challenge, and
- *                                   it cannot compute one outside a secure context (crypto.subtle)
- *                                   — so a public client on a plain-http portal fails this way on
- *                                   every attempt. Ours or the install's, never the person's.
  *   400  InvalidRequestBody         (0.35.0) ldap body is not JSON
  */
 const ESCALATE_REASONS = new Set([
@@ -223,7 +242,6 @@ const ESCALATE_REASONS = new Set([
   'LDAPSearchFailed',
   'LDAPUnavailable',
   'MissingAuthorizationCode',
-  'MissingCodeVerifier',
   'MissingConfigName',
   'OAuthConfigLookupFailed',
   'OAuthConfigNotFound',
@@ -262,6 +280,9 @@ const MISCONFIGURED = 'Sign-in could not be completed: the platform rejected the
  */
 const NOT_ADMITTED = 'Your identity provider signed you in, but your account is not allowed into '
   + 'this control plane. Ask its owner to give you access.'
+const RESTART_HERE = 'That sign-in could not be finished in this browser. Start the sign-in again '
+  + 'from here — and if it keeps happening, tell an administrator, because the sign-in may be '
+  + 'misconfigured.'
 const RESTART = 'That sign-in did not complete: the code from your identity provider was refused, '
   + 'usually because it expired or had already been used. Start the sign-in again — and if it happens '
   + 'a second time, tell an administrator, because the sign-in may be misconfigured rather than stale.'
@@ -295,6 +316,9 @@ export const loginFailureCauseOf = (
 
   if (reason !== null && RESTART_REASONS.has(reason)) {
     return { action: 'restart', reason, text: RESTART }
+  }
+  if (reason !== null && RESTART_HERE_REASONS.has(reason)) {
+    return { action: 'restart', reason, text: RESTART_HERE }
   }
   if (reason !== null && REQUEST_ACCESS_REASONS.has(reason)) {
     return { action: 'request-access', reason, text: NOT_ADMITTED }
