@@ -181,3 +181,30 @@ describe('graceful degradation — throwing localStorage', () => {
     expect(store.getSnapshot().messages).toEqual([])
   })
 })
+
+describe('a transcript read back never claims a stream is still running', () => {
+  // A page reloaded mid-turn persists that bubble as `streaming: true`. No stream survives a reload
+  // or a thread switch, so leaving the flag on is what kept a dead turn looking alive in the rail.
+  const midTurn = (): AgentikoMessage[] => [
+    userMsg('diagnose it'),
+    { createdAt: 2, evidence: [{ id: 'c1', kind: 'cluster', tool: 'k8s_get_resources' }], id: 'a1', role: 'assistant', streaming: true, text: '' },
+  ]
+
+  it('on reload', () => {
+    createConversationStore().setMessages(midTurn())
+    const [, assistant] = createConversationStore().getSnapshot().messages
+    expect(assistant.streaming).toBe(false)
+    // Only the flag: what the turn did is kept, so the timeline can say it didn't finish.
+    expect(assistant.evidence).toEqual(midTurn()[1].evidence)
+  })
+
+  it('on loading an archived thread', () => {
+    const store = createConversationStore()
+    store.setMessages(midTurn())
+    const sid = store.getSnapshot().sessionId
+    store.archiveAndReset()
+    store.setMessages([userMsg('another')])
+    store.loadThread(sid)
+    expect(store.getSnapshot().messages[1].streaming).toBe(false)
+  })
+})

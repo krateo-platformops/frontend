@@ -11,8 +11,10 @@ import {
   deriveSessionsBase,
   evidenceFromParts,
   fetchDelegationEvidence,
+  mergeToolResult,
   orgOfRepo,
   readToolPart,
+  recordToolFrame,
   selectDelegationTask,
   serializeEvidence,
   summarizeEvidence,
@@ -453,5 +455,48 @@ describe('serializeEvidence — copy-to-clipboard text', () => {
     // redaction still applies on the copy path
     const secret: EvidenceEntry[] = [{ args: { password: 'hunter2' }, id: 's', kind: 'cluster', tool: 'x' }]
     expect(serializeEvidence(secret)).not.toContain('hunter2')
+  })
+})
+
+describe('the completion marker and the frame clock (run timeline)', () => {
+  const open = (): EvidenceEntry[] => recordToolFrame([], { args: { resource_type: 'pods' }, id: 'c1', kind: 'tool_call', name: 'k8s_get_resources' }, 1000)
+
+  it('a call opens a row stamped with when its frame arrived, not yet done', () => {
+    const [entry] = open()
+    expect(entry.startedAt).toBe(1000)
+    expect(entry.done).toBeUndefined()
+  })
+
+  it('its result marks it done and stamps when that arrived — `failed` alone could not say it', () => {
+    const [entry] = recordToolFrame(open(), { id: 'c1', kind: 'tool_result', name: 'k8s_get_resources', output: 'pod/x' }, 1400)
+    expect([entry.done, entry.failed, entry.endedAt]).toEqual([true, undefined, 1400])
+  })
+
+  it('a repeated result (the final artifact re-carrying a part) keeps the first arrival time', () => {
+    const once = recordToolFrame(open(), { id: 'c1', kind: 'tool_result', name: 'k8s_get_resources', output: 'ok' }, 1400)
+    const twice = recordToolFrame(once, { id: 'c1', kind: 'tool_result', name: 'k8s_get_resources', output: 'ok' }, 9000)
+    expect(twice[0].endedAt).toBe(1400)
+  })
+
+  it('a repeated call keeps the first start time', () => {
+    const again = recordToolFrame(open(), { args: {}, id: 'c1', kind: 'tool_call', name: 'k8s_get_resources' }, 5000)
+    expect(again).toHaveLength(1)
+    expect(again[0].startedAt).toBe(1000)
+  })
+
+  it('a failed result is BOTH done and failed, and keeps the first line of its error as the reason', () => {
+    const [entry] = mergeToolResult(open(), { id: 'c1', isError: true, name: 'k8s_get_resources', output: 'Error: pods is forbidden: cannot list\nstack…', type: 'result' })
+    expect([entry.done, entry.failed, entry.reason]).toEqual([true, true, 'pods is forbidden: cannot list'])
+  })
+
+  it('a successful result keeps no reason and no payload', () => {
+    const [entry] = mergeToolResult(open(), { id: 'c1', name: 'k8s_get_resources', output: 'secret-ish payload', type: 'result' })
+    expect(entry.reason).toBeUndefined()
+    expect(JSON.stringify(entry)).not.toContain('secret-ish payload')
+  })
+
+  it('a row folded from stored history carries no times — there was no frame to clock', () => {
+    const [entry] = evidenceFromParts([call('k8s_get_resources', { resource_type: 'pods' }, 'c1'), result('k8s_get_resources', 'ok', 'c1')])
+    expect([entry.startedAt, entry.endedAt]).toEqual([undefined, undefined])
   })
 })
