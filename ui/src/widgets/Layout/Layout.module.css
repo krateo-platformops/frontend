@@ -16,8 +16,11 @@
    Everything INSIDE the rail sits on black whatever the page mode, so the rail re-points the text
    and line aliases its children read (the sider footer's name and build line, chart-declared
    widgets in the sider) to light values for its own subtree. The rail's edge is a faint light
-   hairline: against the pale canvas the black needs none, against the dark canvas it needs one. */
-.shell :global(.ant-layout-sider) {
+   hairline: against the pale canvas the black needs none, against the dark canvas it needs one.
+
+   A class of its own rather than "the Sider inside .shell": below `md` the same Sider renders in
+   the navigation Drawer, which antd portals out of .shell (Layout.tsx, R1). */
+.siderRegion:global(.ant-layout-sider) {
   --border-color: rgb(255 255 255 / 12%);
   --gray-color: var(--krateo-nav-item);
   --line-color: rgb(255 255 255 / 12%);
@@ -25,6 +28,12 @@
 
   background: linear-gradient(180deg, var(--krateo-nav-gradient-start), var(--krateo-nav-gradient-end));
   border-right: 1px solid rgb(255 255 255 / 8%);
+}
+
+/* In the navigation Drawer the Sider is not a flex child of a Layout, so nothing stretches it: fill
+   the drawer's body so the rail's black runs to the bottom and the user block stays pinned there. */
+.drawerSider {
+  height: 100%;
 }
 
 /* Sider column: a scrollable body (the declarative brand logo + nav, both from

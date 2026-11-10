@@ -56,7 +56,7 @@ export interface Layout {
          */
         collapsedWidth?: number
         /**
-         * antd Sider responsive `breakpoint`; auto-collapses below it
+         * antd Sider responsive `breakpoint`; auto-collapses below it, to `collapsedWidth`. When unset the Sider collapses below `lg`. Below `md` a Layout with a header shows the Sider's content in a drawer opened from a header button instead
          */
         breakpoint?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl'
         /**

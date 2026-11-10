@@ -19,6 +19,7 @@ import { type ClipboardEvent, type KeyboardEvent, type PointerEvent as ReactPoin
 import gekoThinking from '../../assets/images/agentiko/geko-thinking.webp'
 import { agentikoConfig } from '../../context/agentikoConfig'
 import { useConfigContext } from '../../context/ConfigContext'
+import { inertOutside } from '../../utils/focus'
 
 import AgentikoBrandScope from './AgentikoBrandScope'
 import AgentikoLockedRail from './AgentikoLockedRail'
@@ -28,10 +29,11 @@ import AgentikoTour from './AgentikoTour'
 import { agentikoComposerDraftStore } from './composerDraftStore'
 import { AGENTIKO_CHECKING, AGENTIKO_UNAVAILABLE } from './copy'
 import { useRailFocusTrap } from './focusTrap'
-import { AgentikoMark, CollapseIcon, ExpandIcon, EyeIcon, HistoryIcon, LinkIcon, PlusIcon, SendIcon, ShrinkIcon, StopIcon } from './icons'
+import { AgentikoMark, CloseIcon, CollapseIcon, ExpandIcon, EyeIcon, HistoryIcon, LinkIcon, PlusIcon, SendIcon, ShrinkIcon, StopIcon } from './icons'
 import { looksLikeOpenApiDocument } from './oasAttachment'
-import { railRef, returnFocusToOpener } from './railFocus'
+import { railOpenerRef, railRef, returnFocusToOpener } from './railFocus'
 import { HistoryColumn } from './RailHistory'
+import { useRailLayout } from './railLayout'
 import { MessageBubble } from './RailTranscript'
 import { clampRailWidth, getStoredRailWidth, HISTORY_EXTRA_WIDTH, maxDockableWidth, RAIL_WIDTH_STORAGE_KEY } from './railWidth'
 import { approvalOutcome, approvalOwnerId } from './runSteps'
@@ -76,6 +78,12 @@ const AgentikoRail = () => {
   // API — no chrome takeover, just the same width-only reflow the rail already does at
   // 384/640px, carried to 100%). Local to the rail for the same reason as `historyOpen`.
   const [fullWidth, setFullWidth] = useState(false)
+  // R2 (railLayout.ts): on a phone an open rail always takes the whole width, live or locked; on
+  // a tablet it is a sheet over the inert page (AgentikoShell below).
+  const railLayout = useRailLayout()
+  const phone = railLayout === 'fill'
+  const sheet = railLayout === 'sheet'
+  const fill = phone || (licensed && fullWidth)
   // Drag-to-resize: the user-chosen base width (see RAIL_DEFAULT_WIDTH/getStoredRailWidth above).
   // `resizing` only disables the width transition for the drag's duration — dragging with the
   // transition still on feels laggy (the rail visibly trails the cursor).
@@ -121,10 +129,10 @@ const AgentikoRail = () => {
     // The rail docks whenever it is open: live when licensed, the licence panel when not.
     const rawWidth = open ? railWidth + (licensed && historyOpen ? HISTORY_EXTRA_WIDTH : 0) : 0
     const dockedWidth = Math.min(rawWidth, maxDockableWidth(viewportWidth))
-    const width = licensed && open && fullWidth ? '100%' : `${dockedWidth}px`
+    const width = open && fill ? '100%' : `${dockedWidth}px`
     document.documentElement.style.setProperty('--agentiko-rail-width', width)
     return () => { document.documentElement.style.setProperty('--agentiko-rail-width', '0px') }
-  }, [licensed, open, historyOpen, fullWidth, railWidth, viewportWidth])
+  }, [licensed, open, historyOpen, fill, railWidth, viewportWidth])
 
   // Keyboard nav: Tab cycles within the rail while it's open (see focusTrap.ts). Autofocus
   // lands in the composer on open, mirroring CommandPalette's own autofocus-on-open.
@@ -153,6 +161,26 @@ const AgentikoRail = () => {
       textareaRef.current?.focus()
     }
   }, [open])
+  // R2: the tablet sheet lies over the page, so while it is open everything outside it is inert
+  // (utils/focus.ts, as the session-expired surface does). `collapse` hands focus to the header
+  // toggle first, but that toggle is still inside the inert page then, so focus stays in the sheet
+  // (or has already dropped to <body>). Once the sheet has closed — the rail is inert again — the
+  // release gives it to the toggle. A sheet that turned into the docked rail on a resize is still
+  // open and keeps its focus.
+  useEffect(() => {
+    const rail = railRef.current
+    if (!open || !sheet || !rail) {
+      return undefined
+    }
+    const release = inertOutside(rail)
+    return () => {
+      release()
+      const active = document.activeElement
+      if (rail.hasAttribute('inert') && (active === document.body || rail.contains(active))) {
+        railOpenerRef.current?.focus()
+      }
+    }
+  }, [open, sheet])
 
   // Speak-back (voice spec §3). Three wires, all of them one-way into the store:
   //  - the operator kill-switch (AUTOPILOT_VOICE_SPEAK_BACK: "off") removes the feature and
@@ -243,7 +271,7 @@ const AgentikoRail = () => {
   useVoiceWiring(licensed && open, context, submit)
 
   if (!licensed) {
-    return <AgentikoLockedRail onClose={collapse} open={open} width={Math.min(railWidth, maxDockableWidth(viewportWidth))} />
+    return <AgentikoLockedRail onClose={collapse} open={open} sheet={sheet} width={fill ? '100%' : Math.min(railWidth, maxDockableWidth(viewportWidth))} />
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -310,13 +338,13 @@ const AgentikoRail = () => {
     // C8 exception: the rail's keyboard shortcuts, delegated from the controls inside it; the <aside> itself is not a control.
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <aside
-      className={`${styles.apRail} ${open ? styles.open : ''} ${open && historyOpen ? styles.split : ''} ${open && fullWidth ? styles.full : ''} ${resizing ? styles.resizing : ''}`}
+      className={`${styles.apRail} ${open ? styles.open : ''} ${open && historyOpen ? styles.split : ''} ${open && fill ? styles.full : ''} ${open && sheet ? styles.sheet : ''} ${resizing ? styles.resizing : ''}`}
       inert={!open}
       onKeyDown={onRailKeyDown}
       ref={railRef}
-      style={open ? { width: fullWidth ? '100%' : `${dockedWidth}px` } : undefined}
+      style={open ? { width: fill ? '100%' : `${dockedWidth}px` } : undefined}
     >
-      {open && !fullWidth ? (
+      {open && !fill ? (
         <div
           aria-hidden='true'
           className={styles.apResizeHandle}
@@ -346,20 +374,29 @@ const AgentikoRail = () => {
             <PlusIcon />
           </button>
           <SpeakBackToggle />
-          <button
-            aria-label={fullWidth ? 'Restore width' : 'Expand to full width'}
-            aria-pressed={fullWidth}
-            className={`${styles.apIc} ${fullWidth ? styles.apIcActive : ''}`}
-            data-testid='agentiko-fullwidth-toggle'
-            onClick={() => setFullWidth((prev) => !prev)}
-            title={fullWidth ? 'Restore width' : 'Expand to full width'}
-            type='button'
-          >
-            {fullWidth ? <ShrinkIcon /> : <ExpandIcon />}
-          </button>
-          <button aria-label='Collapse rail' className={styles.apIc} onClick={collapse} title='Collapse rail' type='button'>
-            <CollapseIcon />
-          </button>
+          {/* On a phone the rail is always full width, so there is nothing to toggle. */}
+          {phone ? null : (
+            <button
+              aria-label={fullWidth ? 'Restore width' : 'Expand to full width'}
+              aria-pressed={fullWidth}
+              className={`${styles.apIc} ${fullWidth ? styles.apIcActive : ''}`}
+              data-testid='agentiko-fullwidth-toggle'
+              onClick={() => setFullWidth((prev) => !prev)}
+              title={fullWidth ? 'Restore width' : 'Expand to full width'}
+              type='button'
+            >
+              {fullWidth ? <ShrinkIcon /> : <ExpandIcon />}
+            </button>
+          )}
+          {sheet ? (
+            <button aria-label='Close Agentiko' className={styles.apIc} onClick={collapse} title='Close Agentiko' type='button'>
+              <CloseIcon />
+            </button>
+          ) : (
+            <button aria-label='Collapse rail' className={styles.apIc} onClick={collapse} title='Collapse rail' type='button'>
+              <CollapseIcon />
+            </button>
+          )}
         </div>
 
         <div className={styles.apMain}>
@@ -484,7 +521,7 @@ const AgentikoRail = () => {
               </div>
               <div className={styles.apNote}>
                 <LinkIcon className={styles.apNoteIcon} />
-                Agentiko drives the portal — it never bypasses the UI. Docked &amp; collapsible, not an overlay.
+                Agentiko drives the portal — it never bypasses the UI.{railLayout === 'dock' ? ' Docked & collapsible, not an overlay.' : null}
               </div>
             </div>
           </div>
@@ -502,12 +539,19 @@ export default AgentikoRail
  * the page reflows rather than being overlaid. Collapsed — or unlicensed and not opened —
  * the rail is zero-width and main takes the full width.
  */
-export const AgentikoShell = ({ children }: { children: React.ReactNode }) => (
-  <div className={styles.shellViewport}>
-    <div className={styles.shellMain}>{children}</div>
-    <AgentikoBrandScope>
-      <AgentikoRail />
-      <AgentikoTour />
-    </AgentikoBrandScope>
-  </div>
-)
+export const AgentikoShell = ({ children }: { children: React.ReactNode }) => {
+  // R2 (railLayout.ts): on a tablet the open rail is a sheet over the page, so the page behind is
+  // dimmed. AgentikoRail makes it inert while the sheet is open.
+  const { open } = useAgentiko()
+  const sheetOpen = useRailLayout() === 'sheet' && open
+  return (
+    <div className={styles.shellViewport}>
+      <div className={`${styles.shellMain} ${sheetOpen ? styles.underSheet : ''}`}>{children}</div>
+      {sheetOpen ? <div aria-hidden='true' className={styles.sheetScrim} data-testid='agentiko-sheet-scrim' /> : null}
+      <AgentikoBrandScope>
+        <AgentikoRail />
+        <AgentikoTour />
+      </AgentikoBrandScope>
+    </div>
+  )
+}

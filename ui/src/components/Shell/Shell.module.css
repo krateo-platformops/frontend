@@ -97,6 +97,29 @@
   min-width: 0;
 }
 
+/* R1, below `sm` (set from antd's breakpoint in HeaderChrome, not a media query): three controls
+   share the row with the menu button and the scope picker, so they sit closer together. */
+.headerRightCompact {
+  gap: var(--spacing-sm);
+}
+
+/* R1, below `md`: the header-context (tenant tag + project picker) at the top of the navigation
+   drawer, above the nav, padded like the sider body below it. */
+.siderScope {
+  flex-shrink: 0;
+  padding: var(--spacing-md) var(--spacing-md) 0;
+}
+
+/* The drawer is one sider wide, too narrow for the tag and the picker side by side: the picker
+   takes its own full-width line under the tag. */
+.siderScope :global(.ant-flex) {
+  flex-wrap: wrap;
+}
+
+.siderScope :global(.ant-select) {
+  flex: 1 1 100%;
+}
+
 /* Thin separator that sets the Agentiko toggle apart from the page utilities. */
 .headerDivider {
   align-self: center;

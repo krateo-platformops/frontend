@@ -172,6 +172,10 @@ export const SpinnerIcon = ({ className, size = 14 }: IconProps) => stroke(size,
   <path d='M21 12a9 9 0 1 1-6.2-8.6' />
 ))
 
+// ✕ — closes the rail when it is a sheet over the page (railLayout.ts), where "collapse" no longer
+// describes what happens: the sheet goes away and the page behind comes back.
+export const CloseIcon = ({ className, size = 15 }: IconProps) => stroke(size, className, <path d='M18 6L6 18M6 6l12 12' />)
+
 // The inverse of ExpandIcon — corners pointing inward — "restore width".
 export const ShrinkIcon = ({ className, size = 15 }: IconProps) => stroke(size, className, (
   <path d='M9 3v4a2 2 0 0 1-2 2H3M21 9h-4a2 2 0 0 1-2-2V3M3 15h4a2 2 0 0 1 2 2v4M15 21v-4a2 2 0 0 1 2-2h4' />
