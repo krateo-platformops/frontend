@@ -3,13 +3,14 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Result, Skeleton } from 'antd'
 import { useCallback, useEffect, useMemo } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
+import { useLocation, useNavigate, useSearchParams } from 'react-router'
 
 import logo from '../../assets/images/logo_big.svg'
 import { useConfigContext } from '../../context/ConfigContext'
 import useCatchError from '../../hooks/useCatchError'
 import type { LoginFailureCause } from '../../utils/loginFailureCause'
 import {
+  CREDENTIALS_REQUIRED,
   credentialUrlFailureOf,
   LOGIN_FAILURE_TITLE,
   LOGIN_NO_ANSWER,
@@ -21,7 +22,8 @@ import { credentialLoginUrlOf, fetchStrategies, strategiesFailureFrom } from '..
 
 import AuthMethods from './AuthMethods'
 import styles from './Login.module.css'
-import type { AuthModeType, LoginFormType } from './Login.types'
+import type { AuthModeType, AuthResponseType, LoginFormType } from './Login.types'
+import StartSignInAgain from './StartSignInAgain'
 
 // Branding-panel defaults. The login screen renders BEFORE any backend identity,
 // so its copy is config-driven (`config.login`, ConfigMap-mountable per install)
@@ -38,8 +40,23 @@ const DEFAULT_HIGHLIGHTS = [
   'Policy-guarded self-service catalog',
 ]
 
+/*
+ * What a successful credential sign-in answers: authn's login response (authn
+ * internal/helpers/encode/success.go), which is what K_user holds and what getAccessToken and
+ * getUserInfo read back. It was stored as `AuthModeType[]` — the /strategies list, a different
+ * answer — through a cast, so nothing checked that the body was a session at all.
+ *
+ * Checks the one field a session cannot be without. authn refuses to start without its signing key,
+ * so every 2xx it sends carries a token; a 2xx without one came from something in front of it.
+ */
+const isLoginResponse = (body: unknown): body is AuthResponseType => (
+  typeof body === 'object' && body !== null
+  && 'accessToken' in body && typeof body.accessToken === 'string' && body.accessToken !== ''
+)
+
 const Login = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const { catchError } = useCatchError()
   const { config } = useConfigContext()
@@ -81,6 +98,7 @@ const Login = () => {
     error: isLoginError,
     isPending: isLoginLoading,
     mutateAsync: login,
+    reset: resetLogin,
   } = useMutation({
     mutationFn: async (credentials: { username: string; password: string; url: string }) => {
       const response = await fetch(credentials.url, {
@@ -91,7 +109,9 @@ const Login = () => {
       })
 
       if (response.ok) {
-        const data = await response.json() as AuthModeType[]
+        const data: unknown = await response.json()
+        // Not a session: throwing makes it the no-answer case, as a body that is not JSON already is.
+        if (!isLoginResponse(data)) { throw new Error('sign-in answered 2xx without an access token') }
         localStorage.setItem('K_user', JSON.stringify(data))
         // Resume the pre-expiry route when the session-resume flow supplied ?next=; home otherwise.
         void navigate(nextPath)
@@ -161,7 +181,10 @@ const Login = () => {
        */
       await login({ password, url: target.url, username }).catch(() => undefined)
     } else {
-      catchError({ data: { message: 'Wrong username or password, try again with different credentials' }, status: 403 })
+      catchError({
+        description: CREDENTIALS_REQUIRED.text,
+        message: LOGIN_FAILURE_TITLE[CREDENTIALS_REQUIRED.action],
+      }, 'notification')
     }
   }, [catchError, config, login])
 
@@ -185,6 +208,16 @@ const Login = () => {
     if (pageFailure !== null) {
       return (
         <Result
+          /*
+           * A sign-in call that got no answer may well get one next time, so it offers the same
+           * action the callback page offers for an attempt that did not finish. This page used to
+           * replace the form with the <Result> and leave a reload as the only way back. The link
+           * keeps the URL (with its ?next=) and clears the failed attempt, which brings back an
+           * empty form. A /strategies failure has no form to go back to, so it gets no link.
+           */
+          extra={pageFailure === LOGIN_NO_ANSWER
+            ? <StartSignInAgain onClick={resetLogin} to={{ pathname: location.pathname, search: location.search }} />
+            : undefined}
           status={pageFailure.action === 'escalate' ? 'error' : 'warning'}
           subTitle={pageFailure.reason === null ? pageFailure.text : `${pageFailure.text} (${pageFailure.reason})`}
           title={LOGIN_FAILURE_TITLE[pageFailure.action]}
@@ -211,7 +244,7 @@ const Login = () => {
         />
       )
     }
-  }, [isMethodLoading, pageFailure, methods, isLoginLoading, onFormSubmit])
+  }, [isMethodLoading, pageFailure, location.pathname, location.search, resetLogin, methods, isLoginLoading, onFormSubmit])
 
   return (
     <div className={styles.login}>
