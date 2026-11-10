@@ -161,6 +161,17 @@ export interface ConversationStore {
 }
 
 /**
+ * A transcript read back from storage carries whatever `streaming` flag it was saved with — a page
+ * reloaded mid-turn persists its bubble as still streaming. No stream survives a reload or a thread
+ * load (the provider's abort handle and frame buffers are per-mount), so such a bubble is a turn that
+ * stopped, and leaving the flag on is what made a dead turn look alive in the rail forever.
+ */
+export const settleRestoredMessages = (messages: AgentikoMessage[]): AgentikoMessage[] =>
+  (messages.some((message) => message.streaming)
+    ? messages.map((message) => (message.streaming ? { ...message, streaming: false } : message))
+    : messages)
+
+/**
  * Create a conversation store. Snapshots are immutable and their reference is stable
  * until the next write, so `useSyncExternalStore` re-renders only on real changes.
  */
@@ -169,7 +180,7 @@ export const createConversationStore = (): ConversationStore => {
   // back to a fresh empty thread when nothing is persisted / storage is unavailable.
   const rehydrated = loadCurrentThread()
   let state: ConversationState = rehydrated
-    ? { agent: rehydrated.contextId === undefined ? undefined : persistedAgent(rehydrated), contextId: rehydrated.contextId, messages: rehydrated.messages, restored: false, sessionId: rehydrated.sessionId, updatedAt: rehydrated.updatedAt }
+    ? { agent: rehydrated.contextId === undefined ? undefined : persistedAgent(rehydrated), contextId: rehydrated.contextId, messages: settleRestoredMessages(rehydrated.messages), restored: false, sessionId: rehydrated.sessionId, updatedAt: rehydrated.updatedAt }
     : { agent: undefined, contextId: undefined, messages: [], restored: false, sessionId: newSessionId(), updatedAt: Date.now() }
   // Outside `state` on purpose: the delta base is not rendered, so writing it must not emit.
   let lastEnvelope: PageContextEnvelope | undefined
@@ -242,7 +253,7 @@ export const createConversationStore = (): ConversationStore => {
       // NOT resume the server A2A session (phase-2); the next send starts a fresh contextId.
       // updatedAt carries over from the archive entry (not Date.now()) — merely opening a past
       // thread to read it must not make it look freshly active.
-      set({ agent: undefined, contextId: undefined, messages: target.messages, restored: true, sessionId: target.sessionId, updatedAt: target.updatedAt })
+      set({ agent: undefined, contextId: undefined, messages: settleRestoredMessages(target.messages), restored: true, sessionId: target.sessionId, updatedAt: target.updatedAt })
       return true
     },
     reset: () => {

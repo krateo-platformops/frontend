@@ -112,3 +112,41 @@ describe('evidence is published while the turn is still streaming', () => {
     expect(finished?.evidence?.map((entry) => entry.tool)).toEqual(['get_resource'])
   })
 })
+
+describe('the run timeline’s clocks come from frame arrival', () => {
+  it('stamps a call when its frame arrives and its result when that arrives', () => {
+    const now = vi.spyOn(Date, 'now')
+    act(() => { api.send('what is broken?') })
+    const [{ onFrame }] = harness.sends
+    now.mockReturnValue(1_000_000)
+    act(() => { onFrame({ args: {}, id: 'c1', kind: 'tool_call', name: 'k8s_get_resources' }) })
+    now.mockReturnValue(1_000_400)
+    act(() => { onFrame({ id: 'c1', kind: 'tool_result', name: 'k8s_get_resources', output: 'ok' }) })
+    const [entry] = streamingAssistant().evidence ?? []
+    expect([entry.startedAt, entry.endedAt]).toEqual([1_000_000, 1_000_400])
+  })
+
+  it('answer text is an event too: it stamps lastEventAt, so a turn writing its answer is not "silent"', () => {
+    const now = vi.spyOn(Date, 'now')
+    act(() => { api.send('what is broken?') })
+    const [{ onFrame }] = harness.sends
+    now.mockReturnValue(2_000_000)
+    act(() => { onFrame({ delta: 'It is', kind: 'text' }) })
+    expect(streamingAssistant().lastEventAt).toBe(2_000_000)
+  })
+})
+
+describe('an approval pause is stamped on the turn that paused', () => {
+  it('so the timeline can render it as that turn’s step', () => {
+    act(() => { api.send('fix it') })
+    const [{ onFrame }] = harness.sends
+    const assistantId = streamingAssistant().id
+    act(() => {
+      onFrame({ kind: 'require_approval', pause: { requests: [{ argumentsPreview: 'kind: X', requestId: 'r1', toolName: 'k8s_apply_manifest' }], taskId: 't1' } })
+    })
+    act(() => { onFrame({ kind: 'done' }) })
+    const paused = api.messages.find((message) => message.id === assistantId)
+    expect(typeof paused?.approvalAt).toBe('number')
+    expect(api.pendingApproval?.taskId).toBe('t1')
+  })
+})
