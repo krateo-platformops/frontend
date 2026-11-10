@@ -26,6 +26,8 @@
  * IdP's own error text: authn keeps that in its log precisely because it names internal endpoints.
  */
 
+import type { StrategiesFailure } from './strategies'
+
 /** The failure body authn sends: a Kubernetes `Status`. Only the fields this reads. */
 export interface LoginFailureBody {
   code?: unknown
@@ -558,4 +560,79 @@ export const CALLBACK_NO_STRATEGY: LoginFailureCause = {
   action: 'escalate',
   reason: 'NoMatchingStrategy',
   text: PLATFORM_FAULT,
+}
+
+/*
+ * `/strategies` COULD NOT BE READ. See utils/strategies.ts for what each failure can mean: authn's
+ * own handler always answers 200, so a status here is a gateway's, and a rejected fetch is authn
+ * unreachable.
+ *
+ *   unreachable, 502, 503, 504   authn is down or restarting behind its gateway. Waiting helps.
+ *   any other status             the base URL routes somewhere that is not authn (404), or a gateway
+ *                                refuses the call (401/403). Configuration — no retry changes it.
+ *   a 200 that is not a list     the base URL answers, but it is not authn. Configuration.
+ *   an error not raised by fetchStrategies, or none   treated as configuration: nothing says waiting
+ *                                will help, and promising it is the defect this file removes.
+ *
+ * `page` decides only how the transient case is put. On the callback the code was already spent
+ * and the remedy is a fresh redirect, so it is a `restart` with the "Start the sign-in again" link.
+ * On the login page nothing was started yet: "Sign-in not completed" would be false, so it
+ * escalates under "Sign-in unavailable" and says to try again in a moment.
+ *
+ * The reasons are the portal's own names, not authn's — authn never answered.
+ */
+const STRATEGIES_TRANSIENT_STATUSES = new Set([502, 503, 504])
+
+const STRATEGIES_BUSY_CALLBACK = 'The sign-in could not be finished because the platform\'s sign-in '
+  + 'service did not answer just now. This is not a problem with anything you did — start the sign-in '
+  + 'again in a moment, and tell an administrator if it keeps happening.'
+const STRATEGIES_BUSY_LOGIN = 'The platform\'s sign-in service did not answer just now, so the '
+  + 'sign-in methods could not be shown. Try again in a moment, and tell an administrator if it keeps '
+  + 'happening.'
+
+const strategiesReasonOf = (failure: StrategiesFailure | null): string => {
+  if (failure === null) { return 'StrategiesFailed' }
+  if (failure.kind === 'status') { return `StrategiesHTTP${failure.status}` }
+  return failure.kind === 'unreachable' ? 'StrategiesUnreachable' : 'StrategiesUnusable'
+}
+
+export const strategiesFailureOf = (
+  failure: StrategiesFailure | null,
+  page: 'callback' | 'login',
+): LoginFailureCause => {
+  const reason = strategiesReasonOf(failure)
+  const transient = failure !== null && (
+    failure.kind === 'unreachable'
+    || (failure.kind === 'status' && STRATEGIES_TRANSIENT_STATUSES.has(failure.status))
+  )
+  if (!transient) {
+    return { action: 'escalate', reason, text: PLATFORM_FAULT }
+  }
+  return page === 'callback'
+    ? { action: 'restart', reason, text: STRATEGIES_BUSY_CALLBACK }
+    : { action: 'escalate', reason, text: STRATEGIES_BUSY_LOGIN }
+}
+
+/*
+ * A strategy with no `path` cannot be signed in to: there is no route to send the credentials to.
+ * authn always sets one, so this is a broken /strategies entry — configuration, never the person's
+ * credentials. It used to say "Wrong username or password, try again with different credentials".
+ */
+export const STRATEGY_WITHOUT_PATH: LoginFailureCause = {
+  action: 'escalate',
+  reason: 'StrategyWithoutPath',
+  text: PLATFORM_FAULT,
+}
+
+/*
+ * The password form's call to authn did not produce an answer: the fetch was rejected (authn
+ * unreachable) or a 2xx body was not JSON (something in front of authn answered for it). Every
+ * answer authn DOES give is classified by loginFailureCauseOf and shown as a notification; this is
+ * the case with no answer, which is exactly what PLATFORM describes — the platform could not check
+ * the credentials, and a retry may well work.
+ */
+export const LOGIN_NO_ANSWER: LoginFailureCause = {
+  action: 'escalate',
+  reason: 'LoginNoAnswer',
+  text: PLATFORM,
 }

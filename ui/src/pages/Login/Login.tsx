@@ -8,8 +8,16 @@ import { useNavigate, useSearchParams } from 'react-router'
 import logo from '../../assets/images/logo_big.svg'
 import { useConfigContext } from '../../context/ConfigContext'
 import useCatchError from '../../hooks/useCatchError'
-import { LOGIN_FAILURE_TITLE, loginFailureCauseOf } from '../../utils/loginFailureCause'
+import type { LoginFailureCause } from '../../utils/loginFailureCause'
+import {
+  LOGIN_FAILURE_TITLE,
+  LOGIN_NO_ANSWER,
+  loginFailureCauseOf,
+  STRATEGY_WITHOUT_PATH,
+  strategiesFailureOf,
+} from '../../utils/loginFailureCause'
 import { resolveNextPath, SESSION_RESUME_NEXT_KEY } from '../../utils/nextPath'
+import { fetchStrategies, strategiesFailureFrom } from '../../utils/strategies'
 
 import AuthMethods from './AuthMethods'
 import styles from './Login.module.css'
@@ -64,10 +72,8 @@ const Login = () => {
     error: isMethodsError,
     isLoading: isMethodLoading,
   } = useQuery({
-    queryFn: async () => {
-      const res = await fetch(authUrl)
-      return await res.json() as AuthModeType[]
-    },
+    // Shared with Auth.tsx under the same key — see utils/strategies.ts.
+    queryFn: () => fetchStrategies(authUrl),
     queryKey: ['methods', authUrl],
   })
 
@@ -127,24 +133,58 @@ const Login = () => {
     const { password, username } = body
     const method = methods?.find(({ kind }) => kind === type)
 
-    if (username && password && method?.path) {
-      await login({ password, path: method.path, username })
+    /*
+     * A strategy with no `path` has nowhere to send the credentials: a broken /strategies entry,
+     * never the person's typing. This used to fall into the same branch as empty fields and say
+     * "Wrong username or password, try again with different credentials" — sending someone to
+     * retype a password that was never even sent. Checked FIRST, so it cannot be read that way.
+     */
+    if (!method?.path) {
+      catchError({
+        description: `${STRATEGY_WITHOUT_PATH.text} (${STRATEGY_WITHOUT_PATH.reason})`,
+        message: LOGIN_FAILURE_TITLE[STRATEGY_WITHOUT_PATH.action],
+      }, 'notification')
+      return
+    }
+
+    if (username && password) {
+      /*
+       * mutateAsync REJECTS when the call gets no answer (see LOGIN_NO_ANSWER), and this handler is
+       * invoked as `void onFormSubmit(...)`, so the rejection used to escape as an unhandled promise
+       * rejection. react-query has already recorded it and `isLoginError` drives the <Result>, as
+       * Auth.tsx does for its own exchange; there is nothing more to do with it here.
+       */
+      await login({ password, path: method.path, username }).catch(() => undefined)
     } else {
       catchError({ data: { message: 'Wrong username or password, try again with different credentials' }, status: 403 })
     }
   }, [catchError, login, methods])
+
+  /*
+   * What the page shows in place of the form when it cannot offer one. These used to read "Ops!
+   * Something didn't work" over "Unable to retrieve authentication methods" / "Error during the
+   * login operation" — an apology that named nothing and gave nothing to do. They are classified
+   * now, like every other failure on the two sign-in pages, and the cause is appended because this
+   * <Result> is the only place these failures surface: there is no notification beside it.
+   */
+  const pageFailure = useMemo((): LoginFailureCause | null => {
+    if (isMethodsError) { return strategiesFailureOf(strategiesFailureFrom(isMethodsError), 'login') }
+    return isLoginError ? LOGIN_NO_ANSWER : null
+  }, [isMethodsError, isLoginError])
 
   const content = useMemo(() => {
     if (isMethodLoading) {
       return <Skeleton active />
     }
 
-    if (isMethodsError) {
-      return <Result status='error' subTitle='Unable to retrieve authentication methods' title="Ops! Something didn't work" />
-    }
-
-    if (isLoginError) {
-      return <Result status='error' subTitle='Error during the login operation' title="Ops! Something didn't work" />
+    if (pageFailure !== null) {
+      return (
+        <Result
+          status={pageFailure.action === 'escalate' ? 'error' : 'warning'}
+          subTitle={pageFailure.reason === null ? pageFailure.text : `${pageFailure.text} (${pageFailure.reason})`}
+          title={LOGIN_FAILURE_TITLE[pageFailure.action]}
+        />
+      )
     }
 
     if (methods) {
@@ -166,7 +206,7 @@ const Login = () => {
         />
       )
     }
-  }, [isMethodLoading, isMethodsError, isLoginError, methods, isLoginLoading, onFormSubmit])
+  }, [isMethodLoading, pageFailure, methods, isLoginLoading, onFormSubmit])
 
   return (
     <div className={styles.login}>

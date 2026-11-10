@@ -17,7 +17,10 @@ import {
   CALLBACK_STATE_MISMATCH,
   callbackFailureOf,
   LOGIN_FAILURE_TITLE,
+  LOGIN_NO_ANSWER,
   loginFailureCauseOf,
+  STRATEGY_WITHOUT_PATH,
+  strategiesFailureOf,
 } from './loginFailureCause'
 
 const body = (reason: string) => ({ details: { causes: [{ message: 'human text', reason }] } })
@@ -350,5 +353,65 @@ describe('a callback carrying a code the page will not exchange', () => {
     expect(CALLBACK_NO_STRATEGY.reason).toBe('NoMatchingStrategy')
     expect(CALLBACK_NO_STRATEGY.text).toMatch(/retrying will not help/i)
     expect(CALLBACK_NO_STRATEGY.text).not.toMatch(/retry shortly/i)
+  })
+})
+
+describe('strategiesFailureOf — /strategies could not be read', () => {
+  it('unreachable, 502, 503 and 504 are transient: a restart on the callback, "try again in a moment" on the login page', () => {
+    const transient = [
+      { kind: 'unreachable' as const },
+      { kind: 'status' as const, status: 502 },
+      { kind: 'status' as const, status: 503 },
+      { kind: 'status' as const, status: 504 },
+    ]
+    for (const failure of transient) {
+      const label = JSON.stringify(failure)
+      const callback = strategiesFailureOf(failure, 'callback')
+      expect(callback.action, label).toBe('restart')
+      expect(callback.text, label).toMatch(/start the sign-in again in a moment/i)
+      // On the login page nothing was started, so "Sign-in not completed" would be false.
+      const login = strategiesFailureOf(failure, 'login')
+      expect(login.action, label).toBe('escalate')
+      expect(login.text, label).toMatch(/try again in a moment/i)
+      expect(login.text, label).not.toMatch(/retrying will not help/i)
+    }
+  })
+
+  it('any other status, a body that is not a list, or an unknown error is configuration: no retry promised', () => {
+    const permanent = [
+      { kind: 'status' as const, status: 404 },
+      { kind: 'status' as const, status: 401 },
+      { kind: 'status' as const, status: 500 },
+      { kind: 'unusable' as const },
+      null,
+    ]
+    for (const failure of permanent) {
+      for (const page of ['callback', 'login'] as const) {
+        const cause = strategiesFailureOf(failure, page)
+        expect(cause.action, JSON.stringify(failure)).toBe('escalate')
+        expect(cause.text, JSON.stringify(failure)).toMatch(/retrying will not help/i)
+      }
+    }
+  })
+
+  it('the cause names the failure for whoever has to look it up', () => {
+    expect(strategiesFailureOf({ kind: 'status', status: 404 }, 'login').reason).toBe('StrategiesHTTP404')
+    expect(strategiesFailureOf({ kind: 'unreachable' }, 'login').reason).toBe('StrategiesUnreachable')
+    expect(strategiesFailureOf({ kind: 'unusable' }, 'login').reason).toBe('StrategiesUnusable')
+    expect(strategiesFailureOf(null, 'login').reason).toBe('StrategiesFailed')
+  })
+})
+
+describe('the password form\'s own failures', () => {
+  it('a strategy with no path is configuration, never a credential problem', () => {
+    expect(STRATEGY_WITHOUT_PATH.action).toBe('escalate')
+    expect(STRATEGY_WITHOUT_PATH.text).not.toMatch(/username|password|credentials were not accepted/i)
+    expect(STRATEGY_WITHOUT_PATH.text).toMatch(/retrying will not help/i)
+  })
+
+  it('a sign-in call with no answer says the platform could not check, and that a retry may help', () => {
+    expect(LOGIN_NO_ANSWER.action).toBe('escalate')
+    expect(LOGIN_NO_ANSWER.text).toMatch(/could not check your credentials/i)
+    expect(LOGIN_NO_ANSWER.text).toMatch(/retry shortly/i)
   })
 })

@@ -53,11 +53,15 @@ const toUrl = (input: RequestInfo | URL): string => {
   return input instanceof URL ? input.href : input.url
 }
 
-const installFetchMock = (loginStatus: number, loginBody: string) => {
+const installFetchMock = (
+  loginStatus: number,
+  loginBody: string,
+  strategies: () => Promise<Response> = () => Promise.resolve(new Response(JSON.stringify([GITHUB_OIDC]), { status: 200 })),
+) => {
   const fetchMock = vi.fn((input: RequestInfo | URL) => {
     const url = toUrl(input)
     if (url.endsWith('/strategies')) {
-      return Promise.resolve(new Response(JSON.stringify([GITHUB_OIDC]), { status: 200 }))
+      return strategies()
     }
     return Promise.resolve(new Response(loginBody, { status: loginStatus, statusText: 'Forbidden' }))
   })
@@ -182,14 +186,48 @@ describe('Auth callback failures', () => {
 
     await waitFor(() => expect(screen.getByRole('link', { name: /start the sign-in again/i })).toBeTruthy())
     expect(document.body.textContent).not.toMatch(/Login error \(403/)
-    // The notification carries the Result's title, and the same classified text with authn's cause
-    // appended for support — as its OWN description, so useCatchError adds none of its defaults.
-    expect(catchError).toHaveBeenCalled()
+  })
+
+  // AuthorizationCodeRejected, MissingCodeVerifier, TokenExpired: attempts that did not finish.
+  // The callback's own restarts (no code, a state mismatch) never toasted; these now match them.
+  it.each([
+    ['AuthorizationCodeRejected', 403],
+    ['MissingCodeVerifier', 400],
+    ['TokenExpired', 403],
+  ])('a restart from the exchange (%s) raises NO error toast — the <Result> is the whole message', async (reason, status) => {
+    installFetchMock(status, statusBody(reason))
+    renderCallback()
+    await waitFor(() => expect(screen.getByRole('link', { name: /start the sign-in again/i })).toBeTruthy())
+    expect(screen.getByText('Sign-in not completed')).toBeTruthy()
+    expect(catchError).not.toHaveBeenCalled()
+  })
+
+  it('a non-restart from the exchange still notifies, with the title and the classified text plus its cause', async () => {
+    installFetchMock(500, statusBody('TokenExchangeFailed'))
+    renderCallback()
+
+    await waitFor(() => expect(screen.getByText('Sign-in unavailable')).toBeTruthy())
+    expect(catchError).toHaveBeenCalledTimes(1)
     const [{ description, message }] = catchError.mock.calls[0] as [{ description: string; message: string }]
-    expect(message).toBe('Sign-in not completed')
-    expect(description).toMatch(/the code from your identity provider was refused/i)
-    expect(description).toMatch(/\(AuthorizationCodeRejected\)$/)
-    expect(`${message} ${description}`).not.toMatch(/Login error \(403/)
+    expect(message).toBe('Sign-in unavailable')
+    expect(description).toMatch(/\(TokenExchangeFailed\)$/)
+    expect(`${message} ${description}`).not.toMatch(/Login error/)
+  })
+
+  it('the strategy name is ENCODED in the exchange URL — /, ?, & and % survive as one name', async () => {
+    // Raw, `a&b` asks authn for config `a`, `?` and `/` reshape the query, and `%` starts an escape.
+    const name = 'team/a?b&c%d'
+    const fetchMock = installFetchMock(200, JSON.stringify({}), () => Promise.resolve(
+      new Response(JSON.stringify([{ ...GITHUB_OIDC, name }]), { status: 200 })
+    ))
+    renderCallback()
+
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => toUrl(input).includes('/oidc/github'))).toBe(true))
+    const exchange = fetchMock.mock.calls.map(([input]) => toUrl(input)).find((url) => url.includes('/oidc/github'))!
+    const parsed = new URL(exchange)
+    expect(parsed.pathname).toBe('/oidc/github')
+    expect([...parsed.searchParams.keys()]).toEqual(['name'])
+    expect(parsed.searchParams.get('name')).toBe(name)
   })
 
   it('a body that is not authn\'s shape still explains itself rather than throwing', async () => {
@@ -325,5 +363,47 @@ describe('Auth callback failures', () => {
     await waitFor(() => expect(screen.getByRole('link', { name: /start the sign-in again/i })).toBeTruthy())
     expect(screen.getByText('Sign-in not completed')).toBeTruthy()
     expect(screen.getByText(/clocks of this platform and your identity provider disagree/i)).toBeTruthy()
+  })
+
+  // /strategies FAILING ON A CALLBACK THAT CARRIES A CODE.
+
+  it('a gateway 503 on /strategies is a restart worth trying in a moment, and spends the stored state', async () => {
+    const fetchMock = installFetchMock(200, '{}', () => Promise.resolve(new Response('<html>503</html>', { status: 503 })))
+    localStorage.setItem('KrateoSL', 'the-state')
+    localStorage.setItem('KrateoSLV', 'the-verifier')
+    renderCallback('/auth?code=the-code&state=the-state&kind=oidc')
+
+    await waitFor(() => expect(screen.getByText('Sign-in not completed')).toBeTruthy())
+    expect(screen.getByText(/did not answer just now/i)).toBeTruthy()
+    expect(screen.getByRole('link', { name: /start the sign-in again/i })).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/there seems to be an authentication problem/i)
+    expect(localStorage.getItem('KrateoSL')).toBeNull()
+    expect(localStorage.getItem('KrateoSLV')).toBeNull()
+    expect(catchError).not.toHaveBeenCalled()
+    expect(fetchMock.mock.calls.some(([input]) => toUrl(input).includes('/oidc/'))).toBe(false)
+  })
+
+  it('an unreachable authn (the fetch rejects) is a restart too', async () => {
+    installFetchMock(200, '{}', () => Promise.reject(new TypeError('Failed to fetch')))
+    renderCallback()
+
+    await waitFor(() => expect(screen.getByText(/did not answer just now/i)).toBeTruthy())
+    expect(screen.getByRole('link', { name: /start the sign-in again/i })).toBeTruthy()
+  })
+
+  it.each([
+    ['a 404', () => Promise.resolve(new Response('not found', { status: 404 })), 'StrategiesHTTP404'],
+    ['a 200 that is not a list', () => Promise.resolve(new Response('{"kind":"Status"}', { status: 200 })), 'StrategiesUnusable'],
+  ])('%s on /strategies is the install\'s: platform-fault copy with its cause', async (_label, strategies, reason) => {
+    localStorage.setItem('KrateoSL', 'the-state')
+    installFetchMock(200, '{}', strategies)
+    renderCallback('/auth?code=the-code&state=the-state&kind=oidc')
+
+    await waitFor(() => expect(screen.getByText('Sign-in unavailable')).toBeTruthy())
+    expect(screen.getByText(/retrying will not help/i)).toBeTruthy()
+    expect(localStorage.getItem('KrateoSL')).toBeNull()
+    expect(catchError).toHaveBeenCalledTimes(1)
+    const [{ description }] = catchError.mock.calls[0] as [{ description: string }]
+    expect(description.endsWith(`(${reason})`)).toBe(true)
   })
 })
