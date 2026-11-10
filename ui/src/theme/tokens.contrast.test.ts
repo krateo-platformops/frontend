@@ -1,16 +1,16 @@
 /**
- * WCAG AA contrast regression test for the primary CTA button — Krateo Brand v2 (blue).
+ * WCAG AA contrast regression tests for the design tokens (T7) — Agentiko style (T11).
  *
- * The primary-button label colour is antd's `colorTextLightSolid`. Brand v2 inverts the amber-era
- * pairing:
- *   - LIGHT primary = Sovereign Blue #05629A (dark) → WHITE label ≈ 6.5:1 (antd default; NO override).
- *   - DARK  primary = Krateo Blue  #2FBFE6 (bright) → white would be only ~2.2:1, so the label flips
- *     to the DARK ink (surface #141414 = colorDark.panelbg) ≈ 8.3:1.
- *
- * This test pins: (a) light primary + white passes AA, (b) dark primary + white FAILS (the reason
- * for the flip), (c) dark primary + dark ink passes AA, (d/e) the Button token carries the correct
- * per-mode label colour.
+ * The first block pins the primary's own pairs: the light primary (brand violet #9E00FF) under a
+ * white label, the dark primary (the tint #C27AFF) failing under white and passing under dark ink —
+ * the reason the dark Button flips `colorTextLightSolid`. The wash block below pins the pair the
+ * portal actually DRAWS for a primary button (ui/index.css): a label over a 14–28% tint of the
+ * primary on the panel and the page ground. Pinning primary-on-white alone let that pair ship at
+ * 3.6–4.2:1 (audit 2026-11, C2).
  */
+
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 import { theme as antdTheme } from 'antd'
 import { describe, expect, it } from 'vitest'
@@ -45,23 +45,23 @@ function contrastRatio(hex1: string, hex2: string): number {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('Primary CTA button — WCAG AA contrast (Brand v2 blue)', () => {
-  it('light primary Sovereign Blue (#05629A) + white label passes AA ≥ 4.5:1', () => {
+describe('Primary button — the primary\'s own label pairs', () => {
+  it('light primary (brand violet) + white label passes AA ≥ 4.5:1', () => {
     const ratio = contrastRatio(color.primary, '#FFFFFF')
     expect(ratio).toBeGreaterThanOrEqual(4.5)
   })
 
-  it('dark primary Krateo Blue (#2FBFE6) + white label FAILS AA (documents the flip)', () => {
+  it('dark primary (the tint) + white label FAILS AA (documents the flip)', () => {
     const ratio = contrastRatio(colorDark.primary, '#FFFFFF')
     expect(ratio).toBeLessThan(4.5)
   })
 
-  it('dark primary (#2FBFE6) + dark ink (surface #141414) passes AA ≥ 4.5:1', () => {
+  it('dark primary (the tint) + dark ink (surface) passes AA ≥ 4.5:1', () => {
     const ratio = contrastRatio(colorDark.primary, colorDark.panelbg)
     expect(ratio).toBeGreaterThanOrEqual(4.5)
   })
 
-  it('lightTheme.components.Button does NOT override colorTextLightSolid (keeps white on Sovereign)', () => {
+  it('lightTheme.components.Button does NOT override colorTextLightSolid (keeps white on the violet)', () => {
     const btn = lightTheme.components?.Button
     expect(btn?.colorTextLightSolid).toBeUndefined()
   })
@@ -71,10 +71,81 @@ describe('Primary CTA button — WCAG AA contrast (Brand v2 blue)', () => {
     expect(btn?.colorTextLightSolid).toBe(colorDark.panelbg)
   })
 
-  it('the two modes use different primaries (Sovereign light vs Krateo dark)', () => {
+  it('the two modes use different primaries (violet light vs tint dark)', () => {
     expect(colorDark.primary).not.toBe(color.primary)
-    // The dark primary is the brighter blue (higher luminance) for visibility on black.
+    // The dark primary is the brighter tint (higher luminance) for visibility on the dark ground.
     expect(relativeLuminance(colorDark.primary)).toBeGreaterThan(relativeLuminance(color.primary))
+  })
+})
+
+/**
+ * The primary WASH (ui/index.css): what a primary button actually draws — its label over the
+ * primary mixed into the ground at 14% (rest), 22% (hover / focus) and 28% (active). The label is
+ * the primary mixed by the mode's `--primary-wash-label-mix` toward its `--primary-wash-label-ink`
+ * (72% toward black in light, 85% toward white in dark).
+ * Both percentages are read from the stylesheet, so a change there is measured here.
+ */
+const indexCss = readFileSync(join(__dirname, '..', '..', 'index.css'), 'utf8')
+
+const toRgb = (hex: string): number[] => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+const toHex = (rgb: number[]): string => `#${rgb.map((channel) => Math.round(channel).toString(16).padStart(2, '0')).join('')}`
+/** `color-mix(in srgb, a p, b)` — p of a, the rest of b. */
+const mix = (first: string, second: string, share: number): string => {
+  const [from, to] = [toRgb(first), toRgb(second)]
+  return toHex(from.map((channel, index) => channel * share + to[index] * (1 - share)))
+}
+
+const labelScope = (mode: 'light' | 'dark'): string => {
+  const found = indexCss.match(mode === 'dark' ? /\n\[data-theme="dark"\]\s*\{([^}]*)\}/ : /\n:root\s*\{([^}]*)\}/)
+  if (!found) { throw new Error(`index.css has no ${mode} scope for the wash label`) }
+  return found[1]
+}
+const labelMix = (mode: 'light' | 'dark'): number => {
+  const found = labelScope(mode).match(/--primary-wash-label-mix:\s*(\d+)%/)
+  if (!found) { throw new Error(`index.css declares no --primary-wash-label-mix for ${mode}`) }
+  return Number(found[1]) / 100
+}
+const labelInk = (mode: 'light' | 'dark'): string => {
+  const found = labelScope(mode).match(/--primary-wash-label-ink:\s*(black|white)/)
+  if (!found) { throw new Error(`index.css declares no --primary-wash-label-ink for ${mode}`) }
+  return found[1] === 'white' ? '#FFFFFF' : '#000000'
+}
+const washLabel = (mode: 'light' | 'dark'): string =>
+  mix(mode === 'dark' ? colorDark.primary : color.primary, labelInk(mode), labelMix(mode))
+
+const washSteps = [...indexCss.matchAll(/background:\s*color-mix\(in srgb, var\(--primary-color\) (\d+)%, transparent\)/g)].map((match) => Number(match[1]) / 100)
+
+describe('Primary wash — the label AA on the composited wash it is drawn on', () => {
+  it('finds the wash steps and the label mix in index.css (the regexes did not silently match nothing)', () => {
+    expect(washSteps).toEqual([0.14, 0.22, 0.28])
+    expect(labelMix('light')).toBeLessThan(1)
+    expect(labelMix('dark')).toBeLessThan(1)
+  })
+
+  it('light: the label is the brand\'s accentActive (#7200B8) for the Agentiko violet', () => {
+    expect(washLabel('light').toUpperCase()).toBe(agentikoBrand.light.accentActive.toUpperCase())
+  })
+
+  it('dark: the label is the tint lightened toward white (#CB8EFF)', () => {
+    expect(labelInk('dark')).toBe('#FFFFFF')
+    expect(washLabel('dark').toUpperCase()).toBe('#CB8EFF')
+  })
+
+  ;(['light', 'dark'] as const).forEach((mode) => {
+    const palette = mode === 'dark' ? colorDark : color
+    const label = washLabel(mode)
+    ;[['panel', palette.panelbg], ['page ground', palette.background]].forEach(([groundName, ground]) => {
+      washSteps.forEach((step) => {
+        it(`${mode}: label on the ${Math.round(step * 100)}% wash over the ${groundName} passes AA >= 4.5:1`, () => {
+          expect(contrastRatio(label, mix(palette.primary, ground, step))).toBeGreaterThanOrEqual(4.5)
+        })
+      })
+    })
+  })
+
+  it('the bare primary FAILS on its own wash in both modes (documents why the label is mixed)', () => {
+    expect(contrastRatio(color.primary, mix(color.primary, color.panelbg, 0.22))).toBeLessThan(4.5)
+    expect(contrastRatio(colorDark.primary, mix(colorDark.primary, colorDark.panelbg, 0.28))).toBeLessThan(4.5)
   })
 })
 

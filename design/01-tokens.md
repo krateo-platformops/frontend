@@ -251,7 +251,17 @@ No breakpoint token exists. Four components each invent their own — 1024/640, 
 
 ### T7 — Every semantic colour pair used for real text is pinned by a contrast test.
 
-**Status:** active failure → **fixed**
+**Status:** active failure → fixed → **re-opened by the November audit**, the primary wash fixed
+
+> **2026-11-10 — pin the pair that is DRAWN.** The [WCAG audit](audits/x4-wcag21aa-2026-11.md)
+> (C2) found the primary button's label at 3.6–4.2:1 in light mode: this rule pinned the primary on
+> white, and the portal never draws that pair — a primary button is the primary's label over a
+> 14 / 22 / 28% wash of itself. The label is now the primary mixed 72% toward black in light
+> (`#7200B8`, the brand's accentActive, 5.9–6.8:1) and 85% toward white in dark (`#CB8EFF`,
+> 4.8–7.3:1; the bare tint was 4.3:1 on the pressed wash, which the audit did not measure). The test
+> composites the wash from the percentages in `index.css` and checks every step on both grounds.
+> Still open from the same audit: antd's derived text tokens (C1) and the tag, chip and code
+> colours (C4) — [backlog](audits/x4-remediation-backlog-2026-11.md) items 2 and 13.
 
 > **Resolved since this rule was written.** `faint` is now per-mode (#6E6E6E light / #8A8A8A dark), ≥4.68:1 on every surface in both modes, and the suite is table-driven over all 24 text×surface pairs. Landed in PR #195; verified failing on the old value before restoring.
 
