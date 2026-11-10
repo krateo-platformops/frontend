@@ -48,11 +48,12 @@ const GITHUB_OIDC = {
 /** authn's failure body: a Kubernetes Status with the cause in details.causes[0].reason. */
 const statusBody = (reason: string) => JSON.stringify({ details: { causes: [{ message: 'human text', reason }] } })
 
+const toUrl = (input: RequestInfo | URL): string => {
+  if (typeof input === 'string') { return input }
+  return input instanceof URL ? input.href : input.url
+}
+
 const installFetchMock = (loginStatus: number, loginBody: string) => {
-  const toUrl = (input: RequestInfo | URL): string => {
-    if (typeof input === 'string') { return input }
-    return input instanceof URL ? input.href : input.url
-  }
   const fetchMock = vi.fn((input: RequestInfo | URL) => {
     const url = toUrl(input)
     if (url.endsWith('/strategies')) {
@@ -68,10 +69,10 @@ const installFetchMock = (loginStatus: number, loginBody: string) => {
  * No stored social-login state, so Auth takes its `else if (code && methodData)` branch and
  * exchanges the code — which is the path under test. `state` is deliberately absent.
  */
-const renderCallback = () => {
+const renderCallback = (entry = '/auth?code=the-code&kind=oidc') => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <MemoryRouter initialEntries={['/auth?code=the-code&kind=oidc']}>
+    <MemoryRouter initialEntries={[entry]}>
       <QueryClientProvider client={queryClient}>
         <Auth />
       </QueryClientProvider>
@@ -184,7 +185,7 @@ describe('Auth callback failures', () => {
     // appended for support — as its OWN description, so useCatchError adds none of its defaults.
     expect(catchError).toHaveBeenCalled()
     const [{ description, message }] = catchError.mock.calls[0] as [{ description: string; message: string }]
-    expect(message).toBe('Authentication error')
+    expect(message).toBe('Sign-in not completed')
     expect(description).toMatch(/the code from your identity provider was refused/i)
     expect(description).toMatch(/\(AuthorizationCodeRejected\)$/)
     expect(`${message} ${description}`).not.toMatch(/Login error \(403/)
@@ -198,5 +199,63 @@ describe('Auth callback failures', () => {
 
     await waitFor(() => expect(screen.getByText(/not a problem with what you typed/i)).toBeTruthy())
     expect(document.body.textContent).not.toMatch(/check them and try again/i)
+  })
+
+  // THE CALLBACK THAT CARRIES NO CODE. It used to spin on "Authentication in progress..." forever.
+
+  it('a cancelled consent (?error=access_denied) stops spinning, says so plainly, and offers to start again', async () => {
+    const fetchMock = installFetchMock(200, '{}')
+    localStorage.setItem('KrateoSL', 'the-state')
+    localStorage.setItem('KrateoSLV', 'the-verifier')
+    renderCallback('/auth?error=access_denied&error_description=User%20cancelled&state=the-state&kind=oidc')
+
+    await waitFor(() => expect(screen.getByText('Sign-in not completed')).toBeTruthy())
+    expect(screen.getByText(/cancelled or declined at your identity provider/i)).toBeTruthy()
+    expect(screen.getByRole('link', { name: /start the sign-in again/i })).toBeTruthy()
+    expect(screen.queryByText(/authentication in progress/i)).toBeNull()
+    expect(document.body.textContent).not.toMatch(/sign-in unavailable|platform/i)
+    // The attempt is over: its state and verifier are spent, so no later callback can present them.
+    expect(localStorage.getItem('KrateoSL')).toBeNull()
+    expect(localStorage.getItem('KrateoSLV')).toBeNull()
+    // Nothing was exchanged — there was no code — and no error toast for pressing Cancel.
+    expect(fetchMock.mock.calls.some(([input]) => toUrl(input).includes('/oidc/'))).toBe(false)
+    expect(catchError).not.toHaveBeenCalled()
+  })
+
+  it('the IdP\'s error_description is never rendered — not as markup, not as text', async () => {
+    // Free text from the URL: any link can write it. Rendering it would let a sender print a message
+    // of their choosing on the portal's own origin.
+    installFetchMock(200, '{}')
+    const hostile = '<b>Your account is locked. Call 555-0100</b>'
+    renderCallback(`/auth?error=access_denied&error_description=${encodeURIComponent(hostile)}&kind=oidc`)
+
+    await waitFor(() => expect(screen.getByText('Sign-in not completed')).toBeTruthy())
+    expect(document.body.textContent).not.toMatch(/555-0100|account is locked/i)
+    expect(document.body.querySelector('b')).toBeNull()
+  })
+
+  it('a refused request (?error=invalid_scope) is configuration: tell an administrator, no retry', async () => {
+    installFetchMock(200, '{}')
+    renderCallback('/auth?error=invalid_scope&kind=oidc')
+
+    await waitFor(() => expect(screen.getByText('Sign-in unavailable')).toBeTruthy())
+    expect(screen.getByText(/retrying will not help/i)).toBeTruthy()
+    expect(screen.getByRole('link', { name: /return to the login page/i })).toBeTruthy()
+  })
+
+  it('an IdP that is temporarily unavailable gets "start again in a moment"', async () => {
+    installFetchMock(200, '{}')
+    renderCallback('/auth?error=temporarily_unavailable&kind=oidc')
+
+    await waitFor(() => expect(screen.getByRole('link', { name: /start the sign-in again/i })).toBeTruthy())
+    expect(screen.getByText(/start the sign-in again in a moment/i)).toBeTruthy()
+  })
+
+  it('/auth opened with no code and no error stops spinning and says there is nothing to finish', async () => {
+    installFetchMock(200, '{}')
+    renderCallback('/auth')
+
+    await waitFor(() => expect(screen.getByText(/no sign-in to finish here/i)).toBeTruthy())
+    expect(screen.queryByText(/authentication in progress/i)).toBeNull()
   })
 })

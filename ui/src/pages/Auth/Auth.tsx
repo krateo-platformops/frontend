@@ -8,23 +8,11 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useConfigContext } from '../../context/ConfigContext'
 import useCatchError from '../../hooks/useCatchError'
 import { invalidateAccessTokenCache } from '../../utils/getAccessToken'
-import type { LoginFailureAction, LoginFailureCause } from '../../utils/loginFailureCause'
-import { loginFailureCauseOf } from '../../utils/loginFailureCause'
+import type { LoginFailureCause } from '../../utils/loginFailureCause'
+import { callbackFailureOf, LOGIN_FAILURE_TITLE, loginFailureCauseOf } from '../../utils/loginFailureCause'
 import { resolveNextPath, SESSION_RESUME_NEXT_KEY } from '../../utils/nextPath'
 import type { AuthModeType, AuthRequestType, AuthResponseType } from '../Login/Login.types'
 import { takeSocialLoginState, takeSocialLoginVerifier } from '../Login/SocialLogin/SocialLogin'
-
-/*
- * A Record, not a ternary, so that a new action has to choose its own title here rather than
- * inherit the ternary's else. `request-access` would otherwise have read "Authentication error" —
- * wrong for a person whose authentication worked and who was refused only admission.
- */
-const FAILURE_TITLE: Record<LoginFailureAction, string> = {
-  escalate: 'Sign-in unavailable',
-  'request-access': 'Access not granted',
-  restart: 'Authentication error',
-  retype: 'Authentication error',
-}
 
 const Auth = () => {
   const navigate = useNavigate()
@@ -33,15 +21,41 @@ const Auth = () => {
   const [searchParams] = useSearchParams()
   const [showError, setShowError] = useState<boolean>(false)
   /*
-   * Why the round trip failed, when authn told us. Null covers the two cases that carry no
-   * authn body at all: /strategies itself failing, and a state mismatch — so the Result below
-   * keeps its generic subtitle for those rather than inventing a cause.
+   * Why the round trip failed: from authn's answer to the exchange, or from the IdP's `?error=`
+   * when the callback carried no code. Null covers the two cases that have neither: /strategies
+   * itself failing, and a state mismatch — so the Result below keeps its generic subtitle for those
+   * rather than inventing a cause.
    */
   const [failure, setFailure] = useState<LoginFailureCause | null>(null)
 
   const code = searchParams.get('code')
   const state = searchParams.get('state')
   const kind = searchParams.get('kind')
+  const idpError = searchParams.get('error')
+
+  /*
+   * A callback with no `?code=` — the IdP sent back `?error=` (a cancelled consent, a refused
+   * request), or the page was opened directly. It used to sit on "Authentication in progress..."
+   * forever: the exchange below runs only with a code, so nothing ever failed, and nothing moved
+   * the page off its spinner.
+   *
+   * Classified from `error` alone. `error_description` is NOT read: it is free text from the URL,
+   * and any link can write it — see callbackFailureOf.
+   *
+   * No notification, unlike the exchange path. The <Result> is the whole message, and an
+   * error-styled toast reads as blame for what is most often the person pressing Cancel.
+   *
+   * The stored state and verifier are spent HERE, independent of /strategies: this attempt is over
+   * whatever that query does, and a state or verifier left behind would stay valid for a later
+   * callback that is not this one (#583).
+   */
+  useEffect(() => {
+    if (code !== null) { return }
+    takeSocialLoginState()
+    takeSocialLoginVerifier()
+    setFailure(callbackFailureOf(idpError))
+    setShowError(true)
+  }, [code, idpError])
 
   const { config } = useConfigContext()
 
@@ -113,7 +127,7 @@ const Auth = () => {
        */
       catchError({
         description: cause.reason === null ? cause.text : `${cause.text} (${cause.reason})`,
-        message: FAILURE_TITLE[cause.action],
+        message: LOGIN_FAILURE_TITLE[cause.action],
         status: response.status,
       }, 'notification')
 
@@ -220,7 +234,7 @@ const Auth = () => {
            * itself failing, and a state mismatch. Both are real and neither has a cause to show.
            */
           subTitle={failure?.text ?? 'There seems to be an authentication problem using this method'}
-          title={failure === null ? 'Authentication error' : FAILURE_TITLE[failure.action]}
+          title={failure === null ? 'Authentication error' : LOGIN_FAILURE_TITLE[failure.action]}
         />
       )
       : (

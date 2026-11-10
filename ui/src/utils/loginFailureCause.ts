@@ -69,6 +69,25 @@ export type LoginFlow = 'password' | 'redirect'
  */
 export type LoginFailureAction = 'escalate' | 'request-access' | 'restart' | 'retype'
 
+/**
+ * The heading for each action, shared by the callback page's <Result> and both pages'
+ * notifications.
+ *
+ * A Record, not a ternary, so that a new action has to choose its own title here rather than
+ * inherit the ternary's else. `request-access` would otherwise have read "Authentication error" —
+ * wrong for a person whose authentication worked and who was refused only admission.
+ *
+ * `restart` is "Sign-in not completed", not "Authentication error": every restart cause is an
+ * attempt that did not finish — a cancelled consent, a spent code, a lost verifier — and none of
+ * them is an authentication that failed.
+ */
+export const LOGIN_FAILURE_TITLE: Record<LoginFailureAction, string> = {
+  escalate: 'Sign-in unavailable',
+  'request-access': 'Access not granted',
+  restart: 'Sign-in not completed',
+  retype: 'Authentication error',
+}
+
 export interface LoginFailureCause {
   /** What to do about it. */
   action: LoginFailureAction
@@ -97,8 +116,12 @@ export interface LoginFailureCause {
  * name belong to `/oidc/stepup` (4) and `/serviceaccount/login` (7), which neither sign-in page
  * calls.
  *
+ * authn's own `TestEveryCauseIsDocumented` fails its build if the source declares a cause with no
+ * row in that document, so the document is complete by construction.
+ *
  * Grouped by what the person can do, NOT by status code, because that is the only question the
- * page has to answer. The codes are recorded in the comments so a reader can line this up against
+ * page has to answer. authn's "Caller should" column answers it for every cause, and where that
+ * column and the status code disagree — a 500 marked "Tell an administrator" — the column wins. The codes are recorded in the comments so a reader can line this up against
  * authn's docs without going to look.
  */
 
@@ -206,47 +229,36 @@ const PLATFORM_REFUSAL_REASONS = new Set([
 ])
 
 /*
- * authn's own failures: authn or its IdP could not complete the sign-in. These carry PLATFORM's
- * "retry shortly", because for most of them a retry is exactly what helps — a directory or token
- * endpoint that was unreachable, a read of a config or Secret that failed. Codes, for lining up
- * against authn's docs/api.md:
+ * authn's own failures that a retry CAN fix: authn's docs/api.md gives each of these "Retry later"
+ * — a dependency failed, possibly for a moment. They carry PLATFORM's "retry shortly".
+ *
+ * THE LINE IS authn's GUIDANCE, NOT THE STATUS CODE. Every cause here is a 500, but so are seven
+ * causes authn marks "Tell an administrator" — a configuration problem that fails identically until
+ * someone fixes it. Those are in PLATFORM_FAULT_REASONS below. Reading "500" as "retry" gave all
+ * seven the "retry shortly" copy, which for them is false.
  *
  *   500  IssuanceFailed             could not mint the token
- *   500  LDAPBindFailed             bind rejected — authn's OWN service account, not the person's
  *   500  LDAPConfigLookupFailed     could not read the LDAPConfig
- *   500  LDAPSearchFailed           search errored
  *   500  LDAPUnavailable            the directory is unreachable
  *   500  PasswordLookupFailed       could not read the password key
- *   500  PasswordSecretMissing      the User's password Secret is absent
  *   500  UserLookupFailed           could not read the User
  *   500  TokenExchangeFailed        (0.35.0) token endpoint unreachable/failing, invalid_client
  *   500  OIDCConfigLookupFailed     (0.35.0)
  *   500  OAuthConfigLookupFailed    (0.35.0)
  *   500  OIDCDiscoveryFailed        (0.35.0)
- *   500  OIDCConfigInvalid          (0.35.0)
  *   500  ClientSecretLookupFailed   (0.35.0)
  *   500  UserInfoFailed             (0.35.0)
  *   500  RESTActionFailed           (0.35.0)
  */
 const ESCALATE_REASONS = new Set([
   'ClientSecretLookupFailed',
-  // 500. In docs/api.md all along; missed here because this file was first built from the 0.35.0
-  // release notes. `IssuerUnknown` is a configured issuer that is missing entirely;
-  // `IssuerConflict` is more than one match; `LDAPConfigInvalid` is an unusable LDAPConfig.
-  'IssuerConflict',
-  'IssuerUnknown',
-  'LDAPConfigInvalid',
   'IssuanceFailed',
-  'LDAPBindFailed',
   'LDAPConfigLookupFailed',
-  'LDAPSearchFailed',
   'LDAPUnavailable',
   'OAuthConfigLookupFailed',
-  'OIDCConfigInvalid',
   'OIDCConfigLookupFailed',
   'OIDCDiscoveryFailed',
   'PasswordLookupFailed',
-  'PasswordSecretMissing',
   'RESTActionFailed',
   'TokenExchangeFailed',
   'UserInfoFailed',
@@ -254,9 +266,10 @@ const ESCALATE_REASONS = new Set([
 ])
 
 /*
- * The 4xx that are OURS — the portal's or the install's — and that no retry can change. They used
+ * Failures that are OURS — the portal's or the install's — and that no retry can change. They used
  * to share PLATFORM's copy, which says "retry shortly": the same class of wrong advice this file
- * exists to remove, because each of these fails identically on every attempt.
+ * exists to remove, because each of these fails identically on every attempt. authn's guidance for
+ * every one is "Fix the client" or "Tell an administrator", never "Retry later".
  *
  *   the portal sent a request authn cannot act on. authn: "Fix the client" — and the client is us.
  *   400  MissingConfigName          (0.35.0) no ?name=. Both pages build the request from authn's
@@ -278,14 +291,32 @@ const ESCALATE_REASONS = new Set([
  *   404  LDAPConfigNotFound
  *   404  OIDCConfigNotFound         (0.35.0)
  *   404  OAuthConfigNotFound        (0.35.0)
+ *
+ *   authn's own 500s whose guidance is "Tell an administrator": configuration, not a moment's
+ *   outage. These were all in ESCALATE_REASONS, and so all said "retry shortly".
+ *   500  IssuerUnknown              the OIDCConfig has neither discoveryURL nor issuer
+ *   500  IssuerConflict             spec.issuer differs from the discovery document's issuer
+ *   500  OIDCConfigInvalid          (0.35.0) authorize/token endpoint known from neither spec nor
+ *                                   discovery
+ *   500  LDAPConfigInvalid          the LDAPConfig is unusable
+ *   500  PasswordSecretMissing      the User's password Secret is absent
+ *   500  LDAPBindFailed             authn's OWN service-account bind was refused — not the person's
+ *   500  LDAPSearchFailed           the directory search errored
  */
 const PLATFORM_FAULT_REASONS = new Set([
   'InvalidRequestBody',
+  'IssuerConflict',
+  'IssuerUnknown',
+  'LDAPBindFailed',
+  'LDAPConfigInvalid',
   'LDAPConfigNotFound',
+  'LDAPSearchFailed',
   'MissingAuthorizationCode',
   'MissingConfigName',
   'OAuthConfigNotFound',
+  'OIDCConfigInvalid',
   'OIDCConfigNotFound',
+  'PasswordSecretMissing',
 ])
 
 /** The first cause's reason, or null when the body is not authn's shape or carries none. */
@@ -338,6 +369,12 @@ const RESTART = 'That sign-in did not complete: the code from your identity prov
  * both honest and actionable. Reading an unknown 4xx as `retype` there would print "check them and
  * try again" on a page with no field to check.
  *
+ * And it escalates with PLATFORM_FAULT, not PLATFORM: a refusal is an answer, not an outage, and
+ * nothing says the next attempt will be answered differently. It used to say "retry shortly" — which
+ * is exactly what `GroupNotAllowed` said while it was unknown here. The unknown reason still rides
+ * along in `reason`, so the page can show it in "(cause)" for whoever has to look it up. An unknown
+ * 5xx keeps PLATFORM: a server failure is the case where waiting can help.
+ *
  * NOTE ON 300. LDAP's `AmbiguousUser` arrives as 300 with a body that, before 0.35.0, said
  * `"status":"Success"` — a quirk authn has since fixed, though nothing here ever read `status`. It is
  * classified by its CAUSE and not by its code, because a 3xx falling into the 5xx arm would tell
@@ -388,6 +425,89 @@ export const loginFailureCauseOf = (
     return { action: 'escalate', reason, text: PLATFORM }
   }
   return flow === 'redirect'
-    ? { action: 'escalate', reason, text: PLATFORM }
+    ? { action: 'escalate', reason, text: PLATFORM_FAULT }
     : { action: 'retype', reason, text: REFUSED }
+}
+
+/*
+ * THE CALLBACK THAT CARRIES NO CODE.
+ *
+ * The IdP sends the browser back to /auth either with `?code=` or, per RFC 6749 §4.1.2.1, with
+ * `?error=` (and optionally `error_description`) — when the person cancels or declines consent, or
+ * when the IdP refuses the request itself. A visit to /auth with neither is a bookmark, a reload of
+ * a spent callback, or a link. None of these reaches authn, so there is no authn cause to read: the
+ * `error` code is the only classification there is.
+ *
+ * `access_denied` is "the resource owner or authorization server denied the request". Usually the
+ * person pressed Cancel; sometimes the IdP's own policy declined the account. The copy says both,
+ * blames nobody, and offers the one remedy that works for the first.
+ */
+/*
+ * The request itself was refused — configuration, so no retry helps:
+ *   invalid_request            a malformed authorization request: our URL, or the OIDCConfig behind it
+ *   invalid_scope              a scope the IdP does not know or will not grant this client
+ *   unauthorized_client        this client may not use the code flow at this IdP
+ *   unsupported_response_type  the IdP does not offer `response_type=code` to this client
+ */
+const IDP_CONFIG_ERRORS = new Set([
+  'invalid_request',
+  'invalid_scope',
+  'unauthorized_client',
+  'unsupported_response_type',
+])
+/*
+ * The IdP failed, and trying again may help:
+ *   server_error               RFC 6749's stand-in for a 500
+ *   temporarily_unavailable    overloaded or in maintenance — the stand-in for a 503
+ */
+const IDP_TRANSIENT_ERRORS = new Set([
+  'server_error',
+  'temporarily_unavailable',
+])
+
+/*
+ * An `error` value is shown in "(cause)" only when it is shaped like an OAuth error code. The value
+ * comes from the URL, and the URL is anyone's to write: a link to /auth?error=... must not be able
+ * to put a sentence on this origin. RFC 6749's own codes are all lowercase-and-underscore.
+ */
+const ERROR_CODE_SHAPE = /^[a-z_]{1,40}$/
+
+const NO_SIGN_IN = 'There is no sign-in to finish here: this page was opened without an answer from '
+  + 'your identity provider. Start the sign-in again.'
+const DECLINED = 'The sign-in was cancelled or declined at your identity provider, so you were not '
+  + 'signed in. Start the sign-in again to continue. If you did not cancel it, your identity provider '
+  + 'declined this account — ask an administrator.'
+const IDP_BUSY = 'Your identity provider could not complete the sign-in just now. This is not a '
+  + 'problem with anything you did — start the sign-in again in a moment, and tell an administrator '
+  + 'if it keeps happening.'
+const IDP_REFUSED = 'Your identity provider refused the sign-in request, which means this sign-in '
+  + 'method is not set up correctly. This is not a problem with anything you did, and retrying will '
+  + 'not help — tell an administrator.'
+
+/**
+ * Classify an oidc/oauth callback that arrived WITHOUT an authorization code, from its `?error=`.
+ *
+ * `error_description` is deliberately not an argument. It is free text from the URL, so rendering
+ * it — even as plain text — would let any link print a message of its choosing on the portal's own
+ * origin ("call this number to restore access"). The code is enough to say what happened; an
+ * administrator reading the IdP's log has the description there.
+ *
+ * An unrecognised `error` is read like an unrecognised refusal on the redirect flow: escalate, no
+ * promise that a retry helps.
+ */
+export const callbackFailureOf = (error: string | null): LoginFailureCause => {
+  if (error === null || error === '') {
+    return { action: 'restart', reason: null, text: NO_SIGN_IN }
+  }
+  const reason = ERROR_CODE_SHAPE.test(error) ? error : null
+  if (error === 'access_denied') {
+    return { action: 'restart', reason, text: DECLINED }
+  }
+  if (IDP_TRANSIENT_ERRORS.has(error)) {
+    return { action: 'restart', reason, text: IDP_BUSY }
+  }
+  if (IDP_CONFIG_ERRORS.has(error)) {
+    return { action: 'escalate', reason, text: IDP_REFUSED }
+  }
+  return { action: 'escalate', reason, text: IDP_REFUSED }
 }

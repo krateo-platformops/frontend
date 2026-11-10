@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { loginFailureCauseOf } from './loginFailureCause'
+import { callbackFailureOf, LOGIN_FAILURE_TITLE, loginFailureCauseOf } from './loginFailureCause'
 
 const body = (reason: string) => ({ details: { causes: [{ message: 'human text', reason }] } })
 
@@ -26,9 +26,9 @@ describe('loginFailureCauseOf', () => {
 
   it("authn's own failure is escalated, and is NOT presented as a credential problem", () => {
     const own = [
-      'LDAPUnavailable', 'PasswordSecretMissing', 'IssuanceFailed', 'UserLookupFailed',
+      'LDAPUnavailable', 'IssuanceFailed', 'UserLookupFailed', 'PasswordLookupFailed',
       // 0.35.0's additions, all 500, all authn or its IdP failing rather than the caller.
-      'TokenExchangeFailed', 'OIDCDiscoveryFailed', 'OIDCConfigInvalid',
+      'TokenExchangeFailed', 'OIDCDiscoveryFailed',
       'ClientSecretLookupFailed', 'UserInfoFailed', 'RESTActionFailed',
       'OIDCConfigLookupFailed', 'OAuthConfigLookupFailed',
     ]
@@ -161,13 +161,24 @@ describe('loginFailureCauseOf', () => {
     expect(cause.text).toMatch(/identity provider/i)
   })
 
-  it('the 500s absent from the 0.35.0 table still escalate by name, not only by code', () => {
-    // In docs/api.md all along; missed here because this file was first built from the 0.35.0
-    // release notes, whose table covers only what that release changed.
-    for (const reason of ['IssuerUnknown', 'IssuerConflict', 'LDAPConfigInvalid']) {
-      const cause = loginFailureCauseOf(500, body(reason), 'password')
-      expect(cause.action, reason).toBe('escalate')
-      expect(cause.text, reason).toMatch(/not a problem with what you typed/i)
+  it('a 500 authn marks "Tell an administrator" does NOT say "retry shortly" — the guidance wins over the code', () => {
+    // docs/api.md gives these seven "Tell an administrator", not "Retry later": a configuration
+    // problem that fails identically until someone fixes it. Read by status alone they are 500s,
+    // and every 500 used to say "retry shortly". IssuerUnknown, IssuerConflict and LDAPConfigInvalid
+    // were also missed once before, when this file was built from release notes.
+    const configuration = [
+      'IssuerUnknown', 'IssuerConflict', 'OIDCConfigInvalid', 'LDAPConfigInvalid',
+      'PasswordSecretMissing', 'LDAPBindFailed', 'LDAPSearchFailed',
+    ]
+    for (const reason of configuration) {
+      for (const flow of ['password', 'redirect'] as const) {
+        const cause = loginFailureCauseOf(500, body(reason), flow)
+        expect(cause.action, reason).toBe('escalate')
+        expect(cause.text, reason).not.toMatch(/retry shortly/i)
+        expect(cause.text, reason).toMatch(/retrying will not help/i)
+        expect(cause.text, reason).toMatch(/not a problem with what you typed/i)
+        expect(cause.text, reason).toMatch(/administrator/i)
+      }
     }
   })
 
@@ -185,6 +196,16 @@ describe('loginFailureCauseOf', () => {
     expect(loginFailureCauseOf(403, body('SomeCause20280101'), 'password').action).toBe('retype')
     expect(loginFailureCauseOf(403, body('SomeCause20280101'), 'redirect').action).toBe('escalate')
     expect(loginFailureCauseOf(403, body('SomeCause20280101'), 'redirect').text).not.toMatch(/check them/i)
+
+    // And the redirect 4xx promises no retry. A refusal is an answer, not an outage — this is exactly
+    // what GroupNotAllowed said while it was unknown here. The raw cause stays, for the administrator.
+    const refused = loginFailureCauseOf(403, body('SomeCause20280101'), 'redirect')
+    expect(refused.text).not.toMatch(/retry shortly/i)
+    expect(refused.text).toMatch(/retrying will not help/i)
+    expect(refused.text).toMatch(/administrator/i)
+    expect(refused.reason).toBe('SomeCause20280101')
+    // An unknown 5xx keeps PLATFORM: a server failure is where waiting can help.
+    expect(loginFailureCauseOf(500, body('SomeCause20280101'), 'redirect').text).toMatch(/retry shortly/i)
 
     // The unrecognised reason is still reported, so it reaches logs rather than vanishing.
     expect(loginFailureCauseOf(500, body('SomeCause20280101'), 'password').reason).toBe('SomeCause20280101')
@@ -225,5 +246,73 @@ describe('loginFailureCauseOf', () => {
     // error_description out of the response on purpose, because it names internal endpoints.
     const cause = loginFailureCauseOf(403, { details: { causes: [{ message: 'LEAKED', reason: 'InvalidCredentials' }] }, message: 'ALSO LEAKED' }, 'password')
     expect(cause.text).not.toMatch(/LEAKED/)
+  })
+})
+
+describe('callbackFailureOf — a callback that came back without a code', () => {
+  it('no code and no error is a page opened directly: start again, blame nobody', () => {
+    for (const error of [null, '']) {
+      const cause = callbackFailureOf(error)
+      expect(cause.action).toBe('restart')
+      expect(cause.reason).toBeNull()
+      expect(cause.text).toMatch(/no sign-in to finish here/i)
+      expect(cause.text).toMatch(/start the sign-in again/i)
+    }
+  })
+
+  it('access_denied says it was cancelled or declined, offers to start again, and does not blame the platform', () => {
+    const cause = callbackFailureOf('access_denied')
+    expect(cause.action).toBe('restart')
+    expect(cause.reason).toBe('access_denied')
+    expect(cause.text).toMatch(/cancelled or declined/i)
+    expect(cause.text).toMatch(/start the sign-in again/i)
+    expect(cause.text).not.toMatch(/platform|fault|unavailable|misconfigured/i)
+  })
+
+  it('a refused request (RFC 6749 §4.1.2.1) is configuration: tell an administrator, no retry', () => {
+    for (const error of ['invalid_request', 'unauthorized_client', 'unsupported_response_type', 'invalid_scope']) {
+      const cause = callbackFailureOf(error)
+      expect(cause.action, error).toBe('escalate')
+      expect(cause.reason, error).toBe(error)
+      expect(cause.text, error).toMatch(/retrying will not help/i)
+      expect(cause.text, error).toMatch(/administrator/i)
+      expect(cause.text, error).not.toMatch(/retry shortly|in a moment/i)
+    }
+  })
+
+  it('server_error and temporarily_unavailable are the two where trying again may help', () => {
+    for (const error of ['server_error', 'temporarily_unavailable']) {
+      const cause = callbackFailureOf(error)
+      expect(cause.action, error).toBe('restart')
+      expect(cause.text, error).toMatch(/start the sign-in again in a moment/i)
+      expect(cause.text, error).toMatch(/if it keeps happening/i)
+      expect(cause.text, error).not.toMatch(/retrying will not help/i)
+    }
+  })
+
+  it('an unrecognised error code escalates without promising a retry, and keeps the code for the administrator', () => {
+    const cause = callbackFailureOf('interaction_required')
+    expect(cause.action).toBe('escalate')
+    expect(cause.reason).toBe('interaction_required')
+    expect(cause.text).toMatch(/retrying will not help/i)
+  })
+
+  it('an `error` that is not shaped like a code is never echoed: the URL is anyone\'s to write', () => {
+    // A link to /auth?error=... must not put a sentence of the sender's choosing on this origin,
+    // not even inside "(cause)". The classification still happens — as an unknown refusal.
+    for (const error of ['Call 555-0100 to restore access', '<img src=x onerror=alert(1)>', 'a'.repeat(41), 'ACCESS_DENIED']) {
+      const cause = callbackFailureOf(error)
+      expect(cause.reason, error).toBeNull()
+      expect(cause.text, error).not.toContain(error)
+      expect(cause.action, error).toBe('escalate')
+    }
+  })
+})
+
+describe('LOGIN_FAILURE_TITLE', () => {
+  it('a restart is "Sign-in not completed": none of its causes is an authentication that failed', () => {
+    expect(LOGIN_FAILURE_TITLE.restart).toBe('Sign-in not completed')
+    expect(LOGIN_FAILURE_TITLE.escalate).toBe('Sign-in unavailable')
+    expect(LOGIN_FAILURE_TITLE['request-access']).toBe('Access not granted')
   })
 })
