@@ -6,6 +6,16 @@ The values here are correct and the light/dark parity is structurally guaranteed
 
 **Status:** holds — and now at zero across `ui/src`, not just `ui/src/widgets`.
 
+> **2026-11-10 — the CRs, too: enforced by the composition lint's `hex-colour` rule.** `ui/src` was at
+> zero, but the portal chart computed 40 hex literals into table cells, in `widgetDataTemplate`
+> expressions and RESTAction jq (`sevColor`, `resultColor`) where no rule looked: antd v4's
+> `#8c8c8c` / `#cf1322` / `#d48806`, and one "Ask Agentiko" cell in the retired Krateo blue
+> `#11B2E2`. A hex is one value in both modes; `#595959` was under AA on the dark panel. The Table
+> also painted a text cell's `color` as raw CSS, so even a palette NAME there rendered as the CSS
+> keyword (`gray` = `#808080`, `primary` = nothing). It now resolves a palette name through
+> `getColorCode` per mode and passes anything else through, so a chart can move to names before
+> and after the release alike. Chart kinds stay exempt: a G2 mark `style` has no palette name yet.
+
 The four that remained outside the widget tree were both worth fixing on their own merits, which
 is the argument for the rule rather than an application of it:
 
@@ -376,21 +386,19 @@ guidelines rule out recolouring outside the palette, rotating, stroking it or ad
 
 *Evidence: verified `tokens.ts` `color` / `colorDark` / `agentikoBrand` · `licence.ts` · `AgentikoToggle.tsx` · `AgentikoLockedRail.tsx` · `Button.module.css`*
 
----|---|---|
-| accent | `#9E00FF` brand violet — 5.39:1 on white | `#C27AFF` — 6.6:1 on `#141414` |
-| filled label | white | dark ink `#141414` |
-| gradient | `#9E00FF` → `#2213CF` (the brand pair) | `#C27AFF` → `#9C8FFF` |
-
-The brand violet is only 3.6:1 on the dark panel and the brand blue 1.9:1, so dark mode tints both
-— the same flip the Krateo primary makes. **Scoping, not overriding:** an agent surface
-re-points `--primary-color` on its own root (`.apRail`, `.apToggle`) and nests
-`AgentikoBrandScope` (an antd `ConfigProvider` over `agentikoAntdTheme`) for what antd draws. It
+**Marks and scoping.** The gradient a MARK draws (the rail band, the monogram, gradient text)
+is mode-aware: the brand pair `#9E00FF` → `#2213CF` on light ground, the tint pair `#C27AFF` →
+`#9C8FFF` on dark, where the brand violet is 3.6:1 and the brand blue 1.9:1 (`gradientStart/End`).
+A FILL is always the brand pair under white (`fillStart/End`, `onFill`), in both modes. An agent
+surface re-points `--primary-color` on its own root (`.apRail`, `.apToggle`) and nests
+`AgentikoBrandScope` (an antd `ConfigProvider` over `agentikoAntdTheme`) for what antd draws; it
 never writes `color.primary`, and the Theme widget does not touch it — a product mark, not a skin.
-Syne is for the rail's title and empty-state greeting only, where it has no neighbouring text to
-drift against (T5). Signal Yellow keeps its one meaning (Agentiko is EXECUTING) beside it.
+Signal Yellow keeps its one meaning (Agentiko is EXECUTING) beside it.
 
-The mark is the brand's own vector monogram (`AgentikoMark`, `currentColor` or the gradient); the
-guidelines rule out recolouring outside the palette, rotating, stroking it or adding effects.
+> **2026-11-10 — leftover of the 11-03 scoping removed.** A table from the "Agentiko only on the
+> agent" version survived below this rule after 11-06 and contradicted it: it gave the dark filled
+> label as dark ink `#141414` and kept Syne to the rail's title. Both are retired — white on every
+> fill, Syne for every role but data.
 
 *Evidence: verified `tokens.ts` `agentikoBrand` · `AgentikoBrandScope.tsx` · `icons.tsx` `AgentikoMark`*
 

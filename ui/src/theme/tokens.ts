@@ -17,20 +17,21 @@ import { theme as antdAlgorithms, type ThemeConfig } from 'antd'
  * Identity v2" (blue, issue #49) — the key NAMES below are from that era and unchanged, so
  * widget CRs and getColorCode() keep working. Status is a Tier-2-locked semantic set: green #00D690,
  * amber #FFAA00, red #F84C4C, info blue. Signal Yellow #E8FF00 is RESERVED for the
- * "Agentiko/AI agent is EXECUTING" state ONLY (never a CTA/decoration/link). The sidebar rail
- * gradient is DERIVED per-mode from colorPrimary (issue #52, navGradient()); the focus ring is #2FBFE6
- * (dark) / #05629A (light). Values retargeted onto the fork's runtime emitter (this file →
+ * "Agentiko/AI agent is EXECUTING" state ONLY (never a CTA/decoration/link). The sidebar is black
+ * (`menubgstart`/`menubgend`); deriving it from colorPrimary (issue #52, navGradientFrom()) is an
+ * opt-in tenant override. The focus ring is the primary — #9E00FF light / #C27AFF dark
+ * (`color-border-focus`). Values retargeted onto the fork's runtime emitter (this file →
  * `cssVariables` + antd bridge). `cssVariables` now ALSO emits the canonical `--krateo-*` token
  * set (issue #49 §1.2–1.5: base + mode-aware semantic + chart) alongside the legacy `--*-color`
  * aliases; migrating component CSS from the aliases to `--krateo-*` is the deferred follow-up (§2).
  * The legacy key NAMES are unchanged so the toggle, CSS vars, antd ConfigProvider and
- * `getColorCode()` keep working — only the values changed (amber Petrol → blue v2).
+ * `getColorCode()` keep working — only the values changed (amber Petrol → blue v2 → Agentiko).
  */
 
 export type ThemeMode = 'light' | 'dark'
 
-// Light mode — designed on its own terms (NOT a dark inversion). Sovereign-blue brand on a
-// cool paper canvas; AA-tuned dark text. Status keys reused by widget CRs: green=success(teal-
+// Light mode — designed on its own terms (NOT a dark inversion). Agentiko violet on a paper
+// canvas with a violet bias; AA-tuned dark text. Status keys reused by widget CRs: green=success(teal-
 // green), orange/warning=warning(amber), red/error=error(crimson), blue/primary/info=brand,
 // cyan/teal=healthy accent, magenta/violet=drift/chart. Chart-cat anchors (teal/olive/slate)
 // added for getColorCode() parity with the v2 chart palette.
@@ -179,11 +180,11 @@ export const typography = {
   // T5 (2026-11-06): Syne, Agentiko's text face, for every role but data. Inter stays as the
   // first fallback so a blocked font CDN degrades to the face the layout was tuned on.
   family: 'Syne, Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif',
-  // T5: the display role is Inter, the same family as body. It was Barlow Condensed, whose
-  // ascent/descent against Inter's baseline is the cross-font drift #86 identified — patched
-  // per-component four times (see #78 'reiteration 4') and never at the cause. Retiring the
-  // second family removes the mechanism rather than correcting for it; display is now carried
-  // by size, weight and tracking. Mono stays JetBrains Mono for data (ids/counts/durations/
+  // T5: the display role is the same family as body (Syne since 2026-11-06; Inter before). It
+  // was Barlow Condensed, whose ascent/descent against the body face's baseline is the cross-font
+  // drift #86 identified — patched per-component four times (see #78 'reiteration 4') and never at
+  // the cause. One family for text and display removes the mechanism rather than correcting for
+  // it; display is carried by size, weight and tracking. Mono stays JetBrains Mono for data (ids/counts/durations/
   // versions/namespaces). Faces load from the @import at the top of ui/index.css — NOT from an
   // index.html <link>, which is what this comment used to claim.
   display: 'Syne, Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif',

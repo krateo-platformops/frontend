@@ -83,6 +83,12 @@ Two things retire the most recurrence per unit of work:
    steps have to be **added first**, and choosing them is a design decision rather than a mechanical
    one. After that ~91 declarations are mechanical and the rest needs eyes.
 
+**The current work queue is the November audit.** [WCAG 2.1 AA and responsiveness, 2026-11](audits/x4-wcag21aa-2026-11.md)
+measured the Agentiko-style portal against the live cluster, and its
+[remediation backlog](audits/x4-remediation-backlog-2026-11.md) orders 23 items, four of them P0.
+Where an item contradicts a rule's `Status:` here, the audit is the newer measurement: the rule is
+re-opened in its document, not the audit discounted.
+
 **Not on this list any more:** X2's RBAC residual. A denial reading as absence is now a
 [decided position](04-silent-failures.md), not a gap — announcing hidden items would leak the
 existence and count of resources outside a tenant's scope.
@@ -90,7 +96,7 @@ existence and count of resources outside a tenant's scope.
 ## What is enforced today
 
 Two lints run from [`lint/`](lint/) and an accessibility gate runs from `ui/`; between them
-they hold **30 of the 109 rules** — 18 composition rules and 8 token rules, plus the
+they hold **31 of the 109 rules** — 19 composition rules and 8 token rules, plus the
 3 accessibility rules C8–C10 and 1 app-side layout rule (P26). Everything else is a rule a human applies.
 
 - **Accessibility (C8–C10)** — `ui/eslint.a11y.config.js` runs the `jsx-a11y` rules of
@@ -101,7 +107,7 @@ they hold **30 of the 109 rules** — 18 composition rules and 8 token rules, pl
   Dropdown opening from an element that cannot take focus (C10). Both are at zero, with no baseline.
 
 - `lint-portal-consistency.py` — composition, run against a chart's widget CRs. **0 violations**
-  across all 18 rules against the portal chart, except the migrations A4 and P6 were tightened to drive:
+  across all 19 rules against the portal chart, except the migrations A4 and P6 were tightened to drive:
   the two "Diagnose" buttons (composition and incident detail) are Agentiko entry points the
   first A4 sweep could not see, and the incident remediation's "I applied it" was a second filled
   button beside "Run apply". The portal vendors this lint, so the rules
@@ -162,8 +168,8 @@ workflow of the same name runs the composition lint against its rendered chart.
 
 **The CI check is the live status; this section is a claim about it.** To read the real state,
 look at the `design-system` check on any open PR in either repo — it fails on a violation, and a
-green one means all 30 machine-held rules hold as of that commit. The per-rule `Status:`
-markers in the six rule documents are the other half of the picture: they cover the 79 rules no
+green one means all 31 machine-held rules hold as of that commit. The per-rule `Status:`
+markers in the six rule documents are the other half of the picture: they cover the 78 rules no
 lint can decide, and a human keeps them true. Prefer the check over both.
 
 > This section said "Neither is wired into CI yet. Until they are, this document is still the thing

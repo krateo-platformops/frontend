@@ -1,26 +1,28 @@
 # Layer 5 — Agent parity
 
-The invariant: **anything Autopilot can do, a user must be able to do without it**, through ordinary buttons and forms. Autopilot may be faster; it must not be the only route.
+> The agent is named **Agentiko** (2026-11-06, [T11](01-tokens.md)). The rules below use the name; quoted records and code identifiers keep the one they were written with (Autopilot).
+
+The invariant: **anything Agentiko can do, a user must be able to do without it**, through ordinary buttons and forms. Agentiko may be faster; it must not be the only route.
 
 Like Layer 4, this is a class rather than a location, and it is violated by omission — you cannot see it on a page, only by diffing two inventories. Unlike Layer 4, it cannot be checked from the frontend repo alone: it needs the chart, where the shipped pages live.
 
 ## Where the invariant stands — measured against the shipped chart
 
-The first pass could only measure Autopilot's side. This one diffed it against **612 widget CRs on the portal chart's `origin/main`**, with every contested row handed to an adversarial verifier told to break it. The prior verdict did not survive.
+The first pass could only measure Agentiko's side. This one diffed it against **612 widget CRs on the portal chart's `origin/main`**, with every contested row handed to an adversarial verifier told to break it. The prior verdict did not survive.
 
 | Verb | Verdict | Shipped UI route |
 |---|---|---|
-| navigate | PARITY | Autopilot validates against the portal's own route table, so it is a strict subset of what a click reaches |
+| navigate | PARITY | Agentiko validates against the portal's own route table, so it is a strict subset of what a click reaches |
 | runAction | PARITY | By construction — and it *forces* confirmation on mutating verbs, stricter than the chart's own buttons |
-| prefillForm | PARITY | All 11 shipped Forms; Autopilot never submits |
+| prefillForm | PARITY | All 11 shipped Forms; Agentiko never submits |
 | openDrawer · explainUpgradeImpact | PARITY | Shipped drawer buttons; upgrade-impact reachable from the blueprint detail page |
-| **patchField** | PARTIAL | **The GAP verdict falls.** `button.composition-detail-edit` → `form.composition-edit` merge-PATCH, reachable sidebar → table row → detail → Edit, no Autopilot in the path |
+| **patchField** | PARTIAL | **The GAP verdict falls.** `button.composition-detail-edit` → `form.composition-edit` merge-PATCH, reachable sidebar → table row → detail → Edit, no Agentiko in the path |
 | **applyResourceSet** | PARTIAL | Narrows. `form.fleet-rollout` (`fanOutPath` → N ordered writes) and `form.access-grant` (`ops[]`, 2 writes) ship |
 | setExtras · describeResource | PARTIAL | Each whitelisted key has a control — but not on every page that honours it |
-| **publishBlueprint · publishPage · publishRestDef** | GAP | **0 of 612 CRs** write `gitrefs`, `repocontents` or `pullrequests`. The three builder pages ship zero write widgets — their only CTA is a navigate into Autopilot |
+| **publishBlueprint · publishPage · publishRestDef** | GAP | **0 of 612 CRs** write `gitrefs`, `repocontents` or `pullrequests`. The three builder pages ship zero write widgets — their only CTA is a navigate into Agentiko |
 | the preview family | by design | Tooling that grounds the model's own generation |
 
-**The breach is not where the first audit put it.** Both mutating verbs it called outright gaps have ordinary shipped routes — and the composition Edit drawer is *strictly more powerful* than `patchField`, reaching nested paths and many keys in one PATCH where the verb takes a single bare key. The real breach is structural and sits one level up: **the three builder pages are Autopilot-only by construction.**
+**The breach is not where the first audit put it.** Both mutating verbs it called outright gaps have ordinary shipped routes — and the composition Edit drawer is *strictly more powerful* than `patchField`, reaching nested paths and many keys in one PATCH where the verb takes a single bare key. The real breach is structural and sits one level up: **the three builder pages are Agentiko-only by construction.**
 
 > **A conditional the audit nearly missed**
 >
@@ -30,7 +32,7 @@ The first pass could only measure Autopilot's side. This one diffed it against *
 >
 > *Update 2026-09-25:* the flag is gone. The chart had since defaulted it to `true`, and the legacy GitHub path it switched to was removed — every builder publishes through the one `BuilderPublish` claim, and Autopilot can no longer write `gitrefs` / `repocontents` / `pullrequests` at all.
 
-### A1 — Every capability Autopilot can reach has a control a user can reach without it — and the agent presses that control.
+### A1 — Every capability Agentiko can reach has a control a user can reach without it — and the agent presses that control.
 
 **Status:** ~~breached — **on both halves**~~ → **capability half CLOSED 2026-09-16**
 (capability and discoverability both); the structural half stands (see below).
@@ -130,7 +132,7 @@ Measured: the invariant holds for navigation, action-driving, form filling and b
 > while the defect stood (portal#263, 15 of them); this rule is the most expensive place that could
 > happen again.
 
-The distinction the first audit drew still holds and is worth keeping: every individual Autopilot write routes through the identical confirm, blast-radius and provenance fabric a Button click uses.
+The distinction the first audit drew still holds and is worth keeping: every individual Agentiko write routes through the identical confirm, blast-radius and provenance fabric a Button click uses.
 
 > The **safety** invariant holds everywhere. The **capability** invariant was breached on
 > exactly one page — `/blueprint-builder` — not on the whole builder surface, and it is closed.
@@ -139,7 +141,7 @@ The distinction the first audit drew still holds and is worth keeping: every ind
 
 ## The second half, folded in 2026-09-14 (Diego)
 
-**Autopilot must drive actions THROUGH THE UI — never through direct calls, and never through tools
+**Agentiko must drive actions THROUGH THE UI — never through direct calls, and never through tools
 that create or patch Kubernetes resources.** The agent's hands are the portal's own controls. Where a
 capability has no control, the answer is to BUILD THE CONTROL, not to hand the agent a tool that
 writes to the apiserver.
@@ -191,17 +193,17 @@ and `applyResourceSet.ts:194` — both dispatch compiled ops via injected `handl
 
 **Status:** documentation
 
-The prior working assumption was that only the three AI-authoring builders were Autopilot-exclusive, plus some minor preview verbs. Directionally right, wrong where it counts: it filed the two *mutating* gaps under “minor”. The mechanism is safe; the claim about it was not accurate.
+The prior working assumption was that only the three AI-authoring builders were Agentiko-exclusive, plus some minor preview verbs. Directionally right, wrong where it counts: it filed the two *mutating* gaps under “minor”. The mechanism is safe; the claim about it was not accurate.
 
 Enforcement: CI fails when a new write verb is added without an explicit “has a UI equivalent” annotation.
 
 *Evidence: this audit, Task C*
 
-### A3 — An Autopilot entry point is a plain Button wired to `navigate` → `?ask=<prompt>`.
+### A3 — An Agentiko entry point is a plain Button wired to `navigate` → `?ask=<prompt>`.
 
 **Status:** holds
 
-Autopilot must never require a bespoke widget or private API to be invoked from a page — and it doesn’t. The deep link opens the rail and seeds one turn; the mechanism is a URL convention a CR author wires like any other button.
+Agentiko must never require a bespoke widget or private API to be invoked from a page — and it doesn’t. The deep link opens the rail and seeds one turn; the mechanism is a URL convention a CR author wires like any other button.
 
 Page context is **not** passed by the entry point. It is snapshotted from the live widget cache at send time regardless of how the turn started, so an entry point’s only job is to supply prompt text.
 
@@ -259,13 +261,13 @@ Four variants for the same mechanism: *“Ask Autopilot →”* (builder pages),
 
 *Evidence: #84 §0.1 · #83 §0.8 · #86 §0.9 · `askDeepLink.ts:3-4`*
 
-### A5 — The Autopilot entry point is scoped to the smallest container it is about, right-aligned within it.
+### A5 — The Agentiko entry point is scoped to the smallest container it is about, right-aligned within it.
 
 **Status:** **enforced** where the container is a page header — by P26, which holds every header action
 
 **A panel** when it acts on that panel's content: it stays inside the panel, where the panel puts it.
 
-**The page** when Autopilot is the page's whole workflow. Then it is one of the header's actions,
+**The page** when Agentiko is the page's whole workflow. Then it is one of the header's actions,
 and sits where [P26](03-composition.md) puts every header action: on the trailing edge, on one
 row with the others, centred on the title and subtitle together (level with the title when there is
 no subtitle). It looks as [A4](#a4--one-canonical-look-for-open-agentiko-with-a-seeded-prompt-ask-agentiko--with-the-magic-wand-icon)
@@ -363,13 +365,13 @@ both themes" — rather than overriding it.
 *Evidence: measured across `ui/src/components/Autopilot/**/*.tsx` (11 non-test files) and
 `AutopilotRail.module.css` (1176 lines, 639 declarations)*
 
-## What a page owes Autopilot
+## What a page owes Agentiko
 
 Everything above governs how a page *invokes* the agent and what the agent *may do*. The inverse direction — what a page and its widgets must **offer** to be legible and drivable — is a real contract with real authoring consequences, and it was entirely undocumented.
 
-The collector reconstructs what Autopilot can see from the **live widget cache**, at send time, scoped to what is on screen. That single design choice makes several CR-authoring decisions silently decide what the agent can reason about.
+The collector reconstructs what Agentiko can see from the **live widget cache**, at send time, scoped to what is on screen. That single design choice makes several CR-authoring decisions silently decide what the agent can reason about.
 
-### A10 — A page's agent-visible surface is its *mounted* widgets — so tabbing a page hides content from Autopilot too.
+### A10 — A page's agent-visible surface is its *mounted* widgets — so tabbing a page hides content from Agentiko too.
 
 **Status:** CR
 
@@ -395,7 +397,7 @@ So a table whose default sort buries the interesting row at position 31 makes th
 
 The collector reads query *objects*, not just data, and carries freshness plus the errored render state. Without it a widget mid-fetch, a stale snapshot from a stale-while-revalidate cache, or a failed fetch all look like ground truth — and the agent reports “0 compositions” or confabulates a cause while the list is still loading.
 
-This is a designed anti-confabulation property and a fragile one: any change that passes data without its state reintroduces the failure. It is also what lets Autopilot answer “why isn’t the page loading?” rather than guess.
+This is a designed anti-confabulation property and a fragile one: any change that passes data without its state reintroduces the failure. It is also what lets Agentiko answer “why isn’t the page loading?” rather than guess.
 
 *Evidence: verified `useAutopilotContext.ts:495-499` · large row counts are flagged as a client-render hazard after a list wedged a tab at ~60k rows*
 
@@ -417,7 +419,7 @@ Its own header calls it the defensive last line “so a future collector change 
 
 *Evidence: verified `redact.ts:1-15`*
 
-## What Autopilot owes a page
+## What Agentiko owes a page
 
 The reciprocal of A10–A14. A page makes itself legible to the agent; the agent has obligations back — to leave the page correct, to ground what it says in what it saw, and to be accountable for what it changed. Three of these hold and are worth protecting; two are open.
 
@@ -427,7 +429,7 @@ The reciprocal of A10–A14. A page makes itself legible to the agent; the agent
 
 The bridge compiles a proposal to a canonical action and drives **the same dispatcher a click uses**, so it inherits RBAC, the blast-radius confirm, and the post-write revalidation — including the staggered background refetches at 800ms and 2200ms that exist because snowplow can read a just-written object through an informer that lags the write, so a single immediate refetch lands on pre-write state.
 
-The consequence worth naming: **Autopilot never leaves a page showing stale data after its own write.** Any future write path that bypasses the dispatcher loses all of this silently.
+The consequence worth naming: **Agentiko never leaves a page showing stale data after its own write.** Any future write path that bypasses the dispatcher loses all of this silently.
 
 *Evidence: verified `actionBridge.ts` (“Reuses `useHandleAction`”) · `useHandleActions.ts:33-42`*
 

@@ -62,6 +62,19 @@ export const getColorCode = (colorName: string | undefined) => {
  * mockup's pill: coloured ink on a low-alpha tint with a mid-alpha border. Theme-aware
  * (the hex follows the light/dark toggle). Apply to an uncoloured `<Tag style={…}>`.
  */
+/**
+ * A CR's text colour, for an inline `style.color`: a palette NAME resolves for the active mode
+ * (`gray` is the AA-pinned grey of light or dark, not CSS's own `gray`), anything else — a CSS
+ * keyword, a `var(--…)`, a legacy hex — passes through as written, so a chart can move from hex to
+ * names before and after the frontend that resolves them. Unlike getColorCode, a miss is NOT
+ * near-black: an unknown value is the author's CSS, and no value is no colour.
+ */
+export const resolveTextColor = (colorName: string | undefined): string | undefined => {
+  if (!colorName) { return undefined }
+  const palette = themeColors(activeThemeMode())
+  return colorName in palette ? palette[colorName as PaletteColor] : colorName
+}
+
 export const getTagStyle = (colorName: string | undefined): CSSProperties => {
   const hex = getColorCode(colorName)
   return {

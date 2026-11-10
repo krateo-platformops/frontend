@@ -44,7 +44,7 @@ body {
  */
 
 /*
- * Primary CTA = brand-blue WASH, not a solid block (Brand v2). The primary action
+ * Primary CTA = primary-colour WASH, not a solid block. The primary action
  * (New composition / Apply / Deploy) is a translucent instrument key: a faint brand
  * fill, a brand hairline border and a brand label — it reads as "your move" without
  * antd's heavy solid fill. Overrides the antd v6 solid-primary variant (type="primary"
@@ -102,11 +102,11 @@ body {
 }
 
 /*
- * Brand v2 focus ring (Tier-2 locked). Every KEYBOARD-focused interactive element gets a
- * consistent 2px solid brand-blue outline with a 2px offset — closes the "custom buttons /
- * clickable rows lack a visible focus indicator" a11y gap (WCAG 2.4.7 Focus Visible). The v2
- * focus colour is the brand blue in BOTH modes (Sovereign #05629A light / Krateo #2FBFE6 dark),
- * which is exactly --primary-color, so no separate focus token is needed. :focus-visible shows
+ * Focus ring (Tier-2 locked). Every KEYBOARD-focused interactive element gets a consistent 2px
+ * solid outline in the primary with a 2px offset — closes the "custom buttons / clickable rows
+ * lack a visible focus indicator" a11y gap (WCAG 2.4.7 Focus Visible). The focus colour is the
+ * primary in BOTH modes (Agentiko violet #9E00FF light / its tint #C27AFF dark, T11), which is
+ * exactly --primary-color, so no separate focus token is needed. :focus-visible shows
  * it on keyboard nav only (not mouse clicks); it rides ABOVE antd's own focus shadow.
  */
 *:focus-visible {
