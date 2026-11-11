@@ -118,7 +118,8 @@ export const ShellRoute = () => {
 
   return (
     <ShellSlotsProvider value={{
-      content: <><div className={styles.contentCrumb}><Breadcrumb /></div><Outlet /></>,
+      // The routed page owns the route's inputs again (see the 'chrome' scope on the shell below).
+      content: <><div className={styles.contentCrumb}><Breadcrumb /></div><WidgetScopeProvider scope='page'><Outlet /></WidgetScopeProvider></>,
       header: <HeaderChrome />,
       routeKey: pathname,
       siderFooter: <SiderFooter />,
@@ -129,7 +130,16 @@ export const ShellRoute = () => {
       <NotificationsProvider>
         <AgentikoProvider>
           <AgentikoShell>
-            <WidgetRenderer key='shell' widgetEndpoint={config!.api.INIT} />
+            {/* The INIT Layout and everything it draws around the page (sider, nav, theme, header)
+                is chrome, mounted at the root layout, which owns no route inputs (snowplow#777).
+                In the default 'page' scope its extras carried the page's params and query, so a
+                scope change (`?projects=`) or a navigation between routes with different params
+                re-keyed it: the whole shell dropped to <WidgetLoading/> and remounted, header,
+                picker and focus included. Only the routed content (the `content` slot above)
+                is page. */}
+            <WidgetScopeProvider scope='chrome'>
+              <WidgetRenderer key='shell' widgetEndpoint={config!.api.INIT} />
+            </WidgetScopeProvider>
           </AgentikoShell>
           <Drawer />
           <Modal />
