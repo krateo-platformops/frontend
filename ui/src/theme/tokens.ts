@@ -505,8 +505,12 @@ const KRATEO_CHART_LIGHT: Record<string, string> = {
 
 export const tokens = { color, elevation, motion, radius, spacing, typography } as const
 
-/** A canonical type role in px, for antd tokens that take a number (`text-h3` → 22). One scale (T3). */
-const textPx = (role: string): number => Number.parseInt(KRATEO_BASE[`text-${role}`], 10)
+/**
+ * A canonical type role in px, for antd tokens that take a number (`text-h3` → 22), and for a
+ * component that must reason about the size its own text renders at (FlowChart's architecture
+ * graph keeps its cards above the type floor). One scale (T3).
+ */
+export const textPx = (role: string): number => Number.parseInt(KRATEO_BASE[`text-${role}`], 10)
 
 /** Per-component overrides. Tight density (32px controls), v2 radii, near-flat cards. */
 const buildComponents = (palette: Record<keyof typeof color, string>, mode: ThemeMode): ThemeConfig['components'] => ({

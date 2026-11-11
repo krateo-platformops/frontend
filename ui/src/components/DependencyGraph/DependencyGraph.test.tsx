@@ -359,6 +359,20 @@ describe('DependencyGraph — fit="natural": cards at their true size, in a box 
     expect(graphDouble.renders).toHaveLength(1)
   })
 
+  it('places at the zoom it is given — G6\'s camera — and a new zoom re-places the graph without a re-layout', async () => {
+    const observer = installResizeObserver()
+    const { rerender } = render(<DependencyGraph edges={EDGES} fit='natural' nodeSize={SIZE} nodes={NODES} renderNode={renderCard} zoom={0.9} />)
+    await waitFor(() => expect(graphDouble.viewport).toEqual(['zoomTo 0.9', 'fitCenter']))
+    graphDouble.viewport.length = 0
+    rerender(<DependencyGraph edges={EDGES} fit='natural' nodeSize={SIZE} nodes={NODES} renderNode={renderCard} zoom={0.8} />)
+    await waitFor(() => expect(graphDouble.viewport).toEqual(['zoomTo 0.8', 'fitCenter']))
+    // …and the box's own resize keeps it.
+    graphDouble.viewport.length = 0
+    observer.resize(700, 360)
+    await waitFor(() => expect(graphDouble.viewport).toEqual(['resize', 'zoomTo 0.8', 'fitCenter']))
+    expect(graphDouble.renders).toHaveLength(1)
+  })
+
   it('turns the browser\'s focus-scroll into a pan: a card focused off the canvas moves WITH its edges', async () => {
     // A card is a DOM button in G6's HTML layer, over the edges' <canvas>. Tabbing to one past the
     // box's edge makes the browser scroll that layer's overflow:hidden container to reveal it — the
