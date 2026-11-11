@@ -1,6 +1,6 @@
-import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 
-import DependencyGraph, { type GraphDirection, type GraphNode } from '../../components/DependencyGraph'
+import DependencyGraph, { NATURAL_PADDING, type GraphDirection, type GraphNode } from '../../components/DependencyGraph'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import type { WidgetProps } from '../../types/Widget'
 
@@ -70,6 +70,12 @@ interface ArchitectureProps extends VariantProps {
  *     state in view, and the rest is dragged into view, or tabbed to, since each card takes focus and
  *     a focused card is panned into view (ArchitectureStateNode).
  *   - EDGES INTO A WITHHELD NODE ARE DASHED: that dependency has not been reached yet.
+ *   - LEFT TO RIGHT, ONE BASELINE (`arrangement="baseline"`, baselineLayout.ts). The main chain — the
+ *     longest path in dependency order — is one straight row; an edge that skips ranks arcs over it,
+ *     never through a card; branches stack under it. And the box is as tall as that drawing (plus the
+ *     placement's margins), not a fixed 360px with the cards floating in the middle of it. TB keeps
+ *     dagre and its fixed box: its fit closes the rank gap DOWN the box, which needs a height to fit
+ *     into, and the trace page's call graphs are where dagre's own handling has been checked.
  *
  * `direction` and `density` (both optional) are for a box narrower than the chain is long. The trace
  * page's services column is ~415px: three 240px cards left to right are 1040px, so only the first was
@@ -114,6 +120,9 @@ const ArchitectureFlowChart = ({ data, density, direction, uid }: ArchitecturePr
     () => architectureFit(shape, { box: boxSize ?? [0, 0], density, direction }),
     [boxSize, density, direction, shape],
   )
+  // LR: the box's height is the drawing's, at the fit's card, gaps and scale, with the placement's
+  // margin above and below — so `placeAtNaturalSize` centres it, and no fixed height leaves it floating.
+  const height = direction === 'TB' ? undefined : { '--architecture-height': `${Math.ceil(fit.size[1] + 2 * NATURAL_PADDING)}px` } as CSSProperties
 
   if (empty) {
     return <WidgetEmpty description='Nothing to graph' />
@@ -131,10 +140,12 @@ const ArchitectureFlowChart = ({ data, density, direction, uid }: ArchitecturePr
       data-testid='architecture-graph-box'
       key={uid}
       ref={box}
+      style={height}
     >
       {boxSize
         ? (
           <DependencyGraph
+            arrangement='baseline'
             direction={direction}
             edgeAppearance={architectureEdgeAppearance}
             edges={graphData.edges}

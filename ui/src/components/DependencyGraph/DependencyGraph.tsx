@@ -57,6 +57,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, type ReactNode, type Ref
 
 import { activeThemeMode, useDocumentThemeMode } from '../../theme/palette'
 
+import { registerBaseline } from './baselineG6'
 import {
   buildGraphOptions,
   DASHED_EDGE,
@@ -66,6 +67,7 @@ import {
   type EdgeAppearance,
   type EdgeDrawBehavior,
   type EdgeStateStyles,
+  type GraphArrangement,
   type GraphDirection,
   type GraphEdge,
   type GraphFit,
@@ -82,6 +84,8 @@ try {
 } catch {
   /* already registered */
 }
+// …and the baseline layout's own layout and edge, for a caller that asks for `arrangement="baseline"`.
+registerBaseline()
 
 /** G6's `node:click` (NodeEvent.CLICK), spelled out so this module does not depend on the enum. */
 const NODE_CLICK = 'node:click'
@@ -205,6 +209,12 @@ export interface DependencyGraphProps<N, E> {
   /** dagre's rank and node gaps. Absent, C19's. Must be stable (a module constant), or each render is a re-layout. */
   spacing?: GraphSpacing
   /**
+   * Where the nodes go: `layered` (default, dagre — C19) or `baseline`, the main chain on one row with
+   * skip edges arced above it and branches below (`baselineLayout.ts`). Left to right only: with
+   * `direction="TB"` the graph is `layered`. The rank gap is `spacing.ranksep`, the row gap `nodesep`.
+   */
+  arrangement?: GraphArrangement
+  /**
    * `natural` only: the zoom the graph is placed at, at most 1 (default 1). G6's camera, so pointer
    * hit-testing stays right; a change re-places the graph and is no re-layout. For a caller that
    * shrinks to fit its box down to its own type floor (FlowChart's architecture graph).
@@ -236,6 +246,7 @@ const placeNatural = (graph: G6.Graph, zoom: number): void => {
 }
 
 const DependencyGraph = <N, E = Record<string, unknown>>({
+  arrangement,
   direction,
   edgeAppearance,
   edgeDraw,
@@ -389,8 +400,8 @@ const DependencyGraph = <N, E = Record<string, unknown>>({
   // options, because Graphin answers new options with a full re-layout. New data still picks up
   // the mode active then. The flip itself repaints the live graph, below.
   const options = useMemo(
-    () => buildGraphOptions({ direction, edgeAppearance, edgeDraw: drawBehavior, edgeStates, edges, fit, nodeSize, nodes, palette: themed ? graphPalette(activeThemeMode()) : null, renderNode, spacing }),
-    [direction, drawBehavior, edgeAppearance, edgeStates, edges, fit, nodeSize, nodes, renderNode, spacing, themed],
+    () => buildGraphOptions({ arrangement, direction, edgeAppearance, edgeDraw: drawBehavior, edgeStates, edges, fit, nodeSize, nodes, palette: themed ? graphPalette(activeThemeMode()) : null, renderNode, spacing }),
+    [arrangement, direction, drawBehavior, edgeAppearance, edgeStates, edges, fit, nodeSize, nodes, renderNode, spacing, themed],
   )
 
   // NATURAL: the zoom every placement uses, read through a ref so `onReady` stays one function (a new

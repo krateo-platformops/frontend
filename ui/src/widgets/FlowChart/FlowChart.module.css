@@ -13,11 +13,13 @@
   height: 100%;
 }
 
-/* The architecture variant, at the cards' true size (fit="natural"): a fixed height, the width the
-   page gives it, and DependencyGraph observes the box and resizes its canvas. It sits inside the
-   page's own Card, so it paints no surface of its own. */
+/* The architecture variant, at the cards' true size (fit="natural"): the width the page gives it,
+   and DependencyGraph observes the box and resizes its canvas. LR's height is the drawing's, set by
+   FlowChart as --architecture-height (the baseline row, the arcs above it, the branch rows below,
+   and the placement's margins); TB's is a fixed 360px, which its fit closes the rank gap into. It
+   sits inside the page's own Card, so it paints no surface of its own. */
 .architecture {
-  height: 360px;
+  height: var(--architecture-height, 360px);
   position: relative;
 }
 

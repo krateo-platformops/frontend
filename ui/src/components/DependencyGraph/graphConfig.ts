@@ -18,6 +18,8 @@ import type { ReactNode } from 'react'
 import { themeColors } from '../../theme/palette'
 import type { ThemeMode } from '../../theme/tokens'
 
+import { BASELINE_EDGE, BASELINE_LAYOUT, baselineLayout, baselineRoute, type BaselinePathCommand, type BaselinePlacement } from './baselineLayout'
+
 /** A node as the graph draws it: its id and whatever the node card renders from. */
 export interface GraphNode<N = Record<string, unknown>> {
   id: string
@@ -118,11 +120,50 @@ export interface GraphSpacing {
   ranksep: number
 }
 
+/**
+ * Where the nodes go. `layered`, C19's and the default, is dagre. `baseline` is "one baseline, arcs
+ * above" (`baselineLayout.ts`): the main chain on one row, skip edges arced over it, branches below —
+ * left to right only, so with `direction: 'TB'` it is `layered`.
+ */
+export type GraphArrangement = 'baseline' | 'layered'
+
 /** The layout's direction and gaps. Each is optional, and absent each is exactly C19's. */
 export interface GraphFlow {
   direction?: GraphDirection
   spacing?: GraphSpacing
 }
+
+/** The baseline layout's G6 options: its gaps (named as dagre's, which they replace) and the computed centres. */
+export interface BaselineLayoutOptions {
+  [key: string]: unknown
+  nodesep: number
+  positions: Record<string, [number, number]>
+  ranksep: number
+  type: typeof BASELINE_LAYOUT
+}
+
+/**
+ * The baseline placement for a graph at a card size and gaps (absent, C19's): the rank gap between
+ * columns, the node gap between rows.
+ */
+export const baselineGraph = (
+  nodes: readonly { id: string }[],
+  edges: readonly GraphEdge<unknown>[],
+  nodeSize: [number, number],
+  spacing?: GraphSpacing,
+): BaselinePlacement => baselineLayout(nodes, edges, {
+  nodeSize,
+  rankGap: spacing?.ranksep ?? GRAPH_LAYOUT.ranksep,
+  rowGap: spacing?.nodesep ?? GRAPH_LAYOUT.nodesep,
+})
+
+/** The layout option for a baseline placement. */
+export const baselineLayoutOptions = (placement: BaselinePlacement, spacing?: GraphSpacing): BaselineLayoutOptions => ({
+  nodesep: spacing?.nodesep ?? GRAPH_LAYOUT.nodesep,
+  positions: placement.positions,
+  ranksep: spacing?.ranksep ?? GRAPH_LAYOUT.ranksep,
+  type: BASELINE_LAYOUT,
+})
 
 /** Pan and zoom only. Selection is a click handler, not G6's `click-select` state. */
 export const GRAPH_BEHAVIORS = ['drag-canvas', 'zoom-canvas']
@@ -204,8 +245,13 @@ export const graphEdgeOptions = <E >(
   appearance?: (edge: GraphEdge<E>) => EdgeAppearance,
   states?: EdgeStateStyles,
   direction: GraphDirection = 'LR',
+  routes?: Record<string, BaselinePathCommand[]>,
 ): FlowGraphOptions['edge'] => {
   const style: Record<string, unknown> = { router: false }
+  // The baseline layout's edges draw the paths it computed (baselineG6.ts).
+  if (routes) {
+    style.route = baselineRoute(routes)
+  }
   if (appearance) {
     const look = (datum: G6.EdgeData): EdgeAppearance => appearance(datum as unknown as GraphEdge<E>)
     style.labelText = (datum: G6.EdgeData) => look(datum).label ?? ''
@@ -214,7 +260,8 @@ export const graphEdgeOptions = <E >(
   if (palette) {
     Object.assign(style, { labelBackground: true, ...edgePaletteStyle(palette) })
   }
-  const type = direction === 'TB' ? GRAPH_EDGE_TYPE_TB : GRAPH_EDGE_TYPE
+  const curve = direction === 'TB' ? GRAPH_EDGE_TYPE_TB : GRAPH_EDGE_TYPE
+  const type = routes ? BASELINE_EDGE : curve
   return states ? { state: states, style, type } : { style, type }
 }
 
@@ -268,18 +315,25 @@ export interface GraphOptionsInput<N, E> {
   direction?: GraphDirection
   /** The rank and node gaps. Absent, C19's. */
   spacing?: GraphSpacing
+  /** Where the nodes go. Default `layered` (dagre); `baseline` applies left to right only. */
+  arrangement?: GraphArrangement
 }
+
+/** Whether a graph is drawn by the baseline layout: asked for, and left to right. */
+export const usesBaseline = (arrangement: GraphArrangement | undefined, direction: GraphDirection | undefined): boolean =>
+  arrangement === 'baseline' && direction !== 'TB'
 
 /** Everything FlowGraph is given, from one place. */
 export const buildGraphOptions = <N, E>(input: GraphOptionsInput<N, E>): FlowGraphOptions => {
-  const { direction = 'LR', edgeAppearance, edgeDraw, edgeStates, edges, fit = 'view', nodeSize, nodes, palette, renderNode, spacing } = input
+  const { arrangement, direction = 'LR', edgeAppearance, edgeDraw, edgeStates, edges, fit = 'view', nodeSize, nodes, palette, renderNode, spacing } = input
   const behaviors = fit === 'natural' ? NATURAL_BEHAVIORS : GRAPH_BEHAVIORS
+  const baseline = usesBaseline(arrangement, direction) ? baselineGraph(nodes, edges, nodeSize, spacing) : null
   return {
     autoFit: fit === 'natural' ? NATURAL_AUTO_FIT : 'view',
     behaviors: edgeDraw ? [...behaviors, edgeDraw] : behaviors,
     data: { edges: edges as G6.EdgeData[], nodes: nodes as unknown as G6.NodeData[] },
-    edge: graphEdgeOptions(palette, edgeAppearance, edgeStates, direction),
-    layout: graphLayout(edges, { direction, spacing }),
+    edge: graphEdgeOptions(palette, edgeAppearance, edgeStates, direction, baseline?.paths),
+    layout: baseline ? baselineLayoutOptions(baseline, spacing) : graphLayout(edges, { direction, spacing }),
     node: {
       style: {
         // Each node is its OWN React root (g6-extension-react), so no context reaches the card —

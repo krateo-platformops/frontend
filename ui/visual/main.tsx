@@ -47,7 +47,7 @@ import { ThemeModeProvider } from '../src/context/ThemeModeContext'
 import type { WidgetProps } from '../src/types/Widget'
 import { V1B } from '../src/widgets/FlowChart/__fixtures__/architecture'
 import ArchitectureStateNode from '../src/widgets/FlowChart/ArchitectureStateNode'
-import { ARCHITECTURE_NODE_SIZE, toArchitectureGraphData } from '../src/widgets/FlowChart/architectureVariant'
+import { ARCHITECTURE_NODE_SIZE, architectureEdgeAppearance, architectureGraphSize, toArchitectureGraphData } from '../src/widgets/FlowChart/architectureVariant'
 import FlowChart, { type FlowChartNodeData, type FlowChartWidgetData } from '../src/widgets/FlowChart/FlowChart'
 import { Menu } from '../src/widgets/Menu/Menu'
 import PageHeader from '../src/widgets/PageHeader/PageHeader'
@@ -260,9 +260,36 @@ const architectureCards = () => (
     )))}
   </div>
 )
+/**
+ * `?fixture=architecture-graph`: the same chain through DependencyGraph with exactly the props the
+ * architecture FlowChart gives it in a box wide enough for the design (the baseline arrangement, the
+ * regular card, C19's gaps — 4 × 240 + 3 × 160 = 1440px — and its own height) — and the G6 graph handed to the page as
+ * `window.__architectureGraph`, because the edges are painted on a canvas: architectureBaseline.spec.ts
+ * reads the positions G6 holds and samples each drawn edge path through it.
+ */
+const baselineGraph = toArchitectureGraphData(V1B)
+const baselineHeight = architectureGraphSize(baselineGraph.nodes, baselineGraph.edges, {
+  direction: 'LR', nodeSize: ARCHITECTURE_NODE_SIZE, spacing: { nodesep: 32, ranksep: 160 },
+})[1] + 32
+const exposeGraph = (graph: unknown) => { (window as unknown as { __architectureGraph?: unknown }).__architectureGraph = graph ?? undefined }
+const architectureGraphFixture = () => (
+  <div data-testid='architecture-host' style={{ height: baselineHeight, width: 1600 }}>
+    <DependencyGraph
+      arrangement='baseline'
+      edgeAppearance={architectureEdgeAppearance}
+      edges={baselineGraph.edges}
+      fit='natural'
+      graphRef={exposeGraph}
+      nodeSize={ARCHITECTURE_NODE_SIZE}
+      nodes={baselineGraph.nodes}
+      renderNode={renderZoomCard}
+    />
+  </div>
+)
 const fixtures: Record<string, () => React.ReactNode> = {
   architecture,
   'architecture-cards': architectureCards,
+  'architecture-graph': architectureGraphFixture,
   'focus-ring': focusRing,
   'graph-zoom': graphZoomFixture,
   'nav-menu': navMenu,

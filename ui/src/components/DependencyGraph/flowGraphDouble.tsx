@@ -279,4 +279,13 @@ export const FlowGraph = forwardRef<unknown, Options>((props, ref) => {
 })
 FlowGraph.displayName = 'FlowGraphDouble'
 
-export const G6 = { ExtensionCategory: { NODE: 'node' }, register: (): void => undefined }
+/** The extension bases baselineG6.ts subclasses, so its module loads; jsdom runs no layout and draws no edge. */
+class BaseLayout {
+  options: Record<string, unknown>
+  constructor(_context?: unknown, options?: Record<string, unknown>) { this.options = options ?? {} }
+}
+class BaseEdge {
+  protected getEndpoints(): [number[], number[]] { return [[0, 0], [0, 0]] }
+}
+
+export const G6 = { BaseEdge, BaseLayout, ExtensionCategory: { EDGE: 'edge', LAYOUT: 'layout', NODE: 'node' }, register: (): void => undefined }
