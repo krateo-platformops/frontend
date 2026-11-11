@@ -22,11 +22,13 @@ import { interpolateRedirectUrl, resolveNavigationTarget, updateNameNamespace } 
 import type { BlastRadius, BlastRadiusSet } from './blastRadius.types'
 import { buildPayloadDetailed, templateJqInput } from './buildPayload'
 import { writeTargetName } from './callPath'
+import { withoutProvenanceHeader } from './callProvenance'
 import { buildConfirmModalProps, confirmWithTimeout } from './confirmModalProps'
-import { recordProvenance, stampAgentCreated, type WriteOrigin } from './provenance'
+import { beginWriteProvenance, stampAgentCreated, type WriteOrigin, type WriteProvenance } from './provenance'
 import { runRestFanOut } from './runRestFanOut'
 import { runRestOps } from './runRestOps'
 import { runRestSet, type SetDispatchOptions, type WriteOp, type WriteOpResult } from './runRestSet'
+import { snowplowReadsCallProvenance } from './snowplowCapabilities'
 import { subscribeSse } from './sseClient'
 
 /**
@@ -148,9 +150,13 @@ export interface ActionContext {
   /** Register a teardown to run if the widget unmounts mid-action (e.g. close an SSE stream). */
   registerCleanup: (cleanup: () => void) => void
   /** W0-3 provenance flag (config.json api.PROVENANCE_ENABLED, default ON; only an explicit
-   * "false" opts out). When enabled, every
-   * resolved gated write fire-and-forgets ONE best-effort AuditRecord CR — see hooks/provenance.ts. */
+   * "false" opts out). When enabled, every gated write carries the X-Krateo-Provenance header
+   * (snowplow advertises `call.provenance`) or else fire-and-forgets ONE best-effort AuditRecord
+   * CR after it resolves — see hooks/provenance.ts beginWriteProvenance. */
   provenanceEnabled: boolean
+  /** Whether this snowplow advertises `call.provenance` (hooks/snowplowCapabilities.ts: read once
+   * per session, false on an older snowplow or an unreadable /capabilities). */
+  supportsCallProvenance: () => Promise<boolean>
 }
 
 const runNavigate = async (action: WidgetAction & { type: 'navigate' }, runtime: ActionRuntime, ctx: ActionContext): Promise<void> => {
@@ -283,6 +289,15 @@ const runRest = async (
   // and starts nothing: the user never waited on us. `verb` is the ref's, known on every path from
   // here, which is why `http.request.method` can be always-present on this span name.
   if (runtime.interaction) { held.span = startFormSubmit({ method: verb, route: runtime.interaction.route }) }
+
+  // W0-3 provenance, decided here — past the gate, before anything is sent: the X-Krateo-Provenance
+  // header on the write where snowplow advertises `call.provenance`, else the AuditRecord POST after
+  // it resolves (hooks/provenance.ts beginWriteProvenance). requestedAt is the browser clock at the
+  // confirmation. Only a gated write (radius set) has provenance; a declined confirm returned above.
+  const requestedAt = new Date().toISOString()
+  const provenance: WriteProvenance | undefined = radius
+    ? await beginWriteProvenance(ctx, runtime.origin, radius, { confirmed: true, requestedAt })
+    : undefined
 
   let resourceUid: string | null = null
   let eventReceived = false
@@ -449,18 +464,18 @@ const runRest = async (
   }
 
   const requestHeaders = {
-    ...headersObject,
+    // A widget's own headers never assert provenance: that header is the portal's, sent once.
+    ...withoutProvenanceHeader(headersObject),
     Accept: 'application/json',
     Authorization: `Bearer ${ctx.getAccessToken()}`,
+    // A scalar write is op 0 of a confirmed set of one.
+    ...provenance?.headerFor(0),
   }
 
   const shouldSendPayload = ['POST', 'PUT', 'PATCH'].includes(verb)
 
-  // W0-3 provenance: requestedAt is captured pre-dispatch; the record itself is emitted only
-  // AFTER the write resolves (success, HTTP failure, or network throw), and only for a gated
-  // write (radius set). A declined confirm returned above — it records NOTHING.
-  const requestedAt = new Date().toISOString()
-
+  // W0-3 provenance (record path): settled only AFTER the write resolves — success, HTTP failure,
+  // or network throw. On the header path settling is a no-op: snowplow recorded the write.
   const res = await fetchWithTimeout(updatedUrl, {
     body: shouldSendPayload ? JSON.stringify(payload) : undefined,
     headers: requestHeaders,
@@ -468,9 +483,7 @@ const runRest = async (
   }).catch((error: unknown) => {
     // The request itself failed (network error / timeout abort) — still an attempted write:
     // record it (fire-and-forget, best-effort), then rethrow to the dispatcher's catch.
-    if (radius) {
-      recordProvenance(ctx, runtime.origin, radius, { message: scrub(error instanceof Error ? error.message : String(error)), ok: false, status: 0 }, requestedAt)
-    }
+    provenance?.settle({ message: scrub(error instanceof Error ? error.message : String(error)), ok: false, status: 0 })
     throw error
   })
 
@@ -484,9 +497,7 @@ const runRest = async (
   // W0-3: ONE audit record per resolved gated write — success AND failure both land here,
   // carrying the radius the human confirmed. Fire-and-forget inside recordProvenance (void,
   // never awaited): it can never block, delay, or fail the primary write.
-  if (radius) {
-    recordProvenance(ctx, runtime.origin, radius, { message: secrets ? scrub(jsonResponse.reason ?? `HTTP ${res.status}`) : jsonResponse.message ?? '', ok: res.ok, status: res.status }, requestedAt)
-  }
+  provenance?.settle({ message: secrets ? scrub(jsonResponse.reason ?? `HTTP ${res.status}`) : jsonResponse.message ?? '', ok: res.ok, status: res.status })
 
   if (!res.ok) {
     let description = scrub(jsonResponse.message)
@@ -750,6 +761,7 @@ export const useHandleAction = () => {
     reloadRoutes,
     resolveJq,
     setLoading: setIsActionLoading,
+    supportsCallProvenance: () => snowplowReadsCallProvenance(config?.api.SNOWPLOW_API_BASE_URL ?? '', getAccessToken),
   })
 
   const handleAction = async (
