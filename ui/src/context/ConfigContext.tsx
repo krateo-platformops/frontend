@@ -216,8 +216,8 @@ export interface Config {
   /** Optional login-screen branding. Fetched pre-auth (before any backend
    * identity), so it lives in the static config (ConfigMap-mountable per install)
    * rather than a snowplow widget. The logo falls back to the bundled one; every other key is
-   * absent by default and its element is not drawn. NOT plumbed by the frontend chart: its
-   * configmap renders `api` and `params` only, so an install sets these in a mounted config.json. */
+   * absent by default and its element is not drawn. The frontend chart renders it from its `login`
+   * value (helm/frontend/values.yaml), with only the keys that are set. */
   login?: {
     /** Branding logo for the login panel. A URL (absolute, or a path the
      * frontend serves). Should be a light/white mark — it sits on the brand

@@ -1,0 +1,32 @@
+# Render tests for helm/frontend: what config.json a set of values produces, and what the schema
+# refuses. lint.yaml renders the chart once with its defaults and only asks whether that succeeds;
+# these render it many times and parse the result, so a change that keeps the chart rendering but
+# changes what a cluster receives fails here.
+#
+# scripts/test_chart_login.py covers the `login` block: unset is byte-identical to `login: {}` and
+# has no "login" object, set renders exactly the set keys, and the schema refuses an empty string,
+# a javascript: link and a sixth highlight.
+name: chart-render
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Helm
+        uses: azure/setup-helm@v5.0.0
+        with:
+          # The version lint.yaml uses.
+          version: v3.19.0
+      - name: Render tests
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 scripts/test_chart_login.py

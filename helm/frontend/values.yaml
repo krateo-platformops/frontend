@@ -363,6 +363,25 @@ config:
   # renders as it always has. A new key, so it has only the AGENTIKO_ name.
   # AGENTIKO_RAIL_BADGE: Staging
 
+# ── Login screen ─────────────────────────────────────────────────────────────
+# Optional branding for the login screen, rendered as the "login" object of config.json (beside
+# "api" and "params") and read by the SPA as `config.login`. Every key is off when unset, so the
+# block is deliberately left out of the defaults and has no schema default: unset, config.json has
+# no "login" object and the login screen shows its built-in defaults. Set, config.json carries
+# exactly the keys that are set. The schema refuses an empty string, more than five highlights, a
+# highlight over 120 characters, and a requestAccountUrl that is neither an absolute https URL nor
+# a same-origin path starting with '/'.
+# login:
+#   installationName: krateo-057          # "to Krateo PlatformOps · krateo-057"
+#   requestAccountUrl: /request-access    # shows "Request an account", linked here
+#   logoUrl: https://example.com/logo.svg # a light mark; unset: the bundled Krateo logo
+#   logoAlt: Example Corp
+#   headline: Ship platform resources without the YAML toil.
+#   subtitle: Self-service infrastructure for your developers.
+#   highlights:
+#     - Compose cloud resources across your clusters
+#     - GitOps reconciliation in real time
+
 # ── Preview sandbox (portal-builder live preview; w4 spec Addendum A) ─────────
 # Provisions the quarantined namespace where the portal-builder applies DRAFT
 # widget/RESTAction CRs so the REAL deployed snowplow compiles+serves them for

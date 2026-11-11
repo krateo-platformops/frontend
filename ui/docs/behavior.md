@@ -35,7 +35,7 @@ default), `SNOWPLOW_IDENTITY_INJECTION` (identity-extras rollout flag),
 preview), `PREVIEW_SANDBOX_NAMESPACE` (portal-builder live preview), `OTEL_COLLECTOR_URL`
 (browser tracing). `params` carries `FRONTEND_NAMESPACE` (the namespace convention pages
 resolve in) and `DELAY_SAVE_NOTIFICATION`; an optional `login` block carries login-screen
-branding.
+branding, set through the chart's `login` value (docs/configuration.md).
 
 The production image mounts this file as a volume; the build-time `dist/config` is deleted
 (`Dockerfile`) so the running container reads the cluster-provided config, letting one
