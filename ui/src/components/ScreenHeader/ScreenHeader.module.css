@@ -23,9 +23,11 @@
   min-width: 0;
 }
 
-/* A page title is h2 on every path (T3), as the PageHeader widget's is. It has its line to itself. */
+/* A page title is h2 in the display face (Syne) on every path (T3), as the PageHeader widget's is.
+   It has its line to itself. */
 .title {
   color: var(--text-color);
+  font-family: var(--font-display);
   font-size: var(--krateo-text-h2);
   font-weight: var(--font-weight-bolder);
   letter-spacing: -0.01em;

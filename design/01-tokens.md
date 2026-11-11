@@ -231,6 +231,20 @@ Two exemptions were added along the way, both because the rule was asking the wr
 > as "ı" and "o", which ids, versions and counts cannot afford. TEXAR, Agentiko's headline face, is
 > deliberately not used.
 
+> **2026-11-11 — two families again: Inter for body, Syne for display.** The product owner approved
+> the login and sidebar redesign, which puts body text, labels, inputs, tables and the menu back in
+> Inter: at 12–14px Syne's wide letters took 10–15% more width, and narrow sidebar labels and
+> table columns paid for it. Syne keeps the display role only, which means page titles (PageHeader,
+> ScreenHeader, a heading Paragraph), the sign-in heading and the agent rail's titles. Stat values
+> are data and moved to Inter, because Syne's figures read "42" as "4²".
+>
+> This brings back the second set of metrics this rule removed, so it has a condition: display
+> text never shares a baseline with body text. A title has its own line, and the PageHeader's
+> title row centres its tags rather than baseline-aligning them. The visual harness now loads Syne
+> from @fontsource; before, it photographed every title in Inter. `layout.spec.ts` (P26: actions
+> centred on title and subtitle) passes with Syne loaded, `typeface.spec.ts` reads the face each
+> kind of text resolves to, and `typography.test.ts` pins the tokens and the title rules.
+
 The `typography` export has `family`, `display`, `mono`, `size`, `weight` — and **no `lineHeight` keys at all**. 32 hardcoded `line-height` declarations exist across 10 distinct values.
 
 The root cause [#86](https://github.com/krateo-platformops/frontend/issues/86) identified — Barlow Condensed’s ascent/descent against Inter’s baseline — is untouched: `ascent-override`, `descent-override` and `@font-face` return **zero hits repo-wide**. Both visible symptoms were patched per-component instead; the mechanism that produced them is unchanged and will produce more.
@@ -382,7 +396,7 @@ The main header and the docked rail previously shared a hardcoded `64px` that ma
 | sidebar | black `#141414`, selected item `#9E00FF` under white | black `#000000`, same selected item |
 | login panel | the brand gradient `#9E00FF` → `#2213CF` under white | same |
 | `blue` (tags, cells, stats) | `#2213CF` brand blue — 11.5:1 on white | `#9C8FFF` tint — the brand blue is 1.9:1 on the dark panel |
-| face | Syne for every role but data; JetBrains Mono for data (T5) | same |
+| face | Syne for display (page titles, the sign-in heading); Inter for body; JetBrains Mono for data (T5) | same |
 
 > **2026-11-10 — `blue` is the Agentiko blue.** It was still the Krateo blue `#11B2E2` in both
 > modes, 2.4:1 on white, so every `color: blue` tag, cell and stat failed AA in light. It now ends
@@ -426,7 +440,7 @@ Signal Yellow keeps its one meaning (Agentiko is EXECUTING) beside it.
 > **2026-11-10 — leftover of the 11-03 scoping removed.** A table from the "Agentiko only on the
 > agent" version survived below this rule after 11-06 and contradicted it: it gave the dark filled
 > label as dark ink `#141414` and kept Syne to the rail's title. Both are retired — white on every
-> fill, Syne for every role but data.
+> fill, Syne for every role but data. (Since 2026-11-11 Syne is the display face only; see T5.)
 
 *Evidence: verified `tokens.ts` `agentikoBrand` · `AgentikoBrandScope.tsx` · `icons.tsx` `AgentikoMark`*
 

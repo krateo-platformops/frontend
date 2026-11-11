@@ -12,11 +12,12 @@ import { theme as antdAlgorithms, type ThemeConfig } from 'antd'
  * its own; Agentiko's ("Brand Guidelines — AGENTIKO", SocialFOX 09/2026) is applied to the whole
  * portal, open source or licensed alike — the licence only switches the agent on. Primary Violet
  * #9E00FF (dark-mode text tint #C27AFF), Blue #2213CF, Lilac #DCD8F1, Black; neutrals carry a
- * slight violet bias; the sidebar is black in both modes; the face is Syne (JetBrains Mono stays
- * for data). The Krateo logo stays, drawn in lilac. Before that the brand was "Krateo Brand
- * Identity v2" (blue, issue #49) — the key NAMES below are from that era and unchanged, so
- * widget CRs and getColorCode() keep working. Status is a Tier-2-locked semantic set: green #00D690,
- * amber #FFAA00, red #F84C4C, info blue. Signal Yellow #E8FF00 is RESERVED for the
+ * slight violet bias; the sidebar is black in both modes; Syne is the display face (page titles,
+ * the sign-in heading), Inter the face of everything else, JetBrains Mono the face of data. The
+ * Krateo logo stays, drawn in lilac. Before that the brand was "Krateo Brand Identity v2" (blue,
+ * issue #49) — the key NAMES below are from that era and unchanged, so widget CRs and
+ * getColorCode() keep working. Status is a Tier-2-locked semantic set: green #00D690, amber
+ * #FFAA00, red #F84C4C, info blue. Signal Yellow #E8FF00 is RESERVED for the
  * "Agentiko/AI agent is EXECUTING" state ONLY (never a CTA/decoration/link). The sidebar is black
  * (`menubgstart`/`menubgend`); deriving it from colorPrimary (issue #52, navGradientFrom()) is an
  * opt-in tenant override. The focus ring is the primary — #9E00FF light / #C27AFF dark
@@ -179,16 +180,15 @@ export const elevationDark = {
 } as const
 
 export const typography = {
-  // T5 (2026-11-06): Syne, Agentiko's text face, for every role but data. Inter stays as the
-  // first fallback so a blocked font CDN degrades to the face the layout was tuned on.
-  family: 'Syne, Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif',
-  // T5: the display role is the same family as body (Syne since 2026-11-06; Inter before). It
-  // was Barlow Condensed, whose ascent/descent against the body face's baseline is the cross-font
-  // drift #86 identified — patched per-component four times (see #78 'reiteration 4') and never at
-  // the cause. One family for text and display removes the mechanism rather than correcting for
-  // it; display is carried by size, weight and tracking. Mono stays JetBrains Mono for data (ids/counts/durations/
-  // versions/namespaces). Faces load from the @import at the top of ui/index.css — NOT from an
-  // index.html <link>, which is what this comment used to claim.
+  // The body face: text, labels, inputs, tables, the menu (2026-11-11, the login and sidebar
+  // redesign). From 2026-11-06 Syne, Agentiko's display face, set every role, and at 12-14px its
+  // wide letters took 10-15% more width than Inter, with tighter openings on a, e and g: narrow
+  // sidebar labels and table columns paid for it. Inter is the face the layout was tuned on.
+  family: 'Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif',
+  // The display role, and only it: page titles (PageHeader, ScreenHeader, a heading Paragraph), the
+  // sign-in heading, the agent's own titles. Inter is its first fallback, so a blocked font CDN
+  // degrades to the body face. Faces load from the @import at the top of ui/index.css; the visual
+  // harness loads the same three from @fontsource.
   display: 'Syne, Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif',
   mono: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, "Courier New", monospace',
   // No `size` here any more. The legacy 6-step `--font-size-*` scale (12/14/16/18/24/30) shipped
@@ -226,11 +226,11 @@ const KRATEO_BASE: Record<string, string> = {
   'motion-deliberate': '400ms',
   'motion-ease': 'cubic-bezier(0.16, 1, 0.3, 1)',
   'font-display': 'Syne, Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif',
-  'font-ui': 'Syne, Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
+  'font-ui': 'Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
   'font-mono': '"JetBrains Mono", "Courier New", monospace',
-  // The agent's own face. Since T5 moved the whole UI to Syne it equals `font-ui`; kept as its
-  // own token so the agent's surfaces can diverge again without touching their CSS.
-  'font-agentiko': 'Syne, Inter, Roboto, "Helvetica Neue", Arial, sans-serif',
+  // The agent's own face for its controls and text: the body face, like `font-ui`. Its titles take
+  // `font-display`. Kept as its own token so the agent's surfaces can diverge without touching CSS.
+  'font-agentiko': 'Inter, Roboto, "Helvetica Neue", Arial, sans-serif',
   'text-display': '64px',
   'text-h1': '40px',
   'text-h2': '30px',
