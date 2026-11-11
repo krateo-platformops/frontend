@@ -16,6 +16,8 @@ something unrelated and quietly spends their trust. Prefer citing a *symbol* (`t
 | [05-agent-parity.md](05-agent-parity.md) | **A1–A19** | What Agentiko may do, what a page owes it, what it owes back |
 | [06-composition-patterns.md](06-composition-patterns.md) | **G1–G13** | Page archetypes, widget selection, and a stated design position |
 
+The palette and type in one page, light and dark: [brand/agentiko-theme.md](brand/agentiko-theme.md).
+
 ## Why this exists
 
 Between 2026-07-20 and 2026-09-07, fourteen UX issues were filed against the portal containing
