@@ -76,6 +76,8 @@ const makeCtx = (): ActionContext => ({
   reloadRoutes: vi.fn(),
   resolveJq: realResolveJq,
   setLoading: vi.fn(),
+  // An older snowplow (no `call.provenance`): the AuditRecord path these tests pin.
+  supportsCallProvenance: () => Promise.resolve(false),
 })
 
 const dbRef: ResourcesRefs = { items: [{ allowed: true, id: 'r', path: '/call?resource=databases&namespace=ns1', payload: {}, verb: 'POST' }] }

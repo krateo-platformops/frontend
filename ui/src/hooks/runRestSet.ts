@@ -24,7 +24,7 @@ import { buildBlastRadiusSet, parseTargetFromPath, type WriteOp } from '../compo
 import { redactSecretValues } from '../utils/secretFields'
 import { countNoun } from '../utils/utils'
 
-import { recordProvenance, type WriteOrigin } from './provenance'
+import { beginWriteProvenance, type WriteOrigin } from './provenance'
 import type { ActionContext } from './useHandleActions'
 import { fetchWithTimeout, parseJsonResponse, POST_WRITE_REVALIDATE_DELAYS_MS } from './useHandleActions'
 
@@ -95,7 +95,7 @@ export interface WriteOpResult {
  */
 export type RunRestSetContext = Pick<
   ActionContext,
-  'apiBaseUrl' | 'confirm' | 'getAccessToken' | 'invalidateQueries' | 'message' | 'notification' | 'provenanceEnabled' | 'registerCleanup' | 'setLoading'
+  'apiBaseUrl' | 'confirm' | 'getAccessToken' | 'invalidateQueries' | 'message' | 'notification' | 'provenanceEnabled' | 'registerCleanup' | 'setLoading' | 'supportsCallProvenance'
 >
 
 /** The op's request Content-Type: merge-patch for PATCH (apiserver semantics), JSON otherwise. */
@@ -106,8 +106,11 @@ const contentTypeOf = (verb: WriteOp['verb']): string =>
 const opLabel = (op: { verb: string; gvr: { resource: string }; name?: string }): string =>
   `${op.verb} ${op.gvr.resource || 'object'}${op.name ? `/${op.name}` : ''}`
 
-/** Dispatch ONE op through the same fetch path runRest uses; never throws (errors → result). */
-const dispatchOp = async (op: WriteOp, index: number, ctx: RunRestSetContext): Promise<WriteOpResult> => {
+/**
+ * Dispatch ONE op through the same fetch path runRest uses; never throws (errors → result).
+ * `provenanceHeader` is this op's X-Krateo-Provenance fragment (empty on the record path).
+ */
+const dispatchOp = async (op: WriteOp, index: number, ctx: RunRestSetContext, provenanceHeader: Record<string, string>): Promise<WriteOpResult> => {
   try {
     const res = await fetchWithTimeout(ctx.apiBaseUrl + op.path, {
       // Same body rule as runRest: only POST/PUT/PATCH carry one (DELETE never does).
@@ -116,6 +119,7 @@ const dispatchOp = async (op: WriteOp, index: number, ctx: RunRestSetContext): P
         Accept: 'application/json',
         Authorization: `Bearer ${ctx.getAccessToken()}`,
         'Content-Type': contentTypeOf(op.verb),
+        ...provenanceHeader,
       },
       method: op.verb,
     })
@@ -155,15 +159,19 @@ export const runRestSet = async (ops: readonly WriteOp[], ctx: RunRestSetContext
   // Past the gate, nothing sent yet: the caller's commitment point (SetDispatchOptions.onConfirmed).
   options?.onConfirmed?.()
 
-  // W0-3 provenance: requestedAt covers the whole ordered dispatch (pre-dispatch timestamp).
+  // W0-3 provenance, decided once for the whole set (hooks/provenance.ts beginWriteProvenance):
+  // the header on every op's /call — one confirmationId, one hash, op = the index — where snowplow
+  // advertises `call.provenance`, else ONE AuditRecord after the set resolves. requestedAt is the
+  // browser clock at the confirmation. A sandbox-confined set passed no confirm, and says so.
   const requestedAt = new Date().toISOString()
-
   ctx.setLoading(true)
+  // Never rejects; on the first write of a session it waits on the one /capabilities read.
+  const provenance = await beginWriteProvenance(ctx, origin, radius, { confirmed: !sandboxConfined, requestedAt })
   const results: WriteOpResult[] = []
   try {
     for (const [index, op] of ops.entries()) {
       // eslint-disable-next-line no-await-in-loop -- ORDERED dispatch is the contract: op N+1 must not fire until op N succeeded
-      const result = await dispatchOp(op, index, ctx)
+      const result = await dispatchOp(op, index, ctx, provenance.headerFor(index))
       results.push(result)
       if (!result.ok) {
         break
@@ -178,14 +186,13 @@ export const runRestSet = async (ops: readonly WriteOp[], ctx: RunRestSetContext
   // failure — never the apiserver's message, even scrubbed. The toast keeps the scrubbed message.
   const auditDetail = (result: WriteOpResult): string => (ops.some((op) => op.secretValues) ? `HTTP ${result.status}` : result.message)
 
-  // W0-3 provenance: ONE AuditRecord per SET (count = ops.length; the summary lists every
-  // op) — never per op — emitted after the set resolves (full success OR stop-on-first-
-  // error). The gated set radius is reused verbatim. Fire-and-forget inside
-  // recordProvenance; a declined confirm returned above, so it records NOTHING.
-  recordProvenance(ctx, origin, radius, failed
+  // W0-3 provenance (record path): ONE AuditRecord per SET (count = ops.length; the summary lists
+  // every op) — never per op — emitted after the set resolves (full success OR stop-on-first-
+  // error). The gated set radius is reused verbatim. Fire-and-forget inside recordProvenance; a
+  // declined confirm returned above, so it records NOTHING. A no-op on the header path.
+  provenance.settle(failed
     ? { message: `op ${failed.index + 1} of ${ops.length} (${opLabel(radius.ops[failed.index])}) failed: ${auditDetail(failed)}`, ok: false, status: failed.status }
-    : { message: ops.length === 1 ? 'the 1 write applied' : `all ${countNoun(ops.length, 'write')} applied in order`, ok: true, status: results[results.length - 1]?.status ?? 0 },
-  requestedAt)
+    : { message: ops.length === 1 ? 'the 1 write applied' : `all ${countNoun(ops.length, 'write')} applied in order`, ok: true, status: results[results.length - 1]?.status ?? 0 })
 
   // `silent` (previewPage v2): the caller renders the outcome itself (drawer content /
   // chip) — suppress ONLY the toasts; results, provenance and invalidation are intact.

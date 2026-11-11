@@ -125,6 +125,8 @@ const makeCtx = (resolveJq: ActionContext['resolveJq']): ActionContext => ({
   reloadRoutes: vi.fn(),
   resolveJq,
   setLoading: vi.fn(),
+  // An older snowplow (no `call.provenance`): the AuditRecord path these tests pin.
+  supportsCallProvenance: () => Promise.resolve(false),
 })
 const refs = (items: ResourcesRefs['items']): ResourcesRefs => ({ items })
 const secretRef = { allowed: true, id: 'create-secret', path: '/call?resource=secrets', payload: {}, verb: 'POST' as const }

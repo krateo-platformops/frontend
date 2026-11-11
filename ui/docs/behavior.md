@@ -141,8 +141,10 @@ A widget's actions (declared in `widgetData.actions`, executed via
   message (`:353-382`); `onSuccessNavigateTo` and `onEventNavigateTo` are mutually
   exclusive (`:308-311`).
 
-Gated portal writes can additionally emit best-effort `AuditRecord` CRs when
-`PROVENANCE_ENABLED` is on (`hooks/provenance.ts`) and fan out through the set fabric
+Gated portal writes carry provenance when `PROVENANCE_ENABLED` is on (`hooks/provenance.ts`):
+the `X-Krateo-Provenance` header on each `/call` where snowplow's `/capabilities` lists
+`call.provenance` (`hooks/callProvenance.ts`, `hooks/snowplowCapabilities.ts`), otherwise one
+best-effort `AuditRecord` CR after the write. They fan out through the set fabric
 (`hooks/runRestSet.ts`, `hooks/runRestFanOut.ts`).
 
 The authoritative per-action property tables are generated from the schemas:

@@ -1,5 +1,15 @@
 /**
- * provenance — the W0-3 audit trail (frontend side): ONE immutable AuditRecord CR emitted
+ * provenance — the W0-3 audit trail (frontend side).
+ *
+ * TWO PATHS, chosen per write by beginWriteProvenance (bottom of this file) from snowplow's
+ * `/capabilities`:
+ *   - snowplow lists `call.provenance` (snowplow#1352): the write itself carries the
+ *     X-Krateo-Provenance header (hooks/callProvenance.ts) and snowplow's audit event of it is
+ *     the record. Nothing below is POSTed.
+ *   - otherwise (an older snowplow, or /capabilities unreadable): the AuditRecord path this
+ *     header describes, unchanged.
+ *
+ * The AuditRecord path: ONE immutable AuditRecord CR emitted
  * for EVERY portal write, human- or agent-originated, AFTER the write resolves (success OR
  * failure). The record carries the SAME blast radius the human confirmed at the W0-2/W0-4
  * gate (reused verbatim, never rebuilt), the origin tag (actor + the agent session/prompt
@@ -29,6 +39,7 @@
 
 import type { BlastRadius, BlastRadiusSet, Gvr, MutatingVerb } from './blastRadius.types'
 import { buildCallWritePath } from './callPath'
+import { confirmedWriteOf } from './callProvenance'
 import { fetchWithTimeout } from './useHandleActions'
 
 export const AUDIT_API_GROUP = 'audit.krateo.io'
@@ -171,6 +182,15 @@ export interface ProvenanceEmitContext {
 /** The emit context plus the PROVENANCE_ENABLED flag `recordProvenance` gates on. */
 export interface ProvenanceContext extends ProvenanceEmitContext {
   provenanceEnabled: boolean
+}
+
+/**
+ * The emit context plus the capability probe beginWriteProvenance chooses the path by: whether
+ * THIS snowplow advertises `call.provenance` (hooks/snowplowCapabilities.ts). Resolves false on an
+ * older snowplow or an unreadable /capabilities.
+ */
+export interface WriteProvenanceContext extends ProvenanceContext {
+  supportsCallProvenance: () => Promise<boolean>
 }
 
 /** Human label of a GVR ("compositions.composition.krateo.io", or the bare resource for core). */
@@ -325,4 +345,57 @@ export const recordProvenance = (
     { requestedAt, resolvedAt: new Date().toISOString() },
   )
   void emitAuditRecord(record, ctx)
+}
+
+/**
+ * What a gated write does for provenance, decided ONCE when the gate is passed and before the
+ * first `/call`:
+ *   - `headerFor(op)` — the `X-Krateo-Provenance` fragment to spread into op `op`'s request
+ *     headers (empty on the record path);
+ *   - `settle(outcome)` — called once the write (or the whole set) resolved: POSTs the AuditRecord
+ *     on the record path, nothing on the header path (snowplow recorded each write itself).
+ */
+export interface WriteProvenance {
+  headerFor: (op: number) => Record<string, string>
+  settle: (outcome: AuditOutcome) => void
+}
+
+const NO_PROVENANCE: WriteProvenance = { headerFor: () => ({}), settle: () => undefined }
+
+/**
+ * Choose the provenance path for one gated write (scalar or set), right after the gate:
+ *
+ *   - flag off (PROVENANCE_ENABLED "false"): neither — no header, no record, no capability read;
+ *   - snowplow advertises `call.provenance` (snowplow#1352): the HEADER on every `/call`, and NO
+ *     AuditRecord POST — snowplow's own audit event of the write is the record now;
+ *   - otherwise (an older snowplow, or /capabilities unreadable): exactly the previous behaviour —
+ *     no header, ONE best-effort AuditRecord POST after the write resolves.
+ *
+ * `confirmed` is false only for a set dispatched without a confirm (the sandbox carve-out): its
+ * header asserts no confirmation. `requestedAt` is the browser clock when the gate was passed.
+ * Never rejects: a throwing probe reads as "not advertised".
+ */
+export const beginWriteProvenance = async (
+  ctx: WriteProvenanceContext,
+  origin: WriteOrigin | undefined,
+  radius: BlastRadius | BlastRadiusSet,
+  options: { confirmed: boolean; requestedAt: string },
+): Promise<WriteProvenance> => {
+  if (!ctx.provenanceEnabled) {
+    return NO_PROVENANCE
+  }
+  const viaHeader = await ctx.supportsCallProvenance().catch(() => false)
+  if (viaHeader) {
+    const write = confirmedWriteOf(radius, {
+      // The session links an agent write to its prompt in Agentiko's store; a human write has none.
+      ...(origin?.actor === 'agent' && origin.agentSessionId !== undefined ? { agentSessionId: origin.agentSessionId } : {}),
+      confirmed: options.confirmed,
+      requestedAt: options.requestedAt,
+    })
+    return { headerFor: write.headerFor, settle: () => undefined }
+  }
+  return {
+    headerFor: () => ({}),
+    settle: (outcome) => { recordProvenance(ctx, origin, radius, outcome, options.requestedAt) },
+  }
 }
