@@ -32,6 +32,8 @@ export const MAX_PROVENANCE_BYTES = 2048
 const OPAQUE_ID = /^[A-Za-z0-9_-]{1,128}$/
 /** The decoder's `lowerUUID` (confirmationId). */
 const LOWER_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+/** The decoder's `lowerSHA256` (confirmedSet.sha256). */
+const LOWER_SHA256 = /^[0-9a-f]{64}$/
 /** The decoder's `rfc3339Millis` (requestedAt), with the date/time/offset fields captured. */
 const RFC3339_MILLIS = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})\.(\d{3})(?:Z|([+-])(\d{2}):(\d{2}))$/
 
@@ -43,8 +45,8 @@ export interface ConfirmedSetAssertion {
 }
 
 /**
- * The whole v1 schema — the allow-list. `confirmedSet` and `op` come together or not at all
- * (the decoder rejects one without the other).
+ * The whole v1 schema — the allow-list. `confirmationId`, `confirmedSet` and `op` come all three
+ * or none (snowplow#1357 refuses a partial confirmation as `schema`).
  */
 export interface CallProvenance {
   source: 'portal'
@@ -166,7 +168,8 @@ export interface ProvenanceInput {
 /**
  * The header's JSON object: `source` plus each input that passes its decoder rule. An optional
  * value that would fail is DROPPED (so the rest is still recorded) and said so once on debug.
- * `confirmedSet`/`op` are kept only as a valid pair.
+ * The confirmation (`confirmationId` + `confirmedSet` + `op`) is kept only as a whole valid
+ * triple; any part missing or invalid drops all three, recorded as `confirmation`.
  */
 export const buildCallProvenance = (input: ProvenanceInput): CallProvenance => {
   const provenance: CallProvenance = { source: 'portal' }
@@ -178,25 +181,23 @@ export const buildCallProvenance = (input: ProvenanceInput): CallProvenance => {
       dropped.push('agentSessionId')
     }
   }
-  if (input.confirmationId !== undefined) {
-    if (LOWER_UUID.test(input.confirmationId)) {
-      provenance.confirmationId = input.confirmationId
-    } else {
-      dropped.push('confirmationId')
-    }
-  }
-  if (input.confirmedSet !== undefined || input.op !== undefined) {
-    const { confirmedSet, op } = input
-    const valid = confirmedSet !== undefined && op !== undefined
+  // THE CONFIRMATION IS ONE UNIT (snowplow#1357): confirmationId, confirmedSet and op appear all
+  // three or not at all, and a partial set is refused as `schema`. So the three are judged
+  // together: one missing or invalid drops all three, never just the bad one.
+  const { confirmationId, confirmedSet, op } = input
+  if (confirmationId !== undefined || confirmedSet !== undefined || op !== undefined) {
+    const valid = confirmationId !== undefined && confirmedSet !== undefined && op !== undefined
+      && LOWER_UUID.test(confirmationId)
       && Number.isSafeInteger(confirmedSet.count) && confirmedSet.count >= 1
       && typeof confirmedSet.irreversible === 'boolean'
-      && /^[0-9a-f]{64}$/.test(confirmedSet.sha256)
+      && LOWER_SHA256.test(confirmedSet.sha256)
       && Number.isSafeInteger(op) && op >= 0 && op < confirmedSet.count
     if (valid) {
+      provenance.confirmationId = confirmationId
       provenance.confirmedSet = { count: confirmedSet.count, irreversible: confirmedSet.irreversible, sha256: confirmedSet.sha256 }
       provenance.op = op
     } else {
-      dropped.push('confirmedSet/op')
+      dropped.push('confirmation')
     }
   }
   if (input.requestedAt !== undefined) {

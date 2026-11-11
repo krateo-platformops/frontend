@@ -9,6 +9,7 @@ import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 
 import { buildBlastRadiusSet } from '../components/BlastRadius/buildBlastRadius'
 import { sha256HexOfUtf8 } from '../utils/sha256'
+import { randomId } from '../utils/utils'
 
 import type { BlastRadius, BlastRadiusSet } from './blastRadius.types'
 import {
@@ -159,7 +160,7 @@ describe('header encoding (contract sections 3 and 5)', () => {
   })
 
   it('ONE field value: provenanceHeaderOf yields exactly one key, and a widget\'s own spelling is stripped', () => {
-    const fragment = provenanceHeaderOf({ confirmationId: '6f1d2c3b-4a5e-4f60-8b7a-9c0d1e2f3a4b' })
+    const fragment = provenanceHeaderOf({ requestedAt: '2026-11-11T10:20:30.456Z' })
     expect(Object.keys(fragment)).toEqual([PROVENANCE_HEADER])
     const merged = { ...withoutProvenanceHeader({ 'X-KRATEO-PROVENANCE': 'v1.forged2', 'X-Other': 'kept', 'x-krateo-provenance': 'v1.forged' }), ...fragment }
     const headers = new Headers(merged)
@@ -239,8 +240,84 @@ describe('requestedAt — the decoder\'s rule', () => {
 
   it('an out-of-contract requestedAt is LEFT OUT, the rest still sent', () => {
     vi.spyOn(console, 'debug').mockImplementation(() => undefined)
-    const decoded = decode(provenanceHeaderOf({ confirmationId: '6f1d2c3b-4a5e-4f60-8b7a-9c0d1e2f3a4b', requestedAt: '2026-11-11T10:20:30.456+24:00' })[PROVENANCE_HEADER])
-    expect(decoded).toEqual({ confirmationId: '6f1d2c3b-4a5e-4f60-8b7a-9c0d1e2f3a4b', source: 'portal' })
+    const decoded = decode(provenanceHeaderOf({ ...VALID_CONFIRMATION, requestedAt: '2026-11-11T10:20:30.456+24:00' })[PROVENANCE_HEADER])
+    expect(decoded).toEqual({ ...VALID_CONFIRMATION, source: 'portal' })
+  })
+})
+
+// ---- The confirmation triple (snowplow#1357) ---------------------------------------------------
+
+const VALID_CONFIRMATION = {
+  confirmationId: '00000000-0000-4000-8000-000000000001',
+  confirmedSet: { count: 3, irreversible: true, sha256: GOLDEN_V1_SHA },
+  op: 1,
+}
+const TRIPLE = ['confirmationId', 'confirmedSet', 'op']
+
+describe('confirmationId + confirmedSet + op — ALL THREE or NONE', () => {
+  afterEach(() => { vi.restoreAllMocks() })
+
+  it('the valid triple is sent whole', () => {
+    expect(decode(provenanceHeaderOf(VALID_CONFIRMATION)[PROVENANCE_HEADER])).toEqual({ ...VALID_CONFIRMATION, source: 'portal' })
+  })
+
+  it.each<[string, Record<string, unknown>]>([
+    ['id only', { confirmationId: VALID_CONFIRMATION.confirmationId }],
+    ['set + op without id', { confirmedSet: VALID_CONFIRMATION.confirmedSet, op: 1 }],
+    ['id + set without op', { confirmationId: VALID_CONFIRMATION.confirmationId, confirmedSet: VALID_CONFIRMATION.confirmedSet }],
+    ['id + op without set', { confirmationId: VALID_CONFIRMATION.confirmationId, op: 1 }],
+    ['set only', { confirmedSet: VALID_CONFIRMATION.confirmedSet }],
+    ['op only', { op: 0 }],
+    ['an invalid (upper-case) id with a valid set', { ...VALID_CONFIRMATION, confirmationId: '6F1D2C3B-4A5E-4F60-8B7A-9C0D1E2F3A4B' }],
+    ['a non-UUID id with a valid set', { ...VALID_CONFIRMATION, confirmationId: 'not-a-uuid' }],
+    ['a valid id with an invalid hash', { ...VALID_CONFIRMATION, confirmedSet: { ...VALID_CONFIRMATION.confirmedSet, sha256: GOLDEN_V1_SHA.toUpperCase() } }],
+    ['a valid id with count 0', { ...VALID_CONFIRMATION, confirmedSet: { ...VALID_CONFIRMATION.confirmedSet, count: 0 }, op: 0 }],
+    ['a valid id with op out of range', { ...VALID_CONFIRMATION, op: 3 }],
+    ['a valid id with a fractional op', { ...VALID_CONFIRMATION, op: 0.5 }],
+  ])('%s → none of the three; source, session and requestedAt kept', (_label, partial) => {
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => undefined)
+    const decoded = decode(provenanceHeaderOf({ agentSessionId: 's_test-0001', requestedAt: '2026-11-11T10:20:30.456Z', ...partial })[PROVENANCE_HEADER]) as Record<string, unknown>
+    for (const key of TRIPLE) { expect(decoded).not.toHaveProperty(key) }
+    expect(decoded).toEqual({ agentSessionId: 's_test-0001', requestedAt: '2026-11-11T10:20:30.456Z', source: 'portal' })
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining('confirmation'))
+  })
+})
+
+describe('randomId — the confirmationId source — in an INSECURE context', () => {
+  afterEach(() => { vi.unstubAllGlobals() })
+
+  const V4_LOWER = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+
+  it('crypto.randomUUID absent (plain http): getRandomValues still yields a lower-case v4 UUID', () => {
+    const getRandomValues = vi.fn(<T extends ArrayBufferView | null>(bytes: T): T => {
+      if (bytes instanceof Uint8Array) { bytes.fill(0xff) }
+      return bytes
+    })
+    vi.stubGlobal('crypto', { getRandomValues })
+    for (let run = 0; run < 50; run++) { expect(randomId()).toMatch(V4_LOWER) }
+    expect(getRandomValues).toHaveBeenCalled()
+    // All-0xff bytes: the version and variant bits are pinned, everything else lower-case hex.
+    expect(randomId()).toBe('ffffffff-ffff-4fff-bfff-ffffffffffff')
+  })
+
+  it('crypto.randomUUID absent with real random bytes: 500 ids, all valid confirmations', () => {
+    const real = globalThis.crypto
+    vi.stubGlobal('crypto', { getRandomValues: real.getRandomValues.bind(real) })
+    for (let run = 0; run < 500; run++) {
+      const id = randomId()
+      expect(id).toMatch(V4_LOWER)
+      expect(decode(provenanceHeaderOf({ ...VALID_CONFIRMATION, confirmationId: id })[PROVENANCE_HEADER])).toHaveProperty('confirmationId', id)
+    }
+  })
+
+  it('no Web Crypto at all: still a lower-case v4 UUID', () => {
+    vi.stubGlobal('crypto', undefined)
+    for (let run = 0; run < 50; run++) { expect(randomId()).toMatch(V4_LOWER) }
+  })
+
+  it('a randomUUID that returns upper case is normalised, so the triple survives', () => {
+    vi.stubGlobal('crypto', { randomUUID: () => '6F1D2C3B-4A5E-4F60-8B7A-9C0D1E2F3A4B' })
+    expect(randomId()).toBe('6f1d2c3b-4a5e-4f60-8b7a-9c0d1e2f3a4b')
   })
 })
 
@@ -319,7 +396,8 @@ describe('the closed schema — no forbidden field, ever', () => {
       expect(decoded.source).toBe('portal')
       if (decoded.agentSessionId !== undefined) { expect(decoded.agentSessionId).toMatch(/^[A-Za-z0-9_-]{1,128}$/) }
       if (decoded.confirmationId !== undefined) { expect(decoded.confirmationId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/) }
-      expect('confirmedSet' in decoded).toBe('op' in decoded)
+      // The confirmation is all three keys or none (snowplow#1357).
+      expect(['confirmationId', 'confirmedSet', 'op'].filter((key) => key in decoded).length % 3).toBe(0)
       if (decoded.confirmedSet !== undefined) {
         const set = decoded.confirmedSet as Record<string, unknown>
         expect(Object.keys(set).sort()).toEqual(['count', 'irreversible', 'sha256'])
