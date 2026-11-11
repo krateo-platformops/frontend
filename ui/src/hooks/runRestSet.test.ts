@@ -309,3 +309,42 @@ describe('runRestSet — SetDispatchOptions (previewPage v2 sandbox relaxation)'
     expect(ctx.confirm).not.toHaveBeenCalled()
   })
 })
+
+describe('runRestSet — onConfirmed (the commitment point an X5 span starts at)', () => {
+  it('fires ONCE after the confirm is answered and BEFORE the first op is sent', async () => {
+    const order: string[] = []
+    vi.stubGlobal('fetch', vi.fn(() => {
+      order.push('fetch')
+      return Promise.resolve(fakeResponse(true, 201, '{}'))
+    }))
+    const ctx = makeCtx({
+      confirm: vi.fn(() => {
+        order.push('confirm')
+        return Promise.resolve(true)
+      }),
+    })
+    const onConfirmed = vi.fn(() => { order.push('confirmed') })
+
+    await runRestSet(OPS, ctx, undefined, { onConfirmed })
+
+    expect(onConfirmed).toHaveBeenCalledTimes(1)
+    expect(order.slice(0, 3)).toEqual(['confirm', 'confirmed', 'fetch'])
+  })
+
+  it('a DECLINED confirm never fires it: nothing was committed', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, 201))))
+    const onConfirmed = vi.fn()
+
+    await runRestSet(OPS, makeCtx({ confirm: vi.fn(() => Promise.resolve(false)) }), undefined, { onConfirmed })
+
+    expect(onConfirmed).not.toHaveBeenCalled()
+  })
+
+  it('an empty set never fires it', async () => {
+    const onConfirmed = vi.fn()
+
+    await runRestSet([], makeCtx(), undefined, { onConfirmed })
+
+    expect(onConfirmed).not.toHaveBeenCalled()
+  })
+})

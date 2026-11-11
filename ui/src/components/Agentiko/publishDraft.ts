@@ -354,7 +354,11 @@ export const narratedPublishNudge = (held: BlueprintDraftHeld, heldName: string,
 }
 
 export interface PersonPublishDeps extends PublishDraftDeps {
-  /** The provider's `apply` of the compiled set, as a HUMAN write — it raises the blast-radius confirm. */
+  /**
+   * The provider's `apply` of the compiled set, as a HUMAN write — it raises the blast-radius
+   * confirm. The provider's implementation also announces the confirm's answer on the
+   * publish-confirmed bus (AgentikoProvider), which is where `krateo.page.publish` starts.
+   */
   apply: (ops: ApplyResourceSetOp[]) => Promise<AgentikoActionChip | null>
   /** Watch the claim's LocalResources in the rail. */
   track: (claim: PublishStatusClaim) => void

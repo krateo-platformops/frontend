@@ -10,9 +10,17 @@
  * dispatch; the surface that asked needs to know what happened without owning any of it. So the
  * request carries a correlation id and the provider answers with the same one — the composer shows
  * its own result rather than sending the author to the chat rail to find out.
+ *
+ * AND THE MOMENT IT WAS CONFIRMED, on a third event with the same id. Between the press and the
+ * write sit two human gates the provider owns — the destination form ("Where should this page be
+ * committed?") and the blast-radius confirm — and the surface's X5 span (`krateo.page.publish`)
+ * must start at the second one's Confirm, not at the press: the gates are a person's dwell, not
+ * the platform's latency. Only the provider sees that Confirm, so it says when it happened. A
+ * publish cancelled at either gate, or refused before them, emits no confirmation — only a result.
  */
 
 export const AGENTIKO_PUBLISH_REQUEST_EVENT = 'agentikoPublishRequest'
+export const AGENTIKO_PUBLISH_CONFIRMED_EVENT = 'agentikoPublishConfirmed'
 export const AGENTIKO_PUBLISH_RESULT_EVENT = 'agentikoPublishResult'
 
 export interface PublishRequestDetail {
@@ -43,6 +51,27 @@ export const onPublishRequest = (handler: (detail: PublishRequestDetail) => void
   }
   window.addEventListener(AGENTIKO_PUBLISH_REQUEST_EVENT, listener)
   return () => window.removeEventListener(AGENTIKO_PUBLISH_REQUEST_EVENT, listener)
+}
+
+/** The person confirmed the publish's write: the blast-radius confirm was answered, nothing is sent yet. */
+export interface PublishConfirmedDetail {
+  /** The request's id, as on its result. */
+  id: string
+}
+
+export const emitPublishConfirmed = (detail: PublishConfirmedDetail): void => {
+  window.dispatchEvent(new CustomEvent<PublishConfirmedDetail>(AGENTIKO_PUBLISH_CONFIRMED_EVENT, { detail }))
+}
+
+export const onPublishConfirmed = (handler: (detail: PublishConfirmedDetail) => void): (() => void) => {
+  const listener = (event: Event): void => {
+    const { detail } = event as CustomEvent<PublishConfirmedDetail>
+    if (detail && typeof detail.id === 'string') {
+      handler(detail)
+    }
+  }
+  window.addEventListener(AGENTIKO_PUBLISH_CONFIRMED_EVENT, listener)
+  return () => window.removeEventListener(AGENTIKO_PUBLISH_CONFIRMED_EVENT, listener)
 }
 
 export const emitPublishResult = (detail: PublishResultDetail): void => {

@@ -652,7 +652,11 @@ export const useAgentikoActionBridge = (
   // + its session id + the user's latest prompt). It is threaded into EVERY dispatch this
   // bridge drives, so a write reached through runAction / patchField / applyResourceSet is
   // audited as agent-originated; read-only verbs carry it harmlessly (no write → no record).
-  const apply = useCallback(async (proposal: PortalActionProposal, origin?: WriteOrigin): Promise<AgentikoActionChip | null> => {
+  //
+  // `dispatch.onConfirmed` is heard only by `applyResourceSet` — the one branch a caller needs the
+  // gate's moment from: a person's Publish starts its X5 span when the blast-radius confirm is
+  // answered (SetDispatchOptions.onConfirmed). Every other branch ignores it.
+  const apply = useCallback(async (proposal: PortalActionProposal, origin?: WriteOrigin, dispatch?: Pick<SetDispatchOptions, 'onConfirmed'>): Promise<AgentikoActionChip | null> => {
     if (origin?.actor === 'agent' && (isComposeVerb(proposal.verb) || proposal.verb === 'previewBlueprint' || proposal.verb === 'previewPage')) {
       onAgentDraftProposal?.()
     }
@@ -837,7 +841,7 @@ export const useAgentikoActionBridge = (
       // carve-out: widget-CR / restactions ops are allowed ONLY into that exact
       // namespace (absent config = they are always denied — never hand-applied).
       return applyResourceSet(proposal as unknown as ApplyResourceSetProposal, {
-        handleActionSet: (ops) => handleActionSet(ops, origin),
+        handleActionSet: (ops) => handleActionSet(ops, origin, dispatch),
         ...(sandboxNamespace ? { sandboxNamespace } : {}),
       })
     }
