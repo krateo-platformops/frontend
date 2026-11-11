@@ -360,7 +360,11 @@ export const agentikoAntdTheme = (mode: ThemeMode): ThemeConfig => {
       colorLinkActive: ap.accentActive,
     },
     components: {
-      Button: { primaryColor: ap.onFill, primaryShadow: 'none' },
+      // The label of a plain primary inside an agent surface. antd paints it on the accent, which in
+      // dark is #A86BDC: white there is 3.62:1, so dark takes the panel ink like the root theme.
+      // The agent's own filled control (Button `intent: agentiko`) paints the brand gradient and
+      // its white label in Button.module.css, which this does not reach.
+      Button: { primaryColor: mode === 'dark' ? colorDark.panelbg : ap.onFill, primaryShadow: 'none' },
     },
   }
 }
@@ -524,17 +528,12 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   Badge: { dotSize: 5, indicatorHeight: 18, indicatorHeightSM: 12, statusSize: 5, textFontSize: textPx('label-xs'), textFontSizeSM: textPx('label-xs') },
   // T2 display group. Breadcrumb also themes the shell's own Breadcrumb (components/Breadcrumb).
   Breadcrumb: { iconFontSize: textPx('caption'), separatorMargin: spacing.xs },
-  Button: {
-    borderRadius: radius.md,
-    controlHeight: 32,
-    fontWeight: typography.weight.bold,
-    primaryShadow: 'none',
-    // WCAG AA: a solid fill's label is `colorTextLightSolid`. The PRIMARY solid never shows its
-    // fill — ui/index.css's primary wash draws it as a tint with a `--primary-color` label — so
-    // this pairing is what antd's other solid fills (danger, …) and the wash-less states get. Light
-    // keeps antd's white; dark, where the primary is the light tint #C27AFF, flips to dark ink.
-    ...(mode === 'dark' ? { colorTextLightSolid: palette.panelbg } : {}),
-  },
+  // WCAG AA: a solid fill's label is `colorTextLightSolid` (antd's `primaryColor` defaults to it).
+  // The primary button is antd's own solid in both modes. Light keeps antd's white on the violet
+  // (5.39:1); in dark antd paints the #C27AFF seed as #A86BDC, where white is 3.62:1 and the panel
+  // ink 5.26:1, so dark flips to the ink. The hover and pressed fills are set on the theme tokens
+  // below; tokens.contrast.test.ts pins every state.
+  Button: { borderRadius: radius.md, controlHeight: 32, fontWeight: typography.weight.bold, primaryShadow: 'none', ...(mode === 'dark' ? { colorTextLightSolid: palette.panelbg } : {}) },
   Card: {
     borderRadiusLG: radius.lg,
     boxShadowTertiary: mode === 'dark' ? elevationDark.sm : elevation.sm,
@@ -650,6 +649,9 @@ export const lightTheme: ThemeConfig = {
     colorInfo: color.info,
     colorLink: '#8700DB',
     colorPrimary: color.primary,
+    // antd derives the hover step #B429FF, lighter than the violet: white on it is 4.47:1, under AA
+    // for a primary button's label. The brand's own hover step is darker, #8700DB (6.88:1).
+    colorPrimaryHover: KRATEO_SEMANTIC_LIGHT['color-action-primary-hover'],
     colorSuccess: color.success,
     ...textTokens(color),
     colorWarning: color.warning,
@@ -679,6 +681,9 @@ export const darkTheme: ThemeConfig = {
     colorInfo: colorDark.info,
     colorLink: '#CF94FF',
     colorPrimary: colorDark.primary,
+    // antd derives the pressed step #8556AD, darker than the painted #A86BDC: the panel ink on it is
+    // 3.56:1, under AA for a primary button's label. The brand's own pressed step, #B35CFF, gives 5.34:1.
+    colorPrimaryActive: KRATEO_SEMANTIC_DARK['color-action-primary-active'],
     colorSuccess: colorDark.success,
     ...textTokens(colorDark),
     colorWarning: colorDark.warning,

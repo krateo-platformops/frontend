@@ -3,10 +3,9 @@
  *
  * The first block pins the primary's own pairs: the light primary (brand violet #9E00FF) under a
  * white label, the dark primary (the tint #C27AFF) failing under white and passing under dark ink —
- * the reason the dark Button flips `colorTextLightSolid`. The wash block below pins the pair the
- * portal actually DRAWS for a primary button (ui/index.css): a label over a 14–28% tint of the
- * primary on the panel and the page ground. Pinning primary-on-white alone let that pair ship at
- * 3.6–4.2:1 (audit 2026-11, C2).
+ * the reason the dark Button flips `colorTextLightSolid`. The solid-primary block below pins what
+ * antd actually PAINTS for a primary button, in every state: the label on the fill, and the fill
+ * against the surfaces it sits on.
  */
 
 import { readFileSync } from 'node:fs'
@@ -79,74 +78,91 @@ describe('Primary button — the primary\'s own label pairs', () => {
   })
 })
 
-/**
- * The primary WASH (ui/index.css): what a primary button actually draws — its label over the
- * primary mixed into the ground at 14% (rest), 22% (hover / focus) and 28% (active). The label is
- * the primary mixed by the mode's `--primary-wash-label-mix` toward its `--primary-wash-label-ink`
- * (72% toward black in light, 85% toward white in dark).
- * Both percentages are read from the stylesheet, so a change there is measured here.
- */
 const indexCss = readFileSync(join(__dirname, '..', '..', 'index.css'), 'utf8')
 
 const toRgb = (hex: string): number[] => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
 const toHex = (rgb: number[]): string => `#${rgb.map((channel) => Math.round(channel).toString(16).padStart(2, '0')).join('')}`
-/** `color-mix(in srgb, a p, b)` — p of a, the rest of b. */
-const mix = (first: string, second: string, share: number): string => {
-  const [from, to] = [toRgb(first), toRgb(second)]
-  return toHex(from.map((channel, index) => channel * share + to[index] * (1 - share)))
-}
+/** antd writes white as `#fff`; the helpers above read six digits. */
+const sixDigit = (hex: string): string => (hex.length === 4 ? `#${[...hex.slice(1)].map((digit) => digit + digit).join('')}` : hex)
 
-const labelScope = (mode: 'light' | 'dark'): string => {
-  const found = indexCss.match(mode === 'dark' ? /\n\[data-theme="dark"\]\s*\{([^}]*)\}/ : /\n:root\s*\{([^}]*)\}/)
-  if (!found) { throw new Error(`index.css has no ${mode} scope for the wash label`) }
-  return found[1]
-}
-const labelMix = (mode: 'light' | 'dark'): number => {
-  const found = labelScope(mode).match(/--primary-wash-label-mix:\s*(\d+)%/)
-  if (!found) { throw new Error(`index.css declares no --primary-wash-label-mix for ${mode}`) }
-  return Number(found[1]) / 100
-}
-const labelInk = (mode: 'light' | 'dark'): string => {
-  const found = labelScope(mode).match(/--primary-wash-label-ink:\s*(black|white)/)
-  if (!found) { throw new Error(`index.css declares no --primary-wash-label-ink for ${mode}`) }
-  return found[1] === 'white' ? '#FFFFFF' : '#000000'
-}
-const washLabel = (mode: 'light' | 'dark'): string =>
-  mix(mode === 'dark' ? colorDark.primary : color.primary, labelInk(mode), labelMix(mode))
-
-const washSteps = [...indexCss.matchAll(/background:\s*color-mix\(in srgb, var\(--primary-color\) (\d+)%, transparent\)/g)].map((match) => Number(match[1]) / 100)
-
-describe('Primary wash — the label AA on the composited wash it is drawn on', () => {
-  it('finds the wash steps and the label mix in index.css (the regexes did not silently match nothing)', () => {
-    expect(washSteps).toEqual([0.14, 0.22, 0.28])
-    expect(labelMix('light')).toBeLessThan(1)
-    expect(labelMix('dark')).toBeLessThan(1)
-  })
-
-  it('light: the label is the brand\'s accentActive (#7200B8) for the Agentiko violet', () => {
-    expect(washLabel('light').toUpperCase()).toBe(agentikoBrand.light.accentActive.toUpperCase())
-  })
-
-  it('dark: the label is the tint lightened toward white (#CB8EFF)', () => {
-    expect(labelInk('dark')).toBe('#FFFFFF')
-    expect(washLabel('dark').toUpperCase()).toBe('#CB8EFF')
-  })
+/**
+ * The SOLID primary button, as antd paints it (no stylesheet repaints it any more: ui/index.css's
+ * 14% wash, which drew it at 1.21:1 / 1.29:1 against the panel, is gone). antd's solid primary
+ * fills with `colorPrimary`, `colorPrimaryHover` and `colorPrimaryActive` and writes its label in
+ * the Button's `primaryColor`, which defaults to `colorTextLightSolid` (antd/es/button/style). The
+ * fills are read from `getDesignToken`, because antd's dark algorithm moves the seed before painting
+ * (#C27AFF is painted #A86BDC); the label is the component's own token where the theme sets one.
+ *
+ * Each state must carry its label (AA, 4.5:1) and stand off the surface it sits on (WCAG 1.4.11,
+ * 3:1): the panel and the page ground. The agent's surfaces nest their own antd theme
+ * (AgentikoBrandScope), so a plain primary inside them is measured the same way.
+ * visual/primaryButton.spec.ts reads the same pairs off a real browser.
+ */
+describe('Primary button — the solid antd paints, in every state', () => {
+  const STATES = { active: 'colorPrimaryActive', hover: 'colorPrimaryHover', rest: 'colorPrimary' } as const
+  const scopes = {
+    'agent surface': (mode: 'light' | 'dark') => ({
+      ...(mode === 'dark' ? darkTheme : lightTheme),
+      components: { ...(mode === 'dark' ? darkTheme : lightTheme).components, ...agentikoAntdTheme(mode).components },
+      token: { ...(mode === 'dark' ? darkTheme : lightTheme).token, ...agentikoAntdTheme(mode).token },
+    }),
+    portal: (mode: 'light' | 'dark') => (mode === 'dark' ? darkTheme : lightTheme),
+  }
+  const painted = (config: ReturnType<typeof scopes.portal>) => {
+    const token = antdTheme.getDesignToken(config)
+    const button = config.components?.Button
+    const label = sixDigit(String(button?.primaryColor ?? button?.colorTextLightSolid ?? token.colorTextLightSolid))
+    return { fill: (state: keyof typeof STATES) => sixDigit(String(token[STATES[state]])), label }
+  }
 
   ;(['light', 'dark'] as const).forEach((mode) => {
     const palette = mode === 'dark' ? colorDark : color
-    const label = washLabel(mode)
-    ;[['panel', palette.panelbg], ['page ground', palette.background]].forEach(([groundName, ground]) => {
-      washSteps.forEach((step) => {
-        it(`${mode}: label on the ${Math.round(step * 100)}% wash over the ${groundName} passes AA >= 4.5:1`, () => {
-          expect(contrastRatio(label, mix(palette.primary, ground, step))).toBeGreaterThanOrEqual(4.5)
+    ;(Object.keys(scopes) as (keyof typeof scopes)[]).forEach((scope) => {
+      const { fill, label } = painted(scopes[scope](mode))
+      ;(Object.keys(STATES) as (keyof typeof STATES)[]).forEach((state) => {
+        it(`${mode} · ${scope} · ${state}: the label on the fill passes AA >= 4.5:1`, () => {
+          const ratio = contrastRatio(label, fill(state))
+          expect(ratio, `${label} on ${fill(state)} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5)
+        })
+        ;[['panel', palette.panelbg], ['page ground', palette.background]].forEach(([groundName, ground]) => {
+          it(`${mode} · ${scope} · ${state}: the fill stands off the ${groundName} >= 3:1`, () => {
+            const ratio = contrastRatio(fill(state), ground)
+            expect(ratio, `${fill(state)} on ${ground} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(3)
+          })
         })
       })
     })
   })
 
-  it('the bare primary FAILS on its own wash in both modes (documents why the label is mixed)', () => {
-    expect(contrastRatio(color.primary, mix(color.primary, color.panelbg, 0.22))).toBeLessThan(4.5)
-    expect(contrastRatio(colorDark.primary, mix(colorDark.primary, colorDark.panelbg, 0.28))).toBeLessThan(4.5)
+  it('light: the hover is the brand\'s own step, because antd\'s derived #B429FF fails white (documents the override)', () => {
+    expect(antdTheme.getDesignToken(lightTheme).colorPrimaryHover.toUpperCase()).toBe('#8700DB')
+    const { colorPrimaryHover: _hover, ...seeds } = lightTheme.token ?? {}
+    const derived = antdTheme.getDesignToken({ ...lightTheme, token: seeds }).colorPrimaryHover
+    expect(contrastRatio('#FFFFFF', sixDigit(derived))).toBeLessThan(4.5)
+  })
+
+  it('dark: the pressed step is the brand\'s own, because antd\'s derived one fails the ink (documents the override)', () => {
+    expect(antdTheme.getDesignToken(darkTheme).colorPrimaryActive.toUpperCase()).toBe('#B35CFF')
+    const { colorPrimaryActive: _active, ...seeds } = darkTheme.token ?? {}
+    const derived = antdTheme.getDesignToken({ ...darkTheme, token: seeds }).colorPrimaryActive
+    expect(contrastRatio(colorDark.panelbg, sixDigit(derived))).toBeLessThan(4.5)
+  })
+
+  it('dark: white on the painted primary FAILS (documents the dark ink, in the portal and on agent surfaces)', () => {
+    expect(contrastRatio('#FFFFFF', sixDigit(antdTheme.getDesignToken(darkTheme).colorPrimary))).toBeLessThan(4.5)
+  })
+
+  /**
+   * The fill above is only what is drawn if no stylesheet repaints it. ui/index.css did, with a
+   * translucent wash that measured 1.21:1 (dark) and 1.29:1 (light) against the panel: the token
+   * pairs passed while the button read as disabled. No global rule may name the solid primary.
+   */
+  it('ui/index.css does not repaint the solid primary button', () => {
+    const css = indexCss.replace(/\/\*[\s\S]*?\*\//g, '')
+    const repaints = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .filter((match) => /\.ant-btn-(color-primary|primary)\b/.test(match[1]) && /\b(background|background-color|color|border-color)\s*:/.test(match[2]))
+      .map((match) => match[1].trim())
+    expect(repaints).toEqual([])
   })
 })
 
@@ -351,10 +367,12 @@ describe('Agentiko — WCAG AA for the primary and the agent\'s surfaces', () =>
       })
     })
 
-    it(`${mode}: the nested antd theme carries the same accent and the white label`, () => {
+    it(`${mode}: the nested antd theme carries the same accent, and a plain primary's label is the portal's`, () => {
       const nested = agentikoAntdTheme(mode)
       expect(nested.token?.colorPrimary).toBe(ap.accent)
-      expect(nested.components?.Button?.primaryColor).toBe(ap.onFill)
+      // White in light; in dark antd paints the accent #A86BDC, where white fails, so the panel ink.
+      // The gradient control's white label is Button.module.css's, not this token.
+      expect(nested.components?.Button?.primaryColor).toBe(mode === 'dark' ? colorDark.panelbg : ap.onFill)
     })
   })
 
@@ -488,9 +506,6 @@ describe('Coloured fills — the ink each component paints on its fill, in both 
   const emitted = (mode: keyof typeof themes) => antdTheme.getDesignToken(themes[mode])
   const ink = (mode: keyof typeof themes, component: Component): string =>
     String(themes[mode].components?.[component]?.colorTextLightSolid ?? emitted(mode).colorTextLightSolid)
-  /** antd writes white as `#fff`; the helpers above read six digits. */
-  const sixDigit = (hex: string): string => (hex.length === 4 ? `#${[...hex.slice(1)].map((digit) => digit + digit).join('')}` : hex)
-
   const PAIRS: { component: Component; fill: (mode: keyof typeof themes) => string; minimum: number; name: string }[] = [
     // The current step's number on the primary (create wizard, architecture, remediation, review steps).
     { component: 'Steps', fill: (mode) => emitted(mode).colorPrimary, minimum: 4.5, name: 'the current step number on the primary' },
