@@ -1,5 +1,5 @@
-import { Button, Form, Select as AntdSelect } from 'antd'
-import { type ReactNode, useEffect, useState } from 'react'
+import { Button, Form, Select as AntdSelect, type RefSelectProps } from 'antd'
+import { type KeyboardEvent, type ReactNode, type RefObject, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 
 import type { WidgetProps } from '../../types/Widget'
@@ -39,6 +39,18 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
   // Apply button did nothing (bug: "clicco su Apply, non succede nulla"). Controlling `open` here
   // lets Apply/Clear close (or keep) the popup deterministically instead of hoping for a blur.
   const [open, setOpen] = useState(false)
+
+  // The open switcher panel's keyboard stops, in the order they read on screen: the "All projects"
+  // row, the option list, Clear, Apply. The list is antd's combobox input (`selectRef.focus()` lands
+  // there), which lives in the trigger while the rest sit in the popup portal, so the browser's own
+  // Tab order cannot join them: rc-select's list takes Tab as "select the active option" and
+  // prevents it, and the portal is mounted at the end of <body>. Tab / Shift+Tab therefore step
+  // through this ring, wrapping at either end while the panel is open; Escape leaves it.
+  const selectRef = useRef<RefSelectProps>(null)
+  const masterRef = useRef<HTMLButtonElement>(null)
+  const clearRef = useRef<HTMLButtonElement>(null)
+  const applyRef = useRef<HTMLButtonElement>(null)
+  const panelStops: RefObject<{ focus: () => void } | null>[] = [masterRef, selectRef, clearRef, applyRef]
 
   // STAGED multi-select: toggles do NOT apply. `staged` is a working copy the user edits while the
   // popup is open; Apply commits it to `?<queryParam>=`, closing without Apply discards it. While the
@@ -93,10 +105,44 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
     const onStage = (next?: string | string[]) => {
       setStaged(([] as string[]).concat(next ?? []).filter((entry) => entry !== ALL_SCOPE))
     }
-    // Apply: commit the staged selection to the URL and close the popup.
+    // Apply: commit the staged selection to the URL, close the popup and give focus back to the
+    // picker (from the keyboard, focus was on Apply, which closing the popup would leave on <body>).
+    // That holds while the picker stays mounted. In the portal shell today a changed scope re-keys
+    // the root `app-shell` widget (Shell.tsx, INIT in `page` scope), which remounts the header with
+    // this picker in it, and the new picker does not hold the focus.
     const apply = () => {
       commit(staged)
       setOpen(false)
+      selectRef.current?.focus()
+    }
+
+    // Tab / Shift+Tab from panel stop `index` moves to the next / previous stop of the ring.
+    const tabFrom = (index: number, event: KeyboardEvent) => {
+      event.preventDefault()
+      const step = event.shiftKey ? -1 : 1
+      panelStops[(index + step + panelStops.length) % panelStops.length].current?.focus()
+    }
+
+    // The option list (the combobox input), while the panel is open. Tab is caught here, on the
+    // input, before it bubbles to rc-select's root handler, whose list would take it as "toggle the
+    // active option". Closed, Tab is left alone and moves on through the page.
+    const onListKeyDown = (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (open && event.key === 'Tab') {
+        event.stopPropagation()
+        tabFrom(panelStops.indexOf(selectRef), event)
+      }
+    }
+
+    // A panel button: Tab walks the ring; Escape discards the staged selection (closing resyncs
+    // `staged` from the URL) and returns focus to the picker, as Escape does from the list.
+    const onPanelButtonKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+      if (event.key === 'Tab') {
+        tabFrom(panelStops.findIndex((stop) => stop.current === event.currentTarget), event)
+      } else if (event.key === 'Escape') {
+        event.stopPropagation()
+        setOpen(false)
+        selectRef.current?.focus()
+      }
     }
 
     if (!isMulti) {
@@ -142,14 +188,19 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
       )
     }
 
-    // the §02 switcher panel, rendered around antd's option `menu`. Interactive bits use
-    // onMouseDown + preventDefault so the click doesn't blur/close the popup.
+    // the §02 switcher panel, rendered around antd's option `menu`. Its buttons act on click, so
+    // Enter / Space work as for any button; their mousedown is prevented only so that a pointer
+    // press keeps focus on the list rather than moving it into the panel.
+    const keepListFocus = (event: { preventDefault: () => void }) => { event.preventDefault() }
     const renderPanel = (menu: ReactNode) => (
       <div>
         <div className={styles.panelHead}>{label ?? placeholder ?? 'Projects'}</div>
         <button
           className={`${styles.masterRow} ${isAll ? styles.masterOn : ''}`}
-          onMouseDown={(event) => { event.preventDefault(); setStaged([]) }}
+          onClick={() => setStaged([])}
+          onKeyDown={onPanelButtonKeyDown}
+          onMouseDown={keepListFocus}
+          ref={masterRef}
           type='button'
         >
           <span className={`${styles.checkBox} ${isAll ? styles.checkBoxOn : ''}`}>{isAll ? '✓' : ''}</span>
@@ -160,14 +211,16 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
         {menu}
         <div className={styles.panelApply}>
           {/* Clear stages "all" (setStaged([])) but keeps the popup OPEN so the user can keep
-              picking — preventDefault stops the mousedown from stealing focus mid-interaction.
-              Apply is "done": it COMMITS the staged selection to the URL and closes the popup via
-              the controlled `open` state. It must NOT rely on a native blur to close — in antd 6 an
-              in-popup mousedown re-opens the popup (see the `open` state above), which is why the
-              old blur-only Apply silently did nothing. */}
-          <Button onMouseDown={(event) => { event.preventDefault(); setStaged([]) }} size='small'>Clear</Button>
+              picking. Apply is "done": it COMMITS the staged selection to the URL and closes the
+              popup via the controlled `open` state. It must NOT rely on a native blur to close — in
+              antd 6 an in-popup mousedown re-opens the popup (see the `open` state above), which is
+              why the old blur-only Apply silently did nothing. */}
+          <Button onClick={() => setStaged([])} onKeyDown={onPanelButtonKeyDown} onMouseDown={keepListFocus} ref={clearRef} size='small'>Clear</Button>
           <Button
-            onMouseDown={(event) => { event.preventDefault(); apply() }}
+            onClick={apply}
+            onKeyDown={onPanelButtonKeyDown}
+            onMouseDown={keepListFocus}
+            ref={applyRef}
             size='small'
             type='primary'
           >
@@ -192,6 +245,7 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
         mode={mode}
         // Stage-only: a toggle updates `staged`, it does NOT touch the URL. Apply commits.
         onChange={onStage}
+        onInputKeyDown={onListKeyDown}
         // Own the popup open-state so Apply/Clear can close/keep it deterministically instead of
         // relying on a native blur that antd 6 no longer produces for an in-popup click.
         onOpenChange={setOpen}
@@ -200,6 +254,7 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
         options={options}
         popupMatchSelectWidth={popupWidth}
         popupRender={renderPanel}
+        ref={selectRef}
         // #86 §0.1: the leading prefix dot was removed — it read as a stray indicator, and the
         // "All projects" value centres in the control (Select.module.css .allScope).
         // #80 §0.6: this multi-select filters via its custom checkbox popup (popupRender), so antd's
