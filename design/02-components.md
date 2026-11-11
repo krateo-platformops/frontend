@@ -28,6 +28,8 @@ Filed as “four different implementations, three different inconsistencies.” 
 
 Worth stating because of what follows: the ring is **not** broken. It applies to nothing in C11–C13 because those elements never receive focus at all. Fix focusability and the ring works for free.
 
+> **2026-11-11.** One exception to "for free" was antd's Button. antd paints its own outline on it with a more specific selector (`.ant-btn:not(:disabled):focus-visible`, (0,3,0)), in the pale `colorPrimaryBorder`: 2.57:1 on the light panel and 1.72:1 on the dark one, under 1.4.11's 3:1. The same rule now names that selector too, so every Button type wears the one ring. Any other antd part that draws its own ring needs the same treatment. `tokens.contrast.test.ts` pins the ring's contrast, and `ui/visual/focus.spec.ts` checks it in Chromium.
+
 *Evidence: verified `ui/index.css:112-115`*
 
 ### C4 — A non-modal docked panel implements its own focus trap and Escape handling.

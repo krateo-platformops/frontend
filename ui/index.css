@@ -127,9 +127,20 @@ body {
  * lack a visible focus indicator" a11y gap (WCAG 2.4.7 Focus Visible). The focus colour is the
  * primary in BOTH modes (Agentiko violet #9E00FF light / its tint #C27AFF dark, T11), which is
  * exactly --primary-color, so no separate focus token is needed. :focus-visible shows
- * it on keyboard nav only (not mouse clicks); it rides ABOVE antd's own focus shadow.
+ * it on keyboard nav only (not mouse clicks).
+ *
+ * antd Buttons are named as well, because antd draws its own ring on them and that one won:
+ * `:where(.css-var-…).ant-btn:not(:disabled):focus-visible` (antd's genFocusStyle) is (0,3,0) to
+ * the universal rule's (0,1,0), and it paints `lineWidthFocus` in `colorPrimaryBorder`, the
+ * primary's pale step: 2.57:1 on the light panel and 1.72:1 on the dark one, under the 3:1 a focus
+ * indicator needs (WCAG 1.4.11). The theme cannot fix that by itself: the button's outline offset
+ * is a literal 1px in antd, not a token. The Button selector is the same (0,3,0) and wins on order,
+ * since antd's styles are inserted at the top of <head>. Every Button type gets it, and disabled
+ * ones are excluded the way antd excludes them. tokens.contrast.test.ts pins the ring's contrast on
+ * the surfaces it is drawn over, and visual/focus.spec.ts checks it in a real browser.
  */
-*:focus-visible {
+*:focus-visible,
+.ant-btn:not(:disabled):focus-visible {
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }

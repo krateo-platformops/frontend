@@ -583,3 +583,59 @@ describe('List row icons — white where it reads, the dark ink where it does no
     expect(inkOnFill(colorDark.darkBlue, 'dark')).toBe('#FFFFFF')
   })
 })
+
+/**
+ * The keyboard focus ring (ui/index.css, Tier-2 locked), WCAG 1.4.11: a focus indicator needs 3:1
+ * against what it is drawn over. The ring is 2px of `--primary-color` with a 2px offset, so it sits
+ * on the surface AROUND the control, never on the control's own fill: the page ground, a panel or
+ * card, an elevated popover or modal, a table header or hover row, and the black sidebar rail.
+ *
+ * antd Buttons are named in the same rule, because antd's own Button outline outranks the universal
+ * selector and paints `colorPrimaryBorder` instead. The last test documents that colour failing, so
+ * removing the Button selector is not a neutral clean-up. The rule's shape is read from the
+ * stylesheet, so the colour paired here is the one the ring actually uses.
+ */
+describe('Focus ring — WCAG 1.4.11 >= 3:1 on every surface it is drawn over', () => {
+  const NON_TEXT_MIN = 3
+  const css = indexCss.replace(/\/\*[\s\S]*?\*\//g, '')
+  const ring = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .map((match) => ({ body: match[2], selectors: match[1].split(/,(?![^(]*\))/).map((selector) => selector.trim()) }))
+    .find((rule) => rule.selectors.includes('*:focus-visible'))
+
+  it('index.css declares the ring: 2px solid --primary-color, 2px offset', () => {
+    expect(ring, 'no `*:focus-visible` rule in index.css').toBeDefined()
+    expect(ring?.body).toMatch(/outline:\s*2px solid var\(--primary-color\);/)
+    expect(ring?.body).toMatch(/outline-offset:\s*2px;/)
+  })
+
+  it('the same rule names every enabled antd Button, at antd\'s own specificity', () => {
+    expect(ring?.selectors).toContain('.ant-btn:not(:disabled):focus-visible')
+  })
+
+  ;([['light', color, lightTheme], ['dark', colorDark, darkTheme]] as const).forEach(([mode, palette, theme]) => {
+    const rail = String(theme.components?.Layout?.triggerBg)
+    const surfaces: [string, string][] = [
+      ['page ground (background)', palette.background],
+      ['panel / card (panelbg)', palette.panelbg],
+      ['popover / modal (light = colorBgElevated)', palette.light],
+      ['table header / hover (lightgray)', palette.lightgray],
+      ['sidebar rail (Layout.triggerBg)', rail],
+    ]
+
+    surfaces.forEach(([name, surface]) => {
+      it(`${mode}: the ring (${palette.primary}) on the ${name} ${surface} is >= 3:1`, () => {
+        const ratio = contrastRatio(palette.primary, surface)
+        expect(ratio, `${mode} ring ${palette.primary} on ${surface} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(NON_TEXT_MIN)
+      })
+    })
+
+    it(`${mode}: inside the Agentiko rail the re-pointed --primary-color is the same colour`, () => {
+      expect(agentikoBrand[mode].accent).toBe(palette.primary)
+    })
+
+    it(`${mode}: antd's own Button outline (colorPrimaryBorder) FAILS on the panel (documents the Button selector)`, () => {
+      const antdRing = String((antdTheme.getDesignToken(theme) as unknown as Record<string, unknown>).colorPrimaryBorder)
+      expect(contrastRatio(antdRing, palette.panelbg)).toBeLessThan(NON_TEXT_MIN)
+    })
+  })
+})
