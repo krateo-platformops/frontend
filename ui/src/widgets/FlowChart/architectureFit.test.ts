@@ -42,8 +42,9 @@ const lr = (width: number, density?: 'compact' | 'regular'): ArchitectureFit =>
 const row = ({ density, overflows, rankGap, scale, size, step }: ArchitectureFit) => [step, density, rankGap, scale, size[0], overflows]
 
 describe('the builder-publish chain', () => {
-  it('is four ranks of one card', () => {
-    expect(CHAIN).toEqual({ broadest: 1, ranks: 4 })
+  it('is four ranks of one card, on one baseline', () => {
+    // One row (the baseline), and Repository → LocalResource arcs over the Repo: one arc level.
+    expect(CHAIN).toEqual({ arcLevels: 1, broadest: 1, ranks: 4, rows: 1 })
   })
 
   // The box width → what is drawn. "Fits" is the placement's: the drawing plus 16px either side.
@@ -93,9 +94,9 @@ describe('the order, at every width', () => {
 
   it.each([
     ['the builder-publish chain', CHAIN],
-    ['one card', { broadest: 1, ranks: 1 }],
-    ['two ranks', { broadest: 1, ranks: 2 }],
-    ['six ranks, three wide', { broadest: 3, ranks: 6 }],
+    ['one card', { arcLevels: 0, broadest: 1, ranks: 1, rows: 1 }],
+    ['two ranks', { arcLevels: 0, broadest: 1, ranks: 2, rows: 1 }],
+    ['six ranks, three wide', { arcLevels: 0, broadest: 3, ranks: 6, rows: 3 }],
   ])('%s: narrowing the box only ever moves to a later step, and what is not past the floor fits', (_name, shape: ArchitectureShape) => {
     let reached = 0
     for (let width = 2400; width >= 120; width -= 1) {
@@ -132,7 +133,7 @@ describe('the order, at every width', () => {
 })
 
 describe('a single node', () => {
-  const ONE = { broadest: 1, ranks: 1 }
+  const ONE = { arcLevels: 0, broadest: 1, ranks: 1, rows: 1 }
   it.each([
     [1400, ['none', 'regular', 160, 1, 240, false]],
     // 240 + 32 = 272 is the regular card's edge; under it the compact card (180 + 32 = 212) fits.
@@ -173,28 +174,28 @@ describe('TB: the gap runs down the box, so its height is measured, and the widt
     architectureFit(shape, { box, density, direction: 'TB' })
 
   it('four ranks, density not set: regular cannot fit 328px of height even at 56px gaps (504), compact does (320)', () => {
-    const fit = tb({ broadest: 1, ranks: 4 }, [415, 360])
+    const fit = tb({ arcLevels: 0, broadest: 1, ranks: 4, rows: 1 }, [415, 360])
     expect([fit.step, fit.density, fit.rankGap, fit.size, fit.overflows, fit.overflowsBelow]).toEqual(['compact', 'compact', 32, [180, 320], false, false])
   })
 
   it('three ranks in a taller box: the regular card with its vertical gap closed to fit', () => {
     // 600 − 32 = 568px: 3 × 84 + 2 × g ≤ 568 → g ≤ 158, stepped to 152. One 240px card is the width.
-    const fit = tb({ broadest: 1, ranks: 3 }, [415, 600])
+    const fit = tb({ arcLevels: 0, broadest: 1, ranks: 3, rows: 1 }, [415, 600])
     expect([fit.step, fit.density, fit.rankGap, fit.size]).toEqual(['gap', 'regular', 152, [240, 556]])
   })
 
   it('explicit compact, six deep: past the floor it runs off the bottom, and says so there only', () => {
-    const fit = tb({ broadest: 1, ranks: 6 }, [415, 360], 'compact')
+    const fit = tb({ arcLevels: 0, broadest: 1, ranks: 6, rows: 1 }, [415, 360], 'compact')
     expect([fit.step, fit.size, fit.overflows, fit.overflowsBelow]).toEqual(['overflow', [180, 496], false, true])
   })
 
   it('a row wider than the box is the right-hand fade, whatever the gap', () => {
-    const fit = tb({ broadest: 3, ranks: 2 }, [415, 360], 'compact')
+    const fit = tb({ arcLevels: 0, broadest: 3, ranks: 2, rows: 3 }, [415, 360], 'compact')
     expect([fit.step, fit.overflows, fit.overflowsBelow]).toEqual(['overflow', true, false])
   })
 
   it('LR measures no height: a column taller than the box changes nothing', () => {
-    const fit = architectureFit({ broadest: 5, ranks: 2 }, { box: [1200, 360], direction: 'LR' })
+    const fit = architectureFit({ arcLevels: 0, broadest: 5, ranks: 2, rows: 5 }, { box: [1200, 360], direction: 'LR' })
     expect([fit.step, fit.density, fit.overflowsBelow]).toEqual(['none', 'regular', false])
   })
 })
@@ -229,10 +230,10 @@ describe('the type floor (step 3)', () => {
   })
 
   it('scales TB against both the height and the broadest row', () => {
-    const fit = architectureFit({ broadest: 1, ranks: 6 }, { box: [415, 360], density: 'compact', direction: 'TB', roleSize: larger })
+    const fit = architectureFit({ arcLevels: 0, broadest: 1, ranks: 6, rows: 1 }, { box: [415, 360], density: 'compact', direction: 'TB', roleSize: larger })
     // 328 / 496 = 0.661…, under 0.8: the floor.
     expect([fit.step, fit.scale, fit.overflowsBelow]).toEqual(['overflow', 0.8, true])
-    const five = architectureFit({ broadest: 1, ranks: 5 }, { box: [415, 360], density: 'compact', direction: 'TB', roleSize: larger })
+    const five = architectureFit({ arcLevels: 0, broadest: 1, ranks: 5, rows: 1 }, { box: [415, 360], density: 'compact', direction: 'TB', roleSize: larger })
     // 5 × 56 + 4 × 32 = 408; 328 / 408 = 0.80…
     expect([five.step, five.scale, five.overflowsBelow]).toEqual(['scale', 0.8, false])
   })

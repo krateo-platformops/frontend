@@ -13,8 +13,11 @@
  * take the theme's neutral tokens, dashed where they point into a node that is still withheld.
  */
 import {
+  baselineSize,
+  baselineStructure,
   GRAPH_LAYOUT,
   NATURAL_PADDING,
+  type BaselineShape,
   type EdgeAppearance,
   type GraphDirection,
   type GraphEdge,
@@ -73,37 +76,6 @@ export const ARCHITECTURE_DENSITY: Record<ArchitectureDensity, { nodeSize: [numb
   regular: { nodeSize: ARCHITECTURE_NODE_SIZE },
 }
 
-/**
- * Each node's rank: its step in the longest chain of active dependencies, which is what `level`
- * means in the descriptor — computed here from the edges rather than read from the data, because
- * the widget is given `parentRefs` and not levels.
- *
- * A cycle cannot happen (the descriptor is a DAG and `toArchitectureGraphData` drops an edge whose
- * source is not drawn) but the walk is depth-capped anyway: a malformed payload must not hang the
- * page, and a wrong rank only costs a fade that should not be there.
- */
-const architectureRanks = (
-  nodes: readonly { id: string }[],
-  edges: readonly { source: string; target: string }[],
-): number[] => {
-  const parents = new Map<string, string[]>()
-  for (const { source, target } of edges) {
-    parents.set(target, [...(parents.get(target) ?? []), source])
-  }
-  const depth = new Map<string, number>()
-  const rankOf = (id: string, seen: ReadonlySet<string>): number => {
-    const known = depth.get(id)
-    if (known !== undefined) { return known }
-    // Depth cap: a self-reference or a cycle in a malformed payload stops here rather than recursing.
-    if (seen.has(id) || seen.size > nodes.length) { return 0 }
-    const next = new Set(seen).add(id)
-    const own = (parents.get(id) ?? []).reduce((deepest, parent) => Math.max(deepest, rankOf(parent, next) + 1), 0)
-    depth.set(id, own)
-    return own
-  }
-  return nodes.map(({ id }) => rankOf(id, new Set()))
-}
-
 /** What the drawn size depends on besides the graph: which way it runs, the card, and the gaps. */
 export interface ArchitectureGeometry {
   direction: GraphDirection
@@ -111,43 +83,54 @@ export interface ArchitectureGeometry {
   spacing: GraphSpacing
 }
 
-/** How many ranks the graph has, and how many nodes its broadest rank holds: all its size depends on. */
-export interface ArchitectureShape {
+/**
+ * All the drawn size depends on besides the geometry. `ranks`: how many, along the direction. TB
+ * (dagre): `broadest`, the most nodes one rank holds. LR (the baseline layout, `baselineLayout.ts`):
+ * `rows`, the baseline and the branch rows under it, and `arcLevels`, how many arcs are stacked above
+ * it.
+ */
+export interface ArchitectureShape extends BaselineShape {
   broadest: number
-  ranks: number
 }
 
-/** The graph's shape, by `architectureRanks`. An empty graph is 0 × 0. */
+/**
+ * The graph's shape. Each node's rank is its step in the longest chain of active dependencies, which
+ * is what `level` means in the descriptor — computed by the baseline layout from the edges rather than
+ * read from the data, because the widget is given `parentRefs` and not levels. A cycle (malformed
+ * data: the descriptor is a DAG) is broken there, deterministically. An empty graph is 0 × 0.
+ */
 export const architectureShape = (
   nodes: readonly { id: string }[],
   edges: readonly { source: string; target: string }[],
 ): ArchitectureShape => {
-  if (nodes.length === 0) { return { broadest: 0, ranks: 0 } }
+  const { ranks, shape } = baselineStructure(nodes, edges)
+  if (nodes.length === 0) { return { arcLevels: 0, broadest: 0, ranks: 0, rows: 0 } }
   const perRank = new Map<number, number>()
-  for (const rank of architectureRanks(nodes, edges)) {
+  for (const rank of Object.values(ranks)) {
     perRank.set(rank, (perRank.get(rank) ?? 0) + 1)
   }
-  return { broadest: Math.max(...perRank.values()), ranks: Math.max(...perRank.keys()) + 1 }
+  return { ...shape, broadest: Math.max(...perRank.values()) }
 }
 
 /** A shape's drawn [width, height] at the cards' true size — `architectureGraphSize`'s arithmetic. */
-const drawnSize = (
-  { broadest, ranks }: ArchitectureShape,
-  { direction, nodeSize: [cardWidth, cardHeight], spacing: { nodesep, ranksep } }: ArchitectureGeometry,
-): [number, number] => {
+const drawnSize = (shape: ArchitectureShape, { direction, nodeSize, spacing: { nodesep, ranksep } }: ArchitectureGeometry): [number, number] => {
+  const { broadest, ranks } = shape
   if (ranks === 0) { return [0, 0] }
-  const along = (card: number) => ranks * card + (ranks - 1) * ranksep
-  const across = (card: number) => broadest * card + (broadest - 1) * nodesep
-  return direction === 'TB' ? [across(cardWidth), along(cardHeight)] : [along(cardWidth), across(cardHeight)]
+  if (direction !== 'TB') {
+    return baselineSize(shape, { nodeSize, rankGap: ranksep, rowGap: nodesep })
+  }
+  return [broadest * nodeSize[0] + (broadest - 1) * nodesep, ranks * nodeSize[1] + (ranks - 1) * ranksep]
 }
 
 /**
  * The drawn size of an architecture graph, [width, height] in px, at the cards' true size.
  *
  * ALONG the direction the graph is as long as its ranks: `ranks × card + (ranks − 1) × ranksep`.
- * ACROSS it, as broad as its broadest rank: `n × card + (n − 1) × nodesep` for the rank holding the
- * most nodes. So in LR the width is the ranks and the height the broadest column; in TB the width is
- * the broadest ROW — three ranks of one card each are one card wide, however long the chain.
+ * ACROSS it: in LR (the baseline layout) as tall as its rows — the baseline, then each branch row
+ * under it, `rows × card + (rows − 1) × nodesep` — plus the headroom of the arcs above the baseline
+ * (`baselineSize`, the same arithmetic the layout places by). In TB (dagre) as broad as its broadest
+ * rank, `n × card + (n − 1) × nodesep` — three ranks of one card each are one card wide, however long
+ * the chain.
  *
  * Used to tell the card whether the graph runs past its box (portal#310). Before this, a graph wider
  * than the box was simply clipped at the right edge with nothing on screen saying so: the last
@@ -155,10 +138,11 @@ const drawnSize = (
  * `fit="natural"` pins the LEFT (and top) edge, so overflow is on the right, or the bottom, on first
  * paint.
  *
- * The across-axis is the broadest rank by this walk's ranks, which are dagre's for a tree and for
- * the graphs a service path or a chart's descriptor draws (checked against the real dagre layout in
- * `architectureGraphSize.layout.test.ts`). Where dagre packs a rank wider than its own cards — an
- * edge that skips a rank takes a lane in it — the estimate is under by that lane.
+ * TB's across-axis is the broadest rank by the baseline layout's ranks, which are dagre's for a tree
+ * and for the graphs a service path or a chart's descriptor draws (checked against the real dagre
+ * layout in `architectureGraphSize.layout.test.ts`). Where dagre packs a rank wider than its own cards
+ * — an edge that skips a rank takes a lane in it — the estimate is under by that lane. LR's size is
+ * exact: the layout is ours.
  */
 export const architectureGraphSize = (
   nodes: readonly { id: string }[],
@@ -215,9 +199,9 @@ export const architectureGraphWidth = (
  *
  * "FITS" IS THE PLACEMENT'S DEFINITION: the drawn size plus `NATURAL_PADDING` on both sides, which is
  * when `placeAtNaturalSize` centres the graph rather than pinning its left edge. In LR only the width
- * is measured, as it always was, and nothing here makes an LR graph taller (the gap is horizontal,
- * the compact card is shorter, a scale only shrinks), so the 360px box holds whatever it held. In TB
- * the gap runs down the box, so the height is measured too, and the width against the broadest row.
+ * is measured, as it always was: the box's HEIGHT FOLLOWS THE GRAPH (FlowChart sets it to `size[1]`
+ * plus the padding), so there is no height to fit. In TB the gap runs down a fixed 360px box, so the
+ * height is measured too, and the width against the broadest row.
  */
 
 /** The narrowest rank gap step 1 goes to, px. */

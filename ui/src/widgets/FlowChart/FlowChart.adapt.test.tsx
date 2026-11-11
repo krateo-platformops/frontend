@@ -138,3 +138,40 @@ describe('recomputed when the box is resized', () => {
     expect(graphDouble.renders.map((options) => (options as unknown as Drawn).node.style.size)).toEqual([[180, 56]])
   })
 })
+
+describe('LR: the box is as tall as the drawing', () => {
+  const height = () => box().style.getPropertyValue('--architecture-height')
+  const node = (uid: string, parents: string[] = []) => ({ detail: '', kind: 'Agent', name: uid, parentRefs: parents.map((parent) => ({ uid: parent })), state: 'done' as const, uid })
+
+  it('builder-publish: the row, one arc of headroom, and the 16px margins — not a fixed 360px', () => {
+    // 26 (one arc: 24px rise + 2px stroke) + 84 (the card) + 2 × 16.
+    sizeTheBox(1400)
+    draw()
+    expect(height()).toBe('142px')
+  })
+
+  it('…and the compact card\'s, when the box needs it: 26 + 56 + 32', () => {
+    sizeTheBox(1000)
+    draw()
+    expect(height()).toBe('114px')
+  })
+
+  it('a single node: one card and the margins', () => {
+    sizeTheBox(1400)
+    render(<FlowChart resourcesRefs={REFS} uid='fc' widgetData={{ data: [node('only')], variant: 'architecture' }} />)
+    expect(height()).toBe('116px')
+  })
+
+  it('a fan-out of twelve: every branch row is inside the box — 12 × 84 + 11 × 32 + 32', () => {
+    sizeTheBox(1400)
+    const fan = [node('portal'), ...Array.from({ length: 12 }, (_, index) => node(`agent-${index}`, ['portal']))]
+    render(<FlowChart resourcesRefs={REFS} uid='fc' widgetData={{ data: fan, variant: 'architecture' }} />)
+    expect(height()).toBe('1392px')
+  })
+
+  it('TB keeps its fixed box: no height is set, so the stylesheet\'s 360px stands', () => {
+    sizeTheBox(415)
+    draw({ density: 'compact', direction: 'TB' })
+    expect(height()).toBe('')
+  })
+})

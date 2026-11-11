@@ -2,7 +2,7 @@
 /**
  * `direction` and `density` on the architecture variant.
  *
- * THE SNAPSHOT IS MAIN'S. It was recorded from the tree before these fields existed, so a CR that
+ * THE SNAPSHOT WAS MAIN'S. It was recorded from the tree before these fields existed, so a CR that
  * sets neither (every architecture FlowChart published so far: the composition page's diagram)
  * must hand G6 the same options and draw the same cards, and so must one that spells the defaults
  * out (`LR`, `regular`).
@@ -12,6 +12,11 @@
  * a state update after it, which put the attribute last. Same attributes, same values. jsdom's box
  * is 0 wide, which architectureFit reads as "not laid out yet" and so decides nothing: the options
  * are main's, unchanged.
+ *
+ * And a second, deliberate: LR is now the baseline layout ("one baseline, arcs above"). The options
+ * name the `baseline` layout with each card's centre (all four on y = 0) and the `baseline-route` edge
+ * with each edge's path, and the box carries its height (`--architecture-height`). The cards, their
+ * markup and the TB options are unchanged — the CONTROL below still tells TB compact apart.
  */
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -97,8 +102,8 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('FlowChart architecture — LR and regular are main, byte for byte', () => {
-  it('draws what main drew when neither field is set', () => {
+describe('FlowChart architecture — LR and regular are the defaults, byte for byte', () => {
+  it('draws the recorded options and markup when neither field is set', () => {
     const { markup, options } = drawn(architecture(V1B))
     expect(options).toMatchSnapshot('options')
     expect(markup).toMatchSnapshot('markup')
@@ -147,9 +152,15 @@ describe('FlowChart architecture — TB compact', () => {
     graphDouble.reset()
     render(<FlowChart resourcesRefs={REFS} uid='fc' widgetData={architecture(THREE, { density: 'compact' })} />)
     const compact = graphDouble.last() as { edge: { type: string }; layout: unknown; node: { style: { size: unknown } } }
-    expect(compact.layout).toEqual({ nodesep: 16, rankdir: 'LR', ranksep: 32, type: 'dagre' })
+    // LR is the baseline layout at either density: the three services on one row, 180 + 32 apart.
+    expect(compact.layout).toEqual({
+      nodesep: 16,
+      positions: { 'krateo-agent-gateway-platform': [212, 0], 'krateo-frontend': [0, 0], snowplow: [424, 0] },
+      ranksep: 32,
+      type: 'baseline',
+    })
     expect(compact.node.style.size).toEqual([180, 56])
-    expect(compact.edge.type).toBe('cubic-horizontal')
+    expect(compact.edge.type).toBe('baseline-route')
   })
 
   it.each([

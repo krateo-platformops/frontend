@@ -1,8 +1,8 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`FlowChart architecture — LR and regular are main, byte for byte > draws what main drew when neither field is set > markup 1`] = `"<div class="_architecture_dc6893" data-overflows="true" data-testid="architecture-graph-box"><div style="height: inherit; position: relative;"><div data-testid="flow-graph"><div data-node-id="arch:repository"><div aria-label="Repository publish-pod-sizing-v1b-repo, done" class="_card_029026" data-state="done" role="group" tabindex="0"><span class="_eyebrow_029026"><span class="_kind_029026" title="Repository">Repository</span></span><span class="_name_029026" title="publish-pod-sizing-v1b-repo">publish-pod-sizing-v1b-repo</span><span class="_detail_029026" title="default_branch · main">default_branch · main</span></div></div><div data-node-id="arch:repo"><div aria-label="Repo publish-pod-sizing-v1b-source, waiting, NotSynced: ReconcileError — cannot determine creation result - remove the krateo.io/external-create-pending annotation if it is safe to proceed" class="_card_029026" data-state="waiting" role="group" tabindex="0"><span class="_eyebrow_029026"><span class="_kind_029026" title="Repo">Repo</span><span class="_exception_029026" data-testid="architecture-exception"><span aria-hidden="true" class="_dot_029026"></span>NotSynced</span></span><span class="_name_029026" title="publish-pod-sizing-v1b-source">publish-pod-sizing-v1b-source</span><span class="_detail_029026" title="targetCommitId · 0 of 1">targetCommitId · 0 of 1</span></div></div><div data-node-id="arch:localresources"><div aria-label="LocalResource ×10 publish-pod-sizing-v1b-000 … 009, withheld" class="_card_029026" data-state="withheld" role="group" tabindex="0"><span class="_eyebrow_029026"><span class="_kind_029026" title="LocalResource ×10">LocalResource ×10</span></span><span class="_name_029026" title="publish-pod-sizing-v1b-000 … 009">publish-pod-sizing-v1b-000 … 009</span><span class="_detail_029026" title="waits for Repository, Repo">waits for Repository, Repo</span></div></div><div data-node-id="arch:pullrequest"><div aria-label="PullRequest publish-pod-sizing-v1b-pr, withheld" class="_card_029026" data-state="withheld" role="group" tabindex="0"><span class="_eyebrow_029026"><span class="_kind_029026" title="PullRequest">PullRequest</span></span><span class="_name_029026" title="publish-pod-sizing-v1b-pr">publish-pod-sizing-v1b-pr</span><span class="_detail_029026" title="waits for all 10 LocalResource">waits for all 10 LocalResource</span></div></div></div></div></div>"`;
+exports[`FlowChart architecture — LR and regular are the defaults, byte for byte > draws the recorded options and markup when neither field is set > markup 1`] = `"<div class="_architecture_dc6893" data-overflows="true" data-testid="architecture-graph-box" style="--architecture-height: 142px;"><div style="height: inherit; position: relative;"><div data-testid="flow-graph"><div data-node-id="arch:repository"><div aria-label="Repository publish-pod-sizing-v1b-repo, done" class="_card_029026" data-state="done" role="group" tabindex="0"><span class="_eyebrow_029026"><span class="_kind_029026" title="Repository">Repository</span></span><span class="_name_029026" title="publish-pod-sizing-v1b-repo">publish-pod-sizing-v1b-repo</span><span class="_detail_029026" title="default_branch · main">default_branch · main</span></div></div><div data-node-id="arch:repo"><div aria-label="Repo publish-pod-sizing-v1b-source, waiting, NotSynced: ReconcileError — cannot determine creation result - remove the krateo.io/external-create-pending annotation if it is safe to proceed" class="_card_029026" data-state="waiting" role="group" tabindex="0"><span class="_eyebrow_029026"><span class="_kind_029026" title="Repo">Repo</span><span class="_exception_029026" data-testid="architecture-exception"><span aria-hidden="true" class="_dot_029026"></span>NotSynced</span></span><span class="_name_029026" title="publish-pod-sizing-v1b-source">publish-pod-sizing-v1b-source</span><span class="_detail_029026" title="targetCommitId · 0 of 1">targetCommitId · 0 of 1</span></div></div><div data-node-id="arch:localresources"><div aria-label="LocalResource ×10 publish-pod-sizing-v1b-000 … 009, withheld" class="_card_029026" data-state="withheld" role="group" tabindex="0"><span class="_eyebrow_029026"><span class="_kind_029026" title="LocalResource ×10">LocalResource ×10</span></span><span class="_name_029026" title="publish-pod-sizing-v1b-000 … 009">publish-pod-sizing-v1b-000 … 009</span><span class="_detail_029026" title="waits for Repository, Repo">waits for Repository, Repo</span></div></div><div data-node-id="arch:pullrequest"><div aria-label="PullRequest publish-pod-sizing-v1b-pr, withheld" class="_card_029026" data-state="withheld" role="group" tabindex="0"><span class="_eyebrow_029026"><span class="_kind_029026" title="PullRequest">PullRequest</span></span><span class="_name_029026" title="publish-pod-sizing-v1b-pr">publish-pod-sizing-v1b-pr</span><span class="_detail_029026" title="waits for all 10 LocalResource">waits for all 10 LocalResource</span></div></div></div></div></div>"`;
 
-exports[`FlowChart architecture — LR and regular are main, byte for byte > draws what main drew when neither field is set > options 1`] = `
+exports[`FlowChart architecture — LR and regular are the defaults, byte for byte > draws the recorded options and markup when neither field is set > options 1`] = `
 "{
   "autoFit": {
     "animation": false,
@@ -116,6 +116,63 @@ exports[`FlowChart architecture — LR and regular are main, byte for byte > dra
   "edge": {
     "style": {
       "router": false,
+      "route": {
+        "ƒ": "route",
+        "perEdge": [
+          [
+            [
+              "M",
+              120,
+              0
+            ],
+            [
+              "L",
+              280,
+              0
+            ]
+          ],
+          [
+            [
+              "M",
+              0,
+              -42
+            ],
+            [
+              "C",
+              0,
+              -74,
+              800,
+              -74,
+              800,
+              -42
+            ]
+          ],
+          [
+            [
+              "M",
+              520,
+              0
+            ],
+            [
+              "L",
+              680,
+              0
+            ]
+          ],
+          [
+            [
+              "M",
+              920,
+              0
+            ],
+            [
+              "L",
+              1080,
+              0
+            ]
+          ]
+        ]
+      },
       "labelText": {
         "ƒ": "labelText",
         "perEdge": [
@@ -148,13 +205,30 @@ exports[`FlowChart architecture — LR and regular are main, byte for byte > dra
       "labelFill": "#5E5873",
       "stroke": "#6A6480"
     },
-    "type": "cubic-horizontal"
+    "type": "baseline-route"
   },
   "layout": {
     "nodesep": 32,
-    "rankdir": "LR",
+    "positions": {
+      "arch:repository": [
+        0,
+        0
+      ],
+      "arch:repo": [
+        400,
+        0
+      ],
+      "arch:localresources": [
+        800,
+        0
+      ],
+      "arch:pullrequest": [
+        1200,
+        0
+      ]
+    },
     "ranksep": 160,
-    "type": "dagre"
+    "type": "baseline"
   },
   "node": {
     "style": {
