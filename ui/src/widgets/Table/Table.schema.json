@@ -152,6 +152,10 @@
                         "type": "string"
                       },
                       "description": "value if type = array"
+                    },
+                    "tooltip": {
+                      "type": "string",
+                      "description": "optional antd Tooltip text for this cell, shown on hover and on keyboard focus, for every cell kind (e.g. a span's OTel StatusMessage on its error tag). When set, it replaces the cell's own full-text-on-hover title, so a cell never shows two tooltips. Omitted or empty, the cell renders exactly as without it."
                     }
                   },
                   "required": [

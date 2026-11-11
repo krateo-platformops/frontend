@@ -108,3 +108,12 @@
   display: flex;
   justify-content: flex-end;
 }
+
+/* A `tag` cell carrying an explicit `tooltip` (TableCellTooltip): the focusable wrapper is bounded
+   by the cell, so the Tag inside keeps its own 100% cap and ellipsis, and it takes the Tag's
+   inline-block box so the focus ring outlines the pill rather than one line of text. */
+.tooltipTag {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+}
