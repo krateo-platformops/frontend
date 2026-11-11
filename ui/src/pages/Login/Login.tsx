@@ -1,13 +1,10 @@
-import { faCircleCheck } from '@fortawesome/free-solid-svg-icons'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Result, Skeleton } from 'antd'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
 
 import logo from '../../assets/images/logo_big.svg'
 import { useConfigContext } from '../../context/ConfigContext'
-import useCatchError from '../../hooks/useCatchError'
 import type { LoginFailureCause } from '../../utils/loginFailureCause'
 import {
   CREDENTIALS_REQUIRED,
@@ -22,23 +19,33 @@ import { credentialLoginUrlOf, fetchStrategies, strategiesFailureFrom } from '..
 
 import AuthMethods from './AuthMethods'
 import styles from './Login.module.css'
-import type { AuthModeType, AuthResponseType, LoginFormType } from './Login.types'
+import type { AuthModeType, AuthResponseType, LoginFormAlert, LoginFormType } from './Login.types'
 import StartSignInAgain from './StartSignInAgain'
 
-// Branding-panel defaults. The login screen renders BEFORE any backend identity,
-// so its copy is config-driven (`config.login`, ConfigMap-mountable per install)
-// rather than a snowplow widget — a login/auth widget would be bespoke behavior,
-// which the antd-only widget registry deliberately excludes. These constants are
-// the fallback when a config omits the keys. (Marketing copy, not portal data —
-// the mockup's fabricated "128 compositions" stat stays dropped.)
+// The login screen renders BEFORE any backend identity, so its branding is config-driven
+// (`config.login`, ConfigMap-mountable per install) rather than a snowplow widget — a login/auth
+// widget would be bespoke behavior, which the antd-only widget registry deliberately excludes.
 const DEFAULT_LOGO_ALT = 'Krateo | PlatformOps'
-const DEFAULT_HEADLINE = 'Ship platform resources without the YAML toil.'
-const DEFAULT_SUBTITLE = 'Self-service infrastructure for your developers — compose, provision and observe cloud resources from a single control plane.'
-const DEFAULT_HIGHLIGHTS = [
-  'Compose cloud resources across your clusters',
-  'GitOps reconciliation in real time',
-  'Policy-guarded self-service catalog',
-]
+
+/*
+ * authn refused the username and password. The page used to say "Authentication error" over "Those
+ * credentials were not accepted. Check them and try again." in a toast. authn sends one fixed cause
+ * for an unknown user and a wrong password on purpose (no username enumeration), so the copy names
+ * both and asks for both to be checked.
+ */
+const WRONG_CREDENTIALS = { text: 'Check both and try again.', title: 'Wrong username or password.' }
+
+/**
+ * The optional marketing copy, as one short paragraph, or null when an install sets none. Nothing
+ * is shown by default: a sign-in page is for signing in, and the copy it used to ship ("Ship
+ * platform resources without the YAML toil.") described a product, not this installation.
+ */
+const pitchOf = (login: { headline?: string; subtitle?: string; highlights?: string[] } | undefined): string | null => {
+  const parts = [login?.headline, login?.subtitle, (login?.highlights ?? []).filter(Boolean).join(' · ')]
+    .map((part) => part?.trim())
+    .filter((part): part is string => !!part)
+  return parts.length ? parts.join(' ') : null
+}
 
 /*
  * What a successful credential sign-in answers: authn's login response (authn
@@ -58,8 +65,22 @@ const Login = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
-  const { catchError } = useCatchError()
   const { config } = useConfigContext()
+  // The failed sign-in the submitted form shows above its button. Cleared on the next submit.
+  // A counter, not the previous alert's: the alert is cleared on every submit.
+  const [alert, setAlert] = useState<LoginFormAlert | null>(null)
+  const attempts = useRef(0)
+  const showAlert = useCallback((method: AuthModeType, cause: LoginFailureCause, retype = false) => {
+    attempts.current += 1
+    setAlert({
+      attempt: attempts.current,
+      method,
+      reason: cause.reason,
+      retype,
+      text: retype ? WRONG_CREDENTIALS.text : cause.text,
+      title: retype ? WRONG_CREDENTIALS.title : LOGIN_FAILURE_TITLE[cause.action],
+    })
+  }, [])
 
   // A fresh visit to the login page is NOT a mid-session resume: drop any route the
   // SessionResume modal stashed for a social/OIDC round-trip, so a plain social sign-in here
@@ -73,13 +94,13 @@ const Login = () => {
   // open-redirects by resolveNextPath.
   const nextPath = resolveNextPath(searchParams.get('next'))
 
-  // Config-driven branding (falls back to the built-in defaults when absent).
+  // Config-driven branding. The logo and its alt fall back to the bundled ones; the rest is absent
+  // unless an install sets it.
   const branding = config?.login
   const logoSrc = branding?.logoUrl || logo
   const logoAlt = branding?.logoAlt ?? DEFAULT_LOGO_ALT
-  const headline = branding?.headline ?? DEFAULT_HEADLINE
-  const subtitle = branding?.subtitle ?? DEFAULT_SUBTITLE
-  const highlights = branding?.highlights?.length ? branding.highlights : DEFAULT_HIGHLIGHTS
+  const installationName = branding?.installationName?.trim()
+  const pitch = pitchOf(branding)
   const requestAccountUrl = branding?.requestAccountUrl
 
   const authUrl = `${config!.api.AUTHN_API_BASE_URL}/strategies`
@@ -100,7 +121,7 @@ const Login = () => {
     mutateAsync: login,
     reset: resetLogin,
   } = useMutation({
-    mutationFn: async (credentials: { username: string; password: string; url: string }) => {
+    mutationFn: async (credentials: { username: string; password: string; url: string; method: AuthModeType }) => {
       const response = await fetch(credentials.url, {
         headers: {
           Authorization: `Basic ${btoa(`${credentials.username}:${credentials.password}`)}`,
@@ -127,22 +148,15 @@ const Login = () => {
         // something that is not a Kubernetes Status at all; the classifier takes `unknown` and
         // never throws, so a failed parse still produces the right advice from the status code.
         const body: unknown = await response.json().catch(() => null)
-        const { action, reason, text } = loginFailureCauseOf(response.status, body, 'password')
+        const cause = loginFailureCauseOf(response.status, body, 'password')
         /*
-         * The reason is appended rather than shown alone: it is authn's vocabulary, not the
-         * person's, but without it a support conversation starts from "it didn't work".
-         *
-         * Passed as `description`, with the action's title as `message`, so useCatchError shows it
-         * as given. As `message` alone it met the hook's status defaults: a 4xx got "Please check
-         * your input or permissions." added under it, and a 500 had it REPLACED by "The server hit
-         * an unexpected error" — on a page where this notification is the only failure surface, so
-         * every classified 5xx (LDAPUnavailable, IssuanceFailed …) reached nobody.
+         * Shown inline, above the button of the form that was submitted. It used to be a toast: away
+         * from the fields it was about, and gone after a few seconds. authn's reason goes with it,
+         * small — it is authn's vocabulary, not the person's, but without it a support conversation
+         * starts from "it didn't work". A refused password gets the retype copy and an emptied,
+         * focused password field; every other cause keeps its classified copy.
          */
-        catchError({
-          description: reason === null ? text : `${text} (${reason})`,
-          message: LOGIN_FAILURE_TITLE[action],
-          status: response.status,
-        }, 'notification')
+        showAlert(credentials.method, cause, cause.action === 'retype')
       }
     },
   })
@@ -154,6 +168,7 @@ const Login = () => {
    */
   const onFormSubmit = useCallback(async (body: LoginFormType, method: AuthModeType) => {
     const { password, username } = body
+    setAlert(null)
 
     /*
      * A strategy with no `path`, or an LDAP strategy with no `name`, has nowhere to send the
@@ -164,11 +179,7 @@ const Login = () => {
      */
     const target = credentialLoginUrlOf(config!.api.AUTHN_API_BASE_URL, method)
     if (!target.ok) {
-      const cause = credentialUrlFailureOf(target.reason)
-      catchError({
-        description: `${cause.text} (${cause.reason})`,
-        message: LOGIN_FAILURE_TITLE[cause.action],
-      }, 'notification')
+      showAlert(method, credentialUrlFailureOf(target.reason))
       return
     }
 
@@ -179,14 +190,11 @@ const Login = () => {
        * rejection. react-query has already recorded it and `isLoginError` drives the <Result>, as
        * Auth.tsx does for its own exchange; there is nothing more to do with it here.
        */
-      await login({ password, url: target.url, username }).catch(() => undefined)
+      await login({ method, password, url: target.url, username }).catch(() => undefined)
     } else {
-      catchError({
-        description: CREDENTIALS_REQUIRED.text,
-        message: LOGIN_FAILURE_TITLE[CREDENTIALS_REQUIRED.action],
-      }, 'notification')
+      showAlert(method, CREDENTIALS_REQUIRED)
     }
-  }, [catchError, config, login])
+  }, [config, login, showAlert])
 
   /*
    * What the page shows in place of the form when it cannot offer one. These used to read "Ops!
@@ -238,35 +246,35 @@ const Login = () => {
 
       return (
         <AuthMethods
+          alert={alert ?? undefined}
           isLoading={isLoginLoading}
           methods={methods}
           onCredentialSubmit={(values, _kind, method) => { void onFormSubmit(values, method) }}
         />
       )
     }
-  }, [isMethodLoading, pageFailure, location.pathname, location.search, resetLogin, methods, isLoginLoading, onFormSubmit])
+  }, [isMethodLoading, pageFailure, location.pathname, location.search, resetLogin, methods, alert, isLoginLoading, onFormSubmit])
 
+  /*
+   * One card, form first (2026-11 redesign). The brand gradient is a 64px band at the top of the
+   * card, carrying the logo: the gradient's stops are mode-invariant, so the light logo mark — and a
+   * tenant's `login.logoUrl`, documented as a light mark — reads in both themes. The band, the
+   * heading and the installation name stay on every width; the old split screen hid the logo below
+   * 768px.
+   */
   return (
     <div className={styles.login}>
-      <aside className={styles.aside}>
-        <img alt={logoAlt} className={styles.logo} src={logoSrc} />
-        <div className={styles.pitch}>
-          <h1 className={styles.headline}>{headline}</h1>
-          <p className={styles.subtitle}>{subtitle}</p>
-          <ul className={styles.highlights}>
-            {highlights.map((highlight) => (
-              <li key={highlight}>
-                <FontAwesomeIcon icon={faCircleCheck} /> {highlight}
-              </li>
-            ))}
-          </ul>
+      <main className={styles.card}>
+        <div className={styles.band}>
+          <img alt={logoAlt} className={styles.logo} src={logoSrc} />
         </div>
-      </aside>
-
-      <section className={styles.section}>
-        <div className={styles.formPanel}>
-          <h2 className={styles.welcome}>Welcome back</h2>
-          <p className={styles.welcomeSub}>Sign in to your Krateo control plane.</p>
+        <div className={styles.body}>
+          <h1 className={styles.title}>Sign in</h1>
+          <p className={styles.to}>
+            to Krateo PlatformOps
+            {installationName && <> · <span className={styles.installation}>{installationName}</span></>}
+          </p>
+          {pitch && <p className={styles.pitch}>{pitch}</p>}
           {content}
           {requestAccountUrl && (
             <p className={styles.requestAccount}>
@@ -274,7 +282,7 @@ const Login = () => {
             </p>
           )}
         </div>
-      </section>
+      </main>
     </div>
   )
 }
