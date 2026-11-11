@@ -205,7 +205,7 @@ describe('FlowChart variant: architecture — a chart\'s topology in the state t
   })
 
   it('lets a keyboard reach a card past the box\'s edge: every card takes focus, and a focused one is panned into view', async () => {
-    // V1B lays out 1360px wide (four columns of 220, 160 apart) and the box is often narrower. Drag
+    // V1B lays out 1440px wide (four columns of 240, 160 apart) and the box is often narrower. Drag
     // was the only pan, and nothing in the box could take focus, so a sighted keyboard user could
     // not bring the clipped columns into view (WCAG 2.1.1).
     render(<FlowChart resourcesRefs={REFS} uid='fc' widgetData={architecture(V1B)} />)
@@ -218,10 +218,10 @@ describe('FlowChart variant: architecture — a chart\'s topology in the state t
     box.getBoundingClientRect = rect(0, 0, 560, 360)
     // Where the real layout draws the PullRequest with the first column pinned 16px in.
     const pullRequest = nodeCard('PullRequest', 'publish-pod-sizing-v1b-pr')
-    pullRequest.getBoundingClientRect = rect(1156, 138, 220, 84)
+    pullRequest.getBoundingClientRect = rect(1216, 138, 240, 84)
     act(() => { pullRequest.focus() })
     expect(document.activeElement).toBe(pullRequest)
-    await waitFor(() => expect(graphDouble.viewport).toEqual([`translateBy ${560 - NATURAL_PADDING - 1376},0`]))
+    await waitFor(() => expect(graphDouble.viewport).toEqual([`translateBy ${560 - NATURAL_PADDING - 1456},0`]))
   })
 
   it('names each card "kind name, state, exception" for a screen reader', () => {
@@ -264,10 +264,10 @@ describe('FlowChart variant: architecture — a chart\'s topology in the state t
     ])
   })
 
-  it('is themed and drawn at the cards\' true size, 220×84', () => {
+  it('is themed and drawn at the cards\' true size, 240×84', () => {
     render(<FlowChart resourcesRefs={REFS} uid='fc' widgetData={architecture(V1B)} />)
     const options = graphDouble.last() as { autoFit: unknown; behaviors: unknown; edge: { style: Record<string, unknown> }; node: { style: { size: unknown } } }
-    expect(options.node.style.size).toEqual([220, 84])
+    expect(options.node.style.size).toEqual([240, 84])
     expect(options.autoFit).toEqual({ animation: false, type: 'center' })
     expect(options.behaviors).toEqual(['drag-canvas'])
     // The palette's keys are on the edge style: its colours come from the tokens, not from G6.

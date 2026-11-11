@@ -63,7 +63,7 @@ interface ArchitectureProps extends VariantProps {
  *   - THEMED. Its edges take the tokens and follow the portal theme. The resource variant keeps G6's
  *     own colours, because moving it is a visual change to every FlowChart CR already published.
  *   - FITTED TO ITS BOX, NEVER PAST THE TYPE FLOOR (`fit="natural"` plus `architectureFit`). The
- *     cards are designed at 220×84 and must stay readable; `view` would magnify a one-resource chart
+ *     cards are designed at 240×84 and must stay readable; `view` would magnify a one-resource chart
  *     and shrink a wide one under the floor. Instead a graph too long for its box closes its rank
  *     gaps, then takes the compact card, then scales — each only as far as the box needs, and the
  *     scale no further than the floor. Only past that is it wider than the box: it keeps its first
@@ -72,7 +72,7 @@ interface ArchitectureProps extends VariantProps {
  *   - EDGES INTO A WITHHELD NODE ARE DASHED: that dependency has not been reached yet.
  *
  * `direction` and `density` (both optional) are for a box narrower than the chain is long. The trace
- * page's services column is ~415px: three 220px cards left to right are 980px, so only the first was
+ * page's services column is ~415px: three 240px cards left to right are 1040px, so only the first was
  * in view. TB compact draws one 180×56 card per row, and is as wide as its broadest row. A density
  * the CR sets is kept (the adaptation only closes gaps and scales it); one it leaves out is regular,
  * stepping down to compact when the box needs it. `direction` is the CR's, always.

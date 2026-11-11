@@ -35,13 +35,18 @@ export interface ArchitectureEdgeData {
 }
 
 /**
- * [width, height]: ArchitectureStateNode's CSS box, and so what dagre reserves per node (C19). Wider
- * than the composer's 156×72 because this card shows resolved names, and a forEach range such as
- * `publish-pod-sizing-v1b-000 … 009` does not fit in 156px.
+ * [width, height]: ArchitectureStateNode's CSS box, and so what dagre reserves per node (C19) — the
+ * one source every width here is computed from (the stylesheet's box is pinned to it by
+ * architectureFit.test.ts). Wider than the composer's 156×72 because this card shows resolved names,
+ * and a forEach range such as `publish-pod-sizing-v1b-000 … 009` does not fit in 156px.
+ *
+ * 240, not 220: with the eyebrow at the 12px floor, a forEach kind and the exception chip need
+ * `LOCALRESOURCE ×8` (124px) + 8px + `NotSynced` (75px) = 207px, and 220px of card left 194px of
+ * text, so the kind was cut. 240px leaves 214px (measured in architectureCardText.spec.ts).
  */
-export const ARCHITECTURE_NODE_SIZE: [number, number] = [220, 84]
+export const ARCHITECTURE_NODE_SIZE: [number, number] = [240, 84]
 
-/** How big the card is: `regular` (absent), the 220×84 card; `compact`, a 180×56 one. */
+/** How big the card is: `regular` (absent), the 240×84 card; `compact`, a 180×56 one. */
 export type ArchitectureDensity = 'regular' | 'compact'
 
 /**
@@ -52,7 +57,7 @@ export type ArchitectureDensity = 'regular' | 'compact'
 export const ARCHITECTURE_COMPACT_NODE_SIZE: [number, number] = [180, 56]
 
 /**
- * The compact card's gaps. C19's 160px between ranks was sized for 220px cards side by side; under
+ * The compact card's gaps. C19's 160px between ranks was sized for the regular card side by side; under
  * a 56px card it is three cards of empty space. 32px between ranks keeps an edge with its arrowhead
  * legible and puts four ranks top to bottom (4×56 + 3×32 = 320px) inside the 360px box with the
  * placement's 16px margins; 16px between siblings puts two side by side (376px) inside ~415px.
@@ -162,7 +167,7 @@ export const architectureGraphSize = (
 ): [number, number] => drawnSize(architectureShape(nodes, edges), geometry)
 
 /**
- * The drawn WIDTH of an LR graph of 220px cards with C19's gaps — what the composition page's
+ * The drawn WIDTH of an LR graph of regular cards with C19's gaps — what the composition page's
  * diagram has always measured: `ranks × cardWidth + (ranks − 1) × ranksep`.
  */
 export const architectureGraphWidth = (
@@ -178,10 +183,11 @@ export const architectureGraphWidth = (
 
 /**
  * ADAPT, NEVER CLIP. The graph was drawn at true size whatever its box, so the builder-publish chain
- * (four ranks: 4 × 220 + 3 × 160 = 1360px) lost its fourth card in the ~1180px the composition page
- * gives it at a 1456px window, and in ~1000px at 1280 — on every builder-publish composition. #310's
- * fade said so; it did not help anyone read the card. Now the graph adapts to the box first, in this
- * order, and is recomputed whenever the box is resized:
+ * (four ranks: 4 × 220 + 3 × 160 = 1360px with the 220px card of the time; 1440px at today's 240px)
+ * lost its fourth card in the ~1180px the composition page gives it at a 1456px window, and in
+ * ~1000px at 1280 — on every builder-publish composition. #310's fade said so; it did not help
+ * anyone read the card. Now the graph adapts to the box first, in this order, and is recomputed
+ * whenever the box is resized:
  *
  *   1. THE RANK GAP shrinks (LR: between columns; TB: between rows), from the density's own gap
  *      towards `ARCHITECTURE_MIN_RANK_GAP`, just far enough to fit — in steps of
@@ -381,7 +387,7 @@ export const architectureState = (state: unknown): ArchitectureState =>
  * because a tooltip is not a table — past the cap it says how many more.
  *
  * The NAME LINE is left exactly as the RESTAction wrote it. Eliding the shared prefix is the right
- * call for 194px of card (it is the suffix that tells the nodes apart), and moving that rule into
+ * call for 214px of card (it is the suffix that tells the nodes apart), and moving that rule into
  * the SPA would be a second change riding on this one. What was wrong was only that the elision
  * reached the tooltip too, so the full value existed nowhere.
  */

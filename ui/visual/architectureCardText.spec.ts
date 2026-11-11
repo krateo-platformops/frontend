@@ -2,19 +2,20 @@
  * THE ARCHITECTURE CARD'S TEXT AT THE 12px FLOOR, in a real browser.
  *
  * Every line on FlowChart's architecture card is at least `text-caption` (12px): the kind line and
- * the exception chip were `text-label-xs`, 10px, under the portal's type floor, and were raised —
- * the box was not (220×84 regular, 180×56 compact, the sizes dagre reserves). The CSS module is
- * pinned at or above the floor by architectureFit.test.ts; what jsdom cannot show is whether the
- * text still fits the box once a real font sets it. This measures it, at both densities, with the
+ * the exception chip were `text-label-xs`, 10px, under the portal's type floor, and were raised. At
+ * 12px a forEach kind and an exception chip no longer shared the 220px card's eyebrow, so the
+ * regular card is 240×84 (compact stays 180×56); those are the boxes dagre reserves. The CSS module
+ * is pinned at or above the floor, and to those boxes, by architectureFit.test.ts; what jsdom cannot
+ * show is whether the text fits the box once a real font sets it. This measures it, at both densities, with the
  * longest values a chart realistically hands the card (main.tsx `?fixture=architecture-cards`).
  *
  * WHAT "FITS" MEANS PER LINE. Nothing wraps, and nothing is drawn outside the card's border. The
  * exception label is always in full. The kind and detail lines are one line, cut with an ellipsis
- * where they must be; the kind alone is in full. The name is cut as it always was: one line and an
- * ellipsis on the regular card, two lines and an ellipsis on the compact one, the full name in its
- * `title`. The one thing the raise costs is pinned below: a forEach kind beside an exception chip.
+ * where they must be; the kind is in full, alone or beside either chip. The name is cut as it always
+ * was: one line and an ellipsis on the regular card, two lines and an ellipsis on the compact one,
+ * the full name in its `title`.
  */
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 type Line = {
   /** Distinct line boxes the text was set on. */
@@ -89,16 +90,22 @@ const measure = () => [...document.querySelectorAll<HTMLElement>('[data-case]')]
   }
 })
 
-test('every line of the architecture card fits its box at the 12px floor, at both densities', async ({ page }) => {
+const measured = async (page: Page): Promise<{ cards: Card[]; line: (name: string, role: Line['role']) => Line }> => {
   await page.goto('/visual/index.html?fixture=architecture-cards')
   await page.evaluate(() => document.fonts.ready)
   await expect(page.locator('[data-case]')).toHaveCount(10)
   const cards = await page.evaluate(measure)
+  const line = (name: string, role: Line['role']) => cards.find((card) => card.case === name)!.lines.find((each) => each.role === role)!
+  return { cards, line }
+}
+
+test('every line of the architecture card fits its box at the 12px floor, at both densities', async ({ page }) => {
+  const { cards, line: lineOf } = await measured(page)
 
   for (const card of cards) {
     const at = `${card.case}: ${JSON.stringify(card)}`
-    // The box dagre reserves is unchanged.
-    expect([card.width, card.height], at).toEqual(card.density === 'compact' ? [180, 56] : [220, 84])
+    // The box dagre reserves (ARCHITECTURE_DENSITY).
+    expect([card.width, card.height], at).toEqual(card.density === 'compact' ? [180, 56] : [240, 84])
     expect([card.overflowX, card.overflowY], at).toEqual([false, false])
     for (const line of card.lines) {
       const of = `${card.case} ${line.role}: ${JSON.stringify(line)}`
@@ -121,30 +128,34 @@ test('every line of the architecture card fits its box at the 12px floor, at bot
     }
   }
 
-  const line = (name: string, role: Line['role']) => cards.find((card) => card.case === name)!.lines.find((each) => each.role === role)!
+  // Not this change: the detail line was 12px before it, and a 30-character detail is cut on the
+  // compact card's 154px (169px needed), as it was.
+  expect(lineOf('compact/forEach-NotSynced', 'detail').cut).toBe(true)
 
-  // The kind line on its own: `LOCALRESOURCE ×8` in full (124 of the 194px inside the card).
+  // The 63-character name is long enough to be cut on both cards (else the case proves nothing).
+  for (const density of ['regular', 'compact']) {
+    const name = lineOf(`${density}/long-name`, 'name')
+    expect(name.text.length).toBe(63)
+    expect(name.cut).toBe(true)
+  }
+})
+
+test('the regular card\'s kind is in full, alone and beside either exception chip', async ({ page }) => {
+  const { line } = await measured(page)
+
+  // The kind line on its own, in full: `LOCALRESOURCE ×8` is 124px of the 214px inside the card.
   for (const name of ['regular/forEach', 'regular/long-name', 'regular/exception']) {
     expect(line(name, 'kind').cut, name).toBe(false)
   }
 
-  // REPORTED, NOT FIXED: at 12px `LOCALRESOURCE ×8` and an exception chip no longer share the
-  // eyebrow. They need 124 + 8 + 75 (NotSynced) = 207px, or 124 + 8 + 68 (NotReady) = 200px, of
-  // 194; at 10px it was 106 + 8 + 66 = 180. The chip keeps its width, so the kind is cut with an
-  // ellipsis (`LOCALRES…`), the full kind in its `title` and in the card's accessible name. Pinned so
-  // a change to it is a decision, not a drift.
+  // The kind in full BESIDE the exception chip: why the regular card is 240px. `LOCALRESOURCE ×8`
+  // (124px) + 8px + `NotSynced` (75px) = 207px, or + `NotReady` (68px) = 200px, of the 214px a 240px
+  // card leaves; the 220px card left 194, and cut the kind to 111px and 118px.
   for (const name of ['regular/forEach-NotSynced', 'regular/forEach-NotReady']) {
-    expect(line(name, 'kind').cut, name).toBe(true)
-  }
-
-  // Not this change: the detail line was 12px before it, and a 30-character detail is cut on the
-  // compact card's 154px (169px needed), as it was.
-  expect(line('compact/forEach-NotSynced', 'detail').cut).toBe(true)
-
-  // The 63-character name is long enough to be cut on both cards (else the case proves nothing).
-  for (const density of ['regular', 'compact']) {
-    const name = line(`${density}/long-name`, 'name')
-    expect(name.text.length).toBe(63)
-    expect(name.cut).toBe(true)
+    const kind = line(name, 'kind')
+    const chip = line(name, 'exception')
+    expect(kind.cut, `${name}: ${JSON.stringify(kind)}`).toBe(false)
+    expect(kind.shown, name).toBe(kind.needed)
+    expect(kind.needed + 8 + chip.needed, name).toBeLessThanOrEqual(214)
   }
 })

@@ -17,6 +17,8 @@ import { textPx } from '../../theme/tokens'
 import { V1B } from './__fixtures__/architecture'
 import {
   ARCHITECTURE_COMPACT_SPACING,
+  ARCHITECTURE_DENSITY,
+  ARCHITECTURE_NODE_SIZE,
   ARCHITECTURE_MIN_RANK_GAP,
   ARCHITECTURE_RANK_GAP_STEP,
   ARCHITECTURE_TEXT_ROLES,
@@ -45,12 +47,18 @@ describe('the builder-publish chain', () => {
   })
 
   // The box width → what is drawn. "Fits" is the placement's: the drawing plus 16px either side.
+  // The regular card is 240px: four of them are 960px before any gap.
   it.each([
-    // 1360 + 32 ≤ 1400: as designed, C19's 160px gaps.
-    [1400, ['none', 'regular', 160, 1, 1360, false]],
-    // 1147px of room: 3 gaps of (1147 − 880) / 3 = 89px, stepped down to 88.
-    [1179, ['gap', 'regular', 88, 1, 1144, false]],
-    // 1016px of room: regular needs 880 + 3 × 56 = 1048 at the minimum gap. Compact at its own 32px:
+    // 960 + 3 × 160 = 1440, and 1440 + 32 ≤ 1472: as designed, C19's 160px gaps.
+    [1472, ['none', 'regular', 160, 1, 1440, false]],
+    // 1368px of room: 3 gaps of (1368 − 960) / 3 = 136px, already a multiple of 8. 960 + 408 = 1368.
+    [1400, ['gap', 'regular', 136, 1, 1368, false]],
+    // 1147px of room: (1147 − 960) / 3 = 62.3px, stepped down to 56 — the minimum. 960 + 168 = 1128.
+    [1179, ['gap', 'regular', 56, 1, 1128, false]],
+    // The edge of the regular card: 1128px of room is exactly 960 + 3 × 56; a pixel less is compact.
+    [1160, ['gap', 'regular', 56, 1, 1128, false]],
+    [1159, ['compact', 'compact', 32, 1, 816, false]],
+    // 1016px of room: regular needs 1128 at the minimum gap. Compact at its own 32px:
     // 4 × 180 + 3 × 32 = 816.
     [1048, ['compact', 'compact', 32, 1, 816, false]],
     [1000, ['compact', 'compact', 32, 1, 816, false]],
@@ -64,14 +72,16 @@ describe('the builder-publish chain', () => {
     expect(row(lr(width))).toEqual(expected)
   })
 
-  it('CONTROL: without the adaptation (true size, C19 gaps) every one of those boxes but 1400 clips', () => {
-    for (const width of [1179, 1048, 1000, 900, 760, 600, 400]) {
-      expect(1360 + NATURAL_PADDING > width).toBe(true)
+  it('CONTROL: without the adaptation (true size, C19 gaps) every one of those boxes but 1472 clips', () => {
+    expect(4 * ARCHITECTURE_NODE_SIZE[0] + 3 * 160).toBe(1440)
+    expect(1440 + NATURAL_PADDING > 1472).toBe(false)
+    for (const width of [1400, 1179, 1160, 1159, 1048, 1000, 900, 760, 600, 400]) {
+      expect(1440 + NATURAL_PADDING > width).toBe(true)
     }
   })
 
   it('never makes the LR graph taller: the box height holds what it held', () => {
-    const [, designed] = lr(1400).size
+    const [, designed] = lr(1472).size
     for (let width = 200; width <= 2000; width += 1) {
       expect(lr(width).size[1]).toBeLessThanOrEqual(designed)
     }
@@ -103,7 +113,7 @@ describe('the order, at every width', () => {
   })
 
   it('a shrunk gap is a multiple of the step, never under the minimum, never over the density\'s own', () => {
-    for (let width = 1400; width >= 1000; width -= 1) {
+    for (let width = 1472; width >= 1000; width -= 1) {
       const fit = lr(width)
       if (fit.step === 'gap') {
         expect(fit.rankGap % ARCHITECTURE_RANK_GAP_STEP).toBe(0)
@@ -115,15 +125,19 @@ describe('the order, at every width', () => {
 
   it('takes the WIDEST gap that fits: one step wider would not', () => {
     const fit = lr(1179)
-    expect(4 * 220 + 3 * (fit.rankGap + ARCHITECTURE_RANK_GAP_STEP) + 2 * NATURAL_PADDING).toBeGreaterThan(1179)
+    expect(4 * ARCHITECTURE_NODE_SIZE[0] + 3 * (fit.rankGap + ARCHITECTURE_RANK_GAP_STEP) + 2 * NATURAL_PADDING).toBeGreaterThan(1179)
+    const wide = lr(1400)
+    expect(4 * ARCHITECTURE_NODE_SIZE[0] + 3 * (wide.rankGap + ARCHITECTURE_RANK_GAP_STEP) + 2 * NATURAL_PADDING).toBeGreaterThan(1400)
   })
 })
 
 describe('a single node', () => {
   const ONE = { broadest: 1, ranks: 1 }
   it.each([
-    [1400, ['none', 'regular', 160, 1, 220, false]],
-    // 220 + 32 > 240: the compact card (212) fits.
+    [1400, ['none', 'regular', 160, 1, 240, false]],
+    // 240 + 32 = 272 is the regular card's edge; under it the compact card (180 + 32 = 212) fits.
+    [272, ['none', 'regular', 160, 1, 240, false]],
+    [271, ['compact', 'compact', 32, 1, 180, false]],
     [240, ['compact', 'compact', 32, 1, 180, false]],
     // Not even compact: the fade, at true size.
     [200, ['overflow', 'compact', 32, 1, 180, false]],
@@ -135,11 +149,11 @@ describe('a single node', () => {
 
 describe('an explicit density is the author\'s floor', () => {
   it('regular never becomes compact: it closes its gaps, then overflows', () => {
-    expect(row(lr(1400, 'regular'))).toEqual(['none', 'regular', 160, 1, 1360, false])
-    expect(row(lr(1179, 'regular'))).toEqual(['gap', 'regular', 88, 1, 1144, false])
-    // 880 + 3 × 56 = 1048 against 968px of room, and the regular card's smallest text (12px) is
+    expect(row(lr(1472, 'regular'))).toEqual(['none', 'regular', 160, 1, 1440, false])
+    expect(row(lr(1179, 'regular'))).toEqual(['gap', 'regular', 56, 1, 1128, false])
+    // 960 + 3 × 56 = 1128 against 968px of room, and the regular card's smallest text (12px) is
     // already at the floor, so it does not scale either.
-    expect(row(lr(1000, 'regular'))).toEqual(['overflow', 'regular', 56, 1, 1048, true])
+    expect(row(lr(1000, 'regular'))).toEqual(['overflow', 'regular', 56, 1, 1128, true])
   })
 
   it('compact stays compact, and its 32px gap is already under the minimum, so it has nothing to close', () => {
@@ -164,9 +178,9 @@ describe('TB: the gap runs down the box, so its height is measured, and the widt
   })
 
   it('three ranks in a taller box: the regular card with its vertical gap closed to fit', () => {
-    // 600 − 32 = 568px: 3 × 84 + 2 × g ≤ 568 → g ≤ 158, stepped to 152.
+    // 600 − 32 = 568px: 3 × 84 + 2 × g ≤ 568 → g ≤ 158, stepped to 152. One 240px card is the width.
     const fit = tb({ broadest: 1, ranks: 3 }, [415, 600])
-    expect([fit.step, fit.density, fit.rankGap, fit.size]).toEqual(['gap', 'regular', 152, [220, 556]])
+    expect([fit.step, fit.density, fit.rankGap, fit.size]).toEqual(['gap', 'regular', 152, [240, 556]])
   })
 
   it('explicit compact, six deep: past the floor it runs off the bottom, and says so there only', () => {
@@ -232,11 +246,12 @@ describe('what DependencyGraph is handed', () => {
   })
 
   it('regular at its own gap is C19\'s, undefined, exactly what a CR that sets nothing always handed G6', () => {
-    expect(lr(1400).spacing).toBeUndefined()
+    expect(lr(1472).spacing).toBeUndefined()
   })
 
   it('a shrunk gap keeps regular\'s 32px between siblings', () => {
-    expect(lr(1179).spacing).toEqual({ nodesep: 32, ranksep: 88 })
+    expect(lr(1179).spacing).toEqual({ nodesep: 32, ranksep: 56 })
+    expect(lr(1400).spacing).toEqual({ nodesep: 32, ranksep: 136 })
   })
 
   it('compact is its module constant', () => {
@@ -246,6 +261,30 @@ describe('what DependencyGraph is handed', () => {
   it('the SAME object for the same gap, so a resize that keeps the gap is no re-layout', () => {
     expect(lr(1179).spacing).toBe(lr(1180).spacing)
     expect(lr(1179).spacing).not.toBe(lr(1300).spacing)
+  })
+})
+
+describe('ARCHITECTURE_DENSITY is the stylesheet\'s box', () => {
+  // The card's CSS box and the box dagre reserves are two spellings of one size: every width the fit
+  // decision computes is ARCHITECTURE_DENSITY's, so a stylesheet that drew another would put cards
+  // over their own edges (C19). Pinned here, so the two cannot drift.
+  const css = readFileSync(new URL('./ArchitectureStateNode/ArchitectureStateNode.module.css', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+  const box = (selector: string): [number, number] => {
+    const body = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].find(([, each]) => each.trim() === selector)?.[2] ?? ''
+    const px = (property: string) => Number(new RegExp(`(?:^|[;\\s])${property}:\\s*(\\d+)px`).exec(body)?.[1])
+    return [px('width'), px('height')]
+  }
+
+  it('regular: .card is ARCHITECTURE_NODE_SIZE, 240×84, border-box', () => {
+    expect(box('.card')).toEqual(ARCHITECTURE_DENSITY.regular.nodeSize)
+    expect(ARCHITECTURE_NODE_SIZE).toEqual([240, 84])
+    expect(css).toMatch(/\.card \{[^}]*box-sizing: border-box/)
+  })
+
+  it('compact: .card[data-density=\'compact\'] is 180×56', () => {
+    expect(box(".card[data-density='compact']")).toEqual(ARCHITECTURE_DENSITY.compact.nodeSize)
+    expect(ARCHITECTURE_DENSITY.compact.nodeSize).toEqual([180, 56])
   })
 })
 

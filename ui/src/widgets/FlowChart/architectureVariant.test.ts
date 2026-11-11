@@ -65,8 +65,8 @@ describe('architectureEdgeAppearance — dashed into a withheld node, and nothin
 })
 
 describe('the card', () => {
-  it('reserves 220×84 per node, the card\'s CSS box (C19)', () => {
-    expect(ARCHITECTURE_NODE_SIZE).toEqual([220, 84])
+  it('reserves 240×84 per node, the card\'s CSS box (C19)', () => {
+    expect(ARCHITECTURE_NODE_SIZE).toEqual([240, 84])
   })
 
   it('draws a state it does not know as unknown, never as done', () => {

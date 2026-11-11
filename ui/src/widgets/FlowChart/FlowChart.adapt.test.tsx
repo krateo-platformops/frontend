@@ -61,11 +61,11 @@ const drawn = () => graphDouble.last() as unknown as Drawn
 const cards = () => screen.getAllByRole('group').map((card) => card.dataset.density ?? 'regular')
 
 describe('the fade is the last resort', () => {
-  it('1179px (a 1456px window): the regular card with its gaps closed to 88px, and no fade', () => {
+  it('1179px (a 1456px window): the regular card with its gaps closed to 56px, and no fade', () => {
     sizeTheBox(1179)
     draw()
-    expect(drawn().layout.ranksep).toBe(88)
-    expect(drawn().node.style.size).toEqual([220, 84])
+    expect(drawn().layout.ranksep).toBe(56)
+    expect(drawn().node.style.size).toEqual([240, 84])
     expect(box().dataset.overflows).toBeUndefined()
   })
 
@@ -85,7 +85,8 @@ describe('the fade is the last resort', () => {
   })
 
   it('a box wide enough for the design draws it as designed: C19\'s gap, and no fade', () => {
-    sizeTheBox(1400)
+    // 4 × 240 + 3 × 160 = 1440, plus 16px either side.
+    sizeTheBox(1472)
     draw()
     expect(drawn().layout.ranksep).toBe(160)
     expect(box().dataset.overflows).toBeUndefined()
@@ -94,7 +95,7 @@ describe('the fade is the last resort', () => {
   it('CONTROL: an explicit regular is the author\'s floor — at 1000px it closes its gaps, stays regular, and fades', () => {
     sizeTheBox(1000)
     draw({ density: 'regular' })
-    expect(drawn().node.style.size).toEqual([220, 84])
+    expect(drawn().node.style.size).toEqual([240, 84])
     expect(drawn().layout.ranksep).toBe(56)
     expect(box().dataset.overflows).toBe('true')
   })
@@ -109,7 +110,7 @@ describe('the fade is the last resort', () => {
 
 describe('recomputed when the box is resized', () => {
   it('follows the box both ways: regular → compact → overflow → regular again', () => {
-    sizeTheBox(1400)
+    sizeTheBox(1472)
     draw()
     expect(drawn().layout.ranksep).toBe(160)
     resize(1000)
@@ -118,8 +119,8 @@ describe('recomputed when the box is resized', () => {
     resize(700)
     expect(box().dataset.overflows).toBe('true')
     resize(1179)
-    expect(drawn().node.style.size).toEqual([220, 84])
-    expect(drawn().layout.ranksep).toBe(88)
+    expect(drawn().node.style.size).toEqual([240, 84])
+    expect(drawn().layout.ranksep).toBe(56)
     expect(box().dataset.overflows).toBeUndefined()
   })
 

@@ -11,12 +11,12 @@ describe('architectureGraphWidth (portal#310)', () => {
       { source: 'repo', target: 'localresources' },
       { source: 'localresources', target: 'pullrequest' },
     ]
-    // 4 ranks: 4*220 + 3*160
-    expect(architectureGraphWidth(nodes, edges)).toBe(1360)
+    // 4 ranks: 4*240 + 3*160
+    expect(architectureGraphWidth(nodes, edges)).toBe(1440)
   })
 
   it('is one card wide for a single node, and 0 for none', () => {
-    expect(architectureGraphWidth([{ id: 'only' }], [])).toBe(220)
+    expect(architectureGraphWidth([{ id: 'only' }], [])).toBe(240)
     expect(architectureGraphWidth([], [])).toBe(0)
   })
 
