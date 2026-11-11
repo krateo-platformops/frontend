@@ -80,6 +80,13 @@ const Layout = ({ resourcesRefs, widgetData }: WidgetProps<LayoutWidgetData>) =>
     setNavOpen(false)
   }
 
+  // The Sider's collapsed state, held here so the Sider's header can follow it. antd's `onCollapse`
+  // reports the `breakpoint` as well as the trigger, and the state starts from the CR's
+  // `defaultCollapsed`, as antd's own would. The Sider is controlled by it rather than mirrored:
+  // a Sider remounted on leaving the phone drawer starts again from its initial state, and antd
+  // reports a breakpoint answer only when it differs from that, so a mirror could keep a stale value.
+  const [siderCollapsed, setSiderCollapsed] = useState(sider?.defaultCollapsed ?? false)
+
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const menuButton = offCanvas ? (
     <HeaderIconButton ariaExpanded={navOpen} ariaLabel='Navigation menu' icon={['fas', 'bars'] as IconProp} onClick={() => setNavOpen(true)} ref={menuButtonRef} />
@@ -93,13 +100,22 @@ const Layout = ({ resourcesRefs, widgetData }: WidgetProps<LayoutWidgetData>) =>
     </>
   )
 
-  const siderColumn = sider ? (
-    <div className={styles.sider}>
-      {shell.siderHeader}
-      <div className={styles.siderBody}>{slot(sider.resourceRefId, resourcesRefs)}</div>
-      {shell.siderFooter}
-    </div>
-  ) : null
+  // The CR's own Sider header sits at the top of the column: `collapsedHeader` while the Sider is
+  // the icon rail, `header` otherwise, and `header` in both states when that is all the CR sets.
+  // The drawer's Sider is never collapsed. The key remounts the slot when the reference changes,
+  // so one widget's error state is never shown for the other.
+  const siderColumn = (collapsed: boolean) => {
+    if (!sider) { return null }
+    const headerRef = collapsed ? (sider.collapsedHeader ?? sider.header) : sider.header
+    return (
+      <div className={styles.sider}>
+        {headerRef ? <div className={styles.siderHeader} key={headerRef}>{slot(headerRef, resourcesRefs)}</div> : null}
+        {shell.siderHeader}
+        <div className={styles.siderBody}>{slot(sider.resourceRefId, resourcesRefs)}</div>
+        {shell.siderFooter}
+      </div>
+    )
+  }
 
   // The Sider's slot stays in place while it is empty, so crossing `md` (a phone turned sideways)
   // never remounts the regions beside it, and with them the routed page and whatever it holds.
@@ -111,14 +127,15 @@ const Layout = ({ resourcesRefs, widgetData }: WidgetProps<LayoutWidgetData>) =>
         <Sider
           breakpoint={sider.breakpoint ?? DEFAULT_SIDER_BREAKPOINT}
           className={styles.siderRegion}
+          collapsed={siderCollapsed}
           collapsedWidth={sider.collapsedWidth}
           collapsible={sider.collapsible}
-          defaultCollapsed={sider.defaultCollapsed}
+          onCollapse={(collapsed) => setSiderCollapsed(collapsed)}
           reverseArrow={sider.reverseArrow}
           theme={sider.theme}
           width={sider.width}
         >
-          {siderColumn}
+          {siderColumn(siderCollapsed)}
         </Sider>
       )}
       <AntdLayout>{regions}</AntdLayout>
@@ -146,7 +163,7 @@ const Layout = ({ resourcesRefs, widgetData }: WidgetProps<LayoutWidgetData>) =>
       styles={{ body: { padding: 0 } }}
     >
       <Sider className={`${styles.siderRegion} ${styles.drawerSider}`} theme={sider.theme} width='100%'>
-        {siderColumn}
+        {siderColumn(false)}
       </Sider>
     </Drawer>
   ) : null

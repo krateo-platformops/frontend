@@ -44,6 +44,14 @@ export interface Layout {
          */
         resourceRefId?: string
         /**
+         * resourceRefId of the widget rendered at the top of the Sider, above its content (a brand logo, for example). It shows while the Sider is expanded, and while it is collapsed too unless `collapsedHeader` is set
+         */
+        header?: string
+        /**
+         * resourceRefId of the widget rendered at the top of the Sider in place of `header` while the Sider is collapsed to its icon rail (a compact logo, for example). Unset, `header` shows in both states
+         */
+        collapsedHeader?: string
+        /**
          * antd Sider `width` in px
          */
         width?: number

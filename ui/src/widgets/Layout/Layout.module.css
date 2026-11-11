@@ -44,6 +44,14 @@
   height: 100%;
 }
 
+/* The CR's sider header (sider.header / sider.collapsedHeader, a brand logo): pinned above the
+   scrolling body, with the body's side padding, so a logo sits where it sat inside the body. */
+.siderHeader {
+  box-sizing: border-box;
+  flex: none;
+  padding: var(--spacing-md) var(--spacing-md) 0;
+}
+
 /* The sider region's content padding — engine chrome, same layer as .content /
    .header. Widgets fill the padded region; region padding isn't a widget concern
    (antd Flex has no padding prop, and the set deliberately omits `style`). */
