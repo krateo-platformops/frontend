@@ -109,6 +109,18 @@ DERIVED = {
     ),
 }
 
+# Keys that are OFF when unset, so values.yaml leaves them unset (a commented example there documents
+# each one): typed, never defaulted, absent from values.yaml. Agentiko keys added after the rename
+# have only the AGENTIKO_ name, so they get no AUTOPILOT_ twin (the frontend's agentikoConfig would
+# still accept one, and templates/configmap.yaml mirrors an AGENTIKO_ key to it in config.json).
+OPTIONAL = {
+    "AGENTIKO_RAIL_BADGE": (
+        "Optional label shown as a tag in the Agentiko rail header (e.g. Staging, Preview). While it "
+        "is set, the header's live/streaming pill is hidden. Unset, empty or blank: no label, and the "
+        "rail is unchanged."
+    ),
+}
+
 properties = {}
 for key, value in config.items():
     properties[key] = prop(key, value)
@@ -118,6 +130,10 @@ for key, description in DERIVED.items():
 for key, value in [*config.items(), *((k, "") for k in DERIVED)]:
     if key.startswith(DEPRECATED_PREFIX):
         properties[current_name(key)] = current_prop(key, value)
+
+for key, description in OPTIONAL.items():
+    assert key not in config, f"{key} is off when unset; values.yaml must not set it"
+    properties[key] = {"type": "string", "title": title_for(key), "description": description}
 
 schema["properties"]["config"]["properties"] = properties
 schema["properties"]["config"]["default"] = {key: value for key, value in config.items() if key not in NO_DEFAULT}

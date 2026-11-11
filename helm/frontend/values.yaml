@@ -357,6 +357,11 @@ config:
   AUTOPILOT_VOICE_TTS_URL: ""
   # The Cloud TTS voice. Only consulted when AUTOPILOT_VOICE_TTS_URL is set.
   AUTOPILOT_VOICE_NAME: en-US-Chirp3-HD-Achernar
+  # An optional label for the Agentiko rail header, e.g. "Staging", "Preview" or "Training",
+  # shown as a tag beside the title. While it is set, the header's live/streaming pill is hidden.
+  # Unset by default, and deliberately left out of the defaults: unset, empty or blank, the rail
+  # renders as it always has. A new key, so it has only the AGENTIKO_ name.
+  # AGENTIKO_RAIL_BADGE: Staging
 
 # ── Preview sandbox (portal-builder live preview; w4 spec Addendum A) ─────────
 # Provisions the quarantined namespace where the portal-builder applies DRAFT

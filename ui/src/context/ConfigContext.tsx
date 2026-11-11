@@ -111,6 +111,11 @@ export interface AgentikoConfigValues {
    * another language names a voice for it here rather than relying on the browser's
    * `navigator.language`. */
   VOICE_NAME?: string
+  /** An install-chosen label for the rail header, e.g. "Staging", "Preview", "Training" or
+   * "Scripted demo": shown as a tag beside the "Agentiko" title. While it is set, the header's
+   * live/streaming pill is hidden, so a labelled rail does not also claim to be live. Absent, empty
+   * or blank, the rail renders exactly as it did before this key existed. */
+  RAIL_BADGE?: string
 }
 
 /** The current names, `AGENTIKO_<KEY>`. Present, they win. */

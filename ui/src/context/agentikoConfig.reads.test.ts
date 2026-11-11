@@ -38,6 +38,7 @@ const KEYS: Record<AgentikoKey, true> = {
   KOG_BUILDER_TEMPLATE: true,
   PAGE_BUILDER_REPO: true,
   PAGE_BUILDER_TEMPLATE: true,
+  RAIL_BADGE: true,
   VOICE_MODEL: true,
   VOICE_NAME: true,
   VOICE_SPEAK_BACK: true,
