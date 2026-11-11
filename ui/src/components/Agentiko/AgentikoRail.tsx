@@ -14,6 +14,7 @@
  * driving/HITL surfaces are Phase 2/3.
  */
 
+import { Tag } from 'antd'
 import { type ClipboardEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import gekoThinking from '../../assets/images/agentiko/geko-thinking.webp'
@@ -61,6 +62,9 @@ const AgentikoRail = () => {
   const askAgain = useAskAgain({ send, stop, streaming })
   const approvalOwner = pendingApproval ? approvalOwnerId(messages) : undefined
   const { config } = useConfigContext()
+  // The install's optional rail label (AGENTIKO_RAIL_BADGE). Blank counts as unset, so the header
+  // keeps its live pill unless there is a label to show instead.
+  const railBadge = agentikoConfig(config?.api, 'RAIL_BADGE')?.trim()
   // The composer draft + its PROVENANCE (purely dictated vs touched by the keyboard) live in
   // a module-level store, not `useState`: a routerVersion remount used to wipe a half-written
   // question, and speak-back's whole trigger is a property of HOW the draft was composed, so
@@ -355,9 +359,14 @@ const AgentikoRail = () => {
       <div className={styles.apRailInner}>
         <div className={styles.apHead}>
           <span className={styles.apTitle}><AgentikoMark className={styles.apSpark} gradient size={20} />Agentiko</span>
-          <span className={`${styles.apLive} ${streaming ? '' : styles.idle}`}>
-            <span className={styles.apLiveDot} />{streaming ? 'streaming' : 'live'}
-          </span>
+          {/* AGENTIKO_RAIL_BADGE: the install's label for this rail replaces the live pill. */}
+          {railBadge ? (
+            <Tag>{railBadge}</Tag>
+          ) : (
+            <span className={`${styles.apLive} ${streaming ? '' : styles.idle}`}>
+              <span className={styles.apLiveDot} />{streaming ? 'streaming' : 'live'}
+            </span>
+          )}
           <span className={styles.apSpacer} />
           <button
             aria-label='Conversation history'

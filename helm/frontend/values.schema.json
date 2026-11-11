@@ -726,6 +726,11 @@
           "type": "string",
           "title": "Agentiko API base URL",
           "description": "Agentiko name of AUTOPILOT_API_BASE_URL; wins over it when set. Not defaulted: an unset key falls back to AUTOPILOT_API_BASE_URL."
+        },
+        "AGENTIKO_RAIL_BADGE": {
+          "type": "string",
+          "title": "Agentiko Rail Badge",
+          "description": "Optional label shown as a tag in the Agentiko rail header (e.g. Staging, Preview). While it is set, the header's live/streaming pill is hidden. Unset, empty or blank: no label, and the rail is unchanged."
         }
       },
       "default": {
