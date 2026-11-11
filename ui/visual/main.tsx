@@ -47,6 +47,7 @@ import type { WidgetProps } from '../src/types/Widget'
 import { Menu } from '../src/widgets/Menu/Menu'
 import PageHeader from '../src/widgets/PageHeader/PageHeader'
 import { getWidgetModule } from '../src/widgets/registry'
+import Table, { type TableWidgetData } from '../src/widgets/Table/Table'
 
 const examples = import.meta.glob<string>('../src/examples/widgets/*/*.example.yaml', { eager: true, import: 'default', query: '?raw' })
 
@@ -143,6 +144,32 @@ const focusRing = () => (
   </Space>
 )
 /**
+ * `?fixture=table-cell-tooltip`: the trace page's spans table, whose red status tag carries the
+ * span's OTel StatusMessage as its cell `tooltip`. tableCellTooltip.spec.ts Tabs to the tag and
+ * photographs it with its tooltip open.
+ */
+const spansTable = {
+  allowedResources: [],
+  columns: [
+    { title: 'Span', valueKey: 'span' },
+    { title: 'Duration', valueKey: 'duration' },
+    { title: 'Status', valueKey: 'status' },
+  ],
+  dataSource: [
+    [
+      { kind: 'jsonSchemaType', stringValue: 'snowplow /call', type: 'string', valueKey: 'span' },
+      { kind: 'jsonSchemaType', stringValue: '30.0 s', type: 'string', valueKey: 'duration' },
+      { color: 'red', kind: 'tag', stringValue: '500 · error', tooltip: 'dial tcp 10.40.4.184:8081: i/o timeout', valueKey: 'status' },
+    ],
+    [
+      { kind: 'jsonSchemaType', stringValue: 'restaction resolve', type: 'string', valueKey: 'span' },
+      { kind: 'jsonSchemaType', stringValue: '12 ms', type: 'string', valueKey: 'duration' },
+      { color: 'green', kind: 'tag', stringValue: '200 · ok', valueKey: 'status' },
+    ],
+  ],
+} as TableWidgetData
+
+/**
  * `?fixture=nav-menu`: the sidebar nav Menu widget, its labels in sentence case and one starting
  * lower-case, so menu.spec.ts can check each renders exactly as declared. No refs and nothing
  * denied: the Menu shows every entry (navModel.isNavEntryAllowed's fail-open).
@@ -165,6 +192,7 @@ const fixtures: Record<string, () => React.ReactNode> = {
   'page-header-no-subtitle': () => pageHeader(),
   'screen-header': () => screenHeader('Author a page and everything it needs, then publish the whole set as one change request.'),
   'screen-header-no-subtitle': () => screenHeader(),
+  'table-cell-tooltip': () => <Table resourcesRefs={{ items: [] }} uid='fixture' widget={{} as never} widgetData={spansTable} />,
 }
 
 const missing = <pre data-testid='missing'>{`no renderable example ${doc} in ${folder}`}</pre>

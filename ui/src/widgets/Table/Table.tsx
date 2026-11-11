@@ -3,11 +3,11 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Table as AntdTable, Progress, Result, Tag, theme, Typography } from 'antd'
 import type { TablePaginationConfig } from 'antd'
 import type { TableRef } from 'antd/es/table'
-import { useCallback, type CSSProperties } from 'react'
+import { useCallback, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 
 import { useFilter } from '../../components/FiltesProvider/FiltersProvider'
-import RefChild from '../../components/RefChild'
+import RefChild, { refChildState } from '../../components/RefChild'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { useMeasuredWidth } from '../../hooks/useMeasuredWidth'
 import { getColorCode, getTagStyle, resolveTextColor } from '../../theme/palette'
@@ -17,6 +17,7 @@ import { formatISODate, formatRelativeTime } from '../../utils/utils'
 
 import styles from './Table.module.css'
 import type { Table as WidgetType } from './Table.type'
+import TableCellTooltip from './TableCellTooltip'
 import { columnLayout } from './tableColumnWidths'
 import { buildExportRequest } from './tableExport'
 import TableExportControl from './TableExportControl'
@@ -24,6 +25,12 @@ import { computeTablePagination, shouldVirtualize, VIRTUAL_SCROLL_Y } from './ta
 import { getColumnSortProps } from './tableSorting'
 
 export type TableWidgetData = WidgetType['spec']['widgetData']
+type TableRow = NonNullable<TableWidgetData['dataSource']>[number]
+type TableCell = TableRow[number]
+type CellRender = (value: unknown, row: TableRow) => ReactNode
+
+/** A cell's explicit `tooltip`, or undefined when it has none to show (absent or blank). */
+const explicitTooltip = (cell: TableCell | undefined): string | undefined => (cell?.tooltip?.trim() ? cell.tooltip : undefined)
 
 /** --krateo-text-label-sm, px: the header's font size. */
 const HEADER_FONT_SIZE = 11
@@ -57,6 +64,39 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
       return wholeIsPlaceholder ? value : encodeURIComponent(value)
     })
     return missing ? undefined : path
+  }
+
+  // A cell's explicit `tooltip` wraps whatever its kind rendered, so one rule covers every kind and
+  // no case of the switch below has to remember it. A cell without one gets the node back untouched:
+  // no wrapper, no tab stop, the DOM it always had.
+  //
+  // It is the cell's ONLY tooltip. The column's own full-text-on-hover (antd `ellipsis.showTitle`)
+  // is a native `title` rc-table lifts from a child whose children are a string; the Tooltip
+  // element is not one, so that title is not set. The tag's own `title` backstop is dropped at its
+  // render. A `widget` cell is wrapped only when its ref resolves: a denied ref renders nothing (a
+  // tab stop on nothing would announce it), and a dangling ref's marker already carries the error
+  // in its own Tooltip, which says more about that cell than any authored text.
+  const withCellTooltip = (valueKey: string, render: CellRender): CellRender => (value, row) => {
+    const node = render(value, row)
+    const cell = row.find((candidate) => candidate.valueKey === valueKey)
+    const tooltip = explicitTooltip(cell)
+    if (!cell || !tooltip) { return node }
+
+    switch (cell.kind) {
+      case 'tag':
+        return <TableCellTooltip display='tag' title={tooltip}>{node}</TableCellTooltip>
+      case 'bar':
+        return <TableCellTooltip display='block' label={{ name: tooltip, role: 'group' }} title={tooltip}>{node}</TableCellTooltip>
+      case 'conditions':
+        return <TableCellTooltip display='block' title={tooltip}>{node}</TableCellTooltip>
+      case 'icon':
+        return <TableCellTooltip display='inline' label={{ name: tooltip, role: 'img' }} title={tooltip}>{node}</TableCellTooltip>
+      case 'widget':
+        if (cell.resourceRefId && refChildState(cell.resourceRefId, resourcesRefs, deniedRefIds) !== 'ok') { return node }
+        return <TableCellTooltip display='inline' title={tooltip}>{node}</TableCellTooltip>
+      default:
+        return <TableCellTooltip display='inline' title={tooltip}>{node}</TableCellTooltip>
+    }
   }
 
   // TODO: check if this works with RESTAction, it should not be displayed
@@ -159,7 +199,7 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
         // so a fixed `width` on every column just re-creates the overflow it was meant to fix, while
         // a floor keeps one column readable and lets the rest flex around it.
         minWidth,
-        render: (_: unknown, row: NonNullable<TableWidgetData['dataSource']>[number]) => {
+        render: withCellTooltip(valueKey, (_: unknown, row: TableRow) => {
           const cell = row.find((cell) => cell.valueKey === valueKey)
 
           if (!cell) {
@@ -177,8 +217,8 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
               //
               // `.tagCell` + `title` are the backstop for a label the column floor still under-measures:
               // the tag ellipsizes with its full text on hover, as an antd ellipsis cell does, instead
-              // of being cut mid-word.
-              return <Tag className={styles.tagCell} style={getTagStyle(cellColor ?? color)} title={stringValue}>{stringValue ?? '-'}</Tag>
+              // of being cut mid-word. An explicit `tooltip` replaces that title (withCellTooltip).
+              return <Tag className={styles.tagCell} style={getTagStyle(cellColor ?? color)} title={explicitTooltip(cell) ? undefined : stringValue}>{stringValue ?? '-'}</Tag>
 
             case 'bar': {
               // Reconciliation-rail gauge cell (desired-vs-actual): cyan CONVERGED fill to
@@ -278,7 +318,7 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
               console.error('Table rendering error: unknown kind')
               return <span>-</span>
           }
-        },
+        }),
         // A truncating table's header wraps onto two lines rather than ellipsize, so a title's unit
         // ("CPU request (m)") is not the part that is cut; columnLayout sizes the columns for that.
         // Past two lines it ellipsizes, full title on hover.
@@ -314,6 +354,9 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
           return {
             onClick: go,
             onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+              // Only a key aimed at the ROW activates it, as List's rows do. A focusable child — a
+              // cell carrying a `tooltip`, a control in a `widget` cell — keeps its own keys.
+              if (event.target !== event.currentTarget) { return }
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault()
                 go()
