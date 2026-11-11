@@ -100,7 +100,10 @@ const UserMenu = ({ withPageUtilities = false }: Props) => {
               size={80}
               src={avatarURL}
             >
-              <Typography.Text className={styles.initials}>{initials}</Typography.Text>
+              {/* A plain span: the initials take the avatar's own ink (`colorTextLightSolid`, which
+                  the theme sets for its fill). Typography.Text painted them `colorText`, 2.97:1 on
+                  the light fill and 2.99:1 on the dark one. */}
+              <span className={styles.initials}>{initials}</span>
             </Avatar>
 
             <div className={styles.details}>
@@ -141,7 +144,7 @@ const UserMenu = ({ withPageUtilities = false }: Props) => {
           size='default'
           src={avatarURL}
         >
-          <Typography.Text>{initials}</Typography.Text>
+          {initials}
         </Avatar>
       </button>
     </Popover>

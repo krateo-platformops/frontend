@@ -68,7 +68,7 @@ export const HeaderChrome = () => {
 /** Bottom-of-Sider block: the user (avatar + name from the token) above a subtle
  * build/version marker. The version is `package.json`'s `version` and the build is the
  * git short-SHA, both inlined at build time (vite.config.ts `define`) — nothing hardcoded. */
-const SiderFooter = () => {
+export const SiderFooter = () => {
   const { user } = JSON.parse(localStorage.getItem('K_user') || '{}') as { user?: { avatarURL?: string; displayName?: string; username?: string } }
   const name = user?.displayName || user?.username || ''
   return (

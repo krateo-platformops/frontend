@@ -81,7 +81,7 @@ export interface ItemTemplate {
   icon?: string
   /**
    * How the leading indicator is presented:
-   * - `avatar` (default): solid colored disc + white glyph;
+   * - `avatar` (default): solid colored disc + a glyph in the avatar ink (white; dark ink in dark mode);
    * - `tile`: soft-tint rounded square + colored glyph (catalog/list rows);
    * - `dot`: small solid status dot with a soft halo, no glyph (event/status feeds).
    */

@@ -512,6 +512,11 @@ const textPx = (role: string): number => Number.parseInt(KRATEO_BASE[`text-${rol
 const buildComponents = (palette: Record<keyof typeof color, string>, mode: ThemeMode): ThemeConfig['components'] => ({
   // T2 feedback group. Alert and Badge restate what compactAlgorithm already derives.
   Alert: { defaultPadding: `${spacing.xs}px ${spacing.smd}px`, withDescriptionIconSize: 20, withDescriptionPadding: `${spacing.md}px ${spacing.md}px` },
+  // WCAG AA, the Button's rule: an avatar's initials or icon are `colorTextLightSolid` on its fill.
+  // The fills an avatar wears in dark are light tints: the photo-less default (the dark
+  // `colorTextPlaceholder`, #8C86A0: white 3.48:1, dark ink 5.47:1) and a List row's colour (`gray`
+  // #A39DB5: white 2.61:1, dark ink 7.29:1). Light keeps antd's white (5.60:1 on #6A6480).
+  Avatar: mode === 'dark' ? { colorTextLightSolid: palette.panelbg } : {},
   Badge: { dotSize: 5, indicatorHeight: 18, indicatorHeightSM: 12, statusSize: 5, textFontSize: textPx('label-xs'), textFontSizeSM: textPx('label-xs') },
   // T2 display group. Breadcrumb also themes the shell's own Breadcrumb (components/Breadcrumb).
   Breadcrumb: { iconFontSize: textPx('caption'), separatorMargin: spacing.xs },
@@ -586,7 +591,12 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   // Was 8.75 / 10.5 (controlHeightLG / 4, controlHeightSM / 2). Whole pixels, antd's own pair.
   Slider: { controlSize: 10, handleSize: 10, handleSizeHover: 12 },
   Statistic: { contentFontSize: 31, titleFontSize: 13 },
-  Steps: { iconSize: 28 },
+  // WCAG AA, the Button's rule: the current step's number is `colorTextLightSolid` on the painted
+  // primary. In dark antd paints the primary #A86BDC (its dark algorithm moves the #C27AFF seed),
+  // where white is 3.62:1 and dark ink 5.26:1. Done and upcoming steps keep their own tinted
+  // styling. A current step whose status is `error` sits on the dark `colorError` (#D64444), which
+  // fails under either ink (white 4.40:1, dark ink 4.32:1); that pair is not this rule's to fix.
+  Steps: { iconSize: 28, ...(mode === 'dark' ? { colorTextLightSolid: palette.panelbg } : {}) },
   Switch: { handleSize: 16, trackHeight: 20 },
   // #72 §0.5 + #76 table cell padding: the reporters found the rows too TIGHT (Incidents + Alerts,
   // both `size: small`) and asked to INCREASE the vertical padding to the portal's spacing scale.

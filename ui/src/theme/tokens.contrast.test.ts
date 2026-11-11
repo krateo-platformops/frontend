@@ -468,3 +468,65 @@ describe('blue — the Agentiko brand blue, AA in both modes', () => {
     expect(colorDark.blue).not.toBe(colorDark.primary)
   })
 })
+
+/**
+ * Coloured fills under `colorTextLightSolid`, per component: the rule the primary Button follows,
+ * mirrored where a fill turns light in dark mode. antd paints these labels and icons
+ * `colorTextLightSolid`, white by default. In dark the fills below are light tints, so white failed
+ * on each; the theme gives those components the dark ink (`colorDark.panelbg`) and nothing else.
+ *
+ * Every colour is the one antd PAINTS: the fill is read from `getDesignToken`, because antd's dark
+ * algorithm moves the seeds before painting (the dark primary seed #C27AFF is painted #A86BDC), and
+ * the ink is the component's own override where the theme sets one, else antd's token, which is
+ * how antd merges a component token over the global one. The components' tests read the same pairs
+ * off the rendered DOM (Steps, ListView, SiderFooter, UserMenu).
+ */
+describe('Coloured fills — the ink each component paints on its fill, in both modes', () => {
+  type Component = 'Avatar' | 'Steps' | 'Tooltip'
+  const themes = { dark: darkTheme, light: lightTheme } as const
+  const emitted = (mode: keyof typeof themes) => antdTheme.getDesignToken(themes[mode])
+  const ink = (mode: keyof typeof themes, component: Component): string =>
+    String(themes[mode].components?.[component]?.colorTextLightSolid ?? emitted(mode).colorTextLightSolid)
+  /** antd writes white as `#fff`; the helpers above read six digits. */
+  const sixDigit = (hex: string): string => (hex.length === 4 ? `#${[...hex.slice(1)].map((digit) => digit + digit).join('')}` : hex)
+
+  const PAIRS: { component: Component; fill: (mode: keyof typeof themes) => string; minimum: number; name: string }[] = [
+    // The current step's number on the primary (create wizard, architecture, remediation, review steps).
+    { component: 'Steps', fill: (mode) => emitted(mode).colorPrimary, minimum: 4.5, name: 'the current step number on the primary' },
+    // A photo-less user's initials: the sidebar footer, the header trigger, the account menu.
+    { component: 'Avatar', fill: (mode) => emitted(mode).colorTextPlaceholder, minimum: 4.5, name: 'a photo-less avatar\'s initials on its default fill' },
+    // A List row's icon avatar on the default row colour, as getColorCode resolves `gray` per mode.
+    { component: 'Avatar', fill: (mode) => (mode === 'dark' ? colorDark : color).gray, minimum: 3, name: 'a List row\'s icon on the `gray` row colour' },
+  ]
+
+  ;(['light', 'dark'] as const).forEach((mode) => {
+    PAIRS.forEach(({ component, fill, minimum, name }) => {
+      it(`${mode}: ${name} passes >= ${minimum}:1`, () => {
+        const [label, ground] = [sixDigit(ink(mode, component)), sixDigit(fill(mode))]
+        const ratio = contrastRatio(label, ground)
+        expect(ratio, `${mode} ${component} ${label} on ${ground} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(minimum)
+      })
+    })
+  })
+
+  it('dark: white on each of those fills FAILS (documents the flip)', () => {
+    PAIRS.forEach(({ fill, minimum, name }) => {
+      expect(contrastRatio('#FFFFFF', sixDigit(fill('dark'))), name).toBeLessThan(minimum)
+    })
+  })
+
+  it('the flip is per component, never global, and light mode keeps antd\'s white', () => {
+    expect(darkTheme.token?.colorTextLightSolid).toBeUndefined()
+    expect(darkTheme.components?.Steps?.colorTextLightSolid).toBe(colorDark.panelbg)
+    expect(darkTheme.components?.Avatar?.colorTextLightSolid).toBe(colorDark.panelbg)
+    expect(lightTheme.components?.Steps?.colorTextLightSolid).toBeUndefined()
+    expect(lightTheme.components?.Avatar?.colorTextLightSolid).toBeUndefined()
+  })
+
+  it('Tooltip keeps white in dark: dark ink on its fill would fail (1.47:1)', () => {
+    const spotlight = sixDigit(emitted('dark').colorBgSpotlight)
+    expect(darkTheme.components?.Tooltip?.colorTextLightSolid).toBeUndefined()
+    expect(contrastRatio(sixDigit(ink('dark', 'Tooltip')), spotlight)).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio(colorDark.panelbg, spotlight)).toBeLessThan(4.5)
+  })
+})
