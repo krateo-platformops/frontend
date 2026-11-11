@@ -31,10 +31,22 @@ import { fetchWithTimeout, parseJsonResponse, POST_WRITE_REVALIDATE_DELAYS_MS } 
 export type { WriteOp }
 
 /**
- * Dispatch options for the previewPage v2 SANDBOX flow (Addendum A.2.3) — the ONLY
- * caller that may relax the fabric's defaults. Every other set keeps the full gate.
+ * Dispatch options. The RELAXATIONS (`skipConfirmForSandbox`, `silent`, `skipRevalidate`) are for
+ * the previewPage v2 SANDBOX flow (Addendum A.2.3) and the draft record — the ONLY callers that may
+ * relax the fabric's defaults; every other set keeps the full gate. `onConfirmed` relaxes nothing:
+ * it only tells the caller WHEN the gate was passed.
  */
 export interface SetDispatchOptions {
+  /**
+   * Called ONCE, the moment the set is past the gate — the person confirmed the blast radius (or
+   * the set is sandbox-confined and no confirm interposes) — and BEFORE the first op is sent. Never
+   * called for a declined (or timed-out) confirm, nor for an empty set: nothing was committed.
+   *
+   * Why a caller needs the moment: an X5 interaction span is measured from COMMITTED intent, and
+   * the confirm is the commitment. `krateo.page.publish` starts here (BuilderHost, through the
+   * publish-confirmed bus), exactly as `krateo.form.submit` starts in `runRest` past the same gate.
+   */
+  onConfirmed?: () => void
   /**
    * Skip the aggregated blast-radius confirm IFF every op targets EXACTLY this
    * namespace (parsed from the op's own /call path — never trusted from the caller's
@@ -140,6 +152,8 @@ export const runRestSet = async (ops: readonly WriteOp[], ctx: RunRestSetContext
 
     return null
   }
+  // Past the gate, nothing sent yet: the caller's commitment point (SetDispatchOptions.onConfirmed).
+  options?.onConfirmed?.()
 
   // W0-3 provenance: requestedAt covers the whole ordered dispatch (pre-dispatch timestamp).
   const requestedAt = new Date().toISOString()

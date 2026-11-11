@@ -44,7 +44,8 @@ export const SPAN_NAMES = {
   /** Document load. Instrumented, but reported OUTSIDE the interaction SLO: it measures network
    *  and bundle size rather than anything the portal controls. */
   pageLoad: 'krateo.page.load',
-  /** A page published: publish confirmed → published state visible. */
+  /** A page published: the write confirmed (the blast-radius Confirm, not the Publish press) →
+   *  the provider's answer rendered (the change-request link, or the refusal). */
   pagePublish: 'krateo.page.publish',
   /** One portal → snowplow request. The carrier of W3C traceparent, and the child that links an
    *  interaction to snowplow's own Server span. */

@@ -37,7 +37,7 @@ import { useAgentikoShortcut } from './keyboardShortcut'
 import { AgentikoLicenceContext } from './licence'
 import { createOasAttachmentStore, type OasAttachmentResult } from './oasAttachment'
 import { PREVIEW_SELF_CORRECTION_NUDGE, setPreviewRender } from './previewBus'
-import { emitPublishResult, onPublishRequest } from './previewPublishRequest'
+import { emitPublishConfirmed, emitPublishResult, onPublishRequest } from './previewPublishRequest'
 import { AgentikoPreviewDrawer } from './previewSurface'
 import { routeProposal } from './proposalRoute'
 import { blueprintChipRendered, compilePublishOps, heldDraftIdentity, recordBlueprintPreview, recordPagePreview, type PublishCompileResult } from './publishCompile'
@@ -845,6 +845,10 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
    * The AUTHORSHIP origin is empty and the PROVENANCE actor is `human` — two different records,
    * both honest. No agent session id and no prompt are stamped on the objects, because no model
    * turn produced them; `apply` separately records that a person, not the agent, asked.
+   *
+   * The moment that confirm is answered goes back on the publish-confirmed bus, before anything is
+   * sent: the surface starts its X5 `krateo.page.publish` span THERE, so neither the destination
+   * form nor the confirm — a person's dwell — is counted as platform latency (startPagePublish).
    */
   useEffect(() => onPublishRequest(({ id, verb }) => {
     // The bus handler is sync (a listener's return value is ignored); the publish itself is async
@@ -852,7 +856,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
     void (async () => {
       const answer = await runPersonPublish(
         {
-          apply: (ops) => apply({ label: 'Publish', ops, verb: 'applyResourceSet' }, { actor: 'human' }),
+          apply: (ops) => apply({ label: 'Publish', ops, verb: 'applyResourceSet' }, { actor: 'human' }, { onConfirmed: () => emitPublishConfirmed({ id }) }),
           blueprintGate,
           blueprintStore,
           builderTargets,

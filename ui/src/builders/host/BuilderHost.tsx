@@ -38,7 +38,7 @@ import type { AgentikoPreviewPayload } from '../../components/Agentiko/previewBu
 import { claimPreviewSurface, onDraftChanged, requestDraftReplay, type DraftChangedDetail } from '../../components/Agentiko/previewDraftChanged'
 import { emitDraftClose, onDraftClose } from '../../components/Agentiko/previewDraftClose'
 import { emitDraftUndo } from '../../components/Agentiko/previewDraftUndo'
-import { emitPublishRequest, onPublishResult, type PublishRequestDetail } from '../../components/Agentiko/previewPublishRequest'
+import { emitPublishRequest, onPublishConfirmed, onPublishResult, type PublishRequestDetail } from '../../components/Agentiko/previewPublishRequest'
 import { PreviewContent, type RestDefVerdicts } from '../../components/Agentiko/previewSurface'
 import { useDraftResume } from '../../components/Agentiko/useDraftResume'
 import DismissButton, { dismissButtonProps } from '../../components/DismissButton'
@@ -158,9 +158,24 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
 
   useEffect(() => onDraftChanged(setHeld), [])
 
-  // X5 `krateo.page.publish`: started when Publish is pressed, ended when THIS surface renders the
-  // provider's answer. See `startPagePublish` for why those are the boundaries.
+  // X5 `krateo.page.publish`: started when the provider says OUR publish's write was confirmed (the
+  // blast-radius Confirm — the last of the two gates after the press), ended when THIS surface
+  // renders the provider's answer. See `startPagePublish` for why those are the boundaries.
   const publishSpan = useRef<InteractionSpan | null>(null)
+
+  // The confirm was answered: from here every millisecond is the platform's. A publish cancelled at
+  // either gate, or refused before them, is never confirmed and starts nothing. `spec.route` is the
+  // path the shell MOUNTS this Builder at (builderRoutes.tsx) — a route pattern with no parameters,
+  // so it is already the templated route and one metric series per Builder. Taking it from the spec
+  // rather than from the location also keeps this surface, which mounts bare in tests, off the
+  // router's hooks.
+  useEffect(() => onPublishConfirmed(({ id }) => {
+    if (publishId.current !== id) {
+      return
+    }
+    publishSpan.current?.abandoned()
+    publishSpan.current = startPagePublish(spec.route)
+  }), [spec.route])
 
   // The answer to OUR publish, ignoring any other surface's.
   useEffect(() => onPublishResult(({ deepLink, denial, id }) => {
@@ -170,9 +185,10 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
     publishId.current = null
     setPublishing(false)
     setPublished({ deepLink, denial })
-    // A refusal is the outcome, and it is a failure: the person pressed Publish and nothing was
+    // A refusal is the outcome, and it is a failure: the person confirmed the write and nothing was
     // published. ERROR status with no status code — the publish is not an HTTP call this surface
-    // makes, and the SLI reads "ERROR, no code" as the failure.
+    // makes, and the SLI reads "ERROR, no code" as the failure. A denial that came BEFORE the
+    // confirm (a cancelled gate, a refusal said first) finds no span here: none was started.
     if (denial === null) {
       publishSpan.current?.ok()
     } else {
@@ -240,15 +256,13 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
     publishId.current = id
     setPublished(null)
     setPublishing(true)
-    // `spec.route` is the path the shell MOUNTS this Builder at (builderRoutes.tsx) — a route
-    // pattern with no parameters, so it is already the templated route and one metric series per
-    // Builder. Taking it from the spec rather than from the location also keeps this surface, which
-    // mounts bare in tests, off the router's hooks.
+    // The span does NOT start here: the press is followed by two human gates (the destination form
+    // and the blast-radius confirm), and it starts at the second one's Confirm (onPublishConfirmed).
     // A press while one is still unanswered (the button is `loading`, so antd swallows the click —
     // but `publishId` would move on regardless) leaves the earlier press's answer unrenderable
-    // here. That span ends abandoned rather than being dropped on the floor unended.
+    // here. That span, if its write was confirmed, ends abandoned rather than being dropped unended.
     publishSpan.current?.abandoned()
-    publishSpan.current = startPagePublish(spec.route)
+    publishSpan.current = null
     emitPublishRequest({ id, verb: publishVerb })
   }
 

@@ -44,7 +44,7 @@ without the token, `413` over the size cap and `429` over the per-user rate limi
 |---|---|---|---|
 | `krateo.composition.open` | yes | navigation intent into a composition | every initial widget resolved and rendered |
 | `krateo.form.submit` | yes | after validation passes, and after confirm if one interposes | the outcome is rendered (toast, or the error shown) |
-| `krateo.page.publish` | yes | publish confirmed | the published state is visible |
+| `krateo.page.publish` | yes | the publish's write confirmed (the blast-radius dialog's Confirm — not the Publish press) | the provider's answer is rendered (the change-request link, or the refusal) |
 | `krateo.page.load` | **no** | document load | — |
 | `krateo.widget.fetch` | no (a child) | one portal → snowplow request | its response |
 
@@ -57,6 +57,11 @@ Three consequences that are easy to get wrong, each of which would have *flatter
 
 - **A validation failure produces NO span.** The user never waited on us, and counting a cheap
   client-side rejection as a fast interaction would improve the percentile by doing less.
+- **`page.publish` starts at the last confirm, not at the Publish press.** Between the two sit two
+  human gates — the destination form ("Where should this page be committed?") and the blast-radius
+  confirm, which can stay open for five minutes. Both are a person's dwell, not platform latency.
+  A publish cancelled at either gate, or refused before the confirm (lint, preview gate, claim
+  name), produces NO span, for the validation-failure reason above.
 - **`composition.open` ends when every initial widget has resolved, not at first paint.** An empty
   shell is not "open". First paint is the number that would have looked best.
 - **Abandonment is marked, not dropped.** Navigating away before the end ends the span with
@@ -69,7 +74,7 @@ Three consequences that are easy to get wrong, each of which would have *flatter
 |---|---|
 | `krateo.composition.open` | `otel/useCompositionOpenSpan.ts`, from `components/WidgetPage` |
 | `krateo.form.submit` | `hooks/useHandleActions.ts` (`runRest`, past the HITL gate); the Form only tags the dispatch |
-| `krateo.page.publish` | `builders/host/BuilderHost.tsx` (Publish pressed → the provider's answer rendered) |
+| `krateo.page.publish` | `builders/host/BuilderHost.tsx` (the write confirmed → the provider's answer rendered); the provider announces the confirm on the publish-confirmed bus (`hooks/runRestSet.ts` `onConfirmed`, `components/Agentiko/AgentikoProvider.tsx`) |
 | `krateo.page.load` | `otel/useDocumentLoadSpan.ts`, from `components/Shell` |
 | `krateo.widget.fetch` | auto-instrumentation, renamed by `ContractSpanProcessor` |
 
@@ -86,9 +91,10 @@ The emitters are `otel/interactions.ts`. One other place in the SPA creates a sp
   arrived, or the address matches only the `*` catch-all).
 
 **Which spans can report abandonment.** `composition.open` (the page unmounted before its reads
-settled) and `page.publish` (the builder was left, or Publish pressed again, before the provider
-answered). `form.submit` cannot: its outcome toast is raised app-wide whether or not the submitting
-widget is still mounted, so what ends that span is always the write — never the user leaving.
+settled) and `page.publish` (the builder was left, or Publish pressed again, after the write was
+confirmed and before the provider answered). `form.submit` cannot: its outcome toast is raised
+app-wide whether or not the submitting widget is still mounted, so what ends that span is always
+the write — never the user leaving.
 
 ### Attributes
 
