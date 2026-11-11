@@ -1,6 +1,8 @@
-import { Button, Form, Input } from 'antd'
+import type { InputRef } from 'antd'
+import { Alert, Button, Form, Input } from 'antd'
+import { useEffect, useRef } from 'react'
 
-import type { AuthModeType, LoginFormType } from '../Login.types'
+import type { AuthModeType, LoginFormAlert, LoginFormType } from '../Login.types'
 
 import styles from './LoginForm.module.css'
 
@@ -8,6 +10,8 @@ type LoginType = {
   method: AuthModeType
   onSubmit: (data: LoginFormType) => void
   isLoading: boolean
+  /** A failed sign-in through THIS form, shown above its button. */
+  alert?: LoginFormAlert
 }
 
 /*
@@ -26,12 +30,29 @@ const loginFormNameOf = ({ kind, name }: AuthModeType): string => (
   name ? `login_${kind}_${name}` : `login_${kind}`
 )
 
-const LoginForm = ({ isLoading, method, onSubmit }: LoginType) => {
+const LoginForm = ({ alert, isLoading, method, onSubmit }: LoginType) => {
+  const [form] = Form.useForm<LoginFormType>()
+  const passwordRef = useRef<InputRef>(null)
+  const handledAttempt = useRef<number | null>(null)
+
+  /*
+   * authn refused the credentials: keep the username, clear the password and put the cursor in it,
+   * so the next try is one retype rather than two. Waits for the form to be enabled again — the
+   * failure is recorded while the sign-in call is still pending, and a disabled input cannot take
+   * focus — and handles each attempt once, so re-renders do not wipe what the person types next.
+   */
+  useEffect(() => {
+    if (!alert?.retype || isLoading || handledAttempt.current === alert.attempt) { return }
+    handledAttempt.current = alert.attempt
+    form.setFieldValue('password', '')
+    passwordRef.current?.focus()
+  }, [alert, form, isLoading])
+
   return (
     <section className={styles.form}>
       <Form
-        autoComplete='off'
         disabled={isLoading}
+        form={form}
         layout='vertical'
         name={loginFormNameOf(method)}
         onFinish={onSubmit}
@@ -42,7 +63,10 @@ const LoginForm = ({ isLoading, method, onSubmit }: LoginType) => {
           name='username'
           rules={[{ message: 'Insert a username', required: true }]}
         >
-          <Input size='large' />
+          {/* `username` / `current-password` let a password manager fill the pair, and let the
+              browser offer to save it. The form used to set autoComplete='off', which most
+              managers ignore anyway and which only made the page harder to use. */}
+          <Input autoComplete='username' size='large' />
         </Form.Item>
 
         <Form.Item
@@ -50,14 +74,29 @@ const LoginForm = ({ isLoading, method, onSubmit }: LoginType) => {
           name='password'
           rules={[{ message: 'Insert a password', required: true }]}
         >
-          <Input.Password size='large' />
+          <Input.Password autoComplete='current-password' ref={passwordRef} size='large' />
         </Form.Item>
+
+        {alert && (
+          <Alert
+            className={styles.alert}
+            description={(
+              <>
+                {alert.text}
+                {alert.reason !== null && <> <code className={styles.reason}>{alert.reason}</code></>}
+              </>
+            )}
+            message={alert.title}
+            showIcon
+            type='error'
+          />
+        )}
 
         <Form.Item>
           { method.kind === 'basic'
             ? (
               <Button className={styles.button} htmlType='submit' size='large' type='primary'>
-                Sign In
+                Sign in
               </Button>
             ) : (
               <Button
@@ -70,7 +109,7 @@ const LoginForm = ({ isLoading, method, onSubmit }: LoginType) => {
                     : undefined
                 }
               >
-                {method.graphics?.displayName || 'LDAP Sign In'}
+                {method.graphics?.displayName || 'LDAP sign in'}
               </Button>
             )
           }

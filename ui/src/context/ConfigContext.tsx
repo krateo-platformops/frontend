@@ -215,8 +215,9 @@ export interface Config {
   }
   /** Optional login-screen branding. Fetched pre-auth (before any backend
    * identity), so it lives in the static config (ConfigMap-mountable per install)
-   * rather than a snowplow widget. Absent keys fall back to built-in defaults. The frontend chart
-   * renders it from its `login` value (helm/frontend/values.yaml), with only the keys that are set. */
+   * rather than a snowplow widget. The logo falls back to the bundled one; every other key is
+   * absent by default and its element is not drawn. The frontend chart renders it from its `login`
+   * value (helm/frontend/values.yaml), with only the keys that are set. */
   login?: {
     /** Branding logo for the login panel. A URL (absolute, or a path the
      * frontend serves). Should be a light/white mark — it sits on the brand
@@ -224,9 +225,11 @@ export interface Config {
     logoUrl?: string
     /** Accessible alt text for the logo. Falls back to 'Krateo | PlatformOps'. */
     logoAlt?: string
-    /** This installation's name, for the login heading's "to Krateo PlatformOps · <name>" line,
-     * which the login redesign (#685) renders. Absent, the line reads "to Krateo PlatformOps". */
+    /** This installation's name, shown under the heading: "to Krateo PlatformOps · <name>", in
+     * mono like any other identifier. Absent, the line reads "to Krateo PlatformOps". */
     installationName?: string
+    /** Optional marketing copy. None by default. When an install sets any of the three, they are
+     * shown together as ONE short paragraph under the heading — the highlights joined with " · ". */
     headline?: string
     subtitle?: string
     highlights?: string[]

@@ -1,16 +1,17 @@
 // @vitest-environment jsdom
 /**
- * The password form's failure notification shows the classified copy — and only that.
+ * The password form's failure shows the classified copy — and only that.
  *
- * WHY THIS FILE EXISTS. On this page the notification is the ONLY failure surface: there is no
+ * WHY THIS FILE EXISTS. On this page the failure message is the ONLY failure surface: there is no
  * <Result> to fall back on. Login.tsx classified authn's answer and handed it to useCatchError as
  * `message`, where the hook's status defaults met it. A 4xx got "Please check your input or
  * permissions." added underneath; a 500 had the classified text REPLACED by "The server hit an
  * unexpected error". So every classified 5xx — the case loginFailureCause was written for — told
  * the person nothing.
  *
- * This renders the REAL hook inside antd's <App>, because the defect lived in the hand-off between
- * the page and the hook, which neither half's own tests can see.
+ * Since the 2026-11 redesign the failure is an inline error Alert above the submitted form's button,
+ * not a toast, so it no longer passes through useCatchError at all. The page still renders inside
+ * antd's <App>, and every case also checks that no notification is raised beside the Alert.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -87,8 +88,9 @@ const signIn = async () => {
   fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'ada' } })
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } })
   fireEvent.click(screen.getByRole('button', { name: /ldap sign in/i }))
-  await waitFor(() => expect(document.querySelector('.ant-notification-notice')).not.toBeNull())
-  return document.querySelector('.ant-notification-notice')?.textContent ?? ''
+  const text = (await screen.findByRole('alert')).textContent ?? ''
+  expect(document.querySelector('.ant-notification-notice'), 'the inline Alert replaces the toast').toBeNull()
+  return text
 }
 
 beforeAll(() => {
@@ -116,24 +118,23 @@ afterEach(() => {
   localStorage.clear()
 })
 
-describe('Login failure notification', () => {
+describe('Login failure message', () => {
   it('a classified 5xx keeps its text, instead of "The server hit an unexpected error"', async () => {
     installFetchMock(500, statusBody('LDAPUnavailable'))
     const text = await signIn()
 
     expect(text).toMatch(/Sign-in unavailable/)
     expect(text).toMatch(/the platform could not check your credentials/i)
-    expect(text).toMatch(/\(LDAPUnavailable\)/)
+    expect(text).toMatch(/LDAPUnavailable/)
     expect(text).not.toMatch(/server hit an unexpected error/i)
     expect(text).not.toMatch(/unexpected condition/i)
   })
 
-  it('a refused password says check them — once, with no "Please check your input" added', async () => {
+  it('a refused password says wrong username or password — once, with no "Please check your input" added', async () => {
     installFetchMock(403, statusBody('InvalidCredentials'))
     const text = await signIn()
 
-    expect(text).toMatch(/Authentication error/)
-    expect(text).toMatch(/Those credentials were not accepted\. Check them and try again\. \(InvalidCredentials\)/)
+    expect(text).toBe('Wrong username or password.Check both and try again. InvalidCredentials')
     expect(text).not.toMatch(/check your input/i)
   })
 
@@ -145,7 +146,7 @@ describe('Login failure notification', () => {
 
     expect(text).toMatch(/Sign-in unavailable/)
     expect(text).toMatch(/retrying will not help/i)
-    expect(text).toMatch(/\(StrategyWithoutPath\)/)
+    expect(text).toMatch(/StrategyWithoutPath/)
     expect(text).not.toMatch(/wrong username or password/i)
     // Nothing was sent: there was nowhere to send it.
     expect(fetchMock.mock.calls.filter(([input]) => !toUrl(input).endsWith('/strategies'))).toHaveLength(0)

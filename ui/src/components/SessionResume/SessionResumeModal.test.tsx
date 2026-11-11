@@ -107,7 +107,7 @@ const raiseAndOpen = async (): Promise<{ outcome: Promise<'logout' | 'resumed'> 
   return { outcome }
 }
 
-const submitCredentials = (username: string, password: string, buttonName = 'Sign In') => {
+const submitCredentials = (username: string, password: string, buttonName = 'Sign in') => {
   // The session-expired surface is a full-viewport role=dialog overlay (not an .ant-modal card),
   // so query the inputs by the dialog role rather than the antd modal class.
   const [usernameInput, passwordInput] = Array.from(document.querySelectorAll<HTMLInputElement>('[role="dialog"] input'))
@@ -169,7 +169,7 @@ describe('SessionResumeModal — in-place resume (credential strategies)', () =>
     expect(await screen.findByText('Session expired')).toBeTruthy()
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Sign In' })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Sign in' })).toBeTruthy()
     })
     submitCredentials('diego', 'secret')
 
@@ -193,8 +193,8 @@ describe('SessionResumeModal — in-place resume (credential strategies)', () =>
 
     const { outcome } = await raiseAndOpen()
     // LDAP renders a credential form with its own button label.
-    await waitFor(() => { expect(screen.getByRole('button', { name: 'LDAP Sign In' })).toBeTruthy() })
-    submitCredentials('diego', 'secret', 'LDAP Sign In')
+    await waitFor(() => { expect(screen.getByRole('button', { name: 'LDAP sign in' })).toBeTruthy() })
+    submitCredentials('diego', 'secret', 'LDAP sign in')
 
     // The in-place resume hit the LDAP strategy's path, not a hard-coded /basic/login — and named
     // the LDAPConfig, which /ldap/login requires. (This used to assert the bare path, pinning the bug.)
@@ -211,19 +211,19 @@ describe('SessionResumeModal — in-place resume (credential strategies)', () =>
 
     await raiseAndOpen()
     // basic → username/password form…
-    await waitFor(() => { expect(screen.getByRole('button', { name: 'Sign In' })).toBeTruthy() })
+    await waitFor(() => { expect(screen.getByRole('button', { name: 'Sign in' })).toBeTruthy() })
     // …and the social/OIDC strategy → its branded redirect button (the bug: it used to be hidden).
     expect(screen.getByRole('button', { name: /Sign in with GitHub/ })).toBeTruthy()
   })
 
-  it('shows a single "or continue with" divider between stacked credential forms and social', async () => {
+  it('shows a single "or" divider between stacked credential forms and social', async () => {
     installFetchMock({ strategies: [BASIC_STRATEGY, LDAP_STRATEGY, GITHUB_OIDC] })
     renderModal()
 
     await raiseAndOpen()
     await waitFor(() => { expect(screen.getByRole('button', { name: /Sign in with GitHub/ })).toBeTruthy() })
     // Exactly one divider — between the ldap form and the github button, NOT between basic and ldap.
-    expect(screen.getAllByText('or continue with')).toHaveLength(1)
+    expect(screen.getAllByText('or', { exact: true })).toHaveLength(1)
   })
 
   it('wrong credentials keep the modal open with an inline error (still pending)', async () => {
@@ -231,7 +231,7 @@ describe('SessionResumeModal — in-place resume (credential strategies)', () =>
     renderModal()
 
     await raiseAndOpen()
-    await waitFor(() => { expect(screen.getByRole('button', { name: 'Sign In' })).toBeTruthy() })
+    await waitFor(() => { expect(screen.getByRole('button', { name: 'Sign in' })).toBeTruthy() })
     submitCredentials('diego', 'wrong')
 
     expect(await screen.findByText('Wrong username or password, try again.')).toBeTruthy()
