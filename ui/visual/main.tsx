@@ -44,6 +44,7 @@ import { ConfigContext, type Config } from '../src/context/ConfigContext'
 import { RoutesProvider } from '../src/context/RoutesContext'
 import { ThemeModeProvider } from '../src/context/ThemeModeContext'
 import type { WidgetProps } from '../src/types/Widget'
+import { Menu } from '../src/widgets/Menu/Menu'
 import PageHeader from '../src/widgets/PageHeader/PageHeader'
 import { getWidgetModule } from '../src/widgets/registry'
 import Table, { type TableWidgetData } from '../src/widgets/Table/Table'
@@ -167,8 +168,26 @@ const spansTable = {
     ],
   ],
 } as TableWidgetData
+
+/**
+ * `?fixture=nav-menu`: the sidebar nav Menu widget, its labels in sentence case and one starting
+ * lower-case, so menu.spec.ts can check each renders exactly as declared. No refs and nothing
+ * denied: the Menu shows every entry (navModel.isNavEntryAllowed's fail-open).
+ */
+const NAV_LABELS = ['Raise a ticket', 'Platform review', 'kubectl access']
+const navMenu = () => (
+  <div style={{ width: 240 }}>
+    <Menu
+      deniedRefIds={[]}
+      resourcesRefs={{ items: [] }}
+      uid='fixture-nav'
+      widgetData={{ items: NAV_LABELS.map((label, index) => ({ label, order: index, path: `/nav-${index}` })) } as never}
+    />
+  </div>
+)
 const fixtures: Record<string, () => React.ReactNode> = {
   'focus-ring': focusRing,
+  'nav-menu': navMenu,
   'page-header': () => pageHeader('Turn an OpenAPI document into Kubernetes kinds: which operations each kind maps, how it is identified, and the credentials it calls with.'),
   'page-header-no-subtitle': () => pageHeader(),
   'screen-header': () => screenHeader('Author a page and everything it needs, then publish the whole set as one change request.'),
