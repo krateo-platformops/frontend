@@ -180,6 +180,9 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
 
     return (
       <AntdSelect
+        // The combobox's accessible name: the panel's own heading. The control shows only its value
+        // ("All projects", or the picked projects): what is selected, not what the control selects.
+        aria-label={label ?? placeholder ?? 'Projects'}
         className={isAll ? `${styles.checkSelect} ${styles.checkSelectAll}` : styles.checkSelect}
         classNames={{ popup: { root: styles.checkPopup } }}
         disabled={disabled}
@@ -201,8 +204,9 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
         // "All projects" value centres in the control (Select.module.css .allScope).
         // #80 §0.6: this multi-select filters via its custom checkbox popup (popupRender), so antd's
         // inline search input isn't needed. `showSearch={false}` alone does NOT remove it in antd 6
-        // multi-mode (the readonly `.ant-select-input` stays and blinks a text caret), so the
-        // `.checkSelect` class above pairs it with a CSS rule hiding that input (Select.module.css).
+        // multi-mode: the readonly `.ant-select-input` stays, because it is the combobox itself (it
+        // takes focus and keyboard input). The `.checkSelect` class above hides only its caret
+        // (Select.module.css); the input must stay rendered or the picker leaves the Tab order.
         showSearch={false}
         size={size}
         // #86 §0.2: was a fixed `minWidth: 170` that pinned the switcher to its content width so it
