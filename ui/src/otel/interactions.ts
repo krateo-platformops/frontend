@@ -11,7 +11,7 @@
  *   krateo.page.load        Shell.tsx        (once per document, when the landing route resolves)
  *   krateo.composition.open WidgetPage.tsx   (useCompositionOpenSpan)
  *   krateo.form.submit      useHandleActions (runRest, past the HITL gate)
- *   krateo.page.publish     BuilderHost.tsx  (Publish pressed → the answer rendered)
+ *   krateo.page.publish     BuilderHost.tsx  (the write confirmed → the answer rendered)
  *
  * ATTRIBUTE KEYS COME FROM `@opentelemetry/semantic-conventions`, never from literals. A literal
  * outlives its meaning silently — #589 was exactly that — and the consumer keys on the string, so
@@ -205,15 +205,28 @@ export const formSubmitInteraction = (
  * THE BOUNDARY, DELIBERATELY, because this one spans a multi-step flow and a wrong boundary here
  * produces plausible latency that means nothing. Publish is the LAST step of authoring: hold a
  * draft, lint it, preview it, then publish. Everything before the press is authoring — minutes of
- * a person's own work — so the span STARTS when Publish is pressed (the press IS the confirmation:
- * the button is gated on the lint and the preview, and no modal interposes) and ENDS when this
+ * a person's own work. And the press is not the commitment either: after it come TWO human gates,
+ * both the provider's (runPersonPublish) — the destination form ("Where should this page be
+ * committed?") and the blast-radius confirm over the BuilderPublish claim. Each waits on a person,
+ * the confirm for up to FIVE MINUTES (CONFIRM_TIMEOUT_MS), so a span started at the press measured
+ * how long people read modals and called it platform latency.
+ *
+ * So the span STARTS at the final human confirmation — the blast-radius dialog's Confirm, which the
+ * provider announces on the publish-confirmed bus before anything is sent (runRestSet's
+ * `onConfirmed`) — exactly as `krateo.form.submit` starts past the same gate. It ENDS when this
  * surface renders the provider's answer — the change-request link, or the refusal. Nothing after
  * that answer is the portal's: whether the change request is merged is a human's decision in
  * another system, and a span that waited for it would measure a code review.
  *
- * A REFUSAL IS A FAILURE here: the person pressed Publish and nothing was published. It is the
- * outcome, so it ends the span — with ERROR, which puts it in the error rate rather than making a
- * fast refusal flatter the p95.
+ * NO CONFIRM, NO SPAN. A publish cancelled at either gate (or the confirm timing out) made no one
+ * wait on us, and neither did one refused BEFORE the confirm — the lint, the preview gate, a claim
+ * name core-provider would reject, a set the scoping kernel denies: like a Form's validation
+ * failure, they are said without a write, and counting them would improve the percentile by doing
+ * less.
+ *
+ * A REFUSAL AFTER THE CONFIRM IS A FAILURE: the person confirmed the write and nothing was
+ * published (the apiserver refused the claim). It is the outcome, so it ends the span — with
+ * ERROR, which puts it in the error rate rather than making a fast refusal flatter the p95.
  */
 export const startPagePublish = (route: string): InteractionSpan =>
   handleFor(tracer().startSpan(SPAN_NAMES.pagePublish, { attributes: { [ATTR_HTTP_ROUTE]: route } }))

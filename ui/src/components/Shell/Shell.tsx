@@ -68,13 +68,14 @@ export const HeaderChrome = () => {
 /** Bottom-of-Sider block: the user (avatar + name from the token) above a subtle
  * build/version marker. The version is `package.json`'s `version` and the build is the
  * git short-SHA, both inlined at build time (vite.config.ts `define`) — nothing hardcoded. */
-const SiderFooter = () => {
+export const SiderFooter = () => {
   const { user } = JSON.parse(localStorage.getItem('K_user') || '{}') as { user?: { avatarURL?: string; displayName?: string; username?: string } }
   const name = user?.displayName || user?.username || ''
+  // An empty avatarURL (a user without a photo) is no image: antd would render an empty <img> for it.
   return (
     <div className={styles.siderFooter}>
       <div className={styles.siderUser}>
-        <Avatar size={30} src={user?.avatarURL}>{name.slice(0, 1).toUpperCase()}</Avatar>
+        <Avatar size={30} src={user?.avatarURL || undefined}>{name.slice(0, 1).toUpperCase()}</Avatar>
         <span className={styles.siderFooterName}>{name}</span>
       </div>
       <div className={styles.siderBuild} title={`build ${__APP_VERSION__} · ${__APP_BUILD__}`}>

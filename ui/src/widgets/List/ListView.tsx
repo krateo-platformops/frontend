@@ -11,7 +11,7 @@ import { childHealthFromRow, useReportChildHealth } from '../../components/PageH
 import type { ConditionLike } from '../../components/PageHealth'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { useHandleAction } from '../../hooks/useHandleActions'
-import { getColorCode } from '../../theme/palette'
+import { getColorCode, inkOnFill } from '../../theme/palette'
 import type { ResourcesRefs, Widget, WidgetAction, WidgetActions } from '../../types/Widget'
 import { navigateOrExternal } from '../../utils/navigation'
 
@@ -263,7 +263,9 @@ export const ListView = ({
         } else if (itemTemplate.iconVariant === 'tile' && row.icon) {
           avatar = <span className={styles.tile} style={{ backgroundColor: soft, color: colorCode }}><FontAwesomeIcon icon={row.icon as IconProp} /></span>
         } else if (row.icon) {
-          avatar = <Avatar icon={<FontAwesomeIcon icon={row.icon as IconProp} />} style={{ backgroundColor: colorCode }} />
+          // The glyph's ink is chosen per fill (white or the dark ink, whichever reads), not the
+          // Avatar's own ink: a CR can name any palette colour, and no one ink suits them all.
+          avatar = <Avatar icon={<FontAwesomeIcon icon={row.icon as IconProp} />} style={{ backgroundColor: colorCode, color: inkOnFill(colorCode) }} />
         }
 
         // Compact navigable filter pill (Marketplace facet chips): `primaryText` label +
