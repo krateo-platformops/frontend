@@ -168,6 +168,9 @@ spec:
                             - xl
                             - xxl
                           type: string
+                        collapsedHeader:
+                          description: resourceRefId of the widget rendered at the top of the Sider in place of `header` while the Sider is collapsed to its icon rail (a compact logo, for example). Unset, `header` shows in both states
+                          type: string
                         collapsedWidth:
                           description: antd Sider `collapsedWidth` in px
                           type: integer
@@ -177,6 +180,9 @@ spec:
                         defaultCollapsed:
                           description: antd Sider `defaultCollapsed`
                           type: boolean
+                        header:
+                          description: resourceRefId of the widget rendered at the top of the Sider, above its content (a brand logo, for example). It shows while the Sider is expanded, and while it is collapsed too unless `collapsedHeader` is set
+                          type: string
                         resourceRefId:
                           description: resourceRefId of the widget rendered inside the Sider
                           type: string
