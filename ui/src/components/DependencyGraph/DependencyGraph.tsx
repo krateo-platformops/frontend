@@ -26,7 +26,8 @@
  *     should also render a real button wired through `renderNode`'s own closure: G6 hit-tests a
  *     forwarded DOM click at its pointer coordinates, and a key-activated click has none.
  *   - TRUE SIZE, IN A BOX THAT CHANGES (`fit="natural"`). FlowChart's fit scales the graph to fill
- *     its box; a caller whose cards are designed at a pixel size draws at zoom 1 instead, placed by
+ *     its box; a caller whose cards are designed at a pixel size draws at zoom 1 instead (or at the
+ *     `zoom` under 1 it asks for, when it knows how far its type floor allows), placed by
  *     `placeAtNaturalSize` after each layout. And G6 sizes its canvas from its container once — its
  *     own `autoResize` hears only the WINDOW — so a box resized by the page around it (the Agentiko
  *     rail opening) left the canvas at its old width: clipped when narrower, stranded in a corner when
@@ -72,7 +73,7 @@ import {
   type GraphPalette,
   type GraphSpacing,
 } from './graphConfig'
-import { placeAtNaturalSize, revealOffset } from './naturalViewport'
+import { NATURAL_PADDING, placeAtNaturalSize, revealOffset } from './naturalViewport'
 
 // Register the React custom-node type once so React components render as G6 nodes. Idempotent:
 // the registry throws on a second registration, which is the "already registered" case.
@@ -203,6 +204,12 @@ export interface DependencyGraphProps<N, E> {
   direction?: GraphDirection
   /** dagre's rank and node gaps. Absent, C19's. Must be stable (a module constant), or each render is a re-layout. */
   spacing?: GraphSpacing
+  /**
+   * `natural` only: the zoom the graph is placed at, at most 1 (default 1). G6's camera, so pointer
+   * hit-testing stays right; a change re-places the graph and is no re-layout. For a caller that
+   * shrinks to fit its box down to its own type floor (FlowChart's architecture graph).
+   */
+  zoom?: number
 }
 
 interface CanvasProps {
@@ -221,10 +228,10 @@ const GraphCanvas = memo(({ onInit, onReady, options }: CanvasProps) => (
 ))
 GraphCanvas.displayName = 'GraphCanvas'
 
-/** Place a live graph at its true size; a graph torn down mid-placement has nothing left to place. */
-const placeNatural = (graph: G6.Graph): void => {
+/** Place a live graph at its true size (or `zoom`); a graph torn down mid-placement has nothing left to place. */
+const placeNatural = (graph: G6.Graph, zoom: number): void => {
   if (!graph.destroyed) {
-    placeAtNaturalSize(graph).catch(() => undefined)
+    placeAtNaturalSize(graph, NATURAL_PADDING, zoom).catch(() => undefined)
   }
 }
 
@@ -242,6 +249,7 @@ const DependencyGraph = <N, E = Record<string, unknown>>({
   renderNode,
   spacing,
   themed = true,
+  zoom = 1,
 }: DependencyGraphProps<N, E>) => {
   const mode = useDocumentThemeMode()
   const natural = fit === 'natural'
@@ -385,6 +393,17 @@ const DependencyGraph = <N, E = Record<string, unknown>>({
     [direction, drawBehavior, edgeAppearance, edgeStates, edges, fit, nodeSize, nodes, renderNode, spacing, themed],
   )
 
+  // NATURAL: the zoom every placement uses, read through a ref so `onReady` stays one function (a new
+  // one would be a new FlowGraph prop) and a new zoom re-places the live graph without a re-layout.
+  const zoomRef = useRef(zoom)
+  const onReady = useCallback((graph: G6.Graph) => { placeNatural(graph, zoomRef.current) }, [])
+  useEffect(() => {
+    if (zoomRef.current === zoom) { return }
+    zoomRef.current = zoom
+    const graph = liveGraph.current
+    if (natural && graph) { placeNatural(graph, zoom) }
+  }, [natural, zoom])
+
   // NATURAL: the box, observed. A new size is a canvas resize (no layout) and a new placement; the
   // first report — the size the graph was created at — resizes nothing and places what is drawn.
   useEffect(() => {
@@ -401,7 +420,7 @@ const DependencyGraph = <N, E = Record<string, unknown>>({
       }
       seen = size
       graph.resize()
-      placeNatural(graph)
+      placeNatural(graph, zoomRef.current)
     })
     observer.observe(element)
     return () => observer.disconnect()
@@ -471,7 +490,7 @@ const DependencyGraph = <N, E = Record<string, unknown>>({
   // on to Graphin's own container, which inherits its height the same way.
   return (
     <div ref={box} style={{ height: 'inherit', position: 'relative' }}>
-      <GraphCanvas onInit={onInit} onReady={placeNatural} options={options} />
+      <GraphCanvas onInit={onInit} onReady={onReady} options={options} />
     </div>
   )
 }

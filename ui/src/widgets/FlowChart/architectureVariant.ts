@@ -14,12 +14,14 @@
  */
 import {
   GRAPH_LAYOUT,
+  NATURAL_PADDING,
   type EdgeAppearance,
   type GraphDirection,
   type GraphEdge,
   type GraphNode,
   type GraphSpacing,
 } from '../../components/DependencyGraph'
+import { textPx } from '../../theme/tokens'
 
 import type { FlowChartData, FlowChartNodeData } from './FlowChart'
 
@@ -104,6 +106,36 @@ export interface ArchitectureGeometry {
   spacing: GraphSpacing
 }
 
+/** How many ranks the graph has, and how many nodes its broadest rank holds: all its size depends on. */
+export interface ArchitectureShape {
+  broadest: number
+  ranks: number
+}
+
+/** The graph's shape, by `architectureRanks`. An empty graph is 0 × 0. */
+export const architectureShape = (
+  nodes: readonly { id: string }[],
+  edges: readonly { source: string; target: string }[],
+): ArchitectureShape => {
+  if (nodes.length === 0) { return { broadest: 0, ranks: 0 } }
+  const perRank = new Map<number, number>()
+  for (const rank of architectureRanks(nodes, edges)) {
+    perRank.set(rank, (perRank.get(rank) ?? 0) + 1)
+  }
+  return { broadest: Math.max(...perRank.values()), ranks: Math.max(...perRank.keys()) + 1 }
+}
+
+/** A shape's drawn [width, height] at the cards' true size — `architectureGraphSize`'s arithmetic. */
+const drawnSize = (
+  { broadest, ranks }: ArchitectureShape,
+  { direction, nodeSize: [cardWidth, cardHeight], spacing: { nodesep, ranksep } }: ArchitectureGeometry,
+): [number, number] => {
+  if (ranks === 0) { return [0, 0] }
+  const along = (card: number) => ranks * card + (ranks - 1) * ranksep
+  const across = (card: number) => broadest * card + (broadest - 1) * nodesep
+  return direction === 'TB' ? [across(cardWidth), along(cardHeight)] : [along(cardWidth), across(cardHeight)]
+}
+
 /**
  * The drawn size of an architecture graph, [width, height] in px, at the cards' true size.
  *
@@ -126,19 +158,8 @@ export interface ArchitectureGeometry {
 export const architectureGraphSize = (
   nodes: readonly { id: string }[],
   edges: readonly { source: string; target: string }[],
-  { direction, nodeSize: [cardWidth, cardHeight], spacing: { nodesep, ranksep } }: ArchitectureGeometry,
-): [number, number] => {
-  if (nodes.length === 0) { return [0, 0] }
-  const perRank = new Map<number, number>()
-  for (const rank of architectureRanks(nodes, edges)) {
-    perRank.set(rank, (perRank.get(rank) ?? 0) + 1)
-  }
-  const ranks = Math.max(...perRank.keys()) + 1
-  const broadest = Math.max(...perRank.values())
-  const along = (card: number) => ranks * card + (ranks - 1) * ranksep
-  const across = (card: number) => broadest * card + (broadest - 1) * nodesep
-  return direction === 'TB' ? [across(cardWidth), along(cardHeight)] : [along(cardWidth), across(cardHeight)]
-}
+  geometry: ArchitectureGeometry,
+): [number, number] => drawnSize(architectureShape(nodes, edges), geometry)
 
 /**
  * The drawn WIDTH of an LR graph of 220px cards with C19's gaps — what the composition page's
@@ -154,6 +175,190 @@ export const architectureGraphWidth = (
   nodeSize: [cardWidth, ARCHITECTURE_NODE_SIZE[1]],
   spacing: { nodesep: GRAPH_LAYOUT.nodesep, ranksep },
 })[0]
+
+/**
+ * ADAPT, NEVER CLIP. The graph was drawn at true size whatever its box, so the builder-publish chain
+ * (four ranks: 4 × 220 + 3 × 160 = 1360px) lost its fourth card in the ~1180px the composition page
+ * gives it at a 1456px window, and in ~1000px at 1280 — on every builder-publish composition. #310's
+ * fade said so; it did not help anyone read the card. Now the graph adapts to the box first, in this
+ * order, and is recomputed whenever the box is resized:
+ *
+ *   1. THE RANK GAP shrinks (LR: between columns; TB: between rows), from the density's own gap
+ *      towards `ARCHITECTURE_MIN_RANK_GAP`, just far enough to fit — in steps of
+ *      `ARCHITECTURE_RANK_GAP_STEP`, so dragging a window edge re-lays the graph out every few
+ *      dozen pixels rather than on every one.
+ *   2. THE COMPACT CARD (180×56, the trace page's), and step 1 again for its own gap. Compact's gap
+ *      (32px) is already under the minimum, so for compact step 1 changes nothing.
+ *   3. A SCALE, down to fit, but never so far that the card's smallest text renders under
+ *      `ARCHITECTURE_TYPE_FLOOR` px (T3's floor) — the limit is computed from the type roles the
+ *      card's CSS actually uses (`ARCHITECTURE_TEXT_ROLES`), per density.
+ *
+ * Past the floor, the graph is drawn as small as it may be and today's behaviour stands: pinned left
+ * (and top) edge, the fade, drag or Tab for the rest.
+ *
+ * TODAY THE FLOOR STOPS STEP 3 BEFORE IT STARTS. The compact card's smallest text is its detail line
+ * at `text-caption` (12px): any scale under 1 puts it under 12px. The regular card's eyebrow (the
+ * kind line, and the exception chip's label) is `text-label-xs`, 10px — already under the floor at
+ * true size, so it is never scaled either. The step is here, and pinned by tests at other type
+ * sizes, so the rule does not depend on today's card; with today's card it scales nothing.
+ *
+ * AN EXPLICIT DENSITY IS THE AUTHOR'S FLOOR. A CR that sets `density` (either value) chose the card:
+ * only steps 1 and 3 apply to it, and `regular` never becomes compact. Only a CR that leaves density
+ * out (every composition page's diagram) may step down to compact. `direction` is never changed.
+ *
+ * "FITS" IS THE PLACEMENT'S DEFINITION: the drawn size plus `NATURAL_PADDING` on both sides, which is
+ * when `placeAtNaturalSize` centres the graph rather than pinning its left edge. In LR only the width
+ * is measured, as it always was, and nothing here makes an LR graph taller (the gap is horizontal,
+ * the compact card is shorter, a scale only shrinks), so the 360px box holds whatever it held. In TB
+ * the gap runs down the box, so the height is measured too, and the width against the broadest row.
+ */
+
+/** The narrowest rank gap step 1 goes to, px. */
+export const ARCHITECTURE_MIN_RANK_GAP = 56
+
+/** Step 1's increment, px: a shrunk gap is always a multiple of it. */
+export const ARCHITECTURE_RANK_GAP_STEP = 8
+
+/** T3's type floor: no text on the card is scaled under this, px. */
+export const ARCHITECTURE_TYPE_FLOOR = 12
+
+/**
+ * The type roles each card's text is set in — ArchitectureStateNode.module.css, `font-size:
+ * var(--krateo-text-<role>)` on every line the density renders (pinned against the stylesheet by
+ * architectureFit.test.ts). Regular: the kind line and the exception chip (`label-xs`), the name
+ * (`body-sm`) and the detail (`caption`). Compact draws no kind line and an exception as a bare dot,
+ * so it is the name and the detail only.
+ */
+export const ARCHITECTURE_TEXT_ROLES: Record<ArchitectureDensity, readonly string[]> = {
+  compact: ['body-sm', 'caption'],
+  regular: ['label-xs', 'body-sm', 'caption'],
+}
+
+/**
+ * The smallest scale a density may be drawn at: the one that puts its smallest text at the floor,
+ * and never above 1 — a card whose smallest text is already under the floor is not scaled at all.
+ */
+export const architectureMinScale = (density: ArchitectureDensity, roleSize: (role: string) => number = textPx): number =>
+  Math.min(1, ARCHITECTURE_TYPE_FLOOR / Math.min(...ARCHITECTURE_TEXT_ROLES[density].map(roleSize)))
+
+/**
+ * Which step the graph was adapted to: `none` (it fits as designed), `gap`, `compact`, `scale`, or
+ * `overflow` (past the floor). `unmeasured`: the box has no size yet, so nothing is decided.
+ */
+export type ArchitectureFitStep = 'compact' | 'gap' | 'none' | 'overflow' | 'scale' | 'unmeasured'
+
+/** What the graph is drawn with in a box, and whether it still runs past it. */
+export interface ArchitectureFit {
+  density: ArchitectureDensity
+  /** Between ranks, px. */
+  rankGap: number
+  /**
+   * The gaps DependencyGraph is given. Undefined for regular at its own gap — C19's, exactly what a
+   * CR that sets nothing has always handed G6.
+   */
+  spacing?: GraphSpacing
+  /** The zoom the graph is drawn at, ≤ 1. */
+  scale: number
+  /** The drawn [width, height] at that scale, px. */
+  size: [number, number]
+  /** A left-pinned graph runs past the box's right edge: the fade's cue (portal#310). */
+  overflows: boolean
+  /** TB only: a top-pinned graph runs past the bottom. */
+  overflowsBelow: boolean
+  step: ArchitectureFitStep
+}
+
+export interface ArchitectureFitInput {
+  /** The box's [clientWidth, clientHeight]. A width of 0 is a box not laid out yet (hidden, or jsdom). */
+  box: [number, number]
+  direction: GraphDirection
+  /** The CR's `density`, when it sets one: then it is not changed. Absent: regular, compact if need be. */
+  density?: ArchitectureDensity
+  /** A type role's size in px: the tokens', unless a test gives another scale. */
+  roleSize?: (role: string) => number
+}
+
+/** A density's card and its own gaps, regular's being C19's. */
+const densityGeometry = (density: ArchitectureDensity): { nodeSize: [number, number]; spacing: GraphSpacing } => {
+  const { nodeSize, spacing } = ARCHITECTURE_DENSITY[density]
+  return { nodeSize, spacing: spacing ?? { nodesep: GRAPH_LAYOUT.nodesep, ranksep: GRAPH_LAYOUT.ranksep } }
+}
+
+/**
+ * One object per (density, gap), whichever call asks: DependencyGraph re-lays out on a NEW spacing
+ * object, so a resize that leaves the gap where it was must hand it the same one. Compact's is its
+ * module constant. Bounded: a gap is a multiple of the step between the minimum and C19's.
+ */
+const GAPS = new Map<string, GraphSpacing>()
+const gapsOf = (density: ArchitectureDensity, nodesep: number, ranksep: number): GraphSpacing => {
+  const own = ARCHITECTURE_DENSITY[density].spacing
+  if (own && own.nodesep === nodesep && own.ranksep === ranksep) { return own }
+  const key = `${density}:${nodesep}:${ranksep}`
+  const known = GAPS.get(key)
+  if (known) { return known }
+  const made = { nodesep, ranksep }
+  GAPS.set(key, made)
+  return made
+}
+
+/**
+ * The adaptation (see the block above) for a graph of `shape` in `box`. Pure, so every width is a
+ * test; FlowChart calls it with the box it measures, on every resize.
+ */
+export const architectureFit = (
+  shape: ArchitectureShape,
+  { box: [boxWidth, boxHeight], density, direction, roleSize = textPx }: ArchitectureFitInput,
+): ArchitectureFit => {
+  const tb = direction === 'TB'
+  const roomWidth = boxWidth - 2 * NATURAL_PADDING
+  const roomHeight = boxHeight - 2 * NATURAL_PADDING
+
+  const fitOf = (chosen: ArchitectureDensity, rankGap: number, scale: number, step: ArchitectureFitStep): ArchitectureFit => {
+    const { nodeSize, spacing: own } = densityGeometry(chosen)
+    const spacing = gapsOf(chosen, own.nodesep, rankGap)
+    const [width, height] = drawnSize(shape, { direction, nodeSize, spacing })
+    const size: [number, number] = [width * scale, height * scale]
+    return {
+      density: chosen,
+      // A pinned graph starts NATURAL_PADDING in, so past that it is cut.
+      overflows: size[0] + NATURAL_PADDING > boxWidth,
+      overflowsBelow: tb && size[1] + NATURAL_PADDING > boxHeight,
+      rankGap,
+      scale,
+      size,
+      spacing: chosen === 'regular' && rankGap === own.ranksep ? ARCHITECTURE_DENSITY.regular.spacing : spacing,
+      step,
+    }
+  }
+  const fits = ([width, height]: [number, number]): boolean => width <= roomWidth && (!tb || height <= roomHeight)
+
+  const candidates: ArchitectureDensity[] = density ? [density] : ['regular', 'compact']
+  const last = candidates[candidates.length - 1]
+  if (boxWidth <= 0 || shape.ranks === 0) {
+    return fitOf(candidates[0], densityGeometry(candidates[0]).spacing.ranksep, 1, 'unmeasured')
+  }
+
+  // Steps 1 and 2: each density in turn, at the widest gap that fits — its own, or less, to the minimum.
+  for (const [index, chosen] of candidates.entries()) {
+    const { nodeSize: [cardWidth, cardHeight], spacing: { ranksep: ownGap } } = densityGeometry(chosen)
+    const minGap = Math.min(ownGap, ARCHITECTURE_MIN_RANK_GAP)
+    const card = tb ? cardHeight : cardWidth
+    const roomPerGap = shape.ranks > 1 ? ((tb ? roomHeight : roomWidth) - shape.ranks * card) / (shape.ranks - 1) : ownGap
+    const stepped = Math.floor(roomPerGap / ARCHITECTURE_RANK_GAP_STEP) * ARCHITECTURE_RANK_GAP_STEP
+    const rankGap = Math.min(ownGap, Math.max(minGap, stepped))
+    const closed: ArchitectureFitStep = rankGap < ownGap ? 'gap' : 'none'
+    const fit = fitOf(chosen, rankGap, 1, index > 0 ? 'compact' : closed)
+    if (fits(fit.size)) { return fit }
+  }
+
+  // Step 3: the last density, at its narrowest gap, scaled to fit — down to the type floor, no further.
+  const minGap = Math.min(densityGeometry(last).spacing.ranksep, ARCHITECTURE_MIN_RANK_GAP)
+  const [width, height] = fitOf(last, minGap, 1, 'overflow').size
+  // Two decimals, rounded down: a scale rounded up could miss the box by a pixel.
+  const toFit = Math.floor(Math.min(roomWidth / width, tb ? roomHeight / height : Infinity) * 100) / 100
+  const floor = architectureMinScale(last, roleSize)
+  return toFit >= floor ? fitOf(last, minGap, toFit, 'scale') : fitOf(last, minGap, floor, 'overflow')
+}
 
 const STATES: readonly ArchitectureState[] = ['done', 'waiting', 'withheld', 'unreadable', 'unavailable', 'unknown']
 

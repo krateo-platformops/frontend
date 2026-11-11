@@ -6,6 +6,12 @@
  * sets neither (every architecture FlowChart published so far: the composition page's diagram)
  * must hand G6 the same options and draw the same cards, and so must one that spells the defaults
  * out (`LR`, `regular`).
+ *
+ * One re-record since: the markup's `data-overflows` now comes BEFORE `data-testid`. The fade's flag
+ * is decided in the first render (architectureFit, from the measured box) where it used to be set by
+ * a state update after it, which put the attribute last. Same attributes, same values. jsdom's box
+ * is 0 wide, which architectureFit reads as "not laid out yet" and so decides nothing: the options
+ * are main's, unchanged.
  */
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'

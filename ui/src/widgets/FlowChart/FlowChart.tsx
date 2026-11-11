@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
-import DependencyGraph, { GRAPH_LAYOUT, type GraphDirection, type GraphNode } from '../../components/DependencyGraph'
+import DependencyGraph, { type GraphDirection, type GraphNode } from '../../components/DependencyGraph'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import type { WidgetProps } from '../../types/Widget'
 
@@ -8,7 +8,8 @@ import ArchitectureStateNode from './ArchitectureStateNode'
 import {
   ARCHITECTURE_DENSITY,
   architectureEdgeAppearance,
-  architectureGraphSize,
+  architectureFit,
+  architectureShape,
   toArchitectureGraphData,
   type ArchitectureDensity,
 } from './architectureVariant'
@@ -51,7 +52,8 @@ interface VariantProps {
 
 interface ArchitectureProps extends VariantProps {
   direction: GraphDirection
-  density: ArchitectureDensity
+  /** The CR's own choice; absent, the card is regular and may step down to compact to fit. */
+  density?: ArchitectureDensity
 }
 
 /**
@@ -60,47 +62,44 @@ interface ArchitectureProps extends VariantProps {
  *
  *   - THEMED. Its edges take the tokens and follow the portal theme. The resource variant keeps G6's
  *     own colours, because moving it is a visual change to every FlowChart CR already published.
- *   - TRUE SIZE (`fit="natural"`). The cards are designed at 220×84 and must stay readable; `view`
- *     would magnify a one-resource chart and shrink a wide one under the type floor. A graph wider
- *     than the box keeps its first state in view; the rest is dragged into view, or tabbed to, since
- *     each card takes focus and a focused card is panned into view (ArchitectureStateNode).
+ *   - FITTED TO ITS BOX, NEVER PAST THE TYPE FLOOR (`fit="natural"` plus `architectureFit`). The
+ *     cards are designed at 220×84 and must stay readable; `view` would magnify a one-resource chart
+ *     and shrink a wide one under the floor. Instead a graph too long for its box closes its rank
+ *     gaps, then takes the compact card, then scales — each only as far as the box needs, and the
+ *     scale no further than the floor. Only past that is it wider than the box: it keeps its first
+ *     state in view, and the rest is dragged into view, or tabbed to, since each card takes focus and
+ *     a focused card is panned into view (ArchitectureStateNode).
  *   - EDGES INTO A WITHHELD NODE ARE DASHED: that dependency has not been reached yet.
  *
- * `direction` and `density` (both optional; absent, LR and regular — the composition page's diagram,
- * unchanged) are for a box narrower than the chain is long. The trace page's services column is
- * ~415px: three 220px cards left to right are 980px, so only the first was in view. TB compact draws
- * one 180×56 card per row, and is as wide as its broadest row.
+ * `direction` and `density` (both optional) are for a box narrower than the chain is long. The trace
+ * page's services column is ~415px: three 220px cards left to right are 980px, so only the first was
+ * in view. TB compact draws one 180×56 card per row, and is as wide as its broadest row. A density
+ * the CR sets is kept (the adaptation only closes gaps and scales it); one it leaves out is regular,
+ * stepping down to compact when the box needs it. `direction` is the CR's, always.
  */
 const ArchitectureFlowChart = ({ data, density, direction, uid }: ArchitectureProps) => {
-  const { nodeSize, spacing } = ARCHITECTURE_DENSITY[density]
   const graphData = useMemo(() => toArchitectureGraphData(data), [data])
-  const [drawnWidth, drawnHeight] = useMemo(
-    () => architectureGraphSize(graphData.nodes, graphData.edges, { direction, nodeSize, spacing: spacing ?? GRAPH_LAYOUT }),
-    [direction, graphData, nodeSize, spacing],
-  )
+  const shape = useMemo(() => architectureShape(graphData.nodes, graphData.edges), [graphData])
+  const empty = graphData.nodes.length === 0
   const box = useRef<HTMLDivElement>(null)
-  const [overflows, setOverflows] = useState(false)
-  const [overflowsBelow, setOverflowsBelow] = useState(false)
+  // The box's [clientWidth, clientHeight]; null until it has been measured once.
+  const [boxSize, setBoxSize] = useState<[number, number] | null>(null)
 
-  // portal#310. The graph is drawn at TRUE SIZE and `fit="natural"` pins its left edge, so a graph
-  // wider than the box is clipped on the right — four columns are 1360px against a card that gives
-  // ~1200px at 1518px of viewport, and EVERY composition with an architecture on 057 has four. The
-  // overflow itself is the deliberate trade (see the variant's comment: the type floor outranks
-  // fitting), but nothing on screen said so, and a card cut mid-name reads as a rendering fault
-  // rather than as "there is more, drag it". This only decides whether to SAY so.
+  // ADAPT, NEVER CLIP (architectureVariant's `architectureFit`): the box is measured, here and on
+  // every resize, and the graph drawn with the gap, the card and the scale that fit it — or, past
+  // the type floor, as small as it may be, with portal#310's fade saying that there is more.
   //
-  // Measured, not assumed: the box width comes from the element, the drawn width from the node
-  // geometry, because the canvas is G6's and its content bounds are not ours to read from here.
-  //
-  // In TB the graph also grows DOWNWARDS, one row per rank, and the placement pins its top edge, so a
-  // chain deeper than the box runs off the bottom: that is said too. In LR the height is not
-  // measured, as it never was — the composition page's diagram must not gain a fade it did not have.
+  // Measured, not assumed: the box comes from the element, the drawn size from the node geometry,
+  // because the canvas is G6's and its content bounds are not ours to read from here. The first
+  // measure runs before the browser paints, and the graph is created only after it, so G6 lays the
+  // graph out once, already adapted, rather than at true size and then again.
   useLayoutEffect(() => {
     const element = box.current
-    if (!element || drawnWidth === 0) { return }
+    if (!element) { return }
     const measure = () => {
-      setOverflows(drawnWidth > element.clientWidth)
-      setOverflowsBelow(direction === 'TB' && drawnHeight > element.clientHeight)
+      const width = element.clientWidth
+      const height = element.clientHeight
+      setBoxSize((known) => (known?.[0] === width && known[1] === height ? known : [width, height]))
     }
     measure()
     // ResizeObserver is absent in jsdom unless a test installs one; the first measure already ran,
@@ -109,9 +108,14 @@ const ArchitectureFlowChart = ({ data, density, direction, uid }: ArchitecturePr
     const observer = new ResizeObserver(measure)
     observer.observe(element)
     return () => observer.disconnect()
-  }, [direction, drawnHeight, drawnWidth])
+  }, [empty])
 
-  if (graphData.nodes.length === 0) {
+  const fit = useMemo(
+    () => architectureFit(shape, { box: boxSize ?? [0, 0], density, direction }),
+    [boxSize, density, direction, shape],
+  )
+
+  if (empty) {
     return <WidgetEmpty description='Nothing to graph' />
   }
 
@@ -122,22 +126,27 @@ const ArchitectureFlowChart = ({ data, density, direction, uid }: ArchitecturePr
       // the clip as damage. The content is reachable without it — drag, or Tab, which pans a focused
       // card into view — so it carries no accessible name and announces nothing (G12 is about colour
       // never being the ONLY signal; here the signal is the clipped card itself).
-      data-overflows={overflows ? 'true' : undefined}
-      data-overflows-below={overflowsBelow ? 'true' : undefined}
+      data-overflows={fit.overflows ? 'true' : undefined}
+      data-overflows-below={fit.overflowsBelow ? 'true' : undefined}
       data-testid='architecture-graph-box'
       key={uid}
       ref={box}
     >
-      <DependencyGraph
-        direction={direction}
-        edgeAppearance={architectureEdgeAppearance}
-        edges={graphData.edges}
-        fit='natural'
-        nodeSize={nodeSize}
-        nodes={graphData.nodes}
-        renderNode={RENDER_ARCHITECTURE_NODE[density]}
-        spacing={spacing}
-      />
+      {boxSize
+        ? (
+          <DependencyGraph
+            direction={direction}
+            edgeAppearance={architectureEdgeAppearance}
+            edges={graphData.edges}
+            fit='natural'
+            nodeSize={ARCHITECTURE_DENSITY[fit.density].nodeSize}
+            nodes={graphData.nodes}
+            renderNode={RENDER_ARCHITECTURE_NODE[fit.density]}
+            spacing={fit.spacing}
+            zoom={fit.scale}
+          />
+        )
+        : null}
     </div>
   )
 }
@@ -173,9 +182,11 @@ const ResourceFlowChart = ({ data, uid }: VariantProps) => {
 
 const FlowChart = ({ uid, widgetData }: WidgetProps<FlowChartWidgetData>) => {
   const { data, density, direction, variant } = widgetData
-  // A value this build does not know falls back to the default, as an unknown `state` does.
+  // A value this build does not know falls back to the default, as an unknown `state` does: for
+  // density that is "not set", which may step down to compact; a spelled-out `regular` may not.
+  const chosen = density === 'compact' || density === 'regular' ? density : undefined
   return variant === 'architecture'
-    ? <ArchitectureFlowChart data={data} density={density === 'compact' ? 'compact' : 'regular'} direction={direction === 'TB' ? 'TB' : 'LR'} uid={uid} />
+    ? <ArchitectureFlowChart data={data} density={chosen} direction={direction === 'TB' ? 'TB' : 'LR'} uid={uid} />
     : <ResourceFlowChart data={data} uid={uid} />
 }
 

@@ -65,6 +65,26 @@ describe('placeAtNaturalSize — cards at the size they were designed at', () =>
   })
 })
 
+describe('placeAtNaturalSize — at a zoom the caller asks for', () => {
+  it('zooms the camera, and judges the fit by the size on screen: 1104 × 0.7 = 773 fits 826, so it is centred', async () => {
+    const { calls, graph } = viewport([0, 0, 1104, 176], [826, 360])
+    await placeAtNaturalSize(graph, NATURAL_PADDING, 0.7)
+    expect(calls).toEqual(['zoomTo 0.7', 'fitCenter'])
+  })
+
+  it('CONTROL: the same graph at zoom 1 does not fit, and is pinned', async () => {
+    const { calls, graph } = viewport([0, 0, 1104, 176], [826, 360])
+    await placeAtNaturalSize(graph, NATURAL_PADDING, 1)
+    expect(calls).toHaveLength(3)
+  })
+
+  it.each([1.5, 0, -1, Number.NaN])('never magnifies, and a zoom that means nothing is 1: %s', async (zoom) => {
+    const { calls, graph } = viewport([0, 0, 156, 72], [780, 360])
+    await placeAtNaturalSize(graph, NATURAL_PADDING, zoom)
+    expect(calls[0]).toBe('zoomTo 1')
+  })
+})
+
 describe('revealOffset — a focused card, panned fully into its box', () => {
   const box = { bottom: 360, left: 0, right: 826, top: 0 }
   it('past the right edge: left, by the overshoot and the margin', () => {

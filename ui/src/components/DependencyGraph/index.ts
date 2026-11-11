@@ -14,3 +14,4 @@ export {
   type GraphPalette,
   type GraphSpacing,
 } from './graphConfig'
+export { NATURAL_PADDING } from './naturalViewport'

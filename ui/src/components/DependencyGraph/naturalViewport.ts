@@ -11,6 +11,12 @@
  * it fits; if it does not, pin its LEFT (and top) edge inside the box — the machine reads left to
  * right, so the first state stays in view and the rest is a drag away — rather than centring it and
  * cutting both ends off.
+ *
+ * A CALLER THAT KNOWS ITS TYPE FLOOR may ask for a zoom under 1 (`zoom`): FlowChart's architecture
+ * graph may scale down to fit its box, never past the size at which its smallest text stays legible
+ * (architectureVariant's `architectureFit`). The zoom is G6's own camera, never a CSS transform on
+ * the canvas — G6 hit-tests in its own coordinates, and a transform it did not make would put every
+ * pointer event off by the scale. Never above 1: magnifying is what `view` did wrong.
  */
 import type { G6 } from '@ant-design/graphs'
 
@@ -21,18 +27,21 @@ export const NATURAL_PADDING = 16
 export type NaturalViewportGraph = Pick<G6.Graph, 'fitCenter' | 'getCanvas' | 'getSize' | 'getViewportByCanvas' | 'translateBy' | 'zoomTo'>
 
 /**
- * Place the drawn graph at zoom 1 in its box. No animation: this follows a layout or a resize, and a
- * glide from where G6 left it would be motion that means nothing.
+ * Place the drawn graph at `zoom` (1 unless the caller asks for less) in its box. No animation: this
+ * follows a layout or a resize, and a glide from where G6 left it would be motion that means nothing.
+ * The bounds are in canvas coordinates, which the camera's zoom leaves alone, so the size on screen
+ * is theirs times the zoom.
  */
-export const placeAtNaturalSize = async (graph: NaturalViewportGraph, padding = NATURAL_PADDING): Promise<void> => {
-  await graph.zoomTo(1, false)
+export const placeAtNaturalSize = async (graph: NaturalViewportGraph, padding = NATURAL_PADDING, zoom = 1): Promise<void> => {
+  const scale = zoom > 0 ? Math.min(1, zoom) : 1
+  await graph.zoomTo(scale, false)
   await graph.fitCenter(false)
   const bounds = graph.getCanvas().getBounds('elements')
   const [width, height] = graph.getSize()
   const [left, top] = graph.getViewportByCanvas([bounds.min[0], bounds.min[1]])
   const offset: [number, number] = [
-    bounds.max[0] - bounds.min[0] + 2 * padding > width ? padding - left : 0,
-    bounds.max[1] - bounds.min[1] + 2 * padding > height ? padding - top : 0,
+    (bounds.max[0] - bounds.min[0]) * scale + 2 * padding > width ? padding - left : 0,
+    (bounds.max[1] - bounds.min[1]) * scale + 2 * padding > height ? padding - top : 0,
   ]
   if (offset[0] || offset[1]) {
     await graph.translateBy(offset, false)

@@ -36,6 +36,7 @@ import { loadAll } from 'js-yaml'
 import ReactDOM from 'react-dom/client'
 import { MemoryRouter } from 'react-router'
 
+import DependencyGraph from '../src/components/DependencyGraph'
 import DismissButton from '../src/components/DismissButton'
 import FiltersProvider from '../src/components/FiltesProvider'
 import ScreenHeader from '../src/components/ScreenHeader'
@@ -44,6 +45,10 @@ import { ConfigContext, type Config } from '../src/context/ConfigContext'
 import { RoutesProvider } from '../src/context/RoutesContext'
 import { ThemeModeProvider } from '../src/context/ThemeModeContext'
 import type { WidgetProps } from '../src/types/Widget'
+import { V1B } from '../src/widgets/FlowChart/__fixtures__/architecture'
+import ArchitectureStateNode from '../src/widgets/FlowChart/ArchitectureStateNode'
+import { ARCHITECTURE_NODE_SIZE, toArchitectureGraphData } from '../src/widgets/FlowChart/architectureVariant'
+import FlowChart, { type FlowChartNodeData, type FlowChartWidgetData } from '../src/widgets/FlowChart/FlowChart'
 import { Menu } from '../src/widgets/Menu/Menu'
 import PageHeader from '../src/widgets/PageHeader/PageHeader'
 import { getWidgetModule } from '../src/widgets/registry'
@@ -185,8 +190,46 @@ const navMenu = () => (
     />
   </div>
 )
+/**
+ * `?fixture=architecture&box=1179[&density=regular]`: the architecture FlowChart drawing
+ * builder-publish's four-rank chain (V1B, 1360px at true size) in a box `box` px wide, as the
+ * composition page gives it. architectureFit.spec.ts checks every card lands inside the box.
+ */
+const architectureBox = Number(params.get('box') ?? 0) || 1179
+const architectureDensity = params.get('density') ?? undefined
+const architecture = () => (
+  <div data-testid='architecture-host' style={{ width: architectureBox }}>
+    <FlowChart
+      resourcesRefs={{ items: [] }}
+      uid='fixture-architecture'
+      widgetData={{ data: V1B, density: architectureDensity, variant: 'architecture' } as FlowChartWidgetData}
+    />
+  </div>
+)
+/**
+ * `?fixture=graph-zoom&zoom=0.8`: the same chain straight through DependencyGraph at a zoom under 1,
+ * the path FlowChart takes when its type floor lets it scale (today's card never does). It proves
+ * the zoom is G6's camera — the cards and the edges shrink together — not a size on paper.
+ */
+const graphZoom = Number(params.get('zoom') ?? 1)
+const zoomGraph = toArchitectureGraphData(V1B)
+const renderZoomCard = ({ data }: { data: FlowChartNodeData }) => <ArchitectureStateNode data={data} />
+const graphZoomFixture = () => (
+  <div data-testid='architecture-host' style={{ height: 360, width: 1179 }}>
+    <DependencyGraph
+      edges={zoomGraph.edges}
+      fit='natural'
+      nodeSize={ARCHITECTURE_NODE_SIZE}
+      nodes={zoomGraph.nodes}
+      renderNode={renderZoomCard}
+      zoom={graphZoom}
+    />
+  </div>
+)
 const fixtures: Record<string, () => React.ReactNode> = {
+  architecture,
   'focus-ring': focusRing,
+  'graph-zoom': graphZoomFixture,
   'nav-menu': navMenu,
   'page-header': () => pageHeader('Turn an OpenAPI document into Kubernetes kinds: which operations each kind maps, how it is identified, and the credentials it calls with.'),
   'page-header-no-subtitle': () => pageHeader(),
