@@ -25,6 +25,7 @@ import '@fontsource/jetbrains-mono/600.css'
 import '../index.css'
 import '../src/widgets/load'
 
+import { ReloadOutlined } from '@ant-design/icons'
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { fab } from '@fortawesome/free-brands-svg-icons'
 import { far } from '@fortawesome/free-regular-svg-icons'
@@ -116,7 +117,32 @@ const screenHeader = (subtitle?: string) => (
     title='cb-v2-20261002-1'
   />
 )
+/**
+ * `?fixture=focus-ring`: one antd Button of every type, after a plain <button> that only the
+ * universal `*:focus-visible` rule styles, on the page ground and again on a panel. focus.spec.ts
+ * Tabs through them and checks every Button wears the reference's ring.
+ */
+const focusRow = (where: string) => (
+  <Space data-testid={where} wrap>
+    <button data-testid={`reference-${where}`} type='button'>Plain button</button>
+    <Button type='primary'>Primary</Button>
+    <Button>Default</Button>
+    <Button type='dashed'>Dashed</Button>
+    <Button type='text'>Text</Button>
+    <Button type='link'>Link</Button>
+    <Button danger type='primary'>Delete</Button>
+    <Button danger>Remove</Button>
+    <Button aria-label='Refresh' icon={<ReloadOutlined />} />
+  </Space>
+)
+const focusRing = () => (
+  <Space orientation='vertical' size='large'>
+    {focusRow('ground')}
+    <div data-testid='panel-surface' style={{ background: 'var(--panelbg-color)', padding: 'var(--spacing-md)' }}>{focusRow('panel')}</div>
+  </Space>
+)
 const fixtures: Record<string, () => React.ReactNode> = {
+  'focus-ring': focusRing,
   'page-header': () => pageHeader('Turn an OpenAPI document into Kubernetes kinds: which operations each kind maps, how it is identified, and the credentials it calls with.'),
   'page-header-no-subtitle': () => pageHeader(),
   'screen-header': () => screenHeader('Author a page and everything it needs, then publish the whole set as one change request.'),
