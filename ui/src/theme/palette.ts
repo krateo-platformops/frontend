@@ -1,5 +1,6 @@
 import { useSyncExternalStore, type CSSProperties } from 'react'
 
+import { contrastRatio, opaqueOver } from './contrast'
 import { color, colorDark, type ThemeMode } from './tokens'
 
 /**
@@ -53,6 +54,23 @@ export const getColorCode = (colorName: string | undefined) => {
   }
 
   return palette.dark
+}
+
+/** The two inks a glyph on a solid colour fill is drawn in: antd's white, and the theme's dark ink
+ * (the dark palette's surface, which the dark theme also gives Button, Steps and Avatar). */
+export const ON_FILL_INKS = { dark: colorDark.panelbg, white: '#FFFFFF' } as const
+
+/**
+ * The ink for a glyph on a solid disc of `fill` (a List row's icon avatar, whose fill is a CR's
+ * colour name resolved by getColorCode): white or the dark ink, whichever contrasts more with the
+ * fill as it paints. A translucent fill is composited over the mode's surface first. Chosen per
+ * fill because no one ink suits every colour a CR can name: white on the dark theme's `gray` is
+ * 2.61:1, the dark ink on `darkBlue` is 2.92:1. The two inks span 19:1, so the better of them
+ * always clears the 3:1 an icon needs (tokens.contrast.test.ts sweeps every palette colour).
+ */
+export const inkOnFill = (fill: string, mode: ThemeMode = activeThemeMode()): string => {
+  const painted = opaqueOver(fill, themeColors(mode).panelbg)
+  return contrastRatio(ON_FILL_INKS.white, painted) >= contrastRatio(ON_FILL_INKS.dark, painted) ? ON_FILL_INKS.white : ON_FILL_INKS.dark
 }
 
 /**

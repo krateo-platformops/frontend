@@ -64,6 +64,20 @@ describe('UserMenu — the initials take the avatar ink, with no Typography over
     localStorage.removeItem('K_user')
   })
 
+  it('a user whose avatarURL is empty gets the initials, not an empty image, in the header and the menu', async () => {
+    localStorage.setItem('K_user', JSON.stringify({ user: { avatarURL: '', displayName: 'Ada Lovelace', username: 'ada' } }))
+    renderMenu('dark')
+    const trigger = screen.getByRole('button', { name: 'Account menu' })
+    expect(trigger.querySelector('img')).toBeNull()
+    expect(initialsIn(trigger).disc.textContent).toBe('AL')
+    fireEvent.click(trigger)
+    await screen.findByRole('menuitem', { name: 'Profile' })
+    const panel = document.querySelector('.ant-popover')
+    if (!panel) { throw new Error('the account menu did not open') }
+    expect(panel.querySelector('.ant-avatar img')).toBeNull()
+    expect(initialsIn(panel).disc.textContent).toBe('AL')
+  })
+
   cases.forEach(({ ink, mode, theme: modeTheme }) => {
     const fill = toHex(theme.getDesignToken(modeTheme).colorTextPlaceholder)
 

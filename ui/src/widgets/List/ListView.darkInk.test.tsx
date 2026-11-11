@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 /**
- * A list row's icon avatar: a solid disc in the row's colour under a glyph in the avatar's ink.
- * The disc follows the mode (`gray`, the default row colour, resolves to #A39DB5 in dark), and a
- * white glyph on it measured 2.61:1, under the 3:1 a meaningful icon needs. The theme gives the
- * Avatar the dark ink in dark (7.29:1, pinned in tokens.contrast.test.ts); light keeps white.
+ * A list row's icon avatar: a solid disc in the row's colour under a glyph whose ink is chosen per
+ * fill (palette.ts inkOnFill). The disc follows the mode: `gray`, the default row colour, resolves
+ * to #A39DB5 in dark, where a white glyph measured 2.61:1, under the 3:1 a meaningful icon needs;
+ * it now takes the dark ink (7.29:1). A dark fill keeps white: the dark ink on `darkBlue` would be
+ * 2.92:1. Every palette colour is swept in tokens.contrast.test.ts.
  */
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { fas } from '@fortawesome/free-solid-svg-icons'
@@ -36,12 +37,12 @@ vi.mock('../../hooks/useHandleActions', () => ({
 import { ListView } from './ListView'
 
 // The row colour is a palette NAME, resolved for the mode on <html data-theme> (getColorCode).
-const renderRow = (mode: 'dark' | 'light') => {
+const renderRow = (mode: 'dark' | 'light', colour = 'gray') => {
   document.documentElement.dataset.theme = mode
   return render(
     <MemoryRouter>
       <ConfigProvider theme={mode === 'dark' ? darkTheme : lightTheme}>
-        <ListView itemTemplate={{ color: { value: '{colour}' }, icon: '{icon}', primaryText: '{name}' }} items={[{ colour: 'gray', icon: 'fa-cube', name: 'Row one' }]} rowKey='dark-ink' />
+        <ListView itemTemplate={{ color: { value: '{colour}' }, icon: '{icon}', primaryText: '{name}' }} items={[{ colour, icon: 'fa-cube', name: 'Row one' }]} rowKey='dark-ink' />
       </ConfigProvider>
     </MemoryRouter>,
   )
@@ -53,7 +54,7 @@ const avatar = (container: HTMLElement) => {
   return found
 }
 
-describe('ListView — a row icon avatar takes the dark ink in dark mode only', () => {
+describe('ListView — a row icon avatar\'s ink is chosen per fill', () => {
   afterEach(() => {
     cleanup()
     delete document.documentElement.dataset.theme
@@ -64,6 +65,12 @@ describe('ListView — a row icon avatar takes the dark ink in dark mode only', 
     expect(disc.querySelector('svg')).not.toBeNull()
     expect(paintedFill(disc)).toBe(toHex(colorDark.gray))
     expect(paintedInk(disc)).toBe(toHex(colorDark.panelbg))
+  })
+
+  it('dark: the glyph stays white on the `darkBlue` disc, where the dark ink would fail', () => {
+    const disc = avatar(renderRow('dark', 'darkBlue').container)
+    expect(paintedFill(disc)).toBe(toHex(colorDark.darkBlue))
+    expect(paintedInk(disc)).toBe('#ffffff')
   })
 
   it('light: the glyph stays white on the light `gray` disc', () => {

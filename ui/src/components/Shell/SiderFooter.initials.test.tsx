@@ -71,6 +71,13 @@ describe('SiderFooter — a photo-less user\'s initial takes the dark ink in dar
     expect(paintedInk(disc)).toBe(toHex(colorDark.panelbg))
   })
 
+  it('a user whose avatarURL is empty gets the initial, not an empty image', () => {
+    localStorage.setItem('K_user', JSON.stringify({ user: { avatarURL: '', displayName: 'Ada Lovelace', username: 'ada' } }))
+    const disc = avatar(renderFooter('dark').container)
+    expect(disc.querySelector('img')).toBeNull()
+    expect(disc.textContent).toBe('A')
+  })
+
   it('light: the initial stays white on the default avatar fill', () => {
     const disc = avatar(renderFooter('light').container)
     expect(paintedFill(disc)).toBe(toHex(theme.getDesignToken(lightTheme).colorTextPlaceholder))

@@ -15,6 +15,7 @@ import { join } from 'node:path'
 import { theme as antdTheme } from 'antd'
 import { describe, expect, it } from 'vitest'
 
+import { inkOnFill, ON_FILL_INKS } from './palette'
 import { agentikoAntdTheme, agentikoBrand, color, colorDark, lightTheme, darkTheme } from './tokens'
 
 // ---------------------------------------------------------------------------
@@ -495,8 +496,6 @@ describe('Coloured fills — the ink each component paints on its fill, in both 
     { component: 'Steps', fill: (mode) => emitted(mode).colorPrimary, minimum: 4.5, name: 'the current step number on the primary' },
     // A photo-less user's initials: the sidebar footer, the header trigger, the account menu.
     { component: 'Avatar', fill: (mode) => emitted(mode).colorTextPlaceholder, minimum: 4.5, name: 'a photo-less avatar\'s initials on its default fill' },
-    // A List row's icon avatar on the default row colour, as getColorCode resolves `gray` per mode.
-    { component: 'Avatar', fill: (mode) => (mode === 'dark' ? colorDark : color).gray, minimum: 3, name: 'a List row\'s icon on the `gray` row colour' },
   ]
 
   ;(['light', 'dark'] as const).forEach((mode) => {
@@ -528,5 +527,54 @@ describe('Coloured fills — the ink each component paints on its fill, in both 
     expect(darkTheme.components?.Tooltip?.colorTextLightSolid).toBeUndefined()
     expect(contrastRatio(sixDigit(ink('dark', 'Tooltip')), spotlight)).toBeGreaterThanOrEqual(4.5)
     expect(contrastRatio(colorDark.panelbg, spotlight)).toBeLessThan(4.5)
+  })
+})
+
+/**
+ * A List row's icon disc wears the colour its CR names (getColorCode resolves a palette NAME for
+ * the mode; an unknown name falls back to `dark`), so its glyph ink is chosen per fill by
+ * `inkOnFill`: white or the dark ink, whichever contrasts more. A single ink failed somewhere in
+ * each direction: white on the dark `gray` is 2.61:1, the dark ink on `darkBlue` 2.92:1 and on
+ * `menubgend` 1.87:1.
+ *
+ * Swept over EVERY palette colour in both modes, from the palettes themselves, so a colour added
+ * later is covered the moment it exists. The ratio is computed here, independently of the module
+ * under test; a translucent colour is measured as it paints, over the mode's surface.
+ */
+describe('List row icons — the ink chosen per fill reads on every row colour, in both modes', () => {
+  const NON_TEXT_MIN = 3
+  const channels = (value: string): number[] => {
+    const hex = /^#([0-9a-f]{6})$/i.exec(value)
+    if (hex) { return [0, 2, 4].map((at) => parseInt(hex[1].slice(at, at + 2), 16)).concat(1) }
+    const rgb = /^rgba?\(([^)]*)\)$/i.exec(value)
+    if (!rgb) { throw new Error(`unparseable colour ${value}`) }
+    const parts = rgb[1].split(',').map(Number)
+    return parts.length === 3 ? [...parts, 1] : parts
+  }
+  /** The opaque colour `fill` paints over the surface `ground`. */
+  const painted = (fill: string, ground: string): string => {
+    const [red, green, blue, alpha] = channels(fill)
+    return toHex([red, green, blue].map((channel, index) => channel * alpha + toRgb(ground)[index] * (1 - alpha)))
+  }
+
+  ;([['light', color], ['dark', colorDark]] as const).forEach(([mode, palette]) => {
+    (Object.keys(palette) as (keyof typeof palette)[]).forEach((name) => {
+      it(`${mode}: the icon on a \`${name}\` disc passes >= ${NON_TEXT_MIN}:1, in the better of the two inks`, () => {
+        const fill = painted(palette[name], palette.panelbg)
+        const ink = inkOnFill(palette[name], mode)
+        const other = ink === ON_FILL_INKS.white ? ON_FILL_INKS.dark : ON_FILL_INKS.white
+        const ratio = contrastRatio(ink, fill)
+        expect(ratio, `${mode} ${name}: ${ink} on ${fill} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(NON_TEXT_MIN)
+        expect(ratio).toBeGreaterThanOrEqual(contrastRatio(other, fill))
+      })
+    })
+  })
+
+  it('no single ink would do: white fails on the dark `gray`, the dark ink on the dark `darkBlue` and `menubgend`', () => {
+    expect(contrastRatio(ON_FILL_INKS.white, colorDark.gray)).toBeLessThan(NON_TEXT_MIN)
+    expect(contrastRatio(ON_FILL_INKS.dark, colorDark.darkBlue)).toBeLessThan(NON_TEXT_MIN)
+    expect(contrastRatio(ON_FILL_INKS.dark, colorDark.menubgend)).toBeLessThan(NON_TEXT_MIN)
+    expect(inkOnFill(colorDark.gray, 'dark')).toBe(colorDark.panelbg)
+    expect(inkOnFill(colorDark.darkBlue, 'dark')).toBe('#FFFFFF')
   })
 })

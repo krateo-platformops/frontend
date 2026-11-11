@@ -31,7 +31,7 @@ const Profile = () => {
     <Card>
       <Row>
         <Col className={styles.avatar} md={8} sm={24}>
-          <Avatar size={200} src={userData?.user.avatarURL} />
+          <Avatar size={200} src={userData?.user.avatarURL || undefined} />
         </Col>
         <Col md={16} sm={24}>
           <Space direction='vertical' size='large'>

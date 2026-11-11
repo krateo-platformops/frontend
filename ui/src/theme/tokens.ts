@@ -512,10 +512,10 @@ const textPx = (role: string): number => Number.parseInt(KRATEO_BASE[`text-${rol
 const buildComponents = (palette: Record<keyof typeof color, string>, mode: ThemeMode): ThemeConfig['components'] => ({
   // T2 feedback group. Alert and Badge restate what compactAlgorithm already derives.
   Alert: { defaultPadding: `${spacing.xs}px ${spacing.smd}px`, withDescriptionIconSize: 20, withDescriptionPadding: `${spacing.md}px ${spacing.md}px` },
-  // WCAG AA, the Button's rule: an avatar's initials or icon are `colorTextLightSolid` on its fill.
-  // The fills an avatar wears in dark are light tints: the photo-less default (the dark
-  // `colorTextPlaceholder`, #8C86A0: white 3.48:1, dark ink 5.47:1) and a List row's colour (`gray`
-  // #A39DB5: white 2.61:1, dark ink 7.29:1). Light keeps antd's white (5.60:1 on #6A6480).
+  // WCAG AA, the Button's rule: an avatar's initials are `colorTextLightSolid` on its fill. In dark
+  // the photo-less default fill (the dark `colorTextPlaceholder`, #8C86A0) is a light tint: white
+  // 3.48:1, dark ink 5.47:1. Light keeps antd's white (5.60:1 on #6A6480). A List row's icon disc
+  // wears a CR's colour instead and picks its ink per fill (palette.ts inkOnFill).
   Avatar: mode === 'dark' ? { colorTextLightSolid: palette.panelbg } : {},
   Badge: { dotSize: 5, indicatorHeight: 18, indicatorHeightSM: 12, statusSize: 5, textFontSize: textPx('label-xs'), textFontSizeSM: textPx('label-xs') },
   // T2 display group. Breadcrumb also themes the shell's own Breadcrumb (components/Breadcrumb).
