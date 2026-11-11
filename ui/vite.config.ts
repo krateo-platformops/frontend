@@ -50,6 +50,27 @@ const printConfigPlugin = () => ({
   name: 'print-config',
 })
 
+/*
+ * Where a built asset URL is written relative to the file that references it.
+ *
+ * `base` stays at its default `/`, so index.html keeps root-absolute tags (`/assets/index-*.js`).
+ * That is what makes nginx deep links work: `/compositions/ns/name` falls back to index.html, and
+ * a `./assets/...` tag would then resolve to `/compositions/ns/assets/...` and 404. `base: './'`
+ * would do exactly that, which is why this is not a base change.
+ *
+ * Every URL that a JS chunk or a CSS file builds is written relative to that file instead:
+ * imported images (`import logo from '.../logo.svg'`) become `new URL('logo-*.svg', import.meta.url)`,
+ * and the preload helper resolves a lazy chunk's CSS and modulepreload deps the same way. Those
+ * files all live in `assets/` next to the chunk, so the result is the same `/assets/...` under
+ * nginx, and it stays correct when the bundle is served from a sub-path with no SPA fallback (a
+ * static host, a CDN prefix). Root-absolute, they request `/assets/...` at the origin root: an
+ * image breaks, and a chart's CSS preload is rejected, which makes the chart's lazy import throw.
+ *
+ * Exported so viteAssetUrls.test.ts can build with exactly this function.
+ */
+export const renderBuiltUrl = (_filename: string, { hostType }: { hostType: 'css' | 'html' | 'js' }) =>
+  (hostType === 'html' ? undefined : { relative: true })
+
 // Optional upstream base for the dev-only Autopilot same-origin proxy (see server.proxy below).
 const autopilotProxyTarget = process.env.VITE_AUTOPILOT_PROXY_TARGET
 
@@ -65,6 +86,9 @@ export default defineConfig({
   define: {
     __APP_BUILD__: JSON.stringify(appBuild),
     __APP_VERSION__: JSON.stringify(appVersion),
+  },
+  experimental: {
+    renderBuiltUrl,
   },
   plugins: [
     react(),
