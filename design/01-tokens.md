@@ -253,6 +253,16 @@ No breakpoint token exists. Four components each invent their own — 1024/640, 
 
 **Status:** active failure → fixed → **re-opened by the November audit**, the primary wash fixed
 
+> **2026-11-11 — the wash is gone.** A product-owner review found the wash itself failing as a
+> control: 1.21:1 (dark) and 1.29:1 (light) against the panel, so the primary action read as
+> disabled. The primary button is antd's own solid fill now: `#9E00FF` under white in light, and
+> `#A86BDC` (antd's dark paint of the `#C27AFF` seed) under the `#120E1A` ink in dark. Two derived
+> state steps failed their label and take the brand's step instead: light hover `#8700DB` (antd's
+> `#B429FF` is 4.47:1 with white) and dark pressed `#B35CFF` (antd's `#8556AD` is 3.56:1 with the
+> ink). The test pins label-on-fill and fill-vs-surface for every state, in the portal and inside
+> an agent surface, and `visual/primaryButton.spec.ts` reads the painted pairs in Chromium. The
+> note below describes the wash as it was.
+
 > **2026-11-10 — pin the pair that is DRAWN.** The [WCAG audit](audits/x4-wcag21aa-2026-11.md)
 > (C2) found the primary button's label at 3.6–4.2:1 in light mode: this rule pinned the primary on
 > white, and the portal never draws that pair — a primary button is the primary's label over a
@@ -367,7 +377,7 @@ The main header and the docked rail previously shared a hardcoded `64px` that ma
 
 | | light | dark |
 |---|---|---|
-| primary (text, outlines, the primary wash) | `#9E00FF` brand violet — 5.4:1 on white | `#C27AFF` tint — the brand violet is 3.6:1 on the dark panel |
+| primary (text, outlines, the primary button's seed) | `#9E00FF` brand violet — 5.4:1 on white | `#C27AFF` tint — the brand violet is 3.6:1 on the dark panel |
 | canvas / surface | `#F7F6FB` / `#FFFFFF` (neutrals with a violet bias) | `#07050C` / `#120E1A` |
 | sidebar | black `#141414`, selected item `#9E00FF` under white | black `#000000`, same selected item |
 | login panel | the brand gradient `#9E00FF` → `#2213CF` under white | same |

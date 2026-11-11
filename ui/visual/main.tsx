@@ -36,6 +36,7 @@ import { loadAll } from 'js-yaml'
 import ReactDOM from 'react-dom/client'
 import { MemoryRouter } from 'react-router'
 
+import AgentikoBrandScope from '../src/components/Agentiko/AgentikoBrandScope'
 import DependencyGraph from '../src/components/DependencyGraph'
 import DismissButton from '../src/components/DismissButton'
 import FiltersProvider from '../src/components/FiltesProvider'
@@ -149,6 +150,24 @@ const focusRing = () => (
   </Space>
 )
 /**
+ * `?fixture=primary-button`: a primary Button, enabled and disabled, in the portal's theme and inside
+ * an agent surface's nested theme (AgentikoBrandScope), on the page ground and on a panel.
+ * primaryButton.spec.ts reads the fill and label the browser paints at rest, on hover and pressed.
+ */
+const primaryRow = (where: string) => (
+  <Space data-testid={where} wrap>
+    <Button type='primary'>Primary</Button>
+    <Button disabled type='primary'>Disabled</Button>
+    <AgentikoBrandScope><Button type='primary'>Agent primary</Button></AgentikoBrandScope>
+  </Space>
+)
+const primaryButton = () => (
+  <Space orientation='vertical' size='large'>
+    {primaryRow('ground')}
+    <div data-testid='panel-surface' style={{ background: 'var(--panelbg-color)', padding: 'var(--spacing-md)' }}>{primaryRow('panel')}</div>
+  </Space>
+)
+/**
  * `?fixture=table-cell-tooltip`: the trace page's spans table, whose red status tag carries the
  * span's OTel StatusMessage as its cell `tooltip`. tableCellTooltip.spec.ts Tabs to the tag and
  * photographs it with its tooltip open.
@@ -233,6 +252,7 @@ const fixtures: Record<string, () => React.ReactNode> = {
   'nav-menu': navMenu,
   'page-header': () => pageHeader('Turn an OpenAPI document into Kubernetes kinds: which operations each kind maps, how it is identified, and the credentials it calls with.'),
   'page-header-no-subtitle': () => pageHeader(),
+  'primary-button': primaryButton,
   'screen-header': () => screenHeader('Author a page and everything it needs, then publish the whole set as one change request.'),
   'screen-header-no-subtitle': () => screenHeader(),
   'table-cell-tooltip': () => <Table resourcesRefs={{ items: [] }} uid='fixture' widget={{} as never} widgetData={spansTable} />,

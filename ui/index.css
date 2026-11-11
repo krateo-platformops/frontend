@@ -44,58 +44,15 @@ body {
  */
 
 /*
- * Primary CTA = primary-colour WASH, not a solid block. The primary action
- * (New composition / Apply / Deploy) is a translucent instrument key: a faint brand
- * fill, a brand hairline border and a brand label — it reads as "your move" without
- * antd's heavy solid fill. Overrides the antd v6 solid-primary variant (type="primary"
- * → color-primary + variant-solid) at the cascade level so EVERY Button widget converts
- * at once; color-mix off --primary-color keeps it theme-adaptive (the Agentiko violet
- * #9E00FF light / its tint #C27AFF dark, T11). `danger` primaries map to color-dangerous, so destructive
- * buttons stay crimson untouched.
- *
- * NOT when disabled. This selector outranks antd's own `:disabled` rule, so without the :not() a
- * disabled primary kept the full wash — the same fill, border and label as an enabled one, only the
- * cursor differed — and "Publish is off" could not be seen. Excluded, antd's disabled style applies
- * (the one every other disabled button shows).
- *
- * The LABEL is not the primary itself in light mode (audit 2026-11, C2): on its own 14% wash the
- * violet #9E00FF reads 4.18:1, 3.93:1 over the page ground and 3.62:1 on the hover wash — under AA.
- * Light mode darkens it to 72% of the primary, mixed toward black: #7200B8 for the Agentiko violet
- * (the brand's own accentActive), 6.4–6.8:1 at rest and 5.9:1 on hover. Derived, not a fixed hex, so
- * a tenant's colorPrimary (Tier 1) darkens the same way, and resolved on the button itself, so an agent
- * surface that re-points --primary-color is followed. Dark mode lightens instead, to 85% of the
- * tint toward white (#CB8EFF, 4.8–7.3:1): the tint alone is 4.3:1 on the
- * pressed (28%) wash over the panel.
- * Pinned against the COMPOSITED wash in tokens.contrast.test.ts — the pair that is actually drawn.
+ * Primary button: antd's own SOLID fill, in both modes. There used to be a 14% "wash" of
+ * --primary-color here that restyled every type="primary" Button at the cascade level; it measured
+ * 1.21:1 (dark) and 1.29:1 (light) against the panel, so the primary action read as disabled. The
+ * fill, its hover and pressed steps, and the label all come from the antd theme now (theme/tokens.ts):
+ * light #9E00FF under white, dark #A86BDC (antd's dark algorithm paints the #C27AFF seed there)
+ * under the panel ink. tokens.contrast.test.ts pins label-on-fill and fill-vs-surface in every state,
+ * and visual/primaryButton.spec.ts reads the painted pair in a real browser. Nothing in this file
+ * may repaint the solid primary again: the same test fails if a rule here names it.
  */
-:root {
-  --primary-wash-label-ink: black;
-  --primary-wash-label-mix: 72%;
-}
-
-[data-theme="dark"] {
-  --primary-wash-label-ink: white;
-  --primary-wash-label-mix: 85%;
-}
-
-.ant-btn.ant-btn-color-primary.ant-btn-variant-solid:not(:disabled, .ant-btn-disabled) {
-  background: color-mix(in srgb, var(--primary-color) 14%, transparent);
-  border-color: color-mix(in srgb, var(--primary-color) 40%, transparent);
-  box-shadow: none;
-  color: color-mix(in srgb, var(--primary-color) var(--primary-wash-label-mix), var(--primary-wash-label-ink));
-}
-
-.ant-btn.ant-btn-color-primary.ant-btn-variant-solid:not(:disabled, .ant-btn-disabled):hover,
-.ant-btn.ant-btn-color-primary.ant-btn-variant-solid:not(:disabled, .ant-btn-disabled):focus-visible {
-  background: color-mix(in srgb, var(--primary-color) 22%, transparent);
-  border-color: color-mix(in srgb, var(--primary-color) 62%, transparent);
-  color: color-mix(in srgb, var(--primary-color) var(--primary-wash-label-mix), var(--primary-wash-label-ink));
-}
-
-.ant-btn.ant-btn-color-primary.ant-btn-variant-solid:not(:disabled, .ant-btn-disabled):active {
-  background: color-mix(in srgb, var(--primary-color) 28%, transparent);
-  border-color: color-mix(in srgb, var(--primary-color) 72%, transparent);
-}
 
 /*
  * Petrol (dark) — matte instrument bezels, NOT frosted glass. The previous "Glass"

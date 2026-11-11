@@ -19,7 +19,8 @@ No colour outside this table, the neutrals below and the status colours is part 
 ## Light and dark
 
 The brand violet and blue are too dark to read as text on the dark ground (3.6:1 and 1.9:1), so
-dark mode uses a lighter tint of each.
+dark mode uses a lighter tint of each. A primary button is antd's solid fill: in dark mode antd
+paints the `#C27AFF` seed as `#A86BDC`, where white is 3.62:1, so its label is the surface ink.
 
 | Role | Light | Dark |
 |---|---|---|
@@ -29,7 +30,7 @@ dark mode uses a lighter tint of each.
 | Surface | `#FFFFFF` | `#120E1A` |
 | Sidebar | `#141414` | `#000000` |
 | Sidebar selected item | `#9E00FF` with a white label | `#9E00FF` with a white label |
-| Primary button label (on the violet wash) | `#7200B8` | `#CB8EFF` |
+| Primary button fill / label | `#9E00FF` / white (hover `#8700DB`) | `#A86BDC` / `#120E1A` (pressed `#B35CFF`) |
 
 Status colours (success, warning, error, info) and Signal Yellow are not part of the brand and do
 not change. Signal Yellow means only that Agentiko is executing.
@@ -43,8 +44,8 @@ not change. Signal Yellow means only that Agentiko is executing.
 - **Mark** (the rail band, the monogram, gradient text) follows the mode:
   `#9E00FF` → `#2213CF` on light, `#C27AFF` → `#9C8FFF` on dark.
 
-The agent's controls are the only filled controls in the portal. Every other primary action is the
-violet wash.
+The agent's controls are the only gradient controls in the portal. Every other primary action is
+the solid primary fill above.
 
 ## Type
 
