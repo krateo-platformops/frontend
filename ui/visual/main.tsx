@@ -22,6 +22,12 @@ import '@fontsource/inter/700.css'
 import '@fontsource/jetbrains-mono/400.css'
 import '@fontsource/jetbrains-mono/500.css'
 import '@fontsource/jetbrains-mono/600.css'
+// The display role (page titles, the sign-in heading). Without it every title fell back to Inter
+// here while the app drew it in Syne, and a change between the two faces could not be seen.
+import '@fontsource/syne/400.css'
+import '@fontsource/syne/500.css'
+import '@fontsource/syne/600.css'
+import '@fontsource/syne/700.css'
 import '../index.css'
 import '../src/widgets/load'
 

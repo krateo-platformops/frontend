@@ -197,9 +197,9 @@
   display: flex;
 
   /* #86 §0.10 Release C kept the title at the DrawerHeader tier (16px, 600). The size and weight
-     still match it; the FACE is Agentiko's Syne (`--krateo-font-agentiko`), because this title is
-     where the agent says whose it is. One line, no neighbour text to share a baseline with. */
-  font-family: var(--krateo-font-agentiko);
+     still match it; the FACE is the display role, Syne (`--krateo-font-display`), because this
+     title is where the agent says whose it is. One line, no neighbour text to share a baseline with. */
+  font-family: var(--krateo-font-display);
   font-size: var(--krateo-text-body);
   font-weight: 700;
   gap: var(--spacing-sm);
@@ -747,7 +747,7 @@
 
 .apEmpty .apEmptyTitle {
   color: var(--dark-color);
-  font-family: var(--krateo-font-agentiko);
+  font-family: var(--krateo-font-display);
   font-size: var(--krateo-text-body-lg);
   font-weight: 700;
   margin-bottom: var(--spacing-smd);
@@ -1182,7 +1182,7 @@
 
 .apLockedTitle {
   color: var(--dark-color);
-  font-family: var(--krateo-font-agentiko);
+  font-family: var(--krateo-font-display);
   font-size: var(--krateo-text-body-lg);
   font-weight: 700;
 }

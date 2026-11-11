@@ -8,9 +8,10 @@ import base from '../vite.config'
  * The visual-regression harness build: the app's own Vite config (same plugins, same defines),
  * pointed at visual/index.html instead of the app.
  *
- * One thing differs on purpose. ui/index.css pulls Inter and JetBrains Mono from Google Fonts with
- * an `@import`; a screenshot that depends on a third-party fetch is a screenshot that flakes. The
- * harness loads the same faces from @fontsource instead (see main.tsx), so this strips the import.
+ * One thing differs on purpose. ui/index.css pulls Inter, JetBrains Mono and Syne from Google Fonts
+ * with an `@import`; a screenshot that depends on a third-party fetch is a screenshot that flakes.
+ * The harness loads the same faces from @fontsource instead (see main.tsx), so this strips the
+ * import.
  *
  * The file is matched by its RESOLVED path, not by a suffix. It used to match ids ending in
  * `/ui/index.css`, which holds in CI (the checkout has a `ui/` directory) but not in

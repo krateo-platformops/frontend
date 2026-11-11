@@ -50,10 +50,12 @@ violet wash.
 
 | Role | Face |
 |---|---|
-| Headings, body, labels | Syne |
-| Data: identifiers, versions, numbers, YAML, logs | JetBrains Mono, tabular figures |
+| Display: page titles, the sign-in heading, the agent rail's titles | Syne |
+| Body, labels, inputs, tables, buttons, the menu, stat values | Inter |
+| Data: identifiers, versions, numbers, YAML, logs (a Statistic's value is the exception: Inter) | JetBrains Mono, tabular figures |
 
-Syne is never used for data: its "1" and "0" read as "ı" and "o".
+Syne is never used for data: its "1" and "0" read as "ı" and "o", and its figures read "42" as
+"4²".
 
 ## Logo and monogram
 
