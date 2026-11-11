@@ -17,7 +17,9 @@
        line-height) — bumped from ~30px per issue #80 §0.5 (rows read too cramped). The tight
        line-height stops the 13px label from inflating the `height: auto` box past the padding.
        NB: the box is `height: auto`, so vertical size is driven by THIS padding, not the
-       `Menu.itemHeight` token (kept in sync at 36 in theme/tokens.ts for antd's own metrics). */
+       `Menu.itemHeight` token (kept in sync at 36 in theme/tokens.ts for antd's own metrics).
+       NO text-transform: a label renders exactly as its page declares it ("Raise a ticket", not
+       "Raise A Ticket"). visual/menu.spec.ts measures it in Chromium. */
     color: var(--menuitem-color);
     height: auto;
     line-height: 1.2;
@@ -25,7 +27,6 @@
     padding-bottom: var(--spacing-sm);
     padding-left: 0;
     padding-top: var(--spacing-sm);
-    text-transform: capitalize;
     width: 100%;
 
     svg {

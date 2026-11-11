@@ -17,7 +17,7 @@
 /** Marks the nav root: the witness that a sidebar nav IS rendered on this page. */
 export const NAV_ROOT_ATTRIBUTE = 'data-krateo-nav'
 
-/** Carries a nav item's label verbatim — the CSS capitalizes the text, the attribute doesn't. */
+/** Carries a nav item's label verbatim, as its page declares it (the rendered text is the same). */
 export const NAV_ITEM_ATTRIBUTE = 'data-krateo-nav-item'
 
 /** Spread onto the nav root element. */
