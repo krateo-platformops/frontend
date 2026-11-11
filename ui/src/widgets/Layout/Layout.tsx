@@ -109,7 +109,7 @@ const Layout = ({ resourcesRefs, widgetData }: WidgetProps<LayoutWidgetData>) =>
     const headerRef = collapsed ? (sider.collapsedHeader ?? sider.header) : sider.header
     return (
       <div className={styles.sider}>
-        {headerRef ? <div className={styles.siderHeader} key={headerRef}>{slot(headerRef, resourcesRefs)}</div> : null}
+        {headerRef ? <div className={collapsed ? `${styles.siderHeader} ${styles.siderHeaderCollapsed}` : styles.siderHeader} key={headerRef}>{slot(headerRef, resourcesRefs)}</div> : null}
         {shell.siderHeader}
         <div className={styles.siderBody}>{slot(sider.resourceRefId, resourcesRefs)}</div>
         {shell.siderFooter}

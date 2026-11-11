@@ -7,15 +7,53 @@ import { useLocation, useNavigate } from 'react-router'
 
 import { useConfigContext } from '../../context/ConfigContext'
 import { createRoute, useRoutesContext } from '../../context/RoutesContext'
+import { spacing } from '../../theme/tokens'
 import type { WidgetProps } from '../../types/Widget'
 import { carryScopeParams, navigateOrExternal } from '../../utils/navigation'
 
 import styles from './Menu.module.css'
 import type { Menu as WidgetType } from './Menu.type'
 import { navItemProps, navRootProps } from './navAnchor'
-import { buildNavModel, type InlineNavItem } from './navModel'
+import { buildNavModel, type InlineNavItem, type NavEntry } from './navModel'
 
 export type MenuWidgetData = WidgetType['spec']['widgetData']
+
+/**
+ * The antd items for the nav entries, in their order. A run of consecutive entries that name the
+ * same `group` becomes one antd item group, whose title is the heading (Menu.module.css draws it as
+ * a section label, and as a short rule in the collapsed icon rail). An entry with no group, and a
+ * divider, stay at the top level and end the run, so a nav whose items carry no groups renders
+ * exactly as it did before groups existed.
+ */
+const toMenuItems = (entries: NavEntry[]): ItemType[] => {
+  const items: ItemType[] = []
+  let run: { children: ItemType[]; name: string } | undefined
+  for (const entry of entries) {
+    if (entry.type === 'divider') {
+      run = undefined
+      items.push({ key: entry.key, type: 'divider' })
+      continue
+    }
+    const item: ItemType = {
+      // Our own anchor for the label, so the Agentiko tour can spotlight this row without
+      // reading antd's class names (navAnchor.ts).
+      ...navItemProps(entry.label),
+      icon: entry.iconName ? <FontAwesomeIcon icon={entry.iconName as IconProp} /> : undefined,
+      key: entry.key,
+      label: entry.label,
+    }
+    if (!entry.group) {
+      run = undefined
+      items.push(item)
+    } else if (run?.name === entry.group) {
+      run.children.push(item)
+    } else {
+      run = { children: [item], name: entry.group }
+      items.push({ children: run.children, key: `group-${entry.key}`, label: entry.group, type: 'group' })
+    }
+  }
+  return items
+}
 
 export function Menu({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<MenuWidgetData>) {
   const { items: navItems = [], mode, theme } = widgetData
@@ -51,46 +89,34 @@ export function Menu({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetPro
     }
   }, [location.pathname, menuRoutes, navigate])
 
-  const menuItems: ItemType[] = useMemo(
-    () => entries.map((entry) =>
-      (entry.type === 'divider'
-        ? { key: entry.key, type: 'divider' as const }
-        : {
-          // Our own anchor for the label, so the Agentiko tour can spotlight this row without
-          // reading antd's class names (navAnchor.ts).
-          ...navItemProps(entry.label),
-          icon: entry.iconName ? <FontAwesomeIcon icon={entry.iconName as IconProp} /> : undefined,
-          key: entry.key,
-          label: entry.label,
-        })
-    ),
-    [entries]
-  )
+  const menuItems: ItemType[] = useMemo(() => toMenuItems(entries), [entries])
 
   // Highlight the nav item whose path is the longest prefix of the current route, so
   // child routes (e.g. /compositions/:namespace, /compositions/:namespace/:name, the
   // marketplace create flow) keep their section selected. An exact match is naturally
   // the longest prefix; the trailing-slash guard stops /blueprints matching a sibling
-  // like /blueprintsfoo. Dividers are skipped (their keys are 'divider-N', never a path match).
+  // like /blueprintsfoo. Read from the flat entries, not the antd items: an entry under a group
+  // heading is a child of the group item there. Dividers have no path to match.
+  const navKeys = useMemo(() => entries.flatMap((entry) => (entry.type === 'divider' ? [] : [entry.key])), [entries])
   const selectedKey = useMemo(() => {
     const path = location.pathname
-    return menuItems
-      .map((item) => (item as { key?: string }).key ?? '')
-      .filter(Boolean)
+    return navKeys
       .filter((key) => path === key || path.startsWith(`${key}/`))
       .sort((left, right) => right.length - left.length)[0]
-  }, [menuItems, location.pathname])
+  }, [navKeys, location.pathname])
 
-  const firstNavKey = useMemo(
-    () => menuItems.find((item) => item?.type !== 'divider')?.key as string | undefined,
-    [menuItems]
-  )
+  const [firstNavKey] = navKeys
 
   return (
     <AntdMenu
       {...navRootProps}
       className={styles.menu}
       defaultSelectedKeys={firstNavKey ? [firstNavKey] : []}
+      // antd writes this as the row's inline padding-left (indent × level, and every entry is level
+      // one, grouped or not, since an item group adds no level). 8px inside the Sider's 16px padding
+      // puts each icon on the rail's one left edge, x = 24, with the logo and the group headings.
+      // In the collapsed icon rail antd centres the icon instead and writes no indent.
+      inlineIndent={spacing.sm}
       items={menuItems}
       key={uid}
       mode={mode ?? 'inline'}

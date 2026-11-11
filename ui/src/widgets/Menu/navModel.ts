@@ -15,6 +15,13 @@ export interface InlineNavItem {
   /** Set to 'divider' to render a visual separator at this order position. */
   type?: 'divider'
   /**
+   * The sidebar section this entry belongs to: a page's `krateo.io/nav-group`, which
+   * `restaction.sidebar-nav` passes through. Consecutive entries (in `order`) with the same group
+   * render under one heading carrying its name. Entries without one render with no heading, as
+   * every entry did before groups were drawn.
+   */
+  group?: string
+  /**
    * The namespace the page CR lives in, when it is NOT the portal's own.
    *
    * WHY IT EXISTS. The convention below resolves `page-<slug>` in ONE namespace — the frontend's
@@ -76,6 +83,7 @@ export interface InlineNavItem {
 
 /** Antd Menu entry data (icon resolved to JSX by the component). */
 export interface NavEntry {
+  group?: string
   iconName?: string
   key: string
   label?: string
@@ -211,7 +219,7 @@ export const buildNavModel = (
       return [{ key: `divider-${item.order ?? idx}`, type: 'divider' as const }]
     }
     if (item.label && item.path && isNavEntryAllowed(item, resourcesRefs, deniedRefIds)) {
-      return [{ iconName: item.icon, key: item.path, label: item.label }]
+      return [{ group: item.group || undefined, iconName: item.icon, key: item.path, label: item.label }]
     }
     return []
   })

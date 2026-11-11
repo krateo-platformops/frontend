@@ -77,6 +77,10 @@
                     "type": "string",
                     "description": "convention page-slug override → content is flexes/page-<slug>; set this for templated paths to avoid list-vs-detail collisions."
                   },
+                  "group": {
+                    "type": "string",
+                    "description": "sidebar section the entry belongs to (a page's krateo.io/nav-group). Consecutive entries with the same group render under one heading with this name; an entry without one has no heading"
+                  },
                   "type": {
                     "type": "string",
                     "enum": [

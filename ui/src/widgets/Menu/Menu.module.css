@@ -1,3 +1,9 @@
+/*
+ * The sidebar nav, on the black rail (T11). ONE LEFT EDGE: the Sider body pads the Menu by 16px
+ * (Layout.module.css .siderBody) and each row adds 8px (Menu.tsx `inlineIndent`, which antd writes as
+ * the row's padding-left), so every icon starts at x = 24 — the same edge as the logo in the Sider's
+ * header slot and the group headings below. visual/sidebar.spec.ts measures it in Chromium.
+ */
 .menu {
   background-color: transparent;
   border: 0 !important;
@@ -6,63 +12,94 @@
     border-inline-end: 0;
   }
 
-  :global(.ant-menu-item-icon) {
-    display: none;
-    justify-content: center;
-    width: 34px;
-  }
-
+  /* Rows are antd's own `Menu.itemHeight` (36, theme/tokens.ts), so the box and antd's metrics
+     agree. NO text-transform: a label renders exactly as its page declares it ("Raise a ticket",
+     not "Raise A Ticket"). visual/menu.spec.ts measures it in Chromium. */
   :global(.ant-menu-item) {
-    /* Nav-item density (~36px tall: 9px vertical padding + a 17px glyph on a tight 1.2
-       line-height) — bumped from ~30px per issue #80 §0.5 (rows read too cramped). The tight
-       line-height stops the 13px label from inflating the `height: auto` box past the padding.
-       NB: the box is `height: auto`, so vertical size is driven by THIS padding, not the
-       `Menu.itemHeight` token (kept in sync at 36 in theme/tokens.ts for antd's own metrics).
-       NO text-transform: a label renders exactly as its page declares it ("Raise a ticket", not
-       "Raise A Ticket"). visual/menu.spec.ts measures it in Chromium. */
     color: var(--menuitem-color);
-    height: auto;
-    line-height: 1.2;
     margin: 0;
-    padding-bottom: var(--spacing-sm);
-    padding-left: 0;
-    padding-top: var(--spacing-sm);
+    position: relative;
     width: 100%;
-
-    svg {
-      min-height: 17px;
-      min-width: 17px;
-      opacity: .5;
-      transition: all 300ms;
-    }
   }
 
-  /* The rail is black in both modes (T11, the Agentiko style), so nav text is light in both
-     (--menuitem-color / --krateo-nav-item-active, emitted by cssVariables). The selected item is
-     the brand violet, filled, under a white label (5.4:1) — --menuitembg-color. A tenant
-     custom.sidebar that repaints the rail pairs it with custom.menu text. */
+  /* The page's icon, 16px, in the item's own colour (62% white, 7.84:1 on the dark rail). */
+  :global(.ant-menu-item .ant-menu-item-icon) {
+    height: var(--spacing-md);
+    min-width: var(--spacing-md);
+    width: var(--spacing-md);
+  }
+
+  :global(.ant-menu-item .ant-menu-item-icon + .ant-menu-title-content) {
+    margin-inline-start: var(--spacing-smd);
+  }
+
+  /* Selected: a tint behind the row and an accent bar at its leading edge. The bar is the state
+     (#C27AFF, 7.52:1 on the dark rail); the tint is only a background. Both are mode-invariant
+     like the rail. A tenant's custom.menu.itemSelectedBg still replaces the tint. */
   :global(.ant-menu-item-selected) {
     background-color: var(--menuitembg-color);
     border-radius: var(--radius-md);
     color: var(--krateo-nav-item-active);
-    font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-medium);
+  }
 
-    svg {
-      opacity: 1;
+  :global(.ant-menu-item-selected)::before {
+    background: var(--krateo-nav-item-selected-bar);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    bottom: var(--spacing-xsm);
+    content: "";
+    left: 0;
+    position: absolute;
+    top: var(--spacing-xsm);
+    width: 3px;
+  }
 
-      path {
-        fill: var(--krateo-nav-item-active);
-      }
-    }
+  :global(.ant-menu-item.ant-menu-item-active:not(.ant-menu-item-selected)),
+  :global(.ant-menu-item.ant-menu-item-active:not(.ant-menu-item-selected):hover) {
+    background-color: transparent;
   }
 
   :global(.ant-menu-item.ant-menu-item-active),
   :global(.ant-menu-item.ant-menu-item-active:hover) {
-    background-color: transparent;
     color: var(--krateo-nav-item-active) !important;
+  }
 
-    svg {
-      opacity: 1;
-    }
+  /* A group heading: the pages' `krateo.io/nav-group`. 11px / 600, uppercase, +0.08em, white at
+     55% (6.25:1 on the dark rail), on the rows' left edge. */
+  :global(.ant-menu-item-group-title) {
+    color: var(--krateo-nav-group);
+    font-size: var(--krateo-text-label-sm);
+    font-weight: var(--font-weight-bold);
+    height: var(--spacing-lg);
+    letter-spacing: 0.08em;
+    line-height: var(--spacing-lg);
+    padding: 0 var(--spacing-sm);
+    text-transform: uppercase;
+  }
+
+  /* 16px above every section that follows something, an ungrouped entry included. */
+  :global(.ant-menu-item-group:not(:first-child)) {
+    margin-top: var(--spacing-md);
+  }
+
+  /* The collapsed icon rail: no room for a heading, so each group after the first opens with a
+     short rule instead, and the first opens with nothing. The name is still the group's title
+     attribute, as antd sets it. */
+  &:global(.ant-menu-inline-collapsed) :global(.ant-menu-item-group-title) {
+    background: var(--line-color);
+    color: transparent;
+    height: 1px;
+    margin: var(--spacing-sm) var(--spacing-smd);
+    overflow: hidden;
+    padding: 0;
+    width: var(--spacing-lg);
+  }
+
+  &:global(.ant-menu-inline-collapsed) :global(.ant-menu-item-group:first-child .ant-menu-item-group-title) {
+    display: none;
+  }
+
+  &:global(.ant-menu-inline-collapsed) :global(.ant-menu-item-group:not(:first-child)) {
+    margin-top: 0;
   }
 }
