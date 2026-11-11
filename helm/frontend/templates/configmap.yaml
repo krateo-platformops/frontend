@@ -69,6 +69,21 @@ data:
       "FRONTEND_NAMESPACE": "{{ .Release.Namespace }}",
       "DELAY_SAVE_NOTIFICATION": "10000"
       }
+{{- /* Login-screen branding (ui/src/context/ConfigContext.tsx `login`). Each key is optional and
+       off when unset: config.json carries a "login" object only when values set at least one key,
+       and carries only the keys that are set and non-empty, so an install that sets none renders
+       exactly the config.json it did before this block existed. The schema types the keys and gives
+       them no default (scripts/gen-config-schema.py, LOGIN). toJson, not quote: it escapes as JSON. */ -}}
+{{- $login := dict -}}
+{{- range $k := list "installationName" "logoUrl" "logoAlt" "headline" "subtitle" "highlights" "requestAccountUrl" -}}
+{{- $v := get ($.Values.login | default dict) $k -}}
+{{- if $v -}}
+{{- $_ := set $login $k $v -}}
+{{- end -}}
+{{- end -}}
+{{- if $login }},
+    "login": {{ toJson $login }}
+{{- end }}
     }
 ---
 apiVersion: v1

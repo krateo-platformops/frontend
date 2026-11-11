@@ -779,6 +779,60 @@
           "default": ""
         }
       }
+    },
+    "login": {
+      "type": "object",
+      "title": "Login screen",
+      "description": "Optional login-screen branding, rendered as the \"login\" object of config.json. Every key is optional and off when unset; config.json carries only the keys that are set, and no \"login\" object at all when none is.",
+      "additionalProperties": false,
+      "properties": {
+        "installationName": {
+          "type": "string",
+          "minLength": 1,
+          "title": "Installation name",
+          "description": "This installation's name, shown on the login screen as \"to Krateo PlatformOps \u00b7 <name>\"."
+        },
+        "requestAccountUrl": {
+          "type": "string",
+          "minLength": 1,
+          "title": "Request-account URL",
+          "description": "Target of the login screen's \"Request an account\" link, which is shown only when this is set: an absolute https URL, or a same-origin path starting with '/'.",
+          "pattern": "^(https://[^/\\\\\\s?#]+([/?#]\\S*)?|/([^/\\\\\\s]\\S*)?)$"
+        },
+        "logoUrl": {
+          "type": "string",
+          "minLength": 1,
+          "title": "Logo URL",
+          "description": "Login-panel logo: an absolute URL or a path the frontend serves. Unset: the bundled Krateo logo."
+        },
+        "logoAlt": {
+          "type": "string",
+          "minLength": 1,
+          "title": "Logo alt text",
+          "description": "Alt text for the logo."
+        },
+        "headline": {
+          "type": "string",
+          "minLength": 1,
+          "title": "Headline"
+        },
+        "subtitle": {
+          "type": "string",
+          "minLength": 1,
+          "title": "Subtitle"
+        },
+        "highlights": {
+          "type": "array",
+          "title": "Highlights",
+          "description": "Up to five short lines of copy.",
+          "maxItems": 5,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        }
+      }
     }
   }
 }

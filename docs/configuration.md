@@ -38,6 +38,7 @@ Everything configurable, grounded in [`helm/frontend/values.yaml`](../helm/front
 | `agentName` | `agentiko` | The orchestrator Agent the portal talks to, in both modes: with the gateway on, the last segment of `<origin>/api/a2a/<release-ns>/<agentName>`; otherwise the derived same-origin base `/<agentName>`, used when `config` sets neither `AGENTIKO_API_BASE_URL` nor `AUTOPILOT_API_BASE_URL`. An explicit base URL wins. Typed in the schema, defaulted only in `values.yaml`. |
 | `config.*` | see below | Rendered verbatim into the `config.json` the SPA boots from. |
 | `previewSandbox.*` | `enabled: false` | The portal-builder live-preview sandbox (below). |
+| `login.*` | *(unset)* | Login-screen branding, rendered as the `login` object of `config.json` (below). |
 
 The pod template carries a `checksum/configmap` annotation, so config changes roll the
 Deployment.
@@ -85,11 +86,31 @@ from the resolver, the chart template and `scripts/gen-config-schema.py`.
 
 The SPA additionally understands optional keys not in the chart defaults —
 `WIDGET_LIVE_REFRESH_ENABLED` (default on), `RENDER_API_BASE_URL`,
-`TERMINAL_SOCKET_URL`, and a `login` branding block — the full typed contract with
-per-key semantics is `ui/src/context/ConfigContext.tsx` (see
-[ui/docs/behavior.md](../ui/docs/behavior.md)). `params.FRONTEND_NAMESPACE` is rendered
-from the release namespace, and is the namespace convention pages (`flexes/page-<slug>`)
-resolve in.
+`TERMINAL_SOCKET_URL` — the full typed contract with per-key semantics is
+`ui/src/context/ConfigContext.tsx` (see [ui/docs/behavior.md](../ui/docs/behavior.md)).
+`params.FRONTEND_NAMESPACE` is rendered from the release namespace, and is the namespace
+convention pages (`flexes/page-<slug>`) resolve in.
+
+### The login screen (`.Values.login`)
+
+The top-level `login` value is rendered as the `login` object of `config.json`, beside `api` and
+`params`, and the SPA reads it as `config.login`. Every key is optional and off when unset: the
+block is absent from `values.yaml` and has no schema default, so an install that sets nothing gets
+no `login` object, byte for byte the `config.json` of a chart without this value. Set, `config.json`
+carries exactly the keys that are set.
+
+| Key | Effect when set | Schema |
+|---|---|---|
+| `installationName` | The heading's second line reads "to Krateo PlatformOps · `<name>`". | string, non-empty |
+| `requestAccountUrl` | Shows "Request an account", linked here. | an absolute `https://` URL, or a same-origin path starting with `/` (not `//` or `/\`) |
+| `logoUrl` / `logoAlt` | The login-panel logo and its alt text, in place of the bundled Krateo logo. | string, non-empty |
+| `headline` / `subtitle` | Marketing copy. | string, non-empty |
+| `highlights` | Short lines of copy. | up to 5 strings, each 1–120 characters |
+
+The block is typed by `scripts/gen-config-schema.py` (`LOGIN`), so the `values-schema-drift` job
+also catches a default added by hand; `scripts/test_chart_login.py` (the `chart-render` job) renders
+the chart and checks the result. **The installer's `componentValues` schemas are closed**: an install
+can set `login` only once the installer declares it under `componentValues['frontend']`.
 
 ## Container/nginx wiring
 

@@ -6,6 +6,7 @@ component, so the schema — not values.yaml — is the effective source of trut
 rendered ConfigMap. If the two drift (e.g. a stale `INIT` route), the cluster gets the
 schema's value and the portal breaks. This script makes `config` a derived artifact:
 its `properties` and `default` are generated verbatim from values.yaml's `config:` block.
+It also writes the top-level `login` block, which has no values.yaml counterpart (see LOGIN).
 
 USAGE: `python3 scripts/gen-config-schema.py`. In CI, run it then `git diff --exit-code
 helm/frontend/values.schema.json` — a non-empty diff means the schema drifted from values.yaml.
@@ -137,6 +138,75 @@ for key, description in OPTIONAL.items():
 
 schema["properties"]["config"]["properties"] = properties
 schema["properties"]["config"]["default"] = {key: value for key, value in config.items() if key not in NO_DEFAULT}
+
+# The login-screen branding block: top-level `login`, rendered by templates/configmap.yaml as the
+# "login" object of config.json (beside "api" and "params"), which the SPA reads as `config.login`
+# (ui/src/context/ConfigContext.tsx). Every key is OPTIONAL in the sense above: off when unset, so
+# `login` is absent from values.yaml (a commented example there documents it) and nothing here has
+# a default, on the block or on any key — a default would be copied into the composition spec and
+# put a "login" object into every install's config.json. Generated here, rather than hand-written in
+# values.schema.json, so the drift gate also catches a default slipping in by hand.
+#
+# Strings are minLength 1, because the chart renders only what is set and an empty one is a mistake.
+# requestAccountUrl is the href of the login screen's "Request an account" link, so it is held to an
+# absolute https URL or a same-origin path: no javascript:/data: scheme, no plain http, and no
+# protocol-relative `//host` or `/\host` (browsers read both as another origin). No lookahead in the
+# pattern: Kubernetes validates CRD patterns with Go's RE2, which has none.
+LOGIN_STRING = {"type": "string", "minLength": 1}
+LOGIN = {
+    "type": "object",
+    "title": "Login screen",
+    "description": (
+        "Optional login-screen branding, rendered as the \"login\" object of config.json. Every key "
+        "is optional and off when unset; config.json carries only the keys that are set, and no "
+        "\"login\" object at all when none is."
+    ),
+    "additionalProperties": False,
+    "properties": {
+        "installationName": {
+            **LOGIN_STRING,
+            "title": "Installation name",
+            "description": "This installation's name, shown on the login screen as \"to Krateo PlatformOps · <name>\".",
+        },
+        "requestAccountUrl": {
+            **LOGIN_STRING,
+            "title": "Request-account URL",
+            "description": (
+                "Target of the login screen's \"Request an account\" link, which is shown only when this "
+                "is set: an absolute https URL, or a same-origin path starting with '/'."
+            ),
+            "pattern": r"^(https://[^/\\\s?#]+([/?#]\S*)?|/([^/\\\s]\S*)?)$",
+        },
+        "logoUrl": {
+            **LOGIN_STRING,
+            "title": "Logo URL",
+            "description": "Login-panel logo: an absolute URL or a path the frontend serves. Unset: the bundled Krateo logo.",
+        },
+        "logoAlt": {**LOGIN_STRING, "title": "Logo alt text", "description": "Alt text for the logo."},
+        "headline": {**LOGIN_STRING, "title": "Headline"},
+        "subtitle": {**LOGIN_STRING, "title": "Subtitle"},
+        "highlights": {
+            "type": "array",
+            "title": "Highlights",
+            "description": "Up to five short lines of copy.",
+            "maxItems": 5,
+            "items": {**LOGIN_STRING, "maxLength": 120},
+        },
+    },
+}
+
+
+def has_default(node: object) -> bool:
+    if isinstance(node, dict):
+        return "default" in node or any(has_default(v) for v in node.values())
+    if isinstance(node, list):
+        return any(has_default(v) for v in node)
+    return False
+
+
+assert "login" not in values, "login is off when unset; values.yaml must not set it"
+assert not has_default(LOGIN), "login must carry no schema default"
+schema["properties"]["login"] = LOGIN
 
 (CHART / "values.schema.json").write_text(json.dumps(schema, indent=2) + "\n")
 print("regenerated config schema from values.yaml:", list(config.keys()))
