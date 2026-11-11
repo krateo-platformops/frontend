@@ -14,3 +14,17 @@ retracted:
     reason: >-
       The allowedResources enum has 47 values, not 54: it was tagged before #624 and lacks seven
       retired plurals. Three objects on alpitour would be refused at their next write.
+  - version: 1.8.35
+    charts: [frontend]
+    use: 1.8.34
+    reason: >-
+      Carries the Agentiko claim-telemetry span (#642), which must not ship before snowplow 1.12.69
+      (snowplow#1277) is live. Not permanently bad: remove this entry once 1.12.69 is live on every
+      cluster that could pin it. The coordinated roll ships 1.8.37 instead.
+  - version: 1.8.36
+    charts: [frontend]
+    use: 1.8.34
+    reason: >-
+      Same as 1.8.35 (carries #642's claim span, needs snowplow 1.12.69), and it predates the
+      live-refresh digest change (#672) the coordinated roll needs. Remove once 1.12.69 is live;
+      the coordinated roll ships 1.8.37.
