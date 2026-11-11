@@ -424,7 +424,7 @@ spec:
 #   a second line instead of being cut; its tooltip has the kind and the full name. There is no kind
 #   line on a compact card, and the detail line ("2 spans") stays.
 # Notes: absent, `direction` is LR and `density` is regular, which is the composition page's
-#   diagram: the same three cards left to right at 220x84 are 980px wide. The resource variant
+#   diagram: the same three cards left to right at 240x84 are 1040px wide. The resource variant
 #   ignores both fields.
 kind: FlowChart
 apiVersion: widgets.templates.krateo.io/v1beta1

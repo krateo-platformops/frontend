@@ -142,7 +142,7 @@ describe('FlowChart architecture — TB compact', () => {
     render(<FlowChart resourcesRefs={REFS} uid='fc' widgetData={architecture(THREE, { direction: 'TB' })} />)
     const tb = graphDouble.last() as { layout: unknown; node: { style: { size: unknown } } }
     expect(tb.layout).toEqual({ nodesep: 32, rankdir: 'TB', ranksep: 160, type: 'dagre' })
-    expect(tb.node.style.size).toEqual([220, 84])
+    expect(tb.node.style.size).toEqual([240, 84])
     cleanup()
     graphDouble.reset()
     render(<FlowChart resourcesRefs={REFS} uid='fc' widgetData={architecture(THREE, { density: 'compact' })} />)

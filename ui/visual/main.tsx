@@ -226,8 +226,43 @@ const graphZoomFixture = () => (
     />
   </div>
 )
+/**
+ * `?fixture=architecture-cards`: the architecture card at both densities with the longest values a
+ * chart realistically hands it — a forEach kind (`LocalResource ×8`), a 63-character name, a long
+ * detail line, and each exception label — so architectureCardText.spec.ts can check, at the 12px
+ * type floor, that no line wraps or runs out of its card. Each card is in a `data-case` wrapper.
+ */
+const LONG_NAME = 'publish-pod-sizing-v1b-localresource-configmap-overrides-000009'
+type CardCase = { case: string; data: FlowChartNodeData }
+const CARD_CASES: CardCase[] = [
+  { case: 'forEach', data: { detail: 'waits for Repository, Repo', kind: 'LocalResource ×8', name: 'publish-pod-sizing-v1b-000 … 007', parentRefs: [], state: 'withheld', uid: 'c1' } },
+  { case: 'long-name', data: { detail: 'default_branch · main', kind: 'Repository', name: LONG_NAME, parentRefs: [], state: 'done', uid: 'c2' } },
+  ...(['NotSynced', 'NotReady'] as const).map((label): CardCase => ({
+    case: `forEach-${label}`,
+    data: {
+      detail: 'waits for all 10 LocalResource',
+      exception: { label, message: 'cannot determine creation result', reason: 'ReconcileError' },
+      kind: 'LocalResource ×8',
+      name: LONG_NAME,
+      parentRefs: [],
+      state: 'waiting',
+      uid: `c-${label}`,
+    },
+  })),
+  { case: 'exception', data: { detail: 'targetCommitId · 0 of 1', exception: { label: 'NotSynced', reason: 'ReconcileError' }, kind: 'Repo', name: 'publish-pod-sizing-v1b-source', parentRefs: [], state: 'waiting', uid: 'c5' } },
+]
+const architectureCards = () => (
+  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+    {(['regular', 'compact'] as const).flatMap((density) => CARD_CASES.map(({ case: name, data }) => (
+      <div data-case={`${density}/${name}`} data-density-case={density} key={`${density}/${name}`}>
+        <ArchitectureStateNode data={data} density={density} />
+      </div>
+    )))}
+  </div>
+)
 const fixtures: Record<string, () => React.ReactNode> = {
   architecture,
+  'architecture-cards': architectureCards,
   'focus-ring': focusRing,
   'graph-zoom': graphZoomFixture,
   'nav-menu': navMenu,

@@ -190,7 +190,7 @@ export interface FlowChart {
        */
       direction?: 'LR' | 'TB'
       /**
-       * architecture variant: the card size. regular, when absent: 220x84, with the kind, the name and the detail line. compact: 180x56, with the name on up to two lines and then cut with an ellipsis (the full name and the kind in its tooltip), the detail line, and an exception drawn as the dot alone; closer gaps between cards. The resource variant ignores it.
+       * architecture variant: the card size. regular, when absent: 240x84, with the kind, the name and the detail line. compact: 180x56, with the name on up to two lines and then cut with an ellipsis (the full name and the kind in its tooltip), the detail line, and an exception drawn as the dot alone; closer gaps between cards. The resource variant ignores it.
        */
       density?: 'regular' | 'compact'
       /**

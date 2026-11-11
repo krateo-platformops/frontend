@@ -125,8 +125,8 @@ describe('the trace page\'s services diagram in its 415×360 box', () => {
   })
 
   it('CONTROL: the same three services LR regular overflow, as on the page today', () => {
-    // 3 × 220 + 2 × 160: only the first card is in view.
-    expect(architectureGraphWidth(THREE.ids.map((id) => ({ id })), THREE.edges)).toBe(980)
+    // 3 × 240 + 2 × 160: only the first card is in view.
+    expect(architectureGraphWidth(THREE.ids.map((id) => ({ id })), THREE.edges)).toBe(1040)
     expect(fits(measured(THREE.ids, THREE.edges, 'LR', 'regular'))).toBe(false)
   })
 })

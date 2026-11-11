@@ -24,7 +24,7 @@
 /* portal#310: the graph runs past this box. `fit="natural"` pins its LEFT edge, so what is missing
    is always on the RIGHT, and a card clipped mid-name reads as damage unless something says the
    drawing continues. A fade over the last 48px does that without moving or shrinking anything — the
-   cards keep their designed 220x84 and their type floor, which is why the variant draws at true size
+   cards keep their designed 240x84 and their type floor, which is why the variant draws at true size
    in the first place.
 
    Decorative and inert: `pointer-events: none` so it never eats a drag (dragging is how the rest is
