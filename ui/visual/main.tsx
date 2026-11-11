@@ -44,6 +44,7 @@ import StatusPill from '../src/components/StatusPill'
 import { ConfigContext, type Config } from '../src/context/ConfigContext'
 import { RoutesProvider } from '../src/context/RoutesContext'
 import { ThemeModeProvider } from '../src/context/ThemeModeContext'
+import Login from '../src/pages/Login'
 import type { WidgetProps } from '../src/types/Widget'
 import { V1B } from '../src/widgets/FlowChart/__fixtures__/architecture'
 import ArchitectureStateNode from '../src/widgets/FlowChart/ArchitectureStateNode'
@@ -286,12 +287,26 @@ const architectureGraphFixture = () => (
     />
   </div>
 )
+/**
+ * `?fixture=login`: the sign-in page as an install that names itself and links an access request
+ * sees it. Its /strategies (and the sign-in call, for the error state) are served by login.spec.ts.
+ * The page fills the viewport, so this fixture is drawn without the case's padding.
+ */
+const loginConfig = { ...config, login: { installationName: 'krateo-057', requestAccountUrl: 'https://example.com/request-access' } } as Config
+const login = () => (
+  <ConfigContext.Provider value={{ config: loginConfig, isLoading: false, refetch: (() => Promise.resolve(undefined)) as never }}>
+    <Login />
+  </ConfigContext.Provider>
+)
+const PAGE_FIXTURES = new Set(['login'])
+
 const fixtures: Record<string, () => React.ReactNode> = {
   architecture,
   'architecture-cards': architectureCards,
   'architecture-graph': architectureGraphFixture,
   'focus-ring': focusRing,
   'graph-zoom': graphZoomFixture,
+  login,
   'nav-menu': navMenu,
   'page-header': () => pageHeader('Turn an OpenAPI document into Kubernetes kinds: which operations each kind maps, how it is identified, and the credentials it calls with.'),
   'page-header-no-subtitle': () => pageHeader(),
@@ -305,6 +320,8 @@ const widget = Component && example
   ? <Component resourcesRefs={example.spec.resourcesRefs ?? { items: [] }} uid={`visual-${folder}-${doc}`} widget={example as never} widgetData={example.spec.widgetData} />
   : missing
 const body = fixture && fixtures[fixture] ? fixtures[fixture]() : widget
+// A page fixture fills the viewport, as the app's own `.app` does (App.module.css).
+const isPageFixture = !!fixture && PAGE_FIXTURES.has(fixture)
 
 const root = ReactDOM.createRoot(document.getElementById('root')!)
 
@@ -314,9 +331,14 @@ root.render(
       <ConfigContext.Provider value={{ config, isLoading: false, refetch: (() => Promise.resolve(undefined)) as never }}>
         <RoutesProvider>
           <MemoryRouter>
-            <AntdApp>
+            <AntdApp style={isPageFixture ? { height: '100%' } : undefined}>
               <FiltersProvider>
-                <div data-testid='case' style={{ background: 'var(--background-color)', boxSizing: 'border-box', padding: 'var(--spacing-md)', width: fixture ? '100%' : 720 }}>
+                <div
+                  data-testid='case'
+                  style={isPageFixture
+                    ? { height: '100%', width: '100%' }
+                    : { background: 'var(--background-color)', boxSizing: 'border-box', padding: 'var(--spacing-md)', width: fixture ? '100%' : 720 }}
+                >
                   {body}
                 </div>
               </FiltersProvider>

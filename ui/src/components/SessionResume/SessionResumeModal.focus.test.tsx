@@ -182,7 +182,7 @@ describe('SessionResumeModal — keyboard focus (X4 K1)', () => {
 
     await user.type(await screen.findByLabelText(/username/i), 'd')
     await user.type(screen.getByLabelText(/password/i), 's')
-    await user.click(screen.getByRole('button', { name: 'Sign In' }))
+    await user.click(screen.getByRole('button', { name: 'Sign in' }))
     await waitFor(() => { expect(screen.queryByRole('dialog')).toBeNull() })
 
     expect(document.querySelector('[inert]')).toBeNull()

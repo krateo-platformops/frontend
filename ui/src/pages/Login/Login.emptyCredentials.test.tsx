@@ -9,13 +9,13 @@
  * gets tested.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { App } from 'antd'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import Login from './Login'
-import type { AuthModeType, FormType, LoginFormType } from './Login.types'
+import type { AuthModeType, FormType, LoginFormAlert, LoginFormType } from './Login.types'
 
 vi.mock('../../context/ConfigContext', () => ({
   useConfigContext: () => ({
@@ -28,13 +28,18 @@ const toUrl = (input: RequestInfo | URL): string => (input instanceof Request ? 
 
 const BASIC: AuthModeType = { kind: 'basic', name: '', path: '/basic/login' }
 
+// The stub also shows the alert Login.tsx hands it, as the real form does above its button.
 vi.mock('./AuthMethods', () => ({
-  default: ({ onCredentialSubmit }: {
+  default: ({ alert, onCredentialSubmit }: {
+    alert?: LoginFormAlert
     onCredentialSubmit: (values: LoginFormType, kind: FormType, method: AuthModeType) => void
   }) => (
-    <button onClick={() => { onCredentialSubmit({ password: '', username: 'ada' }, 'basic', BASIC) }} type='button'>
-      Submit empty password
-    </button>
+    <>
+      <button onClick={() => { onCredentialSubmit({ password: '', username: 'ada' }, 'basic', BASIC) }} type='button'>
+        Submit empty password
+      </button>
+      {alert && <div role='alert'>{`${alert.title} ${alert.text}`}</div>}
+    </>
   ),
 }))
 
@@ -65,8 +70,7 @@ describe('Login with an empty field', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Submit empty password' }))
 
-    await waitFor(() => expect(document.querySelector('.ant-notification-notice')).not.toBeNull())
-    const text = document.querySelector('.ant-notification-notice')?.textContent ?? ''
+    const text = (await screen.findByRole('alert')).textContent ?? ''
     expect(text).toMatch(/A username and a password are both required\./)
     expect(text).not.toMatch(/wrong username or password/i)
     expect(fetchMock.mock.calls.filter(([input]) => !toUrl(input).endsWith('/strategies'))).toHaveLength(0)
