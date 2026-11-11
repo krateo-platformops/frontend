@@ -1023,7 +1023,7 @@ PALETTE_KEYS = {
     'accent2', 'accentSoft', 'amber', 'background', 'blue', 'border',
     'cyan', 'dark', 'darkBlue', 'error', 'errorSoft', 'faint',
     'gold', 'gray', 'green', 'info', 'light', 'lightgray',
-    'line', 'magenta', 'menubgend', 'menubgstart', 'menuitembg', 'olive', 'onmenubg',
+    'line', 'magenta', 'menubgend', 'menubgstart', 'menuitem', 'menuitembg', 'olive', 'onmenubg',
     'orange', 'panelbg', 'primary', 'red', 'slate', 'success',
     'successSoft', 'teal', 'text', 'violet', 'warning', 'warningSoft',
 }
@@ -1051,7 +1051,9 @@ def discover_palette():
                     if depth == 0:
                         break
                 i += 1
-            keys = set(re.findall(r"(\w+)\s*:\s*'#", src[m.end():i]))
+            # Every string-valued key, not only the hex ones: `menuitem` and `menuitembg` are rgba()
+            # and getColorCode resolves them by name like any other key.
+            keys = set(re.findall(r"^\s*(\w+)\s*:\s*'", src[m.end():i], re.M))
             if keys:
                 return keys
     return set()
