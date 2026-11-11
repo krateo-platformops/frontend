@@ -29,6 +29,9 @@ const UserMenu = ({ withPageUtilities = false }: Props) => {
 
   const userData = JSON.parse(localStorage.getItem('K_user') || '{}') as AuthResponseType
   const { avatarURL, displayName, username } = userData.user || {}
+  // `avatarURL || undefined` at each Avatar: a user without a photo can arrive as `avatarURL: ""`
+  // (authn's basic user type has no omitempty on it), and antd takes any string as an image
+  // source, rendering an empty <img> instead of the initials.
 
   const fullName = (displayName !== '' ? displayName : username) || ''
   const initials = fullName
@@ -98,9 +101,12 @@ const UserMenu = ({ withPageUtilities = false }: Props) => {
             <Avatar
               gap={2}
               size={80}
-              src={avatarURL}
+              src={avatarURL || undefined}
             >
-              <Typography.Text className={styles.initials}>{initials}</Typography.Text>
+              {/* A plain span: the initials take the avatar's own ink (`colorTextLightSolid`, which
+                  the theme sets for its fill). Typography.Text painted them `colorText`, 2.97:1 on
+                  the light fill and 2.99:1 on the dark one. */}
+              <span className={styles.initials}>{initials}</span>
             </Avatar>
 
             <div className={styles.details}>
@@ -139,9 +145,9 @@ const UserMenu = ({ withPageUtilities = false }: Props) => {
         <Avatar
           gap={2}
           size='default'
-          src={avatarURL}
+          src={avatarURL || undefined}
         >
-          <Typography.Text>{initials}</Typography.Text>
+          {initials}
         </Avatar>
       </button>
     </Popover>

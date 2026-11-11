@@ -15,6 +15,7 @@ import { join } from 'node:path'
 import { theme as antdTheme } from 'antd'
 import { describe, expect, it } from 'vitest'
 
+import { ICON_CONTRAST_MIN, inkOnFill, ON_FILL_INKS } from './palette'
 import { agentikoAntdTheme, agentikoBrand, color, colorDark, lightTheme, darkTheme } from './tokens'
 
 // ---------------------------------------------------------------------------
@@ -466,5 +467,119 @@ describe('blue — the Agentiko brand blue, AA in both modes', () => {
   it('stays apart from the primary violet in both modes', () => {
     expect(color.blue).not.toBe(color.primary)
     expect(colorDark.blue).not.toBe(colorDark.primary)
+  })
+})
+
+/**
+ * Coloured fills under `colorTextLightSolid`, per component: the rule the primary Button follows,
+ * mirrored where a fill turns light in dark mode. antd paints these labels and icons
+ * `colorTextLightSolid`, white by default. In dark the fills below are light tints, so white failed
+ * on each; the theme gives those components the dark ink (`colorDark.panelbg`) and nothing else.
+ *
+ * Every colour is the one antd PAINTS: the fill is read from `getDesignToken`, because antd's dark
+ * algorithm moves the seeds before painting (the dark primary seed #C27AFF is painted #A86BDC), and
+ * the ink is the component's own override where the theme sets one, else antd's token, which is
+ * how antd merges a component token over the global one. The components' tests read the same pairs
+ * off the rendered DOM (Steps, ListView, SiderFooter, UserMenu).
+ */
+describe('Coloured fills — the ink each component paints on its fill, in both modes', () => {
+  type Component = 'Avatar' | 'Steps' | 'Tooltip'
+  const themes = { dark: darkTheme, light: lightTheme } as const
+  const emitted = (mode: keyof typeof themes) => antdTheme.getDesignToken(themes[mode])
+  const ink = (mode: keyof typeof themes, component: Component): string =>
+    String(themes[mode].components?.[component]?.colorTextLightSolid ?? emitted(mode).colorTextLightSolid)
+  /** antd writes white as `#fff`; the helpers above read six digits. */
+  const sixDigit = (hex: string): string => (hex.length === 4 ? `#${[...hex.slice(1)].map((digit) => digit + digit).join('')}` : hex)
+
+  const PAIRS: { component: Component; fill: (mode: keyof typeof themes) => string; minimum: number; name: string }[] = [
+    // The current step's number on the primary (create wizard, architecture, remediation, review steps).
+    { component: 'Steps', fill: (mode) => emitted(mode).colorPrimary, minimum: 4.5, name: 'the current step number on the primary' },
+    // A photo-less user's initials: the sidebar footer, the header trigger, the account menu.
+    { component: 'Avatar', fill: (mode) => emitted(mode).colorTextPlaceholder, minimum: 4.5, name: 'a photo-less avatar\'s initials on its default fill' },
+  ]
+
+  ;(['light', 'dark'] as const).forEach((mode) => {
+    PAIRS.forEach(({ component, fill, minimum, name }) => {
+      it(`${mode}: ${name} passes >= ${minimum}:1`, () => {
+        const [label, ground] = [sixDigit(ink(mode, component)), sixDigit(fill(mode))]
+        const ratio = contrastRatio(label, ground)
+        expect(ratio, `${mode} ${component} ${label} on ${ground} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(minimum)
+      })
+    })
+  })
+
+  it('dark: white on each of those fills FAILS (documents the flip)', () => {
+    PAIRS.forEach(({ fill, minimum, name }) => {
+      expect(contrastRatio('#FFFFFF', sixDigit(fill('dark'))), name).toBeLessThan(minimum)
+    })
+  })
+
+  it('the flip is per component, never global, and light mode keeps antd\'s white', () => {
+    expect(darkTheme.token?.colorTextLightSolid).toBeUndefined()
+    expect(darkTheme.components?.Steps?.colorTextLightSolid).toBe(colorDark.panelbg)
+    expect(darkTheme.components?.Avatar?.colorTextLightSolid).toBe(colorDark.panelbg)
+    expect(lightTheme.components?.Steps?.colorTextLightSolid).toBeUndefined()
+    expect(lightTheme.components?.Avatar?.colorTextLightSolid).toBeUndefined()
+  })
+
+  it('Tooltip keeps white in dark: dark ink on its fill would fail (1.47:1)', () => {
+    const spotlight = sixDigit(emitted('dark').colorBgSpotlight)
+    expect(darkTheme.components?.Tooltip?.colorTextLightSolid).toBeUndefined()
+    expect(contrastRatio(sixDigit(ink('dark', 'Tooltip')), spotlight)).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio(colorDark.panelbg, spotlight)).toBeLessThan(4.5)
+  })
+})
+
+/**
+ * A List row's icon disc wears the colour its CR names (getColorCode resolves a palette NAME for
+ * the mode; an unknown name falls back to `dark`), so its glyph ink is chosen per fill by
+ * `inkOnFill`: white, antd's look, wherever white reaches 3:1, and the dark ink only where white
+ * fails. A single ink failed somewhere in each direction: white on the dark `gray` is 2.61:1, the
+ * dark ink on `darkBlue` 2.92:1 and on `menubgend` 1.87:1.
+ *
+ * Swept over EVERY palette colour in both modes, from the palettes themselves, so a colour added
+ * later is covered the moment it exists. The ratio is computed here, independently of the module
+ * under test; a translucent colour is measured as it paints, over the mode's surface.
+ */
+describe('List row icons — white where it reads, the dark ink where it does not, on every row colour', () => {
+  const NON_TEXT_MIN = 3
+  const channels = (value: string): number[] => {
+    const hex = /^#([0-9a-f]{6})$/i.exec(value)
+    if (hex) { return [0, 2, 4].map((at) => parseInt(hex[1].slice(at, at + 2), 16)).concat(1) }
+    const rgb = /^rgba?\(([^)]*)\)$/i.exec(value)
+    if (!rgb) { throw new Error(`unparseable colour ${value}`) }
+    const parts = rgb[1].split(',').map(Number)
+    return parts.length === 3 ? [...parts, 1] : parts
+  }
+  /** The opaque colour `fill` paints over the surface `ground`. */
+  const painted = (fill: string, ground: string): string => {
+    const [red, green, blue, alpha] = channels(fill)
+    return toHex([red, green, blue].map((channel, index) => channel * alpha + toRgb(ground)[index] * (1 - alpha)))
+  }
+
+  ;([['light', color], ['dark', colorDark]] as const).forEach(([mode, palette]) => {
+    (Object.keys(palette) as (keyof typeof palette)[]).forEach((name) => {
+      it(`${mode}: the icon on a \`${name}\` disc is white if white passes ${NON_TEXT_MIN}:1, else the dark ink, which passes`, () => {
+        const fill = painted(palette[name], palette.panelbg)
+        const ink = inkOnFill(palette[name], mode)
+        const white = contrastRatio('#FFFFFF', fill)
+        expect(ink, `${mode} ${name}: white on ${fill} = ${white.toFixed(2)}:1`).toBe(white >= NON_TEXT_MIN ? '#FFFFFF' : colorDark.panelbg)
+        const ratio = contrastRatio(ink, fill)
+        expect(ratio, `${mode} ${name}: ${ink} on ${fill} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(NON_TEXT_MIN)
+      })
+    })
+  })
+
+  it('the rule\'s threshold is the icon floor, and its inks are white and the dark ink', () => {
+    expect(ICON_CONTRAST_MIN).toBe(NON_TEXT_MIN)
+    expect(ON_FILL_INKS).toEqual({ dark: colorDark.panelbg, white: '#FFFFFF' })
+  })
+
+  it('no single ink would do: white fails on the dark `gray`, the dark ink on the dark `darkBlue` and `menubgend`', () => {
+    expect(contrastRatio(ON_FILL_INKS.white, colorDark.gray)).toBeLessThan(NON_TEXT_MIN)
+    expect(contrastRatio(ON_FILL_INKS.dark, colorDark.darkBlue)).toBeLessThan(NON_TEXT_MIN)
+    expect(contrastRatio(ON_FILL_INKS.dark, colorDark.menubgend)).toBeLessThan(NON_TEXT_MIN)
+    expect(inkOnFill(colorDark.gray, 'dark')).toBe(colorDark.panelbg)
+    expect(inkOnFill(colorDark.darkBlue, 'dark')).toBe('#FFFFFF')
   })
 })
