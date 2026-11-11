@@ -3,6 +3,8 @@
 import { generate } from '@ant-design/colors'
 import { theme as antdAlgorithms, type ThemeConfig } from 'antd'
 
+import { sidebarNav } from './sidebarNav'
+
 /**
  * Single source of truth for the design system. Everything else derives from
  * here: the antd `ThemeConfig` (`lightTheme` / `darkTheme`) and the `:root` CSS
@@ -70,9 +72,12 @@ export const color = {
   // 11.5:1 on menubgend (the brand blue), so it clears AA at both ends.
   onmenubg: '#FFFFFF',
   menuitem: 'rgba(255,255,255,0.62)',
-  // The selected sidebar item: the brand violet, filled, under a white label (5.4:1). The sidebar
-  // is black in both modes, so this is mode-invariant.
-  menuitembg: '#9E00FF',
+  // The selected sidebar item's background: a 16% tint of the dark-mode primary #C27AFF, not a
+  // solid block (the solid brand violet was the loudest thing on screen, 3.9:1 against the rail).
+  // The tint is a background, not the state: the 3px `nav-item-selected-bar` beside it carries
+  // that. The sidebar is black in both modes, so this is mode-invariant. A tenant Theme's
+  // custom.menu.itemSelectedBg still replaces it (--menuitembg-color).
+  menuitembg: 'rgba(194, 122, 255, 0.16)',
   orange: '#8A5C00',
   panelbg: '#FFFFFF',
   primary: '#9E00FF',
@@ -125,7 +130,8 @@ export const colorDark: Record<keyof typeof color, string> = {
   // menubgend, so it clears AA at both ends.
   onmenubg: '#FFFFFF',
   menuitem: 'rgba(255,255,255,0.62)',
-  menuitembg: '#9E00FF',
+  // Mode-invariant, as in the light palette: the selected item's 16% tint of #C27AFF.
+  menuitembg: 'rgba(194, 122, 255, 0.16)',
   orange: '#FFAA00',
   panelbg: '#120E1A',
   primary: '#C27AFF',
@@ -251,10 +257,12 @@ const KRATEO_BASE: Record<string, string> = {
   'text-label-xs': '10px',
   'text-code': '13px',
   'text-metric': '28px',
-  // Nav-item colours are mode-independent: the Agentiko sidebar is black in both modes, so its
+  // Nav colours are mode-independent: the Agentiko sidebar is black in both modes, so its
   // text is light in both. The rail colour itself is emitted in cssVariables().
-  'nav-item': 'rgba(255, 255, 255, 0.62)',
-  'nav-item-active': '#FFFFFF',
+  'nav-item': sidebarNav.item,
+  'nav-item-active': sidebarNav.itemActive,
+  'nav-item-selected-bar': sidebarNav.selectedBar,
+  'nav-group': sidebarNav.group,
 }
 
 /**
@@ -579,10 +587,11 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
     triggerColor: '#FFFFFF',
   },
   List: { borderRadiusLG: radius.lg },
-  // Sidebar nav density — `.nav-item` (~36px tall, bumped from 30 per issue #80 §0.5). NB: the
-  // Menu.module.css item box is `height: auto`, so its 9px vertical padding is the effective lever;
-  // this token is kept in sync for antd's own layout metrics (hover/selected backgrounds).
-  Menu: { fontSize: 13, itemBorderRadius: radius.md, itemHeight: 36, itemMarginBlock: 0, itemPaddingInline: 9, subMenuItemBorderRadius: radius.md },
+  // Sidebar nav density: 36px rows (issue #80 §0.5), which Menu.module.css no longer overrides, so
+  // this token IS the row height. The rows have no side margin (Menu.module.css spans them across
+  // the Sider body), so antd is told so: it subtracts `itemMarginInline` when it centres an icon in
+  // the collapsed rail, and with its default the icons sat 3px left of the rail's centre.
+  Menu: { fontSize: 13, itemBorderRadius: radius.md, itemHeight: 36, itemMarginBlock: 0, itemMarginInline: 0, itemPaddingInline: 9, subMenuItemBorderRadius: radius.md },
   Modal: { borderRadiusLG: radius.xl },
   Progress: { defaultColor: palette.green },
   // Was 28 — `optionType: button` radios sat 4px short of a Button in the same row.
@@ -753,9 +762,6 @@ export const cssVariables = (mode: ThemeMode = 'light') => {
   const railBg = krateoSemantic['color-nav-background']
   root.style.setProperty('--krateo-nav-gradient-start', railBg)
   root.style.setProperty('--krateo-nav-gradient-end', railBg)
-  const navItem = KRATEO_BASE['nav-item']
-  const navItemActive = KRATEO_BASE['nav-item-active']
-  root.style.setProperty('--menuitem-color', navItem)
-  root.style.setProperty('--krateo-nav-item', navItem)
-  root.style.setProperty('--krateo-nav-item-active', navItemActive)
+  // --krateo-nav-* are emitted with KRATEO_BASE above; the legacy item alias is the only extra.
+  root.style.setProperty('--menuitem-color', sidebarNav.item)
 }

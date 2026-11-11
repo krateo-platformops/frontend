@@ -151,6 +151,9 @@ spec:
                       description: navigation entries (inline nav data); each references its content widget by resourceRefId or resolves via the path → flexes/page-<slug> convention. A label-less item registers a route with no sidebar entry.
                       items:
                         properties:
+                          group:
+                            description: sidebar section the entry belongs to (a page's krateo.io/nav-group). Consecutive entries with the same group render under one heading with this name; an entry without one has no heading
+                            type: string
                           icon:
                             description: FontAwesome icon name shown beside the label (e.g. 'fa-inbox')
                             type: string

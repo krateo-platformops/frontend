@@ -56,6 +56,7 @@ import { V1B } from '../src/widgets/FlowChart/__fixtures__/architecture'
 import ArchitectureStateNode from '../src/widgets/FlowChart/ArchitectureStateNode'
 import { ARCHITECTURE_NODE_SIZE, architectureEdgeAppearance, architectureGraphSize, toArchitectureGraphData } from '../src/widgets/FlowChart/architectureVariant'
 import FlowChart, { type FlowChartNodeData, type FlowChartWidgetData } from '../src/widgets/FlowChart/FlowChart'
+import Layout from '../src/widgets/Layout/Layout'
 import { Menu } from '../src/widgets/Menu/Menu'
 import PageHeader from '../src/widgets/PageHeader/PageHeader'
 import { getWidgetModule } from '../src/widgets/registry'
@@ -311,7 +312,35 @@ const architectureGraphFixture = () => (
     />
   </div>
 )
+/**
+ * `?fixture=app-shell`: the app shell's Layout widget as the portal chart declares it — a 236px
+ * Sider with the brand in `sider.header`, the compact glyph in `sider.collapsedHeader`, the nav Menu
+ * as its content, and a top bar. Its child widgets are fetched by reference, as in the app;
+ * sidebar.spec.ts serves them by mock (the nav entries are the portal's pages, grouped by their
+ * `krateo.io/nav-group`) and measures the rail: the 64px header band level with the top bar, the
+ * one left edge at x = 24, 36px rows, the 16px gap, and the 80px collapsed rail.
+ */
+const shellRef = (id: string, resource: string) => ({
+  allowed: true,
+  apiVersion: 'widgets.templates.krateo.io/v1beta1',
+  id,
+  name: id,
+  namespace: 'krateo-system',
+  path: `/call?resource=${resource}&apiVersion=widgets.templates.krateo.io/v1beta1&name=${id}&namespace=krateo-system`,
+  resource,
+  verb: 'GET',
+})
+const appShell = () => (
+  <div style={{ height: 720 }}>
+    <Layout
+      resourcesRefs={{ items: [shellRef('brand', 'images'), shellRef('glyph', 'images'), shellRef('nav', 'menus'), shellRef('top-bar', 'paragraphs')] } as never}
+      uid='fixture-shell'
+      widgetData={{ hasSider: true, header: 'top-bar', sider: { collapsedHeader: 'glyph', header: 'brand', resourceRefId: 'nav', width: 236 } }}
+    />
+  </div>
+)
 const fixtures: Record<string, () => React.ReactNode> = {
+  'app-shell': appShell,
   architecture,
   'architecture-cards': architectureCards,
   'architecture-graph': architectureGraphFixture,

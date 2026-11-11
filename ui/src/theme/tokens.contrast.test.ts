@@ -14,7 +14,9 @@ import { join } from 'node:path'
 import { theme as antdTheme } from 'antd'
 import { describe, expect, it } from 'vitest'
 
+import { opaqueOver } from './contrast'
 import { ICON_CONTRAST_MIN, inkOnFill, ON_FILL_INKS } from './palette'
+import { sidebarNav } from './sidebarNav'
 import { agentikoAntdTheme, agentikoBrand, color, colorDark, lightTheme, darkTheme } from './tokens'
 
 // ---------------------------------------------------------------------------
@@ -380,11 +382,50 @@ describe('Agentiko — WCAG AA for the primary and the agent\'s surfaces', () =>
     expect(contrastRatio('#9E00FF', colorDark.panelbg)).toBeLessThan(4.5)
     expect(agentikoBrand.dark.accent).not.toBe('#9E00FF')
   })
+})
 
-  it('the selected sidebar item is the brand violet under white (the rail is black in both modes)', () => {
-    expect(color.menuitembg).toBe('#9E00FF')
-    expect(colorDark.menuitembg).toBe('#9E00FF')
-    expect(contrastRatio('#FFFFFF', '#9E00FF')).toBeGreaterThanOrEqual(4.5)
+/**
+ * The sidebar nav on its rail. The rail is black in both modes (T11): true black in dark mode,
+ * the near-black ink #141414 in light mode, the same colours as the collapse trigger at its foot
+ * (`Layout.triggerBg`), so every pair is checked on both. Translucent colours are composited over
+ * the rail first, which is what is drawn. The selected item used to be a solid brand-violet block,
+ * 3.90:1 against the black rail and the loudest thing on screen; it is now a 16% tint with an
+ * accent bar, and the bar is what has to be seen (WCAG 1.4.11, >= 3:1). Text is 1.4.3 (>= 4.5:1).
+ */
+describe('Sidebar nav — every label, heading and the selected bar on the rail', () => {
+  ([['light', color, lightTheme], ['dark', colorDark, darkTheme]] as const).forEach(([mode, palette, theme]) => {
+    const rail = String(theme.components?.Layout?.triggerBg)
+    const selectedRow = opaqueOver(palette.menuitembg, rail)
+
+    it(`${mode}: the rail is near-black (${rail})`, () => {
+      expect(['#000000', '#141414']).toContain(rail)
+    })
+
+    it(`${mode}: the selected item's accent bar ${sidebarNav.selectedBar} on the rail is >= 3:1`, () => {
+      expect(contrastRatio(sidebarNav.selectedBar, rail)).toBeGreaterThanOrEqual(3)
+    })
+
+    it(`${mode}: the bar against the selected row's own tint (${selectedRow}) is >= 3:1`, () => {
+      expect(contrastRatio(sidebarNav.selectedBar, selectedRow)).toBeGreaterThanOrEqual(3)
+    })
+
+    it(`${mode}: the selected label on the composited tint ${selectedRow} is >= 4.5:1`, () => {
+      expect(contrastRatio(sidebarNav.itemActive, selectedRow)).toBeGreaterThanOrEqual(4.5)
+    })
+
+    it(`${mode}: an idle label and icon on the rail is >= 4.5:1`, () => {
+      expect(contrastRatio(opaqueOver(sidebarNav.item, rail), rail)).toBeGreaterThanOrEqual(4.5)
+    })
+
+    it(`${mode}: a group heading on the rail is >= 4.5:1, and quieter than an item`, () => {
+      const heading = opaqueOver(sidebarNav.group, rail)
+      expect(contrastRatio(heading, rail)).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(heading, rail)).toBeLessThan(contrastRatio(opaqueOver(sidebarNav.item, rail), rail))
+    })
+
+    it(`${mode}: the selected row is a tint, not a block — the bar carries the state`, () => {
+      expect(contrastRatio(selectedRow, rail)).toBeLessThan(1.5)
+    })
   })
 })
 

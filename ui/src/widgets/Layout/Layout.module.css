@@ -44,12 +44,25 @@
   height: 100%;
 }
 
-/* The CR's sider header (sider.header / sider.collapsedHeader, a brand logo): pinned above the
-   scrolling body, with the body's side padding, so a logo sits where it sat inside the body. */
+/* The CR's sider header (sider.header / sider.collapsedHeader, a brand logo): a band pinned above
+   the scrolling body, the top bar's height, so its hairline is level with the top bar's bottom line
+   (--header-h, as .header below). Its content is centred vertically and starts at x = 24, the
+   rail's one left edge: the nav's icons and group headings start there too (Menu.module.css). The
+   body's own 16px top padding is the gap before the first nav entry. In the collapsed icon rail
+   the compact logo is centred instead. visual/sidebar.spec.ts measures all of it in Chromium. */
 .siderHeader {
+  align-items: center;
+  border-bottom: 1px solid var(--line-color);
   box-sizing: border-box;
+  display: flex;
   flex: none;
-  padding: var(--spacing-md) var(--spacing-md) 0;
+  height: var(--header-h, 64px);
+  padding: 0 var(--spacing-lg);
+}
+
+.siderHeaderCollapsed {
+  justify-content: center;
+  padding: 0;
 }
 
 /* The sider region's content padding — engine chrome, same layer as .content /

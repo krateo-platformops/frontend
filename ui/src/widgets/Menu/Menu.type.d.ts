@@ -56,6 +56,10 @@ export interface Menu {
          */
         page?: string
         /**
+         * sidebar section the entry belongs to (a page's krateo.io/nav-group). Consecutive entries with the same group render under one heading with this name; an entry without one has no heading
+         */
+        group?: string
+        /**
          * set to 'divider' to render a visual separator at this order position; no path or label needed
          */
         type?: 'divider'
