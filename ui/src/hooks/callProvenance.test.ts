@@ -41,6 +41,14 @@ const ESCAPING_SHA = 'c7d3aedeac8dd069c50a82a9be6540050c026b8b3230fe702e6a53ac97
 const EXAMPLE_JSON = '{"source":"portal","agentSessionId":"ses_01-AB","confirmationId":"6f1d2c3b-4a5e-4f60-8b7a-9c0d1e2f3a4b","confirmedSet":{"count":3,"irreversible":true,"sha256":"0a08bb91090b111f15a045b6061bccc4d0b8488d85f99ba57d8632e17061c277"},"op":1,"requestedAt":"2026-11-11T10:20:30.456Z"}'
 const EXAMPLE_HEADER = 'v1.eyJzb3VyY2UiOiJwb3J0YWwiLCJhZ2VudFNlc3Npb25JZCI6InNlc18wMS1BQiIsImNvbmZpcm1hdGlvbklkIjoiNmYxZDJjM2ItNGE1ZS00ZjYwLThiN2EtOWMwZDFlMmYzYTRiIiwiY29uZmlybWVkU2V0Ijp7ImNvdW50IjozLCJpcnJldmVyc2libGUiOnRydWUsInNoYTI1NiI6IjBhMDhiYjkxMDkwYjExMWYxNWEwNDViNjA2MWJjY2M0ZDBiODQ4OGQ4NWY5OWJhNTdkODYzMmUxNzA2MWMyNzcifSwib3AiOjEsInJlcXVlc3RlZEF0IjoiMjAyNi0xMS0xMVQxMDoyMDozMC40NTZaIn0'
 
+// A valid confirmation triple (snowplow#1357: all three or none).
+const VALID_CONFIRMATION = {
+  confirmationId: '00000000-0000-4000-8000-000000000001',
+  confirmedSet: { count: 3, irreversible: true, sha256: GOLDEN_V1_SHA },
+  op: 1,
+}
+const TRIPLE = ['confirmationId', 'confirmedSet', 'op']
+
 // The golden set as the portal holds it: keys in construction order (NOT sorted), payload
 // previews present (they must not reach the hash).
 const goldenSet: BlastRadiusSet = {
@@ -246,13 +254,6 @@ describe('requestedAt — the decoder\'s rule', () => {
 })
 
 // ---- The confirmation triple (snowplow#1357) ---------------------------------------------------
-
-const VALID_CONFIRMATION = {
-  confirmationId: '00000000-0000-4000-8000-000000000001',
-  confirmedSet: { count: 3, irreversible: true, sha256: GOLDEN_V1_SHA },
-  op: 1,
-}
-const TRIPLE = ['confirmationId', 'confirmedSet', 'op']
 
 describe('confirmationId + confirmedSet + op — ALL THREE or NONE', () => {
   afterEach(() => { vi.restoreAllMocks() })
