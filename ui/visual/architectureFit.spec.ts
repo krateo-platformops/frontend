@@ -64,8 +64,8 @@ for (const [width, card] of [[1179, 220], [1000, 180]] as const) {
 }
 
 test('CONTROL: an explicit regular density keeps its card at 1000px, and the fourth card runs past the box', async ({ page }) => {
-  // The author's floor: gaps closed to 56px (880 + 168 = 1048px), no compact, no scale under the
-  // 10px eyebrow. This is what the box would show without the compact step — and what the check
+  // The author's floor: gaps closed to 56px (880 + 168 = 1048px), no compact, and no scale — its
+  // smallest text is already at the 12px floor. This is what the box would show without the compact step — and what the check
   // above would fail on.
   await page.goto('/visual/index.html?fixture=architecture&box=1000&density=regular')
   await page.evaluate(() => document.fonts.ready)

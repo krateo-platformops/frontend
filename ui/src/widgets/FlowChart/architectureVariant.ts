@@ -196,10 +196,11 @@ export const architectureGraphWidth = (
  * Past the floor, the graph is drawn as small as it may be and today's behaviour stands: pinned left
  * (and top) edge, the fade, drag or Tab for the rest.
  *
- * TODAY THE FLOOR STOPS STEP 3 BEFORE IT STARTS. The compact card's smallest text is its detail line
- * at `text-caption` (12px): any scale under 1 puts it under 12px. The regular card's eyebrow (the
- * kind line, and the exception chip's label) is `text-label-xs`, 10px — already under the floor at
- * true size, so it is never scaled either. The step is here, and pinned by tests at other type
+ * TODAY THE FLOOR STOPS STEP 3 BEFORE IT STARTS. No text on either card is under the floor (pinned
+ * by architectureFit.test.ts against the stylesheet), and both cards' smallest text sits AT it:
+ * `text-caption`, 12px — the detail line on both, and on the regular card the kind line and the
+ * exception chip's label too, raised from `text-label-xs` (10px). Any scale under 1 puts that text
+ * under 12px, so neither card is ever scaled. The step is here, and pinned by tests at other type
  * sizes, so the rule does not depend on today's card; with today's card it scales nothing.
  *
  * AN EXPLICIT DENSITY IS THE AUTHOR'S FLOOR. A CR that sets `density` (either value) chose the card:
@@ -225,13 +226,13 @@ export const ARCHITECTURE_TYPE_FLOOR = 12
 /**
  * The type roles each card's text is set in — ArchitectureStateNode.module.css, `font-size:
  * var(--krateo-text-<role>)` on every line the density renders (pinned against the stylesheet by
- * architectureFit.test.ts). Regular: the kind line and the exception chip (`label-xs`), the name
- * (`body-sm`) and the detail (`caption`). Compact draws no kind line and an exception as a bare dot,
- * so it is the name and the detail only.
+ * architectureFit.test.ts). Regular: the name (`body-sm`), and the kind line, the exception chip and
+ * the detail (`caption`). Compact draws no kind line and an exception as a bare dot, so it is the name
+ * and the detail only — the same two roles.
  */
 export const ARCHITECTURE_TEXT_ROLES: Record<ArchitectureDensity, readonly string[]> = {
   compact: ['body-sm', 'caption'],
-  regular: ['label-xs', 'body-sm', 'caption'],
+  regular: ['body-sm', 'caption'],
 }
 
 /**

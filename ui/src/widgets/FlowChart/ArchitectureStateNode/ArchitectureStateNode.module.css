@@ -40,7 +40,7 @@
 .kind {
   color: var(--gray-color);
   font-family: var(--font-mono);
-  font-size: var(--krateo-text-label-xs);
+  font-size: var(--krateo-text-caption);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -65,7 +65,7 @@
   display: inline-flex;
   flex: none;
   font-family: var(--font-mono);
-  font-size: var(--krateo-text-label-xs);
+  font-size: var(--krateo-text-caption);
   gap: var(--spacing-xs);
 }
 

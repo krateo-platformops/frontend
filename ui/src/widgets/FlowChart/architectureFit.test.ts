@@ -137,8 +137,8 @@ describe('an explicit density is the author\'s floor', () => {
   it('regular never becomes compact: it closes its gaps, then overflows', () => {
     expect(row(lr(1400, 'regular'))).toEqual(['none', 'regular', 160, 1, 1360, false])
     expect(row(lr(1179, 'regular'))).toEqual(['gap', 'regular', 88, 1, 1144, false])
-    // 880 + 3 × 56 = 1048 against 968px of room, and the regular card's 10px eyebrow is already under
-    // the floor, so it does not scale either.
+    // 880 + 3 × 56 = 1048 against 968px of room, and the regular card's smallest text (12px) is
+    // already at the floor, so it does not scale either.
     expect(row(lr(1000, 'regular'))).toEqual(['overflow', 'regular', 56, 1, 1048, true])
   })
 
@@ -186,11 +186,12 @@ describe('TB: the gap runs down the box, so its height is measured, and the widt
 })
 
 describe('the type floor (step 3)', () => {
-  it('is computed from the roles the card is set in: today 12px is the compact card\'s smallest, so it scales nothing', () => {
+  it('is computed from the roles the card is set in: today 12px is both cards\' smallest, so it scales nothing', () => {
+    // Both densities' smallest text is `text-caption`, AT the floor: any scale under 1 would put it
+    // under 12px, so the minimum scale is 1 and step 3 never applies to today's card.
     expect(Math.min(...ARCHITECTURE_TEXT_ROLES.compact.map(textPx))).toBe(12)
     expect(architectureMinScale('compact')).toBe(1)
-    // The regular card's eyebrow is 10px, under the floor at true size: it is never shrunk further.
-    expect(Math.min(...ARCHITECTURE_TEXT_ROLES.regular.map(textPx))).toBe(10)
+    expect(Math.min(...ARCHITECTURE_TEXT_ROLES.regular.map(textPx))).toBe(12)
     expect(architectureMinScale('regular')).toBe(1)
     expect(ARCHITECTURE_TYPE_FLOOR).toBe(12)
   })
@@ -256,6 +257,24 @@ describe('ARCHITECTURE_TEXT_ROLES is the stylesheet\'s', () => {
       .map(([, selector, body]) => [selector.replace(/\/\*[\s\S]*?\*\//g, '').trim(), /font-size:\s*var\(--krateo-text-([a-z-]+)\)/.exec(body)?.[1]] as const)
       .filter((rule): rule is readonly [string, string] => rule[1] !== undefined),
   )
+
+  it('no text on either card density is under the 12px type floor: every font-size is a role token at 12px or more', () => {
+    // EVERY `font-size` declaration, not only the token ones the map above reads: a literal (or a
+    // calc) would slip past a token-only match. Both densities share these rules — compact adds
+    // none — so a role under the floor anywhere in the sheet is under it on some card.
+    const declarations = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/font-size:\s*([^;}]+)/g)].map(([, value]) => value.trim())
+    expect(declarations.length).toBeGreaterThan(0)
+    for (const value of declarations) {
+      const role = /^var\(--krateo-text-([a-z-]+)\)$/.exec(value)?.[1]
+      expect(role, `font-size: ${value} is not a --krateo-text-* role`).toBeDefined()
+      expect(textPx(role!), `font-size: ${value}`).toBeGreaterThanOrEqual(ARCHITECTURE_TYPE_FLOOR)
+    }
+    for (const density of ['compact', 'regular'] as const) {
+      for (const role of ARCHITECTURE_TEXT_ROLES[density]) {
+        expect(textPx(role), `${density}: ${role}`).toBeGreaterThanOrEqual(ARCHITECTURE_TYPE_FLOOR)
+      }
+    }
+  })
 
   it('every font-size on the card is one of the four lines', () => {
     expect([...roles.keys()].sort()).toEqual(['.detail', '.exception', '.kind', '.name'])
