@@ -15,7 +15,7 @@ import { join } from 'node:path'
 import { theme as antdTheme } from 'antd'
 import { describe, expect, it } from 'vitest'
 
-import { inkOnFill, ON_FILL_INKS } from './palette'
+import { ICON_CONTRAST_MIN, inkOnFill, ON_FILL_INKS } from './palette'
 import { agentikoAntdTheme, agentikoBrand, color, colorDark, lightTheme, darkTheme } from './tokens'
 
 // ---------------------------------------------------------------------------
@@ -533,15 +533,15 @@ describe('Coloured fills — the ink each component paints on its fill, in both 
 /**
  * A List row's icon disc wears the colour its CR names (getColorCode resolves a palette NAME for
  * the mode; an unknown name falls back to `dark`), so its glyph ink is chosen per fill by
- * `inkOnFill`: white or the dark ink, whichever contrasts more. A single ink failed somewhere in
- * each direction: white on the dark `gray` is 2.61:1, the dark ink on `darkBlue` 2.92:1 and on
- * `menubgend` 1.87:1.
+ * `inkOnFill`: white, antd's look, wherever white reaches 3:1, and the dark ink only where white
+ * fails. A single ink failed somewhere in each direction: white on the dark `gray` is 2.61:1, the
+ * dark ink on `darkBlue` 2.92:1 and on `menubgend` 1.87:1.
  *
  * Swept over EVERY palette colour in both modes, from the palettes themselves, so a colour added
  * later is covered the moment it exists. The ratio is computed here, independently of the module
  * under test; a translucent colour is measured as it paints, over the mode's surface.
  */
-describe('List row icons — the ink chosen per fill reads on every row colour, in both modes', () => {
+describe('List row icons — white where it reads, the dark ink where it does not, on every row colour', () => {
   const NON_TEXT_MIN = 3
   const channels = (value: string): number[] => {
     const hex = /^#([0-9a-f]{6})$/i.exec(value)
@@ -559,15 +559,20 @@ describe('List row icons — the ink chosen per fill reads on every row colour, 
 
   ;([['light', color], ['dark', colorDark]] as const).forEach(([mode, palette]) => {
     (Object.keys(palette) as (keyof typeof palette)[]).forEach((name) => {
-      it(`${mode}: the icon on a \`${name}\` disc passes >= ${NON_TEXT_MIN}:1, in the better of the two inks`, () => {
+      it(`${mode}: the icon on a \`${name}\` disc is white if white passes ${NON_TEXT_MIN}:1, else the dark ink, which passes`, () => {
         const fill = painted(palette[name], palette.panelbg)
         const ink = inkOnFill(palette[name], mode)
-        const other = ink === ON_FILL_INKS.white ? ON_FILL_INKS.dark : ON_FILL_INKS.white
+        const white = contrastRatio('#FFFFFF', fill)
+        expect(ink, `${mode} ${name}: white on ${fill} = ${white.toFixed(2)}:1`).toBe(white >= NON_TEXT_MIN ? '#FFFFFF' : colorDark.panelbg)
         const ratio = contrastRatio(ink, fill)
         expect(ratio, `${mode} ${name}: ${ink} on ${fill} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(NON_TEXT_MIN)
-        expect(ratio).toBeGreaterThanOrEqual(contrastRatio(other, fill))
       })
     })
+  })
+
+  it('the rule\'s threshold is the icon floor, and its inks are white and the dark ink', () => {
+    expect(ICON_CONTRAST_MIN).toBe(NON_TEXT_MIN)
+    expect(ON_FILL_INKS).toEqual({ dark: colorDark.panelbg, white: '#FFFFFF' })
   })
 
   it('no single ink would do: white fails on the dark `gray`, the dark ink on the dark `darkBlue` and `menubgend`', () => {

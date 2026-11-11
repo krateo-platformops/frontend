@@ -60,17 +60,21 @@ export const getColorCode = (colorName: string | undefined) => {
  * (the dark palette's surface, which the dark theme also gives Button, Steps and Avatar). */
 export const ON_FILL_INKS = { dark: colorDark.panelbg, white: '#FFFFFF' } as const
 
+/** WCAG's floor for a meaningful icon (1.4.11), which is what a glyph on a List row's disc is. */
+export const ICON_CONTRAST_MIN = 3
+
 /**
  * The ink for a glyph on a solid disc of `fill` (a List row's icon avatar, whose fill is a CR's
- * colour name resolved by getColorCode): white or the dark ink, whichever contrasts more with the
- * fill as it paints. A translucent fill is composited over the mode's surface first. Chosen per
- * fill because no one ink suits every colour a CR can name: white on the dark theme's `gray` is
- * 2.61:1, the dark ink on `darkBlue` is 2.92:1. The two inks span 19:1, so the better of them
- * always clears the 3:1 an icon needs (tokens.contrast.test.ts sweeps every palette colour).
+ * colour name resolved by getColorCode): white, as antd draws it, wherever white reaches 3:1 on the
+ * fill as it paints; the dark ink only where white falls short. A translucent fill is composited
+ * over the mode's surface first. Chosen per fill because no one ink suits every colour a CR can
+ * name: white on the dark theme's `gray` is 2.61:1, the dark ink on `darkBlue` is 2.92:1. Where
+ * white fails the fill is light, and the two inks span 19:1, so the dark ink then clears 3:1
+ * (tokens.contrast.test.ts sweeps every palette colour in both modes).
  */
 export const inkOnFill = (fill: string, mode: ThemeMode = activeThemeMode()): string => {
   const painted = opaqueOver(fill, themeColors(mode).panelbg)
-  return contrastRatio(ON_FILL_INKS.white, painted) >= contrastRatio(ON_FILL_INKS.dark, painted) ? ON_FILL_INKS.white : ON_FILL_INKS.dark
+  return contrastRatio(ON_FILL_INKS.white, painted) >= ICON_CONTRAST_MIN ? ON_FILL_INKS.white : ON_FILL_INKS.dark
 }
 
 /**
