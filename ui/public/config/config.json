@@ -13,14 +13,5 @@
   "params": {
     "FRONTEND_NAMESPACE": "krateo-system",
     "DELAY_SAVE_NOTIFICATION": "10000"
-  },
-  "login": {
-    "headline": "Ship platform resources without the YAML toil.",
-    "subtitle": "Self-service infrastructure for your developers — compose, provision and observe cloud resources from a single control plane.",
-    "highlights": [
-      "Compose cloud resources across your clusters",
-      "GitOps reconciliation in real time",
-      "Policy-guarded self-service catalog"
-    ]
   }
 }

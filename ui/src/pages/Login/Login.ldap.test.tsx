@@ -147,7 +147,7 @@ describe('LDAP sign-in names its LDAPConfig', () => {
   it('basic is unchanged: its bare path, no name', async () => {
     installAuthn([BASIC], [])
     renderLogin()
-    await submitThrough('Sign In')
+    await submitThrough('Sign in')
 
     await waitFor(() => expect(answered).toHaveLength(1))
     expect(answered[0].url).toBe('http://authn.test/basic/login')
@@ -158,11 +158,11 @@ describe('LDAP sign-in names its LDAPConfig', () => {
     renderLogin()
     await submitThrough('Corp directory')
 
-    await waitFor(() => expect(document.querySelector('.ant-notification-notice')).not.toBeNull())
-    const text = document.querySelector('.ant-notification-notice')?.textContent ?? ''
+    // Inline, in the form that was submitted (it used to be a toast).
+    const text = (await screen.findByRole('alert')).textContent ?? ''
     expect(text).toMatch(/Sign-in unavailable/)
     expect(text).toMatch(/retrying will not help/i)
-    expect(text).toMatch(/\(LdapStrategyWithoutName\)/)
+    expect(text).toMatch(/LdapStrategyWithoutName/)
     expect(text).not.toMatch(/wrong username or password/i)
     expect(answered).toHaveLength(0)
   })

@@ -1,104 +1,86 @@
-/* Split-screen login (enterprise-login mockup): left branding panel on the
- * Agentiko gradient (violet → blue, T11) + right form panel. The gradient is the
- * same saturated pair in BOTH themes (menubgstart/menubgend), so text on the
- * aside is literal white / translucent-white — NOT `--light-color`, which flips
- * to a translucent surface fill in dark mode. The form `.section` uses theme
- * tokens (panelbg/text/gray) so it follows the light/dark toggle correctly. */
+/* Form-first login (2026-11 redesign): one 400px card on the plain canvas. The brand gradient is a
+ * 64px band at the top of the card that carries the logo. Its stops (menubgstart/menubgend) are the
+ * same saturated pair in BOTH themes, so the light logo mark reads in either; everything below the
+ * band uses theme tokens and follows the light/dark toggle.
+ *
+ * The page scrolls itself: html, body and #root are `overflow: hidden` (ui/index.css), so a card
+ * taller than a short phone screen would otherwise be cut off with no way to reach its foot. */
 .login {
+  align-items: flex-start;
+  background-color: var(--background-color);
   box-sizing: border-box;
   display: flex;
-  min-height: 100vh;
+  height: 100%;
+  justify-content: center;
+  overflow-y: auto;
+  padding: var(--krateo-space-16) var(--spacing-md);
   width: 100%;
 }
 
-.aside {
-  background-image: linear-gradient(135deg, var(--menubgstart-color), var(--menubgend-color));
+.card {
+  background-color: var(--panelbg-color);
+  border: 1px solid var(--line-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-sm);
   box-sizing: border-box;
-  color: var(--onmenubg-color);
+  max-width: 400px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.band {
+  align-items: center;
+  background-image: linear-gradient(90deg, var(--menubgstart-color), var(--menubgend-color));
+  box-sizing: border-box;
   display: flex;
-  flex: 1.4;
-  flex-direction: column;
-  justify-content: center;
-  padding: clamp(var(--spacing-xl), 6vw, 80px);
-  position: relative;
+  height: var(--header-h);
+  padding: 0 var(--spacing-xl);
 }
 
 .logo {
-  height: 40px;
-  left: clamp(var(--spacing-xl), 6vw, 80px);
-  position: absolute;
-  top: clamp(var(--spacing-xl), 5vw, 56px);
+  display: block;
+  height: 24px;
+  max-width: 100%;
   width: auto;
 }
 
-.pitch {
-  max-width: 460px;
+.body {
+  padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl);
 }
 
-.headline {
-  color: var(--onmenubg-color);
-  font-size: clamp(var(--krateo-text-h2), 4vw, 44px);
-  font-weight: var(--font-weight-bolder);
-  line-height: 1.15;
-  margin: 0 0 var(--spacing-md);
-}
-
-.subtitle {
-  color: rgb(255 255 255 / 85%);
-  font-size: var(--krateo-text-body-lg);
-  line-height: 1.6;
-  margin: 0 0 var(--spacing-xl);
-}
-
-.highlights {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.highlights li {
-  align-items: center;
-  color: rgb(255 255 255 / 95%);
-  display: flex;
-  font-size: var(--krateo-text-body);
-  gap: var(--spacing-sm);
-}
-
-.highlights svg {
-  color: var(--onmenubg-color);
-  flex-shrink: 0;
-  opacity: 0.9;
-}
-
-.section {
-  align-items: center;
-  background-color: var(--panelbg-color);
-  box-sizing: border-box;
-  display: flex;
-  flex: 1;
-  justify-content: center;
-  padding: var(--spacing-xl);
-}
-
-.formPanel {
-  max-width: 380px;
-  width: 100%;
-}
-
-.welcome {
+/* The display role: the one place on the page that is not the body face. */
+.title {
   color: var(--text-color);
+  font-family: var(--font-display);
   font-size: var(--krateo-text-h3);
   font-weight: var(--font-weight-bolder);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
   margin: 0 0 var(--spacing-xs);
 }
 
-.welcomeSub {
+.to {
   color: var(--gray-color);
   font-size: var(--krateo-text-body-sm);
   margin: 0 0 var(--spacing-lg);
+}
+
+/* The installation name is an identifier, so it is drawn like one. */
+.installation {
+  background-color: var(--lightgray-color);
+  border: 1px solid var(--line-color);
+  border-radius: var(--radius-md);
+  color: var(--text-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-caption);
+  padding: var(--spacing-xxs) var(--spacing-xsm);
+  white-space: nowrap;
+}
+
+.pitch {
+  color: var(--gray-color);
+  font-size: var(--krateo-text-body-sm);
+  margin: calc(-1 * var(--spacing-sm)) 0 var(--spacing-lg);
 }
 
 .requestAccount {
@@ -108,9 +90,26 @@
   text-align: center;
 }
 
-/* Mobile: drop the branding panel, form takes the full width. */
-@media (width <= 768px) {
-  .aside {
-    display: none;
+/* Phone: the card goes full-bleed and its band becomes the top of the screen. The logo and the
+ * installation name stay; the old split screen hid both below 768px. */
+@media (width <= 480px) {
+  .login {
+    padding: 0;
+  }
+
+  .card {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    max-width: none;
+    min-height: 100%;
+  }
+
+  .band {
+    padding: 0 var(--spacing-lg);
+  }
+
+  .body {
+    padding: var(--spacing-lg);
   }
 }

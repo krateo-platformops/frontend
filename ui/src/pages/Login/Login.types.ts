@@ -68,3 +68,21 @@ export type AuthRequestType = {
    */
   codeVerifier?: string
 }
+
+/**
+ * A failed credential sign-in, shown inline in the form that was submitted: an antd error Alert
+ * above its button. It replaces the toast the page used to raise, which sat in a corner away from
+ * the fields it was about and was gone before a screen reader user had found it.
+ */
+export type LoginFormAlert = {
+  /** The /strategies entry whose form was submitted. Only that form shows the alert. */
+  method: AuthModeType
+  /** Bumped on every failure, so a second identical failure still clears and refocuses. */
+  attempt: number
+  title: string
+  text: string
+  /** authn's cause, shown small for support. Null when there is none. */
+  reason: string | null
+  /** authn refused the credentials: clear the password and put the cursor back in it. */
+  retype: boolean
+}

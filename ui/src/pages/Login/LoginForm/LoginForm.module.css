@@ -4,4 +4,15 @@
   .button {
     width: 100%;
   }
+
+  .alert {
+    margin-bottom: var(--spacing-md);
+  }
+
+  /* authn's cause, for a support conversation: present, but quieter than the advice. */
+  .reason {
+    color: var(--faint-color);
+    font-family: var(--font-mono);
+    font-size: var(--krateo-text-caption);
+  }
 }
