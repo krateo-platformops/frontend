@@ -81,6 +81,32 @@ export interface RefreshCoords {
 
 export const REFRESH_HEADER_KEY = 'X-Snowplow-Refresh-Key'
 export const REFRESH_HEADER_CLASS = 'X-Snowplow-Refresh-Class'
+/**
+ * An opaque `v1.<hex>` naming exactly the bytes of THAT `/call` answer, for this identity
+ * (snowplow#1324). Stored and echoed back as `held`; never parsed, never computed here.
+ */
+export const REFRESH_HEADER_DIGEST = 'X-Snowplow-Refresh-Digest'
+
+/**
+ * One coordinate as it goes on the wire: the arm coords plus, when the widget's last `/call`
+ * carried a digest, `held` — what this tab is currently showing for that key.
+ *
+ * WHY. `/refreshes` keeps no replay, and this tab re-opens its one stream on every widget mount
+ * and unmount (scheduleReconnect) as well as on every transport retry. A change published while a
+ * key was not armed on any open stream — inside one of those re-opens, or between a widget's
+ * `/call` and its arm — reached nobody. A periodic identical republish used to hide that; with
+ * snowplow#1321 a frame goes out only when the bytes change, so a frame lost in such a window
+ * stays lost until the next real change. With `held`, snowplow compares what we hold against
+ * what our `/call` would answer now and sends one ordinary `refresh` frame for every key we are
+ * behind on — which dispatchRefresh handles like any other frame.
+ *
+ * Kept a separate type, not a field of RefreshCoords: RefreshCoords is what a widget arms with
+ * and what decides whether a refetch re-arms (recordRefreshHeaders' equality). The digest changes
+ * on every refetch that brought new bytes, so it must never take part in that decision.
+ */
+export interface SubscribedCoords extends RefreshCoords {
+  held?: string
+}
 
 /** ≤512 widgets per connection, ≤16 KB decoded `sub` (snowplow returns 400 above either). */
 const MAX_WIDGETS = 512
@@ -211,6 +237,18 @@ export interface RefreshEntry {
 const refreshEntries = new Map<string, RefreshEntry>()
 
 /**
+ * widgetId → the digest of its most recent `/call` answer, with the key that answer carried.
+ *
+ * BESIDE refreshEntries, never inside the entry: the entry object's identity is the arm hook's
+ * effect dependency (useWidgetLiveRefresh), so replacing it when only the digest moved would
+ * re-arm, and every re-arm re-opens the stream — the amplification this file is built to avoid.
+ * Overwritten on EVERY response (not only when the entry changes), and deleted whenever a
+ * response carries no digest, so `held` always describes the bytes the widget is rendering now.
+ * The key is kept so a digest is only ever echoed for the key it was stamped with.
+ */
+const heldDigests = new Map<string, { digest: string; key: string }>()
+
+/**
  * Record (or clear) a widget's refresh entry from a `/call` response.
  * `headers` is the `Response.headers`; absent class/key (cache-off, RBAC-skipped,
  * identity-less, or a pre-a945763 snowplow) → the entry is cleared (nothing to arm).
@@ -220,12 +258,22 @@ export const recordRefreshHeaders = (widgetId: string, params: URLSearchParams, 
   const key = headers.get(REFRESH_HEADER_KEY)
   if (!cls || !key || (cls !== 'widgets' && cls !== 'widgetContent' && cls !== 'restactions')) {
     refreshEntries.delete(widgetId)
+    heldDigests.delete(widgetId)
     return
   }
   const coords = buildRefreshCoords(params, cls)
   if (!coords) {
     refreshEntries.delete(widgetId)
+    heldDigests.delete(widgetId)
     return
+  }
+  // Before the equality short-circuit below: the digest moves on refetches that leave the
+  // entry untouched, and those are exactly the ones `held` has to stay current across.
+  const digest = headers.get(REFRESH_HEADER_DIGEST)
+  if (digest) {
+    heldDigests.set(widgetId, { digest, key })
+  } else {
+    heldDigests.delete(widgetId)
   }
   const prev = refreshEntries.get(widgetId)
   // Keep the same object reference when nothing changed, so the arm hook's
@@ -236,8 +284,17 @@ export const recordRefreshHeaders = (widgetId: string, params: URLSearchParams, 
 
 export const getRefreshEntry = (widgetId: string): RefreshEntry | undefined => refreshEntries.get(widgetId)
 
+/** The digest `widgetId` holds for `key`, or undefined when its last answer carried none for that key. */
+export const getHeldDigest = (widgetId: string, key: string): string | undefined => {
+  const held = heldDigests.get(widgetId)
+  return held && held.key === key ? held.digest : undefined
+}
+
 /** Test-only: drop all captured entries. */
-export const __resetRefreshEntries = (): void => { refreshEntries.clear() }
+export const __resetRefreshEntries = (): void => {
+  refreshEntries.clear()
+  heldDigests.clear()
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // RefreshManager — one multiplexed /refreshes stream per tab
@@ -254,7 +311,8 @@ type Refetch = () => unknown
  * injected clock and feed refresh keys directly via `dispatchRefresh`.
  */
 export class RefreshManager {
-  private readonly armed = new Map<string, RefreshCoords>()
+  /** widgetId → what it armed with: its coords and the key its frames arrive under. */
+  private readonly armed = new Map<string, { coords: RefreshCoords; key: string }>()
   private readonly keyToWidgets = new Map<string, Set<string>>()
   private readonly refetchById = new Map<string, Refetch>()
   /**
@@ -305,7 +363,7 @@ export class RefreshManager {
    */
   arm(widgetId: string, coords: RefreshCoords, refreshKey: string, refetch: Refetch): () => void {
     this.removeFromKeyIndex(widgetId)
-    this.armed.set(widgetId, coords)
+    this.armed.set(widgetId, { coords, key: refreshKey })
     this.refetchById.set(widgetId, refetch)
     let set = this.keyToWidgets.get(refreshKey)
     if (!set) {
@@ -472,9 +530,16 @@ export class RefreshManager {
     void this.stream(coords, token, controller)
   }
 
-  /** The armed coords, capped to snowplow's limits (warning about what was dropped). */
-  private subCoords(): RefreshCoords[] {
-    let coords = [...this.armed.values()]
+  /**
+   * The armed coords, each with the digest it holds (see SubscribedCoords), capped to snowplow's
+   * limits (warning about what was dropped). Read at connect time, so every (re)open — mount,
+   * unmount, retry, re-auth — carries the digests as they are NOW.
+   */
+  private subCoords(): SubscribedCoords[] {
+    let coords = [...this.armed].map(([widgetId, { coords: armedCoords, key }]): SubscribedCoords => {
+      const held = getHeldDigest(widgetId, key)
+      return held ? { ...armedCoords, held } : armedCoords
+    })
     if (coords.length > MAX_WIDGETS) {
       console.warn(`[live-refresh] ${coords.length} widgets armed > ${MAX_WIDGETS} cap; dropping ${coords.length - MAX_WIDGETS} from the subscription`)
       coords = coords.slice(0, MAX_WIDGETS)
@@ -493,6 +558,9 @@ export class RefreshManager {
     // this bound was being hit in the field, so say it out loud, with the count, once per stream
     // open (not once per widget). Raising the constant or shrinking the payload is a separate
     // change — this exists to find out whether either is needed.
+    //
+    // `held` counts against the cap too (it is part of the body snowplow measures): 45 B per
+    // coordinate that carries one (`,"held":"v1.<32 hex>"`), so the cap is applied AFTER it is added.
     const armedCount = coords.length
     while (coords.length > 1 && JSON.stringify(coords).length > MAX_SUB_BYTES) {
       coords.pop()
@@ -541,7 +609,7 @@ export class RefreshManager {
    * order — against an old server every subscription still works exactly as before, and the body
    * transport starts being used the moment the server supports it, with no client change.
    */
-  private async open(coords: RefreshCoords[], token: string, controller: AbortController): Promise<Response> {
+  private async open(coords: SubscribedCoords[], token: string, controller: AbortController): Promise<Response> {
     const headers = { Accept: 'text/event-stream', Authorization: `Bearer ${token}` }
 
     if (!this.postUnsupported) {
@@ -563,7 +631,7 @@ export class RefreshManager {
     return fetch(`${this.baseUrl}/refreshes?sub=${sub}`, { headers, signal: controller.signal })
   }
 
-  private async stream(coords: RefreshCoords[], token: string, controller: AbortController): Promise<void> {
+  private async stream(coords: SubscribedCoords[], token: string, controller: AbortController): Promise<void> {
     let response: Response
     try {
       response = await this.open(coords, token, controller)
