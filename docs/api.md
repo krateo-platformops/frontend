@@ -68,4 +68,6 @@ events `/events` + `/notifications`) — contracts in
 `RESTAction` (`templates.krateo.io/v1`) is owned by snowplow; widgets reference it via
 `apiRef` ([ui/docs/restactions.md](../ui/docs/restactions.md)). The optional provenance
 feature writes `AuditRecord` CRs (`audit.krateo.io/v1alpha1`) whose CRD ships with the
-portal blueprint, not with this repo.
+portal blueprint, not with this repo, but only against a snowplow that does not list
+`call.provenance` on `/capabilities`; against one that does, it sends the
+`X-Krateo-Provenance` header on the write instead.

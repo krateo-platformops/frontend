@@ -101,11 +101,15 @@ export const getHeadersObject = (headers: string[]): Record<string, string> | un
  * so calling it there throws "crypto.randomUUID is not a function" and crashes the app.
  * `crypto.getRandomValues()` IS available in insecure contexts, so derive the UUID from
  * it (with a Math.random fallback for ancient runtimes). These IDs are non-security-
- * sensitive (Agentiko session/message keys); cryptographic strength is not required. */
+ * sensitive (Agentiko session/message keys); cryptographic strength is not required.
+ *
+ * ALWAYS LOWER-CASE, on every branch: it is also the provenance header's `confirmationId`, which
+ * snowplow accepts only as a canonical lower-case UUID — and refuses together with the rest of
+ * the confirmation when it is not (hooks/callProvenance.ts). */
 export const randomId = (): string => {
   const webCrypto = globalThis.crypto
   if (webCrypto && typeof webCrypto.randomUUID === 'function') {
-    return webCrypto.randomUUID()
+    return webCrypto.randomUUID().toLowerCase()
   }
   const bytes = new Uint8Array(16)
   if (webCrypto && typeof webCrypto.getRandomValues === 'function') {

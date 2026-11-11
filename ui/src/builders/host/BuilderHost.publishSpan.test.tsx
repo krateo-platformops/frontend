@@ -138,6 +138,8 @@ const setContext = (): RunRestSetContext => ({
   provenanceEnabled: false,
   registerCleanup: vi.fn(),
   setLoading: vi.fn(),
+  // An older snowplow (no `call.provenance`): the AuditRecord path these tests pin.
+  supportsCallProvenance: () => Promise.resolve(false),
 })
 
 /**
