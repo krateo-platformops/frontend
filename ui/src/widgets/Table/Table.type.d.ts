@@ -139,6 +139,10 @@ export interface Table {
        */
       fitContent?: boolean
       /**
+       * Whether the reader can resize the columns by dragging the right edge of a header (or with the arrow keys on its handle). On when omitted; set false to keep the columns at the widths the table lays out. Widths a reader set are remembered per viewer in the browser, and ignored while this is false.
+       */
+      resizableColumns?: boolean
+      /**
        * antd Table size. Defaults to 'middle' when omitted (matching Button), so an unset value has a documented, Brand-consistent density rather than antd's raw default
        */
       size?: 'large' | 'middle' | 'small'

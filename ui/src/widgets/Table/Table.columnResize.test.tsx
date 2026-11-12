@@ -157,6 +157,27 @@ describe('Table — dragging a header\'s edge', () => {
   })
 })
 
+describe('Table — resizableColumns: false', () => {
+  it('draws no handle and lays the table out as before', () => {
+    const { container } = renderTable({ ...widgetData(), resizableColumns: false })
+
+    expect(handles(container)).toHaveLength(0)
+    expect(colWidths(container).every((width) => !width)).toBe(true)
+    expect(tableElement(container)?.style.tableLayout).not.toBe('fixed')
+  })
+
+  it('ignores widths a reader kept while the table was resizable', () => {
+    const first = renderTable()
+    drag(handles(first.container)[0], 300, 400)
+    expect(readColumnWidths(UID)).not.toEqual({})
+    cleanup()
+
+    const { container } = renderTable({ ...widgetData(), resizableColumns: false })
+    expect(colWidths(container).every((width) => !width)).toBe(true)
+    expect(tableElement(container)?.style.tableLayout).not.toBe('fixed')
+  })
+})
+
 describe('Table — the handle from the keyboard', () => {
   it('ArrowRight widens and ArrowLeft narrows the column; Shift takes bigger steps', () => {
     const { container } = renderTable()

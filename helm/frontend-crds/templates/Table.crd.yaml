@@ -299,6 +299,9 @@ spec:
                     prefix:
                       description: it's the filters prefix to get right values
                       type: string
+                    resizableColumns:
+                      description: Whether the reader can resize the columns by dragging the right edge of a header (or with the arrow keys on its handle). On when omitted; set false to keep the columns at the widths the table lays out. Widths a reader set are remembered per viewer in the browser, and ignored while this is false.
+                      type: boolean
                     rowNavigateTo:
                       description: optional route path to navigate to on row click; `{valueKey}` placeholders are filled from that row's cells (e.g. /compositions/{ns}/{name})
                       type: string

@@ -51,7 +51,7 @@ const measureHeaderWidths = (table: HTMLElement | null): ColumnWidths => {
 }
 
 const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination, uid, widgetData }: WidgetProps<TableWidgetData>) => {
-  const { bordered, columns, dataSource, fitContent, pagination, prefix, rowNavigateTo, size } = widgetData
+  const { bordered, columns, dataSource, fitContent, pagination, prefix, resizableColumns, rowNavigateTo, size } = widgetData
   const data = dataSource ?? []
   const { getFilteredData } = useFilter()
   const navigate = useNavigate()
@@ -197,7 +197,10 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
     const { minWidth, width } = columns[index]
     return widths[index] ?? (typeof width === 'number' ? width : undefined) ?? Math.max(minWidth ?? 0, DEFAULT_COLUMN_WIDTH)
   }
-  const resized = columns.some(({ valueKey }) => columnWidths[valueKey] !== undefined)
+  // `resizableColumns: false` (the author's opt-out) removes the handles and ignores widths a reader
+  // stored while the table was resizable, so the table lays out exactly as it did before #556.
+  const resizable = resizableColumns !== false
+  const resized = resizable && columns.some(({ valueKey }) => columnWidths[valueKey] !== undefined)
   const resizedWidth = (index: number): number => columnWidths[columns[index].valueKey] ?? startWidth(index)
   const resizedScrollX = resized ? columns.reduce((sum, _, index) => sum + resizedWidth(index), 0) : 0
 
@@ -275,8 +278,9 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
         // a floor keeps one column readable and lets the rest flex around it.
         minWidth,
         // The resize handle's wiring, read by TableResizableHeaderCell; antd merges it with the
-        // sorter's own th props. Cast: onHeaderCell is typed as plain th attributes.
-        onHeaderCell: () => ({ resize: columnResize(index) }) as HTMLAttributes<HTMLElement>,
+        // sorter's own th props. Cast: onHeaderCell is typed as plain th attributes. Without it
+        // (resizableColumns: false) the cell renders a plain th, with no handle.
+        onHeaderCell: resizable ? () => ({ resize: columnResize(index) }) as HTMLAttributes<HTMLElement> : undefined,
         render: withCellTooltip(valueKey, (_: unknown, row: TableRow) => {
           const cell = row.find((cell) => cell.valueKey === valueKey)
 
