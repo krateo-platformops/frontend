@@ -427,3 +427,56 @@ spec:
           kind: jsonSchemaType
           type: string
           stringValue: "Echo"
+---
+# Per-row buttons (rowActions, #700)
+# Target: a button in each row that runs its action with THAT row's values, next to a whole-row link.
+# Expected behavior: a trailing column holds "Logs" (primary) and "Events" on every row. Each
+# navigates to /compositions/<ns>/<name>/<logs|events> for the row it sits on; a click anywhere else on
+# the row still follows rowNavigateTo. The same field, shape and values as List's itemTemplate.rowActions;
+# omit rowActionsDisplay (or set menu) for a kebab menu instead of buttons.
+kind: Table
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-table-row-actions
+  namespace: krateo-system
+spec:
+  widgetData:
+    allowedResources: [barcharts, buttons, filters, flowcharts, linecharts, markdowns, paragraphs, piecharts, yamlviewers]
+    rowNavigateTo: /compositions/{ns}/{name}
+    rowActionsDisplay: buttons
+    rowActions:
+      - actionId: open-logs
+        label: Logs
+        icon: fa-file-lines
+      - actionId: open-events
+        label: Events
+    actions:
+      navigate:
+        - id: open-logs
+          type: navigate
+          path: /compositions/${ns}/${name}/logs
+        - id: open-events
+          type: navigate
+          path: /compositions/${ns}/${name}/events
+    columns:
+      - valueKey: name
+        title: Name
+      - valueKey: ns
+        title: Namespace
+    dataSource:
+      - - valueKey: name
+          kind: jsonSchemaType
+          type: string
+          stringValue: "payments-api"
+        - valueKey: ns
+          kind: jsonSchemaType
+          type: string
+          stringValue: "team-a"
+      - - valueKey: name
+          kind: jsonSchemaType
+          type: string
+          stringValue: "orders-api"
+        - valueKey: ns
+          kind: jsonSchemaType
+          type: string
+          stringValue: "team-b"
