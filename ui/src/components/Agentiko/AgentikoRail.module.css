@@ -65,7 +65,17 @@
   --primary-color: var(--krateo-color-agentiko-accent);
 
   flex: none;
-  overflow: hidden;
+
+  /* CLIP, not hidden (#701). An overflow:hidden box still SCROLLS — not by the user, but by the
+     browser bringing a focused element into view. The rail focuses its composer as it opens, while
+     its width is still animating up from 0, so the composer sat outside the narrow box and the
+     browser scrolled the rail sideways to show it (measured: 29px, 30ms into opening). Once the
+     rail was full width the offset only went back to 0 if nothing inside was wider than the rail;
+     with a wide header (the STREAMING pill and five buttons) it stayed, the whole rail sat shifted
+     left, its right edge cut off, and the resize handle — pinned at x=0 — was scrolled out of
+     reach: "no longer resizable". `clip` draws the same as `hidden` but is not a scroll container,
+     so nothing can scroll it. */
+  overflow: clip;
   position: relative;
   transition: width var(--motion-mid, 0.2s) ease;
   width: 0;
@@ -79,7 +89,7 @@
 }
 
 /* Drag-to-resize handle, pinned to the rail's left edge. Kept fully inside the box (not
-   straddling x=0 with a negative offset) because `.apRail` clips with overflow:hidden, which
+   straddling x=0 with a negative offset) because `.apRail` clips its overflow, which
    would otherwise cut off — and swallow pointer events on — the part hanging outside. */
 .apResizeHandle {
   bottom: 0;
