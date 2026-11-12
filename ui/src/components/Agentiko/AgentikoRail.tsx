@@ -300,7 +300,7 @@ const AgentikoRail = () => {
   // FR 57: matched on `event.code`, so macOS does not insert "µ" into the textarea, and
   // only with Alt alone — a chord that happens to include Alt belongs to someone else.
   const onRailKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    // `.apRail` closes with `width: 0; overflow: hidden`, not `display: none`, so its controls
+    // `.apRail` closes with `width: 0; overflow: clip`, not `display: none`, so its controls
     // stay mounted. The collapsed rail is `inert` and every collapse hands focus to the header
     // toggle first (railFocus.ts), so no key should reach it; the `open` test still guards the one
     // outcome that must never happen: a microphone opened into a zero-width rail, its meter, timer
