@@ -1,10 +1,13 @@
 /* Header "Agentiko" toggle. Licensed, it is the one place in the header that wears the brand
    "sfumatura": the gradient violet → blue, left → right, under a WHITE label in both modes — the
    brand manual's pairing (white is 5.4:1 on the violet end, 11.5:1 on the blue end). The rest of
-   the portal is violet too (T11), so the gradient is what marks this as the agent. */
+   the portal is violet too (T11), so the gradient is what marks this as the agent.
+   `background-origin: border-box` keeps the gradient from tiling into the transparent 1px border:
+   without it the edges showed a strip of the opposite end's colour (#702, as in Button.module.css). */
 .apToggle {
   align-items: center;
   background: linear-gradient(90deg, var(--krateo-color-agentiko-fill-start), var(--krateo-color-agentiko-fill-end));
+  background-origin: border-box;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   color: var(--krateo-color-agentiko-on-fill);
