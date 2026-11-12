@@ -56,13 +56,15 @@ const expectControlsWhole = async (rail: Locator, header: Locator) => {
   const controls = await header.getByRole('button').all()
   // History, new thread, full width and collapse; speak-back too where the browser can speak.
   expect(controls.length).toBeGreaterThanOrEqual(4)
-  for (const control of controls) {
-    const name = await control.getAttribute('aria-label')
+  const measured = await Promise.all(controls.map(async (control) => {
     const box = await rect(control)
+    const onTop = await control.evaluate((element, [x, y]) => element.contains(document.elementFromPoint(x, y)), [(box.left + box.right) / 2, (box.top + box.bottom) / 2])
+    return { box, name: await control.getAttribute('aria-label'), onTop }
+  }))
+  for (const { box, name, onTop } of measured) {
     expect(box.left, `${name} starts inside the rail`).toBeGreaterThanOrEqual(railBox.left)
     expect(box.right, `${name} ends inside the rail`).toBeLessThanOrEqual(railBox.right)
     expect(box.right - box.left, `${name} keeps its full 26 px`).toBeGreaterThanOrEqual(26)
-    const onTop = await control.evaluate((element, [x, y]) => element.contains(document.elementFromPoint(x, y)), [(box.left + box.right) / 2, (box.top + box.bottom) / 2])
     expect(onTop, `${name} is not covered or clipped`).toBe(true)
   }
 }
