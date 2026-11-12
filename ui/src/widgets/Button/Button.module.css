@@ -6,6 +6,11 @@
    antd's disabled look. */
 .agentiko:global(.ant-btn.ant-btn-color-primary.ant-btn-variant-solid):not(:disabled, :global(.ant-btn-disabled)) {
   background: linear-gradient(90deg, var(--krateo-color-agentiko-fill-start), var(--krateo-color-agentiko-fill-end));
+
+  /* Under the 1px transparent border: the gradient spans it rather than repeating into it (the
+     tile's violet end showed on the left edge, its blue start on the right). `background` resets
+     the origin, so it follows. */
+  background-origin: border-box;
   border-color: transparent;
   box-shadow: none;
   color: var(--krateo-color-agentiko-on-fill);
@@ -16,6 +21,7 @@
 .agentiko:global(.ant-btn.ant-btn-color-primary.ant-btn-variant-solid):not(:disabled, :global(.ant-btn-disabled)):focus-visible,
 .agentiko:global(.ant-btn.ant-btn-color-primary.ant-btn-variant-solid):not(:disabled, :global(.ant-btn-disabled)):active {
   background: linear-gradient(90deg, var(--krateo-color-agentiko-fill-start), var(--krateo-color-agentiko-fill-end));
+  background-origin: border-box;
   border-color: transparent;
   color: var(--krateo-color-agentiko-on-fill);
   filter: brightness(0.92);
