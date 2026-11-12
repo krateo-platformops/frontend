@@ -65,7 +65,15 @@
   --primary-color: var(--krateo-color-agentiko-accent);
 
   flex: none;
-  overflow: hidden;
+
+  /* `clip`, not `hidden` (frontend#701). The rail clips its content; it never scrolls. `hidden`
+     still makes a scroll container, which the browser scrolls whenever something inside has to be
+     brought into view: the composer's focus on open, while the rail is still a few pixels wide,
+     scrolled it sideways, and a header wider than the rail (the narrowest width while a turn
+     streams) kept it there. The content then sat cut on the left, and the resize handle below,
+     positioned inside the scrolled box, went out of reach with it. A `clip` box is no scroll
+     container, so nothing can scroll it. visual/agentikoRail.spec.ts measures it. */
+  overflow: clip;
   position: relative;
   transition: width var(--motion-mid, 0.2s) ease;
   width: 0;
@@ -79,7 +87,7 @@
 }
 
 /* Drag-to-resize handle, pinned to the rail's left edge. Kept fully inside the box (not
-   straddling x=0 with a negative offset) because `.apRail` clips with overflow:hidden, which
+   straddling x=0 with a negative offset) because `.apRail` clips (overflow: clip), which
    would otherwise cut off — and swallow pointer events on — the part hanging outside. */
 .apResizeHandle {
   bottom: 0;

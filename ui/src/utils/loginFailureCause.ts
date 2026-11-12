@@ -317,13 +317,12 @@ const PLATFORM_REFUSAL_REASONS = new Set([
  *   500  UserInfoFailed             (0.35.0)
  *   500  RESTActionFailed           (0.35.0) — see the note below
  *
- * NOTE ON `RESTActionFailed`, WHICH authn GIVES TWO ANSWERS. On /oidc/login it is "Retry later". On
- * /oauth/login, since 0.41.0, it is "Tell an administrator": an OAuth RESTAction must now return
- * `subject`, and one that does not — or an OAuthConfig with no restActionRef — fails this way on
- * every attempt. authn's docs name only AudienceMismatch and TokenExpired as causes whose meaning
- * differs by table, so this one is not flagged there. It stays here, with "retry shortly", because
- * this file reads the cause and the flow, and both routes are the same `redirect` flow: telling
- * the two apart would need the strategy's kind, which loginFailureCauseOf is not given.
+ * NOTE ON `RESTActionFailed`. Before authn#143 it covered two different failures, and authn's
+ * tables gave it two answers: "Retry later" on /oidc/login, and "Tell an administrator" on
+ * /oauth/login (an answer with no `subject`, or an OAuthConfig with no restActionRef). authn#143 split
+ * them. `RESTActionFailed` now means only that snowplow could not resolve the RESTAction, or nothing
+ * answered: "Retry later" on both routes, so it stays here. The other half is
+ * `RESTActionIdentityInvalid`, in PLATFORM_FAULT_REASONS below.
  */
 const ESCALATE_REASONS = new Set([
   'ClientSecretLookupFailed',
@@ -379,6 +378,11 @@ const ESCALATE_REASONS = new Set([
  *   500  LDAPSearchFailed           the directory search errored
  */
 const PLATFORM_FAULT_REASONS = new Set([
+  // authn#143 (released after 0.44.0): the RESTAction was resolved, but its answer isn't a usable
+  // identity (a field with the wrong type, no `subject` on oauth, or an OAuthConfig with no
+  // restActionRef). authn: "Tell an administrator", on /oidc/login and /oauth/login. Every attempt
+  // fails the same way until the RESTAction or the config is fixed.
+  'RESTActionIdentityInvalid',
   'InvalidRequestBody',
   'IssuerConflict',
   'IssuerUnknown',
