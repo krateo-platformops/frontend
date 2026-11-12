@@ -146,6 +146,52 @@ describe('loginFailureCauseOf', () => {
     expect(loginFailureCauseOf(403, body('GroupNotAllowed'), 'password').action).toBe('request-access')
   })
 
+  // authn's NAME GUARD (0.41.0, 0.42.0): "Refusals every login shares", all "Tell an administrator".
+
+  /*
+   * Every one of these is a 403 that comes AFTER the identity is proven. Unmapped, the password form
+   * read them as "check them and try again" — about a password that was right — and the redirect
+   * flow as "a fault on the platform's side". authn sends all three from basic, ldap, oauth and oidc
+   * (PlatformGroupNotAllowed from the identity sources only, of which ldap is the password one), so
+   * each is asserted on both flows.
+   */
+  describe.each([
+    'UsernameUnavailable',
+    'SystemGroupNotAllowed',
+    'PlatformGroupNotAllowed',
+  ])('%s — an account authn will not admit as it is set up', (reason) => {
+    it.each(['password', 'redirect'] as const)('on the %s flow: escalate, say the sign-in worked, send them to an administrator', (flow) => {
+      const cause = loginFailureCauseOf(403, body(reason), flow)
+      expect(cause.action).toBe('escalate')
+      expect(LOGIN_FAILURE_TITLE[cause.action]).toBe('Sign-in unavailable')
+      // The cause rides along, for the administrator: the copy deliberately does not say which rule
+      // fired, and authn's warn line is keyed by it.
+      expect(cause.reason).toBe(reason)
+      // What is true: the identity WAS proven, and it is this account that cannot be admitted.
+      expect(cause.text).toMatch(/your sign-in worked/i)
+      expect(cause.text).toMatch(/this account cannot be admitted as it is set up/i)
+      expect(cause.text).toMatch(/tell an administrator/i)
+      // Not a credential problem: the defect on the password form was exactly this.
+      expect(cause.text).not.toMatch(/check them|credentials were not accepted/i)
+      expect(cause.text).toMatch(/not a problem with what you typed/i)
+      // The guard answers the same on every attempt.
+      expect(cause.text).not.toMatch(/retry shortly|try again|start the sign-in again/i)
+      expect(cause.text).toMatch(/retrying will not help/i)
+      // Not GroupNotAllowed's "ask for access" — no grant fixes a name or a group the identity brings
+      // — and not an outage: everyone else signs in fine.
+      expect(cause.text).not.toMatch(/ask its owner|give you access/i)
+      expect(cause.text).not.toMatch(/fault on the platform|could not check/i)
+    })
+  })
+
+  it('the name guard did not move GroupNotAllowed: that one is still "ask for access"', () => {
+    // Both are a proven identity refused admission; only GroupNotAllowed has a grant to ask for.
+    const guard = loginFailureCauseOf(403, body('UsernameUnavailable'), 'redirect')
+    const groups = loginFailureCauseOf(403, body('GroupNotAllowed'), 'redirect')
+    expect(groups.action).toBe('request-access')
+    expect(groups.text).not.toBe(guard.text)
+  })
+
   it('a refused IdP response escalates WITHOUT promising a retry, because retrying is futile', () => {
     // authn's own comment on these three: "retrying unchanged fails again". An OIDCConfig pointing
     // at the wrong issuer refuses identically forever, so the ordinary platform copy — which says

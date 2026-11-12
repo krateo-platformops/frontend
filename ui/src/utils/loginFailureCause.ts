@@ -113,10 +113,20 @@ export interface LoginFailureCause {
  * checked against all 45 documented causes. What had been checked was the DOCUMENT against authn's
  * SOURCE — not this file against the document. `GroupNotAllowed` has been in docs/api.md since
  * authn 0.34.0 and was missing here until a person refused by allowedGroups was told to retry
- * shortly; `MissingCodeVerifier` (0.36.0) was missing too. As of authn 0.36.0 this file names every
- * cause the basic, ldap, oidc and oauth login routes can send. The 11 documented causes it does NOT
- * name belong to `/oidc/stepup` (4) and `/serviceaccount/login` (7), which neither sign-in page
- * calls.
+ * shortly; `MissingCodeVerifier` (0.36.0) was missing too.
+ *
+ * It happened a third time. authn 0.41.0 and 0.42.0 added three refusals that EVERY credential-
+ * issuing login can send (docs/api.md, "Refusals every login shares") — `UsernameUnavailable`,
+ * `SystemGroupNotAllowed`, `PlatformGroupNotAllowed` — in a table of their own, above the per-route
+ * tables, so a reader going route by route never met them. They fell through: "check them and try
+ * again" on the password form. See ACCOUNT_REFUSED_REASONS.
+ *
+ * As of authn 0.43.1 docs/api.md lists 55 distinct causes, and this file names every one the
+ * basic, ldap, oidc and oauth login routes can send — the shared table included. The 17 it does
+ * NOT name belong to `/oidc/stepup` (4), `/serviceaccount/login` (7) and `/delegate` (6), which
+ * neither sign-in page calls. `InsufficientAssurance` and `StaleAuthentication` are two of those
+ * four: authn raises them only in its step-up check, which /oidc/login never runs, and the step-up
+ * exchange is `authFailureCause.ts`'s to read, not this file's.
  *
  * authn's own `TestEveryCauseIsDocumented` fails its build if the source declares a cause with no
  * row in that document, so the document is complete by construction.
@@ -204,6 +214,48 @@ const REQUEST_ACCESS_REASONS = new Set([
 ])
 
 /*
+ * authn's name guard: refusals that come AFTER the identity is proven and before anything is minted,
+ * on every login that issues a credential — basic, ldap, oauth and oidc alike (docs/api.md,
+ * "Refusals every login shares"). authn's guidance for all three is "Tell an administrator".
+ *
+ *   403 UsernameUnavailable      (0.41.0) authn will not issue this username to this identity: it
+ *                                was issued to another identity, an administrator provisioned it as
+ *                                a basic User or ServiceAccount mapping, a RoleBinding or
+ *                                ClusterRoleBinding already grants rights to it, or it is reserved
+ *                                (`system*`, `kube-*`, `krateo:*`, `admin`, …). Since 0.43.0 also an
+ *                                identity that arrives with no username at all. The response says
+ *                                only that the name is not available; authn's warn line says why.
+ *   403 SystemGroupNotAllowed    (0.41.0) the identity carries a `system:` group — a prefix
+ *                                Kubernetes reserves for identities the apiserver vouches for.
+ *   403 PlatformGroupNotAllowed  (0.42.0) an identity SOURCE (ldap, oauth, oidc) asserted a
+ *                                `krateo:` group, which carries platform rights and comes only from
+ *                                identities an administrator provisions.
+ *
+ * WHY NONE OF THE EXISTING COPY FITS.
+ *   - Not REFUSED. These are 403s, so the password form's fall-through read them as "check them and
+ *     try again" — but the password WAS right. That is the defect this set removes.
+ *   - Not NOT_ADMITTED, though GroupNotAllowed is also a proven identity refused admission. Its
+ *     remedy is a GRANT the person can ask for ("Ask for access"). Here no grant helps: the name or
+ *     a group the identity brings is itself the problem, and only an administrator can change what
+ *     the directory, the IdP or the RESTAction asserts, or what the cluster has already bound.
+ *   - Not PLATFORM_FAULT. Nothing on the platform is broken, and "a fault on the platform's side"
+ *     would send an administrator looking for an outage. It is this ONE account that cannot be
+ *     admitted as it is set up; everyone else signs in fine.
+ *   - Not PLATFORM. "retry shortly" is false: the guard answers the same on every attempt.
+ *
+ * So they escalate — what the person should do is tell an administrator, which is `escalate` — with
+ * copy of their own, the same way `AmbiguousUser` (a directory problem with one person's entry)
+ * does. The cause rides along in `reason`, and it is the administrator's way in: the copy cannot
+ * say which of the three it was without repeating authn's reason in prose, and for
+ * UsernameUnavailable authn deliberately does not say which rule fired.
+ */
+const ACCOUNT_REFUSED_REASONS = new Set([
+  'PlatformGroupNotAllowed',
+  'SystemGroupNotAllowed',
+  'UsernameUnavailable',
+])
+
+/*
  * 403 TokenExpired — the ID token the IdP just issued has an `exp` more than authn's one-minute
  *     clock skew in the past. authn's docs/api.md: "Start the sign-in again" — and "Repeating means
  *     the clocks of authn and the IdP disagree".
@@ -263,7 +315,15 @@ const PLATFORM_REFUSAL_REASONS = new Set([
  *   500  OIDCDiscoveryFailed        (0.35.0)
  *   500  ClientSecretLookupFailed   (0.35.0)
  *   500  UserInfoFailed             (0.35.0)
- *   500  RESTActionFailed           (0.35.0)
+ *   500  RESTActionFailed           (0.35.0) — see the note below
+ *
+ * NOTE ON `RESTActionFailed`, WHICH authn GIVES TWO ANSWERS. On /oidc/login it is "Retry later". On
+ * /oauth/login, since 0.41.0, it is "Tell an administrator": an OAuth RESTAction must now return
+ * `subject`, and one that does not — or an OAuthConfig with no restActionRef — fails this way on
+ * every attempt. authn's docs name only AudienceMismatch and TokenExpired as causes whose meaning
+ * differs by table, so this one is not flagged there. It stays here, with "retry shortly", because
+ * this file reads the cause and the flow, and both routes are the same `redirect` flow: telling
+ * the two apart would need the strategy's kind, which loginFailureCauseOf is not given.
  */
 const ESCALATE_REASONS = new Set([
   'ClientSecretLookupFailed',
@@ -363,6 +423,17 @@ const MISCONFIGURED = 'Sign-in could not be completed: the platform rejected the
  */
 const NOT_ADMITTED = 'Your identity provider signed you in, but your account is not allowed into '
   + 'this control plane. Ask its owner to give you access.'
+/*
+ * For ACCOUNT_REFUSED_REASONS. "Your sign-in worked" — the identity WAS proven, on whichever route,
+ * so this cannot be read as a password problem; it says "you", not "your identity provider", because
+ * it reaches the basic and ldap forms too. Then what is true of the account, without naming which
+ * rule fired (authn keeps that to its log), and the one person who can change it. No "retry", no
+ * "check": neither changes the answer.
+ */
+const ACCOUNT_REFUSED = 'Your sign-in worked, but this account cannot be admitted as it is set up: '
+  + 'its username, or a group it belongs to, is one this platform will not accept for it. This is not '
+  + 'a problem with what you typed, and retrying will not help — tell an administrator, who has to '
+  + 'change how the account is set up.'
 const RESTART_HERE = 'That sign-in could not be finished in this browser. Start the sign-in again '
   + 'from here — and if it keeps happening, tell an administrator, because the sign-in may be '
   + 'misconfigured.'
@@ -417,6 +488,10 @@ export const loginFailureCauseOf = (
   }
   if (reason !== null && REQUEST_ACCESS_REASONS.has(reason)) {
     return { action: 'request-access', reason, text: NOT_ADMITTED }
+  }
+  // Before the status fall-through, which on the password form reads these 403s as "retype".
+  if (reason !== null && ACCOUNT_REFUSED_REASONS.has(reason)) {
+    return { action: 'escalate', reason, text: ACCOUNT_REFUSED }
   }
   // Before ESCALATE_REASONS: these escalate too, but with copy that does not promise a retry.
   if (reason !== null && PLATFORM_REFUSAL_REASONS.has(reason)) {
