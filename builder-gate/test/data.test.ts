@@ -339,7 +339,7 @@ describe('data', () => {
       // write reports what the real run would (InvalidPath) and its dependent reports Skipped,
       // naming it: both are the draft's to fix, and neither may read as a by-design note.
       const draft = example()
-      arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ name: 'scale', path: '/apis/apps/v1/namespaces/${ .ns }/deployments/x', verb: 'PATCH' })
+      arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ name: 'scale', path: '/apis/apps/v1/namespaces/demo/deployments/x', verb: 'PATCH' })
       arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ dependsOn: { name: 'scale' }, name: 'annotate', path: '/api/v1/namespaces/demo/configmaps/x', verb: 'PATCH' })
       const { transport } = recorder(fakeSnowplow({
         resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: { error: [{ message: 'write stage "scale" verb PATCH was not sent: a path segment rendered empty (#288)' }] } }, [
