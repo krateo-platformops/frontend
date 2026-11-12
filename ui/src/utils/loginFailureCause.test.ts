@@ -238,6 +238,8 @@ describe('loginFailureCauseOf', () => {
     const configuration = [
       'IssuerUnknown', 'IssuerConflict', 'OIDCConfigInvalid', 'LDAPConfigInvalid',
       'PasswordSecretMissing', 'LDAPBindFailed', 'LDAPSearchFailed',
+      // authn#143: the RESTAction answered, but not with a usable identity.
+      'RESTActionIdentityInvalid',
     ]
     for (const reason of configuration) {
       for (const flow of ['password', 'redirect'] as const) {
