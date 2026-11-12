@@ -85,6 +85,34 @@ describe('snowplow stage reasons, read from Go source', () => {
       .rejects.toThrow(/uses StageReasonElsewhere but does not declare it/)
   })
 
+  it('snowplow#1347: a var, func or type named StageReason* that the file declares is not a code, and does not trip the guard', async () => {
+    const src = `${stageOutcomes('\tStageReasonForbidden = "Forbidden"\n\tStageReasonNotFound = "NotFound"')}
+// StageReasonGroups places every reason code of the closed set in one group.
+var StageReasonGroups = map[string]string{
+\tStageReasonForbidden: "denied",
+\tStageReasonNotFound:  "cut",
+}
+
+var (
+\tStageReasonOrder = []string{StageReasonForbidden}
+)
+
+type StageReasonKind string
+
+// StageReasonGroup is reason's group.
+func StageReasonGroup(reason string) string { return StageReasonGroups[reason] }
+`
+    expect(Object.fromEntries(await stageReasonsAt(treeOf({ ...CREDHTTP, [STAGE_OUTCOMES_GO]: src })))).toEqual({
+      StageReasonForbidden: 'Forbidden',
+      StageReasonNotFound: 'NotFound',
+    })
+  })
+
+  it('a method named StageReason* is still not a declaration: an undeclared code it returns fails', async () => {
+    const src = `${stageOutcomes('\tStageReasonForbidden = "Forbidden"')}\nfunc (o outcome) StageReasonOf() string { return StageReasonElsewhere }\n`
+    await expect(stageReasonsAt(treeOf({ ...CREDHTTP, [STAGE_OUTCOMES_GO]: src }))).rejects.toThrow(/uses StageReasonOf, StageReasonElsewhere but does not declare it|uses StageReasonElsewhere, StageReasonOf but does not declare it/)
+  })
+
   it('a file with no StageReason* constant fails: it moved or changed shape', async () => {
     await expect(stageReasonsAt(treeOf({ [STAGE_OUTCOMES_GO]: 'package api\n\nconst other = "x"\n' }))).rejects.toThrow(/declares no StageReason\* constant/)
   })

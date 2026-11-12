@@ -217,6 +217,28 @@ class Resolver {
   }
 }
 
+/**
+ * The top-level names a Go file declares as something OTHER than a constant: a `var` (single or in
+ * a block), a function (not a method) or a type. snowplow#1347 added `var StageReasonGroups` (each
+ * code's group) and `func StageReasonGroup` beside the codes. They are not reason codes, and they
+ * are declared in the file, so the "uses but does not declare" guard must not count them.
+ */
+export const nonConstsOf = (src: string): Set<string> => {
+  const code = withoutComments(src)
+  const out = new Set<string>()
+  for (const re of [/^var\s+([A-Za-z_]\w*)/gm, /^func\s+([A-Za-z_]\w*)\s*[[(]/gm, /^type\s+([A-Za-z_]\w*)/gm]) {
+    for (const match of code.matchAll(re)) {
+      out.add(match[1])
+    }
+  }
+  for (const block of code.matchAll(/^var\s*\(([\s\S]*?)^\)/gm)) {
+    for (const match of block[1].matchAll(/^\t([A-Za-z_]\w*)\b/gm)) {
+      out.add(match[1])
+    }
+  }
+  return out
+}
+
 /** Snowplow's stage reason codes at one tree: `StageReason*` constant name → string value. */
 export const stageReasonsAt = async (tree: GoTree): Promise<Map<string, string>> => {
   const src = await tree.read(STAGE_OUTCOMES_GO)
@@ -239,8 +261,10 @@ export const stageReasonsAt = async (tree: GoTree): Promise<Map<string, string>>
   }
   // Every StageReason* the file USES must be one it declares. One defined in another file of the
   // package would be part of the closed set and missed here, so it fails instead of passing short.
+  // A name the file declares as a var, func or type is not a code (nonConstsOf), so it is not counted.
   const used = new Set([...withoutComments(src).matchAll(/\bStageReason[A-Z]\w*\b/g)].map((match) => match[0]))
-  const undeclared = [...used].filter((name) => !out.has(name))
+  const otherwise = nonConstsOf(src)
+  const undeclared = [...used].filter((name) => !out.has(name) && !otherwise.has(name))
   if (undeclared.length > 0) {
     throw new Error(`${STAGE_OUTCOMES_GO} uses ${undeclared.join(', ')} but does not declare it — the closed set is no longer one file`)
   }
