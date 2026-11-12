@@ -1,7 +1,6 @@
 import type { IconProp } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { Avatar, Card, List as AntdList, Button, Dropdown, Progress, Space, Tag, Tooltip, Typography } from 'antd'
-import useApp from 'antd/es/app/useApp'
+import { Avatar, Card, List as AntdList, Button, Progress, Tag, Tooltip, Typography } from 'antd'
 import type { ListGridType } from 'antd/es/list'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 import { useId, useMemo, useState } from 'react'
@@ -9,10 +8,10 @@ import { useNavigate, useSearchParams } from 'react-router'
 
 import { childHealthFromRow, useReportChildHealth } from '../../components/PageHealth'
 import type { ConditionLike } from '../../components/PageHealth'
+import { RowActionControls, useFireRowAction } from '../../components/RowActions'
 import { WidgetEmpty } from '../../components/WidgetStates'
-import { useHandleAction } from '../../hooks/useHandleActions'
 import { getColorCode, inkOnFill } from '../../theme/palette'
-import type { ResourcesRefs, Widget, WidgetAction, WidgetActions } from '../../types/Widget'
+import type { ResourcesRefs, Widget, WidgetActions } from '../../types/Widget'
 import { navigateOrExternal } from '../../utils/navigation'
 
 /**
@@ -159,24 +158,9 @@ export const ListView = ({
   // `?spotlight=<name>` highlights the matching card tile — used by a global-search hit for a
   // not-yet-installed blueprint, which routes to /marketplace?q=<name>&spotlight=<name>.
   const spotlight = searchParams.get('spotlight')
-  const { notification } = useApp()
-  const { handleAction } = useHandleAction()
-
   // Fire a per-row action: look it up by id in the shared action map and dispatch it with
   // the row's data as customPayload (so one action definition serves every row).
-  const fireRowAction = async (actionId: string, item: unknown) => {
-    const allActions = (actions ? Object.values(actions).flat() : []) as WidgetAction[]
-    const action = allActions.find((candidate) => candidate.id === actionId)
-    if (!action) {
-      notification.error({
-        description: `The list does not define an action (ID: ${actionId})`,
-        message: 'Error while executing the action',
-        placement: 'bottomLeft',
-      })
-      return
-    }
-    await handleAction(action, resourcesRefs ?? { items: [] }, item as Record<string, unknown>, widget, undefined, deniedRefIds)
-  }
+  const fireRowAction = useFireRowAction({ actions, deniedRefIds, noun: 'list', resourcesRefs, widget })
 
   // Chip mode (Marketplace facet chips) lays its items out as a wrapping pill row, not a
   // vertical split list.
@@ -383,62 +367,21 @@ export const ListView = ({
 
         const rowActions = itemTemplate.rowActions ?? []
 
-        // `rowActionsDisplay: buttons` — the verbs sit on the row as antd Buttons instead of behind
-        // the kebab, for lists whose every row carries something the person came to do (Resume /
-        // Discard on a draft). One List.Item action slot holding a Space, not one slot per button:
-        // antd draws a split bar between action slots, which reads as a divider between two verbs.
-        const rowButtons = rowActions.length && itemTemplate.rowActionsDisplay === 'buttons'
+        // The kebab (`menu`, the default) or — `rowActionsDisplay: buttons` — the verbs on the row as
+        // antd Buttons, for lists whose every row carries something the person came to do (Resume /
+        // Discard on a draft). Shared with Table (components/RowActions). One List.Item action slot,
+        // not one per button: antd draws a split bar between slots, which reads as a divider.
+        const rowButtons = rowActions.length > 0 && itemTemplate.rowActionsDisplay === 'buttons'
+        const rowActionControl = rowActions.length
           ? (
-            <Space key='row-actions' size='small'>
-              {rowActions.map((rowAction, actionIndex) => (
-                <Button
-                  danger={rowAction.danger}
-                  icon={rowAction.icon ? <FontAwesomeIcon icon={rowAction.icon as IconProp} /> : undefined}
-                  key={rowAction.actionId}
-                  // Neither a click nor the Enter/Space that activates the button may reach the row:
-                  // the row's own onKeyDown would navigate and preventDefault the button's click away.
-                  onClick={(event) => { event.stopPropagation(); void fireRowAction(rowAction.actionId, item) }}
-                  onKeyDown={(event) => { event.stopPropagation() }}
-                  size='middle'
-                  type={actionIndex === 0 ? 'primary' : 'default'}
-                >
-                  {rowAction.label}
-                </Button>
-              ))}
-            </Space>
-          )
-          : null
-
-        const kebab = rowActions.length && !rowButtons
-          ? (
-            <Dropdown
+            <RowActionControls
+              display={itemTemplate.rowActionsDisplay}
               key='row-actions'
-              menu={{
-                items: rowActions.map((rowAction) => ({
-                  danger: rowAction.danger,
-                  icon: rowAction.icon ? <FontAwesomeIcon icon={rowAction.icon as IconProp} /> : undefined,
-                  key: rowAction.actionId,
-                  label: rowAction.label,
-                })),
-                onClick: ({ domEvent, key }) => {
-                  // Don't let the menu click bubble to the row's navigate onClick.
-                  domEvent.stopPropagation()
-                  void fireRowAction(key, item)
-                },
-              }}
-              trigger={['click']}
-            >
-              <Button
-                aria-label='Row actions'
-                icon={<FontAwesomeIcon icon={'fa-ellipsis-vertical' as IconProp} />}
-                onClick={(event) => { event.stopPropagation() }}
-                size='small'
-                type='text'
-              />
-            </Dropdown>
+              onFire={(actionId) => { void fireRowAction(actionId, item) }}
+              rowActions={rowActions}
+            />
           )
           : null
-        const rowActionControl = rowButtons ?? kebab
 
         // Reconciliation-rail row: the mockup's desired-vs-actual gauge. The FILL is cyan
         // (the CONVERGED %), and the un-filled remainder carries a state-coloured diagonal

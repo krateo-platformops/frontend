@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router'
 
 import { useFilter } from '../../components/FiltesProvider/FiltersProvider'
 import RefChild, { refChildState } from '../../components/RefChild'
+import { RowActionControls, useFireRowAction } from '../../components/RowActions'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { useMeasuredWidth } from '../../hooks/useMeasuredWidth'
 import { getColorCode, getTagStyle, resolveTextColor } from '../../theme/palette'
@@ -18,10 +19,11 @@ import { formatISODate, formatRelativeTime } from '../../utils/utils'
 import styles from './Table.module.css'
 import type { Table as WidgetType } from './Table.type'
 import TableCellTooltip from './TableCellTooltip'
-import { columnLayout } from './tableColumnWidths'
+import { columnLayout, rowActionsColumnWidth } from './tableColumnWidths'
 import { buildExportRequest } from './tableExport'
 import TableExportControl from './TableExportControl'
 import { computeTablePagination, shouldVirtualize, VIRTUAL_SCROLL_Y } from './tablePagination'
+import { tableRowValues } from './tableRowValues'
 import { getColumnSortProps } from './tableSorting'
 
 export type TableWidgetData = WidgetType['spec']['widgetData']
@@ -35,8 +37,16 @@ const explicitTooltip = (cell: TableCell | undefined): string | undefined => (ce
 /** --krateo-text-label-sm, px: the header's font size. */
 const HEADER_FONT_SIZE = 11
 
-const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination, uid, widgetData }: WidgetProps<TableWidgetData>) => {
-  const { bordered, columns, dataSource, fitContent, pagination, prefix, rowNavigateTo, size } = widgetData
+/**
+ * The `valueKey` of the stand-in column `rowActions` adds to the layout (columnLayout), so the text
+ * columns share the container less the actions. No cell carries it, so it is never numeric or a tag.
+ */
+const ROW_ACTIONS_KEY = '\u0000rowActions'
+
+type FireRowAction = (actionId: string, row: unknown) => Promise<void>
+
+const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRefs, serverPagination, uid, widgetData }: WidgetProps<TableWidgetData> & { fireRowAction?: FireRowAction }) => {
+  const { bordered, columns, dataSource, fitContent, pagination, prefix, rowActions, rowActionsDisplay, rowNavigateTo, size } = widgetData
   const data = dataSource ?? []
   const { getFilteredData } = useFilter()
   const navigate = useNavigate()
@@ -141,10 +151,27 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
   // so a scrolling virtual table read as clipped ("Underprovisio" in a Portal Builder preview with
   // the Agentiko rail open, 151 pods) with nothing on screen to scroll it by.
   const truncating = Boolean(fitContent) || virtual
-  const layout = columnLayout(columns, dataTable ?? [], {
+  // antd Table cell inline padding: `padding` for large, `paddingXS` for middle and small.
+  const cellPadding = 2 * (size === 'large' ? token.padding : token.paddingXS) + (bordered ? token.lineWidth : 0)
+  // `rowActions` (#700) — only when the widget has a way to fire them (the Table wrapper below), so
+  // a Table without them lays out, and renders, exactly as it did.
+  const actionControls = fireRowAction && rowActions?.length ? rowActions : undefined
+  const actionsWidth = actionControls
+    ? rowActionsColumnWidth(actionControls, rowActionsDisplay, {
+      // A middle antd Button: paddingInline is paddingContentHorizontal less its border, per side.
+      buttonChrome: 2 * token.paddingContentHorizontal,
+      buttonFontSize: token.fontSize,
+      cellPadding,
+      iconWidth: token.fontSize + token.marginXS,
+      kebabWidth: token.controlHeightSM,
+      spaceGap: token.paddingXS,
+    })
+    : undefined
+  // The actions column counts as a fixed-width column, so the text columns share what is left.
+  const layoutColumns = actionsWidth ? [...columns, { title: '', valueKey: ROW_ACTIONS_KEY, width: actionsWidth }] : columns
+  const layout = columnLayout(layoutColumns, dataTable ?? [], {
     cellFontSize: token.fontSize,
-    // antd Table cell inline padding: `padding` for large, `paddingXS` for middle and small.
-    cellPadding: 2 * (size === 'large' ? token.padding : token.paddingXS) + (bordered ? token.lineWidth : 0),
+    cellPadding,
     fontSize: token.fontSizeSM,
     // --krateo-text-label-sm, the header's size (Table.module.css `.headerWrap`).
     headerFontSize: HEADER_FONT_SIZE,
@@ -166,10 +193,32 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
   // client pager.
   const paginationProp: TablePaginationConfig | false = computeTablePagination({ crPagination: pagination, rowCount, serverPagination })
 
+  // `rowActions` (#700): List's own controls, in a trailing column, fired with THIS row's values.
+  // The controls stop their click and their Enter/Space from reaching the row (RowActionControls),
+  // and the row's onKeyDown takes only keys aimed at the row itself, so `rowNavigateTo` keeps
+  // working everywhere else on the row and never fires from a control.
+  const actionsColumn = actionControls && fireRowAction
+    ? [{
+      align: 'right' as const,
+      key: `${uid}-col-row-actions`,
+      render: (_: unknown, row: TableRow) => (
+        <RowActionControls
+          display={rowActionsDisplay}
+          onFire={(actionId) => { void fireRowAction(actionId, tableRowValues(row)) }}
+          rowActions={actionControls}
+        />
+      ),
+      // A header cell with no name reads as an unlabelled column; the label is for assistive tech,
+      // since the controls name themselves on sight.
+      title: <span className={styles.srOnly}>Actions</span>,
+      width: truncating ? actionsWidth : undefined,
+    }]
+    : []
+
   const table = (
     <AntdTable
       bordered={bordered}
-      columns={columns?.map(({ color, minWidth, title, valueKey, width }, index) => ({
+      columns={[...columns.map(({ color, minWidth, title, valueKey, width }, index) => ({
         // UX #13: inferred client-side sorting — an automatic `sorter` comparing
         // the RAW dataSource values (numeric / kubectl-age / ISO-date / string,
         // sniffed per column) + `align: 'right'` for numeric/age columns. No
@@ -332,7 +381,7 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
             </div>
           ),
         width: widths[index] ?? width,
-      }))}
+      })), ...actionsColumn]}
       dataSource={dataTable}
       key={uid}
       // C14/C15: Table had NO empty-state handling — a possibly-empty dataSource went straight to
@@ -393,5 +442,20 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
     </div>
   )
 }
+
+/**
+ * A Table with `rowActions` needs the action dispatcher (useHandleAction: the query client, the app
+ * context, the router's routes). Only such a Table mounts it, so one without `rowActions` renders
+ * exactly the tree it always has and needs nothing it did not need before.
+ */
+const TableWithRowActions = (props: WidgetProps<TableWidgetData>) => {
+  const { deniedRefIds, resourcesRefs, widget, widgetData } = props
+  const fireRowAction = useFireRowAction({ actions: widgetData.actions, deniedRefIds, noun: 'table', resourcesRefs, widget })
+  return <TableView {...props} fireRowAction={fireRowAction} />
+}
+
+const Table = (props: WidgetProps<TableWidgetData>) => (
+  props.widgetData.rowActions?.length ? <TableWithRowActions {...props} /> : <TableView {...props} />
+)
 
 export default Table

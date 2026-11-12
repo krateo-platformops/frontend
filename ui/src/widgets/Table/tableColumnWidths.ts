@@ -216,3 +216,44 @@ export const columnLayout = (
   })
   return { numeric, scrollX, widths }
 }
+
+/**
+ * Advance width of one Button-label glyph, in em of the button's font size. Labels render in Inter
+ * (about 0.55em on average); 0.6 errs wide, because a cut verb is worse than a roomy cell.
+ */
+export const BUTTON_GLYPH_EM = 0.6
+
+/** The antd Button and Space tokens the `rowActions` column is sized from. */
+export type RowActionsTokens = {
+  /** antd Table cell inline padding, both sides, for the table's size (border included). */
+  cellPadding: number
+  /** antd Button font size (`fontSize`). */
+  buttonFontSize: number
+  /** A middle antd Button's inline padding plus its border, both sides. */
+  buttonChrome: number
+  /** A Button's icon (`fontSize`) plus the gap before its label (`marginXS`). */
+  iconWidth: number
+  /** antd Space `small` gap (`paddingXS`). */
+  spaceGap: number
+  /** The kebab: a small icon-only antd Button is square, `controlHeightSM` wide. */
+  kebabWidth: number
+}
+
+/**
+ * The width (px) the `rowActions` column needs (#700): the kebab, or every button in a row with the
+ * Space gaps between them. Only a TRUNCATING table takes it (Table.tsx): its layout is fixed, the
+ * text columns share exactly the container less every sized column, and an unsized actions column
+ * would get what is left of that, which is nothing. A max-content table sizes the column to its
+ * buttons already.
+ */
+export const rowActionsColumnWidth = (
+  rowActions: readonly { label: string; icon?: string }[],
+  display: 'menu' | 'buttons' | undefined,
+  tokens: RowActionsTokens,
+): number => {
+  if (display !== 'buttons') { return tokens.kebabWidth + tokens.cellPadding }
+  const buttons = rowActions.reduce((sum, rowAction) => (
+    sum + Math.ceil(rowAction.label.length * tokens.buttonFontSize * BUTTON_GLYPH_EM) + tokens.buttonChrome + (rowAction.icon ? tokens.iconWidth : 0)
+  ), 0)
+  return buttons + (rowActions.length - 1) * tokens.spaceGap + tokens.cellPadding
+}
