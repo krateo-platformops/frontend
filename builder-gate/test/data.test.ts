@@ -333,6 +333,29 @@ describe('data', () => {
       expect(dataOf(envelope).problems[0]).toMatch(new RegExp(`^widgets\\[3\\] \\(RESTAction/pod-sizing\\): stage pods: not sent \\(${reason}\\) — .*; continueOnError does not excuse it, because no request was sent$`))
     })
 
+    it('snowplow#1347: a dry-run WRITE whose item fails is red, and so is the write that depends on it', async () => {
+      // Before #1347 the dry run reported both writes StageNotExecuted, so the gate called them
+      // "not executed by design" and the draft passed with a path snowplow would refuse. Now the
+      // write reports what the real run would (InvalidPath) and its dependent reports Skipped,
+      // naming it: both are the draft's to fix, and neither may read as a by-design note.
+      const draft = example()
+      arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ name: 'scale', path: '/apis/apps/v1/namespaces/${ .ns }/deployments/x', verb: 'PATCH' })
+      arrAt(byKind(draft, 'RESTAction'), 'spec', 'api').push({ dependsOn: { name: 'scale' }, name: 'annotate', path: '/api/v1/namespaces/demo/configmaps/x', verb: 'PATCH' })
+      const { transport } = recorder(fakeSnowplow({
+        resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: { error: [{ message: 'write stage "scale" verb PATCH was not sent: a path segment rendered empty (#288)' }] } }, [
+          { name: 'scale', ok: false, reason: 'InvalidPath' },
+          { dependsOn: 'scale', name: 'annotate', ok: false, reason: 'Skipped' },
+        ]),
+      }))
+      const envelope = await run(draft, liveCtx(transport))
+      expect(envelope.failedStep).toBe('data')
+      expect(dataOf(envelope).problems).toEqual([
+        'widgets[3] (RESTAction/pod-sizing): stage scale: not sent (InvalidPath) — snowplow refused the rendered path (a segment rendered empty, or it is not a valid object path): fix the stage\'s path template, or the value it reads — write stage "scale" verb PATCH was not sent: a path segment rendered empty (#288)',
+        'widgets[3] (RESTAction/pod-sizing): stage annotate: not sent because the stage it depends on, scale, failed',
+      ])
+      expect(dataOf(envelope).notes.join('\n')).not.toMatch(/stage (scale|annotate)/)
+    })
+
     it.each([
       ['Timeout', 'widgets[3] (RESTAction/pod-sizing): notChecked: stage pods (Timeout): snowplow\'s page budget ran out before the stage answered — the gate could not judge it; call again'],
       ['NotSent', 'widgets[3] (RESTAction/pod-sizing): notChecked: stage pods (NotSent): snowplow planned it, did not send it, and recorded no cause — the gate could not judge it; call again'],
