@@ -169,6 +169,10 @@
 .apHead {
   align-items: center;
   border-bottom: 1px solid var(--border-color);
+
+  /* The header is the container its pill sizes against (.apLiveWord below), not the viewport: the
+     rail's own width is what the header has to fit in. */
+  container: agentiko-head / inline-size;
   display: flex;
   flex: none;
   gap: var(--spacing-sm);
@@ -245,10 +249,69 @@
   box-shadow: none;
 }
 
+/* The pill's word ("live", "streaming"). When the header is too narrow for the title, the whole
+   pill and every control at full size, the word leaves the screen and the pill keeps its dot. The
+   word is still in the DOM, visually hidden the way .apSrOnly is, so it stays the pill's
+   accessible name, and the pill's title says it on hover.
+
+   The widths are the header's content box: the rail minus its 1 px border and the header's 24 px
+   of padding. Measured with the title, the pill and all five 26 px controls (history, new thread,
+   speak-back, full width, collapse) and their 8 px gaps, the header needs 371 px while a turn
+   streams and 338 px at rest. Each threshold leaves about 10 px for font differences:
+     - streaming: the word goes below 380 px, a rail narrower than 405 px. At the default 384 px
+       rail the row did not fit, and the five controls were squeezed to 23.8 px;
+     - live: the word goes below 348 px, a rail narrower than 373 px. The default 384 px rail
+       keeps it.
+   Without the speak-back control (no speech synthesis in the browser) the row needs 34 px less,
+   and the word goes a little before it has to. visual/agentikoRailHeader.spec.ts measures both
+   sides. */
+@container agentiko-head (width < 380px) {
+  .apLive:not(.idle) .apLiveWord {
+    border: 0;
+    clip-path: inset(50%);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+  }
+}
+
+@container agentiko-head (width < 348px) {
+  .apLive.idle .apLiveWord {
+    border: 0;
+    clip-path: inset(50%);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+  }
+}
+
+/* AGENTIKO_RAIL_BADGE replaces the pill. Its text is the install's own, of any length, so the badge
+   takes what the header has left after the title and the controls and ellipsises the rest. The
+   full text is in its title. */
+.apBadge {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .apSpacer {
   flex: 1;
 }
 
+/* `flex: none`: an icon control never shrinks. In a header too narrow for everything, the flex
+   row used to squeeze the buttons (to 17 px at a 320 px rail while a turn streamed) and still
+   push the last one past the rail's edge. The pill gives up its word instead (.apLiveWord) and a
+   badge ellipsises (.apBadge), so the controls keep their size. */
 .apIc {
   align-items: center;
   background: transparent;
@@ -257,6 +320,7 @@
   color: var(--gray-color);
   cursor: pointer;
   display: flex;
+  flex: none;
   height: 26px;
   justify-content: center;
   padding: 0;

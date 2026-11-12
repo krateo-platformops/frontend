@@ -361,10 +361,12 @@ const AgentikoRail = () => {
           <span className={styles.apTitle}><AgentikoMark className={styles.apSpark} gradient size={20} />Agentiko</span>
           {/* AGENTIKO_RAIL_BADGE: the install's label for this rail replaces the live pill. */}
           {railBadge ? (
-            <Tag>{railBadge}</Tag>
+            <Tag className={styles.apBadge} title={railBadge}>{railBadge}</Tag>
           ) : (
-            <span className={`${styles.apLive} ${streaming ? '' : styles.idle}`}>
-              <span className={styles.apLiveDot} />{streaming ? 'streaming' : 'live'}
+            // On a narrow header the word is visually hidden and the pill shows its dot alone
+            // (.apLiveWord); the word stays its text, so the title repeats it for the eye.
+            <span className={`${styles.apLive} ${streaming ? '' : styles.idle}`} title={streaming ? 'streaming' : 'live'}>
+              <span className={styles.apLiveDot} /><span className={styles.apLiveWord}>{streaming ? 'streaming' : 'live'}</span>
             </span>
           )}
           <span className={styles.apSpacer} />
