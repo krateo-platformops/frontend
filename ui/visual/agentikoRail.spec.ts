@@ -40,9 +40,12 @@ test('an Ask Agentiko click opens the narrow rail unscrolled, with its resize ha
   const rail = await settledRail(page)
 
   // The precondition the defect needs, so this test cannot pass by the header happening to fit:
-  // streaming, at the narrowest width, the header is wider than the rail.
+  // streaming, at the narrowest width, the header with its padding is wider than the rail.
   const collapse = rail.locator('button[aria-label="Collapse rail"]')
-  const headerOverflow = await collapse.evaluate((button: HTMLElement) => button.offsetLeft + button.offsetWidth - (button.offsetParent as HTMLElement).clientWidth)
+  const headerOverflow = await collapse.evaluate((button: HTMLElement) => {
+    const head = button.offsetParent as HTMLElement
+    return button.offsetLeft + button.offsetWidth + parseFloat(getComputedStyle(head).paddingRight) - head.clientWidth
+  })
   expect(headerOverflow, 'the streaming header overflows the narrowest rail').toBeGreaterThan(0)
 
   // Nothing on the page is scrolled sideways: not the rail, and not an ancestor in its place.
