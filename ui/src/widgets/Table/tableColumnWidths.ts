@@ -229,7 +229,7 @@ export type RowActionsTokens = {
   cellPadding: number
   /** antd Button font size (`fontSize`). */
   buttonFontSize: number
-  /** A middle antd Button's inline padding plus its border, both sides. */
+  /** A small antd Button's inline padding plus its border, both sides. */
   buttonChrome: number
   /** A Button's icon (`fontSize`) plus the gap before its label (`marginXS`). */
   iconWidth: number

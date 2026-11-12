@@ -353,6 +353,54 @@ const login = () => (
 )
 const PAGE_FIXTURES = new Set(['login'])
 
+/**
+ * `?fixture=table-row-actions&display=menu|buttons|none&layout=normal|fit|virtual`: a Table with
+ * `rowActions` (#700) in the real theme — a max-content table, a `fitContent` one, or one large
+ * enough to virtualize. `display=none` is the same table without `rowActions`, the baseline its
+ * rows are measured against. tableRowActions.spec.ts measures the actions column against its controls at
+ * desktop and phone widths: the controls fit their cell, nothing overlaps, the header stays
+ * screen-reader-only.
+ */
+const rowActionsDisplayParam = params.get('display')
+const rowActionsDisplay = rowActionsDisplayParam === 'buttons' ? 'buttons' : 'menu'
+const rowActionsLayout = params.get('layout') ?? 'normal'
+const rowActionsRow = (index: number) => [
+  { kind: 'jsonSchemaType', stringValue: `payments-api-${String(index).padStart(3, '0')}-eu-west-1-blue`, type: 'string', valueKey: 'name' },
+  { kind: 'jsonSchemaType', stringValue: index % 2 ? 'team-checkout-production' : 'krateo-system', type: 'string', valueKey: 'ns' },
+  { color: index % 3 ? 'green' : 'red', kind: 'tag', stringValue: index % 3 ? 'Ready' : 'ReconcileError', valueKey: 'status' },
+  { kind: 'jsonSchemaType', numberValue: (index % 7) + 1, type: 'number', valueKey: 'replicas' },
+  { kind: 'jsonSchemaType', stringValue: 'Pod scheduled on gke-krateo-pool-1 after a 30 s backoff', type: 'string', valueKey: 'message' },
+]
+const tableRowActions = () => (
+  <Table
+    resourcesRefs={{ items: [] }}
+    uid='fixture-row-actions'
+    widget={{} as never}
+    widgetData={{
+      // eslint-disable-next-line no-template-curly-in-string -- a navigate action's `${valueKey}` path
+      actions: { navigate: [{ id: 'logs', path: '/compositions/${ns}/${name}/logs', type: 'navigate' }, { id: 'restart', path: '/compositions/${ns}/${name}/restart', type: 'navigate' }] },
+      allowedResources: [],
+      columns: [
+        { title: 'Name', valueKey: 'name' },
+        { title: 'Namespace', valueKey: 'ns' },
+        { title: 'Status', valueKey: 'status' },
+        { title: 'Replicas', valueKey: 'replicas' },
+        { title: 'Message', valueKey: 'message' },
+      ],
+      dataSource: Array.from({ length: rowActionsLayout === 'virtual' ? 120 : 3 }, (_, index) => rowActionsRow(index)),
+      fitContent: rowActionsLayout === 'fit',
+      rowActions: rowActionsDisplayParam === 'none'
+        ? undefined
+        : [
+          { actionId: 'logs', icon: 'fa-file-lines', label: 'Logs' },
+          { actionId: 'restart', danger: true, icon: 'fa-rotate-right', label: 'Restart' },
+        ],
+      rowActionsDisplay,
+      rowNavigateTo: '/compositions/{ns}/{name}',
+    } as unknown as TableWidgetData}
+  />
+)
+
 const fixtures: Record<string, () => React.ReactNode> = {
   'app-shell': appShell,
   architecture,
@@ -368,6 +416,7 @@ const fixtures: Record<string, () => React.ReactNode> = {
   'screen-header': () => screenHeader('Author a page and everything it needs, then publish the whole set as one change request.'),
   'screen-header-no-subtitle': () => screenHeader(),
   'table-cell-tooltip': () => <Table resourcesRefs={{ items: [] }} uid='fixture' widget={{} as never} widgetData={spansTable} />,
+  'table-row-actions': tableRowActions,
 }
 
 const missing = <pre data-testid='missing'>{`no renderable example ${doc} in ${folder}`}</pre>

@@ -45,6 +45,19 @@ const ROW_ACTIONS_KEY = '\u0000rowActions'
 
 type FireRowAction = (actionId: string, row: unknown) => Promise<void>
 
+/**
+ * The events that started inside a `rowActions` cell (#700). The cell marks them on the way up and
+ * the row ignores what is marked, so NOTHING in that cell reaches `rowNavigateTo`: not its padding,
+ * not the space between two buttons, not the kebab's dropdown. The dropdown is the reason this is a
+ * mark and not a DOM `contains` check: antd renders it in a portal under <body>, outside the row's
+ * DOM, but React still bubbles its events through the cell to the row.
+ *
+ * Marked rather than stopped: a native stopPropagation at the cell would also hide the event from
+ * the window listeners antd's Dropdown closes itself with (a click elsewhere, Escape).
+ */
+const fromRowActions = new WeakSet<Event>()
+const markFromRowActions = (event: { nativeEvent: Event }) => { fromRowActions.add(event.nativeEvent) }
+
 const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRefs, serverPagination, uid, widgetData }: WidgetProps<TableWidgetData> & { fireRowAction?: FireRowAction }) => {
   const { bordered, columns, dataSource, fitContent, pagination, prefix, rowActions, rowActionsDisplay, rowNavigateTo, size } = widgetData
   const data = dataSource ?? []
@@ -158,8 +171,8 @@ const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRef
   const actionControls = fireRowAction && rowActions?.length ? rowActions : undefined
   const actionsWidth = actionControls
     ? rowActionsColumnWidth(actionControls, rowActionsDisplay, {
-      // A middle antd Button: paddingInline is paddingContentHorizontal less its border, per side.
-      buttonChrome: 2 * token.paddingContentHorizontal,
+      // A small antd Button: its paddingInlineSM is a fixed `8 - lineWidth` per side, plus the border.
+      buttonChrome: 2 * 8,
       buttonFontSize: token.fontSize,
       cellPadding,
       iconWidth: token.fontSize + token.marginXS,
@@ -200,12 +213,26 @@ const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRef
   const actionsColumn = actionControls && fireRowAction
     ? [{
       align: 'right' as const,
+      // Pinned to the trailing edge (antd's sticky column), so the verbs stay in view when the table
+      // is wider than its box. Measured in a browser (visual/tableRowActions.spec.ts): at phone width
+      // a virtual table with two buttons put them 28px past its edge, where its hidden scrollbar
+      // gave no sign there was anything to scroll to; max-content and fitContent tables put them
+      // off-screen behind a horizontal scroll.
+      fixed: 'right' as const,
       key: `${uid}-col-row-actions`,
+      // The whole cell is outside the row's interaction (fromRowActions), and does not look like part
+      // of it either: no pointer cursor over its padding.
+      onCell: () => ({ className: styles.actionsCell, onClick: markFromRowActions, onKeyDown: markFromRowActions }),
       render: (_: unknown, row: TableRow) => (
         <RowActionControls
           display={rowActionsDisplay}
           onFire={(actionId) => { void fireRowAction(actionId, tableRowValues(row)) }}
           rowActions={actionControls}
+          // Small, so a row of buttons is no taller than a row of text (controlHeightSM is within
+          // the cell's line). Measured in a browser: middle buttons made every row 49px against
+          // 37.7px without them, and a virtual table — whose row estimate is a text row — opened
+          // scrolled, its first row 12px under the header.
+          size='small'
         />
       ),
       // A header cell with no name reads as an unlabelled column; the label is for assistive tech,
@@ -401,11 +428,16 @@ const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRef
           // announced as an actionable control (role=button), and activated by Enter/Space
           // (matching native button semantics). Previously mouse-click only.
           return {
-            onClick: go,
+            onClick: (event: React.MouseEvent<HTMLElement>) => {
+              // A click that started in the rowActions cell is not the row's (fromRowActions).
+              if (fromRowActions.has(event.nativeEvent)) { return }
+              go()
+            },
             onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
               // Only a key aimed at the ROW activates it, as List's rows do. A focusable child — a
-              // cell carrying a `tooltip`, a control in a `widget` cell — keeps its own keys.
-              if (event.target !== event.currentTarget) { return }
+              // cell carrying a `tooltip`, a control in a `widget` cell — keeps its own keys. A key
+              // from the rowActions cell is never the row's either, wherever it is aimed.
+              if (event.target !== event.currentTarget || fromRowActions.has(event.nativeEvent)) { return }
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault()
                 go()

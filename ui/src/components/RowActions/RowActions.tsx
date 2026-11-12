@@ -66,12 +66,15 @@ export const useFireRowAction = ({ actions, deniedRefIds, noun, resourcesRefs, w
  * buttons, not one slot per button, so a host that separates its slots (antd List.Item `actions`)
  * draws no divider between two verbs.
  *
- * Renders nothing for an empty list, so a host can place it unconditionally.
+ * Renders nothing for an empty list, so a host can place it unconditionally. `size` is the buttons'
+ * (the kebab is always small): List's rows take `middle`; a Table row is one line of text, and a
+ * taller control would make it taller (see Table.tsx).
  */
-export const RowActionControls = ({ display, onFire, rowActions }: {
+export const RowActionControls = ({ display, onFire, rowActions, size = 'middle' }: {
   display?: RowActionsDisplay
   onFire: (actionId: string) => void
   rowActions: RowAction[]
+  size?: 'small' | 'middle'
 }) => {
   if (!rowActions.length) { return null }
 
@@ -87,7 +90,7 @@ export const RowActionControls = ({ display, onFire, rowActions }: {
             // the row's own onKeyDown would navigate and preventDefault the button's click away.
             onClick={(event) => { event.stopPropagation(); onFire(rowAction.actionId) }}
             onKeyDown={(event) => { event.stopPropagation() }}
-            size='middle'
+            size={size}
             type={actionIndex === 0 ? 'primary' : 'default'}
           >
             {rowAction.label}

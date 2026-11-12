@@ -137,10 +137,10 @@ describe('Table rowActions — rowActionsDisplay: buttons', () => {
     fireEvent.click(getByText('beta'))
     expect(navigateSpy).toHaveBeenCalledWith('/compositions/team-b/beta')
 
-    // The actions cell itself, outside its buttons, is still the row.
+    // Every data cell is still the row, the one beside the actions included.
     navigateSpy.mockClear()
-    const actionsCell = rows(container)[0].lastElementChild as HTMLElement
-    fireEvent.click(actionsCell)
+    const statusCell = rows(container)[0].children[1] as HTMLElement
+    fireEvent.click(statusCell)
     expect(navigateSpy).toHaveBeenCalledWith('/compositions/team-a/alpha')
     expect(handleActionSpy).not.toHaveBeenCalled()
   })
@@ -185,6 +185,8 @@ describe('Table rowActions — rowActionsDisplay: buttons', () => {
     expect(buttons[0].className).toContain('ant-btn-primary')
     expect(buttons[1].className).not.toContain('ant-btn-primary')
     expect(buttons[1].className).toContain('ant-btn-dangerous')
+    // Small in a Table, so a row of buttons is no taller than a row of text (List keeps middle).
+    expect(buttons.every((button) => button.className.includes('ant-btn-sm'))).toBe(true)
   })
 
   it('the actions column is a trailing column, its header named for assistive tech only', () => {
@@ -200,9 +202,9 @@ describe('Table rowActions — rowActionsDisplay: buttons', () => {
   it('a fitContent table gives the actions column a width, so its fixed layout cannot squeeze it to nothing', () => {
     const { container } = renderTable({ fitContent: true, rowActionsDisplay: 'buttons' })
     const cols = [...container.querySelectorAll<HTMLElement>('colgroup col')]
-    // Logs (4 glyphs + icon) and Restart (7 glyphs) at 14px, 0.6em, with a middle Button's chrome,
+    // Logs (4 glyphs + icon) and Restart (7 glyphs) at 14px, 0.6em, with a small Button's chrome,
     // the Space gap and the cell padding — rowActionsColumnWidth over antd's default tokens.
-    expect(cols.at(-1)?.style.width).toBe(`${Math.ceil(4 * 14 * 0.6) + 32 + 14 + 8 + Math.ceil(7 * 14 * 0.6) + 32 + 8 + 16}px`)
+    expect(cols.at(-1)?.style.width).toBe(`${Math.ceil(4 * 14 * 0.6) + 16 + 14 + 8 + Math.ceil(7 * 14 * 0.6) + 16 + 8 + 16}px`)
   })
 
   it('works on a table without rowNavigateTo: the action fires, nothing navigates', () => {
@@ -245,6 +247,80 @@ describe('Table rowActions — rowActionsDisplay: menu (and absent)', () => {
 
     expect(navigateSpy).not.toHaveBeenCalled()
     expect(notPrevented).toBe(true)
+  })
+})
+
+/**
+ * The issue's first requirement: a click registers only on the control, never on the rest of the
+ * row. The whole actions cell is therefore outside the row's interaction — its padding, the space
+ * around and between the controls, and the kebab's dropdown, which antd renders in a portal under
+ * <body> but which React still bubbles through the cell to the row.
+ */
+describe('Table rowActions — the actions cell is a non-navigating region', () => {
+  const actionsCellOf = (row: HTMLElement) => row.lastElementChild as HTMLElement
+
+  it.each([undefined, 'buttons' as const])('a click on the actions cell\'s padding does not navigate (%s)', (rowActionsDisplay) => {
+    const { container } = renderTable(rowActionsDisplay ? { rowActionsDisplay } : {})
+    fireEvent.click(actionsCellOf(rows(container)[0]))
+
+    expect(navigateSpy).not.toHaveBeenCalled()
+    expect(handleActionSpy).not.toHaveBeenCalled()
+  })
+
+  it('a click on the space between the buttons does not navigate', () => {
+    const { container } = renderTable({ rowActionsDisplay: 'buttons' })
+    fireEvent.click(actionsCellOf(rows(container)[0]).querySelector('.ant-space') as HTMLElement)
+
+    expect(navigateSpy).not.toHaveBeenCalled()
+    expect(handleActionSpy).not.toHaveBeenCalled()
+  })
+
+  it('a click on the kebab\'s own padding and on its icon does not navigate', () => {
+    const { container } = renderTable()
+    const [kebab] = buttonsIn(rows(container)[0])
+    fireEvent.click(kebab)
+    fireEvent.click(kebab.querySelector('.ant-btn-icon') as HTMLElement)
+
+    expect(navigateSpy).not.toHaveBeenCalled()
+  })
+
+  it('a click inside the open dropdown — its padding, its menu — does not navigate', async () => {
+    const { container, findByText } = renderTable()
+    fireEvent.click(buttonsIn(rows(container)[1])[0])
+    const item = await findByText('Restart')
+    const dropdown = item.closest('.ant-dropdown') as HTMLElement
+    const menu = item.closest('.ant-dropdown-menu') as HTMLElement
+    expect(dropdown).toBeTruthy()
+    // Portalled out of the table: a DOM containment check alone could not catch it.
+    expect(container.contains(dropdown)).toBe(false)
+
+    fireEvent.click(dropdown)
+    fireEvent.click(menu)
+    expect(navigateSpy).not.toHaveBeenCalled()
+    expect(handleActionSpy).not.toHaveBeenCalled()
+  })
+
+  it.each(['Enter', ' '])('%j on a focused action — a button, the kebab, a menu item — does not navigate', async (key) => {
+    const buttons = renderTable({ rowActionsDisplay: 'buttons' })
+    const logs = buttonNamed(rows(buttons.container)[0], 'Logs')
+    logs.focus()
+    expect(fireEvent.keyDown(logs, { key })).toBe(true)
+    cleanup()
+
+    const { container, findByText } = renderTable()
+    const [kebab] = buttonsIn(rows(container)[0])
+    kebab.focus()
+    expect(fireEvent.keyDown(kebab, { key })).toBe(true)
+    fireEvent.click(kebab)
+    const item = (await findByText('Logs')).closest('li') as HTMLElement
+    fireEvent.keyDown(item, { key })
+
+    expect(navigateSpy).not.toHaveBeenCalled()
+  })
+
+  it('the cell does not look clickable: it drops the row\'s pointer cursor', () => {
+    const { container } = renderTable()
+    expect(actionsCellOf(rows(container)[0]).className).toContain('actionsCell')
   })
 })
 
