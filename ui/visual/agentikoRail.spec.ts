@@ -7,11 +7,14 @@
  * edge scrolled out with the content, and the rail showed its contents cut on the left and an
  * empty strip on the right.
  *
+ * The scroll happens while the rail opens, whatever the open rail's header does afterwards, so
+ * every frame of the opening is sampled, not only the settled rail.
+ *
  * Measured in a real browser, because the defect is layout and scrolling, which jsdom does not do.
  */
 import { expect, test, type Page } from '@playwright/test'
 
-/** The narrowest rail (railWidth.ts RAIL_MIN_WIDTH), where the streaming header overflows. */
+/** The narrowest rail (railWidth.ts RAIL_MIN_WIDTH). */
 const RAIL_WIDTH = 320
 
 const serveAgent = async (page: Page) => {
@@ -35,18 +38,36 @@ test('an Ask Agentiko click opens the narrow rail unscrolled, with its resize ha
   await page.goto('/visual/index.html?fixture=agentiko-rail&mode=dark')
   await page.evaluate(() => document.fonts.ready)
 
+  // Sample every frame from the click until the rail has settled: how far the rail is scrolled
+  // sideways, and whether its header is wider than the rail (the overflow a scroll needs).
+  await page.evaluate(() => {
+    const record = { headerOverflowed: false, maxScrollLeft: 0, stop: false }
+    Object.assign(window, { railFrames: record })
+    const sample = () => {
+      const rail = document.querySelector('aside')
+      const collapse = rail?.querySelector<HTMLElement>('button[aria-label="Collapse rail"]')
+      const head = collapse?.offsetParent as HTMLElement | null | undefined
+      if (rail && collapse && head) {
+        record.maxScrollLeft = Math.max(record.maxScrollLeft, rail.scrollLeft)
+        record.headerOverflowed ||= collapse.offsetLeft + collapse.offsetWidth + parseFloat(getComputedStyle(head).paddingRight) > head.clientWidth
+      }
+      if (!record.stop) { requestAnimationFrame(sample) }
+    }
+    requestAnimationFrame(sample)
+  })
   await page.getByRole('link', { name: 'Ask Agentiko →' }).click()
   await expect(page.getByText('streaming', { exact: true })).toBeVisible()
   const rail = await settledRail(page)
-
-  // The precondition the defect needs, so this test cannot pass by the header happening to fit:
-  // streaming, at the narrowest width, the header with its padding is wider than the rail.
-  const collapse = rail.locator('button[aria-label="Collapse rail"]')
-  const headerOverflow = await collapse.evaluate((button: HTMLElement) => {
-    const head = button.offsetParent as HTMLElement
-    return button.offsetLeft + button.offsetWidth + parseFloat(getComputedStyle(head).paddingRight) - head.clientWidth
+  const frames = await page.evaluate(() => {
+    const record = (window as unknown as { railFrames: { headerOverflowed: boolean; maxScrollLeft: number; stop: boolean } }).railFrames
+    record.stop = true
+    return record
   })
-  expect(headerOverflow, 'the streaming header overflows the narrowest rail').toBeGreaterThan(0)
+
+  // The precondition the defect needs, so this test cannot pass by nothing ever overflowing: while
+  // the rail opened, its header was wider than the rail.
+  expect(frames.headerOverflowed, 'the header overflowed the rail while it opened').toBe(true)
+  expect(frames.maxScrollLeft, 'the rail never scrolled sideways while it opened').toBe(0)
 
   // Nothing on the page is scrolled sideways: not the rail, and not an ancestor in its place.
   const scrolled = await page.evaluate(() => Array.from(document.querySelectorAll('*')).filter((element) => element.scrollLeft !== 0).map((element) => element.tagName))
