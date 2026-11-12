@@ -42,7 +42,7 @@ import { loadAll } from 'js-yaml'
 import ReactDOM from 'react-dom/client'
 import { Link, MemoryRouter } from 'react-router'
 
-import { AgentikoProvider, AgentikoShell } from '../src/components/Agentiko'
+import { AgentikoProvider, AgentikoShell, AgentikoToggle } from '../src/components/Agentiko'
 import AgentikoBrandScope from '../src/components/Agentiko/AgentikoBrandScope'
 import DependencyGraph from '../src/components/DependencyGraph'
 import DismissButton from '../src/components/DismissButton'
@@ -354,17 +354,19 @@ const login = () => (
 )
 /**
  * `?fixture=agentiko-rail`: the real Agentiko provider and shell around a page with one
- * "Ask Agentiko →" link, which navigates with `?ask=` exactly as the widget buttons do. The agent's
+ * "Ask Agentiko →" link, which navigates with `?ask=` exactly as the widget buttons do, and the
+ * header's Agentiko toggle, which opens the rail with no turn in flight. The agent's
  * endpoint is served by agentikoRail.spec.ts (the probe answers; a turn stays in flight), so the
- * rail opens and streams as it does on a live install.
+ * rail opens and streams as it does on a live install. `&badge=…` sets AGENTIKO_RAIL_BADGE.
  */
-const agentikoConfig = { ...config, api: { ...config.api, AGENTIKO_API_BASE_URL: '/agentiko-a2a/' } } as Config
+const agentikoConfig = { ...config, api: { ...config.api, AGENTIKO_API_BASE_URL: '/agentiko-a2a/', AGENTIKO_RAIL_BADGE: params.get('badge') ?? undefined } } as Config
 const agentikoRail = () => (
   <ConfigContext.Provider value={{ config: agentikoConfig, isLoading: false, refetch: (() => Promise.resolve(undefined)) as never }}>
     <AgentikoProvider>
       <AgentikoShell>
         <div style={{ padding: 'var(--spacing-md)' }}>
           <Link to='?ask=Investigate%20the%20firing%20alert'>Ask Agentiko →</Link>
+          <AgentikoToggle />
         </div>
       </AgentikoShell>
     </AgentikoProvider>
