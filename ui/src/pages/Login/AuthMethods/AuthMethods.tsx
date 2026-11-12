@@ -31,22 +31,27 @@ type AuthMethodsProps = {
  */
 const isSameStrategy = (one: AuthModeType, other: AuthModeType): boolean => one.kind === other.kind && one.name === other.name
 
+const isCredentialKind = (kind: string): kind is FormType => kind === 'basic' || kind === 'ldap'
+
 const AuthMethods = ({ alert, isLoading, methods, onCredentialSubmit }: AuthMethodsProps) => {
+  // The first credential form takes the cursor (#652); a social method before it has no field to fill.
+  const firstCredentialIndex = methods.findIndex(({ kind }) => isCredentialKind(kind))
   return (
     <>
       {methods.map((method, index) => {
         const { kind } = method
 
-        if (kind === 'basic' || kind === 'ldap') {
+        if (isCredentialKind(kind)) {
           // A single "or" divider sits between the credential block and the
           // social/OIDC methods that follow — i.e. only when the NEXT method is a social one,
           // never between two stacked credential forms (basic + ldap).
           const next = methods[index + 1]
-          const showDivider = !!next && next.kind !== 'basic' && next.kind !== 'ldap'
+          const showDivider = !!next && !isCredentialKind(next.kind)
           return (
             <div key={`login_${index}`}>
               <LoginForm
                 alert={alert && isSameStrategy(alert.method, method) ? alert : undefined}
+                autoFocus={index === firstCredentialIndex}
                 isLoading={isLoading}
                 method={method}
                 onSubmit={(values) => { onCredentialSubmit(values, kind, method) }}
