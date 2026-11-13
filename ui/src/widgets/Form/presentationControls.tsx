@@ -1,7 +1,7 @@
 import { Input, Select } from 'antd'
 import type { JSONSchema4 } from 'json-schema'
 
-import { inputOf, textInputProps } from './fieldInputs'
+import { inputOf, textInputProps, typingProps } from './fieldInputs'
 import { TEXTAREA_KEY } from './fieldKeys'
 import { labelledOptionsOf } from './labelledOptions'
 
@@ -27,17 +27,18 @@ export const textInputFor = (node: JSONSchema4): React.ReactNode => <Input {...t
  *   Select showing the titles and holding the consts — the same Select an `enum` gets, with labels.
  * - `textareas`: a string drawn as a multi-line TextArea, `rows` high (3 by default).
  *
- * Either takes its `fieldInputs` placeholder (fieldInputs.ts); the TextArea its autocomplete too.
+ * Either takes its `fieldInputs` placeholder (fieldInputs.ts); the TextArea its autocomplete,
+ * spellCheck and autoCapitalize too.
  */
 export const presentationControlFor = (node: JSONSchema4): React.ReactNode => {
-  const { autoComplete, placeholder } = inputOf(node)
+  const { placeholder } = inputOf(node)
   const labelled = labelledOptionsOf(node)
   if (labelled) {
     return <Select allowClear optionFilterProp='label' options={labelled} placeholder={selectPlaceholderFor(node)} showSearch style={{ width: '100%' }} />
   }
   const textarea = textareaOf(node)
   if (textarea) {
-    return <Input.TextArea rows={textarea.rows ?? DEFAULT_TEXTAREA_ROWS} {...(autoComplete ? { autoComplete } : {})} {...(placeholder ? { placeholder } : {})} />
+    return <Input.TextArea rows={textarea.rows ?? DEFAULT_TEXTAREA_ROWS} {...typingProps(node)} {...(placeholder ? { placeholder } : {})} />
   }
   return undefined
 }

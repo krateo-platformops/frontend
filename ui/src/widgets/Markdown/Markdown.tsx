@@ -5,6 +5,7 @@ import { isValidElement, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { CopyToClipboard } from 'react-copy-to-clipboard-ts'
 import { default as ReactMarkdown } from 'react-markdown'
+import { Link, useInRouterContext } from 'react-router'
 
 import type { WidgetProps } from '../../types/Widget'
 
@@ -85,8 +86,24 @@ const CodeBlock = ({ children }: { children?: ReactNode }) => {
   )
 }
 
+/**
+ * A same-origin PATH: one leading slash, not followed by another slash or a backslash (`//host` and
+ * `/\host` are other origins to a browser).
+ */
+const isAppPath = (href: string | undefined): href is string => !!href && /^\/(?![/\\])/.test(href)
+
+/**
+ * A link to a page of this app (`/login`, `/compositions/…`): same tab, through the app's router,
+ * so the page changes without a reload — as every link in the portal's own chrome does. It used to
+ * open in a new tab like an external link, which split a public page's "Sign in" into a second tab.
+ * Rendered outside a router (a bare test, a preview), it is a plain same-tab link.
+ */
+const AppPathLink = ({ children, href }: { children: ReactNode; href: string }) => (
+  useInRouterContext() ? <Link to={href}>{children}</Link> : <a href={href}>{children}</a>
+)
+
 const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
-  const { align, allowCopy, allowDownload, downloadFileExtension = 'txt', markdown } = widgetData
+  const { align, allowCopy, allowDownload, downloadFileExtension = 'txt', markdown, tone } = widgetData
 
   const [isCopied, setIsCopied] = useState(false)
 
@@ -104,7 +121,8 @@ const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
 
   return (
     // `align`, opt-in: absent, the text keeps the alignment it inherits (no inline style at all).
-    <div className={styles.markdown} style={align ? { textAlign: align } : undefined}>
+    // `tone: secondary`: the secondary text colour at the small size, as a muted line under a card.
+    <div className={tone === 'secondary' ? `${styles.markdown} ${styles.secondary}` : styles.markdown} style={align ? { textAlign: align } : undefined}>
       {hasActions && (
         <div className={styles.actions}>
           {allowCopy && (
@@ -136,7 +154,8 @@ const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
         components={{
           // In-page anchor links `[text](#id)` (e.g. a summary table-of-contents, issue #69) smooth-
           // scroll to the element with that id — intercepted so react-router doesn't treat the hash as
-          // a route and so we get smooth behaviour + a synced URL hash. External/normal links open safely.
+          // a route and so we get smooth behaviour + a synced URL hash. A path of this app goes through
+          // the router in the same tab; any other link opens in a new tab, rel noopener noreferrer.
           a: ({ children, href }) => {
             if (href?.startsWith('#')) {
               return (
@@ -159,6 +178,11 @@ const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
                 </a>
               )
             }
+            // A page of this app: same tab, through the router (AppPathLink).
+            if (isAppPath(href)) {
+              return <AppPathLink href={href}>{children}</AppPathLink>
+            }
+            // Anything else — another origin, `mailto:` — opens in a new tab, as before.
             return <a href={href} rel='noopener noreferrer' target='_blank'>{children}</a>
           },
           // Fenced code blocks WRAP instead of scrolling horizontally: in the narrow content

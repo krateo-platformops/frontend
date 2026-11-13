@@ -20,6 +20,13 @@
   }
 }
 
+/* `tone: secondary`: the secondary text colour at the small size — the sign-in card's muted line
+   (pages/Login .requestAccount), on the same tokens. Links keep the link colour. */
+.markdown.secondary {
+  color: var(--gray-color);
+  font-size: var(--krateo-text-body-sm);
+}
+
 .markdown hr {
   border: none;
   border-top: 1px solid var(--line-color);

@@ -1079,7 +1079,7 @@
             },
             "fieldInputs": {
               "type": "array",
-              "description": "a field's input: its placeholder, its HTML input type and its autocomplete token. `placeholder` applies to a text Input, a TextArea and a Select (in place of \"Select…\"); `type` and `autoComplete` to a text Input (`autoComplete` to a TextArea too). An entry naming a group, a list, a boolean, a number or a secret field is ignored",
+              "description": "a field's input: its placeholder, its HTML input type, its autocomplete token, and whether the browser spell-checks and capitalises it. `placeholder` applies to a text Input, a TextArea and a Select (in place of \"Select…\"); `type` to a text Input; `autoComplete`, `spellCheck` and `autoCapitalize` to a text Input and a TextArea. An entry naming a group, a list, a boolean, a number or a secret field is ignored",
               "items": {
                 "type": "object",
                 "additionalProperties": false,
@@ -1087,6 +1087,16 @@
                   "name"
                 ],
                 "properties": {
+                  "autoCapitalize": {
+                    "type": "string",
+                    "description": "the input's `autocapitalize` attribute: how a phone's keyboard capitalises what is typed. `none` for a username or a code",
+                    "enum": [
+                      "none",
+                      "sentences",
+                      "words",
+                      "characters"
+                    ]
+                  },
                   "autoComplete": {
                     "type": "string",
                     "description": "the input's `autocomplete` attribute: one autofill field name of the HTML standard (https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill), or `on` / `off`. Credential and payment tokens are not offered: a secret field has its own",
@@ -1139,6 +1149,10 @@
                   "placeholder": {
                     "type": "string",
                     "description": "the text the empty control shows"
+                  },
+                  "spellCheck": {
+                    "type": "boolean",
+                    "description": "the input's `spellcheck` attribute. `false` for a username, a code or a name the browser would mark as misspelt"
                   },
                   "type": {
                     "type": "string",

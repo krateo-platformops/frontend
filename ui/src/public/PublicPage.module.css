@@ -1,4 +1,5 @@
-/* A public page has no shell chrome: the page widget, with the gutter the shell's content has. */
+/* A public page has no shell chrome: the page widget, with the gutter the shell's content has
+   (none on a phone, below). */
 .page {
   box-sizing: border-box;
   min-height: 100vh;
@@ -9,5 +10,15 @@
 @media (width <= 575px) {
   .page {
     padding: var(--spacing-md);
+  }
+}
+
+/* Phone (480px and under, the sign-in page's breakpoint): no page gutter, as /login has none there.
+   A public page is the sign-in page's kind of page — one column, outside the shell — so a
+   centred, capped Card (a sign-in style frame) runs edge to edge and its band is the top of the
+   screen. A widget keeps its own inner padding. */
+@media (width <= 480px) {
+  .page {
+    padding: 0;
   }
 }

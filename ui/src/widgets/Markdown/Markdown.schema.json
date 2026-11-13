@@ -45,6 +45,13 @@
             "markdown": {
               "description": "markdown string to be displayed",
               "type": "string"
+            },
+            "tone": {
+              "type": "string",
+              "description": "`secondary`: the text in the secondary text colour at the small size, as a muted line (links keep the link colour). Absent: the body text colour and size",
+              "enum": [
+                "secondary"
+              ]
             }
           },
           "additionalProperties": false,

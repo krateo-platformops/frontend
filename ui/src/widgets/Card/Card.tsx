@@ -3,6 +3,7 @@ import type { IconName, IconPrefix, IconProp } from '@fortawesome/fontawesome-sv
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Card as AntdCard, Badge, Button, Tag, Tooltip } from 'antd'
 import useApp from 'antd/es/app/useApp'
+import type { CSSProperties } from 'react'
 
 import { BrandBandFromConfig, BrandFrameContext } from '../../components/BrandFrame'
 import RefChild from '../../components/RefChild'
@@ -69,8 +70,10 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
   const coverWidget = coverEndpoint ? <WidgetRenderer widgetEndpoint={coverEndpoint} /> : undefined
   const coverNode = brand ? <><BrandBandFromConfig />{coverWidget}</> : coverWidget
   // The frame options, all opt-in: absent, the card's class, body class and style are as before.
-  const frameClasses = [brand ? styles.branded : '', centered ? styles.centered : ''].filter(Boolean).join(' ')
-  const frameStyle = typeof maxWidth === 'number' && maxWidth > 0 ? { maxWidth, width: '100%' } : undefined
+  // `maxWidth` travels as a custom property so the phone rule (Card.module.css) can lift the cap.
+  const capped = typeof maxWidth === 'number' && maxWidth > 0
+  const frameClasses = [brand ? styles.branded : '', centered ? styles.centered : '', capped ? styles.capped : ''].filter(Boolean).join(' ')
+  const frameStyle = capped ? { '--card-max-width': `${maxWidth}px` } as CSSProperties : undefined
   const anchorStyle = anchorId ? { scrollMarginTop: 80 } : undefined
   const cardStyle = frameStyle || anchorStyle ? { ...anchorStyle, ...frameStyle } : undefined
   // #83 §0.7: a real header-action slot — a nested widget (e.g. a Button with its own action) in the

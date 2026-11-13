@@ -12,10 +12,12 @@ import { INPUT_KEY } from './fieldKeys'
  *   - { name: email, type: email, autoComplete: email, placeholder: jane@example.com }
  *   - { name: phone, type: tel, autoComplete: tel, placeholder: "+39 …" }
  *   - { name: country, placeholder: Search for your country }
+ *   - { name: username, autoComplete: username, spellCheck: false, autoCapitalize: none }
  * ```
  *
  * `placeholder` applies to a text Input, a TextArea and an enum or labelled-options Select (in
- * place of "Select…"); `type` to a text Input; `autoComplete` to a text Input and a TextArea. An
+ * place of "Select…"); `type` to a text Input; `autoComplete`, `spellCheck` and `autoCapitalize`
+ * to a text Input and a TextArea. An
  * entry naming a group, a list, a boolean, a number or a secret field is skipped (fieldConfig.ts):
  * a secret field is always `new-password`, so no CR can ask a browser to fill a stored credential.
  */
@@ -45,9 +47,15 @@ export const AUTOCOMPLETE_TOKENS = [
   'tel', 'tel-country-code', 'tel-national', 'tel-area-code', 'tel-local', 'tel-extension',
 ] as const
 
+/** The `autocapitalize` values a field may take (HTML's, without the `on`/`off` aliases). */
+export const AUTOCAPITALIZE_VALUES = ['none', 'sentences', 'words', 'characters'] as const
+export type AutoCapitalize = typeof AUTOCAPITALIZE_VALUES[number]
+
 export interface FieldInput {
+  autoCapitalize?: AutoCapitalize
   autoComplete?: string
   placeholder?: string
+  spellCheck?: boolean
   type?: InputType
 }
 
@@ -64,6 +72,8 @@ export const fieldInputOf = (entry: Record<string, unknown>): FieldInput | undef
   if (typeof entry.placeholder === 'string' && entry.placeholder.trim()) { input.placeholder = entry.placeholder }
   if (typeof entry.type === 'string' && (INPUT_TYPES as readonly string[]).includes(entry.type)) { input.type = entry.type as InputType }
   if (typeof entry.autoComplete === 'string' && (AUTOCOMPLETE_TOKENS as readonly string[]).includes(entry.autoComplete)) { input.autoComplete = entry.autoComplete }
+  if (typeof entry.spellCheck === 'boolean') { input.spellCheck = entry.spellCheck }
+  if (typeof entry.autoCapitalize === 'string' && (AUTOCAPITALIZE_VALUES as readonly string[]).includes(entry.autoCapitalize)) { input.autoCapitalize = entry.autoCapitalize as AutoCapitalize }
   return Object.keys(input).length ? input : undefined
 }
 
@@ -73,11 +83,21 @@ export const inputOf = (node: JSONSchema4): FieldInput => {
   return isRecord(raw) ? raw : {}
 }
 
+/** The typing props a text Input and a TextArea share: only the ones set (see `textInputProps`). */
+export const typingProps = (node: JSONSchema4): Omit<FieldInput, 'placeholder' | 'type'> => {
+  const { autoCapitalize, autoComplete, spellCheck } = inputOf(node)
+  return {
+    ...(autoCapitalize ? { autoCapitalize } : {}),
+    ...(autoComplete ? { autoComplete } : {}),
+    ...(spellCheck !== undefined ? { spellCheck } : {}),
+  }
+}
+
 /** The props a text Input takes from its node: only the ones set, so an Input without them is as before. */
 export const textInputProps = (node: JSONSchema4): FieldInput => {
-  const { autoComplete, placeholder, type } = inputOf(node)
+  const { placeholder, type } = inputOf(node)
   return {
-    ...(autoComplete ? { autoComplete } : {}),
+    ...typingProps(node),
     ...(placeholder ? { placeholder } : {}),
     ...(type ? { type } : {}),
   }

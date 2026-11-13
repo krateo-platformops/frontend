@@ -724,9 +724,13 @@ export interface Form {
         text: string
       }[]
       /**
-       * a field's input: its placeholder, its HTML input type and its autocomplete token. `placeholder` applies to a text Input, a TextArea and a Select (in place of "Select…"); `type` and `autoComplete` to a text Input (`autoComplete` to a TextArea too). An entry naming a group, a list, a boolean, a number or a secret field is ignored
+       * a field's input: its placeholder, its HTML input type, its autocomplete token, and whether the browser spell-checks and capitalises it. `placeholder` applies to a text Input, a TextArea and a Select (in place of "Select…"); `type` to a text Input; `autoComplete`, `spellCheck` and `autoCapitalize` to a text Input and a TextArea. An entry naming a group, a list, a boolean, a number or a secret field is ignored
        */
       fieldInputs?: {
+        /**
+         * the input's `autocapitalize` attribute: how a phone's keyboard capitalises what is typed. `none` for a username or a code
+         */
+        autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters'
         /**
          * the input's `autocomplete` attribute: one autofill field name of the HTML standard (https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill), or `on` / `off`. Credential and payment tokens are not offered: a secret field has its own
          */
@@ -778,6 +782,10 @@ export interface Form {
          * the text the empty control shows
          */
         placeholder?: string
+        /**
+         * the input's `spellcheck` attribute. `false` for a username, a code or a name the browser would mark as misspelt
+         */
+        spellCheck?: boolean
         /**
          * the text Input's HTML type: the keyboard a phone shows and what the browser offers to fill. The form's own rules still validate the value: with a `type`, the form turns off the browser's constraint validation (`novalidate`), so its errors show under the field like every other
          */

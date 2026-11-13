@@ -261,6 +261,13 @@
   margin-inline: auto;
 }
 
+/* `maxWidth`: the card fills its container up to the width the CR gives (--card-max-width, set
+   inline from it). */
+.capped {
+  max-width: var(--card-max-width);
+  width: 100%;
+}
+
 /* `brand`: the sign-in card's frame (pages/Login .card and .body), on the same tokens — the
    larger radius, the small elevation, and the body's padding under the band. Two and three
    classes, to outrank antd's own `:where(…).ant-card` radius and body padding. */
@@ -274,8 +281,18 @@
   padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl);
 }
 
-/* Phone: the narrower gutter the sign-in card has there. */
+/* Phone (the sign-in page's breakpoint): a centred, capped card is a column of the page, so it
+   fills the width edge to edge, with no border, radius or shadow, as the sign-in card does there.
+   The page around it drops its own gutter at the same width (public/PublicPage.module.css). A
+   branded card's body takes the narrower gutter the sign-in card has. */
 @media (width <= 480px) {
+  .panel.centered.capped {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    max-width: none;
+  }
+
   .panel.branded .brandBody {
     padding: var(--spacing-lg);
   }
