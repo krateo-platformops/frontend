@@ -1,0 +1,3 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`a Markdown without align > a line with a link, as before 1`] = `"<div class="_markdown_3a2c1b"><p>Already have an account? <a href="/login">Sign in</a></p></div>"`;

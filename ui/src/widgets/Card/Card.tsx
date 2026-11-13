@@ -3,7 +3,9 @@ import type { IconName, IconPrefix, IconProp } from '@fortawesome/fontawesome-sv
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Card as AntdCard, Badge, Button, Tag, Tooltip } from 'antd'
 import useApp from 'antd/es/app/useApp'
+import type { CSSProperties } from 'react'
 
+import { BrandBandFromConfig, BrandFrameContext } from '../../components/BrandFrame'
 import RefChild from '../../components/RefChild'
 import StatusPill from '../../components/StatusPill'
 import WidgetRenderer from '../../components/WidgetRenderer'
@@ -60,8 +62,34 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
   const { handleAction, isActionLoading } = useHandleAction()
 
   // antd Card reserves `actions` for footer nodes, so the Krateo event map is `widgetActions`.
-  const { anchorId, clickActionId, cover, extra, extraRefId, extraStatus, extraVariant, footer, headerLeft, icon, items, legend, live, size, tags, title, titleVariant, tooltip, variant, widgetActions } = widgetData
+  const { afterCard, anchorId, brand, centered, clickActionId, cover, extra, extraRefId, extraStatus, extraVariant, footer, headerLeft, icon, items, legend, live, maxWidth, size, tags, title, titleVariant, tooltip, variant, widgetActions } = widgetData
   const coverEndpoint = cover ? getEndpointUrl(cover, resourcesRefs) : undefined
+  // `brand`: the sign-in card's band (logo from the frontend's own config.login, never from the CR)
+  // across the top, above any `cover` widget. The installation line is drawn by the heading of the
+  // framed content (BrandFrameContext), so it goes with that heading.
+  const coverWidget = coverEndpoint ? <WidgetRenderer widgetEndpoint={coverEndpoint} /> : undefined
+  const coverNode = brand ? <><BrandBandFromConfig />{coverWidget}</> : coverWidget
+  // The frame options, all opt-in: absent, the card's class, body class and style are as before.
+  // `maxWidth` travels as a custom property so the phone rule (Card.module.css) can lift the cap.
+  const capped = typeof maxWidth === 'number' && maxWidth > 0
+  const frameStyle = capped ? { '--card-max-width': `${maxWidth}px` } as CSSProperties : undefined
+  const anchorStyle = anchorId ? { scrollMarginTop: 80 } : undefined
+
+  // `afterCard`: the children it names (by resourceRefId, among `items`) leave the card's body and
+  // render after the card, in `items` order — ONE placement in the DOM, so the reading order is the
+  // body, then them, at every width. The card and that slot then form a column, which takes the
+  // column options (`centered`, `maxWidth`); on a phone a branded column is one surface with the
+  // slot as its last row (Card.module.css). An entry naming no item is ignored.
+  const slotIds = new Set((afterCard ?? []).map(({ resourceRefId }) => resourceRefId))
+  const indexed = items.map((item, index) => ({ index, item }))
+  const slotItems = indexed.filter(({ item }) => slotIds.has(item.resourceRefId))
+  const bodyItems = slotItems.length ? indexed.filter(({ item }) => !slotIds.has(item.resourceRefId)) : indexed
+  const hasSlot = slotItems.length > 0
+  const columnClasses = [centered ? styles.centered : '', capped ? styles.capped : ''].filter(Boolean)
+  const frameClasses = [brand ? styles.branded : '', ...(hasSlot ? [] : columnClasses)].filter(Boolean).join(' ')
+  // With a slot the column carries --card-max-width; the card keeps only an anchor's scroll margin.
+  const ownFrameStyle = hasSlot ? undefined : frameStyle
+  const cardStyle = ownFrameStyle || anchorStyle ? { ...anchorStyle, ...ownFrameStyle } : undefined
   // #83 §0.7: a real header-action slot — a nested widget (e.g. a Button with its own action) in the
   // card header's top-right, distinct from the plain-text `extra`. Unlike `extra` + `clickActionId`
   // (which makes the WHOLE card the click target), this action is self-contained.
@@ -150,11 +178,11 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
     return extra
   }
 
-  return (
+  const card = (
     <AntdCard
-      className={`${styles.panel} ${action ? styles.clickable : ''} ${!title && !cover && !footer && !!items?.length ? styles.statCard : ''} ${extraEndpoint ? styles.hasExtraAction : ''}`}
-      classNames={{ body: styles.bodyWrapper, header: styles.header, title: styles.title }}
-      cover={coverEndpoint ? <WidgetRenderer widgetEndpoint={coverEndpoint} /> : undefined}
+      className={[`${styles.panel} ${action ? styles.clickable : ''} ${!title && !cover && !footer && !brand && !!items?.length ? styles.statCard : ''} ${extraEndpoint ? styles.hasExtraAction : ''}`, frameClasses].filter(Boolean).join(' ')}
+      classNames={{ body: brand ? `${styles.bodyWrapper} ${styles.brandBody}` : styles.bodyWrapper, header: styles.header, title: styles.title }}
+      cover={coverNode}
       // `anchorId` makes this panel an in-page scroll target: a `[…](#anchorId)` link (e.g. from a
       // summary/table-of-contents Markdown widget) scrolls here. scroll-margin-top clears the sticky
       // app header so the panel top isn't hidden under it. (issue #69 — summary bullets as a ToC.)
@@ -192,7 +220,7 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
       onKeyDown={onKeyDown}
       role={isClickable ? 'button' : undefined}
       size={size}
-      style={anchorId ? { scrollMarginTop: 80 } : undefined}
+      style={cardStyle}
       tabIndex={isClickable ? 0 : undefined}
       title={
         title
@@ -218,22 +246,43 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
           <FontAwesomeIcon icon={resolveFaIcon(icon.name)} />
         </span>
       )}
-      <div className={styles.content}>
-        {headerLeft && panelHeader}
-        <div className={`${styles.body} ${icon && !headerLeft ? styles.clearsIcon : ''}`}>
-          {items.map(({ resourceRefId }, index) => (
-            <RefChild
-              deniedRefIds={deniedRefIds}
-              key={`${uid}-${index}`}
-              label='card item'
-              resourceRefId={resourceRefId}
-              resourcesRefs={resourcesRefs}
-            />
-          ))}
+      <BrandFrameContext.Provider value={!!brand}>
+        <div className={styles.content}>
+          {headerLeft && panelHeader}
+          <div className={`${styles.body} ${icon && !headerLeft ? styles.clearsIcon : ''}`}>
+            {bodyItems.map(({ index, item: { resourceRefId } }) => (
+              <RefChild
+                deniedRefIds={deniedRefIds}
+                key={`${uid}-${index}`}
+                label='card item'
+                resourceRefId={resourceRefId}
+                resourcesRefs={resourcesRefs}
+              />
+            ))}
+          </div>
+          {footer && panelFooter}
         </div>
-        {footer && panelFooter}
-      </div>
+      </BrandFrameContext.Provider>
     </AntdCard>
+  )
+
+  if (!hasSlot) { return card }
+
+  return (
+    <div className={[styles.column, brand ? styles.columnBranded : '', ...columnClasses].filter(Boolean).join(' ')} style={frameStyle}>
+      {card}
+      <div className={styles.afterCard}>
+        {slotItems.map(({ index, item: { resourceRefId } }) => (
+          <RefChild
+            deniedRefIds={deniedRefIds}
+            key={`${uid}-${index}`}
+            label='card item'
+            resourceRefId={resourceRefId}
+            resourcesRefs={resourcesRefs}
+          />
+        ))}
+      </div>
+    </div>
   )
 }
 

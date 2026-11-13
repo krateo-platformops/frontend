@@ -8,7 +8,7 @@ import type { AllowlistedPost } from '../../transport/allowlistedPost'
 
 import type { FieldPath } from './fieldDependencies'
 import { CHECK_KEY } from './fieldKeys'
-import { fieldHelpOf } from './fieldPresentation'
+import { fieldHelpOf, FieldPresentationContext } from './fieldPresentation'
 import { resolveResult, type ResultSpec } from './FormResult'
 import { firstMatch, interpolate, pickBodyExtras, type PostOutcome, type PostWhen, sendPost, valueAt } from './postOutcome'
 
@@ -235,11 +235,13 @@ interface BlurProps { onBlur?: (event: React.FocusEvent) => void }
 
 /**
  * A schema field with a `fieldChecks` entry: its Form.Item, with the check's rules after its own,
- * antd's feedback icons on, the success message as its help while it holds, and blur on its control
+ * antd's feedback icons on (unless the form's `hasFeedback` is `none`), the success message as its help while it holds, and blur on its control
  * sending the check at once (after the control's own onBlur, if it has one).
  */
 export const CheckedFieldItem = ({ item, path, spec }: { item: FormItemProps; path: FieldPath; spec: FieldCheckSpec }): React.ReactNode => {
   const { onBlur, rules, success } = useFieldCheck(spec, path)
+  // `hasFeedback: none` turns the icons off here too: no field of the form has them.
+  const feedback = useContext(FieldPresentationContext).hasFeedback !== 'none'
   const allRules = useMemo(() => [...(item.rules ?? []), ...rules], [item.rules, rules])
   const child = item.children
   const control = isValidElement<BlurProps>(child)
@@ -249,7 +251,7 @@ export const CheckedFieldItem = ({ item, path, spec }: { item: FormItemProps; pa
     <AntdForm.Item
       {...item}
       {...(success ? { help: success.message, validateStatus: 'success' as const } : {})}
-      hasFeedback
+      hasFeedback={feedback}
       rules={allRules}
     >
       {control}

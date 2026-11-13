@@ -1,7 +1,7 @@
 /* Form-first login (2026-11 redesign): one 400px card on the plain canvas. The brand gradient is a
- * 64px band at the top of the card that carries the logo. Its stops (menubgstart/menubgend) are the
- * same saturated pair in BOTH themes, so the light logo mark reads in either; everything below the
- * band uses theme tokens and follows the light/dark toggle.
+ * 64px band at the top of the card that carries the logo. The band, the heading and the
+ * installation line are components/BrandFrame's, shared with the Card widget's `brand` frame;
+ * this file keeps the page, the card and its body.
  *
  * The page scrolls itself: html, body and #root are `overflow: hidden` (ui/index.css), so a card
  * taller than a short phone screen would otherwise be cut off with no way to reach its foot. */
@@ -28,53 +28,8 @@
   width: 100%;
 }
 
-.band {
-  align-items: center;
-  background-image: linear-gradient(90deg, var(--menubgstart-color), var(--menubgend-color));
-  box-sizing: border-box;
-  display: flex;
-  height: var(--header-h);
-  padding: 0 var(--spacing-xl);
-}
-
-.logo {
-  display: block;
-  height: 24px;
-  max-width: 100%;
-  width: auto;
-}
-
 .body {
   padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl);
-}
-
-/* The display role: the one place on the page that is not the body face. */
-.title {
-  color: var(--text-color);
-  font-family: var(--font-display);
-  font-size: var(--krateo-text-h3);
-  font-weight: var(--font-weight-bolder);
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-  margin: 0 0 var(--spacing-xs);
-}
-
-.to {
-  color: var(--gray-color);
-  font-size: var(--krateo-text-body-sm);
-  margin: 0 0 var(--spacing-lg);
-}
-
-/* The installation name is an identifier, so it is drawn like one. */
-.installation {
-  background-color: var(--lightgray-color);
-  border: 1px solid var(--line-color);
-  border-radius: var(--radius-md);
-  color: var(--text-color);
-  font-family: var(--font-mono);
-  font-size: var(--krateo-text-caption);
-  padding: var(--spacing-xxs) var(--spacing-xsm);
-  white-space: nowrap;
 }
 
 .pitch {
@@ -103,10 +58,6 @@
     box-shadow: none;
     max-width: none;
     min-height: 100%;
-  }
-
-  .band {
-    padding: 0 var(--spacing-lg);
   }
 
   .body {

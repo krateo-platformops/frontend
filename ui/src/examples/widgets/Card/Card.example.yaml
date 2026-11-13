@@ -425,3 +425,47 @@ spec:
     items: []
   resourcesRefs:
     items: []
+---
+# Branded, narrow, centred frame
+# Target: a page's content in the sign-in card's frame (a public page's form, for example).
+# Expected behavior: a 400px card centred in its container, with the brand band and logo across the
+# top (logo and alt from the frontend's config.login, never from the CR) and the sign-in card's
+# radius, elevation and padding. A Form inside draws its `title` as the page heading with
+# "to Krateo PlatformOps · <login.installationName>" under it, and both go when a Result replaces
+# the form. At 480px and under the centred, capped card fills the width with no border, radius or
+# shadow (on a public page, which drops its gutter there, edge to edge). `afterCard` takes the
+# Markdown out of the card's body: just under the card on a wide screen, the last row of the card's
+# surface (one sheet the screen's height) on a phone — the same element, so the form is read first.
+kind: Card
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-card-brand-frame
+  namespace: krateo-system
+spec:
+  widgetData:
+    variant: outlined
+    maxWidth: 400
+    centered: true
+    brand: true
+    allowedResources:
+      - forms
+      - markdowns
+    items:
+      - resourceRefId: example-form-inputs
+      - resourceRefId: example-markdown-align-center
+    afterCard:
+      - resourceRefId: example-markdown-align-center
+  resourcesRefs:
+    items:
+      - id: example-form-inputs
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-form-inputs
+        namespace: krateo-system
+        resource: forms
+        verb: GET
+      - id: example-markdown-align-center
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-markdown-align-center
+        namespace: krateo-system
+        resource: markdowns
+        verb: GET

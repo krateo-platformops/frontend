@@ -19,7 +19,7 @@ import styles from './Form.module.css'
 import { FreeObjectListInput } from './FreeObjectListInput'
 import { JsonValueInput } from './JsonValueInput'
 import { OptionsInput } from './OptionsInput'
-import { presentationControlFor } from './presentationControls'
+import { presentationControlFor, selectPlaceholderFor, textInputFor } from './presentationControls'
 import { type SchemaRoot, SchemaRootContext } from './schemaRoot'
 import { fieldLabel, hasValue, itemCountRules, requiredInGroup, requiredMessageFor, rulesFor } from './schemaRules'
 import { FormRefsContext } from './useFieldOptions'
@@ -264,7 +264,7 @@ const controlFor = (node: JSONSchema4, fieldPath: FieldPath = []): React.ReactNo
         allowClear
         optionFilterProp='label'
         options={getOptionsFromEnum(node.enum)}
-        placeholder='Select…'
+        placeholder={selectPlaceholderFor(node)}
         showSearch
         style={{ width: '100%' }}
       />
@@ -290,7 +290,7 @@ const controlFor = (node: JSONSchema4, fieldPath: FieldPath = []): React.ReactNo
     return <FreeObjectListInput label={fieldLabel(String(fieldPath[fieldPath.length - 1] ?? 'Item'), node)} />
   }
   if (node.type === 'object' || node.type === 'array' || isUntypedObject(node)) { return <JsonValueInput /> }
-  return <Input />
+  return textInputFor(node)
 }
 
 const isGroup = (node: JSONSchema4): boolean => node.type === 'object' && !!node.properties
@@ -546,7 +546,7 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
     children: controlFor(node, scope),
     className: styles.field,
     colon: false,
-    hasFeedback: isRequired && node.type !== 'boolean',
+    hasFeedback: isRequired && node.type !== 'boolean' && presentation.hasFeedback !== 'none',
     label: fieldHeader(key, node, isRequired, marks),
     labelCol: { span: 24 },
     name: path,

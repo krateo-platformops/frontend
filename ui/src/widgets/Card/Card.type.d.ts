@@ -16,6 +16,15 @@ export interface Card {
      */
     widgetData: {
       /**
+       * children of the card (by `resourceRefId`, among `items`) that render just after the card instead of in its body, in `items` order — one placement, so the reading order is the body, then these. The card and these form a column that takes `centered` and `maxWidth`. On a `brand` + `centered` + `maxWidth` card, at 480px and under the column is one surface the screen's height and these are its last row (inside the card's surface, as the sign-in card's "Need access?" line); on any other card they render after the card at every width. An entry naming no item is ignored
+       */
+      afterCard?: {
+        /**
+         * the resourceRefId of one of the card's `items`
+         */
+        resourceRefId: string
+      }[]
+      /**
        * the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.
        */
       allowedResources?: string[]
@@ -23,6 +32,14 @@ export interface Card {
        * renders this panel with a DOM id so an in-page `[text](#anchorId)` link (e.g. a summary/table-of-contents Markdown widget) scrolls to it
        */
       anchorId?: string
+      /**
+       * draws the sign-in card's brand: the brand band with the logo across the top of the card (above any `cover`), the sign-in card's radius, elevation and body padding, and the installation line ("to Krateo PlatformOps · <installation>") under the heading of the content — the `title` of a Form in the card — so the line goes with that heading when a Result replaces the form. The logo and the installation's name come from the frontend's own config (`login.logoUrl`, `login.logoAlt`, `login.installationName`), never from the CR
+       */
+      brand?: boolean
+      /**
+       * centres the card horizontally in its container; with `maxWidth`, a narrow centred column
+       */
+      centered?: boolean
       /**
        * the id of the action to be executed when the panel is clicked
        */
@@ -100,6 +117,10 @@ export interface Card {
        * show a pulsing "Live" badge next to the card title (for cards backed by a live/SSE feed)
        */
       live?: boolean
+      /**
+       * the widest the card grows, in pixels; it fills its container up to that width. Absent: it fills its container
+       */
+      maxWidth?: number
       /**
        * antd Card size
        */

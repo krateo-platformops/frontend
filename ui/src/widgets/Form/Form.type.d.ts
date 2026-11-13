@@ -724,9 +724,77 @@ export interface Form {
         text: string
       }[]
       /**
-       * which fields of a schema form show antd's validation feedback icons. Absent: required fields. `rules`: every field with a validation rule, required or optional (an optional field shows the success icon only once it holds a value)
+       * a field's input: its placeholder, its HTML input type, its autocomplete token, and whether the browser spell-checks and capitalises it. `placeholder` applies to a text Input, a TextArea and a Select (in place of "Select…"); `type` to a text Input; `autoComplete`, `spellCheck` and `autoCapitalize` to a text Input and a TextArea. An entry naming a group, a list, a boolean, a number or a secret field is ignored
        */
-      hasFeedback?: 'rules'
+      fieldInputs?: {
+        /**
+         * the input's `autocapitalize` attribute: how a phone's keyboard capitalises what is typed. `none` for a username or a code
+         */
+        autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters'
+        /**
+         * the input's `autocomplete` attribute: one autofill field name of the HTML standard (https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill), or `on` / `off`. Credential and payment tokens are not offered: a secret field has its own
+         */
+        autoComplete?:
+          | 'off'
+          | 'on'
+          | 'name'
+          | 'honorific-prefix'
+          | 'given-name'
+          | 'additional-name'
+          | 'family-name'
+          | 'honorific-suffix'
+          | 'nickname'
+          | 'username'
+          | 'organization-title'
+          | 'organization'
+          | 'street-address'
+          | 'address-line1'
+          | 'address-line2'
+          | 'address-line3'
+          | 'address-level4'
+          | 'address-level3'
+          | 'address-level2'
+          | 'address-level1'
+          | 'country'
+          | 'country-name'
+          | 'postal-code'
+          | 'language'
+          | 'bday'
+          | 'bday-day'
+          | 'bday-month'
+          | 'bday-year'
+          | 'sex'
+          | 'url'
+          | 'photo'
+          | 'email'
+          | 'impp'
+          | 'tel'
+          | 'tel-country-code'
+          | 'tel-national'
+          | 'tel-area-code'
+          | 'tel-local'
+          | 'tel-extension'
+        /**
+         * the dotted path of a field
+         */
+        name: string
+        /**
+         * the text the empty control shows
+         */
+        placeholder?: string
+        /**
+         * the input's `spellcheck` attribute. `false` for a username, a code or a name the browser would mark as misspelt
+         */
+        spellCheck?: boolean
+        /**
+         * the text Input's HTML type: the keyboard a phone shows and what the browser offers to fill. The form's own rules still validate the value: with a `type`, the form turns off the browser's constraint validation (`novalidate`), so its errors show under the field like every other
+         */
+        type?: 'text' | 'email' | 'tel' | 'url'
+      }[]
+      /**
+       * which fields of a schema form show antd's validation feedback icons. Absent: required fields. `rules`: every field with a validation rule, required or optional (an optional field shows the success icon only once it holds a value). `none`: no field, a `fieldChecks` field included
+       */
+      hasFeedback?: 'rules' | 'none'
       /**
        * optional object with initial values for form fields. Keys should match form field names (supports nested objects). These values override schema defaults.
        */
@@ -748,6 +816,10 @@ export interface Form {
        * a message shown above the fields of a schema form (e.g. the blueprint formdef's note that the form was built from the CRD)
        */
       notice?: string
+      /**
+       * how `notice` is drawn: `alert` (absent), an info Alert; `text`, a line of secondary text. Either goes with the form when a Result replaces it
+       */
+      noticeVariant?: 'alert' | 'text'
       /**
        * configuration for object fields in the form
        */

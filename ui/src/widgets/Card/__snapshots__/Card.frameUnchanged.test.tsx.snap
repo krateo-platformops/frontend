@@ -1,0 +1,7 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`a Card without the frame options > small and borderless, titled: as before 1`] = `"<div class="ant-card ant-card-small _panel_32428d    css-dev-only-do-not-override-12q6fii css-var-root"><div class="ant-card-head _header_32428d"><div class="ant-card-head-wrapper"><div class="ant-card-head-title _title_32428d"><div class="_title_32428d "><div class="_text_32428d"><span>Small</span></div></div></div></div></div><div class="ant-card-body _bodyWrapper_32428d"><div class="_content_32428d"><div class="_body_32428d "></div></div></div></div>"`;
+
+exports[`a Card without the frame options > titled: as before 1`] = `"<div class="ant-card ant-card-bordered _panel_32428d    css-dev-only-do-not-override-12q6fii css-var-root"><div class="ant-card-head _header_32428d"><div class="ant-card-head-wrapper"><div class="ant-card-head-title _title_32428d"><div class="_title_32428d "><div class="_text_32428d"><span>Tile</span></div></div></div></div></div><div class="ant-card-body _bodyWrapper_32428d"><div class="_content_32428d"><div class="_body_32428d "></div></div></div></div>"`;
+
+exports[`a Card without the frame options > untitled and outlined: as before 1`] = `"<div class="ant-card ant-card-bordered _panel_32428d    css-dev-only-do-not-override-12q6fii css-var-root"><div class="ant-card-body _bodyWrapper_32428d"><div class="_content_32428d"><div class="_body_32428d "></div></div></div></div>"`;

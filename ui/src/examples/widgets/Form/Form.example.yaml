@@ -303,3 +303,39 @@ spec:
       responses:
         - when: { status: [201] }
           result: { status: success, title: Ticket opened }
+---
+# Schema-driven Form with the input options: `noticeVariant: text` draws the notice as a muted line
+# (it goes with the form when a Result replaces it), `fieldInputs` gives fields a placeholder, an
+# HTML input type, an autocomplete token (one of the HTML autofill field names), and whether the
+# browser spell-checks and capitalises it (`spellCheck`, `autoCapitalize`), and
+# `hasFeedback: none` turns off the feedback icons. With an input `type`, the form sets novalidate,
+# so its own rules report under the fields.
+kind: Form
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-form-inputs
+  namespace: krateo-system
+spec:
+  widgetData:
+    title: Join the waiting list
+    notice: We'll email you when a place opens up.
+    noticeVariant: text
+    layout: vertical
+    requiredMark: optional
+    hasFeedback: none
+    buttonConfig:
+      primary: { label: Join, block: true, size: large }
+      secondary: { hidden: true }
+    fieldInputs:
+      - { name: fullName, autoComplete: name, spellCheck: false, autoCapitalize: words }
+      - { name: email, type: email, autoComplete: email, placeholder: jane@example.com }
+      - { name: phone, type: tel, autoComplete: tel, placeholder: "+39 …" }
+      - { name: country, placeholder: Search for your country }
+    stringSchema: '{"type":"object","required":["fullName","email","country"],"properties":{"fullName":{"type":"string","title":"Full name"},"email":{"type":"string","title":"Email"},"phone":{"type":"string","title":"Phone"},"country":{"type":"string","title":"Country","enum":["FR","IT"],"oneOf":[{"const":"FR","title":"France"},{"const":"IT","title":"Italy"}]}}}'
+    submitPost:
+      path: /intake/api/v1/waiting-list
+      responses:
+        - when: { status: [202] }
+          result: { status: success, title: "You're on the list" }
+      otherwise:
+        alert: { type: error, title: "We couldn't add you", description: Try again later. }

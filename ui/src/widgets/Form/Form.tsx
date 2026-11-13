@@ -4,9 +4,10 @@ import { Alert, Button, Descriptions, Form as AntdForm, Result, Space, Spin, Tag
 import useApp from 'antd/es/app/useApp'
 import dayjs from 'dayjs'
 import type { JSONSchema4 } from 'json-schema'
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 
 import { useAgentDraft } from '../../components/Agentiko/agentDraft'
+import { BrandFrameContext } from '../../components/BrandFrame'
 import WidgetRenderer from '../../components/WidgetRenderer'
 import YamlBlock from '../../components/YamlBlock'
 import { useHandleAction } from '../../hooks/useHandleActions'
@@ -19,11 +20,13 @@ import { FailedFieldsContext } from './failedFields'
 import { FieldCheckContext } from './fieldCheck'
 import { applyFieldConfig } from './fieldConfig'
 import { collectDependencies, dependentsToClear, type FieldPath } from './fieldDependencies'
+import { anyInputType } from './fieldInputs'
 import { createOptionRegistry, getFieldOptionsSpec, type OptionRegistry } from './fieldOptions'
 import { antdRequiredMark, type FieldPresentation, FieldPresentationContext } from './fieldPresentation'
 import styles from './Form.module.css'
 import type { Form as WidgetType } from './Form.type'
 import { FormExtra } from './FormExtra'
+import { FormHeading } from './FormHeading'
 import { FormResult } from './FormResult'
 import { labelledOptionsOf, labelledOptionsProblem, optionLabelFor } from './labelledOptions'
 import { setFormReviewing } from './reviewPhase'
@@ -213,7 +216,7 @@ export const ReviewSummary = ({ agentKeys, optionLabels, schema, secretPaths, va
  * button runs the same submit action. Default (flag off) is unchanged.
  */
 const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<FormWidgetData>) => {
-  const { actions, autocomplete, buttonConfig, checkboxes, dependencies: optionDependencies, disabled, displayingDependencies, draftActionId, fieldChecks, fieldHelp, hasFeedback, initialValues, items, layout, notice, objectFields, propertiesToHide, requiredMark, reviewBeforeSubmit, schema, size, stringSchema, submitActionId, submitActionSelector, submitDisabledWhenPristine, submitPost, suggestions, textareas, title, validationMessages } = widgetData
+  const { actions, autocomplete, buttonConfig, checkboxes, dependencies: optionDependencies, disabled, displayingDependencies, draftActionId, fieldChecks, fieldHelp, fieldInputs, hasFeedback, initialValues, items, layout, notice, noticeVariant, objectFields, propertiesToHide, requiredMark, reviewBeforeSubmit, schema, size, stringSchema, submitActionId, submitActionSelector, submitDisabledWhenPristine, submitPost, suggestions, textareas, title, validationMessages } = widgetData
   // Prefer `stringSchema` (the schema as a raw JSON STRING) when present: `JSON.parse`
   // preserves the object's key insertion order, so a server that hands us the blueprint's
   // values.schema.json verbatim (e.g. from the per-blueprint jsonschema ConfigMap, which
@@ -234,13 +237,15 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
       }
     }
 
-    return applyFieldConfig(parsed, { autocomplete, checkboxes, dependencies: optionDependencies, displayingDependencies, fieldChecks, fieldHelp, objectFields, suggestions, textareas, validationMessages })
-  }, [schema, stringSchema, autocomplete, checkboxes, optionDependencies, displayingDependencies, fieldChecks, fieldHelp, objectFields, suggestions, textareas, validationMessages])
+    return applyFieldConfig(parsed, { autocomplete, checkboxes, dependencies: optionDependencies, displayingDependencies, fieldChecks, fieldHelp, fieldInputs, objectFields, suggestions, textareas, validationMessages })
+  }, [schema, stringSchema, autocomplete, checkboxes, optionDependencies, displayingDependencies, fieldChecks, fieldHelp, fieldInputs, objectFields, suggestions, textareas, validationMessages])
   const presentation = useMemo<FieldPresentation>(() => ({
-    hasFeedback: hasFeedback === 'rules' ? 'rules' : undefined,
+    hasFeedback: hasFeedback === 'rules' || hasFeedback === 'none' ? hasFeedback : undefined,
     requiredMark: requiredMark === 'optional' || requiredMark === 'hidden' ? requiredMark : undefined,
   }), [hasFeedback, requiredMark])
   const { insideDrawer, setDrawerData } = useDrawerContext()
+  // Inside a Card's `brand` frame the title is the brand heading, with the installation line under it.
+  const inBrandFrame = useContext(BrandFrameContext)
   const alreadySetDrawerData = useRef(false)
 
   const { notification } = useApp()
@@ -624,6 +629,14 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
     />
   )
 
+  // `notice`: an info Alert above the fields, or, with `noticeVariant: text`, a muted line.
+  let noticeNode: React.ReactNode = null
+  if (typeof notice === 'string' && notice.trim()) {
+    noticeNode = noticeVariant === 'text'
+      ? <Typography.Paragraph className={styles.noticeText} type='secondary'>{notice}</Typography.Paragraph>
+      : <Alert className={styles.notice} showIcon title={notice} type='info' />
+  }
+
   let footer: React.ReactNode = null
   if (shouldRenderButtonsInsideForm) {
     footer = reviewing ? reviewButtons : editButtons
@@ -632,7 +645,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   return (
     <div className={styles.form} data-inside-drawer={insideDrawer}>
       {/* The form's own heading: it goes with the form when a Result replaces it. */}
-      {typeof title === 'string' && title.trim() ? <Typography.Title className={styles.title} level={3}>{title}</Typography.Title> : null}
+      {typeof title === 'string' && title.trim() ? <FormHeading brand={inBrandFrame} title={title} /> : null}
       {/* Kept mounted (hidden in review) so "Back to edit" preserves every entered value. */}
       <div style={reviewing ? { display: 'none' } : undefined}>
         <AntdForm
@@ -645,6 +658,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
           onFinish={(formValues) => { onFinish(formValues as Record<string, unknown>) }}
           onFinishFailed={({ errorFields }) => { setFailedFields(errorFields.map(({ name }) => name)) }}
           onValuesChange={onValuesChange}
+          // A `fieldInputs` type (email, url) would let the browser refuse the submit with its own
+          // bubble before the form's rules run: the rules, under the fields, are the one report.
+          {...(anyInputType(fieldInputs) ? { noValidate: true } : {})}
           requiredMark={antdRequiredMark(presentation.requiredMark, !!jsonSchema?.properties)}
           size={size}
         >
@@ -653,9 +669,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
               <FormRefsContext.Provider value={formRefs}>
                 {/* What the schema's source could not carry — e.g. the blueprint formdef's CRD
                     fallback, which loses the authoring order of the fields. */}
-                {typeof notice === 'string' && notice.trim()
-                  ? <Alert className={styles.notice} showIcon title={notice} type='info' />
-                  : null}
+                {noticeNode}
                 <FailedFieldsContext.Provider value={failedFields}>
                   <FieldPresentationContext.Provider value={presentation}>
                     <FieldCheckContext.Provider value={checkEnv}>

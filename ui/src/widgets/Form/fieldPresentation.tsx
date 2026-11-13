@@ -21,10 +21,12 @@ import { fieldLabel, hasValue } from './schemaRules'
  * - `hasFeedback: rules` — the feedback icons antd's `hasFeedback` draws, on every field with a
  *   validation rule, where by default only required fields have them. An optional field that is
  *   still empty shows no success icon: nothing was checked.
+ * - `hasFeedback: none` — no feedback icons on any field, a required one or one with a
+ *   `fieldChecks` entry included. The validation messages under the fields are unchanged.
  */
 export interface FieldPresentation {
   requiredMark?: 'optional' | 'hidden'
-  hasFeedback?: 'rules'
+  hasFeedback?: 'rules' | 'none'
 }
 
 export const FieldPresentationContext = createContext<FieldPresentation>({})

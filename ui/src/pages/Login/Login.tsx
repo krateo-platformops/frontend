@@ -3,7 +3,7 @@ import { Result, Skeleton } from 'antd'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
 
-import logo from '../../assets/images/logo_big.svg'
+import { BrandBand, brandOf, brandTitleClass, InstallationLine } from '../../components/BrandFrame'
 import { useConfigContext } from '../../context/ConfigContext'
 import type { LoginFailureCause } from '../../utils/loginFailureCause'
 import {
@@ -25,7 +25,8 @@ import StartSignInAgain from './StartSignInAgain'
 // The login screen renders BEFORE any backend identity, so its branding is config-driven
 // (`config.login`, ConfigMap-mountable per install) rather than a snowplow widget — a login/auth
 // widget would be bespoke behavior, which the antd-only widget registry deliberately excludes.
-const DEFAULT_LOGO_ALT = 'Krateo | PlatformOps'
+// The band and the installation line are shared with the Card widget's `brand` frame
+// (components/BrandFrame), so a branded page draws the same ones.
 
 /*
  * authn refused the username and password. The page used to say "Authentication error" over "Those
@@ -97,9 +98,7 @@ const Login = () => {
   // Config-driven branding. The logo and its alt fall back to the bundled ones; the rest is absent
   // unless an install sets it.
   const branding = config?.login
-  const logoSrc = branding?.logoUrl || logo
-  const logoAlt = branding?.logoAlt ?? DEFAULT_LOGO_ALT
-  const installationName = branding?.installationName?.trim()
+  const { installationName, logoAlt, logoSrc } = brandOf(branding)
   const pitch = pitchOf(branding)
   const requestAccountUrl = branding?.requestAccountUrl
 
@@ -265,15 +264,10 @@ const Login = () => {
   return (
     <div className={styles.login}>
       <main className={styles.card}>
-        <div className={styles.band}>
-          <img alt={logoAlt} className={styles.logo} src={logoSrc} />
-        </div>
+        <BrandBand logoAlt={logoAlt} logoSrc={logoSrc} />
         <div className={styles.body}>
-          <h1 className={styles.title}>Sign in</h1>
-          <p className={styles.to}>
-            to Krateo PlatformOps
-            {installationName && <> · <span className={styles.installation}>{installationName}</span></>}
-          </p>
+          <h1 className={brandTitleClass}>Sign in</h1>
+          <InstallationLine installationName={installationName} />
           {pitch && <p className={styles.pitch}>{pitch}</p>}
           {content}
           {requestAccountUrl && (

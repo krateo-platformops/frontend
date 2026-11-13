@@ -1,0 +1,66 @@
+/* The sign-in card's brand: the 64px band carrying the logo, the display-face heading, and the
+ * "to Krateo PlatformOps · <installation>" line under it. Shared by the sign-in page
+ * (pages/Login) and the Card widget's `brand` frame, so both draw the same band and line.
+ *
+ * The band's gradient stops (menubgstart/menubgend) are the same saturated pair in BOTH themes, so
+ * the light logo mark reads in either; everything else uses theme tokens. */
+.band {
+  align-items: center;
+  background-image: linear-gradient(90deg, var(--menubgstart-color), var(--menubgend-color));
+  box-sizing: border-box;
+  display: flex;
+  height: var(--header-h);
+  padding: 0 var(--spacing-xl);
+}
+
+.logo {
+  display: block;
+  height: 24px;
+  max-width: 100%;
+  width: auto;
+}
+
+/* The display role: the one place on the page that is not the body face. Inside `.heading` (an
+   antd Typography heading with the line under it, as the Form draws it in a branded Card) the
+   selector has two classes, to outrank antd's own `h1.ant-typography` size, weight and margin. */
+.title,
+.heading > .title {
+  color: var(--text-color);
+  font-family: var(--font-display);
+  font-size: var(--krateo-text-h3);
+  font-weight: var(--font-weight-bolder);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin: 0 0 var(--spacing-xs);
+}
+
+.to {
+  color: var(--gray-color);
+  font-size: var(--krateo-text-body-sm);
+  margin: 0 0 var(--spacing-lg);
+}
+
+/* The heading and its line as one block in a container that spaces its children itself (the
+   Form's column gap): the line keeps no margin of its own below. */
+.heading > .to {
+  margin-bottom: 0;
+}
+
+/* The installation name is an identifier, so it is drawn like one. */
+.installation {
+  background-color: var(--lightgray-color);
+  border: 1px solid var(--line-color);
+  border-radius: var(--radius-md);
+  color: var(--text-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-caption);
+  padding: var(--spacing-xxs) var(--spacing-xsm);
+  white-space: nowrap;
+}
+
+/* Phone: the band keeps the logo, with the narrower gutter the phone card has. */
+@media (width <= 480px) {
+  .band {
+    padding: 0 var(--spacing-lg);
+  }
+}

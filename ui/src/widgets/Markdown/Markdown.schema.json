@@ -21,6 +21,15 @@
             "markdown"
           ],
           "properties": {
+            "align": {
+              "type": "string",
+              "description": "the alignment of the text: `left`, `center` or `right`. Absent: the alignment it inherits",
+              "enum": [
+                "left",
+                "center",
+                "right"
+              ]
+            },
             "allowCopy": {
               "description": "displays a copy button on top of the widget to allow copy to clipboard",
               "type": "boolean"
@@ -36,6 +45,13 @@
             "markdown": {
               "description": "markdown string to be displayed",
               "type": "string"
+            },
+            "tone": {
+              "type": "string",
+              "description": "`secondary`: the text in the secondary text colour at the small size, as a muted line (links keep the link colour). Absent: the body text colour and size",
+              "enum": [
+                "secondary"
+              ]
             }
           },
           "additionalProperties": false,

@@ -138,6 +138,13 @@ spec:
                 widgetData:
                   description: The properties Markdown renders. Where Markdown wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
+                    align:
+                      description: 'the alignment of the text: `left`, `center` or `right`. Absent: the alignment it inherits'
+                      enum:
+                        - left
+                        - center
+                        - right
+                      type: string
                     allowCopy:
                       description: displays a copy button on top of the widget to allow copy to clipboard
                       type: boolean
@@ -149,6 +156,11 @@ spec:
                       type: string
                     markdown:
                       description: markdown string to be displayed
+                      type: string
+                    tone:
+                      description: '`secondary`: the text in the secondary text colour at the small size, as a muted line (links keep the link colour). Absent: the body text colour and size'
+                      enum:
+                        - secondary
                       type: string
                   required:
                     - markdown

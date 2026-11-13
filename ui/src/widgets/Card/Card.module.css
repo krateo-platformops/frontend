@@ -256,3 +256,91 @@
   width: 9px;
 }
 
+/* `centered`: the card sits in the middle of its container (with `maxWidth`, a narrow column). */
+.centered {
+  margin-inline: auto;
+}
+
+/* `maxWidth`: the card fills its container up to the width the CR gives (--card-max-width, set
+   inline from it). */
+.capped {
+  max-width: var(--card-max-width);
+  width: 100%;
+}
+
+/* `afterCard`: the card, then the children it names, as one column. On a wide screen they sit just
+   below the card, a step apart (the sign-in page's "Need access?" spacing); the column takes the
+   `centered` and `maxWidth` classes in place of the card. */
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.afterCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* `brand`: the sign-in card's frame (pages/Login .card and .body), on the same tokens — the
+   larger radius, the small elevation, and the body's padding under the band. Two and three
+   classes, to outrank antd's own `:where(…).ant-card` radius and body padding. */
+.panel.branded {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-sm);
+  overflow: hidden;
+}
+
+.panel.branded .brandBody {
+  padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl);
+}
+
+/* Phone (the sign-in page's breakpoint): a centred, capped card is a column of the page, so it
+   fills the width edge to edge, with no border, radius or shadow, as the sign-in card does there.
+   The page around it drops its own gutter at the same width (public/PublicPage.module.css). A
+   branded card's body takes the narrower gutter the sign-in card has. */
+@media (width <= 480px) {
+  .panel.centered.capped {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    max-width: none;
+  }
+
+  /* A branded one is the whole screen, on its own surface: it stretches to the viewport's height,
+     as the sign-in card does (pages/Login .card: min-height 100% of its full-height page). The
+     page keeps its own ground; nothing is painted behind the card. */
+  .panel.branded.centered.capped {
+    min-height: 100dvh;
+  }
+
+  .panel.branded .brandBody {
+    padding: var(--spacing-lg);
+  }
+
+  /* With `afterCard`, the centred, capped COLUMN is the edge-to-edge sheet: the card inside it loses
+     its box, and a branded column is one surface the screen's height, with the slot as its last
+     row, in the body's gutter — as the sign-in card draws its "Need access?" line inside on a phone.
+     The DOM is the same as on a wide screen; only the drawing changes. */
+  .column.centered.capped {
+    gap: 0;
+    max-width: none;
+  }
+
+  .column.centered.capped > .panel {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .column.columnBranded.centered.capped {
+    background-color: var(--panelbg-color);
+    min-height: 100dvh;
+  }
+
+  .column.columnBranded.centered.capped > .afterCard {
+    padding: 0 var(--spacing-lg) var(--spacing-lg);
+  }
+}
+

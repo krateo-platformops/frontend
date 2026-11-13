@@ -274,6 +274,13 @@
   margin-bottom: var(--spacing-md);
 }
 
+/* `noticeVariant: text`: the notice as one muted line (antd Typography secondary). Two classes, to
+   outrank antd's own `div.ant-typography` margin. */
+.form .noticeText {
+  font-size: var(--krateo-text-body-sm);
+  margin: 0 0 var(--spacing-md);
+}
+
 /* Why an `autocomplete` / `dependencies` field shows no list (source missing, denied, failed load). */
 .fieldNote {
   align-items: center;

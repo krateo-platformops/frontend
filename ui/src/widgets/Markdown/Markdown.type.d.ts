@@ -16,6 +16,10 @@ export interface Markdown {
      */
     widgetData: {
       /**
+       * the alignment of the text: `left`, `center` or `right`. Absent: the alignment it inherits
+       */
+      align?: 'left' | 'center' | 'right'
+      /**
        * displays a copy button on top of the widget to allow copy to clipboard
        */
       allowCopy?: boolean
@@ -31,6 +35,10 @@ export interface Markdown {
        * markdown string to be displayed
        */
       markdown: string
+      /**
+       * `secondary`: the text in the secondary text colour at the small size, as a muted line (links keep the link colour). Absent: the body text colour and size
+       */
+      tone?: 'secondary'
     }
     /**
      * Binds this widget to a RESTAction whose response feeds the widgetDataTemplate and resourcesRefsTemplate expressions. Omit it for a widget whose data is entirely static.
