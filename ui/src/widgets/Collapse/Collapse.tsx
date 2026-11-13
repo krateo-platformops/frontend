@@ -8,6 +8,8 @@ import { ListView } from '../List/ListView'
 import styles from './Collapse.module.css'
 import type { Collapse as WidgetType } from './Collapse.type'
 
+// T2 opt-out: antd Collapse already renders in four places (SchemaFields, PalettePanel, KindInspector, the Agentiko preview surface), and a buildComponents entry would restyle all of them; this widget keeps the density they have, and a theme entry is its own change with those four in view.
+
 export type CollapseWidgetData = WidgetType['spec']['widgetData']
 type Panel = CollapseWidgetData['items'][number]
 
