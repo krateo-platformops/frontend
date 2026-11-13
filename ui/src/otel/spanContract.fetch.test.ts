@@ -263,14 +263,15 @@ describe('only the agent\'s JSON-RPC calls — POSTs — become the A2A span', (
 
 /**
  * A response whose body stays open until `close` is called, as a streamed turn does. `error` fails
- * the body the way an aborted request's body fails: with the signal's default reason, `AbortError`.
+ * the body: by default the way an ABORTED request's body fails, with the signal's default reason
+ * (`AbortError`); given a `TypeError`, the way a dropped connection fails it.
  */
 const openStream = () => {
   let controller: ReadableStreamDefaultController<Uint8Array> | null = null
   const body = new ReadableStream<Uint8Array>({ start: (ctrl) => { controller = ctrl } })
   return {
     close: () => { controller?.close() },
-    error: () => { controller?.error(new DOMException('aborted', 'AbortError')) },
+    error: (reason: Error = new DOMException('aborted', 'AbortError')) => { controller?.error(reason) },
     response: () => new Response(body, { status: 200 }),
   }
 }
@@ -300,12 +301,12 @@ describe('where the span ENDS, pinned against the installed library', () => {
     expect(recorded[0].attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toBe(200)
   })
 
-  it('a stream that errors mid-way ends the span then — ERROR, and NO status code although a 200 arrived', async () => {
+  it('a stream whose connection drops mid-way ends the span then — ERROR, and NO status code although a 200 arrived', async () => {
     install(A2A_BASE)
     const stream = openStream()
     respond = stream.response
     await withA2aMethod('message/stream', () => fetch(`${A2A_BASE}/`, { method: 'POST' }))
-    stream.error()
+    stream.error(new TypeError('network error'))
     await settled()
 
     // instrumentation-fetch records 0 here and leaves the status UNSET; snowplow accepts 100–599 only,
@@ -313,6 +314,46 @@ describe('where the span ENDS, pinned against the installed library', () => {
     expect(ATTR_HTTP_RESPONSE_STATUS_CODE in recorded[0].attributes).toBe(false)
     expect(recorded[0].status.code).toBe(SpanStatusCode.ERROR)
     expect(recorded[0].attributes[ATTR_A2A_METHOD]).toBe('message/stream')
+  })
+
+  it('a stream the USER aborts mid-way is still exported, but UNSET — a Stop is not an agent error', async () => {
+    install(A2A_BASE)
+    const stream = openStream()
+    respond = stream.response
+    await withA2aMethod('message/stream', () => fetch(`${A2A_BASE}/`, { method: 'POST' }))
+    stream.error()
+    await settled()
+
+    expect(recorded[0].name).toBe(COUNTED_SPAN_NAMES.agentikoA2a)
+    expect(recorded[0].status.code).toBe(SpanStatusCode.UNSET)
+    expect(ATTR_HTTP_RESPONSE_STATUS_CODE in recorded[0].attributes).toBe(false)
+    // The internal abort marker never leaves the browser.
+    expect(Object.keys(recorded[0].attributes).some((key) => key.startsWith('krateo.internal'))).toBe(false)
+  })
+
+  it('Stop on a real turn, through the transport: exported, UNSET, and the trace join intact', async () => {
+    install(A2A_BASE)
+    respond = never
+    const stop = createKagentTransport(A2A_BASE).send({ context: '', sessionId: 's-1', text: 'hello' }, { onFrame: () => undefined })
+    await vi.waitFor(() => { expect(sent).toHaveLength(1) })
+    stop()
+    await settled()
+
+    const { spanId, traceId } = carried(sent[0])
+    expect(recorded[0].status.code).toBe(SpanStatusCode.UNSET)
+    expect(recorded[0].spanContext().traceId).toBe(traceId)
+    expect(recorded[0].spanContext().spanId).toBe(spanId)
+    expect(recorded[0].attributes[ATTR_A2A_METHOD]).toBe('message/stream')
+  })
+
+  it('a TIMEOUT is a failure, not a user abort: ERROR', async () => {
+    install(A2A_BASE)
+    respond = never
+    await expect(withA2aMethod('message/stream', () => fetch(`${A2A_BASE}/`, { method: 'POST', signal: AbortSignal.timeout(20) }))).rejects.toThrow()
+    await settled()
+
+    expect(recorded[0].status.code).toBe(SpanStatusCode.ERROR)
+    expect(ATTR_HTTP_RESPONSE_STATUS_CODE in recorded[0].attributes).toBe(false)
   })
 
   it('a request that never got a response (network failure) is the same: ERROR, no status code', async () => {

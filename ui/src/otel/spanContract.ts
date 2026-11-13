@@ -90,9 +90,9 @@ export type SpanName = typeof SPAN_NAMES[keyof typeof SPAN_NAMES]
  * it when the headers resolve. So for `message/stream` it measures the WHOLE streamed turn, request
  * → last SSE byte. A body that errors mid-way (the rail's AbortController, a dropped connection)
  * ends the span at that moment through the library's error path, which records
- * `http.response.status_code` 0 even though a 200 had arrived (the export turns that into ERROR
- * with no status code: `a2aStatusOf`). A tab closed mid-stream never ends it, so nothing is
- * exported.
+ * `http.response.status_code` 0 even though a 200 had arrived. The export drops that 0, and the
+ * status says why it ended (`a2aStatusOf`): UNSET when the user aborted it, ERROR when the network
+ * or the stream failed. A tab closed mid-stream never ends it, so nothing is exported.
  * spanContract.fetch.test.ts pins this against the installed library: a bump that changes where the
  * span ends fails there, because moving a boundary silently changes what the duration claims.
  */
@@ -501,13 +501,33 @@ const exportedAs = (span: ReadableSpan, attributes: Attributes, status: SpanStat
 })
 
 /**
- * A `krateo.agentiko.a2a` span as exported: the allowlisted attributes, and `ERROR` when no response
- * was read. An ABORTED A2A request (the user stopping a turn) is still exported, as `ERROR`: the
- * request did not complete, whoever stopped it (agreed for this span before widget.fetch's abort
- * rule; see the PR).
+ * The status a `krateo.agentiko.a2a` span exports:
+ *
+ *   - a response was read (2xx/4xx/5xx) → the library's own, unchanged;
+ *   - the USER aborted it (Stop, a new thread, navigating away — recognised as `wasAborted` is)
+ *     → UNSET. Not ERROR: the SLI derives `krateo.sli.error` as "5xx, or ERROR with no status code"
+ *     for every forwarded span, so an ERROR here would count each Stop as an agent error;
+ *   - any other failure (network, a stream that broke mid-way, a `TimeoutError`) → ERROR.
+ */
+const a2aStatusOf = (span: ReadableSpan): SpanStatus => {
+  if (gotResponse(span)) {
+    return span.status
+  }
+  if (wasAborted(span)) {
+    return { code: SpanStatusCode.UNSET }
+  }
+  return noResponseStatus(span)
+}
+
+/**
+ * A `krateo.agentiko.a2a` span as exported: the allowlisted attributes and `a2aStatusOf`.
+ *
+ * Unlike `krateo.widget.fetch`, an ABORTED A2A request is still EXPORTED (UNSET, no status code):
+ * it carries the join between the portal and the agent's trace, which is the reason this span
+ * exists, and the turn it started may well have run server-side.
  */
 const a2aExportOf = (span: ReadableSpan): ReadableSpan =>
-  exportedAs(span, a2aAttributesOf(span.attributes), gotResponse(span) ? span.status : noResponseStatus(span))
+  exportedAs(span, a2aAttributesOf(span.attributes), a2aStatusOf(span))
 
 /**
  * A `krateo.widget.fetch` span as exported, or null when it must not be (decided with the SLI owner):

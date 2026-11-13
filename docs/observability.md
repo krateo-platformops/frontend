@@ -145,7 +145,7 @@ UNSET. That is the shape the SLI reads as a success, and snowplow accepts a stat
 | outcome | exported as |
 |---|---|
 | a response was read (200, 503, …) | **unchanged**: its status code, and the library's own `ERROR` for 4xx/5xx |
-| the page **aborted** the request (an `AbortController`, e.g. a request cancelled on navigation) | `krateo.widget.fetch`: **not exported**, since an abort is not a request outcome. `krateo.agentiko.a2a`: `ERROR`, no status code (above) |
+| the page **aborted** the request (an `AbortController`, e.g. a request cancelled on navigation) | `krateo.widget.fetch`: **not exported**, since an abort is not a request outcome. `krateo.agentiko.a2a`: exported **UNSET**, no status code, because a user's Stop is not an agent error and the span still carries the trace join (below) |
 | any other failure: the network, a timeout, a body that broke mid-read | `ERROR`, and **no** `http.response.status_code` |
 
 **An abort is told apart by the library's own record of it, never by the 0**, which both cases
@@ -222,8 +222,8 @@ an SSE reply keeps the span open until its last byte. Two consequences:
 - A body that errors mid-way — the rail aborting the turn, a dropped connection — ends the span
   at that moment, through the library's error path. The library records
   `http.response.status_code` **0** there, even though a 200 had arrived, and leaves the status
-  UNSET. The export **omits that 0 and sets `ERROR`** (below), so an unfinished turn reads as a
-  failure, not as a success with no status.
+  UNSET. The export **omits that 0**. A dropped connection is exported as `ERROR`; a turn the user
+  stopped stays UNSET (below).
 - A tab closed mid-stream never ends the span, so nothing is exported for that request.
 
 Both are pinned against the installed library in `ui/src/otel/spanContract.fetch.test.ts`: a bump
@@ -238,10 +238,16 @@ duration claims.
 | `krateo.a2a.method` | the JSON-RPC method, only when it is `message/stream`, `message/send`, `tasks/get` or `tasks/resubscribe`; **absent** otherwise |
 
 **Errors.** A recorded 4xx/5xx keeps its status code, and the library's own `ERROR`. When no
-complete response was read, the span is exported as `ERROR` with no status code (see
-[Requests that got no response](#requests-that-got-no-response)). Unlike `krateo.widget.fetch`,
-an A2A request the user ABORTED (stopping a turn) is still exported, as `ERROR`: that was agreed
-for this span first, on the reading that the request did not complete, whoever stopped it.
+complete response was read because the network or the stream failed, or the request timed out,
+the span is exported as `ERROR` with no status code (see
+[Requests that got no response](#requests-that-got-no-response)).
+
+**A turn the user stopped is not an error.** Stop, a new thread and navigating away all abort the
+request, and that abort is recognised the same way as for `krateo.widget.fetch`. Such a request is
+exported **UNSET, with no status code**. The collector derives `krateo.sli.error` as "5xx, or
+`ERROR` with no status code" for every span its RUM filter forwards, so an `ERROR` here would
+count each Stop as an agent error. Unlike `krateo.widget.fetch`, an aborted A2A request is still
+**exported**: it carries the join to the agent's trace, and the turn it started may well have run.
 
 Those four and nothing else — an allowlist (`a2aAttributesOf`), so an attribute a future
 instrumentation adds is not exported by default. `url.full` goes (it names the namespace and the
