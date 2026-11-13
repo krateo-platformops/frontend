@@ -81,3 +81,52 @@ spec:
         default: gray
       formats:
         secondaryText: datetime
+---
+# Stats strip — Krateo `statistic` rowVariant (one dataSource, one tile per item)
+# Target: each item is an antd Card + Statistic: title (primaryText), value (secondaryText) and a
+# secondary caption (subPrimaryText). `color` resolves only for a bad number, so only those tiles
+# are tinted and the rest stay neutral (exception-only colour).
+# Expected behavior: four tiles in a row that reflows as it narrows; "Open incidents" in red.
+kind: Listy
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-list-statistic-strip
+  namespace: krateo-system
+spec:
+  widgetData:
+    itemTemplate:
+      rowVariant: statistic
+      primaryText: "{title}"
+      secondaryText: "{value}"
+      subPrimaryText: "{caption}"
+      navigateTo: "{href}"
+      color:
+        value: "{tone}"
+        map: { bad: red, warn: orange }
+    dataSource:
+      - { title: Open incidents, value: 47, caption: "from 9 alerts", tone: bad, href: "/incidents?status=Open" }
+      - { title: Opened in the last 7 days, value: 12, caption: "of 47 open" }
+      - { title: Open longer than 7 days, value: 35, caption: "oldest Nov 2", tone: warn }
+      - { title: Analyzing, value: 0, caption: "none waiting on the analyzer" }
+---
+# Active filters — `chip` rowVariant with per-item `removable`
+# Target: one chip per applied filter value; `removable: true` on the item adds a trailing remove
+# mark and names the chip "Remove filter: <label>"; its navigateTo is the URL without that value
+# (computed by the page's RESTAction). A final plain chip clears every filter.
+# Expected behavior: "Kind: Alert ✕", "Repo: org/x ✕", "Clear all".
+kind: Listy
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-list-active-filters
+  namespace: krateo-system
+spec:
+  widgetData:
+    hideWhenEmpty: true
+    itemTemplate:
+      rowVariant: chip
+      primaryText: "{label}"
+      navigateTo: "{href}"
+    dataSource:
+      - { label: "Kind: Alert", removable: true, href: "/reviews?repo=org/x" }
+      - { label: "Repo: org/x", removable: true, href: "/reviews?kind=Alert" }
+      - { label: "Clear all", href: "/reviews" }
