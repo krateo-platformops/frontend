@@ -457,11 +457,21 @@ spec:
                         primary:
                           description: primary button configuration
                           properties:
+                            block:
+                              description: when true, the primary button spans the whole action bar (antd Button `block`), with any other button stacked above it
+                              type: boolean
                             icon:
                               description: icon name for primary button
                               type: string
                             label:
                               description: text label for primary button
+                              type: string
+                            size:
+                              description: antd Button `size` of the primary button
+                              enum:
+                                - small
+                                - middle
+                                - large
                               type: string
                           type: object
                         review:
@@ -481,6 +491,9 @@ spec:
                         secondary:
                           description: secondary button configuration
                           properties:
+                            hidden:
+                              description: when true, the secondary button (Reset, or the Cancel of `navigateTo`) is not shown
+                              type: boolean
                             icon:
                               description: icon name for secondary button
                               type: string
@@ -929,9 +942,10 @@ spec:
                         type: string
                       type: array
                     requiredMark:
-                      description: 'antd Form requiredMark. `optional`: required fields carry no mark and every other field reads "(optional)"; in a schema form the optional fields then render in place, in schema order, instead of in the "Advanced" collapse. Absent: required fields are marked with an asterisk'
+                      description: 'antd Form requiredMark. `optional`: required fields carry no mark and every other field reads "(optional)"; in a schema form the optional fields then render in place, in schema order, instead of in the "Advanced" collapse. Absent: required fields are marked with an asterisk. `hidden`: no field carries a mark, required or not (antd `requiredMark={false}`)'
                       enum:
                         - optional
+                        - hidden
                       type: string
                     reviewBeforeSubmit:
                       description: when true (inline render only), the primary button validates and reveals an in-place read-only Review of the entered values before the real submit — the form stays mounted so 'Back to edit' preserves every value. Pair with buttonConfig.review / buttonConfig.reviewBack for custom labels.
@@ -1255,6 +1269,39 @@ spec:
                         required:
                           - name
                           - options
+                        type: object
+                      type: array
+                    textareas:
+                      description: string fields drawn as a multi-line TextArea instead of a one-line Input. An entry naming a field that is not a string, or that has an `enum` or a `oneOf`, is ignored
+                      items:
+                        properties:
+                          name:
+                            description: the dotted path of a string field
+                            type: string
+                          rows:
+                            description: the TextArea's height in rows; 3 when absent
+                            maximum: 50
+                            minimum: 1
+                            type: integer
+                        required:
+                          - name
+                        type: object
+                      type: array
+                    title:
+                      description: a heading above the form's fields. It goes with the form when a `submitPost` or `fieldChecks` result replaces it, so a page's heading can live in the Form
+                      type: string
+                    validationMessages:
+                      description: the messages a field's validation shows, in place of the generated ones. A checkbox has its own, in `checkboxes`
+                      items:
+                        properties:
+                          name:
+                            description: the dotted path of a field
+                            type: string
+                          requiredMessage:
+                            description: shown when the field is required and left empty, in place of "<Label> is required"
+                            type: string
+                        required:
+                          - name
                         type: object
                       type: array
                   type: object
