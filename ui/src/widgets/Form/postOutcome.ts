@@ -96,7 +96,7 @@ export const whenHolds = (when: PostWhen | undefined, answer: PostAnswer): boole
 
 /** The first entry whose `when` holds, in the CR's order; undefined for no match or no answer. */
 export const firstMatch = <Entry extends { when?: PostWhen }>(entries: readonly Entry[] | undefined, outcome: PostOutcome): Entry | undefined => {
-  if (outcome.kind !== 'answer' || !Array.isArray(entries)) { return undefined }
+  if (outcome.kind !== 'answer' || !entries) { return undefined }
   return entries.find((entry) => whenHolds(entry.when, outcome))
 }
 

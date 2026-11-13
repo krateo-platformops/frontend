@@ -2,12 +2,13 @@ import { Form as AntdForm } from 'antd'
 import type { FormItemProps } from 'antd'
 import type { Rule } from 'antd/es/form'
 import type { JSONSchema4 } from 'json-schema'
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { cloneElement, createContext, isValidElement, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { AllowlistedPost } from '../../transport/allowlistedPost'
 
 import type { FieldPath } from './fieldDependencies'
 import { CHECK_KEY } from './fieldKeys'
+import { fieldHelpOf } from './fieldPresentation'
 import { resolveResult, type ResultSpec } from './FormResult'
 import { firstMatch, interpolate, pickBodyExtras, type PostOutcome, type PostWhen, sendPost, valueAt } from './postOutcome'
 
@@ -230,21 +231,40 @@ const useFieldCheck = (spec: FieldCheckSpec, path: FieldPath) => {
   return { onBlur, rules, success }
 }
 
+interface BlurProps { onBlur?: (event: React.FocusEvent) => void }
+
 /**
  * A schema field with a `fieldChecks` entry: its Form.Item, with the check's rules after its own,
- * antd's feedback icons on, and the success message as its help while it holds.
+ * antd's feedback icons on, the success message as its help while it holds, and blur on its control
+ * sending the check at once (after the control's own onBlur, if it has one).
  */
 export const CheckedFieldItem = ({ item, path, spec }: { item: FormItemProps; path: FieldPath; spec: FieldCheckSpec }): React.ReactNode => {
   const { onBlur, rules, success } = useFieldCheck(spec, path)
   const allRules = useMemo(() => [...(item.rules ?? []), ...rules], [item.rules, rules])
+  const child = item.children
+  const control = isValidElement<BlurProps>(child)
+    ? cloneElement(child, { onBlur: (event: React.FocusEvent) => { child.props.onBlur?.(event); onBlur() } })
+    : child
   return (
-    <div onBlur={onBlur}>
-      <AntdForm.Item
-        {...item}
-        {...(success ? { help: success.message, validateStatus: 'success' as const } : {})}
-        hasFeedback
-        rules={allRules}
-      />
-    </div>
+    <AntdForm.Item
+      {...item}
+      {...(success ? { help: success.message, validateStatus: 'success' as const } : {})}
+      hasFeedback
+      rules={allRules}
+    >
+      {control}
+    </AntdForm.Item>
   )
+}
+
+/**
+ * A schema leaf's `fieldHelp` and `fieldChecks`, both opt-in: the help becomes the Form.Item's
+ * `extra` (set only when the CR gives one, so a field without it keeps its markup), and a checked
+ * field is returned as a CheckedFieldItem. Undefined for an unchecked field, which renders as before.
+ */
+export const helpAndCheck = (item: FormItemProps, node: JSONSchema4, key: string, scope: FieldPath): React.ReactNode => {
+  const help = fieldHelpOf(node)
+  if (help) { item.extra = help }
+  const check = getFieldCheckSpec(node)
+  return check ? <CheckedFieldItem item={item} key={key} path={scope} spec={check} /> : undefined
 }

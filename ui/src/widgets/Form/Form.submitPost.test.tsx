@@ -80,7 +80,7 @@ const anonymous = (allowlist = [INTAKE]) => createAnonymousTransport({ postAllow
 const renderForm = (widgetData: FormWidgetData, { extras = {}, transport = anonymous() }: { extras?: Record<string, string>; transport?: WidgetTransport } = {}) => render(
   <WidgetTransportProvider value={transport}>
     <FragmentExtrasProvider value={extras}>
-      <Form resourcesRefs={{ items: [] } as never} uid='u' widgetData={widgetData} />
+      <Form resourcesRefs={{ items: [] }} uid='u' widgetData={widgetData} />
     </FragmentExtrasProvider>
   </WidgetTransportProvider>,
 )
@@ -107,7 +107,7 @@ describe('submitPost: what is sent', () => {
     renderForm(CONFIRM, { extras: LINK })
     confirm()
     await waitFor(() => { expect(fetchMock).toHaveBeenCalledTimes(1) })
-    const [url, init] = fetchMock.mock.calls[0]
+    const [[url, init]] = fetchMock.mock.calls
     expect(url).toBe(`${INTAKE}confirmations`)
     expect(url).not.toMatch(/SUB-123|TOK-456/)
     expect(JSON.parse(init.body as string)).toEqual({ submission: 'SUB-123', token: 'TOK-456', username: 'jane-doe' })
@@ -122,13 +122,13 @@ describe('submitPost: what is sent', () => {
     render(
       <SignedInTransportProvider>
         <FragmentExtrasProvider value={LINK}>
-          <Form resourcesRefs={{ items: [] } as never} uid='u' widgetData={CONFIRM} />
+          <Form resourcesRefs={{ items: [] }} uid='u' widgetData={CONFIRM} />
         </FragmentExtrasProvider>
       </SignedInTransportProvider>,
     )
     confirm()
     await waitFor(() => { expect(fetchMock).toHaveBeenCalledTimes(1) })
-    const [, init] = fetchMock.mock.calls[0]
+    const [[, init]] = fetchMock.mock.calls
     expect(JSON.stringify(init)).not.toContain('SYNTHETIC-TOKEN')
     expect(init.credentials).toBe('omit')
   })
@@ -163,7 +163,10 @@ describe('submitPost: what is sent', () => {
     expect((container.querySelector('input') as HTMLInputElement).value).toBe('jane-doe')
     confirm()
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    await act(async () => { answer(new Response(JSON.stringify({ status: 'retry' }), { status: 200 })) })
+    await act(async () => {
+      answer(new Response(JSON.stringify({ status: 'retry' }), { status: 200 }))
+      await Promise.resolve()
+    })
     await waitFor(() => { expect(container.querySelector('.ant-btn-loading')).toBeNull() })
     expect((container.querySelector('input') as HTMLInputElement).disabled).toBe(false)
   })
@@ -210,7 +213,8 @@ describe('submitPost: the confirmation page', () => {
     const extra = container.querySelector('.ant-result-extra') as HTMLElement
     expect(extra.textContent).toBe('Already have an account? Sign in')
     expect(extra.querySelector('.ant-btn')).toBeNull()
-    expect(within(extra).getByText('Sign in').closest('a')?.getAttribute('href')).toBe('/login')
+    const signIn = within(extra).getByText('Sign in').closest('a')
+    expect(signIn?.getAttribute('href')).toBe('/login')
   })
 
   it.each([
@@ -250,7 +254,9 @@ describe('submitPost: the confirmation page', () => {
     confirm()
     const alert = (await screen.findByRole('alert')).closest('.ant-alert') as HTMLElement
     expect(alert.querySelector('.ant-alert-description')?.textContent).toBe(description)
-    await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 1100) }) })
+    await act(async () => {
+      await new Promise((resolve) => { setTimeout(resolve, 1100) })
+    })
     expect(alert.querySelector('.ant-alert-description')?.textContent).toBe(description)
   })
 
@@ -351,7 +357,7 @@ describe('one way to submit', () => {
     ['actions without submitActionId', { actions: ACTIONS, stringSchema: SCHEMA }, 'no `submitActionId`'],
     ['submitActionId without actions', { stringSchema: SCHEMA, submitActionId: 'submit' }, 'no `actions`'],
   ])('%s: the error state names the problem', (_name, widgetData, problem) => {
-    const { container } = renderForm(widgetData as FormWidgetData)
+    const { container } = renderForm(widgetData)
     expect(container.querySelector('form')).toBeNull()
     expect(container.querySelector('.ant-result-error')?.textContent).toContain(problem)
   })

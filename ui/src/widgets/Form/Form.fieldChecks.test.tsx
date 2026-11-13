@@ -28,6 +28,22 @@ interface Sent {
   answer: (status: number, body?: unknown, headers?: Record<string, string>) => Promise<void>
 }
 
+async function flush(ms = 0) {
+  await act(async () => { await vi.advanceTimersByTimeAsync(ms) })
+}
+
+/**
+ * antd shows a field's message through a chain of deferred updates (a debounce, then the list's
+ * motion), each scheduled only once the one before it has rendered. One act() runs one link of it,
+ * so let several go by.
+ */
+async function settle() {
+  for (let round = 0; round < 6; round += 1) {
+    // eslint-disable-next-line no-await-in-loop -- each round must render before the next is scheduled
+    await flush(50)
+  }
+}
+
 let sent: Sent[] = []
 /** When false, a request ignores its abort signal, like a server answer already on its way. */
 let honourAbort = true
@@ -46,22 +62,6 @@ const fetchMock = vi.fn((url: string, init: RequestInit) => new Promise<Response
     url,
   })
 }))
-
-async function flush(ms = 0) {
-  await act(async () => { await vi.advanceTimersByTimeAsync(ms) })
-}
-
-/**
- * antd shows a field's message through a chain of deferred updates (a debounce, then the list's
- * motion), each scheduled only once the one before it has rendered. One act() runs one link of it,
- * so let several go by.
- */
-async function settle() {
-  for (let round = 0; round < 6; round += 1) {
-    // eslint-disable-next-line no-await-in-loop -- each round must render before the next is scheduled
-    await flush(50)
-  }
-}
 
 beforeAll(() => {
   const noop = () => undefined
@@ -94,7 +94,7 @@ const renderForm = (widgetData: FormWidgetData = CONFIRM_FORM) => {
   const view = render(
     <WidgetTransportProvider value={createAnonymousTransport({ postAllowlist: [INTAKE] })}>
       <FragmentExtrasProvider value={LINK}>
-        <Form resourcesRefs={{ items: [] } as never} uid='u' widgetData={widgetData} />
+        <Form resourcesRefs={{ items: [] }} uid='u' widgetData={widgetData} />
       </FragmentExtrasProvider>
     </WidgetTransportProvider>,
   )
@@ -173,7 +173,7 @@ describe('a newer value wins', () => {
     const form = renderForm()
     await form.type('jane')
     await flush(500)
-    const first = checks()[0]
+    const [first] = checks()
     expect(first.init.signal?.aborted).toBe(false)
     await form.type('janet')
     expect(first.init.signal?.aborted).toBe(true)

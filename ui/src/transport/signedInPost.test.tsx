@@ -46,7 +46,7 @@ describe('the signed-in transport\'s post', () => {
     const transport = signedIn()
     const { signal } = new AbortController()
     await transport.post!('/request-access/api/v1/username-checks', { username: 'ada' }, { signal })
-    const [url, init] = fetchMock.mock.calls[0]
+    const [[url, init]] = fetchMock.mock.calls
     expect(url).toBe('/request-access/api/v1/username-checks')
     expect(init).toMatchObject({ body: '{"username":"ada"}', credentials: 'omit', method: 'POST', signal })
     expect(JSON.stringify(init)).not.toContain('SYNTHETIC-TOKEN')

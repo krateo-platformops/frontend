@@ -11,9 +11,7 @@ import { useAgentDraft } from '../../components/Agentiko/agentDraft'
 import { dismissButtonProps } from '../../components/DismissButton'
 import WidgetRenderer from '../../components/WidgetRenderer'
 import YamlBlock from '../../components/YamlBlock'
-import { useFragmentExtras } from '../../context/PageRootContext'
 import { useHandleAction } from '../../hooks/useHandleActions'
-import { useWidgetTransport } from '../../transport/widgetTransport'
 import type { WidgetProps } from '../../types/Widget'
 import { carryScopeParams } from '../../utils/navigation'
 import { maskSecretPaths, omitSecretPaths, secretFieldPaths, type SecretPath } from '../../utils/secretFields'
@@ -21,20 +19,20 @@ import { getEndpointUrl } from '../../utils/utils'
 import { useDrawerContext } from '../Drawer/DrawerContext'
 
 import { FailedFieldsContext } from './failedFields'
-import { FieldCheckContext, type FieldCheckEnv } from './fieldCheck'
+import { FieldCheckContext } from './fieldCheck'
 import { applyFieldConfig } from './fieldConfig'
 import { collectDependencies, dependentsToClear, type FieldPath } from './fieldDependencies'
 import { createOptionRegistry, getFieldOptionsSpec, type OptionRegistry } from './fieldOptions'
 import { type FieldPresentation, FieldPresentationContext } from './fieldPresentation'
 import styles from './Form.module.css'
-import { FormResult, type ResultSpec } from './FormResult'
 import type { Form as WidgetType } from './Form.type'
-import { pickBodyExtras, sendPost } from './postOutcome'
+import { FormResult } from './FormResult'
 import { setFormReviewing } from './reviewPhase'
 import { SchemaForm } from './SchemaFields'
 import { SecretFieldsContext, type SecretFieldsRegistry } from './secretFieldsRegistry'
-import { mapSubmitOutcome, type ShownAlert, submitModeProblem, type SubmitPostSpec } from './submitPost'
+import { submitModeProblem } from './submitPost'
 import { FormRefsContext } from './useFieldOptions'
+import { useSubmitPost } from './useSubmitPost'
 import { fieldlessSchemaMessage, getDefaultsFromSchema, narrowAgentDraft } from './utils'
 import { hiddenPaths, omitPaths } from './visibleWhen'
 
@@ -332,18 +330,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   // only yields validated, registered fields.
   const [form] = AntdForm.useForm()
 
-  // `submitPost` / `fieldChecks`: the allow-listed post of the transport in scope (token-less on
-  // both, transport/allowlistedPost.ts), the page's fragment extras a CR may send in a body, and
-  // what an answer put on screen — a Result instead of the form, an inline Alert above the buttons.
-  const { post } = useWidgetTransport()
-  const fragmentExtras = useFragmentExtras()
-  const [formResult, setFormResult] = useState<ResultSpec | null>(null)
-  const [submitAlert, setSubmitAlert] = useState<ShownAlert | null>(null)
-  const [posting, setPosting] = useState(false)
-  const postingRef = useRef(false)
-  const submitAbort = useRef<AbortController | null>(null)
-  useEffect(() => () => { submitAbort.current?.abort() }, [])
-  const checkEnv = useMemo<FieldCheckEnv>(() => ({ extras: fragmentExtras, onResult: setFormResult, post }), [fragmentExtras, post])
+  // `submitPost` / `fieldChecks`: the token-less allow-listed post, and what an answer put on
+  // screen — a Result instead of the form, an inline Alert above the buttons (useSubmitPost.ts).
+  const { alert: submitAlert, checkEnv, posting, result: formResult, submit: postSubmit } = useSubmitPost(form)
 
   // In-place Review state: the validated values captured on "Review →" (null = editing).
   const [reviewValues, setReviewValues] = useState<Record<string, unknown> | null>(null)
@@ -575,39 +564,10 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
     }
     : undefined
 
-  // `submitPost`: POST the values (and the CR's body extras) to the allow-listed path, then show
-  // what the response maps to. The form stays mounted, disabled, with the primary button loading.
-  const onPostSubmit = async (spec: SubmitPostSpec, formValues: Record<string, unknown>) => {
-    if (postingRef.current) { return }
-    postingRef.current = true
-    setPosting(true)
-    setSubmitAlert(null)
-    const controller = new AbortController()
-    submitAbort.current = controller
-    // The page's extras win over a field of the same name: they are what the link carried.
-    const body = { ...convertDayjsToISOString(formValues), ...pickBodyExtras(spec.bodyExtras, fragmentExtras) }
-    const outcome = await sendPost(post, spec.path, body, { signal: controller.signal, timeoutMs: spec.timeoutMs })
-    if (controller.signal.aborted && outcome.kind === 'aborted') { return }
-    postingRef.current = false
-    setPosting(false)
-    const effect = mapSubmitOutcome(spec, outcome)
-    if (effect.kind === 'result') { setFormResult(effect.result) }
-    if (effect.kind === 'alert') { setSubmitAlert(effect.alert) }
-    if (effect.kind === 'fieldErrors') {
-      // Only the fields this form has; a response naming none of them is told as an Alert.
-      const registered = new Set(form.getFieldsError().map(({ name }) => name.join('.')))
-      const known = effect.errors.filter(({ name }) => registered.has(name))
-      if (known.length) {
-        form.setFields(known.map(({ message, name }) => ({ errors: [message], name: name.split('.') })))
-      } else {
-        setSubmitAlert(effect.fallback)
-      }
-    }
-  }
-
   const onSubmit = async (formValues: Record<string, unknown>) => {
+    // `submitPost`: POST to the allow-listed path; the form stays mounted, disabled, button loading.
     if (submitPost) {
-      await onPostSubmit(submitPost as SubmitPostSpec, formValues)
+      await postSubmit(submitPost, convertDayjsToISOString(formValues))
       return
     }
     const effectiveAction = resolveSubmitAction(formValues)

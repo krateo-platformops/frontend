@@ -12,14 +12,14 @@
  *   pinned, pristine and after a failed submit.
  */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 
 import Form, { type FormWidgetData } from './Form'
 
 const state = vi.hoisted(() => ({
-  handleAction: null as unknown as ReturnType<typeof import('vitest').vi.fn>,
+  handleAction: null as unknown as Mock,
   loading: false,
-  notifyError: null as unknown as ReturnType<typeof import('vitest').vi.fn>,
+  notifyError: null as unknown as Mock,
 }))
 
 vi.mock('../../hooks/useHandleActions', async () => {
@@ -109,7 +109,7 @@ const PRESENTED = base({
 
 describe('a Form that submits through its actions, as on main', () => {
   it('dispatches the CR action through handleAction with the validated values', async () => {
-    render(<Form resourcesRefs={{ items: [] } as never} uid='u' widgetData={base({ initialValues: { consent: true, name: 'jane' } })} />)
+    render(<Form resourcesRefs={{ items: [] }} uid='u' widgetData={base({ initialValues: { consent: true, name: 'jane' } })} />)
     fireEvent.click(screen.getByText('Submit'))
     await waitFor(() => { expect(state.handleAction).toHaveBeenCalledTimes(1) })
     const [action, , values, , , , , kind] = state.handleAction.mock.calls[0] as unknown[]
@@ -120,7 +120,7 @@ describe('a Form that submits through its actions, as on main', () => {
   })
 
   it('a submit naming no action is a toast', async () => {
-    render(<Form resourcesRefs={{ items: [] } as never} uid='u' widgetData={base({ initialValues: { consent: true, name: 'jane' }, submitActionId: 'missing' })} />)
+    render(<Form resourcesRefs={{ items: [] }} uid='u' widgetData={base({ initialValues: { consent: true, name: 'jane' }, submitActionId: 'missing' })} />)
     fireEvent.click(screen.getByText('Submit'))
     await waitFor(() => { expect(state.notifyError).toHaveBeenCalledTimes(1) })
     expect(state.notifyError.mock.calls[0][0]).toMatchObject({ message: 'Error while executing the action' })
@@ -130,18 +130,18 @@ describe('a Form that submits through its actions, as on main', () => {
 
   it('while the action runs, the form is swapped for the spinner', () => {
     state.loading = true
-    const { container } = render(<Form resourcesRefs={{ items: [] } as never} uid='u' widgetData={base({})} />)
+    const { container } = render(<Form resourcesRefs={{ items: [] }} uid='u' widgetData={base({})} />)
     expect(container.querySelector('form')).toBeNull()
     expect(container.querySelector('.ant-spin')).not.toBeNull()
   })
 
   it('a form with descriptions and #716 options, pristine', () => {
-    const { container } = render(<Form resourcesRefs={{ items: [] } as never} uid='u' widgetData={PRESENTED} />)
+    const { container } = render(<Form resourcesRefs={{ items: [] }} uid='u' widgetData={PRESENTED} />)
     expect(stable(container.innerHTML)).toMatchSnapshot()
   })
 
   it('a form with descriptions and #716 options, after a failed submit', async () => {
-    const { container } = render(<Form resourcesRefs={{ items: [] } as never} uid='u' widgetData={PRESENTED} />)
+    const { container } = render(<Form resourcesRefs={{ items: [] }} uid='u' widgetData={PRESENTED} />)
     fireEvent.click(screen.getByText('Submit'))
     await waitFor(() => {
       const failing = [...container.querySelectorAll('.ant-form-item-has-error')]
