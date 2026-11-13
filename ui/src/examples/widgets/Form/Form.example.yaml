@@ -160,3 +160,54 @@ spec:
         name: create-deployment
         namespace: krateo-system
         verb: POST
+---
+# Schema-driven Form with checkboxes and "(optional)" marks. `checkboxes` draws a boolean as a
+# Checkbox labelled by its `title`; `link.text` is the phrase of the label that becomes the link.
+# A required checkbox must be ticked, and shows `requiredMessage` when it is not.
+# `requiredMark: optional` marks every field that is not required "(optional)", in place, and
+# `hasFeedback: rules` shows the validation icons on an optional field with a rule (`phone`).
+kind: Form
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-form-checkboxes
+  namespace: krateo-system
+spec:
+  widgetData:
+    submitActionId: submit-form
+    requiredMark: optional
+    hasFeedback: rules
+    actions:
+      rest:
+        - id: submit-form
+          type: rest
+          resourceRefId: create-request
+          headers:
+            - "Content-Type: application/json"
+    schema:
+      type: object
+      required: [firstName, email, consent]
+      properties:
+        firstName: { type: string, title: First name }
+        email: { type: string, title: Email, pattern: "^[^@ ]+@[^@ ]+$" }
+        phone: { type: string, title: Phone, pattern: "^[+][0-9 ]+$" }
+        consent:
+          type: boolean
+          title: I agree that my details are processed to review this request. See the privacy policy.
+        updates:
+          type: boolean
+          title: Send me occasional product updates. I can unsubscribe at any time.
+    checkboxes:
+      - name: consent
+        link:
+          text: privacy policy
+          href: https://example.com/privacy
+        requiredMessage: Please agree to the processing of your details; the request cannot be reviewed without it.
+      - name: updates
+  resourcesRefs:
+    items:
+      - id: create-request
+        apiVersion: templates.krateo.io/v1
+        resource: restactions
+        name: create-request
+        namespace: krateo-system
+        verb: POST

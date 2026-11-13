@@ -363,6 +363,32 @@ export interface Form {
         }
       }
       /**
+       * boolean fields drawn as a Checkbox whose text is the field's label (its schema `title`, else its key), where a boolean is otherwise a Switch. The label is plain text; one phrase of it can be a link. A REQUIRED checkbox must be ticked to submit
+       */
+      checkboxes?: {
+        /**
+         * the dotted path of a boolean field; an entry naming any other field is ignored
+         */
+        name: string
+        /**
+         * one link in the label: the first occurrence of `text` in the label becomes a link to `href`, opened in a new tab (when `text` is not in the label, the link follows it)
+         */
+        link?: {
+          /**
+           * the phrase of the label that is the link
+           */
+          text: string
+          /**
+           * an http(s) or mailto URL, or a path on the portal (`/…`); any other is not drawn as a link
+           */
+          href: string
+        }
+        /**
+         * the message under a required checkbox left unticked
+         */
+        requiredMessage?: string
+      }[]
+      /**
        * Configuration for the form fields who are dependent from other form fields. The field options are set via an API call made using a RESTAction which sould be defined below. The RESTActions shuold contain a `status` field, which is an array of object with the `{ label, value }` format.
        */
       dependencies?: {
@@ -470,6 +496,10 @@ export interface Form {
        */
       draftActionId?: string
       /**
+       * which fields of a schema form show antd's validation feedback icons. Absent: required fields. `rules`: every field with a validation rule, required or optional (an optional field shows the success icon only once it holds a value)
+       */
+      hasFeedback?: 'rules'
+      /**
        * optional object with initial values for form fields. Keys should match form field names (supports nested objects). These values override schema defaults.
        */
       initialValues?: Record<string, unknown>
@@ -507,6 +537,10 @@ export interface Form {
        * top-level schema property names to omit from the schema-driven form
        */
       propertiesToHide?: string[]
+      /**
+       * antd Form requiredMark. `optional`: required fields carry no mark and every other field reads "(optional)"; in a schema form the optional fields then render in place, in schema order, instead of in the "Advanced" collapse. Absent: required fields are marked with an asterisk
+       */
+      requiredMark?: 'optional'
       /**
        * when true (inline render only), the primary button validates and reveals an in-place read-only Review of the entered values before the real submit — the form stays mounted so 'Back to edit' preserves every value. Pair with buttonConfig.review / buttonConfig.reviewBack for custom labels.
        */
