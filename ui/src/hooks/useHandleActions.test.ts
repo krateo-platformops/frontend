@@ -206,7 +206,7 @@ describe('fetchWithTimeout', () => {
     const fetchMock = vi.fn((_url: string, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
       signal = init.signal ?? undefined
       // As fetch does: it rejects with the signal's abort REASON.
-      init.signal?.addEventListener('abort', () => { reject(init.signal?.reason) })
+      init.signal?.addEventListener('abort', () => { reject(init.signal?.reason as Error) })
     }))
     vi.stubGlobal('fetch', fetchMock)
 

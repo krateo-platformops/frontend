@@ -95,12 +95,14 @@ const install = (a2aPrefix: string | null, snowplow: string = SNOWPLOW) => {
   globalThis.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     sent.push({ headers: new Headers(init?.headers), url: input instanceof Request ? input.url : input.toString() })
     const signal = init?.signal
+    // The reason is a DOMException, an Error in every runtime this runs in; typed `any` by lib.dom.
+    const reasonOf = (aborted: AbortSignal): Error => aborted.reason as Error
     return new Promise<Response>((resolve, reject) => {
       if (signal?.aborted) {
-        reject(signal.reason)
+        reject(reasonOf(signal))
         return
       }
-      signal?.addEventListener('abort', () => { reject(signal.reason) })
+      signal?.addEventListener('abort', () => { reject(reasonOf(signal)) })
       // Through `.then`, so a `respond` that throws is a REJECTED fetch, as a network failure is.
       Promise.resolve().then(respond).then(resolve, reject)
     })
@@ -414,7 +416,7 @@ describe('krateo.widget.fetch with NO response: an abort is dropped, a failure i
     }
     expect(ok.attributes).toEqual({ ...asRecorded, [ATTR_HTTP_RESPONSE_STATUS_CODE]: 200 })
     expect(ok.status.code).toBe(SpanStatusCode.UNSET)
-    expect(unavailable.attributes).toEqual({ ...asRecorded, 'error.type': '503', [ATTR_HTTP_RESPONSE_STATUS_CODE]: 503 })
+    expect(unavailable.attributes).toEqual({ ...asRecorded, [ATTR_HTTP_RESPONSE_STATUS_CODE]: 503, 'error.type': '503' })
     expect(unavailable.status.code).toBe(SpanStatusCode.ERROR)
   })
 })

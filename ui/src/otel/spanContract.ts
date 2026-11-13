@@ -457,8 +457,12 @@ export const fetchSpanHook = (snowplowPrefix: string | null) =>
  * docs/observability.md), which is what an unanswered request is. The library's own `ERROR` is kept
  * where it set one (XHR's error and timeout paths, with their message).
  */
-const noResponseStatus = (span: ReadableSpan): SpanStatus =>
-  span.status.code === SpanStatusCode.ERROR ? span.status : { code: SpanStatusCode.ERROR }
+const noResponseStatus = (span: ReadableSpan): SpanStatus => {
+  if (span.status.code === SpanStatusCode.ERROR) {
+    return span.status
+  }
+  return { code: SpanStatusCode.ERROR }
+}
 
 /** The span's attributes without a status code that is not an HTTP status (the 0 above). */
 const withoutNonHttpStatus = (attributes: Attributes): Attributes => {
