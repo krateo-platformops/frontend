@@ -422,6 +422,54 @@ const tableRowActions = () => (
   />
 )
 
+/**
+ * `?fixture=table-virtual-alignment&box=1209&rows=116[&uid=…]`: a VIRTUAL Table shaped like the
+ * open-proposals table that showed the defect — nine columns, most with a `minWidth`, two of tags,
+ * one of condition pills, `fitContent`, small — in a box narrower than the columns ask for.
+ * tableVirtualAlignment.spec.ts checks every header th starts where its body cells do, before and
+ * after a column resize.
+ */
+const alignmentBox = Number(params.get('box') ?? 0) || 1209
+const alignmentRows = Number(params.get('rows') ?? 0) || 116
+const alignmentRow = (index: number) => [
+  { kind: 'jsonSchemaType', stringValue: `Raise the memory limit of payments-api-${index} so it stops restarting under load`, type: 'string', valueKey: 'title' },
+  { kind: 'jsonSchemaType', stringValue: `Deployment team-checkout/payments-api-${index}`, type: 'string', valueKey: 'subject' },
+  { color: 'gray', kind: 'tag', stringValue: index % 2 ? 'yaml' : 'markdown', valueKey: 'kind' },
+  { kind: 'jsonSchemaType', stringValue: 'Pods, events, container metrics', type: 'string', valueKey: 'sources' },
+  { kind: 'conditions', stringValue: JSON.stringify([{ color: 'gray', status: 'True', type: 'Kind n/a' }]), valueKey: 'checks' },
+  { color: index % 3 ? 'blue' : 'green', kind: 'tag', stringValue: index % 3 ? 'Open' : 'Ready', valueKey: 'phase' },
+  { kind: 'jsonSchemaType', stringValue: index % 4 ? '-' : 'Yes', type: 'string', valueKey: 'superseded' },
+  { kind: 'jsonSchemaType', stringValue: '3 hours ago', type: 'string', valueKey: 'created' },
+  { kind: 'jsonSchemaType', stringValue: `apps/v1 Deployment team-checkout/payments-api-${index}`, type: 'string', valueKey: 'target' },
+]
+const tableVirtualAlignment = () => (
+  <div data-testid='alignment-box' style={{ width: alignmentBox }}>
+    <Table
+      resourcesRefs={{ items: [] }}
+      uid={params.get('uid') ?? 'fixture-virtual-alignment'}
+      widget={{} as never}
+      widgetData={{
+        allowedResources: [],
+        bordered: false,
+        columns: [
+          { minWidth: 300, title: 'Proposal', valueKey: 'title' },
+          { minWidth: 180, title: 'Subject', valueKey: 'subject' },
+          { title: 'Kind', valueKey: 'kind' },
+          { minWidth: 150, title: 'Evidence sources', valueKey: 'sources' },
+          { minWidth: 150, title: 'Checks', valueKey: 'checks' },
+          { title: 'Status', valueKey: 'phase' },
+          { title: 'Superseded', valueKey: 'superseded' },
+          { minWidth: 110, title: 'Proposed', valueKey: 'created' },
+          { minWidth: 180, title: 'Proposed target', valueKey: 'target' },
+        ],
+        dataSource: Array.from({ length: alignmentRows }, (_, index) => alignmentRow(index)),
+        fitContent: true,
+        size: 'small',
+      } as unknown as TableWidgetData}
+    />
+  </div>
+)
+
 const fixtures: Record<string, () => React.ReactNode> = {
   'agentiko-rail': agentikoRail,
   'app-shell': appShell,
@@ -439,6 +487,7 @@ const fixtures: Record<string, () => React.ReactNode> = {
   'screen-header-no-subtitle': () => screenHeader(),
   'table-cell-tooltip': () => <Table resourcesRefs={{ items: [] }} uid='fixture' widget={{} as never} widgetData={spansTable} />,
   'table-row-actions': tableRowActions,
+  'table-virtual-alignment': tableVirtualAlignment,
 }
 
 const missing = <pre data-testid='missing'>{`no renderable example ${doc} in ${folder}`}</pre>
