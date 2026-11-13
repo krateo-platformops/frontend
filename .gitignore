@@ -7,6 +7,9 @@ node_modules/
 dist/
 build/
 public/
+# Source, not build output: the public pages (ui/src/public/PublicPage.tsx). Without this a new
+# file there is silently left out of `git add`.
+!ui/src/public/
 
 # Editor & IDEs
 .vscode/
