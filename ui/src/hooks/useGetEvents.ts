@@ -35,6 +35,8 @@ export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic
   // dropped leaves this stale by definition, which is why the drawer pairs it with the fact that
   // nothing is connected rather than rendering it alone.
   const [scope, setScope] = useState<EventScope>({ kind: 'unscoped' })
+  // The session is not in the key: it is the shell's, fixed for every tree this hook renders in.
+  // eslint-disable-next-line @tanstack/query/exhaustive-deps
   const queryResult = useQuery({
     enabled: !!session,
     gcTime: Infinity,

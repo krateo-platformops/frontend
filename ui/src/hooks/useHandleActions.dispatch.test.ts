@@ -14,6 +14,20 @@ import type { ResourcesRefs, WidgetAction } from '../types/Widget'
 import { restAction, type RestAction } from './__fixtures__/restAction'
 import { dispatchAction, type ActionContext } from './useHandleActions'
 
+// The session's SSE client for the onEventNavigateTo tests below (see their header).
+const { fakeSubscribeSse, sseSubscriptions } = vi.hoisted(() => {
+  const subscriptions = [] as { url: string; topic: string; onMessage: (raw: string) => void; closed: boolean }[]
+  return {
+    // The session's shared SSE client, as the action context carries it (ctx.subscribeSse).
+    fakeSubscribeSse: (url: string, topic: string, subscriber: { onMessage: (raw: string) => void }) => {
+      const entry = { closed: false, onMessage: subscriber.onMessage, topic, url }
+      subscriptions.push(entry)
+      return () => { entry.closed = true }
+    },
+    sseSubscriptions: subscriptions,
+  }
+})
+
 // A fully-mocked ActionContext so the (formerly React-bound) dispatcher is unit-testable.
 const makeCtx = (over: Partial<ActionContext> = {}): ActionContext => ({
   apiBaseUrl: 'http://sp',
@@ -21,7 +35,6 @@ const makeCtx = (over: Partial<ActionContext> = {}): ActionContext => ({
   confirm: vi.fn(() => Promise.resolve(true)),
   eventsBaseUrl: 'http://ev',
   getAccessToken: vi.fn(() => 'tok'),
-  subscribeSse: fakeSubscribeSse,
   invalidateQueries: vi.fn(() => Promise.resolve()),
   message: { destroy: vi.fn(), loading: vi.fn() } as unknown as ActionContext['message'],
   navigate: vi.fn(),
@@ -33,6 +46,7 @@ const makeCtx = (over: Partial<ActionContext> = {}): ActionContext => ({
   reloadRoutes: vi.fn(),
   resolveJq: vi.fn((expr: string) => Promise.resolve(`jq:${expr}`)),
   setLoading: vi.fn(),
+  subscribeSse: fakeSubscribeSse,
   // An older snowplow (no `call.provenance`): the AuditRecord path these tests pin.
   supportsCallProvenance: () => Promise.resolve(false),
   ...over,
@@ -207,19 +221,6 @@ describe('dispatchAction — routing + non-SSE rest paths', () => {
  * `vi.hoisted` because a `vi.mock` factory runs before the file body, so a plain
  * module-level const would still be in its TDZ when the factory reads it.
  */
-const { fakeSubscribeSse, sseSubscriptions } = vi.hoisted(() => {
-  const subscriptions = [] as { url: string; topic: string; onMessage: (raw: string) => void; closed: boolean }[]
-  return {
-    // The session's shared SSE client, as the action context carries it (ctx.subscribeSse).
-    fakeSubscribeSse: (url: string, topic: string, subscriber: { onMessage: (raw: string) => void }) => {
-      const entry = { closed: false, onMessage: subscriber.onMessage, topic, url }
-      subscriptions.push(entry)
-      return () => { entry.closed = true }
-    },
-    sseSubscriptions: subscriptions,
-  }
-})
-
 
 /** Deliver one event on the most recent subscription, as the server would. */
 const emitSse = (data: unknown) => { sseSubscriptions.at(-1)?.onMessage(JSON.stringify(data)) }

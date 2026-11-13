@@ -28,8 +28,8 @@ import { createContext, useContext } from 'react'
 
 // A TYPE import: erased at build, so it adds no runtime edge to the SSE client (or its token read).
 import type { SseSubscriber } from '../hooks/sseClient'
-import type { SessionResumeOutcome } from '../utils/sessionResume'
 import { createAnonymousTransport } from '../public/anonymousTransport'
+import type { SessionResumeOutcome } from '../utils/sessionResume'
 
 /**
  * The request options a transport accepts. Headers are a plain record so the signed-in transport

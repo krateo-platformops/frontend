@@ -27,7 +27,6 @@ const makeCtx = (over: Partial<ActionContext> = {}): ActionContext => ({
   confirm: vi.fn(() => Promise.resolve(true)),
   eventsBaseUrl: 'http://ev',
   getAccessToken: vi.fn(() => 'tok'),
-  subscribeSse: vi.fn(() => () => undefined),
   invalidateQueries: vi.fn(() => Promise.resolve()),
   message: { destroy: vi.fn(), loading: vi.fn() } as unknown as ActionContext['message'],
   navigate: vi.fn(),
@@ -39,6 +38,7 @@ const makeCtx = (over: Partial<ActionContext> = {}): ActionContext => ({
   reloadRoutes: vi.fn(),
   resolveJq: vi.fn((expr: string) => Promise.resolve(`jq:${expr}`)),
   setLoading: vi.fn(),
+  subscribeSse: vi.fn(() => () => undefined),
   // An older snowplow (no `call.provenance`): the AuditRecord path these tests pin.
   supportsCallProvenance: () => Promise.resolve(false),
   ...over,
