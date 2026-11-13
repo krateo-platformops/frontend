@@ -382,3 +382,35 @@
   max-width: 100%;
   min-width: 0;
 }
+
+/* `statistic` rowVariant without an antd `grid`: the tiles of a stats strip fill the row and
+   reflow to fewer columns as the box narrows (mockup `.strip`), never past the box. */
+.statList :global(.ant-list-items) {
+  display: grid;
+  gap: var(--spacing-md);
+  grid-template-columns: repeat(auto-fit, minmax(min(156px, 100%), 1fr));
+}
+
+.statList :global(.ant-list-item) {
+  border-block-end: none;
+  padding: 0;
+}
+
+.statItem {
+  min-width: 0;
+}
+
+.statCard {
+  height: 100%;
+  width: 100%;
+}
+
+.statCaption {
+  display: block;
+  font-size: var(--krateo-text-caption);
+  margin-block-start: var(--spacing-xs);
+}
+
+.chipRemove {
+  opacity: 0.7;
+}
