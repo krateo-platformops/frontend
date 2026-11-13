@@ -159,6 +159,18 @@ beforeEach(() => {
   statusFor = {}
   notices.length = 0
   // jsdom has no IntersectionObserver; the List's scroll pager needs one to mount.
+  // jsdom has no matchMedia or ResizeObserver; the Table asks both.
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    addEventListener: () => undefined,
+    addListener: () => undefined,
+    dispatchEvent: () => false,
+    matches: false,
+    media: query,
+    onchange: null,
+    removeEventListener: () => undefined,
+    removeListener: () => undefined,
+  }))
+  vi.stubGlobal('ResizeObserver', class { disconnect() { /* none */ } observe() { /* none */ } unobserve() { /* none */ } })
   vi.stubGlobal('IntersectionObserver', class { disconnect() { /* none */ } observe() { /* none */ } takeRecords() { return [] } unobserve() { /* none */ } })
   // A SYNTHETIC session in jsdom's own (fake) storage: what an earlier sign-in would have left.
   localStorage.setItem('K_user', JSON.stringify({ accessToken: TOKEN, user: { displayName: 'Ada', username: 'ada' } }))
