@@ -582,7 +582,8 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
      *    as an export that stops at a row bound without saying so.
      *  - `page`/`perPage` are NOT carried. snowplow re-dispatches the read with its own
      *    `page=N&perPage=500` walk and concatenates the pages, so the export covers every row
-     *    rather than the slice on screen. Sending a page would fight that walk.
+     *    rather than the slice on screen. Sending a page would fight that walk. That includes a
+     *    window the widget endpoint itself carries (a ref's `slice`): getExportEndpoint drops it.
      */
     exportRequestFor: exportReadQuery === null
       ? undefined
@@ -596,8 +597,9 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
         // The PATH is snowplow's /export, not the widget's /call: a POST to /call is snowplow's write
         // passthrough (a create on the widget's resource, answered 400 by the apiserver). Everything
         // else stays on the query: the widget's own identifying params, verbatim from its endpoint
-        // (NOT from `requestUrl`, which fetchWidget mutates with page/perPage/extras), plus the
-        // export's (`format`, `path`, `fields`, repeated `header`, `title`).
+        // (NOT from `requestUrl`, which fetchWidget mutates with page/perPage/extras) less any
+        // page/perPage window the endpoint itself carries (getExportEndpoint), plus the export's
+        // (`format`, `path`, `fields`, repeated `header`, `title`).
         url: `${config!.api.SNOWPLOW_API_BASE_URL}${getExportEndpoint(exportReadQuery, exportQuery)}`,
       }),
   }

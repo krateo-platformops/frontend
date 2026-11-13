@@ -105,6 +105,22 @@ describe('a Table export goes to snowplow POST /export', () => {
     expect(exported.searchParams.get('format')).toBe('json')
   })
 
+  it('exports every row: a page window on the widget endpoint does not reach /export', () => {
+    // A ref with a bounded window (`resourcesRefs.items[].slice`) gets page/perPage on its own /call
+    // URL. snowplow exports exactly the window it is given, so carrying it would export 5 rows of page
+    // 2; without it snowplow walks the full list.
+    const { result } = renderHook(() => useWidgetQuery(`${TABLE_ENDPOINT}&page=2&perPage=5`), { wrapper: harness('/pods') })
+    const exported = new URL(result.current.exportRequestFor!('format=csv').url)
+    expect(exported.searchParams.has('page')).toBe(false)
+    expect(exported.searchParams.has('perPage')).toBe(false)
+    expect(exported.pathname).toBe('/snowplow/export')
+    expect(exported.searchParams.get('resource')).toBe('tables')
+    expect(exported.searchParams.get('apiVersion')).toBe('widgets.templates.krateo.io/v1beta1')
+    expect(exported.searchParams.get('name')).toBe('pods-table')
+    expect(exported.searchParams.get('namespace')).toBe('krateo-system')
+    expect(exported.searchParams.get('format')).toBe('csv')
+  })
+
   it('offers no export for an endpoint that is not a /call read: there is nothing for /export to re-dispatch', () => {
     const { result } = renderHook(() => useWidgetQuery('/api-info/names?category=widgets'), { wrapper: harness('/') })
     expect(result.current.exportRequestFor).toBeUndefined()

@@ -101,6 +101,11 @@ describe('getExportEndpoint — a /call read exported on /export', () => {
       .toBe('/export?resource=tables&apiVersion=widgets.templates.krateo.io/v1beta1&name=pods&namespace=krateo-system&format=csv&fields=name')
   })
 
+  it('drops the read\'s page window and keeps every other param byte-for-byte', () => {
+    expect(getExportEndpoint('resource=tables&page=2&apiVersion=a%2Fb&perPage=5&name=pods&pageSize=9&namespace=ns', 'format=csv'))
+      .toBe('/export?resource=tables&apiVersion=a%2Fb&name=pods&pageSize=9&namespace=ns&format=csv')
+  })
+
   it('joins no stray separator when either side is empty', () => {
     expect(getExportEndpoint('', 'format=csv')).toBe('/export?format=csv')
     expect(getExportEndpoint('resource=tables', '')).toBe('/export?resource=tables')

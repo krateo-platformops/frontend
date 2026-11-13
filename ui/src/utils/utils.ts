@@ -60,16 +60,28 @@ export const getCallReadQuery = (endpoint: string): string | null => {
   return path === SNOWPLOW_CALL_PATH ? endpoint.slice(path.length + 1) : null
 }
 
+/** The read's window. An export must not carry it: see getExportEndpoint. */
+const READ_WINDOW_PARAMS: ReadonlySet<string> = new Set(['page', 'perPage'])
+
 /**
- * The endpoint that exports a `/call` read: the read's own query (`getCallReadQuery`), untouched,
- * on snowplow's export route, followed by `exportQuery` (widgets/Table/tableExport.ts).
+ * The endpoint that exports a `/call` read: the read's own query (`getCallReadQuery`) without its
+ * window, on snowplow's export route, followed by `exportQuery` (widgets/Table/tableExport.ts).
  *
  * snowplow's export strips its own parameters and re-dispatches the request through the `/call`
  * read lane with every other one, so the read's identifying parameters must arrive exactly as the
- * read sends them.
+ * read sends them: every parameter but the window is kept byte-for-byte.
+ *
+ * `page` and `perPage` are dropped. A widget endpoint carries them when its ref declares a bounded
+ * window (`resourcesRefs.items[].slice`), and snowplow exports exactly the window it is given. With
+ * neither, it walks the full list (`page=N&perPage=500`) and concatenates, so the export covers
+ * every row rather than the slice on screen.
  */
 export const getExportEndpoint = (readQuery: string, exportQuery: string): string => {
-  const query = [readQuery, exportQuery].filter((part) => part.length > 0).join('&')
+  const readParams = readQuery.split('&').filter((param) => {
+    const separator = param.indexOf('=')
+    return param.length > 0 && !READ_WINDOW_PARAMS.has(separator === -1 ? param : param.slice(0, separator))
+  })
+  const query = [...readParams, exportQuery].filter((part) => part.length > 0).join('&')
 
   return `${SNOWPLOW_EXPORT_PATH}${query ? `?${query}` : ''}`
 }
