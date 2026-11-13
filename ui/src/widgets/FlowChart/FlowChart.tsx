@@ -79,8 +79,8 @@ interface ArchitectureProps extends VariantProps {
  *     taller card — and the layout reserves ONE box per node, the same for all. So the cards are
  *     drawn first out of sight (`useArchitectureCardHeight`: the card's own lines and stylesheet),
  *     the tallest is measured, and every card is drawn, and laid out, at that height: no taller card
- *     runs into its neighbour, and the rows stay one height. Measured again when the fonts finish
- *     loading, because a name set in the fallback face wraps differently.
+ *     runs into its neighbour, and the rows stay one height. The graph is created once the fonts
+ *     have arrived and the cards are measured in them, so it is laid out once.
  *
  * `direction` and `density` (both optional) are for a box narrower than the chain is long. The trace
  * page's services column is ~415px: three 240px cards left to right are 1040px, so only the first was
@@ -96,7 +96,7 @@ const ArchitectureFlowChart = ({ data, density, direction, uid }: ArchitecturePr
   // The box's [clientWidth, clientHeight]; null until it has been measured once.
   const [boxSize, setBoxSize] = useState<[number, number] | null>(null)
   // EVERY NAME IN FULL (see above): the tallest card, what every regular card is drawn and laid out at.
-  const { height: cardHeight, probe } = useArchitectureCardHeight(graphData.nodes)
+  const { height: cardHeight, measured, probe } = useArchitectureCardHeight(graphData.nodes)
 
   // ADAPT, NEVER CLIP (architectureVariant's `architectureFit`): the box is measured, here and on
   // every resize, and the graph drawn with the gap, the card and the scale that fit it — or, past
@@ -155,7 +155,8 @@ const ArchitectureFlowChart = ({ data, density, direction, uid }: ArchitecturePr
       style={height}
     >
       {probe}
-      {boxSize
+      {/* Created once both are known, so G6 lays the graph out once: the box, and the card's height in its own face. */}
+      {boxSize && measured
         ? (
           <DependencyGraph
             arrangement='baseline'

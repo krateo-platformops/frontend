@@ -76,23 +76,14 @@ const outside = ({ bottom, left, right, top }: Rect, box: Rect): boolean =>
   left < box.left || right > box.right || top < box.top || bottom > box.bottom
 
 /**
- * The drawing once the placement has settled: every card inside the box, then unchanged for half a
- * second (three reads 250ms apart agree).
- *
- * INSIDE FIRST, because a stable read is not a settled one. DependencyGraph places the graph twice
- * as it comes up — after G6's render, and when its ResizeObserver first reports the box — and now
- * and then (on origin/main as on this branch) the first placement holds for a second or so with
- * every card too low (35px here) and the last one past the box's bottom edge, before the second puts
- * it right.
- * That race is DependencyGraph's and not this check's subject; what is checked here is the drawing
- * it settles on. A box too short for the cards never gets there, and fails with the cards outside.
+ * The drawing once the placement has settled: unchanged for half a second (three reads 250ms apart
+ * agree). Half a second, not 100ms, so a placement that holds a wrong position for a while is read
+ * as what it is: when FlowChart created the graph before the fonts were in, the graph was laid out
+ * again at the taller card and, for about a second, every card sat 35px low with the last row past
+ * the box's edge (useArchitectureCardHeight).
  */
 const settled = async (page: Page): Promise<Drawing> => {
   await expect(page.getByRole('group')).toHaveCount(NAMES.length)
-  await expect.poll(async () => {
-    const { box, cards } = JSON.parse(await page.evaluate(draw)) as Drawing
-    return cards.filter(({ card }) => outside(card, box)).map(({ card, name }) => `${name.text} ${JSON.stringify(card)} past ${JSON.stringify(box)}`)
-  }, { intervals: [100], timeout: 10000 }).toEqual([])
   let last = ''
   let same = 0
   await expect.poll(async () => {

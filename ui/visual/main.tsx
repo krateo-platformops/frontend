@@ -273,23 +273,27 @@ const zoomGraph = toArchitectureGraphData(V1B)
  * and the box it reserves for it, so a fixture that bypasses FlowChart draws what it draws.
  */
 const useFlowChartCard = (nodes: typeof zoomGraph.nodes) => {
-  const { height, probe } = useArchitectureCardHeight(nodes)
+  const { height, measured, probe } = useArchitectureCardHeight(nodes)
   const renderNode = useCallback(({ data }: { data: FlowChartNodeData }) => <ArchitectureStateNode data={data} height={height} />, [height])
-  return { nodeSize: architectureNodeSize('regular', height), probe, renderNode }
+  return { measured, nodeSize: architectureNodeSize('regular', height), probe, renderNode }
 }
 const GraphZoomFixture = () => {
-  const { nodeSize, probe, renderNode } = useFlowChartCard(zoomGraph.nodes)
+  const { measured, nodeSize, probe, renderNode } = useFlowChartCard(zoomGraph.nodes)
   return (
     <div data-testid='architecture-host' style={{ height: 360, position: 'relative', width: 1179 }}>
       {probe}
-      <DependencyGraph
-        edges={zoomGraph.edges}
-        fit='natural'
-        nodeSize={nodeSize}
-        nodes={zoomGraph.nodes}
-        renderNode={renderNode}
-        zoom={graphZoom}
-      />
+      {measured
+        ? (
+          <DependencyGraph
+            edges={zoomGraph.edges}
+            fit='natural'
+            nodeSize={nodeSize}
+            nodes={zoomGraph.nodes}
+            renderNode={renderNode}
+            zoom={graphZoom}
+          />
+        )
+        : null}
     </div>
   )
 }
@@ -338,23 +342,27 @@ const architectureCards = () => (
 const baselineGraph = toArchitectureGraphData(V1B)
 const exposeGraph = (graph: unknown) => { (window as unknown as { __architectureGraph?: unknown }).__architectureGraph = graph ?? undefined }
 const ArchitectureGraphFixture = () => {
-  const { nodeSize, probe, renderNode } = useFlowChartCard(baselineGraph.nodes)
+  const { measured, nodeSize, probe, renderNode } = useFlowChartCard(baselineGraph.nodes)
   const baselineHeight = architectureGraphSize(baselineGraph.nodes, baselineGraph.edges, {
     direction: 'LR', nodeSize, spacing: { nodesep: 32, ranksep: 160 },
   })[1] + 32
   return (
     <div data-testid='architecture-host' style={{ height: baselineHeight, position: 'relative', width: 1600 }}>
       {probe}
-      <DependencyGraph
-        arrangement='baseline'
-        edgeAppearance={architectureEdgeAppearance}
-        edges={baselineGraph.edges}
-        fit='natural'
-        graphRef={exposeGraph}
-        nodeSize={nodeSize}
-        nodes={baselineGraph.nodes}
-        renderNode={renderNode}
-      />
+      {measured
+        ? (
+          <DependencyGraph
+            arrangement='baseline'
+            edgeAppearance={architectureEdgeAppearance}
+            edges={baselineGraph.edges}
+            fit='natural'
+            graphRef={exposeGraph}
+            nodeSize={nodeSize}
+            nodes={baselineGraph.nodes}
+            renderNode={renderNode}
+          />
+        )
+        : null}
     </div>
   )
 }

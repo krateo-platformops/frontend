@@ -304,17 +304,30 @@ describe('FlowChart variant: architecture — a chart\'s topology in the state t
       expect(screen.getAllByRole('group')).toHaveLength(4)
     })
 
-    it('measured again when the fonts have loaded: a name set in the fallback face wraps differently', async () => {
-      const fonts = Object.assign(new EventTarget(), { ready: Promise.resolve() })
+    it('the graph is created only once the fonts are in, at the height the cards have in them', async () => {
+      // The first measure is what starts the card's fonts loading, so it is taken in the fallback
+      // face. A graph created then was laid out again when the fonts arrived, and for about a second
+      // its old placement held under the taller cards.
+      const arrival: { arrive?: () => void } = {}
+      const ready = new Promise<void>((resolve) => { arrival.arrive = resolve })
+      const fonts = Object.assign(new EventTarget(), { ready })
       // jsdom has no FontFaceSet: the two members FlowChart uses.
       Object.defineProperty(document, 'fonts', { configurable: true, value: fonts })
       try {
         render(<FlowChart resourcesRefs={REFS} uid='fc' widgetData={architecture(V1B)} />)
-        await act(async () => { await fonts.ready })
-        expect((graphDouble.last() as { node: { style: { size: unknown } } }).node.style.size).toEqual([240, 84])
-        tall = 101
+        expect(graphDouble.renders).toHaveLength(0)
+        // The fonts arrive, and with them the Repo's second line.
+        tall = 107.4
+        await act(async () => {
+          arrival.arrive?.()
+          await fonts.ready
+        })
+        expect(graphDouble.renders).toHaveLength(1)
+        expect((graphDouble.last() as { node: { style: { size: unknown } } }).node.style.size).toEqual([240, 108])
+        // A face that arrives later still is measured again.
+        tall = 121
         act(() => { fonts.dispatchEvent(new Event('loadingdone')) })
-        expect((graphDouble.last() as { node: { style: { size: unknown } } }).node.style.size).toEqual([240, 101])
+        expect((graphDouble.last() as { node: { style: { size: unknown } } }).node.style.size).toEqual([240, 121])
       } finally {
         delete (document as { fonts?: unknown }).fonts
       }
