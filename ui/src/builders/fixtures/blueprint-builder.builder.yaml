@@ -16,7 +16,7 @@ metadata:
   name: blueprint-builder
 spec:
   label: Blueprint Builder
-  # RoutesContext.tsx mounts it as a shell child once the Builders are read (builderRoutes.tsx).
+  # RoutesProvider.tsx mounts it as a shell child once the Builders are read (builderRoutes.tsx).
   route: /blueprint-builder/compose
   # draftRecord.ts: `draft-blueprint-<owner>-<slug>`, label krateo.io/draft-kind=blueprint.
   draftKind: blueprint

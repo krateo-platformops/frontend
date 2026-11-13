@@ -17,7 +17,8 @@ import styles from './App.module.css'
 import { onPreviewApplied } from './components/Agentiko/previewApplied'
 import FiltersProvider from './components/FiltesProvider/FiltersProvider'
 import { ConfigProvider, useConfigContext } from './context/ConfigContext'
-import { RoutesProvider, useRoutesContext } from './context/RoutesContext'
+import { useRoutesContext } from './context/RoutesContext'
+import { RoutesProvider } from './context/RoutesProvider'
 import { useLiveRefreshFirehose } from './hooks/useLiveRefresh'
 
 library.add(fab, fas, far)

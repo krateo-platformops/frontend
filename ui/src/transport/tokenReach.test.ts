@@ -6,7 +6,15 @@
  *    resume, the SSE client, the signed-in transport. This walks their import graphs (type-only
  *    imports are erased at build and skipped) and fails on the first such edge.
  *
- * 2. The widget tree must not read the token itself. Every widget-reachable call site gets its
+ * 2. Nothing a PUBLIC PAGE can render may reach the token, except through the signed-in transport.
+ *    The walk starts at what a public page mounts — PublicPage, WidgetRenderer and every widget module
+ *    the registry loads (widgets/load.ts globs `widgets/<Kind>/index.ts`) — follows every runtime
+ *    import, static or dynamic, and stops only at transport/signedInTransport.tsx, the one module
+ *    allowed to bind the token getter (and which nothing on that graph imports). A hook that
+ *    imports `utils/getAccessToken` itself, even one a public page never CALLS, fails here: the
+ *    guarantee is that the getter is unreachable, not that a flag keeps it unused.
+ *
+ * 3. The widget tree must not read the token itself. Every widget-reachable call site gets its
  *    credential from the transport in context (transport/widgetTransport.ts); a direct
  *    `getAccessToken` import there would bypass the anonymous transport on a public page. The files
  *    that may import it are listed, each because it is mounted only inside the signed-in shell (or
@@ -44,7 +52,44 @@ const runtimeImports = (file: string): string[] => {
     })
     if (hit) { found.push(hit) }
   }
+  // Dynamic `import('./x')`: a lazily loaded module is as reachable as a static one.
+  for (const match of text.matchAll(/\bimport\(\s*['"](\.[^'"]+)['"]\s*\)/g)) {
+    const base = resolve(dirname(file), match[1])
+    const hit = [base, `${base}.ts`, `${base}.tsx`, join(base, 'index.ts'), join(base, 'index.tsx')].find((candidate) => {
+      try {
+        return statSync(candidate).isFile()
+      } catch {
+        return false
+      }
+    })
+    if (hit) { found.push(hit) }
+  }
   return found
+}
+
+/**
+ * Every file reachable from `entries`, without walking INTO `boundary`, each mapped to the file
+ * that first imported it — so a failure can print the whole import chain, not just the endpoint.
+ */
+const reachableFrom = (entries: readonly string[], boundary: ReadonlySet<string>): Map<string, string | null> => {
+  const parent = new Map<string, string | null>(entries.map((entry) => [entry, null]))
+  const queue = [...entries]
+  while (queue.length) {
+    const file = queue.shift()!
+    if (boundary.has(file)) { continue }
+    for (const next of runtimeImports(file)) {
+      if (parent.has(next)) { continue }
+      parent.set(next, file)
+      queue.push(next)
+    }
+  }
+  return parent
+}
+
+const chainTo = (parent: Map<string, string | null>, file: string): string => {
+  const chain: string[] = []
+  for (let at: string | null | undefined = file; at; at = parent.get(at)) { chain.unshift(relative(SRC, at)) }
+  return chain.join(' -> ')
 }
 
 const reachable = (entry: string): Set<string> => {
@@ -71,6 +116,52 @@ describe('the anonymous transport cannot reach the stored token', () => {
   it('the walker does see a real edge (control: the signed-in transport reaches getAccessToken)', () => {
     const graph = [...reachable(join(SRC, 'transport/signedInTransport.tsx'))].map((file) => relative(SRC, file))
     expect(graph).toContain('utils/getAccessToken.ts')
+  })
+})
+
+/** What a public page mounts: the page, the renderer, and every widget module the registry loads. */
+const publicPageEntries = (): string[] => [
+  join(SRC, 'public/PublicPage.tsx'),
+  join(SRC, 'components/WidgetRenderer/WidgetRenderer.tsx'),
+  ...readdirSync(join(SRC, 'widgets'))
+    .map((name) => join(SRC, 'widgets', name, 'index.ts'))
+    .filter((file) => {
+      try {
+        return statSync(file).isFile()
+      } catch {
+        return false
+      }
+    }),
+]
+
+const SIGNED_IN_TRANSPORT = join(SRC, 'transport/signedInTransport.tsx')
+const TOKEN_GETTER = join(SRC, 'utils/getAccessToken.ts')
+
+describe('nothing a public page renders can reach the token, except through the signed-in transport', () => {
+  it('walks a real graph: every widget module, the Table, Form, Button and Upload among them', () => {
+    const entries = publicPageEntries()
+    const graph = reachableFrom(entries, new Set([SIGNED_IN_TRANSPORT]))
+    for (const kind of ['Table', 'Form', 'Button', 'Upload', 'List', 'Flex']) {
+      expect(entries).toContain(join(SRC, 'widgets', kind, 'index.ts'))
+    }
+    // The hooks the widgets read and act through are on it.
+    for (const hook of ['hooks/useWidgetQuery.ts', 'hooks/useHandleActions.ts', 'hooks/useSseStream.ts', 'utils/jq-expression.ts']) {
+      expect([...graph.keys()].map((file) => relative(SRC, file))).toContain(hook)
+    }
+  })
+
+  it('utils/getAccessToken is unreachable from it', () => {
+    const graph = reachableFrom(publicPageEntries(), new Set([SIGNED_IN_TRANSPORT]))
+    const leaks = [...graph.keys()]
+      .filter((file) => file !== SIGNED_IN_TRANSPORT && runtimeImports(file).includes(TOKEN_GETTER))
+      .map((file) => chainTo(graph, file))
+    expect(leaks, 'each line is a chain from a public-page entry to a module that imports utils/getAccessToken').toEqual([])
+    expect(graph.has(TOKEN_GETTER)).toBe(false)
+  })
+
+  it('control: the same walk, NOT stopped at the signed-in transport, does reach the getter through it', () => {
+    const graph = reachableFrom([SIGNED_IN_TRANSPORT], new Set())
+    expect(graph.has(TOKEN_GETTER)).toBe(true)
   })
 })
 

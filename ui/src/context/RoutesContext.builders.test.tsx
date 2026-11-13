@@ -12,7 +12,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { failBuilders, installBuilders, markBuildersLoading } from '../builders/builderRegistry'
 import { fixtureBuilders } from '../builders/fixtures/fixtureBuilders'
 
-import { RoutesProvider, useRoutesContext } from './RoutesContext'
+import { useRoutesContext } from './RoutesContext'
+import { RoutesProvider } from './RoutesProvider'
 
 vi.mock('../components/Shell', () => ({ default: () => null }))
 vi.mock('../components/WidgetPage', () => ({ default: () => null }))
