@@ -4,15 +4,17 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { AUTOCOMPLETE_TOKENS, fieldInputOf, INPUT_TYPES } from './fieldInputs'
+import { AUTOCAPITALIZE_VALUES, AUTOCOMPLETE_TOKENS, fieldInputOf, INPUT_TYPES } from './fieldInputs'
 import FormSchema from './Form.schema.json'
 
 const entry = FormSchema.properties.spec.properties.widgetData.properties.fieldInputs.items.properties
 
 describe('fieldInputs tokens', () => {
-  it('the CRD offers exactly the tokens and types the form applies', () => {
+  it('the CRD offers exactly the tokens, types and capitalisations the form applies', () => {
     expect(entry.autoComplete.enum).toEqual([...AUTOCOMPLETE_TOKENS])
     expect(entry.type.enum).toEqual([...INPUT_TYPES])
+    expect(entry.autoCapitalize.enum).toEqual([...AUTOCAPITALIZE_VALUES])
+    expect(entry.spellCheck.type).toBe('boolean')
   })
 
   it('no credential or payment token', () => {
@@ -22,5 +24,7 @@ describe('fieldInputs tokens', () => {
   it('an entry keeps only what it says validly', () => {
     expect(fieldInputOf({ autoComplete: 'cc-number', name: 'x', placeholder: ' ', type: 'password' })).toBeUndefined()
     expect(fieldInputOf({ autoComplete: 'email', name: 'x', type: 'email' })).toEqual({ autoComplete: 'email', type: 'email' })
+    expect(fieldInputOf({ autoCapitalize: 'off', name: 'x', spellCheck: 'no' })).toBeUndefined()
+    expect(fieldInputOf({ autoCapitalize: 'none', name: 'x', spellCheck: false })).toEqual({ autoCapitalize: 'none', spellCheck: false })
   })
 })

@@ -42,8 +42,9 @@ const renderCard = (data: Partial<CardWidgetData>, login?: Config['login']) => {
 describe('maxWidth and centered', () => {
   it('maxWidth: fills its container up to that many pixels', () => {
     const card = renderCard({ maxWidth: 400 })
-    expect(card.style.maxWidth).toBe('400px')
-    expect(card.style.width).toBe('100%')
+    // The cap travels as --card-max-width, read by the `capped` class (max-width, width 100%).
+    expect(card.style.getPropertyValue('--card-max-width')).toBe('400px')
+    expect([...card.classList].some((name) => /^_capped_/.test(name))).toBe(true)
   })
 
   it('centered: the card carries the centring class', () => {
@@ -54,7 +55,7 @@ describe('maxWidth and centered', () => {
   it('maxWidth keeps an anchorId\'s scroll margin', () => {
     const card = renderCard({ anchorId: 'here', maxWidth: 400 })
     expect(card.style.scrollMarginTop).toBe('80px')
-    expect(card.style.maxWidth).toBe('400px')
+    expect(card.style.getPropertyValue('--card-max-width')).toBe('400px')
   })
 })
 
