@@ -10,6 +10,7 @@ import { isSecretArrayNode, isSecretSchemaNode } from '../../utils/secretFields'
 
 import { checkboxItem, getCheckboxSpec } from './checkboxField'
 import { useAdvancedPanels, useShowFailedSection } from './failedFields'
+import { helpAndCheck } from './fieldCheck'
 import { collectDependencies, type FieldPath, nodeAt } from './fieldDependencies'
 import { ROW_TITLE_KEY } from './fieldKeys'
 import { closedOptionRule, getFieldOptionsSpec, type OptionRegistry } from './fieldOptions'
@@ -18,8 +19,9 @@ import styles from './Form.module.css'
 import { FreeObjectListInput } from './FreeObjectListInput'
 import { JsonValueInput } from './JsonValueInput'
 import { OptionsInput } from './OptionsInput'
+import { presentationControlFor } from './presentationControls'
 import { type SchemaRoot, SchemaRootContext } from './schemaRoot'
-import { fieldLabel, hasValue, itemCountRules, requiredInGroup, rulesFor } from './schemaRules'
+import { fieldLabel, hasValue, itemCountRules, requiredInGroup, requiredMessageFor, rulesFor } from './schemaRules'
 import { FormRefsContext } from './useFieldOptions'
 import { useHiddenKeys } from './useHiddenKeys'
 import type { SuggestionGroup } from './utils'
@@ -247,6 +249,10 @@ const controlFor = (node: JSONSchema4, fieldPath: FieldPath = []): React.ReactNo
       />
     )
   }
+
+  // Labelled `oneOf` options (they win over a plain `enum`) and `textareas` — opt-in presentations.
+  const presented = presentationControlFor(node)
+  if (presented) { return presented }
 
   if (Array.isArray(node.enum)) {
     // `showSearch` because an enum is not always short — a server-side filter can hand this
@@ -490,7 +496,7 @@ interface SchemaFieldsProps {
 const fieldRules = (key: string, node: JSONSchema4, isRequired: boolean, fieldPath: FieldPath, group: FieldPath | undefined, registry?: OptionRegistry) => {
   const rules = rulesFor(key, node, isRequired && !group) ?? []
   if (isRequired && group) {
-    rules.unshift(requiredInGroup(fieldLabel(key, node), group))
+    rules.unshift(requiredInGroup(requiredMessageFor(key, node), group))
   }
   if (getFieldOptionsSpec(node)?.closed) {
     rules.push(closedOptionRule(fieldLabel(key, node), fieldPath, registry))
@@ -548,6 +554,9 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
     valuePropName: node.type === 'boolean' ? 'checked' : undefined,
     wrapperCol: { span: 24 },
   }
+  // `fieldHelp` under the input, and `fieldChecks` as it is typed: both opt-in (fieldCheck.tsx).
+  const checked = helpAndCheck(item, node, path.join('.'), scope)
+  if (checked) { return checked }
   // Feedback came with being required because, when it was added, only required fields had
   // rules. `hasFeedback: rules` gives it to an optional field with a rule of its own (a pattern,
   // a length, a bound) as well.

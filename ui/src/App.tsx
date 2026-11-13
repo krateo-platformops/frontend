@@ -17,8 +17,8 @@ import styles from './App.module.css'
 import { onPreviewApplied } from './components/Agentiko/previewApplied'
 import FiltersProvider from './components/FiltesProvider/FiltersProvider'
 import { ConfigProvider, useConfigContext } from './context/ConfigContext'
-import { RoutesProvider, useRoutesContext } from './context/RoutesContext'
-import { useLiveRefreshFirehose } from './hooks/useLiveRefresh'
+import { useRoutesContext } from './context/RoutesContext'
+import { RoutesProvider } from './context/RoutesProvider'
 
 library.add(fab, fas, far)
 
@@ -35,9 +35,6 @@ const queryClient = new QueryClient({
 const AppInitializer: React.FC = () => {
   const { isLoading: isRoutesLoading, routerVersion, routes } = useRoutesContext()
   const { isLoading: isConfigLoading } = useConfigContext()
-
-  // Pipe the SSE event firehose into the live-refresh registry, once, for the app's lifetime.
-  useLiveRefreshFirehose()
 
   // A preview apply changes what the sandbox SERVES without changing the URL the rendered pane
   // FETCHES, so the widget cache has to be told or the pane keeps answering from it. Subscribed

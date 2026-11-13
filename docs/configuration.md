@@ -63,6 +63,7 @@ defaults:
 | `PROVENANCE_ENABLED` | `""` | Provenance for gated portal writes (on unless `"false"`). Where snowplow's `/capabilities` lists `call.provenance`, each write carries an `X-Krateo-Provenance` header and snowplow records it; otherwise one best-effort `AuditRecord` CR is POSTed per write, which needs the AuditRecord CRD. `"false"` turns both off. |
 | `PREVIEW_SANDBOX_NAMESPACE` | `""` | The namespace draft widget CRs are applied into for live preview. **Do not set by hand when `previewSandbox.enabled`** — the chart then forces it to `previewSandbox.namespace` so config and provisioning cannot drift. |
 | `BUILDERS_NAMESPACE` | `krateo-system` | The namespace the Builder CRs (Portal, Blueprint, Controller Builders) live in. The frontend lists them as the signed-in user (snowplow `/list?category=builders`), so that user needs `get`/`list` on `builders.builders.templates.krateo.io` there. Empty, or a failed read, means no builder opens and the builder routes say why; there is no bundled fallback. No schema default (see `NO_DEFAULT`). |
+| `PUBLIC_POST_PATHS` | *(unset)* | Comma-separated same-origin path prefixes a page may `POST` JSON to with **no credential**, e.g. `/request-access/api/v1/`: a Form's `fieldChecks` and `submitPost`, on a **public page** (`/public/<slug>`, `/public/<namespace>/<slug>`) and inside the signed-in shell alike (no token is sent there either). Prefix match by whole path segments, after `..` is resolved; absolute and protocol-relative URLs, and paths with whitespace, are always refused. Not a snowplow `/call` write. Unset or empty, no page can POST anywhere this way. Passes through as an extra `config` key; no `values.yaml` entry and no schema default (see `NO_DEFAULT`). |
 
 ### `AGENTIKO_*` and `AUTOPILOT_*`: one key, two names
 
@@ -90,6 +91,28 @@ The SPA additionally understands optional keys not in the chart defaults —
 `ui/src/context/ConfigContext.tsx` (see [ui/docs/behavior.md](../ui/docs/behavior.md)).
 `params.FRONTEND_NAMESPACE` is rendered from the release namespace, and is the namespace
 convention pages (`flexes/page-<slug>`) resolve in.
+
+### The public-pages namespace (`.Values.publicNamespace`)
+
+A public page (`ui/src/public/PublicPage.tsx`) is rendered outside the signed-in shell, with no
+credential, and snowplow serves it as its public identity `krateo:public` (snowplow#1334). Which
+namespace it reads from depends on the address:
+
+- `/public/<slug>` reads `flexes/page-<slug>` in `params.PUBLIC_NAMESPACE`, which the chart renders
+  from the top-level `publicNamespace` value, `krateo-public` by default. It is an isolated
+  namespace whose only Role is the one that grants `krateo:public` its pages, so those grants
+  never live in the release namespace as `resourceNames` grants. The chart does not create the
+  namespace; the page set that ships a public page ships it.
+- `/public/<namespace>/<slug>` reads in the namespace the address names.
+
+`publicNamespace` must be a namespace name (the schema checks it) and has no schema default, so an
+unset key falls through to `values.yaml`. **If `config.json` has no `PUBLIC_NAMESPACE`** (an older
+chart under a newer image), or it is empty, a short address opens nothing and says the
+installation has no namespace set for public pages. It never falls back to `FRONTEND_NAMESPACE`:
+that would read public pages from the release namespace, `krateo-system`. The installer's
+`componentValues` schemas are closed: an install can override `publicNamespace` only once the
+installer declares it under `componentValues['frontend']`. `scripts/test_chart_params.py` (the
+`chart-render` job) renders the chart and checks the result.
 
 ### The login screen (`.Values.login`)
 

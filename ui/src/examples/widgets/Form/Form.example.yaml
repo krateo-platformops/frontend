@@ -211,3 +211,95 @@ spec:
         name: create-request
         namespace: krateo-system
         verb: POST
+---
+# Schema-driven Form that checks a field while it is typed and submits to an intake, not to a
+# snowplow /call write. Both send through the page transport's allow-listed POST: the path must be
+# under the installation's PUBLIC_POST_PATHS, and no credential is ever sent. `bodyExtras` sends the
+# page's fragment extras (here `t`, declared by the page root's `krateo.io/fragment-keys`) in the
+# body, never in a URL. Answers and responses are matched in order, first match wins; a network
+# error or the timeout is `otherwise`. `fieldHelp` puts help text under the input.
+kind: Form
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-form-check-and-post
+  namespace: krateo-system
+spec:
+  widgetData:
+    buttonConfig:
+      primary:
+        label: Reserve
+    schema:
+      type: object
+      required: [handle]
+      properties:
+        handle: { type: string, title: Handle }
+    fieldHelp:
+      - name: handle
+        text: Lowercase letters and digits. You can't change it later.
+    fieldChecks:
+      - name: handle
+        path: /intake/api/v1/handle-checks
+        bodyExtras: { token: t }
+        answers:
+          - when: { status: [200], bodyField: status, equals: [free] }
+            validateStatus: success
+            message: "{value} is free."
+          - when: { status: [200], bodyField: status, equals: [taken] }
+            validateStatus: error
+            message: That handle is taken.
+          - when: { status: [429] }
+            validateStatus: warning
+            message: Too many checks. Wait a moment.
+            retryAfterMessage: "Too many checks. Try again in {retryAfter}."
+        otherwise:
+          validateStatus: warning
+          message: The handle couldn't be checked right now.
+    submitPost:
+      path: /intake/api/v1/reservations
+      bodyExtras: { token: t }
+      responses:
+        - when: { status: [201] }
+          result:
+            status: success
+            title: Reserved
+            subtitle: "{body.handle} is yours."
+            extra:
+              - { kind: link, text: "Changed your mind?", label: Start again, href: /public/reserve }
+        - when: { status: [400] }
+          fieldErrors: { namesFrom: fields, message: Check this field. }
+        - when: { status: [429] }
+          alert:
+            type: warning
+            title: Too many requests
+            description: Wait a moment and try again.
+            retryAfterDescription: "Try again in {retryAfter}."
+      otherwise:
+        alert: { type: error, title: "The reservation couldn't be sent", description: Try again later. }
+---
+# Schema-driven Form with the presentation options: a `title` above the fields (it goes when a
+# Result replaces the form), no Reset and a full-width large primary button, a multi-line
+# `textareas` field, a labelled choice (`oneOf` of `{const, title}`: the titles are shown, the consts
+# submitted; `enum` kept beside it must list the same values), a custom required message and no
+# required marks.
+kind: Form
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-form-presentation
+  namespace: krateo-system
+spec:
+  widgetData:
+    title: Open a ticket
+    requiredMark: hidden
+    buttonConfig:
+      primary: { label: Send, block: true, size: large }
+      secondary: { hidden: true }
+    textareas:
+      - { name: description, rows: 5 }
+    validationMessages:
+      - { name: subject, requiredMessage: Say in a few words what the ticket is about. }
+    stringSchema: '{"type":"object","required":["subject","priority","description"],"properties":{"subject":{"type":"string","title":"Subject"},"priority":{"type":"string","title":"Priority","enum":["low","normal","high"],"oneOf":[{"const":"low","title":"Low"},{"const":"normal","title":"Normal"},{"const":"high","title":"High"}]},"description":{"type":"string","title":"Description"}}}'
+    submitPost:
+      path: /intake/api/v1/tickets
+      responses:
+        - when: { status: [201] }
+          result: { status: success, title: Ticket opened }

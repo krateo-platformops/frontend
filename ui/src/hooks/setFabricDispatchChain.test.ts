@@ -141,7 +141,7 @@ const parseForForm = (widget: Widget): { widgetData: FormWidgetData; resourcesRe
 
 /** Form's exact submit-action selection (Form.tsx). */
 const selectSubmitAction = (widgetData: FormWidgetData): WidgetAction | undefined =>
-  Object.values(widgetData.actions).flat().find(({ id }) => id === widgetData.submitActionId)
+  Object.values(widgetData.actions ?? {}).flat().find(({ id }) => id === widgetData.submitActionId)
 
 // Fully-mocked ActionContext (same shape as runRestOps.test.ts) so dispatch runs headless.
 const makeCtx = (over: Partial<ActionContext> = {}): ActionContext => ({
@@ -170,6 +170,7 @@ const makeCtx = (over: Partial<ActionContext> = {}): ActionContext => ({
     return Promise.resolve('')
   }),
   setLoading: vi.fn(),
+  subscribeSse: vi.fn(() => () => undefined),
   // An older snowplow (no `call.provenance`): the AuditRecord path these tests pin.
   supportsCallProvenance: () => Promise.resolve(false),
   ...over,

@@ -7,6 +7,9 @@ node_modules/
 dist/
 build/
 public/
+# Source, not build output: the public pages (ui/src/public/PublicPage.tsx). Without this a new
+# file there is silently left out of `git add`.
+!ui/src/public/
 
 # Editor & IDEs
 .vscode/
@@ -54,6 +57,7 @@ voice-bridge/voice-bridge
 
 # visual regression (visual/)
 dist-visual/
+dist-e2e/
 test-results/
 
 # The CRD generator is built on demand by ui/scripts/gen-crds.ts (crdgen/doc.go).

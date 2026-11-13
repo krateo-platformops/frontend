@@ -17,6 +17,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Button, Dropdown, notification } from 'antd'
 import { useState } from 'react'
 
+import { useWidgetTransport } from '../../transport/widgetTransport'
+
 import type { Table as WidgetType } from './Table.type'
 import { buildExportRequest, type ExportFormat, exportFilename } from './tableExport'
 import { runExport } from './tableExportRun'
@@ -39,6 +41,8 @@ interface TableExportControlProps {
 
 const TableExportControl = ({ columns, exportRequestFor, onSessionExpired }: TableExportControlProps) => {
   const [running, setRunning] = useState<ExportFormat | null>(null)
+  // The export is a read, so it goes through the transport in scope like the table's own read.
+  const transport = useWidgetTransport()
 
   const start = async (format: ExportFormat) => {
     const request = buildExportRequest(columns, format)
@@ -51,7 +55,7 @@ const TableExportControl = ({ columns, exportRequestFor, onSessionExpired }: Tab
     setRunning(format)
     try {
       const { extras, url } = exportRequestFor(request.params)
-      const outcome = await runExport(url, extras, format, exportFilename(format), { onSessionExpired })
+      const outcome = await runExport(url, extras, format, exportFilename(format), { fetch: transport.fetch, onSessionExpired })
       if (outcome.ok && outcome.truncated) {
         notification.warning({
           description: 'The file holds the first 50,000 rows. Narrow the table with a filter to export the rest.',

@@ -40,7 +40,7 @@ vi.mock('../../context/ConfigContext', async (importOriginal) => ({
 // Capture the provider's callback instead of driving a router: the hook's own URL handling is
 // askDeepLink.test.tsx's subject, and what is under test here is what the provider DOES with it.
 vi.mock('./askDeepLink', () => ({
-  useAskDeepLink: (_enabled: boolean, onAsk: (ask: string) => void) => { harness.onAsk = onAsk },
+  useAskDeepLink: (_access: string, onAsk: (ask: string) => void) => { harness.onAsk = onAsk },
 }))
 vi.mock('./useAgentikoContext', () => ({
   buildContextDelta: () => ({}),

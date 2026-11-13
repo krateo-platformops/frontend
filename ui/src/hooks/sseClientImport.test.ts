@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 
 /**
- * Importing the SSE client must not touch the auth module's exports.
+ * Importing the signed-in SSE client (hooks/signedInSseClient.ts, the SSE client bound to the
+ * stored session) must not touch the auth module's exports.
  *
  * `onAccessTokenInvalidated(reopenAll)` ran at module scope, so any suite that partially
  * mocked `getAccessToken` — a common thing to do, and nothing to do with SSE — failed to
@@ -13,9 +14,9 @@ import { describe, expect, it, vi } from 'vitest'
  */
 vi.mock('../utils/getAccessToken', () => ({ getAccessToken: () => 'tok' }))
 
-describe('importing sseClient', () => {
+describe('importing the signed-in SSE client', () => {
   it('needs nothing from the auth module but getAccessToken', async () => {
-    const client = await import('./sseClient')
+    const client = await import('./signedInSseClient')
     expect(typeof client.subscribeSse).toBe('function')
   })
 })

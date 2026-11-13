@@ -1,95 +1,40 @@
-import { App, Result } from 'antd'
+/**
+ * The SIGNED-IN error reaction: errorNotice's classify-and-show, plus what a 401 means to someone
+ * who has (or had) a session — the in-place session resume (utils/sessionResume), with no toast,
+ * because the modal IS the message. Used by the sign-in pages (Auth, Login).
+ *
+ * The widget tree does not use it: a widget renders on public pages too, and there the session
+ * resume, which falls through to forceLogout when no resume surface is mounted, must be
+ * unreachable. Widgets show errors with hooks/errorNotice.tsx and take the 401 reaction from the
+ * widget transport (`onUnauthorized`, `session`).
+ */
 import { useCallback } from 'react'
 
-import { authFailureCauseOf } from '../utils/authFailureCause'
-import { authFailurePresentation } from '../utils/authFailureCopy'
 import { isSessionResumePending, raiseSessionExpired } from '../utils/sessionResume'
 
-export interface CatchError {
-  name?: string
-  data?: {
-    /**
-     * The k8s Status `details`. Carried so a 401 can be classified (snowplow#1029): the step-up
-     * discriminator is `details.causes[0].reason`, and this hook receives an error OBJECT with no
-     * `Response` on it, so a `WWW-Authenticate` header is unreachable here — the body is the only
-     * place the portal can read it app-wide.
-     */
-    details?: {
-      causes?: { reason?: unknown }[]
-    }
-    message?: string
-  }
-  /**
-   * What to show under `message`, from a caller that has ALREADY classified the failure. When set,
-   * it is shown as given, and the status-based defaults below stay out of the way: the 4xx line
-   * "Please check your input or permissions." and the 500 branch's replacement of `message` as well.
-   * Those defaults are right for a caller that knows only a status, and wrong beside copy that
-   * already says what happened — the sign-in callback put "Please check your input" under "your
-   * account is not allowed into this control plane", on a page with no input.
-   *
-   * Not honoured on a 401, whose surface is the session-resume modal rather than this text.
-   */
-  description?: string
-  message?: string
-  status?: number
-  code?: number
-}
+import { type CatchError, describeError, useErrorNotice } from './errorNotice'
+
+export type { CatchError } from './errorNotice'
 
 const useCatchError = () => {
-  const { notification } = App.useApp()
+  const { showError } = useErrorNotice()
 
   const catchError = useCallback((error?: CatchError, type: 'result' | 'notification' = 'notification') => {
-    // P16: this pair is the app-wide default for any unrecognised error — every data-fetching
-    // widget, Auth and Login reach it — so it is the string users hit most. It used to apologise
-    // ("Ops! Something didn't work" / "please try later"), which names nothing and asks the reader
-    // to wait for a condition nobody described. Say what failed and what they can do instead.
-    let message: string = error?.message || 'The request did not complete'
-    let description: React.ReactNode = 'Try again. If it keeps happening, check your connection and permissions for this resource.'
-
-    if ((error?.status === 401 || error?.code === 401)) {
+    const { cause, unauthorized } = describeError(error)
+    if (unauthorized) {
       // Session honesty: a 401 no longer hard-redirects to /login (which wiped all page/rail
       // state). Raise the single in-place session-resume modal instead; suppress the toast —
       // the modal IS the messaging, and a burst of concurrent 401s must not toast-storm.
-      // The cause decides what the resume surface offers. A cluster that cannot issue the
-      // elevated credential gets no sign-in form at all, because offering one would be an action
-      // that cannot succeed and the person would loop through it forever.
-      const cause = authFailureCauseOf(error?.data)
-      description = error?.data?.message || authFailurePresentation(cause).description
       void raiseSessionExpired(cause)
       if (type === 'notification') {
         return
       }
-    } else if (error?.description !== undefined) {
-      description = error.description
-    } else if (error?.status === 500 || error?.code === 500) {
-      message = 'The server hit an unexpected error'
-      description = error?.data?.message || 'The server encountered an unexpected condition.'
-    } else if ((/^4\d{2}$/).test(String(error?.status)) || (/^4\d{2}$/).test(String(error?.code))) {
-      if (error?.data?.message) {
-        message = 'There was an error processing your request'
-      }
-      description = error?.data?.message || 'Please check your input or permissions.'
     }
-
-    switch (type) {
-      case 'result':
-        return <Result status='error' subTitle={description} title={message} />
-      case 'notification':
-      default:
-        // While a session-resume is pending, in-flight refetches keep failing against the
-        // stale token — suppress the secondary error toasts so the resume modal isn't
-        // buried under a storm; inline 'result' renders stay (they don't stack).
-        if (isSessionResumePending()) {
-          return
-        }
-        notification.error({
-          description,
-          duration: 4,
-          key: 'unique',
-          message,
-        })
-    }
-  }, [notification])
+    // While a session-resume is pending, in-flight refetches keep failing against the stale token —
+    // suppress the secondary error toasts so the resume modal isn't buried under a storm; inline
+    // 'result' renders stay (they don't stack).
+    return showError(error, type, { suppressed: isSessionResumePending })
+  }, [showError])
 
   return { catchError }
 }

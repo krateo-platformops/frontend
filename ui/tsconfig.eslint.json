@@ -7,6 +7,6 @@
     "allowSyntheticDefaultImports": true
   },
   "extends": "./tsconfig.json",
-  "include": ["src/**/*", "vite.config.ts", "vite-env.d.ts", "scripts", "visual"],
+  "include": ["src/**/*", "vite.config.ts", "vite-env.d.ts", "scripts", "visual", "e2e"],
   "exclude": ["node_modules", "dist"]
 }

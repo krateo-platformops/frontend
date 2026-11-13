@@ -17,6 +17,8 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { raiseSessionExpired } from '../utils/sessionResume'
+
 import {
   RefreshManager,
   __resetRefreshEntries,
@@ -24,7 +26,9 @@ import {
 } from './refreshSse'
 
 vi.mock('../utils/sessionResume', () => ({ raiseSessionExpired: vi.fn(() => Promise.resolve('resumed')) }))
-vi.mock('../utils/getAccessToken', () => ({ getAccessToken: () => 'test-token' }))
+
+/** The signed-in session an arming widget hands the manager (its transport's `session`). */
+const CRED = { getAccessToken: () => 'test-token', resume: () => raiseSessionExpired() }
 
 afterEach(() => {
   __resetRefreshEntries()
@@ -66,7 +70,7 @@ describe('snowplow#560 — POST subscription', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const mgr = new RefreshManager()
-    mgr.configure('https://portal.example/content')
+    mgr.configure('https://portal.example/content', CRED)
     await connect(mgr, 3)
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -92,7 +96,7 @@ describe('snowplow#560 — POST subscription', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const mgr = new RefreshManager()
-    mgr.configure('https://portal.example/content')
+    mgr.configure('https://portal.example/content', CRED)
     await connect(mgr)
 
     const headers = fetchMock.mock.calls[0][1]?.headers as Record<string, string>
@@ -113,7 +117,7 @@ describe('snowplow#560 — fallback to GET against a server that predates the bo
     vi.stubGlobal('fetch', fetchMock)
 
     const mgr = new RefreshManager()
-    mgr.configure('https://portal.example/content')
+    mgr.configure('https://portal.example/content', CRED)
     await connect(mgr, 2)
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
@@ -137,7 +141,7 @@ describe('snowplow#560 — fallback to GET against a server that predates the bo
     vi.stubGlobal('fetch', fetchMock)
 
     const mgr = new RefreshManager()
-    mgr.configure('https://portal.example/content')
+    mgr.configure('https://portal.example/content', CRED)
     await connect(mgr)
     expect(fetchMock).toHaveBeenCalledTimes(2)
 
@@ -161,7 +165,7 @@ describe('snowplow#560 — fallback to GET against a server that predates the bo
     vi.stubGlobal('fetch', fetchMock)
 
     const mgr = new RefreshManager()
-    mgr.configure('https://portal.example/content')
+    mgr.configure('https://portal.example/content', CRED)
     await connect(mgr)
 
     // Exactly one attempt: a 500 is an answer, not a missing route, so there is no GET retry.
@@ -188,7 +192,7 @@ describe('a 400 is not a transport fault', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const mgr = new RefreshManager()
-    mgr.configure('https://portal.example/content')
+    mgr.configure('https://portal.example/content', CRED)
     await connect(mgr)
     expect(fetchMock).toHaveBeenCalledTimes(1)
 
@@ -208,7 +212,7 @@ describe('a 400 is not a transport fault', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const mgr = new RefreshManager()
-    mgr.configure('https://portal.example/content')
+    mgr.configure('https://portal.example/content', CRED)
     await connect(mgr)
     expect(fetchMock).toHaveBeenCalledTimes(1)
 
@@ -229,7 +233,7 @@ describe('a 400 is not a transport fault', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const mgr = new RefreshManager()
-    mgr.configure('https://portal.example/content')
+    mgr.configure('https://portal.example/content', CRED)
     await connect(mgr)
     const afterFirst = fetchMock.mock.calls.length
 

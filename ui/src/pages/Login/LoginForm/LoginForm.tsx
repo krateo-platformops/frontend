@@ -12,6 +12,13 @@ type LoginType = {
   isLoading: boolean
   /** A failed sign-in through THIS form, shown above its button. */
   alert?: LoginFormAlert
+  /**
+   * Put the cursor in Username when the form mounts (#652). The sign-in page exists to type into
+   * this field, so reaching it took a Tab — or a click — for no reason. Only the FIRST credential
+   * form on the page asks for it (AuthMethods decides): with basic and LDAP stacked, two autofocus
+   * requests would leave the cursor in whichever mounted last.
+   */
+  autoFocus?: boolean
 }
 
 /*
@@ -30,7 +37,7 @@ const loginFormNameOf = ({ kind, name }: AuthModeType): string => (
   name ? `login_${kind}_${name}` : `login_${kind}`
 )
 
-const LoginForm = ({ alert, isLoading, method, onSubmit }: LoginType) => {
+const LoginForm = ({ alert, autoFocus = false, isLoading, method, onSubmit }: LoginType) => {
   const [form] = Form.useForm<LoginFormType>()
   const passwordRef = useRef<InputRef>(null)
   const handledAttempt = useRef<number | null>(null)
@@ -66,7 +73,7 @@ const LoginForm = ({ alert, isLoading, method, onSubmit }: LoginType) => {
           {/* `username` / `current-password` let a password manager fill the pair, and let the
               browser offer to save it. The form used to set autoComplete='off', which most
               managers ignore anyway and which only made the page harder to use. */}
-          <Input autoComplete='username' size='large' />
+          <Input autoComplete='username' autoFocus={autoFocus} size='large' />
         </Form.Item>
 
         <Form.Item

@@ -27,6 +27,7 @@ import { countNoun } from '../utils/utils'
 import { beginWriteProvenance, type WriteOrigin } from './provenance'
 import type { ActionContext } from './useHandleActions'
 import { fetchWithTimeout, parseJsonResponse, POST_WRITE_REVALIDATE_DELAYS_MS } from './useHandleActions'
+import { carriesBody, contentTypeOf } from './writeContentType'
 
 export type { WriteOp }
 
@@ -98,10 +99,6 @@ export type RunRestSetContext = Pick<
   'apiBaseUrl' | 'confirm' | 'getAccessToken' | 'invalidateQueries' | 'message' | 'notification' | 'provenanceEnabled' | 'registerCleanup' | 'setLoading' | 'supportsCallProvenance'
 >
 
-/** The op's request Content-Type: merge-patch for PATCH (apiserver semantics), JSON otherwise. */
-const contentTypeOf = (verb: WriteOp['verb']): string =>
-  (verb === 'PATCH' ? 'application/merge-patch+json' : 'application/json')
-
 /** Human identity of one op for the failure toast (e.g. "DELETE fireworksapps/my-app"). */
 const opLabel = (op: { verb: string; gvr: { resource: string }; name?: string }): string =>
   `${op.verb} ${op.gvr.resource || 'object'}${op.name ? `/${op.name}` : ''}`
@@ -113,12 +110,13 @@ const opLabel = (op: { verb: string; gvr: { resource: string }; name?: string })
 const dispatchOp = async (op: WriteOp, index: number, ctx: RunRestSetContext, provenanceHeader: Record<string, string>): Promise<WriteOpResult> => {
   try {
     const res = await fetchWithTimeout(ctx.apiBaseUrl + op.path, {
-      // Same body rule as runRest: only POST/PUT/PATCH carry one (DELETE never does).
-      body: op.verb === 'DELETE' ? undefined : JSON.stringify(op.payload ?? {}),
+      // Same body rule as runRest: only POST/PUT/PATCH carry one — and with it its Content-Type
+      // (merge-patch for PATCH). DELETE carries neither.
+      body: carriesBody(op.verb) ? JSON.stringify(op.payload ?? {}) : undefined,
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${ctx.getAccessToken()}`,
-        'Content-Type': contentTypeOf(op.verb),
+        ...(carriesBody(op.verb) ? { 'Content-Type': contentTypeOf(op.verb) } : {}),
         ...provenanceHeader,
       },
       method: op.verb,

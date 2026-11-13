@@ -4,6 +4,7 @@ import { useLocation } from 'react-router'
 
 import { buildersStatus, isBuilderPath, subscribeBuilders } from '../../builders/builderRegistry'
 import BuildersUnavailable from '../../builders/host/BuildersUnavailable'
+import { PageRootProvider } from '../../context/PageRootContext'
 import { useRoutesContext } from '../../context/RoutesContext'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { templatedRouteOf } from '../../otel/route'
@@ -93,7 +94,12 @@ export const WidgetPage = ({ defaultWidgetEndpoint }: { defaultWidgetEndpoint?: 
     // the next page's header.
     <PageHealthProvider key={location.pathname}>
       {searchPlaceholder ? <PageSearch placeholder={searchPlaceholder} /> : null}
-      <WidgetRenderer key='content' widgetEndpoint={widgetEndpoint} />
+      {/* The page root: it reads the fragment keys its CR declares (`krateo.io/fragment-keys`)
+          for its widgets, then clears them from the address bar (context/PageRootContext.tsx).
+          A page that declares none, or is opened without a fragment, is unaffected. */}
+      <PageRootProvider endpoint={widgetEndpoint}>
+        <WidgetRenderer key='content' widgetEndpoint={widgetEndpoint} />
+      </PageRootProvider>
     </PageHealthProvider>
   )
 }

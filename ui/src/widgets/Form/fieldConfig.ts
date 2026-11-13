@@ -1,7 +1,7 @@
 import type { JSONSchema4 } from 'json-schema'
 
 import { ROW } from './fieldDependencies'
-import { CHECKBOX_KEY, INTERNAL_KEYS, OPTIONS_KEY, ROW_TITLE_KEY, SUGGESTIONS_KEY, VISIBLE_WHEN_KEY } from './fieldKeys'
+import { CHECK_KEY, CHECKBOX_KEY, HELP_KEY, INTERNAL_KEYS, OPTIONS_KEY, REQUIRED_MESSAGE_KEY, ROW_TITLE_KEY, SUGGESTIONS_KEY, TEXTAREA_KEY, VISIBLE_WHEN_KEY } from './fieldKeys'
 
 /**
  * The field configuration of a schema form, as `widgetData` carries it — the format of the
@@ -21,6 +21,14 @@ import { CHECKBOX_KEY, INTERNAL_KEYS, OPTIONS_KEY, ROW_TITLE_KEY, SUGGESTIONS_KE
  *   - { path: hosts, displayField: host }
  * suggestions:             # a static, open catalogue
  *   - { name: logLevel, options: [{ value: info }, { value: warn, label: Warning }] }
+ * fieldHelp:               # help text under the input (antd Form.Item `extra`)
+ *   - { name: phone, text: Start with + and your country code. }
+ * fieldChecks:             # a check against an allow-listed endpoint while typing (fieldCheck.tsx)
+ *   - { name: username, path: /intake/checks, answers: [...], otherwise: {...} }
+ * textareas:               # a string drawn as a multi-line TextArea
+ *   - { name: description, rows: 4 }
+ * validationMessages:      # the message a required field shows when left empty
+ *   - { name: email, requiredMessage: Enter your email address. }
  * ```
  *
  * `name`, `path` and `dependsOn.name` are dotted paths from the root of the form. A path goes
@@ -83,6 +91,9 @@ const cleanCopy = (value: unknown): unknown => {
 }
 
 const entries = (list: unknown): Raw[] => (Array.isArray(list) ? list.filter(isRecord) : [])
+
+/** An object with fields or a list: drawn as a group, not as one input. */
+const isGroupish = (node: JSONSchema4): boolean => node.type === 'object' || node.type === 'array'
 
 const optionsOf = (schema: JSONSchema4, entry: Raw, closedByDefault: boolean, withDependsOn: boolean): Raw | undefined => {
   const ref = text(entry.resourceRefId)
@@ -182,6 +193,45 @@ export const applyFieldConfig = (schema: JSONSchema4 | undefined, config: Raw): 
   for (const entry of entries(config.suggestions)) {
     const node = at(entry.name)
     if (node && Array.isArray(entry.options)) { node[SUGGESTIONS_KEY] = entry.options }
+  }
+
+  // Help under a field's input: a leaf's, so an entry naming a group or a list is skipped.
+  for (const entry of entries(config.fieldHelp)) {
+    const node = at(entry.name)
+    const help = text(entry.text)
+    if (node && help && !isGroupish(node)) { node[HELP_KEY] = help }
+  }
+
+  // A check runs on a typed leaf: a group, a list or a boolean has no text to check.
+  for (const entry of entries(config.fieldChecks)) {
+    const dotted = text(entry.name)
+    const node = at(entry.name)
+    const path = text(entry.path)
+    if (!dotted || !node || !path || isGroupish(node) || node.type === 'boolean') { continue }
+    const spec: Raw = {
+      answers: entries(entry.answers),
+      bodyKey: text(entry.bodyKey) ?? dotted.split('.').pop(),
+      path,
+    }
+    if (isRecord(entry.bodyExtras)) { spec.bodyExtras = entry.bodyExtras }
+    if (typeof entry.debounceMs === 'number') { spec.debounceMs = entry.debounceMs }
+    if (typeof entry.timeoutMs === 'number') { spec.timeoutMs = entry.timeoutMs }
+    if (isRecord(entry.otherwise)) { spec.otherwise = entry.otherwise }
+    node[CHECK_KEY] = spec
+  }
+
+  // A textarea is a way to draw free text: a string with no list of values. Any other is skipped.
+  for (const entry of entries(config.textareas)) {
+    const node = at(entry.name)
+    if (node?.type !== 'string' || Array.isArray(node.enum) || Array.isArray(node.oneOf)) { continue }
+    node[TEXTAREA_KEY] = typeof entry.rows === 'number' ? { rows: entry.rows } : {}
+  }
+
+  // The message a required field shows when it is left empty, in place of "<Label> is required".
+  for (const entry of entries(config.validationMessages)) {
+    const node = at(entry.name)
+    const requiredMessage = text(entry.requiredMessage)
+    if (node && requiredMessage) { node[REQUIRED_MESSAGE_KEY] = requiredMessage }
   }
 
   return root

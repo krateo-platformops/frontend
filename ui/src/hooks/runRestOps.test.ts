@@ -38,6 +38,7 @@ const makeCtx = (over: Partial<ActionContext> = {}): ActionContext => ({
   reloadRoutes: vi.fn(),
   resolveJq: vi.fn((expr: string) => Promise.resolve(`jq:${expr}`)),
   setLoading: vi.fn(),
+  subscribeSse: vi.fn(() => () => undefined),
   // An older snowplow (no `call.provenance`): the AuditRecord path these tests pin.
   supportsCallProvenance: () => Promise.resolve(false),
   ...over,

@@ -8,7 +8,8 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { type EventScope, __resetSseConnections, parseEventScope, subscribeSse } from './sseClient'
+import { __resetSseConnections, subscribeSse } from './signedInSseClient'
+import { type EventScope, parseEventScope } from './sseClient'
 
 /** The token module's shape, with the listener registry a reopen is driven through. */
 const auth = vi.hoisted(() => ({ listeners: [] as (() => void)[] }))

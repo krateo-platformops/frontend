@@ -547,3 +547,37 @@
 .reviewSummary :global(.ant-descriptions-item-label) {
   width: 25%;
 }
+
+/* A `submitPost` / `fieldChecks` result: the antd Result that replaces the form (FormResult.tsx).
+   No frame of its own: the page around the form is the frame. */
+.result {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* The plain "text + link" line of a result's `extra` ("Already have an account? Sign in"). */
+.resultLink {
+  margin-bottom: 0;
+}
+
+/* The Form's own `title`, above its fields; the form's gap spaces it, so antd's margin goes.
+   Two classes, to outrank antd's `h3.ant-typography` margin. */
+.form > .title {
+  margin: 0;
+}
+
+/* `buttonConfig.primary.block`: the primary button spans the action bar, any other button above it. */
+.actionColumn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  width: 100%;
+}
+
+/* A field's `fieldHelp`, under its input (antd Form.Item `extra`). */
+.fieldHelp {
+  color: var(--gray-color);
+  font-size: var(--krateo-text-caption);
+  line-height: 1.45;
+}

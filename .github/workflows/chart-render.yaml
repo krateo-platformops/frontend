@@ -6,6 +6,10 @@
 # scripts/test_chart_login.py covers the `login` block: unset is byte-identical to `login: {}` and
 # has no "login" object, set renders exactly the set keys, and the schema refuses an empty string,
 # a javascript: link and a sixth highlight.
+#
+# scripts/test_chart_params.py covers the "params" object: PUBLIC_NAMESPACE is `publicNamespace`
+# (krateo-public by default, "" and still valid JSON when values remove it), the schema refuses a
+# value that is not a namespace name, and FRONTEND_NAMESPACE stays the release namespace.
 name: chart-render
 
 on:
@@ -30,3 +34,4 @@ jobs:
         run: |
           python3 -m pip install --quiet pyyaml
           python3 scripts/test_chart_login.py
+          python3 scripts/test_chart_params.py

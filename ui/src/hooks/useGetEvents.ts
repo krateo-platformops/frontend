@@ -3,15 +3,24 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 
 import { useConfigContext } from '../context/ConfigContext'
-import { getAccessToken } from '../utils/getAccessToken'
+import { useWidgetTransport } from '../transport/widgetTransport'
 import type { SSEK8sEvent } from '../utils/types'
 
-import { type EventScope, subscribeSse } from './sseClient'
+import type { EventScope } from './sseClient'
 
 const MAX_EVENTS = 200
 
+/**
+ * The events feed (GET /events) and its live stream (/notifications) — the notifications bell's data.
+ *
+ * Both need the signed-in session, and both take it from the widget transport in context: the
+ * bearer and the shared SSE client are the session's (transport/widgetTransport.ts), and this hook
+ * imports neither. Outside the signed-in shell there is no session, so nothing is fetched and no
+ * stream opens — not because a flag says so, but because there is nothing to fetch it with.
+ */
 export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic?: string; registerToSSE?: boolean }) {
   const { config } = useConfigContext()
+  const { live, session } = useWidgetTransport()
 
   // list of events
   const eventsUrl = `${config!.api.EVENTS_API_BASE_URL}/events`
@@ -26,13 +35,17 @@ export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic
   // dropped leaves this stale by definition, which is why the drawer pairs it with the fact that
   // nothing is connected rather than rendering it alone.
   const [scope, setScope] = useState<EventScope>({ kind: 'unscoped' })
+  // The session is not in the key: it is the shell's, fixed for every tree this hook renders in.
+  // eslint-disable-next-line @tanstack/query/exhaustive-deps
   const queryResult = useQuery({
+    enabled: !!session,
     gcTime: Infinity,
     queryFn: async () => {
+      if (!session) { return [] }
       // sse-proxy verifies the caller's JWT (RS256/JWKS) on /events; forward it
       // as a Bearer header exactly like every other backend call.
       const res = await fetch(eventsUrl, {
-        headers: { Authorization: `Bearer ${getAccessToken()}` },
+        headers: { Authorization: `Bearer ${session.getAccessToken()}` },
       })
       const notifications = (await res.json()) as SSEK8sEvent[]
       // sse-proxy caps /events at 200 today; capping here keeps the bound this hook's own.
@@ -49,8 +62,9 @@ export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic
     structuralSharing: false,
   })
 
+  const subscribeSse = live ? session?.subscribeSse : undefined
   useEffect(() => {
-    if (!registerToSSE) {
+    if (!registerToSSE || !subscribeSse) {
       return
     }
 
@@ -84,7 +98,7 @@ export function useGetEvents({ registerToSSE = true, topic = 'krateo' }: { topic
         }
       },
     })
-  }, [notificationsUrl, topic, queryClient, queryKey, registerToSSE])
+  }, [notificationsUrl, topic, queryClient, queryKey, registerToSSE, subscribeSse])
 
   // Deliberately NOT `{ ...queryResult, scope }`: spreading a react-query result makes the
   // consumer observe every field of the query and re-render on all of them

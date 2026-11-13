@@ -208,10 +208,24 @@ export interface Config {
      */
     OTEL_TRACES_ENDPOINT?: string
     OTEL_COLLECTOR_URL?: string
+    /** The same-origin path prefixes a page may POST JSON to with no credential (the transports'
+     * `post`, transport/allowlistedPost.ts: a Form's `fieldChecks` and `submitPost`), e.g.
+     * `/request-access/api/v1/`. A comma-separated string, because the installer's config plumbing
+     * emits strings; an array is accepted too. Prefix match, segment-aware. These are NOT snowplow
+     * /call writes, but a plain POST to a service the install fronts on its own origin; the same
+     * list holds on a public page and inside the signed-in shell. Absent or empty: no page can
+     * POST anywhere this way. */
+    PUBLIC_POST_PATHS?: string | string[]
   } & AgentikoApiConfig & AutopilotApiConfig
   params: {
     FRONTEND_NAMESPACE: string
     DELAY_SAVE_NOTIFICATION: string
+    /** The namespace a short public address (`/public/<slug>`) reads `flexes/page-<slug>` from
+     * (public/PublicPage.tsx). The chart renders it from its `publicNamespace` value, by
+     * convention `krateo-public`: an isolated namespace whose only grants are the public
+     * identity's. Optional because a chart older than this key does not render it; absent or
+     * empty, a short address opens nothing (and never falls back to FRONTEND_NAMESPACE). */
+    PUBLIC_NAMESPACE?: string
   }
   /** Optional login-screen branding. Fetched pre-auth (before any backend
    * identity), so it lives in the static config (ConfigMap-mountable per install)

@@ -53,8 +53,7 @@
  */
 
 import type { Config } from '../context/ConfigContext'
-import { getAccessToken } from '../utils/getAccessToken'
-import { raiseSessionExpired } from '../utils/sessionResume'
+import type { SessionResumeOutcome } from '../utils/sessionResume'
 
 import { drainSseEvents, parseSseBlock } from './sseFrames'
 
@@ -310,6 +309,19 @@ type Refetch = () => unknown
  * Exported (not just the singleton) so tests can drive a fresh instance with an
  * injected clock and feed refresh keys directly via `dispatchRefresh`.
  */
+/**
+ * What the manager authenticates its stream with: the signed-in session's, handed in by the widget
+ * that arms (hooks/useWidgetLiveRefresh.ts, from `useWidgetTransport().session`). This module
+ * imports no credential, and the manager holds one only while a signed-in widget is armed: on a
+ * public page, whose transport has no session, nothing arms, so nothing can connect.
+ */
+export interface RefreshCredential {
+  /** The bearer. Throws when no session is stored. */
+  readonly getAccessToken: () => string
+  /** The in-place session resume, raised on a 401. */
+  readonly resume: () => Promise<SessionResumeOutcome>
+}
+
 export class RefreshManager {
   /** widgetId → what it armed with: its coords and the key its frames arrive under. */
   private readonly armed = new Map<string, { coords: RefreshCoords; key: string }>()
@@ -352,9 +364,14 @@ export class RefreshManager {
    * re-probing POST on every retry would cost a round trip per attempt against an old server.
    */
   private postUnsupported = false
+  /** The armed widgets' session; dropped when the last one disarms. See RefreshCredential. */
+  private credential: RefreshCredential | undefined
 
-  /** Point the manager at the snowplow base URL (idempotent; set on first arm). */
-  configure(baseUrl: string): void { this.baseUrl = baseUrl }
+  /** Point the manager at the snowplow base URL and the session to open it with (set before each arm). */
+  configure(baseUrl: string, credential: RefreshCredential): void {
+    this.baseUrl = baseUrl
+    this.credential = credential
+  }
 
   /**
    * Arm a widget: subscribe with its `coords`, route events carrying `refreshKey`
@@ -385,6 +402,8 @@ export class RefreshManager {
     const queued = this.queue.indexOf(widgetId)
     if (queued !== -1) { this.queue.splice(queued, 1) }
     this.removeFromKeyIndex(widgetId)
+    // Nothing armed, nothing to authorize: the session is not kept past the widgets that brought it.
+    if (this.armed.size === 0) { this.credential = undefined }
     this.scheduleReconnect()
   }
 
@@ -517,9 +536,10 @@ export class RefreshManager {
     if (coords.length === 0 || !this.baseUrl) { return }
 
     // No session → nothing to authorize; don't open a stream that would 401-loop.
+    if (!this.credential) { return }
     let token: string
     try {
-      token = getAccessToken()
+      token = this.credential.getAccessToken()
     } catch {
       return
     }
@@ -657,7 +677,7 @@ export class RefreshManager {
       //
       // `logout` needs nothing: the session is gone, so getAccessToken() throws and connect()
       // returns early rather than opening a stream that would only 401 again.
-      void raiseSessionExpired().then((outcome) => {
+      void (this.credential?.resume() ?? Promise.resolve<SessionResumeOutcome>('logout')).then((outcome) => {
         if (outcome === 'resumed') { this.scheduleReconnect() }
       }, () => undefined)
       return
@@ -810,6 +830,7 @@ export class RefreshManager {
     this.retryAttempt = 0
     this.revalidateOnConnect = false
     this.warnedTruncation = false
+    this.credential = undefined
   }
 }
 
