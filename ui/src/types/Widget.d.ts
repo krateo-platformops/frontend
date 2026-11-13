@@ -96,8 +96,9 @@ export type WidgetProps<T = unknown> = {
    * be omitted.
    *
    * Returns the URL and the widget's `extras` SEPARATELY, because snowplow's POST /export takes
-   * extras in the body while every other parameter stays on the query. Undefined for widgets
-   * rendered outside a query.
+   * extras in the body while every other parameter stays on the query. The URL is on snowplow's
+   * `/export` route, never the widget's `/call` (a POST there is the write passthrough). Undefined
+   * for widgets rendered outside a query, and for a widget whose endpoint is not a `/call` read.
    */
   exportRequestFor?: (exportQuery: string) => { url: string; extras: string | null }
   uid: string
