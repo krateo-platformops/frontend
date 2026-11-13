@@ -110,7 +110,9 @@ const reachable = (entry: string): Set<string> => {
 const FORBIDDEN = ['utils/getAccessToken.ts', 'utils/sessionResume.ts', 'hooks/signedInSseClient.ts', 'transport/signedInTransport.tsx']
 
 describe('the anonymous transport cannot reach the stored token', () => {
-  it.each(['public/anonymousTransport.ts', 'transport/widgetTransport.ts'])('%s has no runtime import path to a token reader', (entry) => {
+  // transport/allowlistedPost.ts is the `post` BOTH transports carry: the signed-in one too, so it
+  // must not be able to reach the token either.
+  it.each(['public/anonymousTransport.ts', 'transport/widgetTransport.ts', 'transport/allowlistedPost.ts'])('%s has no runtime import path to a token reader', (entry) => {
     const graph = [...reachable(join(SRC, entry))].map((file) => relative(SRC, file))
     expect(graph).toContain(entry)
     expect(graph.filter((file) => FORBIDDEN.includes(file))).toEqual([])

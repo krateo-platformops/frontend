@@ -241,10 +241,9 @@ export const CheckedFieldItem = ({ item, path, spec }: { item: FormItemProps; pa
     <div onBlur={onBlur}>
       <AntdForm.Item
         {...item}
+        {...(success ? { help: success.message, validateStatus: 'success' as const } : {})}
         hasFeedback
-        help={success ? success.message : item.help}
         rules={allRules}
-        validateStatus={success ? 'success' : item.validateStatus}
       />
     </div>
   )
