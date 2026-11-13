@@ -1,7 +1,7 @@
 import type { JSONSchema4 } from 'json-schema'
 
 import { ROW } from './fieldDependencies'
-import { INTERNAL_KEYS, OPTIONS_KEY, ROW_TITLE_KEY, SUGGESTIONS_KEY, VISIBLE_WHEN_KEY } from './fieldKeys'
+import { CHECKBOX_KEY, INTERNAL_KEYS, OPTIONS_KEY, ROW_TITLE_KEY, SUGGESTIONS_KEY, VISIBLE_WHEN_KEY } from './fieldKeys'
 
 /**
  * The field configuration of a schema form, as `widgetData` carries it — the format of the
@@ -11,6 +11,8 @@ import { INTERNAL_KEYS, OPTIONS_KEY, ROW_TITLE_KEY, SUGGESTIONS_KEY, VISIBLE_WHE
  * autocomplete:            # options from a RESTAction; typed text is kept unless closed
  *   - { name: region, resourceRefId: regions, closed: true }
  *   - { name: owner, resourceRefId: users, extra: { key: q }, minChars: 2 }
+ * checkboxes:              # a boolean drawn as a Checkbox labelled by its title (checkboxField.tsx)
+ *   - { name: consent, link: { text: privacy policy, href: https://example.com/privacy }, requiredMessage: Please agree. }
  * dependencies:            # options that depend on another field's value; a closed list unless closed: false
  *   - { name: zone, dependsOn: { name: region }, resourceRefId: zones, extra: { key: region } }
  * displayingDependencies:  # shown only while the condition holds
@@ -163,6 +165,18 @@ export const applyFieldConfig = (schema: JSONSchema4 | undefined, config: Raw): 
     const node = at(entry.path)
     const displayField = text(entry.displayField)
     if (node && displayField) { node[ROW_TITLE_KEY] = displayField }
+  }
+
+  // A checkbox is a way to draw a boolean: an entry naming any other field is skipped.
+  for (const entry of entries(config.checkboxes)) {
+    const node = at(entry.name)
+    if (node?.type !== 'boolean') { continue }
+    const spec: Raw = {}
+    const link = isRecord(entry.link) ? { href: text(entry.link.href), text: text(entry.link.text) } : undefined
+    if (link?.href && link.text) { spec.link = link }
+    const requiredMessage = text(entry.requiredMessage)
+    if (requiredMessage) { spec.requiredMessage = requiredMessage }
+    node[CHECKBOX_KEY] = spec
   }
 
   for (const entry of entries(config.suggestions)) {

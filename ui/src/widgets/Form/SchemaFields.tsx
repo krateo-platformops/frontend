@@ -1,5 +1,6 @@
 import { CloseOutlined, DownOutlined, MinusCircleOutlined, PlusOutlined, RightOutlined } from '@ant-design/icons'
 import { Form as AntdForm, AutoComplete, Button, Card, Collapse, Input, InputNumber, Select, Space, Switch } from 'antd'
+import type { FormItemProps } from 'antd'
 import type { DefaultOptionType } from 'antd/es/select'
 import type { JSONSchema4 } from 'json-schema'
 import { cloneElement, isValidElement, useContext, useEffect, useMemo, useRef, useState } from 'react'
@@ -7,10 +8,12 @@ import type { ReactElement } from 'react'
 
 import { isSecretArrayNode, isSecretSchemaNode } from '../../utils/secretFields'
 
+import { checkboxItem, getCheckboxSpec } from './checkboxField'
 import { useAdvancedPanels, useShowFailedSection } from './failedFields'
 import { collectDependencies, type FieldPath, nodeAt } from './fieldDependencies'
 import { ROW_TITLE_KEY } from './fieldKeys'
 import { closedOptionRule, getFieldOptionsSpec, type OptionRegistry } from './fieldOptions'
+import { fieldHeader, type FieldPresentation, FieldPresentationContext, type Marks, OptionalFeedbackItem, useMarks } from './fieldPresentation'
 import styles from './Form.module.css'
 import { FreeObjectListInput } from './FreeObjectListInput'
 import { JsonValueInput } from './JsonValueInput'
@@ -457,27 +460,6 @@ const ObjectList = ({ fieldKey, group, isRequired, listPath, name, node }: {
   )
 }
 
-/**
- * One COHERENT header for every property — the property's human `title` (the label the blueprint
- * author wrote in values.schema.json) falling back to the schema `key`, plus its `description`
- * (muted, if present). Used identically for scalars, toggles, maps and nested-object groups so the
- * whole form reads as one system. Preferring `title` means a novice sees "Availability zones", not
- * the raw key `azs`.
- */
-const fieldHeader = (key: string, node: JSONSchema4, isRequired: boolean): React.ReactNode => {
-  const description = typeof node.description === 'string' ? node.description : ''
-  const label = fieldLabel(key, node)
-  return (
-    <span className={styles.fieldLabel}>
-      <span className={styles.fieldName}>
-        {label}
-        {isRequired ? <span className={styles.req}> *</span> : null}
-      </span>
-      {description ? <span className={styles.fieldDesc}>{description}</span> : null}
-    </span>
-  )
-}
-
 interface SchemaFieldsProps {
   /** the (sub)schema whose `properties` become form fields */
   schema: JSONSchema4
@@ -516,14 +498,14 @@ const fieldRules = (key: string, node: JSONSchema4, isRequired: boolean, fieldPa
   return rules.length ? rules : undefined
 }
 
-function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: Array<string | number>, scopePath: FieldPath, isRequired: boolean, group: FieldPath | undefined, registry?: OptionRegistry): React.ReactNode {
+function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: Array<string | number>, scopePath: FieldPath, isRequired: boolean, group: FieldPath | undefined, registry: OptionRegistry | undefined, presentation: FieldPresentation, marks: Marks): React.ReactNode {
   const path = [...namePath, key]
   const scope = [...scopePath, key]
 
   if (isObjectList(node)) {
     return (
       <div className={styles.group} key={path.join('.')}>
-        {fieldHeader(key, node, isRequired)}
+        {fieldHeader(key, node, isRequired, marks)}
         <div className={styles.groupBody}>
           { }
           <ObjectList fieldKey={key} group={group} isRequired={isRequired} listPath={scope} name={path} node={node} />
@@ -545,26 +527,34 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
     )
   }
 
-  return (
-    // The label is a stacked name + (wrapping) description meant to sit ABOVE the control. Force
-    // full-width label/wrapper columns so that stays true even under a Form `layout='horizontal'`
-    // (otherwise antd puts the label beside the control and a long description crowds/overlaps it).
-    // A no-op for vertical/inline layouts (already stacked). #54 §0.4 / #57 #5.
-    <AntdForm.Item
-      className={styles.field}
-      colon={false}
-      hasFeedback={isRequired && node.type !== 'boolean'}
-      key={path.join('.')}
-      label={fieldHeader(key, node, isRequired)}
-      labelCol={{ span: 24 }}
-      name={path}
-      rules={fieldRules(key, node, isRequired, scope, group, registry)}
-      valuePropName={node.type === 'boolean' ? 'checked' : undefined}
-      wrapperCol={{ span: 24 }}
-    >
-      {controlFor(node, scope)}
-    </AntdForm.Item>
-  )
+  if (getCheckboxSpec(node)) {
+    return checkboxItem(key, node, path, isRequired, group, marks)
+  }
+
+  const rules = fieldRules(key, node, isRequired, scope, group, registry)
+  // The label is a stacked name + (wrapping) description meant to sit ABOVE the control. Force
+  // full-width label/wrapper columns so that stays true even under a Form `layout='horizontal'`
+  // (otherwise antd puts the label beside the control and a long description crowds/overlaps it).
+  // A no-op for vertical/inline layouts (already stacked). #54 §0.4 / #57 #5.
+  const item: FormItemProps = {
+    children: controlFor(node, scope),
+    className: styles.field,
+    colon: false,
+    hasFeedback: isRequired && node.type !== 'boolean',
+    label: fieldHeader(key, node, isRequired, marks),
+    labelCol: { span: 24 },
+    name: path,
+    rules,
+    valuePropName: node.type === 'boolean' ? 'checked' : undefined,
+    wrapperCol: { span: 24 },
+  }
+  // Feedback came with being required because, when it was added, only required fields had
+  // rules. `hasFeedback: rules` gives it to an optional field with a rule of its own (a pattern,
+  // a length, a bound) as well.
+  if (presentation.hasFeedback === 'rules' && !isRequired && rules && node.type !== 'boolean') {
+    return <OptionalFeedbackItem key={path.join('.')} watchPath={scope} {...item} />
+  }
+  return <AntdForm.Item key={path.join('.')} {...item} />
 }
 
 /**
@@ -596,6 +586,8 @@ const useSchemaRoot = (schema: JSONSchema4): SchemaRoot =>
 
 const SchemaFieldsBody = ({ group, hide = [], namePath = [], schema, scopePath }: SchemaFieldsProps): React.ReactNode => {
   const { options: registry } = useContext(FormRefsContext)
+  const presentation = useContext(FieldPresentationContext)
+  const marks = useMarks()
   const scope = scopePath ?? namePath
   const hiddenNow = useHiddenKeys(schema?.properties, scope)
   const required = new Set(Array.isArray(schema?.required) ? schema.required : [])
@@ -608,19 +600,23 @@ const SchemaFieldsBody = ({ group, hide = [], namePath = [], schema, scopePath }
   const requiredEntries = visible.filter(([key]) => required.has(key))
   const optionalEntries = visible.filter(([key]) => !required.has(key))
 
-  if (requiredEntries.length === 0) {
-    return <>{optionalEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, false, group, registry))}</>
+  const entry = ([key, node]: [string, JSONSchema4]) => renderEntry(key, node, hide, namePath, scope, required.has(key), group, registry, presentation, marks)
+
+  // Under `requiredMark: optional` each optional field says so where it stands, in schema order:
+  // the mark sets it apart, not a collapse.
+  if (requiredEntries.length === 0 || marks.optional) {
+    return <>{visible.map(entry)}</>
   }
 
   return (
     <>
-      {requiredEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, true, group, registry))}
+      {requiredEntries.map(entry)}
       {optionalEntries.length > 0 ? (
         <Collapse
           activeKey={openPanels}
           className={styles.advanced}
           items={[{
-            children: <>{optionalEntries.map(([key, node]) => renderEntry(key, node, hide, namePath, scope, false, group, registry))}</>,
+            children: <>{optionalEntries.map(entry)}</>,
             // Always mount the optional fields (they're just visually hidden while collapsed) so
             // they register with the form store and submit / validate identically to an up-front
             // field — the disclosure never drops a value, even if the collapse is never opened.

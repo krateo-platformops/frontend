@@ -111,6 +111,8 @@ describe('rail badge set', () => {
     expect(tag).toBeTruthy()
     // Directly after the title, so it reads as part of it.
     expect(tag?.previousElementSibling?.textContent).toBe('Agentiko')
+    // A long label ellipsises in a narrow rail (visual/agentikoRailHeader.spec.ts); its title keeps the whole of it.
+    expect(tag?.getAttribute('title')).toBe('Scripted demo')
   })
 
   it.each([

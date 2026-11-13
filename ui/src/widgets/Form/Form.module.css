@@ -247,6 +247,20 @@
   color: var(--primary-color);
 }
 
+/* `requiredMark: optional` — antd's "(optional)" look (colorTextDescription, marginXXS), drawn
+   beside the name rather than after the whole label (see requiredMarkFor). */
+.optionalMark {
+  color: var(--gray-color);
+  font-weight: 400;
+  margin-inline-start: var(--spacing-xs);
+}
+
+/* A `checkboxes` field: its label is the checkbox's text, often a sentence or two. */
+.checkbox {
+  font-size: var(--krateo-text-body-sm);
+  line-height: 1.5;
+}
+
 .fieldDesc {
   color: var(--gray-color);
   font-size: var(--krateo-text-caption);
