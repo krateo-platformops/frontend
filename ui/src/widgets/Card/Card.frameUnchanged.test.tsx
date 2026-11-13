@@ -22,7 +22,7 @@ import type { CardWidgetData } from './Card'
 afterEach(() => { cleanup() })
 
 const renderCard = (data: Partial<CardWidgetData>) => {
-  const widgetData = { items: [], ...data } as unknown as CardWidgetData
+  const widgetData = { items: [], ...data }
   const { container } = render(
     <MemoryRouter>
       <App>
