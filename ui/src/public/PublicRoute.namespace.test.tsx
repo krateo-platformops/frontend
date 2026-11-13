@@ -33,7 +33,7 @@ const fakeFetch = vi.fn(() => Promise.resolve(new Response(JSON.stringify({ code
 
 /** The providers App puts above every route (App.tsx), with the config given directly. */
 const openAt = (address: string, config: Config) => render(
-  <ConfigContext.Provider value={{ config, isLoading: false, refetch: vi.fn() } as never}>
+  <ConfigContext.Provider value={{ config, isLoading: false, refetch: vi.fn() }}>
     <AntdApp>
       <FiltersProvider>
         <MemoryRouter initialEntries={[address]}>
