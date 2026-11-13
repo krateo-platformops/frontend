@@ -7,7 +7,7 @@ import { labelledOptionsOf } from './labelledOptions'
 /** A `textareas` entry on a field (written by fieldConfig.ts): its rows, when the CR gives them. */
 export const textareaOf = (node: JSONSchema4): { rows?: number } | undefined => {
   const raw: unknown = node[TEXTAREA_KEY]
-  return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as { rows?: number } : undefined
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : undefined
 }
 
 const DEFAULT_TEXTAREA_ROWS = 3

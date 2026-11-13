@@ -275,3 +275,31 @@ spec:
             retryAfterDescription: "Try again in {retryAfter}."
       otherwise:
         alert: { type: error, title: "The reservation couldn't be sent", description: Try again later. }
+---
+# Schema-driven Form with the presentation options: a `title` above the fields (it goes when a
+# Result replaces the form), no Reset and a full-width large primary button, a multi-line
+# `textareas` field, a labelled choice (`oneOf` of `{const, title}`: the titles are shown, the consts
+# submitted; `enum` kept beside it must list the same values), a custom required message and no
+# required marks.
+kind: Form
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-form-presentation
+  namespace: krateo-system
+spec:
+  widgetData:
+    title: Open a ticket
+    requiredMark: hidden
+    buttonConfig:
+      primary: { label: Send, block: true, size: large }
+      secondary: { hidden: true }
+    textareas:
+      - { name: description, rows: 5 }
+    validationMessages:
+      - { name: subject, requiredMessage: Say in a few words what the ticket is about. }
+    stringSchema: '{"type":"object","required":["subject","priority","description"],"properties":{"subject":{"type":"string","title":"Subject"},"priority":{"type":"string","title":"Priority","enum":["low","normal","high"],"oneOf":[{"const":"low","title":"Low"},{"const":"normal","title":"Normal"},{"const":"high","title":"High"}]},"description":{"type":"string","title":"Description"}}}'
+    submitPost:
+      path: /intake/api/v1/tickets
+      responses:
+        - when: { status: [201] }
+          result: { status: success, title: Ticket opened }

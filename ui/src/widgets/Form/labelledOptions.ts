@@ -34,9 +34,9 @@ export const optionLabelFor = (node: JSONSchema4 | undefined, value: unknown): s
   (node ? labelledOptionsOf(node)?.find((option) => option.value === value)?.label : undefined)
 
 const sameValues = (left: readonly unknown[], right: readonly unknown[]): boolean => {
-  const a = new Set(left.map(String))
-  const b = new Set(right.map(String))
-  return a.size === b.size && [...a].every((value) => b.has(value))
+  const leftSet = new Set(left.map(String))
+  const rightSet = new Set(right.map(String))
+  return leftSet.size === rightSet.size && [...leftSet].every((value) => rightSet.has(value))
 }
 
 const children = (node: JSONSchema4): Array<[string, JSONSchema4]> => {

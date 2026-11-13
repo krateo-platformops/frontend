@@ -99,7 +99,7 @@ describe('buttonConfig', () => {
     const bar = actionBar(container).firstElementChild as HTMLElement
     const buttons = within(bar).getAllByRole('button')
     expect(buttons.map((button) => button.textContent)).toEqual(['Reset', 'Request access'])
-    const primary = buttons[1]
+    const [, primary] = buttons
     expect(primary.classList.contains('ant-btn-block')).toBe(true)
     expect(primary.classList.contains('ant-btn-lg')).toBe(true)
     expect(bar.querySelector('.ant-space')).toBeNull()
@@ -224,7 +224,10 @@ describe('title', () => {
       title: 'Request access',
     })
     expect(container.querySelector('h3')?.textContent).toBe('Request access')
-    await act(async () => { fireEvent.click(screen.getByText('Submit')); await Promise.resolve() })
+    await act(async () => {
+      fireEvent.click(screen.getByText('Submit'))
+      await Promise.resolve()
+    })
     expect(await screen.findByText('Check your inbox')).toBeTruthy()
     expect(container.querySelector('h3')).toBeNull()
     expect(screen.queryByText('Request access')).toBeNull()
