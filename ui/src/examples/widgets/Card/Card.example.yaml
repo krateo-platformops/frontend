@@ -425,3 +425,34 @@ spec:
     items: []
   resourcesRefs:
     items: []
+---
+# Branded, narrow, centred frame
+# Target: a page's content in the sign-in card's frame (a public page's form, for example).
+# Expected behavior: a 400px card centred in its container, with the brand band and logo across the
+# top (logo and alt from the frontend's config.login, never from the CR) and the sign-in card's
+# radius, elevation and padding. A Form inside draws its `title` as the page heading with
+# "to Krateo PlatformOps · <login.installationName>" under it, and both go when a Result replaces
+# the form.
+kind: Card
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-card-brand-frame
+  namespace: krateo-system
+spec:
+  widgetData:
+    variant: outlined
+    maxWidth: 400
+    centered: true
+    brand: true
+    allowedResources:
+      - forms
+    items:
+      - resourceRefId: example-form-inputs
+  resourcesRefs:
+    items:
+      - id: example-form-inputs
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-form-inputs
+        namespace: krateo-system
+        resource: forms
+        verb: GET

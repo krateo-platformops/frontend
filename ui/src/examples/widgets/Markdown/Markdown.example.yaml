@@ -156,3 +156,17 @@ spec:
 
       ---
       Fine documento.
+---
+# Centred line
+# Target: a short line aligned under a narrow, centred card.
+# Expected behavior: the text and its link are centred; without `align` the text keeps the
+# alignment it inherits.
+kind: Markdown
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-markdown-align-center
+  namespace: krateo-system
+spec:
+  widgetData:
+    markdown: "Already have an account? [Sign in](/login)"
+    align: center
