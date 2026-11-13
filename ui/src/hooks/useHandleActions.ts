@@ -29,7 +29,7 @@ import { runRestFanOut } from './runRestFanOut'
 import { runRestOps } from './runRestOps'
 import { runRestSet, type SetDispatchOptions, type WriteOp, type WriteOpResult } from './runRestSet'
 import { snowplowReadsCallProvenance } from './snowplowCapabilities'
-import { subscribeSse } from './sseClient'
+import type { SseSubscriber } from './sseClient'
 
 /**
  * How long a blast-radius confirm may sit unanswered before it DENIES.
@@ -142,6 +142,12 @@ export interface ActionContext {
   invalidateQueries: () => Promise<unknown>
   reloadRoutes: () => void | Promise<void>
   getAccessToken: () => string
+  /**
+   * The shared signed-in SSE client, for an action that waits on an event (`onEventNavigateTo`).
+   * The session's (transport/widgetTransport.ts), like `getAccessToken`: this module imports no SSE
+   * client, and without a session there is none — the action is refused before it would subscribe.
+   */
+  subscribeSse: (url: string, topic: string, subscriber: SseSubscriber) => () => void
   /**
    * False when the transport in scope makes no writes (`WidgetTransport.writes`) — a public page. A snowplow write
    * (`rest`) is then refused before anything is sent: no capability probe, no /jq, no write, no
@@ -326,7 +332,7 @@ const runRest = async (
     // Subscribed here, where the connection used to be opened. `processEvent` is assigned
     // further down and `resourceUid` is set by the POST response, but both are declared
     // above and only ever READ inside this callback, which fires later.
-    const unsubscribeEvents = subscribeSse(eventsEndpoint, 'krateo', {
+    const unsubscribeEvents = ctx.subscribeSse(eventsEndpoint, 'krateo', {
       onMessage: (raw) => {
         // Guarded like every other subscriber (useGetEvents, useLiveRefresh, useSseStream):
         // the stream is shared, so a malformed frame must be this subscriber's problem alone.
@@ -701,8 +707,8 @@ export const dispatchAction = async (action: WidgetAction, runtime: ActionRuntim
   }
 }
 
-/** The token getter of a transport without a session: there is none, and asking is a bug. */
-const noSession = (): string => {
+/** The token getter and SSE client of a transport without a session: there are none, and asking is a bug. */
+const noSession = (): never => {
   throw new Error('No signed-in session: this page reads with the anonymous transport.')
 }
 
@@ -713,6 +719,7 @@ export const useHandleAction = () => {
   // session, writes are refused in dispatchAction, and the getter only throws.
   const { session, writes } = useWidgetTransport()
   const getAccessToken = session?.getAccessToken ?? noSession
+  const subscribeSse = session?.subscribeSse ?? noSession
   const queryClient = useQueryClient()
   const { message, modal, notification } = useApp()
   const { config } = useConfigContext()
@@ -790,6 +797,7 @@ export const useHandleAction = () => {
     reloadRoutes,
     resolveJq,
     setLoading: setIsActionLoading,
+    subscribeSse,
     supportsCallProvenance: () => snowplowReadsCallProvenance(config?.api.SNOWPLOW_API_BASE_URL ?? '', getAccessToken),
     writes: writes && !!session,
   })

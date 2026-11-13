@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
 
 import { useConfigContext } from '../context/ConfigContext'
+import { useWidgetTransport } from '../transport/widgetTransport'
 
 import { type InvolvedObject, liveRefreshRegistry, type WatchMatcher } from './liveRefresh'
-import { subscribeSse } from './sseClient'
 
 /**
  * DORMANT ON PURPOSE — see `LIVE_REFRESH_FIREHOSE_ENABLED` below. Flip that to `true`
@@ -16,7 +16,8 @@ import { subscribeSse } from './sseClient'
 export const LIVE_REFRESH_FIREHOSE_ENABLED: boolean = false
 
 /**
- * Mount ONCE near the app root: pipe the SSE event firehose into the live-refresh
+ * Mount ONCE, inside the signed-in shell (components/Shell renders <LiveRefreshFirehose/> below its
+ * transport provider): pipe the SSE event firehose into the live-refresh
  * registry, which fans each event out to the widgets that declared a matching
  * `watch`. Subscribes through the shared sseClient, so it reuses the connection
  * Notifications already holds (no extra socket).
@@ -42,9 +43,13 @@ export const LIVE_REFRESH_FIREHOSE_ENABLED: boolean = false
  */
 export const useLiveRefreshFirehose = (): void => {
   const { config } = useConfigContext()
+  // The stream is a signed-in channel, reached only through the signed-in transport's session: this
+  // module imports no SSE client and no credential, and outside the shell there is no session.
+  const transport = useWidgetTransport()
+  const subscribeSse = transport.live ? transport.session?.subscribeSse : undefined
 
   useEffect(() => {
-    if (!LIVE_REFRESH_FIREHOSE_ENABLED) { return undefined }
+    if (!LIVE_REFRESH_FIREHOSE_ENABLED || !subscribeSse) { return undefined }
 
     const base = config?.api.EVENTS_PUSH_API_BASE_URL
     if (!base) { return undefined }
@@ -57,7 +62,13 @@ export const useLiveRefreshFirehose = (): void => {
         } catch { /* ignore malformed SSE payloads */ }
       },
     })
-  }, [config])
+  }, [config, subscribeSse])
+}
+
+/** The firehose as an element, for the signed-in shell to render below its transport provider. */
+export const LiveRefreshFirehose = (): null => {
+  useLiveRefreshFirehose()
+  return null
 }
 
 /**

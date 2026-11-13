@@ -540,7 +540,7 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   // render AFTER the resolving fetch wrote them (the resolved query re-renders us);
   // the entry is undefined until the first cache-keyed response. ON by default.
   const refreshEntry = refreshEnabled ? getRefreshEntry(widgetId) : undefined
-  useWidgetLiveRefresh(widgetId, refreshEntry, queryResult.refetch, config?.api.SNOWPLOW_API_BASE_URL, refreshEnabled)
+  useWidgetLiveRefresh(widgetId, refreshEntry, queryResult.refetch, config?.api.SNOWPLOW_API_BASE_URL, refreshEnabled, transport.session)
 
   // Classify the query error as a TIMEOUT (deadline exceeded / canceled / 503/504) vs a
   // hard error, reusing the Freshness layer's `isTimeoutError` classifier (WidgetStates).

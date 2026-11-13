@@ -11,7 +11,7 @@
  */
 import { useEffect, type ReactNode } from 'react'
 
-import { subscribeSse } from '../hooks/sseClient'
+import { subscribeSse } from '../hooks/signedInSseClient'
 import { holdTelemetryCredential } from '../otel/telemetryCredential'
 import { authFailureCauseOf } from '../utils/authFailureCause'
 import { getAccessToken } from '../utils/getAccessToken'
@@ -33,7 +33,7 @@ export const signedInTransport: WidgetTransport = {
     // surface offers: a step-up prompt, a fresh sign-in, or no form (snowplow#1029).
     void raiseSessionExpired(authFailureCauseOf(body))
   },
-  session: { getAccessToken, subscribeSse },
+  session: { getAccessToken, resume: () => raiseSessionExpired(), subscribeSse },
   writes: true,
 }
 

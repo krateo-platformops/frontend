@@ -28,6 +28,7 @@ import { createContext, useContext } from 'react'
 
 // A TYPE import: erased at build, so it adds no runtime edge to the SSE client (or its token read).
 import type { SseSubscriber } from '../hooks/sseClient'
+import type { SessionResumeOutcome } from '../utils/sessionResume'
 import { createAnonymousTransport } from '../public/anonymousTransport'
 
 /**
@@ -47,8 +48,10 @@ export type TransportFetch = (url: string, init?: TransportInit) => Promise<Resp
 export interface SignedInSession {
   /** The stored session's token. Throws when none is stored, exactly as utils/getAccessToken does. */
   readonly getAccessToken: () => string
-  /** The shared SSE client (hooks/sseClient.subscribeSse), which authenticates with the bearer. */
+  /** The tab's shared signed-in SSE client (hooks/signedInSseClient.ts), which authenticates with the bearer. */
   readonly subscribeSse: (url: string, topic: string, subscriber: SseSubscriber) => () => void
+  /** The in-place session resume (utils/sessionResume), for a channel that met a 401 and must know how it ended. */
+  readonly resume: () => Promise<SessionResumeOutcome>
 }
 
 export interface WidgetTransport {

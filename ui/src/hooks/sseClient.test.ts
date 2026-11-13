@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { __resetSseConnections, subscribeSse } from './sseClient'
+// The signed-in binding: the SSE client with the (mocked) stored session's credential.
+import { __resetSseConnections, subscribeSse } from './signedInSseClient'
 
 /**
  * The real module's shape: a token that can change, and a listener registry the resume flow

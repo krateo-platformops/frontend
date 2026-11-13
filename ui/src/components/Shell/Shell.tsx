@@ -6,6 +6,7 @@ import { ensureBuildersLoaded } from '../../builders/clusterBuilders'
 import { useConfigContext } from '../../context/ConfigContext'
 import { useRoutesContext } from '../../context/RoutesContext'
 import { WidgetScopeProvider } from '../../context/WidgetScopeContext'
+import { LiveRefreshFirehose } from '../../hooks/useLiveRefresh'
 import { useDocumentLoadSpan } from '../../otel/useDocumentLoadSpan'
 import { SignedInTransportProvider } from '../../transport/signedInTransport'
 import Drawer from '../../widgets/Drawer'
@@ -124,6 +125,9 @@ export const ShellRoute = () => {
     // everything outside it — a public page, above all — falls through to the anonymous default
     // and cannot reach the token. It also holds the telemetry credential while the shell is up.
     <SignedInTransportProvider>
+      {/* The SSE firehose into the live-refresh registry (dormant: LIVE_REFRESH_FIREHOSE_ENABLED).
+          Here, below the provider, because it streams with the session's bearer. */}
+      <LiveRefreshFirehose />
       <ShellSlotsProvider value={{
         // The routed page owns the route's inputs again (see the 'chrome' scope on the shell below).
         content: <><div className={styles.contentCrumb}><Breadcrumb /></div><WidgetScopeProvider scope='page'><Outlet /></WidgetScopeProvider></>,

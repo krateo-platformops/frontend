@@ -3,7 +3,7 @@
  *
  * 1. The anonymous transport, and the context module whose DEFAULT it is, must have no runtime import
  *    path to anything that reads or uses the stored session: `utils/getAccessToken`, the session
- *    resume, the SSE client, the signed-in transport. This walks their import graphs (type-only
+ *    resume, the signed-in SSE client, the signed-in transport. This walks their import graphs (type-only
  *    imports are erased at build and skipped) and fails on the first such edge.
  *
  * 2. Nothing a PUBLIC PAGE can render may reach the token, except through the signed-in transport.
@@ -104,7 +104,7 @@ const reachable = (entry: string): Set<string> => {
   return seen
 }
 
-const FORBIDDEN = ['utils/getAccessToken.ts', 'utils/sessionResume.ts', 'hooks/sseClient.ts', 'transport/signedInTransport.tsx', 'hooks/refreshSse.ts']
+const FORBIDDEN = ['utils/getAccessToken.ts', 'utils/sessionResume.ts', 'hooks/signedInSseClient.ts', 'transport/signedInTransport.tsx']
 
 describe('the anonymous transport cannot reach the stored token', () => {
   it.each(['public/anonymousTransport.ts', 'transport/widgetTransport.ts'])('%s has no runtime import path to a token reader', (entry) => {
@@ -189,9 +189,7 @@ const MAY_READ_TOKEN: Record<string, string> = {
   'components/CommandPalette/useSearchTypeahead.ts': 'the command palette is shell header chrome',
   'components/Notifications/Notifications.tsx': 'the notifications bell is shell header chrome',
   'components/SessionResume/SessionResumeModal.tsx': 'the session resume is mounted by the shell',
-  'hooks/refreshSse.ts': 'the live-refresh stream; armed only when the transport has a session',
-  'hooks/sseClient.ts': 'the SSE client; reached from the widget tree only through the session',
-  'hooks/useGetEvents.ts': 'the notifications feed, shell chrome',
+  'hooks/signedInSseClient.ts': 'THE signed-in SSE client, reached only through the signed-in transport\'s session',
   'pages/Auth/Auth.tsx': 'the sign-in flow',
   'pages/BlueprintBuilder/blueprintPalette.ts': 'a Builder, a shell route',
   'pages/BlueprintBuilder/useCrdSchema.ts': 'a Builder, a shell route',

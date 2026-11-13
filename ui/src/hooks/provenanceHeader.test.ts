@@ -59,6 +59,7 @@ const makeCtx = (over: Partial<ActionContext> = {}): ActionContext => ({
   confirm: vi.fn(() => Promise.resolve(true)),
   eventsBaseUrl: 'http://ev',
   getAccessToken: vi.fn(() => 'tok'),
+  subscribeSse: vi.fn(() => () => undefined),
   invalidateQueries: vi.fn(() => Promise.resolve()),
   message: { destroy: vi.fn(), loading: vi.fn() } as unknown as ActionContext['message'],
   navigate: vi.fn(),

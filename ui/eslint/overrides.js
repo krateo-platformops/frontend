@@ -23,8 +23,8 @@ export const overrides = [
   // transport in context (src/transport/widgetTransport.ts) and never read the stored token
   // themselves. Outside the signed-in shell that transport is anonymous, so a direct import here
   // would put a stored token on a public page's requests — and snowplow answers a stale or invalid
-  // token with 401, never falling back to the public identity. The SSE client and the signed-in
-  // transport are fenced for the same reason: both carry the token. src/transport/tokenReach.test.ts
+  // token with 401, never falling back to the public identity. The signed-in SSE client and the
+  // signed-in transport are fenced for the same reason: both carry the token. src/transport/tokenReach.test.ts
   // checks the same property across all of src/, including files this glob does not cover.
   // Placed BEFORE the drawer allow-list below, which switches the whole rule off for its files.
   {
@@ -39,7 +39,7 @@ export const overrides = [
           name: 'antd',
         }],
         patterns: [{
-          group: ['**/getAccessToken*', '**/sessionResume*', '**/hooks/sseClient*', '**/signedInTransport*'],
+          group: ['**/getAccessToken*', '**/sessionResume*', '**/signedInSseClient*', '**/signedInTransport*'],
           message: 'Widgets and public pages never touch the stored session: read through useWidgetTransport() (src/transport/widgetTransport.ts), and reach a signed-in-only capability through its `session`, which the anonymous transport of a public page does not have.',
         }],
       }],
