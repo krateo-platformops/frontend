@@ -39,6 +39,7 @@ import { fas } from '@fortawesome/free-solid-svg-icons'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { App as AntdApp, Button, Space } from 'antd'
 import { loadAll } from 'js-yaml'
+import { useCallback } from 'react'
 import ReactDOM from 'react-dom/client'
 import { Link, MemoryRouter } from 'react-router'
 
@@ -56,8 +57,9 @@ import Login from '../src/pages/Login'
 import type { WidgetProps } from '../src/types/Widget'
 import { V1B } from '../src/widgets/FlowChart/__fixtures__/architecture'
 import ArchitectureStateNode from '../src/widgets/FlowChart/ArchitectureStateNode'
-import { ARCHITECTURE_NODE_SIZE, architectureEdgeAppearance, architectureGraphSize, toArchitectureGraphData } from '../src/widgets/FlowChart/architectureVariant'
+import { architectureEdgeAppearance, architectureGraphSize, architectureNodeSize, toArchitectureGraphData } from '../src/widgets/FlowChart/architectureVariant'
 import FlowChart, { type FlowChartNodeData, type FlowChartWidgetData } from '../src/widgets/FlowChart/FlowChart'
+import { useArchitectureCardHeight } from '../src/widgets/FlowChart/useArchitectureCardHeight'
 import Layout from '../src/widgets/Layout/Layout'
 import { Menu } from '../src/widgets/Menu/Menu'
 import PageHeader from '../src/widgets/PageHeader/PageHeader'
@@ -266,19 +268,31 @@ const architectureNames = () => (
  */
 const graphZoom = Number(params.get('zoom') ?? 1)
 const zoomGraph = toArchitectureGraphData(V1B)
-const renderZoomCard = ({ data }: { data: FlowChartNodeData }) => <ArchitectureStateNode data={data} />
-const graphZoomFixture = () => (
-  <div data-testid='architecture-host' style={{ height: 360, width: 1179 }}>
-    <DependencyGraph
-      edges={zoomGraph.edges}
-      fit='natural'
-      nodeSize={ARCHITECTURE_NODE_SIZE}
-      nodes={zoomGraph.nodes}
-      renderNode={renderZoomCard}
-      zoom={graphZoom}
-    />
-  </div>
-)
+/**
+ * The regular card at the height FlowChart draws it — the tallest card's, measured by the same hook —
+ * and the box it reserves for it, so a fixture that bypasses FlowChart draws what it draws.
+ */
+const useFlowChartCard = (nodes: typeof zoomGraph.nodes) => {
+  const { height, probe } = useArchitectureCardHeight(nodes)
+  const renderNode = useCallback(({ data }: { data: FlowChartNodeData }) => <ArchitectureStateNode data={data} height={height} />, [height])
+  return { nodeSize: architectureNodeSize('regular', height), probe, renderNode }
+}
+const GraphZoomFixture = () => {
+  const { nodeSize, probe, renderNode } = useFlowChartCard(zoomGraph.nodes)
+  return (
+    <div data-testid='architecture-host' style={{ height: 360, position: 'relative', width: 1179 }}>
+      {probe}
+      <DependencyGraph
+        edges={zoomGraph.edges}
+        fit='natural'
+        nodeSize={nodeSize}
+        nodes={zoomGraph.nodes}
+        renderNode={renderNode}
+        zoom={graphZoom}
+      />
+    </div>
+  )
+}
 /**
  * `?fixture=architecture-cards`: the architecture card at both densities with the longest values a
  * chart realistically hands it — a forEach kind (`LocalResource ×8`), a 63-character name, a long
@@ -322,24 +336,28 @@ const architectureCards = () => (
  * reads the positions G6 holds and samples each drawn edge path through it.
  */
 const baselineGraph = toArchitectureGraphData(V1B)
-const baselineHeight = architectureGraphSize(baselineGraph.nodes, baselineGraph.edges, {
-  direction: 'LR', nodeSize: ARCHITECTURE_NODE_SIZE, spacing: { nodesep: 32, ranksep: 160 },
-})[1] + 32
 const exposeGraph = (graph: unknown) => { (window as unknown as { __architectureGraph?: unknown }).__architectureGraph = graph ?? undefined }
-const architectureGraphFixture = () => (
-  <div data-testid='architecture-host' style={{ height: baselineHeight, width: 1600 }}>
-    <DependencyGraph
-      arrangement='baseline'
-      edgeAppearance={architectureEdgeAppearance}
-      edges={baselineGraph.edges}
-      fit='natural'
-      graphRef={exposeGraph}
-      nodeSize={ARCHITECTURE_NODE_SIZE}
-      nodes={baselineGraph.nodes}
-      renderNode={renderZoomCard}
-    />
-  </div>
-)
+const ArchitectureGraphFixture = () => {
+  const { nodeSize, probe, renderNode } = useFlowChartCard(baselineGraph.nodes)
+  const baselineHeight = architectureGraphSize(baselineGraph.nodes, baselineGraph.edges, {
+    direction: 'LR', nodeSize, spacing: { nodesep: 32, ranksep: 160 },
+  })[1] + 32
+  return (
+    <div data-testid='architecture-host' style={{ height: baselineHeight, position: 'relative', width: 1600 }}>
+      {probe}
+      <DependencyGraph
+        arrangement='baseline'
+        edgeAppearance={architectureEdgeAppearance}
+        edges={baselineGraph.edges}
+        fit='natural'
+        graphRef={exposeGraph}
+        nodeSize={nodeSize}
+        nodes={baselineGraph.nodes}
+        renderNode={renderNode}
+      />
+    </div>
+  )
+}
 /**
  * `?fixture=app-shell`: the app shell's Layout widget as the portal chart declares it — a 236px
  * Sider with the brand in `sider.header`, the compact glyph in `sider.collapsedHeader`, the nav Menu
@@ -453,10 +471,10 @@ const fixtures: Record<string, () => React.ReactNode> = {
   'app-shell': appShell,
   architecture,
   'architecture-cards': architectureCards,
-  'architecture-graph': architectureGraphFixture,
+  'architecture-graph': () => <ArchitectureGraphFixture />,
   'architecture-names': architectureNames,
   'focus-ring': focusRing,
-  'graph-zoom': graphZoomFixture,
+  'graph-zoom': () => <GraphZoomFixture />,
   login,
   'nav-menu': navMenu,
   'page-header': () => pageHeader('Turn an OpenAPI document into Kubernetes kinds: which operations each kind maps, how it is identified, and the credentials it calls with.'),

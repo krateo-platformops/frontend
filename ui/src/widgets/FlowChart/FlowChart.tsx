@@ -4,9 +4,8 @@ import DependencyGraph, { NATURAL_PADDING, type GraphDirection, type GraphNode }
 import { WidgetEmpty } from '../../components/WidgetStates'
 import type { WidgetProps } from '../../types/Widget'
 
-import ArchitectureStateNode, { ArchitectureCardProbe } from './ArchitectureStateNode'
+import ArchitectureStateNode from './ArchitectureStateNode'
 import {
-  ARCHITECTURE_NODE_SIZE,
   architectureEdgeAppearance,
   architectureFit,
   architectureNodeSize,
@@ -17,6 +16,7 @@ import {
 import styles from './FlowChart.module.css'
 import type { FlowChart as WidgetType } from './FlowChart.type'
 import FlowChartNodeElement from './FlowChartNodeElement'
+import { useArchitectureCardHeight } from './useArchitectureCardHeight'
 import { toGraphData } from './utils'
 
 export type FlowChartWidgetData = WidgetType['spec']['widgetData']
@@ -77,8 +77,8 @@ interface ArchitectureProps extends VariantProps {
  *
  *   - EVERY NAME IN FULL. The regular card wraps its name rather than cut it, so a long name makes a
  *     taller card — and the layout reserves ONE box per node, the same for all. So the cards are
- *     drawn first out of sight (`ArchitectureCardProbe`, the card's own lines and stylesheet), the
- *     tallest is measured, and every card is drawn, and laid out, at that height: no taller card
+ *     drawn first out of sight (`useArchitectureCardHeight`: the card's own lines and stylesheet),
+ *     the tallest is measured, and every card is drawn, and laid out, at that height: no taller card
  *     runs into its neighbour, and the rows stay one height. Measured again when the fonts finish
  *     loading, because a name set in the fallback face wraps differently.
  *
@@ -95,34 +95,8 @@ const ArchitectureFlowChart = ({ data, density, direction, uid }: ArchitecturePr
   const box = useRef<HTMLDivElement>(null)
   // The box's [clientWidth, clientHeight]; null until it has been measured once.
   const [boxSize, setBoxSize] = useState<[number, number] | null>(null)
-  const probe = useRef<HTMLDivElement>(null)
-  // The tallest regular card, px: what every regular card is drawn, and laid out, at.
-  const [cardHeight, setCardHeight] = useState(ARCHITECTURE_NODE_SIZE[1])
-
-  // EVERY NAME IN FULL (see above): the probe's cards are as tall as their lines need, at least 84px.
-  // Measured before paint, like the box, so G6 lays the graph out at the right height the first time;
-  // and again once the fonts are in. jsdom lays nothing out: every card measures 0, and the height
-  // stays 84.
-  useLayoutEffect(() => {
-    const element = probe.current
-    if (!element) { return }
-    const measure = () => {
-      const tallest = Math.max(0, ...[...element.children].map((card) => card.getBoundingClientRect().height))
-      setCardHeight(Math.max(ARCHITECTURE_NODE_SIZE[1], Math.ceil(tallest)))
-    }
-    measure()
-    const fonts = typeof document === 'undefined' ? undefined : document.fonts
-    if (!fonts) { return }
-    let live = true
-    void fonts.ready.then(() => {
-      if (live) { measure() }
-    })
-    fonts.addEventListener('loadingdone', measure)
-    return () => {
-      live = false
-      fonts.removeEventListener('loadingdone', measure)
-    }
-  }, [graphData])
+  // EVERY NAME IN FULL (see above): the tallest card, what every regular card is drawn and laid out at.
+  const { height: cardHeight, probe } = useArchitectureCardHeight(graphData.nodes)
 
   // ADAPT, NEVER CLIP (architectureVariant's `architectureFit`): the box is measured, here and on
   // every resize, and the graph drawn with the gap, the card and the scale that fit it — or, past
@@ -180,10 +154,7 @@ const ArchitectureFlowChart = ({ data, density, direction, uid }: ArchitecturePr
       ref={box}
       style={height}
     >
-      {/* Out of sight and out of the accessibility tree: measured, never read or reached. */}
-      <div aria-hidden className={styles.probe} ref={probe}>
-        {graphData.nodes.map(({ data: node, id }) => <ArchitectureCardProbe data={node} key={id} />)}
-      </div>
+      {probe}
       {boxSize
         ? (
           <DependencyGraph

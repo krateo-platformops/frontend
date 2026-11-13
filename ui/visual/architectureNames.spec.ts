@@ -14,7 +14,9 @@
  */
 import { expect, test, type Page } from '@playwright/test'
 
-test.use({ viewport: { height: 900, width: 1440 } })
+// Tall enough for the whole drawing: G6's cards and canvas are not painted past the viewport, so a
+// screenshot of the eight stacked rows at 900px lost the last one.
+test.use({ viewport: { height: 1200, width: 1440 } })
 
 const PREFIX = 'publish-bp-v2-20261002-1'
 const NAMES = [`${PREFIX}-repo`, `${PREFIX}-source`, ...Array.from({ length: 8 }, (_, index) => `${PREFIX}-${String(index).padStart(3, '0')}`), `${PREFIX}-pr`]
@@ -70,16 +72,35 @@ const draw = (): string => {
   return JSON.stringify({ box: rect(document.querySelector('[data-testid="architecture-graph-box"]')!), cards })
 }
 
-/** The drawing once the placement (and the font) has settled: two reads 100ms apart agree. */
+const outside = ({ bottom, left, right, top }: Rect, box: Rect): boolean =>
+  left < box.left || right > box.right || top < box.top || bottom > box.bottom
+
+/**
+ * The drawing once the placement has settled: every card inside the box, then unchanged for half a
+ * second (three reads 250ms apart agree).
+ *
+ * INSIDE FIRST, because a stable read is not a settled one. DependencyGraph places the graph twice
+ * as it comes up — after G6's render, and when its ResizeObserver first reports the box — and now
+ * and then (on origin/main as on this branch) the first placement holds for a second or so with
+ * every card too low (35px here) and the last one past the box's bottom edge, before the second puts
+ * it right.
+ * That race is DependencyGraph's and not this check's subject; what is checked here is the drawing
+ * it settles on. A box too short for the cards never gets there, and fails with the cards outside.
+ */
 const settled = async (page: Page): Promise<Drawing> => {
   await expect(page.getByRole('group')).toHaveCount(NAMES.length)
+  await expect.poll(async () => {
+    const { box, cards } = JSON.parse(await page.evaluate(draw)) as Drawing
+    return cards.filter(({ card }) => outside(card, box)).map(({ card, name }) => `${name.text} ${JSON.stringify(card)} past ${JSON.stringify(box)}`)
+  }, { intervals: [100], timeout: 10000 }).toEqual([])
   let last = ''
+  let same = 0
   await expect.poll(async () => {
     const now = await page.evaluate(draw)
-    const still = now === last
+    same = now === last ? same + 1 : 0
     last = now
-    return still
-  }, { intervals: [100], timeout: 5000 }).toBe(true)
+    return same
+  }, { intervals: [250], timeout: 10000 }).toBeGreaterThanOrEqual(2)
   return JSON.parse(last) as Drawing
 }
 
@@ -108,7 +129,7 @@ test('the Topology shows every one of its eleven names in full, and no two cards
     // …and nothing else on the card spills out of it either.
     expect(overflows, at).toBe(false)
     // …and the card is inside the diagram's box: the box is as tall as the drawing of taller cards.
-    expect(card.left >= box.left && card.right <= box.right && card.top >= box.top && card.bottom <= box.bottom, `${at} in ${JSON.stringify(box)}`).toBe(true)
+    expect(outside(card, box), `${at} in ${JSON.stringify(box)}`).toBe(false)
   }
 
   // At least one name needs more than one line (else the case proves nothing about wrapping), and
