@@ -10,6 +10,7 @@ import { isSecretArrayNode, isSecretSchemaNode } from '../../utils/secretFields'
 
 import { checkboxItem, getCheckboxSpec } from './checkboxField'
 import { useAdvancedPanels, useShowFailedSection } from './failedFields'
+import { helpAndCheck } from './fieldCheck'
 import { collectDependencies, type FieldPath, nodeAt } from './fieldDependencies'
 import { ROW_TITLE_KEY } from './fieldKeys'
 import { closedOptionRule, getFieldOptionsSpec, type OptionRegistry } from './fieldOptions'
@@ -548,6 +549,9 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
     valuePropName: node.type === 'boolean' ? 'checked' : undefined,
     wrapperCol: { span: 24 },
   }
+  // `fieldHelp` under the input, and `fieldChecks` as it is typed: both opt-in (fieldCheck.tsx).
+  const checked = helpAndCheck(item, node, path.join('.'), scope)
+  if (checked) { return checked }
   // Feedback came with being required because, when it was added, only required fields had
   // rules. `hasFeedback: rules` gives it to an optional field with a rule of its own (a pattern,
   // a length, a bound) as well.

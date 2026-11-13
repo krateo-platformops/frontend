@@ -4,7 +4,7 @@ import type { JSONSchema4 } from 'json-schema'
 
 import type { FieldPath } from './fieldDependencies'
 import { CHECKBOX_KEY } from './fieldKeys'
-import { type Marks, requiredMarkFor } from './fieldPresentation'
+import { fieldHelpOf, type Marks, requiredMarkFor } from './fieldPresentation'
 import styles from './Form.module.css'
 import { fieldLabel, hasValue } from './schemaRules'
 
@@ -102,11 +102,15 @@ export const mustBeTicked = (spec: CheckboxSpec, group: Array<string | number> |
 export const checkboxItem = (key: string, node: JSONSchema4, path: Array<string | number>, isRequired: boolean, group: FieldPath | undefined, marks: Marks): React.ReactNode => {
   const spec = getCheckboxSpec(node) ?? {}
   const description = typeof node.description === 'string' ? node.description : ''
+  const help = fieldHelpOf(node)
+  let extra: React.ReactNode = description ? <span className={styles.fieldDesc}>{description}</span> : undefined
+  // `fieldHelp` follows the description, both under the box.
+  if (help) { extra = extra ? <>{extra} {help}</> : help }
   return (
     <AntdForm.Item
       className={styles.field}
       colon={false}
-      extra={description ? <span className={styles.fieldDesc}>{description}</span> : undefined}
+      extra={extra}
       key={path.join('.')}
       labelCol={{ span: 24 }}
       name={path}

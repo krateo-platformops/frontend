@@ -639,6 +639,245 @@ spec:
                     draftActionId:
                       description: optional id of an action fired by a 'Save draft' button that captures the CURRENT field values WITHOUT running form validation (so an incomplete form can be persisted). Pair with buttonConfig.draft to show the button.
                       type: string
+                    fieldChecks:
+                      description: 'fields checked against a same-origin endpoint as they are typed: after typing pauses and on blur, the field''s value (with `bodyExtras`) is POSTed as JSON and the answer becomes the field''s validation status and message. A newer value aborts the check in flight; an answer for an old value is never applied. An empty value, or one failing the field''s own rules, is not checked. While a check runs the field shows antd''s validating spinner, and a submit waits for that answer'
+                      items:
+                        properties:
+                          answers:
+                            description: what each answer means for the field, tried in order (first match wins)
+                            items:
+                              properties:
+                                message:
+                                  description: the message under the field; may name `{value}` (the checked value), `{body.<dotted>}` and `{retryAfter}`
+                                  type: string
+                                result:
+                                  description: an antd Result that REPLACES the form (and its buttons). Its strings may name `{body.<dotted>}` (a value from the response, e.g. `{body.username}`), `{value}` (a checked field's value) and `{retryAfter}`; they are plain text, never markup
+                                  properties:
+                                    extra:
+                                      description: the Result's actions, in order
+                                      items:
+                                        properties:
+                                          href:
+                                            description: an http(s) or mailto URL, or a path on the portal (`/…`, opened inside the app), with no whitespace or control characters; any other drops this action
+                                            pattern: ^(https?://|mailto:|/([^/\\\s\x00-\x1f\x7f]|$))[^\s\x00-\x1f\x7f]*$
+                                            type: string
+                                          kind:
+                                            description: '`button`: an antd primary Button; `link`: a plain link, after `text`'
+                                            enum:
+                                              - button
+                                              - link
+                                            type: string
+                                          label:
+                                            description: the button's or the link's text
+                                            type: string
+                                          text:
+                                            description: plain text before a `link`, e.g. `Already have an account?`
+                                            type: string
+                                        required:
+                                          - href
+                                          - kind
+                                          - label
+                                        type: object
+                                      type: array
+                                    icon:
+                                      description: an icon name, as buttonConfig takes them (e.g. `fa-envelope`), in place of the status icon
+                                      type: string
+                                    status:
+                                      description: antd Result `status`
+                                      enum:
+                                        - success
+                                        - info
+                                        - warning
+                                        - error
+                                      type: string
+                                    subtitle:
+                                      description: antd Result `subTitle`
+                                      type: string
+                                    title:
+                                      description: antd Result `title`
+                                      type: string
+                                  required:
+                                    - status
+                                    - title
+                                  type: object
+                                retryAfterMessage:
+                                  description: 'the message instead of `message` when the answer carries a Retry-After of a positive number of seconds; `{retryAfter}` is that wait ("30 seconds", or whole minutes above 60: "2 minutes"), stated once, with no countdown'
+                                  type: string
+                                ruleFrom:
+                                  description: a dotted path into the response body naming a rule, e.g. `rule`; its `ruleMessages` entry replaces `message`
+                                  type: string
+                                ruleMessages:
+                                  additionalProperties:
+                                    type: string
+                                  description: rule → message, for `ruleFrom`
+                                  type: object
+                                validateStatus:
+                                  description: the field's validation status for this answer (`warning` when absent). `error` blocks submitting, `warning` does not; `success` shows `message` as the field's help
+                                  enum:
+                                    - success
+                                    - warning
+                                    - error
+                                  type: string
+                                when:
+                                  description: 'which answers this entry is for. Every condition given must hold; one left out matches anything. Entries are tried in order and the first match wins. An entry with no `when` matches every answer (entries after it are never reached). A request that got no answer (a network error, the client timeout) matches no entry: it is `otherwise`'
+                                  properties:
+                                    bodyField:
+                                      description: a dotted path into the JSON response body, e.g. `status`; the entry matches only when that field is a string listed in `equals`
+                                      type: string
+                                    equals:
+                                      description: the values `bodyField` may hold for this entry to match
+                                      items:
+                                        type: string
+                                      type: array
+                                    status:
+                                      description: HTTP statuses, e.g. [429]
+                                      items:
+                                        maximum: 599
+                                        minimum: 100
+                                        type: integer
+                                      type: array
+                                  type: object
+                              type: object
+                            type: array
+                          bodyExtras:
+                            additionalProperties:
+                              type: string
+                            description: 'body key → the name of one of the page''s fragment extras (the keys its root declares in `krateo.io/fragment-keys`), e.g. `{ submission: s, token: t }`: those values are sent in the request BODY, never in a URL, and never enter the form. A key the page was not opened with is left out'
+                            type: object
+                          bodyKey:
+                            description: the body key the value is sent under; the last segment of `name` when absent
+                            type: string
+                          debounceMs:
+                            description: how long typing must pause before the check is sent, in milliseconds; 500 when absent. Blur sends it at once
+                            maximum: 5000
+                            minimum: 0
+                            type: integer
+                          name:
+                            description: 'the dotted path of the field to check (a text-like field: not a boolean, object or list)'
+                            type: string
+                          otherwise:
+                            description: the answer for anything no entry matched, a network error and the timeout; when absent, a warning "We couldn't check this right now."
+                            properties:
+                              message:
+                                description: the message under the field; may name `{value}` (the checked value), `{body.<dotted>}` and `{retryAfter}`
+                                type: string
+                              result:
+                                description: an antd Result that REPLACES the form (and its buttons). Its strings may name `{body.<dotted>}` (a value from the response, e.g. `{body.username}`), `{value}` (a checked field's value) and `{retryAfter}`; they are plain text, never markup
+                                properties:
+                                  extra:
+                                    description: the Result's actions, in order
+                                    items:
+                                      properties:
+                                        href:
+                                          description: an http(s) or mailto URL, or a path on the portal (`/…`, opened inside the app), with no whitespace or control characters; any other drops this action
+                                          pattern: ^(https?://|mailto:|/([^/\\\s\x00-\x1f\x7f]|$))[^\s\x00-\x1f\x7f]*$
+                                          type: string
+                                        kind:
+                                          description: '`button`: an antd primary Button; `link`: a plain link, after `text`'
+                                          enum:
+                                            - button
+                                            - link
+                                          type: string
+                                        label:
+                                          description: the button's or the link's text
+                                          type: string
+                                        text:
+                                          description: plain text before a `link`, e.g. `Already have an account?`
+                                          type: string
+                                      required:
+                                        - href
+                                        - kind
+                                        - label
+                                      type: object
+                                    type: array
+                                  icon:
+                                    description: an icon name, as buttonConfig takes them (e.g. `fa-envelope`), in place of the status icon
+                                    type: string
+                                  status:
+                                    description: antd Result `status`
+                                    enum:
+                                      - success
+                                      - info
+                                      - warning
+                                      - error
+                                    type: string
+                                  subtitle:
+                                    description: antd Result `subTitle`
+                                    type: string
+                                  title:
+                                    description: antd Result `title`
+                                    type: string
+                                required:
+                                  - status
+                                  - title
+                                type: object
+                              retryAfterMessage:
+                                description: 'the message instead of `message` when the answer carries a Retry-After of a positive number of seconds; `{retryAfter}` is that wait ("30 seconds", or whole minutes above 60: "2 minutes"), stated once, with no countdown'
+                                type: string
+                              ruleFrom:
+                                description: a dotted path into the response body naming a rule, e.g. `rule`; its `ruleMessages` entry replaces `message`
+                                type: string
+                              ruleMessages:
+                                additionalProperties:
+                                  type: string
+                                description: rule → message, for `ruleFrom`
+                                type: object
+                              validateStatus:
+                                description: the field's validation status for this answer (`warning` when absent). `error` blocks submitting, `warning` does not; `success` shows `message` as the field's help
+                                enum:
+                                  - success
+                                  - warning
+                                  - error
+                                type: string
+                              when:
+                                description: 'which answers this entry is for. Every condition given must hold; one left out matches anything. Entries are tried in order and the first match wins. An entry with no `when` matches every answer (entries after it are never reached). A request that got no answer (a network error, the client timeout) matches no entry: it is `otherwise`'
+                                properties:
+                                  bodyField:
+                                    description: a dotted path into the JSON response body, e.g. `status`; the entry matches only when that field is a string listed in `equals`
+                                    type: string
+                                  equals:
+                                    description: the values `bodyField` may hold for this entry to match
+                                    items:
+                                      type: string
+                                    type: array
+                                  status:
+                                    description: HTTP statuses, e.g. [429]
+                                    items:
+                                      maximum: 599
+                                      minimum: 100
+                                      type: integer
+                                    type: array
+                                type: object
+                            type: object
+                          path:
+                            description: 'the same-origin path to POST JSON to. Sent through the page transport''s allow-listed post: the path must be under one of the installation''s PUBLIC_POST_PATHS, and no credential is ever sent (public page or signed in). Any other path is refused unsent'
+                            pattern: ^/[^/\\\s\x00-\x1f\x7f][^\\\s\x00-\x1f\x7f]*$
+                            type: string
+                          timeoutMs:
+                            description: the client timeout in milliseconds; 10000 when absent. A timeout is `otherwise`. Leave room for an endpoint that holds its answer
+                            maximum: 60000
+                            minimum: 1000
+                            type: integer
+                        required:
+                          - name
+                          - path
+                        type: object
+                      type: array
+                    fieldHelp:
+                      description: help text shown UNDER a field's input (antd Form.Item `extra`), where it stays in view while a validation message shows above it. Plain text
+                      items:
+                        properties:
+                          name:
+                            description: the dotted path of a field (not an object or a list)
+                            type: string
+                          text:
+                            description: the help text
+                            type: string
+                        required:
+                          - name
+                          - text
+                        type: object
+                      type: array
                     hasFeedback:
                       description: 'which fields of a schema form show antd''s validation feedback icons. Absent: required fields. `rules`: every field with a validation rule, required or optional (an optional field shows the success icon only once it holds a value)'
                       enum:
@@ -712,7 +951,7 @@ spec:
                       description: 'Same JSON schema as `schema`, but as a raw JSON STRING. Preferred over `schema` when present: the client JSON.parses it, preserving key insertion order, so fields render in the source values.schema.json order rather than the alphabetized order a CRD-sourced object schema yields. Typically populated server-side from the blueprint''s per-version jsonschema ConfigMap (which keeps authoring order). Falls back to `schema` when absent or not valid JSON.'
                       type: string
                     submitActionId:
-                      description: the id of the action to be called when the form is submitted
+                      description: the id of the action to be called when the form is submitted. A Form submits EITHER through `actions` + `submitActionId` OR through `submitPost`; with neither or both it renders an error
                       type: string
                     submitActionSelector:
                       description: 'optional field-conditional submit routing: when present, the submit action is chosen at submit time from the value of the named field. Routes one form to different create targets (e.g. a ''target cluster'' select where ''local'' posts the blueprint instance and a remote spoke posts a RemoteInstall). Falls back to `default` (or `submitActionId`) when the field value has no mapping.'
@@ -735,6 +974,257 @@ spec:
                     submitDisabledWhenPristine:
                       description: when true, the primary (submit) button stays disabled until at least one field differs from its initial value (initialValues overlaid on schema defaults). Use for update forms where submitting an unchanged value is a no-op — e.g. a version picker pre-set to the currently-installed version.
                       type: boolean
+                    submitPost:
+                      description: submit by POSTing the form's values as JSON to an allow-listed same-origin path, instead of a snowplow write through `actions`/`submitActionId` (a Form has exactly one of the two). While it is in flight the form is disabled and the primary button loading. Each response is mapped to a `result` (replaces the form), `fieldErrors` or an inline `alert`; when an entry sets several, `result` wins, then `fieldErrors`
+                      properties:
+                        bodyExtras:
+                          additionalProperties:
+                            type: string
+                          description: 'body key → the name of one of the page''s fragment extras (the keys its root declares in `krateo.io/fragment-keys`), e.g. `{ submission: s, token: t }`: those values are sent in the request BODY, never in a URL, and never enter the form. A key the page was not opened with is left out'
+                          type: object
+                        otherwise:
+                          description: the outcome for anything no entry matched, a network error and the timeout; when absent, an error Alert "We couldn't send this form."
+                          properties:
+                            alert:
+                              description: an antd Alert directly above the form's buttons (not a toast); cleared when the next submit starts. Strings may name `{body.<dotted>}` and `{retryAfter}`
+                              properties:
+                                description:
+                                  description: antd Alert `description`
+                                  type: string
+                                retryAfterDescription:
+                                  description: 'the description instead of `description` when the response carries a Retry-After of a positive number of seconds; `{retryAfter}` is that wait ("30 seconds", or whole minutes above 60: "2 minutes"), stated once, with no countdown'
+                                  type: string
+                                title:
+                                  description: antd Alert `title`
+                                  type: string
+                                type:
+                                  description: antd Alert `type`
+                                  enum:
+                                    - warning
+                                    - error
+                                    - info
+                                  type: string
+                              required:
+                                - title
+                                - type
+                              type: object
+                            fieldErrors:
+                              description: errors on the fields the response names. A field's message is `ruleMessages[<the body's ruleFrom>]`, else `fieldMessages[<field>]`, else `message`, else "Check this field.". Names the form does not have are ignored; if none is left, `message` shows as an error Alert
+                              properties:
+                                fieldMessages:
+                                  additionalProperties:
+                                    type: string
+                                  description: field (dotted path) → message
+                                  type: object
+                                message:
+                                  description: the message for a field with no other
+                                  type: string
+                                names:
+                                  description: dotted field paths, always named
+                                  items:
+                                    type: string
+                                  type: array
+                                namesFrom:
+                                  description: a dotted path into the response body holding an array of field names, e.g. `fields`
+                                  type: string
+                                ruleFrom:
+                                  description: a dotted path into the response body naming a rule, e.g. `rule`
+                                  type: string
+                                ruleMessages:
+                                  additionalProperties:
+                                    type: string
+                                  description: rule → message
+                                  type: object
+                              type: object
+                            result:
+                              description: an antd Result that REPLACES the form (and its buttons). Its strings may name `{body.<dotted>}` (a value from the response, e.g. `{body.username}`), `{value}` (a checked field's value) and `{retryAfter}`; they are plain text, never markup
+                              properties:
+                                extra:
+                                  description: the Result's actions, in order
+                                  items:
+                                    properties:
+                                      href:
+                                        description: an http(s) or mailto URL, or a path on the portal (`/…`, opened inside the app), with no whitespace or control characters; any other drops this action
+                                        pattern: ^(https?://|mailto:|/([^/\\\s\x00-\x1f\x7f]|$))[^\s\x00-\x1f\x7f]*$
+                                        type: string
+                                      kind:
+                                        description: '`button`: an antd primary Button; `link`: a plain link, after `text`'
+                                        enum:
+                                          - button
+                                          - link
+                                        type: string
+                                      label:
+                                        description: the button's or the link's text
+                                        type: string
+                                      text:
+                                        description: plain text before a `link`, e.g. `Already have an account?`
+                                        type: string
+                                    required:
+                                      - href
+                                      - kind
+                                      - label
+                                    type: object
+                                  type: array
+                                icon:
+                                  description: an icon name, as buttonConfig takes them (e.g. `fa-envelope`), in place of the status icon
+                                  type: string
+                                status:
+                                  description: antd Result `status`
+                                  enum:
+                                    - success
+                                    - info
+                                    - warning
+                                    - error
+                                  type: string
+                                subtitle:
+                                  description: antd Result `subTitle`
+                                  type: string
+                                title:
+                                  description: antd Result `title`
+                                  type: string
+                              required:
+                                - status
+                                - title
+                              type: object
+                          type: object
+                        path:
+                          description: 'the same-origin path to POST JSON to. Sent through the page transport''s allow-listed post: the path must be under one of the installation''s PUBLIC_POST_PATHS, and no credential is ever sent (public page or signed in). Any other path is refused unsent'
+                          pattern: ^/[^/\\\s\x00-\x1f\x7f][^\\\s\x00-\x1f\x7f]*$
+                          type: string
+                        responses:
+                          description: what each response means, tried in order (first match wins)
+                          items:
+                            properties:
+                              alert:
+                                description: an antd Alert directly above the form's buttons (not a toast); cleared when the next submit starts. Strings may name `{body.<dotted>}` and `{retryAfter}`
+                                properties:
+                                  description:
+                                    description: antd Alert `description`
+                                    type: string
+                                  retryAfterDescription:
+                                    description: 'the description instead of `description` when the response carries a Retry-After of a positive number of seconds; `{retryAfter}` is that wait ("30 seconds", or whole minutes above 60: "2 minutes"), stated once, with no countdown'
+                                    type: string
+                                  title:
+                                    description: antd Alert `title`
+                                    type: string
+                                  type:
+                                    description: antd Alert `type`
+                                    enum:
+                                      - warning
+                                      - error
+                                      - info
+                                    type: string
+                                required:
+                                  - title
+                                  - type
+                                type: object
+                              fieldErrors:
+                                description: errors on the fields the response names. A field's message is `ruleMessages[<the body's ruleFrom>]`, else `fieldMessages[<field>]`, else `message`, else "Check this field.". Names the form does not have are ignored; if none is left, `message` shows as an error Alert
+                                properties:
+                                  fieldMessages:
+                                    additionalProperties:
+                                      type: string
+                                    description: field (dotted path) → message
+                                    type: object
+                                  message:
+                                    description: the message for a field with no other
+                                    type: string
+                                  names:
+                                    description: dotted field paths, always named
+                                    items:
+                                      type: string
+                                    type: array
+                                  namesFrom:
+                                    description: a dotted path into the response body holding an array of field names, e.g. `fields`
+                                    type: string
+                                  ruleFrom:
+                                    description: a dotted path into the response body naming a rule, e.g. `rule`
+                                    type: string
+                                  ruleMessages:
+                                    additionalProperties:
+                                      type: string
+                                    description: rule → message
+                                    type: object
+                                type: object
+                              result:
+                                description: an antd Result that REPLACES the form (and its buttons). Its strings may name `{body.<dotted>}` (a value from the response, e.g. `{body.username}`), `{value}` (a checked field's value) and `{retryAfter}`; they are plain text, never markup
+                                properties:
+                                  extra:
+                                    description: the Result's actions, in order
+                                    items:
+                                      properties:
+                                        href:
+                                          description: an http(s) or mailto URL, or a path on the portal (`/…`, opened inside the app), with no whitespace or control characters; any other drops this action
+                                          pattern: ^(https?://|mailto:|/([^/\\\s\x00-\x1f\x7f]|$))[^\s\x00-\x1f\x7f]*$
+                                          type: string
+                                        kind:
+                                          description: '`button`: an antd primary Button; `link`: a plain link, after `text`'
+                                          enum:
+                                            - button
+                                            - link
+                                          type: string
+                                        label:
+                                          description: the button's or the link's text
+                                          type: string
+                                        text:
+                                          description: plain text before a `link`, e.g. `Already have an account?`
+                                          type: string
+                                      required:
+                                        - href
+                                        - kind
+                                        - label
+                                      type: object
+                                    type: array
+                                  icon:
+                                    description: an icon name, as buttonConfig takes them (e.g. `fa-envelope`), in place of the status icon
+                                    type: string
+                                  status:
+                                    description: antd Result `status`
+                                    enum:
+                                      - success
+                                      - info
+                                      - warning
+                                      - error
+                                    type: string
+                                  subtitle:
+                                    description: antd Result `subTitle`
+                                    type: string
+                                  title:
+                                    description: antd Result `title`
+                                    type: string
+                                required:
+                                  - status
+                                  - title
+                                type: object
+                              when:
+                                description: 'which answers this entry is for. Every condition given must hold; one left out matches anything. Entries are tried in order and the first match wins. An entry with no `when` matches every answer (entries after it are never reached). A request that got no answer (a network error, the client timeout) matches no entry: it is `otherwise`'
+                                properties:
+                                  bodyField:
+                                    description: a dotted path into the JSON response body, e.g. `status`; the entry matches only when that field is a string listed in `equals`
+                                    type: string
+                                  equals:
+                                    description: the values `bodyField` may hold for this entry to match
+                                    items:
+                                      type: string
+                                    type: array
+                                  status:
+                                    description: HTTP statuses, e.g. [429]
+                                    items:
+                                      maximum: 599
+                                      minimum: 100
+                                      type: integer
+                                    type: array
+                                type: object
+                            type: object
+                          type: array
+                        timeoutMs:
+                          description: the client timeout in milliseconds; 10000 when absent. A timeout is `otherwise`. Leave room for an endpoint that holds its answer
+                          maximum: 60000
+                          minimum: 1000
+                          type: integer
+                      required:
+                        - path
+                      type: object
                     suggestions:
                       description: 'a static, open catalogue for a field: the options are offered, and any typed value is kept'
                       items:
@@ -767,9 +1257,6 @@ spec:
                           - options
                         type: object
                       type: array
-                  required:
-                    - actions
-                    - submitActionId
                   type: object
                 widgetDataTemplate:
                   items:
