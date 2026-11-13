@@ -561,6 +561,20 @@
   margin-bottom: 0;
 }
 
+/* The Form's own `title`, above its fields; the form's gap spaces it, so antd's margin goes.
+   Two classes, to outrank antd's `h3.ant-typography` margin. */
+.form > .title {
+  margin: 0;
+}
+
+/* `buttonConfig.primary.block`: the primary button spans the action bar, any other button above it. */
+.actionColumn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  width: 100%;
+}
+
 /* A field's `fieldHelp`, under its input (antd Form.Item `extra`). */
 .fieldHelp {
   color: var(--gray-color);

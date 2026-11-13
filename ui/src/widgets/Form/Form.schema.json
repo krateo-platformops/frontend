@@ -452,6 +452,19 @@
                     "icon": {
                       "type": "string",
                       "description": "icon name for primary button"
+                    },
+                    "block": {
+                      "type": "boolean",
+                      "description": "when true, the primary button spans the whole action bar (antd Button `block`), with any other button stacked above it"
+                    },
+                    "size": {
+                      "type": "string",
+                      "enum": [
+                        "small",
+                        "middle",
+                        "large"
+                      ],
+                      "description": "antd Button `size` of the primary button"
                     }
                   },
                   "additionalProperties": false
@@ -471,6 +484,10 @@
                     "navigateTo": {
                       "type": "string",
                       "description": "when set, the secondary button is a Cancel that navigates to this route (SPA) instead of resetting the form"
+                    },
+                    "hidden": {
+                      "type": "boolean",
+                      "description": "when true, the secondary button (Reset, or the Cancel of `navigateTo`) is not shown"
                     }
                   },
                   "additionalProperties": false
@@ -1133,10 +1150,11 @@
               }
             },
             "requiredMark": {
-              "description": "antd Form requiredMark. `optional`: required fields carry no mark and every other field reads \"(optional)\"; in a schema form the optional fields then render in place, in schema order, instead of in the \"Advanced\" collapse. Absent: required fields are marked with an asterisk",
+              "description": "antd Form requiredMark. `optional`: required fields carry no mark and every other field reads \"(optional)\"; in a schema form the optional fields then render in place, in schema order, instead of in the \"Advanced\" collapse. Absent: required fields are marked with an asterisk. `hidden`: no field carries a mark, required or not (antd `requiredMark={false}`)",
               "type": "string",
               "enum": [
-                "optional"
+                "optional",
+                "hidden"
               ]
             },
             "reviewBeforeSubmit": {
@@ -1593,6 +1611,54 @@
                         }
                       }
                     }
+                  }
+                }
+              }
+            },
+            "textareas": {
+              "type": "array",
+              "description": "string fields drawn as a multi-line TextArea instead of a one-line Input. An entry naming a field that is not a string, or that has an `enum` or a `oneOf`, is ignored",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "the dotted path of a string field"
+                  },
+                  "rows": {
+                    "type": "integer",
+                    "description": "the TextArea's height in rows; 3 when absent",
+                    "minimum": 1,
+                    "maximum": 50
+                  }
+                }
+              }
+            },
+            "title": {
+              "type": "string",
+              "description": "a heading above the form's fields. It goes with the form when a `submitPost` or `fieldChecks` result replaces it, so a page's heading can live in the Form"
+            },
+            "validationMessages": {
+              "type": "array",
+              "description": "the messages a field's validation shows, in place of the generated ones. A checkbox has its own, in `checkboxes`",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "the dotted path of a field"
+                  },
+                  "requiredMessage": {
+                    "type": "string",
+                    "description": "shown when the field is required and left empty, in place of \"<Label> is required\""
                   }
                 }
               }

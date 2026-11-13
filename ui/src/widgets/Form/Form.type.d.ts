@@ -312,6 +312,14 @@ export interface Form {
            * icon name for primary button
            */
           icon?: string
+          /**
+           * when true, the primary button spans the whole action bar (antd Button `block`), with any other button stacked above it
+           */
+          block?: boolean
+          /**
+           * antd Button `size` of the primary button
+           */
+          size?: 'small' | 'middle' | 'large'
         }
         /**
          * secondary button configuration
@@ -329,6 +337,10 @@ export interface Form {
            * when set, the secondary button is a Cancel that navigates to this route (SPA) instead of resetting the form
            */
           navigateTo?: string
+          /**
+           * when true, the secondary button (Reset, or the Cancel of `navigateTo`) is not shown
+           */
+          hidden?: boolean
         }
         /**
          * draft button configuration — only rendered when widgetData.draftActionId is also set; clicking it persists the current (un-validated) field values via that action
@@ -754,9 +766,9 @@ export interface Form {
        */
       propertiesToHide?: string[]
       /**
-       * antd Form requiredMark. `optional`: required fields carry no mark and every other field reads "(optional)"; in a schema form the optional fields then render in place, in schema order, instead of in the "Advanced" collapse. Absent: required fields are marked with an asterisk
+       * antd Form requiredMark. `optional`: required fields carry no mark and every other field reads "(optional)"; in a schema form the optional fields then render in place, in schema order, instead of in the "Advanced" collapse. Absent: required fields are marked with an asterisk. `hidden`: no field carries a mark, required or not (antd `requiredMark={false}`)
        */
-      requiredMark?: 'optional'
+      requiredMark?: 'optional' | 'hidden'
       /**
        * when true (inline render only), the primary button validates and reveals an in-place read-only Review of the entered values before the real submit — the form stays mounted so 'Back to edit' preserves every value. Pair with buttonConfig.review / buttonConfig.reviewBack for custom labels.
        */
@@ -1067,6 +1079,36 @@ export interface Form {
            */
           group?: string
         }[]
+      }[]
+      /**
+       * string fields drawn as a multi-line TextArea instead of a one-line Input. An entry naming a field that is not a string, or that has an `enum` or a `oneOf`, is ignored
+       */
+      textareas?: {
+        /**
+         * the dotted path of a string field
+         */
+        name: string
+        /**
+         * the TextArea's height in rows; 3 when absent
+         */
+        rows?: number
+      }[]
+      /**
+       * a heading above the form's fields. It goes with the form when a `submitPost` or `fieldChecks` result replaces it, so a page's heading can live in the Form
+       */
+      title?: string
+      /**
+       * the messages a field's validation shows, in place of the generated ones. A checkbox has its own, in `checkboxes`
+       */
+      validationMessages?: {
+        /**
+         * the dotted path of a field
+         */
+        name: string
+        /**
+         * shown when the field is required and left empty, in place of "<Label> is required"
+         */
+        requiredMessage?: string
       }[]
     }
     /**

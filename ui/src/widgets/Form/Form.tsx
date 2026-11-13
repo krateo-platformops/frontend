@@ -1,19 +1,16 @@
 import type { IconProp } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { Alert, Button, Descriptions, Form as AntdForm, Result, Space, Spin, Tag } from 'antd'
+import { Alert, Button, Descriptions, Form as AntdForm, Result, Space, Spin, Tag, Typography } from 'antd'
 import useApp from 'antd/es/app/useApp'
 import dayjs from 'dayjs'
 import type { JSONSchema4 } from 'json-schema'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
 
 import { useAgentDraft } from '../../components/Agentiko/agentDraft'
-import { dismissButtonProps } from '../../components/DismissButton'
 import WidgetRenderer from '../../components/WidgetRenderer'
 import YamlBlock from '../../components/YamlBlock'
 import { useHandleAction } from '../../hooks/useHandleActions'
 import type { WidgetProps } from '../../types/Widget'
-import { carryScopeParams } from '../../utils/navigation'
 import { maskSecretPaths, omitSecretPaths, secretFieldPaths, type SecretPath } from '../../utils/secretFields'
 import { getEndpointUrl } from '../../utils/utils'
 import { useDrawerContext } from '../Drawer/DrawerContext'
@@ -23,10 +20,12 @@ import { FieldCheckContext } from './fieldCheck'
 import { applyFieldConfig } from './fieldConfig'
 import { collectDependencies, dependentsToClear, type FieldPath } from './fieldDependencies'
 import { createOptionRegistry, getFieldOptionsSpec, type OptionRegistry } from './fieldOptions'
-import { type FieldPresentation, FieldPresentationContext } from './fieldPresentation'
+import { antdRequiredMark, type FieldPresentation, FieldPresentationContext } from './fieldPresentation'
 import styles from './Form.module.css'
 import type { Form as WidgetType } from './Form.type'
+import { FormExtra } from './FormExtra'
 import { FormResult } from './FormResult'
+import { labelledOptionsOf, labelledOptionsProblem, optionLabelFor } from './labelledOptions'
 import { setFormReviewing } from './reviewPhase'
 import { SchemaForm } from './SchemaFields'
 import { SecretFieldsContext, type SecretFieldsRegistry } from './secretFieldsRegistry'
@@ -52,90 +51,10 @@ export const convertDayjsToISOString = (values: Record<string, unknown>) => {
   return result
 }
 
-/**
- * antd's `requiredMark` render for a schema form under `requiredMark: optional`: the label as it is.
- * The field header already carries "(optional)" beside the name (SchemaFields `requiredMarkFor`);
- * antd's own would follow the whole label, under the description. Being a render, it still tells
- * antd the form marks optional fields, so no required asterisk is drawn.
- */
-const identityMark = (label: React.ReactNode): React.ReactNode => label
-
-interface FormExtraProps {
-  buttonConfig?: FormWidgetData['buttonConfig']
-  disabled?: boolean | undefined
-  form?: string | undefined
-  loading?: boolean
-  // When set, a "Save draft" button is shown between Cancel and the primary; it is a
-  // plain (htmlType='button') button so it does NOT trigger form validation — clicking
-  // it persists the current field values as-is. Only wired for the inline (non-drawer)
-  // render; the drawer omits it.
-  onDraft?: (() => void | Promise<void>) | undefined
-  // Disables ONLY the primary (submit) button while leaving Cancel/Reset usable — used by
-  // `submitDisabledWhenPristine` so an unchanged form (e.g. a version picker still on the
-  // current version) can't submit a no-op.
-  submitDisabled?: boolean | undefined
-  // Overrides the primary (submit) button label — used by review-before-submit so the
-  // Configure step's button reads "Review →" while the final Review-step button keeps
-  // the real create label.
-  submitLabel?: string | undefined
-}
-
 // localStorage key prefix for client-side form drafts (replaces the former blueprint-drafts
 // ConfigMap): a half-finished form is saved/resumed entirely in the browser, so NO
 // frontend-entered field is ever persisted on the backend.
 const DRAFT_STORAGE_PREFIX = 'K_draft__'
-
-const FormExtra = ({ buttonConfig, disabled = false, form, loading, onDraft, submitDisabled = false, submitLabel }: FormExtraProps): React.ReactNode => {
-  const navigate = useNavigate()
-  // When `secondary.navigateTo` is set the secondary button is a Cancel that
-  // navigates (SPA) instead of resetting the form. It leaves without deleting anything, so it
-  // takes the DISMISS role (C26): amber. A Reset stays neutral — it clears unsaved input on the
-  // spot, it neither leaves nor deletes anything stored.
-  const secondaryNav = buttonConfig?.secondary?.navigateTo
-  // Action bar: Save draft pinned LEFT, Cancel + primary grouped RIGHT (mockup `.actionbar`
-  // split). With no draft action (e.g. the drawer render) the left slot is an empty spacer,
-  // so the right group stays right-aligned — unchanged from the previous single-Space layout.
-  return (
-    <div className={styles.actionRow}>
-      {onDraft
-        ? (
-          <Button
-            disabled={disabled}
-            htmlType='button'
-            icon={buttonConfig?.draft?.icon ? <FontAwesomeIcon icon={buttonConfig?.draft?.icon as IconProp} /> : undefined}
-            onClick={() => { void onDraft() }}
-            type='default'
-          >
-            {buttonConfig?.draft?.label || 'Save draft'}
-          </Button>
-        )
-        : <span />}
-      <Space>
-        <Button
-          {...(secondaryNav ? dismissButtonProps : {})}
-          disabled={disabled}
-          form={form}
-          htmlType={secondaryNav ? 'button' : 'reset'}
-          icon={buttonConfig?.secondary?.icon ? <FontAwesomeIcon icon={buttonConfig?.secondary?.icon as IconProp} /> : undefined}
-          onClick={secondaryNav ? () => { void navigate(carryScopeParams(secondaryNav)) } : undefined}
-          type='default'
-        >
-          {buttonConfig?.secondary?.label || 'Reset'}
-        </Button>
-        <Button
-          disabled={submitDisabled}
-          form={form}
-          htmlType='submit'
-          icon={buttonConfig?.primary?.icon ? <FontAwesomeIcon icon={buttonConfig?.primary?.icon as IconProp} /> : undefined}
-          loading={loading}
-          type='primary'
-        >
-          {submitLabel ?? (buttonConfig?.primary?.label || 'Submit')}
-        </Button>
-      </Space>
-    </div>
-  )
-}
 
 /**
  * Read-only summary shown in the in-place Review step (`reviewBeforeSubmit`). Renders the
@@ -227,9 +146,11 @@ export const agentAuthoredKeys = (
  * that is the value itself, reads as before.
  */
 const withOptionLabels = (key: string, value: unknown, node: JSONSchema4 | undefined, registry: OptionRegistry | undefined): unknown => {
-  if (!registry || !node || !getFieldOptionsSpec(node)) { return value }
+  // …and a labelled `oneOf` field by its titles (labelledOptions.ts).
+  const fromRegistry = registry && node && getFieldOptionsSpec(node) ? registry : undefined
+  if (!fromRegistry && !labelledOptionsOf(node ?? {})) { return value }
   const labelled = (entry: unknown) => {
-    const label = registry.labelFor([key], entry)
+    const label = optionLabelFor(node, entry) ?? fromRegistry?.labelFor([key], entry)
     return label && label !== String(entry) ? `${label} (${String(entry)})` : entry
   }
   return Array.isArray(value) ? value.map(labelled) : labelled(value)
@@ -292,7 +213,7 @@ export const ReviewSummary = ({ agentKeys, optionLabels, schema, secretPaths, va
  * button runs the same submit action. Default (flag off) is unchanged.
  */
 const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<FormWidgetData>) => {
-  const { actions, autocomplete, buttonConfig, checkboxes, dependencies: optionDependencies, disabled, displayingDependencies, draftActionId, fieldChecks, fieldHelp, hasFeedback, initialValues, items, layout, notice, objectFields, propertiesToHide, requiredMark, reviewBeforeSubmit, schema, size, stringSchema, submitActionId, submitActionSelector, submitDisabledWhenPristine, submitPost, suggestions } = widgetData
+  const { actions, autocomplete, buttonConfig, checkboxes, dependencies: optionDependencies, disabled, displayingDependencies, draftActionId, fieldChecks, fieldHelp, hasFeedback, initialValues, items, layout, notice, objectFields, propertiesToHide, requiredMark, reviewBeforeSubmit, schema, size, stringSchema, submitActionId, submitActionSelector, submitDisabledWhenPristine, submitPost, suggestions, textareas, title, validationMessages } = widgetData
   // Prefer `stringSchema` (the schema as a raw JSON STRING) when present: `JSON.parse`
   // preserves the object's key insertion order, so a server that hands us the blueprint's
   // values.schema.json verbatim (e.g. from the per-blueprint jsonschema ConfigMap, which
@@ -313,11 +234,11 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
       }
     }
 
-    return applyFieldConfig(parsed, { autocomplete, checkboxes, dependencies: optionDependencies, displayingDependencies, fieldChecks, fieldHelp, objectFields, suggestions })
-  }, [schema, stringSchema, autocomplete, checkboxes, optionDependencies, displayingDependencies, fieldChecks, fieldHelp, objectFields, suggestions])
+    return applyFieldConfig(parsed, { autocomplete, checkboxes, dependencies: optionDependencies, displayingDependencies, fieldChecks, fieldHelp, objectFields, suggestions, textareas, validationMessages })
+  }, [schema, stringSchema, autocomplete, checkboxes, optionDependencies, displayingDependencies, fieldChecks, fieldHelp, objectFields, suggestions, textareas, validationMessages])
   const presentation = useMemo<FieldPresentation>(() => ({
     hasFeedback: hasFeedback === 'rules' ? 'rules' : undefined,
-    requiredMark: requiredMark === 'optional' ? 'optional' : undefined,
+    requiredMark: requiredMark === 'optional' || requiredMark === 'hidden' ? requiredMark : undefined,
   }), [hasFeedback, requiredMark])
   const { insideDrawer, setDrawerData } = useDrawerContext()
   const alreadySetDrawerData = useRef(false)
@@ -645,11 +566,12 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   // Exactly one way to submit: `submitPost`, or `actions` with `submitActionId`. Neither leaves the
   // primary button with nothing to do, and both leave it ambiguous, so the CR is refused here,
   // saying which (submitModeProblem). Every CR from before `submitPost` has the second.
-  const submitProblem = submitModeProblem(widgetData)
-  if (submitProblem) {
+  // So is a labelled-options field whose `enum` and `oneOf` disagree (labelledOptions.ts).
+  const configProblem = submitModeProblem(widgetData) ?? labelledOptionsProblem(jsonSchema)
+  if (configProblem) {
     return (
       <div className={styles.message}>
-        <Result status='error' subTitle={submitProblem} title='Error while rendering widget' />
+        <Result status='error' subTitle={configProblem} title='Error while rendering widget' />
       </div>
     )
   }
@@ -709,6 +631,8 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
 
   return (
     <div className={styles.form} data-inside-drawer={insideDrawer}>
+      {/* The form's own heading: it goes with the form when a Result replaces it. */}
+      {typeof title === 'string' && title.trim() ? <Typography.Title className={styles.title} level={3}>{title}</Typography.Title> : null}
       {/* Kept mounted (hidden in review) so "Back to edit" preserves every entered value. */}
       <div style={reviewing ? { display: 'none' } : undefined}>
         <AntdForm
@@ -721,9 +645,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
           onFinish={(formValues) => { onFinish(formValues as Record<string, unknown>) }}
           onFinishFailed={({ errorFields }) => { setFailedFields(errorFields.map(({ name }) => name)) }}
           onValuesChange={onValuesChange}
-          // A schema form draws its own marks in each field's header; a composable Form's
-          // children are plain Form.Items, and antd marks them.
-          requiredMark={presentation.requiredMark && (jsonSchema?.properties ? identityMark : presentation.requiredMark)}
+          requiredMark={antdRequiredMark(presentation.requiredMark, !!jsonSchema?.properties)}
           size={size}
         >
           {jsonSchema?.properties
