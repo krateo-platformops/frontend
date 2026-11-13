@@ -18,7 +18,7 @@ export interface Form {
       /**
        * the actions of the widget
        */
-      actions: {
+      actions?: {
         /**
          * rest api call actions triggered by the widget
          */
@@ -496,6 +496,222 @@ export interface Form {
        */
       draftActionId?: string
       /**
+       * fields checked against a same-origin endpoint as they are typed: after typing pauses and on blur, the field's value (with `bodyExtras`) is POSTed as JSON and the answer becomes the field's validation status and message. A newer value aborts the check in flight; an answer for an old value is never applied. An empty value, or one failing the field's own rules, is not checked. While a check runs the field shows antd's validating spinner, and a submit waits for that answer
+       */
+      fieldChecks?: {
+        /**
+         * the dotted path of the field to check (a text-like field: not a boolean, object or list)
+         */
+        name: string
+        /**
+         * the same-origin path to POST JSON to. Sent through the page transport's allow-listed post: the path must be under one of the installation's PUBLIC_POST_PATHS, and no credential is ever sent (public page or signed in). Any other path is refused unsent
+         */
+        path: string
+        /**
+         * the body key the value is sent under; the last segment of `name` when absent
+         */
+        bodyKey?: string
+        /**
+         * body key → the name of one of the page's fragment extras (the keys its root declares in `krateo.io/fragment-keys`), e.g. `{ submission: s, token: t }`: those values are sent in the request BODY, never in a URL, and never enter the form. A key the page was not opened with is left out
+         */
+        bodyExtras?: {
+          [k: string]: string
+        }
+        /**
+         * how long typing must pause before the check is sent, in milliseconds; 500 when absent. Blur sends it at once
+         */
+        debounceMs?: number
+        /**
+         * the client timeout in milliseconds; 10000 when absent. A timeout is `otherwise`. Leave room for an endpoint that holds its answer
+         */
+        timeoutMs?: number
+        /**
+         * what each answer means for the field, tried in order (first match wins)
+         */
+        answers?: {
+          /**
+           * which answers this entry is for. Every condition given must hold; one left out matches anything. Entries are tried in order and the first match wins. An entry with no `when` matches every answer (entries after it are never reached). A request that got no answer (a network error, the client timeout) matches no entry: it is `otherwise`
+           */
+          when?: {
+            /**
+             * HTTP statuses, e.g. [429]
+             */
+            status?: number[]
+            /**
+             * a dotted path into the JSON response body, e.g. `status`; the entry matches only when that field is a string listed in `equals`
+             */
+            bodyField?: string
+            /**
+             * the values `bodyField` may hold for this entry to match
+             */
+            equals?: string[]
+          }
+          /**
+           * the field's validation status for this answer (`warning` when absent). `error` blocks submitting, `warning` does not; `success` shows `message` as the field's help
+           */
+          validateStatus?: 'success' | 'warning' | 'error'
+          /**
+           * the message under the field; may name `{value}` (the checked value), `{body.<dotted>}` and `{retryAfter}`
+           */
+          message?: string
+          /**
+           * the message instead of `message` when the answer carries a Retry-After of a positive number of seconds; `{retryAfter}` is that wait ("30 seconds", or whole minutes above 60: "2 minutes"), stated once, with no countdown
+           */
+          retryAfterMessage?: string
+          /**
+           * a dotted path into the response body naming a rule, e.g. `rule`; its `ruleMessages` entry replaces `message`
+           */
+          ruleFrom?: string
+          /**
+           * rule → message, for `ruleFrom`
+           */
+          ruleMessages?: {
+            [k: string]: string
+          }
+          /**
+           * an antd Result that REPLACES the form (and its buttons). Its strings may name `{body.<dotted>}` (a value from the response, e.g. `{body.username}`), `{value}` (a checked field's value) and `{retryAfter}`; they are plain text, never markup
+           */
+          result?: {
+            /**
+             * antd Result `status`
+             */
+            status: 'success' | 'info' | 'warning' | 'error'
+            /**
+             * antd Result `title`
+             */
+            title: string
+            /**
+             * antd Result `subTitle`
+             */
+            subtitle?: string
+            /**
+             * an icon name, as buttonConfig takes them (e.g. `fa-envelope`), in place of the status icon
+             */
+            icon?: string
+            /**
+             * the Result's actions, in order
+             */
+            extra?: {
+              /**
+               * `button`: an antd primary Button; `link`: a plain link, after `text`
+               */
+              kind: 'button' | 'link'
+              /**
+               * the button's or the link's text
+               */
+              label: string
+              /**
+               * an http(s) or mailto URL, or a path on the portal (`/…`, opened inside the app), with no whitespace or control characters; any other drops this action
+               */
+              href: string
+              /**
+               * plain text before a `link`, e.g. `Already have an account?`
+               */
+              text?: string
+            }[]
+          }
+        }[]
+        /**
+         * the answer for anything no entry matched, a network error and the timeout; when absent, a warning "We couldn't check this right now."
+         */
+        otherwise?: {
+          /**
+           * which answers this entry is for. Every condition given must hold; one left out matches anything. Entries are tried in order and the first match wins. An entry with no `when` matches every answer (entries after it are never reached). A request that got no answer (a network error, the client timeout) matches no entry: it is `otherwise`
+           */
+          when?: {
+            /**
+             * HTTP statuses, e.g. [429]
+             */
+            status?: number[]
+            /**
+             * a dotted path into the JSON response body, e.g. `status`; the entry matches only when that field is a string listed in `equals`
+             */
+            bodyField?: string
+            /**
+             * the values `bodyField` may hold for this entry to match
+             */
+            equals?: string[]
+          }
+          /**
+           * the field's validation status for this answer (`warning` when absent). `error` blocks submitting, `warning` does not; `success` shows `message` as the field's help
+           */
+          validateStatus?: 'success' | 'warning' | 'error'
+          /**
+           * the message under the field; may name `{value}` (the checked value), `{body.<dotted>}` and `{retryAfter}`
+           */
+          message?: string
+          /**
+           * the message instead of `message` when the answer carries a Retry-After of a positive number of seconds; `{retryAfter}` is that wait ("30 seconds", or whole minutes above 60: "2 minutes"), stated once, with no countdown
+           */
+          retryAfterMessage?: string
+          /**
+           * a dotted path into the response body naming a rule, e.g. `rule`; its `ruleMessages` entry replaces `message`
+           */
+          ruleFrom?: string
+          /**
+           * rule → message, for `ruleFrom`
+           */
+          ruleMessages?: {
+            [k: string]: string
+          }
+          /**
+           * an antd Result that REPLACES the form (and its buttons). Its strings may name `{body.<dotted>}` (a value from the response, e.g. `{body.username}`), `{value}` (a checked field's value) and `{retryAfter}`; they are plain text, never markup
+           */
+          result?: {
+            /**
+             * antd Result `status`
+             */
+            status: 'success' | 'info' | 'warning' | 'error'
+            /**
+             * antd Result `title`
+             */
+            title: string
+            /**
+             * antd Result `subTitle`
+             */
+            subtitle?: string
+            /**
+             * an icon name, as buttonConfig takes them (e.g. `fa-envelope`), in place of the status icon
+             */
+            icon?: string
+            /**
+             * the Result's actions, in order
+             */
+            extra?: {
+              /**
+               * `button`: an antd primary Button; `link`: a plain link, after `text`
+               */
+              kind: 'button' | 'link'
+              /**
+               * the button's or the link's text
+               */
+              label: string
+              /**
+               * an http(s) or mailto URL, or a path on the portal (`/…`, opened inside the app), with no whitespace or control characters; any other drops this action
+               */
+              href: string
+              /**
+               * plain text before a `link`, e.g. `Already have an account?`
+               */
+              text?: string
+            }[]
+          }
+        }
+      }[]
+      /**
+       * help text shown UNDER a field's input (antd Form.Item `extra`), where it stays in view while a validation message shows above it. Plain text
+       */
+      fieldHelp?: {
+        /**
+         * the dotted path of a field (not an object or a list)
+         */
+        name: string
+        /**
+         * the help text
+         */
+        text: string
+      }[]
+      /**
        * which fields of a schema form show antd's validation feedback icons. Absent: required fields. `rules`: every field with a validation rule, required or optional (an optional field shows the success icon only once it holds a value)
        */
       hasFeedback?: 'rules'
@@ -558,9 +774,9 @@ export interface Form {
        */
       stringSchema?: string
       /**
-       * the id of the action to be called when the form is submitted
+       * the id of the action to be called when the form is submitted. A Form submits EITHER through `actions` + `submitActionId` OR through `submitPost`; with neither or both it renders an error
        */
-      submitActionId: string
+      submitActionId?: string
       /**
        * optional field-conditional submit routing: when present, the submit action is chosen at submit time from the value of the named field. Routes one form to different create targets (e.g. a 'target cluster' select where 'local' posts the blueprint instance and a remote spoke posts a RemoteInstall). Falls back to `default` (or `submitActionId`) when the field value has no mapping.
        */
@@ -584,6 +800,244 @@ export interface Form {
        * when true, the primary (submit) button stays disabled until at least one field differs from its initial value (initialValues overlaid on schema defaults). Use for update forms where submitting an unchanged value is a no-op — e.g. a version picker pre-set to the currently-installed version.
        */
       submitDisabledWhenPristine?: boolean
+      /**
+       * submit by POSTing the form's values as JSON to an allow-listed same-origin path, instead of a snowplow write through `actions`/`submitActionId` (a Form has exactly one of the two). While it is in flight the form is disabled and the primary button loading. Each response is mapped to a `result` (replaces the form), `fieldErrors` or an inline `alert`; when an entry sets several, `result` wins, then `fieldErrors`
+       */
+      submitPost?: {
+        /**
+         * the same-origin path to POST JSON to. Sent through the page transport's allow-listed post: the path must be under one of the installation's PUBLIC_POST_PATHS, and no credential is ever sent (public page or signed in). Any other path is refused unsent
+         */
+        path: string
+        /**
+         * body key → the name of one of the page's fragment extras (the keys its root declares in `krateo.io/fragment-keys`), e.g. `{ submission: s, token: t }`: those values are sent in the request BODY, never in a URL, and never enter the form. A key the page was not opened with is left out
+         */
+        bodyExtras?: {
+          [k: string]: string
+        }
+        /**
+         * the client timeout in milliseconds; 10000 when absent. A timeout is `otherwise`. Leave room for an endpoint that holds its answer
+         */
+        timeoutMs?: number
+        /**
+         * what each response means, tried in order (first match wins)
+         */
+        responses?: {
+          /**
+           * which answers this entry is for. Every condition given must hold; one left out matches anything. Entries are tried in order and the first match wins. An entry with no `when` matches every answer (entries after it are never reached). A request that got no answer (a network error, the client timeout) matches no entry: it is `otherwise`
+           */
+          when?: {
+            /**
+             * HTTP statuses, e.g. [429]
+             */
+            status?: number[]
+            /**
+             * a dotted path into the JSON response body, e.g. `status`; the entry matches only when that field is a string listed in `equals`
+             */
+            bodyField?: string
+            /**
+             * the values `bodyField` may hold for this entry to match
+             */
+            equals?: string[]
+          }
+          /**
+           * an antd Result that REPLACES the form (and its buttons). Its strings may name `{body.<dotted>}` (a value from the response, e.g. `{body.username}`), `{value}` (a checked field's value) and `{retryAfter}`; they are plain text, never markup
+           */
+          result?: {
+            /**
+             * antd Result `status`
+             */
+            status: 'success' | 'info' | 'warning' | 'error'
+            /**
+             * antd Result `title`
+             */
+            title: string
+            /**
+             * antd Result `subTitle`
+             */
+            subtitle?: string
+            /**
+             * an icon name, as buttonConfig takes them (e.g. `fa-envelope`), in place of the status icon
+             */
+            icon?: string
+            /**
+             * the Result's actions, in order
+             */
+            extra?: {
+              /**
+               * `button`: an antd primary Button; `link`: a plain link, after `text`
+               */
+              kind: 'button' | 'link'
+              /**
+               * the button's or the link's text
+               */
+              label: string
+              /**
+               * an http(s) or mailto URL, or a path on the portal (`/…`, opened inside the app), with no whitespace or control characters; any other drops this action
+               */
+              href: string
+              /**
+               * plain text before a `link`, e.g. `Already have an account?`
+               */
+              text?: string
+            }[]
+          }
+          /**
+           * errors on the fields the response names. A field's message is `ruleMessages[<the body's ruleFrom>]`, else `fieldMessages[<field>]`, else `message`, else "Check this field.". Names the form does not have are ignored; if none is left, `message` shows as an error Alert
+           */
+          fieldErrors?: {
+            /**
+             * dotted field paths, always named
+             */
+            names?: string[]
+            /**
+             * a dotted path into the response body holding an array of field names, e.g. `fields`
+             */
+            namesFrom?: string
+            /**
+             * a dotted path into the response body naming a rule, e.g. `rule`
+             */
+            ruleFrom?: string
+            /**
+             * rule → message
+             */
+            ruleMessages?: {
+              [k: string]: string
+            }
+            /**
+             * field (dotted path) → message
+             */
+            fieldMessages?: {
+              [k: string]: string
+            }
+            /**
+             * the message for a field with no other
+             */
+            message?: string
+          }
+          /**
+           * an antd Alert directly above the form's buttons (not a toast); cleared when the next submit starts. Strings may name `{body.<dotted>}` and `{retryAfter}`
+           */
+          alert?: {
+            /**
+             * antd Alert `type`
+             */
+            type: 'warning' | 'error' | 'info'
+            /**
+             * antd Alert `title`
+             */
+            title: string
+            /**
+             * antd Alert `description`
+             */
+            description?: string
+            /**
+             * the description instead of `description` when the response carries a Retry-After of a positive number of seconds; `{retryAfter}` is that wait ("30 seconds", or whole minutes above 60: "2 minutes"), stated once, with no countdown
+             */
+            retryAfterDescription?: string
+          }
+        }[]
+        /**
+         * the outcome for anything no entry matched, a network error and the timeout; when absent, an error Alert "We couldn't send this form."
+         */
+        otherwise?: {
+          /**
+           * an antd Result that REPLACES the form (and its buttons). Its strings may name `{body.<dotted>}` (a value from the response, e.g. `{body.username}`), `{value}` (a checked field's value) and `{retryAfter}`; they are plain text, never markup
+           */
+          result?: {
+            /**
+             * antd Result `status`
+             */
+            status: 'success' | 'info' | 'warning' | 'error'
+            /**
+             * antd Result `title`
+             */
+            title: string
+            /**
+             * antd Result `subTitle`
+             */
+            subtitle?: string
+            /**
+             * an icon name, as buttonConfig takes them (e.g. `fa-envelope`), in place of the status icon
+             */
+            icon?: string
+            /**
+             * the Result's actions, in order
+             */
+            extra?: {
+              /**
+               * `button`: an antd primary Button; `link`: a plain link, after `text`
+               */
+              kind: 'button' | 'link'
+              /**
+               * the button's or the link's text
+               */
+              label: string
+              /**
+               * an http(s) or mailto URL, or a path on the portal (`/…`, opened inside the app), with no whitespace or control characters; any other drops this action
+               */
+              href: string
+              /**
+               * plain text before a `link`, e.g. `Already have an account?`
+               */
+              text?: string
+            }[]
+          }
+          /**
+           * errors on the fields the response names. A field's message is `ruleMessages[<the body's ruleFrom>]`, else `fieldMessages[<field>]`, else `message`, else "Check this field.". Names the form does not have are ignored; if none is left, `message` shows as an error Alert
+           */
+          fieldErrors?: {
+            /**
+             * dotted field paths, always named
+             */
+            names?: string[]
+            /**
+             * a dotted path into the response body holding an array of field names, e.g. `fields`
+             */
+            namesFrom?: string
+            /**
+             * a dotted path into the response body naming a rule, e.g. `rule`
+             */
+            ruleFrom?: string
+            /**
+             * rule → message
+             */
+            ruleMessages?: {
+              [k: string]: string
+            }
+            /**
+             * field (dotted path) → message
+             */
+            fieldMessages?: {
+              [k: string]: string
+            }
+            /**
+             * the message for a field with no other
+             */
+            message?: string
+          }
+          /**
+           * an antd Alert directly above the form's buttons (not a toast); cleared when the next submit starts. Strings may name `{body.<dotted>}` and `{retryAfter}`
+           */
+          alert?: {
+            /**
+             * antd Alert `type`
+             */
+            type: 'warning' | 'error' | 'info'
+            /**
+             * antd Alert `title`
+             */
+            title: string
+            /**
+             * antd Alert `description`
+             */
+            description?: string
+            /**
+             * the description instead of `description` when the response carries a Retry-After of a positive number of seconds; `{retryAfter}` is that wait ("30 seconds", or whole minutes above 60: "2 minutes"), stated once, with no countdown
+             */
+            retryAfterDescription?: string
+          }
+        }
+      }
       /**
        * a static, open catalogue for a field: the options are offered, and any typed value is kept
        */

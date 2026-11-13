@@ -10,10 +10,11 @@ import { isSecretArrayNode, isSecretSchemaNode } from '../../utils/secretFields'
 
 import { checkboxItem, getCheckboxSpec } from './checkboxField'
 import { useAdvancedPanels, useShowFailedSection } from './failedFields'
+import { CheckedFieldItem, getFieldCheckSpec } from './fieldCheck'
 import { collectDependencies, type FieldPath, nodeAt } from './fieldDependencies'
 import { ROW_TITLE_KEY } from './fieldKeys'
 import { closedOptionRule, getFieldOptionsSpec, type OptionRegistry } from './fieldOptions'
-import { fieldHeader, type FieldPresentation, FieldPresentationContext, type Marks, OptionalFeedbackItem, useMarks } from './fieldPresentation'
+import { fieldHeader, fieldHelpOf, type FieldPresentation, FieldPresentationContext, type Marks, OptionalFeedbackItem, useMarks } from './fieldPresentation'
 import styles from './Form.module.css'
 import { FreeObjectListInput } from './FreeObjectListInput'
 import { JsonValueInput } from './JsonValueInput'
@@ -547,6 +548,15 @@ function renderEntry(key: string, node: JSONSchema4, hide: string[], namePath: A
     rules,
     valuePropName: node.type === 'boolean' ? 'checked' : undefined,
     wrapperCol: { span: 24 },
+  }
+  // `fieldHelp`: text under the input, which stays in view while a status shows above it. Set
+  // only when the CR gives one, so a field without it keeps its markup.
+  const help = fieldHelpOf(node)
+  if (help) { item.extra = help }
+  // `fieldChecks`: the field is checked against an endpoint as it is typed (fieldCheck.tsx).
+  const check = getFieldCheckSpec(node)
+  if (check) {
+    return <CheckedFieldItem item={item} key={path.join('.')} path={scope} spec={check} />
   }
   // Feedback came with being required because, when it was added, only required fields had
   // rules. `hasFeedback: rules` gives it to an optional field with a rule of its own (a pattern,

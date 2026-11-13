@@ -9,14 +9,16 @@
  * Provided by the signed-in shell (components/Shell) and nowhere else, so everything outside it —
  * a public page above all — falls through to the anonymous default (transport/widgetTransport.ts).
  */
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useMemo, type ReactNode } from 'react'
 
+import { useConfigContext } from '../context/ConfigContext'
 import { subscribeSse } from '../hooks/signedInSseClient'
 import { holdTelemetryCredential } from '../otel/telemetryCredential'
 import { authFailureCauseOf } from '../utils/authFailureCause'
 import { getAccessToken } from '../utils/getAccessToken'
 import { isSessionResumePending, raiseSessionExpired } from '../utils/sessionResume'
 
+import { createAllowlistedPost, parsePublicPostPaths } from './allowlistedPost'
 import { type TransportInit, type WidgetTransport, WidgetTransportProvider } from './widgetTransport'
 
 export const signedInTransport: WidgetTransport = {
@@ -46,8 +48,19 @@ export const signedInTransport: WidgetTransport = {
 /**
  * The signed-in transport for everything below it, and the telemetry credential for as long as it
  * is mounted (otel/telemetryCredential.ts).
+ *
+ * It adds the install's allow-listed `post` (config `PUBLIC_POST_PATHS`): the SAME token-less post
+ * the anonymous transport carries (transport/allowlistedPost.ts), so a Form that checks a value or
+ * submits to an intake behaves alike signed in and on a public page, and never sends the bearer to
+ * a service that is not snowplow.
  */
 export const SignedInTransportProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => holdTelemetryCredential(getAccessToken), [])
-  return <WidgetTransportProvider value={signedInTransport}>{children}</WidgetTransportProvider>
+  const { config } = useConfigContext()
+  const allowlist = config?.api.PUBLIC_POST_PATHS
+  const transport = useMemo<WidgetTransport>(
+    () => ({ ...signedInTransport, post: createAllowlistedPost(parsePublicPostPaths(allowlist)) }),
+    [allowlist],
+  )
+  return <WidgetTransportProvider value={transport}>{children}</WidgetTransportProvider>
 }

@@ -31,6 +31,8 @@ import type { SseSubscriber } from '../hooks/sseClient'
 import { createAnonymousTransport } from '../public/anonymousTransport'
 import type { SessionResumeOutcome } from '../utils/sessionResume'
 
+import type { AllowlistedPost } from './allowlistedPost'
+
 /**
  * The request options a transport accepts. Headers are a plain record so the signed-in transport
  * can merge its credential in and the anonymous one can inspect what it was handed.
@@ -80,10 +82,12 @@ export interface WidgetTransport {
   /** The signed-in session; absent on the anonymous transport. */
   readonly session?: SignedInSession
   /**
-   * A plain same-origin JSON POST to an install-allowlisted path (config `PUBLIC_POST_PATHS`), for
-   * a public page's form. NOT a snowplow /call write. Anonymous transport only.
+   * A plain same-origin JSON POST to an install-allowlisted path (config `PUBLIC_POST_PATHS`), with
+   * no credential, for a form that checks a value or submits to an intake (Form `fieldChecks`,
+   * `submitPost`). NOT a snowplow /call write. Both transports carry the same one
+   * (transport/allowlistedPost.ts); `signal` cancels it.
    */
-  readonly post?: (path: string, json: unknown) => Promise<Response>
+  readonly post?: AllowlistedPost
 }
 
 /**

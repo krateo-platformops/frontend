@@ -208,11 +208,13 @@ export interface Config {
      */
     OTEL_TRACES_ENDPOINT?: string
     OTEL_COLLECTOR_URL?: string
-    /** The same-origin path prefixes a PUBLIC page may POST JSON to (public/anonymousTransport.ts
-     * `post`), e.g. `/request-access/api/v1/`. A comma-separated string, because the installer's
-     * config plumbing emits strings; an array is accepted too. Prefix match, segment-aware. These
-     * are NOT snowplow /call writes — a public page has none — but a plain POST to a service the
-     * install fronts on its own origin. Absent or empty: a public page can POST nowhere. */
+    /** The same-origin path prefixes a page may POST JSON to with no credential (the transports'
+     * `post`, transport/allowlistedPost.ts: a Form's `fieldChecks` and `submitPost`), e.g.
+     * `/request-access/api/v1/`. A comma-separated string, because the installer's config plumbing
+     * emits strings; an array is accepted too. Prefix match, segment-aware. These are NOT snowplow
+     * /call writes, but a plain POST to a service the install fronts on its own origin; the same
+     * list holds on a public page and inside the signed-in shell. Absent or empty: no page can
+     * POST anywhere this way. */
     PUBLIC_POST_PATHS?: string | string[]
   } & AgentikoApiConfig & AutopilotApiConfig
   params: {

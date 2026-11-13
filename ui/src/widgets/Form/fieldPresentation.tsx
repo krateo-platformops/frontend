@@ -4,6 +4,7 @@ import type { JSONSchema4 } from 'json-schema'
 import { createContext, useContext, useMemo } from 'react'
 
 import type { FieldPath } from './fieldDependencies'
+import { HELP_KEY } from './fieldKeys'
 import styles from './Form.module.css'
 import { fieldLabel, hasValue } from './schemaRules'
 
@@ -75,6 +76,15 @@ export const fieldHeader = (key: string, node: JSONSchema4, isRequired: boolean,
       {description ? <span className={styles.fieldDesc}>{description}</span> : null}
     </span>
   )
+}
+
+/**
+ * A field's `fieldHelp` (written on its node by fieldConfig.ts) as the Form.Item `extra` under its
+ * input, or undefined when the CR gives none — and then the Form.Item has no `extra` at all.
+ */
+export const fieldHelpOf = (node: JSONSchema4): React.ReactNode => {
+  const help: unknown = node[HELP_KEY]
+  return typeof help === 'string' && help ? <span className={styles.fieldHelp}>{help}</span> : undefined
 }
 
 /**

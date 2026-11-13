@@ -16,23 +16,21 @@
  *
  * It has no `session`, so nothing that needs one — a snowplow write, an upload, a live stream, an
  * audit record — can run on it. Its only write is `post`: a plain same-origin JSON POST to a path
- * the install allowlisted, for a public form (it is not a /call write).
+ * the install allowlisted, for a public form (it is not a /call write). The signed-in transport
+ * carries the same `post`, token-less there too (transport/allowlistedPost.ts).
  */
+import { createAllowlistedPost } from '../transport/allowlistedPost'
 import type { TransportInit, TransportFetch, WidgetTransport } from '../transport/widgetTransport'
+
+// The allow-listed post is shared with the signed-in transport; its pieces stay importable from
+// here, where #717 put them.
+export { checkPublicPost, parsePublicPostPaths, PublicPostRefused } from '../transport/allowlistedPost'
 
 /** Thrown, synchronously, when a caller hands the anonymous transport a credential. */
 export class AnonymousCredentialError extends Error {
   constructor() {
     super('The anonymous transport never sends an Authorization header; a caller passed one.')
     this.name = 'AnonymousCredentialError'
-  }
-}
-
-/** A `post` the allowlist refused. No request was sent. */
-export class PublicPostRefused extends Error {
-  constructor(reason: string) {
-    super(`Refused a public POST: ${reason}`)
-    this.name = 'PublicPostRefused'
   }
 }
 
@@ -50,64 +48,6 @@ export const anonymousFetch: TransportFetch = (url: string, init: TransportInit 
   return fetch(url, { ...init, credentials: 'omit', headers: { ...init.headers } })
 }
 
-/**
- * The install's allowlist for public POSTs, from config `PUBLIC_POST_PATHS`.
- *
- * Accepted as a comma-separated string because that is what the installer's config plumbing can
- * emit (every passthrough config value is a string), and as an array for a hand-written
- * config.json. An entry that is not an absolute path (`/…`), or that is protocol-relative (`//…`),
- * is dropped: it could only ever widen the allowlist past this origin's paths.
- */
-export const parsePublicPostPaths = (value: unknown): string[] => {
-  let raw: unknown[] = []
-  if (Array.isArray(value)) { raw = value }
-  if (typeof value === 'string') { raw = value.split(',') }
-  return raw
-    .filter((entry): entry is string => typeof entry === 'string')
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.startsWith('/') && !entry.startsWith('//'))
-}
-
-/**
- * Whether `pathname` sits under an allowlisted prefix. Segment-aware: `/request-access/api/v1/`
- * admits `/request-access/api/v1/requests`, and an entry written without the trailing slash,
- * `/request-access`, still does not admit `/request-access-evil`.
- */
-const underPrefix = (pathname: string, prefix: string): boolean => {
-  const base = prefix.endsWith('/') ? prefix : `${prefix}/`
-  return pathname === prefix || pathname === base.slice(0, -1) || pathname.startsWith(base)
-}
-
-/** Any whitespace (Unicode `\s`) or a C0/DEL control character. */
-const hasWhitespaceOrControl = (text: string): boolean =>
-  /\s/u.test(text) || [...text].some((char) => { const code = char.charCodeAt(0); return code < 0x20 || code === 0x7f })
-
-/**
- * Resolve `path` against this origin and check it, or say why not. Pure: sends nothing.
- *
- * The check runs on the URL the browser WOULD request, after it has resolved `..` and `%2e%2e`
- * segments, so `/request-access/api/v1/../../call` is judged as the `/call` it really is.
- */
-export const checkPublicPost = (path: unknown, allowlist: readonly string[], origin: string): { ok: true; url: string } | { ok: false; reason: string } => {
-  if (typeof path !== 'string' || path === '') { return { ok: false, reason: 'the path is empty' } }
-  // Refused before parsing, because the URL parser REMOVES tabs and newlines anywhere in its input:
-  // `/\t/evil.example/x` would be judged as the `//evil.example/x` it becomes, not as what was written.
-  if (hasWhitespaceOrControl(path)) { return { ok: false, reason: 'the path contains whitespace or a control character' } }
-  if (!path.startsWith('/')) { return { ok: false, reason: `"${path}" is not a same-origin absolute path` } }
-  if (path.startsWith('//') || path.includes('\\')) { return { ok: false, reason: `"${path}" could leave this origin` } }
-  let resolved: URL
-  try {
-    resolved = new URL(path, origin)
-  } catch {
-    return { ok: false, reason: `"${path}" is not a valid path` }
-  }
-  if (resolved.origin !== origin) { return { ok: false, reason: `"${path}" resolves to another origin` } }
-  if (!allowlist.some((prefix) => underPrefix(resolved.pathname, prefix))) {
-    return { ok: false, reason: `"${resolved.pathname}" is not on this installation's public POST allowlist` }
-  }
-  return { ok: true, url: `${resolved.pathname}${resolved.search}` }
-}
-
 export interface AnonymousTransportOptions {
   /** The parsed `PUBLIC_POST_PATHS`. Empty (the default): every `post` is refused. */
   postAllowlist?: readonly string[]
@@ -120,18 +60,6 @@ export const createAnonymousTransport = ({ onUnauthorized, postAllowlist = [] }:
   identity: 'anonymous',
   live: false,
   onUnauthorized: (body: unknown) => { onUnauthorized?.(body) },
-  post: (path: string, json: unknown): Promise<Response> => {
-    const origin = typeof window === 'undefined' ? '' : window.location.origin
-    const verdict = checkPublicPost(path, postAllowlist, origin)
-    if (!verdict.ok) {
-      return Promise.reject(new PublicPostRefused(verdict.reason))
-    }
-    return fetch(verdict.url, {
-      body: JSON.stringify(json),
-      credentials: 'omit',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      method: 'POST',
-    })
-  },
+  post: createAllowlistedPost(postAllowlist),
   writes: false,
 })
