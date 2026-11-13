@@ -152,9 +152,12 @@ export const numericColumnWidth = (column: Column, rows: Row[], tokens: ColumnTo
 export type ColumnLayout = {
   /** Whether each column is numeric (right-aligned). */
   numeric: boolean[]
-  /** Fixed width per column index, undefined where antd sizes it. */
+  /** Fixed width per column index, undefined where antd sizes it. A virtual table sizes every column. */
   widths: (number | undefined)[]
-  /** The table's horizontal scroll floor (fitContent only), undefined when nothing is sized. */
+  /**
+   * The table's numeric scroll.x, undefined when nothing is sized. A fitContent table's is its floor
+   * (every column at its least); a virtual table's is exactly the sum of `widths`.
+   */
   scrollX?: number
 }
 
@@ -171,8 +174,16 @@ export type ColumnLayout = {
  *   the viewport), so when the text columns' headers do not fit it squeezes them proportionally and
  *   their headers ellipsize, full title on hover. A fitContent table keeps them and scrolls.
  *
- * Before the container is measured the text columns are left to antd (an equal share). A table with
- * no tag or numeric column is left exactly as it was.
+ * A VIRTUAL table gets a width for EVERY column, and a scroll.x that is their sum. antd draws it as
+ * two pieces lined up only by those widths: a fixed-layout header table, and a virtual list whose
+ * cells are positioned from each column's width. A column antd sizes itself, or a scroll.x that is
+ * not the sum (antd reads a non-numeric one as 1), lets the two disagree, and the body drifts under
+ * the header. So a virtual table's text columns are sized even with no tag or numeric column beside
+ * them, and sit at their floors until the container is measured; a column whose author width is a
+ * CSS length, which a sum cannot hold, shares the room as a text column.
+ *
+ * Before the container is measured a fitContent table's text columns are left to antd (an equal
+ * share). A fitContent table with no tag or numeric column is left exactly as it was.
  */
 export const columnLayout = (
   columns: Column[],
@@ -182,24 +193,39 @@ export const columnLayout = (
 ): ColumnLayout => {
   const numeric = columns.map((column) => isNumericColumn(rows, column.valueKey))
   const sized = columns.map((column, index) => tagColumnWidth(column, rows, tokens) ?? (numeric[index] ? numericColumnWidth(column, rows, tokens) : undefined))
-  if (sized.every((width) => width === undefined)) { return { numeric, widths: sized } }
+  if (!virtual && sized.every((width) => width === undefined)) { return { numeric, widths: sized } }
 
   // The author's px width counts as fixed; every other unsized column is a text column.
   const fixed = sized.map((width, index) => width ?? pxWidth(columns[index]))
-  const text = columns.map((_, index) => index).filter((index) => fixed[index] === undefined && typeof columns[index].width !== 'string')
+  const text = columns.map((_, index) => index).filter((index) => fixed[index] === undefined && (virtual || typeof columns[index].width !== 'string'))
   const floors = new Map(text.map((index) => [index, Math.max(headerWidth(columns[index], tokens), columns[index].minWidth ?? 0)]))
   const floorSum = [...floors.values()].reduce((sum, floor) => sum + floor, 0)
   const fixedSum = fixed.reduce<number>((sum, width) => sum + (width ?? 0), 0)
-  const scrollX = virtual ? undefined : fixedSum + floorSum
+  const scrollX = fixedSum + floorSum
+  // Every column of a virtual table has a width (the author's px width where nothing else sized it),
+  // and its scroll.x is exactly their sum.
+  const virtualLayout = (widths: (number | undefined)[]): ColumnLayout => {
+    const every = fixed.map((width, index) => width ?? widths[index] ?? floors.get(index) ?? 0)
+    return { numeric, scrollX: every.reduce((sum, width) => sum + width, 0), widths: every }
+  }
 
   const room = containerWidth - fixedSum
-  if (containerWidth <= 0 || !text.length || (room < floorSum && !virtual)) { return { numeric, scrollX, widths: sized } }
+  if (containerWidth <= 0 || !text.length || (room < floorSum && !virtual)) {
+    // A virtual table not measured yet, or with nothing to share, takes each text column at its floor.
+    return virtual ? virtualLayout([]) : { numeric, scrollX, widths: sized }
+  }
 
   const widths = [...sized]
   if (room < floorSum) {
-    // Squeezed: every text column keeps the same share of its floor. Never below a column's padding.
-    text.forEach((index) => { widths[index] = Math.max(tokens.cellPadding, Math.floor((floors.get(index) ?? 0) * room / floorSum)) })
-    return { numeric, scrollX, widths }
+    // Squeezed (virtual only): every text column keeps the same share of its floor, and the last one
+    // the rounding, so together they fill the room exactly. Never below a column's padding.
+    let left = room
+    text.forEach((index, position) => {
+      const share = position === text.length - 1 ? left : Math.floor((floors.get(index) ?? 0) * room / floorSum)
+      widths[index] = Math.max(tokens.cellPadding, share)
+      left -= share
+    })
+    return virtualLayout(widths)
   }
   const wants = new Map(text.map((index) => {
     const content = Math.ceil(longestValue(rows, columns[index].valueKey, () => true) * tokens.cellFontSize * TEXT_GLYPH_EM + tokens.cellPadding)
@@ -214,7 +240,7 @@ export const columnLayout = (
     widths[index] = width
     left -= width
   })
-  return { numeric, scrollX, widths }
+  return virtual ? virtualLayout(widths) : { numeric, scrollX, widths }
 }
 
 /**

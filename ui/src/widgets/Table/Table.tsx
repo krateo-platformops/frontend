@@ -187,6 +187,13 @@ const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRef
   // is the virtual list's own scrollbar, hidden at rest and drawn at the foot of the 640px viewport,
   // so a scrolling virtual table read as clipped ("Underprovisio" in a Portal Builder preview with
   // the Agentiko rail open, 151 pods) with nothing on screen to scroll it by.
+  //
+  // A virtual table is drawn as a header table and a separate virtual list of rows, lined up by
+  // nothing but the column widths antd is handed. So EVERY column gets a width (columnLayout sizes
+  // them all in virtual mode) and scroll.x is their exact sum. With `x: 'max-content'` (antd reads
+  // it as 1) and the text columns squeezed below their `minWidth`, the header drew the squeezed
+  // widths and the body each column's minWidth: on /reviews every cell from the second column on
+  // started right of its header, 568px against 534px.
   const truncating = Boolean(fitContent) || virtual
   // antd Table cell inline padding: `padding` for large, `paddingXS` for middle and small.
   const cellPadding = 2 * (size === 'large' ? token.padding : token.paddingXS) + (bordered ? token.lineWidth : 0)
@@ -275,7 +282,9 @@ const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRef
 
   const horizontalScroll = fitContent ? undefined : { x: 'max-content' as const }
   const truncatingScroll = truncating && layout.scrollX ? { x: layout.scrollX } : horizontalScroll
-  const layoutScroll = virtual ? { x: 'max-content' as const, y: VIRTUAL_SCROLL_Y } : truncatingScroll
+  // A virtual table's scroll.x is the sum of the widths its columns are given (layout.scrollX), so
+  // its header and its rows lay out the same columns; a resize swaps in the resized sum below.
+  const layoutScroll = virtual ? { x: layout.scrollX, y: VIRTUAL_SCROLL_Y } : truncatingScroll
   const scroll = resized ? { ...layoutScroll, x: resizedScrollX } : layoutScroll
 
   // Pagination: controlled server-side classic pager when the widget opts in
@@ -343,9 +352,9 @@ const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRef
         // (measured height − estimate) to scrollTop when the first row is measured alone, and a
         // wrapped pod name made that row ~60px taller: the list opened scrolled down, the first row
         // half under the header (Portal Builder recordings, krateo-system pods). A one-line row is
-        // never taller than the estimate, so the correction can only clamp to 0. Virtual tables
-        // already fit the container (antd treats a non-numeric scroll.x as 1), so column widths do
-        // not move; only a cell that used to wrap is now cut, with the full text on hover.
+        // never taller than the estimate, so the correction can only clamp to 0. A virtual table's
+        // columns have fixed widths that fit its container (columnLayout), so a cell that would
+        // wrap is cut instead, with the full text on hover.
         ellipsis: fitContent || virtual ? { showTitle: true } : undefined,
         key: `${uid}-col-${index}`,
         // Per-column sizing, straight through to antd (ColumnType.width / .minWidth). Both optional:
@@ -354,7 +363,12 @@ const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRef
         // minWidth is usually the one you want. Under fitContent the table shrinks to its container,
         // so a fixed `width` on every column just re-creates the overflow it was meant to fix, while
         // a floor keeps one column readable and lets the rest flex around it.
-        minWidth,
+        //
+        // Not in a VIRTUAL table: there antd positions each body cell at the larger of width and
+        // minWidth while the header table draws `width`, so a column squeezed below its minWidth (to
+        // fit the container) or resized below it put every later cell right of its header. Its
+        // minWidth is a floor columnLayout already sizes the column to, and `width` is the only one.
+        minWidth: virtual ? undefined : minWidth,
         // The resize handle's wiring, read by TableResizableHeaderCell; antd merges it with the
         // sorter's own th props. Cast: onHeaderCell is typed as plain th attributes. Without it
         // (resizableColumns: false) the cell renders a plain th, with no handle.

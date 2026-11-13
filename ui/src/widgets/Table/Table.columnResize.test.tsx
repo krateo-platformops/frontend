@@ -212,12 +212,16 @@ describe('Table — resizing a virtual table', () => {
   it('keeps its one-line ellipsis cells and takes the new width', () => {
     const { container } = renderTable(widgetData(VIRTUAL_ROW_THRESHOLD))
     expect(container.querySelector('.ant-table-virtual')).not.toBeNull()
+    // A virtual table sizes every column (its header and rows line up by nothing else), so the
+    // resize starts from the column's laid-out width, not DEFAULT_COLUMN_WIDTH.
+    const start = Number.parseFloat(colWidths(container)[1])
+    expect(start).toBeGreaterThan(0)
 
     fireEvent.keyDown(handles(container)[1], { key: 'ArrowRight' })
 
     expect(container.querySelector('.ant-table-virtual')).not.toBeNull()
     expect([...container.querySelectorAll('th')].every((th) => th.classList.contains('ant-table-cell-ellipsis'))).toBe(true)
-    expect(colWidths(container)[1]).toBe(`${DEFAULT_COLUMN_WIDTH + KEYBOARD_STEP}px`)
+    expect(colWidths(container)[1]).toBe(`${start + KEYBOARD_STEP}px`)
   })
 })
 

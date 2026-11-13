@@ -83,11 +83,14 @@ test.describe('virtual Table — body cells under their headers', () => {
     await page.waitForTimeout(300)
     const before = await measure(page)
 
-    await dragHandle(page, 0, -60)
+    // The Kind column (tags, no minWidth): narrowed, the columns no longer add up to the box, and antd
+    // spreads the difference over all of them, so the next column moves by a share of the drag.
+    await dragHandle(page, 2, -30)
     const narrowed = await measure(page)
-    expect(narrowed.headers[1], 'the drag moved the second column').toBeLessThan(before.headers[1] - 30)
+    expect(narrowed.headers[3], 'the drag moved the column after it').toBeLessThan(before.headers[3] - 3)
     expectAligned(narrowed, 'narrowed')
 
+    // The Subject column: widened, the columns are wider than the box and the table scrolls sideways.
     await dragHandle(page, 1, 400)
     const widened = await measure(page)
     expect(widened.headers[2], 'the drag moved the third column').toBeGreaterThan(narrowed.headers[2] + 300)

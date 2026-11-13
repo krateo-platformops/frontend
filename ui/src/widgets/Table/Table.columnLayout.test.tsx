@@ -145,8 +145,11 @@ describe('columnLayout — numeric and text columns', () => {
     const containerWidth = fixed + 60
     const { scrollX, widths } = columnLayout(columns, rows, tokens, { containerWidth, virtual: true })
 
-    expect(scrollX).toBeUndefined()
-    expect((widths[0] ?? 0) + (widths[1] ?? 0)).toBeLessThanOrEqual(60)
+    expect((widths[0] ?? 0) + (widths[1] ?? 0)).toBe(60)
+    // Every column sized, and scroll.x their sum: antd lines a virtual table's header and rows up by
+    // nothing else (Table.virtualColumns.test.tsx).
+    expect(widths.every((width) => typeof width === 'number')).toBe(true)
+    expect(scrollX).toBe(containerWidth)
   })
 
   it('a fitContent table too narrow for every header keeps their floors and scrolls', () => {
