@@ -23,6 +23,7 @@ const CASES: Record<string, number[]> = {
   Button: [1, 2, 3, 34],
   Card: [2, 4, 16],
   Checkbox: [0],
+  Collapse: [0],
   DatePicker: [0],
   Descriptions: [0],
   Divider: [0, 1],
