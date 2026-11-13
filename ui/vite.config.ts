@@ -167,8 +167,8 @@ export default defineConfig({
    * are the fix. If flakiness survives this, capping is the next lever, not the first.
    */
   test: {
-    // visual/ holds Playwright specs (run in their container by `npm run visual`), not vitest suites.
-    exclude: [...configDefaults.exclude, 'visual/**'],
+    // visual/ and e2e/ hold Playwright specs (`npm run visual`, `npm run e2e`), not vitest suites.
+    exclude: [...configDefaults.exclude, 'visual/**', 'e2e/**'],
     hookTimeout: 30000,
     setupFiles: ['./src/test/setup.ts'],
     testTimeout: 30000,
