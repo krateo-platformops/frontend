@@ -16,6 +16,10 @@ export interface Markdown {
      */
     widgetData: {
       /**
+       * the alignment of the text: `left`, `center` or `right`. Absent: the alignment it inherits
+       */
+      align?: 'left' | 'center' | 'right'
+      /**
        * displays a copy button on top of the widget to allow copy to clipboard
        */
       allowCopy?: boolean

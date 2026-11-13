@@ -1,7 +1,8 @@
 import type { JSONSchema4 } from 'json-schema'
 
 import { ROW } from './fieldDependencies'
-import { CHECK_KEY, CHECKBOX_KEY, HELP_KEY, INTERNAL_KEYS, OPTIONS_KEY, REQUIRED_MESSAGE_KEY, ROW_TITLE_KEY, SUGGESTIONS_KEY, TEXTAREA_KEY, VISIBLE_WHEN_KEY } from './fieldKeys'
+import { fieldInputOf, takesFieldInput } from './fieldInputs'
+import { CHECK_KEY, CHECKBOX_KEY, HELP_KEY, INPUT_KEY, INTERNAL_KEYS, OPTIONS_KEY, REQUIRED_MESSAGE_KEY, ROW_TITLE_KEY, SUGGESTIONS_KEY, TEXTAREA_KEY, VISIBLE_WHEN_KEY } from './fieldKeys'
 
 /**
  * The field configuration of a schema form, as `widgetData` carries it — the format of the
@@ -25,6 +26,8 @@ import { CHECK_KEY, CHECKBOX_KEY, HELP_KEY, INTERNAL_KEYS, OPTIONS_KEY, REQUIRED
  *   - { name: phone, text: Start with + and your country code. }
  * fieldChecks:             # a check against an allow-listed endpoint while typing (fieldCheck.tsx)
  *   - { name: username, path: /intake/checks, answers: [...], otherwise: {...} }
+ * fieldInputs:             # a field's placeholder, input type and autocomplete token (fieldInputs.ts)
+ *   - { name: email, type: email, autoComplete: email, placeholder: jane@example.com }
  * textareas:               # a string drawn as a multi-line TextArea
  *   - { name: description, rows: 4 }
  * validationMessages:      # the message a required field shows when left empty
@@ -225,6 +228,13 @@ export const applyFieldConfig = (schema: JSONSchema4 | undefined, config: Raw): 
     const node = at(entry.name)
     if (node?.type !== 'string' || Array.isArray(node.enum) || Array.isArray(node.oneOf)) { continue }
     node[TEXTAREA_KEY] = typeof entry.rows === 'number' ? { rows: entry.rows } : {}
+  }
+
+  // A field's input: a string-valued leaf that is not a secret. Any other entry is skipped.
+  for (const entry of entries(config.fieldInputs)) {
+    const node = at(entry.name)
+    const input = node && takesFieldInput(node) ? fieldInputOf(entry) : undefined
+    if (node && input) { node[INPUT_KEY] = input }
   }
 
   // The message a required field shows when it is left empty, in place of "<Label> is required".

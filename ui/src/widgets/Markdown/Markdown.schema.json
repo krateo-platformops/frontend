@@ -21,6 +21,15 @@
             "markdown"
           ],
           "properties": {
+            "align": {
+              "type": "string",
+              "description": "the alignment of the text: `left`, `center` or `right`. Absent: the alignment it inherits",
+              "enum": [
+                "left",
+                "center",
+                "right"
+              ]
+            },
             "allowCopy": {
               "description": "displays a copy button on top of the widget to allow copy to clipboard",
               "type": "boolean"

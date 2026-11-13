@@ -256,3 +256,28 @@
   width: 9px;
 }
 
+/* `centered`: the card sits in the middle of its container (with `maxWidth`, a narrow column). */
+.centered {
+  margin-inline: auto;
+}
+
+/* `brand`: the sign-in card's frame (pages/Login .card and .body), on the same tokens — the
+   larger radius, the small elevation, and the body's padding under the band. Two and three
+   classes, to outrank antd's own `:where(…).ant-card` radius and body padding. */
+.panel.branded {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-sm);
+  overflow: hidden;
+}
+
+.panel.branded .brandBody {
+  padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl);
+}
+
+/* Phone: the narrower gutter the sign-in card has there. */
+@media (width <= 480px) {
+  .panel.branded .brandBody {
+    padding: var(--spacing-lg);
+  }
+}
+

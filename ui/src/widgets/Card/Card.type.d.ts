@@ -24,6 +24,14 @@ export interface Card {
        */
       anchorId?: string
       /**
+       * draws the sign-in card's brand: the brand band with the logo across the top of the card (above any `cover`), the sign-in card's radius, elevation and body padding, and the installation line ("to Krateo PlatformOps · <installation>") under the heading of the content — the `title` of a Form in the card — so the line goes with that heading when a Result replaces the form. The logo and the installation's name come from the frontend's own config (`login.logoUrl`, `login.logoAlt`, `login.installationName`), never from the CR
+       */
+      brand?: boolean
+      /**
+       * centres the card horizontally in its container; with `maxWidth`, a narrow centred column
+       */
+      centered?: boolean
+      /**
        * the id of the action to be executed when the panel is clicked
        */
       clickActionId?: string
@@ -100,6 +108,10 @@ export interface Card {
        * show a pulsing "Live" badge next to the card title (for cards backed by a live/SSE feed)
        */
       live?: boolean
+      /**
+       * the widest the card grows, in pixels; it fills its container up to that width. Absent: it fills its container
+       */
+      maxWidth?: number
       /**
        * antd Card size
        */

@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Card as AntdCard, Badge, Button, Tag, Tooltip } from 'antd'
 import useApp from 'antd/es/app/useApp'
 
+import { BrandBand, BrandFrameContext, useBrand } from '../../components/BrandFrame'
 import RefChild from '../../components/RefChild'
 import StatusPill from '../../components/StatusPill'
 import WidgetRenderer from '../../components/WidgetRenderer'
@@ -60,8 +61,19 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
   const { handleAction, isActionLoading } = useHandleAction()
 
   // antd Card reserves `actions` for footer nodes, so the Krateo event map is `widgetActions`.
-  const { anchorId, clickActionId, cover, extra, extraRefId, extraStatus, extraVariant, footer, headerLeft, icon, items, legend, live, size, tags, title, titleVariant, tooltip, variant, widgetActions } = widgetData
+  const { anchorId, brand, centered, clickActionId, cover, extra, extraRefId, extraStatus, extraVariant, footer, headerLeft, icon, items, legend, live, maxWidth, size, tags, title, titleVariant, tooltip, variant, widgetActions } = widgetData
   const coverEndpoint = cover ? getEndpointUrl(cover, resourcesRefs) : undefined
+  // `brand`: the sign-in card's band (logo from the frontend's own config.login, never from the CR)
+  // across the top, above any `cover` widget. The installation line is drawn by the heading of the
+  // framed content (BrandFrameContext), so it goes with that heading.
+  const { logoAlt, logoSrc } = useBrand()
+  const coverWidget = coverEndpoint ? <WidgetRenderer widgetEndpoint={coverEndpoint} /> : undefined
+  const coverNode = brand ? <><BrandBand logoAlt={logoAlt} logoSrc={logoSrc} />{coverWidget}</> : coverWidget
+  // The frame options, all opt-in: absent, the card's class, body class and style are as before.
+  const frameClasses = [brand ? styles.branded : '', centered ? styles.centered : ''].filter(Boolean).join(' ')
+  const frameStyle = typeof maxWidth === 'number' && maxWidth > 0 ? { maxWidth, width: '100%' } : undefined
+  const anchorStyle = anchorId ? { scrollMarginTop: 80 } : undefined
+  const cardStyle = frameStyle || anchorStyle ? { ...anchorStyle, ...frameStyle } : undefined
   // #83 §0.7: a real header-action slot — a nested widget (e.g. a Button with its own action) in the
   // card header's top-right, distinct from the plain-text `extra`. Unlike `extra` + `clickActionId`
   // (which makes the WHOLE card the click target), this action is self-contained.
@@ -152,9 +164,9 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
 
   return (
     <AntdCard
-      className={`${styles.panel} ${action ? styles.clickable : ''} ${!title && !cover && !footer && !!items?.length ? styles.statCard : ''} ${extraEndpoint ? styles.hasExtraAction : ''}`}
-      classNames={{ body: styles.bodyWrapper, header: styles.header, title: styles.title }}
-      cover={coverEndpoint ? <WidgetRenderer widgetEndpoint={coverEndpoint} /> : undefined}
+      className={[`${styles.panel} ${action ? styles.clickable : ''} ${!title && !cover && !footer && !brand && !!items?.length ? styles.statCard : ''} ${extraEndpoint ? styles.hasExtraAction : ''}`, frameClasses].filter(Boolean).join(' ')}
+      classNames={{ body: brand ? `${styles.bodyWrapper} ${styles.brandBody}` : styles.bodyWrapper, header: styles.header, title: styles.title }}
+      cover={coverNode}
       // `anchorId` makes this panel an in-page scroll target: a `[…](#anchorId)` link (e.g. from a
       // summary/table-of-contents Markdown widget) scrolls here. scroll-margin-top clears the sticky
       // app header so the panel top isn't hidden under it. (issue #69 — summary bullets as a ToC.)
@@ -192,7 +204,7 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
       onKeyDown={onKeyDown}
       role={isClickable ? 'button' : undefined}
       size={size}
-      style={anchorId ? { scrollMarginTop: 80 } : undefined}
+      style={cardStyle}
       tabIndex={isClickable ? 0 : undefined}
       title={
         title
@@ -218,21 +230,23 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
           <FontAwesomeIcon icon={resolveFaIcon(icon.name)} />
         </span>
       )}
-      <div className={styles.content}>
-        {headerLeft && panelHeader}
-        <div className={`${styles.body} ${icon && !headerLeft ? styles.clearsIcon : ''}`}>
-          {items.map(({ resourceRefId }, index) => (
-            <RefChild
-              deniedRefIds={deniedRefIds}
-              key={`${uid}-${index}`}
-              label='card item'
-              resourceRefId={resourceRefId}
-              resourcesRefs={resourcesRefs}
-            />
-          ))}
+      <BrandFrameContext.Provider value={!!brand}>
+        <div className={styles.content}>
+          {headerLeft && panelHeader}
+          <div className={`${styles.body} ${icon && !headerLeft ? styles.clearsIcon : ''}`}>
+            {items.map(({ resourceRefId }, index) => (
+              <RefChild
+                deniedRefIds={deniedRefIds}
+                key={`${uid}-${index}`}
+                label='card item'
+                resourceRefId={resourceRefId}
+                resourcesRefs={resourcesRefs}
+              />
+            ))}
+          </div>
+          {footer && panelFooter}
         </div>
-        {footer && panelFooter}
-      </div>
+      </BrandFrameContext.Provider>
     </AntdCard>
   )
 }

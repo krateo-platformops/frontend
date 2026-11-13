@@ -86,7 +86,7 @@ const CodeBlock = ({ children }: { children?: ReactNode }) => {
 }
 
 const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
-  const { allowCopy, allowDownload, downloadFileExtension = 'txt', markdown } = widgetData
+  const { align, allowCopy, allowDownload, downloadFileExtension = 'txt', markdown } = widgetData
 
   const [isCopied, setIsCopied] = useState(false)
 
@@ -103,7 +103,8 @@ const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
   }
 
   return (
-    <div className={styles.markdown}>
+    // `align`, opt-in: absent, the text keeps the alignment it inherits (no inline style at all).
+    <div className={styles.markdown} style={align ? { textAlign: align } : undefined}>
       {hasActions && (
         <div className={styles.actions}>
           {allowCopy && (
