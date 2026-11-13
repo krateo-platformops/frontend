@@ -19,14 +19,13 @@ vi.mock('../../components/RefChild', () => {
 })
 
 import Card from './Card'
-import type { CardWidgetData } from './Card'
 
 afterEach(() => { cleanup() })
 
 const renderCard = (data: Record<string, unknown>) => render(
   <MemoryRouter>
     <App>
-      <Card resourcesRefs={{ items: [] }} uid='c1' widget={{} as never} widgetData={{ items: [{ resourceRefId: 'form' }, { resourceRefId: 'signin' }], ...data } as unknown as CardWidgetData} />
+      <Card resourcesRefs={{ items: [] }} uid='c1' widget={{} as never} widgetData={{ items: [{ resourceRefId: 'form' }, { resourceRefId: 'signin' }], ...data }} />
     </App>
   </MemoryRouter>,
 ).container
