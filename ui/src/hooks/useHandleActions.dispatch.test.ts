@@ -210,6 +210,66 @@ describe('dispatchAction — routing + non-SSE rest paths', () => {
 })
 
 /**
+ * The single-op write's Content-Type. A string body with no declared type goes out as
+ * `text/plain;charset=UTF-8` (Fetch spec, body extraction); snowplow forwards it, and the apiserver
+ * refuses the write with 415. So runRest defaults it exactly as the set fabric does — merge-patch
+ * for PATCH, JSON otherwise — and leaves a chart-declared one alone.
+ */
+describe('dispatchAction — the single-op rest write declares its Content-Type', () => {
+  afterEach(() => { vi.unstubAllGlobals() })
+
+  const ref = (verb: 'DELETE' | 'PATCH' | 'POST' | 'PUT') =>
+    ({ allowed: true, id: 'ref', path: '/api/v1/namespaces/demo/configmaps/cm', payload: { data: { k: 'v' } }, verb })
+
+  /** Dispatch one rest action against `verb` and return the init of the ONE request it sent. */
+  const sentInit = async (verb: 'DELETE' | 'PATCH' | 'POST' | 'PUT', headers?: string[]): Promise<RequestInit> => {
+    const fetchMock = vi.fn((_url: string, _init: RequestInit) => Promise.resolve(fakeResponse(true, '{}')))
+    vi.stubGlobal('fetch', fetchMock)
+    const action = { id: 'a', resourceRefId: 'ref', type: 'rest', ...(headers ? { headers } : {}) } as WidgetAction
+    await dispatchAction(action, { resourcesRefs: refs([ref(verb)]) }, makeCtx())
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    return fetchMock.mock.calls[0][1]
+  }
+
+  const sentHeaders = async (verb: 'DELETE' | 'PATCH' | 'POST' | 'PUT', headers?: string[]): Promise<Record<string, string>> =>
+    (await sentInit(verb, headers)).headers as Record<string, string>
+
+  /** Every header the request carries whose name is Content-Type, in any case. */
+  const contentTypes = (headers: Record<string, string>): string[] =>
+    Object.entries(headers).filter(([name]) => name.toLowerCase() === 'content-type').map(([, value]) => value)
+
+  it('a PATCH with `headers: []` goes out as a merge-patch', async () => {
+    expect(contentTypes(await sentHeaders('PATCH', []))).toEqual(['application/merge-patch+json'])
+  })
+
+  it('a POST with no headers goes out as JSON', async () => {
+    expect(contentTypes(await sentHeaders('POST'))).toEqual(['application/json'])
+  })
+
+  it('a PUT with no headers goes out as JSON', async () => {
+    expect(contentTypes(await sentHeaders('PUT', []))).toEqual(['application/json'])
+  })
+
+  it('a declared json-patch Content-Type on a PATCH is sent unchanged', async () => {
+    const headers = await sentHeaders('PATCH', ['Content-Type: application/json-patch+json'])
+    expect(contentTypes(headers)).toEqual(['application/json-patch+json'])
+    expect(headers['Content-Type']).toBe('application/json-patch+json')
+  })
+
+  it('a lower-case `content-type` header is respected and not duplicated', async () => {
+    const headers = await sentHeaders('PATCH', ['content-type: application/strategic-merge-patch+json'])
+    expect(contentTypes(headers)).toEqual(['application/strategic-merge-patch+json'])
+    expect(headers['Content-Type']).toBeUndefined()
+  })
+
+  it('a DELETE sends no body and no Content-Type', async () => {
+    const init = await sentInit('DELETE', [])
+    expect(init.body).toBeUndefined()
+    expect(contentTypes(init.headers as Record<string, string>)).toEqual([])
+  })
+})
+
+/**
  * Controllable subscription on the shared SSE client, for the onEventNavigateTo path.
  *
  * Handed in as the context's `subscribeSse` (the session's shared client) rather than stubbed at the global: the transport (fetch + Bearer,
