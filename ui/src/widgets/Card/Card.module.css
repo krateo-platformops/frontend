@@ -293,6 +293,13 @@
     max-width: none;
   }
 
+  /* A branded one is the whole screen, on its own surface: it stretches to the viewport's height,
+     as the sign-in card does (pages/Login .card: min-height 100% of its full-height page). The
+     page keeps its own ground; nothing is painted behind the card. */
+  .panel.branded.centered.capped {
+    min-height: 100dvh;
+  }
+
   .panel.branded .brandBody {
     padding: var(--spacing-lg);
   }
