@@ -8,17 +8,28 @@
  * UX-19 (honesty): on a portal WITHOUT the agent the deep-link used to silently no-op. It then
  * showed a notification; since the licence model (licence.ts) the locked rail IS the explanation —
  * it opens on the "Activate licence" panel, which says what the agent does and how to get it — so
- * the unlicensed path calls `onLocked` instead. Both paths strip the consumed param (replace, not
+ * the unlicensed path calls `onRefused` instead. Both paths strip the consumed param (replace, not
  * push) so refreshes and re-renders don't re-fire; normal navigation stays intact.
+ *
+ * #653: LICENSED IS NOT REACHABLE. With the licence in place but the agent not answering (not deployed,
+ * down, or this user refused by the gateway: availability.ts), the click used to go down the licensed
+ * path: it archived the conversation that was open, started a new thread and sent a turn that could
+ * only fail — an empty chat with an error in it, for a button that could never have worked. Now an
+ * unreachable agent gets `onRefused` like an unlicensed one: the rail opens and says why (its
+ * "unavailable" note, or the licence panel), and the conversation is left alone. While the first
+ * probe has not answered (`checking`) the param is held, not consumed — a page opened straight on an
+ * `?ask=` link waits a moment for the verdict instead of guessing it.
  */
 
 import { useEffect, useRef } from 'react'
 import { useLocation, useSearchParams } from 'react-router'
 
-/** Consume the `?ask=` deep-link. Licensed: seed one turn per navigation that carries it, via
- * `onAsk`. Not licensed: `onLocked` (the provider opens the locked rail). Either way the param is
- * stripped. No `ask` present: no-op. */
-export const useAskDeepLink = (licensed: boolean, onAsk: (ask: string) => void, onLocked: () => void): void => {
+import type { AskAccess } from './availability'
+
+/** Consume the `?ask=` deep-link. `ready`: seed one turn per navigation that carries it, via
+ * `onAsk`. `locked` or `unavailable`: `onRefused` (the provider opens the rail, which explains).
+ * Either way the param is stripped. `checking`: wait for the verdict. No `ask` present: no-op. */
+export const useAskDeepLink = (access: AskAccess, onAsk: (ask: string) => void, onRefused: () => void): void => {
   const [searchParams, setSearchParams] = useSearchParams()
   const { key } = useLocation()
   /*
@@ -32,17 +43,17 @@ export const useAskDeepLink = (licensed: boolean, onAsk: (ask: string) => void, 
   const handledKeyRef = useRef<string | null>(null)
   useEffect(() => {
     const ask = searchParams.get('ask')
-    if (!ask) { return }
+    if (!ask || access === 'checking') { return }
     if (handledKeyRef.current !== key) {
       handledKeyRef.current = key
-      if (licensed) {
+      if (access === 'ready') {
         onAsk(ask)
       } else {
-        onLocked()
+        onRefused()
       }
     }
     const next = new URLSearchParams(searchParams)
     next.delete('ask')
     setSearchParams(next, { replace: true })
-  }, [key, licensed, onAsk, onLocked, searchParams, setSearchParams])
+  }, [access, key, onAsk, onRefused, searchParams, setSearchParams])
 }
